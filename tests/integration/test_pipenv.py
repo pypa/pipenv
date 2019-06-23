@@ -28,9 +28,9 @@ def test_code_import_manual(PipenvInstance):
 @pytest.mark.lock
 @pytest.mark.deploy
 @pytest.mark.cli
-def test_deploy_works(PipenvInstance, pypi):
+def test_deploy_works(PipenvInstance):
 
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -61,9 +61,9 @@ requests = "==2.14.0"
 
 @pytest.mark.update
 @pytest.mark.lock
-def test_update_locks(PipenvInstance, pypi):
+def test_update_locks(PipenvInstance):
 
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance() as p:
         c = p.pipenv('install requests==2.14.0')
         assert c.return_code == 0
         with open(p.pipfile_path, 'r') as fh:
@@ -82,8 +82,8 @@ def test_update_locks(PipenvInstance, pypi):
 
 @pytest.mark.project
 @pytest.mark.proper_names
-def test_proper_names_unamanged_virtualenv(PipenvInstance, pypi):
-    with PipenvInstance(chdir=True, pypi=pypi):
+def test_proper_names_unamanged_virtualenv(PipenvInstance):
+    with PipenvInstance(chdir=True):
         c = delegator.run('python -m virtualenv .venv')
         assert c.return_code == 0
         project = Project()

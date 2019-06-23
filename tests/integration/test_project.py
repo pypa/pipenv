@@ -39,8 +39,8 @@ pytz = "*"
 @pytest.mark.project
 @pytest.mark.sources
 @pytest.mark.parametrize('lock_first', [True, False])
-def test_get_source(PipenvInstance, pypi, lock_first):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_get_source(PipenvInstance, lock_first):
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -86,8 +86,8 @@ six = {{version = "*", index = "pypi"}}
 @pytest.mark.install
 @pytest.mark.project
 @pytest.mark.parametrize('newlines', [u'\n', u'\r\n'])
-def test_maintain_file_line_endings(PipenvInstance, pypi, newlines):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_maintain_file_line_endings(PipenvInstance, newlines):
+    with PipenvInstance(chdir=True) as p:
         # Initial pipfile + lockfile generation
         c = p.pipenv('install pytz')
         assert c.return_code == 0
@@ -122,8 +122,8 @@ def test_maintain_file_line_endings(PipenvInstance, pypi, newlines):
 
 @pytest.mark.project
 @pytest.mark.sources
-def test_many_indexes(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_many_indexes(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -154,11 +154,11 @@ six = {{version = "*", index = "pypi"}}
 
 @pytest.mark.install
 @pytest.mark.project
-def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpdir):
+def test_include_editable_packages(PipenvInstance, testsroot, pathlib_tmpdir):
     file_name = "requests-2.19.1.tar.gz"
     package = pathlib_tmpdir.joinpath("requests-2.19.1")
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+    with PipenvInstance(chdir=True) as p:
         with tarfile.open(source_path, "r:gz") as tarinfo:
             tarinfo.extractall(path=str(pathlib_tmpdir))
         c = p.pipenv('install -e {}'.format(package))
@@ -172,8 +172,8 @@ def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpd
 
 @pytest.mark.project
 @pytest.mark.virtualenv
-def test_run_in_virtualenv_with_global_context(PipenvInstance, pypi, virtualenv):
-    with PipenvInstance(chdir=True, pypi=pypi, venv_root=virtualenv.as_posix(), ignore_virtualenvs=False, venv_in_project=False) as p:
+def test_run_in_virtualenv_with_global_context(PipenvInstance, virtualenv):
+    with PipenvInstance(chdir=True, venv_root=virtualenv.as_posix(), ignore_virtualenvs=False, venv_in_project=False) as p:
         c = delegator_run(
             "pipenv run pip freeze", cwd=os.path.abspath(p.path),
             env=os.environ.copy()
@@ -210,8 +210,8 @@ def test_run_in_virtualenv_with_global_context(PipenvInstance, pypi, virtualenv)
 
 @pytest.mark.project
 @pytest.mark.virtualenv
-def test_run_in_virtualenv(PipenvInstance, pypi):
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+def test_run_in_virtualenv(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         c = p.pipenv('run pip freeze')
         assert c.return_code == 0
         assert 'Creating a virtualenv' in c.err

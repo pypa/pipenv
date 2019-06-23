@@ -1,5 +1,6 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
+import io
 import json as simplejson
 import logging
 import os
@@ -13,7 +14,7 @@ import six
 import urllib3.util as urllib3_util
 import vistir
 
-import click_completion
+from click_completion import init as init_completion
 import delegator
 import dotenv
 import pipfile
@@ -26,7 +27,8 @@ from .environments import (
     PIPENV_CACHE_DIR, PIPENV_COLORBLIND, PIPENV_DEFAULT_PYTHON_VERSION,
     PIPENV_DONT_USE_PYENV, PIPENV_HIDE_EMOJIS, PIPENV_MAX_SUBPROCESS,
     PIPENV_PYUP_API_KEY, PIPENV_SHELL_FANCY, PIPENV_SKIP_VALIDATION,
-    PIPENV_YES, SESSION_IS_INTERACTIVE, PIP_EXISTS_ACTION, PIPENV_RESOLVE_VCS
+    PIPENV_YES, SESSION_IS_INTERACTIVE, PIP_EXISTS_ACTION, PIPENV_RESOLVE_VCS,
+    is_type_checking
 )
 from .project import Project, SourceNotFound
 from .utils import (
@@ -37,6 +39,12 @@ from .utils import (
     proper_case, python_version, venv_resolve_deps, run_command,
     is_python_command, find_python, make_posix, interrupt_handled_subprocess
 )
+
+
+if is_type_checking():
+    from typing import Dict, List, Mapping, Optional, Union
+    from pipenv.vendor.requirementslib.models.requirements import Requirement
+    TSourceDict = Dict[str, Union[str, bool]]
 
 
 # Packages that should be ignored later.
@@ -73,7 +81,7 @@ else:
     INSTALL_LABEL2 = "   "
     STARTING_LABEL = "   "
 # Enable shell completion.
-click_completion.init()
+init_completion()
 # Disable colors, for the color blind and others who do not prefer colors.
 if PIPENV_COLORBLIND:
     crayons.disable()
@@ -737,12 +745,6 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 os.environ["PIP_USER"] = vistir.compat.fs_str("0")
                 if "PYTHONHOME" in os.environ:
                     del os.environ["PYTHONHOME"]
-            if not install_deps and not environments.PIPENV_RESOLVE_VCS:
-                link = getattr(dep.req, "link", None)
-                is_wheel = False
-                if link:
-                    is_wheel = link.is_wheel
-                install_deps = dep.is_file_or_url and not (is_wheel or dep.editable)
             c = pip_install(
                 dep,
                 ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
@@ -1281,12 +1283,168 @@ def do_init(
         )
 
 
+def get_pip_args(
+    pre=False,  # type: bool
+    verbose=False,  # type: bool,
+    upgrade=False,  # type: bool,
+    require_hashes=False,  # type: bool,
+    no_build_isolation=False,  # type: bool,
+    no_use_pep517=False,  # type: bool,
+    no_deps=False,  # type: bool,
+    selective_upgrade=False,  # type: bool
+    src_dir=None,  # type: Optional[str]
+):
+    # type: (...) -> List[str]
+    from .vendor.packaging.version import parse as parse_version
+    arg_map = {
+        "pre": ["--pre"],
+        "verbose": ["--verbose"],
+        "upgrade": ["--upgrade"],
+        "require_hashes": ["--require-hashes"],
+        "no_build_isolation": ["--no-build-isolation"],
+        "no_use_pep517": [],
+        "no_deps": ["--no-deps"],
+        "selective_upgrade": [
+            "--upgrade-strategy=only-if-needed", "--exists_action={0}".format(PIP_EXISTS_ACTION or "i")
+        ],
+        "src_dir": src_dir,
+    }
+    if project.environment.pip_version >= parse_version("19.0"):
+        arg_map["no_use_pep517"].append("--no-use-pep517")
+    if project.environment.pip_version < parse_version("19.1"):
+        arg_map["no_use_pep517"].append("--no-build-isolation")
+    arg_set = []
+    for key in arg_map.keys():
+        if key in locals() and locals().get(key):
+            arg_set.extend(arg_map.get(key))
+    return list(vistir.misc.dedup(arg_set))
+
+
+def get_project_index(index=None, trusted_hosts=None):
+    # type: (Optional[Union[str, TSourceDict]], Optional[List[str]]) -> TSourceDict
+    from .vendor.urllib3.util import parse_url
+    if trusted_hosts is None:
+        trusted_hosts = []
+    if isinstance(index, vistir.compat.Mapping):
+        return index
+    try:
+        source = project.find_source(index)
+    except SourceNotFound:
+        index_url = parse_url(index)
+        src_name = project.src_name_from_url(index)
+        verify_ssl = index_url.host not in trusted_hosts
+        source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
+    return source
+
+
+def get_source_list(
+    index=None,  # type: Optional[Union[str, TSourceDict]]
+    extra_indexes=None,  # type: Optional[List[str]]
+    trusted_hosts=None,  # type: Optional[List[str]]
+    pypi_mirror=None,  # type: Optional[str]
+):
+    # type: (...) -> List[TSourceDict]
+    sources = []  # type: List[TSourceDict]
+    if index:
+        sources.append(get_project_index(index))
+    if extra_indexes:
+        if isinstance(extra_indexes, six.string_types):
+            extra_indexes = [extra_indexes,]
+        for source in extra_indexes:
+            extra_src = get_project_index(source)
+            if not sources or extra_src["url"] != sources[0]["url"]:
+                sources.append(extra_src)
+        else:
+            for source in project.pipfile_sources:
+                if not sources or source["url"] != sources[0]["url"]:
+                    sources.append(source)
+    if not sources:
+        sources = project.pipfile_sources
+    if pypi_mirror:
+        sources = [
+            create_mirror_source(pypi_mirror) if is_pypi_url(source["url"]) else source
+            for source in sources
+        ]
+    return sources
+
+
+def get_requirement_line(
+    requirement,  # type: Requirement
+    src_dir=None,  # type: Optional[str]
+    include_hashes=True,  # type: bool
+    format_for_file=False,  # type: bool
+):
+    # type: (...) -> Union[List[str], str]
+    line = None
+    if requirement.vcs or requirement.is_file_or_url:
+        if src_dir and requirement.line_instance.wheel_kwargs:
+            requirement.line_instance._wheel_kwargs.update({
+                "src_dir": src_dir
+            })
+        # if requirement.vcs and requirement.editable:
+            # repo = requirement.req.get_vcs_repo(src_dir=src_dir)
+            # requirement.line_instance.vcsrepo
+            # line = repo.url
+            # name = requirement.name
+            # line = "{0}+".format(requirement.vcs) if requirement.vcs else ""
+            # if requirement.extras:
+            #     name = "{0}{1}".format(name, requirement.extras_as_pip)
+            # line = "{0}{1}#egg={2}".format(
+            #     line, vistir.path.path_to_url(repo.checkout_directory), requirement.name
+            # )
+            # if repo.subdirectory:
+            #     line = "{0}&subdirectory={1}".format(line, repo.subdirectory)
+        # else:
+        line = requirement.line_instance.line
+        if requirement.line_instance.markers:
+            line = '{0}; {1}'.format(line, requirement.line_instance.markers)
+            if not format_for_file:
+                line = '"{0}"'.format(line)
+        if requirement.editable:
+            if not format_for_file:
+                return ["-e", line]
+            return '-e {0}'.format(line)
+        if not format_for_file:
+            return [line,]
+        return line
+    return requirement.as_line(include_hashes=include_hashes, as_list=not format_for_file)
+
+
+def write_requirement_to_file(
+    requirement,  # type: Requirement
+    requirements_dir=None,  # type: Optional[str]
+    src_dir=None,  # type: Optional[str]
+    include_hashes=True  # type: bool
+):
+    # type: (...) -> str
+    if not requirements_dir:
+        requirements_dir = vistir.path.create_tracked_tempdir(
+            prefix="pipenv", suffix="requirements")
+    line = get_requirement_line(
+        requirement, src_dir, include_hashes=include_hashes, format_for_file=True
+    )
+
+    f = vistir.compat.NamedTemporaryFile(
+        prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir,
+        delete=False
+    )
+    if environments.is_verbose():
+        click.echo(
+            "Writing supplied requirement line to temporary file: {0!r}".format(line),
+            err=True
+        )
+    f.write(vistir.misc.to_bytes(line))
+    r = f.name
+    f.close()
+    return r
+
+
 def pip_install(
     requirement=None,
     r=None,
     allow_global=False,
     ignore_hashes=False,
-    no_deps=True,
+    no_deps=None,
     block=True,
     index=None,
     pre=False,
@@ -1298,18 +1456,38 @@ def pip_install(
     use_pep517=True
 ):
     from pipenv.patched.notpip._internal import logger as piplogger
-    from .vendor.vistir.compat import Mapping
-    from .vendor.urllib3.util import parse_url
-    src = []
-    write_to_tmpfile = False
-    if requirement:
-        needs_hashes = not requirement.editable and not ignore_hashes and r is None
-        has_subdir = requirement.is_vcs and requirement.req.subdirectory
-        write_to_tmpfile = needs_hashes or has_subdir
-
+    src_dir = None
     if not trusted_hosts:
         trusted_hosts = []
+
     trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
+    if not allow_global:
+        src_dir = project.virtualenv_src_location
+        # src_dir = os.getenv("PIP_SRC", os.getenv("PIP_SRC_DIR", project.virtualenv_src_location))
+    else:
+        src_dir = os.getenv("PIP_SRC", os.getenv("PIP_SRC_DIR"))
+    if requirement:
+        if requirement.editable or not requirement.hashes:
+            ignore_hashes = True
+        elif not (requirement.is_vcs or requirement.editable or requirement.vcs):
+            ignore_hashes = False
+    line = None
+    if requirement.vcs and not requirement.line_instance.markers:
+        line = get_requirement_line(requirement, src_dir, include_hashes=not ignore_hashes, format_for_file=False)
+    else:
+        r = write_requirement_to_file(
+            requirement, requirements_dir=requirements_dir, src_dir=src_dir,
+            include_hashes=not ignore_hashes
+        )
+    # Try installing for each source in project.sources.
+    sources = get_source_list(
+        index, extra_indexes=extra_indexes, trusted_hosts=trusted_hosts,
+        pypi_mirror=pypi_mirror
+    )
+    if r:
+        with io.open(r, "r") as fh:
+            if "--hash" not in fh.read():
+                ignore_hashes = True
     if environments.is_verbose():
         piplogger.setLevel(logging.INFO)
         if requirement:
@@ -1318,214 +1496,52 @@ def pip_install(
                 err=True,
             )
 
-    if requirement:
-        ignore_hashes = True if not requirement.hashes else ignore_hashes
-
-    # Create files for hash mode.
-    if write_to_tmpfile:
-        if not requirements_dir:
-            requirements_dir = vistir.path.create_tracked_tempdir(
-                prefix="pipenv", suffix="requirements")
-        f = vistir.compat.NamedTemporaryFile(
-            prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir,
-            delete=False
-        )
-        line = requirement.as_line(include_hashes=not ignore_hashes)
-        if environments.is_verbose():
-            click.echo(
-                "Writing requirement line to temporary file: {0!r}".format(line),
-                err=True
-            )
-        f.write(vistir.misc.to_bytes(line))
-        r = f.name
-        f.close()
-
     if requirement and requirement.vcs:
         # Install dependencies when a package is a non-editable VCS dependency.
         # Don't specify a source directory when using --system.
-        if not allow_global and ("PIP_SRC" not in os.environ):
-            src.extend(["--src", "{0}".format(project.virtualenv_src_location)])
-
-    # Try installing for each source in project.sources.
-    if index:
-        if isinstance(index, (Mapping, dict)):
-            index_source = index
-        else:
-            try:
-                index_source = project.find_source(index)
-                index_source = index_source.copy()
-            except SourceNotFound:
-                src_name = project.src_name_from_url(index)
-                index_url = parse_url(index)
-                verify_ssl = index_url.host not in trusted_hosts
-                index_source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
-        sources = [index_source.copy(),]
-        if extra_indexes:
-            if isinstance(extra_indexes, six.string_types):
-                extra_indexes = [extra_indexes,]
-            for idx in extra_indexes:
-                extra_src = None
-                if isinstance(idx, (Mapping, dict)):
-                    extra_src = idx
-                try:
-                    extra_src = project.find_source(idx) if not extra_src else extra_src
-                except SourceNotFound:
-                    src_name = project.src_name_from_url(idx)
-                    src_url = parse_url(idx)
-                    verify_ssl = src_url.host not in trusted_hosts
-                    extra_src = {"url": idx, "verify_ssl": verify_ssl, "name": extra_src}
-                if extra_src["url"] != index_source["url"]:
-                    sources.append(extra_src)
-        else:
-            for idx in project.pipfile_sources:
-                if idx["url"] != sources[0]["url"]:
-                    sources.append(idx)
-    else:
-        sources = project.pipfile_sources
-    if pypi_mirror:
-        sources = [
-            create_mirror_source(pypi_mirror) if is_pypi_url(source["url"]) else source
-            for source in sources
-        ]
-
-    line_kwargs = {"as_list": True, "include_hashes": not ignore_hashes}
-
-    # Install dependencies when a package is a VCS dependency.
-    if requirement and requirement.vcs:
-        ignore_hashes = True
-        # Don't specify a source directory when using --system.
-        src_dir = None
-        if "PIP_SRC" in os.environ:
-            src_dir = os.environ["PIP_SRC"]
-            src = ["--src", os.environ["PIP_SRC"]]
-        if not requirement.editable and not environments.PIPENV_RESOLVE_VCS:
+        if not requirement.editable and no_deps is not True:
             # Leave this off becauase old lockfiles don't have all deps included
             # TODO: When can it be turned back on?
             no_deps = False
-
-        if src_dir is not None:
-            if environments.is_verbose():
-                click.echo("Using source directory: {0!r}".format(src_dir))
-            repo = requirement.req.get_vcs_repo(src_dir=src_dir)
-        else:
-            repo = requirement.req.get_vcs_repo()
-        write_to_tmpfile = True
-        line_kwargs["include_markers"] = False
-        line_kwargs["include_hashes"] = False
-        if not requirements_dir:
-            requirements_dir = vistir.path.create_tracked_tempdir(prefix="pipenv",
-                                                                  suffix="requirements")
-        f = vistir.compat.NamedTemporaryFile(
-            prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir,
-            delete=False
-        )
-        line = "-e " if requirement.editable else ""
-        if requirement.editable or requirement.name is not None:
-            name = requirement.name
-            if requirement.extras:
-                name = "{0}{1}".format(name, requirement.extras_as_pip)
-            line = "{0}{1}#egg={2}".format(
-                line, vistir.path.path_to_url(repo.checkout_directory), requirement.name
-            )
-            if repo.subdirectory:
-                line = "{0}&subdirectory={1}".format(line, repo.subdirectory)
-        else:
-            line = requirement.as_line(**line_kwargs)
-        if environments.is_verbose():
-            click.echo(
-                "Writing requirement line to temporary file: {0!r}".format(line),
-                err=True
-            )
-        f.write(vistir.misc.to_bytes(line))
-        r = f.name
-        f.close()
-
-    # Create files for hash mode.
-    if write_to_tmpfile and not r:
-        if not requirements_dir:
-            requirements_dir = vistir.path.create_tracked_tempdir(
-                prefix="pipenv", suffix="requirements")
-        f = vistir.compat.NamedTemporaryFile(
-            prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir,
-            delete=False
-        )
-        ignore_hashes = True if not requirement.hashes else ignore_hashes
-        line = requirement.as_line(include_hashes=not ignore_hashes)
-        line = "{0} {1}".format(line, " ".join(src))
-        if environments.is_verbose():
-            click.echo(
-                "Writing requirement line to temporary file: {0!r}".format(line),
-                err=True
-            )
-        f.write(vistir.misc.to_bytes(line))
-        r = f.name
-        f.close()
-
-    if (requirement and requirement.editable) and not r:
-        line_kwargs["include_markers"] = False
-        line_kwargs["include_hashes"] = False
-        install_reqs = requirement.as_line(**line_kwargs)
-        if requirement.editable and install_reqs[0].startswith("-e "):
-            req, install_reqs = install_reqs[0], install_reqs[1:]
-            possible_hashes = install_reqs[:]
-            editable_opt, req = req.split(" ", 1)
-            install_reqs = [editable_opt, req] + install_reqs
-
-        # hashes must be passed via a file
-        ignore_hashes = True
-    elif r:
-        install_reqs = ["-r", r]
-        with open(r) as f:
-            if "--hash" not in f.read():
-                ignore_hashes = True
-    else:
-        ignore_hashes = True if not requirement.hashes else ignore_hashes
-        install_reqs = requirement.as_line(as_list=True, include_hashes=not ignore_hashes)
-        if not requirement.markers:
-            install_reqs = [escape_cmd(r) for r in install_reqs]
-        elif len(install_reqs) > 1:
-            install_reqs = install_reqs[0] + [escape_cmd(r) for r in install_reqs[1:]]
+        elif requirement.editable and no_deps is None:
+            no_deps = True
     pip_command = [which_pip(allow_global=allow_global), "install"]
-    if pre:
-        pip_command.append("--pre")
-    if src:
-        pip_command.extend(src)
-    if environments.is_verbose():
-        pip_command.append("--verbose")
-    pip_command.append("--upgrade")
-    if selective_upgrade:
-        pip_command.append("--upgrade-strategy=only-if-needed")
-    if no_deps:
-        pip_command.append("--no-deps")
-    pip_command.extend(install_reqs)
+    pip_args = get_pip_args(
+        pre=pre, verbose=environments.is_verbose(), upgrade=True,
+        selective_upgrade=selective_upgrade, no_use_pep517=not use_pep517,
+        no_deps=no_deps, require_hashes=not ignore_hashes
+    )
+    pip_command.extend(pip_args)
+    if r:
+        pip_command.extend(["-r", r])
+    elif line:
+        pip_command.extend(line)
     pip_command.extend(prepare_pip_source_args(sources))
-    if not ignore_hashes:
-        pip_command.append("--require-hashes")
-    if not use_pep517:
-        from .vendor.packaging.version import parse as parse_version
-        pip_command.append("--no-build-isolation")
-        if project.environment.pip_version >= parse_version("19.0"):
-            pip_command.append("--no-use-pep517")
     if environments.is_verbose():
         click.echo("$ {0}".format(pip_command), err=True)
     cache_dir = vistir.compat.Path(PIPENV_CACHE_DIR)
+    DEFAULT_EXISTS_ACTION = "w"
+    if selective_upgrade:
+        DEFAULT_EXISTS_ACTION = "i"
+    exists_action = vistir.misc.fs_str(PIP_EXISTS_ACTION or DEFAULT_EXISTS_ACTION)
     pip_config = {
         "PIP_CACHE_DIR": vistir.misc.fs_str(cache_dir.as_posix()),
         "PIP_WHEEL_DIR": vistir.misc.fs_str(cache_dir.joinpath("wheels").as_posix()),
         "PIP_DESTINATION_DIR": vistir.misc.fs_str(
             cache_dir.joinpath("pkgs").as_posix()
         ),
-        "PIP_EXISTS_ACTION": vistir.misc.fs_str(PIP_EXISTS_ACTION or "w"),
+        "PIP_EXISTS_ACTION": exists_action,
         "PATH": vistir.misc.fs_str(os.environ.get("PATH")),
     }
-    if src:
+    if src_dir:
+        if environments.is_verbose():
+            click.echo("Using source directory: {0!r}".format(src_dir), err=True)
         pip_config.update(
-            {"PIP_SRC": vistir.misc.fs_str(project.virtualenv_src_location)}
+            {"PIP_SRC": vistir.misc.fs_str(src_dir)}
         )
     cmd = Script.parse(pip_command)
     pip_command = cmd.cmdify()
     c = None
-    # with project.environment.activated():
     c = delegator.run(pip_command, block=block, env=pip_config)
     return c
 
@@ -2091,57 +2107,60 @@ def do_install(
                     pkg_requirement = Requirement.from_line(pkg_line)
                 except ValueError as e:
                     sp.write_err(vistir.compat.fs_str("{0}: {1}".format(crayons.red("WARNING"), e)))
-                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
+                    sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
                     sys.exit(1)
                 if index_url:
                     pkg_requirement.index = index_url
-                deps = []
-                if pkg_requirement.is_vcs and PIPENV_RESOLVE_VCS:
-                    deps = pkg_requirement.req.dependencies
-                to_install = [pkg_requirement,]
+                # deps = []
+                # if pkg_requirement.is_vcs and PIPENV_RESOLVE_VCS:
+                #     if not allow_global and (
+                #         pkg_requirement.line_instance and pkg_requirement.line_instance.wheel_kwargs
+                #     ):
+                #         pkg_requirement.line_instance._wheel_kwargs["src_dir"] = project.virtualenv_src_location
+                #     pkg_setupinfo = pkg_requirement.line_instance.setup_info
+                #     deps = pkg_setupinfo.requires
                 no_deps = False
                 sp.text = "Installing..."
                 try:
-                    if deps:
-                        to_install.extend([
-                            Requirement.from_line(d) for d in list(deps[0].values())
-                        ])
-                        no_deps = True
-                    for dep in to_install:
-                        sp.text = "Installing {0}...".format(dep.name)
-                        c = pip_install(
-                            dep,
-                            ignore_hashes=True,
-                            allow_global=system,
-                            selective_upgrade=selective_upgrade,
-                            no_deps=no_deps,
-                            pre=pre,
-                            requirements_dir=requirements_directory,
-                            index=index_url,
-                            extra_indexes=extra_index_url,
-                            pypi_mirror=pypi_mirror,
-                        )
-                        if not c.ok:
-                            sp.write_err(vistir.compat.fs_str(
-                                "{0}: {1}".format(
-                                    crayons.red("WARNING"),
-                                    "Failed installing package {0}".format(pkg_line)
-                                ),
-                            ))
-                            sp.write_err(vistir.compat.fs_str(
-                                "Error text: {0}".format(c.out)
-                            ))
-                            raise RuntimeError(c.err)
-                        if environments.is_verbose():
-                            click.echo(crayons.blue(format_pip_output(c.out)))
+                    sp.text = "Installing {0}...".format(pkg_requirement.name)
+                    if environments.is_verbose():
+                        sp.hide_and_write("Installing package: {0}".format(pkg_requirement.as_line(include_hashes=False)))
+                    c = pip_install(
+                        pkg_requirement,
+                        ignore_hashes=True,
+                        allow_global=system,
+                        selective_upgrade=selective_upgrade,
+                        no_deps=no_deps,
+                        pre=pre,
+                        requirements_dir=requirements_directory,
+                        index=index_url,
+                        extra_indexes=extra_index_url,
+                        pypi_mirror=pypi_mirror,
+                    )
+                    if not c.ok:
+                        sp.write_err(vistir.compat.fs_str(
+                            "{0}: {1}".format(
+                                crayons.red("WARNING"),
+                                "Failed installing package {0}".format(pkg_line)
+                            ),
+                        ))
+                        sp.write_err(vistir.compat.fs_str(
+                            "Error text: {0}".format(c.out)
+                        ))
+                        sp.write_err(vistir.compat.fs_str(
+                            "{0}".format(c.err)
+                        ))
+                        raise RuntimeError(c.err)
+                    if environments.is_verbose():
+                        click.echo(crayons.blue(format_pip_output(c.out)))
                 except (ValueError, RuntimeError) as e:
                     sp.write_err(vistir.compat.fs_str(
                         "{0}: {1}".format(crayons.red("WARNING"), e),
                     ))
-                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
+                    sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
                         "Installation Failed",
                     ))
-                    sys.exit(1)
+                    # sys.exit(1)
                 # Warn if --editable wasn't passed.
                 if pkg_requirement.is_vcs and not pkg_requirement.editable and not PIPENV_RESOLVE_VCS:
                     sp.write_err(
@@ -2182,7 +2201,7 @@ def do_install(
                 # Add the package to the Pipfile.
                 try:
                     project.add_package_to_pipfile(pkg_requirement, dev)
-                except ValueError as e:
+                except ValueError:
                     import traceback
                     sp.write_err(
                         "{0} {1}".format(

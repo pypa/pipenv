@@ -14,8 +14,8 @@ from pipenv.utils import normalize_drive
 
 
 @pytest.mark.cli
-def test_pipenv_where(PipenvInstance, pypi_secure):
-    with PipenvInstance(pypi=pypi_secure) as p:
+def test_pipenv_where(PipenvInstance):
+    with PipenvInstance() as p:
         c = p.pipenv("--where")
         assert c.ok
         assert normalize_drive(p.path) in c.out
@@ -82,8 +82,8 @@ def test_pipenv_rm(PipenvInstance):
 
 
 @pytest.mark.cli
-def test_pipenv_graph(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_pipenv_graph(PipenvInstance):
+    with PipenvInstance() as p:
         c = p.pipenv('install requests')
         assert c.ok
         graph = p.pipenv("graph")
@@ -98,8 +98,8 @@ def test_pipenv_graph(PipenvInstance, pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_graph_reverse(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_pipenv_graph_reverse(PipenvInstance):
+    with PipenvInstance() as p:
         c = p.pipenv('install requests==2.18.4')
         assert c.ok
         c = p.pipenv('graph --reverse')
@@ -128,8 +128,8 @@ def test_pipenv_graph_reverse(PipenvInstance, pypi):
 @pytest.mark.cli
 @pytest.mark.needs_internet(reason='required by check')
 @flaky
-def test_pipenv_check(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_pipenv_check(PipenvInstance):
+    with PipenvInstance() as p:
         p.pipenv('install requests==1.0.0')
         c = p.pipenv('check')
         assert c.return_code != 0
@@ -197,8 +197,8 @@ def test_man(PipenvInstance):
 
 
 @pytest.mark.cli
-def test_install_parse_error(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_install_parse_error(PipenvInstance):
+    with PipenvInstance() as p:
 
         # Make sure unparseable packages don't wind up in the pipfile
         # Escape $ for shell input
@@ -219,21 +219,21 @@ def test_install_parse_error(PipenvInstance, pypi):
 @pytest.mark.unused
 @pytest.mark.skip_osx
 @pytest.mark.needs_internet(reason='required by check')
-def test_check_unused(PipenvInstance, pypi):
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+def test_check_unused(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         with open('__init__.py', 'w') as f:
             contents = """
-import tablib
+import fake_package
 import records
 import flask
             """.strip()
             f.write(contents)
-        p.pipenv('install requests tablib flask')
+        p.pipenv('install requests fake_package flask')
 
-        assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'tablib', 'flask'])
+        assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'fake_package', 'flask'])
 
         c = p.pipenv('check --unused .')
-        assert 'tablib' not in c.out
+        assert 'fake_package' not in c.out
         assert 'flask' not in c.out
 
 

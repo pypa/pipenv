@@ -11,8 +11,8 @@ from pipenv.utils import temp_environ
 @pytest.mark.run
 @pytest.mark.uninstall
 @pytest.mark.install
-def test_uninstall(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_uninstall(PipenvInstance):
+    with PipenvInstance() as p:
         c = p.pipenv("install requests")
         assert c.return_code == 0
         assert "requests" in p.pipfile["packages"]
@@ -38,7 +38,7 @@ def test_uninstall(PipenvInstance, pypi):
 @pytest.mark.run
 @pytest.mark.uninstall
 @pytest.mark.install
-def test_mirror_uninstall(PipenvInstance, pypi):
+def test_mirror_uninstall(PipenvInstance):
     with temp_environ(), PipenvInstance(chdir=True) as p:
 
         mirror_url = os.environ.pop(
@@ -102,8 +102,8 @@ def test_uninstall_all_local_files(PipenvInstance, testsroot):
 @pytest.mark.run
 @pytest.mark.uninstall
 @pytest.mark.install
-def test_uninstall_all_dev(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_uninstall_all_dev(PipenvInstance):
+    with PipenvInstance() as p:
         c = p.pipenv("install --dev requests six")
         assert c.return_code == 0
 
@@ -135,8 +135,8 @@ def test_uninstall_all_dev(PipenvInstance, pypi):
 
 @pytest.mark.uninstall
 @pytest.mark.run
-def test_normalize_name_uninstall(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_normalize_name_uninstall(PipenvInstance):
+    with PipenvInstance() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 # Pre comment

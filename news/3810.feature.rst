@@ -1,0 +1,1 @@
+Improved verbose logging output during ``pipenv lock`` will now stream output to the console while maintaining a spinner.

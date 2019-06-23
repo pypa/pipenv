@@ -7,21 +7,23 @@ import shutil
 import sys
 import warnings
 
-from shutil import rmtree as _rmtree
+from shutil import copyfileobj, rmtree as _rmtree
 
 import pytest
+import requests
 
-from vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError, TemporaryDirectory
-from vistir.misc import run
-from vistir.contextmanagers import temp_environ
-from vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
+from pipenv.vendor.vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError, TemporaryDirectory
+from pipenv.vendor.vistir.misc import run
+from pipenv.vendor.vistir.contextmanagers import temp_environ, open_file
+from pipenv.vendor.vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
 
 from pipenv._compat import Path
 from pipenv.cmdparse import Script
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.vendor import delegator, requests, toml, tomlkit
 from pytest_pypi.app import prepare_fixtures
-from pytest_pypi.app import prepare_packages as prepare_pypi_packages
+from pytest_shutil.workspace import Workspace
+from _pytest_devpi_server import DevpiServer
 
 
 warnings.simplefilter("default", category=ResourceWarning)
@@ -93,8 +95,19 @@ def check_for_mercurial():
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
 WE_HAVE_HG = check_for_mercurial()
-prepare_pypi_packages(PYPI_VENDOR_DIR)
 prepare_fixtures(os.path.join(PYPI_VENDOR_DIR, "fixtures"))
+
+
+@pytest.fixture(scope="session")
+def pipenv_devpi_server():
+    with DevpiServer(offline=False) as server:
+        server.start()
+        server.api("index", "-c", "pipenv", "bases=root/pypi", "volatile=False")
+        server.index = "pipenv"
+        for path in Path(PYPI_VENDOR_DIR).iterdir():
+            if path.is_dir():
+                server.api("upload", "--from-dir", path.as_posix())
+        yield server
 
 
 def pytest_runtest_setup(item):
@@ -257,11 +270,12 @@ class _Pipfile(object):
             file_path = os.path.join(pkg, filename)
         if filename and not pkg:
             pkg = os.path.basename(filename)
-        if pypi:
+        fixture_pypi = os.getenv("ARTIFACT_PYPI_URL")
+        if fixture_pypi:
             if pkg and not filename:
-                url = "{0}/artifacts/{1}".format(pypi, pkg)
+                url = "{0}/artifacts/{1}".format(fixture_pypi, pkg)
             else:
-                url = "{0}/artifacts/{1}/{2}".format(pypi, pkg, filename)
+                url = "{0}/artifacts/{1}/{2}".format(fixture_pypi, pkg, filename)
             return url
         if pkg and not filename:
             return cls.get_fixture_path(file_path).as_uri()
@@ -273,7 +287,13 @@ class _PipenvInstance(object):
         self, pypi=None, pipfile=True, chdir=False, path=None, home_dir=None,
         venv_root=None, ignore_virtualenvs=True, venv_in_project=True, name=None
     ):
-        self.pypi = pypi
+        self.index_url = os.getenv("PIPENV_TEST_INDEX")
+        self.pypi = None
+        if pypi:
+            self.pypi = pypi.url
+        elif self.index_url is not None:
+            self.pypi, _, _ = self.index_url.rpartition("/") if self.index_url else ""
+        self.index = os.getenv("PIPENV_PYPI_INDEX")
         os.environ["PYTHONWARNINGS"] = "ignore:DEPRECATION"
         if ignore_virtualenvs:
             os.environ["PIPENV_IGNORE_VIRTUALENVS"] = fs_str("1")
@@ -312,8 +332,9 @@ class _PipenvInstance(object):
         self.chdir = chdir
 
         if self.pypi:
-            os.environ['PIPENV_PYPI_URL'] = fs_str('{0}'.format(self.pypi.url))
-            os.environ['PIPENV_TEST_INDEX'] = fs_str('{0}/simple'.format(self.pypi.url))
+            os.environ['PIPENV_PYPI_URL'] = fs_str('{0}'.format(self.pypi))
+            # os.environ['PIPENV_PYPI_URL'] = fs_str('{0}'.format(self.pypi.url))
+            # os.environ['PIPENV_TEST_INDEX'] = fs_str('{0}/simple'.format(self.pypi.url))
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
@@ -401,7 +422,38 @@ def _rmtree_func(path, ignore_errors=True, onerror=None):
 
 
 @pytest.fixture()
-def PipenvInstance(monkeypatch):
+def pip_src_dir(request, vistir_tmpdir):
+    old_src_dir = os.environ.get('PIP_SRC', '')
+    os.environ['PIP_SRC'] = vistir_tmpdir.as_posix()
+
+    def finalize():
+        os.environ['PIP_SRC'] = fs_str(old_src_dir)
+
+    request.addfinalizer(finalize)
+    return request
+
+
+@pytest.fixture()
+def PipenvInstance(pip_src_dir, monkeypatch, pipenv_devpi_server, pypi):
+    with temp_environ(), monkeypatch.context() as m:
+        m.setattr(shutil, "rmtree", _rmtree_func)
+        original_umask = os.umask(0o007)
+        os.environ["PIPENV_NOSPIN"] = fs_str("1")
+        os.environ["CI"] = fs_str("1")
+        os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')
+        os.environ["PIPENV_TEST_INDEX"] = "{0}/{1}/{2}/+simple".format(pipenv_devpi_server.uri, pipenv_devpi_server.user, pipenv_devpi_server.index)
+        os.environ["PIPENV_PYPI_INDEX"] = pipenv_devpi_server.index
+        os.environ["ARTIFACT_PYPI_URL"] = pypi.url
+        warnings.simplefilter("ignore", category=ResourceWarning)
+        warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+        try:
+            yield _PipenvInstance
+        finally:
+            os.umask(original_umask)
+
+
+@pytest.fixture()
+def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
@@ -414,18 +466,6 @@ def PipenvInstance(monkeypatch):
             yield _PipenvInstance
         finally:
             os.umask(original_umask)
-
-
-@pytest.fixture(autouse=True)
-def pip_src_dir(request, vistir_tmpdir):
-    old_src_dir = os.environ.get('PIP_SRC', '')
-    os.environ['PIP_SRC'] = vistir_tmpdir.as_posix()
-
-    def finalize():
-        os.environ['PIP_SRC'] = fs_str(old_src_dir)
-
-    request.addfinalizer(finalize)
-    return request
 
 
 @pytest.fixture()

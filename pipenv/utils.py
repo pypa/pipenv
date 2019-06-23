@@ -965,10 +965,6 @@ def actually_resolve_deps(
 ):
     from pipenv.vendor.vistir.path import create_tracked_tempdir
     from pipenv.vendor.requirementslib.models.requirements import Requirement
-    import pipenv.patched.piptools.logging
-
-    if environments.is_verbose():
-        pipenv.patched.piptools.logging.log.verbosity = 1
 
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
@@ -1022,17 +1018,21 @@ def resolve(cmd, sp):
         result = None
         try:
             result = c.expect(u"\n", timeout=environments.PIPENV_INSTALL_TIMEOUT)
-        except (EOF, TIMEOUT):
+        except TIMEOUT:
             pass
-        _out = c.subprocess.before
-        if _out:
-            _out = decode_output("{0}\n".format(_out))
+        except EOF:
+            break
+        except KeyboardInterrupt:
+            c.kill()
+            break
+        if result:
+            _out = c.subprocess.before
+            _out = decode_output("{0}".format(_out))
             out += _out
-            sp.text = to_native_string("{0}".format(_out[:100]))
+            # sp.text = to_native_string("{0}".format(_out[:100]))
             if environments.is_verbose():
-                sp.hide_and_write(_out.rstrip())
-        _out = to_native_string("")
-        if not result and not _out:
+                sp.hide_and_write(out.splitlines()[-1].rstrip())
+        else:
             break
     c.block()
     if c.return_code != 0:
@@ -1042,11 +1042,9 @@ def resolve(cmd, sp):
         echo(c.out.strip(), err=True)
         if not environments.is_verbose():
             echo(out, err=True)
-        echo(c.err.strip(), err=True)
         sys.exit(c.return_code)
     if environments.is_verbose():
-        for ln in c.err.strip():
-            sp.hide_and_write(ln)
+        echo(c.err.strip(), err=True)
     return c
 
 
