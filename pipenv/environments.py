@@ -99,7 +99,7 @@ environment, and reuses it if possible. This is usually the desired behavior,
 and enables the user to use any user-built environments with Pipenv.
 """
 
-PIPENV_INSTALL_TIMEOUT = 60 * 15
+PIPENV_INSTALL_TIMEOUT = int(os.environ.get("PIPENV_INSTALL_TIMEOUT", 60 * 15))
 """Max number of seconds to wait for package installation.
 
 Defaults to 900 (15 minutes), a very long arbitrary time.
