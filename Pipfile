@@ -2,6 +2,7 @@
 pipenv = {path = ".", editable = true, extras = ["tests", "dev"]}
 sphinx-click = "*"
 click = "*"
+"path.py" = "<12.0"
 pytest_pypi = {path = "./tests/pytest-pypi", editable = true}
 stdeb = {version="*", markers="sys_platform == 'linux'"}
 jedi = "*"
