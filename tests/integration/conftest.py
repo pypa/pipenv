@@ -2,9 +2,12 @@
 from __future__ import absolute_import, print_function
 import errno
 import json
+import logging
 import os
 import shutil
+import socket
 import sys
+import time
 import warnings
 
 from shutil import copyfileobj, rmtree as _rmtree
@@ -14,18 +17,16 @@ import requests
 
 from pipenv.vendor.vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError, TemporaryDirectory
 from pipenv.vendor.vistir.misc import run
-from pipenv.vendor.vistir.contextmanagers import temp_environ, open_file
+from pipenv.vendor.vistir.contextmanagers import temp_environ
 from pipenv.vendor.vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
 
 from pipenv._compat import Path
-from pipenv.cmdparse import Script
 from pipenv.exceptions import VirtualenvActivationException
-from pipenv.vendor import delegator, requests, toml, tomlkit
+from pipenv.vendor import delegator, toml, tomlkit
 from pytest_pypi.app import prepare_fixtures
-from pytest_shutil.workspace import Workspace
-from _pytest_devpi_server import DevpiServer
+from _pytest_devpi_server import DevpiServer as _DevpiServer
 
-
+log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
 
 
@@ -35,6 +36,46 @@ HAS_WARNED_GITHUB = False
 def try_internet(url="http://httpbin.org/ip", timeout=1.5):
     resp = requests.get(url, timeout=timeout)
     resp.raise_for_status()
+
+
+class ServerNotDead(Exception):
+    pass
+
+
+class DevpiServer(_DevpiServer):
+    def _find_and_kill(self, retries, signal):
+        log.debug("Killing server running at {}:{} using signal {}".format(self.hostname, self.port, signal))
+        for _ in range(retries):
+            cd_path = "/"
+            if sys.platform == "darwin":
+                netstat_cmd = "lsof -n -i:{} | grep LISTEN | awk '{{ print $2 }}'".format(self.port)
+            elif sys.platform == "linux":
+                netstat_cmd = ("netstat -anp 2>/dev/null | grep %s:%s | grep LISTEN | "
+                            "awk '{ print $7 }' | cut -d'/' -f1" % (socket.gethostbyname(self.hostname), self.port))
+            else:
+                netstat_cmd = 'for /f "usebackq tokens=5" %%i IN (`netstat -aon ^| findstr "{0}"`) do @echo %%~nxi'.format(self.port)
+            pids = [p.strip() for p in self.run(netstat_cmd, capture=True, cd=cd_path).split('\n') if p.strip()]
+
+            if not pids:
+                # No PIDs remaining, server has died.
+                break
+
+            for pid in pids:
+                try:
+                    pid = int(pid)
+                except ValueError:
+                    log.error("Can't determine port, process shutting down or owned by someone else")
+                else:
+                    try:
+                        os.kill(pid, signal)
+                    except OSError as oe:
+                        if oe.errno == errno.ESRCH:  # Process doesn't appear to exist.
+                            log.error("For some reason couldn't find PID {} to kill.".format(p))
+                        else:
+                            raise
+            time.sleep(self.kill_retry_delay)
+        else:
+            raise ServerNotDead("Server not dead after %d retries" % retries)
 
 
 def check_internet():
