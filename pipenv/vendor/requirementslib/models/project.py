@@ -1,6 +1,6 @@
 # -*- coding=utf-8 -*-
 
-from __future__ import absolute_import, unicode_literals, print_function
+from __future__ import absolute_import, print_function, unicode_literals
 
 import collections
 import io
@@ -13,14 +13,10 @@ import plette
 import plette.models
 import six
 import tomlkit
+from vistir.compat import FileNotFoundError
 
-
-SectionDifference = collections.namedtuple("SectionDifference", [
-    "inthis", "inthat",
-])
-FileDifference = collections.namedtuple("FileDifference", [
-    "default", "develop",
-])
+SectionDifference = collections.namedtuple("SectionDifference", ["inthis", "inthat"])
+FileDifference = collections.namedtuple("FileDifference", ["default", "develop"])
 
 
 def _are_pipfile_entries_equal(a, b):
@@ -52,12 +48,15 @@ def preferred_newlines(f):
 class ProjectFile(object):
     """A file in the Pipfile project.
     """
+
     location = attr.ib()
     line_ending = attr.ib()
     model = attr.ib()
 
     @classmethod
     def read(cls, location, model_cls, invalid_ok=False):
+        if not os.path.exists(location) and not invalid_ok:
+            raise FileNotFoundError(location)
         try:
             with io.open(location, encoding="utf-8") as f:
                 model = model_cls.load(f)
@@ -89,14 +88,9 @@ class Project(object):
 
     def __attrs_post_init__(self):
         self.root = root = os.path.abspath(self.root)
-        self._p = ProjectFile.read(
-            os.path.join(root, "Pipfile"),
-            plette.Pipfile,
-        )
+        self._p = ProjectFile.read(os.path.join(root, "Pipfile"), plette.Pipfile)
         self._l = ProjectFile.read(
-            os.path.join(root, "Pipfile.lock"),
-            plette.Lockfile,
-            invalid_ok=True,
+            os.path.join(root, "Pipfile.lock"), plette.Lockfile, invalid_ok=True
         )
 
     @property
@@ -138,14 +132,17 @@ class Project(object):
             self._get_pipfile_section(develop=True, insert=False),
         ]
         return any(
-            (packaging.utils.canonicalize_name(name) ==
-             packaging.utils.canonicalize_name(key))
+            (
+                packaging.utils.canonicalize_name(name)
+                == packaging.utils.canonicalize_name(key)
+            )
             for section in sections
             for name in section
         )
 
     def add_line_to_pipfile(self, line, develop):
         from requirementslib import Requirement
+
         requirement = Requirement.from_line(line)
         section = self._get_pipfile_section(develop=develop)
         key = requirement.normalized_name
@@ -164,13 +161,9 @@ class Project(object):
         keys = {packaging.utils.canonicalize_name(key) for key in keys}
         sections = []
         if default:
-            sections.append(self._get_pipfile_section(
-                develop=False, insert=False,
-            ))
+            sections.append(self._get_pipfile_section(develop=False, insert=False))
         if develop:
-            sections.append(self._get_pipfile_section(
-                develop=True, insert=False,
-            ))
+            sections.append(self._get_pipfile_section(develop=True, insert=False))
         for section in sections:
             removals = set()
             for name in section:

@@ -745,6 +745,9 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 os.environ["PIP_USER"] = vistir.compat.fs_str("0")
                 if "PYTHONHOME" in os.environ:
                     del os.environ["PYTHONHOME"]
+            if "GIT_CONFIG" in os.environ and dep.is_vcs:
+                del os.environ["GIT_CONFIG"]
+
             c = pip_install(
                 dep,
                 ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
@@ -1381,20 +1384,7 @@ def get_requirement_line(
             requirement.line_instance._wheel_kwargs.update({
                 "src_dir": src_dir
             })
-        # if requirement.vcs and requirement.editable:
-            # repo = requirement.req.get_vcs_repo(src_dir=src_dir)
-            # requirement.line_instance.vcsrepo
-            # line = repo.url
-            # name = requirement.name
-            # line = "{0}+".format(requirement.vcs) if requirement.vcs else ""
-            # if requirement.extras:
-            #     name = "{0}{1}".format(name, requirement.extras_as_pip)
-            # line = "{0}{1}#egg={2}".format(
-            #     line, vistir.path.path_to_url(repo.checkout_directory), requirement.name
-            # )
-            # if repo.subdirectory:
-            #     line = "{0}&subdirectory={1}".format(line, repo.subdirectory)
-        # else:
+        requirement.line_instance.vcsrepo
         line = requirement.line_instance.line
         if requirement.line_instance.markers:
             line = '{0}; {1}'.format(line, requirement.line_instance.markers)
@@ -1420,8 +1410,8 @@ def write_requirement_to_file(
     if not requirements_dir:
         requirements_dir = vistir.path.create_tracked_tempdir(
             prefix="pipenv", suffix="requirements")
-    line = get_requirement_line(
-        requirement, src_dir, include_hashes=include_hashes, format_for_file=True
+    line = requirement.line_instance.get_line(
+        with_prefix=True, with_hashes=include_hashes, with_markers=True, as_list=False
     )
 
     f = vistir.compat.NamedTemporaryFile(
@@ -1472,8 +1462,10 @@ def pip_install(
         elif not (requirement.is_vcs or requirement.editable or requirement.vcs):
             ignore_hashes = False
     line = None
-    if requirement.vcs and not requirement.line_instance.markers:
-        line = get_requirement_line(requirement, src_dir, include_hashes=not ignore_hashes, format_for_file=False)
+    if requirement.vcs:
+        line = requirement.line_instance.get_line(
+            with_prefix=True, with_hashes=False, with_markers=True, as_list=True
+        )
     else:
         r = write_requirement_to_file(
             requirement, requirements_dir=requirements_dir, src_dir=src_dir,
@@ -1543,6 +1535,7 @@ def pip_install(
     pip_command = cmd.cmdify()
     c = None
     c = delegator.run(pip_command, block=block, env=pip_config)
+    c.env = pip_config
     return c
 
 
@@ -2111,14 +2104,6 @@ def do_install(
                     sys.exit(1)
                 if index_url:
                     pkg_requirement.index = index_url
-                # deps = []
-                # if pkg_requirement.is_vcs and PIPENV_RESOLVE_VCS:
-                #     if not allow_global and (
-                #         pkg_requirement.line_instance and pkg_requirement.line_instance.wheel_kwargs
-                #     ):
-                #         pkg_requirement.line_instance._wheel_kwargs["src_dir"] = project.virtualenv_src_location
-                #     pkg_setupinfo = pkg_requirement.line_instance.setup_info
-                #     deps = pkg_setupinfo.requires
                 no_deps = False
                 sp.text = "Installing..."
                 try:

@@ -7,7 +7,7 @@ import distlib.markers
 import packaging.version
 import six
 from packaging.markers import InvalidMarker, Marker
-from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
+from packaging.specifiers import Specifier, SpecifierSet
 from vistir.compat import Mapping, Set, lru_cache
 from vistir.misc import dedup
 
@@ -19,18 +19,7 @@ from six.moves import reduce  # isort:skip
 
 
 if MYPY_RUNNING:
-    from typing import (
-        Optional,
-        List,
-        Type,
-        Any,
-        Tuple,
-        Union,
-        Set,
-        AnyStr,
-        Text,
-        Iterator,
-    )
+    from typing import Optional, List, Type, Any, Tuple, Union, AnyStr, Text, Iterator
 
     STRING_TYPE = Union[str, bytes, Text]
 
@@ -277,8 +266,8 @@ def cleanup_pyspecs(specs, joiner="or"):
         },
         # leave these the same no matter what operator we use
         ("!=", "==", "~=", "==="): {
-            "or": lambda x: get_sorted_version_string(x),
-            "and": lambda x: get_sorted_version_string(x),
+            "or": get_sorted_version_string,
+            "and": get_sorted_version_string,
         },
     }
     op_translations = {

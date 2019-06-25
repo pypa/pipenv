@@ -451,6 +451,7 @@ class Resolver(object):
         from .vendor.requirementslib.models.utils import _requirement_to_str_lowercase_name
         from .vendor.requirementslib.models.requirements import Requirement
         from requirementslib.utils import is_installable_dir
+        # TODO: this is way too complex, refactor this
         constraints = set()  # type: Set[str]
         locked_deps = dict()  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
         if (req.is_file_or_url or req.is_vcs) and not req.is_wheel:
