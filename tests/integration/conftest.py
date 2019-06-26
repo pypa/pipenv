@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import shutil
+import signal
 import socket
 import sys
 import time
@@ -43,18 +44,33 @@ class ServerNotDead(Exception):
 
 
 class DevpiServer(_DevpiServer):
+
+    term_signal = signal.SIGTERM if not os.name == "nt" else signal.CTRL_C_EVENT
+    kill_signal = signal.SIGKILL if not os.name == "nt" else signal.CTRL_BREAK_EVENT
+
     def _find_and_kill(self, retries, signal):
         log.debug("Killing server running at {}:{} using signal {}".format(self.hostname, self.port, signal))
         for _ in range(retries):
             cd_path = "/"
+            pids = []
+            netstat_cmd = ""
             if sys.platform == "darwin":
                 netstat_cmd = "lsof -n -i:{} | grep LISTEN | awk '{{ print $2 }}'".format(self.port)
             elif sys.platform == "linux":
                 netstat_cmd = ("netstat -anp 2>/dev/null | grep %s:%s | grep LISTEN | "
                             "awk '{ print $7 }' | cut -d'/' -f1" % (socket.gethostbyname(self.hostname), self.port))
             else:
-                netstat_cmd = 'for /f "usebackq tokens=5" %%i IN (`netstat -aon ^| findstr "{0}"`) do @echo %%~nxi'.format(self.port)
-            pids = [p.strip() for p in self.run(netstat_cmd, capture=True, cd=cd_path).split('\n') if p.strip()]
+                procs = self.run("tasklist /NH /FI devpi-server.exe", capture=True)
+                pids = [
+                    task.strip().split()[1] for task in procs.strip().splitlines()
+                    if "No tasks are running" not in task.strip()
+                ]
+            if netstat_cmd:
+                pids = [
+                    p.strip() for p in
+                    self.run(netstat_cmd, capture=True, cd=cd_path).split('\n')
+                    if p.strip()
+                ]
 
             if not pids:
                 # No PIDs remaining, server has died.
@@ -73,9 +89,30 @@ class DevpiServer(_DevpiServer):
                             log.error("For some reason couldn't find PID {} to kill.".format(p))
                         else:
                             raise
+                self.run("taskkill /f /pid %s" % pid, capture=False, check_rc=False)
             time.sleep(self.kill_retry_delay)
         else:
             raise ServerNotDead("Server not dead after %d retries" % retries)
+
+    def kill(self, retries=5):
+        """Kill all running versions of this server.
+        Just killing the thread.server pid isn't good enough, it may have spawned children.
+        """
+        # Prevent traceback printed when the server goes away as we kill it
+        if self.server:
+            self.server.exit = True
+
+        if self.dead:
+            return
+
+        try:
+            self._find_and_kill(retries, self.term_signal)
+        except ServerNotDead:
+            log.error("Server not dead after %d retries, trying with SIGKILL" % retries)
+        try:
+            self._find_and_kill(retries, self.kill_signal)
+        except ServerNotDead:
+            log.error("Server still not dead, giving up")
 
 
 def check_internet():
