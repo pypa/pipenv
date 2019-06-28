@@ -2578,8 +2578,9 @@ def do_check(
     args=None,
     pypi_mirror=None,
 ):
-    from .environments import is_verbose
     from pipenv.vendor.vistir.compat import JSONDecodeError
+    from pipenv.vendor.first import first
+
     if not system:
         # Ensure that virtualenv is available.
         ensure_project(
@@ -2618,7 +2619,10 @@ def do_check(
     if not system:
         python = which("python")
     else:
-        python = system_which("python")
+        python = first(system_which(p) for p in ("python", "python3", "python2"))
+    if not python:
+        click.echo(crayons.red("The Python interpreter can't be found."), err=True)
+        sys.exit(1)
     _cmd = [vistir.compat.Path(python).as_posix()]
     # Run the PEP 508 checker in the virtualenv.
     cmd = _cmd + [vistir.compat.Path(pep508checker_path).as_posix()]
