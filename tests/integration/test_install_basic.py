@@ -348,7 +348,7 @@ def test_install_does_not_extrapolate_environ(PipenvInstance):
             f.write(
                 """
 [[source]]
-url = '${PYPI_URL}/${PIPENV_PYPI_INDEX}/+simple'
+url = '${PYPI_URL}/simple'
 verify_ssl = true
 name = 'mockpi'
             """
@@ -357,14 +357,14 @@ name = 'mockpi'
         # Ensure simple install does not extrapolate.
         c = p.pipenv("install")
         assert c.return_code == 0
-        assert p.pipfile["source"][0]["url"] == "${PYPI_URL}/${PIPENV_PYPI_INDEX}/+simple"
-        assert p.lockfile["_meta"]["sources"][0]["url"] == "${PYPI_URL}/${PIPENV_PYPI_INDEX}/+simple"
+        assert p.pipfile["source"][0]["url"] == "${PYPI_URL}/simple"
+        assert p.lockfile["_meta"]["sources"][0]["url"] == "${PYPI_URL}/simple"
 
         # Ensure package install does not extrapolate.
         c = p.pipenv("install six")
         assert c.return_code == 0
-        assert p.pipfile["source"][0]["url"] == "${PYPI_URL}/${PIPENV_PYPI_INDEX}/+simple"
-        assert p.lockfile["_meta"]["sources"][0]["url"] == "${PYPI_URL}/${PIPENV_PYPI_INDEX}/+simple"
+        assert p.pipfile["source"][0]["url"] == "${PYPI_URL}/simple"
+        assert p.lockfile["_meta"]["sources"][0]["url"] == "${PYPI_URL}/simple"
 
 
 @pytest.mark.editable

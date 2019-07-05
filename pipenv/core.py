@@ -37,14 +37,15 @@ from .utils import (
     get_canonical_names, is_pinned, is_pypi_url, is_required_version, is_star,
     is_valid_url, parse_indexes, pep423_name, prepare_pip_source_args,
     proper_case, python_version, venv_resolve_deps, run_command,
-    is_python_command, find_python, make_posix, interrupt_handled_subprocess
+    is_python_command, find_python, make_posix, interrupt_handled_subprocess,
+    get_indexes_from_requirement, get_source_list, get_project_index,
 )
 
 
 if is_type_checking():
-    from typing import Dict, List, Mapping, Optional, Union
+    from typing import Dict, List, Mapping, Optional, Union, Text
     from pipenv.vendor.requirementslib.models.requirements import Requirement
-    TSourceDict = Dict[str, Union[str, bool]]
+    TSourceDict = Dict[Text, Union[Text, bool]]
 
 
 # Packages that should be ignored later.
@@ -690,8 +691,10 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
 def batch_install(deps_list, procs, failed_deps_queue,
                   requirements_dir, no_deps=True, ignore_hashes=False,
                   allow_global=False, blocking=False, pypi_mirror=None,
-                  retry=True):
+                  retry=True, sequential_deps=None):
     from .vendor.requirementslib.models.utils import strip_extras_markers_from_requirement
+    if sequential_deps is None:
+        sequential_deps = []
     failed = (not retry)
     install_deps = not no_deps
     if not failed:
@@ -699,31 +702,30 @@ def batch_install(deps_list, procs, failed_deps_queue,
     else:
         label = INSTALL_LABEL2
 
+    deps_to_install = deps_list[:]
+    deps_to_install.extend(sequential_deps)
+    sequential_dep_names = [d.name for d in sequential_deps]
+
     deps_list_bar = progress.bar(
-        deps_list, width=32,
+        deps_to_install, width=32,
         label=label
     )
+
+
     indexes = []
     trusted_hosts = []
     # Install these because
     for dep in deps_list_bar:
+        extra_indexes = []
         if dep.req.req:
             dep.req.req = strip_extras_markers_from_requirement(dep.req.req)
         if dep.markers:
             dep.markers = str(strip_extras_markers_from_requirement(dep.get_markers()))
-        index = None
-        if dep.index:
-            index = project.find_source(dep.index)
-            indexes.append(index)
-            if not index.get("verify_ssl", False):
-                trusted_hosts.append(urllib3_util.parse_url(index.get("url")).host)
         # Install the module.
         is_artifact = False
         if no_deps:
             link = getattr(dep.req, "link", None)
-            is_wheel = False
-            if link:
-                is_wheel = link.is_wheel
+            is_wheel = getattr(link, "is_wheel", False) if link else False
         if dep.is_file_or_url and (dep.is_direct_url or any(
             dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"]
         )):
@@ -733,12 +735,6 @@ def batch_install(deps_list, procs, failed_deps_queue,
         if not PIPENV_RESOLVE_VCS and is_artifact and not dep.editable:
             install_deps = True
             no_deps = False
-
-        extra_indexes = []
-        if not index and indexes:
-            index = next(iter(indexes))
-            if len(indexes) > 1:
-                extra_indexes = indexes[1:]
 
         with vistir.contextmanagers.temp_environ():
             if not allow_global:
@@ -754,7 +750,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 allow_global=allow_global,
                 no_deps=not install_deps,
                 block=any([dep.editable, dep.is_vcs, blocking]),
-                index=index,
+                index=dep.index,
                 requirements_dir=requirements_dir,
                 pypi_mirror=pypi_mirror,
                 trusted_hosts=trusted_hosts,
@@ -762,11 +758,13 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 use_pep517=not failed,
             )
             c.dep = dep
-            if dep.is_vcs or dep.editable:
+            # if dep.is_vcs or dep.editable:
+            is_sequential = sequential_deps and dep.name in sequential_dep_names
+            if is_sequential:
                 c.block()
 
             procs.put(c)
-            if procs.full() or procs.qsize() == len(deps_list):
+            if procs.full() or procs.qsize() == len(deps_list) or is_sequential:
                 _cleanup_procs(procs, failed_deps_queue, retry=retry)
 
 
@@ -834,19 +832,32 @@ def do_install_dependencies(
     failed_deps_queue = queue.Queue()
     if skip_lock:
         ignore_hashes = True
-
+    editable_or_vcs_deps = [dep for dep in deps_list if (dep.editable or dep.vcs)]
+    normal_deps = [dep for dep in deps_list if not (dep.editable or dep.vcs)]
     install_kwargs = {
         "no_deps": no_deps, "ignore_hashes": ignore_hashes, "allow_global": allow_global,
-        "blocking": not concurrent, "pypi_mirror": pypi_mirror
+        "blocking": not concurrent, "pypi_mirror": pypi_mirror,
+        "sequential_deps": editable_or_vcs_deps
     }
 
-    # with project.environment.activated():
     batch_install(
-        deps_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
+        normal_deps, procs, failed_deps_queue, requirements_dir, **install_kwargs
     )
 
     if not procs.empty():
         _cleanup_procs(procs, failed_deps_queue)
+
+    # click.echo(crayons.normal(
+    #     decode_for_output("Installing editable and vcs dependencies…"), bold=True
+    # ))
+
+    # install_kwargs.update({"blocking": True})
+    # # XXX: All failed and editable/vcs deps should be installed in sequential mode!
+    # procs = queue.Queue(maxsize=1)
+    # batch_install(
+    #     editable_or_vcs_deps, procs, failed_deps_queue, requirements_dir,
+    #     **install_kwargs
+    # )
 
     # Iterate over the hopefully-poorly-packaged dependencies…
     if not failed_deps_queue.empty():
@@ -857,10 +868,7 @@ def do_install_dependencies(
         while not failed_deps_queue.empty():
             failed_dep = failed_deps_queue.get()
             retry_list.append(failed_dep)
-        install_kwargs.update({
-            "retry": False,
-            "blocking": True,
-        })
+        install_kwargs.update({"retry": False})
         batch_install(
             retry_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
         )
@@ -1323,54 +1331,6 @@ def get_pip_args(
     return list(vistir.misc.dedup(arg_set))
 
 
-def get_project_index(index=None, trusted_hosts=None):
-    # type: (Optional[Union[str, TSourceDict]], Optional[List[str]]) -> TSourceDict
-    from .vendor.urllib3.util import parse_url
-    if trusted_hosts is None:
-        trusted_hosts = []
-    if isinstance(index, vistir.compat.Mapping):
-        return index
-    try:
-        source = project.find_source(index)
-    except SourceNotFound:
-        index_url = parse_url(index)
-        src_name = project.src_name_from_url(index)
-        verify_ssl = index_url.host not in trusted_hosts
-        source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
-    return source
-
-
-def get_source_list(
-    index=None,  # type: Optional[Union[str, TSourceDict]]
-    extra_indexes=None,  # type: Optional[List[str]]
-    trusted_hosts=None,  # type: Optional[List[str]]
-    pypi_mirror=None,  # type: Optional[str]
-):
-    # type: (...) -> List[TSourceDict]
-    sources = []  # type: List[TSourceDict]
-    if index:
-        sources.append(get_project_index(index))
-    if extra_indexes:
-        if isinstance(extra_indexes, six.string_types):
-            extra_indexes = [extra_indexes,]
-        for source in extra_indexes:
-            extra_src = get_project_index(source)
-            if not sources or extra_src["url"] != sources[0]["url"]:
-                sources.append(extra_src)
-        else:
-            for source in project.pipfile_sources:
-                if not sources or source["url"] != sources[0]["url"]:
-                    sources.append(source)
-    if not sources:
-        sources = project.pipfile_sources
-    if pypi_mirror:
-        sources = [
-            create_mirror_source(pypi_mirror) if is_pypi_url(source["url"]) else source
-            for source in sources
-        ]
-    return sources
-
-
 def get_requirement_line(
     requirement,  # type: Requirement
     src_dir=None,  # type: Optional[str]
@@ -1452,8 +1412,7 @@ def pip_install(
 
     trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
     if not allow_global:
-        src_dir = project.virtualenv_src_location
-        # src_dir = os.getenv("PIP_SRC", os.getenv("PIP_SRC_DIR", project.virtualenv_src_location))
+        src_dir = os.getenv("PIP_SRC", os.getenv("PIP_SRC_DIR", project.virtualenv_src_location))
     else:
         src_dir = os.getenv("PIP_SRC", os.getenv("PIP_SRC_DIR"))
     if requirement:
@@ -1462,16 +1421,26 @@ def pip_install(
         elif not (requirement.is_vcs or requirement.editable or requirement.vcs):
             ignore_hashes = False
     line = None
-    if requirement.vcs:
-        line = requirement.line_instance.get_line(
-            with_prefix=True, with_hashes=False, with_markers=True, as_list=True
-        )
-    else:
-        r = write_requirement_to_file(
-            requirement, requirements_dir=requirements_dir, src_dir=src_dir,
-            include_hashes=not ignore_hashes
-        )
     # Try installing for each source in project.sources.
+    if not index and requirement.index:
+        index = requirement.index
+    if index and not extra_indexes:
+        extra_indexes = list(project.sources)
+    if requirement and requirement.vcs or requirement.editable:
+        requirement.index = None
+        # Install dependencies when a package is a non-editable VCS dependency.
+        # Don't specify a source directory when using --system.
+        if not requirement.editable and no_deps is not True:
+            # Leave this off becauase old lockfiles don't have all deps included
+            # TODO: When can it be turned back on?
+            no_deps = False
+        elif requirement.editable and no_deps is None:
+            no_deps = True
+
+    r = write_requirement_to_file(
+        requirement, requirements_dir=requirements_dir, src_dir=src_dir,
+        include_hashes=not ignore_hashes
+    )
     sources = get_source_list(
         index, extra_indexes=extra_indexes, trusted_hosts=trusted_hosts,
         pypi_mirror=pypi_mirror
@@ -1481,22 +1450,13 @@ def pip_install(
             if "--hash" not in fh.read():
                 ignore_hashes = True
     if environments.is_verbose():
-        piplogger.setLevel(logging.INFO)
+        piplogger.setLevel(logging.WARN)
         if requirement:
             click.echo(
                 crayons.normal("Installing {0!r}".format(requirement.name), bold=True),
                 err=True,
             )
 
-    if requirement and requirement.vcs:
-        # Install dependencies when a package is a non-editable VCS dependency.
-        # Don't specify a source directory when using --system.
-        if not requirement.editable and no_deps is not True:
-            # Leave this off becauase old lockfiles don't have all deps included
-            # TODO: When can it be turned back on?
-            no_deps = False
-        elif requirement.editable and no_deps is None:
-            no_deps = True
     pip_command = [which_pip(allow_global=allow_global), "install"]
     pip_args = get_pip_args(
         pre=pre, verbose=environments.is_verbose(), upgrade=True,
@@ -2068,7 +2028,7 @@ def do_install(
         from .vendor.requirementslib.models.requirements import Requirement
 
         # make a tuple of (display_name, entry)
-        pkg_list = packages + ["-e {0}".format(pkg) for pkg in editable_packages]
+        pkg_list = packages + ['-e {0}'.format(pkg) for pkg in editable_packages]
         if not system and not project.virtualenv_exists:
             do_init(
                 dev=dev,
@@ -2123,21 +2083,33 @@ def do_install(
                         pypi_mirror=pypi_mirror,
                     )
                     if not c.ok:
-                        sp.write_err(vistir.compat.fs_str(
-                            "{0}: {1}".format(
-                                crayons.red("WARNING"),
-                                "Failed installing package {0}".format(pkg_line)
+                        sp.write_err(u"{0}: {1}".format(
+                            crayons.red("WARNING"),
+                            vistir.compat.fs_str("Failed installing package {0}".format(pkg_line)))
+                        )
+                        sp.write_err(
+                            vistir.compat.fs_str(u"Error text: {0}".format(c.out))
+                        )
+                        sp.write_err(
+                            vistir.compat.fs_str(u"{0}".format(c.err))
+                        )
+                        sp.write_err(
+                            u"{0} An error occurred while installing {1}!".format(
+                                crayons.red(u"Error: ", bold=True), crayons.green(pkg_line)
                             ),
-                        ))
-                        sp.write_err(vistir.compat.fs_str(
-                            "Error text: {0}".format(c.out)
-                        ))
-                        sp.write_err(vistir.compat.fs_str(
-                            "{0}".format(c.err)
-                        ))
-                        raise RuntimeError(c.err)
-                    if environments.is_verbose():
-                        click.echo(crayons.blue(format_pip_output(c.out)))
+                        )
+                        sp.write_err(crayons.blue(vistir.compat.fs_str(format_pip_error(c.err))))
+                        if environments.is_verbose():
+                            sp.write_err(crayons.blue(vistir.compat.fs_str(format_pip_output(c.out))))
+                        if "setup.py egg_info" in c.err:
+                            sp.write_err(vistir.compat.fs_str(
+                                "This is likely caused by a bug in {0}. "
+                                "Report this to its maintainers.".format(
+                                    crayons.green(pkg_requirement.name)
+                                )
+                            ))
+                        sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
+                        sys.exit(1)
                 except (ValueError, RuntimeError) as e:
                     sp.write_err(vistir.compat.fs_str(
                         "{0}: {1}".format(crayons.red("WARNING"), e),
@@ -2145,7 +2117,7 @@ def do_install(
                     sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
                         "Installation Failed",
                     ))
-                    # sys.exit(1)
+                    sys.exit(1)
                 # Warn if --editable wasn't passed.
                 if pkg_requirement.is_vcs and not pkg_requirement.editable and not PIPENV_RESOLVE_VCS:
                     sp.write_err(
@@ -2157,23 +2129,6 @@ def do_install(
                             crayons.red("$ pipenv lock"),
                         )
                     )
-                # Ensure that package was successfully installed.
-                if c.return_code != 0:
-                    sp.write_err(vistir.compat.fs_str(
-                        "{0} An error occurred while installing {1}!".format(
-                            crayons.red("Error: ", bold=True), crayons.green(pkg_line)
-                        ),
-                    ))
-                    sp.write_err(vistir.compat.fs_str(crayons.blue(format_pip_error(c.err))))
-                    if "setup.py egg_info" in c.err:
-                        sp.write_err(vistir.compat.fs_str(
-                            "This is likely caused by a bug in {0}. "
-                            "Report this to its maintainers.".format(
-                                crayons.green(pkg_requirement.name)
-                            )
-                        ))
-                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
-                    sys.exit(1)
                 sp.write(vistir.compat.fs_str(
                     u"{0} {1} {2} {3}{4}".format(
                         crayons.normal(u"Adding", bold=True),

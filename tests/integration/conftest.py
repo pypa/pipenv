@@ -24,8 +24,7 @@ from pipenv.vendor.vistir.path import mkdir_p, create_tracked_tempdir, handle_re
 from pipenv._compat import Path
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.vendor import delegator, toml, tomlkit
-from pytest_pypi.app import prepare_fixtures
-from _pytest_devpi_server import DevpiServer as _DevpiServer
+from pytest_pypi.app import prepare_fixtures, prepare_packages as prepare_pypi_packages
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
@@ -41,78 +40,6 @@ def try_internet(url="http://httpbin.org/ip", timeout=1.5):
 
 class ServerNotDead(Exception):
     pass
-
-
-class DevpiServer(_DevpiServer):
-
-    term_signal = signal.SIGTERM if not os.name == "nt" else signal.CTRL_C_EVENT
-    kill_signal = signal.SIGKILL if not os.name == "nt" else signal.CTRL_BREAK_EVENT
-
-    def _find_and_kill(self, retries, signal):
-        log.debug("Killing server running at {}:{} using signal {}".format(self.hostname, self.port, signal))
-        for _ in range(retries):
-            cd_path = "/"
-            pids = []
-            netstat_cmd = ""
-            if sys.platform == "darwin":
-                netstat_cmd = "lsof -n -i:{} | grep LISTEN | awk '{{ print $2 }}'".format(self.port)
-            elif sys.platform == "linux":
-                netstat_cmd = ("netstat -anp 2>/dev/null | grep %s:%s | grep LISTEN | "
-                            "awk '{ print $7 }' | cut -d'/' -f1" % (socket.gethostbyname(self.hostname), self.port))
-            else:
-                procs = self.run("tasklist /NH /FI devpi-server.exe", capture=True)
-                pids = [
-                    task.strip().split()[1] for task in procs.strip().splitlines()
-                    if "No tasks are running" not in task.strip()
-                ]
-            if netstat_cmd:
-                pids = [
-                    p.strip() for p in
-                    self.run(netstat_cmd, capture=True, cd=cd_path).split('\n')
-                    if p.strip()
-                ]
-
-            if not pids:
-                # No PIDs remaining, server has died.
-                break
-
-            for pid in pids:
-                try:
-                    pid = int(pid)
-                except ValueError:
-                    log.error("Can't determine port, process shutting down or owned by someone else")
-                else:
-                    try:
-                        os.kill(pid, signal)
-                    except OSError as oe:
-                        if oe.errno == errno.ESRCH:  # Process doesn't appear to exist.
-                            log.error("For some reason couldn't find PID {} to kill.".format(p))
-                        else:
-                            raise
-                self.run("taskkill /f /pid %s" % pid, capture=False, check_rc=False)
-            time.sleep(self.kill_retry_delay)
-        else:
-            raise ServerNotDead("Server not dead after %d retries" % retries)
-
-    def kill(self, retries=5):
-        """Kill all running versions of this server.
-        Just killing the thread.server pid isn't good enough, it may have spawned children.
-        """
-        # Prevent traceback printed when the server goes away as we kill it
-        if self.server:
-            self.server.exit = True
-
-        if self.dead:
-            return
-
-        try:
-            self._find_and_kill(retries, self.term_signal)
-        except ServerNotDead:
-            log.error("Server not dead after %d retries, trying with SIGKILL" % retries)
-        try:
-            self._find_and_kill(retries, self.kill_signal)
-        except ServerNotDead:
-            log.error("Server still not dead, giving up")
 
 
 def check_internet():
@@ -174,18 +101,7 @@ TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
 WE_HAVE_HG = check_for_mercurial()
 prepare_fixtures(os.path.join(PYPI_VENDOR_DIR, "fixtures"))
-
-
-@pytest.fixture(scope="session")
-def pipenv_devpi_server():
-    with DevpiServer(offline=False) as server:
-        server.start()
-        server.api("index", "-c", "pipenv", "bases=root/pypi", "volatile=False")
-        server.index = "pipenv"
-        for path in Path(PYPI_VENDOR_DIR).iterdir():
-            if path.is_dir():
-                server.api("upload", "--from-dir", path.as_posix())
-        yield server
+prepare_pypi_packages(PYPI_VENDOR_DIR)
 
 
 def pytest_runtest_setup(item):
@@ -263,7 +179,7 @@ def isolate(create_tmpdir):
         fp.write(
             b"[user]\n\tname = pipenv\n\temail = pipenv@pipenv.org\n"
         )
-    os.environ["GIT_CONFIG"] = fs_str(git_config_file)
+    # os.environ["GIT_CONFIG"] = fs_str(git_config_file)
     os.environ["GIT_CONFIG_NOSYSTEM"] = fs_str("1")
     os.environ["GIT_AUTHOR_NAME"] = fs_str("pipenv")
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
@@ -409,7 +325,7 @@ class _PipenvInstance(object):
         self.pipfile_path = None
         self.chdir = chdir
 
-        if self.pypi:
+        if self.pypi and "PIPENV_PYPI_URL" not in os.environ:
             os.environ['PIPENV_PYPI_URL'] = fs_str('{0}'.format(self.pypi))
             # os.environ['PIPENV_PYPI_URL'] = fs_str('{0}'.format(self.pypi.url))
             # os.environ['PIPENV_TEST_INDEX'] = fs_str('{0}/simple'.format(self.pypi.url))
@@ -512,16 +428,17 @@ def pip_src_dir(request, vistir_tmpdir):
 
 
 @pytest.fixture()
-def PipenvInstance(pip_src_dir, monkeypatch, pipenv_devpi_server, pypi):
+def PipenvInstance(pip_src_dir, monkeypatch, pypi):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
-        os.environ["PIPENV_NOSPIN"] = fs_str("1")
-        os.environ["CI"] = fs_str("1")
-        os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')
-        os.environ["PIPENV_TEST_INDEX"] = "{0}/{1}/{2}/+simple".format(pipenv_devpi_server.uri, pipenv_devpi_server.user, pipenv_devpi_server.index)
-        os.environ["PIPENV_PYPI_INDEX"] = pipenv_devpi_server.index
-        os.environ["ARTIFACT_PYPI_URL"] = pypi.url
+        m.setenv("PIPENV_NOSPIN", fs_str("1"))
+        m.setenv("CI", fs_str("1"))
+        m.setenv('PIPENV_DONT_USE_PYENV', fs_str('1'))
+        m.setenv("PIPENV_TEST_INDEX", "{0}/simple".format(pypi.url))
+        m.setenv("PIPENV_PYPI_INDEX", "simple")
+        m.setenv("ARTIFACT_PYPI_URL", pypi.url)
+        m.setenv("PIPENV_PYPI_URL", pypi.url)
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         try:
@@ -531,13 +448,15 @@ def PipenvInstance(pip_src_dir, monkeypatch, pipenv_devpi_server, pypi):
 
 
 @pytest.fixture()
-def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir):
+def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir, pypi):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
-        os.environ["PIPENV_NOSPIN"] = fs_str("1")
-        os.environ["CI"] = fs_str("1")
-        os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')
+        m.setenv("PIPENV_NOSPIN", fs_str("1"))
+        m.setenv("CI", fs_str("1"))
+        m.setenv('PIPENV_DONT_USE_PYENV', fs_str('1'))
+        m.setenv("PIPENV_TEST_INDEX", "{0}/simple".format(pypi.url))
+        m.setenv("ARTIFACT_PYPI_URL", pypi.url)
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         try:
