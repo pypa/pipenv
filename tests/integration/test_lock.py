@@ -289,8 +289,8 @@ records = {extras = ["pandas"], version = "==0.5.2"}
 @pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.skip_lock
 @pytest.mark.needs_internet
-def test_private_index_skip_lock(PipenvInstance):
-    with PipenvInstance() as p:
+def test_private_index_skip_lock(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -317,9 +317,9 @@ requests = "*"
 @pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.requirements
 @pytest.mark.needs_internet
-def test_private_index_lock_requirements(PipenvInstance):
+def test_private_index_lock_requirements(PipenvInstance_NoPyPI):
     # Don't use the local fake pypi
-    with PipenvInstance() as p:
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -350,9 +350,9 @@ requests = "*"
 @pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.requirements
 @pytest.mark.needs_internet
-def test_private_index_mirror_lock_requirements(PipenvInstance):
+def test_private_index_mirror_lock_requirements(PipenvInstance_NoPyPI):
     # Don't use the local fake pypi
-    with temp_environ(), PipenvInstance(chdir=True) as p:
+    with temp_environ(), PipenvInstance_NoPyPI(chdir=True) as p:
         # Using pypi.python.org as pipenv-test-public-package is not
         # included in the local pypi mirror
         mirror_url = os.environ.pop('PIPENV_TEST_INDEX', "https://pypi.kennethreitz.org/simple")
@@ -371,7 +371,7 @@ name = "testpypi"
 
 [packages]
 six = {version = "*", index = "testpypi"}
-requests = "*"
+fake-package = "*"
             """.strip()
             f.write(contents)
         c = p.pipenv('install --pypi-mirror {0}'.format(mirror_url))

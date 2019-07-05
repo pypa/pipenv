@@ -27,7 +27,7 @@ fake_package = {version = "*", markers="os_name=='splashwear'"}
         c = p.pipenv('install')
         assert c.return_code == 0
         assert 'Ignoring' in c.out
-        assert 'markers' in p.lockfile['default']['fake_package'], p.lockfile["default"]["fake_package"]
+        assert 'markers' in p.lockfile['default']['fake-package'], p.lockfile["default"]
 
         c = p.pipenv('run python -c "import fake_package;"')
         assert c.return_code == 1
@@ -68,7 +68,7 @@ def test_specific_package_environment_markers(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
-fake_package = {version = "*", os_name = "== 'splashwear'"}
+fake-package = {version = "*", os_name = "== 'splashwear'"}
             """.strip()
             f.write(contents)
 
@@ -76,7 +76,7 @@ fake_package = {version = "*", os_name = "== 'splashwear'"}
         assert c.return_code == 0
 
         assert 'Ignoring' in c.out
-        assert 'markers' in p.lockfile['default']['fake_package']
+        assert 'markers' in p.lockfile['default']['fake-package']
 
         c = p.pipenv('run python -c "import fake_package;"')
         assert c.return_code == 1

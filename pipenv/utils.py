@@ -20,12 +20,8 @@ import toml
 import tomlkit
 
 from click import echo as click_echo
-six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))  # noqa
-six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))  # noqa
-six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # noqa
-from six.moves import Mapping, Sequence, Set
 from six.moves.urllib.parse import urlparse
-from .vendor.vistir.compat import ResourceWarning, lru_cache
+from .vendor.vistir.compat import ResourceWarning, lru_cache, Mapping, Sequence, Set
 from .vendor.vistir.misc import fs_str, run
 
 import crayons
@@ -42,9 +38,10 @@ from .vendor.urllib3 import util as urllib3_util
 if environments.MYPY_RUNNING:
     from typing import Tuple, Dict, Any, List, Union, Optional, Text
     from .vendor.requirementslib.models.requirements import Requirement, Line
+    from .vendor.requirementslib.models.pipfile import Pipfile
     from .vendor.packaging.markers import Marker
     from .vendor.packaging.specifiers import Specifier
-    from .project import Project
+    from .project import Project, TSource
 
 
 logging.basicConfig(level=logging.ERROR)
@@ -283,6 +280,88 @@ def prepare_pip_source_args(sources, pip_args=None):
                         ["--trusted-host", "{0}{1}".format(url_parts.host, url_port)]
                     )
     return pip_args
+
+
+def get_project_index(index=None, trusted_hosts=None, project=None):
+    # type: (Optional[Union[str, TSource]], Optional[List[str]], Optional[Project]) -> TSource
+    from .project import SourceNotFound
+    if not project:
+        from .core import project
+    if trusted_hosts is None:
+        trusted_hosts = []
+    if isinstance(index, Mapping):
+        return project.find_source(index.get("url"))
+    try:
+        source = project.find_source(index)
+    except SourceNotFound:
+        index_url = urllib3_util.parse_url(index)
+        src_name = project.src_name_from_url(index)
+        verify_ssl = index_url.host not in trusted_hosts
+        source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
+    return source
+
+
+def get_source_list(
+    index=None,  # type: Optional[Union[str, TSource]]
+    extra_indexes=None,  # type: Optional[List[str]]
+    trusted_hosts=None,  # type: Optional[List[str]]
+    pypi_mirror=None,  # type: Optional[str]
+    project=None,  # type: Optional[Project]
+):
+    # type: (...) -> List[TSource]
+    sources = []  # type: List[TSource]
+    if not project:
+        from .core import project
+    if index:
+        sources.append(get_project_index(index))
+    if extra_indexes:
+        if isinstance(extra_indexes, six.string_types):
+            extra_indexes = [extra_indexes,]
+        for source in extra_indexes:
+            extra_src = get_project_index(source)
+            if not sources or extra_src["url"] != sources[0]["url"]:
+                sources.append(extra_src)
+        else:
+            for source in project.pipfile_sources:
+                if not sources or source["url"] != sources[0]["url"]:
+                    sources.append(source)
+    if not sources:
+        sources = project.pipfile_sources[:]
+    if pypi_mirror:
+        sources = [
+            create_mirror_source(pypi_mirror) if is_pypi_url(source["url"]) else source
+            for source in sources
+        ]
+    return sources
+
+
+def get_indexes_from_requirement(req, project=None, index=None, extra_indexes=None, trusted_hosts=None, pypi_mirror=None):
+    # type: (Requirement, Optional[Project], Optional[Text], Optional[List[Text]], Optional[List[Text]], Optional[Text]) -> Tuple[TSource, List[TSource], List[Text]]
+    if not project:
+        from .core import project
+    index_sources = []  # type: List[TSource]
+    if not trusted_hosts:
+        trusted_hosts = []  # type: List[Text]
+    if extra_indexes is None:
+        extra_indexes = []
+    project_indexes = project.pipfile_sources[:]
+    indexes = []
+    if req.index:
+        indexes.append(req.index)
+    if getattr(req, "extra_indexes", None):
+        if not isinstance(req.extra_indexes, list):
+            indexes.append(req.extra_indexes)
+        else:
+            indexes.extend(req.extra_indexes)
+    indexes.extend(project_indexes)
+    if len(indexes) > 1:
+        index, extra_indexes = indexes[0], indexes[1:]
+    index_sources = get_source_list(index=index, extra_indexes=extra_indexes, trusted_hosts=trusted_hosts, pypi_mirror=pypi_mirror, project=project)
+    if len(index_sources) > 1:
+        index_source, extra_index_sources = index_sources[0], index_sources[1:]
+    else:
+        index_source, extra_index_sources = index_sources[0], []
+    return index_source, extra_index_sources
 
 
 @lru_cache()
@@ -570,6 +649,29 @@ class Resolver(object):
         )
         return Resolver(
             constraints, req_dir, project, sources, index_lookup=index_lookup,
+            markers_lookup=markers_lookup, skipped=skipped, clear=clear, pre=pre
+        )
+
+    @classmethod
+    def from_pipfile(cls, project=None, pipfile=None, dev=False, pre=False, clear=False):
+        # type: (Optional[Project], Optional[Pipfile], bool, bool, bool) -> "Resolver"
+        from pipenv.vendor.vistir.path import create_tracked_tempdir
+        if not project:
+            from pipenv.core import project
+        if not pipfile:
+            pipfile = project._pipfile
+        req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
+        index_lookup, markers_lookup = {}, {}
+        deps = set()
+        if dev:
+            deps.update(set([req.as_line() for req in pipfile.dev_packages]))
+        deps.update(set([req.as_line() for req in pipfile.packages]))
+        constraints, skipped, index_lookup, markers_lookup = cls.get_metadata(
+            list(deps), index_lookup, markers_lookup, project, project.sources,
+            req_dir=req_dir, pre=pre, clear=clear
+        )
+        return Resolver(
+            constraints, req_dir, project, project.sources, index_lookup=index_lookup,
             markers_lookup=markers_lookup, skipped=skipped, clear=clear, pre=pre
         )
 
@@ -945,6 +1047,8 @@ def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=No
     if markers:
         entry.update({"markers": markers})
     entry = translate_markers(entry)
+    if req.vcs or req.editable and entry.get("index"):
+        del entry["index"]
     return name, entry
 
 

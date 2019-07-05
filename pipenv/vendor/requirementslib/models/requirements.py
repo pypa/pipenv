@@ -1156,7 +1156,8 @@ class Line(object):
     def parse_markers(self):
         # type: () -> None
         if self.markers:
-            markers = PackagingRequirement("fakepkg; {0}".format(self.markers)).marker
+            marker_str = self.markers.replace('"', "'")
+            markers = PackagingRequirement("fakepkg; {0}".format(marker_str)).marker
             self.parsed_marker = markers
 
     @property
@@ -1229,7 +1230,12 @@ class Line(object):
 
     def parse(self):
         # type: () -> None
+        self.line = self.line.strip()
+        if self.line.startswith('"'):
+            self.line = self.line.strip('"')
         self.line, self.markers = split_markers_from_line(self.parse_hashes().line)
+        if self.markers:
+            self.markers = self.markers.replace('"', "'")
         self.parse_extras()
         self.line = self.line.strip('"').strip("'").strip()
         if self.line.startswith("git+file:/") and not self.line.startswith(
@@ -2614,16 +2620,28 @@ class Requirement(object):
         # type: () -> Line
         line_parts = []
         if self.req:
-            line_parts.append(self.req.line_part)
+            if self.req.line_part.startswith("-e "):
+                line_parts.extend(self.req.line_part.split(" ", 1))
+            else:
+                line_parts.append(self.req.line_part)
         if not self.is_vcs and not self.vcs and self.extras_as_pip:
             line_parts.append(self.extras_as_pip)
         if self._specifiers and not (self.is_file_or_url or self.is_vcs):
             line_parts.append(self._specifiers)
         if self.markers:
-            line_parts.append("; {0}".format(self.markers))
-        if self.hashes_as_pip:
+            line_parts.append("; {0}".format(self.markers.replace('"', "'")))
+        if self.hashes_as_pip and not (self.editable or self.vcs or self.is_vcs):
             line_parts.append(self.hashes_as_pip)
-        line = "".join(line_parts)
+        if self.editable:
+            if line_parts[0] == "-e":
+                line = "".join(line_parts[1:])
+            else:
+                line = "".join(line_parts)
+            if self.markers:
+                line = '"{0}"'.format(line)
+            line = "-e {0}".format(line)
+        else:
+            line = "".join(line_parts)
         return Line(line)
 
     @property

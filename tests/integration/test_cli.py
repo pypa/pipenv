@@ -223,17 +223,17 @@ def test_check_unused(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with open('__init__.py', 'w') as f:
             contents = """
-import fake_package
+import click
 import records
 import flask
             """.strip()
             f.write(contents)
-        p.pipenv('install requests fake_package flask')
+        p.pipenv('install requests click flask')
 
-        assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'fake_package', 'flask'])
+        assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'click', 'flask']), p.pipfile["packages"]
 
         c = p.pipenv('check --unused .')
-        assert 'fake_package' not in c.out
+        assert 'click' not in c.out
         assert 'flask' not in c.out
 
 

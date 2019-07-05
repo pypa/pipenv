@@ -166,8 +166,8 @@ def test_install_editable_git_tag(PipenvInstance_NoPyPI):  # ! This is failing
 @pytest.mark.index
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_install_named_index_alias(PipenvInstance):
-    with PipenvInstance() as p:
+def test_install_named_index_alias(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]

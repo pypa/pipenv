@@ -1,0 +1,19 @@
+include LICENSE* README*
+include CHANGELOG.rst
+include pyproject.toml
+
+exclude .editorconfig
+exclude .coveragerc
+exclude .travis.yml
+exclude tox.ini
+exclude appveyor.yml
+exclude Pipfile*
+
+recursive-include docs Makefile *.rst *.py *.bat
+recursive-exclude docs requirements*.txt
+
+prune .github
+prune docs/build
+prune news
+prune tasks
+prune tests
