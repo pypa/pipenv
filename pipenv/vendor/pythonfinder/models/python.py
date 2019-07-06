@@ -354,7 +354,7 @@ class PythonVersion(object):
     architecture = attr.ib(default=None)  # type: Optional[str]
     comes_from = attr.ib(default=None)  # type: Optional[PathEntry]
     executable = attr.ib(default=None)  # type: Optional[str]
-    company = attr.ib(default="PythonCore")  # type: Optional[str]
+    company = attr.ib(default=None)  # type: Optional[str]
     name = attr.ib(default=None, type=str)
 
     def __getattribute__(self, key):
@@ -392,7 +392,7 @@ class PythonVersion(object):
         postrelease.  ``(0, 3, 7, 3, 2)`` represents a non-core python release, e.g. by
         a repackager of python like Continuum.
         """
-        company_sort = 1 if self.company == "PythonCore" else 0
+        company_sort = 1 if (self.company and self.company == "PythonCore") else 0
         release_sort = 2
         if self.is_postrelease:
             release_sort = 3
