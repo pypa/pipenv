@@ -10,13 +10,10 @@ from tarfile import is_tarfile
 from zipfile import is_zipfile
 
 import requests
+from six.moves import xmlrpc_client
 
 from flask import Flask, redirect, abort, render_template, send_file, jsonify
 
-if sys.version_info[:2] >= (3, 0):
-    from xmlrpc.client import ServerProxy
-else:
-    from xmlrpclib import ServerProxy
 
 app = Flask(__name__)
 session = requests.Session()
@@ -27,12 +24,12 @@ ARTIFACTS = {}
 
 @contextlib.contextmanager
 def xml_pypi_server(server):
-    session = requests.Session()
-    client = ServerProxy(server, session)
+    transport = xmlrpc_client.Transport()
+    client = xmlrpc_client.ServerProxy(server, transport)
     try:
         yield client
     finally:
-        session.close()
+        transport.close()
 
 
 def get_pypi_package_names():
