@@ -381,7 +381,7 @@ class PythonVersion(object):
 
     @property
     def version_sort(self):
-        # type: () -> Tuple[Optional[int], Optional[int], int, int]
+        # type: () -> Tuple[int, int, Optional[int], int, int]
         """
         A tuple for sorting against other instances of the same class.
 
@@ -620,11 +620,13 @@ class PythonVersion(object):
         return result_dict
 
     @classmethod
-    def from_windows_launcher(cls, launcher_entry, name=None):
-        # type: (Environment, Optional[str]) -> PythonVersion
+    def from_windows_launcher(cls, launcher_entry, name=None, company=None):
+        # type: (Environment, Optional[str], Optional[str]) -> PythonVersion
         """Create a new PythonVersion instance from a Windows Launcher Entry
 
         :param launcher_entry: A python launcher environment object.
+        :param Optional[str] name: The name of the distribution.
+        :param Optional[str] company: The name of the distributing company.
         :return: An instance of a PythonVersion.
         :rtype: :class:`~pythonfinder.models.python.PythonVersion`
         """
@@ -639,7 +641,7 @@ class PythonVersion(object):
         exe_path = ensure_path(
             getattr(launcher_entry.info.install_path, "executable_path", default_path)
         )
-        company = getattr(launcher_entry, "company", "PythonCore")
+        company = getattr(launcher_entry, "company", guess_company(exe_path.as_posix()))
         creation_dict.update(
             {
                 "architecture": getattr(

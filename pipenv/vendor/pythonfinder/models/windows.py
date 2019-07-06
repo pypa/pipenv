@@ -82,6 +82,7 @@ class WindowsFinder(BaseFinder):
         for version_object in env_versions:
             install_path = getattr(version_object.info, "install_path", None)
             name = getattr(version_object, "tag", None)
+            company = getattr(version_object, "company", None)
             if install_path is None:
                 continue
             try:
@@ -90,7 +91,7 @@ class WindowsFinder(BaseFinder):
                 continue
             try:
                 py_version = PythonVersion.from_windows_launcher(
-                    version_object, name=name
+                    version_object, name=name, company=company
                 )
             except InvalidPythonVersion:
                 continue
