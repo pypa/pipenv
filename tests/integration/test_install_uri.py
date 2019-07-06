@@ -125,10 +125,10 @@ def test_local_vcs_urls_work(PipenvInstance, tmpdir):
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_editable_vcs_install(PipenvInstance_NoPyPI):  # ! This is failing
+def test_editable_vcs_install(PipenvInstance_NoPyPI):
     with PipenvInstance_NoPyPI(chdir=True) as p:
         c = p.pipenv(
-            "install -e git+https://github.com/kennethreitz/requests.git#egg=requests --verbose"
+            "install -e git+https://github.com/kennethreitz/requests.git#egg=requests"
         )
         assert c.return_code == 0
         assert "requests" in p.pipfile["packages"]
@@ -145,12 +145,12 @@ def test_editable_vcs_install(PipenvInstance_NoPyPI):  # ! This is failing
 @pytest.mark.tablib
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_install_editable_git_tag(PipenvInstance_NoPyPI):  # ! This is failing
+def test_install_editable_git_tag(PipenvInstance_NoPyPI):
     # This uses the real PyPI since we need Internet to access the Git
     # dependency anyway.
     with PipenvInstance_NoPyPI(chdir=True) as p:
         c = p.pipenv(
-            "install -e git+https://github.com/benjaminp/six.git@1.11.0#egg=six --verbose"
+            "install -e git+https://github.com/benjaminp/six.git@1.11.0#egg=six"
         )
         assert c.return_code == 0
         assert "six" in p.pipfile["packages"]
@@ -209,10 +209,10 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance):
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_get_vcs_refs(PipenvInstance_NoPyPI):  # ! this is failing
+def test_get_vcs_refs(PipenvInstance_NoPyPI):
     with PipenvInstance_NoPyPI(chdir=True) as p:
         c = p.pipenv(
-            "install -e git+https://github.com/benjaminp/six.git@1.9.0#egg=six --verbose"
+            "install -e git+https://github.com/benjaminp/six.git@1.9.0#egg=six"
         )
         assert c.return_code == 0
         assert "six" in p.pipfile["packages"]
