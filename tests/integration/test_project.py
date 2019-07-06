@@ -161,7 +161,7 @@ def test_include_editable_packages(PipenvInstance, testsroot, pathlib_tmpdir):
     with PipenvInstance(chdir=True) as p:
         with tarfile.open(source_path, "r:gz") as tarinfo:
             tarinfo.extractall(path=str(pathlib_tmpdir))
-        c = p.pipenv('install -e {}'.format(package))
+        c = p.pipenv('install -e {0!r}'.format(package))
         assert c.return_code == 0
         project = Project()
         assert "requests" in [

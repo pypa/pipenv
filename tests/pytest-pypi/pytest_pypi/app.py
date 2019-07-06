@@ -1,19 +1,22 @@
-import os
-import json
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, print_function
+import contextlib
 import io
+import json
+import os
 import sys
+
+from tarfile import is_tarfile
+from zipfile import is_zipfile
+
+import requests
+
+from flask import Flask, redirect, abort, render_template, send_file, jsonify
 
 if sys.version_info[:2] >= (3, 0):
     from xmlrpc.client import ServerProxy
 else:
     from xmlrpclib import ServerProxy
-
-from zipfile import is_zipfile
-from tarfile import is_tarfile
-
-import requests
-from flask import Flask, redirect, abort, render_template, send_file, jsonify
-
 
 app = Flask(__name__)
 session = requests.Session()
@@ -22,9 +25,20 @@ packages = {}
 ARTIFACTS = {}
 
 
+@contextlib.contextmanager
+def xml_pypi_server(server):
+    session = requests.Session()
+    client = ServerProxy(server, session)
+    try:
+        yield client
+    finally:
+        session.close()
+
+
 def get_pypi_package_names():
-    client = ServerProxy("https://pypi.org/pypi")
-    pypi_packages = set(client.list_packages())
+    pypi_packages = set()
+    with xml_pypi_server("https://pypi.org/pypi") as client:
+        pypi_packages = set(client.list_packages())
     return pypi_packages
 
 
