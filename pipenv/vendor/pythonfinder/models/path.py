@@ -14,8 +14,6 @@ from cached_property import cached_property
 from vistir.compat import Path, fs_str
 from vistir.misc import dedup
 
-from .mixins import BaseFinder, BasePath
-from .python import PythonVersion
 from ..environment import (
     ASDF_DATA_DIR,
     ASDF_INSTALLED,
@@ -42,6 +40,8 @@ from ..utils import (
     split_version_and_name,
     unnest,
 )
+from .mixins import BaseFinder, BasePath
+from .python import PythonVersion
 
 if MYPY_RUNNING:
     from typing import (
