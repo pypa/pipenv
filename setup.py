@@ -42,7 +42,7 @@ extras = {
         "parver",
         "invoke",
     ],
-    "tests": ["pytest", "pytest-devpi-server", "pytest-tap", "pytest-xdist", "flaky", "mock"],
+    "tests": ["pytest", "pytest-tap", "pytest-xdist", "flaky", "mock"],
 }
 
 # https://pypi.python.org/pypi/stdeb/0.8.5#quickstart-2-just-tell-me-the-fastest-way-to-make-a-deb
