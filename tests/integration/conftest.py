@@ -38,10 +38,6 @@ def try_internet(url="http://httpbin.org/ip", timeout=1.5):
     resp.raise_for_status()
 
 
-class ServerNotDead(Exception):
-    pass
-
-
 def check_internet():
     has_internet = False
     for url in ("http://httpbin.org/ip", "http://clients3.google.com/generate_204"):
