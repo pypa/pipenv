@@ -217,6 +217,7 @@ def test_install_parse_error(PipenvInstance, pypi):
 @pytest.mark.code
 @pytest.mark.check
 @pytest.mark.unused
+@pytest.mark.skip_osx
 @pytest.mark.needs_internet(reason='required by check')
 def test_check_unused(PipenvInstance, pypi):
     with PipenvInstance(chdir=True, pypi=pypi) as p:
@@ -234,3 +235,19 @@ import flask
         c = p.pipenv('check --unused .')
         assert 'tablib' not in c.out
         assert 'flask' not in c.out
+
+
+@pytest.mark.cli
+def test_pipenv_clear(PipenvInstance):
+    with PipenvInstance() as p:
+        c = p.pipenv('--clear')
+        assert c.return_code == 0
+        assert 'Clearing caches' in c.out
+
+
+@pytest.mark.cli
+def test_pipenv_three(PipenvInstance):
+    with PipenvInstance() as p:
+        c = p.pipenv('--three')
+        assert c.return_code == 0
+        assert 'Successfully created virtual environment' in c.err

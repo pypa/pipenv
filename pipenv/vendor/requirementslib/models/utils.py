@@ -541,7 +541,7 @@ def split_ref_from_uri(uri):
     parsed = urllib_parse.urlparse(uri)
     path = parsed.path
     ref = None
-    if "@" in path:
+    if parsed.scheme != "file" and "@" in path:
         path, _, ref = path.rpartition("@")
     parsed = parsed._replace(path=path)
     return (urllib_parse.urlunparse(parsed), ref)
@@ -966,6 +966,25 @@ def get_name_variants(pkg):
     pkg = pkg.lower()
     names = {safe_name(pkg), canonicalize_name(pkg), pkg.replace("-", "_")}
     return names
+
+
+def read_source(path, encoding="utf-8"):
+    # type: (S, S) -> S
+    """
+    Read a source file and get the contents with proper encoding for Python 2/3.
+
+    :param AnyStr path: the file path
+    :param AnyStr encoding: the encoding that defaults to UTF-8
+    :returns: The contents of the source file
+    :rtype: AnyStr
+    """
+    if six.PY3:
+        with open(path, "r", encoding=encoding) as fp:
+            return fp.read()
+    else:
+        with open(path, "r") as fp:
+            return fp.read()
+
 
 
 SETUPTOOLS_SHIM = (

@@ -62,18 +62,15 @@ def cli(
     state,
     where=False,
     venv=False,
-    rm=False,
-    bare=False,
-    three=False,
-    python=False,
-    help=False,
     py=False,
     envs=False,
-    man=False,
+    rm=False,
+    bare=False,
     completion=False,
-    pypi_mirror=None,
+    man=False,
     support=None,
-    clear=False,
+    help=False,
+    site_packages=False,
     **kwargs
 ):
     # Handle this ASAP to make shell startup fast.
@@ -143,10 +140,9 @@ def cli(
             get_pipenv_diagnostics()
             return 0
         # --clear was passed…
-        elif clear:
+        elif state.clear:
             do_clear()
             return 0
-
         # --venv was passed…
         elif venv:
             # There is no virtualenv yet.
@@ -316,7 +312,10 @@ def lock(
     from ..core import ensure_project, do_init, do_lock
 
     # Ensure that virtualenv is available.
-    ensure_project(three=state.three, python=state.python, pypi_mirror=state.pypi_mirror)
+    ensure_project(
+        three=state.three, python=state.python, pypi_mirror=state.pypi_mirror,
+        warn=(not state.quiet)
+    )
     if state.installstate.requirementstxt:
         do_init(
             dev=state.installstate.dev,
@@ -330,6 +329,7 @@ def lock(
         pre=state.installstate.pre,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
+        write=not state.quiet,
     )
 
 

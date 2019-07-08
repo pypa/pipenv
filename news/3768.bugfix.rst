@@ -1,0 +1,1 @@
+Fixed a ``KeyError`` which could occur when pinning outdated VCS dependencies via ``pipenv lock --keep-outdated``.

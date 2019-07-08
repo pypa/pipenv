@@ -17,6 +17,7 @@ from vistir.contextmanagers import temp_environ
 from vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
 
 from pipenv._compat import Path
+from pipenv.cmdparse import Script
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.vendor import delegator, requests, toml, tomlkit
 from pytest_pypi.app import prepare_fixtures
@@ -39,6 +40,10 @@ def check_internet():
     for url in ("http://httpbin.org/ip", "http://clients3.google.com/generate_204"):
         try:
             try_internet(url)
+        except KeyboardInterrupt:
+            warnings.warn(
+                "Skipped connecting to internet: {0}".format(url), RuntimeWarning
+            )
         except Exception:
             warnings.warn(
                 "Failed connecting to internet: {0}".format(url), RuntimeWarning
@@ -59,6 +64,10 @@ def check_github_ssh():
         # return_code=255 and say 'Permission denied (publickey).'
         c = delegator.run('ssh -T git@github.com')
         res = True if c.return_code == 1 else False
+    except KeyboardInterrupt:
+        warnings.warn(
+            "KeyboardInterrupt while checking GitHub ssh access", RuntimeWarning
+        )
     except Exception:
         pass
     global HAS_WARNED_GITHUB
@@ -103,6 +112,8 @@ def pytest_runtest_setup(item):
         sys.version_info < (3, 0)
     ):
         pytest.skip('test only runs on python 3')
+    if item.get_closest_marker('skip_osx') is not None and sys.platform == 'darwin':
+        pytest.skip('test does not apply on OSX')
     if item.get_closest_marker('lte_py36') is not None and (
         sys.version_info >= (3, 7)
     ):
@@ -183,11 +194,15 @@ WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 class _Pipfile(object):
     def __init__(self, path):
         self.path = path
-        self.document = tomlkit.document()
-        self.document["source"] = tomlkit.aot()
-        self.document["requires"] = tomlkit.table()
-        self.document["packages"] = tomlkit.table()
-        self.document["dev_packages"] = tomlkit.table()
+        if self.path.exists():
+            self.loads()
+        else:
+            self.document = tomlkit.document()
+        self.document["source"] = self.document.get("source", tomlkit.aot())
+        self.document["requires"] = self.document.get("requires", tomlkit.table())
+        self.document["packages"] = self.document.get("packages", tomlkit.table())
+        self.document["dev_packages"] = self.document.get("dev_packages", tomlkit.table())
+        super(_Pipfile, self).__init__()
 
     def install(self, package, value, dev=False):
         section = "packages" if not dev else "dev_packages"
@@ -199,7 +214,18 @@ class _Pipfile(object):
             self.document[section][package] = value
         self.write()
 
+    def remove(self, package, dev=False):
+        section = "packages" if not dev else "dev_packages"
+        if not dev and package not in self.document[section]:
+            if package in self.document["dev_packages"]:
+                section = "dev_packages"
+        del self.document[section][package]
+        self.write()
+
     def add(self, package, value, dev=False):
+        self.install(package, value, dev=dev)
+
+    def update(self, package, value, dev=False):
         self.install(package, value, dev=dev)
 
     def loads(self):
@@ -207,7 +233,8 @@ class _Pipfile(object):
 
     def dumps(self):
         source_table = tomlkit.table()
-        source_table["url"] = os.environ.get("PIPENV_TEST_INDEX")
+        pypi_url = os.environ.get("PIPENV_PYPI_URL", "https://pypi.org/simple")
+        source_table["url"] = os.environ.get("PIPENV_TEST_INDEX", pypi_url)
         source_table["verify_ssl"] = False
         source_table["name"] = "pipenv_test_index"
         self.document["source"].append(source_table)
@@ -321,8 +348,10 @@ class _PipenvInstance(object):
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
-            c = delegator.run('pipenv {0}'.format(cmd), block=block,
-                              cwd=os.path.abspath(self.path))
+            c = delegator.run(
+                'pipenv {0}'.format(cmd), block=block,
+                cwd=os.path.abspath(self.path), env=os.environ.copy()
+            )
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
 

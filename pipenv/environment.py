@@ -248,7 +248,6 @@ class Environment(object):
             "prefix='{1}');paths['platlib'] = distutils.sysconfig.get_python_lib("
             "plat_specific=1, prefix='{1}');print(json.dumps(paths))"
         )
-        vistir.misc.echo("command: {0}".format(py_command.format(install_scheme, prefix)), fg="white", style="bold", err=True)
         command = [self.python, "-c", py_command.format(install_scheme, prefix)]
         c = vistir.misc.run(
             command, return_object=True, block=True, nospin=True, write_to_stdout=False
@@ -368,7 +367,9 @@ class Environment(object):
 
     @contextlib.contextmanager
     def get_finder(self, pre=False):
-        from .vendor.pip_shims.shims import Command, cmdoptions, index_group, PackageFinder
+        from .vendor.pip_shims.shims import (
+            Command, cmdoptions, index_group, PackageFinder, parse_version, pip_version
+        )
         from .environments import PIPENV_CACHE_DIR
         index_urls = [source.get("url") for source in self.sources]
 
@@ -387,25 +388,35 @@ class Environment(object):
         pip_options.cache_dir = PIPENV_CACHE_DIR
         pip_options.pre = self.pipfile.get("pre", pre)
         with pip_command._build_session(pip_options) as session:
-            finder = PackageFinder(
-                find_links=pip_options.find_links,
-                index_urls=index_urls, allow_all_prereleases=pip_options.pre,
-                trusted_hosts=pip_options.trusted_hosts,
-                process_dependency_links=pip_options.process_dependency_links,
-                session=session
-            )
+            finder_args = {
+                "find_links": pip_options.find_links,
+                "index_urls": index_urls,
+                "allow_all_prereleases": pip_options.pre,
+                "trusted_hosts": pip_options.trusted_hosts,
+                "session": session
+            }
+            if parse_version(pip_version) < parse_version("19.0"):
+                finder_args.update(
+                    {"process_dependency_links": pip_options.process_dependency_links}
+                )
+            finder = PackageFinder(**finder_args)
             yield finder
 
     def get_package_info(self, pre=False):
+        from .vendor.pip_shims.shims import pip_version, parse_version
         dependency_links = []
         packages = self.get_installed_packages()
         # This code is borrowed from pip's current implementation
-        for dist in packages:
-            if dist.has_metadata('dependency_links.txt'):
-                dependency_links.extend(dist.get_metadata_lines('dependency_links.txt'))
+        if parse_version(pip_version) < parse_version("19.0"):
+            for dist in packages:
+                if dist.has_metadata('dependency_links.txt'):
+                    dependency_links.extend(
+                        dist.get_metadata_lines('dependency_links.txt')
+                    )
 
         with self.get_finder() as finder:
-            finder.add_dependency_links(dependency_links)
+            if parse_version(pip_version) < parse_version("19.0"):
+                finder.add_dependency_links(dependency_links)
 
             for dist in packages:
                 typ = 'unknown'
@@ -433,7 +444,7 @@ class Environment(object):
     def get_outdated_packages(self, pre=False):
         return [
             pkg for pkg in self.get_package_info(pre=pre)
-            if pkg.latest_version._version > pkg.parsed_version._version
+            if pkg.latest_version._key > pkg.parsed_version._key
         ]
 
     @classmethod
