@@ -14,7 +14,7 @@ from pipenv.utils import temp_environ
 
 @pytest.mark.lock
 @pytest.mark.requirements
-def test_lock_handle_eggs(PipenvInstance, pypi):
+def test_lock_handle_eggs(PipenvInstance):
     """Ensure locking works with packages provoding egg formats.
     """
     with PipenvInstance() as p:
@@ -31,9 +31,9 @@ RandomWords = "*"
 
 @pytest.mark.lock
 @pytest.mark.requirements
-def test_lock_requirements_file(PipenvInstance, pypi):
+def test_lock_requirements_file(PipenvInstance):
 
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -61,9 +61,9 @@ flask = "==0.12.2"
 
 @pytest.mark.lock
 @pytest.mark.keep_outdated
-def test_lock_keep_outdated(PipenvInstance, pypi):
+def test_lock_keep_outdated(PipenvInstance):
 
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -99,8 +99,8 @@ PyTest = "*"
 
 @pytest.mark.lock
 @pytest.mark.keep_outdated
-def test_keep_outdated_doesnt_remove_lockfile_entries(PipenvInstance, pypi):
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+def test_keep_outdated_doesnt_remove_lockfile_entries(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         p._pipfile.add("requests", "==2.18.4")
         p._pipfile.add("colorama", {"version": "*", "markers": "os_name=='FakeOS'"})
         p.pipenv("install")
@@ -112,8 +112,8 @@ def test_keep_outdated_doesnt_remove_lockfile_entries(PipenvInstance, pypi):
 
 @pytest.mark.lock
 @pytest.mark.keep_outdated
-def test_keep_outdated_doesnt_upgrade_pipfile_pins(PipenvInstance, pypi):
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+def test_keep_outdated_doesnt_upgrade_pipfile_pins(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         p._pipfile.add("urllib3", "==1.21.1")
         c = p.pipenv("install")
         assert c.ok
@@ -126,8 +126,8 @@ def test_keep_outdated_doesnt_upgrade_pipfile_pins(PipenvInstance, pypi):
         assert p.lockfile["default"]["urllib3"]["version"] == "==1.21.1"
 
 
-def test_keep_outdated_keeps_markers_not_removed(PipenvInstance, pypi):
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+def test_keep_outdated_keeps_markers_not_removed(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install six click")
         assert c.ok
         lockfile = Path(p.lockfile_path)
@@ -143,8 +143,8 @@ def test_keep_outdated_keeps_markers_not_removed(PipenvInstance, pypi):
 
 @pytest.mark.lock
 @pytest.mark.keep_outdated
-def test_keep_outdated_doesnt_update_satisfied_constraints(PipenvInstance, pypi):
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+def test_keep_outdated_doesnt_update_satisfied_constraints(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         p._pipfile.add("requests", "==2.18.4")
         c = p.pipenv("install")
         assert c.ok
@@ -174,7 +174,7 @@ def test_complex_lock_with_vcs_deps(PipenvInstance, pip_src_dir):
 click = "==6.7"
 
 [dev-packages]
-requests = {git = "https://github.com/requests/requests.git"}
+requests = {git = "https://github.com/kennethreitz/requests.git"}
             """.strip()
             f.write(contents)
 
@@ -198,9 +198,9 @@ requests = {git = "https://github.com/requests/requests.git"}
 
 @pytest.mark.lock
 @pytest.mark.requirements
-def test_lock_with_prereleases(PipenvInstance, pypi):
+def test_lock_with_prereleases(PipenvInstance):
 
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -221,9 +221,9 @@ allow_prereleases = true
 @pytest.mark.complex
 @pytest.mark.needs_internet
 @flaky
-def test_complex_deps_lock_and_install_properly(PipenvInstance, pip_src_dir, pypi):
+def test_complex_deps_lock_and_install_properly(PipenvInstance, pip_src_dir):
     # This uses the real PyPI because Maya has too many dependencies...
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -240,8 +240,8 @@ maya = "*"
 
 @pytest.mark.lock
 @pytest.mark.extras
-def test_lock_extras_without_install(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_lock_extras_without_install(PipenvInstance):
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -265,11 +265,11 @@ requests = {version = "*", extras = ["socks"]}
 @pytest.mark.complex
 @pytest.mark.needs_internet
 @pytest.mark.skip(reason='Needs numpy to be mocked')
-def test_complex_lock_deep_extras(PipenvInstance, pypi):
+def test_complex_lock_deep_extras(PipenvInstance):
     # records[pandas] requires tablib[pandas] which requires pandas.
     # This uses the real PyPI; Pandas has too many requirements to mock.
 
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -289,8 +289,8 @@ records = {extras = ["pandas"], version = "==0.5.2"}
 @pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.skip_lock
 @pytest.mark.needs_internet
-def test_private_index_skip_lock(PipenvInstance):
-    with PipenvInstance() as p:
+def test_private_index_skip_lock(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -317,9 +317,9 @@ requests = "*"
 @pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.requirements
 @pytest.mark.needs_internet
-def test_private_index_lock_requirements(PipenvInstance):
+def test_private_index_lock_requirements(PipenvInstance_NoPyPI):
     # Don't use the local fake pypi
-    with PipenvInstance() as p:
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -350,9 +350,9 @@ requests = "*"
 @pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.requirements
 @pytest.mark.needs_internet
-def test_private_index_mirror_lock_requirements(PipenvInstance):
+def test_private_index_mirror_lock_requirements(PipenvInstance_NoPyPI):
     # Don't use the local fake pypi
-    with temp_environ(), PipenvInstance(chdir=True) as p:
+    with temp_environ(), PipenvInstance_NoPyPI(chdir=True) as p:
         # Using pypi.python.org as pipenv-test-public-package is not
         # included in the local pypi mirror
         mirror_url = os.environ.pop('PIPENV_TEST_INDEX', "https://pypi.kennethreitz.org/simple")
@@ -371,7 +371,7 @@ name = "testpypi"
 
 [packages]
 six = {version = "*", index = "testpypi"}
-requests = "*"
+fake-package = "*"
             """.strip()
             f.write(contents)
         c = p.pipenv('install --pypi-mirror {0}'.format(mirror_url))
@@ -387,9 +387,9 @@ requests = "*"
 
 @pytest.mark.index
 @pytest.mark.install
-def test_lock_updated_source(PipenvInstance, pypi):
+def test_lock_updated_source(PipenvInstance):
 
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -397,7 +397,7 @@ url = "{url}/${{MY_ENV_VAR}}"
 
 [packages]
 requests = "==2.14.0"
-            """.strip().format(url=pypi.url)
+            """.strip().format(url=p.pypi)
             f.write(contents)
 
         with temp_environ():
@@ -413,7 +413,7 @@ url = "{url}/simple"
 
 [packages]
 requests = "==2.14.0"
-            """.strip().format(url=pypi.url)
+            """.strip().format(url=p.pypi)
             f.write(contents)
 
         c = p.pipenv('lock')
@@ -424,12 +424,12 @@ requests = "==2.14.0"
 @pytest.mark.vcs
 @pytest.mark.lock
 @pytest.mark.needs_internet
-def test_lock_editable_vcs_without_install(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_lock_editable_vcs_without_install(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/requests/requests.git", ref = "master", editable = true}
+requests = {git = "https://github.com/kennethreitz/requests.git", ref = "master", editable = true}
             """.strip())
         c = p.pipenv('lock')
         assert c.return_code == 0
@@ -443,16 +443,16 @@ requests = {git = "https://github.com/requests/requests.git", ref = "master", ed
 @pytest.mark.vcs
 @pytest.mark.lock
 @pytest.mark.needs_internet
-def test_lock_editable_vcs_with_ref_in_git(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_lock_editable_vcs_with_ref_in_git(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/requests/requests.git@883caaf", editable = true}
+requests = {git = "https://github.com/kennethreitz/requests.git@883caaf", editable = true}
             """.strip())
         c = p.pipenv('lock')
         assert c.return_code == 0
-        assert p.lockfile['default']['requests']['git'] == 'https://github.com/requests/requests.git'
+        assert p.lockfile['default']['requests']['git'] == 'https://github.com/kennethreitz/requests.git'
         assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
         c = p.pipenv('install')
         assert c.return_code == 0
@@ -461,16 +461,16 @@ requests = {git = "https://github.com/requests/requests.git@883caaf", editable =
 @pytest.mark.vcs
 @pytest.mark.lock
 @pytest.mark.needs_internet
-def test_lock_editable_vcs_with_ref(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_lock_editable_vcs_with_ref(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/requests/requests.git", ref = "883caaf", editable = true}
+requests = {git = "https://github.com/kennethreitz/requests.git", ref = "883caaf", editable = true}
             """.strip())
         c = p.pipenv('lock')
         assert c.return_code == 0
-        assert p.lockfile['default']['requests']['git'] == 'https://github.com/requests/requests.git'
+        assert p.lockfile['default']['requests']['git'] == 'https://github.com/kennethreitz/requests.git'
         assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
         c = p.pipenv('install')
         assert c.return_code == 0
@@ -480,12 +480,12 @@ requests = {git = "https://github.com/requests/requests.git", ref = "883caaf", e
 @pytest.mark.lock
 @pytest.mark.extras
 @pytest.mark.needs_internet
-def test_lock_editable_vcs_with_extras_without_install(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_lock_editable_vcs_with_extras_without_install(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/requests/requests.git", editable = true, extras = ["socks"]}
+requests = {git = "https://github.com/kennethreitz/requests.git", editable = true, extras = ["socks"]}
             """.strip())
         c = p.pipenv('lock')
         assert c.return_code == 0
@@ -500,12 +500,12 @@ requests = {git = "https://github.com/requests/requests.git", editable = true, e
 @pytest.mark.vcs
 @pytest.mark.lock
 @pytest.mark.needs_internet
-def test_lock_editable_vcs_with_markers_without_install(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_lock_editable_vcs_with_markers_without_install(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/requests/requests.git", ref = "master", editable = true, markers = "python_version >= '2.6'"}
+requests = {git = "https://github.com/kennethreitz/requests.git", ref = "master", editable = true, markers = "python_version >= '2.6'"}
             """.strip())
         c = p.pipenv('lock')
         assert c.return_code == 0
@@ -518,8 +518,8 @@ requests = {git = "https://github.com/requests/requests.git", ref = "master", ed
 
 @pytest.mark.lock
 @pytest.mark.skip(reason="This doesn't work for some reason.")
-def test_lock_respecting_python_version(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_lock_respecting_python_version(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
@@ -562,8 +562,8 @@ def test_lockfile_with_empty_dict(PipenvInstance):
 @pytest.mark.lock
 @pytest.mark.install
 @pytest.mark.skip_lock
-def test_lock_with_incomplete_source(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_lock_with_incomplete_source(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [[source]]
@@ -581,8 +581,8 @@ requests = "*"
 
 @pytest.mark.lock
 @pytest.mark.install
-def test_lock_no_warnings(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_lock_no_warnings(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         os.environ["PYTHONWARNINGS"] = str("once")
         c = p.pipenv("install six")
         assert c.return_code == 0
@@ -596,7 +596,7 @@ def test_lock_no_warnings(PipenvInstance, pypi):
 @pytest.mark.lock
 @pytest.mark.install
 @pytest.mark.skipif(sys.version_info >= (3, 5), reason="scandir doesn't get installed on python 3.5+")
-def test_lock_missing_cache_entries_gets_all_hashes(PipenvInstance, pypi, tmpdir):
+def test_lock_missing_cache_entries_gets_all_hashes(PipenvInstance, tmpdir):
     """
     Test locking pathlib2 on python2.7 which needs `scandir`, but fails to resolve when
     using a fresh dependency cache.
@@ -604,7 +604,7 @@ def test_lock_missing_cache_entries_gets_all_hashes(PipenvInstance, pypi, tmpdir
 
     with temp_environ():
         os.environ["PIPENV_CACHE_DIR"] = str(tmpdir.strpath)
-        with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with PipenvInstance(chdir=True) as p:
             p._pipfile.add("pathlib2", "*")
             assert "pathlib2" in p.pipfile["packages"]
             c = p.pipenv("install")
@@ -619,10 +619,10 @@ def test_lock_missing_cache_entries_gets_all_hashes(PipenvInstance, pypi, tmpdir
 
 @pytest.mark.vcs
 @pytest.mark.lock
-def test_vcs_lock_respects_top_level_pins(PipenvInstance, pypi):
+def test_vcs_lock_respects_top_level_pins(PipenvInstance):
     """Test that locking VCS dependencies respects top level packages pinned in Pipfiles"""
 
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+    with PipenvInstance(chdir=True) as p:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         p._pipfile.add("requests", {
             "editable": True, "git": "{0}".format(requests_uri),
@@ -638,8 +638,8 @@ def test_vcs_lock_respects_top_level_pins(PipenvInstance, pypi):
 
 
 @pytest.mark.lock
-def test_lock_after_update_source_name(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_lock_after_update_source_name(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         contents = """
 [[source]]
 url = "https://test.pypi.org/simple"

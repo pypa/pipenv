@@ -8,9 +8,9 @@ from click import (
     argument, echo, edit, group, option, pass_context, secho, version_option
 )
 
-import click_completion
-import crayons
-import delegator
+from ..vendor import click_completion
+from ..vendor import delegator
+from ..patched import crayons
 
 from ..__version__ import __version__
 from .options import (

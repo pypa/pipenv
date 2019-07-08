@@ -248,8 +248,12 @@ class PyPIRepository(BaseRepository):
 
     def resolve_reqs(self, download_dir, ireq, wheel_cache):
         results = None
-        ireq.isolated = False
+        ireq.isolated = self.build_isolation
         ireq._wheel_cache = wheel_cache
+        if ireq and not ireq.link:
+            ireq.populate_link(self.finder, False, False)
+        if ireq.link and not ireq.link.is_wheel:
+            ireq.ensure_has_source_dir(self.source_dir)
         try:
             from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
         except ImportError:
@@ -273,7 +277,7 @@ class PyPIRepository(BaseRepository):
                 'download_dir': download_dir,
                 'wheel_download_dir': self._wheel_download_dir,
                 'progress_bar': 'off',
-                'build_isolation': False,
+                'build_isolation': self.build_isolation,
             }
             resolver_kwargs = {
                 'finder': self.finder,
@@ -284,9 +288,10 @@ class PyPIRepository(BaseRepository):
                 'ignore_requires_python': True,
                 'ignore_installed': True,
                 'ignore_compatibility': False,
-                'isolated': False,
+                'isolated': True,
                 'wheel_cache': wheel_cache,
-                'use_user_site': False
+                'use_user_site': False,
+                'use_pep517': True
             }
             resolver = None
             preparer = None

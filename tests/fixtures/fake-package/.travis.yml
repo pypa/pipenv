@@ -1,0 +1,38 @@
+language: python
+sudo: false
+cache: pip
+dist: trusty
+
+matrix:
+  fast_finish: true
+
+install:
+  - "python -m pip install --upgrade pip pytest-timeout"
+  - "python -m pip install -e .[tests]"
+script:
+  - "python -m pytest -v -n 8 tests/"
+
+jobs:
+  include:
+    - stage: test
+    - python: "3.7"
+      dist: xenial
+      sudo: required
+    - python: "3.6"
+    - python: "2.7"
+    - python: "3.5"
+    - python: "3.4"
+    - stage: packaging
+      python: "3.6"
+      install:
+        - "pip install --upgrade twine readme-renderer[md]"
+      script:
+        - "python setup.py sdist"
+        - "twine check dist/*"
+    - stage: coverage
+      python: "3.6"
+      install:
+        - "python -m pip install --upgrade pip pytest-timeout pytest-cov"
+        - "python -m pip install --upgrade -e .[tests]"
+      script:
+        - "python -m pytest -n auto --timeout 300 --cov=fake_package --cov-report=term-missing --cov-report=xml --cov-report=html tests"
