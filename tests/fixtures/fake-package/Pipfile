@@ -1,0 +1,14 @@
+[packages]
+fake_package = { path = '.', editable = true, extras = ["dev", "tests"] }
+
+[dev-packages]
+towncrier = '*'
+sphinx = '*'
+sphinx-rtd-theme = '*'
+
+[scripts]
+release = 'inv release'
+tests = "pytest -v tests"
+draft = "towncrier --draft"
+changelog = "towncrier"
+build = "setup.py sdist bdist_wheel"

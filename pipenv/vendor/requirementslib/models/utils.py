@@ -504,6 +504,10 @@ def get_pyproject(path):
 def split_markers_from_line(line):
     # type: (AnyStr) -> Tuple[AnyStr, Optional[AnyStr]]
     """Split markers from a dependency"""
+    quote_chars = ["'", '"']
+    line_quote = next(iter(quote for quote in quote_chars if line.startswith(quote)), None)
+    if line_quote and line.endswith(line_quote):
+        line = line.strip(line_quote)
     if not any(line.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
         marker_sep = ";"
     else:
@@ -829,7 +833,9 @@ def name_from_req(req):
         return req.name
 
 
-def make_install_requirement(name, version, extras, markers, constraint=False):
+def make_install_requirement(
+    name, version=None, extras=None, markers=None, constraint=False
+):
     """
     Generates an :class:`~pip._internal.req.req_install.InstallRequirement`.
 
@@ -853,19 +859,16 @@ def make_install_requirement(name, version, extras, markers, constraint=False):
     from pip_shims.shims import install_req_from_line
 
     extras_string = ""
+    requirement_string = "{0}".format(name)
     if extras:
         # Sort extras for stability
         extras_string = "[{}]".format(",".join(sorted(extras)))
-
-    if not markers:
-        return install_req_from_line(
-            str("{}{}=={}".format(name, extras_string, version)), constraint=constraint
-        )
-    else:
-        return install_req_from_line(
-            str("{}{}=={}; {}".format(name, extras_string, version, str(markers))),
-            constraint=constraint,
-        )
+        requirement_string = "{0}{1}".format(requirement_string, extras_string)
+    if version:
+        requirement_string = "{0}=={1}".format(requirement_string, str(version))
+    if markers:
+        requirement_string = "{0}; {1}".format(requirement_string, str(markers))
+    return install_req_from_line(requirement_string, constraint=constraint)
 
 
 def version_from_ireq(ireq):
@@ -984,7 +987,6 @@ def read_source(path, encoding="utf-8"):
     else:
         with open(path, "r") as fp:
             return fp.read()
-
 
 
 SETUPTOOLS_SHIM = (

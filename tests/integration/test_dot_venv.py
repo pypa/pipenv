@@ -11,10 +11,10 @@ from pipenv.vendor import delegator
 
 
 @pytest.mark.dotvenv
-def test_venv_in_project(PipenvInstance, pypi):
+def test_venv_in_project(PipenvInstance):
     with temp_environ():
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
-        with PipenvInstance(pypi=pypi) as p:
+        with PipenvInstance() as p:
             c = p.pipenv('install requests')
             assert c.return_code == 0
             assert normalize_drive(p.path) in p.pipenv('--venv').out
@@ -36,8 +36,8 @@ def test_venv_at_project_root(PipenvInstance):
 
 
 @pytest.mark.dotvenv
-def test_reuse_previous_venv(PipenvInstance, pypi):
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+def test_reuse_previous_venv(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         os.mkdir('.venv')
         c = p.pipenv('install requests')
         assert c.return_code == 0
@@ -46,11 +46,11 @@ def test_reuse_previous_venv(PipenvInstance, pypi):
 
 @pytest.mark.dotvenv
 @pytest.mark.parametrize('venv_name', ('test-venv', os.path.join('foo', 'test-venv')))
-def test_venv_file(venv_name, PipenvInstance, pypi):
+def test_venv_file(venv_name, PipenvInstance):
     """Tests virtualenv creation when a .venv file exists at the project root
     and contains a venv name.
     """
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+    with PipenvInstance(chdir=True) as p:
         file_path = os.path.join(p.path, '.venv')
         with open(file_path, 'w') as f:
             f.write(venv_name)
@@ -79,11 +79,11 @@ def test_venv_file(venv_name, PipenvInstance, pypi):
 
 
 @pytest.mark.dotvenv
-def test_venv_file_with_path(PipenvInstance, pypi):
+def test_venv_file_with_path(PipenvInstance):
     """Tests virtualenv creation when a .venv file exists at the project root
     and contains an absolute path.
     """
-    with temp_environ(), PipenvInstance(chdir=True, pypi=pypi) as p:
+    with temp_environ(), PipenvInstance(chdir=True) as p:
         with TemporaryDirectory(
             prefix='pipenv-', suffix='-test_venv'
         ) as venv_path:

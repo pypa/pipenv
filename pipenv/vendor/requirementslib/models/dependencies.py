@@ -9,34 +9,56 @@ import os
 import attr
 import packaging.markers
 import packaging.version
+import pip_shims.shims
 import requests
-
 from first import first
 from packaging.utils import canonicalize_name
-
-import pip_shims.shims
-from vistir.compat import JSONDecodeError, fs_str, ResourceWarning
+from vistir.compat import JSONDecodeError, fs_str
 from vistir.contextmanagers import cd, temp_environ
 from vistir.misc import partialclass
 from vistir.path import create_tracked_tempdir
 
-from ..environment import MYPY_RUNNING
-from ..utils import prepare_pip_source_args, _ensure_dir
 from .cache import CACHE_DIR, DependencyCache
 from .utils import (
-    clean_requires_python, fix_requires_python_marker, format_requirement,
-    full_groupby, is_pinned_requirement, key_from_ireq,
-    make_install_requirement, name_from_req, version_from_ireq
+    clean_requires_python,
+    fix_requires_python_marker,
+    format_requirement,
+    full_groupby,
+    is_pinned_requirement,
+    key_from_ireq,
+    make_install_requirement,
+    name_from_req,
+    version_from_ireq,
 )
-
+from ..environment import MYPY_RUNNING
+from ..utils import _ensure_dir, prepare_pip_source_args
 
 if MYPY_RUNNING:
-    from typing import Any, Dict, List, Generator, Optional, Union, Tuple, TypeVar, Text, Set, AnyStr
-    from pip_shims.shims import InstallRequirement, InstallationCandidate, PackageFinder, Command
+    from typing import (
+        Any,
+        Dict,
+        List,
+        Generator,
+        Optional,
+        Union,
+        Tuple,
+        TypeVar,
+        Text,
+        Set,
+    )
+    from pip_shims.shims import (
+        InstallRequirement,
+        InstallationCandidate,
+        PackageFinder,
+        Command,
+    )
     from packaging.requirements import Requirement as PackagingRequirement
+
     TRequirement = TypeVar("TRequirement")
-    RequirementType = TypeVar('RequirementType', covariant=True, bound=PackagingRequirement)
-    MarkerType = TypeVar('MarkerType', covariant=True, bound=Marker)
+    RequirementType = TypeVar(
+        "RequirementType", covariant=True, bound=PackagingRequirement
+    )
+    MarkerType = TypeVar("MarkerType", covariant=True, bound=Marker)
     STRING_TYPE = Union[str, bytes, Text]
     S = TypeVar("S", bytes, str, Text)
 
@@ -66,7 +88,6 @@ def find_all_matches(finder, ireq, pre=False):
     :return: A list of matching candidates.
     :rtype: list[:class:`~pip._internal.index.InstallationCandidate`]
     """
-
 
     candidates = clean_requires_python(finder.find_all_candidates(ireq.name))
     versions = {candidate.version for candidate in candidates}
@@ -158,10 +179,14 @@ class AbstractDependency(object):
         elif len(other.candidates) == 1 and first(other.candidates).editable:
             return other
         new_specifiers = self.specifiers & other.specifiers
-        markers = set(self.markers,) if self.markers else set()
+        markers = set(self.markers) if self.markers else set()
         if other.markers:
             markers.add(other.markers)
-        new_markers = packaging.markers.Marker(" or ".join(str(m) for m in sorted(markers)))
+        new_markers = None
+        if markers:
+            new_markers = packaging.markers.Marker(
+                " or ".join(str(m) for m in sorted(markers))
+            )
         new_ireq = copy.deepcopy(self.requirement.ireq)
         new_ireq.req.specifier = new_specifiers
         new_ireq.req.marker = new_markers
@@ -187,7 +212,7 @@ class AbstractDependency(object):
             requirement=new_requirement,
             parent=self.parent,
             dep_dict=dep_dict,
-            finder=self.finder
+            finder=self.finder,
         )
 
     def get_deps(self, candidate):
@@ -204,7 +229,7 @@ class AbstractDependency(object):
             from .requirements import Requirement
 
             req = Requirement.from_line(key)
-            req.merge_markers(self.markers)
+            req = req.merge_markers(self.markers)
             self.dep_dict[key] = req.get_abstract_dependencies()
         return self.dep_dict[key]
 
@@ -230,13 +255,18 @@ class AbstractDependency(object):
         if not is_pinned and not requirement.editable:
             for r in requirement.find_all_matches(finder=finder):
                 req = make_install_requirement(
-                    name, r.version, extras=extras, markers=markers, constraint=is_constraint,
+                    name,
+                    r.version,
+                    extras=extras,
+                    markers=markers,
+                    constraint=is_constraint,
                 )
                 req.req.link = r.location
                 req.parent = parent
                 candidates.append(req)
                 candidates = sorted(
-                    set(candidates), key=lambda k: packaging.version.parse(version_from_ireq(k)),
+                    set(candidates),
+                    key=lambda k: packaging.version.parse(version_from_ireq(k)),
                 )
         else:
             candidates = [requirement.ireq]
@@ -279,9 +309,7 @@ def get_abstract_dependencies(reqs, sources=None, parent=None):
 
     for req in reqs:
         if isinstance(req, pip_shims.shims.InstallRequirement):
-            requirement = Requirement.from_line(
-                "{0}{1}".format(req.name, req.specifier)
-            )
+            requirement = Requirement.from_line("{0}{1}".format(req.name, req.specifier))
             if req.link:
                 requirement.req.link = req.link
                 requirement.markers = req.markers
@@ -311,27 +339,26 @@ def get_dependencies(ireq, sources=None, parent=None):
     :rtype: set(str)
     """
     if not isinstance(ireq, pip_shims.shims.InstallRequirement):
-        name = getattr(
-            ireq, "project_name",
-            getattr(ireq, "project", ireq.name),
-        )
+        name = getattr(ireq, "project_name", getattr(ireq, "project", ireq.name))
         version = getattr(ireq, "version", None)
         if not version:
             ireq = pip_shims.shims.InstallRequirement.from_line("{0}".format(name))
         else:
-            ireq = pip_shims.shims.InstallRequirement.from_line("{0}=={1}".format(name, version))
+            ireq = pip_shims.shims.InstallRequirement.from_line(
+                "{0}=={1}".format(name, version)
+            )
     pip_options = get_pip_options(sources=sources)
     getters = [
         get_dependencies_from_cache,
         get_dependencies_from_wheel_cache,
         get_dependencies_from_json,
-        functools.partial(get_dependencies_from_index, pip_options=pip_options)
+        functools.partial(get_dependencies_from_index, pip_options=pip_options),
     ]
     for getter in getters:
         deps = getter(ireq)
         if deps is not None:
             return deps
-    raise RuntimeError('failed to get dependencies for {}'.format(ireq))
+    raise RuntimeError("failed to get dependencies for {}".format(ireq))
 
 
 def get_dependencies_from_wheel_cache(ireq):
@@ -389,7 +416,7 @@ def get_dependencies_from_json(ireq):
         finally:
             session.close()
         requires_dist = info.get("requires_dist", info.get("requires"))
-        if not requires_dist:   # The API can return None for this.
+        if not requires_dist:  # The API can return None for this.
             return
         for requires in requires_dist:
             i = pip_shims.shims.InstallRequirement.from_line(requires)
@@ -430,9 +457,9 @@ def get_dependencies_from_cache(ireq):
             dep_ireq = pip_shims.shims.InstallRequirement.from_line(line)
             name = canonicalize_name(dep_ireq.name)
             if _marker_contains_extra(dep_ireq):
-                broken = True   # The "extra =" marker breaks everything.
+                broken = True  # The "extra =" marker breaks everything.
             elif name == canonicalize_name(ireq.name):
-                broken = True   # A package cannot depend on itself.
+                broken = True  # A package cannot depend on itself.
             if broken:
                 break
     except Exception:
@@ -446,7 +473,7 @@ def get_dependencies_from_cache(ireq):
 
 
 def is_python(section):
-    return section.startswith('[') and ':' in section
+    return section.startswith("[") and ":" in section
 
 
 def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache=None):
@@ -468,12 +495,15 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
     reqset.add_requirement(dep)
     requirements = None
     setup_requires = {}
-    with temp_environ(), start_resolver(finder=finder, wheel_cache=wheel_cache) as resolver:
-        os.environ['PIP_EXISTS_ACTION'] = 'i'
+    with temp_environ(), start_resolver(
+        finder=finder, wheel_cache=wheel_cache
+    ) as resolver:
+        os.environ["PIP_EXISTS_ACTION"] = "i"
         dist = None
         if dep.editable and not dep.prepared and not dep.req:
             with cd(dep.setup_py_dir):
                 from setuptools.dist import distutils
+
                 try:
                     dist = distutils.core.run_setup(dep.setup_py)
                 except (ImportError, TypeError, AttributeError):
@@ -504,7 +534,7 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
             add_marker = fix_requires_python_marker(requires_python)
             reqset.remove(dep)
             if dep.req.marker:
-                dep.req.marker._markers.extend(['and',].extend(add_marker._markers))
+                dep.req.marker._markers.extend(["and"].extend(add_marker._markers))
             else:
                 dep.req.marker = add_marker
             reqset.add(dep)
@@ -512,7 +542,7 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
         for r in results:
             if requires_python:
                 if r.req.marker:
-                    r.req.marker._markers.extend(['and',].extend(add_marker._markers))
+                    r.req.marker._markers.extend(["and"].extend(add_marker._markers))
                 else:
                     r.req.marker = add_marker
             requirements.add(format_requirement(r))
@@ -531,10 +561,16 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
                 else:
                     not_python = True
 
-                if ':' not in value and not_python:
+                if ":" not in value and not_python:
                     try:
-                        requirement_str = "{0}{1}".format(value, python_version).replace(":", ";")
-                        requirements.add(format_requirement(make_install_requirement(requirement_str).ireq))
+                        requirement_str = "{0}{1}".format(value, python_version).replace(
+                            ":", ";"
+                        )
+                        requirements.add(
+                            format_requirement(
+                                make_install_requirement(requirement_str).ireq
+                            )
+                        )
                     # Anything could go wrong here -- can't be too careful.
                     except Exception:
                         pass
@@ -559,9 +595,7 @@ def get_pip_options(args=[], sources=None, pip_command=None):
     if not pip_command:
         pip_command = get_pip_command()
     if not sources:
-        sources = [
-            {"url": "https://pypi.org/simple", "name": "pypi", "verify_ssl": True}
-        ]
+        sources = [{"url": "https://pypi.org/simple", "name": "pypi", "verify_ssl": True}]
     _ensure_dir(CACHE_DIR)
     pip_args = args
     pip_args = prepare_pip_source_args(sources, pip_args)
@@ -587,9 +621,7 @@ def get_finder(sources=None, pip_command=None, pip_options=None):
     if not pip_command:
         pip_command = get_pip_command()
     if not sources:
-        sources = [
-            {"url": "https://pypi.org/simple", "name": "pypi", "verify_ssl": True}
-        ]
+        sources = [{"url": "https://pypi.org/simple", "name": "pypi", "verify_ssl": True}]
     if not pip_options:
         pip_options = get_pip_options(sources=sources, pip_command=pip_command)
     session = pip_command._build_session(pip_options)
@@ -652,7 +684,9 @@ def start_resolver(finder=None, wheel_cache=None):
         use_user_site=False,
     )
     try:
-        if packaging.version.parse(pip_shims.shims.pip_version) >= packaging.version.parse('18'):
+        if packaging.version.parse(
+            pip_shims.shims.pip_version
+        ) >= packaging.version.parse("18"):
             with pip_shims.shims.RequirementTracker() as req_tracker:
                 preparer = preparer(req_tracker=req_tracker)
                 yield resolver(preparer=preparer)

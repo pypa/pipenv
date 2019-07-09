@@ -6,7 +6,7 @@
 	url = https://github.com/pinax/pinax.git
 [submodule "tests/test_artifacts/git/requests"]
 	path = tests/test_artifacts/git/requests
-	url = https://github.com/requests/requests.git
+	url = https://github.com/kennethreitz/requests.git
 [submodule "tests/test_artifacts/git/six"]
 	path = tests/test_artifacts/git/six
 	url = https://github.com/benjaminp/six.git
@@ -24,7 +24,7 @@
 	url = https://github.com/pallets/flask.git
 [submodule "tests/test_artifacts/git/requests-2.18.4"]
 	path = tests/test_artifacts/git/requests-2.18.4
-	url = https://github.com/requests/requests
+	url = https://github.com/kennethreitz/requests
 [submodule "tests/pypi"]
 	path = tests/pypi
 	url = https://github.com/sarugaku/pipenv-test-artifacts.git

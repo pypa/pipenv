@@ -1,18 +1,43 @@
-import os
-import json
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, print_function
+import contextlib
 import io
+import json
+import os
 import sys
 
-import requests
-from flask import Flask, redirect, abort, render_template, send_file, jsonify
-from zipfile import is_zipfile
 from tarfile import is_tarfile
+from zipfile import is_zipfile
+
+import requests
+from six.moves import xmlrpc_client
+
+from flask import Flask, redirect, abort, render_template, send_file, jsonify
+
 
 app = Flask(__name__)
 session = requests.Session()
 
 packages = {}
 ARTIFACTS = {}
+
+
+@contextlib.contextmanager
+def xml_pypi_server(server):
+    transport = xmlrpc_client.Transport()
+    client = xmlrpc_client.ServerProxy(server, transport)
+    try:
+        yield client
+    finally:
+        transport.close()
+
+
+def get_pypi_package_names():
+    pypi_packages = set()
+    with xml_pypi_server("https://pypi.org/pypi") as client:
+        pypi_packages = set(client.list_packages())
+    return pypi_packages
+
 
 class Package(object):
     """Package represents a collection of releases from one or more directories"""
@@ -107,16 +132,22 @@ def prepare_packages(path):
     if not (os.path.exists(path) and os.path.isdir(path)):
         raise ValueError("{} is not a directory!".format(path))
     for root, dirs, files in os.walk(path):
+        if all([setup_file in list(files) for setup_file in ("setup.py", "setup.cfg")]):
+            continue
         for file in files:
             if not file.startswith('.') and not file.endswith('.json'):
                 package_name = os.path.basename(root)
                 if package_name and package_name == "fixtures":
                     prepare_fixtures(root)
                     continue
+                package_name = package_name.replace("_", "-")
                 if package_name not in packages:
                     packages[package_name] = Package(package_name)
 
                 packages[package_name].add_release(os.path.join(root, file))
+    remaining = get_pypi_package_names() - set(list(packages.keys()))
+    for pypi_pkg in remaining:
+        packages[pypi_pkg] = Package(pypi_pkg)
 
 
 @app.route('/')
@@ -136,10 +167,18 @@ def artifacts():
 
 @app.route('/simple/<package>/')
 def simple_package(package):
-    if package in packages:
+    if package in packages and packages[package].releases:
         return render_template('package.html', package=packages[package])
     else:
-        abort(404)
+        try:
+            r = requests.get("https://pypi.org/simple/{0}".format(package))
+            r.raise_for_status()
+        except Exception:
+            abort(404)
+        else:
+            return render_template(
+                'package_pypi.html', package_contents=r.text
+            )
 
 
 @app.route('/artifacts/<artifact>/')

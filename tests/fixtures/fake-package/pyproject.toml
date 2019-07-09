@@ -1,0 +1,50 @@
+[build-system]
+requires = ['setuptools>=40.8.0', 'wheel>=0.33.0']
+
+[tool.black]
+line-length = 90
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.pyre_configuration
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)
+'''
+
+[tool.towncrier]
+package = 'fake-package'
+package_dir = 'src'
+filename = 'CHANGELOG.rst'
+directory = 'news/'
+title_format = '{version} ({project_date})'
+issue_format = '`#{issue} <https://github.com/sarugaku/fake_package/issues/{issue}>`_'
+template = 'tasks/CHANGELOG.rst.jinja2'
+
+  [[tool.towncrier.type]]
+  directory = 'feature'
+  name = 'Features'
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = 'bugfix'
+  name = 'Bug Fixes'
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = 'trivial'
+  name = 'Trivial Changes'
+  showcontent = false
+
+  [[tool.towncrier.type]]
+  directory = 'removal'
+  name = 'Removals and Deprecations'
+  showcontent = true
