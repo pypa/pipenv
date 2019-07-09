@@ -48,9 +48,9 @@ except ImportError:
 class HashCache(SafeFileCache):
     """Caches hashes of PyPI artifacts so we do not need to re-download them
 
-    Hashes are only cached when the URL appears to contain a hash in it and the cache key includes
-    the hash value returned from the server). This ought to avoid ssues where the location on the
-    server changes."""
+    Hashes are only cached when the URL appears to contain a hash in it. We then include
+    the hash value returned from the server in the cache key. This ought to avoid
+    issues where the location on the server changes."""
     def __init__(self, *args, **kwargs):
         session = kwargs.pop('session')
         self.session = session
@@ -65,15 +65,17 @@ class HashCache(SafeFileCache):
         new_location = copy.deepcopy(location)
         if orig_scheme in vcs.all_schemes:
             new_location.url = new_location.url.split("+", 1)[-1]
-        can_hash = new_location.hash
-        if can_hash:
-            # hash url WITH fragment
+
+        if new_location.hash is not None:
+            # ignore cache, unless the url contains a hash fragment
             hash_value = self.get(new_location.url)
         if not hash_value:
             hash_value = self._get_file_hash(new_location) if not new_location.url.startswith("ssh") else None
             hash_value = hash_value.encode('utf8') if hash_value else None
-        if can_hash:
-            self.set(new_location.url, hash_value)
+            if new_location.hash is not None:
+                # only if the url contains a hash
+                # cache the artifct hash, including the hash fragment in the key
+                self.set(new_location.url, hash_value)
         return hash_value.decode('utf8') if hash_value else None
 
     def _get_file_hash(self, location):
