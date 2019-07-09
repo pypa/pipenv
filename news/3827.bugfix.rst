@@ -1,0 +1,1 @@
+Fixed lengthy delays in `pipenv lock`. Use the hash value from the artifact url when available.
