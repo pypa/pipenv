@@ -77,11 +77,16 @@ class HashCache(SafeFileCache):
         return hash_value.decode('utf8') if hash_value else None
 
     def _get_file_hash(self, location):
-        h = hashlib.new(FAVORITE_HASH)
-        with open_local_or_remote_file(location, self.session) as fp:
-            for chunk in iter(lambda: fp.read(8096), b""):
-                h.update(chunk)
-        return ":".join([FAVORITE_HASH, h.hexdigest()])
+        if (location.hash is not None
+                and location.hash_name == FAVORITE_HASH):
+            hash_value = location.hash
+        else:
+            h = hashlib.new(FAVORITE_HASH)
+            with open_local_or_remote_file(location, self.session) as fp:
+                for chunk in iter(lambda: fp.read(8096), b""):
+                    h.update(chunk)
+            hash_value = h.hexdigest()
+        return ":".join([FAVORITE_HASH, hash_value])
 
 
 class PyPIRepository(BaseRepository):
