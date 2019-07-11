@@ -1861,6 +1861,7 @@ def do_install(
     deploy=False,
     keep_outdated=False,
     selective_upgrade=False,
+    site_packages=False,
 ):
     from .environments import PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
     from .vendor.pip_shims.shims import PipError
@@ -1888,6 +1889,7 @@ def do_install(
         deploy=deploy,
         skip_requirements=skip_requirements,
         pypi_mirror=pypi_mirror,
+        site_packages=site_packages,
     )
     # Don't attempt to install develop and default packages if Pipfile is missing
     if not project.pipfile_exists and not (package_args or dev) and not code:
