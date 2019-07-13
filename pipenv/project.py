@@ -47,11 +47,10 @@ def _normalized(p):
     if p is None:
         return None
     loc = vistir.compat.Path(p)
-    if not loc.is_absolute():
-        try:
-            loc = loc.resolve()
-        except OSError:
-            loc = loc.absolute()
+    try:
+        loc = loc.resolve()
+    except OSError:
+        loc = loc.absolute()
     # Recase the path properly on Windows. From https://stackoverflow.com/a/35229734/5043728
     if os.name == 'nt':
         matches = glob.glob(re.sub(r'([^:/\\])(?=[/\\]|$)', r'[\1]', str(loc)))

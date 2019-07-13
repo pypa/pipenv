@@ -62,22 +62,23 @@ requests = "==2.14.0"
 @pytest.mark.update
 @pytest.mark.lock
 def test_update_locks(PipenvInstance):
-
     with PipenvInstance() as p:
-        c = p.pipenv('install requests==2.14.0')
+        c = p.pipenv('install jdcal==1.3')
         assert c.return_code == 0
+        assert p.lockfile['default']['jdcal']['version'] == '==1.3'
         with open(p.pipfile_path, 'r') as fh:
             pipfile_contents = fh.read()
-        pipfile_contents = pipfile_contents.replace('==2.14.0', '*')
+        assert '==1.3' in pipfile_contents
+        pipfile_contents = pipfile_contents.replace('==1.3', '*')
         with open(p.pipfile_path, 'w') as fh:
             fh.write(pipfile_contents)
-        c = p.pipenv('update requests')
+        c = p.pipenv('update jdcal')
         assert c.return_code == 0
-        assert p.lockfile['default']['requests']['version'] == '==2.19.1'
+        assert p.lockfile['default']['jdcal']['version'] == '==1.4'
         c = p.pipenv('run pip freeze')
         assert c.return_code == 0
         lines = c.out.splitlines()
-        assert 'requests==2.19.1' in [l.strip() for l in lines]
+        assert 'jdcal==1.4' in [l.strip() for l in lines]
 
 
 @pytest.mark.project

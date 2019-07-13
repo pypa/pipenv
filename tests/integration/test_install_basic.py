@@ -122,16 +122,16 @@ def test_install_without_dev(PipenvInstance):
 six = "*"
 
 [dev-packages]
-pytz = "*"
+tablib = "*"
             """.strip()
             f.write(contents)
         c = p.pipenv("install")
         assert c.return_code == 0
         assert "six" in p.pipfile["packages"]
-        assert "pytz" in p.pipfile["dev-packages"]
+        assert "tablib" in p.pipfile["dev-packages"]
         assert "six" in p.lockfile["default"]
-        assert "pytz" in p.lockfile["develop"]
-        c = p.pipenv('run python -c "import pytz"')
+        assert "tablib" in p.lockfile["develop"]
+        c = p.pipenv('run python -c "import tablib"')
         assert c.return_code != 0
         c = p.pipenv('run python -c "import six"')
         assert c.return_code == 0
