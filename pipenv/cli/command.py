@@ -392,7 +392,6 @@ def shell(
 
 
 @cli.command(
-    add_help_option=False,
     short_help="Spawns a command installed into the virtualenv.",
     context_settings=subcommand_context_no_interspersion,
 )
