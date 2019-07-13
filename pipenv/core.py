@@ -466,7 +466,7 @@ def ensure_python(three=None, python=None):
     return path_to_python
 
 
-def ensure_virtualenv(three=None, python=None, site_packages=False, pypi_mirror=None):
+def ensure_virtualenv(three=None, python=None, site_packages=None, pypi_mirror=None):
     """Creates a virtualenv, if one doesn't exist."""
     from .environments import PIPENV_USE_SYSTEM
 
@@ -500,7 +500,7 @@ def ensure_virtualenv(three=None, python=None, site_packages=False, pypi_mirror=
             cleanup_virtualenv(bare=False)
             sys.exit(1)
     # If --three, --two, or --python were passed…
-    elif (python) or (three is not None) or (site_packages is not False):
+    elif (python) or (three is not None) or (site_packages is not None):
         USING_DEFAULT_PYTHON = False
         # Ensure python is installed before deleting existing virtual env
         python = ensure_python(three=three, python=python)
@@ -536,7 +536,7 @@ def ensure_project(
     validate=True,
     system=False,
     warn=True,
-    site_packages=False,
+    site_packages=None,
     deploy=False,
     skip_requirements=False,
     pypi_mirror=None,
@@ -891,7 +891,7 @@ def convert_three_to_python(three, python):
         return python
 
 
-def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
+def do_create_virtualenv(python=None, site_packages=None, pypi_mirror=None):
     """Creates a virtualenv."""
 
     click.echo(
@@ -1861,7 +1861,7 @@ def do_install(
     deploy=False,
     keep_outdated=False,
     selective_upgrade=False,
-    site_packages=False,
+    site_packages=None,
 ):
     from .environments import PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
     from .vendor.pip_shims.shims import PipError

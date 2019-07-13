@@ -61,7 +61,7 @@ class State(object):
         self.python = None
         self.two = None
         self.three = None
-        self.site_packages = False
+        self.site_packages = None
         self.clear = False
         self.system = False
         self.installstate = InstallState()
@@ -263,9 +263,9 @@ def site_packages_option(f):
         state = ctx.ensure_object(State)
         state.site_packages = value
         return value
-    return option("--site-packages", is_flag=True, default=False, type=click.types.BOOL,
-                  help="Enable site-packages for the virtualenv.", callback=callback,
-                  expose_value=False, show_envvar=True)(f)
+    return option("--site-packages/--no-site-packages", is_flag=True, default=None,
+                  type=click.types.BOOL, help="Enable site-packages for the virtualenv.",
+                  callback=callback, expose_value=False, show_envvar=True)(f)
 
 
 def clear_option(f):

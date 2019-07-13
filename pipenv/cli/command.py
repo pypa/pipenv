@@ -70,7 +70,7 @@ def cli(
     man=False,
     support=None,
     help=False,
-    site_packages=False,
+    site_packages=None,
     **kwargs
 ):
     # Handle this ASAP to make shell startup fast.
