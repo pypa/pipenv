@@ -178,6 +178,16 @@ def generate_manual(ctx, commit=False):
 
 
 @invoke.task
+def generate_contributing_md(ctx, commit=False):
+    log("Generating CONTRIBUTING.md from reStructuredText source...")
+    ctx.run("pandoc docs/dev/contributing.rst -f rst -t markdown -o CONTRIBUTING.md")
+    if commit:
+        log("Commiting...")
+        ctx.run("git add CONTRIBUTING.md")
+        ctx.run('git commit -m "Update CONTRIBUTING.md."')
+
+
+@invoke.task
 def generate_changelog(ctx, commit=False, draft=False):
     log("Generating changelog...")
     if draft:
