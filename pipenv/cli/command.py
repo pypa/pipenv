@@ -313,9 +313,11 @@ def lock(
     """Generates Pipfile.lock."""
     from ..core import ensure_project, do_init, do_lock
     # Ensure that virtualenv is available.
+    # Note that we don't pass clear on to ensure_project as it is also
+    # handled in do_lock
     ensure_project(
         three=state.three, python=state.python, pypi_mirror=state.pypi_mirror,
-        warn=(not state.quiet), site_packages=state.site_packages, clear=state.clear
+        warn=(not state.quiet), site_packages=state.site_packages,
     )
     if state.installstate.requirementstxt:
         do_init(
