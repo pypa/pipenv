@@ -104,7 +104,7 @@ def cli(
 
     if man:
         if system_which("man"):
-            path = os.sep.join([os.path.dirname(__file__), "pipenv.1"])
+            path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "pipenv.1")
             os.execle(system_which("man"), "man", path, os.environ)
             return 0
         else:
