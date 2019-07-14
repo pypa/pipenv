@@ -1,46 +1,45 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, print_function
 import os
 import sys
-
-from pipenv.patched import pipfile
-from pipenv.project import Project
-from pipenv.utils import temp_environ
 
 import pytest
 
 from flaky import flaky
 
+from pipenv.patched import pipfile
+from pipenv.project import Project
+from pipenv.utils import temp_environ
 
-py3_only = pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python3")
-skip_py37 = pytest.mark.skipif(sys.version_info >= (3, 7), reason="Skip for python 3.7")
 
-
-@pytest.mark.markers
 @flaky
-def test_package_environment_markers(PipenvInstance, pypi):
+@pytest.mark.markers
+def test_package_environment_markers(PipenvInstance):
 
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
-tablib = {version = "*", markers="os_name=='splashwear'"}
+fake_package = {version = "*", markers="os_name=='splashwear'"}
             """.strip()
             f.write(contents)
 
         c = p.pipenv('install')
         assert c.return_code == 0
         assert 'Ignoring' in c.out
-        assert 'markers' in p.lockfile['default']['tablib']
+        assert 'markers' in p.lockfile['default']['fake-package'], p.lockfile["default"]
 
-        c = p.pipenv('run python -c "import tablib;"')
+        c = p.pipenv('run python -c "import fake_package;"')
         assert c.return_code == 1
 
-@pytest.mark.markers
+
 @flaky
-def test_platform_python_implementation_marker(PipenvInstance, pypi):
+@pytest.mark.markers
+def test_platform_python_implementation_marker(PipenvInstance):
     """Markers should be converted during locking to help users who input this
     incorrectly.
     """
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -59,17 +58,17 @@ depends-on-marked-package = "*"
             "platform_python_implementation == 'CPython'"
 
 
+@flaky
 @pytest.mark.run
 @pytest.mark.alt
 @pytest.mark.install
-@flaky
-def test_specific_package_environment_markers(PipenvInstance, pypi):
+def test_specific_package_environment_markers(PipenvInstance):
 
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
-requests = {version = "*", os_name = "== 'splashwear'"}
+fake-package = {version = "*", os_name = "== 'splashwear'"}
             """.strip()
             f.write(contents)
 
@@ -77,18 +76,18 @@ requests = {version = "*", os_name = "== 'splashwear'"}
         assert c.return_code == 0
 
         assert 'Ignoring' in c.out
-        assert 'markers' in p.lockfile['default']['requests']
+        assert 'markers' in p.lockfile['default']['fake-package']
 
-        c = p.pipenv('run python -c "import requests;"')
+        c = p.pipenv('run python -c "import fake_package;"')
         assert c.return_code == 1
 
 
-@pytest.mark.markers
 @flaky
-def test_top_level_overrides_environment_markers(PipenvInstance, pypi):
+@pytest.mark.markers
+def test_top_level_overrides_environment_markers(PipenvInstance):
     """Top-level environment markers should take precedence.
     """
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -99,21 +98,21 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
 
         c = p.pipenv('install')
         assert c.return_code == 0
+        assert "markers" in p.lockfile['default']['funcsigs'], p.lockfile['default']['funcsigs']
+        assert p.lockfile['default']['funcsigs']['markers'] == "os_name == 'splashwear'", p.lockfile['default']['funcsigs']
 
-        assert p.lockfile['default']['funcsigs']['markers'] == "os_name == 'splashwear'"
 
-
+@flaky
 @pytest.mark.markers
 @pytest.mark.install
-@flaky
-def test_global_overrides_environment_markers(PipenvInstance, pypi):
+def test_global_overrides_environment_markers(PipenvInstance):
     """Empty (unconditional) dependency should take precedence.
     If a dependency is specified without environment markers, it should
     override dependencies with environment markers. In this example,
     APScheduler requires funcsigs only on Python 2, but since funcsigs is
     also specified as an unconditional dep, its markers should be empty.
     """
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -128,12 +127,12 @@ funcsigs = "*"
         assert p.lockfile['default']['funcsigs'].get('markers', '') == ''
 
 
+@flaky
 @pytest.mark.lock
 @pytest.mark.complex
-@flaky
-@py3_only
-@skip_py37
-def test_resolver_unique_markers(PipenvInstance, pypi):
+@pytest.mark.py3_only
+@pytest.mark.lte_py36
+def test_resolver_unique_markers(PipenvInstance):
     """vcrpy has a dependency on `yarl` which comes with a marker
     of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
 
@@ -141,8 +140,8 @@ def test_resolver_unique_markers(PipenvInstance, pypi):
 
     This verifies that we clean that successfully.
     """
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
-        c = p.pipenv('install vcrpy==1.11.0')
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv('install vcrpy==2.0.1')
         assert c.return_code == 0
         c = p.pipenv('lock')
         assert c.return_code == 0
@@ -150,13 +149,13 @@ def test_resolver_unique_markers(PipenvInstance, pypi):
         yarl = p.lockfile['default']['yarl']
         assert 'markers' in yarl
         # Two possible marker sets are ok here
-        assert yarl['markers'] in ["python_version in '3.4, 3.5, 3.6'", "python_version >= '3.4.1'"]
+        assert yarl['markers'] in ["python_version in '3.4, 3.5, 3.6'", "python_version >= '3.4'"]
 
 
-@pytest.mark.project
 @flaky
-def test_environment_variable_value_does_not_change_hash(PipenvInstance, pypi):
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+@pytest.mark.project
+def test_environment_variable_value_does_not_change_hash(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         with temp_environ():
             with open(p.pipfile_path, 'w') as f:
                 f.write("""

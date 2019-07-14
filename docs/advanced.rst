@@ -71,6 +71,11 @@ Luckily - pipenv will hash your Pipfile *before* expanding environment
 variables (and, helpfully, will substitute the environment variables again when
 you install from the lock file - so no need to commit any secrets! Woo!)
 
+If your credentials contain a special character, surround the references to the environment variables with quotation marks. For example, if your password contain a double quotation mark, surround the password variable with single quotation marks. Otherwise, you may get a ``ValueError, "No closing quotation"`` error while installing dependencies. ::
+
+    [[source]]
+    url = "https://$USERNAME:'${PASSWORD}'@mypypi.example.com/simple"
+
 
 ☤ Specifying Basically Anything
 -------------------------------
@@ -358,7 +363,9 @@ Pipenv supports creating custom shortcuts in the (optional) ``[scripts]`` sectio
 You can then run ``pipenv run <shortcut name>`` in your terminal to run the command in the
 context of your pipenv virtual environment even if you have not activated the pipenv shell first.
 
-For example, in your Pipfile::
+For example, in your Pipfile:
+
+.. code-block:: toml
 
     [scripts]
     printspam = "python -c \"print('I am a silly example, no one would need to do this')\""
@@ -369,10 +376,13 @@ And then in your terminal::
     I am a silly example, no one would need to do this
 
 Commands that expect arguments will also work.
-For example::
+For example:
 
+.. code-block:: toml
     [scripts]
     echospam = "echo I am really a very silly example"
+
+::
 
     $ pipenv run echospam "indeed"
     I am really a very silly example indeed
@@ -380,7 +390,11 @@ For example::
 ☤ Support for Environment Variables
 -----------------------------------
 
-Pipenv supports the usage of environment variables in values. For example::
+Pipenv supports the usage of environment variables in place of authentication fragments
+in your Pipfile. These will only be parsed if they are present in the ``[[source]]``
+section. For example:
+
+.. code-block:: toml
 
     [[source]]
     url = "https://${PYPI_USERNAME}:${PYPI_PASSWORD}@my_private_repo.example.com/simple"
@@ -395,6 +409,7 @@ Pipenv supports the usage of environment variables in values. For example::
     records = "*"
 
 Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+
 On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
 
 .. _configuration-with-environment-variables:
@@ -468,7 +483,7 @@ and the corresponding Makefile::
         pipenv install --dev
 
     test:
-        pipenv run py.test tests
+        pipenv run pytest tests
 
 
 Tox Automation Project
@@ -484,7 +499,7 @@ and external testing::
     deps = pipenv
     commands=
         pipenv install --dev
-        pipenv run py.test tests
+        pipenv run pytest tests
 
     [testenv:flake8-py3]
     basepython = python3.4
@@ -493,7 +508,7 @@ and external testing::
         pipenv run flake8 --version
         pipenv run flake8 setup.py docs project test
 
-Pipenv will automatically use the virtualenv provided by ``tox``. If ``pipenv install --dev`` installs e.g. ``pytest``, then installed command ``py.test`` will be present in given virtualenv and can be called directly by ``py.test tests`` instead of ``pipenv run py.test tests``.
+Pipenv will automatically use the virtualenv provided by ``tox``. If ``pipenv install --dev`` installs e.g. ``pytest``, then installed command ``pytest`` will be present in given virtualenv and can be called directly by ``pytest tests`` instead of ``pipenv run pytest tests``.
 
 You might also want to add ``--ignore-pipfile`` to ``pipenv install``, as to
 not accidentally modify the lock-file on each test run. This causes Pipenv

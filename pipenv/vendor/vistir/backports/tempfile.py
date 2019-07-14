@@ -5,7 +5,6 @@ import functools
 import io
 import os
 import sys
-
 from tempfile import _bin_openflags, _mkstemp_inner, gettempdir
 
 import six
@@ -14,6 +13,24 @@ try:
     from weakref import finalize
 except ImportError:
     from pipenv.vendor.backports.weakref import finalize
+
+
+def fs_encode(path):
+    try:
+        return os.fsencode(path)
+    except AttributeError:
+        from ..compat import fs_encode
+
+        return fs_encode(path)
+
+
+def fs_decode(path):
+    try:
+        return os.fsdecode(path)
+    except AttributeError:
+        from ..compat import fs_decode
+
+        return fs_decode(path)
 
 
 __all__ = ["finalize", "NamedTemporaryFile"]
@@ -49,7 +66,7 @@ def _sanitize_params(prefix, suffix, dir):
         if output_type is str:
             dir = gettempdir()
         else:
-            dir = os.fsencode(gettempdir())
+            dir = fs_encode(gettempdir())
     return prefix, suffix, dir, output_type
 
 
@@ -175,7 +192,7 @@ def NamedTemporaryFile(
     prefix=None,
     dir=None,
     delete=True,
-    wrapper_class_override=None
+    wrapper_class_override=None,
 ):
     """Create and return a temporary file.
     Arguments:
@@ -203,13 +220,11 @@ def NamedTemporaryFile(
     else:
         (fd, name) = _mkstemp_inner(dir, prefix, suffix, flags, output_type)
     try:
-        file = io.open(
-            fd, mode, buffering=buffering, newline=newline, encoding=encoding
-        )
+        file = io.open(fd, mode, buffering=buffering, newline=newline, encoding=encoding)
         if wrapper_class_override is not None:
-            return type(
-                str("_TempFileWrapper"), (wrapper_class_override, object), {}
-            )(file, name, delete)
+            return type(str("_TempFileWrapper"), (wrapper_class_override, object), {})(
+                file, name, delete
+            )
         else:
             return _TemporaryFileWrapper(file, name, delete)
 

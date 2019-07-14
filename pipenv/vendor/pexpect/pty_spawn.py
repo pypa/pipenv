@@ -430,61 +430,83 @@ class spawn(SpawnBase):
         available right away then one character will be returned immediately.
         It will not wait for 30 seconds for another 99 characters to come in.
 
-        This is a wrapper around os.read(). It uses select.select() to
-        implement the timeout. '''
+        On the other hand, if there are bytes available to read immediately,
+        all those bytes will be read (up to the buffer size). So, if the
+        buffer size is 1 megabyte and there is 1 megabyte of data available
+        to read, the buffer will be filled, regardless of timeout.
+
+        This is a wrapper around os.read(). It uses select.select() or
+        select.poll() to implement the timeout. '''
 
         if self.closed:
             raise ValueError('I/O operation on closed file.')
 
+        if self.use_poll:
+            def select(timeout):
+                return poll_ignore_interrupts([self.child_fd], timeout)
+        else:
+            def select(timeout):
+                return select_ignore_interrupts([self.child_fd], [], [], timeout)[0]
+
+        # If there is data available to read right now, read as much as
+        # we can. We do this to increase performance if there are a lot
+        # of bytes to be read. This also avoids calling isalive() too
+        # often. See also:
+        # * https://github.com/pexpect/pexpect/pull/304
+        # * http://trac.sagemath.org/ticket/10295
+        if select(0):
+            try:
+                incoming = super(spawn, self).read_nonblocking(size)
+            except EOF:
+                # Maybe the child is dead: update some attributes in that case
+                self.isalive()
+                raise
+            while len(incoming) < size and select(0):
+                try:
+                    incoming += super(spawn, self).read_nonblocking(size - len(incoming))
+                except EOF:
+                    # Maybe the child is dead: update some attributes in that case
+                    self.isalive()
+                    # Don't raise EOF, just return what we read so far.
+                    return incoming
+            return incoming
+
         if timeout == -1:
             timeout = self.timeout
 
-        # Note that some systems such as Solaris do not give an EOF when
-        # the child dies. In fact, you can still try to read
-        # from the child_fd -- it will block forever or until TIMEOUT.
-        # For this case, I test isalive() before doing any reading.
-        # If isalive() is false, then I pretend that this is the same as EOF.
         if not self.isalive():
-            # timeout of 0 means "poll"
-            if self.use_poll:
-                r = poll_ignore_interrupts([self.child_fd], timeout)
-            else:
-                r, w, e = select_ignore_interrupts([self.child_fd], [], [], 0)
-            if not r:
-                self.flag_eof = True
-                raise EOF('End Of File (EOF). Braindead platform.')
+            # The process is dead, but there may or may not be data
+            # available to read. Note that some systems such as Solaris
+            # do not give an EOF when the child dies. In fact, you can
+            # still try to read from the child_fd -- it will block
+            # forever or until TIMEOUT. For that reason, it's important
+            # to do this check before calling select() with timeout.
+            if select(0):
+                return super(spawn, self).read_nonblocking(size)
+            self.flag_eof = True
+            raise EOF('End Of File (EOF). Braindead platform.')
         elif self.__irix_hack:
             # Irix takes a long time before it realizes a child was terminated.
+            # Make sure that the timeout is at least 2 seconds.
             # FIXME So does this mean Irix systems are forced to always have
             # FIXME a 2 second delay when calling read_nonblocking? That sucks.
-            if self.use_poll:
-                r = poll_ignore_interrupts([self.child_fd], timeout)
-            else:
-                r, w, e = select_ignore_interrupts([self.child_fd], [], [], 2)
-            if not r and not self.isalive():
-                self.flag_eof = True
-                raise EOF('End Of File (EOF). Slow platform.')
-        if self.use_poll:
-            r = poll_ignore_interrupts([self.child_fd], timeout)
-        else:
-            r, w, e = select_ignore_interrupts(
-                [self.child_fd], [], [], timeout
-            )
+            if timeout is not None and timeout < 2:
+                timeout = 2
 
-        if not r:
-            if not self.isalive():
-                # Some platforms, such as Irix, will claim that their
-                # processes are alive; timeout on the select; and
-                # then finally admit that they are not alive.
-                self.flag_eof = True
-                raise EOF('End of File (EOF). Very slow platform.')
-            else:
-                raise TIMEOUT('Timeout exceeded.')
-
-        if self.child_fd in r:
+        # Because of the select(0) check above, we know that no data
+        # is available right now. But if a non-zero timeout is given
+        # (possibly timeout=None), we call select() with a timeout.
+        if (timeout != 0) and select(timeout):
             return super(spawn, self).read_nonblocking(size)
 
-        raise ExceptionPexpect('Reached an unexpected state.')  # pragma: no cover
+        if not self.isalive():
+            # Some platforms, such as Irix, will claim that their
+            # processes are alive; timeout on the select; and
+            # then finally admit that they are not alive.
+            self.flag_eof = True
+            raise EOF('End of File (EOF). Very slow platform.')
+        else:
+            raise TIMEOUT('Timeout exceeded.')
 
     def write(self, s):
         '''This is similar to send() except that there is no return value.

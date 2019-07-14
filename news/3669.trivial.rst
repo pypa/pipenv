@@ -1,0 +1,1 @@
+Allow KeyboardInterrupt to cancel test suite checks for working internet and ssh

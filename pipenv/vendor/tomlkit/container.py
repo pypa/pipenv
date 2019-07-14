@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import copy
+
 from ._compat import decode
 from .exceptions import KeyAlreadyPresent
 from .exceptions import NonExistentKey
@@ -600,3 +602,16 @@ class Container(dict):
         self._map = state[0]
         self._body = state[1]
         self._parsed = state[2]
+
+    def copy(self):  # type: () -> Container
+        return copy.copy(self)
+
+    def __copy__(self):  # type: () -> Container
+        c = self.__class__(self._parsed)
+        for k, v in super(Container, self).copy().items():
+            super(Container, c).__setitem__(k, v)
+
+        c._body += self.body
+        c._map.update(self._map)
+
+        return c

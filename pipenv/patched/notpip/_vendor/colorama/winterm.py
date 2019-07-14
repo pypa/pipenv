@@ -44,6 +44,7 @@ class WinTerm(object):
     def reset_all(self, on_stderr=None):
         self.set_attrs(self._default)
         self.set_console(attrs=self._default)
+        self._light = 0
 
     def fore(self, fore=None, light=False, on_stderr=False):
         if fore is None:
@@ -122,12 +123,15 @@ class WinTerm(object):
         if mode == 0:
             from_coord = csbi.dwCursorPosition
             cells_to_erase = cells_in_screen - cells_before_cursor
-        if mode == 1:
+        elif mode == 1:
             from_coord = win32.COORD(0, 0)
             cells_to_erase = cells_before_cursor
         elif mode == 2:
             from_coord = win32.COORD(0, 0)
             cells_to_erase = cells_in_screen
+        else:
+            # invalid mode
+            return
         # fill the entire screen with blanks
         win32.FillConsoleOutputCharacter(handle, ' ', cells_to_erase, from_coord)
         # now set the buffer's attributes accordingly
@@ -147,12 +151,15 @@ class WinTerm(object):
         if mode == 0:
             from_coord = csbi.dwCursorPosition
             cells_to_erase = csbi.dwSize.X - csbi.dwCursorPosition.X
-        if mode == 1:
+        elif mode == 1:
             from_coord = win32.COORD(0, csbi.dwCursorPosition.Y)
             cells_to_erase = csbi.dwCursorPosition.X
         elif mode == 2:
             from_coord = win32.COORD(0, csbi.dwCursorPosition.Y)
             cells_to_erase = csbi.dwSize.X
+        else:
+            # invalid mode
+            return
         # fill the entire screen with blanks
         win32.FillConsoleOutputCharacter(handle, ' ', cells_to_erase, from_coord)
         # now set the buffer's attributes accordingly

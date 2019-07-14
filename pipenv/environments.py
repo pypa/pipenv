@@ -2,14 +2,27 @@
 
 import os
 import sys
+
+from io import UnsupportedOperation
+
 from appdirs import user_cache_dir
-from .vendor.vistir.misc import fs_str
+
 from ._compat import fix_utf8
+from .vendor.vistir.misc import _isatty, fs_str
 
 
 # HACK: avoid resolver.py uses the wrong byte code files.
 # I hope I can remove this one day.
 os.environ["PYTHONDONTWRITEBYTECODE"] = fs_str("1")
+
+
+def _is_env_truthy(name):
+    """An environment variable is truthy if it exists and isn't one of (0, false, no, off)
+    """
+    if name not in os.environ:
+        return False
+    return os.environ.get(name).lower() not in ("0", "false", "no", "off")
+
 
 PIPENV_IS_CI = bool("CI" in os.environ or "TF_BUILD" in os.environ)
 
@@ -68,13 +81,15 @@ Default is to detect emulators automatically. This should be set if your
 emulator, e.g. Cmder, cannot be detected correctly.
 """
 
-PIPENV_HIDE_EMOJIS = bool(os.environ.get("PIPENV_HIDE_EMOJIS"))
+PIPENV_HIDE_EMOJIS = (
+    os.environ.get("PIPENV_HIDE_EMOJIS") is None
+    and (os.name == "nt" or PIPENV_IS_CI)
+    or _is_env_truthy("PIPENV_HIDE_EMOJIS")
+)
 """Disable emojis in output.
 
 Default is to show emojis. This is automatically set on Windows.
 """
-if os.name == "nt" or PIPENV_IS_CI:
-    PIPENV_HIDE_EMOJIS = True
 
 PIPENV_IGNORE_VIRTUALENVS = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS"))
 """If set, Pipenv will always assign a virtual environment for this project.
@@ -84,7 +99,7 @@ environment, and reuses it if possible. This is usually the desired behavior,
 and enables the user to use any user-built environments with Pipenv.
 """
 
-PIPENV_INSTALL_TIMEOUT = 60 * 15
+PIPENV_INSTALL_TIMEOUT = int(os.environ.get("PIPENV_INSTALL_TIMEOUT", 60 * 15))
 """Max number of seconds to wait for package installation.
 
 Defaults to 900 (15 minutes), a very long arbitrary time.
@@ -111,7 +126,7 @@ PIPENV_MAX_ROUNDS = int(os.environ.get("PIPENV_MAX_ROUNDS", "16"))
 Default is 16, an arbitrary number that works most of the time.
 """
 
-PIPENV_MAX_SUBPROCESS = int(os.environ.get("PIPENV_MAX_SUBPROCESS", "16"))
+PIPENV_MAX_SUBPROCESS = int(os.environ.get("PIPENV_MAX_SUBPROCESS", "8"))
 """How many subprocesses should Pipenv use when installing.
 
 Default is 16, an arbitrary number that seems to work.
@@ -135,14 +150,12 @@ environments.
 if PIPENV_IS_CI:
     PIPENV_NOSPIN = True
 
-PIPENV_SPINNER = "dots"
+PIPENV_SPINNER = "dots" if not os.name == "nt" else "bouncingBar"
 """Sets the default spinner type.
 
 Spinners are identitcal to the node.js spinners and can be found at
 https://github.com/sindresorhus/cli-spinners
 """
-if os.name == "nt":
-    PIPENV_SPINNER = "bouncingBar"
 
 PIPENV_PIPFILE = os.environ.get("PIPENV_PIPFILE")
 """If set, this specifies a custom Pipfile location.
@@ -221,6 +234,20 @@ Default is to lock dependencies and update ``Pipfile.lock`` on each run.
 NOTE: This only affects the ``install`` and ``uninstall`` commands.
 """
 
+PIP_EXISTS_ACTION = os.environ.get("PIP_EXISTS_ACTION", "w")
+"""Specifies the value for pip's --exists-action option
+
+Defaullts to (w)ipe
+"""
+
+PIPENV_RESOLVE_VCS = _is_env_truthy(os.environ.get("PIPENV_RESOLVE_VCS", 'true'))
+"""Tells Pipenv whether to resolve all VCS dependencies in full.
+
+As of Pipenv 2018.11.26, only editable VCS dependencies were resolved in full.
+To retain this behavior and avoid handling any conflicts that arise from the new
+approach, you may set this to '0', 'off', or 'false'.
+"""
+
 PIPENV_PYUP_API_KEY = os.environ.get(
     "PIPENV_PYUP_API_KEY", "1ab8d58f-5122e025-83674263-bc1e79e0"
 )
@@ -250,7 +277,10 @@ PIPENV_SHELL = (
 )
 
 # Internal, to tell whether the command line session is interactive.
-SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
+try:
+    SESSION_IS_INTERACTIVE = _isatty(sys.stdout.fileno())
+except UnsupportedOperation:
+    SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
 
 
 # Internal, consolidated verbosity representation as an integer. The default
@@ -278,13 +308,35 @@ def is_quiet(threshold=-1):
 
 
 def is_in_virtualenv():
-    pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    virtual_env = os.environ.get("VIRTUAL_ENV")
-    return (PIPENV_USE_SYSTEM or virtual_env) and not (
-        pipenv_active or PIPENV_IGNORE_VIRTUALENVS
-    )
+    """
+    Check virtualenv membership dynamically
+
+    :return: True or false depending on whether we are in a regular virtualenv or not
+    :rtype: bool
+    """
+
+    pipenv_active = os.environ.get("PIPENV_ACTIVE", False)
+    virtual_env = None
+    use_system = False
+    ignore_virtualenvs = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS", False))
+
+    if not pipenv_active and not ignore_virtualenvs:
+        virtual_env = os.environ.get("VIRTUAL_ENV")
+        use_system = bool(virtual_env)
+    return (use_system or virtual_env) and not (pipenv_active or ignore_virtualenvs)
 
 
 PIPENV_SPINNER_FAIL_TEXT = fix_utf8(u"✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
 
 PIPENV_SPINNER_OK_TEXT = fix_utf8(u"✔ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
+
+
+def is_type_checking():
+    try:
+        from typing import TYPE_CHECKING
+    except ImportError:
+        return False
+    return TYPE_CHECKING
+
+
+MYPY_RUNNING = is_type_checking()

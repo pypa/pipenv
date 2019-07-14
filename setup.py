@@ -22,17 +22,28 @@ if sys.argv[-1] == "publish":
     sys.exit()
 
 required = [
-    "pip>=9.0.1",
+    "pip>=18.0",
     "certifi",
     "setuptools>=36.2.1",
     "virtualenv-clone>=0.2.5",
     "virtualenv",
-    'requests[security];python_version<"2.7"',
-    'ordereddict;python_version<"2.7"',
     'enum34; python_version<"3"',
+    # LEAVE THIS HERE!!! we have vendored dependencies that require it
     'typing; python_version<"3.5"'
 ]
-
+extras = {
+    "dev": [
+        "towncrier",
+        "bs4",
+        "twine",
+        "sphinx<2",
+        "flake8>=3.3.0,<4.0",
+        "black;python_version>='3.6'",
+        "parver",
+        "invoke",
+    ],
+    "tests": ["pytest<5.0", "pytest-tap", "pytest-xdist", "flaky", "mock"],
+}
 
 # https://pypi.python.org/pypi/stdeb/0.8.5#quickstart-2-just-tell-me-the-fastest-way-to-make-a-deb
 class DebCommand(Command):
@@ -68,7 +79,7 @@ class DebCommand(Command):
 
 
 class UploadCommand(Command):
-    """Support setup.py publish."""
+    """Support setup.py upload."""
 
     description = "Build and publish the package."
     user_options = []
@@ -132,9 +143,9 @@ setup(
         ],
     },
     python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*",
-    setup_requires=["invoke", "parver"],
+    setup_requires=[],
     install_requires=required,
-    extras_require={},
+    extras_require=extras,
     include_package_data=True,
     license="MIT",
     classifiers=[

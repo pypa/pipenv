@@ -1,0 +1,3 @@
+Allow overriding PIP_EXISTS_ACTION evironment variable (value is passed to pip install). 
+Possible values here: https://pip.pypa.io/en/stable/reference/pip/#exists-action-option
+Useful when you need to `PIP_EXISTS_ACTION=i` (ignore existing packages) - great for CI environments, where you need really fast setup.
