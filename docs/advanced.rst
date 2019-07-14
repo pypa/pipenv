@@ -412,6 +412,7 @@ Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
 
 On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
 
+.. _configuration-with-environment-variables:
 
 ☤ Configuration With Environment Variables
 ------------------------------------------
