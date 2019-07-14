@@ -270,3 +270,17 @@ PyInstaller = {ref = "develop", git = "https://github.com/pyinstaller/pyinstalle
             p.lockfile["default"]["pyinstaller"]["git"]
             == "https://github.com/pyinstaller/pyinstaller.git"
         )
+
+
+@pytest.mark.vcs
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_vcs_can_use_markers(PipenvInstance, pip_src_dir, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        path = p._pipfile.get_fixture_path("git/six/.git")
+        p._pipfile.install("six", {"git": "{0}".format(path.as_uri()), "markers": "sys_platform == 'linux'"})
+        assert "six" in p.pipfile["packages"]
+        c = p.pipenv("install")
+        assert c.return_code == 0
+        assert "six" in p.lockfile["default"]
+        assert "git" in p.lockfile["default"]["six"]

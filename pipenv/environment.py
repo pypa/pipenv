@@ -30,7 +30,7 @@ class Environment(object):
         self._modules = {'pkg_resources': pkg_resources, 'pipenv': pipenv}
         self.base_working_set = base_working_set if base_working_set else BASE_WORKING_SET
         prefix = normalize_path(prefix)
-        self.is_venv = not prefix == normalize_path(sys.prefix)
+        self.is_venv = is_venv or prefix != normalize_path(sys.prefix)
         if not sources:
             sources = []
         self.project = project
@@ -193,7 +193,7 @@ class Environment(object):
         elif any([sys.prefix == self.prefix, not self.is_venv]):
             return sys.path
         cmd_args = [self.python, "-c", "import json, sys; print(json.dumps(sys.path))"]
-        path, _ = vistir.misc.run(cmd_args, return_object=False, nospin=True, block=True, combine_stderr=False)
+        path, _ = vistir.misc.run(cmd_args, return_object=False, nospin=True, block=True, combine_stderr=False, write_to_stdout=False)
         path = json.loads(path.strip())
         return path
 
@@ -206,7 +206,7 @@ class Environment(object):
         """
 
         command = [self.python, "-c" "import sys; print(sys.prefix)"]
-        c = vistir.misc.run(command, return_object=True, block=True, nospin=True)
+        c = vistir.misc.run(command, return_object=True, block=True, nospin=True, write_to_stdout=False)
         sys_prefix = vistir.compat.Path(vistir.misc.to_text(c.out).strip()).as_posix()
         return sys_prefix
 
@@ -246,7 +246,7 @@ class Environment(object):
 
     def find_egg(self, egg_dist):
         """Find an egg by name in the given environment"""
-        site_packages = get_python_lib()
+        site_packages = self.libdir[1]
         search_filename = "{0}.egg-link".format(egg_dist.project_name)
         try:
             user_site = site.getusersitepackages()
@@ -264,8 +264,7 @@ class Environment(object):
         If the egg - link doesn 't exist, return the supplied distribution."""
 
         location = self.find_egg(dist)
-        if not location:
-            return dist.location
+        return location or dist.location
 
     def dist_is_in_project(self, dist):
         """Determine whether the supplied distribution is in the environment."""
@@ -413,7 +412,7 @@ class Environment(object):
         c = None
         with self.activated():
             script = vistir.cmdparse.Script.parse(cmd)
-            c = vistir.misc.run(script._parts, return_object=True, nospin=True, cwd=cwd)
+            c = vistir.misc.run(script._parts, return_object=True, nospin=True, cwd=cwd, write_to_stdout=False)
         return c
 
     def run_py(self, cmd, cwd=os.curdir):
@@ -432,7 +431,7 @@ class Environment(object):
         else:
             script = vistir.cmdparse.Script.parse([self.python, "-c"] + list(cmd))
         with self.activated():
-            c = vistir.misc.run(script._parts, return_object=True, nospin=True, cwd=cwd)
+            c = vistir.misc.run(script._parts, return_object=True, nospin=True, cwd=cwd, write_to_stdout=False)
         return c
 
     def run_activate_this(self):
@@ -483,7 +482,6 @@ class Environment(object):
             ])
             os.environ["PYTHONIOENCODING"] = vistir.compat.fs_str("utf-8")
             os.environ["PYTHONDONTWRITEBYTECODE"] = vistir.compat.fs_str("1")
-            os.environ["PATH"] = self.base_paths["PATH"]
             os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
             if self.is_venv:
                 os.environ["VIRTUAL_ENV"] = vistir.compat.fs_str(prefix)

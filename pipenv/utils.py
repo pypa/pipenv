@@ -482,7 +482,7 @@ def create_spinner(text, nospin=None, spinner_name=None):
     with vistir.spin.create_spinner(
             spinner_name=spinner_name,
             start_text=vistir.compat.fs_str(text),
-            nospin=nospin
+            nospin=nospin, write_to_stdout=False
     ) as sp:
         yield sp
 
@@ -832,8 +832,18 @@ def mkdir_p(newdir):
         if head and not os.path.isdir(head):
             mkdir_p(head)
         if tail:
-            os.mkdir(newdir)
+            # Even though we've checked that the directory doesn't exist above, it might exist
+            # now if some other process has created it between now and the time we checked it.
+            try:
+                os.mkdir(newdir)
+            except OSError as exn:
+                # If we failed because the directory does exist, that's not a problem -
+                # that's what we were trying to do anyway. Only re-raise the exception
+                # if we failed for some other reason.
+                if exn.errno != errno.EEXIST:
+                    raise
 
+                
 
 def is_required_version(version, specified_version):
     """Check to see if there's a hard requirement for version

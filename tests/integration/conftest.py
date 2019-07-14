@@ -6,9 +6,12 @@ import warnings
 import pytest
 
 from pipenv._compat import TemporaryDirectory, Path
+from pipenv.exceptions import VirtualenvActivationException
+from pipenv.utils import temp_environ
 from pipenv.vendor import delegator
 from pipenv.vendor import requests
 from pipenv.vendor import toml
+from pipenv.vendor import tomlkit
 from pytest_pypi.app import prepare_packages as prepare_pypi_packages
 from vistir.compat import ResourceWarning, fs_str
 from vistir.path import mkdir_p
@@ -111,12 +114,53 @@ def isolate(pathlib_tmpdir):
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
     mkdir_p(os.path.join(home_dir, ".virtualenvs"))
     os.environ["WORKON_HOME"] = fs_str(os.path.join(home_dir, ".virtualenvs"))
+    # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
+    os.environ.pop("PIPENV_ACTIVE", None)
+    os.environ.pop("VIRTUAL_ENV", None)
     global WE_HAVE_GITHUB_SSH_KEYS
     WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 
 
 WE_HAVE_INTERNET = check_internet()
 WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
+
+
+class _Pipfile(object):
+    def __init__(self, path):
+        self.path = path
+        self.document = tomlkit.document()
+        self.document["sources"] = tomlkit.aot()
+        self.document["requires"] = tomlkit.table()
+        self.document["packages"] = tomlkit.table()
+        self.document["dev_packages"] = tomlkit.table()
+
+    def install(self, package, value, dev=False):
+        section = "packages" if not dev else "dev_packages"
+        if isinstance(value, dict):
+            table = tomlkit.inline_table()
+            table.update(value)
+            self.document[section][package] = table
+        else:
+            self.document[section][package] = value
+        self.write()
+
+    def loads(self):
+        self.document = tomlkit.loads(self.path.read_text())
+
+    def dumps(self):
+        source_table = tomlkit.table()
+        source_table["url"] = os.environ.get("PIPENV_TEST_INDEX")
+        source_table["verify_ssl"] = False
+        source_table["name"] = "pipenv_test_index"
+        self.document["sources"].append(source_table)
+        return tomlkit.dumps(self.document)
+
+    def write(self):
+        self.path.write_text(self.dumps())
+
+    @classmethod
+    def get_fixture_path(cls, path):
+        return Path(__file__).absolute().parent.parent / "test_artifacts" / path
 
 
 class _PipenvInstance(object):
@@ -129,7 +173,7 @@ class _PipenvInstance(object):
         os.environ["CI"] = fs_str("1")
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
-        path = os.environ.get("PIPENV_PROJECT_DIR", None)
+        path = path if path else os.environ.get("PIPENV_PROJECT_DIR", None)
         if not path:
             self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
             path = Path(self._path.name)
@@ -138,7 +182,7 @@ class _PipenvInstance(object):
             except OSError:
                 self.path = str(path.absolute())
         else:
-            self._path = None
+            self._path = path
             self.path = path
         # set file creation perms
         self.pipfile_path = None
@@ -154,6 +198,7 @@ class _PipenvInstance(object):
 
             self.chdir = False or chdir
             self.pipfile_path = p_path
+            self._pipfile = _Pipfile(Path(p_path))
 
     def __enter__(self):
         os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')
@@ -178,13 +223,14 @@ class _PipenvInstance(object):
         os.umask(self.original_umask)
 
     def pipenv(self, cmd, block=True):
-        if self.pipfile_path:
+        if self.pipfile_path and os.path.isfile(self.pipfile_path):
             os.environ['PIPENV_PIPFILE'] = fs_str(self.pipfile_path)
         # a bit of a hack to make sure the virtualenv is created
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
-            c = delegator.run('pipenv {0}'.format(cmd), block=block)
+            c = delegator.run('pipenv {0}'.format(cmd), block=block,
+                              cwd=os.path.abspath(self.path))
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
 
@@ -239,3 +285,22 @@ def pip_src_dir(request, pathlib_tmpdir):
 @pytest.fixture()
 def testsroot():
     return TESTS_ROOT
+
+
+@pytest.fixture()
+def virtualenv(pathlib_tmpdir):
+    virtualenv_path = pathlib_tmpdir / "venv"
+    with temp_environ():
+        c = delegator.run("virtualenv {}".format(virtualenv_path), block=True)
+        assert c.return_code == 0
+        for name in ("bin", "Scripts"):
+            activate_this = virtualenv_path / name / "activate_this.py"
+            if activate_this.exists():
+                with open(str(activate_this)) as f:
+                    code = compile(f.read(), str(activate_this), "exec")
+                    exec(code, dict(__file__=str(activate_this)))
+                break
+        else:
+            raise VirtualenvActivationException("Can't find the activate_this.py script.")
+        os.environ["VIRTUAL_ENV"] = str(virtualenv_path)
+        yield virtualenv_path

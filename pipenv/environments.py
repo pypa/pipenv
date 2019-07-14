@@ -97,10 +97,9 @@ PIPENV_MAX_DEPTH = int(os.environ.get("PIPENV_MAX_DEPTH", "3")) + 1
 Default is 3. See also ``PIPENV_NO_INHERIT``.
 """
 
-PIPENV_MAX_RETRIES = int(os.environ.get(
-    "PIPENV_MAX_RETRIES",
-    "1" if PIPENV_IS_CI else "0",
-))
+PIPENV_MAX_RETRIES = int(
+    os.environ.get("PIPENV_MAX_RETRIES", "1" if PIPENV_IS_CI else "0")
+)
 """Specify how many retries Pipenv should attempt for network requests.
 
 Default is 0. Automatically set to 1 on CI environments for robust testing.
@@ -222,7 +221,9 @@ Default is to lock dependencies and update ``Pipfile.lock`` on each run.
 NOTE: This only affects the ``install`` and ``uninstall`` commands.
 """
 
-PIPENV_PYUP_API_KEY = os.environ.get("PIPENV_PYUP_API_KEY", "1ab8d58f-5122e025-83674263-bc1e79e0")
+PIPENV_PYUP_API_KEY = os.environ.get(
+    "PIPENV_PYUP_API_KEY", "1ab8d58f-5122e025-83674263-bc1e79e0"
+)
 
 # Internal, support running in a different Python from sys.executable.
 PIPENV_PYTHON = os.environ.get("PIPENV_PYTHON")
@@ -243,9 +244,9 @@ PIPENV_SKIP_VALIDATION = True
 
 # Internal, the default shell to use if shell detection fails.
 PIPENV_SHELL = (
-    os.environ.get("SHELL") or
-    os.environ.get("PYENV_SHELL") or
-    os.environ.get("COMSPEC")
+    os.environ.get("SHELL")
+    or os.environ.get("PYENV_SHELL")
+    or os.environ.get("COMSPEC")
 )
 
 # Internal, to tell whether the command line session is interactive.
@@ -274,6 +275,14 @@ def is_verbose(threshold=1):
 
 def is_quiet(threshold=-1):
     return PIPENV_VERBOSITY <= threshold
+
+
+def is_in_virtualenv():
+    pipenv_active = os.environ.get("PIPENV_ACTIVE")
+    virtual_env = os.environ.get("VIRTUAL_ENV")
+    return (PIPENV_USE_SYSTEM or virtual_env) and not (
+        pipenv_active or PIPENV_IGNORE_VIRTUALENVS
+    )
 
 
 PIPENV_SPINNER_FAIL_TEXT = fix_utf8(u"✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")

@@ -103,7 +103,7 @@ def iter_egginfos(path, pkg_name=None):
             if not entry.name.endswith("egg-info"):
                 for dir_entry in iter_egginfos(entry.path, pkg_name=pkg_name):
                     yield dir_entry
-            elif pkg_name is None or entry.name.startswith(pkg_name):
+            elif pkg_name is None or entry.name.startswith(pkg_name.replace("-", "_")):
                 yield entry
 
 
@@ -131,25 +131,41 @@ def get_metadata(path, pkg_name=None):
             None,
         )
         if dist:
-            requires = dist.requires()
-            dep_map = dist._build_dep_map()
+            try:
+                requires = dist.requires()
+            except exception:
+                requires = []
+            try:
+                dep_map = dist._build_dep_map()
+            except Exception:
+                dep_map = {}
             deps = []
+            extras = {}
             for k in dep_map.keys():
                 if k is None:
                     deps.extend(dep_map.get(k))
                     continue
                 else:
+                    extra = None
                     _deps = dep_map.get(k)
-                    k = k.replace(":", "; ")
+                    if k.startswith(":python_version"):
+                        marker = k.replace(":", "; ")
+                    else:
+                        marker = ""
+                        extra = "{0}".format(k)
                     _deps = [
-                        pkg_resources.Requirement.parse("{0}{1}".format(str(req), k))
+                        pkg_resources.Requirement.parse("{0}{1}".format(str(req), marker))
                         for req in _deps
                     ]
-                    deps.extend(_deps)
+                    if extra:
+                        extras[extra] = _deps
+                    else:
+                        deps.extend(_deps)
             return {
                 "name": dist.project_name,
                 "version": dist.version,
                 "requires": requires,
+                "extras": extras
             }
 
 
@@ -158,7 +174,6 @@ class SetupInfo(object):
     name = attr.ib(type=str, default=None)
     base_dir = attr.ib(type=Path, default=None)
     version = attr.ib(type=packaging.version.Version, default=None)
-    extras = attr.ib(type=list, default=attr.Factory(list))
     requires = attr.ib(type=dict, default=attr.Factory(dict))
     build_requires = attr.ib(type=list, default=attr.Factory(list))
     build_backend = attr.ib(type=list, default=attr.Factory(list))
@@ -223,16 +238,16 @@ class SetupInfo(object):
         if self.setup_py is not None and self.setup_py.exists():
             target_cwd = self.setup_py.parent.as_posix()
             with cd(target_cwd), _suppress_distutils_logs():
+                # This is for you, Hynek
+                # see https://github.com/hynek/environ_config/blob/69b1c8a/setup.py
                 script_name = self.setup_py.as_posix()
-                args = ["egg_info", "--egg-base", self.base_dir]
+                args = ["egg_info"]
                 g = {"__file__": script_name, "__name__": "__main__"}
                 local_dict = {}
                 if sys.version_info < (3, 5):
                     save_argv = sys.argv
                 else:
                     save_argv = sys.argv.copy()
-                # This is for you, Hynek
-                # see https://github.com/hynek/environ_config/blob/69b1c8a/setup.py
                 try:
                     global _setup_distribution, _setup_stop_after
                     _setup_stop_after = "run"
@@ -287,6 +302,15 @@ class SetupInfo(object):
                 self.requires.update(
                     {req.key: req for req in metadata.get("requires", {})}
                 )
+                if getattr(self.ireq, "extras", None):
+                    for extra in self.ireq.extras:
+                        self.requires.update(
+                            {
+                                req.key: req for req
+                                in metadata.get("extras", {}).get(extra)
+                                if req is not None
+                            }
+                        )
 
     def run_pyproject(self):
         if self.pyproject and self.pyproject.exists():

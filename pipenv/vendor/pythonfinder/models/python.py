@@ -10,7 +10,7 @@ from collections import defaultdict
 
 import attr
 
-from packaging.version import Version
+from packaging.version import Version, LegacyVersion
 from packaging.version import parse as parse_version
 from vistir.compat import Path
 
@@ -25,6 +25,7 @@ from ..utils import (
     is_in_path,
     parse_pyenv_version_order,
     parse_asdf_version_order,
+    parse_python_version,
 )
 
 logger = logging.getLogger(__name__)
@@ -354,36 +355,10 @@ class PythonVersion(object):
         :rtype: dict.
         """
 
-        is_debug = False
-        if version.endswith("-debug"):
-            is_debug = True
-            version, _, _ = version.rpartition("-")
-        try:
-            version = parse_version(str(version))
-        except TypeError:
-            raise ValueError("Unable to parse version: %s" % version)
-        if not version or not version.release:
+        version_dict = parse_python_version(str(version))
+        if not version_dict:
             raise ValueError("Not a valid python version: %r" % version)
-            return
-        if len(version.release) >= 3:
-            major, minor, patch = version.release[:3]
-        elif len(version.release) == 2:
-            major, minor = version.release
-            patch = None
-        else:
-            major = version.release[0]
-            minor = None
-            patch = None
-        return {
-            "major": major,
-            "minor": minor,
-            "patch": patch,
-            "is_prerelease": version.is_prerelease,
-            "is_postrelease": version.is_postrelease,
-            "is_devrelease": version.is_devrelease,
-            "is_debug": is_debug,
-            "version": version,
-        }
+        return version_dict
 
     def get_architecture(self):
         if self.architecture:

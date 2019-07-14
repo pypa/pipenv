@@ -236,6 +236,8 @@ be aware of the following things when filing bug reports:
    fix your problem. If we ask you to clarify these and you never respond, we
    will close your issue without fixing it.
 
+.. _run-the-tests:
+
 Run the tests
 -------------
 

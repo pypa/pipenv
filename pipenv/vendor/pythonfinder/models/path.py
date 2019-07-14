@@ -484,7 +484,14 @@ class PathEntry(BasePath):
             for child in self._filter_children():
                 if any(shim in normalize_path(str(child)) for shim in SHIM_PATHS):
                     continue
-                yield (child.as_posix(), PathEntry.create(path=child, **pass_args))
+                if self.only_python:
+                    try:
+                        entry = PathEntry.create(path=child, **pass_args)
+                    except (InvalidPythonVersion, ValueError):
+                        continue
+                else:
+                    entry = PathEntry.create(path=child, **pass_args)
+                yield (child.as_posix(), entry)
         return
 
     @cached_property
@@ -508,7 +515,7 @@ class PathEntry(BasePath):
         if self.is_python:
             try:
                 py_version = PythonVersion.from_path(path=self, name=self.name)
-            except InvalidPythonVersion:
+            except (InvalidPythonVersion, ValueError):
                 py_version = None
             except Exception:
                 if not IGNORE_UNSUPPORTED:

@@ -296,7 +296,6 @@ def uninstall(
     if retcode:
         sys.exit(retcode)
 
-
 @cli.command(short_help="Generates Pipfile.lock.")
 @lock_options
 @pass_state

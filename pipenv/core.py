@@ -906,16 +906,19 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
 
     # Actually create the virtualenv.
     nospin = environments.PIPENV_NOSPIN
-    c = vistir.misc.run(
-        cmd, verbose=False, return_object=True,
-        spinner_name=environments.PIPENV_SPINNER, combine_stderr=False,
-        block=False, nospin=nospin, env=pip_config,
-    )
-    click.echo(crayons.blue("{0}".format(c.out)), err=True)
-    if c.returncode != 0:
-        raise exceptions.VirtualenvCreationException(
-            extra=[crayons.blue("{0}".format(c.err)),]
+    with create_spinner("Creating virtual environment...") as sp:
+        c = vistir.misc.run(
+            cmd, verbose=False, return_object=True, write_to_stdout=False,
+            combine_stderr=False, block=True, nospin=True, env=pip_config,
         )
+        click.echo(crayons.blue("{0}".format(c.out)), err=True)
+        if c.returncode != 0:
+            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed creating virtual environment"))
+            raise exceptions.VirtualenvCreationException(
+                extra=[crayons.blue("{0}".format(c.err)),]
+            )
+        else:
+            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Successfully created virtual environment!"))
 
     # Associate project directory with the environment.
     # This mimics Pew's "setproject".
@@ -1358,7 +1361,11 @@ def pip_install(
                 ignore_hashes = True
     else:
         ignore_hashes = True if not requirement.hashes else False
-        install_reqs = [escape_cmd(r) for r in requirement.as_line(as_list=True)]
+        install_reqs = requirement.as_line(as_list=True)
+        if not requirement.markers:
+            install_reqs = [escape_cmd(r) for r in install_reqs]
+        elif len(install_reqs) > 1:
+            install_reqs = install_reqs[0] + [escape_cmd(r) for r in install_reqs[1:]]
     pip_command = [which_pip(allow_global=allow_global), "install"]
     if pre:
         pip_command.append("--pre")
@@ -1567,10 +1574,7 @@ def format_pip_output(out, r=None):
 
 def warn_in_virtualenv():
     # Only warn if pipenv isn't already active.
-    pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    if (environments.PIPENV_USE_SYSTEM or environments.PIPENV_VIRTUALENV) and not (
-        pipenv_active or environments.is_quiet()
-    ):
+    if environments.is_in_virtualenv() and not environments.is_quiet():
         click.echo(
             "{0}: Pipenv found itself running within a virtual environment, "
             "so it will automatically use that environment, instead of "
@@ -1708,14 +1712,8 @@ def do_install(
     # Don't search for requirements.txt files if the user provides one
     if requirements or package_args or project.pipfile_exists:
         skip_requirements = True
-    # Don't attempt to install develop and default packages if Pipfile is missing
-    if not project.pipfile_exists and not (package_args or dev) and not code:
-        if not (ignore_pipfile or deploy):
-            raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
-        elif ((skip_lock and deploy) or ignore_pipfile) and not project.lockfile_exists:
-            raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
     concurrent = not sequential
-    # Ensure that virtualenv is available.
+    # Ensure that virtualenv is available and pipfile are available
     ensure_project(
         three=three,
         python=python,
@@ -1725,6 +1723,12 @@ def do_install(
         skip_requirements=skip_requirements,
         pypi_mirror=pypi_mirror,
     )
+    # Don't attempt to install develop and default packages if Pipfile is missing
+    if not project.pipfile_exists and not (package_args or dev) and not code:
+        if not (ignore_pipfile or deploy):
+            raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
+        elif ((skip_lock and deploy) or ignore_pipfile) and not project.lockfile_exists:
+            raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
     # Load the --pre settings from the Pipfile.
     if not pre:
         pre = project.settings.get("allow_prereleases")
@@ -2290,7 +2294,9 @@ def do_run_posix(script, command):
                 err=True,
             )
         sys.exit(1)
-    os.execl(command_path, command_path, *script.args)
+    os.execl(
+        command_path, command_path, *[os.path.expandvars(arg) for arg in script.args]
+    )
 
 
 def do_run(command, args, three=None, python=False, pypi_mirror=None):

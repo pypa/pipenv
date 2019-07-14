@@ -4,10 +4,19 @@ import os
 import platform
 import sys
 
+
+def is_type_checking():
+    try:
+        from typing import TYPE_CHECKING
+    except ImportError:
+        return False
+    return TYPE_CHECKING
+
+
 PYENV_INSTALLED = bool(os.environ.get("PYENV_SHELL")) or bool(
     os.environ.get("PYENV_ROOT")
 )
-ASDF_INSTALLED = bool(os.environ.get("ASDF_DATA_DIR"))
+ASDF_INSTALLED = bool(os.environ.get("ASDF_DIR"))
 PYENV_ROOT = os.path.expanduser(
     os.path.expandvars(os.environ.get("PYENV_ROOT", "~/.pyenv"))
 )
@@ -24,3 +33,4 @@ else:
 
 
 IGNORE_UNSUPPORTED = bool(os.environ.get("PYTHONFINDER_IGNORE_UNSUPPORTED", False))
+MYPY_RUNNING = os.environ.get("MYPY_RUNNING", is_type_checking())
