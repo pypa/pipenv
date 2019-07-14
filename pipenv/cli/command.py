@@ -18,7 +18,7 @@ from .options import (
     general_options, install_options, lock_options, pass_state,
     pypi_mirror_option, python_option, requirementstxt_option,
     skip_lock_option, sync_options, system_option, three_option,
-    uninstall_options, verbose_option
+    uninstall_options, verbose_option, site_packages_option
 )
 
 
@@ -70,7 +70,7 @@ def cli(
     man=False,
     support=None,
     help=False,
-    site_packages=False,
+    site_packages=None,
     **kwargs
 ):
     # Handle this ASAP to make shell startup fast.
@@ -104,7 +104,7 @@ def cli(
 
     if man:
         if system_which("man"):
-            path = os.sep.join([os.path.dirname(__file__), "pipenv.1"])
+            path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "pipenv.1")
             os.execle(system_which("man"), "man", path, os.environ)
             return 0
         else:
@@ -217,6 +217,7 @@ def cli(
 @system_option
 @code_option
 @deploy_option
+@site_packages_option
 @skip_lock_option
 @install_options
 @pass_state
@@ -249,6 +250,7 @@ def install(
         extra_index_url=state.extra_index_urls,
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
+        site_packages=state.site_packages
     )
     if retcode:
         ctx.abort()
@@ -310,11 +312,12 @@ def lock(
 ):
     """Generates Pipfile.lock."""
     from ..core import ensure_project, do_init, do_lock
-
     # Ensure that virtualenv is available.
+    # Note that we don't pass clear on to ensure_project as it is also
+    # handled in do_lock
     ensure_project(
         three=state.three, python=state.python, pypi_mirror=state.pypi_mirror,
-        warn=(not state.quiet)
+        warn=(not state.quiet), site_packages=state.site_packages,
     )
     if state.installstate.requirementstxt:
         do_init(
@@ -474,8 +477,10 @@ def update(
         do_sync,
         project,
     )
-
-    ensure_project(three=state.three, python=state.python, warn=True, pypi_mirror=state.pypi_mirror)
+    ensure_project(
+        three=state.three, python=state.python, pypi_mirror=state.pypi_mirror,
+        warn=(not state.quiet), site_packages=state.site_packages, clear=state.clear
+    )
     if not outdated:
         outdated = bool(dry_run)
     if outdated:
@@ -504,12 +509,13 @@ def update(
                     err=True,
                 )
                 ctx.abort()
-
     do_lock(
+        ctx=ctx,
         clear=state.clear,
         pre=state.installstate.pre,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
+        write=not state.quiet,
     )
     do_sync(
         ctx=ctx,

@@ -61,7 +61,7 @@ class State(object):
         self.python = None
         self.two = None
         self.three = None
-        self.site_packages = False
+        self.site_packages = None
         self.clear = False
         self.system = False
         self.installstate = InstallState()
@@ -261,9 +261,10 @@ def quiet_option(f):
 def site_packages_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
+        validate_bool_or_none(ctx, param, value)
         state.site_packages = value
         return value
-    return option("--site-packages", is_flag=True, default=False, type=click.types.BOOL,
+    return option("--site-packages/--no-site-packages", is_flag=True, default=None,
                   help="Enable site-packages for the virtualenv.", callback=callback,
                   expose_value=False, show_envvar=True)(f)
 
@@ -354,6 +355,12 @@ def validate_python_path(ctx, param, value):
         if os.path.isabs(value) and not os.path.isfile(value):
             raise BadParameter("Expected Python at path %s does not exist" % value)
     return value
+
+
+def validate_bool_or_none(ctx, param, value):
+    if value is not None:
+        return click.types.BOOL(value)
+    return False
 
 
 def validate_pypi_mirror(ctx, param, value):
