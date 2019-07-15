@@ -379,6 +379,7 @@ Commands that expect arguments will also work.
 For example:
 
 .. code-block:: toml
+
     [scripts]
     echospam = "echo I am really a very silly example"
 
