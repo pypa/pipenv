@@ -2085,20 +2085,13 @@ def do_install(
                         pypi_mirror=pypi_mirror,
                     )
                     if not c.ok:
-                        sp.write_err(u"{0}: {1}".format(
-                            crayons.red("WARNING"),
-                            vistir.compat.fs_str("Failed installing package {0}".format(pkg_line)))
-                        )
-                        sp.write_err(
-                            vistir.compat.fs_str(u"Error text: {0}".format(c.out))
-                        )
-                        sp.write_err(
-                            vistir.compat.fs_str(u"{0}".format(c.err))
-                        )
                         sp.write_err(
                             u"{0} An error occurred while installing {1}!".format(
                                 crayons.red(u"Error: ", bold=True), crayons.green(pkg_line)
                             ),
+                        )
+                        sp.write_err(
+                            vistir.compat.fs_str(u"Error text: {0}".format(c.out))
                         )
                         sp.write_err(crayons.blue(vistir.compat.fs_str(format_pip_error(c.err))))
                         if environments.is_verbose():
