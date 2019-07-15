@@ -1,4 +1,4 @@
-## PEEP-003: Subcommands
+## PEEP-004: Subcommands
 
 NOT YET ACCEPTED
 
