@@ -2,27 +2,31 @@
 from __future__ import absolute_import, print_function
 import errno
 import json
+import logging
 import os
 import shutil
+import signal
+import socket
 import sys
+import time
 import warnings
 
-from shutil import rmtree as _rmtree
+from shutil import copyfileobj, rmtree as _rmtree
 
 import pytest
+import requests
 
-from vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError, TemporaryDirectory
-from vistir.misc import run
-from vistir.contextmanagers import temp_environ
-from vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
+from pipenv.vendor.vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError, TemporaryDirectory
+from pipenv.vendor.vistir.misc import run
+from pipenv.vendor.vistir.contextmanagers import temp_environ
+from pipenv.vendor.vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
 
 from pipenv._compat import Path
 from pipenv.exceptions import VirtualenvActivationException
-from pipenv.vendor import delegator, requests, toml, tomlkit
-from pytest_pypi.app import prepare_fixtures
-from pytest_pypi.app import prepare_packages as prepare_pypi_packages
+from pipenv.vendor import delegator, toml, tomlkit
+from pytest_pypi.app import prepare_fixtures, prepare_packages as prepare_pypi_packages
 
-
+log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
 
 
@@ -92,8 +96,8 @@ def check_for_mercurial():
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
 WE_HAVE_HG = check_for_mercurial()
-prepare_pypi_packages(PYPI_VENDOR_DIR)
 prepare_fixtures(os.path.join(PYPI_VENDOR_DIR, "fixtures"))
+prepare_pypi_packages(PYPI_VENDOR_DIR)
 
 
 def pytest_runtest_setup(item):
@@ -111,6 +115,8 @@ def pytest_runtest_setup(item):
         sys.version_info < (3, 0)
     ):
         pytest.skip('test only runs on python 3')
+    if item.get_closest_marker('skip_osx') is not None and sys.platform == 'darwin':
+        pytest.skip('test does not apply on OSX')
     if item.get_closest_marker('lte_py36') is not None and (
         sys.version_info >= (3, 7)
     ):
@@ -169,7 +175,7 @@ def isolate(create_tmpdir):
         fp.write(
             b"[user]\n\tname = pipenv\n\temail = pipenv@pipenv.org\n"
         )
-    os.environ["GIT_CONFIG"] = fs_str(git_config_file)
+    # os.environ["GIT_CONFIG"] = fs_str(git_config_file)
     os.environ["GIT_CONFIG_NOSYSTEM"] = fs_str("1")
     os.environ["GIT_AUTHOR_NAME"] = fs_str("pipenv")
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
@@ -191,11 +197,15 @@ WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 class _Pipfile(object):
     def __init__(self, path):
         self.path = path
-        self.document = tomlkit.document()
-        self.document["source"] = tomlkit.aot()
-        self.document["requires"] = tomlkit.table()
-        self.document["packages"] = tomlkit.table()
-        self.document["dev_packages"] = tomlkit.table()
+        if self.path.exists():
+            self.loads()
+        else:
+            self.document = tomlkit.document()
+        self.document["source"] = self.document.get("source", tomlkit.aot())
+        self.document["requires"] = self.document.get("requires", tomlkit.table())
+        self.document["packages"] = self.document.get("packages", tomlkit.table())
+        self.document["dev_packages"] = self.document.get("dev_packages", tomlkit.table())
+        super(_Pipfile, self).__init__()
 
     def install(self, package, value, dev=False):
         section = "packages" if not dev else "dev_packages"
@@ -207,7 +217,18 @@ class _Pipfile(object):
             self.document[section][package] = value
         self.write()
 
+    def remove(self, package, dev=False):
+        section = "packages" if not dev else "dev_packages"
+        if not dev and package not in self.document[section]:
+            if package in self.document["dev_packages"]:
+                section = "dev_packages"
+        del self.document[section][package]
+        self.write()
+
     def add(self, package, value, dev=False):
+        self.install(package, value, dev=dev)
+
+    def update(self, package, value, dev=False):
         self.install(package, value, dev=dev)
 
     def loads(self):
@@ -215,7 +236,8 @@ class _Pipfile(object):
 
     def dumps(self):
         source_table = tomlkit.table()
-        source_table["url"] = os.environ.get("PIPENV_TEST_INDEX")
+        pypi_url = os.environ.get("PIPENV_PYPI_URL", "https://pypi.org/simple")
+        source_table["url"] = os.environ.get("PIPENV_TEST_INDEX", pypi_url)
         source_table["verify_ssl"] = False
         source_table["name"] = "pipenv_test_index"
         self.document["source"].append(source_table)
@@ -238,11 +260,12 @@ class _Pipfile(object):
             file_path = os.path.join(pkg, filename)
         if filename and not pkg:
             pkg = os.path.basename(filename)
-        if pypi:
+        fixture_pypi = os.getenv("ARTIFACT_PYPI_URL")
+        if fixture_pypi:
             if pkg and not filename:
-                url = "{0}/artifacts/{1}".format(pypi, pkg)
+                url = "{0}/artifacts/{1}".format(fixture_pypi, pkg)
             else:
-                url = "{0}/artifacts/{1}/{2}".format(pypi, pkg, filename)
+                url = "{0}/artifacts/{1}/{2}".format(fixture_pypi, pkg, filename)
             return url
         if pkg and not filename:
             return cls.get_fixture_path(file_path).as_uri()
@@ -254,7 +277,13 @@ class _PipenvInstance(object):
         self, pypi=None, pipfile=True, chdir=False, path=None, home_dir=None,
         venv_root=None, ignore_virtualenvs=True, venv_in_project=True, name=None
     ):
-        self.pypi = pypi
+        self.index_url = os.getenv("PIPENV_TEST_INDEX")
+        self.pypi = None
+        if pypi:
+            self.pypi = pypi.url
+        elif self.index_url is not None:
+            self.pypi, _, _ = self.index_url.rpartition("/") if self.index_url else ""
+        self.index = os.getenv("PIPENV_PYPI_INDEX")
         os.environ["PYTHONWARNINGS"] = "ignore:DEPRECATION"
         if ignore_virtualenvs:
             os.environ["PIPENV_IGNORE_VIRTUALENVS"] = fs_str("1")
@@ -292,9 +321,10 @@ class _PipenvInstance(object):
         self.pipfile_path = None
         self.chdir = chdir
 
-        if self.pypi:
-            os.environ['PIPENV_PYPI_URL'] = fs_str('{0}'.format(self.pypi.url))
-            os.environ['PIPENV_TEST_INDEX'] = fs_str('{0}/simple'.format(self.pypi.url))
+        if self.pypi and "PIPENV_PYPI_URL" not in os.environ:
+            os.environ['PIPENV_PYPI_URL'] = fs_str('{0}'.format(self.pypi))
+            # os.environ['PIPENV_PYPI_URL'] = fs_str('{0}'.format(self.pypi.url))
+            # os.environ['PIPENV_TEST_INDEX'] = fs_str('{0}/simple'.format(self.pypi.url))
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
@@ -329,8 +359,10 @@ class _PipenvInstance(object):
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
-            c = delegator.run('pipenv {0}'.format(cmd), block=block,
-                              cwd=os.path.abspath(self.path))
+            c = delegator.run(
+                'pipenv {0}'.format(cmd), block=block,
+                cwd=os.path.abspath(self.path), env=os.environ.copy()
+            )
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
 
@@ -380,22 +412,6 @@ def _rmtree_func(path, ignore_errors=True, onerror=None):
 
 
 @pytest.fixture()
-def PipenvInstance(monkeypatch):
-    with temp_environ(), monkeypatch.context() as m:
-        m.setattr(shutil, "rmtree", _rmtree_func)
-        original_umask = os.umask(0o007)
-        os.environ["PIPENV_NOSPIN"] = fs_str("1")
-        os.environ["CI"] = fs_str("1")
-        os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')
-        warnings.simplefilter("ignore", category=ResourceWarning)
-        warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
-        try:
-            yield _PipenvInstance
-        finally:
-            os.umask(original_umask)
-
-
-@pytest.fixture(autouse=True)
 def pip_src_dir(request, vistir_tmpdir):
     old_src_dir = os.environ.get('PIP_SRC', '')
     os.environ['PIP_SRC'] = vistir_tmpdir.as_posix()
@@ -405,6 +421,44 @@ def pip_src_dir(request, vistir_tmpdir):
 
     request.addfinalizer(finalize)
     return request
+
+
+@pytest.fixture()
+def PipenvInstance(pip_src_dir, monkeypatch, pypi):
+    with temp_environ(), monkeypatch.context() as m:
+        m.setattr(shutil, "rmtree", _rmtree_func)
+        original_umask = os.umask(0o007)
+        m.setenv("PIPENV_NOSPIN", fs_str("1"))
+        m.setenv("CI", fs_str("1"))
+        m.setenv('PIPENV_DONT_USE_PYENV', fs_str('1'))
+        m.setenv("PIPENV_TEST_INDEX", "{0}/simple".format(pypi.url))
+        m.setenv("PIPENV_PYPI_INDEX", "simple")
+        m.setenv("ARTIFACT_PYPI_URL", pypi.url)
+        m.setenv("PIPENV_PYPI_URL", pypi.url)
+        warnings.simplefilter("ignore", category=ResourceWarning)
+        warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+        try:
+            yield _PipenvInstance
+        finally:
+            os.umask(original_umask)
+
+
+@pytest.fixture()
+def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir, pypi):
+    with temp_environ(), monkeypatch.context() as m:
+        m.setattr(shutil, "rmtree", _rmtree_func)
+        original_umask = os.umask(0o007)
+        m.setenv("PIPENV_NOSPIN", fs_str("1"))
+        m.setenv("CI", fs_str("1"))
+        m.setenv('PIPENV_DONT_USE_PYENV', fs_str('1'))
+        m.setenv("PIPENV_TEST_INDEX", "{0}/simple".format(pypi.url))
+        m.setenv("ARTIFACT_PYPI_URL", pypi.url)
+        warnings.simplefilter("ignore", category=ResourceWarning)
+        warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+        try:
+            yield _PipenvInstance
+        finally:
+            os.umask(original_umask)
 
 
 @pytest.fixture()

@@ -1,0 +1,27 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.toml]
+indent_size = 2
+
+[*.{yaml,yml}]
+indent_size = 2
+
+# Makefiles always use tabs for indentation.
+[Makefile]
+indent_style = tab
+
+# Batch files use tabs for indentation, and old Notepad hates LF.
+[*.bat]
+indent_style = tab
+end_of_line = crlf

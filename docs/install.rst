@@ -223,7 +223,7 @@ have access to your installed packages with ``$ pipenv shell``.
 
 
 ☤ Virtualenv mapping caveat
-============
+===========================
 
 - Pipenv automatically maps projects to their specific virtualenvs.
 - The virtualenv is stored globally with the name of the project’s root directory plus the hash of the full path to the project's root (e.g., ``my_project-a3de50``).

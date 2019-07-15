@@ -31,7 +31,7 @@ Pipenv is primarily meant to provide users and developers of applications with a
    :width: 654px
    :scale: 100 %
    :alt: a short animation of pipenv at work
-   
+
 The problems that Pipenv seeks to solve are multi-faceted:
 
 - You no longer need to use ``pip`` and ``virtualenv`` separately. They work together.

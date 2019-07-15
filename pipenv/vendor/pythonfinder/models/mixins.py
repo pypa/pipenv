@@ -41,20 +41,41 @@ if MYPY_RUNNING:
     BaseFinderType = TypeVar("BaseFinderType")
 
 
-@attr.s
+@attr.s(slots=True)
 class BasePath(object):
     path = attr.ib(default=None)  # type: Path
-    _children = attr.ib(default=attr.Factory(dict))  # type: Dict[str, PathEntry]
+    _children = attr.ib(
+        default=attr.Factory(dict), cmp=False
+    )  # type: Dict[str, PathEntry]
     only_python = attr.ib(default=False)  # type: bool
     name = attr.ib(type=str)
-    _py_version = attr.ib(default=None)  # type: Optional[PythonVersion]
+    _py_version = attr.ib(default=None, cmp=False)  # type: Optional[PythonVersion]
     _pythons = attr.ib(
-        default=attr.Factory(defaultdict)
+        default=attr.Factory(defaultdict), cmp=False
     )  # type: DefaultDict[str, PathEntry]
+    _is_dir = attr.ib(default=None, cmp=False)  # type: Optional[bool]
+    _is_executable = attr.ib(default=None, cmp=False)  # type: Optional[bool]
+    _is_python = attr.ib(default=None, cmp=False)  # type: Optional[bool]
 
     def __str__(self):
         # type: () -> str
         return fs_str("{0}".format(self.path.as_posix()))
+
+    def __lt__(self, other):
+        # type: ("BasePath") -> bool
+        return self.path.as_posix() < other.path.as_posix()
+
+    def __lte__(self, other):
+        # type: ("BasePath") -> bool
+        return self.path.as_posix() <= other.path.as_posix()
+
+    def __gt__(self, other):
+        # type: ("BasePath") -> bool
+        return self.path.as_posix() > other.path.as_posix()
+
+    def __gte__(self, other):
+        # type: ("BasePath") -> bool
+        return self.path.as_posix() >= other.path.as_posix()
 
     def which(self, name):
         # type: (str) -> Optional[PathEntry]
@@ -83,9 +104,12 @@ class BasePath(object):
         return found
 
     def __del__(self):
-        for key in ["as_python", "is_dir", "is_python", "is_executable", "py_version"]:
-            if key in self.__dict__:
-                del self.__dict__[key]
+        for key in ["_is_dir", "_is_python", "_is_executable", "_py_version"]:
+            if getattr(self, key, None):
+                try:
+                    delattr(self, key)
+                except Exception:
+                    print("failed deleting key: {0}".format(key))
         self._children = {}
         for key in list(self._pythons.keys()):
             del self._pythons[key]
@@ -100,7 +124,7 @@ class BasePath(object):
             return {}
         return self._children
 
-    @cached_property
+    @property
     def as_python(self):
         # type: () -> PythonVersion
         py_version = None
@@ -117,6 +141,7 @@ class BasePath(object):
                 pass
         if py_version is None:
             pass
+        self.py_version = py_version
         return py_version  # type: ignore
 
     @name.default
@@ -126,30 +151,72 @@ class BasePath(object):
             return self.path.name
         return None
 
-    @cached_property
+    @property
     def is_dir(self):
         # type: () -> bool
-        if not self.path:
-            return False
-        try:
-            ret_val = self.path.is_dir()
-        except OSError:
-            ret_val = False
-        return ret_val
+        if self._is_dir is None:
+            if not self.path:
+                ret_val = False
+            try:
+                ret_val = self.path.is_dir()
+            except OSError:
+                ret_val = False
+            self._is_dir = ret_val
+        return self._is_dir
 
-    @cached_property
+    @is_dir.setter
+    def is_dir(self, val):
+        # type: (bool) -> None
+        self._is_dir = val
+
+    @is_dir.deleter
+    def is_dir(self):
+        # type: () -> None
+        self._is_dir = None
+
+    # @cached_property
+    @property
     def is_executable(self):
         # type: () -> bool
-        if not self.path:
-            return False
-        return path_is_known_executable(self.path)
+        if self._is_executable is None:
+            if not self.path:
+                self._is_executable = False
+            else:
+                self._is_executable = path_is_known_executable(self.path)
+        return self._is_executable
 
-    @cached_property
+    @is_executable.setter
+    def is_executable(self, val):
+        # type: (bool) -> None
+        self._is_executable = val
+
+    @is_executable.deleter
+    def is_executable(self):
+        # type: () -> None
+        self._is_executable = None
+
+    # @cached_property
+    @property
     def is_python(self):
         # type: () -> bool
-        if not self.path:
-            return False
-        return self.is_executable and (looks_like_python(self.path.name))
+        if self._is_python is None:
+            if not self.path:
+                self._is_python = False
+            else:
+                self._is_python = self.is_executable and (
+                    looks_like_python(self.path.name)
+                )
+        return self._is_python
+
+    @is_python.setter
+    def is_python(self, val):
+        # type: (bool) -> None
+        self._is_python = val
+
+    @is_python.deleter
+    def is_python(self):
+        # type: () -> None
+        self._is_python = None
 
     def get_py_version(self):
         # type: () -> Optional[PythonVersion]
@@ -173,7 +240,8 @@ class BasePath(object):
             return py_version
         return None
 
-    @cached_property
+    # @cached_property
+    @property
     def py_version(self):
         # type: () -> Optional[PythonVersion]
         if not self._py_version:
@@ -182,6 +250,16 @@ class BasePath(object):
         else:
             py_version = self._py_version
         return py_version
+
+    @py_version.setter
+    def py_version(self, val):
+        # type: (Optional[PythonVersion]) -> None
+        self._py_version = val
+
+    @py_version.deleter
+    def py_version(self):
+        # type: () -> None
+        self._py_version = None
 
     def _iter_pythons(self):
         # type: () -> Iterator

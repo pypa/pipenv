@@ -1,0 +1,1 @@
+Allow overriding PIPENV_INSTALL_TIMEOUT environment variable (in seconds).

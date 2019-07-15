@@ -6,12 +6,12 @@ from collections import defaultdict
 
 import attr
 
-from .mixins import BaseFinder
-from .path import PathEntry
-from .python import PythonVersion, VersionMap
 from ..environment import MYPY_RUNNING
 from ..exceptions import InvalidPythonVersion
 from ..utils import ensure_path
+from .mixins import BaseFinder
+from .path import PathEntry
+from .python import PythonVersion, VersionMap
 
 if MYPY_RUNNING:
     from typing import DefaultDict, Tuple, List, Optional, Union, TypeVar, Type, Any
@@ -81,6 +81,8 @@ class WindowsFinder(BaseFinder):
         path = None
         for version_object in env_versions:
             install_path = getattr(version_object.info, "install_path", None)
+            name = getattr(version_object, "tag", None)
+            company = getattr(version_object, "company", None)
             if install_path is None:
                 continue
             try:
@@ -88,7 +90,9 @@ class WindowsFinder(BaseFinder):
             except AttributeError:
                 continue
             try:
-                py_version = PythonVersion.from_windows_launcher(version_object)
+                py_version = PythonVersion.from_windows_launcher(
+                    version_object, name=name, company=company
+                )
             except InvalidPythonVersion:
                 continue
             if py_version is None:

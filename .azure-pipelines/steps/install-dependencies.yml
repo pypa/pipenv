@@ -1,5 +1,5 @@
 steps:
-- script: 'python -m pip install --upgrade pip setuptools wheel && python -m pip install -e .[tests] --upgrade'
+- script: 'python -m pip install --upgrade pip setuptools wheel -e .[dev,tests] --upgrade'
   displayName: Upgrade Pip & Install Pipenv
   env:
     PYTHONWARNINGS: 'ignore:DEPRECATION'

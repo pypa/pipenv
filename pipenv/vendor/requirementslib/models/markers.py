@@ -19,7 +19,9 @@ from six.moves import reduce  # isort:skip
 
 
 if MYPY_RUNNING:
-    from typing import Optional, List, Type, Any
+    from typing import Optional, List, Type, Any, Tuple, Union, AnyStr, Text, Iterator
+
+    STRING_TYPE = Union[str, bytes, Text]
 
 
 MAX_VERSIONS = {2: 7, 3: 10}
@@ -117,13 +119,15 @@ class PipenvMarkers(object):
             return combined_marker
 
 
-@lru_cache(maxsize=128)
+@lru_cache(maxsize=1024)
 def _tuplize_version(version):
+    # type: (STRING_TYPE) -> Tuple[int, ...]
     return tuple(int(x) for x in filter(lambda i: i != "*", version.split(".")))
 
 
-@lru_cache(maxsize=128)
+@lru_cache(maxsize=1024)
 def _format_version(version):
+    # type: (Tuple[int, ...]) -> STRING_TYPE
     if not isinstance(version, six.string_types):
         return ".".join(str(i) for i in version)
     return version
@@ -133,8 +137,9 @@ def _format_version(version):
 REPLACE_RANGES = {">": ">=", "<=": "<"}
 
 
-@lru_cache(maxsize=128)
+@lru_cache(maxsize=1024)
 def _format_pyspec(specifier):
+    # type: (Union[STRING_TYPE, Specifier]) -> Specifier
     if isinstance(specifier, str):
         if not any(op in specifier for op in Specifier._operators.keys()):
             specifier = "=={0}".format(specifier)
@@ -165,7 +170,7 @@ def _format_pyspec(specifier):
     return specifier
 
 
-@lru_cache(maxsize=128)
+@lru_cache(maxsize=1024)
 def _get_specs(specset):
     if specset is None:
         return
@@ -191,8 +196,8 @@ def _get_specs(specset):
     return sorted(result, key=operator.itemgetter(1))
 
 
-@lru_cache(maxsize=128)
 def _group_by_op(specs):
+    # type: (Union[Set[Specifier], SpecifierSet]) -> Iterator
     specs = [_get_specs(x) for x in list(specs)]
     flattened = [(op, version) for spec in specs for op, version in spec]
     specs = sorted(flattened)
@@ -200,62 +205,92 @@ def _group_by_op(specs):
     return grouping
 
 
-@lru_cache(maxsize=128)
+def normalize_specifier_set(specs):
+    # type: (Union[str, SpecifierSet]) -> Optional[Set[Specifier]]
+    """Given a specifier set, a string, or an iterable, normalize the specifiers
+
+    .. note:: This function exists largely to deal with ``pyzmq`` which handles
+        the ``requires_python`` specifier incorrectly, using ``3.7*`` rather than
+        the correct form of ``3.7.*``.  This workaround can likely go away if
+        we ever introduce enforcement for metadata standards on PyPI.
+
+    :param Union[str, SpecifierSet] specs: Supplied specifiers to normalize
+    :return: A new set of specifiers or specifierset
+    :rtype: Union[Set[Specifier], :class:`~packaging.specifiers.SpecifierSet`]
+    """
+    if not specs:
+        return None
+    if isinstance(specs, set):
+        return specs
+    # when we aren't dealing with a string at all, we can normalize this as usual
+    elif not isinstance(specs, six.string_types):
+        return {_format_pyspec(spec) for spec in specs}
+    spec_list = []
+    for spec in specs.split(","):
+        if spec.endswith(".*"):
+            spec = spec.rstrip(".*")
+        elif spec.endswith("*"):
+            spec = spec.rstrip("*")
+        spec_list.append(spec)
+    return normalize_specifier_set(SpecifierSet(",".join(spec_list)))
+
+
+def get_sorted_version_string(version_set):
+    # type: (Set[AnyStr]) -> AnyStr
+    version_list = sorted(
+        "{0}".format(_format_version(version)) for version in version_set
+    )
+    version = ", ".join(version_list)
+    return version
+
+
+@lru_cache(maxsize=1024)
 def cleanup_pyspecs(specs, joiner="or"):
-    if isinstance(specs, six.string_types):
-        specs = set([_format_pyspec(specs)])
-    else:
-        specs = {_format_pyspec(spec) for spec in specs}
+    specs = normalize_specifier_set(specs)
     # for != operator we want to group by version
     # if all are consecutive, join as a list
-    results = set()
-    for op, versions in _group_by_op(tuple(specs)):
-        versions = [version[1] for version in versions]
-        versions = sorted(dedup(versions))
+    results = {}
+    translation_map = {
         # if we are doing an or operation, we need to use the min for >=
         # this way OR(>=2.6, >=2.7, >=3.6) picks >=2.6
         # if we do an AND operation we need to use MAX to be more selective
-        if op in (">", ">="):
-            if joiner == "or":
-                results.add((op, _format_version(min(versions))))
-            else:
-                results.add((op, _format_version(max(versions))))
+        (">", ">="): {
+            "or": lambda x: _format_version(min(x)),
+            "and": lambda x: _format_version(max(x)),
+        },
         # we use inverse logic here so we will take the max value if we are
         # using OR but the min value if we are using AND
-        elif op in ("<=", "<"):
-            if joiner == "or":
-                results.add((op, _format_version(max(versions))))
-            else:
-                results.add((op, _format_version(min(versions))))
+        ("<", "<="): {
+            "or": lambda x: _format_version(max(x)),
+            "and": lambda x: _format_version(min(x)),
+        },
         # leave these the same no matter what operator we use
-        elif op in ("!=", "==", "~="):
-            version_list = sorted(
-                "{0}".format(_format_version(version)) for version in versions
-            )
-            version = ", ".join(version_list)
-            if len(version_list) == 1:
-                results.add((op, version))
-            elif op == "!=":
-                results.add(("not in", version))
-            elif op == "==":
-                results.add(("in", version))
-            else:
-                specifier = SpecifierSet(
-                    ",".join(sorted("{0}{1}".format(op, v) for v in version_list))
-                )._specs
-                for s in specifier:
-                    results.add((s._spec[0], s._spec[1]))
-        else:
-            if len(version) == 1:
-                results.add((op, version))
-            else:
-                specifier = SpecifierSet("{0}".format(version))._specs
-                for s in specifier:
-                    results.add((s._spec[0], s._spec[1]))
-    return sorted(results, key=operator.itemgetter(1))
+        ("!=", "==", "~=", "==="): {
+            "or": get_sorted_version_string,
+            "and": get_sorted_version_string,
+        },
+    }
+    op_translations = {
+        "!=": lambda x: "not in" if len(x) > 1 else "!=",
+        "==": lambda x: "in" if len(x) > 1 else "==",
+    }
+    translation_keys = list(translation_map.keys())
+    for op, versions in _group_by_op(tuple(specs)):
+        versions = [version[1] for version in versions]
+        versions = sorted(dedup(versions))
+        op_key = next(iter(k for k in translation_keys if op in k), None)
+        version_value = versions
+        if op_key is not None:
+            version_value = translation_map[op_key][joiner](versions)
+        if op in op_translations:
+            op = op_translations[op](versions)
+        results[op] = version_value
+    return sorted([(k, v) for k, v in results.items()], key=operator.itemgetter(1))
 
 
+@lru_cache(maxsize=1024)
 def fix_version_tuple(version_tuple):
+    # type: (Tuple[AnyStr, AnyStr]) -> Tuple[AnyStr, AnyStr]
     op, version = version_tuple
     max_major = max(MAX_VERSIONS.keys())
     if version[0] > max_major:
@@ -269,6 +304,7 @@ def fix_version_tuple(version_tuple):
 
 @lru_cache(maxsize=128)
 def get_versions(specset, group_by_operator=True):
+    # type: (Union[Set[Specifier], SpecifierSet], bool) -> List[Tuple[STRING_TYPE, STRING_TYPE]]
     specs = [_get_specs(x) for x in list(tuple(specset))]
     initial_sort_key = lambda k: (k[0], k[1])
     initial_grouping_key = operator.itemgetter(0)
@@ -292,12 +328,14 @@ def get_versions(specset, group_by_operator=True):
 
 
 def _ensure_marker(marker):
+    # type: (Union[STRING_TYPE, Marker]) -> Marker
     if not is_instance(marker, Marker):
         return Marker(str(marker))
     return marker
 
 
 def gen_marker(mkr):
+    # type: (List[STRING_TYPE]) -> Marker
     m = Marker("python_version == '1'")
     m._markers.pop()
     m._markers.append(mkr)
@@ -437,6 +475,7 @@ def get_contained_extras(marker):
     return extras
 
 
+@lru_cache(maxsize=1024)
 def get_contained_pyversions(marker):
     """Collect all `python_version` operands from a marker.
     """
@@ -596,6 +635,7 @@ def format_pyversion(parts):
 
 
 def normalize_marker_str(marker):
+    # type: (Union[Marker, STRING_TYPE])
     marker_str = ""
     if not marker:
         return None
@@ -612,3 +652,21 @@ def normalize_marker_str(marker):
         else:
             marker_str = "{0!s}".format(marker)
     return marker_str.replace('"', "'")
+
+
+@lru_cache(maxsize=1024)
+def marker_from_specifier(spec):
+    # type: (STRING_TYPE) -> Marker
+    if not any(spec.startswith(k) for k in Specifier._operators.keys()):
+        if spec.strip().lower() in ["any", "<any>", "*"]:
+            return None
+        spec = "=={0}".format(spec)
+    elif spec.startswith("==") and spec.count("=") > 3:
+        spec = "=={0}".format(spec.lstrip("="))
+    if not spec:
+        return None
+    marker_segments = []
+    for marker_segment in cleanup_pyspecs(spec):
+        marker_segments.append(format_pyversion(marker_segment))
+    marker_str = " and ".join(marker_segments).replace('"', "'")
+    return Marker(marker_str)

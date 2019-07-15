@@ -1,0 +1,1 @@
+``pipenv check --system`` should find the correct Python interpreter when ``python`` does not exist on the system.

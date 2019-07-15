@@ -27,7 +27,7 @@ from .environment import Environment
 from .environments import (
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_IGNORE_VIRTUALENVS, PIPENV_MAX_DEPTH,
     PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_VENV_IN_PROJECT,
-    is_in_virtualenv
+    is_in_virtualenv, is_type_checking
 )
 from .vendor.requirementslib.models.utils import get_default_pyproject_backend
 from .utils import (
@@ -38,16 +38,19 @@ from .utils import (
     safe_expandvars, get_pipenv_dist
 )
 
+if is_type_checking():
+    from typing import Dict, Text, Union
+    TSource = Dict[Text, Union[Text, bool]]
+
 
 def _normalized(p):
     if p is None:
         return None
     loc = vistir.compat.Path(p)
-    if not loc.is_absolute():
-        try:
-            loc = loc.resolve()
-        except OSError:
-            loc = loc.absolute()
+    try:
+        loc = loc.resolve()
+    except OSError:
+        loc = loc.absolute()
     # Recase the path properly on Windows. From https://stackoverflow.com/a/35229734/5043728
     if os.name == 'nt':
         matches = glob.glob(re.sub(r'([^:/\\])(?=[/\\]|$)', r'[\1]', str(loc)))
@@ -850,6 +853,10 @@ class Project(object):
 
         else:
             return self.pipfile_sources
+
+    @property
+    def index_urls(self):
+        return [src.get("url") for src in self.sources]
 
     def find_source(self, source):
         """
