@@ -6,10 +6,10 @@ trigger:
     - master
   paths:
     exclude:
-    - docs/*
-    - news/*
-    - peeps/*
-    - examples/*
+    - docs/
+    - news/
+    - peeps/
+    - examples/
     - pytest.ini
     - README.md
     - pipenv/*.txt
