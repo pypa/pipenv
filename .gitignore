@@ -162,3 +162,8 @@ pytype.cfg
 typeshed/
 .dmypy.json
 mypyhtml/
+XDG_CACHE_HOME/
+snap/
+prime/
+stage/
+pip-wheel-metadata/

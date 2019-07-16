@@ -161,9 +161,9 @@ index e54ae08..75b8208 100644
 +from packaging.requirements import Requirement
 +from packaging.specifiers import SpecifierSet, Specifier
 +
-+os.environ["PIP_SHIMS_BASE_MODULE"] = str("pip")
++os.environ["PIP_SHIMS_BASE_MODULE"] = str("pipenv.patched.notpip")
 +import pip_shims
-+from pip_shims.shims import VcsSupport, WheelCache, InstallationError
++from pip_shims.shims import VcsSupport, WheelCache, InstallationError, pip_version
 +
 +
  from .._compat import (
@@ -255,7 +255,7 @@ index e54ae08..75b8208 100644
  
          # pip 19.0 has removed process_dependency_links from the PackageFinder constructor
 -        if pkg_resources.parse_version(pip.__version__) < pkg_resources.parse_version('19.0'):
-+        if pkg_resources.parse_version(pip_shims.shims.pip_version) < pkg_resources.parse_version('19.0'):
++        if pkg_resources.parse_version(pip_version) < pkg_resources.parse_version('19.0'):
              finder_kwargs["process_dependency_links"] = pip_options.process_dependency_links
  
          self.finder = PackageFinder(**finder_kwargs)
@@ -287,7 +287,7 @@ index e54ae08..75b8208 100644
  
          # Reuses pip's internal candidate sort key to sort
          matching_candidates = [candidates_by_version[ver] for ver in matching_versions]
-@@ -135,14 +187,71 @@ class PyPIRepository(BaseRepository):
+@@ -135,14 +187,75 @@ class PyPIRepository(BaseRepository):
  
          # Turn the candidate into a pinned InstallRequirement
          return make_install_requirement(
@@ -353,15 +353,19 @@ index e54ae08..75b8208 100644
 +
      def resolve_reqs(self, download_dir, ireq, wheel_cache):
          results = None
-+        ireq.isolated = False
++        ireq.isolated = self.build_isolation
 +        ireq._wheel_cache = wheel_cache
++        if ireq and not ireq.link:
++            ireq.populate_link(self.finder, False, False)
++        if ireq.link and not ireq.link.is_wheel:
++            ireq.ensure_has_source_dir(self.source_dir)
          try:
              from pip._internal.operations.prepare import RequirementPreparer
 -            from pip._internal.resolve import Resolver as PipResolver
          except ImportError:
              # Pip 9 and below
              reqset = RequirementSet(
-@@ -151,9 +260,11 @@ class PyPIRepository(BaseRepository):
+@@ -151,9 +264,11 @@ class PyPIRepository(BaseRepository):
                  download_dir=download_dir,
                  wheel_download_dir=self._wheel_download_dir,
                  session=self.session,
@@ -374,27 +378,24 @@ index e54ae08..75b8208 100644
          else:
              # pip >= 10
              preparer_kwargs = {
-@@ -162,7 +273,7 @@ class PyPIRepository(BaseRepository):
-                 'download_dir': download_dir,
-                 'wheel_download_dir': self._wheel_download_dir,
-                 'progress_bar': 'off',
--                'build_isolation': self.build_isolation,
-+                'build_isolation': False,
-             }
-             resolver_kwargs = {
-                 'finder': self.finder,
-@@ -170,8 +281,9 @@ class PyPIRepository(BaseRepository):
+@@ -170,11 +285,13 @@ class PyPIRepository(BaseRepository):
                  'upgrade_strategy': "to-satisfy-only",
                  'force_reinstall': False,
                  'ignore_dependencies': False,
 -                'ignore_requires_python': False,
 +                'ignore_requires_python': True,
                  'ignore_installed': True,
+-                'isolated': False,
 +                'ignore_compatibility': False,
-                 'isolated': False,
++                'isolated': True,
                  'wheel_cache': wheel_cache,
-                 'use_user_site': False
-@@ -186,15 +298,22 @@ class PyPIRepository(BaseRepository):
+-                'use_user_site': False
++                'use_user_site': False,
++                'use_pep517': True
+             }
+             resolver = None
+             preparer = None
+@@ -186,15 +303,21 @@ class PyPIRepository(BaseRepository):
                  resolver_kwargs['preparer'] = preparer
                  reqset = RequirementSet()
                  ireq.is_direct = True
@@ -413,7 +414,6 @@ index e54ae08..75b8208 100644
 +                cleanup_fn()
 +            except OSError:
 +                pass
-+
 +        results = set(results) if results else set()
 +        return results, ireq
  
@@ -422,7 +422,7 @@ index e54ae08..75b8208 100644
          """
          Given a pinned or an editable InstallRequirement, returns a set of
          dependencies (also InstallRequirements, but not necessarily pinned).
-@@ -223,7 +342,8 @@ class PyPIRepository(BaseRepository):
+@@ -223,7 +346,8 @@ class PyPIRepository(BaseRepository):
              wheel_cache = WheelCache(CACHE_DIR, self.pip_options.format_control)
              prev_tracker = os.environ.get('PIP_REQ_TRACKER')
              try:
@@ -432,7 +432,7 @@ index e54ae08..75b8208 100644
              finally:
                  if 'PIP_REQ_TRACKER' in os.environ:
                      if prev_tracker:
-@@ -245,6 +365,10 @@ class PyPIRepository(BaseRepository):
+@@ -245,6 +369,10 @@ class PyPIRepository(BaseRepository):
          if ireq.editable:
              return set()
  
@@ -443,7 +443,7 @@ index e54ae08..75b8208 100644
          if not is_pinned_requirement(ireq):
              raise TypeError(
                  "Expected pinned requirement, got {}".format(ireq))
-@@ -252,24 +376,16 @@ class PyPIRepository(BaseRepository):
+@@ -252,24 +380,16 @@ class PyPIRepository(BaseRepository):
          # We need to get all of the candidates that match our current version
          # pin, these will represent all of the files that could possibly
          # satisfy this constraint.

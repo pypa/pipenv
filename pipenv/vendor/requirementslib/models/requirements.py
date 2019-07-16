@@ -190,7 +190,10 @@ class Line(object):
                 tuple(self.extras),
                 tuple(self.hashes),
                 self.vcs,
-                self.ireq,
+                self.uri,
+                self.path,
+                self.name,
+                self._requirement,
             )
         )
 
@@ -207,6 +210,58 @@ class Line(object):
             )
         except Exception:
             return "<Line {0}>".format(self.__dict__.values())
+
+    def __str__(self):
+        # type: () -> str
+        if self.markers:
+            return "{0}; {1}".format(self.get_line(), self.markers)
+        return self.get_line()
+
+    def get_line(
+        self, with_prefix=False, with_markers=False, with_hashes=True, as_list=False
+    ):
+        # type: (bool, bool, bool, bool) -> Union[STRING_TYPE, List[STRING_TYPE]]
+        line = self.line
+        extras_str = extras_to_string(self.extras)
+        with_hashes = False if self.editable or self.is_vcs else with_hashes
+        hash_list = ["--hash={0}".format(h) for h in self.hashes]
+        if self.is_named:
+            line = self.name_and_specifier
+        elif self.is_direct_url:
+            line = self.link.url
+        elif extras_str:
+            if self.is_vcs:
+                line = self.link.url
+                if "git+file:/" in line and "git+file:///" not in line:
+                    line = line.replace("git+file:/", "git+file:///")
+            elif extras_str not in line:
+                line = "{0}{1}".format(line, extras_str)
+        # XXX: For using markers on vcs or url requirements, they can be used
+        # as normal (i.e. no space between the requirement and the semicolon)
+        # and no additional quoting as long as they are not editable requirements
+        # HOWEVER, for editable requirements, the requirement+marker must be quoted
+        # We do this here for the line-formatted versions, but leave it up to the
+        # `Script.parse()` functionality in pipenv, for instance, to handle that
+        # in a cross-platform manner for the `as_list` approach since that is how
+        # we anticipate this will be used if passing directly to the command line
+        # for pip.
+        if with_markers and self.markers:
+            line = "{0}; {1}".format(line, self.markers)
+            if with_prefix and self.editable and not as_list:
+                line = '"{0}"'.format(line)
+        if as_list:
+            result_list = []
+            if with_prefix and self.editable:
+                result_list.append("-e")
+            result_list.append(line)
+            if with_hashes:
+                result_list.extend(self.hashes)
+            return result_list
+        if with_prefix and self.editable:
+            line = "-e {0}".format(line)
+        if with_hashes and hash_list:
+            line = "{0} {1}".format(line, " ".join(hash_list))
+        return line
 
     @property
     def name_and_specifier(self):
@@ -240,22 +295,7 @@ class Line(object):
     @property
     def line_with_prefix(self):
         # type: () -> STRING_TYPE
-        line = self.line
-        if self.is_named:
-            return self.name_and_specifier
-        extras_str = extras_to_string(self.extras)
-        if self.is_direct_url:
-            line = self.link.url
-        elif extras_str:
-            if self.is_vcs:
-                line = self.link.url
-                if "git+file:/" in line and "git+file:///" not in line:
-                    line = line.replace("git+file:/", "git+file:///")
-            elif extras_str not in line:
-                line = "{0}{1}".format(line, extras_str)
-        if self.editable:
-            return "-e {0}".format(line)
-        return line
+        return self.get_line(with_prefix=True, with_hashes=False)
 
     @property
     def line_for_ireq(self):
@@ -1116,7 +1156,8 @@ class Line(object):
     def parse_markers(self):
         # type: () -> None
         if self.markers:
-            markers = PackagingRequirement("fakepkg; {0}".format(self.markers)).marker
+            marker_str = self.markers.replace('"', "'")
+            markers = PackagingRequirement("fakepkg; {0}".format(marker_str)).marker
             self.parsed_marker = markers
 
     @property
@@ -1189,7 +1230,12 @@ class Line(object):
 
     def parse(self):
         # type: () -> None
+        self.line = self.line.strip()
+        if self.line.startswith('"'):
+            self.line = self.line.strip('"')
         self.line, self.markers = split_markers_from_line(self.parse_hashes().line)
+        if self.markers:
+            self.markers = self.markers.replace('"', "'")
         self.parse_extras()
         self.line = self.line.strip('"').strip("'").strip()
         if self.line.startswith("git+file:/") and not self.line.startswith(
@@ -2570,37 +2616,45 @@ class Requirement(object):
             if self.req._setup_info and self.req._setup_info.name is None:
                 self.req._setup_info.name = name
 
+    def get_line_instance(self):
+        # type: () -> Line
+        line_parts = []
+        if self.req:
+            if self.req.line_part.startswith("-e "):
+                line_parts.extend(self.req.line_part.split(" ", 1))
+            else:
+                line_parts.append(self.req.line_part)
+        if not self.is_vcs and not self.vcs and self.extras_as_pip:
+            line_parts.append(self.extras_as_pip)
+        if self._specifiers and not (self.is_file_or_url or self.is_vcs):
+            line_parts.append(self._specifiers)
+        if self.markers:
+            line_parts.append("; {0}".format(self.markers.replace('"', "'")))
+        if self.hashes_as_pip and not (self.editable or self.vcs or self.is_vcs):
+            line_parts.append(self.hashes_as_pip)
+        if self.editable:
+            if line_parts[0] == "-e":
+                line = "".join(line_parts[1:])
+            else:
+                line = "".join(line_parts)
+            if self.markers:
+                line = '"{0}"'.format(line)
+            line = "-e {0}".format(line)
+        else:
+            line = "".join(line_parts)
+        return Line(line)
+
     @property
     def line_instance(self):
         # type: () -> Optional[Line]
         if self._line_instance is None:
-            if self.req is not None and self.req._parsed_line is not None:
-                self._line_instance = self.req._parsed_line
-            else:
-                include_extras = True
-                include_specifiers = True
-                if self.is_vcs:
-                    include_extras = False
-                if self.is_file_or_url or self.is_vcs or not self._specifiers:
-                    include_specifiers = False
-                line_part = ""  # type: STRING_TYPE
-                if self.req and self.req.line_part:
-                    line_part = "{0!s}".format(self.req.line_part)
-                parts = []  # type: List[STRING_TYPE]
-                parts = [
-                    line_part,
-                    self.extras_as_pip if include_extras else "",
-                    self._specifiers if include_specifiers and self._specifiers else "",
-                    self.markers_as_pip,
-                ]
-                line = "".join(parts)
-                self._line_instance = Line(line)
+            self.line_instance = self.get_line_instance()
         return self._line_instance
 
     @line_instance.setter
     def line_instance(self, line_instance):
         # type: (Line) -> None
-        if self.req and not self.req._parsed_line:
+        if self.req:
             self.req._parsed_line = line_instance
         self._line_instance = line_instance
 
@@ -2834,29 +2888,14 @@ class Requirement(object):
         in the requirement line.
         """
 
-        include_specifiers = True if self.specifiers else False
-        if self.is_vcs:
-            include_extras = False
-        if self.is_file_or_url or self.is_vcs:
-            include_specifiers = False
-        parts = [
-            self.req.line_part,
-            self.extras_as_pip if include_extras else "",
-            self.specifiers if include_specifiers else "",
-            self.markers_as_pip if include_markers else "",
-        ]
-        if as_list:
-            # This is used for passing to a subprocess call
-            parts = ["".join(parts)]
-        if include_hashes:
-            hashes = self.get_hashes_as_pip(as_list=as_list)
-            if as_list:
-                parts.extend(hashes)
-            else:
-                parts.append(hashes)
-
-        is_local = self.is_file_or_url and self.req and self.req.is_local
-        if sources and self.requirement and not (is_local or self.vcs):
+        assert self.line_instance is not None
+        parts = self.line_instance.get_line(
+            with_prefix=True,
+            with_hashes=include_hashes,
+            with_markers=include_markers,
+            as_list=as_list,
+        )
+        if sources and self.requirement and not (self.line_instance.is_local or self.vcs):
             from ..utils import prepare_pip_source_args
 
             if self.index:
@@ -2866,11 +2905,8 @@ class Requirement(object):
                 parts.extend(sources)
             else:
                 index_string = " ".join(source_list)
-                parts.extend([" ", index_string])
-        if as_list:
-            return parts
-        line = "".join(parts)
-        return line
+                parts = "{0} {1}".format(parts, index_string)
+        return parts
 
     def get_markers(self):
         # type: () -> Marker
@@ -3093,6 +3129,8 @@ class Requirement(object):
 
     def merge_markers(self, markers):
         # type: (Union[AnyStr, Marker]) -> None
+        if not markers:
+            return self
         if not isinstance(markers, Marker):
             markers = Marker(markers)
         _markers = []  # type: List[Marker]

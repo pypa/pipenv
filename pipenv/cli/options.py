@@ -6,7 +6,7 @@ import os
 import click.types
 
 from click import (
-    BadParameter, Group, Option, argument, echo, make_pass_decorator, option
+    BadParameter, BadArgumentUsage, Group, Option, argument, echo, make_pass_decorator, option
 )
 from click_didyoumean import DYMMixin
 
@@ -56,11 +56,12 @@ class State(object):
         self.index = None
         self.extra_index_urls = []
         self.verbose = False
+        self.quiet = False
         self.pypi_mirror = None
         self.python = None
         self.two = None
         self.three = None
-        self.site_packages = False
+        self.site_packages = None
         self.clear = False
         self.system = False
         self.installstate = InstallState()
@@ -231,18 +232,39 @@ def verbose_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
+            if state.quiet:
+                raise BadArgumentUsage(
+                    "--verbose and --quiet are mutually exclusive! Please choose one!",
+                    ctx=ctx
+                )
             state.verbose = True
-        setup_verbosity(ctx, param, value)
+            setup_verbosity(ctx, param, 1)
     return option("--verbose", "-v", is_flag=True, expose_value=False,
                   callback=callback, help="Verbose mode.", type=click.types.BOOL)(f)
+
+
+def quiet_option(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        if value:
+            if state.verbose:
+                raise BadArgumentUsage(
+                    "--verbose and --quiet are mutually exclusive! Please choose one!",
+                    ctx=ctx
+                )
+            state.quiet = True
+            setup_verbosity(ctx, param, -1)
+    return option("--quiet", "-q", is_flag=True, expose_value=False,
+                  callback=callback, help="Quiet mode.", type=click.types.BOOL)(f)
 
 
 def site_packages_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
+        validate_bool_or_none(ctx, param, value)
         state.site_packages = value
         return value
-    return option("--site-packages", is_flag=True, default=False, type=click.types.BOOL,
+    return option("--site-packages/--no-site-packages", is_flag=True, default=None,
                   help="Enable site-packages for the virtualenv.", callback=callback,
                   expose_value=False, show_envvar=True)(f)
 
@@ -313,8 +335,14 @@ def setup_verbosity(ctx, param, value):
     if not value:
         return
     import logging
-    logging.getLogger("pip").setLevel(logging.INFO)
-    environments.PIPENV_VERBOSITY = 1
+    loggers = ("pip", "piptools")
+    if value == 1:
+        for logger in loggers:
+            logging.getLogger(logger).setLevel(logging.INFO)
+    elif value == -1:
+        for logger in loggers:
+            logging.getLogger(logger).setLevel(logging.CRITICAL)
+    environments.PIPENV_VERBOSITY = value
 
 
 def validate_python_path(ctx, param, value):
@@ -327,6 +355,12 @@ def validate_python_path(ctx, param, value):
         if os.path.isabs(value) and not os.path.isfile(value):
             raise BadParameter("Expected Python at path %s does not exist" % value)
     return value
+
+
+def validate_bool_or_none(ctx, param, value):
+    if value is not None:
+        return click.types.BOOL(value)
+    return False
 
 
 def validate_pypi_mirror(ctx, param, value):

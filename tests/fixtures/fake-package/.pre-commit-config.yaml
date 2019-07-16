@@ -1,0 +1,20 @@
+repos:
+  - repo: https://github.com/ambv/black
+    rev: stable
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.0.0
+    hooks:
+      - id: flake8
+
+  - repo: https://github.com/asottile/seed-isort-config
+    rev: v1.7.0
+    hooks:
+      - id: seed-isort-config
+
+  - repo: https://github.com/pre-commit/mirrors-isort
+    rev: v4.3.9
+    hooks:
+      - id: isort

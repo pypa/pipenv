@@ -62,7 +62,7 @@ KNOWN_EXTS = {"exe", "py", "fish", "sh", ""}
 KNOWN_EXTS = KNOWN_EXTS | set(
     filter(None, os.environ.get("PATHEXT", "").split(os.pathsep))
 )
-PY_MATCH_STR = r"((?P<implementation>{0})(?:\d?(?:\.\d[cpm]{{0,3}}))?(?:-?[\d\.]+)*[^z])".format(
+PY_MATCH_STR = r"((?P<implementation>{0})(?:\d?(?:\.\d[cpm]{{0,3}}))?(?:-?[\d\.]+)*[^zw])".format(
     "|".join(PYTHON_IMPLEMENTATIONS)
 )
 EXE_MATCH_STR = r"{0}(?:\.(?P<ext>{1}))?".format(PY_MATCH_STR, "|".join(KNOWN_EXTS))
@@ -237,6 +237,40 @@ def path_is_python(path):
     """
 
     return path_is_executable(path) and looks_like_python(path.name)
+
+
+@lru_cache(maxsize=1024)
+def guess_company(path):
+    # type: (str) -> Optional[str]
+    """Given a path to python, guess the company who created it
+
+    :param str path: The path to guess about
+    :return: The guessed company
+    :rtype: Optional[str]
+    """
+    non_core_pythons = [impl for impl in PYTHON_IMPLEMENTATIONS if impl != "python"]
+    return next(
+        iter(impl for impl in non_core_pythons if impl in path.lower()), "PythonCore"
+    )
+
+
+@lru_cache(maxsize=1024)
+def path_is_pythoncore(path):
+    # type: (str) -> bool
+    """Given a path, determine whether it appears to be pythoncore.
+
+    Does not verify whether the path is in fact a path to python, but simply
+    does an exclusionary check on the possible known python implementations
+    to see if their names are present in the path (fairly dumb check).
+
+    :param str path: The path to check
+    :return: Whether that path is a PythonCore path or not
+    :rtype: bool
+    """
+    company = guess_company(path)
+    if company:
+        return company == "PythonCore"
+    return False
 
 
 @lru_cache(maxsize=1024)

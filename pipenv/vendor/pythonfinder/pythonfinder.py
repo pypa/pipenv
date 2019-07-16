@@ -308,6 +308,7 @@ class Finder(object):
         )
         if not isinstance(versions, Iterable):
             versions = [versions]
+        # This list has already been mostly sorted on windows, we don't need to reverse it again
         path_list = sorted(versions, key=version_sort, reverse=True)
         path_map = {}  # type: Dict[str, PathEntry]
         for path in path_list:
@@ -317,4 +318,4 @@ class Finder(object):
                 resolved_path = path.path.absolute()
             if not path_map.get(resolved_path.as_posix()):
                 path_map[resolved_path.as_posix()] = path
-        return list(path_map.values())
+        return path_list

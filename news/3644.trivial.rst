@@ -1,0 +1,1 @@
+Use tablib instead of requests in tests to avoid failures when vendored

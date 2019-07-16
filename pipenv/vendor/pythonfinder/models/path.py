@@ -14,8 +14,6 @@ from cached_property import cached_property
 from vistir.compat import Path, fs_str
 from vistir.misc import dedup
 
-from .mixins import BaseFinder, BasePath
-from .python import PythonVersion
 from ..environment import (
     ASDF_DATA_DIR,
     ASDF_INSTALLED,
@@ -42,6 +40,8 @@ from ..utils import (
     split_version_and_name,
     unnest,
 )
+from .mixins import BaseFinder, BasePath
+from .python import PythonVersion
 
 if MYPY_RUNNING:
     from typing import (
@@ -688,11 +688,23 @@ class SystemPath(object):
 
 @attr.s(slots=True)
 class PathEntry(BasePath):
-    is_root = attr.ib(default=True, type=bool)
+    is_root = attr.ib(default=True, type=bool, cmp=False)
+
+    def __lt__(self, other):
+        return self.path.as_posix() < other.path.as_posix()
+
+    def __lte__(self, other):
+        return self.path.as_posix() <= other.path.as_posix()
+
+    def __gt__(self, other):
+        return self.path.as_posix() > other.path.as_posix()
+
+    def __gte__(self, other):
+        return self.path.as_posix() >= other.path.as_posix()
 
     def __del__(self):
-        if "_children" in self.__dict__:
-            del self.__dict__["_children"]
+        if getattr(self, "_children"):
+            del self._children
         BasePath.__del__(self)
 
     def _filter_children(self):
@@ -730,15 +742,26 @@ class PathEntry(BasePath):
                 yield (child.as_posix(), entry)
         return
 
-    @cached_property
+    # @cached_property
+    @property
     def children(self):
         # type: () -> Dict[str, PathEntry]
         children = getattr(self, "_children", {})  # type: Dict[str, PathEntry]
         if not children:
             for child_key, child_val in self._gen_children():
                 children[child_key] = child_val
-            self._children = children
+            self.children = children
         return self._children
+
+    @children.setter
+    def children(self, val):
+        # type: (Dict[str, PathEntry]) -> None
+        self._children = val
+
+    @children.deleter
+    def children(self):
+        # type: () -> None
+        del self._children
 
     @classmethod
     def create(cls, path, is_root=False, only_python=False, pythons=None, name=None):

@@ -183,12 +183,12 @@ in your ``Pipfile.lock`` for now, run ``pipenv lock --keep-outdated``.  Make sur
 ☤ Specifying Versions of a Package
 ----------------------------------
 
-You can specify versions of a package using the `Semantic Versioning scheme <https://semver.org/>`_ 
-(i.e. ``major.minor.micro``). 
+You can specify versions of a package using the `Semantic Versioning scheme <https://semver.org/>`_
+(i.e. ``major.minor.micro``).
 
 For example, to install requests you can use: ::
 
-    $ pipenv install requests~=1.2   # equivalent to requests~=1.2.0 
+    $ pipenv install requests~=1.2   # equivalent to requests~=1.2.0
 
 Pipenv will install version ``1.2`` and any minor update, but not ``2.0``.
 
@@ -202,11 +202,11 @@ To make inclusive or exclusive version comparisons you can use: ::
 
     $ pipenv install "requests>=1.4"   # will install a version equal or larger than 1.4.0
     $ pipenv install "requests<=2.13"  # will install a version equal or lower than 2.13.0
-    $ pipenv install "requests>2.19"   # will install 2.19.1 but not 2.19.0 
+    $ pipenv install "requests>2.19"   # will install 2.19.1 but not 2.19.0
 
 .. note:: The use of double quotes around the package and version specification (i.e. ``"requests>2.19"``) is highly recommended
     to avoid issues with `Input and output redirection <https://robots.thoughtbot.com/input-output-redirection-in-the-shell>`_
-    in Unix-based operating systems. 
+    in Unix-based operating systems.
 
 The use of ``~=`` is preferred over the ``==`` identifier as the latter prevents pipenv from updating the packages:  ::
 
@@ -399,10 +399,8 @@ environment into production. You can use ``pipenv lock`` to compile your depende
 your development environment and deploy the compiled ``Pipfile.lock`` to all of your
 production environments for reproducible builds.
 
-.. note:
+.. note::
 
     If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv lock -r``.
     This will include all hashes, however (which is great!). To get a ``requirements.txt``
     without hashes, use ``$ pipenv run pip freeze``.
-
-.. _configuration-with-environment-variables:https://docs.pipenv.org/advanced/#configuration-with-environment-variables

@@ -11,34 +11,52 @@ from pipenv.utils import temp_environ
 @pytest.mark.run
 @pytest.mark.uninstall
 @pytest.mark.install
-def test_uninstall(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_uninstall_requests(PipenvInstance):
+    # Uninstalling requests can fail even when uninstall Django below
+    # succeeds, if requests was de-vendored.
+    # See https://github.com/pypa/pipenv/issues/3644 for problems
+    # caused by devendoring
+    with PipenvInstance() as p:
         c = p.pipenv("install requests")
         assert c.return_code == 0
         assert "requests" in p.pipfile["packages"]
-        assert "requests" in p.lockfile["default"]
-        assert "chardet" in p.lockfile["default"]
-        assert "idna" in p.lockfile["default"]
-        assert "urllib3" in p.lockfile["default"]
-        assert "certifi" in p.lockfile["default"]
+
+        c = p.pipenv("run python -m requests.help")
+        assert c.return_code == 0
 
         c = p.pipenv("uninstall requests")
         assert c.return_code == 0
         assert "requests" not in p.pipfile["dev-packages"]
-        assert "requests" not in p.lockfile["develop"]
-        assert "chardet" not in p.lockfile["develop"]
-        assert "idna" not in p.lockfile["develop"]
-        assert "urllib3" not in p.lockfile["develop"]
-        assert "certifi" not in p.lockfile["develop"]
 
         c = p.pipenv("run python -m requests.help")
+        assert c.return_code > 0
+
+
+def test_uninstall_django(PipenvInstance):
+    with PipenvInstance() as p:
+        c = p.pipenv("install Django==1.11.13")
+        assert c.return_code == 0
+        assert "django" in p.pipfile["packages"]
+        assert "django" in p.lockfile["default"]
+        assert "pytz" in p.lockfile["default"]
+
+        c = p.pipenv("run python -m django --version")
+        assert c.return_code == 0
+
+        c = p.pipenv("uninstall Django")
+        assert c.return_code == 0
+        assert "django" not in p.pipfile["dev-packages"]
+        assert "django" not in p.lockfile["develop"]
+        assert p.lockfile["develop"] == {}
+
+        c = p.pipenv("run python -m django --version")
         assert c.return_code > 0
 
 
 @pytest.mark.run
 @pytest.mark.uninstall
 @pytest.mark.install
-def test_mirror_uninstall(PipenvInstance, pypi):
+def test_mirror_uninstall(PipenvInstance):
     with temp_environ(), PipenvInstance(chdir=True) as p:
 
         mirror_url = os.environ.pop(
@@ -46,35 +64,32 @@ def test_mirror_uninstall(PipenvInstance, pypi):
         )
         assert "pypi.org" not in mirror_url
 
-        c = p.pipenv("install requests --pypi-mirror {0}".format(mirror_url))
+        c = p.pipenv("install Django==1.11.13 --pypi-mirror {0}".format(mirror_url))
         assert c.return_code == 0
-        assert "requests" in p.pipfile["packages"]
-        assert "requests" in p.lockfile["default"]
-        assert "chardet" in p.lockfile["default"]
-        assert "idna" in p.lockfile["default"]
-        assert "urllib3" in p.lockfile["default"]
-        assert "certifi" in p.lockfile["default"]
+        assert "django" in p.pipfile["packages"]
+        assert "django" in p.lockfile["default"]
+        assert "pytz" in p.lockfile["default"]
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
         assert len(p.lockfile["_meta"]["sources"]) == 1
         assert "https://pypi.org/simple" == p.pipfile["source"][0]["url"]
         assert "https://pypi.org/simple" == p.lockfile["_meta"]["sources"][0]["url"]
 
-        c = p.pipenv("uninstall requests --pypi-mirror {0}".format(mirror_url))
+        c = p.pipenv("run python -m django --version")
         assert c.return_code == 0
-        assert "requests" not in p.pipfile["dev-packages"]
-        assert "requests" not in p.lockfile["develop"]
-        assert "chardet" not in p.lockfile["develop"]
-        assert "idna" not in p.lockfile["develop"]
-        assert "urllib3" not in p.lockfile["develop"]
-        assert "certifi" not in p.lockfile["develop"]
+
+        c = p.pipenv("uninstall Django --pypi-mirror {0}".format(mirror_url))
+        assert c.return_code == 0
+        assert "django" not in p.pipfile["dev-packages"]
+        assert "django" not in p.lockfile["develop"]
+        assert p.lockfile["develop"] == {}
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
         assert len(p.lockfile["_meta"]["sources"]) == 1
         assert "https://pypi.org/simple" == p.pipfile["source"][0]["url"]
         assert "https://pypi.org/simple" == p.lockfile["_meta"]["sources"][0]["url"]
 
-        c = p.pipenv("run python -m requests.help")
+        c = p.pipenv("run python -m django --version")
         assert c.return_code > 0
 
 
@@ -82,61 +97,63 @@ def test_mirror_uninstall(PipenvInstance, pypi):
 @pytest.mark.uninstall
 @pytest.mark.install
 def test_uninstall_all_local_files(PipenvInstance, testsroot):
-    file_name = "requests-2.19.1.tar.gz"
+    file_name = "tablib-0.12.1.tar.gz"
     # Not sure where travis/appveyor run tests from
-    source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
+    source_path = os.path.abspath(os.path.join(testsroot, "pypi", "tablib", file_name))
 
     with PipenvInstance(chdir=True) as p:
         shutil.copy(source_path, os.path.join(p.path, file_name))
-        os.mkdir(os.path.join(p.path, "requests"))
+        os.mkdir(os.path.join(p.path, "tablib"))
         c = p.pipenv("install {}".format(file_name))
         assert c.return_code == 0
         c = p.pipenv("uninstall --all")
         assert c.return_code == 0
-        assert "requests" in c.out
+        assert "tablib" in c.out
         # Uninstall --all is not supposed to remove things from the pipfile
         # Note that it didn't before, but that instead local filenames showed as hashes
-        assert "requests" in p.pipfile["packages"]
+        assert "tablib" in p.pipfile["packages"]
 
 
 @pytest.mark.run
 @pytest.mark.uninstall
 @pytest.mark.install
-def test_uninstall_all_dev(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
-        c = p.pipenv("install --dev requests six")
+def test_uninstall_all_dev(PipenvInstance):
+    with PipenvInstance() as p:
+        c = p.pipenv("install --dev Django==1.11.13 six")
         assert c.return_code == 0
 
-        c = p.pipenv("install pytz")
+        c = p.pipenv("install tablib")
         assert c.return_code == 0
 
-        assert "pytz" in p.pipfile["packages"]
-        assert "requests" in p.pipfile["dev-packages"]
+        assert "tablib" in p.pipfile["packages"]
+        assert "django" in p.pipfile["dev-packages"]
         assert "six" in p.pipfile["dev-packages"]
-        assert "pytz" in p.lockfile["default"]
-        assert "requests" in p.lockfile["develop"]
+        assert "tablib" in p.lockfile["default"]
+        assert "django" in p.lockfile["develop"]
         assert "six" in p.lockfile["develop"]
+
+        c = p.pipenv('run python -c "import django"')
+        assert c.return_code == 0
 
         c = p.pipenv("uninstall --all-dev")
         assert c.return_code == 0
-        assert "requests" not in p.pipfile["dev-packages"]
-        assert "six" not in p.pipfile["dev-packages"]
-        assert "requests" not in p.lockfile["develop"]
+        assert p.pipfile["dev-packages"] == {}
+        assert "django" not in p.lockfile["develop"]
         assert "six" not in p.lockfile["develop"]
-        assert "pytz" in p.pipfile["packages"]
-        assert "pytz" in p.lockfile["default"]
+        assert "tablib" in p.pipfile["packages"]
+        assert "tablib" in p.lockfile["default"]
 
-        c = p.pipenv("run python -m requests.help")
+        c = p.pipenv('run python -c "import django"')
         assert c.return_code > 0
 
-        c = p.pipenv('run python -c "import pytz"')
+        c = p.pipenv('run python -c "import tablib"')
         assert c.return_code == 0
 
 
 @pytest.mark.uninstall
 @pytest.mark.run
-def test_normalize_name_uninstall(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_normalize_name_uninstall(PipenvInstance):
+    with PipenvInstance() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 # Pre comment

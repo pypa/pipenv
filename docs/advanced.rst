@@ -71,6 +71,11 @@ Luckily - pipenv will hash your Pipfile *before* expanding environment
 variables (and, helpfully, will substitute the environment variables again when
 you install from the lock file - so no need to commit any secrets! Woo!)
 
+If your credentials contain a special character, surround the references to the environment variables with quotation marks. For example, if your password contain a double quotation mark, surround the password variable with single quotation marks. Otherwise, you may get a ``ValueError, "No closing quotation"`` error while installing dependencies. ::
+
+    [[source]]
+    url = "https://$USERNAME:'${PASSWORD}'@mypypi.example.com/simple"
+
 
 ☤ Specifying Basically Anything
 -------------------------------
@@ -374,6 +379,7 @@ Commands that expect arguments will also work.
 For example:
 
 .. code-block:: toml
+
     [scripts]
     echospam = "echo I am really a very silly example"
 
@@ -407,6 +413,7 @@ Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
 
 On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
 
+.. _configuration-with-environment-variables:
 
 ☤ Configuration With Environment Variables
 ------------------------------------------

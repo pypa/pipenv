@@ -6,6 +6,7 @@ import logging
 import os
 import posixpath
 import re
+import signal
 import shutil
 import stat
 import sys
@@ -19,13 +20,9 @@ import toml
 import tomlkit
 
 from click import echo as click_echo
-six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))  # noqa
-six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))  # noqa
-six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # noqa
-from six.moves import Mapping, Sequence, Set
 from six.moves.urllib.parse import urlparse
-from .vendor.vistir.compat import ResourceWarning, lru_cache
-from .vendor.vistir.misc import fs_str
+from .vendor.vistir.compat import ResourceWarning, lru_cache, Mapping, Sequence, Set
+from .vendor.vistir.misc import fs_str, run
 
 import crayons
 import parse
@@ -41,9 +38,10 @@ from .vendor.urllib3 import util as urllib3_util
 if environments.MYPY_RUNNING:
     from typing import Tuple, Dict, Any, List, Union, Optional, Text
     from .vendor.requirementslib.models.requirements import Requirement, Line
+    from .vendor.requirementslib.models.pipfile import Pipfile
     from .vendor.packaging.markers import Marker
     from .vendor.packaging.specifiers import Specifier
-    from .project import Project
+    from .project import Project, TSource
 
 
 logging.basicConfig(level=logging.ERROR)
@@ -284,6 +282,88 @@ def prepare_pip_source_args(sources, pip_args=None):
     return pip_args
 
 
+def get_project_index(index=None, trusted_hosts=None, project=None):
+    # type: (Optional[Union[str, TSource]], Optional[List[str]], Optional[Project]) -> TSource
+    from .project import SourceNotFound
+    if not project:
+        from .core import project
+    if trusted_hosts is None:
+        trusted_hosts = []
+    if isinstance(index, Mapping):
+        return project.find_source(index.get("url"))
+    try:
+        source = project.find_source(index)
+    except SourceNotFound:
+        index_url = urllib3_util.parse_url(index)
+        src_name = project.src_name_from_url(index)
+        verify_ssl = index_url.host not in trusted_hosts
+        source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
+    return source
+
+
+def get_source_list(
+    index=None,  # type: Optional[Union[str, TSource]]
+    extra_indexes=None,  # type: Optional[List[str]]
+    trusted_hosts=None,  # type: Optional[List[str]]
+    pypi_mirror=None,  # type: Optional[str]
+    project=None,  # type: Optional[Project]
+):
+    # type: (...) -> List[TSource]
+    sources = []  # type: List[TSource]
+    if not project:
+        from .core import project
+    if index:
+        sources.append(get_project_index(index))
+    if extra_indexes:
+        if isinstance(extra_indexes, six.string_types):
+            extra_indexes = [extra_indexes,]
+        for source in extra_indexes:
+            extra_src = get_project_index(source)
+            if not sources or extra_src["url"] != sources[0]["url"]:
+                sources.append(extra_src)
+        else:
+            for source in project.pipfile_sources:
+                if not sources or source["url"] != sources[0]["url"]:
+                    sources.append(source)
+    if not sources:
+        sources = project.pipfile_sources[:]
+    if pypi_mirror:
+        sources = [
+            create_mirror_source(pypi_mirror) if is_pypi_url(source["url"]) else source
+            for source in sources
+        ]
+    return sources
+
+
+def get_indexes_from_requirement(req, project=None, index=None, extra_indexes=None, trusted_hosts=None, pypi_mirror=None):
+    # type: (Requirement, Optional[Project], Optional[Text], Optional[List[Text]], Optional[List[Text]], Optional[Text]) -> Tuple[TSource, List[TSource], List[Text]]
+    if not project:
+        from .core import project
+    index_sources = []  # type: List[TSource]
+    if not trusted_hosts:
+        trusted_hosts = []  # type: List[Text]
+    if extra_indexes is None:
+        extra_indexes = []
+    project_indexes = project.pipfile_sources[:]
+    indexes = []
+    if req.index:
+        indexes.append(req.index)
+    if getattr(req, "extra_indexes", None):
+        if not isinstance(req.extra_indexes, list):
+            indexes.append(req.extra_indexes)
+        else:
+            indexes.extend(req.extra_indexes)
+    indexes.extend(project_indexes)
+    if len(indexes) > 1:
+        index, extra_indexes = indexes[0], indexes[1:]
+    index_sources = get_source_list(index=index, extra_indexes=extra_indexes, trusted_hosts=trusted_hosts, pypi_mirror=pypi_mirror, project=project)
+    if len(index_sources) > 1:
+        index_source, extra_index_sources = index_sources[0], index_sources[1:]
+    else:
+        index_source, extra_index_sources = index_sources[0], []
+    return index_source, extra_index_sources
+
+
 @lru_cache()
 def get_pipenv_sitedir():
     # type: () -> Optional[str]
@@ -339,15 +419,19 @@ class Resolver(object):
     @staticmethod
     @lru_cache()
     def _get_pip_command():
-        from .vendor.pip_shims.shims import Command
+        from .vendor.pip_shims.shims import Command, cmdoptions
 
         class PipCommand(Command):
             """Needed for pip-tools."""
 
             name = "PipCommand"
 
-        from pipenv.patched.piptools.scripts.compile import get_pip_command
-        return get_pip_command()
+        from pipenv.patched.piptools.pip import get_pip_command
+        pip_cmd = get_pip_command()
+        pip_cmd.parser.add_option(cmdoptions.no_use_pep517())
+        pip_cmd.parser.add_option(cmdoptions.use_pep517())
+        pip_cmd.parser.add_option(cmdoptions.no_build_isolation())
+        return pip_cmd
 
     @classmethod
     def get_metadata(
@@ -446,6 +530,7 @@ class Resolver(object):
         from .vendor.requirementslib.models.utils import _requirement_to_str_lowercase_name
         from .vendor.requirementslib.models.requirements import Requirement
         from requirementslib.utils import is_installable_dir
+        # TODO: this is way too complex, refactor this
         constraints = set()  # type: Set[str]
         locked_deps = dict()  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
         if (req.is_file_or_url or req.is_vcs) and not req.is_wheel:
@@ -567,22 +652,58 @@ class Resolver(object):
             markers_lookup=markers_lookup, skipped=skipped, clear=clear, pre=pre
         )
 
+    @classmethod
+    def from_pipfile(cls, project=None, pipfile=None, dev=False, pre=False, clear=False):
+        # type: (Optional[Project], Optional[Pipfile], bool, bool, bool) -> "Resolver"
+        from pipenv.vendor.vistir.path import create_tracked_tempdir
+        if not project:
+            from pipenv.core import project
+        if not pipfile:
+            pipfile = project._pipfile
+        req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
+        index_lookup, markers_lookup = {}, {}
+        deps = set()
+        if dev:
+            deps.update(set([req.as_line() for req in pipfile.dev_packages]))
+        deps.update(set([req.as_line() for req in pipfile.packages]))
+        constraints, skipped, index_lookup, markers_lookup = cls.get_metadata(
+            list(deps), index_lookup, markers_lookup, project, project.sources,
+            req_dir=req_dir, pre=pre, clear=clear
+        )
+        return Resolver(
+            constraints, req_dir, project, project.sources, index_lookup=index_lookup,
+            markers_lookup=markers_lookup, skipped=skipped, clear=clear, pre=pre
+        )
+
     @property
     def pip_command(self):
         if self._pip_command is None:
             self._pip_command = self._get_pip_command()
         return self._pip_command
 
-    def prepare_pip_args(self):
+    def prepare_pip_args(self, use_pep517=True, build_isolation=True):
         pip_args = []
         if self.sources:
             pip_args = prepare_pip_source_args(self.sources, pip_args)
+        if not use_pep517:
+            pip_args.append("--no-use-pep517")
+        if not build_isolation:
+            pip_args.append("--no-build-isolation")
+        pip_args.extend(["--cache-dir", environments.PIPENV_CACHE_DIR])
         return pip_args
 
     @property
     def pip_args(self):
+        use_pep517 = False if (
+            os.environ.get("PIP_NO_USE_PEP517", None) is not None
+        ) else (True if os.environ.get("PIP_USE_PEP517", None) is not None else None)
+        build_isolation = False if (
+            os.environ.get("PIP_NO_BUILD_ISOLATION", None) is not None
+        ) else (True if os.environ.get("PIP_BUILD_ISOLATION", None) is not None else None)
         if self._pip_args is None:
-            self._pip_args = self.prepare_pip_args()
+            self._pip_args = self.prepare_pip_args(
+                use_pep517=use_pep517, build_isolation=build_isolation
+            )
         return self._pip_args
 
     def prepare_constraint_file(self):
@@ -594,8 +715,13 @@ class Resolver(object):
             dir=self.req_dir,
             delete=False,
         )
+        skip_args = ("build-isolation", "use-pep517", "cache-dir")
+        args_to_add = [
+            arg for arg in self.pip_args
+            if not any(bad_arg in arg for bad_arg in skip_args)
+        ]
         if self.sources:
-            requirementstxt_sources = " ".join(self.pip_args) if self.pip_args else ""
+            requirementstxt_sources = " ".join(args_to_add) if args_to_add else ""
             requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
             constraints_file.write(u"{0}\n".format(requirementstxt_sources))
         constraints = self.initial_constraints
@@ -632,7 +758,8 @@ class Resolver(object):
         if self._repository is None:
             from pipenv.patched.piptools.repositories.pypi import PyPIRepository
             self._repository = PyPIRepository(
-                pip_options=self.pip_options, use_json=False, session=self.session
+                pip_options=self.pip_options, use_json=False, session=self.session,
+                build_isolation=self.pip_options.build_isolation
             )
         return self._repository
 
@@ -671,22 +798,24 @@ class Resolver(object):
         from pipenv.patched.piptools.exceptions import NoCandidateFound
         from pipenv.patched.piptools.cache import CorruptCacheError
         from .exceptions import CacheError, ResolutionFailure
-        try:
-            results = self.resolver.resolve(max_rounds=environments.PIPENV_MAX_ROUNDS)
-        except CorruptCacheError as e:
-            if environments.PIPENV_IS_CI or self.clear:
-                if self._retry_attempts < 3:
-                    self.get_resolver(clear=True, pre=self.pre)
-                    self._retry_attempts += 1
-                    self.resolve()
+        with temp_environ():
+            os.environ["PIP_NO_USE_PEP517"] = str("")
+            try:
+                results = self.resolver.resolve(max_rounds=environments.PIPENV_MAX_ROUNDS)
+            except CorruptCacheError as e:
+                if environments.PIPENV_IS_CI or self.clear:
+                    if self._retry_attempts < 3:
+                        self.get_resolver(clear=True, pre=self.pre)
+                        self._retry_attempts += 1
+                        self.resolve()
+                else:
+                    raise CacheError(e.path)
+            except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
+                raise ResolutionFailure(message=str(e))
             else:
-                raise CacheError(e.path)
-        except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
-            raise ResolutionFailure(message=str(e))
-        else:
-            self.results = results
-            self.resolved_tree.update(results)
-            return self.resolved_tree
+                self.results = results
+                self.resolved_tree.update(results)
+        return self.resolved_tree
 
     @lru_cache(maxsize=1024)
     def fetch_candidate(self, ireq):
@@ -702,14 +831,16 @@ class Resolver(object):
         return None
 
     def resolve_constraints(self):
+        from .vendor.requirementslib.models.markers import marker_from_specifier
         new_tree = set()
         for result in self.resolved_tree:
             if result.markers:
                 self.markers[result.name] = result.markers
             else:
                 candidate = self.fetch_candidate(result)
-                if getattr(candidate, "requires_python", None):
-                    marker = make_marker_from_specifier(candidate.requires_python)
+                requires_python = getattr(candidate, "requires_python", None)
+                if requires_python:
+                    marker = marker_from_specifier(candidate.requires_python)
                     self.markers[result.name] = marker
                     result.markers = marker
                     if result.req:
@@ -811,7 +942,7 @@ class Resolver(object):
         # This fixes a race condition in resolution for missing dependency caches
         # see pypa/pipenv#3289
         if not self._should_include_hash(ireq):
-            return set()
+            return add_to_set(set(), ireq_hashes)
         elif self._should_include_hash(ireq) and (
             not ireq_hashes or ireq.link.scheme == "file"
         ):
@@ -916,6 +1047,8 @@ def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=No
     if markers:
         entry.update({"markers": markers})
     entry = translate_markers(entry)
+    if req.vcs or req.editable and entry.get("index"):
+        del entry["index"]
     return name, entry
 
 
@@ -936,6 +1069,7 @@ def actually_resolve_deps(
     req_dir=None,
 ):
     from pipenv.vendor.vistir.path import create_tracked_tempdir
+    from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
@@ -964,9 +1098,9 @@ def create_spinner(text, nospin=None, spinner_name=None):
     if nospin is None:
         nospin = environments.PIPENV_NOSPIN
     with spin.create_spinner(
-            spinner_name=spinner_name,
-            start_text=fs_str(text),
-            nospin=nospin, write_to_stdout=False
+        spinner_name=spinner_name,
+        start_text=fs_str(text),
+        nospin=nospin, write_to_stdout=False
     ) as sp:
         yield sp
 
@@ -989,17 +1123,21 @@ def resolve(cmd, sp):
         result = None
         try:
             result = c.expect(u"\n", timeout=environments.PIPENV_INSTALL_TIMEOUT)
-        except (EOF, TIMEOUT):
+        except TIMEOUT:
             pass
-        _out = c.subprocess.before
-        if _out:
-            _out = decode_output("{0}\n".format(_out))
+        except EOF:
+            break
+        except KeyboardInterrupt:
+            c.kill()
+            break
+        if result:
+            _out = c.subprocess.before
+            _out = decode_output("{0}".format(_out))
             out += _out
-            sp.text = to_native_string("{0}".format(_out[:100]))
+            # sp.text = to_native_string("{0}".format(_out[:100]))
             if environments.is_verbose():
-                sp.hide_and_write(_out.rstrip())
-        _out = to_native_string("")
-        if not result and not _out:
+                sp.hide_and_write(out.splitlines()[-1].rstrip())
+        else:
             break
     c.block()
     if c.return_code != 0:
@@ -1009,8 +1147,9 @@ def resolve(cmd, sp):
         echo(c.out.strip(), err=True)
         if not environments.is_verbose():
             echo(out, err=True)
-        echo(c.err.strip(), err=True)
         sys.exit(c.return_code)
+    if environments.is_verbose():
+        echo(c.err.strip(), err=True)
     return c
 
 
@@ -1168,7 +1307,12 @@ def venv_resolve_deps(
             sp.write(decode_for_output("Resolving dependencies..."))
             c = resolve(cmd, sp)
             results = c.out.strip()
-            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+            if c.ok:
+                sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+            else:
+                sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
+                click_echo("Output: {0}".format(c.out.strip()), err=True)
+                click_echo("Error: {0}".format(c.err.strip()), err=True)
     try:
         with open(target_file.name, "r") as fh:
             results = json.load(fh)
@@ -2082,24 +2226,67 @@ def is_python_command(line):
     return False
 
 
-def make_marker_from_specifier(spec):
-    # type: (str) -> Optional[Marker]
-    """Given a python version specifier, create a marker
+# def make_marker_from_specifier(spec):
+#     # type: (str) -> Optional[Marker]
+#     """Given a python version specifier, create a marker
 
-    :param spec: A specifier
-    :type spec: str
-    :return: A new marker
-    :rtype: Optional[:class:`packaging.marker.Marker`]
+#     :param spec: A specifier
+#     :type spec: str
+#     :return: A new marker
+#     :rtype: Optional[:class:`packaging.marker.Marker`]
+#     """
+#     from .vendor.packaging.markers import Marker
+#     from .vendor.packaging.specifiers import SpecifierSet, Specifier
+#     from .vendor.requirementslib.models.markers import cleanup_pyspecs, format_pyversion
+#     if not any(spec.startswith(k) for k in Specifier._operators.keys()):
+#         if spec.strip().lower() in ["any", "<any>", "*"]:
+#             return None
+#         spec = "=={0}".format(spec)
+#     elif spec.startswith("==") and spec.count("=") > 3:
+#         spec = "=={0}".format(spec.lstrip("="))
+#     if not spec:
+#         return None
+#     marker_segments = []
+#     print(spec)
+#     for marker_segment in cleanup_pyspecs(spec):
+#         print(marker_segment)
+#         marker_segments.append(format_pyversion(marker_segment))
+#     marker_str = " and ".join(marker_segments)
+#     return Marker(marker_str)
+
+
+@contextlib.contextmanager
+def interrupt_handled_subprocess(
+    cmd, verbose=False, return_object=True, write_to_stdout=False, combine_stderr=True,
+    block=True, nospin=True, env=None
+):
+    """Given a :class:`subprocess.Popen` instance, wrap it in exception handlers.
+
+    Terminates the subprocess when and if a `SystemExit` or `KeyboardInterrupt` are
+    processed.
+
+    Arguments:
+        :param str cmd: A command to run
+        :param bool verbose: Whether to run with verbose mode enabled, default False
+        :param bool return_object: Whether to return a subprocess instance or a 2-tuple, default True
+        :param bool write_to_stdout: Whether to write directly to stdout, default False
+        :param bool combine_stderr: Whether to combine stdout and stderr, default True
+        :param bool block: Whether the subprocess should be a blocking subprocess, default True
+        :param bool nospin: Whether to suppress the spinner with the subprocess, default True
+        :param Optional[Dict[str, str]] env: A dictionary to merge into the subprocess environment
+        :return: A subprocess, wrapped in exception handlers, as a context manager
+        :rtype: :class:`subprocess.Popen` obj: An instance of a running subprocess
     """
-    from .vendor.packaging.specifiers import SpecifierSet, Specifier
-    from .vendor.packaging.markers import Marker
-    from .vendor.requirementslib.models.markers import cleanup_pyspecs, format_pyversion
-    if not any(spec.startswith(k) for k in Specifier._operators.keys()):
-        if spec.strip().lower() in ["any", "<any>", "*"]:
-            return None
-        spec = "=={0}".format(spec)
-    elif spec.startswith("==") and spec.count("=") > 3:
-        spec = "=={0}".format(spec.lstrip("="))
-    specset = cleanup_pyspecs(SpecifierSet(spec))
-    marker_str = " and ".join([format_pyversion(pv) for pv in specset])
-    return Marker(marker_str)
+    obj = run(
+        cmd, verbose=verbose, return_object=True, write_to_stdout=False,
+        combine_stderr=False, block=True, nospin=True, env=env,
+    )
+    try:
+        yield obj
+    except (SystemExit, KeyboardInterrupt):
+        if os.name == "nt":
+            os.kill(obj.pid, signal.CTRL_BREAK_EVENT)
+        else:
+            os.kill(obj.pid, signal.SIGINT)
+        obj.wait()
+        raise

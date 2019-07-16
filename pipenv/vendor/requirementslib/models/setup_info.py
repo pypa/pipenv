@@ -33,6 +33,7 @@ from .utils import (
     get_name_variants,
     get_pyproject,
     init_requirement,
+    read_source,
     split_vcs_method_from_uri,
     strip_extras_markers_from_requirement,
 )
@@ -136,10 +137,15 @@ class BuildEnv(pep517.envbuild.BuildEnvironment):
 
 
 class HookCaller(pep517.wrappers.Pep517HookCaller):
-    def __init__(self, source_dir, build_backend):
+    def __init__(self, source_dir, build_backend, backend_path=None):
         self.source_dir = os.path.abspath(source_dir)
         self.build_backend = build_backend
         self._subprocess_runner = pep517_subprocess_runner
+        if backend_path:
+            backend_path = [
+                pep517.wrappers.norm_and_check(self.source_dir, p) for p in backend_path
+            ]
+        self.backend_path = backend_path
 
 
 def parse_special_directives(setup_entry, package_dir=None):
@@ -151,8 +157,7 @@ def parse_special_directives(setup_entry, package_dir=None):
         _, path = setup_entry.split("file:")
         path = path.strip()
         if os.path.exists(path):
-            with open(path, "r") as fh:
-                rv = fh.read()
+            rv = read_source(path)
     elif setup_entry.startswith("attr:"):
         _, resource = setup_entry.split("attr:")
         resource = resource.strip()
@@ -190,7 +195,7 @@ def make_base_requirements(reqs):
             requirements.add(req)
         elif isinstance(req, pkg_resources_requirements.Requirement):
             requirements.add(BaseRequirement.from_req(req))
-        elif req and not req.startswith("#"):
+        elif req and isinstance(req, six.string_types) and not req.startswith("#"):
             requirements.add(BaseRequirement.from_string(req))
     return requirements
 
@@ -235,10 +240,15 @@ def get_package_dir_from_setupcfg(parser, base_dir=None):
         if "package_dir" in setup_py:
             package_lookup = setup_py["package_dir"]
             if not isinstance(package_lookup, Mapping):
-                return package_lookup
-            return package_lookup.get(
+                package_dir = package_lookup
+            package_dir = package_lookup.get(
                 next(iter(list(package_lookup.keys()))), package_dir
             )
+    if not os.path.isabs(package_dir):
+        if not base_dir:
+            package_dir = os.path.join(os.path.getcwd(), package_dir)
+        else:
+            package_dir = os.path.join(base_dir, package_dir)
     return package_dir
 
 
@@ -291,7 +301,8 @@ def parse_setup_cfg(setup_cfg_path):
     parser = configparser.ConfigParser(default_opts)
     parser.read(setup_cfg_path)
     results = {}
-    package_dir = get_package_dir_from_setupcfg(parser, base_dir=os.getcwd())
+    base_dir = os.path.dirname(os.path.abspath(setup_cfg_path))
+    package_dir = get_package_dir_from_setupcfg(parser, base_dir=base_dir)
     name, version = get_name_and_version_from_setupcfg(parser, package_dir)
     results["name"] = name
     results["version"] = version
@@ -633,6 +644,8 @@ class Analyzer(ast.NodeVisitor):
         self.functions = []
         self.strings = []
         self.assignments = {}
+        self.binOps = []
+        self.binOps_map = {}
         super(Analyzer, self).__init__()
 
     def generic_visit(self, node):
@@ -647,6 +660,17 @@ class Analyzer(ast.NodeVisitor):
             self.assignments.update(ast_unparse(node, initial_mapping=True))
         super(Analyzer, self).generic_visit(node)
 
+    def visit_BinOp(self, node):
+        left = ast_unparse(node.left, initial_mapping=True)
+        right = ast_unparse(node.right, initial_mapping=True)
+        node.left = left
+        node.right = right
+        self.binOps.append(node)
+
+    def unmap_binops(self):
+        for binop in self.binOps:
+            self.binOps_map[binop] = ast_unparse(binop, analyzer=self)
+
     def match_assignment_str(self, match):
         return next(
             iter(k for k in self.assignments if getattr(k, "id", "") == match), None
@@ -660,7 +684,9 @@ class Analyzer(ast.NodeVisitor):
 
 def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # noqa:C901
     # type: (Any, bool, Optional[Analyzer], bool) -> Union[List[Any], Dict[Any, Any], Tuple[Any, ...], STRING_TYPE]
-    unparse = partial(ast_unparse, initial_mapping=initial_mapping, analyzer=analyzer, recurse=recurse)
+    unparse = partial(
+        ast_unparse, initial_mapping=initial_mapping, analyzer=analyzer, recurse=recurse
+    )
     if isinstance(item, ast.Dict):
         unparsed = dict(zip(unparse(item.keys), unparse(item.values)))
     elif isinstance(item, ast.List):
@@ -671,6 +697,26 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
         unparsed = item.s
     elif isinstance(item, ast.Subscript):
         unparsed = unparse(item.value)
+    elif isinstance(item, ast.BinOp):
+        if analyzer and item in analyzer.binOps_map:
+            unparsed = analyzer.binOps_map[item]
+        elif isinstance(item.op, ast.Add):
+            if not initial_mapping:
+                right_item = unparse(item.right)
+                left_item = unparse(item.left)
+                if not all(
+                    isinstance(side, (six.string_types, int, float, list, tuple))
+                    for side in (left_item, right_item)
+                ):
+                    item.left = left_item
+                    item.right = right_item
+                    unparsed = item
+                else:
+                    unparsed = right_item + left_item
+            else:
+                unparsed = item
+        elif isinstance(item.op, ast.Sub):
+            unparsed = unparse(item.left) - unparse(item.right)
     elif isinstance(item, ast.Name):
         if not initial_mapping:
             unparsed = item.id
@@ -770,8 +816,7 @@ def ast_parse_attribute_from_file(path, attribute):
 
 def ast_parse_file(path):
     # type: (S) -> Analyzer
-    with open(path, "r") as fh:
-        tree = ast.parse(fh.read())
+    tree = ast.parse(read_source(path))
     ast_analyzer = Analyzer()
     ast_analyzer.visit(tree)
     return ast_analyzer
@@ -781,6 +826,7 @@ def ast_parse_setup_py(path):
     # type: (S) -> Dict[Any, Any]
     ast_analyzer = ast_parse_file(path)
     setup = {}  # type: Dict[Any, Any]
+    ast_analyzer.unmap_binops()
     for k, v in ast_analyzer.function_map.items():
         fn_name = ""
         if isinstance(k, ast.Name):

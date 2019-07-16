@@ -1,0 +1,1 @@
+Fixed a bug which sometimes caused pipenv to fail to respect the ``--site-packages`` flag when passed with ``pipenv install``.

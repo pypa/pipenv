@@ -242,7 +242,11 @@ class Pipfile(object):
     @property
     def requires_python(self):
         # type: () -> bool
-        return self._pipfile.requires.requires_python
+        return getattr(
+            self._pipfile.requires,
+            "python_version",
+            getattr(self._pipfile.requires, "python_full_version", None),
+        )
 
     @property
     def allow_prereleases(self):

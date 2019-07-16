@@ -1,0 +1,1 @@
+Resolve the symlinks when the path is absolute.

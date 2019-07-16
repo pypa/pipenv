@@ -42,7 +42,7 @@ extras = {
         "parver",
         "invoke",
     ],
-    "tests": ["pytest", "pytest-tap", "pytest-xdist", "flaky", "mock"],
+    "tests": ["pytest<5.0", "pytest-tap", "pytest-xdist", "flaky", "mock"],
 }
 
 # https://pypi.python.org/pypi/stdeb/0.8.5#quickstart-2-just-tell-me-the-fastest-way-to-make-a-deb
@@ -143,7 +143,7 @@ setup(
         ],
     },
     python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*",
-    setup_requires=["invoke", "parver"],
+    setup_requires=[],
     install_requires=required,
     extras_require=extras,
     include_package_data=True,
