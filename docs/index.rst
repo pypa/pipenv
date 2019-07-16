@@ -26,7 +26,7 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 
 Pipenv is primarily meant to provide users and developers of applications with an easy method to setup a working environment. For the distinction between libraries and applications and the usage of ``setup.py`` vs ``Pipfile`` to define dependencies, see :ref:`pipfile-vs-setuppy`.
 
-.. image:: https://s3.amazonaws.com/media.kennethreitz.com/pipenv.gif
+.. image:: https://gist.githubusercontent.com/jlusk/855d611bbcfa2b159839db73d07f6ce9/raw/7f5743401809f7e630ee8ff458faa980e19924a0/pipenv.gif
    :height: 341px
    :width: 654px
    :scale: 100 %
