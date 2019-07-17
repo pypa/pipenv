@@ -58,7 +58,10 @@ PYTHON_IMPLEMENTATIONS = (
     "pyston",
     "micropython",
 )
-KNOWN_EXTS = {"exe", "py", "fish", "sh", ""}
+if os.name == "nt":
+    KNOWN_EXTS = {"exe", "py", "bat", ""}
+else:
+    KNOWN_EXTS = {"sh", "bash", "csh", "zsh", "fish", "py", ""}
 KNOWN_EXTS = KNOWN_EXTS | set(
     filter(None, os.environ.get("PATHEXT", "").split(os.pathsep))
 )
