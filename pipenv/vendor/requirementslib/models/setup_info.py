@@ -28,6 +28,8 @@ from vistir.contextmanagers import cd, temp_path
 from vistir.misc import run
 from vistir.path import create_tracked_tempdir, ensure_mkdir_p, mkdir_p, rmtree
 
+from ..environment import MYPY_RUNNING
+from ..exceptions import RequirementError
 from .utils import (
     get_default_pyproject_backend,
     get_name_variants,
@@ -37,8 +39,6 @@ from .utils import (
     split_vcs_method_from_uri,
     strip_extras_markers_from_requirement,
 )
-from ..environment import MYPY_RUNNING
-from ..exceptions import RequirementError
 
 try:
     from setuptools.dist import distutils, Distribution
@@ -712,11 +712,13 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
                     item.right = right_item
                     unparsed = item
                 else:
-                    unparsed = right_item + left_item
+                    unparsed = left_item + right_item
             else:
                 unparsed = item
         elif isinstance(item.op, ast.Sub):
             unparsed = unparse(item.left) - unparse(item.right)
+        else:
+            unparsed = item
     elif isinstance(item, ast.Name):
         if not initial_mapping:
             unparsed = item.id

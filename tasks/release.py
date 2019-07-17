@@ -82,6 +82,7 @@ def release(ctx, dry_run=False):
         ctx.run("towncrier --draft > CHANGELOG.draft.rst")
         log("would remove: news/*")
         log("would remove: CHANGELOG.draft.rst")
+        log("would update: pipenv/pipenv.1")
         log(f'Would commit with message: "Release v{version}"')
     else:
         ctx.run("towncrier")
@@ -90,6 +91,7 @@ def release(ctx, dry_run=False):
         )
         ctx.run("git rm CHANGELOG.draft.rst")
         generate_manual(ctx)
+        ctx.run("git add pipenv/pipenv.1")
         ctx.run(f'git commit -m "Release v{version}"')
 
     tag_content = tag_content.replace('"', '\\"')

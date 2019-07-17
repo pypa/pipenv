@@ -505,7 +505,9 @@ def split_markers_from_line(line):
     # type: (AnyStr) -> Tuple[AnyStr, Optional[AnyStr]]
     """Split markers from a dependency"""
     quote_chars = ["'", '"']
-    line_quote = next(iter(quote for quote in quote_chars if line.startswith(quote)), None)
+    line_quote = next(
+        iter(quote for quote in quote_chars if line.startswith(quote)), None
+    )
     if line_quote and line.endswith(line_quote):
         line = line.strip(line_quote)
     if not any(line.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
