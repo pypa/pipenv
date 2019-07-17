@@ -13,7 +13,7 @@
 
 {% if definitions[category]['showcontent'] %}
 {% for text, values in sections[section][category]|dictsort(by='value') %}
-- {{ text }}{% if category != 'process' %}{{ values|sort|join(',\n  ') }}{% endif %}
+- {{ text }}  {% if category != 'process' %}{{ values|sort|join(',\n  ') }}{% endif %}
 
 {% endfor %}
 {% else %}
