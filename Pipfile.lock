@@ -5,13 +5,11 @@
         },
         "pipfile-spec": 6,
         "requires": {},
-        "sources": [
-            {
-                "name": "pypi",
-                "url": "https://pypi.org/simple",
-                "verify_ssl": true
-            }
-        ]
+        "sources": [{
+            "name": "pypi",
+            "url": "https://pypi.org/simple",
+            "verify_ssl": true
+        }]
     },
     "default": {},
     "develop": {
@@ -704,11 +702,11 @@
         },
         "virtualenv": {
             "hashes": [
-                "sha256:b7335cddd9260a3dd214b73a2521ffc09647bde3e9457fcca31dc3be3999d04a",
-                "sha256:d28ca64c0f3f125f59cabf13e0a150e1c68e5eea60983cc4395d88c584495783"
+                "sha256:6cb2e4c18d22dbbe283d0a0c31bb7d90771a606b2cb3415323eea008eaee6a9d",
+                "sha256:909fe0d3f7c9151b2df0a2cb53e55bdb7b0d61469353ff7a49fd47b0f0ab9285"
             ],
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
-            "version": "==16.6.1"
+            "version": "==16.7.2"
         },
         "virtualenv-clone": {
             "hashes": [
