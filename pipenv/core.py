@@ -395,7 +395,7 @@ def ensure_python(three=None, python=None):
         )
         # Pyenv/Asdf is installed
         from .vendor.pythonfinder.environment import PYENV_INSTALLED, ASDF_INSTALLED
-        from .pyenv import RunnerError, Pyenv, Asdf
+        from .runner import RunnerError, Pyenv, Asdf
 
         if PYENV_INSTALLED and (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
             name = "pyenv"
