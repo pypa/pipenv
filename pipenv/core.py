@@ -25,10 +25,10 @@ from ._compat import fix_utf8, decode_for_output
 from .cmdparse import Script
 from .environments import (
     PIPENV_CACHE_DIR, PIPENV_COLORBLIND, PIPENV_DEFAULT_PYTHON_VERSION,
-    PIPENV_DONT_USE_PYENV, PIPENV_HIDE_EMOJIS, PIPENV_MAX_SUBPROCESS,
-    PIPENV_PYUP_API_KEY, PIPENV_SHELL_FANCY, PIPENV_SKIP_VALIDATION,
-    PIPENV_YES, SESSION_IS_INTERACTIVE, PIP_EXISTS_ACTION, PIPENV_RESOLVE_VCS,
-    is_type_checking
+    PIPENV_DONT_USE_PYENV, PIPENV_DONT_USE_ASDF, PIPENV_HIDE_EMOJIS,
+    PIPENV_MAX_SUBPROCESS, PIPENV_PYUP_API_KEY, PIPENV_SHELL_FANCY,
+    PIPENV_SKIP_VALIDATION, PIPENV_YES, SESSION_IS_INTERACTIVE, PIP_EXISTS_ACTION,
+    PIPENV_RESOLVE_VCS, is_type_checking
 )
 from .project import Project, SourceNotFound
 from .utils import (
@@ -393,76 +393,79 @@ def ensure_python(three=None, python=None):
             ),
             err=True,
         )
-        # Pyenv is installed
-        from .vendor.pythonfinder.environment import PYENV_INSTALLED
+        # Pyenv/Asdf is installed
+        from .vendor.pythonfinder.environment import PYENV_INSTALLED, ASDF_INSTALLED
+        from .pyenv import RunnerError, Pyenv, Asdf
 
-        if not PYENV_INSTALLED:
+        if PYENV_INSTALLED and (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
+            name = "pyenv"
+            runner = Pyenv(name)
+        elif ASDF_INSTALLED and (not PIPENV_DONT_USE_ASDF) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
+            name = "asdf"
+            runner = Asdf(name)
+        else:
+            abort()
+
+        try:
+            version = runner.find_version_to_install(python)
+        except ValueError:
+            abort()
+        except RunnerError as e:
+            click.echo(fix_utf8("Something went wrong…"))
+            click.echo(crayons.blue(e.err), err=True)
+            abort()
+        s = "{0} {1} {2}".format(
+            "Would you like us to install",
+            crayons.green("CPython {0}".format(version)),
+            "with {0}?".format(name),
+        )
+        # Prompt the user to continue…
+        if not (PIPENV_YES or click.confirm(s, default=True)):
             abort()
         else:
-            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
-                from .pyenv import Runner, PyenvError
-
-                pyenv = Runner("pyenv")
-                try:
-                    version = pyenv.find_version_to_install(python)
-                except ValueError:
-                    abort()
-                except PyenvError as e:
-                    click.echo(fix_utf8("Something went wrong…"))
-                    click.echo(crayons.blue(e.err), err=True)
-                    abort()
-                s = "{0} {1} {2}".format(
-                    "Would you like us to install",
-                    crayons.green("CPython {0}".format(version)),
-                    "with pyenv?",
+            # Tell the user we're installing Python.
+            click.echo(
+                u"{0} {1} {2} {3}{4}".format(
+                    crayons.normal(u"Installing", bold=True),
+                    crayons.green(u"CPython {0}".format(version), bold=True),
+                    crayons.normal(u"with {0}".format(name), bold=True),
+                    crayons.normal(u"(this may take a few minutes)"),
+                    crayons.normal(fix_utf8("…"), bold=True),
                 )
-                # Prompt the user to continue…
-                if not (PIPENV_YES or click.confirm(s, default=True)):
-                    abort()
-                else:
-                    # Tell the user we're installing Python.
-                    click.echo(
-                        u"{0} {1} {2} {3}{4}".format(
-                            crayons.normal(u"Installing", bold=True),
-                            crayons.green(u"CPython {0}".format(version), bold=True),
-                            crayons.normal(u"with pyenv", bold=True),
-                            crayons.normal(u"(this may take a few minutes)"),
-                            crayons.normal(fix_utf8("…"), bold=True),
-                        )
+            )
+            with create_spinner("Installing python...") as sp:
+                try:
+                    c = runner.install(version)
+                except RunnerError as e:
+                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
+                        "Failed...")
                     )
-                    with create_spinner("Installing python...") as sp:
-                        try:
-                            c = pyenv.install(version)
-                        except PyenvError as e:
-                            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
-                                "Failed...")
-                            )
-                            click.echo(fix_utf8("Something went wrong…"), err=True)
-                            click.echo(crayons.blue(e.err), err=True)
-                        else:
-                            sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
-                            # Print the results, in a beautiful blue…
-                            click.echo(crayons.blue(c.out), err=True)
-                            # Clear the pythonfinder caches
-                            from .vendor.pythonfinder import Finder
-                            finder = Finder(system=False, global_search=True)
-                            finder.find_python_version.cache_clear()
-                            finder.find_all_python_versions.cache_clear()
-                    # Find the newly installed Python, hopefully.
-                    version = str(version)
-                    path_to_python = find_a_system_python(version)
-                    try:
-                        assert python_version(path_to_python) == version
-                    except AssertionError:
-                        click.echo(
-                            "{0}: The Python you just installed is not available on your {1}, apparently."
-                            "".format(
-                                crayons.red("Warning", bold=True),
-                                crayons.normal("PATH", bold=True),
-                            ),
-                            err=True,
-                        )
-                        sys.exit(1)
+                    click.echo(fix_utf8("Something went wrong…"), err=True)
+                    click.echo(crayons.blue(e.err), err=True)
+                else:
+                    sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                    # Print the results, in a beautiful blue…
+                    click.echo(crayons.blue(c.out), err=True)
+                    # Clear the pythonfinder caches
+                    from .vendor.pythonfinder import Finder
+                    finder = Finder(system=False, global_search=True)
+                    finder.find_python_version.cache_clear()
+                    finder.find_all_python_versions.cache_clear()
+            # Find the newly installed Python, hopefully.
+            version = str(version)
+            path_to_python = find_a_system_python(version)
+            try:
+                assert python_version(path_to_python) == version
+            except AssertionError:
+                click.echo(
+                    "{0}: The Python you just installed is not available on your {1}, apparently."
+                    "".format(
+                        crayons.red("Warning", bold=True),
+                        crayons.normal("PATH", bold=True),
+                    ),
+                    err=True,
+                )
+                sys.exit(1)
     return path_to_python
 
 
