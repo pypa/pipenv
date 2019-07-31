@@ -2529,7 +2529,9 @@ def do_check(
     system=False,
     unused=False,
     ignore=None,
-    args=None,
+    safety_cache=False,
+    safety_db=None,
+    no_safety_vulnerability_check=False,
     pypi_mirror=None,
 ):
     from pipenv.vendor.vistir.compat import JSONDecodeError
@@ -2544,8 +2546,6 @@ def do_check(
             warn=False,
             pypi_mirror=pypi_mirror,
         )
-    if not args:
-        args = []
     if unused:
         deps_required = [k.lower() for k in project.packages.keys()]
         deps_needed = [k.lower() for k in import_from_code(unused)]
@@ -2615,6 +2615,15 @@ def do_check(
         sys.exit(1)
     else:
         click.echo(crayons.green("Passed!"))
+
+    if no_safety_vulnerability_check:
+        click.echo()
+        click.echo(
+            crayons.yellow("  Skipping vulnerability check, as requested with --no-safety-vulnerability check.", bold=True)
+        )
+        click.echo()
+        return
+
     click.echo(crayons.normal(
         decode_for_output("Checking installed package safety…"), bold=True)
     )
@@ -2657,7 +2666,7 @@ def do_check(
         click.echo("{0}".format(description))
         click.echo()
     else:
-        sys.exit(1)
+        sys.exit(2)
 
 
 def do_graph(bare=False, json=False, json_tree=False, reverse=False):

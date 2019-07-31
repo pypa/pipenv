@@ -426,6 +426,26 @@ def run(state, command, args):
     multiple=True,
     help="Ignore specified vulnerability during safety checks.",
 )
+@option(
+    "--safety-cache",
+    "-c",
+    is_flag=True,
+    default=False,
+    help="Enable `safety` package's two-hour cache.",
+)
+@option(
+    "--safety-db",
+    "-d",
+    is_flag=True,
+    default=False,
+    help="Sets `safety` package's --db option: Path to a directory with a local vulnerability database including insecure.json and insecure_full.json.",
+)
+@option(
+    "--no-safety-vulnerability-check",
+    is_flag=True,
+    default=False,
+    help="Skips `safety` check and prints warning. Make sure to run `safety` manually.",
+)
 @common_options
 @system_option
 @argument("args", nargs=-1)
@@ -435,6 +455,9 @@ def check(
     unused=False,
     style=False,
     ignore=None,
+    safety_cache=False,
+    safety_db=None,
+    no_safety_vulnerability_check=False,
     args=None,
     **kwargs
 ):
@@ -447,6 +470,8 @@ def check(
         system=state.system,
         unused=unused,
         ignore=ignore,
+        safety_cache=safety_cache,
+        safety_db=safety_db,
         args=args,
         pypi_mirror=state.pypi_mirror,
     )

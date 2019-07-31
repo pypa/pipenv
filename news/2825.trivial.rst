@@ -1,0 +1,1 @@
+Allow skipping `safety` check, or configuring it to use a local database.
