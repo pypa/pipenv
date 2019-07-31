@@ -458,7 +458,7 @@ def check(
     safety_cache=False,
     safety_db=None,
     no_safety_vulnerability_check=False,
-    args=None,
+    args=None, # TODO: this argument has been ignored for a while
     **kwargs
 ):
     """Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile."""
@@ -472,7 +472,6 @@ def check(
         ignore=ignore,
         safety_cache=safety_cache,
         safety_db=safety_db,
-        args=args,
         pypi_mirror=state.pypi_mirror,
     )
 
