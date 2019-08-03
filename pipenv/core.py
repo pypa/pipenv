@@ -1772,6 +1772,7 @@ def do_outdated(pypi_mirror=None, pre=False, clear=False):
     from .vendor.requirementslib.models.requirements import Requirement
     from .vendor.requirementslib.models.utils import get_version
     from .vendor.packaging.utils import canonicalize_name
+    from .vendor.vistir.compat import Mapping
     from collections import namedtuple
 
     packages = {}
