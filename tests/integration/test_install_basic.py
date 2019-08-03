@@ -474,13 +474,3 @@ extras = ["socks"]
         assert 'six = {version = "*"}' in contents
         assert 'requests = {version = "*"' in contents
         assert 'plette = "*"' in contents
-
-
-@pytest.mark.install
-def test_install_prerelease(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
-        c = p.pipenv("install 'sqlalchemy<=1.2.3'")
-        assert c.return_code != 0
-        c = p.pipenv("install --pre 'sqlalchemy<=1.2.3'")
-        assert c.return_code == 0
-        assert p.lockfile["default"]["sqlalchemy"]["version"] == "1.2.0b3"
