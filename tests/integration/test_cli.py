@@ -273,7 +273,7 @@ def test_pipenv_outdated_prerelease(PipenvInstance):
         with open(p.pipfile_path, "w") as f:
             contents = """
 [packages]
-sqlalchemy = "<1.2.4"
+sqlalchemy = "<=1.2.3"
             """.strip()
             f.write(contents)
         c = p.pipenv('update --pre --outdated')
