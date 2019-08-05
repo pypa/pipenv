@@ -30,7 +30,7 @@ jobs:
   strategy:
     matrix:
       Python27:
-        python.version: '2.7'
+        python.version: '2.7.16'
         python.architecture: x64
       Python36:
         python.version: '3.6'
