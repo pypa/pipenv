@@ -660,3 +660,30 @@ six = "*"
         assert c.return_code == 0
         assert "index" in p.lockfile["default"]["six"]
         assert p.lockfile["default"]["six"]["index"] == "custom", Path(p.lockfile_path).read_text() # p.lockfile["default"]["six"]
+
+
+@pytest.mark.files
+@pytest.mark.lock
+def test_lock_with_aliased_package_name(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        whl = Path(__file__).parent.parent.joinpath(
+            "pypi", "six", "six-1.11.0-py2.py3-none-any.whl"
+        )
+        try:
+            whl = whl.resolve()
+        except OSError:
+            whl = whl.absolute()
+        contents = """
+[[source]]
+url = "https://test.pypi.org/simple"
+verify_ssl = true
+name = "test"
+
+[packages]
+s_i_x = {{ path = "{whl}" }}
+        """.format(whl=whl).strip()
+        with open(p.pipfile_path, 'w') as f:
+            f.write(contents)
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert not ("s-i-x" in p.lockfile and "six" in p.lockfile)
