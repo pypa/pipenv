@@ -30,7 +30,7 @@ jobs:
   strategy:
     matrix:
       Python27:
-        python.version: '2.7.16'
+        python.version: '2.7'
         python.architecture: x64
       Python36:
         python.version: '3.6'
@@ -40,7 +40,7 @@ jobs:
         python.architecture: x64
     maxParallel: 4
   steps:
-  - template: .azure-pipelines/steps/reinstall-pythons.yml
+#   - template: .azure-pipelines/steps/reinstall-pythons.yml
   - template: .azure-pipelines/steps/run-tests.yml
     parameters:
       vmImage: 'Ubuntu-16.04'
