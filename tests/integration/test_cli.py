@@ -265,3 +265,16 @@ def test_pipenv_three(PipenvInstance):
         c = p.pipenv('--three')
         assert c.return_code == 0
         assert 'Successfully created virtual environment' in c.err
+
+
+@pytest.mark.outdated
+def test_pipenv_outdated_prerelease(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+sqlalchemy = "<=1.2.3"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('update --pre --outdated')
+        assert c.return_code == 0

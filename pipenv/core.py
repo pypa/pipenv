@@ -1767,7 +1767,7 @@ def do_py(system=False):
         click.echo(crayons.red("No project found!"))
 
 
-def do_outdated(pypi_mirror=None):
+def do_outdated(pypi_mirror=None, pre=False, clear=False):
     # TODO: Allow --skip-lock here?
     from .vendor.requirementslib.models.requirements import Requirement
     from .vendor.requirementslib.models.utils import get_version
@@ -1789,7 +1789,7 @@ def do_outdated(pypi_mirror=None):
         dep = Requirement.from_line(str(result.as_requirement()))
         packages.update(dep.as_pipfile())
     updated_packages = {}
-    lockfile = do_lock(write=False, pypi_mirror=pypi_mirror)
+    lockfile = do_lock(clear=clear, pre=pre, write=False, pypi_mirror=pypi_mirror)
     for section in ("develop", "default"):
         for package in lockfile[section]:
             try:

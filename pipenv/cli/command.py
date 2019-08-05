@@ -484,7 +484,7 @@ def update(
     if not outdated:
         outdated = bool(dry_run)
     if outdated:
-        do_outdated(pypi_mirror=state.pypi_mirror)
+        do_outdated(clear=state.clear, pre=state.installstate.pre, pypi_mirror=state.pypi_mirror)
     packages = [p for p in state.installstate.packages if p]
     editable = [p for p in state.installstate.editables if p]
     if not packages:
