@@ -157,7 +157,7 @@ Spinners are identitcal to the node.js spinners and can be found at
 https://github.com/sindresorhus/cli-spinners
 """
 
-PIPENV_PIPFILE = os.environ.get("PIPENV_PIPFILE")
+PIPENV_PIPFILE = os.path.expanduser(os.environ.get("PIPENV_PIPFILE")) if os.environ.get("PIPENV_PIPFILE") else None
 """If set, this specifies a custom Pipfile location.
 
 When running pipenv from a location other than the same directory where the
