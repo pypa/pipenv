@@ -98,7 +98,7 @@ def preferred_newlines(f):
 
 if PIPENV_PIPFILE:
     if not os.path.isfile(PIPENV_PIPFILE):
-        raise RuntimeError("Given PIPENV_PIPFILE is not found!")
+        raise RuntimeError("Given PIPENV_PIPFILE ({}) is not found!".format(PIPENV_PIPFILE))
 
     else:
         PIPENV_PIPFILE = _normalized(PIPENV_PIPFILE)
