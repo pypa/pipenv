@@ -18,7 +18,7 @@ well as adds/removes packages from your `Pipfile` as you
 install/uninstall packages. It also generates the ever-important
 `Pipfile.lock`, which is used to produce deterministic builds.
 
-![image](https://s3.amazonaws.com/media.kennethreitz.com/pipenv.gif)
+![GIF demonstrating Pipenv's usage](https://gist.githubusercontent.com/jlusk/855d611bbcfa2b159839db73d07f6ce9/raw/7f5743401809f7e630ee8ff458faa980e19924a0/pipenv.gif)
 
 The problems that Pipenv seeks to solve are multi-faceted:
 
