@@ -1114,6 +1114,14 @@ def resolve(cmd, sp):
     EOF.__module__ = "pexpect.exceptions"
     from ._compat import decode_output
     c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
+
+    if sys.platform == "win32":
+        # this block is needed because resolver.py emits utf-8
+        # otherwise we fall into UnicodeDecodeError in mbcs windows environment
+        import codecs
+        c.subprocess.encoding = "utf-8"
+        c.subprocess._decoder = codecs.getincrementaldecoder(c.subprocess.encoding)(c.subprocess.codec_errors)
+
     if environments.is_verbose():
         c.subprocess.logfile = sys.stderr
     _out = decode_output("")
