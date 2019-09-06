@@ -659,4 +659,4 @@ six = "*"
         c = p.pipenv("lock --clear")
         assert c.return_code == 0
         assert "index" in p.lockfile["default"]["six"]
-        assert p.lockfile["default"]["six"]["index"] == "custom", Path(p.lockfile_path).read_text() # p.lockfile["default"]["six"]
+        assert p.lockfile["default"]["six"]["index"] == "custom", Path(p.lockfile_path).read_text()  # p.lockfile["default"]["six"]

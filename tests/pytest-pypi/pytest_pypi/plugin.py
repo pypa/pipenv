@@ -3,6 +3,7 @@ import pytest
 from .app import app as pypi_app
 from . import serve, certs
 
+
 @pytest.fixture(scope='session')
 def pypi(request):
     server = serve.Server(application=pypi_app)
@@ -30,6 +31,7 @@ def pypi_both(request, pypi, pypi_secure):
 @pytest.fixture(scope='class')
 def class_based_pypi(request, pypi):
     request.cls.pypi = pypi
+
 
 @pytest.fixture(scope='class')
 def class_based_pypi_secure(request, pypi_secure):

@@ -5,7 +5,6 @@ import os
 import pytest
 
 from pipenv._compat import Path
-from pipenv.project import Project
 
 
 # This module is run only on Windows.
