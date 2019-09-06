@@ -3,7 +3,6 @@ import datetime
 import os
 import pathlib
 import re
-import sys
 
 import invoke
 
@@ -240,8 +239,6 @@ def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=Fals
     current_version = Version.parse(__version__)
     today = datetime.date.today()
     tomorrow = today + datetime.timedelta(days=1)
-    next_month = datetime.date.today().replace(month=today.month + 1, day=1)
-    next_year = datetime.date.today().replace(year=today.year + 1, month=1, day=1)
     if pre and not tag:
         print('Using "pre" requires a corresponding tag.')
         return

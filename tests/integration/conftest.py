@@ -1,30 +1,34 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
+
 import errno
 import json
 import logging
 import os
 import shutil
-import signal
-import socket
 import sys
-import time
 import warnings
 
-from shutil import copyfileobj, rmtree as _rmtree
+from shutil import rmtree as _rmtree
 
 import pytest
 import requests
 
-from pipenv.vendor.vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError, TemporaryDirectory
-from pipenv.vendor.vistir.misc import run
-from pipenv.vendor.vistir.contextmanagers import temp_environ
-from pipenv.vendor.vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
-
 from pipenv._compat import Path
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.vendor import delegator, toml, tomlkit
-from pytest_pypi.app import prepare_fixtures, prepare_packages as prepare_pypi_packages
+from pipenv.vendor.vistir.compat import (
+    FileNotFoundError, PermissionError, ResourceWarning, TemporaryDirectory,
+    fs_encode, fs_str
+)
+from pipenv.vendor.vistir.contextmanagers import temp_environ
+from pipenv.vendor.vistir.misc import run
+from pipenv.vendor.vistir.path import (
+    create_tracked_tempdir, handle_remove_readonly, mkdir_p
+)
+from pytest_pypi.app import prepare_fixtures
+from pytest_pypi.app import prepare_packages as prepare_pypi_packages
+
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
@@ -399,7 +403,6 @@ class _PipenvInstance(object):
 
 def _rmtree_func(path, ignore_errors=True, onerror=None):
     directory = fs_encode(path)
-    global _rmtree
     shutil_rmtree = _rmtree
     if onerror is None:
         onerror = handle_remove_readonly

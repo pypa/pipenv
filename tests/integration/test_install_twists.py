@@ -9,7 +9,6 @@ import pytest
 from flaky import flaky
 
 from pipenv._compat import Path
-from pipenv.project import Project
 from pipenv.utils import mkdir_p, temp_environ
 from pipenv.vendor import delegator
 
@@ -40,7 +39,6 @@ setup(
             """.strip()
             fh.write(contents)
         line = "-e .[dev]"
-        pipfile = {"testpipenv": {"path": ".", "editable": True, "extras": ["dev"]}}
         with open(os.path.join(p.path, 'Pipfile'), 'w') as fh:
             fh.write("""
 [packages]
