@@ -150,6 +150,41 @@ def test_uninstall_all_dev(PipenvInstance):
         assert c.return_code == 0
 
 
+@pytest.mark.run
+@pytest.mark.uninstall
+@pytest.mark.install
+def test_uninstall_all_dev_leave_prod_packages(PipenvInstance):
+    with PipenvInstance() as p:
+        c = p.pipenv("install --dev --pre black")
+        assert c.return_code == 0
+
+        c = p.pipenv("install flask")
+        assert c.return_code == 0
+
+        assert "flask" in p.pipfile["packages"]
+        assert "black" in p.pipfile["dev-packages"]
+        assert "flask" in p.lockfile["default"]
+        assert "black" in p.lockfile["develop"]
+        assert "click" in p.lockfile["default"]
+        assert "click" in p.lockfile["develop"]
+
+        c = p.pipenv('run python -c "import click"')
+        assert c.return_code == 0
+
+        c = p.pipenv("uninstall --all-dev")
+        assert c.return_code == 0
+
+        assert p.pipfile["dev-packages"] == {}
+        assert "black" not in p.lockfile["develop"]
+        assert "click" not in p.lockfile["develop"]
+        assert "flask" in p.pipfile["packages"]
+        assert "flask" in p.lockfile["default"]
+        assert "click" in p.lockfile["default"]
+
+        c = p.pipenv('run python -c "import click"')
+        assert c.return_code == 0
+
+
 @pytest.mark.uninstall
 @pytest.mark.run
 def test_normalize_name_uninstall(PipenvInstance):

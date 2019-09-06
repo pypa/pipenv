@@ -2230,8 +2230,6 @@ def do_uninstall(
             click.echo("Ignoring {0}.".format(ignored_pkg), err=True)
         pkg_name_index = package_names.index(package_map[ignored_pkg])
         del package_names[pkg_name_index]
-
-    used_packages = project_pkg_names["combined"] & installed_package_names
     failure = False
     packages_to_remove = set()
     if all:
@@ -2247,8 +2245,11 @@ def do_uninstall(
         sys.exit(0)
     if all_dev:
         package_names = project_pkg_names["dev"]
+        used_packages = (project_pkg_names["combined"] & installed_package_names) - project_pkg_names["default"]
     else:
         package_names = set([pkg_name for pkg_name in package_names])
+        used_packages = project_pkg_names["combined"] & installed_package_names
+
     selected_pkg_map = {
         canonicalize_name(p): p for p in package_names
     }
@@ -2264,6 +2265,7 @@ def do_uninstall(
             )
         )
         # Uninstall the package.
+        # If uninstall --all-dev, skip any common packages between default and dev from pip uninstall
         if package_name in packages_to_remove:
             with project.environment.activated():
                 if pip_path is None:
@@ -2286,7 +2288,8 @@ def do_uninstall(
                     crayons.white(fix_utf8("Pipfile.lock…")))
                 )
                 lockfile = project.get_or_create_lockfile()
-                if normalized in lockfile.default:
+                # Uninstall with --all-dev should not modify the default packages
+                if normalized in lockfile.default and not all_dev:
                     del lockfile.default[normalized]
                 if normalized in lockfile.develop:
                     del lockfile.develop[normalized]
@@ -2307,7 +2310,7 @@ def do_uninstall(
             # Remove package from both packages and dev-packages.
             if in_dev_packages:
                 project.remove_package_from_pipfile(package_name, dev=True)
-            if in_packages:
+            if in_packages and not all_dev:
                 project.remove_package_from_pipfile(package_name, dev=False)
     if lock:
         do_lock(system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
