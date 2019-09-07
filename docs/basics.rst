@@ -10,6 +10,12 @@ This document covers some of Pipenv's more basic features.
 ☤ Example Pipfile & Pipfile.lock
 --------------------------------
 
+Pipfiles contain information for the dependencies of the project, and supercede
+the requirements.txt present in Python projects. You should add pipfile in the
+Git repository letting user who clone repository the only thing required would be
+installing Pipenv in the machine and type ``pipenv install``. Pipenv is a reference
+implementation for using Pipfile.
+
 .. _example_files:
 
 Here is a simple example of a ``Pipfile`` and the resulting ``Pipfile.lock``.
