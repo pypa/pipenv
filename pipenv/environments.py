@@ -97,6 +97,11 @@ PIPENV_IGNORE_VIRTUALENVS = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS"))
 By default, Pipenv tries to detect whether it is run inside a virtual
 environment, and reuses it if possible. This is usually the desired behavior,
 and enables the user to use any user-built environments with Pipenv.
+
+If Pipenv found itself running with a virtual environment;
+Set PIPENV_IGNORE_VIRTUALENVS=1 for forcing pipenv for ignoring that environment
+and create separate environment instead. Add PIPENV_VERBOSITY=-1 for suppressing
+the warning.
 """
 
 PIPENV_INSTALL_TIMEOUT = int(os.environ.get("PIPENV_INSTALL_TIMEOUT", 60 * 15))

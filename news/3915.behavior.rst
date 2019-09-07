@@ -1,0 +1,1 @@
+Defines behavioral options for PIPENV_IGNORE_VIRTUALENVS.
