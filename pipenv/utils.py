@@ -1,46 +1,41 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+
 import contextlib
 import errno
 import logging
 import os
 import posixpath
 import re
-import signal
 import shutil
+import signal
 import stat
 import sys
 import warnings
-
 from contextlib import contextmanager
 from distutils.spawn import find_executable
 
 import six
 import toml
-import tomlkit
-
 from click import echo as click_echo
 from six.moves.urllib.parse import urlparse
-from .vendor.vistir.compat import ResourceWarning, lru_cache, Mapping, Sequence, Set
-from .vendor.vistir.misc import fs_str, run
 
 import crayons
 import parse
+import tomlkit
 
 from . import environments
-from .exceptions import (
-    PipenvUsageError, RequirementError, PipenvCmdError, ResolutionFailure
-)
+from .exceptions import PipenvCmdError, PipenvUsageError, RequirementError, ResolutionFailure
 from .pep508checker import lookup
+from .vendor.packaging.markers import Marker
 from .vendor.urllib3 import util as urllib3_util
-
+from .vendor.vistir.compat import Mapping, ResourceWarning, Sequence, Set, lru_cache
+from .vendor.vistir.misc import fs_str, run
 
 if environments.MYPY_RUNNING:
     from typing import Tuple, Dict, Any, List, Union, Optional, Text
     from .vendor.requirementslib.models.requirements import Requirement, Line
     from .vendor.requirementslib.models.pipfile import Pipfile
-    from .vendor.packaging.markers import Marker
-    from .vendor.packaging.specifiers import Specifier
     from .project import Project, TSource
 
 
@@ -316,7 +311,7 @@ def get_source_list(
         sources.append(get_project_index(index))
     if extra_indexes:
         if isinstance(extra_indexes, six.string_types):
-            extra_indexes = [extra_indexes,]
+            extra_indexes = [extra_indexes]
         for source in extra_indexes:
             extra_src = get_project_index(source)
             if not sources or extra_src["url"] != sources[0]["url"]:
@@ -555,8 +550,8 @@ class Resolver(object):
             # but leave it on for local, installable folders on the filesystem
             if environments.PIPENV_RESOLVE_VCS or (
                 req.editable or parsed_line.is_wheel or (
-                    req.is_file_or_url and parsed_line.is_local and
-                    is_installable_dir(parsed_line.path)
+                    req.is_file_or_url and parsed_line.is_local
+                    and is_installable_dir(parsed_line.path)
                 )
             ):
                 requirements = [v for v in getattr(setup_info, "requires", {}).values()]
@@ -920,8 +915,10 @@ class Resolver(object):
 
         # We also don't want to try to hash directories as this will fail
         # as these are editable deps and are not hashable.
-        if (ireq.link.scheme == "file" and
-                Path(to_native_string(url_to_path(ireq.link.url))).is_dir()):
+        if (
+            ireq.link.scheme == "file"
+            and Path(to_native_string(url_to_path(ireq.link.url))).is_dir()
+        ):
             return False
         return True
 
@@ -1069,7 +1066,6 @@ def actually_resolve_deps(
     req_dir=None,
 ):
     from pipenv.vendor.vistir.path import create_tracked_tempdir
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
@@ -1889,7 +1885,7 @@ def translate_markers(pipfile_entry):
     """
     if not isinstance(pipfile_entry, Mapping):
         raise TypeError("Entry is not a pipfile formatted mapping.")
-    from .vendor.packaging.markers import Marker, default_environment
+    from .vendor.packaging.markers import default_environment
     from .vendor.vistir.misc import dedup
 
     allowed_marker_keys = ["markers"] + list(default_environment().keys())
@@ -2217,8 +2213,8 @@ def is_python_command(line):
 
     from pipenv.vendor.pythonfinder.utils import PYTHON_IMPLEMENTATIONS
     is_version = re.match(r'[\d\.]+', line)
-    if (line.startswith("python") or is_version or
-            any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS)):
+    if (line.startswith("python") or is_version
+            or any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS)):
         return True
     # we are less sure about this but we can guess
     if line.startswith("py"):

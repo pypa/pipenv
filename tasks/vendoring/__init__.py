@@ -41,7 +41,7 @@ LIBRARY_DIRNAMES = {
     'enum': 'backports/enum'
 }
 
-PY2_DOWNLOAD = ['enum34',]
+PY2_DOWNLOAD = ['enum34']
 
 # from time to time, remove the no longer needed ones
 HARDCODED_LICENSE_URLS = {
@@ -91,7 +91,6 @@ LIBRARY_RENAMES = {
 LICENSE_RENAMES = {
     "pythonfinder/LICENSE": "pythonfinder/pep514tools.LICENSE"
 }
-
 
 
 def drop_dir(path):
@@ -379,7 +378,6 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
     post_install_cleanup(ctx, vendor_dir)
     # Detect the vendored packages/modules
     vendored_libs = detect_vendored_libs(_get_vendor_dir(ctx))
-    patched_libs = detect_vendored_libs(_get_patched_dir(ctx))
     log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
 
     # Apply pre-patches
@@ -509,14 +507,6 @@ def download_licenses(
         new_requirements_file = fh.name
     new_requirements_file = Path(new_requirements_file)
     log(requirements)
-    requirement = "-r {0}".format(new_requirements_file.as_posix())
-    if package:
-        if not only:
-            # for packages we want to add to the requirements file
-            requirement = _ensure_package_in_requirements(ctx, requirements_file, package)
-        else:
-            # for packages we want to get the license for by themselves
-            requirement = package
     tmp_dir = vendor_dir / '__tmp__'
     # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
     cmd = "pip download --no-binary :all: --only-binary requests_download --no-deps"

@@ -10,7 +10,6 @@ import os
 import site
 import sys
 
-from distutils.sysconfig import get_python_lib
 from sysconfig import get_paths, get_python_version
 
 import itertools
@@ -620,7 +619,7 @@ class Environment(object):
         else:
             d['required_version'] = d['installed_version']
 
-        get_children = lambda n: key_tree.get(n.key, [])
+        get_children = lambda n: key_tree.get(n.key, [])    # noqa
 
         d['dependencies'] = [
             cls._get_requirements_for_package(c, key_tree, parent=node,
@@ -805,7 +804,7 @@ class Environment(object):
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
             site.addsitedir(self.base_paths["purelib"])
-            pip = self.safe_import("pip")
+            pip = self.safe_import("pip")       # noqa
             pip_vendor = self.safe_import("pip._vendor")
             pep517_dir = os.path.join(os.path.dirname(pip_vendor.__file__), "pep517")
             site.addsitedir(pep517_dir)
@@ -865,7 +864,7 @@ class Environment(object):
 
     def install(self, requirements):
         if not isinstance(requirements, (tuple, list)):
-            requirements = [requirements,]
+            requirements = [requirements]
         with self.get_finder() as finder:
             args = []
             for format_control in ('no_binary', 'only_binary'):
@@ -925,7 +924,7 @@ class Environment(object):
                 pathset.remove(auto_confirm=auto_confirm, verbose=verbose)
             try:
                 yield pathset
-            except Exception as e:
+            except Exception:
                 if pathset is not None:
                     pathset.rollback()
             else:
