@@ -111,6 +111,9 @@ def release(ctx, dry_run=False):
         artifacts = list(ROOT.joinpath("dist").glob(dist_pattern))
         filename_display = "\n".join(f"  {a}" for a in artifacts)
         log(f"Would upload dists: {filename_display}")
+        if dist_pattern.contains('&&')
+          ctx.run(f'python setup.py sdist')
+          upload_dists(ctx)
     else:
         upload_dists(ctx)
         bump_version(ctx, dev=True)
