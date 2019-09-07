@@ -315,6 +315,7 @@ The user can provide these additional parameters:
 
     - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile``.
     - ``--system`` — Use the system ``pip`` command rather than the one from your virtualenv.
+    - ``--deploy --system`` — The workflow is using pipenv for package loc in local development environment for having a Pipfile and Pipfile.locl file. Deployment can be done using the command. The ``--deploy`` makes sure the packages are properly locked in Pipfile.lock.
     - ``--ignore-pipfile`` — Ignore the ``Pipfile`` and install from the ``Pipfile.lock``.
     - ``--skip-lock`` — Ignore the ``Pipfile.lock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.
 
@@ -404,3 +405,11 @@ production environments for reproducible builds.
     If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv lock -r``.
     This will include all hashes, however (which is great!). To get a ``requirements.txt``
     without hashes, use ``$ pipenv run pip freeze``.
+
+
+☤ Few notable differences
+-------------------------
+
+- ``pip install pipenv`` is installing pipenv as a tool.
+- ``pip install --system`` installs packages in the machine.
+- ``pipenv install`` will create virtualenv and install package in it.
