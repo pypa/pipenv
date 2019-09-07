@@ -1,0 +1,1 @@
+Prevents ``uninstall --all-dev`` from removing dependencies shared between packages and dev-packages
