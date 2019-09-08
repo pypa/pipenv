@@ -342,7 +342,8 @@ def lock(
     "--fancy",
     is_flag=True,
     default=False,
-    help="Run in shell in fancy mode (for elegantly configured shells).",
+    help="Run in shell in fancy mode. Make sure the shell have no path manipulating"
+         " scripts. Run $pipenv shell for issues with compatibility mode.",
 )
 @option(
     "--anyway",
