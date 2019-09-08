@@ -1,0 +1,1 @@
+If penv.install returns error do abort().
