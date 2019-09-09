@@ -12,7 +12,7 @@ This document covers some of Pipenv's more basic features.
 
 Pipfiles contain information for the dependencies of the project, and supercede
 the requirements.txt present in Python projects. You should add Pipfile in the
-Git repository letting user who clone repository the only thing required would be
+Git repository letting users who clone the repository the only thing required would be
 installing Pipenv in the machine and type ``pipenv install``. Pipenv is a reference
 implementation for using Pipfile.
 
