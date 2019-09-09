@@ -1,1 +1,1 @@
-Expand documentation for pipefile.
+Documental description of how Pipfile works and association with Pipenv.
