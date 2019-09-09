@@ -1,1 +1,1 @@
-Define python_version value.
+Clarify the proper value of `python_version` and `python_full_version`.
