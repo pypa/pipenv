@@ -405,11 +405,3 @@ production environments for reproducible builds.
     If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv lock -r``.
     This will include all hashes, however (which is great!). To get a ``requirements.txt``
     without hashes, use ``$ pipenv run pip freeze``.
-
-
-☤ Few notable differences
--------------------------
-
-- ``pip install pipenv`` is installing pipenv as a tool.
-- ``pip install --system`` installs packages in the machine.
-- ``pipenv install`` will create virtualenv and install package in it.
