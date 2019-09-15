@@ -8,17 +8,15 @@ from click import (
     argument, echo, edit, group, option, pass_context, secho, version_option
 )
 
-from ..vendor import click_completion
-from ..vendor import delegator
-from ..patched import crayons
-
 from ..__version__ import __version__
+from ..patched import crayons
+from ..vendor import click_completion, delegator
 from .options import (
     CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
     general_options, install_options, lock_options, pass_state,
-    pypi_mirror_option, python_option, requirementstxt_option,
-    skip_lock_option, sync_options, system_option, three_option,
-    uninstall_options, verbose_option, site_packages_option
+    pypi_mirror_option, python_option, site_packages_option, skip_lock_option,
+    sync_options, system_option, three_option, uninstall_options,
+    verbose_option
 )
 
 
@@ -344,7 +342,8 @@ def lock(
     "--fancy",
     is_flag=True,
     default=False,
-    help="Run in shell in fancy mode (for elegantly configured shells).",
+    help="Run in shell in fancy mode. Make sure the shell have no path manipulating"
+         " scripts. Run $pipenv shell for issues with compatibility mode.",
 )
 @option(
     "--anyway",

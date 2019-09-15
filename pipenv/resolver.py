@@ -516,7 +516,6 @@ class Entry(object):
         :raises: :exc:`~pipenv.exceptions.DependencyConflict` if resolution is impossible
         """
         # ensure that we satisfy the parent dependencies of this dep
-        from pipenv.vendor.packaging.specifiers import Specifier
         parent_dependencies = set()
         has_mismatch = False
         can_use_original = True
@@ -527,7 +526,6 @@ class Entry(object):
             # parents with no requirements can't conflict
             if not p.requirements:
                 continue
-            needed = p.requirements.get("dependencies", [])
             entry_ref = p.get_dependency(self.name)
             required = entry_ref.get("required_version", "*")
             required = self.clean_specifier(required)
@@ -633,7 +631,6 @@ def clean_results(results, resolver, project, dev=False):
         return results
     lockfile = project.lockfile_content
     section = "develop" if dev else "default"
-    pipfile_section = "dev-packages" if dev else "packages"
     reverse_deps = project.environment.reverse_dependencies()
     new_results = [r for r in results if r["name"] not in lockfile[section]]
     for result in results:
@@ -646,17 +643,11 @@ def clean_results(results, resolver, project, dev=False):
 
 
 def clean_outdated(results, resolver, project, dev=False):
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
-    from pipenv.environments import is_verbose
     if not project.lockfile_exists:
         return results
     lockfile = project.lockfile_content
     section = "develop" if dev else "default"
-    pipfile_section = "dev-packages" if dev else "packages"
-    pipfile = project.parsed_pipfile[pipfile_section]
     reverse_deps = project.environment.reverse_dependencies()
-    deptree = project.environment.get_package_requirements()
-    overlapping_results = [r for r in results if r["name"] in lockfile[section]]
     new_results = [r for r in results if r["name"] not in lockfile[section]]
     for result in results:
         name = result.get("name")

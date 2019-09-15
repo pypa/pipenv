@@ -223,7 +223,7 @@ def test_install_parse_error(PipenvInstance):
 [dev-packages]
             """.strip()
             f.write(contents)
-        c = p.pipenv('install requests u/\\/p@r\$34b13+pkg')
+        c = p.pipenv('install requests u/\\/p@r\\$34b13+pkg')
         assert c.return_code != 0
         assert 'u/\\/p@r$34b13+pkg' not in p.pipfile['packages']
 
