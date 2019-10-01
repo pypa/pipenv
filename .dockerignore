@@ -1,0 +1,11 @@
+./examples
+./tests
+./docs
+./news
+./pipenv
+./.git
+./.buildkite
+./peeps
+./.github
+./tasks
+./.azure-pipelines
