@@ -37,7 +37,7 @@ You can quickly play with Pipenv right in your browser:
 
 [![Try in browser](https://cdn.rawgit.com/rootnroll/library/assets/try.svg)](https://rootnroll.com/d/pipenv/)
 
-Installation
+Installation steps
 ------------
 
 If you\'re on MacOS, you can install Pipenv easily with Homebrew:
@@ -210,7 +210,7 @@ Locate the virtualenv:
     $ pipenv --venv
     /Users/kennethreitz/.local/share/virtualenvs/test-Skyy4vre
 
-Locate the Python interpreter:
+Locate the Python Interpreter:
 
     $ pipenv --py
     /Users/kennethreitz/.local/share/virtualenvs/test-Skyy4vre/bin/python
