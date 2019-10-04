@@ -1,4 +1,4 @@
-The contents of the vendor and patched directories are subject to different licenses
+The contents of vendor and patched directories are subject to different licenses
 than the rest of this project. 
 
 Their respective licenses can be looked up at pypi.python.org or in their 
