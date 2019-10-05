@@ -202,7 +202,7 @@ This will update your ``Pipfile`` to reflect this requirement, automatically.
 
 In general, Pipenv uses the same specifier format as pip. However, note that according to `PEP 440`_ , you can't use versions containing a hyphen or a plus sign.
 
-.. _`PEP 440`: <https://www.python.org/dev/peps/pep-0440/>
+.. _`PEP 440`: https://www.python.org/dev/peps/pep-0440/
 
 To make inclusive or exclusive version comparisons you can use: ::
 
@@ -222,7 +222,7 @@ To avoid installing a specific version you can use the ``!=`` identifier.
 
 For an in depth explanation of the valid identifiers and more complex use cases check `the relevant section of PEP-440`_.
 
-.. _`the relevant section of PEP-440`: https://www.python.org/dev/peps/pep-0440/#version-specifiers>
+.. _`the relevant section of PEP-440`: https://www.python.org/dev/peps/pep-0440/#version-specifiers
 
 ☤ Specifying Versions of Python
 -------------------------------
