@@ -56,7 +56,7 @@ Or, if you\'re using FreeBSD:
 
     # pkg install py36-pipenv
 
-Otherwise, refer to the [documentation](https://docs.pipenv.org/en/latest/install/#installing-pipenv) for instructions.
+Otherwise, refer to the [documentation](https://pipenv.kennethreitz.org/en/latest/#install-pipenv-today) for instructions.
 
 ✨🍰✨
 
@@ -303,4 +303,4 @@ Use the shell:
 ☤ Documentation
 ---------------
 
-Documentation resides over at [pipenv.org](http://pipenv.org/).
+Documentation resides over at [pipenv.org](https://pipenv.kennethreitz.org/en/latest/).
