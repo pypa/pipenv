@@ -2329,7 +2329,7 @@ def do_check(
     db=False,
     ignore=None,
     output="default",
-    squelch=False,
+    quiet=False,
     args=None,
     pypi_mirror=None
 ):
@@ -2353,7 +2353,7 @@ def do_check(
             except ValueError:
                 pass
         if deps_required:
-            if not squelch:
+            if not quiet and not environments.is_quiet():
                 click.echo(
                     crayons.normal(
                         "The following dependencies appear unused, and may be safe for removal:"
@@ -2364,7 +2364,7 @@ def do_check(
                 sys.exit(1)
         else:
             sys.exit(0)
-    if not squelch:
+    if not quiet and not environments.is_quiet():
         click.echo(crayons.normal(fix_utf8("Checking PEP 508 requirements…"), bold=True))
     if system:
         python = system_which("python")
@@ -2400,9 +2400,9 @@ def do_check(
         click.echo(crayons.red("Failed!"), err=True)
         sys.exit(1)
     else:
-        if not squelch:
+        if not quiet and not environments.is_quiet():
             click.echo(crayons.green("Passed!"))
-    if not squelch:
+    if not quiet and not environments.is_quiet():
         click.echo(crayons.normal(fix_utf8("Checking installed package safety…"), bold=True))
     path = pep508checker.__file__.rstrip("cdo")
     path = os.sep.join(__file__.split(os.sep)[:-1] + ["patched", "safety.zip"])
@@ -2418,6 +2418,8 @@ def do_check(
 
     key = "--key={0}".format(PIPENV_PYUP_API_KEY)
     if db:
+        if not quiet and not environments.is_quiet():
+            click.echo(crayons.normal("Using local database {}".format(db)))
         key = "--db {0}".format(db)
 
     switch = output

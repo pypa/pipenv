@@ -419,8 +419,8 @@ def run(state, command, args):
 @option(
     "--db",
     nargs=1,
-    default=False,
-    help="Path to a local vulnerability database. Default: empty",
+    default=lambda: os.environ.get('PIPENV_SAFETY_DB', False),
+    help="Path to a local vulnerability database. Default: ENV PIPENV_SAFETY_DB or None",
 )
 @option(
     "--ignore",
@@ -435,9 +435,9 @@ def run(state, command, args):
     help="Translates to --json, --ful-report or --bare from safety check",
 )
 @option(
-    "--squelch",
+    "--quiet",
     is_flag=True,
-    help="Squelch stdout except vulnerability report."
+    help="Quiet stdout except vulnerability report."
 )
 @common_options
 @system_option
@@ -450,7 +450,7 @@ def check(
     style=False,
     ignore=None,
     output="default",
-    squelch=False,
+    quiet=False,
     args=None,
     **kwargs
 ):
@@ -465,7 +465,7 @@ def check(
         db=db,
         ignore=ignore,
         output=output,
-        squelch=squelch,
+        quiet=quiet,
         args=args,
         pypi_mirror=state.pypi_mirror,
     )
