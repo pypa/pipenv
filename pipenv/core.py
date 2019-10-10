@@ -718,7 +718,6 @@ def batch_install(
     if sequential_deps is None:
         sequential_deps = []
     failed = not retry
-    install_deps = not no_deps
     if not failed:
         label = INSTALL_LABEL if not environments.PIPENV_HIDE_EMOJIS else ""
     else:
@@ -738,6 +737,7 @@ def batch_install(
     trusted_hosts = []
     # Install these because
     for dep in deps_list_bar:
+        install_deps = not no_deps
         extra_indexes = []
         if dep.req.req:
             dep.req.req = strip_extras_markers_from_requirement(dep.req.req)
@@ -754,7 +754,6 @@ def batch_install(
             is_artifact = True
         if not project.s.PIPENV_RESOLVE_VCS and is_artifact and not dep.editable:
             install_deps = True
-            no_deps = False
 
         with vistir.contextmanagers.temp_environ():
             if not allow_global:
