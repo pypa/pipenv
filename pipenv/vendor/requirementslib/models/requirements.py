@@ -6,7 +6,6 @@ import collections
 import copy
 import os
 import sys
-
 from contextlib import contextmanager
 from distutils.sysconfig import get_python_lib
 from functools import partial
@@ -15,7 +14,6 @@ import attr
 import pip_shims
 import six
 import vistir
-
 from cached_property import cached_property
 from first import first
 from packaging.markers import Marker
@@ -29,7 +27,6 @@ from packaging.specifiers import (
 from packaging.utils import canonicalize_name
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib.parse import unquote
-
 from vistir.compat import FileNotFoundError, Mapping, Path, lru_cache
 from vistir.contextmanagers import temp_path
 from vistir.misc import dedup
@@ -42,7 +39,13 @@ from vistir.path import (
     normalize_path,
 )
 
-from .markers import normalize_marker_str
+from .markers import (
+    cleanup_pyspecs,
+    contains_pyversion,
+    format_pyversion,
+    get_contained_pyversions,
+    normalize_marker_str,
+)
 from .setup_info import (
     SetupInfo,
     _prepare_wheel_building_kwargs,
@@ -54,6 +57,7 @@ from .url import URI
 from .utils import (
     DIRECT_URL_RE,
     HASH_STRING,
+    URL_RE,
     build_vcs_uri,
     convert_direct_url_to_url,
     create_link,
@@ -88,7 +92,6 @@ from ..utils import (
     is_vcs,
     strip_ssh_from_git_uri,
 )
-
 
 if MYPY_RUNNING:
     from typing import (
@@ -1984,9 +1987,7 @@ class FileRequirement(object):
             "_setup_info",
             "_parsed_line",
         ]
-
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes  # noqa
-
         pipfile_dict = attr.asdict(self, filter=filter_func).copy()  # type: Dict
         name = pipfile_dict.pop("name", None)
         if name is None:
@@ -2464,9 +2465,7 @@ class VCSRequirement(FileRequirement):
             "_parsed_line",
             "_uri_scheme",
         ]
-
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes  # noqa
-
         pipfile_dict = attr.asdict(self, filter=filter_func).copy()
         name = pipfile_dict.pop("name", None)
         if name is None:
