@@ -501,6 +501,18 @@ def get_pyproject(path):
     return requires, backend
 
 
+def split_prerelease_from_line(line):
+    # type: (AnyStr) -> Tuple[AnyStr, bool]
+    """Split prerelease from a dependency"""
+    parts = line.split()
+    prerelease = False
+    if '--pre' in parts:
+        prerelease = True
+        pre_pos = parts.index('--pre')
+        line = ' '.join(parts[:pre_pos] + parts[pre_pos+1:])
+    return line, prerelease
+
+
 def split_markers_from_line(line):
     # type: (AnyStr) -> Tuple[AnyStr, Optional[AnyStr]]
     """Split markers from a dependency"""
@@ -801,9 +813,9 @@ def lookup_table(values, key=None, keyval=None, unique=False, use_lists=False):
 
     if keyval is None:
         if key is None:
-            keyval = lambda v: v
+            def keyval(v): return v
         else:
-            keyval = lambda v: (key(v), v)
+            def keyval(v): return (key(v), v)
 
     if unique:
         return dict(keyval(v) for v in values)

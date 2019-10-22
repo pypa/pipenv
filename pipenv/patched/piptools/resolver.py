@@ -24,6 +24,7 @@ class RequirementSummary(object):
     """
     Summary of a requirement's properties for comparison purposes.
     """
+
     def __init__(self, ireq):
         self.req = ireq.req
         self.key = key_from_req(ireq.req)
@@ -259,7 +260,7 @@ class Resolver(object):
             # hitting the index server
             best_match = ireq
         else:
-            best_match = self.repository.find_best_match(ireq, prereleases=self.prereleases)
+            best_match = self.repository.find_best_match(ireq, prereleases=ireq.pre or self.prereleases)
 
         # Format the best match
         log.debug('  found candidate {} (constraint was {})'.format(format_requirement(best_match),

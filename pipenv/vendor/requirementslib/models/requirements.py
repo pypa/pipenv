@@ -6,6 +6,7 @@ import collections
 import copy
 import os
 import sys
+
 from contextlib import contextmanager
 from distutils.sysconfig import get_python_lib
 from functools import partial
@@ -14,6 +15,7 @@ import attr
 import pip_shims
 import six
 import vistir
+
 from cached_property import cached_property
 from first import first
 from packaging.markers import Marker
@@ -27,6 +29,7 @@ from packaging.specifiers import (
 from packaging.utils import canonicalize_name
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib.parse import unquote
+
 from vistir.compat import FileNotFoundError, Mapping, Path, lru_cache
 from vistir.contextmanagers import temp_path
 from vistir.misc import dedup
@@ -39,13 +42,7 @@ from vistir.path import (
     normalize_path,
 )
 
-from .markers import (
-    cleanup_pyspecs,
-    contains_pyversion,
-    format_pyversion,
-    get_contained_pyversions,
-    normalize_marker_str,
-)
+from .markers import normalize_marker_str
 from .setup_info import (
     SetupInfo,
     _prepare_wheel_building_kwargs,
@@ -57,7 +54,6 @@ from .url import URI
 from .utils import (
     DIRECT_URL_RE,
     HASH_STRING,
-    URL_RE,
     build_vcs_uri,
     convert_direct_url_to_url,
     create_link,
@@ -74,6 +70,7 @@ from .utils import (
     parse_extras,
     specs_to_string,
     split_markers_from_line,
+    split_prerelease_from_line,
     split_ref_from_uri,
     split_vcs_method_from_uri,
     validate_path,
@@ -91,6 +88,7 @@ from ..utils import (
     is_vcs,
     strip_ssh_from_git_uri,
 )
+
 
 if MYPY_RUNNING:
     from typing import (
@@ -151,6 +149,7 @@ class Line(object):
         if extras is not None:
             self.extras = tuple(sorted(set(extras)))
         self.line = line  # type: STRING_TYPE
+        self.pre = False  # type: bool
         self.hashes = []  # type: List[STRING_TYPE]
         self.markers = None  # type: Optional[STRING_TYPE]
         self.vcs = None  # type: Optional[STRING_TYPE]
@@ -218,7 +217,7 @@ class Line(object):
         return self.get_line()
 
     def get_line(
-        self, with_prefix=False, with_markers=False, with_hashes=True, as_list=False
+        self, with_prefix=False, with_markers=False, with_hashes=True, as_list=False, prerelease=False
     ):
         # type: (bool, bool, bool, bool) -> Union[STRING_TYPE, List[STRING_TYPE]]
         line = self.line
@@ -261,6 +260,8 @@ class Line(object):
             line = "-e {0}".format(line)
         if with_hashes and hash_list:
             line = "{0} {1}".format(line, " ".join(hash_list))
+        if prerelease:
+            line = "{0} {1}".format(line, "--pre")
         return line
 
     @property
@@ -1233,6 +1234,7 @@ class Line(object):
         self.line = self.line.strip()
         if self.line.startswith('"'):
             self.line = self.line.strip('"')
+        self.line, self.pre = split_prerelease_from_line(self.line)
         self.line, self.markers = split_markers_from_line(self.parse_hashes().line)
         if self.markers:
             self.markers = self.markers.replace('"', "'")
@@ -1262,6 +1264,7 @@ class NamedRequirement(object):
     req = attr.ib()  # type: PackagingRequirement
     extras = attr.ib(default=attr.Factory(list))  # type: Tuple[STRING_TYPE, ...]
     editable = attr.ib(default=False)  # type: bool
+    pre = attr.ib(default=False)  # type: bool
     _parsed_line = attr.ib(default=None)  # type: Optional[Line]
 
     @req.default
@@ -1981,7 +1984,9 @@ class FileRequirement(object):
             "_setup_info",
             "_parsed_line",
         ]
+
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes  # noqa
+
         pipfile_dict = attr.asdict(self, filter=filter_func).copy()  # type: Dict
         name = pipfile_dict.pop("name", None)
         if name is None:
@@ -2459,7 +2464,9 @@ class VCSRequirement(FileRequirement):
             "_parsed_line",
             "_uri_scheme",
         ]
+
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes  # noqa
+
         pipfile_dict = attr.asdict(self, filter=filter_func).copy()
         name = pipfile_dict.pop("name", None)
         if name is None:
@@ -2490,6 +2497,7 @@ class Requirement(object):
     )  # type: Optional[STRING_TYPE]
     index = attr.ib(default=None, cmp=True)  # type: Optional[STRING_TYPE]
     editable = attr.ib(default=None, cmp=True)  # type: Optional[bool]
+    pre = attr.ib(default=None, cmp=True)  # type: Optional[bool]
     hashes = attr.ib(
         factory=frozenset, converter=frozenset, cmp=True
     )  # type: FrozenSet[STRING_TYPE]
@@ -2796,6 +2804,7 @@ class Requirement(object):
             "req": r,
             "markers": parsed_line.markers,
             "editable": parsed_line.editable,
+            "pre": parsed_line.pre,
             "line_instance": parsed_line,
         }
         if parsed_line.extras:
@@ -2864,6 +2873,7 @@ class Requirement(object):
             "markers": markers,
             "extras": tuple(_pipfile.get("extras", ())),
             "editable": _pipfile.get("editable", False),
+            "pre": _pipfile.get("pre", False),
             "index": _pipfile.get("index"),
         }
         if any(key in _pipfile for key in ["hash", "hashes"]):
@@ -2894,6 +2904,7 @@ class Requirement(object):
             with_hashes=include_hashes,
             with_markers=include_markers,
             as_list=as_list,
+            prerelease=self.pre,
         )
         if sources and self.requirement and not (self.line_instance.is_local or self.vcs):
             from ..utils import prepare_pip_source_args
@@ -3243,6 +3254,7 @@ def named_req_from_parsed_line(parsed_line):
             req=parsed_line.requirement,
             extras=parsed_line.extras,
             editable=parsed_line.editable,
+            pre=parsed_line.pre,
             parsed_line=parsed_line,
         )
     return NamedRequirement.from_line(parsed_line.line)

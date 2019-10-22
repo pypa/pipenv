@@ -109,6 +109,7 @@ def parse_requirements(
         req_iter = process_line(line, filename, line_number, finder,
                                 comes_from, options, session, wheel_cache,
                                 use_pep517=use_pep517, constraint=constraint)
+
         for req in req_iter:
             yield req
 
@@ -189,8 +190,8 @@ def process_line(
                 req_options[dest] = opts.__dict__[dest]
         yield install_req_from_line(
             args_str, line_comes_from, constraint=constraint,
-            use_pep517=use_pep517,
-            isolated=isolated, options=req_options, wheel_cache=wheel_cache
+            use_pep517=use_pep517, isolated=isolated,
+            options=req_options, wheel_cache=wheel_cache, pre=opts.pre,
         )
 
     # yield an editable requirement

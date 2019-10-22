@@ -207,7 +207,8 @@ def install_req_from_line(
     isolated=False,  # type: bool
     options=None,  # type: Optional[Dict[str, Any]]
     wheel_cache=None,  # type: Optional[WheelCache]
-    constraint=False  # type: bool
+    constraint=False,  # type: bool
+    pre=False  # type: bool
 ):
     # type: (...) -> InstallRequirement
     """Creates an InstallRequirement from a name, which might be a
@@ -305,6 +306,7 @@ def install_req_from_line(
         wheel_cache=wheel_cache,
         constraint=constraint,
         extras=extras,
+        pre=pre,
     )
 
 

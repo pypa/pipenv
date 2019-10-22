@@ -68,6 +68,7 @@ class InstallRequirement(object):
         comes_from,  # type: Optional[Union[str, InstallRequirement]]
         source_dir=None,  # type: Optional[str]
         editable=False,  # type: bool
+        pre=False,  # type: bool
         link=None,  # type: Optional[Link]
         update=True,  # type: bool
         markers=None,  # type: Optional[Marker]
@@ -88,6 +89,7 @@ class InstallRequirement(object):
         else:
             self.source_dir = None
         self.editable = editable
+        self.pre = pre
 
         self._wheel_cache = wheel_cache
         if link is None and req and req.url:
