@@ -813,9 +813,9 @@ def lookup_table(values, key=None, keyval=None, unique=False, use_lists=False):
 
     if keyval is None:
         if key is None:
-            def keyval(v): return v
+            keyval = lambda v: v
         else:
-            def keyval(v): return (key(v), v)
+            keyval = lambda v: (key(v), v)
 
     if unique:
         return dict(keyval(v) for v in values)
