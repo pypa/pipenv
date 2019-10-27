@@ -304,3 +304,10 @@ Use the shell:
 ---------------
 
 Documentation resides over at [pipenv.org](https://pipenv.kennethreitz.org/en/latest/).
+
+
+### Video Tutorials
+- [Python Tutorial: Pipenv - Easily Manage Packages and Virtual Environments](https://www.youtube.com/watch?v=zDYL22QNiWk)
+- [Pipenv Crash Course](https://www.youtube.com/watch?v=6Qmnh5C4Pmo)
+- [VirtualEnv Is Old - How to Use PipEnv In Less than 5 Minutes](https://www.youtube.com/watch?v=ArDT5NsROMk)
+- [Pipenv Setup Tutorial for Python Virtual Environments](https://www.youtube.com/watch?v=K2fNEoZfuy8)
