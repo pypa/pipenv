@@ -1,0 +1,1 @@
+Added support for automatic python installs via ``asdf`` and associated ``PIPENV_DONT_USE_ASDF`` environment variable.
