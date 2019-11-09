@@ -68,6 +68,12 @@ PIPENV_DONT_USE_PYENV = bool(os.environ.get("PIPENV_DONT_USE_PYENV"))
 Default is to install Python automatically via pyenv when needed, if possible.
 """
 
+PIPENV_DONT_USE_ASDF = bool(os.environ.get("PIPENV_DONT_USE_ASDF"))
+"""If set, Pipenv does not attempt to install Python with asdf.
+
+Default is to install Python automatically via asdf when needed, if possible.
+"""
+
 PIPENV_DOTENV_LOCATION = os.environ.get("PIPENV_DOTENV_LOCATION")
 """If set, Pipenv loads the ``.env`` file at the specified location.
 
