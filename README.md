@@ -48,7 +48,7 @@ Or, if you\'re using Debian Buster+:
 
     $ sudo apt install pipenv
 
-Or, if you\'re using Fedora 28:
+Or, if you\'re using Fedora:
 
     $ sudo dnf install pipenv
     
