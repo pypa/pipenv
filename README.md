@@ -48,7 +48,7 @@ Or, if you\'re using Debian Buster+:
 
     $ sudo apt install pipenv
 
-Or, if you\'re using Fedora 28:
+Or, if you\'re using Fedora:
 
     $ sudo dnf install pipenv
     
@@ -62,12 +62,6 @@ Otherwise, refer to the [documentation](https://pipenv.kennethreitz.org/en/lates
 
 ☤ User Testimonials
 -------------------
-
-**Jannis Leidel**, former pip maintainer---
-
-:   *Pipenv is the porcelain I always wanted to build for pip. It fits
-    my brain and mostly replaces virtualenvwrapper and manual pip calls
-    for me. Use it.*
 
 **David Gang**---
 

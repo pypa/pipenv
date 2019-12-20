@@ -1,0 +1,1 @@
+Write description for --deploy extension and few extensions differences.
