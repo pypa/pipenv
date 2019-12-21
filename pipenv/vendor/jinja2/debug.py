@@ -365,8 +365,14 @@ def _init_ugly_crap():
 # proxies.
 tb_set_next = None
 if tproxy is None:
-    try:
-        tb_set_next = _init_ugly_crap()
-    except:
-        pass
-    del _init_ugly_crap
+    # traceback.tb_next can be modified since CPython 3.7
+    if sys.version_info >= (3, 7):
+        def tb_set_next(tb, next):
+            tb.tb_next = next
+    else:
+        # On Python 3.6 and older, use ctypes
+        try:
+            tb_set_next = _init_ugly_crap()
+        except Exception:
+            pass
+del _init_ugly_crap

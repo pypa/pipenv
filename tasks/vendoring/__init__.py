@@ -416,7 +416,6 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
 
 @invoke.task
 def redo_imports(ctx, library):
-    vendor_dir = _get_vendor_dir(ctx)
     log('Using vendor dir: %s' % vendor_dir)
     vendored_libs = detect_vendored_libs(vendor_dir)
     item = vendor_dir / library
@@ -675,6 +674,16 @@ def update_pip_deps(ctx):
     download_licenses(ctx, vendor_dir)
 
 
+@invoke.task
+def download_all_licenses(ctx, include_pip=False):
+    vendor_dir = _get_vendor_dir(ctx)
+    patched_dir = _get_patched_dir(ctx)
+    download_licenses(ctx, vendor_dir)
+    download_licenses(ctx, patched_dir, "patched.txt")
+    if include_pip:
+        update_pip_deps(ctx)
+
+
 @invoke.task(name=TASK_NAME)
 def main(ctx, package=None):
     vendor_dir = _get_vendor_dir(ctx)
@@ -689,14 +698,7 @@ def main(ctx, package=None):
     clean_vendor(ctx, patched_dir)
     vendor(ctx, vendor_dir)
     vendor(ctx, patched_dir, rewrite=True)
-    download_licenses(ctx, vendor_dir)
-    download_licenses(ctx, patched_dir, 'patched.txt')
-    for pip_dir in [patched_dir / 'notpip']:
-        _vendor_dir = pip_dir / '_vendor'
-        vendor_src_file = vendor_dir / 'vendor_pip.txt'
-        vendor_file = _vendor_dir / 'vendor.txt'
-        vendor_file.write_bytes(vendor_src_file.read_bytes())
-        download_licenses(ctx, _vendor_dir)
+    download_all_licenses(ctx, include_pip=True)
     # from .vendor_passa import vendor_passa
     # log("Vendoring passa...")
     # vendor_passa(ctx)

@@ -1,17 +1,20 @@
 diff --git a/pipenv/vendor/pip_shims/__init__.py b/pipenv/vendor/pip_shims/__init__.py
-index 1342f793..70fb0d58 100644
+index 2af4166e..598b9ad8 100644
 --- a/pipenv/vendor/pip_shims/__init__.py
 +++ b/pipenv/vendor/pip_shims/__init__.py
-@@ -8,10 +8,10 @@ __version__ = '0.3.1'
- from . import shims
- 
- 
--old_module = sys.modules["pip_shims"]
-+old_module = sys.modules[__name__]
+@@ -11,10 +11,13 @@ __version__ = "0.4.1.dev0"
+ if "pip_shims" in sys.modules:
+     # mainly to keep a reference to the old module on hand so it doesn't get
+     # weakref'd away
+-    old_module = sys.modules["pip_shims"]
++    if __name__ != "pip_shims":
++        del sys.modules["pip_shims"]
++if __name__ in sys.modules:
++    old_module = sys.modules[__name__]
  
  
 -module = sys.modules["pip_shims"] = shims._new()
-+module = sys.modules[__name__] = shims._new()
++module = sys.modules[__name__] = sys.modules["pip_shims"] = shims._new()
  module.shims = shims
- module.__dict__.update({
-     '__file__': __file__,
+ module.__dict__.update(
+     {

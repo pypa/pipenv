@@ -8,7 +8,6 @@ import string
 import sys
 from collections import defaultdict
 from itertools import chain, groupby
-from operator import attrgetter
 
 import six
 import tomlkit
@@ -18,10 +17,10 @@ from packaging.markers import InvalidMarker, Marker, Op, Value, Variable
 from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
 from packaging.version import parse as parse_version
 from plette.models import Package, PackageCollection
-from six.moves.urllib import parse as urllib_parse
 from tomlkit.container import Container
 from tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
 from urllib3 import util as urllib3_util
+from urllib3.util import parse_url as urllib3_parse
 from vistir.compat import lru_cache
 from vistir.misc import dedup
 from vistir.path import is_valid_url
@@ -30,6 +29,16 @@ from ..environment import MYPY_RUNNING
 from ..utils import SCHEME_LIST, VCS_LIST, is_star
 
 if MYPY_RUNNING:
+    from attr import _ValidatorType  # noqa
+    from packaging.requirements import Requirement as PackagingRequirement
+    from pip_shims.shims import Link
+    from pkg_resources import Requirement as PkgResourcesRequirement
+    from pkg_resources.extern.packaging.markers import (
+        Op as PkgResourcesOp,
+        Variable as PkgResourcesVariable,
+        Value as PkgResourcesValue,
+        Marker as PkgResourcesMarker,
+    )
     from typing import (
         Union,
         Optional,
@@ -45,16 +54,7 @@ if MYPY_RUNNING:
         Match,
         Iterable,  # noqa
     )
-    from attr import _ValidatorType  # noqa
-    from packaging.requirements import Requirement as PackagingRequirement
-    from pkg_resources import Requirement as PkgResourcesRequirement
-    from pkg_resources.extern.packaging.markers import (
-        Op as PkgResourcesOp,
-        Variable as PkgResourcesVariable,
-        Value as PkgResourcesValue,
-        Marker as PkgResourcesMarker,
-    )
-    from pip_shims.shims import Link
+    from urllib3.util.url import Url
     from vistir.compat import Path
 
     _T = TypeVar("_T")
@@ -280,6 +280,29 @@ def build_vcs_uri(
     if subdirectory:
         uri = "{0}&subdirectory={1}".format(uri, subdirectory)
     return uri
+
+
+def _get_parsed_url(url):
+    # type: (S) -> Url
+    """
+    This is a stand-in function for `urllib3.util.parse_url`
+
+    The orignal function doesn't handle special characters very well, this simply splits
+    out the authentication section, creates the parsed url, then puts the authentication
+    section back in, bypassing validation.
+
+    :return: The new, parsed URL object
+    :rtype: :class:`~urllib3.util.url.Url`
+    """
+
+    try:
+        parsed = urllib3_parse(url)
+    except ValueError:
+        scheme, _, url = url.partition("://")
+        auth, _, url = url.rpartition("@")
+        url = "{scheme}://{url}".format(scheme=scheme, url=url)
+        parsed = urllib3_parse(url)._replace(auth=auth)
+    return parsed
 
 
 def convert_direct_url_to_url(direct_url):
@@ -544,13 +567,14 @@ def split_ref_from_uri(uri):
     """
     if not isinstance(uri, six.string_types):
         raise TypeError("Expected a string, received {0!r}".format(uri))
-    parsed = urllib_parse.urlparse(uri)
-    path = parsed.path
+    parsed = _get_parsed_url(uri)
+    path = parsed.path if parsed.path else ""
+    scheme = parsed.scheme if parsed.scheme else ""
     ref = None
-    if parsed.scheme != "file" and "@" in path:
+    if scheme != "file" and "@" in path:
         path, _, ref = path.rpartition("@")
     parsed = parsed._replace(path=path)
-    return (urllib_parse.urlunparse(parsed), ref)
+    return (parsed.url, ref)
 
 
 def validate_vcs(instance, attr_, value):
@@ -885,6 +909,15 @@ def version_from_ireq(ireq):
     return first(ireq.specifier._specs).version
 
 
+def _get_requires_python(candidate):
+    # type: (Any) -> str
+    requires_python = getattr(candidate, "requires_python", None)
+    if requires_python is not None:
+        link = getattr(candidate, "location", getattr(candidate, "link", None))
+        requires_python = getattr(link, "requires_python", None)
+    return requires_python
+
+
 def clean_requires_python(candidates):
     """Get a cleaned list of all the candidates with valid specifiers in the `requires_python` attributes."""
     all_candidates = []
@@ -893,8 +926,7 @@ def clean_requires_python(candidates):
 
     py_version = parse_version(os.environ.get("PIP_PYTHON_VERSION", sys_version))
     for c in candidates:
-        from_location = attrgetter("location.requires_python")
-        requires_python = getattr(c, "requires_python", from_location(c))
+        requires_python = _get_requires_python(c)
         if requires_python:
             # Old specifications had people setting this to single digits
             # which is effectively the same as '>=digit,<digit+1'

@@ -52,11 +52,10 @@ def assert_header_parsing(headers):
     # This will fail silently if we pass in the wrong kind of parameter.
     # To make debugging easier add an explicit check.
     if not isinstance(headers, httplib.HTTPMessage):
-        raise TypeError('expected httplib.Message, got {0}.'.format(
-            type(headers)))
+        raise TypeError("expected httplib.Message, got {0}.".format(type(headers)))
 
-    defects = getattr(headers, 'defects', None)
-    get_payload = getattr(headers, 'get_payload', None)
+    defects = getattr(headers, "defects", None)
+    get_payload = getattr(headers, "get_payload", None)
 
     unparsed_data = None
     if get_payload:
@@ -84,4 +83,4 @@ def is_response_to_head(response):
     method = response._method
     if isinstance(method, int):  # Platform-specific: Appengine
         return method == 3
-    return method.upper() == 'HEAD'
+    return method.upper() == "HEAD"

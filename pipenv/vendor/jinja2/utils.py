@@ -14,7 +14,7 @@ import errno
 from collections import deque
 from threading import Lock
 from jinja2._compat import text_type, string_types, implements_iterator, \
-     url_quote
+     url_quote, abc
 
 
 _word_split_re = re.compile(r'(\s+)')
@@ -480,12 +480,7 @@ class LRUCache(object):
     __copy__ = copy
 
 
-# register the LRU cache as mutable mapping if possible
-try:
-    from collections import MutableMapping
-    MutableMapping.register(LRUCache)
-except ImportError:
-    pass
+abc.MutableMapping.register(LRUCache)
 
 
 def select_autoescape(enabled_extensions=('html', 'htm', 'xml'),

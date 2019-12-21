@@ -21,7 +21,7 @@ In pip, all static-typing related imports should be guarded as follows:
     from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
     if MYPY_CHECK_RUNNING:
-        from typing import ...  # noqa: F401
+        from typing import ...
 
 Ref: https://github.com/python/mypy/issues/3216
 """

@@ -635,7 +635,7 @@ def format_pyversion(parts):
 
 
 def normalize_marker_str(marker):
-    # type: (Union[Marker, STRING_TYPE])
+    # type: (Union[Marker, STRING_TYPE]) -> str
     marker_str = ""
     if not marker:
         return None

@@ -7,75 +7,83 @@ from email.parser import FeedParser
 from pipenv.patched.notpip._vendor import pkg_resources
 from pipenv.patched.notpip._vendor.packaging import specifiers, version
 
-from pipenv.patched.notpip._internal import exceptions
+from pipenv.patched.notpip._internal.exceptions import NoneMetadataError
 from pipenv.patched.notpip._internal.utils.misc import display_path
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Optional  # noqa: F401
-    from email.message import Message  # noqa: F401
-    from pipenv.patched.notpip._vendor.pkg_resources import Distribution  # noqa: F401
+    from typing import Optional, Tuple
+    from email.message import Message
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
 
 logger = logging.getLogger(__name__)
 
 
-def check_requires_python(requires_python):
-    # type: (Optional[str]) -> bool
+def check_requires_python(requires_python, version_info):
+    # type: (Optional[str], Tuple[int, ...]) -> bool
     """
-    Check if the python version in use match the `requires_python` specifier.
+    Check if the given Python version matches a "Requires-Python" specifier.
 
-    Returns `True` if the version of python in use matches the requirement.
-    Returns `False` if the version of python in use does not matches the
-    requirement.
+    :param version_info: A 3-tuple of ints representing a Python
+        major-minor-micro version to check (e.g. `sys.version_info[:3]`).
 
-    Raises an InvalidSpecifier if `requires_python` have an invalid format.
+    :return: `True` if the given Python version satisfies the requirement.
+        Otherwise, return `False`.
+
+    :raises InvalidSpecifier: If `requires_python` has an invalid format.
     """
     if requires_python is None:
         # The package provides no information
         return True
     requires_python_specifier = specifiers.SpecifierSet(requires_python)
 
-    # We only use major.minor.micro
     python_version = version.parse('{0}.{1}.{2}'.format(*sys.version_info[:3]))
     return python_version in requires_python_specifier
 
 
 def get_metadata(dist):
     # type: (Distribution) -> Message
+    """
+    :raises NoneMetadataError: if the distribution reports `has_metadata()`
+        True but `get_metadata()` returns None.
+    """
+    metadata_name = 'METADATA'
     if (isinstance(dist, pkg_resources.DistInfoDistribution) and
-            dist.has_metadata('METADATA')):
-        metadata = dist.get_metadata('METADATA')
+            dist.has_metadata(metadata_name)):
+        metadata = dist.get_metadata(metadata_name)
     elif dist.has_metadata('PKG-INFO'):
-        metadata = dist.get_metadata('PKG-INFO')
+        metadata_name = 'PKG-INFO'
+        metadata = dist.get_metadata(metadata_name)
     else:
         logger.warning("No metadata found in %s", display_path(dist.location))
         metadata = ''
 
+    if metadata is None:
+        raise NoneMetadataError(dist, metadata_name)
+
     feed_parser = FeedParser()
+    # The following line errors out if with a "NoneType" TypeError if
+    # passed metadata=None.
     feed_parser.feed(metadata)
     return feed_parser.close()
 
 
-def check_dist_requires_python(dist, absorb=False):
+def get_requires_python(dist):
+    # type: (pkg_resources.Distribution) -> Optional[str]
+    """
+    Return the "Requires-Python" metadata for a distribution, or None
+    if not present.
+    """
     pkg_info_dict = get_metadata(dist)
     requires_python = pkg_info_dict.get('Requires-Python')
-    if absorb:
-        return requires_python
-    try:
-        if not check_requires_python(requires_python):
-            raise exceptions.UnsupportedPythonVersion(
-                "%s requires Python '%s' but the running Python is %s" % (
-                    dist.project_name,
-                    requires_python,
-                    '.'.join(map(str, sys.version_info[:3])),)
-            )
-    except specifiers.InvalidSpecifier as e:
-        logger.warning(
-            "Package %s has an invalid Requires-Python entry %s - %s",
-            dist.project_name, requires_python, e,
-        )
-        return
+
+    if requires_python is not None:
+        # Convert to a str to satisfy the type checker, since requires_python
+        # can be a Header object.
+        requires_python = str(requires_python)
+
+    return requires_python
 
 
 def get_installer(dist):

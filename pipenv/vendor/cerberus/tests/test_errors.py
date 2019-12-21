@@ -321,3 +321,16 @@ def test_basic_error_of_errors(validator):
             },
         ]
     }
+
+
+def test_wrong_amount_of_items(validator):
+    # https://github.com/pyeve/cerberus/issues/505
+    validator.schema = {
+        'test_list': {
+            'type': 'list',
+            'required': True,
+            'items': [{'type': 'string'}, {'type': 'string'}],
+        }
+    }
+    validator({'test_list': ['test']})
+    assert validator.errors == {'test_list': ["length of list should be 2, it is 1"]}

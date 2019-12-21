@@ -1,6 +1,10 @@
 """
 A module that implements tooling to enable easy warnings about deprecations.
 """
+
+# The following comment should be removed at some point in the future.
+# mypy: disallow-untyped-defs=False
+
 from __future__ import absolute_import
 
 import logging
@@ -12,7 +16,10 @@ from pipenv.patched.notpip import __version__ as current_version
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Any, Optional  # noqa: F401
+    from typing import Any, Optional
+
+
+DEPRECATION_MSG_PREFIX = "DEPRECATION: "
 
 
 class PipDeprecationWarning(Warning):
@@ -75,16 +82,23 @@ def deprecated(reason, replacement, gone_in, issue=None):
     """
 
     # Construct a nice message.
-    # This is purposely eagerly formatted as we want it to appear as if someone
-    # typed this entire message out.
-    message = "DEPRECATION: " + reason
-    if replacement is not None:
-        message += " A possible replacement is {}.".format(replacement)
-    if issue is not None:
-        url = "https://github.com/pypa/pip/issues/" + str(issue)
-        message += " You can find discussion regarding this at {}.".format(url)
+    #   This is eagerly formatted as we want it to get logged as if someone
+    #   typed this entire message out.
+    sentences = [
+        (reason, DEPRECATION_MSG_PREFIX + "{}"),
+        (gone_in, "pip {} will remove support for this functionality."),
+        (replacement, "A possible replacement is {}."),
+        (issue, (
+            "You can find discussion regarding this at "
+            "https://github.com/pypa/pip/issues/{}."
+        )),
+    ]
+    message = " ".join(
+        template.format(val) for val, template in sentences if val is not None
+    )
 
     # Raise as an error if it has to be removed.
     if gone_in is not None and parse(current_version) >= parse(gone_in):
         raise PipDeprecationWarning(message)
+
     warnings.warn(message, category=PipDeprecationWarning, stacklevel=2)

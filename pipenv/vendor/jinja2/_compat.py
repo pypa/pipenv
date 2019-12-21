@@ -97,3 +97,9 @@ try:
     from urllib.parse import quote_from_bytes as url_quote
 except ImportError:
     from urllib import quote as url_quote
+
+
+try:
+    from collections import abc
+except ImportError:
+    import collections as abc

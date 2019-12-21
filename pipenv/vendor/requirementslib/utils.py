@@ -11,7 +11,7 @@ import six.moves
 import tomlkit
 import vistir
 from six.moves.urllib.parse import urlparse, urlsplit, urlunparse
-from vistir.compat import Path
+from vistir.compat import Path, fs_decode
 from vistir.path import ensure_mkdir_p, is_valid_url
 
 from .environment import MYPY_RUNNING
@@ -180,7 +180,9 @@ def convert_entry_to_path(path):
 
     elif "path" in path:
         path = path["path"]
-    return path
+    if not os.name == "nt":
+        return fs_decode(path)
+    return Path(fs_decode(path)).as_posix()
 
 
 def is_installable_file(path):

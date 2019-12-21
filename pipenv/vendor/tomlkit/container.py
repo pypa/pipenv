@@ -11,7 +11,6 @@ from .items import Item
 from .items import Key
 from .items import Null
 from .items import Table
-from .items import Trivia
 from .items import Whitespace
 from .items import item as _item
 
@@ -245,6 +244,9 @@ class Container(dict):
         item = _item(item)
 
         idx = self._map[key]
+        # Insert after the max index if there are many.
+        if isinstance(idx, tuple):
+            idx = max(idx)
         current_item = self._body[idx][1]
         if "\n" not in current_item.trivia.trail:
             current_item.trivia.trail += "\n"
@@ -487,6 +489,23 @@ class Container(dict):
         for k, v in other.items():
             self[k] = v
 
+    def get(self, key, default=None):  # type: (Any, Optional[Any]) -> Any
+        if not isinstance(key, Key):
+            key = Key(key)
+
+        if key not in self:
+            return default
+
+        return self[key]
+
+    def setdefault(
+        self, key, default=None
+    ):  # type: (Union[Key, str], Any) -> Union[Item, Container]
+        if key not in self:
+            self[key] = default
+
+        return self[key]
+
     def __contains__(self, key):  # type: (Union[Key, str]) -> bool
         if not isinstance(key, Key):
             key = Key(key)
@@ -517,7 +536,10 @@ class Container(dict):
 
         item = self._body[idx][1]
 
-        return item.value
+        if item.is_boolean():
+            return item.value
+
+        return item
 
     def __setitem__(self, key, value):  # type: (Union[Key, str], Any) -> None
         if key is not None and key in self:

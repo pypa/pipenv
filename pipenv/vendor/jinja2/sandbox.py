@@ -14,10 +14,9 @@
 """
 import types
 import operator
-from collections import Mapping
 from jinja2.environment import Environment
 from jinja2.exceptions import SecurityError
-from jinja2._compat import string_types, PY2
+from jinja2._compat import string_types, PY2, abc, range_type
 from jinja2.utils import Markup
 
 from markupsafe import EscapeFormatter
@@ -79,10 +78,9 @@ except ImportError:
     pass
 
 #: register Python 2.6 abstract base classes
-from collections import MutableSet, MutableMapping, MutableSequence
-_mutable_set_types += (MutableSet,)
-_mutable_mapping_types += (MutableMapping,)
-_mutable_sequence_types += (MutableSequence,)
+_mutable_set_types += (abc.MutableSet,)
+_mutable_mapping_types += (abc.MutableMapping,)
+_mutable_sequence_types += (abc.MutableSequence,)
 
 
 _mutable_spec = (
@@ -103,7 +101,7 @@ _mutable_spec = (
 )
 
 
-class _MagicFormatMapping(Mapping):
+class _MagicFormatMapping(abc.Mapping):
     """This class implements a dummy wrapper to fix a bug in the Python
     standard library for string formatting.
 
@@ -137,7 +135,7 @@ class _MagicFormatMapping(Mapping):
 def inspect_format_method(callable):
     if not isinstance(callable, (types.MethodType,
                                  types.BuiltinMethodType)) or \
-       callable.__name__ != 'format':
+       callable.__name__ not in ('format', 'format_map'):
         return None
     obj = callable.__self__
     if isinstance(obj, string_types):
@@ -148,10 +146,14 @@ def safe_range(*args):
     """A range that can't generate ranges with a length of more than
     MAX_RANGE items.
     """
-    rng = range(*args)
+    rng = range_type(*args)
+
     if len(rng) > MAX_RANGE:
-        raise OverflowError('range too big, maximum size for range is %d' %
-                            MAX_RANGE)
+        raise OverflowError(
+            "Range too big. The sandbox blocks ranges larger than"
+            " MAX_RANGE (%d)." % MAX_RANGE
+        )
+
     return rng
 
 
@@ -402,7 +404,7 @@ class SandboxedEnvironment(Environment):
             obj.__class__.__name__
         ), name=attribute, obj=obj, exc=SecurityError)
 
-    def format_string(self, s, args, kwargs):
+    def format_string(self, s, args, kwargs, format_func=None):
         """If a format call is detected, then this is routed through this
         method so that our safety sandbox can be used for it.
         """
@@ -410,6 +412,17 @@ class SandboxedEnvironment(Environment):
             formatter = SandboxedEscapeFormatter(self, s.escape)
         else:
             formatter = SandboxedFormatter(self)
+
+        if format_func is not None and format_func.__name__ == 'format_map':
+            if len(args) != 1 or kwargs:
+                raise TypeError(
+                    'format_map() takes exactly one argument %d given'
+                    % (len(args) + (kwargs is not None))
+                )
+
+            kwargs = args[0]
+            args = None
+
         kwargs = _MagicFormatMapping(args, kwargs)
         rv = formatter.vformat(s, args, kwargs)
         return type(s)(rv)
@@ -418,7 +431,7 @@ class SandboxedEnvironment(Environment):
         """Call an object from sandboxed code."""
         fmt = inspect_format_method(__obj)
         if fmt is not None:
-            return __self.format_string(fmt, args, kwargs)
+            return __self.format_string(fmt, args, kwargs, __obj)
 
         # the double prefixes are to avoid double keyword argument
         # errors when proxying the call.
