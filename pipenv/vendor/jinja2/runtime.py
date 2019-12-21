@@ -20,7 +20,7 @@ from jinja2.exceptions import UndefinedError, TemplateRuntimeError, \
      TemplateNotFound
 from jinja2._compat import imap, text_type, iteritems, \
      implements_iterator, implements_to_string, string_types, PY2, \
-     with_metaclass
+     with_metaclass, abc
 
 
 # these variables are exported to the template runtime
@@ -313,12 +313,7 @@ class Context(with_metaclass(ContextMeta)):
         )
 
 
-# register the context as mapping if possible
-try:
-    from collections import Mapping
-    Mapping.register(Context)
-except ImportError:
-    pass
+abc.Mapping.register(Context)
 
 
 class BlockReference(object):

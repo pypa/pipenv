@@ -296,9 +296,8 @@ class MemcachedBytecodeCache(BytecodeCache):
 
     Libraries compatible with this class:
 
-    -   `werkzeug <http://werkzeug.pocoo.org/>`_.contrib.cache
-    -   `python-memcached <https://www.tummy.com/Community/software/python-memcached/>`_
-    -   `cmemcache <http://gijsbert.org/cmemcache/>`_
+    -   `cachelib <https://github.com/pallets/cachelib>`_
+    -   `python-memcached <https://pypi.org/project/python-memcached/>`_
 
     (Unfortunately the django cache interface is not compatible because it
     does not support storing binary data, only unicode.  You can however pass

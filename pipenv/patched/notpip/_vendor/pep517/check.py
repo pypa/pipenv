@@ -4,7 +4,7 @@ import argparse
 import logging
 import os
 from os.path import isfile, join as pjoin
-from pipenv.patched.notpip._vendor.pytoml import TomlError, load as toml_load
+from toml import TomlDecodeError, load as toml_load
 import shutil
 from subprocess import CalledProcessError
 import sys
@@ -147,12 +147,13 @@ def check(source_dir):
         buildsys = pyproject_data['build-system']
         requires = buildsys['requires']
         backend = buildsys['build-backend']
+        backend_path = buildsys.get('backend-path')
         log.info('Loaded pyproject.toml')
-    except (TomlError, KeyError):
+    except (TomlDecodeError, KeyError):
         log.error("Invalid pyproject.toml", exc_info=True)
         return False
 
-    hooks = Pep517HookCaller(source_dir, backend)
+    hooks = Pep517HookCaller(source_dir, backend, backend_path)
 
     sdist_ok = check_build_sdist(hooks, requires)
     wheel_ok = check_build_wheel(hooks, requires)

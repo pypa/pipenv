@@ -186,7 +186,6 @@ def _read_streams(stream_dict):
     return results
 
 
-
 def get_stream_results(cmd_instance, verbose, maxlen, spinner=None, stdout_allowed=False):
     stream_results = {"stdout": [], "stderr": []}
     streams = {"stderr": cmd_instance.stderr, "stdout": cmd_instance.stdout}
@@ -207,7 +206,7 @@ def get_stream_results(cmd_instance, verbose, maxlen, spinner=None, stdout_allow
                     if stream_name == "stderr"
                     else display_line
                 )
-                if display_line and last_changed < 100:
+                if display_line and last_changed > 10:
                     last_changed = 0
                     display_line = ""
                 elif display_line:
@@ -269,18 +268,15 @@ def _create_subprocess(
         c = _spawn_subprocess(
             cmd, env=env, block=block, cwd=cwd, combine_stderr=combine_stderr
         )
-    except Exception as exc:
+    except Exception as exc:  # pragma: no cover
         import traceback
 
-        formatted_tb = "".join(
-            traceback.format_exception(*sys.exc_info())
-        )  # pragma: no cover
-        sys.stderr.write(  # pragma: no cover
-            "Error while executing command %s:"
-            % to_native_string(" ".join(cmd._parts))  # pragma: no cover
-        )  # pragma: no cover
-        sys.stderr.write(formatted_tb)  # pragma: no cover
-        raise exc  # pragma: no cover
+        formatted_tb = "".join(traceback.format_exception(*sys.exc_info()))
+        sys.stderr.write(
+            "Error while executing command %s:" % to_native_string(" ".join(cmd._parts))
+        )
+        sys.stderr.write(formatted_tb)
+        raise exc
     if not block:
         c.stdin.close()
         spinner_orig_text = ""
@@ -303,7 +299,7 @@ def _create_subprocess(
     else:
         try:
             c.out, c.err = c.communicate()
-        except (SystemExit, KeyboardInterrupt, TimeoutError):
+        except (SystemExit, KeyboardInterrupt, TimeoutError):  # pragma: no cover
             c.terminate()
             c.out, c.err = c.communicate()
             raise
@@ -858,7 +854,9 @@ if os.name == "nt" or sys.platform.startswith("win"):
     if colorama is not None:
 
         def _is_wrapped_for_color(stream):
-            return isinstance(stream, (colorama.AnsiToWin32, colorama.ansitowin32.StreamWrapper))
+            return isinstance(
+                stream, (colorama.AnsiToWin32, colorama.ansitowin32.StreamWrapper)
+            )
 
         def _wrap_for_color(stream, color=None):
             try:

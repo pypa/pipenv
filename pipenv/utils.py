@@ -414,19 +414,8 @@ class Resolver(object):
     @staticmethod
     @lru_cache()
     def _get_pip_command():
-        from .vendor.pip_shims.shims import Command, cmdoptions
-
-        class PipCommand(Command):
-            """Needed for pip-tools."""
-
-            name = "PipCommand"
-
-        from pipenv.patched.piptools.pip import get_pip_command
-        pip_cmd = get_pip_command()
-        pip_cmd.parser.add_option(cmdoptions.no_use_pep517())
-        pip_cmd.parser.add_option(cmdoptions.use_pep517())
-        pip_cmd.parser.add_option(cmdoptions.no_build_isolation())
-        return pip_cmd
+        from .vendor.pip_shims.shims import InstallCommand
+        return InstallCommand()
 
     @classmethod
     def get_metadata(
@@ -753,7 +742,7 @@ class Resolver(object):
         if self._repository is None:
             from pipenv.patched.piptools.repositories.pypi import PyPIRepository
             self._repository = PyPIRepository(
-                pip_options=self.pip_options, use_json=False, session=self.session,
+                self.pip_args, use_json=False, session=self.session,
                 build_isolation=self.pip_options.build_isolation
             )
         return self._repository

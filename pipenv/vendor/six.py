@@ -1,4 +1,4 @@
-# Copyright (c) 2010-2018 Benjamin Peterson
+# Copyright (c) 2010-2019 Benjamin Peterson
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,7 @@ import sys
 import types
 
 __author__ = "Benjamin Peterson <benjamin@python.org>"
-__version__ = "1.12.0"
+__version__ = "1.13.0"
 
 
 # Useful for very coarse version differentiation.
@@ -255,8 +255,10 @@ _moved_attributes = [
     MovedAttribute("zip_longest", "itertools", "itertools", "izip_longest", "zip_longest"),
     MovedModule("builtins", "__builtin__"),
     MovedModule("configparser", "ConfigParser"),
+    MovedModule("collections_abc", "collections", "collections.abc" if sys.version_info >= (3, 3) else "collections"),
     MovedModule("copyreg", "copy_reg"),
     MovedModule("dbm_gnu", "gdbm", "dbm.gnu"),
+    MovedModule("dbm_ndbm", "dbm", "dbm.ndbm"),
     MovedModule("_dummy_thread", "dummy_thread", "_dummy_thread"),
     MovedModule("http_cookiejar", "cookielib", "http.cookiejar"),
     MovedModule("http_cookies", "Cookie", "http.cookies"),
@@ -637,6 +639,7 @@ if PY3:
     import io
     StringIO = io.StringIO
     BytesIO = io.BytesIO
+    del io
     _assertCountEqual = "assertCountEqual"
     if sys.version_info[1] <= 1:
         _assertRaisesRegex = "assertRaisesRegexp"
@@ -824,7 +827,15 @@ def with_metaclass(meta, *bases):
     class metaclass(type):
 
         def __new__(cls, name, this_bases, d):
-            return meta(name, bases, d)
+            if sys.version_info[:2] >= (3, 7):
+                # This version introduced PEP 560 that requires a bit
+                # of extra care (we mimic what is done by __build_class__).
+                resolved_bases = types.resolve_bases(bases)
+                if resolved_bases is not bases:
+                    d['__orig_bases__'] = bases
+            else:
+                resolved_bases = bases
+            return meta(name, resolved_bases, d)
 
         @classmethod
         def __prepare__(cls, name, this_bases):

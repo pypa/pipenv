@@ -7,7 +7,6 @@ from collections import defaultdict
 
 import attr
 import six
-from cached_property import cached_property
 from vistir.compat import fs_str
 
 from ..environment import MYPY_RUNNING
@@ -174,7 +173,6 @@ class BasePath(object):
         # type: () -> None
         self._is_dir = None
 
-    # @cached_property
     @property
     def is_executable(self):
         # type: () -> bool
@@ -195,7 +193,6 @@ class BasePath(object):
         # type: () -> None
         self._is_executable = None
 
-    # @cached_property
     @property
     def is_python(self):
         # type: () -> bool
@@ -240,7 +237,6 @@ class BasePath(object):
             return py_version
         return None
 
-    # @cached_property
     @property
     def py_version(self):
         # type: () -> Optional[PythonVersion]

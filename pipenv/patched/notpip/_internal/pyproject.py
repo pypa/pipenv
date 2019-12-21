@@ -10,7 +10,7 @@ from pipenv.patched.notpip._internal.exceptions import InstallationError
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Any, Tuple, Optional, List  # noqa: F401
+    from typing import Any, Tuple, Optional, List
 
 
 def _is_list_of_str(obj):
@@ -21,9 +21,9 @@ def _is_list_of_str(obj):
     )
 
 
-def make_pyproject_path(setup_py_dir):
+def make_pyproject_path(unpacked_source_directory):
     # type: (str) -> str
-    path = os.path.join(setup_py_dir, 'pyproject.toml')
+    path = os.path.join(unpacked_source_directory, 'pyproject.toml')
 
     # Python2 __file__ should not be unicode
     if six.PY2 and isinstance(path, six.text_type):

@@ -1,3 +1,7 @@
+# The following comment should be removed at some point in the future.
+# mypy: strict-optional=False
+# mypy: disallow-untyped-defs=False
+
 from __future__ import absolute_import
 
 import collections
@@ -11,20 +15,22 @@ from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError
 
 from pipenv.patched.notpip._internal.exceptions import BadCommand, InstallationError
 from pipenv.patched.notpip._internal.req.constructors import (
-    install_req_from_editable, install_req_from_line,
+    install_req_from_editable,
+    install_req_from_line,
 )
 from pipenv.patched.notpip._internal.req.req_file import COMMENT_RE
 from pipenv.patched.notpip._internal.utils.misc import (
-    dist_is_editable, get_installed_distributions,
+    dist_is_editable,
+    get_installed_distributions,
 )
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import (  # noqa: F401
+    from typing import (
         Iterator, Optional, List, Container, Set, Dict, Tuple, Iterable, Union
     )
-    from pipenv.patched.notpip._internal.cache import WheelCache  # noqa: F401
-    from pipenv.patched.notpip._vendor.pkg_resources import (  # noqa: F401
+    from pipenv.patched.notpip._internal.cache import WheelCache
+    from pipenv.patched.notpip._vendor.pkg_resources import (
         Distribution, Requirement
     )
 
@@ -39,6 +45,7 @@ def freeze(
     find_links=None,  # type: Optional[List[str]]
     local_only=None,  # type: Optional[bool]
     user_only=None,  # type: Optional[bool]
+    paths=None,  # type: Optional[List[str]]
     skip_regex=None,  # type: Optional[str]
     isolated=False,  # type: bool
     wheel_cache=None,  # type: Optional[WheelCache]
@@ -57,13 +64,18 @@ def freeze(
     installations = {}  # type: Dict[str, FrozenRequirement]
     for dist in get_installed_distributions(local_only=local_only,
                                             skip=(),
-                                            user_only=user_only):
+                                            user_only=user_only,
+                                            paths=paths):
         try:
             req = FrozenRequirement.from_dist(dist)
-        except RequirementParseError:
+        except RequirementParseError as exc:
+            # We include dist rather than dist.project_name because the
+            # dist string includes more information, like the version and
+            # location. We also include the exception message to aid
+            # troubleshooting.
             logger.warning(
-                "Could not parse requirement: %s",
-                dist.project_name
+                'Could not generate requirement for distribution %r: %s',
+                dist, exc
             )
             continue
         if exclude_editable and req.editable:
@@ -173,12 +185,12 @@ def get_requirement_info(dist):
     location = os.path.normcase(os.path.abspath(dist.location))
 
     from pipenv.patched.notpip._internal.vcs import vcs, RemoteNotFoundError
-    vc_type = vcs.get_backend_type(location)
+    vcs_backend = vcs.get_backend_for_dir(location)
 
-    if not vc_type:
+    if vcs_backend is None:
         req = dist.as_requirement()
         logger.debug(
-            'No VCS found for editable requirement {!r} in: {!r}', req,
+            'No VCS found for editable requirement "%s" in: %r', req,
             location,
         )
         comments = [
@@ -187,12 +199,12 @@ def get_requirement_info(dist):
         return (location, True, comments)
 
     try:
-        req = vc_type.get_src_requirement(location, dist.project_name)
+        req = vcs_backend.get_src_requirement(location, dist.project_name)
     except RemoteNotFoundError:
         req = dist.as_requirement()
         comments = [
             '# Editable {} install with no remote ({})'.format(
-                vc_type.__name__, req,
+                type(vcs_backend).__name__, req,
             )
         ]
         return (location, True, comments)
@@ -202,7 +214,7 @@ def get_requirement_info(dist):
             'cannot determine version of editable source in %s '
             '(%s command not found in path)',
             location,
-            vc_type.name,
+            vcs_backend.name,
         )
         return (None, True, [])
 

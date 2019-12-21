@@ -356,7 +356,9 @@ def set_write_bit(fn):
                     "/T",
                     "/C",
                     "/Q",
-                ], nospin=True, return_object=True
+                ],
+                nospin=True,
+                return_object=True,
             )
             if not c.err and c.returncode == 0:
                 return
