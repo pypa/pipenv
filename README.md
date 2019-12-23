@@ -63,12 +63,6 @@ Otherwise, refer to the [documentation](https://pipenv.kennethreitz.org/en/lates
 ☤ User Testimonials
 -------------------
 
-**Jannis Leidel**, former pip maintainer---
-
-:   *Pipenv is the porcelain I always wanted to build for pip. It fits
-    my brain and mostly replaces virtualenvwrapper and manual pip calls
-    for me. Use it.*
-
 **David Gang**---
 
 :   *This package manager is really awesome. For the first time I know
