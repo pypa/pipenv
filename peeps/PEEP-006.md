@@ -40,3 +40,12 @@ The above would have the same effect as the option `--target vendor`.
 ## Alternative considerations
 
 If adding a new section to the `Pipfile` proves to be a bigger task than necessary for 1 single option, an alternative option would be to specify the target on a per dependency basis. This however could get very cumbersome as it requires adding and/or removing this option for each package.
+
+## Current workarounds
+
+Currently there is a workaround for this. By utilising `pip install` directly in combination with `pip freeze` you can achieve the same results as follows:
+```bash
+$ pipenv run pip freeze | pipenv run pip install --upgrade -r /dev/stdin --target vendor
+```
+
+In addition, normal pipenv workflow is required for normal creation and updating of the virtualenv created by pipenv.
