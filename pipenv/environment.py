@@ -916,7 +916,7 @@ class Environment(object):
             pathset_base = pip_shims.UninstallPathSet
             pathset_base._permitted = PatchedUninstaller._permitted
             dist = next(
-                iter(filter(lambda d: d.project_name == pkgname, self.get_working_set())),
+                iter(d for d in self.get_working_set() if d.project_name == pkgname),
                 None
             )
             pathset = pathset_base.from_dist(dist)
