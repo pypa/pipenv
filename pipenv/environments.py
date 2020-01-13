@@ -151,6 +151,7 @@ if PIPENV_IS_CI:
     PIPENV_NOSPIN = True
 
 PIPENV_SPINNER = "dots" if not os.name == "nt" else "bouncingBar"
+PIPENV_SPINNER = os.environ.get("PIPENV_SPINNER", PIPENV_SPINNER)
 """Sets the default spinner type.
 
 Spinners are identitcal to the node.js spinners and can be found at
