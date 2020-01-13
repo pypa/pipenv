@@ -1289,6 +1289,8 @@ def venv_resolve_deps(
         pipenv_site_dir = get_pipenv_sitedir()
         if pipenv_site_dir is not None:
             os.environ["PIPENV_SITE_DIR"] = pipenv_site_dir
+        else:
+            os.environ.pop("PIPENV_SITE_DIR", None)
         if keep_outdated:
             os.environ["PIPENV_KEEP_OUTDATED"] = fs_str("1")
         with create_spinner(text=decode_for_output("Locking...")) as sp:
