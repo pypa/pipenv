@@ -330,7 +330,7 @@ Pipenv automatically honors both the ``python_full_version`` and ``python_versio
 ☤ Automatic Loading of ``.env``
 -------------------------------
 
-If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv run`` will automatically load it, for you::
+If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv run`` will automatically load it, for you.::
 
     $ cat .env
     HELLO=WORLD⏎
@@ -344,8 +344,18 @@ If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv
     >>> os.environ['HELLO']
     'WORLD'
 
+Shell like variable expansion is available in ``.env`` files::
+
+    $ cat .env
+    CONFIG_PATH=${HOME}/.config/foo
+    
+    $ 
+
+
 This is very useful for keeping production credentials out of your codebase.
 We do not recommend committing ``.env`` files into source control!
+
+
 
 If your ``.env`` file is located in a different path or has a different name you may set the ``PIPENV_DOTENV_LOCATION`` environment variable::
 
