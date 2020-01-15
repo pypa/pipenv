@@ -330,7 +330,7 @@ Pipenv automatically honors both the ``python_full_version`` and ``python_versio
 ☤ Automatic Loading of ``.env``
 -------------------------------
 
-If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv run`` will automatically load it, for you.::
+If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv run`` will automatically load it, for you::
 
     $ cat .env
     HELLO=WORLD⏎
@@ -344,17 +344,23 @@ If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv
     >>> os.environ['HELLO']
     'WORLD'
 
-Shell like variable expansion is available in ``.env`` files::
+Shell like variable expansion is available in ``.env`` files using `${VARNAME}` syntax.::
 
     $ cat .env
     CONFIG_PATH=${HOME}/.config/foo
-    
-    $ 
+
+    $ pipenv run python
+    Loading .env environment variables…
+    Python 3.7.6 (default, Dec 19 2019, 22:52:49) 
+    [GCC 9.2.1 20190827 (Red Hat 9.2.1-1)] on linux
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> import os
+    >>> os.environ['CONFIG_PATH']
+    '/home/kennethreitz/.config/foo'
 
 
 This is very useful for keeping production credentials out of your codebase.
 We do not recommend committing ``.env`` files into source control!
-
 
 
 If your ``.env`` file is located in a different path or has a different name you may set the ``PIPENV_DOTENV_LOCATION`` environment variable::
@@ -364,6 +370,8 @@ If your ``.env`` file is located in a different path or has a different name you
 To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV`` environment variable::
 
     $ PIPENV_DONT_LOAD_ENV=1 pipenv shell
+    
+See `theskumar/python-dotenv <https://github.com/theskumar/python-dotenv>`_ for more information on ``.env`` files.
 
 ☤ Custom Script Shortcuts
 -------------------------
