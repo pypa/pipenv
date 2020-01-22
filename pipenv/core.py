@@ -24,9 +24,9 @@ from ._compat import decode_for_output, fix_utf8
 from .cmdparse import Script
 from .environments import (
     PIP_EXISTS_ACTION, PIPENV_CACHE_DIR, PIPENV_COLORBLIND,
-    PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_DONT_USE_PYENV, PIPENV_HIDE_EMOJIS,
-    PIPENV_MAX_SUBPROCESS, PIPENV_PYUP_API_KEY, PIPENV_RESOLVE_VCS,
-    PIPENV_SHELL_FANCY, PIPENV_SKIP_VALIDATION, PIPENV_YES,
+    PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_DONT_USE_PYENV, PIPENV_DONT_USE_ASDF,
+    PIPENV_HIDE_EMOJIS, PIPENV_MAX_SUBPROCESS, PIPENV_PYUP_API_KEY,
+    PIPENV_RESOLVE_VCS, PIPENV_SHELL_FANCY, PIPENV_SKIP_VALIDATION, PIPENV_YES,
     SESSION_IS_INTERACTIVE, is_type_checking
 )
 from .patched import crayons
@@ -392,28 +392,36 @@ def ensure_python(three=None, python=None):
             ),
             err=True,
         )
-        # Pyenv is installed
-        from .vendor.pythonfinder.environment import PYENV_INSTALLED
+        # check for python installers
+        from .vendor.pythonfinder.environment import PYENV_INSTALLED, ASDF_INSTALLED
+        from .installers import Pyenv, Asdf, InstallerError
 
-        if not PYENV_INSTALLED:
+        # prefer pyenv if both pyenv and asdf are installed as it's
+        # dedicated to python installs so probably the preferred
+        # method of the user for new python installs.
+        if PYENV_INSTALLED and not PIPENV_DONT_USE_PYENV:
+            installer = Pyenv("pyenv")
+        elif ASDF_INSTALLED and not PIPENV_DONT_USE_ASDF:
+            installer = Asdf("asdf")
+        else:
+            installer = None
+
+        if not installer:
             abort()
         else:
-            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
-                from .pyenv import Runner, PyenvError
-
-                pyenv = Runner("pyenv")
+            if SESSION_IS_INTERACTIVE or PIPENV_YES:
                 try:
-                    version = pyenv.find_version_to_install(python)
+                    version = installer.find_version_to_install(python)
                 except ValueError:
                     abort()
-                except PyenvError as e:
+                except InstallerError as e:
                     click.echo(fix_utf8("Something went wrong…"))
                     click.echo(crayons.blue(e.err), err=True)
                     abort()
                 s = "{0} {1} {2}".format(
                     "Would you like us to install",
                     crayons.green("CPython {0}".format(version)),
-                    "with pyenv?",
+                    "with {0}?".format(installer),
                 )
                 # Prompt the user to continue…
                 if not (PIPENV_YES or click.confirm(s, default=True)):
@@ -424,15 +432,15 @@ def ensure_python(three=None, python=None):
                         u"{0} {1} {2} {3}{4}".format(
                             crayons.normal(u"Installing", bold=True),
                             crayons.green(u"CPython {0}".format(version), bold=True),
-                            crayons.normal(u"with pyenv", bold=True),
+                            crayons.normal(u"with {0}".format(installer), bold=True),
                             crayons.normal(u"(this may take a few minutes)"),
                             crayons.normal(fix_utf8("…"), bold=True),
                         )
                     )
                     with create_spinner("Installing python...") as sp:
                         try:
-                            c = pyenv.install(version)
-                        except PyenvError as e:
+                            c = installer.install(version)
+                        except InstallerError as e:
                             sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
                                 "Failed...")
                             )
