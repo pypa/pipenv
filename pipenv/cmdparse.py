@@ -72,6 +72,10 @@ class Script(object):
         * Whitespaces.
         * Carets (^). (pypa/pipenv#3307)
         * Parentheses in the command. (pypa/pipenv#3168)
+        * Ampersand (&). (pypa/pipenv#4133)
+        * Greater-than (>). (pypa/pipenv#4133)
+        * Less-than (<). (pypa/pipenv#4133)
+        * Vertical line (|). (pypa/pipenv#4133)
 
         Carets introduce a difficult situation since they are essentially
         "lossy" when parsed. Consider this in cmd.exe::
