@@ -94,5 +94,5 @@ class Script(object):
         """
         return " ".join(itertools.chain(
             [_quote_if_contains(self.command, r'[\s^()]')],
-            (_quote_if_contains(arg, r'[\s^]') for arg in self.args),
+            (_quote_if_contains(arg, r'[\s^&<>|]') for arg in self.args),
         ))
