@@ -5,6 +5,7 @@ import collections
 import copy
 import hashlib
 import os
+import sys
 from contextlib import contextmanager
 from functools import partial
 from shutil import rmtree
@@ -89,7 +90,7 @@ class HashCache(SafeFileCache):
 
     def _get_file_hash(self, location):
         h = hashlib.new(FAVORITE_HASH)
-        with open_local_or_remote_file(location, self.session) as fp:
+        with open_local_or_remote_file(location, self.session) as (fp, size):
             for chunk in iter(lambda: fp.read(8096), b""):
                 h.update(chunk)
         return ":".join([FAVORITE_HASH, h.hexdigest()])
@@ -322,12 +323,13 @@ class PyPIRepository(BaseRepository):
             if PIP_VERSION < (19, 3):
                 resolver_kwargs.update(**make_install_req_kwargs)
             else:
-                from pipenv.patched.notpip._internal.req.constructors import install_req_from_req_string
+                from pipenv.vendor.pip_shims.shims import install_req_from_req_string
 
                 make_install_req = partial(
                     install_req_from_req_string, **make_install_req_kwargs
                 )
                 resolver_kwargs["make_install_req"] = make_install_req
+                del resolver_kwargs["use_pep517"]
 
             if PIP_VERSION >= (20,):
                 preparer_kwargs["session"] = self.session
@@ -359,7 +361,7 @@ class PyPIRepository(BaseRepository):
 
         results = set(results) if results else set()
 
-        return set(results)
+        return results, ireq
 
     def get_legacy_dependencies(self, ireq):
         """

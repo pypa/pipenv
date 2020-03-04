@@ -15,7 +15,6 @@ import pip_shims
 import six
 import vistir
 from cached_property import cached_property
-from first import first
 from packaging.markers import Marker
 from packaging.requirements import Requirement as PackagingRequirement
 from packaging.specifiers import (
@@ -793,27 +792,25 @@ class Line(object):
 
     def get_setup_info(self):
         # type: () -> SetupInfo
-        setup_info = SetupInfo.from_ireq(self.ireq)
-        if not setup_info.name:
-            setup_info.get_info()
+        setup_info = None
+        with pip_shims.shims.global_tempdir_manager():
+            setup_info = SetupInfo.from_ireq(self.ireq)
+            if not setup_info.name:
+                setup_info.get_info()
         return setup_info
 
     @property
     def setup_info(self):
         # type: () -> Optional[SetupInfo]
-        if self._setup_info is None and not self.is_named and not self.is_wheel:
-            if self._setup_info:
-                if not self._setup_info.name:
-                    self._setup_info.get_info()
-            else:
-                # make two attempts at this before failing to allow for stale data
+        if not self._setup_info and not self.is_named and not self.is_wheel:
+            # make two attempts at this before failing to allow for stale data
+            try:
+                self.setup_info = self.get_setup_info()
+            except FileNotFoundError:
                 try:
                     self.setup_info = self.get_setup_info()
                 except FileNotFoundError:
-                    try:
-                        self.setup_info = self.get_setup_info()
-                    except FileNotFoundError:
-                        raise
+                    raise
         return self._setup_info
 
     @setup_info.setter
@@ -863,12 +860,16 @@ class Line(object):
     @cached_property
     def parsed_setup_cfg(self):
         # type: () -> Dict[Any, Any]
-        if self.is_local and self.path and is_installable_dir(self.path):
-            setup_content = read_source(self.setup_cfg)
-            base_dir = os.path.dirname(os.path.abspath(self.setup_cfg))
-            if self.setup_cfg:
-                return parse_setup_cfg(setup_content, base_dir)
-        return {}
+        if not (
+            self.is_local
+            and self.path
+            and is_installable_dir(self.path)
+            and self.setup_cfg
+        ):
+            return {}
+        base_dir = os.path.dirname(os.path.abspath(self.setup_cfg))
+        setup_content = read_source(self.setup_cfg)
+        return parse_setup_cfg(setup_content, base_dir)
 
     @cached_property
     def parsed_setup_py(self):
@@ -886,7 +887,7 @@ class Line(object):
         wheel_kwargs = self.wheel_kwargs.copy()
         wheel_kwargs["src_dir"] = repo.checkout_directory
         ireq.ensure_has_source_dir(wheel_kwargs["src_dir"])
-        with temp_path():
+        with pip_shims.shims.global_tempdir_manager(), temp_path():
             sys.path = [repo.checkout_directory, "", ".", get_python_lib(plat_specific=0)]
             setupinfo = SetupInfo.create(
                 repo.checkout_directory,
@@ -1061,7 +1062,7 @@ class Line(object):
         # type: () -> "Line"
         if self._name is None:
             self.parse_name()
-            if not self._name and not self.is_vcs and not self.is_named:
+            if not any([self._name, self.is_vcs, self.is_named]):
                 if self.setup_info and self.setup_info.name:
                     self._name = self.setup_info.name
         name, extras, url = self.requirement_info
@@ -1558,16 +1559,18 @@ class FileRequirement(object):
                     self._parsed_line._setup_info
                     and not self._parsed_line._setup_info.name
                 ):
-                    self._parsed_line._setup_info.get_info()
+                    with pip_shims.shims.global_tempdir_manager():
+                        self._parsed_line._setup_info.get_info()
                 self._setup_info = self.parsed_line._setup_info
             elif self.parsed_line and (
                 self.parsed_line.ireq and not self.parsed_line.is_wheel
             ):
-                self._setup_info = SetupInfo.from_ireq(self.parsed_line.ireq)
+                with pip_shims.shims.global_tempdir_manager():
+                    self._setup_info = SetupInfo.from_ireq(self.parsed_line.ireq)
             else:
                 if self.link and not self.link.is_wheel:
                     self._setup_info = Line(self.line_part).setup_info
-                    if self._setup_info:
+                    with pip_shims.shims.global_tempdir_manager():
                         self._setup_info.get_info()
         return self._setup_info
 
@@ -1954,20 +1957,23 @@ class VCSRequirement(FileRequirement):
     def setup_info(self):
         if self._parsed_line and self._parsed_line.setup_info:
             if not self._parsed_line.setup_info.name:
-                self._parsed_line._setup_info.get_info()
+                with pip_shims.shims.global_tempdir_manager():
+                    self._parsed_line._setup_info.get_info()
             return self._parsed_line.setup_info
         if self._repo:
             from .setup_info import SetupInfo
 
-            self._setup_info = SetupInfo.from_ireq(
-                Line(self._repo.checkout_directory).ireq
-            )
-            self._setup_info.get_info()
+            with pip_shims.shims.global_tempdir_manager():
+                self._setup_info = SetupInfo.from_ireq(
+                    Line(self._repo.checkout_directory).ireq
+                )
+                self._setup_info.get_info()
             return self._setup_info
         ireq = self.parsed_line.ireq
         from .setup_info import SetupInfo
 
-        self._setup_info = SetupInfo.from_ireq(ireq)
+        with pip_shims.shims.global_tempdir_manager():
+            self._setup_info = SetupInfo.from_ireq(ireq)
         return self._setup_info
 
     @setup_info.setter
@@ -2271,7 +2277,7 @@ class VCSRequirement(FileRequirement):
         alt_type = ""  # type: Optional[STRING_TYPE]
         vcs_value = ""  # type: STRING_TYPE
         if src_keys:
-            chosen_key = first(src_keys)
+            chosen_key = next(iter(src_keys))
             vcs_type = pipfile.pop("vcs")
             if chosen_key in pipfile:
                 vcs_value = pipfile[chosen_key]
@@ -2561,7 +2567,8 @@ class Requirement(object):
         if self.req is not None and (
             not isinstance(self.req, NamedRequirement) and self.req.is_local
         ):
-            setup_info = self.run_requires()
+            with pip_shims.shims.global_tempdir_manager():
+                setup_info = self.run_requires()
             build_backend = setup_info.get("build_backend")
             return build_backend
         return "setuptools.build_meta"
@@ -2673,7 +2680,7 @@ class Requirement(object):
         if hasattr(pipfile, "keys"):
             _pipfile = dict(pipfile).copy()
         _pipfile["version"] = get_version(pipfile)
-        vcs = first([vcs for vcs in VCS_LIST if vcs in _pipfile])
+        vcs = next(iter([vcs for vcs in VCS_LIST if vcs in _pipfile]), None)
         if vcs:
             _pipfile["vcs"] = vcs
             r = VCSRequirement.from_pipfile(name, pipfile)
@@ -2955,10 +2962,11 @@ class Requirement(object):
                 from .dependencies import get_finder
 
                 finder = get_finder(sources=sources)
-            info = SetupInfo.from_requirement(self, finder=finder)
-            if info is None:
-                return {}
-            info_dict = info.get_info()
+            with pip_shims.shims.global_tempdir_manager():
+                info = SetupInfo.from_requirement(self, finder=finder)
+                if info is None:
+                    return {}
+                info_dict = info.get_info()
             if self.req and not self.req.setup_info:
                 self.req._setup_info = info
         if self.req._has_hashed_name and info_dict.get("name"):

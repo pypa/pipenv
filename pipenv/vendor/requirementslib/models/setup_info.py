@@ -5,12 +5,15 @@ import ast
 import atexit
 import contextlib
 import importlib
+import io
+import operator
 import os
 import shutil
 import sys
 from functools import partial
 
 import attr
+import chardet
 import packaging.specifiers
 import packaging.utils
 import packaging.version
@@ -46,6 +49,10 @@ except ImportError:
     import distutils
     from distutils.core import Distribution
 
+try:
+    from contextlib import ExitStack
+except ImportError:
+    from contextlib2 import ExitStack
 
 try:
     from os import scandir
@@ -294,7 +301,11 @@ def parse_setup_cfg(setup_cfg_contents, base_dir):
         },
     }
     parser = configparser.ConfigParser(default_opts)
-    parser.read_string(setup_cfg_contents)
+    if six.PY2:
+        buff = io.BytesIO(setup_cfg_contents)
+        parser.readfp(buff)
+    else:
+        parser.read_string(setup_cfg_contents)
     results = {}
     package_dir = get_package_dir_from_setupcfg(parser, base_dir=base_dir)
     name, version = get_name_and_version_from_setupcfg(parser, package_dir)
@@ -629,6 +640,20 @@ def get_metadata_from_dist(dist):
 
 
 class Analyzer(ast.NodeVisitor):
+    OP_MAP = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub,
+        ast.Mult: operator.mul,
+        ast.Div: operator.floordiv,
+        ast.Mod: operator.mod,
+        ast.Pow: operator.pow,
+        ast.LShift: operator.lshift,
+        ast.RShift: operator.rshift,
+        ast.BitAnd: operator.and_,
+        ast.BitOr: operator.or_,
+        ast.BitXor: operator.xor
+    }
+
     def __init__(self):
         self.name_types = []
         self.function_map = {}  # type: Dict[Any, Any]
@@ -654,8 +679,10 @@ class Analyzer(ast.NodeVisitor):
     def visit_BinOp(self, node):
         left = ast_unparse(node.left, initial_mapping=True)
         right = ast_unparse(node.right, initial_mapping=True)
+        op = ast_unparse(node.op, initial_mapping=True)
         node.left = left
         node.right = right
+        node.op = op
         self.binOps.append(node)
 
     def unmap_binops(self):
@@ -691,25 +718,35 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
     elif isinstance(item, ast.BinOp):
         if analyzer and item in analyzer.binOps_map:
             unparsed = analyzer.binOps_map[item]
-        elif isinstance(item.op, ast.Add):
+        else:
+            right_item = unparse(item.right)
+            left_item = unparse(item.left)
+            if type(item.op) in Analyzer.OP_MAP:
+                item.op = Analyzer.OP_MAP[type(item.op)]
             if not initial_mapping:
-                right_item = unparse(item.right)
-                left_item = unparse(item.left)
                 if not all(
                     isinstance(side, (six.string_types, int, float, list, tuple))
                     for side in (left_item, right_item)
                 ):
-                    item.left = left_item
-                    item.right = right_item
-                    unparsed = item
+                    if type(item.op) in Analyzer.OP_MAP:
+                        item = Analyzer.OP_MAP[type(item.op)](left_item, right_item)
+                    else:
+                        item.left = left_item
+                        item.right = right_item
+                        item.op = unparse(item.op)
+                        try:
+                            unparsed = item.op(left_item, right_item)
+                        except Exception:
+                            unparsed = item
                 else:
-                    unparsed = left_item + right_item
+                    if type(item.op) in Analyzer.OP_MAP:
+                        item.op = Analyzer.OP_MAP[type(item.op)]
+                    try:
+                        unparsed = item.op(left_item, right_item)
+                    except Exception:
+                        unparsed = item
             else:
                 unparsed = item
-        elif isinstance(item.op, ast.Sub):
-            unparsed = unparse(item.left) - unparse(item.right)
-        else:
-            unparsed = item
     elif isinstance(item, ast.Name):
         if not initial_mapping:
             unparsed = item.id
@@ -747,10 +784,13 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
             unparsed = name if not unparsed else unparsed
     elif isinstance(item, ast.Call):
         unparsed = {}
-        if isinstance(item.func, ast.Name):
+        if isinstance(item.func, (ast.Name, ast.Attribute)):
             func_name = unparse(item.func)
-        elif isinstance(item.func, ast.Attribute):
-            func_name = unparse(item.func)
+        else:
+            try:
+                func_name = unparse(item.func)
+            except Exception:
+                func_name = None
         if func_name:
             unparsed[func_name] = {}
             for keyword in item.keywords:
@@ -809,7 +849,15 @@ def ast_parse_attribute_from_file(path, attribute):
 
 def ast_parse_file(path):
     # type: (S) -> Analyzer
-    tree = ast.parse(read_source(path))
+    try:
+        tree = ast.parse(read_source(path))
+    except SyntaxError:
+        # The source may be encoded strangely, e.g. azure-storage
+        # which has a setup.py encoded with utf-8-sig
+        with open(path, "rb") as fh:
+            contents = fh.read()
+        encoding = chardet.detect(contents)["encoding"]
+        tree = ast.parse(contents.decode(encoding))
     ast_analyzer = Analyzer()
     ast_analyzer.visit(tree)
     return ast_analyzer
@@ -1111,6 +1159,8 @@ class SetupInfo(object):
             try:
                 parsed = setuptools_parse_setup_cfg(self.setup_cfg.as_posix())
             except Exception:
+                if six.PY2:
+                    contents = self.setup_cfg.read_bytes()
                 parsed = parse_setup_cfg(contents, base_dir)
             if not parsed:
                 return {}

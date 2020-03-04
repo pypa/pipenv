@@ -12,7 +12,6 @@ from itertools import chain, groupby
 import six
 import tomlkit
 from attr import validators
-from first import first
 from packaging.markers import InvalidMarker, Marker, Op, Value, Variable
 from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
 from packaging.version import parse as parse_version
@@ -101,6 +100,11 @@ def filter_none(k, v):
     if v:
         return True
     return False
+
+
+def filter_dict(dict_):
+    # type: (Dict[AnyStr, Any]) -> Dict[AnyStr, Any]
+    return {k: v for k, v in dict_.items() if filter_none(k, v)}
 
 
 def optional_instance_of(cls):
@@ -548,8 +552,9 @@ def split_vcs_method_from_uri(uri):
     # type: (AnyStr) -> Tuple[Optional[STRING_TYPE], STRING_TYPE]
     """Split a vcs+uri formatted uri into (vcs, uri)"""
     vcs_start = "{0}+"
-    vcs = None  # type: Optional[STRING_TYPE]
-    vcs = first([vcs for vcs in VCS_LIST if uri.startswith(vcs_start.format(vcs))])
+    vcs = next(
+        iter([vcs for vcs in VCS_LIST if uri.startswith(vcs_start.format(vcs))]), None
+    )
     if vcs:
         vcs, uri = uri.split("+", 1)
     return vcs, uri
@@ -718,7 +723,7 @@ def get_pinned_version(ireq):
     except AttributeError:
         raise TypeError("Expected InstallRequirement, not {}".format(type(ireq).__name__))
 
-    if ireq.editable:
+    if getattr(ireq, "editable", False):
         raise ValueError("InstallRequirement is editable")
     if not specifier:
         raise ValueError("InstallRequirement has no version specification")
@@ -766,7 +771,7 @@ def as_tuple(ireq):
         raise TypeError("Expected a pinned InstallRequirement, got {}".format(ireq))
 
     name = key_from_req(ireq.req)
-    version = first(ireq.specifier._specs)._spec[1]
+    version = next(iter(ireq.specifier._specs))._spec[1]
     extras = tuple(sorted(ireq.extras))
     return name, version, extras
 
@@ -906,7 +911,7 @@ def version_from_ireq(ireq):
     :rtype: str
     """
 
-    return first(ireq.specifier._specs).version
+    return next(iter(ireq.specifier._specs)).version
 
 
 def _get_requires_python(candidate):
