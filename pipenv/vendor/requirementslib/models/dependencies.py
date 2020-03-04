@@ -11,7 +11,6 @@ import packaging.markers
 import packaging.version
 import pip_shims.shims
 import requests
-from first import first
 from packaging.utils import canonicalize_name
 from vistir.compat import JSONDecodeError, fs_str
 from vistir.contextmanagers import cd, temp_environ
@@ -20,6 +19,7 @@ from vistir.path import create_tracked_tempdir
 from ..environment import MYPY_RUNNING
 from ..utils import _ensure_dir, prepare_pip_source_args
 from .cache import CACHE_DIR, DependencyCache
+from .setup_info import SetupInfo
 from .utils import (
     clean_requires_python,
     fix_requires_python_marker,
@@ -139,9 +139,9 @@ class AbstractDependency(object):
         :rtype: set(str)
         """
 
-        if len(self.candidates) == 1 and first(self.candidates).editable:
+        if len(self.candidates) == 1 and next(iter(self.candidates)).editable:
             return self
-        elif len(other.candidates) == 1 and first(other.candidates).editable:
+        elif len(other.candidates) == 1 and next(iter(other.candidates)).editable:
             return other
         return self.version_set & other.version_set
 
@@ -158,9 +158,9 @@ class AbstractDependency(object):
 
         from .requirements import Requirement
 
-        if len(self.candidates) == 1 and first(self.candidates).editable:
+        if len(self.candidates) == 1 and next(iter(self.candidates)).editable:
             return self
-        elif len(other.candidates) == 1 and first(other.candidates).editable:
+        elif len(other.candidates) == 1 and next(iter(other.candidates)).editable:
             return other
         new_specifiers = self.specifiers & other.specifiers
         markers = set(self.markers) if self.markers else set()
@@ -475,90 +475,19 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
     if not wheel_cache:
         wheel_cache = WHEEL_CACHE
     dep.is_direct = True
-    reqset = pip_shims.shims.RequirementSet()
-    reqset.add_requirement(dep)
     requirements = None
     setup_requires = {}
-    with temp_environ(), start_resolver(
-        finder=finder, session=session, wheel_cache=wheel_cache
-    ) as resolver:
+    with temp_environ():
         os.environ["PIP_EXISTS_ACTION"] = "i"
-        dist = None
         if dep.editable and not dep.prepared and not dep.req:
-            with cd(dep.setup_py_dir):
-                from setuptools.dist import distutils
-
-                try:
-                    dist = distutils.core.run_setup(dep.setup_py)
-                except (ImportError, TypeError, AttributeError):
-                    dist = None
-                else:
-                    setup_requires[dist.get_name()] = dist.setup_requires
-                if not dist:
-                    try:
-                        dist = dep.get_dist()
-                    except (TypeError, ValueError, AttributeError):
-                        pass
-                    else:
-                        setup_requires[dist.get_name()] = dist.setup_requires
-        resolver.require_hashes = False
-        try:
-            results = resolver._resolve_one(reqset, dep)
-        except Exception:
-            # FIXME: Needs to bubble the exception somehow to the user.
-            results = []
-        finally:
-            try:
-                wheel_cache.cleanup()
-            except AttributeError:
-                pass
-        resolver_requires_python = getattr(resolver, "requires_python", None)
-        requires_python = getattr(reqset, "requires_python", resolver_requires_python)
-        if requires_python:
-            add_marker = fix_requires_python_marker(requires_python)
-            reqset.remove(dep)
-            if dep.req.marker:
-                dep.req.marker._markers.extend(["and"].extend(add_marker._markers))
-            else:
-                dep.req.marker = add_marker
-            reqset.add(dep)
-        requirements = set()
-        for r in results:
-            if requires_python:
-                if r.req.marker:
-                    r.req.marker._markers.extend(["and"].extend(add_marker._markers))
-                else:
-                    r.req.marker = add_marker
-            requirements.add(format_requirement(r))
-        for section in setup_requires:
-            python_version = section
-            not_python = not is_python(section)
-
-            # This is for cleaning up :extras: formatted markers
-            # by adding them to the results of the resolver
-            # since any such extra would have been returned as a result anyway
-            for value in setup_requires[section]:
-
-                # This is a marker.
-                if is_python(section):
-                    python_version = value[1:-1]
-                else:
-                    not_python = True
-
-                if ":" not in value and not_python:
-                    try:
-                        requirement_str = "{0}{1}".format(value, python_version).replace(
-                            ":", ";"
-                        )
-                        requirements.add(
-                            format_requirement(
-                                make_install_requirement(requirement_str).ireq
-                            )
-                        )
-                    # Anything could go wrong here -- can't be too careful.
-                    except Exception:
-                        pass
-
+            setup_info = SetupInfo.from_ireq(dep)
+            results = setup_info.get_info()
+            setup_requires.update(results["setup_requires"])
+            requirements = set(results["requires"].values())
+        else:
+            results = pip_shims.shims.resolve(dep)
+            requirements = [v for v in results.values() if v.name != dep.name]
+        requirements = set([format_requirement(r) for r in requirements])
     if not dep.editable and is_pinned_requirement(dep) and requirements is not None:
         DEPENDENCY_CACHE[dep] = list(requirements)
     return requirements
@@ -685,10 +614,10 @@ def get_grouped_dependencies(constraints):
     # then we take the loose match (which _is_ flexible) and start moving backwards in
     # versions by popping them off of a stack and checking for the conflicting package
     for _, ireqs in full_groupby(constraints, key=key_from_ireq):
-        ireqs = list(ireqs)
-        editable_ireq = first(ireqs, key=lambda ireq: ireq.editable)
+        ireqs = sorted(ireqs, key=lambda ireq: ireq.editable)
+        editable_ireq = next(iter(ireq for ireq in ireqs if ireq.editable), None)
         if editable_ireq:
-            yield editable_ireq  # ignore all the other specs: the editable one is the one that counts
+            yield editable_ireq  # only the editable match mattters, ignore all others
             continue
         ireqs = iter(ireqs)
         # deepcopy the accumulator so as to not modify the self.our_constraints invariant

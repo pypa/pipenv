@@ -155,7 +155,7 @@ index f389784..c1bcf9d 100644
          else:
              return self.repository.find_best_match(ireq, prereleases)
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index acbd680..c9a23ad 100644
+index acbd680..4bd3e22 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -2,21 +2,29 @@
@@ -400,7 +400,7 @@ index acbd680..c9a23ad 100644
  
              preparer_kwargs = {
                  "build_dir": self.build_dir,
-@@ -186,9 +311,11 @@ class PyPIRepository(BaseRepository):
+@@ -186,21 +311,24 @@ class PyPIRepository(BaseRepository):
                  "upgrade_strategy": "to-satisfy-only",
                  "force_reinstall": False,
                  "ignore_dependencies": False,
@@ -413,7 +413,21 @@ index acbd680..c9a23ad 100644
              }
              make_install_req_kwargs = {"isolated": False, "wheel_cache": wheel_cache}
  
-@@ -208,6 +335,7 @@ class PyPIRepository(BaseRepository):
+             if PIP_VERSION < (19, 3):
+                 resolver_kwargs.update(**make_install_req_kwargs)
+             else:
+-                from pip._internal.req.constructors import install_req_from_req_string
++                from pipenv.vendor.pip_shims.shims import install_req_from_req_string
+ 
+                 make_install_req = partial(
+                     install_req_from_req_string, **make_install_req_kwargs
+                 )
+                 resolver_kwargs["make_install_req"] = make_install_req
++                del resolver_kwargs["use_pep517"]
+ 
+             if PIP_VERSION >= (20,):
+                 preparer_kwargs["session"] = self.session
+@@ -208,6 +336,7 @@ class PyPIRepository(BaseRepository):
  
              resolver = None
              preparer = None
@@ -421,7 +435,7 @@ index acbd680..c9a23ad 100644
              with RequirementTracker() as req_tracker:
                  # Pip 18 uses a requirement tracker to prevent fork bombs
                  if req_tracker:
-@@ -216,7 +344,6 @@ class PyPIRepository(BaseRepository):
+@@ -216,7 +345,6 @@ class PyPIRepository(BaseRepository):
                  resolver_kwargs["preparer"] = preparer
                  reqset = RequirementSet()
                  ireq.is_direct = True
@@ -429,7 +443,7 @@ index acbd680..c9a23ad 100644
  
                  resolver = PipResolver(**resolver_kwargs)
                  require_hashes = False
-@@ -225,12 +352,16 @@ class PyPIRepository(BaseRepository):
+@@ -225,12 +353,16 @@ class PyPIRepository(BaseRepository):
                      results = resolver._resolve_one(reqset, ireq)
                  else:
                      results = resolver._resolve_one(reqset, ireq, require_hashes)
@@ -441,14 +455,15 @@ index acbd680..c9a23ad 100644
 -                reqset.cleanup_files()
 +        results = set(results) if results else set()
  
-         return set(results)
+-        return set(results)
++        return results, ireq
  
 -    def get_dependencies(self, ireq):
 +    def get_legacy_dependencies(self, ireq):
          """
          Given a pinned, URL, or editable InstallRequirement, returns a set of
          dependencies (also InstallRequirements, but not necessarily pinned).
-@@ -265,9 +396,8 @@ class PyPIRepository(BaseRepository):
+@@ -265,9 +397,8 @@ class PyPIRepository(BaseRepository):
              wheel_cache = WheelCache(CACHE_DIR, self.options.format_control)
              prev_tracker = os.environ.get("PIP_REQ_TRACKER")
              try:
@@ -460,7 +475,7 @@ index acbd680..c9a23ad 100644
              finally:
                  if "PIP_REQ_TRACKER" in os.environ:
                      if prev_tracker:
-@@ -313,12 +443,10 @@ class PyPIRepository(BaseRepository):
+@@ -313,12 +444,10 @@ class PyPIRepository(BaseRepository):
          # We need to get all of the candidates that match our current version
          # pin, these will represent all of the files that could possibly
          # satisfy this constraint.
@@ -476,7 +491,7 @@ index acbd680..c9a23ad 100644
  
          log.debug("  {}".format(ireq.name))
  
-@@ -328,30 +456,11 @@ class PyPIRepository(BaseRepository):
+@@ -328,30 +457,11 @@ class PyPIRepository(BaseRepository):
              return candidate.link
  
          return {
@@ -571,7 +586,7 @@ index fc53f18..c056665 100644
          ]
          return self.dependency_cache.reverse_dependencies(non_editable)
 diff --git a/pipenv/patched/piptools/utils.py b/pipenv/patched/piptools/utils.py
-index 8727f1e..1f4c10a 100644
+index 8727f1e..c9f53f7 100644
 --- a/pipenv/patched/piptools/utils.py
 +++ b/pipenv/patched/piptools/utils.py
 @@ -1,6 +1,7 @@
@@ -648,8 +663,8 @@ index 8727f1e..1f4c10a 100644
 +        if getattr(c, "requires_python", None):
 +            # Old specifications had people setting this to single digits
 +            # which is effectively the same as '>=digit,<digit+1'
-+            if c.requires_python.isdigit():
-+                c.requires_python = '>={0},<{1}'.format(c.requires_python, int(c.requires_python) + 1)
++            if len(c.requires_python) == 1 and c.requires_python in ("2", "3"):
++                c.requires_python = '>={0},<{1!s}'.format(c.requires_python, int(c.requires_python) + 1)
 +            try:
 +                specifierset = SpecifierSet(c.requires_python)
 +            except InvalidSpecifier:

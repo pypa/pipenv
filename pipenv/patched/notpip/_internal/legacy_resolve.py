@@ -443,17 +443,6 @@ class Resolver(object):
                 for subreq in dist.requires(available_requested):
                     add_req(subreq, extras_requested=available_requested)
 
-                # Hack for deep-resolving extras.
-                for available in available_requested:
-                    if hasattr(dist, '_DistInfoDistribution__dep_map'):
-                        for req in dist._DistInfoDistribution__dep_map[available]:
-                            req = self._make_install_req(
-                                req,
-                                req_to_install
-                            )
-
-                            more_reqs.append(req)
-
             if not req_to_install.editable and not req_to_install.satisfied_by:
                 # XXX: --no-install leads this to report 'Successfully
                 # downloaded' for only non-editable reqs, even though we took

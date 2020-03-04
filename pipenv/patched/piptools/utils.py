@@ -79,8 +79,8 @@ def clean_requires_python(candidates):
         if getattr(c, "requires_python", None):
             # Old specifications had people setting this to single digits
             # which is effectively the same as '>=digit,<digit+1'
-            if c.requires_python.isdigit():
-                c.requires_python = '>={0},<{1}'.format(c.requires_python, int(c.requires_python) + 1)
+            if len(c.requires_python) == 1 and c.requires_python in ("2", "3"):
+                c.requires_python = '>={0},<{1!s}'.format(c.requires_python, int(c.requires_python) + 1)
             try:
                 specifierset = SpecifierSet(c.requires_python)
             except InvalidSpecifier:

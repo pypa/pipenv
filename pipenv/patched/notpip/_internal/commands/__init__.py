@@ -21,7 +21,7 @@ CommandInfo = namedtuple('CommandInfo', 'module_path, class_name, summary')
 
 # The ordering matters for help display.
 #    Also, even though the module path starts with the same
-# "pip._internal.commands" prefix in each case, we include the full path
+# "pipenv.patched.notpip._internal.commands" prefix in each case, we include the full path
 # because it makes testing easier (specifically when modifying commands_dict
 # in test setup / teardown by adding info for a FakeCommand class defined
 # in a test-related module).
@@ -29,59 +29,59 @@ CommandInfo = namedtuple('CommandInfo', 'module_path, class_name, summary')
 # so that the ordering won't be lost when using Python 2.7.
 commands_dict = OrderedDict([
     ('install', CommandInfo(
-        'pip._internal.commands.install', 'InstallCommand',
+        'pipenv.patched.notpip._internal.commands.install', 'InstallCommand',
         'Install packages.',
     )),
     ('download', CommandInfo(
-        'pip._internal.commands.download', 'DownloadCommand',
+        'pipenv.patched.notpip._internal.commands.download', 'DownloadCommand',
         'Download packages.',
     )),
     ('uninstall', CommandInfo(
-        'pip._internal.commands.uninstall', 'UninstallCommand',
+        'pipenv.patched.notpip._internal.commands.uninstall', 'UninstallCommand',
         'Uninstall packages.',
     )),
     ('freeze', CommandInfo(
-        'pip._internal.commands.freeze', 'FreezeCommand',
+        'pipenv.patched.notpip._internal.commands.freeze', 'FreezeCommand',
         'Output installed packages in requirements format.',
     )),
     ('list', CommandInfo(
-        'pip._internal.commands.list', 'ListCommand',
+        'pipenv.patched.notpip._internal.commands.list', 'ListCommand',
         'List installed packages.',
     )),
     ('show', CommandInfo(
-        'pip._internal.commands.show', 'ShowCommand',
+        'pipenv.patched.notpip._internal.commands.show', 'ShowCommand',
         'Show information about installed packages.',
     )),
     ('check', CommandInfo(
-        'pip._internal.commands.check', 'CheckCommand',
+        'pipenv.patched.notpip._internal.commands.check', 'CheckCommand',
         'Verify installed packages have compatible dependencies.',
     )),
     ('config', CommandInfo(
-        'pip._internal.commands.configuration', 'ConfigurationCommand',
+        'pipenv.patched.notpip._internal.commands.configuration', 'ConfigurationCommand',
         'Manage local and global configuration.',
     )),
     ('search', CommandInfo(
-        'pip._internal.commands.search', 'SearchCommand',
+        'pipenv.patched.notpip._internal.commands.search', 'SearchCommand',
         'Search PyPI for packages.',
     )),
     ('wheel', CommandInfo(
-        'pip._internal.commands.wheel', 'WheelCommand',
+        'pipenv.patched.notpip._internal.commands.wheel', 'WheelCommand',
         'Build wheels from your requirements.',
     )),
     ('hash', CommandInfo(
-        'pip._internal.commands.hash', 'HashCommand',
+        'pipenv.patched.notpip._internal.commands.hash', 'HashCommand',
         'Compute hashes of package archives.',
     )),
     ('completion', CommandInfo(
-        'pip._internal.commands.completion', 'CompletionCommand',
+        'pipenv.patched.notpip._internal.commands.completion', 'CompletionCommand',
         'A helper command used for command completion.',
     )),
     ('debug', CommandInfo(
-        'pip._internal.commands.debug', 'DebugCommand',
+        'pipenv.patched.notpip._internal.commands.debug', 'DebugCommand',
         'Show information useful for debugging.',
     )),
     ('help', CommandInfo(
-        'pip._internal.commands.help', 'HelpCommand',
+        'pipenv.patched.notpip._internal.commands.help', 'HelpCommand',
         'Show help for commands.',
     )),
 ])  # type: OrderedDict[str, CommandInfo]
