@@ -15,7 +15,7 @@ from pipenv.utils import temp_environ
 @pytest.mark.lock
 @pytest.mark.requirements
 def test_lock_handle_eggs(PipenvInstance):
-    """Ensure locking works with packages provoding egg formats.
+    """Ensure locking works with packages providing egg formats.
     """
     with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
