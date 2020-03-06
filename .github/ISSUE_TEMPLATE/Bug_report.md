@@ -5,7 +5,7 @@ about: Create a report to help us improve
 
 Be sure to check the existing issues (both open and closed!), and make sure you are running the latest version of Pipenv.
 
-Check the [diagnose documentation](https://pipenv.kennethreitz.org/en/latest/diagnose/) for common issues before posting! We may close your issue if it is very similar to one of them. Please be considerate, or be on your way.
+Check the [diagnose documentation](https://pipenv.pypa.io/en/latest/diagnose/) for common issues before posting! We may close your issue if it is very similar to one of them. Please be considerate, or be on your way.
 
 Make sure to mention your debugging experience if the documented solution failed.
 

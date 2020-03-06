@@ -20,7 +20,7 @@ This document covers some of Pipenv's more glorious and advanced features.
 If you'd like a specific package to be installed with a specific package index, you can do the following::
 
     [[source]]
-    url = "https://pypi.python.org/simple"
+    url = "https://pypi.org/simple"
     verify_ssl = true
     name = "pypi"
 
@@ -525,7 +525,7 @@ probably a good idea in any case.
 
 A 3rd party plugin, `tox-pipenv`_ is also available to use Pipenv natively with tox.
 
-.. _Requests: https://github.com/kennethreitz/requests
+.. _Requests: https://github.com/psf/requests
 .. _tox: https://tox.readthedocs.io/en/latest/
 .. _tox-pipenv: https://tox-pipenv.readthedocs.io/en/latest/
 .. _Travis-CI: https://travis-ci.org/
