@@ -5,7 +5,6 @@ Pipenv: Python Development Workflow for Humans
 [![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv)
 [![Azure Pipelines Build Status](https://dev.azure.com/pypa/pipenv/_apis/build/status/Pipenv%20CI?branchName=master)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=16&branchName=master)
 [![image](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://python.org/pypi/pipenv)
-[![image](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/kennethreitz)
 
 ------------------------------------------------------------------------
 
@@ -56,7 +55,7 @@ Or, if you\'re using FreeBSD:
 
     # pkg install py36-pipenv
 
-Otherwise, refer to the [documentation](https://pipenv.kennethreitz.org/en/latest/#install-pipenv-today) for instructions.
+Otherwise, refer to the [documentation](https://pipenv.pypa.io/en/latest/#install-pipenv-today) for instructions.
 
 ✨🍰✨
 
@@ -297,4 +296,4 @@ Use the shell:
 ☤ Documentation
 ---------------
 
-Documentation resides over at [pipenv.org](https://pipenv.kennethreitz.org/en/latest/).
+Documentation resides over at [pipenv.pypa.io](https://pipenv.pypa.io/en/latest/).
