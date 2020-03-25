@@ -216,18 +216,15 @@ def _encode_invalid_chars(component, allowed_chars, encoding="utf-8"):
 
     component = six.ensure_text(component)
 
+    # Normalize existing percent-encoded bytes.
     # Try to see if the component we're encoding is already percent-encoded
     # so we can skip all '%' characters but still encode all others.
-    percent_encodings = PERCENT_RE.findall(component)
-
-    # Normalize existing percent-encoded bytes.
-    for enc in percent_encodings:
-        if not enc.isupper():
-            component = component.replace(enc, enc.upper())
+    component, percent_encodings = PERCENT_RE.subn(
+        lambda match: match.group(0).upper(), component
+    )
 
     uri_bytes = component.encode("utf-8", "surrogatepass")
-    is_percent_encoded = len(percent_encodings) == uri_bytes.count(b"%")
-
+    is_percent_encoded = percent_encodings == uri_bytes.count(b"%")
     encoded_component = bytearray()
 
     for i in range(0, len(uri_bytes)):
@@ -237,7 +234,7 @@ def _encode_invalid_chars(component, allowed_chars, encoding="utf-8"):
         if (is_percent_encoded and byte == b"%") or (
             byte_ord < 128 and byte.decode() in allowed_chars
         ):
-            encoded_component.extend(byte)
+            encoded_component += byte
             continue
         encoded_component.extend(b"%" + (hex(byte_ord)[2:].encode().zfill(2).upper()))
 
@@ -322,9 +319,6 @@ def _idna_encode(name):
 
 def _encode_target(target):
     """Percent-encodes a request target so that there are no invalid characters"""
-    if not target.startswith("/"):
-        return target
-
     path, query = TARGET_RE.match(target).groups()
     target = _encode_invalid_chars(path, PATH_CHARS)
     query = _encode_invalid_chars(query, QUERY_CHARS)

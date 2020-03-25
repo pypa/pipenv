@@ -9,7 +9,7 @@ import email
 if sys.version_info > (3,):  # pragma: nocover
     import builtins
     from configparser import ConfigParser
-    from contextlib import suppress
+    import contextlib
     FileNotFoundError = builtins.FileNotFoundError
     IsADirectoryError = builtins.IsADirectoryError
     NotADirectoryError = builtins.NotADirectoryError
@@ -18,11 +18,13 @@ if sys.version_info > (3,):  # pragma: nocover
 else:  # pragma: nocover
     from backports.configparser import ConfigParser
     from itertools import imap as map  # type: ignore
-    from contextlib2 import suppress  # noqa
+    import contextlib2 as contextlib
     FileNotFoundError = IOError, OSError
     IsADirectoryError = IOError, OSError
     NotADirectoryError = IOError, OSError
     PermissionError = IOError, OSError
+
+suppress = contextlib.suppress
 
 if sys.version_info > (3, 5):  # pragma: nocover
     import pathlib
@@ -73,7 +75,7 @@ def disable_stdlib_finder():
     """
     def matches(finder):
         return (
-            finder.__module__ == '_frozen_importlib_external'
+            getattr(finder, '__module__', None) == '_frozen_importlib_external'
             and hasattr(finder, 'find_distributions')
             )
     for finder in filter(matches, sys.meta_path):  # pragma: nocover
@@ -110,9 +112,6 @@ email_message_from_string = (
     if sys.version_info < (3,) else
     email.message_from_string
     )
-
-# https://bitbucket.org/pypy/pypy/issues/3021/ioopen-directory-leaks-a-file-descriptor
-PYPY_OPEN_BUG = getattr(sys, 'pypy_version_info', (9, 9, 9))[:3] <= (7, 1, 1)
 
 
 class PyPy_repr:

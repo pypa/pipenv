@@ -36,6 +36,7 @@ def item(value, _parent=None):
     elif isinstance(value, float):
         return Float(value, Trivia(), str(value))
     elif isinstance(value, dict):
+        val = Table(Container(), Trivia(), False)
         if isinstance(value, InlineTableDict):
             val = InlineTable(Container(), Trivia())
         else:

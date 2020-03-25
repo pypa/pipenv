@@ -5,17 +5,8 @@ import sys
 import shutil
 import tempfile
 import textwrap
-import contextlib
 
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
-
-try:
-    import pathlib
-except ImportError:
-    import pathlib2 as pathlib
+from .._compat import pathlib, contextlib
 
 
 __metaclass__ = type
@@ -47,14 +38,28 @@ def tempdir_as_cwd():
             yield tmp
 
 
-class SiteDir:
+@contextlib.contextmanager
+def install_finder(finder):
+    sys.meta_path.append(finder)
+    try:
+        yield
+    finally:
+        sys.meta_path.remove(finder)
+
+
+class Fixtures:
     def setUp(self):
-        self.fixtures = ExitStack()
+        self.fixtures = contextlib.ExitStack()
         self.addCleanup(self.fixtures.close)
+
+
+class SiteDir(Fixtures):
+    def setUp(self):
+        super(SiteDir, self).setUp()
         self.site_dir = self.fixtures.enter_context(tempdir())
 
 
-class OnSysPath:
+class OnSysPath(Fixtures):
     @staticmethod
     @contextlib.contextmanager
     def add_sys_path(dir):
@@ -198,3 +203,8 @@ def build_files(file_defs, prefix=pathlib.Path()):
 def DALS(str):
     "Dedent and left-strip"
     return textwrap.dedent(str).lstrip()
+
+
+class NullFinder:
+    def find_module(self, name):
+        pass
