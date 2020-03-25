@@ -18,10 +18,10 @@ index 2af4166e..598b9ad8 100644
  module.shims = shims
  module.__dict__.update(
      {
-diff --git a/pipenv/vendor/pip_shims/compat.py b/../pip-shims/src/pip_shims/compat.py
+diff --git a/pipenv/vendor/pip_shims/compat.py b/pipenv/vendor/pip_shims/compat.py
 index ed99d970..63061a6a 100644
 --- a/pipenv/vendor/pip_shims/compat.py
-+++ b/../pip-shims/src/pip_shims/compat.py
++++ b/pipenv/vendor/pip_shims/compat.py
 @@ -25,14 +25,14 @@ from .utils import (
  )
  

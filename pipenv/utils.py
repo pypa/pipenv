@@ -89,7 +89,11 @@ def cleanup_toml(tml):
 def convert_toml_outline_tables(parsed):
     """Converts all outline tables to inline tables."""
     def convert_tomlkit_table(section):
-        for key, value in section._body:
+        if isinstance(section, tomlkit.items.Table):
+            body = section.value._body
+        else:
+            body = section._body
+        for key, value in body:
             if not key:
                 continue
             if hasattr(value, "keys") and not isinstance(value, tomlkit.items.InlineTable):
