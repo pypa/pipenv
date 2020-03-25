@@ -5,7 +5,6 @@ import collections
 import copy
 import hashlib
 import os
-import sys
 from contextlib import contextmanager
 from functools import partial
 from shutil import rmtree

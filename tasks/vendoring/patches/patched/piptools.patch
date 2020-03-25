@@ -247,7 +247,7 @@ index acbd680..4bd3e22 100644
 +
 +    def _get_file_hash(self, location):
 +        h = hashlib.new(FAVORITE_HASH)
-+        with open_local_or_remote_file(location, self.session) as fp:
++        with open_local_or_remote_file(location, self.session) as (fp, size):
 +            for chunk in iter(lambda: fp.read(8096), b""):
 +                h.update(chunk)
 +        return ":".join([FAVORITE_HASH, h.hexdigest()])

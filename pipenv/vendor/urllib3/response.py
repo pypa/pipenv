@@ -792,7 +792,7 @@ class HTTPResponse(io.IOBase):
             return self._request_url
 
     def __iter__(self):
-        buffer = [b""]
+        buffer = []
         for chunk in self.stream(decode_content=True):
             if b"\n" in chunk:
                 chunk = chunk.split(b"\n")
