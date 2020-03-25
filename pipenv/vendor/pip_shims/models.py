@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+Helper module for shimming functionality across pip versions.
+"""
 from __future__ import absolute_import, print_function
 
 import collections
@@ -12,7 +15,7 @@ import weakref
 
 import six
 
-from . import backports
+from . import compat
 from .environment import BASE_IMPORT_PATH, MYPY_RUNNING, get_pip_version
 from .utils import (
     add_mixin_to_class,
@@ -801,7 +804,7 @@ ConfigOptionParser.create_path("baseparser.ConfigOptionParser", "7.0.0", "18.0")
 
 InstallCommand = ShimmedPathCollection("InstallCommand", ImportTypes.CLASS)
 InstallCommand.pre_shim(
-    functools.partial(backports.partial_command, cmd_mapping=commands_dict)
+    functools.partial(compat.partial_command, cmd_mapping=commands_dict)
 )
 InstallCommand.create_path("commands.install.InstallCommand", "7.0.0", "9999")
 
@@ -911,12 +914,19 @@ is_file_url = ShimmedPathCollection("is_file_url", ImportTypes.FUNCTION)
 is_file_url.set_default(fallback_is_file_url)
 is_file_url.create_path("download.is_file_url", "7.0.0", "19.2.3")
 
+Downloader = ShimmedPathCollection("Downloader", ImportTypes.CLASS)
+Downloader.create_path("network.download.Downloader", "19.3.9", "9999")
+
 unpack_url = ShimmedPathCollection("unpack_url", ImportTypes.FUNCTION)
 unpack_url.create_path("download.unpack_url", "7.0.0", "19.3.9")
 unpack_url.create_path("operations.prepare.unpack_url", "20.0", "9999")
 
 shim_unpack = ShimmedPathCollection("shim_unpack", ImportTypes.FUNCTION)
-shim_unpack.set_default(functools.partial(backports.shim_unpack, unpack_fn=unpack_url))
+shim_unpack.set_default(
+    functools.partial(
+        compat.shim_unpack, unpack_fn=unpack_url, downloader_provider=Downloader
+    )
+)
 
 is_installable_dir = ShimmedPathCollection("is_installable_dir", ImportTypes.FUNCTION)
 is_installable_dir.create_path("utils.misc.is_installable_dir", "10.0.0", "9999")
@@ -930,7 +940,10 @@ Link.create_path("index.Link", "7.0.0", "18.1")
 
 make_abstract_dist = ShimmedPathCollection("make_abstract_dist", ImportTypes.FUNCTION)
 make_abstract_dist.create_path(
-    "distributions.make_distribution_for_install_requirement", "19.1.2", "9999"
+    "distributions.make_distribution_for_install_requirement", "20.0.0", "9999"
+)
+make_abstract_dist.create_path(
+    "distributions.make_distribution_for_install_requirement", "19.1.2", "19.3.9"
 )
 make_abstract_dist.create_path(
     "operations.prepare.make_abstract_dist", "10.0.0", "19.1.1"
@@ -938,10 +951,13 @@ make_abstract_dist.create_path(
 make_abstract_dist.create_path("req.req_set.make_abstract_dist", "7.0.0", "9.0.3")
 
 make_distribution_for_install_requirement = ShimmedPathCollection(
-    "make_distribution_for_install_requirement", ImportTypes.CLASS
+    "make_distribution_for_install_requirement", ImportTypes.FUNCTION
 )
 make_distribution_for_install_requirement.create_path(
-    "distributions.make_distribution_for_install_requirement", "19.1.2", "9999"
+    "distributions.make_distribution_for_install_requirement", "20.0.0", "9999"
+)
+make_distribution_for_install_requirement.create_path(
+    "distributions.make_distribution_for_install_requirement", "19.1.2", "19.9.9"
 )
 
 make_option_group = ShimmedPathCollection("make_option_group", ImportTypes.FUNCTION)
@@ -953,38 +969,38 @@ PackageFinder.create_path("index.PackageFinder", "7.0.0", "19.9")
 PackageFinder.create_path("index.package_finder.PackageFinder", "20.0", "9999")
 
 CandidateEvaluator = ShimmedPathCollection("CandidateEvaluator", ImportTypes.CLASS)
-CandidateEvaluator.set_default(backports.CandidateEvaluator)
+CandidateEvaluator.set_default(compat.CandidateEvaluator)
 CandidateEvaluator.create_path("index.CandidateEvaluator", "19.1.0", "19.3.9")
 CandidateEvaluator.create_path("index.package_finder.CandidateEvaluator", "20.0", "9999")
 
 CandidatePreferences = ShimmedPathCollection("CandidatePreferences", ImportTypes.CLASS)
-CandidatePreferences.set_default(backports.CandidatePreferences)
+CandidatePreferences.set_default(compat.CandidatePreferences)
 CandidatePreferences.create_path("index.CandidatePreferences", "19.2.0", "19.9")
 CandidatePreferences.create_path(
     "index.package_finder.CandidatePreferences", "20.0", "9999"
 )
 
 LinkCollector = ShimmedPathCollection("LinkCollector", ImportTypes.CLASS)
-LinkCollector.set_default(backports.LinkCollector)
+LinkCollector.set_default(compat.LinkCollector)
 LinkCollector.create_path("collector.LinkCollector", "19.3.0", "19.9")
 LinkCollector.create_path("index.collector.LinkCollector", "20.0", "9999")
 
 LinkEvaluator = ShimmedPathCollection("LinkEvaluator", ImportTypes.CLASS)
-LinkEvaluator.set_default(backports.LinkEvaluator)
+LinkEvaluator.set_default(compat.LinkEvaluator)
 LinkEvaluator.create_path("index.LinkEvaluator", "19.2.0", "19.9")
 LinkEvaluator.create_path("index.package_finder.LinkEvaluator", "20.0", "9999")
 
 TargetPython = ShimmedPathCollection("TargetPython", ImportTypes.CLASS)
-backports.TargetPython.fallback_get_tags = get_tags
-TargetPython.set_default(backports.TargetPython)
+compat.TargetPython.fallback_get_tags = get_tags
+TargetPython.set_default(compat.TargetPython)
 TargetPython.create_path("models.target_python.TargetPython", "19.2.0", "9999")
 
 SearchScope = ShimmedPathCollection("SearchScope", ImportTypes.CLASS)
-SearchScope.set_default(backports.SearchScope)
+SearchScope.set_default(compat.SearchScope)
 SearchScope.create_path("models.search_scope.SearchScope", "19.2.0", "9999")
 
 SelectionPreferences = ShimmedPathCollection("SelectionPreferences", ImportTypes.CLASS)
-SelectionPreferences.set_default(backports.SelectionPreferences)
+SelectionPreferences.set_default(compat.SelectionPreferences)
 SelectionPreferences.create_path(
     "models.selection_prefs.SelectionPreferences", "19.2.0", "9999"
 )
@@ -1013,11 +1029,18 @@ RequirementTracker.create_path("req.req_tracker.RequirementTracker", "7.0.0", "9
 TempDirectory = ShimmedPathCollection("TempDirectory", ImportTypes.CLASS)
 TempDirectory.create_path("utils.temp_dir.TempDirectory", "7.0.0", "9999")
 
+global_tempdir_manager = ShimmedPathCollection(
+    "global_tempdir_manager", ImportTypes.CONTEXTMANAGER
+)
+global_tempdir_manager.create_path(
+    "utils.temp_dir.global_tempdir_manager", "7.0.0", "9999"
+)
+
 get_requirement_tracker = ShimmedPathCollection(
     "get_requirement_tracker", ImportTypes.CONTEXTMANAGER
 )
 get_requirement_tracker.set_default(
-    functools.partial(backports.get_requirement_tracker, RequirementTracker.shim())
+    functools.partial(compat.get_requirement_tracker, RequirementTracker.shim())
 )
 get_requirement_tracker.create_path(
     "req.req_tracker.get_requirement_tracker", "7.0.0", "9999"
@@ -1025,7 +1048,8 @@ get_requirement_tracker.create_path(
 
 Resolver = ShimmedPathCollection("Resolver", ImportTypes.CLASS)
 Resolver.create_path("resolve.Resolver", "7.0.0", "19.1.1")
-Resolver.create_path("legacy_resolve.Resolver", "19.1.2", "9999")
+Resolver.create_path("legacy_resolve.Resolver", "19.1.2", "20.0.89999")
+Resolver.create_path("resolution.legacy.resolver.Resolver", "20.0.99999", "99999")
 
 SafeFileCache = ShimmedPathCollection("SafeFileCache", ImportTypes.CLASS)
 SafeFileCache.create_path("network.cache.SafeFileCache", "19.3.0", "9999")
@@ -1046,7 +1070,8 @@ VcsSupport.create_path("vcs.VcsSupport", "7.0.0", "19.1.1")
 VcsSupport.create_path("vcs.versioncontrol.VcsSupport", "19.2", "9999")
 
 Wheel = ShimmedPathCollection("Wheel", ImportTypes.CLASS)
-Wheel.create_path("wheel.Wheel", "7.0.0", "9999")
+Wheel.create_path("wheel.Wheel", "7.0.0", "19.3.9")
+Wheel.set_default(compat.Wheel)
 
 WheelCache = ShimmedPathCollection("WheelCache", ImportTypes.CLASS)
 WheelCache.create_path("cache.WheelCache", "10.0.0", "9999")
@@ -1054,7 +1079,15 @@ WheelCache.create_path("wheel.WheelCache", "7", "9.0.3")
 
 WheelBuilder = ShimmedPathCollection("WheelBuilder", ImportTypes.CLASS)
 WheelBuilder.create_path("wheel.WheelBuilder", "7.0.0", "19.9")
-WheelBuilder.create_path("wheel_builder.WheelBuilder", "20.0", "9999")
+
+build = ShimmedPathCollection("build", ImportTypes.FUNCTION)
+build.create_path("wheel_builder.build", "19.9", "9999")
+
+build_one = ShimmedPathCollection("build_one", ImportTypes.FUNCTION)
+build_one.create_path("wheel_builder._build_one", "19.9", "9999")
+
+build_one_inside_env = ShimmedPathCollection("build_one_inside_env", ImportTypes.FUNCTION)
+build_one_inside_env.create_path("wheel_builder._build_one_inside_env", "19.9", "9999")
 
 AbstractDistribution = ShimmedPathCollection("AbstractDistribution", ImportTypes.CLASS)
 AbstractDistribution.create_path(
@@ -1075,10 +1108,13 @@ SourceDistribution.create_path(
 SourceDistribution.create_path(
     "distributions.source.legacy.SourceDistribution", "19.3.0", "19.9"
 )
-SourceDistribution.create_path("distributions.source.SourceDistribution", "20.0", "9999")
+SourceDistribution.create_path("distributions.sdist.SourceDistribution", "20.0", "9999")
 
 WheelDistribution = ShimmedPathCollection("WheelDistribution", ImportTypes.CLASS)
 WheelDistribution.create_path("distributions.wheel.WheelDistribution", "19.1.2", "9999")
+
+Downloader = ShimmedPathCollection("Downloader", ImportTypes.CLASS)
+Downloader.create_path("network.download.Downloader", "20.0.0", "9999")
 
 PyPI = ShimmedPathCollection("PyPI", ImportTypes.ATTRIBUTE)
 PyPI.create_path("models.index.PyPI", "7.0.0", "9999")
@@ -1095,7 +1131,7 @@ DEV_PKGS.set_default({"setuptools", "pip", "distribute", "wheel"})
 get_package_finder = ShimmedPathCollection("get_package_finder", ImportTypes.FUNCTION)
 get_package_finder.set_default(
     functools.partial(
-        backports.get_package_finder,
+        compat.get_package_finder,
         install_cmd_provider=InstallCommand,
         target_python_builder=TargetPython.shim(),
     )
@@ -1105,10 +1141,12 @@ get_package_finder.set_default(
 make_preparer = ShimmedPathCollection("make_preparer", ImportTypes.FUNCTION)
 make_preparer.set_default(
     functools.partial(
-        backports.make_preparer,
+        compat.make_preparer,
         install_cmd_provider=InstallCommand,
         preparer_fn=RequirementPreparer,
+        downloader_provider=Downloader,
         req_tracker_fn=get_requirement_tracker,
+        finder_provider=get_package_finder,
     )
 )
 
@@ -1116,7 +1154,7 @@ make_preparer.set_default(
 get_resolver = ShimmedPathCollection("get_resolver", ImportTypes.FUNCTION)
 get_resolver.set_default(
     functools.partial(
-        backports.get_resolver,
+        compat.get_resolver,
         install_cmd_provider=InstallCommand,
         resolver_fn=Resolver,
         install_req_provider=install_req_from_req_string,
@@ -1129,7 +1167,7 @@ get_resolver.set_default(
 get_requirement_set = ShimmedPathCollection("get_requirement_set", ImportTypes.FUNCTION)
 get_requirement_set.set_default(
     functools.partial(
-        backports.get_requirement_set,
+        compat.get_requirement_set,
         install_cmd_provider=InstallCommand,
         req_set_provider=RequirementSet,
     )
@@ -1139,7 +1177,7 @@ get_requirement_set.set_default(
 resolve = ShimmedPathCollection("resolve", ImportTypes.FUNCTION)
 resolve.set_default(
     functools.partial(
-        backports.resolve,
+        compat.resolve,
         install_cmd_provider=InstallCommand,
         reqset_provider=get_requirement_set,
         finder_provider=get_package_finder,
@@ -1148,5 +1186,22 @@ resolve.set_default(
         format_control_provider=FormatControl,
         make_preparer_provider=make_preparer,
         req_tracker_provider=get_requirement_tracker,
+        tempdir_manager_provider=global_tempdir_manager,
+    )
+)
+
+
+build_wheel = ShimmedPathCollection("build_wheel", ImportTypes.FUNCTION)
+build_wheel.set_default(
+    functools.partial(
+        compat.build_wheel,
+        install_command_provider=InstallCommand,
+        wheel_cache_provider=WheelCache,
+        wheel_builder_provider=WheelBuilder,
+        build_one_provider=build_one,
+        build_one_inside_env_provider=build_one_inside_env,
+        build_many_provider=build,
+        preparer_provider=make_preparer,
+        format_control_provider=FormatControl,
     )
 )

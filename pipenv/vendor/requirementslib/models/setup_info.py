@@ -19,7 +19,6 @@ import packaging.utils
 import packaging.version
 import pep517.envbuild
 import pep517.wrappers
-import pkg_resources.extern.packaging.requirements as pkg_resources_requirements
 import six
 from appdirs import user_cache_dir
 from distlib.wheel import Wheel
@@ -42,6 +41,11 @@ from .utils import (
     split_vcs_method_from_uri,
     strip_extras_markers_from_requirement,
 )
+
+try:
+    import pkg_resources.extern.packaging.requirements as pkg_resources_requirements
+except ImportError:
+    pkg_resources_requirements = None
 
 try:
     from setuptools.dist import distutils, Distribution
@@ -76,6 +80,7 @@ if MYPY_RUNNING:
         AnyStr,
         Sequence,
     )
+    import requests
     from pip_shims.shims import InstallRequirement, PackageFinder
     from pkg_resources import (
         PathMetadata,
@@ -200,7 +205,9 @@ def make_base_requirements(reqs):
     for req in reqs:
         if isinstance(req, BaseRequirement):
             requirements.add(req)
-        elif isinstance(req, pkg_resources_requirements.Requirement):
+        elif pkg_resources_requirements is not None and isinstance(
+            req, pkg_resources_requirements.Requirement
+        ):
             requirements.add(BaseRequirement.from_req(req))
         elif req and isinstance(req, six.string_types) and not req.startswith("#"):
             requirements.add(BaseRequirement.from_string(req))
@@ -287,8 +294,11 @@ def get_extras_from_setupcfg(parser):
     return extras
 
 
-def parse_setup_cfg(setup_cfg_contents, base_dir):
-    # type: (S, S) -> Dict[S, Union[S, None, Set[BaseRequirement], List[S], Dict[STRING_TYPE, Tuple[BaseRequirement]]]]
+def parse_setup_cfg(
+    setup_cfg_contents,  # type: S
+    base_dir,  # type: S
+):
+    # type: (...) -> Dict[S, Union[S, None, Set[BaseRequirement], List[S], Dict[STRING_TYPE, Tuple[BaseRequirement]]]]
     default_opts = {
         "metadata": {"name": "", "version": ""},
         "options": {
@@ -639,21 +649,42 @@ def get_metadata_from_dist(dist):
     }
 
 
-class Analyzer(ast.NodeVisitor):
-    OP_MAP = {
-        ast.Add: operator.add,
-        ast.Sub: operator.sub,
-        ast.Mult: operator.mul,
-        ast.Div: operator.floordiv,
-        ast.Mod: operator.mod,
-        ast.Pow: operator.pow,
-        ast.LShift: operator.lshift,
-        ast.RShift: operator.rshift,
-        ast.BitAnd: operator.and_,
-        ast.BitOr: operator.or_,
-        ast.BitXor: operator.xor
-    }
+AST_BINOP_MAP = dict(
+    (
+        (ast.Add, operator.add),
+        (ast.Sub, operator.sub),
+        (ast.Mult, operator.mul),
+        (ast.Div, operator.floordiv),
+        (ast.Mod, operator.mod),
+        (ast.Pow, operator.pow),
+        (ast.LShift, operator.lshift),
+        (ast.RShift, operator.rshift),
+        (ast.BitAnd, operator.and_),
+        (ast.BitOr, operator.or_),
+        (ast.BitXor, operator.xor),
+    )
+)
 
+
+AST_COMPARATORS = dict(
+    (
+        (ast.Lt, operator.lt),
+        (ast.LtE, operator.le),
+        (ast.Eq, operator.eq),
+        (ast.Gt, operator.gt),
+        (ast.GtE, operator.ge),
+        (ast.NotEq, operator.ne),
+        (ast.Is, operator.is_),
+        (ast.IsNot, operator.is_not),
+        (ast.And, operator.and_),
+        (ast.Or, operator.or_),
+        (ast.Not, operator.not_),
+        (ast.In, operator.contains),
+    )
+)
+
+
+class Analyzer(ast.NodeVisitor):
     def __init__(self):
         self.name_types = []
         self.function_map = {}  # type: Dict[Any, Any]
@@ -677,12 +708,7 @@ class Analyzer(ast.NodeVisitor):
         super(Analyzer, self).generic_visit(node)
 
     def visit_BinOp(self, node):
-        left = ast_unparse(node.left, initial_mapping=True)
-        right = ast_unparse(node.right, initial_mapping=True)
-        op = ast_unparse(node.op, initial_mapping=True)
-        node.left = left
-        node.right = right
-        node.op = op
+        node = ast_unparse(node, initial_mapping=True)
         self.binOps.append(node)
 
     def unmap_binops(self):
@@ -705,6 +731,11 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
     unparse = partial(
         ast_unparse, initial_mapping=initial_mapping, analyzer=analyzer, recurse=recurse
     )
+    if getattr(ast, "Constant", None):
+        constant = (ast.Constant, ast.Ellipsis)
+    else:
+        constant = ast.Ellipsis
+    unparsed = item
     if isinstance(item, ast.Dict):
         unparsed = dict(zip(unparse(item.keys), unparse(item.values)))
     elif isinstance(item, ast.List):
@@ -715,37 +746,27 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
         unparsed = item.s
     elif isinstance(item, ast.Subscript):
         unparsed = unparse(item.value)
+    elif any(isinstance(item, k) for k in AST_BINOP_MAP.keys()):
+        unparsed = AST_BINOP_MAP[type(item)]
+    elif isinstance(item, ast.Num):
+        unparsed = item.n
     elif isinstance(item, ast.BinOp):
         if analyzer and item in analyzer.binOps_map:
             unparsed = analyzer.binOps_map[item]
         else:
             right_item = unparse(item.right)
             left_item = unparse(item.left)
-            if type(item.op) in Analyzer.OP_MAP:
-                item.op = Analyzer.OP_MAP[type(item.op)]
+            op = getattr(item, "op", None)
+            op_func = unparse(op) if op is not None else op
             if not initial_mapping:
-                if not all(
-                    isinstance(side, (six.string_types, int, float, list, tuple))
-                    for side in (left_item, right_item)
-                ):
-                    if type(item.op) in Analyzer.OP_MAP:
-                        item = Analyzer.OP_MAP[type(item.op)](left_item, right_item)
-                    else:
-                        item.left = left_item
-                        item.right = right_item
-                        item.op = unparse(item.op)
-                        try:
-                            unparsed = item.op(left_item, right_item)
-                        except Exception:
-                            unparsed = item
-                else:
-                    if type(item.op) in Analyzer.OP_MAP:
-                        item.op = Analyzer.OP_MAP[type(item.op)]
-                    try:
-                        unparsed = item.op(left_item, right_item)
-                    except Exception:
-                        unparsed = item
+                try:
+                    unparsed = op_func(left_item, right_item)
+                except Exception:
+                    unparsed = (left_item, op_func, right_item)
             else:
+                item.left = left_item
+                item.right = right_item
+                item.op = op_func
                 unparsed = item
     elif isinstance(item, ast.Name):
         if not initial_mapping:
@@ -763,6 +784,48 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
             unparsed = item
     elif six.PY3 and isinstance(item, ast.NameConstant):
         unparsed = item.value
+    elif any(isinstance(item, k) for k in AST_COMPARATORS.keys()):
+        unparsed = AST_COMPARATORS[type(item)]
+    elif isinstance(item, constant):
+        unparsed = item.value
+    elif isinstance(item, ast.Compare):
+        if isinstance(item.left, ast.Attribute):
+            import importlib
+
+            left = unparse(item.left)
+            if "." in left:
+                name, _, val = left.rpartition(".")
+                left = getattr(importlib.import_module(name), val, left)
+            comparators = []
+            for comparator in item.comparators:
+                right = unparse(comparator)
+                if isinstance(comparator, ast.Attribute) and "." in right:
+                    name, _, val = right.rpartition(".")
+                    right = getattr(importlib.import_module(name), val, right)
+                comparators.append(right)
+            unparsed = (left, unparse(item.ops), comparators)
+    elif isinstance(item, ast.IfExp):
+        if initial_mapping:
+            unparsed = item
+        else:
+            ops, truth_vals = [], []
+            if isinstance(item.test, ast.Compare):
+                left, ops, right = unparse(item.test)
+            else:
+                result = ast_unparse(item.test)
+                if isinstance(result, dict):
+                    k, v = result.popitem()
+                    if not v:
+                        truth_vals = [False]
+            for i, op in enumerate(ops):
+                if i == 0:
+                    truth_vals.append(op(left, right[i]))
+                else:
+                    truth_vals.append(op(right[i - 1], right[i]))
+            if all(truth_vals):
+                unparsed = unparse(item.body)
+            else:
+                unparsed = unparse(item.orelse)
     elif isinstance(item, ast.Attribute):
         attr_name = getattr(item, "value", None)
         attr_attr = getattr(item, "attr", None)
@@ -791,9 +854,14 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
                 func_name = unparse(item.func)
             except Exception:
                 func_name = None
-        if func_name:
+        if isinstance(func_name, dict):
+            unparsed.update(func_name)
+            func_name = next(iter(func_name.keys()))
+            for keyword in getattr(item, "keywords", []):
+                unparsed[func_name].update(unparse(keyword))
+        elif func_name:
             unparsed[func_name] = {}
-            for keyword in item.keywords:
+            for keyword in getattr(item, "keywords", []):
                 unparsed[func_name].update(unparse(keyword))
     elif isinstance(item, ast.keyword):
         unparsed = {unparse(item.arg): unparse(item.value)}
@@ -822,8 +890,6 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
         unparsed = type(item)([unparse(el) for el in item])
     elif isinstance(item, six.string_types):
         unparsed = item
-    else:
-        return item
     return unparsed
 
 
@@ -1532,17 +1598,17 @@ build-backend = "{1}"
         build_location_func(kwargs["build_dir"])
         ireq.ensure_has_source_dir(kwargs["src_dir"])
         src_dir = ireq.source_dir
-
-        ireq.populate_link(finder, False, False)
-        pip_shims.shims.shim_unpack(
-            link=ireq.link,
-            location=kwargs["src_dir"],
-            download_dir=download_dir,
-            only_download=only_download,
-            session=session,
-            hashes=ireq.hashes(False),
-            progress_bar="off",
-        )
+        with pip_shims.shims.global_tempdir_manager():
+            ireq.populate_link(finder, False, False)
+            pip_shims.shims.shim_unpack(
+                link=ireq.link,
+                location=kwargs["src_dir"],
+                download_dir=download_dir,
+                only_download=only_download,
+                session=session,
+                hashes=ireq.hashes(False),
+                progress_bar="off",
+            )
         created = cls.create(src_dir, subdirectory=subdir, ireq=ireq, kwargs=kwargs)
         return created
 

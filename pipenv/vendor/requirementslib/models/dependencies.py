@@ -32,6 +32,11 @@ from .utils import (
     version_from_ireq,
 )
 
+try:
+    from contextlib import ExitStack
+except ImportError:
+    from contextlib2 import ExitStack
+
 if MYPY_RUNNING:
     from typing import (
         Any,
@@ -575,18 +580,22 @@ def start_resolver(finder=None, session=None, wheel_cache=None):
     _build_dir = create_tracked_tempdir(fs_str("build"))
     _source_dir = create_tracked_tempdir(fs_str("source"))
     try:
-        with pip_shims.shims.make_preparer(
-            options=pip_options,
-            finder=finder,
-            session=session,
-            build_dir=_build_dir,
-            src_dir=_source_dir,
-            download_dir=download_dir,
-            wheel_download_dir=WHEEL_DOWNLOAD_DIR,
-            progress_bar="off",
-            build_isolation=False,
-            install_cmd=pip_command,
-        ) as preparer:
+        with ExitStack() as ctx:
+            ctx.enter_context(pip_shims.shims.global_tempdir_manager())
+            preparer = ctx.enter_context(
+                pip_shims.shims.make_preparer(
+                    options=pip_options,
+                    finder=finder,
+                    session=session,
+                    build_dir=_build_dir,
+                    src_dir=_source_dir,
+                    download_dir=download_dir,
+                    wheel_download_dir=WHEEL_DOWNLOAD_DIR,
+                    progress_bar="off",
+                    build_isolation=False,
+                    install_cmd=pip_command,
+                )
+            )
             resolver = pip_shims.shims.get_resolver(
                 finder=finder,
                 ignore_dependencies=False,

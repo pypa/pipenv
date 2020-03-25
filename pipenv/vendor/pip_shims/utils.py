@@ -1,4 +1,7 @@
 # -*- coding=utf-8 -*-
+"""
+Shared utility functions which are not specific to any particular module.
+"""
 from __future__ import absolute_import
 
 import contextlib
