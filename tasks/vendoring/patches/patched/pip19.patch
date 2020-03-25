@@ -504,10 +504,10 @@ index 77d40be6..8a32cf2d 100644
 -        return path
 +        return path
 \ No newline at end of file
-diff --git a/pipenv/patched/notpip/_internal/commands/__init__.py b/pipenv/patched/notpip/_internal/commands/__init__.py
+diff --git a/pipenv/patched/pip/_internal/commands/__init__.py b/pipenv/patched/pip/_internal/commands/__init__.py
 index abcafa55..ca155a94 100644
---- a/pipenv/patched/notpip/_internal/commands/__init__.py
-+++ b/pipenv/patched/notpip/_internal/commands/__init__.py
+--- a/pipenv/patched/pip/_internal/commands/__init__.py
++++ b/pipenv/patched/pip/_internal/commands/__init__.py
 @@ -21,7 +21,7 @@ CommandInfo = namedtuple('CommandInfo', 'module_path, class_name, summary')
  
  # The ordering matters for help display.
