@@ -1,4 +1,7 @@
 # -*- coding=utf-8 -*-
+"""
+Main module with magic self-replacement mechanisms to handle import speedups.
+"""
 from __future__ import absolute_import
 
 import sys

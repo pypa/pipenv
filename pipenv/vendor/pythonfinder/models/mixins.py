@@ -7,8 +7,8 @@ from collections import defaultdict
 
 import attr
 import six
-from vistir.compat import fs_str
 
+from ..compat import fs_str
 from ..environment import MYPY_RUNNING
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
@@ -35,7 +35,7 @@ if MYPY_RUNNING:
         TypeVar,
         Type,
     )
-    from vistir.compat import Path
+    from ..compat import Path  # noqa
 
     BaseFinderType = TypeVar("BaseFinderType")
 

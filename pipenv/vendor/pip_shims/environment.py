@@ -1,4 +1,9 @@
 # -*- coding=utf-8 -*-
+"""
+Module with functionality to learn about the environment.
+"""
+from __future__ import absolute_import
+
 import importlib
 import os
 

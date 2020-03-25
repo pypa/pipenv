@@ -1,10 +1,7 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function, unicode_literals
 
-import sys
-
 import click
-import crayons
 
 from . import __version__
 from .pythonfinder import Finder
@@ -32,10 +29,11 @@ def cli(
     if version:
         click.echo(
             "{0} version {1}".format(
-                crayons.white("PythonFinder", bold=True), crayons.yellow(__version__)
+                click.style("PythonFinder", fg="white", bold=True),
+                click.style(str(__version__), fg="yellow")
             )
         )
-        sys.exit(0)
+        ctx.exit()
     finder = Finder(ignore_unsupported=ignore_unsupported)
     if findall:
         versions = [v for v in finder.find_all_python_versions()]
@@ -54,7 +52,7 @@ def cli(
                     ),
                     fg="yellow",
                 )
-            sys.exit(0)
+            ctx.exit()
         else:
             click.secho(
                 "ERROR: No valid python versions found! Check your path and try again.",
@@ -78,22 +76,22 @@ def cli(
                 ),
                 fg="yellow",
             )
-            sys.exit(0)
+            ctx.exit()
         else:
             click.secho("Failed to find matching executable...", fg="yellow")
-            sys.exit(1)
+            ctx.exit(1)
     elif which:
         found = finder.system_path.which(which.strip())
         if found:
             click.secho("Found Executable: {0}".format(found), fg="white")
-            sys.exit(0)
+            ctx.exit()
         else:
             click.secho("Failed to find matching executable...", fg="yellow")
-            sys.exit(1)
+            ctx.exit(1)
     else:
         click.echo("Please provide a command", color="red")
-        sys.exit(1)
-    sys.exit()
+        ctx.exit(1)
+    ctx.exit()
 
 
 if __name__ == "__main__":

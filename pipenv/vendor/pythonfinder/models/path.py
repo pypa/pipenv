@@ -10,8 +10,7 @@ from itertools import chain
 import attr
 import six
 from cached_property import cached_property
-from vistir.compat import Path, fs_str
-from vistir.misc import dedup
+from ..compat import Path, fs_str
 
 from ..environment import (
     ASDF_DATA_DIR,
@@ -26,6 +25,7 @@ from ..exceptions import InvalidPythonVersion
 from ..utils import (
     Iterable,
     Sequence,
+    dedup,
     ensure_path,
     expand_paths,
     filter_pythons,

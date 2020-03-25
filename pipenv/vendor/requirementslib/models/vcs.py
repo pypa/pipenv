@@ -61,15 +61,17 @@ class VCSRepository(object):
 
     def obtain(self):
         # type: () -> None
-        lte_pip_19 = (
-            pip_shims.parsed_pip_version.parsed_version < pip_shims.parse_version("19.0")
+        lt_pip_19_2 = (
+            pip_shims.parsed_pip_version.parsed_version < pip_shims.parse_version("19.2")
         )
+        if lt_pip_19_2:
+            self.repo_backend = self.repo_backend(self.url)
         if os.path.exists(
             self.checkout_directory
         ) and not self.repo_backend.is_repository_directory(self.checkout_directory):
             self.repo_backend.unpack(self.checkout_directory)
         elif not os.path.exists(self.checkout_directory):
-            if lte_pip_19:
+            if lt_pip_19_2:
                 self.repo_backend.obtain(self.checkout_directory)
             else:
                 self.repo_backend.obtain(self.checkout_directory, self.parsed_url)

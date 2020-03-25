@@ -723,7 +723,7 @@ def get_pinned_version(ireq):
     except AttributeError:
         raise TypeError("Expected InstallRequirement, not {}".format(type(ireq).__name__))
 
-    if getattr(ireq, "editable", False):
+    if ireq.editable:
         raise ValueError("InstallRequirement is editable")
     if not specifier:
         raise ValueError("InstallRequirement has no version specification")
