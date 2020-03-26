@@ -55,7 +55,7 @@ index 4fbc667b..c1a4e620 100644
  class TOMLKitError(Exception):
  
 diff --git a/pipenv/vendor/tomlkit/items.py b/pipenv/vendor/tomlkit/items.py
-index 375b5f02..cccfd4a1 100644
+index 8399d0c3..68c47a6d 100644
 --- a/pipenv/vendor/tomlkit/items.py
 +++ b/pipenv/vendor/tomlkit/items.py
 @@ -6,14 +6,6 @@ import string
@@ -73,12 +73,12 @@ index 375b5f02..cccfd4a1 100644
  
  from ._compat import PY2
  from ._compat import PY38
-@@ -23,9 +14,12 @@ from ._compat import unicode
+@@ -23,9 +15,12 @@ from ._compat import unicode
  from ._utils import escape_string
  
  if PY2:
 +    from pipenv.vendor.backports.enum import Enum
-     from pipenv.vendor.backports.functools_lru_cache import lru_cache
+     from functools32 import lru_cache
  else:
 +    from enum import Enum
      from functools import lru_cache
@@ -86,11 +86,10 @@ index 375b5f02..cccfd4a1 100644
  
  
  def item(value, _parent=None):
-@@ -41,7 +35,10 @@ def item(value, _parent=None):
-     elif isinstance(value, float):
+@@ -42,6 +37,10 @@ def item(value, _parent=None):
          return Float(value, Trivia(), str(value))
      elif isinstance(value, dict):
--        val = Table(Container(), Trivia(), False)
+         val = Table(Container(), Trivia(), False)
 +        if isinstance(value, InlineTableDict):
 +            val = InlineTable(Container(), Trivia())
 +        else:
