@@ -11,6 +11,7 @@ from .items import Item
 from .items import Key
 from .items import Null
 from .items import Table
+from .items import Trivia
 from .items import Whitespace
 from .items import item as _item
 
