@@ -146,7 +146,7 @@ To upgrade pipenv at any time::
 
 If you don't even have pip installed, you can use this crude installation method, which will bootstrap your whole system::
 
-    $ curl https://raw.githubusercontent.com/kennethreitz/pipenv/master/get-pipenv.py | python
+    $ curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
 
 
 ☤ Installing packages for your project
