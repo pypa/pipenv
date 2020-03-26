@@ -51,20 +51,17 @@ class Package(object):
     def json(self):
         for path in self._package_dirs:
             try:
-                with open(os.path.join(path, 'api.json')) as f:
+                with open(os.path.join(path, "api.json")) as f:
                     return json.load(f)
             except FileNotFoundError:
-                r = session.get('https://pypi.org/pypi/{0}/json'.format(self.name))
+                r = session.get("https://pypi.org/pypi/{0}/json".format(self.name))
                 response = r.json()
                 releases = response["releases"]
                 files = {
-                    pkg for pkg_dir in self._package_dirs
-                    for pkg in os.listdir(pkg_dir)
+                    pkg for pkg_dir in self._package_dirs for pkg in os.listdir(pkg_dir)
                 }
                 for release in list(releases.keys()):
-                    values = (
-                        r for r in releases[release] if r["filename"] in files
-                    )
+                    values = (r for r in releases[release] if r["filename"] in files)
                     values = list(values)
                     if values:
                         releases[release] = values
@@ -134,7 +131,7 @@ def prepare_packages(path):
         if all([setup_file in list(files) for setup_file in ("setup.py", "setup.cfg")]):
             continue
         for file in files:
-            if not file.startswith('.') and not file.endswith('.json'):
+            if not file.startswith(".") and not file.endswith(".json"):
                 package_name = os.path.basename(root)
                 if package_name and package_name == "fixtures":
                     prepare_fixtures(root)
@@ -144,30 +141,30 @@ def prepare_packages(path):
                     packages[package_name] = Package(package_name)
 
                 packages[package_name].add_release(os.path.join(root, file))
-    remaining = get_pypi_package_names() - set(list(packages.keys()))
-    for pypi_pkg in remaining:
-        packages[pypi_pkg] = Package(pypi_pkg)
+    # remaining = get_pypi_package_names() - set(list(packages.keys()))
+    # for pypi_pkg in remaining:
+    #     packages[pypi_pkg] = Package(pypi_pkg)
 
 
-@app.route('/')
+@app.route("/")
 def hello_world():
-    return redirect('/simple', code=302)
+    return redirect("/simple", code=302)
 
 
-@app.route('/simple')
+@app.route("/simple")
 def simple():
-    return render_template('simple.html', packages=packages.values())
+    return render_template("simple.html", packages=packages.values())
 
 
-@app.route('/artifacts')
+@app.route("/artifacts")
 def artifacts():
-    return render_template('artifacts.html', artifacts=ARTIFACTS.values())
+    return render_template("artifacts.html", artifacts=ARTIFACTS.values())
 
 
-@app.route('/simple/<package>/')
+@app.route("/simple/<package>/")
 def simple_package(package):
     if package in packages and packages[package].releases:
-        return render_template('package.html', package=packages[package])
+        return render_template("package.html", package=packages[package])
     else:
         try:
             r = requests.get("https://pypi.org/simple/{0}".format(package))
@@ -175,20 +172,18 @@ def simple_package(package):
         except Exception:
             abort(404)
         else:
-            return render_template(
-                'package_pypi.html', package_contents=r.text
-            )
+            return render_template("package_pypi.html", package_contents=r.text)
 
 
-@app.route('/artifacts/<artifact>/')
+@app.route("/artifacts/<artifact>/")
 def simple_artifact(artifact):
     if artifact in ARTIFACTS:
-        return render_template('artifact.html', artifact=ARTIFACTS[artifact])
+        return render_template("artifact.html", artifact=ARTIFACTS[artifact])
     else:
         abort(404)
 
 
-@app.route('/<package>/<release>')
+@app.route("/<package>/<release>")
 def serve_package(package, release):
     if package in packages:
         package = packages[package]
@@ -199,7 +194,7 @@ def serve_package(package, release):
     abort(404)
 
 
-@app.route('/artifacts/<artifact>/<fn>')
+@app.route("/artifacts/<artifact>/<fn>")
 def serve_artifact(artifact, fn):
     if artifact in ARTIFACTS:
         artifact = ARTIFACTS[artifact]
@@ -208,7 +203,7 @@ def serve_artifact(artifact, fn):
     abort(404)
 
 
-@app.route('/pypi/<package>/json')
+@app.route("/pypi/<package>/json")
 def json_for_package(package):
     return jsonify(packages[package].json)
     # try:
@@ -217,8 +212,8 @@ def json_for_package(package):
     #     return jsonify(r.json())
 
 
-if __name__ == '__main__':
-    PYPI_VENDOR_DIR = os.environ.get('PYPI_VENDOR_DIR', './pypi')
+if __name__ == "__main__":
+    PYPI_VENDOR_DIR = os.environ.get("PYPI_VENDOR_DIR", "./pypi")
     PYPI_VENDOR_DIR = os.path.abspath(PYPI_VENDOR_DIR)
     prepare_packages(PYPI_VENDOR_DIR)
     prepare_fixtures(os.path.join(PYPI_VENDOR_DIR, "fixtures"))

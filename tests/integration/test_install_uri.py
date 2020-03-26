@@ -25,7 +25,7 @@ def test_basic_vcs_install(PipenvInstance):  # ! This is failing
         assert p.lockfile["default"]["six"] == {
             "git": "https://github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
-            "version": "==1.11.0"
+            "version": "==1.11.0",
         }
         assert "gitdb2" in p.lockfile["default"]
 
@@ -43,7 +43,7 @@ def test_git_vcs_install(PipenvInstance):
         assert p.lockfile["default"]["six"] == {
             "git": "git://github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
-            "version": "==1.11.0"
+            "version": "==1.11.0",
         }
 
 
@@ -61,7 +61,7 @@ def test_ssh_vcs_install(PipenvInstance):
         assert p.lockfile["default"]["six"] == {
             "git": "ssh://git@github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
-            "version": "==1.11.0"
+            "version": "==1.11.0",
         }
 
 
@@ -73,9 +73,7 @@ def test_urls_work(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         # the library this installs is "django-cms"
         path = p._pipfile.get_url("django", "3.4.x.zip")
-        c = p.pipenv(
-            "install {0}".format(path)
-        )
+        c = p.pipenv("install {0}".format(path))
         assert c.return_code == 0
 
         dep = list(p.pipfile["packages"].values())[0]
@@ -149,16 +147,13 @@ def test_install_editable_git_tag(PipenvInstance_NoPyPI):
     # This uses the real PyPI since we need Internet to access the Git
     # dependency anyway.
     with PipenvInstance_NoPyPI(chdir=True) as p:
-        c = p.pipenv(
-            "install -e git+https://github.com/benjaminp/six.git@1.11.0#egg=six"
-        )
+        c = p.pipenv("install -e git+https://github.com/benjaminp/six.git@1.11.0#egg=six")
         assert c.return_code == 0
         assert "six" in p.pipfile["packages"]
         assert "six" in p.lockfile["default"]
         assert "git" in p.lockfile["default"]["six"]
         assert (
-            p.lockfile["default"]["six"]["git"]
-            == "https://github.com/benjaminp/six.git"
+            p.lockfile["default"]["six"]["git"] == "https://github.com/benjaminp/six.git"
         )
         assert "ref" in p.lockfile["default"]["six"]
 
@@ -211,9 +206,7 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance):
 @pytest.mark.needs_internet
 def test_get_vcs_refs(PipenvInstance_NoPyPI):
     with PipenvInstance_NoPyPI(chdir=True) as p:
-        c = p.pipenv(
-            "install -e git+https://github.com/benjaminp/six.git@1.9.0#egg=six"
-        )
+        c = p.pipenv("install -e git+https://github.com/benjaminp/six.git@1.9.0#egg=six")
         assert c.return_code == 0
         assert "six" in p.pipfile["packages"]
         assert "six" in p.lockfile["default"]
@@ -245,7 +238,7 @@ def test_vcs_entry_supersedes_non_vcs(PipenvInstance):
     """
     with PipenvInstance(chdir=True) as p:
         # pyinstaller_path = p._pipfile.get_fixture_path("git/pyinstaller")
-        pyinstaller_uri = "https://github.com/pyinstaller/pyinstaller.git"
+        chardet_uri = "https://github.com/chardet/chardet.git"
         with open(p.pipfile_path, "w") as f:
             f.write(
                 """
@@ -255,21 +248,22 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-PyUpdater = "*"
-PyInstaller = {{ref = "develop", git = "{0}"}}
-            """.format(pyinstaller_uri).strip()
+requests = "*"
+chardet = {{ref = "master", git = "{0}"}}
+            """.format(
+                    chardet_uri
+                ).strip()
             )
         c = p.pipenv("install")
         assert c.return_code == 0
-        installed_packages = ["PyUpdater", "PyInstaller"]
+        installed_packages = ["requests", "chardet"]
         assert all([k in p.pipfile["packages"] for k in installed_packages])
         assert all([k.lower() in p.lockfile["default"] for k in installed_packages])
-        assert all([k in p.lockfile["default"]["pyinstaller"] for k in ["ref", "git"]]), str(p.lockfile["default"])
-        assert p.lockfile["default"]["pyinstaller"].get("ref") is not None
-        assert (
-            p.lockfile["default"]["pyinstaller"]["git"]
-            == pyinstaller_uri
+        assert all([k in p.lockfile["default"]["chardet"] for k in ["ref", "git"]]), str(
+            p.lockfile["default"]
         )
+        assert p.lockfile["default"]["chardet"].get("ref") is not None
+        assert p.lockfile["default"]["chardet"]["git"] == chardet_uri
 
 
 @pytest.mark.vcs
@@ -278,7 +272,10 @@ PyInstaller = {{ref = "develop", git = "{0}"}}
 def test_vcs_can_use_markers(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         path = p._pipfile.get_fixture_path("git/six/.git")
-        p._pipfile.install("six", {"git": "{0}".format(path.as_uri()), "markers": "sys_platform == 'linux'"})
+        p._pipfile.install(
+            "six",
+            {"git": "{0}".format(path.as_uri()), "markers": "sys_platform == 'linux'"},
+        )
         assert "six" in p.pipfile["packages"]
         c = p.pipenv("install")
         assert c.return_code == 0
