@@ -451,7 +451,10 @@ def packages_missing_licenses(ctx, vendor_dir=None, requirements_file='vendor.tx
     new_requirements = []
     LICENSES = ["LICENSE-MIT", "LICENSE", "LICENSE.txt", "LICENSE.APACHE", "LICENSE.BSD"]
     for i, req in enumerate(requirements):
-        pkg = req.strip().split("=")[0]
+        if "#egg=" in req:
+            pkg = req.split("#egg=")[1].strip()
+        else:
+            pkg = req.strip().split("=")[0]
         possible_pkgs = [pkg, pkg.replace('-', '_')]
         match_found = False
         if pkg in PY2_DOWNLOAD:

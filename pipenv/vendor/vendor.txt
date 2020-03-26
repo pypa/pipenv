@@ -11,7 +11,7 @@ delegator.py==0.1.1
 python-dotenv==0.10.2
 first==2.0.1
 iso8601==0.1.12
-jinja2==2.10.
+jinja2==2.11.1
 markupsafe==1.1.1
 parse==1.12.0
 pathlib2==2.3.3
