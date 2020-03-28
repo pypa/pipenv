@@ -74,7 +74,7 @@ Code Contributions
 When contributing code, you\'ll want to follow this checklist:
 
 1.  Understand our [development
-    philosophy](https://docs.pipenv.org/dev/philosophy/).
+    philosophy](https://pipenv.pypa.io/en/latest/dev/philosophy/).
 2.  Fork the repository on GitHub.
 3.  Set up your `dev-setup`{.interpreted-text role="ref"}
 4.  Run the tests (`testing`{.interpreted-text role="ref"}) to confirm

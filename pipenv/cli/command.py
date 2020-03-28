@@ -117,7 +117,7 @@ def cli(
         echo(
             "\nYou can learn more at:\n   {0}".format(
                 crayons.green(
-                    "http://docs.pipenv.org/advanced/#configuration-with-environment-variables"
+                    "https://pipenv.pypa.io/en/latest/advanced/#configuration-with-environment-variables"
                 )
             )
         )
