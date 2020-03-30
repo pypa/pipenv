@@ -342,7 +342,7 @@ class Resolver(object):
         Editable requirements will never be looked up, as they may have
         changed at any time.
         """
-        if ireq.editable or is_url_requirement(ireq):
+        if ireq.editable or (is_url_requirement(ireq) and not ireq.link.is_wheel):
             for dependency in self.repository.get_dependencies(ireq):
                 yield dependency
             return

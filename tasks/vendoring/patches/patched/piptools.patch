@@ -155,7 +155,7 @@ index f389784..c1bcf9d 100644
          else:
              return self.repository.find_best_match(ireq, prereleases)
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index acbd680..4bd3e22 100644
+index acbd680..13378ae 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -2,21 +2,29 @@
@@ -209,7 +209,7 @@ index acbd680..4bd3e22 100644
  )
  from .base import BaseRepository
  
-+os.environ["PIP_SHIMS_BASE_MODULE"] = str("pipenv.patched.notpip")
++os.environ["PIP_SHIMS_BASE_MODULE"] = str("pip")
  FILE_CHUNK_SIZE = 4096
  FileStream = collections.namedtuple("FileStream", "stream size")
  
@@ -475,6 +475,15 @@ index acbd680..4bd3e22 100644
              finally:
                  if "PIP_REQ_TRACKER" in os.environ:
                      if prev_tracker:
+@@ -305,7 +436,7 @@ class PyPIRepository(BaseRepository):
+                     cached_link = Link(path_to_url(cached_path))
+                 else:
+                     cached_link = link
+-                return {self._get_file_hash(cached_link)}
++                return {self._hash_cache._get_file_hash(cached_link)}
+ 
+         if not is_pinned_requirement(ireq):
+             raise TypeError("Expected pinned requirement, got {}".format(ireq))
 @@ -313,12 +444,10 @@ class PyPIRepository(BaseRepository):
          # We need to get all of the candidates that match our current version
          # pin, these will represent all of the files that could possibly
@@ -526,7 +535,7 @@ index acbd680..4bd3e22 100644
      def allow_all_wheels(self):
          """
 diff --git a/pipenv/patched/piptools/resolver.py b/pipenv/patched/piptools/resolver.py
-index fc53f18..c056665 100644
+index fc53f18..8fd8a57 100644
 --- a/pipenv/patched/piptools/resolver.py
 +++ b/pipenv/patched/piptools/resolver.py
 @@ -34,6 +34,7 @@ class RequirementSummary(object):
@@ -550,7 +559,12 @@ index fc53f18..c056665 100644
          # Return a sorted, de-duped tuple of extras
          combined_ireq.extras = tuple(
              sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras)))
-@@ -339,6 +346,15 @@ class Resolver(object):
+@@ -335,10 +342,19 @@ class Resolver(object):
+         Editable requirements will never be looked up, as they may have
+         changed at any time.
+         """
+-        if ireq.editable or is_url_requirement(ireq):
++        if ireq.editable or (is_url_requirement(ireq) and not ireq.link.is_wheel):
              for dependency in self.repository.get_dependencies(ireq):
                  yield dependency
              return
