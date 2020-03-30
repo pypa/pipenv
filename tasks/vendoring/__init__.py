@@ -4,6 +4,7 @@
 """"Vendoring script, python 3.5 needed"""
 
 import io
+import itertools
 import re
 import shutil
 import sys
@@ -32,7 +33,6 @@ LIBRARY_DIRNAMES = {
     'backports.shutil_get_terminal_size': 'backports/shutil_get_terminal_size',
     'backports.weakref': 'backports/weakref',
     'backports.functools_lru_cache': 'backports/functools_lru_cache',
-    'shutil_backports': 'backports/shutil_get_terminal_size',
     'python-dotenv': 'dotenv',
     'pip-tools': 'piptools',
     'setuptools': 'pkg_resources',
@@ -339,6 +339,20 @@ def install(ctx, vendor_dir, package=None):
             requirement,
         )
     )
+    # read licenses from distinfo files if possible
+    for path in vendor_dir.glob("*.dist-info"):
+        pkg, _, _ = path.stem.rpartition("-")
+        license_file = path / "LICENSE"
+        if not license_file.exists():
+            continue
+        if vendor_dir.joinpath(pkg).exists():
+            vendor_dir.joinpath(pkg).joinpath("LICENSE").write_text(license_file.read_text())
+        elif vendor_dir.joinpath("{0}.py".format(pkg)).exists():
+            vendor_dir.joinpath("{0}.py.LICENSE".format(pkg)).write_text(license_file.read_text())
+        else:
+            matched_path = next(iter(pth for pth in vendor_dir.glob("{0}*".format(pkg))), None)
+            if matched_path is not None:
+                vendor_dir.joinpath("{0}.LICENSE".format(matched_path)).write_text(license_file.read_text())
 
 
 def post_install_cleanup(ctx, vendor_dir):
@@ -348,6 +362,7 @@ def post_install_cleanup(ctx, vendor_dir):
     # Cleanup setuptools unneeded parts
     drop_dir(vendor_dir / 'bin')
     drop_dir(vendor_dir / 'tests')
+    drop_dir(vendor_dir / 'shutil_backports')
     remove_all(vendor_dir.glob('toml.py'))
 
 
@@ -417,6 +432,7 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
 
 @invoke.task
 def redo_imports(ctx, library):
+    vendor_dir = _get_vendor_dir(ctx)
     log('Using vendor dir: %s' % vendor_dir)
     vendored_libs = detect_vendored_libs(vendor_dir)
     item = vendor_dir / library
@@ -449,7 +465,8 @@ def packages_missing_licenses(ctx, vendor_dir=None, requirements_file='vendor.tx
         vendor_dir = _get_vendor_dir(ctx)
     requirements = vendor_dir.joinpath(requirements_file).read_text().splitlines()
     new_requirements = []
-    LICENSES = ["LICENSE-MIT", "LICENSE", "LICENSE.txt", "LICENSE.APACHE", "LICENSE.BSD"]
+    LICENSE_EXTS = ("rst", "txt", "APACHE", "BSD", "md")
+    LICENSES = [".".join(lic) for lic in itertools.product(("LICENSE", "LICENSE-MIT"), LICENSE_EXTS)]
     for i, req in enumerate(requirements):
         pkg = req.strip().split("=")[0]
         possible_pkgs = [pkg, pkg.replace('-', '_')]
@@ -482,7 +499,7 @@ def packages_missing_licenses(ctx, vendor_dir=None, requirements_file='vendor.tx
         if match_found:
             continue
         else:
-            # log("%s: No license found in %s" % (pkg, pkgpath))
+            #  log("%s: No license found in %s" % (pkg, pkgpath))
             new_requirements.append(req)
     return new_requirements
 
