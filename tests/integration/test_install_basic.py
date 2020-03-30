@@ -466,11 +466,11 @@ version = "*"
 extras = ["socks"]
             """.strip()
             f.write(contents)
-        c = p.pipenv("install plette")
+        c = p.pipenv("install flask")
         assert c.return_code == 0
         with open(p.pipfile_path) as f:
             contents = f.read()
         assert "[packages.requests]" not in contents
         assert 'six = {version = "*"}' in contents
         assert 'requests = {version = "*"' in contents
-        assert 'plette = "*"' in contents
+        assert 'flask = "*"' in contents
