@@ -472,6 +472,7 @@ class Resolver(object):
     ):
         # type: (...) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]
         from .vendor.requirementslib.models.requirements import Requirement
+        from .vendor.requirementslib.models.utils import DIRECT_URL_RE
         if index_lookup is None:
             index_lookup = {}
         if markers_lookup is None:
@@ -488,7 +489,15 @@ class Resolver(object):
         try:
             req = Requirement.from_line(line)
         except ValueError:
-            raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
+            direct_url = DIRECT_URL_RE.match(line)
+            if direct_url:
+                line = "{0}#egg={1}".format(line, direct_url.groupdict()["name"])
+                try:
+                    req = Requirement.from_line(line)
+                except ValueError:
+                    raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
+            else:
+                raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
         if url:
             try:
                 index_lookup[req.normalized_name] = project.get_source(
