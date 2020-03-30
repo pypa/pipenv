@@ -219,13 +219,13 @@ def setuptools_parse_setup_cfg(path):
 
     parsed = read_configuration(path)
     results = parsed.get("metadata", {})
-    results.update({parsed.get("options", {})})
+    results.update(parsed.get("options", {}))
     results["install_requires"] = make_base_requirements(
         results.get("install_requires", [])
     )
     extras = {}
-    for extras_section, extras in results.get("extras_require", {}).items():
-        new_reqs = tuple(make_base_requirements(extras))
+    for extras_section, extras_reqs in results.get("extras_require", {}).items():
+        new_reqs = tuple(make_base_requirements(extras_reqs))
         if new_reqs:
             extras[extras_section] = new_reqs
     results["extras_require"] = extras
