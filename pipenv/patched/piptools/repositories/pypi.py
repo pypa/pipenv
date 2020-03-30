@@ -436,7 +436,7 @@ class PyPIRepository(BaseRepository):
                     cached_link = Link(path_to_url(cached_path))
                 else:
                     cached_link = link
-                return {self._get_file_hash(cached_link)}
+                return {self._hash_cache._get_file_hash(cached_link)}
 
         if not is_pinned_requirement(ireq):
             raise TypeError("Expected pinned requirement, got {}".format(ireq))
