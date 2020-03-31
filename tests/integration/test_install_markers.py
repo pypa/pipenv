@@ -58,8 +58,8 @@ depends-on-marked-package = "*"
 
 
 @flaky
-@pytest.mark.run
 @pytest.mark.alt
+@pytest.mark.markers
 @pytest.mark.install
 def test_specific_package_environment_markers(PipenvInstance):
 
@@ -127,7 +127,7 @@ funcsigs = "*"
 
 
 @flaky
-@pytest.mark.lock
+@pytest.mark.markers
 @pytest.mark.complex
 @pytest.mark.py3_only
 @pytest.mark.lte_py36

@@ -1317,7 +1317,8 @@ def get_pip_args(
         "no_use_pep517": [],
         "no_deps": ["--no-deps"],
         "selective_upgrade": [
-            "--upgrade-strategy=only-if-needed", "--exists-action={0}".format(PIP_EXISTS_ACTION or "i")
+            "--upgrade-strategy=only-if-needed",
+            "--exists-action={0}".format(PIP_EXISTS_ACTION or "i")
         ],
         "src_dir": src_dir,
     }
@@ -1329,6 +1330,8 @@ def get_pip_args(
     for key in arg_map.keys():
         if key in locals() and locals().get(key):
             arg_set.extend(arg_map.get(key))
+        elif key == "selective_upgrade" and not locals().get(key):
+            arg_set.append("--exists-action=i")
     return list(vistir.misc.dedup(arg_set))
 
 

@@ -1,21 +1,52 @@
 parameters:
   python_version: ''
+  python_architecture: ''
+  pytest_markers: ''
 
 steps:
-- powershell: |
-    subst T: "$env:TEMP"
-    Write-Host "##vso[task.setvariable variable=TEMP]T:\"
-    Write-Host "##vso[task.setvariable variable=TMP]T:\"
-    Write-Host "##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]$env:PYTHON_VERSION"
-    Write-Host "##vso[task.setvariable variable=PIPENV_NOSPIN]1"
-  displayName: Fix Temp Variable
-  env:
-    PYTHON_VERSION: ${{ parameters.python_version }}
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: ${{ parameters.python_version }}
+      architecture: ${{ parameters.python_architecture }}
+      addToPath: true
+    displayName: Use Python ${{ parameters.python_version }}
 
-- script: |
-    git submodule sync && git submodule update --init --recursive
-    pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests
-  displayName: Run integration tests
-  env:
-    PYTHONWARNINGS: 'ignore:DEPRECATION'
-    PIPENV_NOSPIN: '1'
+  - script: |
+      echo '##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]'${{ parameters.python_version }}
+    env:
+      PYTHON_VERSION: ${{ parameters.python_version }}
+
+  - template: install-dependencies.yml
+
+  - template: create-virtualenv.yml
+    parameters:
+      python_version: ${{ parameters.python_version }}
+
+  - powershell: |
+      subst T: "$env:TEMP"
+      Write-Host "##vso[task.setvariable variable=TEMP]T:\"
+      Write-Host "##vso[task.setvariable variable=TMP]T:\"
+      Write-Host "##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]$env:PYTHON_VERSION"
+      Write-Host "##vso[task.setvariable variable=PIPENV_NOSPIN]1"
+    displayName: Fix Temp Variable
+    env:
+      PYTHON_VERSION: ${{ parameters.python_version }}
+
+  - powershell: |
+      git submodule sync
+      git submodule update --init --recursive
+      Write-Host "Running Command: pipenv run pytest -n auto -m '${{ parameters.pytest_markers }}' --junitxml=test-results-${{ parameters.test_number }}.xml --timeout 300 tests/"
+      pipenv run pytest -n 4 -vvv -m '${{ parameters.pytest_markers }}' --junitxml=test-results.xml --timeout 300 tests/
+    failOnStderr: false
+    displayName: Run integration tests
+    env:
+      PYTHONWARNINGS: 'ignore:DEPRECATION'
+      PIPENV_NOSPIN: '1'
+      GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
+
+  - task: PublishTestResults@2
+    displayName: Publish Test Results
+    inputs:
+      testResultsFiles: '**/test-results-${{ parameters.test_number }}.xml'
+      testRunTitle: 'Python ${{ parameters.python_version }}'
+    condition: succeededOrFailed()

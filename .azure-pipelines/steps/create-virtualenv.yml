@@ -8,7 +8,7 @@ steps:
     echo "##vso[task.setvariable variable=PIP_PROCESS_DEPENDENCY_LINKS]1"
   displayName: Set Environment Variables
 
-- ${{ if eq(parameters.vmImage, 'windows-2019') }}:
+- ${{ if eq(parameters.vmImage, 'windows-latest') }}:
   - powershell: |
       pip install certifi
       $env:PYTHON_PATH=$(python -c "import sys; print(sys.executable)")
@@ -18,7 +18,7 @@ steps:
     displayName: Set Python Path
     env:
       PYTHONWARNINGS: 'ignore:DEPRECATION'
-- ${{ if ne(parameters.vmImage, 'windows-2019') }}:
+- ${{ if ne(parameters.vmImage, 'windows-latest') }}:
   - bash: |
       pip install certifi
       PYTHON_PATH=$(python -c 'import sys; print(sys.executable)')
@@ -36,6 +36,7 @@ steps:
     echo "python_version: ${{ parameters.python_version }}"
     git submodule sync
     git submodule update --init --recursive
+    $(PY_EXE) -m pip install "virtualenv<20"
     $(PY_EXE) -m pipenv install --deploy --dev --python="$(PY_EXE)"
   env:
     PIPENV_DEFAULT_PYTHON_VERSION: ${{ parameters.python_version }}

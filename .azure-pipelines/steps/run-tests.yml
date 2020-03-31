@@ -17,18 +17,18 @@ steps:
   parameters:
     python_version: $(python.version)
 
-- ${{ if eq(parameters.vmImage, 'windows-2019') }}:
+- ${{ if eq(parameters.vmImage, 'windows-latest') }}:
   - template: run-tests-windows.yml
     parameters:
       python_version: $(python.version)
-- ${{ if ne(parameters.vmImage, 'windows-2019') }}:
+- ${{ if ne(parameters.vmImage, 'windows-latest') }}:
   - template: run-tests-linux.yml
     parameters:
       python_version: $(python.version)
 
-- task: PublishTestResults@2
-  displayName: Publish Test Results
-  inputs:
-    testResultsFiles: '**/test-results.xml'
-    testRunTitle: 'Python $(python.version)'
-  condition: succeededOrFailed()
+  - task: PublishTestResults@2
+    displayName: Publish Test Results
+    inputs:
+      testResultsFiles: '**/test-results.xml'
+      testRunTitle: 'Python $(python.version)'
+    condition: succeededOrFailed()
