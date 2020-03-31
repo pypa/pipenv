@@ -10,6 +10,7 @@ from urllib3.util import parse_url as urllib3_parse
 from urllib3.util.url import Url
 
 from ..environment import MYPY_RUNNING
+from .utils import extras_to_string, parse_extras
 
 if MYPY_RUNNING:
     from typing import Dict, List, Optional, Text, Tuple, TypeVar, Union
@@ -274,7 +275,12 @@ class URI(object):
             direct = self.is_direct_url
         if escape_password:
             password = "----" if self.password else ""
-            username = self.get_username(unquote=unquote) if password else "----"
+            if password:
+                username = self.get_username(unquote=unquote)
+            elif self.username:
+                username = "----"
+            else:
+                username = ""
         else:
             password = self.get_password(unquote=unquote)
             username = self.get_username(unquote=unquote)
@@ -456,14 +462,22 @@ def update_url_name_and_fragment(name_with_extras, ref, parsed_dict):
     # type: (Optional[str], Optional[str], Dict[str, Optional[str]]) -> Dict[str, Optional[str]]
     if name_with_extras:
         fragment = ""  # type: Optional[str]
+        parsed_extras = ()
+        name, extras = pip_shims.shims._strip_extras(name_with_extras)
+        if extras:
+            parsed_extras = parsed_extras + tuple(parse_extras(extras))
         if parsed_dict["fragment"] is not None:
             fragment = "{0}".format(parsed_dict["fragment"])
             if fragment.startswith("egg="):
-                name, extras = pip_shims.shims._strip_extras(name_with_extras)
-                fragment_name, fragment_extras = pip_shims.shims._strip_extras(fragment)
-                if fragment_extras and not extras:
-                    name_with_extras = "{0}{1}".format(name, fragment_extras)
-                fragment = ""
+                _, _, fragment_part = fragment.partition("=")
+                fragment_name, fragment_extras = pip_shims.shims._strip_extras(
+                    fragment_part
+                )
+                name = name if name else fragment_name
+                if fragment_extras:
+                    parsed_extras = parsed_extras + tuple(parse_extras(fragment_extras))
+                name_with_extras = "{0}{1}".format(name, extras_to_string(parsed_extras))
+                parsed_dict["fragment"] = "egg={0}".format(name_with_extras)
         elif (
             parsed_dict.get("path") is not None and "&subdirectory" in parsed_dict["path"]
         ):
@@ -471,6 +485,8 @@ def update_url_name_and_fragment(name_with_extras, ref, parsed_dict):
             parsed_dict["path"] = path
         elif ref is not None and "&subdirectory" in ref:
             ref, fragment = URI.parse_subdirectory(ref)
+        parsed_dict["name"] = name
+        parsed_dict["extras"] = parsed_extras
     if ref:
         parsed_dict["ref"] = ref.strip()
     return parsed_dict
