@@ -148,3 +148,16 @@ index 3b416664..631e9959 100644
  from .api import loads
  from .toml_document import TOMLDocument
  
+diff --git a/pipenv/vendor/tomlkit/toml_char.py b/pipenv/vendor/tomlkit/toml_char.py
+index d649a917..02c55172 100644
+--- a/pipenv/vendor/tomlkit/toml_char.py
++++ b/pipenv/vendor/tomlkit/toml_char.py
+@@ -4,7 +4,7 @@ from ._compat import PY2
+ from ._compat import unicode
+ 
+ if PY2:
+-    from functools32 import lru_cache
++    from pipenv.vendor.backports.functools_lru_cache import lru_cache
+ else:
+     from functools import lru_cache
+ 
