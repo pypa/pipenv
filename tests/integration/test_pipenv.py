@@ -27,7 +27,6 @@ def test_code_import_manual(PipenvInstance):
 
 @pytest.mark.lock
 @pytest.mark.deploy
-@pytest.mark.cli
 def test_deploy_works(PipenvInstance):
 
     with PipenvInstance(chdir=True) as p:

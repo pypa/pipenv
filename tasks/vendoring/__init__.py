@@ -702,6 +702,43 @@ def download_all_licenses(ctx, include_pip=False):
         update_pip_deps(ctx)
 
 
+def unpin_file(contents):
+    requirements = []
+    for line in contents.splitlines():
+        if "==" in line:
+            line, _, _ = line.strip().partition("=")
+        if not line.startswith("#"):
+            requirements.append(line)
+    return "\n".join(sorted(requirements))
+
+
+def unpin_and_copy_requirements(ctx, requirement_file, name="requirements.txt"):
+    with TemporaryDirectory() as tempdir:
+        target = Path(tempdir.name).joinpath("requirements.txt")
+        contents = unpin_file(requirement_file.read_text())
+        target.write_text(contents)
+        env = {"PIPENV_IGNORE_VIRTUALENVS": "1", "PIPENV_NOSPIN": "1", "PIPENV_PYTHON": "2.7"}
+        with ctx.cd(tempdir.name):
+            ctx.run("pipenv install -r {0}".format(target.as_posix()), env=env, hide=True)
+            result = ctx.run("pipenv lock -r", env=env, hide=True).stdout.strip()
+            ctx.run("pipenv --rm", env=env, hide=True)
+            result = list(sorted([line.strip() for line in result.splitlines()[1:]]))
+            new_requirements = requirement_file.parent.joinpath(name)
+            requirement_file.rename(requirement_file.parent.joinpath("{}.bak".format(name)))
+            new_requirements.write_text("\n".join(result))
+    return result
+
+
+@invoke.task
+def unpin_and_update_vendored(ctx, vendor=True, patched=False):
+    if vendor:
+        vendor_file = _get_vendor_dir(ctx) / "vendor.txt"
+        unpin_and_copy_requirements(ctx, vendor_file, name="vendor.txt")
+    if patched:
+        patched_file = _get_patched_dir(ctx) / "patched.txt"
+        unpin_and_copy_requirements(ctx, patched_file, name="patched.txt")
+
+
 @invoke.task(name=TASK_NAME)
 def main(ctx, package=None):
     vendor_dir = _get_vendor_dir(ctx)

@@ -63,8 +63,8 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         assert "six" in p.lockfile["default"]
 
 
-@pytest.mark.install
 @pytest.mark.local
+@pytest.mark.install
 @pytest.mark.needs_internet
 @flaky
 class TestDirectDependencies(object):
@@ -122,6 +122,7 @@ setup(
 
 
 @pytest.mark.e
+@pytest.mark.local
 @pytest.mark.install
 @pytest.mark.skip(reason="this doesn't work on windows")
 def test_e_dot(PipenvInstance, pip_src_dir):
@@ -135,8 +136,8 @@ def test_e_dot(PipenvInstance, pip_src_dir):
         assert "path" in p.pipfile["dev-packages"][key]
         assert "requests" in p.lockfile["develop"]
 
-
 @pytest.mark.install
+@pytest.mark.multiprocessing
 @flaky
 def test_multiprocess_bug_and_install(PipenvInstance):
     with temp_environ():
@@ -163,8 +164,8 @@ urllib3 = "*"
             assert c.return_code == 0
 
 
-@pytest.mark.sequential
 @pytest.mark.install
+@pytest.mark.sequential
 @flaky
 def test_sequential_mode(PipenvInstance):
 
@@ -189,8 +190,8 @@ pytz = "*"
         assert c.return_code == 0
 
 
-@pytest.mark.install
 @pytest.mark.run
+@pytest.mark.install
 def test_normalize_name_install(PipenvInstance):
     with PipenvInstance() as p:
         with open(p.pipfile_path, "w") as f:
@@ -221,9 +222,10 @@ Requests = "==2.14.0"   # Inline comment
 
 
 @flaky
-@pytest.mark.files
-@pytest.mark.resolver
 @pytest.mark.eggs
+@pytest.mark.files
+@pytest.mark.local
+@pytest.mark.resolver
 def test_local_package(PipenvInstance, pip_src_dir, testsroot):
     """This test ensures that local packages (directories with a setup.py)
     installed in editable mode have their dependencies resolved as well"""
@@ -248,6 +250,7 @@ def test_local_package(PipenvInstance, pip_src_dir, testsroot):
 
 
 @pytest.mark.files
+@pytest.mark.local
 @flaky
 def test_local_zipfiles(PipenvInstance, testsroot):
     file_name = "requests-2.19.1.tar.gz"
@@ -272,6 +275,7 @@ def test_local_zipfiles(PipenvInstance, testsroot):
         assert "file" in dep or "path" in dep
 
 
+@pytest.mark.local
 @pytest.mark.files
 @flaky
 def test_relative_paths(PipenvInstance, testsroot):
@@ -295,6 +299,7 @@ def test_relative_paths(PipenvInstance, testsroot):
 
 
 @pytest.mark.install
+@pytest.mark.local
 @pytest.mark.local_file
 @flaky
 def test_install_local_file_collision(PipenvInstance):
@@ -310,7 +315,7 @@ def test_install_local_file_collision(PipenvInstance):
         assert target_package in p.lockfile["default"]
 
 
-@pytest.mark.url
+@pytest.mark.urls
 @pytest.mark.install
 def test_install_local_uri_special_character(PipenvInstance, testsroot):
     file_name = "six-1.11.0+mkl-py2.py3-none-any.whl"
@@ -334,9 +339,9 @@ six = {{path = "./artifacts/{}"}}
         assert "six" in p.lockfile["default"]
 
 
+@pytest.mark.run
 @pytest.mark.files
 @pytest.mark.install
-@pytest.mark.run
 def test_multiple_editable_packages_should_not_race(PipenvInstance, testsroot):
     """Test for a race condition that can occur when installing multiple 'editable' packages at
     once, and which causes some of them to not be importable.

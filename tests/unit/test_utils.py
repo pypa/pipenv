@@ -425,6 +425,7 @@ twine = "*"
             == expected_args
         )
 
+    @pytest.mark.utils
     def test_invalid_prepare_pip_source_args(self):
         sources = [{}]
         with pytest.raises(PipenvUsageError):
