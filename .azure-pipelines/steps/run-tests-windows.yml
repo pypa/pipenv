@@ -35,7 +35,7 @@ steps:
       git submodule sync
       git submodule update --init --recursive
       Write-Host "Running Command: pipenv run pytest -n 4 --junitxml=test-results.xml --timeout 300 tests/"
-      pipenv run pytest -n 4 -vvv --junitxml=test-results.xml --timeout 300 tests/
+      pipenv run pytest -n 4 --junitxml=test-results.xml --timeout 300 tests/
     failOnStderr: false
     displayName: Run integration tests
     env:
