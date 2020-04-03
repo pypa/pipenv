@@ -8,8 +8,8 @@ import pytest
 
 from pipenv.patched import pipfile
 from pipenv.project import Project
-from pipenv.utils import temp_environ, normalize_path
-from pipenv.vendor.vistir.path import is_in_path
+from pipenv.utils import temp_environ
+from pipenv.vendor.vistir.path import is_in_path, normalize_path
 from pipenv.vendor.delegator import run as delegator_run
 
 
