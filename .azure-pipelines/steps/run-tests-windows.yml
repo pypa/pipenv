@@ -1,7 +1,6 @@
 parameters:
   python_version: ''
   python_architecture: ''
-  pytest_markers: ''
 
 steps:
   - task: UsePythonVersion@0
@@ -35,18 +34,11 @@ steps:
   - powershell: |
       git submodule sync
       git submodule update --init --recursive
-      Write-Host "Running Command: pipenv run pytest -n auto -m '${{ parameters.pytest_markers }}' --junitxml=test-results-${{ parameters.test_number }}.xml --timeout 300 tests/"
-      pipenv run pytest -n 4 -vvv -m '${{ parameters.pytest_markers }}' --junitxml=test-results.xml --timeout 300 tests/
+      Write-Host "Running Command: pipenv run pytest -n 4 --junitxml=test-results.xml --timeout 300 tests/"
+      pipenv run pytest -n 4 -vvv --junitxml=test-results.xml --timeout 300 tests/
     failOnStderr: false
     displayName: Run integration tests
     env:
       PYTHONWARNINGS: 'ignore:DEPRECATION'
       PIPENV_NOSPIN: '1'
       GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
-
-  - task: PublishTestResults@2
-    displayName: Publish Test Results
-    inputs:
-      testResultsFiles: '**/test-results-${{ parameters.test_number }}.xml'
-      testRunTitle: 'Python ${{ parameters.python_version }}'
-    condition: succeededOrFailed()

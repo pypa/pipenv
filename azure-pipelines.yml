@@ -94,36 +94,34 @@ jobs:
         vmImage: windows-latest
         python_version: $(python.version)
         python_architecture: $(python.architecture)
-        test_number: "1"
-        pytest_markers: "lock or dotvenv or markers or project or utils or patched or core or cli"
+        # pytest_markers: "lock or dotvenv or markers or project or utils or patched or core or cli"
 
-- job: TestWindows2
-  timeoutInMinutes: 0
-  pool:
-    vmImage: windows-latest
-  strategy:
-    matrix:
-      Python27:
-        python.version: '2.7'
-        python.architecture: x64
-      Python36:
-        python.version: '3.6'
-        python.architecture: x64
-      Python37:
-        python.version: '3.7'
-        python.architecture: x64
-      Python38:
-        python.version: '3.8'
-        python.architecture: x64
-    maxParallel: 8
-  steps:
-    - template: .azure-pipelines/steps/run-tests-windows.yml
-      parameters:
-        vmImage: windows-latest
-        python_version: $(python.version)
-        python_architecture: $(python.architecture)
-        test_number: "2"
-        pytest_markers: "urls or multiprocessing or local or sequential or run or outdated or basic or code or uninstall"
+# - job: TestWindows2
+#   timeoutInMinutes: 0
+#   pool:
+#     vmImage: windows-latest
+#   strategy:
+#     matrix:
+#       Python27:
+#         python.version: '2.7'
+#         python.architecture: x64
+#       Python36:
+#         python.version: '3.6'
+#         python.architecture: x64
+#       Python37:
+#         python.version: '3.7'
+#         python.architecture: x64
+#       Python38:
+#         python.version: '3.8'
+#         python.architecture: x64
+#     maxParallel: 8
+#   steps:
+#     - template: .azure-pipelines/steps/run-tests-windows.yml
+#       parameters:
+#         vmImage: windows-latest
+#         python_version: $(python.version)
+#         python_architecture: $(python.architecture)
+#         pytest_markers: "urls or multiprocessing or local or sequential or run or outdated or basic or code or uninstall"
 
 - job: TestMacOS
   pool:
