@@ -1469,7 +1469,7 @@ def pip_install(
     )
     pip_command.extend(pip_args)
     if r:
-        pip_command.extend(["-r", r])
+        pip_command.extend(["-r", vistir.path.normalize_path(r)])
     elif line:
         pip_command.extend(line)
     pip_command.extend(prepare_pip_source_args(sources))
