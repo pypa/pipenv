@@ -31,8 +31,9 @@ def test_load_dot_env_from_environment_variable_location(monkeypatch, capsys):
         with open(dotenv_path, 'w') as f:
             f.write('{}={}'.format(key, val))
 
-        with mock.patch('pipenv.environments.PIPENV_DOTENV_LOCATION', dotenv_path):
-            load_dot_env()
+        m.setenv("PIPENV_DOTENV_LOCATION", dotenv_path)
+        m.setattr("pipenv.environments", "PIPENV_DOTENV_LOCATION", dotenv_path)
+        load_dot_env()
         assert os.environ[key] == val
 
 
@@ -48,13 +49,14 @@ def test_doesnt_load_dot_env_if_disabled(monkeypatch, capsys):
         with open(dotenv_path, 'w') as f:
             f.write('{}={}'.format(key, val))
 
-        with mock.patch('pipenv.environments.PIPENV_DOTENV_LOCATION', dotenv_path):
-            with mock.patch('pipenv.environments.PIPENV_DONT_LOAD_ENV', '1'):
-                load_dot_env()
-            assert key not in os.environ
-
-            load_dot_env()
-            assert key in os.environ
+        m.setenv("PIPENV_DOTENV_LOCATION", dotenv_path)
+        m.setattr("pipenv.environments.PIPENV_DOTENV_LOCATION", dotenv_path)
+        m.setattr("pipenv.environments.PIPENV_DONT_LOAD_ENV", True)
+        load_dot_env()
+        assert key not in os.environ
+        m.setattr("pipenv.environments.PIPENV_DONT_LOAD_ENV", False)
+        load_dot_env()
+        assert key in os.environ
 
 
 @pytest.mark.core
@@ -65,7 +67,8 @@ def test_load_dot_env_warns_if_file_doesnt_exist(monkeypatch, capsys):
             is_console = False
             m.setattr(click._winconsole, "_is_console", lambda x: is_console)
         dotenv_path = os.path.join(tempdir.name, 'does-not-exist.env')
-        with mock.patch('pipenv.environments.PIPENV_DOTENV_LOCATION', dotenv_path):
-            load_dot_env()
+        m.setenv("PIPENV_DOTENV_LOCATION", dotenv_path)
+        m.setattr("pipenv.environments.PIPENV_DOTENV_LOCATION", dotenv_path)
+        load_dot_env()
         output, err = capsys.readouterr()
         assert 'Warning' in err
