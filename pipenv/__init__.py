@@ -37,22 +37,20 @@ except Exception:
     pass
 
 from pipenv.vendor.vistir.misc import get_text_stream
-from pipenv.environments import PIPENV_IS_CI
 
-if not PIPENV_IS_CI:
-    stdout = get_text_stream("stdout")
-    stderr = get_text_stream("stderr")
+stdout = get_text_stream("stdout")
+stderr = get_text_stream("stderr")
 
-    if os.name == "nt":
-        from pipenv.vendor.vistir.misc import _can_use_color, _wrap_for_color
+if os.name == "nt":
+    from pipenv.vendor.vistir.misc import _can_use_color, _wrap_for_color
 
-        if _can_use_color(stdout):
-            stdout = _wrap_for_color(stdout)
-        if _can_use_color(stderr):
-            stderr = _wrap_for_color(stderr)
+    if _can_use_color(stdout):
+        stdout = _wrap_for_color(stdout)
+    if _can_use_color(stderr):
+        stderr = _wrap_for_color(stderr)
 
-    sys.stdout = stdout
-    sys.stderr = stderr
+sys.stdout = stdout
+sys.stderr = stderr
 
 from .cli import cli
 from . import resolver  # noqa
