@@ -32,7 +32,7 @@ def test_load_dot_env_from_environment_variable_location(monkeypatch, capsys):
             f.write('{}={}'.format(key, val))
 
         m.setenv("PIPENV_DOTENV_LOCATION", dotenv_path)
-        m.setattr("pipenv.environments", "PIPENV_DOTENV_LOCATION", dotenv_path)
+        m.setattr("pipenv.environments.PIPENV_DOTENV_LOCATION", dotenv_path)
         load_dot_env()
         assert os.environ[key] == val
 
