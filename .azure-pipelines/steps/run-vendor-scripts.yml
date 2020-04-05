@@ -18,9 +18,6 @@ steps:
 - script: |
     echo '##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]'$(python.version)
   env:
-    PYTHONWARNINGS: 'ignore:DEPRECATION'
-
-  env:
     PYTHON_VERSION: $(python.version)
 
 - template: install-dependencies.yml
