@@ -55,12 +55,3 @@ steps:
       PYTHONWARNINGS: 'ignore:DEPRECATION'
       PIPENV_NOSPIN: 1
       GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
-
-
-
-- task: PublishTestResults@2
-  displayName: Publish Test Results
-  inputs:
-    testResultsFiles: junit/*.xml
-    testRunTitle: 'Python $(python.version)'
-  condition: succeededOrFailed()

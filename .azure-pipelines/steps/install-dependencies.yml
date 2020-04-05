@@ -17,14 +17,15 @@ steps:
     git submodule update --init --recursive
     $(PY_EXE) -m pip install --upgrade --upgrade-strategy=eager pip setuptools wheel
     $(PY_EXE) -m pip install "virtualenv<20"
-    $(PY_EXE) -m pipenv install --deploy --dev --python="$(PY_EXE)"
   env:
     PIPENV_DEFAULT_PYTHON_VERSION: ${{ parameters.python_version }}
     PYTHONWARNINGS: 'ignore:DEPRECATION'
     PIPENV_NOSPIN: '1'
   displayName: Make Virtualenv
 
-- script: 'python -m pip install -e . --upgrade'
+- script: |
+    $(PY_EXE) -m pip install -e . --upgrade
+    $(PY_EXE) -m pipenv install --deploy --dev --python="$(PY_EXE)"
   displayName: Upgrade Pip & Install Pipenv
   env:
     PYTHONWARNINGS: 'ignore:DEPRECATION'
