@@ -10,13 +10,13 @@ steps:
     displayName: Setup RAMDisk
 
   - powershell: |
-      mkdir R:\Temp
-      $acl = Get-Acl "R:\Temp"
+      mkdir R:\virtualenvs
+      $acl = Get-Acl "R:\"
       $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
           "Everyone", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow"
       )
       $acl.AddAccessRule($rule)
-      Set-Acl "R:\Temp" $acl
+      Set-Acl "R:\" $acl
     displayName: Set RAMDisk Permissions
 
   - powershell: |
