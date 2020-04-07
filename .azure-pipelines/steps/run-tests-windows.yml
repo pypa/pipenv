@@ -46,7 +46,7 @@ steps:
   - powershell: |
       git submodule sync
       git submodule update --init --recursive
-      Write-Host "Running Command: pipenv run pytest -n 4 --junitxml=junit/test-results.xml --timeout 300 tests/"
+      Write-Host "Running Command: pipenv run pytest -n 4 --junitxml=junit/test-results.xml tests/"
       $env:TEMP = "R:\"
       pipenv run pytest -ra -n 4 --timeout=300 --junit-xml=junit/test-results.xml tests/
     failOnStderr: false
