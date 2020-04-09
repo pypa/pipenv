@@ -203,7 +203,7 @@ def serve_package(package, release):
         package = packages[package]
 
         if release in package.releases:
-            return send_file(package.releases[release])
+            return send_file(package.releases[release].path)
 
     abort(404)
 
