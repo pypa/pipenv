@@ -455,6 +455,10 @@ class Resolver(object):
             )
             index_lookup.update(req_idx)
             markers_lookup.update(markers_idx)
+            # Add dependencies of any file (e.g. wheels/tarballs), source, or local
+            # directories into the initial constraint pool to be resolved with the
+            # rest of the dependencies, while adding the files/vcs deps/paths themselves
+            # to the lockfile directly
             constraint_update, lockfile_update = cls.get_deps_from_req(
                 req, resolver=transient_resolver
             )
