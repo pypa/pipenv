@@ -535,10 +535,20 @@ index acbd680..13378ae 100644
      def allow_all_wheels(self):
          """
 diff --git a/pipenv/patched/piptools/resolver.py b/pipenv/patched/piptools/resolver.py
-index fc53f18..8fd8a57 100644
+index fc53f18..7e856fe 100644
 --- a/pipenv/patched/piptools/resolver.py
 +++ b/pipenv/patched/piptools/resolver.py
-@@ -34,6 +34,7 @@ class RequirementSummary(object):
+@@ -6,6 +6,9 @@ import os
+ from functools import partial
+ from itertools import chain, count
+ 
++from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
++from packaging.markers import Marker
++
+ from . import click
+ from ._compat import install_req_from_line
+ from .cache import DependencyCache
+@@ -34,6 +37,7 @@ class RequirementSummary(object):
          self.req = ireq.req
          self.key = key_from_req(ireq.req)
          self.extras = str(sorted(ireq.extras))
@@ -546,20 +556,25 @@ index fc53f18..8fd8a57 100644
          self.specifier = str(ireq.specifier)
  
      def __eq__(self, other):
-@@ -63,6 +64,12 @@ def combine_install_requirements(ireqs):
+@@ -63,6 +67,17 @@ def combine_install_requirements(ireqs):
          # NOTE we may be losing some info on dropped reqs here
          combined_ireq.req.specifier &= ireq.req.specifier
          combined_ireq.constraint &= ireq.constraint
-+        if not combined_ireq.markers:
-+            combined_ireq.markers = ireq.markers
-+        else:
-+            _markers = combined_ireq.markers._markers
-+            if not isinstance(_markers[0], (tuple, list)):
-+                combined_ireq.markers._markers = [_markers, 'and', ireq.markers._markers]
++        if ireq.markers and not combined_ireq.markers:
++            combined_ireq.markers = copy.deepcopy(ireq.markers)
++        elif ireq.markers and combined_ireq.markers:
++            _markers = []  # type: List[Marker]
++            for marker in [ireq.markers, combined_ireq.markers]:
++                if isinstance(marker, str):
++                    _markers.append(Marker(marker))
++                else:
++                    _markers.append(marker)
++            marker_str = " and ".join([normalize_marker_str(m) for m in _markers if m])
++            combined_ireq.markers = Marker(marker_str)
          # Return a sorted, de-duped tuple of extras
          combined_ireq.extras = tuple(
              sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras)))
-@@ -335,10 +342,19 @@ class Resolver(object):
+@@ -335,10 +350,19 @@ class Resolver(object):
          Editable requirements will never be looked up, as they may have
          changed at any time.
          """
@@ -580,7 +595,7 @@ index fc53f18..8fd8a57 100644
          elif not is_pinned_requirement(ireq):
              raise TypeError(
                  "Expected pinned or editable requirement, got {}".format(ireq)
-@@ -356,7 +372,7 @@ class Resolver(object):
+@@ -356,7 +380,7 @@ class Resolver(object):
                  fg="yellow",
              )
              dependencies = self.repository.get_dependencies(ireq)
@@ -589,7 +604,7 @@ index fc53f18..8fd8a57 100644
  
          # Example: ['Werkzeug>=0.9', 'Jinja2>=2.4']
          dependency_strings = self.dependency_cache[ireq]
-@@ -372,7 +388,8 @@ class Resolver(object):
+@@ -372,7 +396,8 @@ class Resolver(object):
              )
  
      def reverse_dependencies(self, ireqs):

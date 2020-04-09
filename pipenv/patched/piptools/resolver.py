@@ -6,6 +6,9 @@ import os
 from functools import partial
 from itertools import chain, count
 
+from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
+from packaging.markers import Marker
+
 from . import click
 from ._compat import install_req_from_line
 from .cache import DependencyCache
@@ -64,12 +67,17 @@ def combine_install_requirements(ireqs):
         # NOTE we may be losing some info on dropped reqs here
         combined_ireq.req.specifier &= ireq.req.specifier
         combined_ireq.constraint &= ireq.constraint
-        if not combined_ireq.markers:
-            combined_ireq.markers = ireq.markers
-        else:
-            _markers = combined_ireq.markers._markers
-            if not isinstance(_markers[0], (tuple, list)):
-                combined_ireq.markers._markers = [_markers, 'and', ireq.markers._markers]
+        if ireq.markers and not combined_ireq.markers:
+            combined_ireq.markers = copy.deepcopy(ireq.markers)
+        elif ireq.markers and combined_ireq.markers:
+            _markers = []  # type: List[Marker]
+            for marker in [ireq.markers, combined_ireq.markers]:
+                if isinstance(marker, str):
+                    _markers.append(Marker(marker))
+                else:
+                    _markers.append(marker)
+            marker_str = " and ".join([normalize_marker_str(m) for m in _markers if m])
+            combined_ireq.markers = Marker(marker_str)
         # Return a sorted, de-duped tuple of extras
         combined_ireq.extras = tuple(
             sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras)))
