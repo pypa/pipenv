@@ -768,7 +768,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 pypi_mirror=pypi_mirror,
                 trusted_hosts=trusted_hosts,
                 extra_indexes=extra_indexes,
-                use_pep517=True,
+                use_pep517=not failed,
             )
             c.dep = dep
             # if dep.is_vcs or dep.editable:
