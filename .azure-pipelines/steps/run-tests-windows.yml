@@ -43,15 +43,14 @@ steps:
     parameters:
       python_version: ${{ parameters.python_version }}
 
-  - powershell: |
+  - shell: |
       git submodule sync
       git submodule update --init --recursive
-      Write-Host "Running Command: pipenv run pytest -n 4 --junitxml=junit/test-results.xml tests/"
-      $env:TEMP = "R:\"
       pipenv run pytest -ra -n 4 --junit-xml=junit/test-results.xml tests/
     failOnStderr: false
     displayName: Run integration tests
     env:
+      TEMP: 'R:\'
       PYTHONWARNINGS: 'ignore:DEPRECATION'
       PIPENV_NOSPIN: 1
       GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
