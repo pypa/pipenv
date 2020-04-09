@@ -14,7 +14,7 @@ steps:
 
 - script: |
     git submodule sync && git submodule update --init --recursive
-    pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests
+    pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests --collect-only
   displayName: Run integration tests
   env:
     PYTHONWARNINGS: 'ignore:DEPRECATION'
