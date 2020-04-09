@@ -468,6 +468,27 @@ class Environment(object):
             return parse_version(pip.version)
         return parse_version("19.3")
 
+    def expand_egg_links(self):
+        """
+        Expand paths specified in egg-link files to prevent pip errors during
+        reinstall
+        """
+        site_packages = vistir.compat.Path(self.libdir[1])
+        try:
+            user_site = vistir.compat.Path(site.getusersitepackages())
+        except AttributeError:
+            user_site = vistir.compat.Path(site.USER_SITE)
+        search_locations = [site_packages, user_site]
+        for loc in search_locations:
+            for pth in loc.iterdir():
+                if not pth.suffix == ".egg-link":
+                    continue
+                contents = [
+                    vistir.path.normalize_path(line.strip())
+                    for line in pth.read_text().splitlines()
+                ]
+                pth.write_text("\n".join(contents))
+
     def get_distributions(self):
         """
         Retrives the distributions installed on the library path of the environment
