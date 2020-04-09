@@ -39,7 +39,6 @@ jobs:
       Python37:
         python.version: '3.7'
         python.architecture: x64
-    maxParallel: 4
   steps:
   - template: .azure-pipelines/steps/run-tests.yml
     parameters:
