@@ -675,7 +675,17 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
             click.echo(crayons.blue(c.out.strip() or c.err.strip()))
         # The Installation failed…
         if failed:
-            if not retry:
+            if "does not match installed location" in c.err:
+                project.environment.expand_egg_links()
+                click.echo("{0}".format(
+                    crayons.yellow(
+                        "Failed initial installation: Failed to overwrite existing "
+                        "package, likely due to path aliasing. Expanding and trying "
+                        "again!"
+                    )
+                ))
+                dep = c.dep.copy()
+            elif not retry:
                 # The Installation failed…
                 # We echo both c.out and c.err because pip returns error details on out.
                 err = c.err.strip().splitlines() if c.err else []
@@ -683,16 +693,17 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
                 err_lines = [line for message in [out, err] for line in message]
                 # Return the subprocess' return code.
                 raise exceptions.InstallError(c.dep.name, extra=err_lines)
+            else:
+                # Alert the user.
+                dep = c.dep.copy()
+                click.echo(
+                    "{0} {1}! Will try again.".format(
+                        crayons.red("An error occurred while installing"),
+                        crayons.green(dep.as_line()),
+                    ), err=True
+                )
             # Save the Failed Dependency for later.
-            dep = c.dep.copy()
             failed_deps_queue.put(dep)
-            # Alert the user.
-            click.echo(
-                "{0} {1}! Will try again.".format(
-                    crayons.red("An error occurred while installing"),
-                    crayons.green(dep.as_line()),
-                ), err=True
-            )
 
 
 def batch_install(deps_list, procs, failed_deps_queue,
@@ -757,7 +768,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 pypi_mirror=pypi_mirror,
                 trusted_hosts=trusted_hosts,
                 extra_indexes=extra_indexes,
-                use_pep517=not failed,
+                use_pep517=True,
             )
             c.dep = dep
             # if dep.is_vcs or dep.editable:
