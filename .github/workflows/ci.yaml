@@ -27,7 +27,7 @@ jobs:
 
     - name: Install latest pip, setuptools, wheel
       run: |
-        python -m pip install --upgrade pip setuptools wheel virtualenv --upgrade-strategy=eager
+        python -m pip install --upgrade pip setuptools wheel --upgrade-strategy=eager
     - name: Install dependencies
       env:
         PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
@@ -37,8 +37,8 @@ jobs:
       run: |
         git submodule sync
         git submodule update --init --recursive
-        python -m pip install -e . --upgrade
         python -m pip install "virtualenv<20"
+        python -m pip install -e . --upgrade
         pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
     - name: Run tests
       env:
