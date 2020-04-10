@@ -46,6 +46,29 @@ jobs:
       parameters:
         vmImage: 'Ubuntu-latest'
 
+- job: TestLinux
+  pool:
+    vmImage: 'Ubuntu-latest'
+  strategy:
+    matrix:
+      "2.7":
+        python.version: '2.7'
+        python.architecture: x64
+      "3.6":
+        python.version: '3.6'
+        python.architecture: x64
+      "3.7":
+        python.version: '3.7'
+        python.architecture: x64
+      "3.8":
+        python.version: '3.8'
+        python.architecture: x64
+    maxParallel: 8
+  steps:
+  - template: .azure-pipelines/steps/run-tests.yml
+    parameters:
+      vmImage: 'Ubuntu-latest'
+
 - job: TestWindows
   timeoutInMinutes: 0
   pool:
