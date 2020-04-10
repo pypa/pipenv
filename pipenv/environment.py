@@ -473,13 +473,14 @@ class Environment(object):
         Expand paths specified in egg-link files to prevent pip errors during
         reinstall
         """
-        site_packages = vistir.compat.Path(self.libdir[1])
-        try:
-            user_site = vistir.compat.Path(site.getusersitepackages())
-        except AttributeError:
-            user_site = vistir.compat.Path(site.USER_SITE)
-        search_locations = [site_packages, user_site]
-        for loc in search_locations:
+        prefixes = [
+            vistir.compat.Path(prefix)
+            for prefix in self.base_paths["libdirs"].split(os.pathsep)
+            if _normalized(prefix).startswith(_normalized(self.prefix.as_posix()))
+        ]
+        for loc in prefixes:
+            if not loc.exists():
+                continue
             for pth in loc.iterdir():
                 if not pth.suffix == ".egg-link":
                     continue
