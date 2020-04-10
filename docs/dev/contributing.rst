@@ -127,7 +127,7 @@ is acceptable) run:
 
   git submodule sync
   git submodule update --init --recursive
-  python -m pip install --user -e .
+  python -m pip install -e .
   pipenv install --dev
 
 This will install the repo version of Pipenv and then install the development
