@@ -148,7 +148,11 @@ def test_resolver_unique_markers(PipenvInstance):
         yarl = p.lockfile['default']['yarl']
         assert 'markers' in yarl
         # Two possible marker sets are ok here
-        assert yarl['markers'] in ["python_version in '3.4, 3.5, 3.6'", "python_version >= '3.4'"]
+        assert yarl['markers'] in [
+            "python_version in '3.4, 3.5, 3.6'",
+            "python_version >= '3.4'",
+            "python_version >= '3.5'",  # yarl 1.3.0 requires python 3.5.3
+        ]
 
 
 @flaky
