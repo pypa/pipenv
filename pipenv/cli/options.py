@@ -409,7 +409,7 @@ def uninstall_options(f):
 
 def lock_options(f):
     f = install_base_options(f)
-    f = requirements_flag(f)
+    f = emit_requirements_flag(f)
     f = dev_only_flag(f)
     return f
 
