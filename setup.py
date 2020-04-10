@@ -21,6 +21,13 @@ if sys.argv[-1] == "publish":
     os.system("python setup.py sdist bdist_wheel upload")
     sys.exit()
 
+if os.environ.get("PIPENV_BOOTSTRAP"):
+    # Work around https://github.com/pypa/pip/issues/7953 and enable running:
+    #     $ PIPENV_BOOTSTRAP=1 python3 -m pip install --user -e .
+    # (Windows users should be able to just install pipenv globally)
+    import site
+    site.ENABLE_USER_SITE=True
+
 required = [
     "pip>=18.0",
     "certifi",

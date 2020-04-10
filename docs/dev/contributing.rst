@@ -110,16 +110,31 @@ The following sub-sections go into more detail on some of the points above.
 Development Setup
 ~~~~~~~~~~~~~~~~~
 
-To get your development environment setup, run:
+To get your development environment setup on Linux (or similar systems where
+global package installation is problematic), run:
 
 .. code-block:: sh
 
-  pip install -e .
+  git submodule sync
+  git submodule update --init --recursive
+  PIPENV_BOOTSTRAP=1 python3 -m pip install --user -e .
   pipenv install --dev
 
+On Windows (and other systems where installing into the system site-packages
+is acceptable) run:
+
+.. code-block:: sh
+
+  git submodule sync
+  git submodule update --init --recursive
+  python -m pip install --user -e .
+  pipenv install --dev
 
 This will install the repo version of Pipenv and then install the development
-dependencies. Once that has completed, you can start developing.
+dependencies. This development approach allows `pipenv`'s own `Pipfile` to rely
+on features that may not be supported in previously published `pipenv` releases.
+
+Once that has completed, you can start developing.
 
 The repo version of Pipenv must be installed over other global versions to
 resolve conflicts with the ``pipenv`` folder being implicitly added to ``sys.path``.
