@@ -165,7 +165,7 @@ Let's take this ``Pipfile``::
     [dev-packages]
     pytest = {version="*"}
 
-And generate a set of requirements out of it with only the production dependencies::
+And generate a set of requirements out of it with only the default dependencies::
 
     $ pipenv lock -r
     chardet==3.0.4
@@ -174,7 +174,7 @@ And generate a set of requirements out of it with only the production dependenci
     idna==2.6
     urllib3==1.22
 
-As with other commands, passing ``--dev`` will include both the production and
+As with other commands, passing ``--dev`` will include both the default and
 development dependencies::
 
     $ pipenv lock -r --dev
