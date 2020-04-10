@@ -90,6 +90,8 @@ class Package(object):
             pkg = distlib.wheel.Wheel(path_to_binary)
             md_dict = pkg.metadata.todict()
             requires_python = md_dict.get("requires_python", "")
+            if requires_python.count(".") > 1:
+                requires_python, _, _ = requires_python.rpartition(".")
         self.releases[release] = ReleaseTuple(path_to_binary, requires_python)
         self._package_dirs.add(ReleaseTuple(path, requires_python))
 
