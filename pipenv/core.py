@@ -791,8 +791,8 @@ def do_install_dependencies(
     from six.moves import queue
     if emit_requirements:
         bare = True
-    # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
-    if skip_lock or only or not project.lockfile_exists:
+    # Load the lockfile if it exists, or if dev_only is being used.
+    if skip_lock or dev_only or not project.lockfile_exists:
         if not bare:
             click.echo(
                 crayons.normal(fix_utf8("Installing dependencies from Pipfile…"), bold=True)
