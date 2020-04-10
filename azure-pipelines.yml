@@ -24,29 +24,6 @@ variables:
 - group: CI
 
 jobs:
-- job: TestLinux
-  pool:
-    vmImage: 'Ubuntu-latest'
-  strategy:
-    matrix:
-      Python27:
-        python.version: '2.7'
-        python.architecture: x64
-      Python36:
-        python.version: '3.6'
-        python.architecture: x64
-      Python37:
-        python.version: '3.7'
-        python.architecture: x64
-      Python38:
-        python.version: '3.8'
-        python.architecture: x64
-    maxParallel: 8
-  steps:
-  - template: .azure-pipelines/steps/run-tests.yml
-    parameters:
-      vmImage: 'Ubuntu-latest'
-
 - job: TestVendoring
   pool:
     vmImage: 'Ubuntu-latest'
