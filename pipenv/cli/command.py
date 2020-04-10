@@ -237,7 +237,7 @@ def install(
         lock=not state.installstate.skip_lock,
         ignore_pipfile=state.installstate.ignore_pipfile,
         skip_lock=state.installstate.skip_lock,
-        requirements=state.installstate.requirementstxt,
+        requirementstxt=state.installstate.requirementstxt,
         sequential=state.installstate.sequential,
         pre=state.installstate.pre,
         code=state.installstate.code,
@@ -317,12 +317,23 @@ def lock(
         three=state.three, python=state.python, pypi_mirror=state.pypi_mirror,
         warn=(not state.quiet), site_packages=state.site_packages,
     )
-    if state.installstate.requirementstxt:
+    if state.lockoptions.emit_requirements:
+        # Setting "requirements=True" means do_init() just emits the
+        # install requirements file to stdout, it doesn't install anything
+        if state.installstate.dev:
+            pass # TODO: Emit behaviour change warning as per PEEP 006
         do_init(
             dev=state.installstate.dev,
-            requirements=state.installstate.requirementstxt,
+            dev_only=state.lockoptions.dev_only,
+            emit_requirements=state.lockoptions.emit_requirements,
             pypi_mirror=state.pypi_mirror,
             pre=state.installstate.pre,
+        )
+    elif state.lockoptions.dev_only:
+        raise exceptions.PipenvOptionsError(
+            "--dev-only",
+            "--dev-only is only permitted in combination with --requirements. "
+            "Aborting."
         )
     do_lock(
         ctx=ctx,

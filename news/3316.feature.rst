@@ -1,0 +1,5 @@
+For consistency with other commands and the ``-dev`` option
+description, ``pipenv lock --requirements --dev`` now emits
+both default and development dependencies.
+A new ``--dev-only`` has been added to request to previous
+behaviour (e.g. to generate a ``dev-requirements.txt`` file).

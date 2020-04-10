@@ -65,6 +65,7 @@ class State(object):
         self.clear = False
         self.system = False
         self.installstate = InstallState()
+        self.lockoptions = LockOptions()
 
 
 class InstallState(object):
@@ -82,6 +83,10 @@ class InstallState(object):
         self.packages = []
         self.editables = []
 
+class LockOptions(object):
+    def __init__(self):
+        self.dev_only = False
+        self.emit_requirements = False
 
 pass_state = make_pass_decorator(State, ensure=True)
 
@@ -300,15 +305,23 @@ def requirementstxt_option(f):
                   help="Import a requirements.txt file.", callback=callback)(f)
 
 
-def requirements_flag(f):
+def emit_requirements_flag(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
-            state.installstate.requirementstxt = value
+            state.lockoptions.emit_requirements = value
         return value
     return option("--requirements", "-r", default=False, is_flag=True, expose_value=False,
                   help="Generate output in requirements.txt format.", callback=callback)(f)
 
+def dev_only_flag(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        if value:
+            state.lockoptions.dev_only = value
+        return value
+    return option("--dev-only", default=False, is_flag=True, expose_value=False,
+                  help="Emit development dependencies *only* (overrides --dev)", callback=callback)(f)
 
 def code_option(f):
     def callback(ctx, param, value):
@@ -397,6 +410,7 @@ def uninstall_options(f):
 def lock_options(f):
     f = install_base_options(f)
     f = requirements_flag(f)
+    f = dev_only_flag(f)
     return f
 
 
