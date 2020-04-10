@@ -1,4 +1,4 @@
-name: pipenv_ci
+name: CI
 
 on:
   push:
@@ -8,13 +8,13 @@ on:
 
 jobs:
   build:
-    name: pipenv CI python ${{ matrix.python-version }} on ${{matrix.os}}
-    runs-on: ${{ matrix.os }}
+    name: ${{matrix.os}} / ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: [2.7, 3.6, 3.7, 3.8]
-        os: [macOS-latest, ubuntu-latest, windows-latest]
-      fail-fast: false
+        os: [MacOS, Ubuntu, Windows]
 
     steps:
     - uses: actions/checkout@v1
