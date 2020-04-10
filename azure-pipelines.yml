@@ -1,4 +1,4 @@
-name: Pipenv Build Rules
+name: CI
 trigger:
   batch: true
   branches:
@@ -25,6 +25,7 @@ variables:
 
 jobs:
 - job: TestVendoring
+  displayName: Vendoring
   pool:
     vmImage: 'Ubuntu-latest'
   variables:
@@ -36,6 +37,7 @@ jobs:
         vmImage: 'Ubuntu-latest'
 
 - job: TestPackaging
+  displayName: Packaging
   pool:
     vmImage: 'Ubuntu-latest'
   variables:
@@ -47,6 +49,7 @@ jobs:
         vmImage: 'Ubuntu-latest'
 
 - job: TestLinux
+  displayName: Linux /
   pool:
     vmImage: 'Ubuntu-latest'
   strategy:
@@ -70,21 +73,22 @@ jobs:
       vmImage: 'Ubuntu-latest'
 
 - job: TestWindows
+  displayName: Windows /
   timeoutInMinutes: 0
   pool:
     vmImage: windows-latest
   strategy:
     matrix:
-      Python27:
+      "2.7":
         python.version: '2.7'
         python.architecture: x64
-      Python36:
+      "3.6":
         python.version: '3.6'
         python.architecture: x64
-      Python37:
+      "3.7":
         python.version: '3.7'
         python.architecture: x64
-      Python38:
+      "3.8":
         python.version: '3.8'
         python.architecture: x64
     maxParallel: 8
@@ -94,20 +98,21 @@ jobs:
         vmImage: windows-latest
 
 - job: TestMacOS
+  displayName: MacOS /
   pool:
     vmImage: macOS-latest
   strategy:
     matrix:
-      Python27:
+      "2.7":
         python.version: '2.7'
         python.architecture: x64
-      Python36:
+      "3.6":
         python.version: '3.6'
         python.architecture: x64
-      Python37:
+      "3.7":
         python.version: '3.7'
         python.architecture: x64
-      Python38:
+      "3.8":
         python.version: '3.8'
         python.architecture: x64
     maxParallel: 8
