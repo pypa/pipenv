@@ -223,7 +223,7 @@ def test_install_parse_error(PipenvInstance):
 [dev-packages]
             """.strip()
             f.write(contents)
-        c = p.pipenv('install requests u/\\/p@r\$34b13+pkg')
+        c = p.pipenv('install requests u/\\/p@r\\$34b13+pkg')
         assert c.return_code != 0
         assert 'u/\\/p@r$34b13+pkg' not in p.pipfile['packages']
 
@@ -265,3 +265,16 @@ def test_pipenv_three(PipenvInstance):
         c = p.pipenv('--three')
         assert c.return_code == 0
         assert 'Successfully created virtual environment' in c.err
+
+
+@pytest.mark.outdated
+def test_pipenv_outdated_prerelease(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+sqlalchemy = "<=1.2.3"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('update --pre --outdated')
+        assert c.return_code == 0

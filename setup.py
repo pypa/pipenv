@@ -45,6 +45,7 @@ extras = {
     "tests": ["pytest<5.0", "pytest-tap", "pytest-xdist", "flaky", "mock"],
 }
 
+
 # https://pypi.python.org/pypi/stdeb/0.8.5#quickstart-2-just-tell-me-the-fastest-way-to-make-a-deb
 class DebCommand(Command):
     """Support for setup.py deb"""
@@ -117,8 +118,8 @@ setup(
     description="Python Development Workflow for Humans.",
     long_description=long_description,
     long_description_content_type='text/markdown',
-    author="Kenneth Reitz",
-    author_email="me@kennethreitz.org",
+    author="Pipenv maintainer team",
+    author_email="distutils-sig@python.org",
     url="https://github.com/pypa/pipenv",
     packages=find_packages(exclude=["tests", "tests.*", "tasks", "tasks.*"]),
     entry_points={

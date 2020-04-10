@@ -1,49 +1,48 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
+
 import io
 import json as simplejson
 import logging
 import os
-import shutil
 import sys
 import time
 import warnings
 
 import click
 import six
-import urllib3.util as urllib3_util
-import vistir
 
-from click_completion import init as init_completion
 import delegator
 import dotenv
 import pipfile
+import vistir
 
-from .patched import crayons
+from click_completion import init as init_completion
+
 from . import environments, exceptions, pep508checker, progress
-from ._compat import fix_utf8, decode_for_output
+from ._compat import decode_for_output, fix_utf8
 from .cmdparse import Script
 from .environments import (
-    PIPENV_CACHE_DIR, PIPENV_COLORBLIND, PIPENV_DEFAULT_PYTHON_VERSION,
-    PIPENV_DONT_USE_PYENV, PIPENV_HIDE_EMOJIS, PIPENV_MAX_SUBPROCESS,
-    PIPENV_PYUP_API_KEY, PIPENV_SHELL_FANCY, PIPENV_SKIP_VALIDATION,
-    PIPENV_YES, SESSION_IS_INTERACTIVE, PIP_EXISTS_ACTION, PIPENV_RESOLVE_VCS,
-    is_type_checking
+    PIP_EXISTS_ACTION, PIPENV_CACHE_DIR, PIPENV_COLORBLIND,
+    PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_DONT_USE_PYENV, PIPENV_DONT_USE_ASDF,
+    PIPENV_HIDE_EMOJIS, PIPENV_MAX_SUBPROCESS, PIPENV_PYUP_API_KEY,
+    PIPENV_RESOLVE_VCS, PIPENV_SHELL_FANCY, PIPENV_SKIP_VALIDATION, PIPENV_YES,
+    SESSION_IS_INTERACTIVE, is_type_checking
 )
-from .project import Project, SourceNotFound
+from .patched import crayons
+from .project import Project
 from .utils import (
-    convert_deps_to_pip, create_mirror_source, create_spinner, download_file,
-    escape_cmd, escape_grouped_arguments, find_windows_executable,
-    get_canonical_names, is_pinned, is_pypi_url, is_required_version, is_star,
-    is_valid_url, parse_indexes, pep423_name, prepare_pip_source_args,
-    proper_case, python_version, venv_resolve_deps, run_command,
-    is_python_command, find_python, make_posix, interrupt_handled_subprocess,
-    get_indexes_from_requirement, get_source_list, get_project_index,
+    convert_deps_to_pip, create_spinner, download_file,
+    escape_grouped_arguments, find_python, find_windows_executable,
+    get_canonical_names, get_source_list, interrupt_handled_subprocess,
+    is_pinned, is_python_command, is_required_version, is_star, is_valid_url,
+    parse_indexes, pep423_name, prepare_pip_source_args, proper_case,
+    python_version, run_command, venv_resolve_deps
 )
 
 
 if is_type_checking():
-    from typing import Dict, List, Mapping, Optional, Union, Text
+    from typing import Dict, List, Optional, Union, Text
     from pipenv.vendor.requirementslib.models.requirements import Requirement
     TSourceDict = Dict[Text, Union[Text, bool]]
 
@@ -393,28 +392,36 @@ def ensure_python(three=None, python=None):
             ),
             err=True,
         )
-        # Pyenv is installed
-        from .vendor.pythonfinder.environment import PYENV_INSTALLED
+        # check for python installers
+        from .vendor.pythonfinder.environment import PYENV_INSTALLED, ASDF_INSTALLED
+        from .installers import Pyenv, Asdf, InstallerError
 
-        if not PYENV_INSTALLED:
+        # prefer pyenv if both pyenv and asdf are installed as it's
+        # dedicated to python installs so probably the preferred
+        # method of the user for new python installs.
+        if PYENV_INSTALLED and not PIPENV_DONT_USE_PYENV:
+            installer = Pyenv("pyenv")
+        elif ASDF_INSTALLED and not PIPENV_DONT_USE_ASDF:
+            installer = Asdf("asdf")
+        else:
+            installer = None
+
+        if not installer:
             abort()
         else:
-            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
-                from .pyenv import Runner, PyenvError
-
-                pyenv = Runner("pyenv")
+            if SESSION_IS_INTERACTIVE or PIPENV_YES:
                 try:
-                    version = pyenv.find_version_to_install(python)
+                    version = installer.find_version_to_install(python)
                 except ValueError:
                     abort()
-                except PyenvError as e:
+                except InstallerError as e:
                     click.echo(fix_utf8("Something went wrong…"))
                     click.echo(crayons.blue(e.err), err=True)
                     abort()
                 s = "{0} {1} {2}".format(
                     "Would you like us to install",
                     crayons.green("CPython {0}".format(version)),
-                    "with pyenv?",
+                    "with {0}?".format(installer),
                 )
                 # Prompt the user to continue…
                 if not (PIPENV_YES or click.confirm(s, default=True)):
@@ -425,15 +432,15 @@ def ensure_python(three=None, python=None):
                         u"{0} {1} {2} {3}{4}".format(
                             crayons.normal(u"Installing", bold=True),
                             crayons.green(u"CPython {0}".format(version), bold=True),
-                            crayons.normal(u"with pyenv", bold=True),
+                            crayons.normal(u"with {0}".format(installer), bold=True),
                             crayons.normal(u"(this may take a few minutes)"),
                             crayons.normal(fix_utf8("…"), bold=True),
                         )
                     )
                     with create_spinner("Installing python...") as sp:
                         try:
-                            c = pyenv.install(version)
-                        except PyenvError as e:
+                            c = installer.install(version)
+                        except InstallerError as e:
                             sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
                                 "Failed...")
                             )
@@ -711,8 +718,6 @@ def batch_install(deps_list, procs, failed_deps_queue,
         label=label
     )
 
-
-    indexes = []
     trusted_hosts = []
     # Install these because
     for dep in deps_list_bar:
@@ -723,9 +728,6 @@ def batch_install(deps_list, procs, failed_deps_queue,
             dep.markers = str(strip_extras_markers_from_requirement(dep.get_markers()))
         # Install the module.
         is_artifact = False
-        if no_deps:
-            link = getattr(dep.req, "link", None)
-            is_wheel = getattr(link, "is_wheel", False) if link else False
         if dep.is_file_or_url and (dep.is_direct_url or any(
             dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"]
         )):
@@ -1053,7 +1055,6 @@ def do_lock(
     # Resolve dev-package dependencies, with pip-tools.
     for is_dev in [True, False]:
         pipfile_section = "dev-packages" if is_dev else "packages"
-        lockfile_section = "develop" if is_dev else "default"
         if project.pipfile_exists:
             packages = project.parsed_pipfile.get(pipfile_section, {})
         else:
@@ -1355,7 +1356,7 @@ def get_requirement_line(
                 return ["-e", line]
             return '-e {0}'.format(line)
         if not format_for_file:
-            return [line,]
+            return [line]
         return line
     return requirement.as_line(include_hashes=include_hashes, as_list=not format_for_file)
 
@@ -1767,7 +1768,7 @@ def do_py(system=False):
         click.echo(crayons.red("No project found!"))
 
 
-def do_outdated(pypi_mirror=None):
+def do_outdated(pypi_mirror=None, pre=False, clear=False):
     # TODO: Allow --skip-lock here?
     from .vendor.requirementslib.models.requirements import Requirement
     from .vendor.requirementslib.models.utils import get_version
@@ -1789,7 +1790,7 @@ def do_outdated(pypi_mirror=None):
         dep = Requirement.from_line(str(result.as_requirement()))
         packages.update(dep.as_pipfile())
     updated_packages = {}
-    lockfile = do_lock(write=False, pypi_mirror=pypi_mirror)
+    lockfile = do_lock(clear=clear, pre=pre, write=False, pypi_mirror=pypi_mirror)
     for section in ("develop", "default"):
         for package in lockfile[section]:
             try:

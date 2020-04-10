@@ -7,7 +7,6 @@ import pytest
 from flaky import flaky
 
 from pipenv._compat import Path, TemporaryDirectory
-from pipenv.project import Project
 from pipenv.utils import temp_environ
 from pipenv.vendor import delegator
 

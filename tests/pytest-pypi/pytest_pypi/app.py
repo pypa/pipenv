@@ -4,7 +4,6 @@ import contextlib
 import io
 import json
 import os
-import sys
 
 from tarfile import is_tarfile
 from zipfile import is_zipfile

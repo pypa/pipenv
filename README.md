@@ -5,7 +5,6 @@ Pipenv: Python Development Workflow for Humans
 [![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv)
 [![Azure Pipelines Build Status](https://dev.azure.com/pypa/pipenv/_apis/build/status/Pipenv%20CI?branchName=master)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=16&branchName=master)
 [![image](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://python.org/pypi/pipenv)
-[![image](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/kennethreitz)
 
 ------------------------------------------------------------------------
 
@@ -18,7 +17,7 @@ well as adds/removes packages from your `Pipfile` as you
 install/uninstall packages. It also generates the ever-important
 `Pipfile.lock`, which is used to produce deterministic builds.
 
-![image](https://s3.amazonaws.com/media.kennethreitz.com/pipenv.gif)
+![GIF demonstrating Pipenv's usage](https://gist.githubusercontent.com/jlusk/855d611bbcfa2b159839db73d07f6ce9/raw/7f5743401809f7e630ee8ff458faa980e19924a0/pipenv.gif)
 
 The problems that Pipenv seeks to solve are multi-faceted:
 
@@ -48,7 +47,7 @@ Or, if you\'re using Debian Buster+:
 
     $ sudo apt install pipenv
 
-Or, if you\'re using Fedora 28:
+Or, if you\'re using Fedora:
 
     $ sudo dnf install pipenv
     
@@ -56,18 +55,12 @@ Or, if you\'re using FreeBSD:
 
     # pkg install py36-pipenv
 
-Otherwise, refer to the [documentation](https://docs.pipenv.org/en/latest/install/#installing-pipenv) for instructions.
+Otherwise, refer to the [documentation](https://pipenv.pypa.io/en/latest/#install-pipenv-today) for instructions.
 
 ✨🍰✨
 
 ☤ User Testimonials
 -------------------
-
-**Jannis Leidel**, former pip maintainer---
-
-:   *Pipenv is the porcelain I always wanted to build for pip. It fits
-    my brain and mostly replaces virtualenvwrapper and manual pip calls
-    for me. Use it.*
 
 **David Gang**---
 
@@ -303,4 +296,4 @@ Use the shell:
 ☤ Documentation
 ---------------
 
-Documentation resides over at [pipenv.org](http://pipenv.org/).
+Documentation resides over at [pipenv.pypa.io](https://pipenv.pypa.io/en/latest/).

@@ -1,0 +1,1 @@
+Honor PIPENV_SPINNER environment variable

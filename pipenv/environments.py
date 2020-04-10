@@ -68,6 +68,12 @@ PIPENV_DONT_USE_PYENV = bool(os.environ.get("PIPENV_DONT_USE_PYENV"))
 Default is to install Python automatically via pyenv when needed, if possible.
 """
 
+PIPENV_DONT_USE_ASDF = bool(os.environ.get("PIPENV_DONT_USE_ASDF"))
+"""If set, Pipenv does not attempt to install Python with asdf.
+
+Default is to install Python automatically via asdf when needed, if possible.
+"""
+
 PIPENV_DOTENV_LOCATION = os.environ.get("PIPENV_DOTENV_LOCATION")
 """If set, Pipenv loads the ``.env`` file at the specified location.
 
@@ -151,6 +157,7 @@ if PIPENV_IS_CI:
     PIPENV_NOSPIN = True
 
 PIPENV_SPINNER = "dots" if not os.name == "nt" else "bouncingBar"
+PIPENV_SPINNER = os.environ.get("PIPENV_SPINNER", PIPENV_SPINNER)
 """Sets the default spinner type.
 
 Spinners are identitcal to the node.js spinners and can be found at

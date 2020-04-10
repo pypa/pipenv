@@ -48,19 +48,22 @@ class Version(object):
         return (self.major, self.minor) == (other.major, other.minor)
 
 
-class PyenvError(RuntimeError):
+class InstallerError(RuntimeError):
     def __init__(self, desc, c):
-        super(PyenvError, self).__init__(desc)
+        super(InstallerError, self).__init__(desc)
         self.out = c.out
         self.err = c.err
 
 
-class Runner(object):
+class Installer(object):
 
-    def __init__(self, pyenv):
-        self._cmd = pyenv
+    def __init__(self, cmd):
+        self._cmd = cmd
 
-    def _pyenv(self, *args, **kwargs):
+    def __str__(self):
+        return self._cmd
+
+    def _run(self, *args, **kwargs):
         timeout = kwargs.pop('timeout', delegator.TIMEOUT)
         if kwargs:
             k = list(kwargs.keys())[0]
@@ -69,21 +72,16 @@ class Runner(object):
         c = delegator.run(args, block=False, timeout=timeout)
         c.block()
         if c.return_code != 0:
-            raise PyenvError('faild to run {0}'.format(args), c)
+            raise InstallerError('faild to run {0}'.format(args), c)
         return c
 
     def iter_installable_versions(self):
         """Iterate through CPython versions available for Pipenv to install.
         """
-        for name in self._pyenv('install', '--list').out.splitlines():
-            try:
-                version = Version.parse(name.strip())
-            except ValueError:
-                continue
-            yield version
+        raise NotImplementedError
 
     def find_version_to_install(self, name):
-        """Find a version in pyenv from the version supplied.
+        """Find a version in the installer from the version supplied.
 
         A ValueError is raised if a matching version cannot be found.
         """
@@ -103,16 +101,64 @@ class Runner(object):
         return best_match
 
     def install(self, version):
-        """Install the given version with pyenv.
+        """Install the given version with runner implementation.
 
         The version must be a ``Version`` instance representing a version
-        found in pyenv.
+        found in the Installer.
 
         A ValueError is raised if the given version does not have a match in
-        pyenv. A PyenvError is raised if the pyenv command fails.
+        the runner. A InstallerError is raised if the runner command fails.
         """
-        c = self._pyenv(
+        raise NotImplementedError
+
+
+class Pyenv(Installer):
+
+    def iter_installable_versions(self):
+        """Iterate through CPython versions available for Pipenv to install.
+        """
+        for name in self._run('install', '--list').out.splitlines():
+            try:
+                version = Version.parse(name.strip())
+            except ValueError:
+                continue
+            yield version
+
+    def install(self, version):
+        """Install the given version with pyenv.
+        The version must be a ``Version`` instance representing a version
+        found in pyenv.
+        A ValueError is raised if the given version does not have a match in
+        pyenv. A InstallerError is raised if the pyenv command fails.
+        """
+        c = self._run(
             'install', '-s', str(version),
+            timeout=PIPENV_INSTALL_TIMEOUT,
+        )
+        return c
+
+
+class Asdf(Installer):
+
+    def iter_installable_versions(self):
+        """Iterate through CPython versions available for asdf to install.
+        """
+        for name in self._run('list-all', 'python').out.splitlines():
+            try:
+                version = Version.parse(name.strip())
+            except ValueError:
+                continue
+            yield version
+
+    def install(self, version):
+        """Install the given version with asdf.
+        The version must be a ``Version`` instance representing a version
+        found in asdf.
+        A ValueError is raised if the given version does not have a match in
+        asdf. A InstallerError is raised if the asdf command fails.
+        """
+        c = self._run(
+            'install', 'python', str(version),
             timeout=PIPENV_INSTALL_TIMEOUT,
         )
         return c

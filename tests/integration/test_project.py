@@ -11,7 +11,6 @@ from pipenv.project import Project
 from pipenv.utils import temp_environ
 from pipenv.vendor.vistir.path import is_in_path
 from pipenv.vendor.delegator import run as delegator_run
-import pipenv.environments
 
 
 @pytest.mark.project

@@ -5,9 +5,7 @@ import os
 import pytest
 
 from pipenv._compat import Path, TemporaryDirectory
-from pipenv.project import Project
-from pipenv.utils import get_windows_path, normalize_drive, temp_environ
-from pipenv.vendor import delegator
+from pipenv.utils import normalize_drive, temp_environ
 
 
 @pytest.mark.dotvenv

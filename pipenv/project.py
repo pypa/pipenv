@@ -15,8 +15,6 @@ import toml
 import tomlkit
 import vistir
 
-from first import first
-
 import pipfile
 import pipfile.api
 
@@ -209,14 +207,12 @@ class Project(object):
                 # First exclude anything that is a vcs entry either in the key or value
                 if not (
                     any(is_vcs(i) for i in [k, v])
-                    or
                     # Then exclude any installable files that are not directories
                     # Because pip-tools can resolve setup.py for example
-                    any(is_installable_file(i) for i in [k, v])
-                    or
+                    or any(is_installable_file(i) for i in [k, v])
                     # Then exclude any URLs because they need to be editable also
                     # Things that are excluded can only be 'shallow resolved'
-                    any(is_valid_url(i) for i in [k, v])
+                    or any(is_valid_url(i) for i in [k, v])
                 ):
                     ps.update({k: v})
         return ps
@@ -337,7 +333,7 @@ class Project(object):
         if not self._environment:
             prefix = self.virtualenv_location
             is_venv = is_in_virtualenv()
-            sources = self.sources if self.sources else [DEFAULT_SOURCE,]
+            sources = self.sources if self.sources else [DEFAULT_SOURCE]
             self._environment = Environment(
                 prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
                 project=self
@@ -421,8 +417,10 @@ class Project(object):
     def virtualenv_location(self):
         # if VIRTUAL_ENV is set, use that.
         virtualenv_env = os.getenv("VIRTUAL_ENV")
-        if ("PIPENV_ACTIVE" not in os.environ and
-                not PIPENV_IGNORE_VIRTUALENVS and virtualenv_env):
+        if (
+            "PIPENV_ACTIVE" not in os.environ
+            and not PIPENV_IGNORE_VIRTUALENVS and virtualenv_env
+        ):
             return virtualenv_env
 
         if not self._virtualenv_location:  # Use cached version, if available.
@@ -541,7 +539,6 @@ class Project(object):
     @property
     def build_requires(self):
         return self._build_system.get("requires", ["setuptools>=40.8.0", "wheel"])
-
 
     @property
     def build_backend(self):
@@ -688,7 +685,7 @@ class Project(object):
             .lstrip("\n")
             .split("\n")
         )
-        sources = [DEFAULT_SOURCE,]
+        sources = [DEFAULT_SOURCE]
         for i, index in enumerate(indexes):
             if not index:
                 continue
@@ -756,7 +753,7 @@ class Project(object):
             if not sources:
                 sources = self.pipfile_sources
             elif not isinstance(sources, list):
-                sources = [sources,]
+                sources = [sources]
             lockfile_dict["_meta"]["sources"] = [
                 self.populate_source(s) for s in sources
             ]
@@ -775,7 +772,7 @@ class Project(object):
         else:
             sources = [dict(source) for source in self.parsed_pipfile["source"]]
         if not isinstance(sources, list):
-            sources = [sources,]
+            sources = [sources]
         return {
             "hash": {"sha256": self.calculate_pipfile_hash()},
             "pipfile-spec": PIPFILE_SPEC_CURRENT,
