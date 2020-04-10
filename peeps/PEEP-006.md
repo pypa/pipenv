@@ -1,6 +1,8 @@
-# PEEP-006: Change the behavior of `-d` flag when generating requirement.txt
+# PEEP-006: Include all deps in output of `pipenv lock -r --dev`
 
-Make the behavior of `pipenv lock -r -d` consistent with those in other commands: convert all dependencies.
+This proposal makes the behavior of `pipenv lock --requirements --dev`
+consistent with the behaviour of other commands: converting all dependencies,
+not just the development dependencies.
 
 ☤
 
@@ -54,3 +56,7 @@ the `--dev-only` flag after updating `pipenv` to achieve the same thing as befor
 ## Related issues:
 
 - #3316
+
+## Related pull requests:
+
+- #4183
