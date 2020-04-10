@@ -476,7 +476,7 @@ class Environment(object):
         prefixes = [
             vistir.compat.Path(prefix)
             for prefix in self.base_paths["libdirs"].split(os.pathsep)
-            if _normalized(prefix).startswith(_normalized(self.prefix.as_posix()))
+            if vistir.path.is_in_path(prefix, self.prefix.as_posix())
         ]
         for loc in prefixes:
             if not loc.exists():
