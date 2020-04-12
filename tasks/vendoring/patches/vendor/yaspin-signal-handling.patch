@@ -60,3 +60,19 @@ index d01fb98e..06b8b621 100644
      def _clear_line():
 -        sys.stdout.write("\033[K")
 +        sys.stdout.write(chr(27) + "[K")
+diff --git a/pipenv/vendor/yaspin/spinners.py b/pipenv/vendor/yaspin/spinners.py
+index 9c3fa7b8..60822a2c 100644
+--- a/pipenv/vendor/yaspin/spinners.py
++++ b/pipenv/vendor/yaspin/spinners.py
+@@ -11,10 +11,7 @@ import codecs
+ import os
+ from collections import namedtuple
+ 
+-try:
+-    import simplejson as json
+-except ImportError:
+-    import json
++import json
+ 
+ 
+ THIS_DIR = os.path.dirname(os.path.realpath(__file__))

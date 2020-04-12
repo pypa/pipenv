@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """
@@ -14,7 +13,3 @@ def where():
     f = os.path.dirname(__file__)
 
     return os.path.join(f, 'cacert.pem')
-
-
-if __name__ == '__main__':
-    print(where())

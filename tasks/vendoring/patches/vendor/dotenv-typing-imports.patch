@@ -1,9 +1,9 @@
 diff --git a/pipenv/vendor/dotenv/__init__.py b/pipenv/vendor/dotenv/__init__.py
-index 1867868..b88d9bc 100644
+index 105a32a..b88d9bc 100644
 --- a/pipenv/vendor/dotenv/__init__.py
 +++ b/pipenv/vendor/dotenv/__init__.py
 @@ -1,6 +1,9 @@
--from typing import Any, Optional
+-from typing import Any, Optional  # noqa
 +from .compat import IS_TYPE_CHECKING
  from .main import load_dotenv, get_key, set_key, unset_key, find_dotenv, dotenv_values
  
@@ -14,97 +14,148 @@ index 1867868..b88d9bc 100644
  def load_ipython_extension(ipython):
      # type: (Any) -> None
 diff --git a/pipenv/vendor/dotenv/cli.py b/pipenv/vendor/dotenv/cli.py
-index 45f4b76..829b14a 100644
+index 235f329..d2a021a 100644
 --- a/pipenv/vendor/dotenv/cli.py
 +++ b/pipenv/vendor/dotenv/cli.py
-@@ -1,6 +1,5 @@
+@@ -1,7 +1,6 @@
  import os
  import sys
--from typing import Any, List
+ from subprocess import Popen
+-from typing import Any, Dict, List  # noqa
  
  try:
      import click
-@@ -9,9 +8,13 @@ except ImportError:
+@@ -10,9 +9,13 @@ except ImportError:
                       'Run pip install "python-dotenv[cli]" to fix this.')
      sys.exit(1)
  
 +from .compat import IS_TYPE_CHECKING
- from .main import dotenv_values, get_key, set_key, unset_key, run_command
+ from .main import dotenv_values, get_key, set_key, unset_key
  from .version import __version__
  
 +if IS_TYPE_CHECKING:
-+    from typing import Any, List
++    from typing import Any, List, Dict
 +
  
  @click.group()
  @click.option('-f', '--file', default=os.path.join(os.getcwd(), '.env'),
 diff --git a/pipenv/vendor/dotenv/compat.py b/pipenv/vendor/dotenv/compat.py
-index 99ffb39..7a8694f 100644
+index 394d3a3..61f555d 100644
 --- a/pipenv/vendor/dotenv/compat.py
 +++ b/pipenv/vendor/dotenv/compat.py
-@@ -1,3 +1,4 @@
-+import os
+@@ -1,5 +1,4 @@
  import sys
- 
- if sys.version_info >= (3, 0):
-@@ -6,3 +7,15 @@ else:
-     from StringIO import StringIO  # noqa
+-from typing import Text  # noqa
  
  PY2 = sys.version_info[0] == 2  # type: bool
-+
-+
+ 
+@@ -9,6 +8,22 @@ else:
+     from io import StringIO  # noqa
+ 
+ 
 +def is_type_checking():
 +    # type: () -> bool
 +    try:
 +        from typing import TYPE_CHECKING
-+    except ImportError:
++    except ImportError:  # pragma: no cover
 +        return False
 +    return TYPE_CHECKING
 +
 +
-+IS_TYPE_CHECKING = os.environ.get("MYPY_RUNNING", is_type_checking())
++IS_TYPE_CHECKING = is_type_checking()
++
++
++if IS_TYPE_CHECKING:
++    from typing import Text
++
++
+ def to_env(text):
+     # type: (Text) -> str
+     """
 diff --git a/pipenv/vendor/dotenv/main.py b/pipenv/vendor/dotenv/main.py
-index 0812282..64d4269 100644
+index 04d2241..06a210e 100644
 --- a/pipenv/vendor/dotenv/main.py
 +++ b/pipenv/vendor/dotenv/main.py
-@@ -9,15 +9,17 @@ import shutil
+@@ -7,16 +7,17 @@ import re
+ import shutil
  import sys
- from subprocess import Popen
  import tempfile
--from typing import (Any, Dict, Iterator, List, Match, NamedTuple, Optional,  # noqa
--                    Pattern, Union, TYPE_CHECKING, Text, IO, Tuple)  # noqa
+-from typing import (Dict, Iterator, List, Match, Optional,  # noqa
+-                    Pattern, Union, TYPE_CHECKING, Text, IO, Tuple)
  import warnings
  from collections import OrderedDict
  from contextlib import contextmanager
  
--from .compat import StringIO, PY2
-+from .compat import StringIO, PY2, IS_TYPE_CHECKING
+-from .compat import StringIO, PY2, to_env
++from .compat import StringIO, PY2, to_env, IS_TYPE_CHECKING
+ from .parser import parse_stream
  
 -if TYPE_CHECKING:  # pragma: no cover
-+if IS_TYPE_CHECKING:  # pragma: no cover
++if IS_TYPE_CHECKING:
 +    from typing import (
-+        Dict, Iterator, List, Match, Optional, Pattern, Union,
-+        Text, IO, Tuple
++        Dict, Iterator, Match, Optional, Pattern, Union, Text, IO, Tuple
 +    )
      if sys.version_info >= (3, 6):
          _PathLike = os.PathLike
      else:
-@@ -59,10 +61,14 @@ _binding = re.compile(
+@@ -273,6 +274,14 @@ def find_dotenv(filename='.env', raise_error_if_not_found=False, usecwd=False):
  
- _escape_sequence = re.compile(r"\\[\\'\"abfnrtv]")  # type: Pattern[Text]
+ def load_dotenv(dotenv_path=None, stream=None, verbose=False, override=False, **kwargs):
+     # type: (Union[Text, _PathLike, None], Optional[_StringIO], bool, bool, Union[None, Text]) -> bool
++    """Parse a .env file and then load all the variables found as environment variables.
++
++    - *dotenv_path*: absolute or relative path to .env file.
++    - *stream*: `StringIO` object with .env content.
++    - *verbose*: whether to output the warnings related to missing .env file etc. Defaults to `False`.
++    - *override*: where to override the system environment variables with the variables in `.env` file.
++                  Defaults to `False`.
++    """
+     f = dotenv_path or stream or find_dotenv()
+     return DotEnv(f, verbose=verbose, **kwargs).set_as_environment_variables(override=override)
  
--
+diff --git a/pipenv/vendor/dotenv/parser.py b/pipenv/vendor/dotenv/parser.py
+index b63cb3a..034ebfd 100644
+--- a/pipenv/vendor/dotenv/parser.py
++++ b/pipenv/vendor/dotenv/parser.py
+@@ -1,9 +1,14 @@
+ import codecs
+ import re
+-from typing import (IO, Iterator, Match, NamedTuple, Optional, Pattern,  # noqa
+-                    Sequence, Text)
+ 
+-from .compat import to_text
++from .compat import to_text, IS_TYPE_CHECKING
++
++
++if IS_TYPE_CHECKING:
++    from typing import (  # noqa:F401
++        IO, Iterator, Match, NamedTuple, Optional, Pattern, Sequence, Text,
++        Tuple
++    )
+ 
+ 
+ def make_regex(string, extra_flags=0):
+@@ -25,9 +30,20 @@ _rest_of_line = make_regex(r"[^\r\n]*(?:\r|\n|\r\n)?")
+ _double_quote_escapes = make_regex(r"\\[\\'\"abfnrtv]")
+ _single_quote_escapes = make_regex(r"\\[\\']")
+ 
 -Binding = NamedTuple("Binding", [("key", Optional[Text]),
 -                                 ("value", Optional[Text]),
 -                                 ("original", Text)])
++
 +try:
-+    from typing import NamedTuple, Optional, Text
-+    Binding = NamedTuple("Binding", [("key", Optional[Text]),
-+                                     ("value", Optional[Text]),
-+                                     ("original", Text)])
-+except ImportError:
++    # this is necessary because we only import these from typing
++    # when we are type checking, and the linter is upset if we
++    # re-import
++    import typing
++    Binding = typing.NamedTuple("Binding", [("key", typing.Optional[typing.Text]),
++                                            ("value", typing.Optional[typing.Text]),
++                                            ("original", typing.Text)])
++except ImportError:  # pragma: no cover
 +    from collections import namedtuple
-+    Binding = namedtuple("Binding", ["key", "value", "original"])
++    Binding = namedtuple("Binding", ["key",  # type: ignore
++                                     "value",
++                                     "original"])  # type: Tuple[Optional[Text], Optional[Text], Text]
  
  
- def decode_escapes(string):
+ class Error(Exception):

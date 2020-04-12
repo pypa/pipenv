@@ -121,7 +121,5 @@ def split_args(line):
 
 
 def get_auto_shell():
-    """Returns the current shell
-
-    This feature depends on psutil and will not work if it is not available"""
+    """Returns the current shell"""
     return shellingham.detect_shell()[0]

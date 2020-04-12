@@ -16,9 +16,11 @@ from ._make import (
     make_class,
     validate,
 )
+from ._version_info import VersionInfo
 
 
-__version__ = "19.1.0"
+__version__ = "19.3.0"
+__version_info__ = VersionInfo._from_version_string(__version__)
 
 __title__ = "attrs"
 __description__ = "Classes Without Boilerplate"
@@ -36,6 +38,7 @@ __copyright__ = "Copyright (c) 2015 Hynek Schlawack"
 s = attributes = attrs
 ib = attr = attrib
 dataclass = partial(attrs, auto_attribs=True)  # happy Easter ;)
+
 
 __all__ = [
     "Attribute",

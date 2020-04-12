@@ -11,7 +11,7 @@ import six.moves
 import tomlkit
 import vistir
 from six.moves.urllib.parse import urlparse, urlsplit, urlunparse
-from vistir.compat import Path
+from vistir.compat import Path, fs_decode
 from vistir.path import ensure_mkdir_p, is_valid_url
 
 from .environment import MYPY_RUNNING
@@ -121,7 +121,7 @@ def strip_ssh_from_git_uri(uri):
 
 def add_ssh_scheme_to_git_uri(uri):
     # type: (S) -> S
-    """Cleans VCS uris from pip format"""
+    """Cleans VCS uris from pipenv.patched.notpip format"""
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
@@ -180,7 +180,9 @@ def convert_entry_to_path(path):
 
     elif "path" in path:
         path = path["path"]
-    return path
+    if not os.name == "nt":
+        return fs_decode(path)
+    return Path(fs_decode(path)).as_posix()
 
 
 def is_installable_file(path):

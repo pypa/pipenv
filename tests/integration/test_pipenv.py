@@ -27,18 +27,17 @@ def test_code_import_manual(PipenvInstance):
 
 @pytest.mark.lock
 @pytest.mark.deploy
-@pytest.mark.cli
 def test_deploy_works(PipenvInstance):
 
     with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
-requests = "==2.14.0"
-flask = "==0.12.2"
+requests = "==2.19.1"
+flask = "==1.1.2"
 
 [dev-packages]
-pytest = "==3.1.1"
+pytest = "==4.6.9"
             """.strip()
             f.write(contents)
         c = p.pipenv('install --verbose')
@@ -51,7 +50,7 @@ pytest = "==3.1.1"
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
-requests = "==2.14.0"
+requests = "==2.19.1"
             """.strip()
             f.write(contents)
 

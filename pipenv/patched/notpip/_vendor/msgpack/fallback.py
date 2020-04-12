@@ -4,20 +4,30 @@ import sys
 import struct
 import warnings
 
-if sys.version_info[0] == 3:
-    PY3 = True
+
+if sys.version_info[0] == 2:
+    PY2 = True
+    int_types = (int, long)
+    def dict_iteritems(d):
+        return d.iteritems()
+else:
+    PY2 = False
     int_types = int
-    Unicode = str
+    unicode = str
     xrange = range
     def dict_iteritems(d):
         return d.items()
-else:
-    PY3 = False
-    int_types = (int, long)
-    Unicode = unicode
-    def dict_iteritems(d):
-        return d.iteritems()
 
+if sys.version_info < (3, 5):
+    # Ugly hack...
+    RecursionError = RuntimeError
+
+    def _is_recursionerror(e):
+        return len(e.args) == 1 and isinstance(e.args[0], str) and \
+            e.args[0].startswith('maximum recursion depth exceeded')
+else:
+    def _is_recursionerror(e):
+        return True
 
 if hasattr(sys, 'pypy_version_info'):
     # cStringIO is slow on PyPy, StringIO is faster.  However: PyPy's own
@@ -49,15 +59,15 @@ else:
     newlist_hint = lambda size: []
 
 
-from pipenv.patched.notpip._vendor.msgpack.exceptions import (
+from .exceptions import (
     BufferFull,
     OutOfData,
-    UnpackValueError,
-    PackValueError,
-    PackOverflowError,
-    ExtraData)
+    ExtraData,
+    FormatError,
+    StackError,
+)
 
-from pipenv.patched.notpip._vendor.msgpack import ExtType
+from . import ExtType
 
 
 EX_SKIP                 = 0
@@ -87,12 +97,12 @@ def _get_data_from_buffer(obj):
         view = memoryview(obj)
     except TypeError:
         # try to use legacy buffer protocol if 2.7, otherwise re-raise
-        if not PY3:
+        if PY2:
             view = memoryview(buffer(obj))
             warnings.warn("using old buffer interface to unpack %s; "
                           "this leads to unpacking errors if slicing is used and "
                           "will be removed in a future version" % type(obj),
-                          RuntimeWarning)
+                          RuntimeWarning, stacklevel=3)
         else:
             raise
     if view.itemsize != 1:
@@ -103,7 +113,7 @@ def _get_data_from_buffer(obj):
 def unpack(stream, **kwargs):
     warnings.warn(
         "Direct calling implementation's unpack() is deprecated, Use msgpack.unpack() or unpackb() instead.",
-        PendingDeprecationWarning)
+        DeprecationWarning, stacklevel=2)
     data = stream.read()
     return unpackb(data, **kwargs)
 
@@ -112,18 +122,35 @@ def unpackb(packed, **kwargs):
     """
     Unpack an object from `packed`.
 
-    Raises `ExtraData` when `packed` contains extra bytes.
+    Raises ``ExtraData`` when *packed* contains extra bytes.
+    Raises ``ValueError`` when *packed* is incomplete.
+    Raises ``FormatError`` when *packed* is not valid msgpack.
+    Raises ``StackError`` when *packed* contains too nested.
+    Other exceptions can be raised during unpacking.
+
     See :class:`Unpacker` for options.
     """
-    unpacker = Unpacker(None, **kwargs)
+    unpacker = Unpacker(None, max_buffer_size=len(packed), **kwargs)
     unpacker.feed(packed)
     try:
         ret = unpacker._unpack()
     except OutOfData:
-        raise UnpackValueError("Data is not enough.")
+        raise ValueError("Unpack failed: incomplete input")
+    except RecursionError as e:
+        if _is_recursionerror(e):
+            raise StackError
+        raise
     if unpacker._got_extradata():
         raise ExtraData(ret, unpacker._get_extradata())
     return ret
+
+
+if sys.version_info < (2, 7, 6):
+    def _unpack_from(f, b, o=0):
+        """Explicit typcast for legacy struct.unpack_from"""
+        return struct.unpack_from(f, bytes(b), o)
+else:
+    _unpack_from = struct.unpack_from
 
 
 class Unpacker(object):
@@ -152,6 +179,11 @@ class Unpacker(object):
 
         *encoding* option which is deprecated overrides this option.
 
+    :param bool strict_map_key:
+        If true, only str or bytes are accepted for map (dict) keys.
+        It's False by default for backward-compatibility.
+        But it will be True from msgpack 1.0.
+
     :param callable object_hook:
         When specified, it should be callable.
         Unpacker calls it with a dict argument after unpacking msgpack map.
@@ -176,27 +208,34 @@ class Unpacker(object):
         You should set this parameter when unpacking data from untrusted source.
 
     :param int max_str_len:
-        Limits max length of str. (default: 2**31-1)
+        Deprecated, use *max_buffer_size* instead.
+        Limits max length of str. (default: max_buffer_size or 1024*1024)
 
     :param int max_bin_len:
-        Limits max length of bin. (default: 2**31-1)
+        Deprecated, use *max_buffer_size* instead.
+        Limits max length of bin. (default: max_buffer_size or 1024*1024)
 
     :param int max_array_len:
-        Limits max length of array. (default: 2**31-1)
+        Limits max length of array.
+        (default: max_buffer_size or 128*1024)
 
     :param int max_map_len:
-        Limits max length of map. (default: 2**31-1)
+        Limits max length of map.
+        (default: max_buffer_size//2 or 32*1024)
 
+    :param int max_ext_len:
+        Deprecated, use *max_buffer_size* instead.
+        Limits max size of ext type.  (default: max_buffer_size or 1024*1024)
 
-    example of streaming deserialize from file-like object::
+    Example of streaming deserialize from file-like object::
 
-        unpacker = Unpacker(file_like, raw=False)
+        unpacker = Unpacker(file_like, raw=False, max_buffer_size=10*1024*1024)
         for o in unpacker:
             process(o)
 
-    example of streaming deserialize from socket::
+    Example of streaming deserialize from socket::
 
-        unpacker = Unpacker(raw=False)
+        unpacker = Unpacker(raw=False, max_buffer_size=10*1024*1024)
         while True:
             buf = sock.recv(1024**2)
             if not buf:
@@ -204,22 +243,27 @@ class Unpacker(object):
             unpacker.feed(buf)
             for o in unpacker:
                 process(o)
+
+    Raises ``ExtraData`` when *packed* contains extra bytes.
+    Raises ``OutOfData`` when *packed* is incomplete.
+    Raises ``FormatError`` when *packed* is not valid msgpack.
+    Raises ``StackError`` when *packed* contains too nested.
+    Other exceptions can be raised during unpacking.
     """
 
-    def __init__(self, file_like=None, read_size=0, use_list=True, raw=True,
+    def __init__(self, file_like=None, read_size=0, use_list=True, raw=True, strict_map_key=False,
                  object_hook=None, object_pairs_hook=None, list_hook=None,
                  encoding=None, unicode_errors=None, max_buffer_size=0,
                  ext_hook=ExtType,
-                 max_str_len=2147483647, # 2**32-1
-                 max_bin_len=2147483647,
-                 max_array_len=2147483647,
-                 max_map_len=2147483647,
-                 max_ext_len=2147483647):
-
+                 max_str_len=-1,
+                 max_bin_len=-1,
+                 max_array_len=-1,
+                 max_map_len=-1,
+                 max_ext_len=-1):
         if encoding is not None:
             warnings.warn(
                 "encoding is deprecated, Use raw=False instead.",
-                PendingDeprecationWarning)
+                DeprecationWarning, stacklevel=2)
 
         if unicode_errors is None:
             unicode_errors = 'strict'
@@ -234,12 +278,6 @@ class Unpacker(object):
 
         #: array of bytes fed.
         self._buffer = bytearray()
-        # Some very old pythons don't support `struct.unpack_from()` with a
-        # `bytearray`. So we wrap it in a `buffer()` there.
-        if sys.version_info < (2, 7, 6):
-            self._buffer_view = buffer(self._buffer)
-        else:
-            self._buffer_view = self._buffer
         #: Which position we currently reads
         self._buff_i = 0
 
@@ -252,11 +290,23 @@ class Unpacker(object):
         # state, which _buf_checkpoint records.
         self._buf_checkpoint = 0
 
+        if max_str_len == -1:
+            max_str_len = max_buffer_size or 1024*1024
+        if max_bin_len == -1:
+            max_bin_len = max_buffer_size or 1024*1024
+        if max_array_len == -1:
+            max_array_len = max_buffer_size or 128*1024
+        if max_map_len == -1:
+            max_map_len = max_buffer_size//2 or 32*1024
+        if max_ext_len == -1:
+            max_ext_len = max_buffer_size or 1024*1024
+
         self._max_buffer_size = max_buffer_size or 2**31-1
         if read_size > self._max_buffer_size:
             raise ValueError("read_size must be smaller than max_buffer_size")
         self._read_size = read_size or min(self._max_buffer_size, 16*1024)
         self._raw = bool(raw)
+        self._strict_map_key = bool(strict_map_key)
         self._encoding = encoding
         self._unicode_errors = unicode_errors
         self._use_list = use_list
@@ -295,7 +345,8 @@ class Unpacker(object):
             self._buff_i -= self._buf_checkpoint
             self._buf_checkpoint = 0
 
-        self._buffer += view
+        # Use extend here: INPLACE_ADD += doesn't reliably typecast memoryview in jython
+        self._buffer.extend(view)
 
     def _consume(self):
         """ Gets rid of the used parts of the buffer. """
@@ -365,18 +416,18 @@ class Unpacker(object):
             n = b & 0b00011111
             typ = TYPE_RAW
             if n > self._max_str_len:
-                raise UnpackValueError("%s exceeds max_str_len(%s)", n, self._max_str_len)
+                raise ValueError("%s exceeds max_str_len(%s)", n, self._max_str_len)
             obj = self._read(n)
         elif b & 0b11110000 == 0b10010000:
             n = b & 0b00001111
             typ = TYPE_ARRAY
             if n > self._max_array_len:
-                raise UnpackValueError("%s exceeds max_array_len(%s)", n, self._max_array_len)
+                raise ValueError("%s exceeds max_array_len(%s)", n, self._max_array_len)
         elif b & 0b11110000 == 0b10000000:
             n = b & 0b00001111
             typ = TYPE_MAP
             if n > self._max_map_len:
-                raise UnpackValueError("%s exceeds max_map_len(%s)", n, self._max_map_len)
+                raise ValueError("%s exceeds max_map_len(%s)", n, self._max_map_len)
         elif b == 0xc0:
             obj = None
         elif b == 0xc2:
@@ -389,55 +440,55 @@ class Unpacker(object):
             n = self._buffer[self._buff_i]
             self._buff_i += 1
             if n > self._max_bin_len:
-                raise UnpackValueError("%s exceeds max_bin_len(%s)" % (n, self._max_bin_len))
+                raise ValueError("%s exceeds max_bin_len(%s)" % (n, self._max_bin_len))
             obj = self._read(n)
         elif b == 0xc5:
             typ = TYPE_BIN
             self._reserve(2)
-            n = struct.unpack_from(">H", self._buffer_view, self._buff_i)[0]
+            n = _unpack_from(">H", self._buffer, self._buff_i)[0]
             self._buff_i += 2
             if n > self._max_bin_len:
-                raise UnpackValueError("%s exceeds max_bin_len(%s)" % (n, self._max_bin_len))
+                raise ValueError("%s exceeds max_bin_len(%s)" % (n, self._max_bin_len))
             obj = self._read(n)
         elif b == 0xc6:
             typ = TYPE_BIN
             self._reserve(4)
-            n = struct.unpack_from(">I", self._buffer_view, self._buff_i)[0]
+            n = _unpack_from(">I", self._buffer, self._buff_i)[0]
             self._buff_i += 4
             if n > self._max_bin_len:
-                raise UnpackValueError("%s exceeds max_bin_len(%s)" % (n, self._max_bin_len))
+                raise ValueError("%s exceeds max_bin_len(%s)" % (n, self._max_bin_len))
             obj = self._read(n)
         elif b == 0xc7:  # ext 8
             typ = TYPE_EXT
             self._reserve(2)
-            L, n = struct.unpack_from('Bb', self._buffer_view, self._buff_i)
+            L, n = _unpack_from('Bb', self._buffer, self._buff_i)
             self._buff_i += 2
             if L > self._max_ext_len:
-                raise UnpackValueError("%s exceeds max_ext_len(%s)" % (L, self._max_ext_len))
+                raise ValueError("%s exceeds max_ext_len(%s)" % (L, self._max_ext_len))
             obj = self._read(L)
         elif b == 0xc8:  # ext 16
             typ = TYPE_EXT
             self._reserve(3)
-            L, n = struct.unpack_from('>Hb', self._buffer_view, self._buff_i)
+            L, n = _unpack_from('>Hb', self._buffer, self._buff_i)
             self._buff_i += 3
             if L > self._max_ext_len:
-                raise UnpackValueError("%s exceeds max_ext_len(%s)" % (L, self._max_ext_len))
+                raise ValueError("%s exceeds max_ext_len(%s)" % (L, self._max_ext_len))
             obj = self._read(L)
         elif b == 0xc9:  # ext 32
             typ = TYPE_EXT
             self._reserve(5)
-            L, n = struct.unpack_from('>Ib', self._buffer_view, self._buff_i)
+            L, n = _unpack_from('>Ib', self._buffer, self._buff_i)
             self._buff_i += 5
             if L > self._max_ext_len:
-                raise UnpackValueError("%s exceeds max_ext_len(%s)" % (L, self._max_ext_len))
+                raise ValueError("%s exceeds max_ext_len(%s)" % (L, self._max_ext_len))
             obj = self._read(L)
         elif b == 0xca:
             self._reserve(4)
-            obj = struct.unpack_from(">f", self._buffer_view, self._buff_i)[0]
+            obj = _unpack_from(">f", self._buffer, self._buff_i)[0]
             self._buff_i += 4
         elif b == 0xcb:
             self._reserve(8)
-            obj = struct.unpack_from(">d", self._buffer_view, self._buff_i)[0]
+            obj = _unpack_from(">d", self._buffer, self._buff_i)[0]
             self._buff_i += 8
         elif b == 0xcc:
             self._reserve(1)
@@ -445,66 +496,66 @@ class Unpacker(object):
             self._buff_i += 1
         elif b == 0xcd:
             self._reserve(2)
-            obj = struct.unpack_from(">H", self._buffer_view, self._buff_i)[0]
+            obj = _unpack_from(">H", self._buffer, self._buff_i)[0]
             self._buff_i += 2
         elif b == 0xce:
             self._reserve(4)
-            obj = struct.unpack_from(">I", self._buffer_view, self._buff_i)[0]
+            obj = _unpack_from(">I", self._buffer, self._buff_i)[0]
             self._buff_i += 4
         elif b == 0xcf:
             self._reserve(8)
-            obj = struct.unpack_from(">Q", self._buffer_view, self._buff_i)[0]
+            obj = _unpack_from(">Q", self._buffer, self._buff_i)[0]
             self._buff_i += 8
         elif b == 0xd0:
             self._reserve(1)
-            obj = struct.unpack_from("b", self._buffer_view, self._buff_i)[0]
+            obj = _unpack_from("b", self._buffer, self._buff_i)[0]
             self._buff_i += 1
         elif b == 0xd1:
             self._reserve(2)
-            obj = struct.unpack_from(">h", self._buffer_view, self._buff_i)[0]
+            obj = _unpack_from(">h", self._buffer, self._buff_i)[0]
             self._buff_i += 2
         elif b == 0xd2:
             self._reserve(4)
-            obj = struct.unpack_from(">i", self._buffer_view, self._buff_i)[0]
+            obj = _unpack_from(">i", self._buffer, self._buff_i)[0]
             self._buff_i += 4
         elif b == 0xd3:
             self._reserve(8)
-            obj = struct.unpack_from(">q", self._buffer_view, self._buff_i)[0]
+            obj = _unpack_from(">q", self._buffer, self._buff_i)[0]
             self._buff_i += 8
         elif b == 0xd4:  # fixext 1
             typ = TYPE_EXT
             if self._max_ext_len < 1:
-                raise UnpackValueError("%s exceeds max_ext_len(%s)" % (1, self._max_ext_len))
+                raise ValueError("%s exceeds max_ext_len(%s)" % (1, self._max_ext_len))
             self._reserve(2)
-            n, obj = struct.unpack_from("b1s", self._buffer_view, self._buff_i)
+            n, obj = _unpack_from("b1s", self._buffer, self._buff_i)
             self._buff_i += 2
         elif b == 0xd5:  # fixext 2
             typ = TYPE_EXT
             if self._max_ext_len < 2:
-                raise UnpackValueError("%s exceeds max_ext_len(%s)" % (2, self._max_ext_len))
+                raise ValueError("%s exceeds max_ext_len(%s)" % (2, self._max_ext_len))
             self._reserve(3)
-            n, obj = struct.unpack_from("b2s", self._buffer_view, self._buff_i)
+            n, obj = _unpack_from("b2s", self._buffer, self._buff_i)
             self._buff_i += 3
         elif b == 0xd6:  # fixext 4
             typ = TYPE_EXT
             if self._max_ext_len < 4:
-                raise UnpackValueError("%s exceeds max_ext_len(%s)" % (4, self._max_ext_len))
+                raise ValueError("%s exceeds max_ext_len(%s)" % (4, self._max_ext_len))
             self._reserve(5)
-            n, obj = struct.unpack_from("b4s", self._buffer_view, self._buff_i)
+            n, obj = _unpack_from("b4s", self._buffer, self._buff_i)
             self._buff_i += 5
         elif b == 0xd7:  # fixext 8
             typ = TYPE_EXT
             if self._max_ext_len < 8:
-                raise UnpackValueError("%s exceeds max_ext_len(%s)" % (8, self._max_ext_len))
+                raise ValueError("%s exceeds max_ext_len(%s)" % (8, self._max_ext_len))
             self._reserve(9)
-            n, obj = struct.unpack_from("b8s", self._buffer_view, self._buff_i)
+            n, obj = _unpack_from("b8s", self._buffer, self._buff_i)
             self._buff_i += 9
         elif b == 0xd8:  # fixext 16
             typ = TYPE_EXT
             if self._max_ext_len < 16:
-                raise UnpackValueError("%s exceeds max_ext_len(%s)" % (16, self._max_ext_len))
+                raise ValueError("%s exceeds max_ext_len(%s)" % (16, self._max_ext_len))
             self._reserve(17)
-            n, obj = struct.unpack_from("b16s", self._buffer_view, self._buff_i)
+            n, obj = _unpack_from("b16s", self._buffer, self._buff_i)
             self._buff_i += 17
         elif b == 0xd9:
             typ = TYPE_RAW
@@ -512,54 +563,54 @@ class Unpacker(object):
             n = self._buffer[self._buff_i]
             self._buff_i += 1
             if n > self._max_str_len:
-                raise UnpackValueError("%s exceeds max_str_len(%s)", n, self._max_str_len)
+                raise ValueError("%s exceeds max_str_len(%s)", n, self._max_str_len)
             obj = self._read(n)
         elif b == 0xda:
             typ = TYPE_RAW
             self._reserve(2)
-            n, = struct.unpack_from(">H", self._buffer_view, self._buff_i)
+            n, = _unpack_from(">H", self._buffer, self._buff_i)
             self._buff_i += 2
             if n > self._max_str_len:
-                raise UnpackValueError("%s exceeds max_str_len(%s)", n, self._max_str_len)
+                raise ValueError("%s exceeds max_str_len(%s)", n, self._max_str_len)
             obj = self._read(n)
         elif b == 0xdb:
             typ = TYPE_RAW
             self._reserve(4)
-            n, = struct.unpack_from(">I", self._buffer_view, self._buff_i)
+            n, = _unpack_from(">I", self._buffer, self._buff_i)
             self._buff_i += 4
             if n > self._max_str_len:
-                raise UnpackValueError("%s exceeds max_str_len(%s)", n, self._max_str_len)
+                raise ValueError("%s exceeds max_str_len(%s)", n, self._max_str_len)
             obj = self._read(n)
         elif b == 0xdc:
             typ = TYPE_ARRAY
             self._reserve(2)
-            n, = struct.unpack_from(">H", self._buffer_view, self._buff_i)
+            n, = _unpack_from(">H", self._buffer, self._buff_i)
             self._buff_i += 2
             if n > self._max_array_len:
-                raise UnpackValueError("%s exceeds max_array_len(%s)", n, self._max_array_len)
+                raise ValueError("%s exceeds max_array_len(%s)", n, self._max_array_len)
         elif b == 0xdd:
             typ = TYPE_ARRAY
             self._reserve(4)
-            n, = struct.unpack_from(">I", self._buffer_view, self._buff_i)
+            n, = _unpack_from(">I", self._buffer, self._buff_i)
             self._buff_i += 4
             if n > self._max_array_len:
-                raise UnpackValueError("%s exceeds max_array_len(%s)", n, self._max_array_len)
+                raise ValueError("%s exceeds max_array_len(%s)", n, self._max_array_len)
         elif b == 0xde:
             self._reserve(2)
-            n, = struct.unpack_from(">H", self._buffer_view, self._buff_i)
+            n, = _unpack_from(">H", self._buffer, self._buff_i)
             self._buff_i += 2
             if n > self._max_map_len:
-                raise UnpackValueError("%s exceeds max_map_len(%s)", n, self._max_map_len)
+                raise ValueError("%s exceeds max_map_len(%s)", n, self._max_map_len)
             typ = TYPE_MAP
         elif b == 0xdf:
             self._reserve(4)
-            n, = struct.unpack_from(">I", self._buffer_view, self._buff_i)
+            n, = _unpack_from(">I", self._buffer, self._buff_i)
             self._buff_i += 4
             if n > self._max_map_len:
-                raise UnpackValueError("%s exceeds max_map_len(%s)", n, self._max_map_len)
+                raise ValueError("%s exceeds max_map_len(%s)", n, self._max_map_len)
             typ = TYPE_MAP
         else:
-            raise UnpackValueError("Unknown header: 0x%x" % b)
+            raise FormatError("Unknown header: 0x%x" % b)
         return typ, n, obj
 
     def _unpack(self, execute=EX_CONSTRUCT):
@@ -567,11 +618,11 @@ class Unpacker(object):
 
         if execute == EX_READ_ARRAY_HEADER:
             if typ != TYPE_ARRAY:
-                raise UnpackValueError("Expected array")
+                raise ValueError("Expected array")
             return n
         if execute == EX_READ_MAP_HEADER:
             if typ != TYPE_MAP:
-                raise UnpackValueError("Expected map")
+                raise ValueError("Expected map")
             return n
         # TODO should we eliminate the recursion?
         if typ == TYPE_ARRAY:
@@ -603,6 +654,8 @@ class Unpacker(object):
                 ret = {}
                 for _ in xrange(n):
                     key = self._unpack(EX_CONSTRUCT)
+                    if self._strict_map_key and type(key) not in (unicode, bytes):
+                        raise ValueError("%s is not allowed for map key" % str(type(key)))
                     ret[key] = self._unpack(EX_CONSTRUCT)
                 if self._object_hook is not None:
                     ret = self._object_hook(ret)
@@ -635,37 +688,30 @@ class Unpacker(object):
         except OutOfData:
             self._consume()
             raise StopIteration
+        except RecursionError:
+            raise StackError
 
     next = __next__
 
-    def skip(self, write_bytes=None):
+    def skip(self):
         self._unpack(EX_SKIP)
-        if write_bytes is not None:
-            warnings.warn("`write_bytes` option is deprecated.  Use `.tell()` instead.", DeprecationWarning)
-            write_bytes(self._buffer[self._buf_checkpoint:self._buff_i])
         self._consume()
 
-    def unpack(self, write_bytes=None):
-        ret = self._unpack(EX_CONSTRUCT)
-        if write_bytes is not None:
-            warnings.warn("`write_bytes` option is deprecated.  Use `.tell()` instead.", DeprecationWarning)
-            write_bytes(self._buffer[self._buf_checkpoint:self._buff_i])
+    def unpack(self):
+        try:
+            ret = self._unpack(EX_CONSTRUCT)
+        except RecursionError:
+            raise StackError
         self._consume()
         return ret
 
-    def read_array_header(self, write_bytes=None):
+    def read_array_header(self):
         ret = self._unpack(EX_READ_ARRAY_HEADER)
-        if write_bytes is not None:
-            warnings.warn("`write_bytes` option is deprecated.  Use `.tell()` instead.", DeprecationWarning)
-            write_bytes(self._buffer[self._buf_checkpoint:self._buff_i])
         self._consume()
         return ret
 
-    def read_map_header(self, write_bytes=None):
+    def read_map_header(self):
         ret = self._unpack(EX_READ_MAP_HEADER)
-        if write_bytes is not None:
-            warnings.warn("`write_bytes` option is deprecated.  Use `.tell()` instead.", DeprecationWarning)
-            write_bytes(self._buffer[self._buf_checkpoint:self._buff_i])
         self._consume()
         return ret
 
@@ -722,7 +768,7 @@ class Packer(object):
         else:
             warnings.warn(
                 "encoding is deprecated, Use raw=False instead.",
-                PendingDeprecationWarning)
+                DeprecationWarning, stacklevel=2)
 
         if unicode_errors is None:
             unicode_errors = 'strict'
@@ -749,7 +795,7 @@ class Packer(object):
             list_types = (list, tuple)
         while True:
             if nest_limit < 0:
-                raise PackValueError("recursion limit exceeded")
+                raise ValueError("recursion limit exceeded")
             if obj is None:
                 return self._buffer.write(b"\xc0")
             if check(obj, bool):
@@ -781,14 +827,14 @@ class Packer(object):
                     obj = self._default(obj)
                     default_used = True
                     continue
-                raise PackOverflowError("Integer value out of range")
+                raise OverflowError("Integer value out of range")
             if check(obj, (bytes, bytearray)):
                 n = len(obj)
                 if n >= 2**32:
-                    raise PackValueError("%s is too large" % type(obj).__name__)
+                    raise ValueError("%s is too large" % type(obj).__name__)
                 self._pack_bin_header(n)
                 return self._buffer.write(obj)
-            if check(obj, Unicode):
+            if check(obj, unicode):
                 if self._encoding is None:
                     raise TypeError(
                         "Can't encode unicode string: "
@@ -796,13 +842,13 @@ class Packer(object):
                 obj = obj.encode(self._encoding, self._unicode_errors)
                 n = len(obj)
                 if n >= 2**32:
-                    raise PackValueError("String is too large")
+                    raise ValueError("String is too large")
                 self._pack_raw_header(n)
                 return self._buffer.write(obj)
             if check(obj, memoryview):
                 n = len(obj) * obj.itemsize
                 if n >= 2**32:
-                    raise PackValueError("Memoryview is too large")
+                    raise ValueError("Memoryview is too large")
                 self._pack_bin_header(n)
                 return self._buffer.write(obj)
             if check(obj, float):
@@ -855,43 +901,35 @@ class Packer(object):
         except:
             self._buffer = StringIO()  # force reset
             raise
-        ret = self._buffer.getvalue()
         if self._autoreset:
+            ret = self._buffer.getvalue()
             self._buffer = StringIO()
-        elif USING_STRINGBUILDER:
-            self._buffer = StringIO(ret)
-        return ret
+            return ret
 
     def pack_map_pairs(self, pairs):
         self._pack_map_pairs(len(pairs), pairs)
-        ret = self._buffer.getvalue()
         if self._autoreset:
+            ret = self._buffer.getvalue()
             self._buffer = StringIO()
-        elif USING_STRINGBUILDER:
-            self._buffer = StringIO(ret)
-        return ret
+            return ret
 
     def pack_array_header(self, n):
         if n >= 2**32:
-            raise PackValueError
+            raise ValueError
         self._pack_array_header(n)
-        ret = self._buffer.getvalue()
         if self._autoreset:
+            ret = self._buffer.getvalue()
             self._buffer = StringIO()
-        elif USING_STRINGBUILDER:
-            self._buffer = StringIO(ret)
-        return ret
+            return ret
 
     def pack_map_header(self, n):
         if n >= 2**32:
-            raise PackValueError
+            raise ValueError
         self._pack_map_header(n)
-        ret = self._buffer.getvalue()
         if self._autoreset:
+            ret = self._buffer.getvalue()
             self._buffer = StringIO()
-        elif USING_STRINGBUILDER:
-            self._buffer = StringIO(ret)
-        return ret
+            return ret
 
     def pack_ext_type(self, typecode, data):
         if not isinstance(typecode, int):
@@ -902,7 +940,7 @@ class Packer(object):
             raise TypeError("data must have bytes type")
         L = len(data)
         if L > 0xffffffff:
-            raise PackValueError("Too large data")
+            raise ValueError("Too large data")
         if L == 1:
             self._buffer.write(b'\xd4')
         elif L == 2:
@@ -929,7 +967,7 @@ class Packer(object):
             return self._buffer.write(struct.pack(">BH", 0xdc, n))
         if n <= 0xffffffff:
             return self._buffer.write(struct.pack(">BI", 0xdd, n))
-        raise PackValueError("Array is too large")
+        raise ValueError("Array is too large")
 
     def _pack_map_header(self, n):
         if n <= 0x0f:
@@ -938,7 +976,7 @@ class Packer(object):
             return self._buffer.write(struct.pack(">BH", 0xde, n))
         if n <= 0xffffffff:
             return self._buffer.write(struct.pack(">BI", 0xdf, n))
-        raise PackValueError("Dict is too large")
+        raise ValueError("Dict is too large")
 
     def _pack_map_pairs(self, n, pairs, nest_limit=DEFAULT_RECURSE_LIMIT):
         self._pack_map_header(n)
@@ -956,7 +994,7 @@ class Packer(object):
         elif n <= 0xffffffff:
             self._buffer.write(struct.pack(">BI", 0xdb, n))
         else:
-            raise PackValueError('Raw is too large')
+            raise ValueError('Raw is too large')
 
     def _pack_bin_header(self, n):
         if not self._use_bin_type:
@@ -968,10 +1006,22 @@ class Packer(object):
         elif n <= 0xffffffff:
             return self._buffer.write(struct.pack(">BI", 0xc6, n))
         else:
-            raise PackValueError('Bin is too large')
+            raise ValueError('Bin is too large')
 
     def bytes(self):
+        """Return internal buffer contents as bytes object"""
         return self._buffer.getvalue()
 
     def reset(self):
+        """Reset internal buffer.
+
+        This method is usaful only when autoreset=False.
+        """
         self._buffer = StringIO()
+
+    def getbuffer(self):
+        """Return view of internal buffer."""
+        if USING_STRINGBUILDER or PY2:
+            return memoryview(self.bytes())
+        else:
+            return self._buffer.getbuffer()

@@ -19,40 +19,35 @@ class NoCandidateFound(PipToolsError):
             else:
                 versions.append(version)
 
-        lines = [
-            'Could not find a version that matches {}'.format(self.ireq),
-        ]
+        lines = ["Could not find a version that matches {}".format(self.ireq)]
 
         if versions:
-            lines.append('Tried: {}'.format(', '.join(versions)))
+            lines.append("Tried: {}".format(", ".join(versions)))
 
         if pre_versions:
             if self.finder.allow_all_prereleases:
-                line = 'Tried'
+                line = "Tried"
             else:
-                line = 'Skipped'
+                line = "Skipped"
 
-            line += ' pre-versions: {}'.format(', '.join(pre_versions))
+            line += " pre-versions: {}".format(", ".join(pre_versions))
             lines.append(line)
 
         if versions or pre_versions:
-            lines.append('There are incompatible versions in the resolved dependencies.')
-        else:
-            lines.append('No versions found')
-            lines.append('{} {} reachable?'.format(
-                'Were' if len(self.finder.index_urls) > 1 else 'Was', ' or '.join(self.finder.index_urls))
+            lines.append(
+                "There are incompatible versions in the resolved dependencies:"
             )
-        return '\n'.join(lines)
-
-
-class UnsupportedConstraint(PipToolsError):
-    def __init__(self, message, constraint):
-        super(UnsupportedConstraint, self).__init__(message)
-        self.constraint = constraint
-
-    def __str__(self):
-        message = super(UnsupportedConstraint, self).__str__()
-        return '{} (constraint was: {})'.format(message, str(self.constraint))
+            source_ireqs = getattr(self.ireq, "_source_ireqs", [])
+            lines.extend("  {}".format(ireq) for ireq in source_ireqs)
+        else:
+            lines.append("No versions found")
+            lines.append(
+                "{} {} reachable?".format(
+                    "Were" if len(self.finder.index_urls) > 1 else "Was",
+                    " or ".join(self.finder.index_urls),
+                )
+            )
+        return "\n".join(lines)
 
 
 class IncompatibleRequirements(PipToolsError):

@@ -51,11 +51,11 @@ DEP_PIP_PAIRS = [
         # Extras in url
         {
             "discord.py": {
-                "file": "https://github.com/Rapptz/discord.py/archive/rewrite.zip",
+                "file": "https://github.com/Rapptz/discord.py/archive/async.zip",
                 "extras": ["voice"],
             }
         },
-        "https://github.com/Rapptz/discord.py/archive/rewrite.zip#egg=discord.py[voice]",
+        "https://github.com/Rapptz/discord.py/archive/async.zip#egg=discord.py[voice]",
     ),
     (
         {
@@ -425,6 +425,7 @@ twine = "*"
             == expected_args
         )
 
+    @pytest.mark.utils
     def test_invalid_prepare_pip_source_args(self):
         sources = [{}]
         with pytest.raises(PipenvUsageError):

@@ -1,3 +1,6 @@
+# The following comment should be removed at some point in the future.
+# mypy: strict-optional=False
+
 from __future__ import absolute_import
 
 import contextlib
@@ -10,9 +13,10 @@ from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Set, Iterator  # noqa: F401
-    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement  # noqa: F401
-    from pipenv.patched.notpip._internal.models.link import Link  # noqa: F401
+    from types import TracebackType
+    from typing import Iterator, Optional, Set, Type
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.notpip._internal.models.link import Link
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +28,6 @@ class RequirementTracker(object):
         self._root = os.environ.get('PIP_REQ_TRACKER')
         if self._root is None:
             self._temp_dir = TempDirectory(delete=False, kind='req-tracker')
-            self._temp_dir.create()
             self._root = os.environ['PIP_REQ_TRACKER'] = self._temp_dir.path
             logger.debug('Created requirements tracker %r', self._root)
         else:
@@ -33,9 +36,16 @@ class RequirementTracker(object):
         self._entries = set()  # type: Set[InstallRequirement]
 
     def __enter__(self):
+        # type: () -> RequirementTracker
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type,  # type: Optional[Type[BaseException]]
+        exc_val,  # type: Optional[BaseException]
+        exc_tb  # type: Optional[TracebackType]
+    ):
+        # type: (...) -> None
         self.cleanup()
 
     def _entry_path(self, link):

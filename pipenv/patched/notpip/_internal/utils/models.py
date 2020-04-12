@@ -1,11 +1,13 @@
 """Utilities for defining models
 """
+# The following comment should be removed at some point in the future.
+# mypy: disallow-untyped-defs=False
 
 import operator
 
 
 class KeyBasedCompareMixin(object):
-    """Provides comparision capabilities that is based on a key
+    """Provides comparison capabilities that is based on a key
     """
 
     def __init__(self, key, defining_class):

@@ -6,8 +6,8 @@
 </head>
 <body>
 	<h1>Links for {{ package.name }}</h1>
-	{% for release in package.releases %}
-		<a href="/{{ package.name }}/{{ release }}">{{ release }}</a>
+	{% for release, value in package.releases.items() %}
+		<a href="/{{ package.name }}/{{ release }}"{%- if value.requires_python %} data-requires-python="{{ value.requires_python }}"{% endif %}>{{ release }}</a>
 		<br>
 	{% endfor %}
 </body>
