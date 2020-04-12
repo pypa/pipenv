@@ -5,14 +5,16 @@ import io
 import itertools
 import os
 import re
+import subprocess
+from collections import OrderedDict
 from fnmatch import fnmatch
 from threading import Timer
 
 import attr
 import six
-import vistir
 from packaging.version import LegacyVersion, Version
 
+from .compat import Path, lru_cache, TimeoutError  # noqa
 from .environment import MYPY_RUNNING, PYENV_ROOT, SUBPROCESS_TIMEOUT
 from .exceptions import InvalidPythonVersion
 
@@ -26,11 +28,6 @@ six.add_move(
 from six.moves import Iterable  # type: ignore  # noqa  # isort:skip
 from six.moves import Sequence  # type: ignore  # noqa  # isort:skip
 # fmt: on
-
-try:
-    from functools import lru_cache
-except ImportError:
-    from backports.functools_lru_cache import lru_cache  # type: ignore  # noqa
 
 if MYPY_RUNNING:
     from typing import Any, Union, List, Callable, Set, Tuple, Dict, Optional, Iterator
@@ -98,21 +95,26 @@ def get_python_version(path):
         "-c",
         "import sys; print('.'.join([str(i) for i in sys.version_info[:3]]))",
     ]
+    subprocess_kwargs = {
+        "env": os.environ.copy(),
+        "universal_newlines": True,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "shell": False,
+    }
+    c = subprocess.Popen(version_cmd, **subprocess_kwargs)
+    timer = Timer(SUBPROCESS_TIMEOUT, c.kill)
     try:
-        c = vistir.misc.run(
-            version_cmd,
-            block=True,
-            nospin=True,
-            return_object=True,
-            combine_stderr=False,
-            write_to_stdout=False,
-        )
-        timer = Timer(SUBPROCESS_TIMEOUT, c.kill)
+        out, _ = c.communicate()
+    except (SystemExit, KeyboardInterrupt, TimeoutError):
+        c.terminate()
+        out, _ = c.communicate()
+        raise
     except OSError:
         raise InvalidPythonVersion("%s is not a valid python path" % path)
-    if not c.out:
+    if not out:
         raise InvalidPythonVersion("%s is not a valid python path" % path)
-    return c.out.strip()
+    return out.strip()
 
 
 @lru_cache(maxsize=1024)
@@ -190,13 +192,13 @@ def path_is_executable(path):
 
 @lru_cache(maxsize=1024)
 def path_is_known_executable(path):
-    # type: (vistir.compat.Path) -> bool
+    # type: (Path) -> bool
     """
     Returns whether a given path is a known executable from known executable extensions
     or has the executable bit toggled.
 
     :param path: The path to the target executable.
-    :type path: :class:`~vistir.compat.Path`
+    :type path: :class:`~Path`
     :return: True if the path has chmod +x, or is a readable, known executable extension.
     :rtype: bool
     """
@@ -229,12 +231,12 @@ def looks_like_python(name):
 
 @lru_cache(maxsize=1024)
 def path_is_python(path):
-    # type: (vistir.compat.Path) -> bool
+    # type: (Path) -> bool
     """
     Determine whether the supplied path is executable and looks like a possible path to python.
 
     :param path: The path to an executable.
-    :type path: :class:`~vistir.compat.Path`
+    :type path: :class:`~Path`
     :return: Whether the provided path is an executable path to python.
     :rtype: bool
     """
@@ -278,7 +280,7 @@ def path_is_pythoncore(path):
 
 @lru_cache(maxsize=1024)
 def ensure_path(path):
-    # type: (Union[vistir.compat.Path, str]) -> vistir.compat.Path
+    # type: (Union[Path, str]) -> Path
     """
     Given a path (either a string or a Path object), expand variables and return a Path object.
 
@@ -288,9 +290,9 @@ def ensure_path(path):
     :rtype: :class:`~pathlib.Path`
     """
 
-    if isinstance(path, vistir.compat.Path):
+    if isinstance(path, Path):
         return path
-    path = vistir.compat.Path(os.path.expandvars(path))
+    path = Path(os.path.expandvars(path))
     return path.absolute()
 
 
@@ -313,10 +315,10 @@ def normalize_path(path):
 
 @lru_cache(maxsize=1024)
 def filter_pythons(path):
-    # type: (Union[str, vistir.compat.Path]) -> Iterable
+    # type: (Union[str, Path]) -> Iterable
     """Return all valid pythons in a given path"""
-    if not isinstance(path, vistir.compat.Path):
-        path = vistir.compat.Path(str(path))
+    if not isinstance(path, Path):
+        path = Path(str(path))
     if not path.is_dir():
         return path if path_is_python(path) else None
     return filter(path_is_python, path.iterdir())
@@ -377,7 +379,7 @@ def split_version_and_name(
     patch=None,  # type: Optional[Union[str, int]]
     name=None,  # type: Optional[str]
 ):
-    # type: (...) -> Tuple[Optional[Union[str, int]], Optional[Union[str, int]], Optional[Union[str, int]], Optional[str]]
+    # type: (...) -> Tuple[Optional[Union[str, int]], Optional[Union[str, int]], Optional[Union[str, int]], Optional[str]]  # noqa
     if isinstance(major, six.string_types) and not minor and not patch:
         # Only proceed if this is in the format "x.y.z" or similar
         if major.isdigit() or (major.count(".") > 0 and major[0].isdigit()):
@@ -437,3 +439,11 @@ def expand_paths(path, only_python=True):
     else:
         if path is not None and path.is_python and path.as_python is not None:
             yield path
+
+
+def dedup(iterable):
+    # type: (Iterable) -> Iterable
+    """Deduplicate an iterable object like iter(set(iterable)) but
+    order-reserved.
+    """
+    return iter(OrderedDict.fromkeys(iterable))

@@ -1,25 +1,31 @@
 # coding: utf-8
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 import sys
-from itertools import chain, groupby
 from collections import OrderedDict
+from itertools import chain, groupby
 
 import six
-
+from click.utils import LazyFile
+from six.moves import shlex_quote
 from pipenv.vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
 from pipenv.vendor.packaging.version import Version, InvalidVersion, parse as parse_version
 from pipenv.vendor.packaging.markers import Marker, Op, Value, Variable
 
-from ._compat import install_req_from_line
 
+from ._compat import PIP_VERSION, InstallCommand, install_req_from_line
 from .click import style
 
-
-UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}
-
+UNSAFE_PACKAGES = {"setuptools", "distribute", "pip"}
+COMPILE_EXCLUDE_OPTIONS = {
+    "--dry-run",
+    "--quiet",
+    "--rebuild",
+    "--upgrade",
+    "--upgrade-package",
+    "--verbose",
+}
 
 
 def simplify_markers(ireq):
@@ -73,8 +79,8 @@ def clean_requires_python(candidates):
         if getattr(c, "requires_python", None):
             # Old specifications had people setting this to single digits
             # which is effectively the same as '>=digit,<digit+1'
-            if c.requires_python.isdigit():
-                c.requires_python = '>={0},<{1}'.format(c.requires_python, int(c.requires_python) + 1)
+            if len(c.requires_python) == 1 and c.requires_python in ("2", "3"):
+                c.requires_python = '>={0},<{1!s}'.format(c.requires_python, int(c.requires_python) + 1)
             try:
                 specifierset = SpecifierSet(c.requires_python)
             except InvalidSpecifier:
@@ -96,19 +102,19 @@ def key_from_ireq(ireq):
 
 def key_from_req(req):
     """Get an all-lowercase version of the requirement's name."""
-    if hasattr(req, 'key'):
+    if hasattr(req, "key"):
         # from pkg_resources, such as installed dists for pip-sync
         key = req.key
     else:
         # from packaging, such as install requirements from requirements.txt
         key = req.name
 
-    key = key.replace('_', '-').lower()
+    key = key.replace("_", "-").lower()
     return key
 
 
 def comment(text):
-    return style(text, fg='green')
+    return style(text, fg="green")
 
 
 def make_install_requirement(name, version, extras, markers, constraint=False):
@@ -158,18 +164,28 @@ def _requirement_to_str_lowercase_name(requirement):
     return "".join(parts)
 
 
+def is_url_requirement(ireq):
+    """
+    Return True if requirement was specified as a path or URL.
+    ireq.original_link will have been set by InstallRequirement.__init__
+    """
+    return bool(ireq.original_link)
+
+
 def format_requirement(ireq, marker=None, hashes=None):
     """
     Generic formatter for pretty printing InstallRequirements to the terminal
     in a less verbose way than using its `__str__` method.
     """
     if ireq.editable:
-        line = '-e {}'.format(ireq.link)
+        line = "-e {}".format(ireq.link.url)
+    elif is_url_requirement(ireq):
+        line = ireq.link.url
     else:
         line = _requirement_to_str_lowercase_name(ireq.req)
 
     if marker and ';' not in line:
-        line = '{}; {}'.format(line, marker)
+        line = "{}; {}".format(line, marker)
 
     if hashes:
         for hash_ in sorted(hashes):
@@ -186,7 +202,7 @@ def format_specifier(ireq):
     # TODO: Ideally, this is carried over to the pip library itself
     specs = ireq.specifier._specs if ireq.req is not None else []
     specs = sorted(specs, key=lambda x: x._spec[1])
-    return ','.join(str(s) for s in specs) or '<any>'
+    return ",".join(str(s) for s in specs) or "<any>"
 
 
 def is_pinned_requirement(ireq):
@@ -209,19 +225,20 @@ def is_pinned_requirement(ireq):
     if ireq.editable:
         return False
 
-    if len(ireq.specifier._specs) != 1:
+    if ireq.req is None or len(ireq.specifier._specs) != 1:
         return False
 
     op, version = next(iter(ireq.specifier._specs))._spec
-    return (op == '==' or op == '===') and not version.endswith('.*')
+    return (op == "==" or op == "===") and not version.endswith(".*")
 
 
 def as_tuple(ireq):
     """
-    Pulls out the (name: str, version:str, extras:(str)) tuple from the pinned InstallRequirement.
+    Pulls out the (name: str, version:str, extras:(str)) tuple from
+    the pinned InstallRequirement.
     """
     if not is_pinned_requirement(ireq):
-        raise TypeError('Expected a pinned InstallRequirement, got {}'.format(ireq))
+        raise TypeError("Expected a pinned InstallRequirement, got {}".format(ireq))
 
     name = key_from_req(ireq.req)
     version = next(iter(ireq.specifier._specs))._spec[1]
@@ -288,9 +305,14 @@ def lookup_table(values, key=None, keyval=None, unique=False, use_lists=False):
     """
     if keyval is None:
         if key is None:
-            keyval = (lambda v: v)
+
+            def keyval(v):
+                return v
+
         else:
-            keyval = (lambda v: (key(v), v))
+
+            def keyval(v):
+                return (key(v), v)
 
     if unique:
         return dict(keyval(v) for v in values)
@@ -321,7 +343,7 @@ def dedup(iterable):
 
 def name_from_req(req):
     """Get the name of the requirement"""
-    if hasattr(req, 'project_name'):
+    if hasattr(req, "project_name"):
         # from pkg_resources, such as installed dists for pip-sync
         return req.project_name
     else:
@@ -339,17 +361,13 @@ def fs_str(string):
     On Python 3 returns the string as is, since Python 3 uses unicode
     paths and the input string shouldn't be bytes.
 
-    >>> fs_str(u'some path component/Something')
-    'some path component/Something'
-    >>> assert isinstance(fs_str('whatever'), str)
-    >>> assert isinstance(fs_str(u'whatever'), str)
-
     :type string: str|unicode
     :rtype: str
     """
     if isinstance(string, str):
         return string
-    assert not isinstance(string, bytes)
+    if isinstance(string, bytes):
+        raise AssertionError
     return string.encode(_fs_encoding)
 
 
@@ -358,12 +376,121 @@ _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
 
 def get_hashes_from_ireq(ireq):
     """
-    Given an InstallRequirement, return a list of string hashes in the format "{algorithm}:{hash}".
-    Return an empty list if there are no hashes in the requirement options.
+    Given an InstallRequirement, return a list of string hashes in
+    the format "{algorithm}:{hash}". Return an empty list if there are no hashes
+    in the requirement options.
     """
     result = []
-    ireq_hashes = ireq.options.get('hashes', {})
+    ireq_hashes = ireq.options.get("hashes", {})
     for algorithm, hexdigests in ireq_hashes.items():
         for hash_ in hexdigests:
             result.append("{}:{}".format(algorithm, hash_))
     return result
+
+
+def force_text(s):
+    """
+    Return a string representing `s`.
+    """
+    if s is None:
+        return ""
+    if not isinstance(s, six.string_types):
+        return six.text_type(s)
+    return s
+
+
+def get_compile_command(click_ctx):
+    """
+    Returns a normalized compile command depending on cli context.
+
+    The command will be normalized by:
+        - expanding options short to long
+        - removing values that are already default
+        - sorting the arguments
+        - removing one-off arguments like '--upgrade'
+        - removing arguments that don't change build behaviour like '--verbose'
+    """
+    from piptools.scripts.compile import cli
+
+    # Map of the compile cli options (option name -> click.Option)
+    compile_options = {option.name: option for option in cli.params}
+
+    left_args = []
+    right_args = []
+
+    for option_name, value in click_ctx.params.items():
+        option = compile_options[option_name]
+
+        # Get the latest option name (usually it'll be a long name)
+        option_long_name = option.opts[-1]
+
+        # Collect variadic args separately, they will be added
+        # at the end of the command later
+        if option.nargs < 0:
+            right_args.extend([shlex_quote(force_text(val)) for val in value])
+            continue
+
+        # Exclude one-off options (--upgrade/--upgrade-package/--rebuild/...)
+        # or options that don't change compile behaviour (--verbose/--dry-run/...)
+        if option_long_name in COMPILE_EXCLUDE_OPTIONS:
+            continue
+
+        # Skip options without a value
+        if option.default is None and not value:
+            continue
+
+        # Skip options with a default value
+        if option.default == value:
+            continue
+
+        # Use a file name for file-like objects
+        if isinstance(value, LazyFile):
+            value = value.name
+
+        # Convert value to the list
+        if not isinstance(value, (tuple, list)):
+            value = [value]
+
+        for val in value:
+            # Flags don't have a value, thus add to args true or false option long name
+            if option.is_flag:
+                # If there are false-options, choose an option name depending on a value
+                if option.secondary_opts:
+                    # Get the latest false-option
+                    secondary_option_long_name = option.secondary_opts[-1]
+                    arg = option_long_name if val else secondary_option_long_name
+                # There are no false-options, use true-option
+                else:
+                    arg = option_long_name
+                left_args.append(shlex_quote(arg))
+            # Append to args the option with a value
+            else:
+                left_args.append(
+                    "{option}={value}".format(
+                        option=option_long_name, value=shlex_quote(force_text(val))
+                    )
+                )
+
+    return " ".join(["pip-compile"] + sorted(left_args) + sorted(right_args))
+
+
+def create_install_command():
+    """
+    Return an instance of InstallCommand.
+    """
+    if PIP_VERSION < (19, 3):
+        return InstallCommand()
+
+    from pipenv.patched.notpip._internal.commands import create_command
+
+    return create_command("install")
+
+
+def get_trusted_hosts(finder):
+    """
+    Returns an iterable of trusted hosts from a given finder.
+    """
+    if PIP_VERSION < (19, 2):
+        return (host for _, host, _ in finder.secure_origins)
+
+    return finder.trusted_hosts

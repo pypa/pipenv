@@ -120,6 +120,9 @@ class SpawnBase(object):
         self.async_pw_transport = None
         # This is the read buffer. See maxread.
         self._buffer = self.buffer_type()
+        # The buffer may be trimmed for efficiency reasons.  This is the
+        # untrimmed buffer, used to create the before attribute.
+        self._before = self.buffer_type()
 
     def _log(self, s, direction):
         if self.logfile is not None:

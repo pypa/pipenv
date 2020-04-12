@@ -9,25 +9,24 @@ steps:
     addToPath: true
   displayName: Use Python $(python.version)
 
+- bash: |
+    python -m pip install --upgrade --upgrade-strategy=eager pip requests certifi wheel setuptools
+    PYTHON_PATH=$(python -c 'import sys; print(sys.executable)')
+    CERTIFI_CONTENT=$(python -m certifi)
+    echo "##vso[task.setvariable variable=PY_EXE]$PYTHON_PATH"
+    echo "##vso[task.setvariable variable=GIT_SSL_CAINFO]$CERTIFI_CONTENT"
+  displayName: Set Python Path
+
 - template: install-dependencies.yml
 
 - script: |
-    echo '##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]'$(python.version)
-  env:
-    PYTHON_VERSION: $(python.version)
-
-- template: create-virtualenv.yml
-  parameters:
-    python_version: $(python.version)
-
-- script: |
-    python -m pip install --upgrade invoke requests parver bs4 vistir towncrier pip setuptools wheel --upgrade-strategy=eager
+    python -m pip install --upgrade invoke parver bs4 vistir towncrier --upgrade-strategy=eager
     python -m invoke vendoring.update
   displayName: Run Vendor Scripts
   env:
     PY_EXE: $(PY_EXE)
     GIT_SSL_CAINFO: $(GIT_SSL_CAINFO)
     LANG: $(LANG)
-    PIPENV_DEFAULT_PYTHON_VERSION: '${{ parameters.python_version }}'
+    PIPENV_DEFAULT_PYTHON_VERSION: $(python.version)
     PYTHONWARNINGS: ignore:DEPRECATION
     PIPENV_NOSPIN: '1'

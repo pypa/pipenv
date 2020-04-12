@@ -1,0 +1,13 @@
+diff --git a/pipenv/vendor/pythonfinder/compat.py b/pipenv/vendor/pythonfinder/compat.py
+index 6fb4542f..d76c4efc 100644
+--- a/pipenv/vendor/pythonfinder/compat.py
++++ b/pipenv/vendor/pythonfinder/compat.py
+@@ -4,7 +4,7 @@ import sys
+ import six
+ 
+ if sys.version_info[:2] <= (3, 4):
+-    from pathlib2 import Path  # type: ignore  # noqa
++    from pipenv.vendor.pathlib2 import Path  # type: ignore  # noqa
+ else:
+     from pathlib import Path
+ 

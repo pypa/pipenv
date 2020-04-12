@@ -2,7 +2,11 @@ import os
 import subprocess
 import sys
 
+import pytest
 
+
+@pytest.mark.cli
+@pytest.mark.help
 def test_help():
     output = subprocess.check_output(
         [sys.executable, '-m', 'pipenv.help'],
@@ -11,6 +15,8 @@ def test_help():
     assert output
 
 
+@pytest.mark.cli
+@pytest.mark.help
 def test_count_of_description_pre_option():
     test_command = 'pipenv install --help'
     test_line = '--pre Allow pre-releases.'

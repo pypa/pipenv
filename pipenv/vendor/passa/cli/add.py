@@ -20,7 +20,8 @@ class Command(BaseCommand):
             packages=options.packages,
             editables=options.editables,
             project=options.project,
-            dev=options.dev
+            dev=options.dev,
+            sync=options.sync
         )
 
 

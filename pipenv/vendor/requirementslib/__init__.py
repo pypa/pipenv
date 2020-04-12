@@ -10,7 +10,7 @@ from .models.lockfile import Lockfile
 from .models.pipfile import Pipfile
 from .models.requirements import Requirement
 
-__version__ = "1.5.2.dev0"
+__version__ = "1.5.4"
 
 
 logger = logging.getLogger(__name__)

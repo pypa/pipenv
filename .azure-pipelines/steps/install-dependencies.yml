@@ -1,5 +1,31 @@
+parameters:
+  python_version: ''
+
 steps:
-- script: 'python -m pip install --upgrade pip setuptools wheel -e .[dev,tests] --upgrade'
+
+- script: |
+    echo "##vso[task.setvariable variable=LANG]C.UTF-8"
+    echo "##vso[task.setvariable variable=PIP_PROCESS_DEPENDENCY_LINKS]1"
+  displayName: Set Environment Variables
+
+- script: |
+    echo "Python path: $(PY_EXE)"
+    echo "GIT_SSL_CAINFO: $(GIT_SSL_CAINFO)"
+    echo "PIPENV PYTHON VERSION: $(python.version)"
+    echo "python_version: ${{ parameters.python_version }}"
+    git submodule sync
+    git submodule update --init --recursive
+    $(PY_EXE) -m pip install --upgrade --upgrade-strategy=eager pip setuptools wheel
+    $(PY_EXE) -m pip install "virtualenv<20"
+  env:
+    PIPENV_DEFAULT_PYTHON_VERSION: ${{ parameters.python_version }}
+    PYTHONWARNINGS: 'ignore:DEPRECATION'
+    PIPENV_NOSPIN: '1'
+  displayName: Make Virtualenv
+
+- script: |
+    $(PY_EXE) -m pip install -e . --upgrade
+    $(PY_EXE) -m pipenv install --deploy --dev --python="$(PY_EXE)"
   displayName: Upgrade Pip & Install Pipenv
   env:
     PYTHONWARNINGS: 'ignore:DEPRECATION'

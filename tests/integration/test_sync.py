@@ -8,6 +8,7 @@ import pytest
 from pipenv.utils import temp_environ
 
 
+@pytest.mark.lock
 @pytest.mark.sync
 def test_sync_error_without_lockfile(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
