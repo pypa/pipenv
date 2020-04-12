@@ -192,7 +192,7 @@ def lock_dev_option(f):
 
 
 def uninstall_dev_option(f):
-    return _dev_option(f, "Uninstall both develop and default requirements")
+    return _dev_option(f, "Deprecated (as it has no effect). May be removed in a future release.")
 
 
 def pre_option(f):
