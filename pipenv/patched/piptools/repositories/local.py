@@ -1,12 +1,12 @@
 # coding: utf-8
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from contextlib import contextmanager
 
-from piptools.utils import as_tuple, key_from_req, make_install_requirement
-from .base import BaseRepository
 from .._compat import FAVORITE_HASH
+from .base import BaseRepository
+
+from piptools.utils import as_tuple, key_from_req, make_install_requirement
 
 
 def ireq_satisfied_by_existing_pin(ireq, existing_pin):
@@ -28,9 +28,14 @@ class LocalRequirementsRepository(BaseRepository):
     requirements file, we prefer that version over the best match found in
     PyPI.  This keeps updates to the requirements.txt down to a minimum.
     """
+
     def __init__(self, existing_pins, proxied_repository):
         self.repository = proxied_repository
         self.existing_pins = existing_pins
+
+    @property
+    def options(self):
+        return self.repository.options
 
     @property
     def finder(self):
@@ -56,8 +61,8 @@ class LocalRequirementsRepository(BaseRepository):
         if existing_pin and ireq_satisfied_by_existing_pin(ireq, existing_pin):
             project, version, _ = as_tuple(existing_pin)
             return make_install_requirement(
-                project, version, ireq.extras, constraint=ireq.constraint,
-                markers=ireq.markers
+                project, version, ireq.extras, ireq.markers,
+                constraint=ireq.constraint
             )
         else:
             return self.repository.find_best_match(ireq, prereleases)
@@ -69,12 +74,11 @@ class LocalRequirementsRepository(BaseRepository):
         key = key_from_req(ireq.req)
         existing_pin = self.existing_pins.get(key)
         if existing_pin and ireq_satisfied_by_existing_pin(ireq, existing_pin):
-            hashes = existing_pin.options.get('hashes', {})
+            hashes = existing_pin.options.get("hashes", {})
             hexdigests = hashes.get(FAVORITE_HASH)
             if hexdigests:
                 return {
-                    ':'.join([FAVORITE_HASH, hexdigest])
-                    for hexdigest in hexdigests
+                    ":".join([FAVORITE_HASH, hexdigest]) for hexdigest in hexdigests
                 }
         return self.repository.get_hashes(ireq)
 

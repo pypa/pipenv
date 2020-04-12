@@ -233,7 +233,7 @@ class LockfileNotFound(PipenvFileError):
 class DeployException(PipenvUsageError):
     def __init__(self, message=None, **kwargs):
         if not message:
-            message = crayons.normal("Aborting deploy", bold=True)
+            message = str(crayons.normal("Aborting deploy", bold=True))
         extra = kwargs.pop("extra", [])
         PipenvUsageError.__init__(self, message=message, extra=extra, **kwargs)
 
@@ -256,7 +256,9 @@ class SystemUsageError(PipenvOptionsError):
             ),
         ]
         if message is None:
-            message = crayons.blue("See also: {0}".format(crayons.white("--deploy flag.")))
+            message = str(
+                crayons.blue("See also: {0}".format(crayons.white("--deploy flag.")))
+            )
         super(SystemUsageError, self).__init__(option_name, message=message, ctx=ctx, extra=extra, **kwargs)
 
 
@@ -310,7 +312,9 @@ class VirtualenvCreationException(VirtualenvException):
             # so replacement or parsing requires this step
             extra = ANSI_REMOVAL_RE.sub("", "{0}".format(extra))
             if "KeyboardInterrupt" in extra:
-                extra = crayons.red("Virtualenv creation interrupted by user", bold=True)
+                extra = str(
+                    crayons.red("Virtualenv creation interrupted by user", bold=True)
+                )
             self.extra = extra = [extra]
         VirtualenvException.__init__(self, message, extra=extra)
 

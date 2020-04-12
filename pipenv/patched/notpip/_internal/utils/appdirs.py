@@ -2,6 +2,10 @@
 This code was taken from https://github.com/ActiveState/appdirs and modified
 to suit our purposes.
 """
+
+# The following comment should be removed at some point in the future.
+# mypy: disallow-untyped-defs=False
+
 from __future__ import absolute_import
 
 import os
@@ -13,9 +17,7 @@ from pipenv.patched.notpip._internal.utils.compat import WINDOWS, expanduser
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import (  # noqa: F401
-        List, Union
-    )
+    from typing import List
 
 
 def user_cache_dir(appname):
@@ -220,6 +222,8 @@ def _get_win_folder_from_registry(csidl_name):
 
 def _get_win_folder_with_ctypes(csidl_name):
     # type: (str) -> str
+    # On Python 2, ctypes.create_unicode_buffer().value returns "unicode",
+    # which isn't the same as str in the annotation above.
     csidl_const = {
         "CSIDL_APPDATA": 26,
         "CSIDL_COMMON_APPDATA": 35,
@@ -227,7 +231,8 @@ def _get_win_folder_with_ctypes(csidl_name):
     }[csidl_name]
 
     buf = ctypes.create_unicode_buffer(1024)
-    ctypes.windll.shell32.SHGetFolderPathW(None, csidl_const, None, 0, buf)
+    windll = ctypes.windll  # type: ignore
+    windll.shell32.SHGetFolderPathW(None, csidl_const, None, 0, buf)
 
     # Downgrade to short path name if have highbit chars. See
     # <http://bugs.activestate.com/show_bug.cgi?id=85099>.
@@ -238,10 +243,11 @@ def _get_win_folder_with_ctypes(csidl_name):
             break
     if has_high_char:
         buf2 = ctypes.create_unicode_buffer(1024)
-        if ctypes.windll.kernel32.GetShortPathNameW(buf.value, buf2, 1024):
+        if windll.kernel32.GetShortPathNameW(buf.value, buf2, 1024):
             buf = buf2
 
-    return buf.value
+    # The type: ignore is explained under the type annotation for this function
+    return buf.value  # type: ignore
 
 
 if WINDOWS:

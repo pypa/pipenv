@@ -8,26 +8,30 @@
 # grunseid@gmail.com
 #
 # License: Build Amazing Things (Unlicense)
+#
 
 from __future__ import absolute_import
 
+import sys
 from itertools import chain
-from collections import MutableMapping
 
 import six
 from six.moves import map, zip_longest
 
 from .itemlist import itemlist
 
+if six.PY2:
+    from collections import MutableMapping
+else:
+    from collections.abc import MutableMapping
 try:
     from collections import OrderedDict as odict  # Python 2.7 and later.
 except ImportError:
     from ordereddict import OrderedDict as odict  # Python 2.6 and earlier.
 
-import sys
-items_attr = 'items' if sys.version_info[0] >= 3 else 'iteritems'
 
 _absent = object()  # Marker that means no parameter was provided.
+_items_attr = 'items' if sys.version_info[0] >= 3 else 'iteritems'
 
 
 def callable_attr(obj, attr):
@@ -765,7 +769,7 @@ class omdict(MutableMapping):
             for i1, i2 in zip_longest(myiter, otheriter, fillvalue=_absent):
                 if i1 != i2 or i1 is _absent or i2 is _absent:
                     return False
-        elif not hasattr(other, '__len__') or not hasattr(other, items_attr):
+        elif not hasattr(other, '__len__') or not hasattr(other, _items_attr):
             return False
         # Ignore order so we can compare ordered omdicts with unordered dicts.
         else:
@@ -809,3 +813,21 @@ class omdict(MutableMapping):
 
     def __repr__(self):
         return '%s(%s)' % (self.__class__.__name__, self.allitems())
+
+    def __or__(self, other):
+        return self.__class__(chain(_get_items(self), _get_items(other)))
+
+    def __ior__(self, other):
+        for k, v in _get_items(other):
+            self.add(k, value=v)
+        return self
+
+
+def _get_items(mapping):
+    """Find item iterator for an object."""
+    names = ('iterallitems', 'allitems', 'iteritems', 'items')
+    exist = (n for n in names if callable_attr(mapping, n))
+    for a in exist:
+        return getattr(mapping, a)()
+    raise TypeError(
+        "Object {} has no compatible items interface.".format(mapping))

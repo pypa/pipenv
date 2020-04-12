@@ -2,23 +2,21 @@
 from __future__ import absolute_import, print_function
 
 import copy
+import itertools
 import os
 
 import attr
-import itertools
 import plette.lockfiles
 import six
+from vistir.compat import FileNotFoundError, JSONDecodeError, Path
 
-from vistir.compat import Path, FileNotFoundError, JSONDecodeError
-
+from ..exceptions import LockfileCorruptException, MissingParameter, PipfileNotFound
+from ..utils import is_editable, is_vcs, merge_items
 from .project import ProjectFile
 from .requirements import Requirement
-
 from .utils import optional_instance_of
-from ..exceptions import LockfileCorruptException, PipfileNotFound, MissingParameter
-from ..utils import is_vcs, is_editable, merge_items
 
-DEFAULT_NEWLINES = u"\n"
+DEFAULT_NEWLINES = six.text_type("\n")
 
 
 def preferred_newlines(f):
@@ -42,7 +40,7 @@ class Lockfile(object):
 
     @path.default
     def _get_path(self):
-        return Path(os.curdir).absolute()
+        return Path(os.curdir).joinpath("Pipfile.lock").absolute()
 
     @projectfile.default
     def _get_projectfile(self):
@@ -50,7 +48,7 @@ class Lockfile(object):
 
     @_lockfile.default
     def _get_lockfile(self):
-        return self.projectfile.lockfile
+        return self.projectfile.model
 
     @property
     def lockfile(self):
@@ -127,16 +125,13 @@ class Lockfile(object):
         :rtype: :class:`~requirementslib.models.project.ProjectFile`
         """
 
-        pf = ProjectFile.read(
-            path,
-            plette.lockfiles.Lockfile,
-            invalid_ok=True
-        )
+        pf = ProjectFile.read(path, plette.lockfiles.Lockfile, invalid_ok=True)
         return pf
 
     @classmethod
     def lockfile_from_pipfile(cls, pipfile_path):
         from .pipfile import Pipfile
+
         if os.path.isfile(pipfile_path):
             if not os.path.isabs(pipfile_path):
                 pipfile_path = os.path.abspath(pipfile_path)
@@ -164,7 +159,9 @@ class Lockfile(object):
         if not project_path.exists():
             raise OSError("Project does not exist: %s" % project_path.as_posix())
         elif not lockfile_path.exists() and not create:
-            raise FileNotFoundError("Lockfile does not exist: %s" % lockfile_path.as_posix())
+            raise FileNotFoundError(
+                "Lockfile does not exist: %s" % lockfile_path.as_posix()
+            )
         projectfile = cls.read_projectfile(lockfile_path.as_posix())
         if not lockfile_path.exists():
             if not data:
@@ -207,10 +204,14 @@ class Lockfile(object):
             lockfile.update(data)
         else:
             lockfile = plette.lockfiles.Lockfile(data)
-        projectfile = ProjectFile(line_ending=DEFAULT_NEWLINES, location=lockfile_path, model=lockfile)
+        projectfile = ProjectFile(
+            line_ending=DEFAULT_NEWLINES, location=lockfile_path, model=lockfile
+        )
         return cls(
-            projectfile=projectfile, lockfile=lockfile,
-            newlines=projectfile.line_ending, path=Path(projectfile.location)
+            projectfile=projectfile,
+            lockfile=lockfile,
+            newlines=projectfile.line_ending,
+            path=Path(projectfile.location),
         )
 
     @classmethod
@@ -243,7 +244,7 @@ class Lockfile(object):
             "projectfile": projectfile,
             "lockfile": projectfile.model,
             "newlines": projectfile.line_ending,
-            "path": lockfile_path
+            "path": lockfile_path,
         }
         return cls(**creation_args)
 
@@ -300,9 +301,7 @@ class Lockfile(object):
         lines = []
         section = self.dev_requirements if dev else self.requirements
         for req in section:
-            kwargs = {
-                "include_hashes": include_hashes,
-            }
+            kwargs = {"include_hashes": include_hashes}
             if req.editable:
                 kwargs["include_markers"] = False
             r = req.as_line(**kwargs)

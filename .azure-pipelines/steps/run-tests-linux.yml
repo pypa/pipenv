@@ -2,13 +2,29 @@ parameters:
   python_version: ''
 
 steps:
+
+- bash: |
+    pip install certifi
+    PYTHON_PATH=$(python -c 'import sys; print(sys.executable)')
+    CERTIFI_CONTENT=$(python -m certifi)
+    echo "##vso[task.setvariable variable=GIT_SSL_CAINFO]$CERTIFI_CONTENT"
+    echo "##vso[task.setvariable variable=PY_EXE]$PYTHON_PATH"
+  displayName: Set Python Path
+  env:
+    PYTHONWARNINGS: 'ignore:DEPRECATION'
+
+- template: install-dependencies.yml
+  parameters:
+    python_version: ${{ parameters.python_version }}
+
 - script: |
     # Fix Git SSL errors
     echo "Using pipenv python version: $(PIPENV_DEFAULT_PYTHON_VERSION)"
     git submodule sync && git submodule update --init --recursive
-    pipenv run pytest --junitxml=test-results.xml
+    pipenv run pytest -n 4 --junitxml=junit/test-results.xml
   displayName: Run integration tests
   env:
     PYTHONWARNINGS: ignore:DEPRECATION
     PIPENV_NOSPIN: '1'
     PIPENV_DEFAULT_PYTHON_VERSION: ${{ parameters.python_version }}
+    GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no

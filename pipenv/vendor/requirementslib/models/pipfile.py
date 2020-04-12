@@ -3,6 +3,7 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import copy
+import itertools
 import os
 import sys
 
@@ -12,12 +13,12 @@ import plette.pipfiles
 import tomlkit
 from vistir.compat import FileNotFoundError, Path
 
-from .project import ProjectFile
-from .requirements import Requirement
-from .utils import get_url_name, optional_instance_of, tomlkit_value_to_python
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
 from ..utils import is_editable, is_vcs, merge_items
+from .project import ProjectFile
+from .requirements import Requirement
+from .utils import get_url_name, optional_instance_of, tomlkit_value_to_python
 
 if MYPY_RUNNING:
     from typing import Union, Any, Dict, Iterable, Mapping, List, Text
@@ -29,82 +30,60 @@ if MYPY_RUNNING:
     lockfile_type = Dict[Text, Union[package_type, meta_type]]
 
 
-# Let's start by patching plette to make sure we can validate data without being broken
-try:
-    import cerberus
-except ImportError:
-    cerberus = None
-
-VALIDATORS = plette.models.base.VALIDATORS
-
-
-def patch_plette():
-    # type: () -> None
-
-    global VALIDATORS
-
-    def validate(cls, data):
-        # type: (Any, Dict[Text, Any]) -> None
-        if not cerberus:  # Skip validation if Cerberus is not available.
-            return
-        schema = cls.__SCHEMA__
-        key = id(schema)
-        try:
-            v = VALIDATORS[key]
-        except KeyError:
-            v = VALIDATORS[key] = cerberus.Validator(schema, allow_unknown=True)
-        if v.validate(dict(data), normalize=False):
-            return
-        raise plette.models.base.ValidationError(data, v)
-
-    names = ["plette.models.base", plette.models.base.__name__]
-    names = [name for name in names if name in sys.modules]
-    for name in names:
-        if name in sys.modules:
-            module = sys.modules[name]
-        else:
-            module = plette.models.base
-        original_fn = getattr(module, "validate")
-        for key in ["__qualname__", "__name__", "__module__"]:
-            original_val = getattr(original_fn, key, None)
-            if original_val is not None:
-                setattr(validate, key, original_val)
-        setattr(module, "validate", validate)
-        sys.modules[name] = module
-
-
-patch_plette()
-
-
 is_pipfile = optional_instance_of(plette.pipfiles.Pipfile)
 is_path = optional_instance_of(Path)
 is_projectfile = optional_instance_of(ProjectFile)
 
 
 def reorder_source_keys(data):
-    # type: ignore
-    sources = data["source"]  # type: sources_type
-    for i, entry in enumerate(sources):
-        table = tomlkit.table()  # type: Mapping
+    # type: (tomlkit.toml_document.TOMLDocument) -> tomlkit.toml_document.TOMLDocument
+    sources = []  # type: sources_type
+    for source_key in ["source", "sources"]:
+        sources.extend(data.get(source_key, tomlkit.aot()).value)
+    new_source_aot = tomlkit.aot()
+    for entry in sources:
+        table = tomlkit.table()  # type: tomlkit.items.Table
         source_entry = PipfileLoader.populate_source(entry.copy())
-        table["name"] = source_entry["name"]
-        table["url"] = source_entry["url"]
-        table["verify_ssl"] = source_entry["verify_ssl"]
-        data["source"][i] = table
+        for key in ["name", "url", "verify_ssl"]:
+            table.update({key: source_entry[key]})
+        new_source_aot.append(table)
+    data["source"] = new_source_aot
+    if data.get("sources", None):
+        del data["sources"]
     return data
 
 
 class PipfileLoader(plette.pipfiles.Pipfile):
     @classmethod
     def validate(cls, data):
-        # type: (Dict[Text, Any]) -> None
+        # type: (tomlkit.toml_document.TOMLDocument) -> None
         for key, klass in plette.pipfiles.PIPFILE_SECTIONS.items():
-            if key not in data or key == "source":
+            if key not in data or key == "sources":
                 continue
             try:
                 klass.validate(data[key])
             except Exception:
                 pass
+
+    @classmethod
+    def ensure_package_sections(cls, data):
+        # type: (tomlkit.toml_document.TOMLDocument[Text, Any]) -> tomlkit.toml_document.TOMLDocument[Text, Any]
+        """
+        Ensure that all pipfile package sections are present in the given toml document
+
+        :param :class:`~tomlkit.toml_document.TOMLDocument` data: The toml document to
+            ensure package sections are present on
+        :return: The updated toml document, ensuring ``packages`` and ``dev-packages``
+            sections are present
+        :rtype: :class:`~tomlkit.toml_document.TOMLDocument`
+        """
+        package_keys = (
+            k for k in plette.pipfiles.PIPFILE_SECTIONS.keys() if k.endswith("packages")
+        )
+        for key in package_keys:
+            if key not in data:
+                data.update({key: tomlkit.table()})
+        return data
 
     @classmethod
     def populate_source(cls, source):
@@ -115,7 +94,7 @@ class PipfileLoader(plette.pipfiles.Pipfile):
         if "verify_ssl" not in source:
             source["verify_ssl"] = "https://" in source["url"]
         if not isinstance(source["verify_ssl"], bool):
-            source["verify_ssl"] = source["verify_ssl"].lower() == "true"
+            source["verify_ssl"] = str(source["verify_ssl"]).lower() == "true"
         return source
 
     @classmethod
@@ -125,11 +104,10 @@ class PipfileLoader(plette.pipfiles.Pipfile):
         if encoding is not None:
             content = content.decode(encoding)
         _data = tomlkit.loads(content)
-        _data["source"] = _data.get("source", []) + _data.get("sources", [])
+        should_reload = "source" not in _data
         _data = reorder_source_keys(_data)
-        if "source" not in _data:
+        if should_reload:
             if "sources" in _data:
-                _data["source"] = _data["sources"]
                 content = tomlkit.dumps(_data)
             else:
                 # HACK: There is no good way to prepend a section to an existing
@@ -139,9 +117,18 @@ class PipfileLoader(plette.pipfiles.Pipfile):
                 sep = "" if content.startswith("\n") else "\n"
                 content = plette.pipfiles.DEFAULT_SOURCE_TOML + sep + content
         data = tomlkit.loads(content)
+        data = cls.ensure_package_sections(data)
         instance = cls(data)
         instance._data = dict(instance._data)
         return instance
+
+    def __contains__(self, key):
+        # type: (Text) -> bool
+        if key not in self._data:
+            package_keys = self._data.get("packages", {}).keys()
+            dev_package_keys = self._data.get("dev-packages", {}).keys()
+            return any(key in pkg_list for pkg_list in (package_keys, dev_package_keys))
+        return True
 
     def __getattribute__(self, key):
         # type: (Text) -> Any
@@ -178,6 +165,15 @@ class Pipfile(object):
         return self.projectfile.model
 
     @property
+    def extended_keys(self):
+        return [
+            k
+            for k in itertools.product(
+                ("packages", "dev-packages"), ("", "vcs", "editable")
+            )
+        ]
+
+    @property
     def pipfile(self):
         # type: () -> Union[PipfileLoader, plette.pipfiles.Pipfile]
         return self._pipfile
@@ -186,11 +182,11 @@ class Pipfile(object):
         # type: (bool, bool) -> Dict[Text, Dict[Text, Union[List[Text], Text]]]
         deps = {}  # type: Dict[Text, Dict[Text, Union[List[Text], Text]]]
         if dev:
-            deps.update(self.pipfile._data["dev-packages"])
+            deps.update(dict(self.pipfile._data.get("dev-packages", {})))
             if only:
                 return deps
         return tomlkit_value_to_python(
-            merge_items([deps, self.pipfile._data["packages"]])
+            merge_items([deps, dict(self.pipfile._data.get("packages", {}))])
         )
 
     def get(self, k):
@@ -357,22 +353,28 @@ class Pipfile(object):
         # type: () -> None
         pyproject = self.path.parent.joinpath("pyproject.toml")
         if pyproject.exists():
-            self._pyproject = tomlkit.load(pyproject)
+            self._pyproject = tomlkit.loads(pyproject.read_text())
             build_system = self._pyproject.get("build-system", None)
-            if not os.path.exists(self.path_to("setup.py")):
-                if not build_system or not build_system.get("requires"):
-                    build_system = {
-                        "requires": ["setuptools>=40.8", "wheel"],
-                        "build-backend": "setuptools.build_meta:__legacy__",
-                    }
-                self._build_system = build_system
+            if build_system and not build_system.get("build_backend"):
+                build_system["build-backend"] = "setuptools.build_meta:__legacy__"
+            elif not build_system or not build_system.get("requires"):
+                build_system = {
+                    "requires": ["setuptools>=40.8", "wheel"],
+                    "build-backend": "setuptools.build_meta:__legacy__",
+                }
+            self.build_system = build_system
 
     @property
     def build_requires(self):
         # type: () -> List[Text]
+        if not self.build_system:
+            self._read_pyproject()
         return self.build_system.get("requires", [])
 
     @property
     def build_backend(self):
         # type: () -> Text
+        pyproject = self.path.parent.joinpath("pyproject.toml")
+        if not self.build_system:
+            self._read_pyproject()
         return self.build_system.get("build-backend", None)

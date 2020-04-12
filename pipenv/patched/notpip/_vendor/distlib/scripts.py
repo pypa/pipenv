@@ -39,27 +39,12 @@ _DEFAULT_MANIFEST = '''
 # check if Python is called on the first line with this expression
 FIRST_LINE_RE = re.compile(b'^#!.*pythonw?[0-9.]*([ \t].*)?$')
 SCRIPT_TEMPLATE = r'''# -*- coding: utf-8 -*-
+import re
+import sys
+from %(module)s import %(import_name)s
 if __name__ == '__main__':
-    import sys, re
-
-    def _resolve(module, func):
-        __import__(module)
-        mod = sys.modules[module]
-        parts = func.split('.')
-        result = getattr(mod, parts.pop(0))
-        for p in parts:
-            result = getattr(result, p)
-        return result
-
-    try:
-        sys.argv[0] = re.sub(r'(-script\.pyw?|\.exe)?$', '', sys.argv[0])
-
-        func = _resolve('%(module)s', '%(func)s')
-        rc = func() # None interpreted as 0
-    except Exception as e:  # only supporting Python >= 2.6
-        sys.stderr.write('%%s\n' %% e)
-        rc = 1
-    sys.exit(rc)
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(%(func)s())
 '''
 
 
@@ -225,6 +210,7 @@ class ScriptMaker(object):
 
     def _get_script_text(self, entry):
         return self.script_template % dict(module=entry.prefix,
+                                           import_name=entry.suffix.split('.')[0],
                                            func=entry.suffix)
 
     manifest = _DEFAULT_MANIFEST

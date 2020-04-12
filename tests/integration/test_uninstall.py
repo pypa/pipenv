@@ -8,7 +8,6 @@ import pytest
 from pipenv.utils import temp_environ
 
 
-@pytest.mark.run
 @pytest.mark.uninstall
 @pytest.mark.install
 def test_uninstall_requests(PipenvInstance):
@@ -32,6 +31,7 @@ def test_uninstall_requests(PipenvInstance):
         assert c.return_code > 0
 
 
+@pytest.mark.uninstall
 def test_uninstall_django(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv("install Django==1.11.13")
@@ -53,9 +53,8 @@ def test_uninstall_django(PipenvInstance):
         assert c.return_code > 0
 
 
-@pytest.mark.run
-@pytest.mark.uninstall
 @pytest.mark.install
+@pytest.mark.uninstall
 def test_mirror_uninstall(PipenvInstance):
     with temp_environ(), PipenvInstance(chdir=True) as p:
 
@@ -94,8 +93,8 @@ def test_mirror_uninstall(PipenvInstance):
 
 
 @pytest.mark.files
-@pytest.mark.uninstall
 @pytest.mark.install
+@pytest.mark.uninstall
 def test_uninstall_all_local_files(PipenvInstance, testsroot):
     file_name = "tablib-0.12.1.tar.gz"
     # Not sure where travis/appveyor run tests from
@@ -114,9 +113,8 @@ def test_uninstall_all_local_files(PipenvInstance, testsroot):
         assert "tablib" in p.pipfile["packages"]
 
 
-@pytest.mark.run
-@pytest.mark.uninstall
 @pytest.mark.install
+@pytest.mark.uninstall
 def test_uninstall_all_dev(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv("install --dev Django==1.11.13 six")
@@ -151,7 +149,6 @@ def test_uninstall_all_dev(PipenvInstance):
 
 
 @pytest.mark.uninstall
-@pytest.mark.run
 def test_normalize_name_uninstall(PipenvInstance):
     with PipenvInstance() as p:
         with open(p.pipfile_path, "w") as f:

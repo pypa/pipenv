@@ -1,6 +1,5 @@
 from threading import local
 
-
 _local = local()
 
 
@@ -15,20 +14,20 @@ def get_current_context(silent=False):
 
     .. versionadded:: 5.0
 
-    :param silent: is set to `True` the return value is `None` if no context
+    :param silent: if set to `True` the return value is `None` if no context
                    is available.  The default behavior is to raise a
                    :exc:`RuntimeError`.
     """
     try:
-        return getattr(_local, 'stack')[-1]
+        return _local.stack[-1]
     except (AttributeError, IndexError):
         if not silent:
-            raise RuntimeError('There is no active click context.')
+            raise RuntimeError("There is no active click context.")
 
 
 def push_context(ctx):
     """Pushes a new context to the current stack."""
-    _local.__dict__.setdefault('stack', []).append(ctx)
+    _local.__dict__.setdefault("stack", []).append(ctx)
 
 
 def pop_context():

@@ -30,6 +30,14 @@ from .compat import (
     fs_encode,
 )
 
+# fmt: off
+if six.PY3:
+    from urllib.parse import quote_from_bytes as quote
+else:
+    from urllib import quote
+# fmt: on
+
+
 if IS_TYPE_CHECKING:
     from typing import Optional, Callable, Text, ByteString, AnyStr
 
@@ -158,13 +166,23 @@ def path_to_url(path):
     >>> path_to_url("/home/user/code/myrepo/myfile.zip")
     'file:///home/user/code/myrepo/myfile.zip'
     """
-    from .misc import to_text, to_bytes
+    from .misc import to_bytes
 
     if not path:
         return path
-    path = to_bytes(path, encoding="utf-8")
-    normalized_path = to_text(normalize_drive(os.path.abspath(path)), encoding="utf-8")
-    return to_text(Path(normalized_path).as_uri(), encoding="utf-8")
+    normalized_path = Path(normalize_drive(os.path.abspath(path))).as_posix()
+    if os.name == "nt" and normalized_path[1] == ":":
+        drive, _, path = normalized_path.partition(":")
+        # XXX: This enables us to handle half-surrogates that were never
+        # XXX: actually part of a surrogate pair, but were just incidentally
+        # XXX: passed in as a piece of a filename
+        quoted_path = quote(fs_encode(path))
+        return fs_decode("file:///{0}:{1}".format(drive, quoted_path))
+    # XXX: This is also here to help deal with incidental dangling surrogates
+    # XXX: on linux, by making sure they are preserved during encoding so that
+    # XXX: we can urlencode the backslash correctly
+    bytes_path = to_bytes(normalized_path, errors="backslashreplace")
+    return fs_decode("file://{0}".format(quote(bytes_path)))
 
 
 def url_to_path(url):
@@ -174,7 +192,6 @@ def url_to_path(url):
 
     Follows logic taken from pip's equivalent function
     """
-    from .misc import to_bytes
 
     assert is_file_url(url), "Only file: urls can be converted to local paths"
     _, netloc, path, _, _ = urllib_parse.urlsplit(url)
@@ -183,7 +200,7 @@ def url_to_path(url):
         netloc = "\\\\" + netloc
 
     path = urllib_request.url2pathname(netloc + path)
-    return to_bytes(path, encoding="utf-8")
+    return urllib_parse.unquote(path)
 
 
 def is_valid_url(url):
@@ -356,7 +373,9 @@ def set_write_bit(fn):
                     "/T",
                     "/C",
                     "/Q",
-                ], nospin=True, return_object=True
+                ],
+                nospin=True,
+                return_object=True,
             )
             if not c.err and c.returncode == 0:
                 return

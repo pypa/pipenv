@@ -1,4 +1,8 @@
 """Exceptions used throughout package"""
+
+# The following comment should be removed at some point in the future.
+# mypy: disallow-untyped-defs=False
+
 from __future__ import absolute_import
 
 from itertools import chain, groupby, repeat
@@ -8,8 +12,9 @@ from pipenv.patched.notpip._vendor.six import iteritems
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Optional  # noqa: F401
-    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement  # noqa: F401
+    from typing import Optional
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 
 
 class PipError(Exception):
@@ -26,6 +31,36 @@ class InstallationError(PipError):
 
 class UninstallationError(PipError):
     """General exception during uninstallation"""
+
+
+class NoneMetadataError(PipError):
+    """
+    Raised when accessing "METADATA" or "PKG-INFO" metadata for a
+    pip._vendor.pkg_resources.Distribution object and
+    `dist.has_metadata('METADATA')` returns True but
+    `dist.get_metadata('METADATA')` returns None (and similarly for
+    "PKG-INFO").
+    """
+
+    def __init__(self, dist, metadata_name):
+        # type: (Distribution, str) -> None
+        """
+        :param dist: A Distribution object.
+        :param metadata_name: The name of the metadata being accessed
+            (can be "METADATA" or "PKG-INFO").
+        """
+        self.dist = dist
+        self.metadata_name = metadata_name
+
+    def __str__(self):
+        # type: () -> str
+        # Use `dist` in the error message because its stringification
+        # includes more information, like the version and location.
+        return (
+            'None {} metadata found for distribution: {}'.format(
+                self.metadata_name, self.dist,
+            )
+        )
 
 
 class DistributionNotFound(InstallationError):
@@ -246,7 +281,6 @@ class HashMismatch(HashError):
                          for e in expecteds)
             lines.append('             Got        %s\n' %
                          self.gots[hash_name].hexdigest())
-            prefix = '    or'
         return '\n'.join(lines)
 
 

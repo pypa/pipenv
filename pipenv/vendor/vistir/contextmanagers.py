@@ -5,7 +5,7 @@ import io
 import os
 import stat
 import sys
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 
 import six
 
@@ -285,20 +285,27 @@ def open_file(link, session=None, stream=True):
         # Remote URL
         headers = {"Accept-Encoding": "identity"}
         if not session:
-            from requests import Session
-
-            session = Session()
-        with session.get(link, headers=headers, stream=stream) as resp:
             try:
-                raw = getattr(resp, "raw", None)
-                result = raw if raw else resp
-                yield result
-            finally:
-                if raw:
-                    conn = getattr(raw, "_connection")
-                    if conn is not None:
-                        conn.close()
-                result.close()
+                from requests import Session
+            except ImportError:
+                session = None
+            else:
+                session = Session()
+        if session is None:
+            with closing(six.moves.urllib.request.urlopen(link)) as f:
+                yield f
+        else:
+            with session.get(link, headers=headers, stream=stream) as resp:
+                try:
+                    raw = getattr(resp, "raw", None)
+                    result = raw if raw else resp
+                    yield result
+                finally:
+                    if raw:
+                        conn = getattr(raw, "_connection")
+                        if conn is not None:
+                            conn.close()
+                    result.close()
 
 
 @contextmanager
