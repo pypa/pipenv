@@ -3,6 +3,12 @@ import io, datetime, math, string, sys
 
 from .utils import format_rfc3339
 
+try:
+    from pathlib import PurePath as _path_types
+except ImportError:
+    _path_types = ()
+
+
 if sys.version_info[0] == 3:
     long = int
     unicode = str
@@ -66,6 +72,8 @@ def _format_value(v):
         return '[{0}]'.format(', '.join(_format_value(obj) for obj in v))
     elif isinstance(v, dict):
         return '{{{0}}}'.format(', '.join('{} = {}'.format(_escape_id(k), _format_value(obj)) for k, obj in v.items()))
+    elif isinstance(v, _path_types):
+        return _escape_string(str(v))
     else:
         raise RuntimeError(v)
 

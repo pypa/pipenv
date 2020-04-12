@@ -1,4 +1,4 @@
-import string, re, sys, datetime
+import re, sys
 from .core import TomlError
 from .utils import rfc3339_re, parse_rfc3339_re
 
@@ -28,8 +28,6 @@ def loads(s, filename='<string>', translate=lambda t, x, v: v, object_pairs_hook
 
     def process_value(v, object_pairs_hook):
         kind, text, value, pos = v
-        if kind == 'str' and value.startswith('\n'):
-            value = value[1:]
         if kind == 'array':
             if value and any(k != value[0][0] for k, t, v, p in value[1:]):
                 error('array-type-mismatch')
@@ -215,6 +213,7 @@ def _p_key(s):
         return r
     if s.consume('\''):
         if s.consume('\'\''):
+            s.consume('\n')
             r = s.expect_re(_litstr_ml_re).group(0)
             s.expect('\'\'\'')
         else:
@@ -238,6 +237,7 @@ def _p_value(s, object_pairs_hook):
 
     if s.consume('"'):
         if s.consume('""'):
+            s.consume('\n')
             r = _p_basicstr_content(s, _basicstr_ml_re)
             s.expect('"""')
         else:
@@ -247,6 +247,7 @@ def _p_value(s, object_pairs_hook):
 
     if s.consume('\''):
         if s.consume('\'\''):
+            s.consume('\n')
             r = s.expect_re(_litstr_ml_re).group(0)
             s.expect('\'\'\'')
         else:

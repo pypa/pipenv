@@ -1,9 +1,14 @@
+# The following comment should be removed at some point in the future.
+# mypy: strict-optional=False
+# mypy: disallow-untyped-defs=False
+
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
+from pipenv.patched.notpip._internal.exceptions import CommandError
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Optional, Set, FrozenSet  # noqa: F401
+    from typing import Optional, Set, FrozenSet
 
 
 class FormatControl(object):
@@ -36,6 +41,10 @@ class FormatControl(object):
     @staticmethod
     def handle_mutual_excludes(value, target, other):
         # type: (str, Optional[Set], Optional[Set]) -> None
+        if value.startswith('-'):
+            raise CommandError(
+                "--no-binary / --only-binary option requires 1 argument."
+            )
         new = value.split(',')
         while ':all:' in new:
             other.clear()

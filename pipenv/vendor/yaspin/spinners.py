@@ -11,10 +11,7 @@ import codecs
 import os
 from collections import namedtuple
 
-try:
-    import simplejson as json
-except ImportError:
-    import json
+import json
 
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))

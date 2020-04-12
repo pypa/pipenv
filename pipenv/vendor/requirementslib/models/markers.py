@@ -11,9 +11,9 @@ from packaging.specifiers import Specifier, SpecifierSet
 from vistir.compat import Mapping, Set, lru_cache
 from vistir.misc import dedup
 
-from .utils import filter_none, validate_markers
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
+from .utils import filter_none, validate_markers
 
 from six.moves import reduce  # isort:skip
 
@@ -24,7 +24,8 @@ if MYPY_RUNNING:
     STRING_TYPE = Union[str, bytes, Text]
 
 
-MAX_VERSIONS = {2: 7, 3: 10}
+MAX_VERSIONS = {2: 7, 3: 11, 4: 0}
+DEPRECATED_VERSIONS = ["3.0", "3.1", "3.2", "3.3"]
 
 
 def is_instance(item, cls):
@@ -147,9 +148,8 @@ def _format_pyspec(specifier):
     version = getattr(specifier, "version", specifier).rstrip()
     if version and version.endswith("*"):
         if version.endswith(".*"):
-            version = version.rstrip(".*")
-        else:
-            version = version.rstrip("*")
+            version = version[:-2]
+        version = version.rstrip("*")
         specifier = Specifier("{0}{1}".format(specifier.operator, version))
     try:
         op = REPLACE_RANGES[specifier.operator]
@@ -227,10 +227,10 @@ def normalize_specifier_set(specs):
         return {_format_pyspec(spec) for spec in specs}
     spec_list = []
     for spec in specs.split(","):
+        spec = spec.strip()
         if spec.endswith(".*"):
-            spec = spec.rstrip(".*")
-        elif spec.endswith("*"):
-            spec = spec.rstrip("*")
+            spec = spec[:-2]
+        spec = spec.rstrip("*")
         spec_list.append(spec)
     return normalize_specifier_set(SpecifierSet(",".join(spec_list)))
 
@@ -528,34 +528,63 @@ def contains_pyversion(marker):
     return _markers_contains_pyversion(marker._markers)
 
 
+def _split_specifierset_str(specset_str, prefix="=="):
+    # type: (str, str) -> Set[Specifier]
+    """
+    Take a specifierset string and split it into a list to join for specifier sets
+
+    :param str specset_str: A string containing python versions, often comma separated
+    :param str prefix: A prefix to use when generating the specifier set
+    :return: A list of :class:`Specifier` instances generated with the provided prefix
+    :rtype: Set[Specifier]
+    """
+    specifiers = set()
+    if "," not in specset_str and " " in specset_str:
+        values = [v.strip() for v in specset_str.split()]
+    else:
+        values = [v.strip() for v in specset_str.split(",")]
+    if prefix == "!=" and any(v in values for v in DEPRECATED_VERSIONS):
+        values = DEPRECATED_VERSIONS[:]
+    for value in sorted(values):
+        specifiers.add(Specifier("{0}{1}".format(prefix, value)))
+    return specifiers
+
+
+def _get_specifiers_from_markers(marker_item):
+    """
+    Given a marker item, get specifiers from the version marker
+
+    :param :class:`~packaging.markers.Marker` marker_sequence: A marker describing a version constraint
+    :return: A set of specifiers corresponding to the marker constraint
+    :rtype: Set[Specifier]
+    """
+    specifiers = set()
+    if isinstance(marker_item, tuple):
+        variable, op, value = marker_item
+        if variable.value != "python_version":
+            return specifiers
+        if op.value == "in":
+            specifiers.update(_split_specifierset_str(value.value, prefix="=="))
+        elif op.value == "not in":
+            specifiers.update(_split_specifierset_str(value.value, prefix="!="))
+        else:
+            specifiers.add(Specifier("{0}{1}".format(op.value, value.value)))
+    elif isinstance(marker_item, list):
+        parts = get_specset(marker_item)
+        if parts:
+            specifiers.update(parts)
+    return specifiers
+
+
 def get_specset(marker_list):
     # type: (List) -> Optional[SpecifierSet]
     specset = set()
     _last_str = "and"
     for marker_parts in marker_list:
-        if isinstance(marker_parts, tuple):
-            variable, op, value = marker_parts
-            if variable.value != "python_version":
-                continue
-            if op.value == "in":
-                values = [v.strip() for v in value.value.split(",")]
-                specset.update(Specifier("=={0}".format(v)) for v in values)
-            elif op.value == "not in":
-                values = [v.strip() for v in value.value.split(",")]
-                bad_versions = ["3.0", "3.1", "3.2", "3.3"]
-                if len(values) >= 2 and any(v in values for v in bad_versions):
-                    values = bad_versions
-                specset.update(
-                    Specifier("!={0}".format(v.strip())) for v in sorted(bad_versions)
-                )
-            else:
-                specset.add(Specifier("{0}{1}".format(op.value, value.value)))
-        elif isinstance(marker_parts, list):
-            parts = get_specset(marker_parts)
-            if parts:
-                specset.update(parts)
-        elif isinstance(marker_parts, str):
-            _last_str = marker_parts
+        if isinstance(marker_parts, str):
+            _last_str = marker_parts  # noqa
+        else:
+            specset.update(_get_specifiers_from_markers(marker_parts))
     specifiers = SpecifierSet()
     specifiers._specs = frozenset(specset)
     return specifiers
@@ -635,7 +664,7 @@ def format_pyversion(parts):
 
 
 def normalize_marker_str(marker):
-    # type: (Union[Marker, STRING_TYPE])
+    # type: (Union[Marker, STRING_TYPE]) -> str
     marker_str = ""
     if not marker:
         return None

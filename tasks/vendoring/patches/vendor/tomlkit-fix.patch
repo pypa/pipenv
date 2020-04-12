@@ -11,12 +11,11 @@ index e541c20c..0ac26752 100644
  from .container import Container
  from .items import AoT
 diff --git a/pipenv/vendor/tomlkit/container.py b/pipenv/vendor/tomlkit/container.py
-index cb8af1d5..9b5db5cb 100644
+index a7d4fe90..96415901 100644
 --- a/pipenv/vendor/tomlkit/container.py
 +++ b/pipenv/vendor/tomlkit/container.py
-@@ -1,15 +1,7 @@
- from __future__ import unicode_literals
-
+@@ -2,14 +2,6 @@ from __future__ import unicode_literals
+ 
  import copy
  
 -from typing import Any
@@ -30,7 +29,7 @@ index cb8af1d5..9b5db5cb 100644
  from ._compat import decode
  from .exceptions import KeyAlreadyPresent
  from .exceptions import NonExistentKey
-@@ -17,6 +9,7 @@ from .items import Item
+@@ -19,6 +11,7 @@ from .items import Item
  from .items import Key
  from .items import Null
  from .items import Table
@@ -38,7 +37,7 @@ index cb8af1d5..9b5db5cb 100644
  from .items import Whitespace
  from .items import item as _item
  
-@@ -221,7 +214,12 @@ class Container(dict):
+@@ -226,7 +219,12 @@ class Container(dict):
              for i in idx:
                  self._body[i] = (None, Null())
          else:
@@ -63,7 +62,7 @@ index 4fbc667b..c1a4e620 100644
  class TOMLKitError(Exception):
  
 diff --git a/pipenv/vendor/tomlkit/items.py b/pipenv/vendor/tomlkit/items.py
-index 375b5f02..cccfd4a1 100644
+index 8399d0c3..68c47a6d 100644
 --- a/pipenv/vendor/tomlkit/items.py
 +++ b/pipenv/vendor/tomlkit/items.py
 @@ -6,14 +6,6 @@ import string
@@ -80,8 +79,8 @@ index 375b5f02..cccfd4a1 100644
 -
  
  from ._compat import PY2
- from ._compat import decode
-@@ -22,9 +14,12 @@ from ._compat import unicode
+ from ._compat import PY38
+@@ -23,9 +15,12 @@ from ._compat import unicode
  from ._utils import escape_string
  
  if PY2:
@@ -94,11 +93,10 @@ index 375b5f02..cccfd4a1 100644
  
  
  def item(value, _parent=None):
-@@ -40,7 +35,10 @@ def item(value, _parent=None):
-     elif isinstance(value, float):
+@@ -42,6 +37,10 @@ def item(value, _parent=None):
          return Float(value, Trivia(), str(value))
      elif isinstance(value, dict):
--        val = Table(Container(), Trivia(), False)
+         val = Table(Container(), Trivia(), False)
 +        if isinstance(value, InlineTableDict):
 +            val = InlineTable(Container(), Trivia())
 +        else:

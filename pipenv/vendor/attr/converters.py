@@ -32,14 +32,14 @@ def default_if_none(default=NOTHING, factory=None):
     result of *factory*.
 
     :param default: Value to be used if ``None`` is passed. Passing an instance
-       of :class:`attr.Factory` is supported, however the ``takes_self`` option
+       of `attr.Factory` is supported, however the ``takes_self`` option
        is *not*.
     :param callable factory: A callable that takes not parameters whose result
        is used if ``None`` is passed.
 
     :raises TypeError: If **neither** *default* or *factory* is passed.
     :raises TypeError: If **both** *default* and *factory* are passed.
-    :raises ValueError: If an instance of :class:`attr.Factory` is passed with
+    :raises ValueError: If an instance of `attr.Factory` is passed with
        ``takes_self=True``.
 
     .. versionadded:: 18.2.0

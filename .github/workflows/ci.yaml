@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+
+jobs:
+  build:
+    name: ${{matrix.os}} / ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [2.7, 3.6, 3.7, 3.8]
+        os: [MacOS, Ubuntu, Windows]
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Get python path
+      id: python-path
+      run: |
+        echo ::set-output name=path::$(python -c "import sys; print(sys.executable)")
+
+    - name: Install latest pip, setuptools, wheel
+      run: |
+        python -m pip install --upgrade pip setuptools wheel --upgrade-strategy=eager
+    - name: Install dependencies
+      env:
+        PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
+        PYTHONWARNINGS: ignore:DEPRECATION
+        PYTHONIOENCODING: 'utf-8'
+        GIT_ASK_YESNO: 'false'
+      run: |
+        git submodule sync
+        git submodule update --init --recursive
+        python -m pip install "virtualenv<20"
+        python -m pip install -e . --upgrade
+        pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
+    - name: Run tests
+      env:
+        PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
+        PYTHONWARNINGS: ignore:DEPRECATION
+        PIPENV_NOSPIN: '1'
+        CI: '1'
+        GIT_ASK_YESNO: 'false'
+        PYPI_VENDOR_DIR: './tests/pypi/'
+        PYTHONIOENCODING: 'utf-8'
+        GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
+      run: |
+        pipenv run pytest -ra -n 4 tests

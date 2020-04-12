@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function
+import collections
 import contextlib
 import io
 import json
@@ -8,11 +9,14 @@ import os
 from tarfile import is_tarfile
 from zipfile import is_zipfile
 
+import distlib.wheel
 import requests
 from six.moves import xmlrpc_client
 
 from flask import Flask, redirect, abort, render_template, send_file, jsonify
 
+
+ReleaseTuple = collections.namedtuple("ReleaseTuple", ["path", "requires_python"])
 
 app = Flask(__name__)
 session = requests.Session()
@@ -49,7 +53,7 @@ class Package(object):
 
     @property
     def json(self):
-        for path in self._package_dirs:
+        for path, _ in self._package_dirs:
             try:
                 with open(os.path.join(path, 'api.json')) as f:
                     return json.load(f)
@@ -59,7 +63,7 @@ class Package(object):
                 releases = response["releases"]
                 files = {
                     pkg for pkg_dir in self._package_dirs
-                    for pkg in os.listdir(pkg_dir)
+                    for pkg in os.listdir(pkg_dir.path)
                 }
                 for release in list(releases.keys()):
                     values = (
@@ -81,8 +85,15 @@ class Package(object):
     def add_release(self, path_to_binary):
         path_to_binary = os.path.abspath(path_to_binary)
         path, release = os.path.split(path_to_binary)
-        self.releases[release] = path_to_binary
-        self._package_dirs.add(path)
+        requires_python = ""
+        if path_to_binary.endswith(".whl"):
+            pkg = distlib.wheel.Wheel(path_to_binary)
+            md_dict = pkg.metadata.todict()
+            requires_python = md_dict.get("requires_python", "")
+            if requires_python.count(".") > 1:
+                requires_python, _, _ = requires_python.rpartition(".")
+        self.releases[release] = ReleaseTuple(path_to_binary, requires_python)
+        self._package_dirs.add(ReleaseTuple(path, requires_python))
 
 
 class Artifact(object):
@@ -194,7 +205,7 @@ def serve_package(package, release):
         package = packages[package]
 
         if release in package.releases:
-            return send_file(package.releases[release])
+            return send_file(package.releases[release].path)
 
     abort(404)
 

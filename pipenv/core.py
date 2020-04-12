@@ -675,7 +675,17 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
             click.echo(crayons.blue(c.out.strip() or c.err.strip()))
         # The Installation failed…
         if failed:
-            if not retry:
+            if "does not match installed location" in c.err:
+                project.environment.expand_egg_links()
+                click.echo("{0}".format(
+                    crayons.yellow(
+                        "Failed initial installation: Failed to overwrite existing "
+                        "package, likely due to path aliasing. Expanding and trying "
+                        "again!"
+                    )
+                ))
+                dep = c.dep.copy()
+            elif not retry:
                 # The Installation failed…
                 # We echo both c.out and c.err because pip returns error details on out.
                 err = c.err.strip().splitlines() if c.err else []
@@ -683,16 +693,17 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
                 err_lines = [line for message in [out, err] for line in message]
                 # Return the subprocess' return code.
                 raise exceptions.InstallError(c.dep.name, extra=err_lines)
+            else:
+                # Alert the user.
+                dep = c.dep.copy()
+                click.echo(
+                    "{0} {1}! Will try again.".format(
+                        crayons.red("An error occurred while installing"),
+                        crayons.green(dep.as_line()),
+                    ), err=True
+                )
             # Save the Failed Dependency for later.
-            dep = c.dep.copy()
             failed_deps_queue.put(dep)
-            # Alert the user.
-            click.echo(
-                "{0} {1}! Will try again.".format(
-                    crayons.red("An error occurred while installing"),
-                    crayons.green(dep.as_line()),
-                ), err=True
-            )
 
 
 def batch_install(deps_list, procs, failed_deps_queue,
@@ -1317,7 +1328,8 @@ def get_pip_args(
         "no_use_pep517": [],
         "no_deps": ["--no-deps"],
         "selective_upgrade": [
-            "--upgrade-strategy=only-if-needed", "--exists_action={0}".format(PIP_EXISTS_ACTION or "i")
+            "--upgrade-strategy=only-if-needed",
+            "--exists-action={0}".format(PIP_EXISTS_ACTION or "i")
         ],
         "src_dir": src_dir,
     }
@@ -1329,6 +1341,8 @@ def get_pip_args(
     for key in arg_map.keys():
         if key in locals() and locals().get(key):
             arg_set.extend(arg_map.get(key))
+        elif key == "selective_upgrade" and not locals().get(key):
+            arg_set.append("--exists-action=i")
     return list(vistir.misc.dedup(arg_set))
 
 
@@ -1406,7 +1420,7 @@ def pip_install(
     trusted_hosts=None,
     use_pep517=True
 ):
-    from pipenv.patched.notpip._internal import logger as piplogger
+    piplogger = logging.getLogger("pipenv.patched.notpip._internal.commands.install")
     src_dir = None
     if not trusted_hosts:
         trusted_hosts = []
@@ -1466,7 +1480,7 @@ def pip_install(
     )
     pip_command.extend(pip_args)
     if r:
-        pip_command.extend(["-r", r])
+        pip_command.extend(["-r", vistir.path.normalize_path(r)])
     elif line:
         pip_command.extend(line)
     pip_command.extend(prepare_pip_source_args(sources))

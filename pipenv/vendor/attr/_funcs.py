@@ -24,7 +24,7 @@ def asdict(
         ``attrs``-decorated.
     :param callable filter: A callable whose return code determines whether an
         attribute or element is included (``True``) or dropped (``False``).  Is
-        called with the :class:`attr.Attribute` as the first argument and the
+        called with the `attr.Attribute` as the first argument and the
         value as the second argument.
     :param callable dict_factory: A callable to produce dictionaries from.  For
         example, to produce ordered dictionaries instead of normal Python
@@ -130,7 +130,7 @@ def astuple(
         ``attrs``-decorated.
     :param callable filter: A callable whose return code determines whether an
         attribute or element is included (``True``) or dropped (``False``).  Is
-        called with the :class:`attr.Attribute` as the first argument and the
+        called with the `attr.Attribute` as the first argument and the
         value as the second argument.
     :param callable tuple_factory: A callable to produce tuples from.  For
         example, to produce lists instead of tuples.
@@ -219,7 +219,7 @@ def has(cls):
     :param type cls: Class to introspect.
     :raise TypeError: If *cls* is not a class.
 
-    :rtype: :class:`bool`
+    :rtype: bool
     """
     return getattr(cls, "__attrs_attrs__", None) is not None
 
@@ -239,7 +239,7 @@ def assoc(inst, **changes):
         class.
 
     ..  deprecated:: 17.1.0
-        Use :func:`evolve` instead.
+        Use `evolve` instead.
     """
     import warnings
 

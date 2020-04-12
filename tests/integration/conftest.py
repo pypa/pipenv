@@ -69,7 +69,7 @@ def check_github_ssh():
         # GitHub does not provide shell access.' if ssh keys are available and
         # registered with GitHub. Otherwise, the command will fail with
         # return_code=255 and say 'Permission denied (publickey).'
-        c = delegator.run('ssh -T git@github.com')
+        c = delegator.run('ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no -T git@github.com', timeout=30)
         res = True if c.return_code == 1 else False
     except KeyboardInterrupt:
         warnings.warn(
@@ -115,6 +115,10 @@ def pytest_runtest_setup(item):
         sys.version_info[:2] <= (2, 7) and os.name == "nt"
     ):
         pytest.skip('must use python > 2.7 on windows')
+    if item.get_closest_marker('skip_py38') is not None and (
+        sys.version_info[:2] == (3, 8)
+    ):
+        pytest.skip('test not applicable on python 3.8')
     if item.get_closest_marker('py3_only') is not None and (
         sys.version_info < (3, 0)
     ):
@@ -151,6 +155,22 @@ def vistir_tmpdir():
     yield Path(temp_path)
 
 
+@pytest.fixture()
+def local_tempdir(request):
+    old_temp = os.environ.get("TEMP", "")
+    new_temp = Path(os.getcwd()).absolute() / "temp"
+    new_temp.mkdir(parents=True, exist_ok=True)
+    os.environ["TEMP"] = new_temp.as_posix()
+
+    def finalize():
+        os.environ['TEMP'] = fs_str(old_temp)
+        _rmtree_func(new_temp.as_posix())
+
+    request.addfinalizer(finalize)
+    with TemporaryDirectory(dir=new_temp.as_posix()) as temp_dir:
+        yield Path(temp_dir.name)
+
+
 @pytest.fixture(name='create_tmpdir')
 def vistir_tmpdir_factory():
 
@@ -183,6 +203,7 @@ def isolate(create_tmpdir):
     os.environ["GIT_CONFIG_NOSYSTEM"] = fs_str("1")
     os.environ["GIT_AUTHOR_NAME"] = fs_str("pipenv")
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
+    os.environ["GIT_ASK_YESNO"] = fs_str("false")
     workon_home = create_tmpdir()
     os.environ["WORKON_HOME"] = fs_str(str(workon_home))
     os.environ["HOME"] = home_dir

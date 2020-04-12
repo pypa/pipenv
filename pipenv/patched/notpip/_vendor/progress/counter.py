@@ -16,27 +16,20 @@
 
 from __future__ import unicode_literals
 from . import Infinite, Progress
-from .helpers import WriteMixin
 
 
-class Counter(WriteMixin, Infinite):
-    message = ''
-    hide_cursor = True
-
+class Counter(Infinite):
     def update(self):
         self.write(str(self.index))
 
 
-class Countdown(WriteMixin, Progress):
-    hide_cursor = True
-
+class Countdown(Progress):
     def update(self):
         self.write(str(self.remaining))
 
 
-class Stack(WriteMixin, Progress):
+class Stack(Progress):
     phases = (' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█')
-    hide_cursor = True
 
     def update(self):
         nphases = len(self.phases)
