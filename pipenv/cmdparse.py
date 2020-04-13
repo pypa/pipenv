@@ -30,8 +30,6 @@ class Script(object):
 
         for env_var in env_vars:
             k, v = env_var.split("=")
-            # check that this is being
-            # valorized ONLY at process/command level
             os.environ.putenv(
                 k,
                 v.replace("\"", "").replace("'", "")
