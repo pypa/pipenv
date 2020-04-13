@@ -4,8 +4,8 @@ import shlex
 import os
 import six
 
-env_var_regex = r"^([a-zA-Z_][a-zA-Z_0-9]+)=(([\"\']?)([a-zA-Z_0-9 \-]*)([\"\']?))"
-#compiled_env_var_rgx = re.compile(env_var_regex)
+ENV_VAR_REGEX = r"^([a-zA-Z_]+[a-zA-Z_0-9]*)=(([\"\']?)([a-zA-Z_0-9 \-]*)([\"\']?))"
+
 
 class ScriptEmptyError(ValueError):
     pass
@@ -46,7 +46,7 @@ class Script(object):
 
         env_vars = []
         for el in value:
-            m = re.match(env_var_regex, el)
+            m = re.match(ENV_VAR_REGEX, el)
             if m:
                 env_vars.append(el)
                 value.remove(el)
