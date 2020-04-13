@@ -1,9 +1,11 @@
 import itertools
 import re
 import shlex
-
+import os
 import six
 
+env_var_regex = r"^([a-zA-Z_][a-zA-Z_0-9]+)=(([\"\']?)([a-zA-Z_0-9 \-]*)([\"\']?))"
+#compiled_env_var_rgx = re.compile(env_var_regex)
 
 class ScriptEmptyError(ValueError):
     pass
@@ -21,10 +23,19 @@ class Script(object):
     This always works in POSIX mode, even on Windows.
     """
 
-    def __init__(self, command, args=None):
+    def __init__(self, command, args=None, env_vars=None):
         self._parts = [command]
         if args:
             self._parts.extend(args)
+
+        for env_var in env_vars:
+            k, v = env_var.split("=")
+            # check that this is being
+            # valorized ONLY at process/command level
+            os.environ.putenv(
+                k,
+                v.replace("\"", "").replace("'", "")
+            )
 
     @classmethod
     def parse(cls, value):
@@ -32,7 +43,19 @@ class Script(object):
             value = shlex.split(value)
         if not value:
             raise ScriptEmptyError(value)
-        return cls(value[0], value[1:])
+
+        env_vars = []
+        for el in value:
+            m = re.match(env_var_regex, el)
+            if m:
+                env_vars.append(el)
+                value.remove(el)
+
+        return cls(
+            value[0],
+            args=value[1:],
+            env_vars=env_vars,
+        )
 
     def __repr__(self):
         return "Script({0!r})".format(self._parts)
