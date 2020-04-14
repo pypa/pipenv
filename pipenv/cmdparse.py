@@ -77,7 +77,7 @@ class Script(object):
         if args:
             self._parts.extend(args)
 
-        for env_var in env_vars:
+        for env_var in (env_vars or []):
             os.environ.putenv(
                 env_var.name(),
                 env_var.value()
