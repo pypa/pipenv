@@ -26,7 +26,10 @@ class UnixShellEnvironmentVariable(object):
     """
 
     ENV_VAR_NAME_REGEX = r"([a-zA-Z_]+[a-zA-Z_0-9]*)"
-    ENV_VAR_VALUE_REGEX = r"((\"((?:[^\r\n\"\\]|\\.)*)\")|('((?:[^\r\n'\\]|\\.)*)')|([^=\"\'\r\n][^\"\'\r\n]*))"
+    ENV_VAR_VALUE_REGEX = \
+        r"((\"((?:[^\r\n\"\\]|\\.)*)\")|" + \
+        r"('((?:[^\r\n'\\]|\\.)*)')|" + \
+        r"([^\|&<>=\"\'\r\n][^\|&<>\"\'\r\n]*))"
     ENV_VAR_REGEX = r"^{name_rgx}={value_rgx}".format(
         name_rgx=ENV_VAR_NAME_REGEX,
         value_rgx=ENV_VAR_VALUE_REGEX
