@@ -34,8 +34,8 @@ class UnixShellEnvironmentVariable(object):
 
     def __init__(self, full_expr, name, value):
         self.full_expr = full_expr
-        self.name = name
-        self.value = value
+        self._name = name
+        self._value = value
 
     @classmethod
     def parse(cls, env_var_assignment):
@@ -50,10 +50,10 @@ class UnixShellEnvironmentVariable(object):
         )
 
     def name(self):
-        return self.name
+        return self._name
 
     def value(self):
-        return self.value
+        return self._value
 
 
 class ScriptEmptyError(ValueError):
