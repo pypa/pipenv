@@ -1,0 +1,5 @@
+Now the `pipenv run` manage the presence of environment variables in the command (e.g. `hello=world python --version`).
+At the moment this will NOT manage:
+    - Multiple commands execution separated by `;`, `|`, `&&`, `||`.
+    - The resolution of any existing defined environment variable (e.g. `hello=$world python --version` won't be resolved and will be treated as `hello='$world' python --version`)
+    - Environment variables setting on Windows based shell
