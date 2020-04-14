@@ -4,7 +4,56 @@ import shlex
 import os
 import six
 
-ENV_VAR_REGEX = r"^([a-zA-Z_]+[a-zA-Z_0-9]*)=(([\"\']?)([a-zA-Z_0-9 \-]*)([\"\']?))"
+
+class UnixShellEnvironmentVariable(object):
+    """
+    This class provides an abstraction on
+    unix shell environment variables assignments.
+
+    It uses a set of regular expressions:
+
+    # ENV_VAR_NAME_REGEX matches the env var name, which requires:
+        - must not start with a number
+        - only letters, numbers and underscore allowed
+
+    # ENV_VAR_VALUE_REGEX matches a correct value for an env var:
+        - A value not enclosed in quote characters, must not start with "="
+        - A value enclosed in quotes, must end with the same quote character used to open.
+        - Carriage return and Newline are not allowed into the value.
+
+    # ENV_VAR_REGEX is a composition of the two previous regex:
+        - No spacing allowed before and after the equal sign.
+    """
+
+    ENV_VAR_NAME_REGEX = r"([a-zA-Z_]+[a-zA-Z_0-9]*)"
+    ENV_VAR_VALUE_REGEX = r"((\"((?:[^\r\n\"\\]|\\.)*)\")|('((?:[^\r\n'\\]|\\.)*)')|([^=\"\'\r\n][^\"\'\r\n]*))"
+    ENV_VAR_REGEX = r"^{name_rgx}={value_rgx}".format(
+        name_rgx=ENV_VAR_NAME_REGEX,
+        value_rgx=ENV_VAR_VALUE_REGEX
+    )
+
+    def __init__(self, full_expr, name, value):
+        self.full_expr = full_expr
+        self.name = name
+        self.value = value
+
+    @classmethod
+    def parse(cls, env_var_assignment):
+        m = re.match(cls.ENV_VAR_REGEX, env_var_assignment)
+        if not m:
+            raise ValueError("The value '{}' didn't match the ENV_VAR_REGEX!".format(env_var_assignment))
+
+        return cls(
+            m.group(0),
+            m.group(1),
+            (m.group(4) or m.group(6) or m.group(7))
+        )
+
+    def name(self):
+        return self.name
+
+    def value(self):
+        return self.value
 
 
 class ScriptEmptyError(ValueError):
@@ -29,10 +78,9 @@ class Script(object):
             self._parts.extend(args)
 
         for env_var in env_vars:
-            k, v = env_var.split("=")
             os.environ.putenv(
-                k,
-                v.replace("\"", "").replace("'", "")
+                env_var.name(),
+                env_var.value()
             )
 
     @classmethod
@@ -44,10 +92,12 @@ class Script(object):
 
         env_vars = []
         for el in value:
-            m = re.match(ENV_VAR_REGEX, el)
-            if m:
-                env_vars.append(el)
+            try:
+                env_var = UnixShellEnvironmentVariable.parse(el)
+                env_vars.append(env_var)
                 value.remove(el)
+            except ValueError:
+                pass
 
         return cls(
             value[0],
