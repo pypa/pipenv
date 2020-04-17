@@ -791,7 +791,7 @@ def do_install_dependencies(
     skip_lock=False,
     concurrent=True,
     requirements_dir=None,
-    pypi_mirror=False,
+    pypi_mirror=None,
 ):
     """"
     Executes the install functionality.
@@ -826,6 +826,8 @@ def do_install_dependencies(
     deps_list = list(lockfile.get_requirements(dev=dev, only=requirements))
     if requirements:
         index_args = prepare_pip_source_args(project.sources)
+        if pypi_mirror:
+            index_args.extend(["-i", pypi_mirror])
         index_args = " ".join(index_args).replace(" -", "\n-")
         deps = [
             req.as_line(sources=False, include_hashes=False) for req in deps_list
