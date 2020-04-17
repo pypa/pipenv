@@ -1,9 +1,9 @@
 """Allow safety to be executable through `python -m safety`."""
 from __future__ import absolute_import
 
+import os
 import sys
 import sysconfig
-import os
 
 LIBPATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib")
 
@@ -35,9 +35,8 @@ def insert_before_site_packages(*paths):
         sys.path = sys.path[:index] + list(paths) + sys.path[index:]
 
 
+
 if __name__ == "__main__":
-    import certifi
-    os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
     insert_before_site_packages(LIBPATH)
     yaml_lib = 'yaml{0}'.format(sys.version_info[0])
     locals()[yaml_lib] = __import__(yaml_lib)
