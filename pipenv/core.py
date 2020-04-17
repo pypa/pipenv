@@ -2644,9 +2644,10 @@ def do_check(
             err=True,
         )
     else:
-        ignored = ""
-    key = "--key={0}".format(PIPENV_PYUP_API_KEY)
-    cmd = _cmd + [safety_path, "check", "--json", key]
+        ignored = []
+    cmd = _cmd + [safety_path, "check", "--json"]
+    if PIPENV_PYUP_API_KEY:
+        cmd = cmd + ["--key={0}".format(PIPENV_PYUP_API_KEY)]
     if ignored:
         for cve in ignored:
             cmd += cve
