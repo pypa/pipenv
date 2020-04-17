@@ -5,6 +5,7 @@
 
 import io
 import itertools
+import json
 import re
 import shutil
 import sys
@@ -24,6 +25,7 @@ from urllib3.util import parse_url as urllib3_parse
 from pipenv.utils import mkdir_p
 from pipenv.vendor.vistir.compat import NamedTemporaryFile, TemporaryDirectory
 from pipenv.vendor.vistir.contextmanagers import open_file
+from pipenv.vendor.requirementslib.models.lockfile import Lockfile, merge_items
 import pipenv.vendor.parse as parse
 
 
@@ -203,31 +205,70 @@ def _recursive_write_to_zip(zf, path, root=None):
 
 @invoke.task
 def update_safety(ctx):
-    ignore_subdeps = ["pip", "pip-egg-info", "bin", "pipenv", "virtualenv", "virtualenv-clone"]
-    ignore_files = ["pip-delete-this-directory.txt", "PKG-INFO"]
-    ignore_patterns = ["*.pyd", "*.so"]
+    ignore_subdeps = ["pip", "pip-egg-info", "bin", "pipenv", "virtualenv", "virtualenv-clone", "setuptools",]
+    ignore_files = ["pip-delete-this-directory.txt", "PKG-INFO", "easy_install.py", "clonevirtualenv.py"]
+    ignore_patterns = ["*.pyd", "*.so", "**/*.pyc", "*.pyc"]
+    cmd_envvars = {
+        "PIPENV_NO_INHERIT": "true",
+        "PIPENV_IGNORE_VIRTUALENVS": "true",
+        "PIPENV_VENV_IN_PROJECT": "true"
+    }
     patched_dir = _get_patched_dir(ctx)
     vendor_dir = _get_vendor_dir(ctx)
+    safety_dir = Path(__file__).absolute().parent.joinpath("safety")
     log("Using vendor dir: %s" % patched_dir)
     log("Downloading safety package files...")
     build_dir = patched_dir / "build"
+    root = _get_git_root(ctx)
     with TemporaryDirectory(prefix="pipenv-", suffix="-safety") as download_dir:
+        log("generating lockfile...")
+        resolve_cmd = "python {0} safety".format(root.joinpath("pipenv/resolver.py").as_posix())
+        py27_resolve_cmd = "python2.7 {0} safety".format(root.joinpath("pipenv/resolver.py").as_posix())
+        _, _, resolved = ctx.run(resolve_cmd, hide=True).stdout.partition("RESULTS:")
+        _, _, resolved_py2 = ctx.run(py27_resolve_cmd, hide=True).stdout.partition("RESULTS:")
+        resolved = json.loads(resolved.strip())
+        resolved_py2 = json.loads(resolved_py2.strip())
+        pkg_dict, pkg_dict_py2 = {}, {}
+        for pkg in resolved:
+            name = pkg.pop("name")
+            pkg["version"] = "=={0}".format(pkg["version"])
+            pkg_dict[name] = pkg
+        for pkg in resolved_py2:
+            name = pkg.pop("name")
+            pkg["version"] = "=={0}".format(pkg["version"])
+            pkg_dict_py2[name] = pkg
+        merged = merge_items([pkg_dict, pkg_dict_py2])
+        lf = Lockfile.create(safety_dir.as_posix())
+        lf["default"] = merged
+        lf.write()
+        # envvars_no_deps = {"PIP_NO_DEPS": "true"}.update(cmd_envvars)
+        # ctx.run("python -m pipenv run pip install safety", env=envvars_no_deps)
+        # ctx.run("python -m pipenv run pip uninstall -y pipenv", env=cmd_envvars)
+        # ctx.run("python -m pipenv install safety", env=cmd_envvars)
+        # ctx.run("python -m pipenv run pip uninstall -y pipenv", env=cmd_envvars)
+        # ctx.run("python2.7 -m pip install --upgrade --upgrade-strategy=eager -e {}".format(root.as_posix()))
+        # ctx.run("python2.7 -m pipenv install safety", env=cmd_envvars)
+        # requirements_txt = ctx.run("python2.7 -m pipenv lock -r", env=cmd_envvars, quiet=True).out
+        requirements = [
+            r.as_line(include_hashes=False, include_markers=False)
+            for r in lf.requirements
+        ]
+        safety_dir.joinpath("requirements.txt").write_text("\n".join(requirements))
         if build_dir.exists() and build_dir.is_dir():
             log("dropping pre-existing build dir at {0}".format(build_dir.as_posix()))
             drop_dir(build_dir)
-        pip_command = "pip download -b {0} --no-binary=:all: --no-clean -d {1} pyyaml safety".format(
+        pip_command = "pip download -b {0} --no-binary=:all: --no-clean --no-deps -d {1} pyyaml safety".format(
             build_dir.absolute().as_posix(), str(download_dir.name),
         )
         log("downloading deps via pip: {0}".format(pip_command))
         ctx.run(pip_command)
-        safety_dir = Path(__file__).absolute().parent.joinpath("safety")
         safety_build_dir = build_dir / "safety"
         yaml_build_dir = build_dir / "pyyaml"
         lib_dir = safety_dir.joinpath("lib")
 
         with ctx.cd(str(safety_dir)):
             lib_dir.mkdir(exist_ok=True)
-            install_cmd = "pip install --no-compile --no-binary=:all: -t {0} {1}".format(lib_dir.as_posix(), safety_build_dir.as_posix())
+            install_cmd = "python2.7 -m pip install --ignore-requires-python -t {0} -r {1}".format(lib_dir.as_posix(), safety_dir.joinpath("requirements.txt").as_posix())
             log("installing dependencies: {0}".format(install_cmd))
             ctx.run(install_cmd)
             safety_dir = safety_dir.absolute()
