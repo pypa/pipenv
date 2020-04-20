@@ -6,7 +6,7 @@ import yaml
 
 from io import StringIO
 
-from configparser import SafeConfigParser, NoOptionError
+from six.moves.configparser import SafeConfigParser, NoOptionError
 
 
 from .regex import URL_REGEX, HASH_REGEX
