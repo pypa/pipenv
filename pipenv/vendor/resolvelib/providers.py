@@ -1,6 +1,7 @@
 class AbstractProvider(object):
-    """Delegate class to provide requirment interface for the resolver.
+    """Delegate class to provide requirement interface for the resolver.
     """
+
     def identify(self, dependency):
         """Given a dependency, return an identifier for it.
 
@@ -56,15 +57,15 @@ class AbstractProvider(object):
         consulted to find concrete candidates for this requirement.
 
         The returned candidates should be sorted by reversed preference, e.g.
-        the latest should be LAST. This is done so list-popping can be as
-        efficient as possible.
+        the most preferred should be LAST. This is done so list-popping can be
+        as efficient as possible.
         """
         raise NotImplementedError
 
     def is_satisfied_by(self, requirement, candidate):
         """Whether the given requirement can be satisfied by a candidate.
 
-        A boolean should be retuened to indicate whether `candidate` is a
+        A boolean should be returned to indicate whether `candidate` is a
         viable solution to the requirement.
         """
         raise NotImplementedError
@@ -74,5 +75,47 @@ class AbstractProvider(object):
 
         This should return a collection of requirements that `candidate`
         specifies as its dependencies.
+        """
+        raise NotImplementedError
+
+
+class AbstractResolver(object):
+    """The thing that performs the actual resolution work.
+    """
+
+    base_exception = Exception
+
+    def __init__(self, provider, reporter):
+        self.provider = provider
+        self.reporter = reporter
+
+    def resolve(self, requirements, **kwargs):
+        """Take a collection of constraints, spit out the resolution result.
+
+        Parameters
+        ----------
+        requirements : Collection
+            A collection of constraints
+        kwargs : optional
+            Additional keyword arguments that subclasses may accept.
+
+        Raises
+        ------
+        self.base_exception
+            Any raised exception is guaranteed to be a subclass of
+            self.base_exception. The string representation of an exception
+            should be human readable and provide context for why it occurred.
+
+        Returns
+        -------
+        retval : object
+            A representation of the final resolution state. It can be any object
+            with a `mapping` attribute that is a Mapping. Other attributes can
+            be used to provide resolver-specific information.
+
+            The `mapping` attribute MUST be key-value pair is an identifier of a
+            requirement (as returned by the provider's `identify` method) mapped
+            to the resolved candidate (chosen from the return value of the
+            provider's `find_matches` method).
         """
         raise NotImplementedError

@@ -1,0 +1,18 @@
+diff --git a/pipenv/patched/safety/__main__.py b/pipenv/patched/safety/__main__.py
+index d9a0bdab..0ab477d0 100644
+--- a/pipenv/patched/safety/__main__.py
++++ b/pipenv/patched/safety/__main__.py
+@@ -1,8 +1,12 @@
+ """Allow safety to be executable through `python -m safety`."""
+ from __future__ import absolute_import
+ 
+-from .cli import cli
++import sys
+ 
+ 
+ if __name__ == "__main__":  # pragma: no cover
++    yaml_lib = "pipenv.patched.yaml{0}".format(sys.version_info[0])"
++    locals()[yaml_lib] = __import__(yaml_lib)
++    sys.modules["yaml"] = sys.modules[yaml_lib]
++    from safety.cli import cli
+     cli(prog_name="safety")

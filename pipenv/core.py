@@ -2583,7 +2583,7 @@ def do_check(
     click.echo(crayons.normal(decode_for_output("Checking PEP 508 requirements…"), bold=True))
     pep508checker_path = pep508checker.__file__.rstrip("cdo")
     safety_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "patched", "safety.zip"
+        os.path.dirname(os.path.abspath(__file__)), "patched", "safety"
     )
     if not system:
         python = which("python")

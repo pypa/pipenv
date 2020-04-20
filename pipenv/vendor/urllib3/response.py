@@ -20,6 +20,7 @@ from .exceptions import (
     ResponseNotChunked,
     IncompleteRead,
     InvalidHeader,
+    HTTPError,
 )
 from .packages.six import string_types as basestring, PY3
 from .packages.six.moves import http_client as httplib
@@ -276,6 +277,17 @@ class HTTPResponse(io.IOBase):
 
         self._pool._put_conn(self._connection)
         self._connection = None
+
+    def drain_conn(self):
+        """
+        Read and discard any remaining HTTP response data in the response connection.
+
+        Unread data in the HTTPResponse connection blocks the connection from being released back to the pool.
+        """
+        try:
+            self.read()
+        except (HTTPError, SocketError, BaseSSLError, HTTPException):
+            pass
 
     @property
     def data(self):

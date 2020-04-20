@@ -377,6 +377,39 @@ def _ensure_package_in_requirements(ctx, requirements_file, package):
     return requirement
 
 
+def install_pyyaml(ctx, vendor_dir):
+    build_dir = vendor_dir / "build"
+    if build_dir.exists() and build_dir.is_dir():
+        log("dropping pre-existing build dir at {0}".format(build_dir.as_posix()))
+        drop_dir(build_dir)
+    with TemporaryDirectory(prefix="pipenv-", suffix="-safety") as download_dir:
+        pip_command = "pip download -b {0} --no-binary=:all: --no-clean --no-deps -d {1} pyyaml safety".format(
+            build_dir.absolute().as_posix(), str(download_dir.name),
+        )
+        log("downloading deps via pip: {0}".format(pip_command))
+        ctx.run(pip_command)
+    safety_build_dir = build_dir / "safety"
+    yaml_build_dir = build_dir / "pyyaml"
+    yaml_dir = vendor_dir / "yaml"
+    yaml_lib_dir_map = {
+        "2": {
+            "current_path": yaml_build_dir / "lib/yaml",
+            "destination": vendor_dir / "yaml2",
+        },
+        "3": {
+            "current_path": yaml_build_dir / "lib3/yaml",
+            "destination": vendor_dir / "yaml3",
+        },
+    }
+    if yaml_dir.exists():
+        drop_dir(yaml_dir)
+    log("Mapping yaml paths for python 2 and 3...")
+    for py_version, path_dict in yaml_lib_dir_map.items():
+        path_dict["current_path"].rename(path_dict["destination"])
+        path_dict["destination"].joinpath("LICENSE").write_text(yaml_build_dir.joinpath("LICENSE").read_text())
+    drop_dir(build_dir)
+
+
 def install(ctx, vendor_dir, package=None):
     requirements_file = vendor_dir / "{0}.txt".format(vendor_dir.name)
     requirement = "-r {0}".format(requirements_file.as_posix())
@@ -461,11 +494,10 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
     if is_patched:
         apply_patches(ctx, patched=is_patched, pre=True)
     log("Removing scandir library files...")
-    remove_all(vendor_dir.glob("*.so"))
-    drop_dir(vendor_dir / "setuptools")
-    drop_dir(vendor_dir / "pkg_resources" / "_vendor")
-    drop_dir(vendor_dir / "pkg_resources" / "extern")
-    drop_dir(vendor_dir / "bin")
+    for extension in ("*.so", "*.pyd", "*.egg-info", "*.dist-info"):
+        remove_all(vendor_dir.glob(extension))
+    for dirname in ("setuptools", "pkg_resources/_vendor", "pkg_resources/extern", "bin"):
+        drop_dir(vendor_dir / dirname)
 
     # Global import rewrites
     log("Renaming specified libs...")
@@ -831,6 +863,7 @@ def main(ctx, package=None):
     clean_vendor(ctx, vendor_dir)
     clean_vendor(ctx, patched_dir)
     vendor(ctx, vendor_dir)
+    install_pyyaml(ctx, patched_dir)
     vendor(ctx, patched_dir, rewrite=True)
     download_all_licenses(ctx, include_pip=True)
     # from .vendor_passa import vendor_passa
@@ -838,6 +871,12 @@ def main(ctx, package=None):
     # vendor_passa(ctx)
     # update_safety(ctx)
     log("Revendoring complete")
+
+
+@invoke.task
+def install_yaml(ctx):
+    patched_dir = _get_patched_dir(ctx)
+    install_pyyaml(ctx, patched_dir)
 
 
 @invoke.task
