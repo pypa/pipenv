@@ -304,18 +304,25 @@ class Locator(object):
 
     def _get_digest(self, info):
         """
-        Get a digest from a dictionary by looking at keys of the form
-        'algo_digest'.
+        Get a digest from a dictionary by looking at a "digests" dictionary
+        or keys of the form 'algo_digest'.
 
         Returns a 2-tuple (algo, digest) if found, else None. Currently
         looks only for SHA256, then MD5.
         """
         result = None
-        for algo in ('sha256', 'md5'):
-            key = '%s_digest' % algo
-            if key in info:
-                result = (algo, info[key])
-                break
+        if 'digests' in info:
+            digests = info['digests']
+            for algo in ('sha256', 'md5'):
+                if algo in digests:
+                    result = (algo, digests[algo])
+                    break
+        if not result:
+            for algo in ('sha256', 'md5'):
+                key = '%s_digest' % algo
+                if key in info:
+                    result = (algo, info[key])
+                    break
         return result
 
     def _update_version_data(self, result, info):

@@ -1,5 +1,5 @@
 diff --git a/pipenv/patched/notpip/_vendor/requests/packages.py b/pipenv/patched/notpip/_vendor/requests/packages.py
-index 9582fa73..258c89ed 100644
+index 9582fa73..5fb6f07d 100644
 --- a/pipenv/patched/notpip/_vendor/requests/packages.py
 +++ b/pipenv/patched/notpip/_vendor/requests/packages.py
 @@ -4,13 +4,13 @@ import sys
@@ -7,7 +7,7 @@ index 9582fa73..258c89ed 100644
  
  for package in ('urllib3', 'idna', 'chardet'):
 -    vendored_package = "pip._vendor." + package
-+    vendored_package = "notpip._vendor." + package
++    vendored_package = "pipenv.patched.notpip._vendor." + package
      locals()[package] = __import__(vendored_package)
      # This traversal is apparently necessary such that the identities are
      # preserved (requests.packages.urllib3.* is urllib3.*)
@@ -15,7 +15,7 @@ index 9582fa73..258c89ed 100644
          if mod == vendored_package or mod.startswith(vendored_package + '.'):
 -            unprefixed_mod = mod[len("pip._vendor."):]
 -            sys.modules['pip._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
-+            unprefixed_mod = mod[len("notpip._vendor."):]
-+            sys.modules['notpip._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
++            unprefixed_mod = mod[len("pipenv.patched.notpip._vendor."):]
++            sys.modules['pipenv.patched.notpip._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
  
  # Kinda cool, though, right?

@@ -6,7 +6,7 @@ class FrozenInstanceError(AttributeError):
     A frozen/immutable instance has been attempted to be modified.
 
     It mirrors the behavior of ``namedtuples`` by using the same error message
-    and subclassing :exc:`AttributeError`.
+    and subclassing `AttributeError`.
 
     .. versionadded:: 16.1.0
     """
@@ -55,3 +55,20 @@ class PythonTooOldError(RuntimeError):
 
     .. versionadded:: 18.2.0
     """
+
+
+class NotCallableError(TypeError):
+    """
+    A ``attr.ib()`` requiring a callable has been set with a value
+    that is not callable.
+
+    .. versionadded:: 19.2.0
+    """
+
+    def __init__(self, msg, value):
+        super(TypeError, self).__init__(msg, value)
+        self.msg = msg
+        self.value = value
+
+    def __str__(self):
+        return str(self.msg)

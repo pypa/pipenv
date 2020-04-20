@@ -703,7 +703,7 @@ class ExportEntry(object):
 
 ENTRY_RE = re.compile(r'''(?P<name>(\w|[-.+])+)
                       \s*=\s*(?P<callable>(\w+)([:\.]\w+)*)
-                      \s*(\[\s*(?P<flags>\w+(=\w+)?(,\s*\w+(=\w+)?)*)\s*\])?
+                      \s*(\[\s*(?P<flags>[\w-]+(=\w+)?(,\s*\w+(=\w+)?)*)\s*\])?
                       ''', re.VERBOSE)
 
 def get_export_entry(specification):
@@ -1438,7 +1438,8 @@ if ssl:
                                             ca_certs=self.ca_certs)
             else:  # pragma: no cover
                 context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-                context.options |= ssl.OP_NO_SSLv2
+                if hasattr(ssl, 'OP_NO_SSLv2'):
+                    context.options |= ssl.OP_NO_SSLv2
                 if self.cert_file:
                     context.load_cert_chain(self.cert_file, self.key_file)
                 kwargs = {}

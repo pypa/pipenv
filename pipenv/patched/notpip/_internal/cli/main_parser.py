@@ -4,20 +4,18 @@
 import os
 import sys
 
-from pipenv.patched.notpip import __version__
 from pipenv.patched.notpip._internal.cli import cmdoptions
 from pipenv.patched.notpip._internal.cli.parser import (
-    ConfigOptionParser, UpdatingDefaultsHelpFormatter,
+    ConfigOptionParser,
+    UpdatingDefaultsHelpFormatter,
 )
-from pipenv.patched.notpip._internal.commands import (
-    commands_dict, get_similar_commands, get_summaries,
-)
+from pipenv.patched.notpip._internal.commands import commands_dict, get_similar_commands
 from pipenv.patched.notpip._internal.exceptions import CommandError
-from pipenv.patched.notpip._internal.utils.misc import get_prog
+from pipenv.patched.notpip._internal.utils.misc import get_pip_version, get_prog
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Tuple, List  # noqa: F401
+    from typing import Tuple, List
 
 
 __all__ = ["create_main_parser", "parse_command"]
@@ -39,12 +37,7 @@ def create_main_parser():
     parser = ConfigOptionParser(**parser_kw)
     parser.disable_interspersed_args()
 
-    pip_pkg_dir = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), "..", "..",
-    ))
-    parser.version = 'pip %s from %s (python %s)' % (
-        __version__, pip_pkg_dir, sys.version[:3],
-    )
+    parser.version = get_pip_version()
 
     # add the general options
     gen_opts = cmdoptions.make_option_group(cmdoptions.general_group, parser)
@@ -54,8 +47,10 @@ def create_main_parser():
     parser.main = True  # type: ignore
 
     # create command listing for description
-    command_summaries = get_summaries()
-    description = [''] + ['%-27s %s' % (i, j) for i, j in command_summaries]
+    description = [''] + [
+        '%-27s %s' % (name, command_info.summary)
+        for name, command_info in commands_dict.items()
+    ]
     parser.description = '\n'.join(description)
 
     return parser

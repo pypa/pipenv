@@ -466,7 +466,29 @@ class Environment(object):
         ), None)
         if pip is not None:
             return parse_version(pip.version)
-        return parse_version("18.0")
+        return parse_version("19.3")
+
+    def expand_egg_links(self):
+        """
+        Expand paths specified in egg-link files to prevent pip errors during
+        reinstall
+        """
+        prefixes = [
+            vistir.compat.Path(prefix)
+            for prefix in self.base_paths["libdirs"].split(os.pathsep)
+            if vistir.path.is_in_path(prefix, self.prefix.as_posix())
+        ]
+        for loc in prefixes:
+            if not loc.exists():
+                continue
+            for pth in loc.iterdir():
+                if not pth.suffix == ".egg-link":
+                    continue
+                contents = [
+                    vistir.path.normalize_path(line.strip())
+                    for line in pth.read_text().splitlines()
+                ]
+                pth.write_text("\n".join(contents))
 
     def get_distributions(self):
         """
@@ -529,42 +551,21 @@ class Environment(object):
     @contextlib.contextmanager
     def get_finder(self, pre=False):
         from .vendor.pip_shims.shims import (
-            Command, cmdoptions, index_group, PackageFinder, parse_version, pip_version
+            InstallCommand, get_package_finder
         )
         from .environments import PIPENV_CACHE_DIR
-        index_urls = [source.get("url") for source in self.sources]
 
-        class PipCommand(Command):
-            name = "PipCommand"
-
-        pip_command = PipCommand()
-        index_opts = cmdoptions.make_option_group(
-            index_group, pip_command.parser
-        )
-        cmd_opts = pip_command.cmd_opts
-        pip_command.parser.insert_option_group(0, index_opts)
-        pip_command.parser.insert_option_group(0, cmd_opts)
+        pip_command = InstallCommand()
         pip_args = self._modules["pipenv"].utils.prepare_pip_source_args(self.sources)
         pip_options, _ = pip_command.parser.parse_args(pip_args)
         pip_options.cache_dir = PIPENV_CACHE_DIR
         pip_options.pre = self.pipfile.get("pre", pre)
         with pip_command._build_session(pip_options) as session:
-            finder_args = {
-                "find_links": pip_options.find_links,
-                "index_urls": index_urls,
-                "allow_all_prereleases": pip_options.pre,
-                "trusted_hosts": pip_options.trusted_hosts,
-                "session": session
-            }
-            if parse_version(pip_version) < parse_version("19.0"):
-                finder_args.update(
-                    {"process_dependency_links": pip_options.process_dependency_links}
-                )
-            finder = PackageFinder(**finder_args)
+            finder = get_package_finder(install_cmd=pip_command, options=pip_options, session=session)
             yield finder
 
     def get_package_info(self, pre=False):
-        from .vendor.pip_shims.shims import pip_version, parse_version
+        from .vendor.pip_shims.shims import pip_version, parse_version, CandidateEvaluator
         dependency_links = []
         packages = self.get_installed_packages()
         # This code is borrowed from pip's current implementation
@@ -591,9 +592,10 @@ class Environment(object):
 
                 if not all_candidates:
                     continue
-                best_candidate = max(all_candidates, key=finder._candidate_sort_key)
-                remote_version = best_candidate.version
-                if best_candidate.location.is_wheel:
+                candidate_evaluator = finder.make_candidate_evaluator(project_name=dist.key)
+                best_candidate_result = candidate_evaluator.compute_best_candidate(all_candidates)
+                remote_version = best_candidate_result.best_candidate.version
+                if best_candidate_result.best_candidate.link.is_wheel:
                     typ = 'wheel'
                 else:
                     typ = 'sdist'

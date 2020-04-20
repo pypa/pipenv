@@ -1,21 +1,56 @@
 parameters:
   python_version: ''
+  python_architecture: ''
 
 steps:
-- powershell: |
-    subst T: "$env:TEMP"
-    Write-Host "##vso[task.setvariable variable=TEMP]T:\"
-    Write-Host "##vso[task.setvariable variable=TMP]T:\"
-    Write-Host "##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]$env:PYTHON_VERSION"
-    Write-Host "##vso[task.setvariable variable=PIPENV_NOSPIN]1"
-  displayName: Fix Temp Variable
-  env:
-    PYTHON_VERSION: ${{ parameters.python_version }}
+  - task: PowerShell@2
+    inputs:
+      filePath: .azure-pipelines/scripts/New-RAMDisk.ps1
+      arguments: "-Drive R -Size 2GB"
+    displayName: Setup RAMDisk
 
-- script: |
-    git submodule sync && git submodule update --init --recursive
-    pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests
-  displayName: Run integration tests
-  env:
-    PYTHONWARNINGS: 'ignore:DEPRECATION'
-    PIPENV_NOSPIN: '1'
+  - powershell: |
+      mkdir R:\virtualenvs
+      $acl = Get-Acl "R:\"
+      $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+          "Everyone", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow"
+      )
+      $acl.AddAccessRule($rule)
+      Set-Acl "R:\" $acl
+    displayName: Set RAMDisk Permissions
+
+  - powershell: |
+      Write-Host "##vso[task.setvariable variable=TEMP]R:\"
+      Write-Host "##vso[task.setvariable variable=TMP]R:\"
+      Write-Host "##vso[task.setvariable variable=WORKON_HOME]R:\virtualenvs"
+      Write-Host "##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]$env:PYTHON_VERSION"
+      Write-Host "##vso[task.setvariable variable=PIPENV_NOSPIN]1"
+    displayName: Fix Temp Variable
+    env:
+      PYTHON_VERSION: ${{ parameters.python_version }}
+
+  - powershell: |
+      pip install certifi
+      $env:PYTHON_PATH=$(python -c "import sys; print(sys.executable)")
+      $env:CERTIFI_CONTENT=$(python -m certifi)
+      echo "##vso[task.setvariable variable=GIT_SSL_CAINFO]$env:CERTIFI_CONTENT"
+      echo "##vso[task.setvariable variable=PY_EXE]$env:PYTHON_PATH"
+    displayName: Set Python Path
+    env:
+      PYTHONWARNINGS: 'ignore:DEPRECATION'
+
+  - template: install-dependencies.yml
+    parameters:
+      python_version: ${{ parameters.python_version }}
+
+  - script: |
+      git submodule sync
+      git submodule update --init --recursive
+      pipenv run pytest -ra -n 4 --junit-xml=junit/test-results.xml tests/
+    failOnStderr: false
+    displayName: Run integration tests
+    env:
+      TEMP: 'R:\'
+      PYTHONWARNINGS: 'ignore:DEPRECATION'
+      PIPENV_NOSPIN: 1
+      GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no

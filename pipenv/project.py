@@ -723,7 +723,7 @@ class Project(object):
         if "verify_ssl" not in source:
             source["verify_ssl"] = "https://" in source["url"]
         if not isinstance(source["verify_ssl"], bool):
-            source["verify_ssl"] = source["verify_ssl"].lower() == "true"
+            source["verify_ssl"] = str(source["verify_ssl"]).lower() == "true"
         return source
 
     def get_or_create_lockfile(self, from_pipfile=False):

@@ -1,57 +1,103 @@
 """
 Package containing all pip commands
 """
+
+# The following comment should be removed at some point in the future.
+# mypy: disallow-untyped-defs=False
+
 from __future__ import absolute_import
 
-from pipenv.patched.notpip._internal.commands.completion import CompletionCommand
-from pipenv.patched.notpip._internal.commands.configuration import ConfigurationCommand
-from pipenv.patched.notpip._internal.commands.download import DownloadCommand
-from pipenv.patched.notpip._internal.commands.freeze import FreezeCommand
-from pipenv.patched.notpip._internal.commands.hash import HashCommand
-from pipenv.patched.notpip._internal.commands.help import HelpCommand
-from pipenv.patched.notpip._internal.commands.list import ListCommand
-from pipenv.patched.notpip._internal.commands.check import CheckCommand
-from pipenv.patched.notpip._internal.commands.search import SearchCommand
-from pipenv.patched.notpip._internal.commands.show import ShowCommand
-from pipenv.patched.notpip._internal.commands.install import InstallCommand
-from pipenv.patched.notpip._internal.commands.uninstall import UninstallCommand
-from pipenv.patched.notpip._internal.commands.wheel import WheelCommand
+import importlib
+from collections import OrderedDict, namedtuple
 
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import List, Type  # noqa: F401
-    from pipenv.patched.notpip._internal.cli.base_command import Command  # noqa: F401
-
-commands_order = [
-    InstallCommand,
-    DownloadCommand,
-    UninstallCommand,
-    FreezeCommand,
-    ListCommand,
-    ShowCommand,
-    CheckCommand,
-    ConfigurationCommand,
-    SearchCommand,
-    WheelCommand,
-    HashCommand,
-    CompletionCommand,
-    HelpCommand,
-]  # type: List[Type[Command]]
-
-commands_dict = {c.name: c for c in commands_order}
+    from typing import Any
+    from pipenv.patched.notpip._internal.cli.base_command import Command
 
 
-def get_summaries(ordered=True):
-    """Yields sorted (command name, command summary) tuples."""
+CommandInfo = namedtuple('CommandInfo', 'module_path, class_name, summary')
 
-    if ordered:
-        cmditems = _sort_commands(commands_dict, commands_order)
-    else:
-        cmditems = commands_dict.items()
+# The ordering matters for help display.
+#    Also, even though the module path starts with the same
+# "pipenv.patched.notpip._internal.commands" prefix in each case, we include the full path
+# because it makes testing easier (specifically when modifying commands_dict
+# in test setup / teardown by adding info for a FakeCommand class defined
+# in a test-related module).
+#    Finally, we need to pass an iterable of pairs here rather than a dict
+# so that the ordering won't be lost when using Python 2.7.
+commands_dict = OrderedDict([
+    ('install', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.install', 'InstallCommand',
+        'Install packages.',
+    )),
+    ('download', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.download', 'DownloadCommand',
+        'Download packages.',
+    )),
+    ('uninstall', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.uninstall', 'UninstallCommand',
+        'Uninstall packages.',
+    )),
+    ('freeze', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.freeze', 'FreezeCommand',
+        'Output installed packages in requirements format.',
+    )),
+    ('list', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.list', 'ListCommand',
+        'List installed packages.',
+    )),
+    ('show', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.show', 'ShowCommand',
+        'Show information about installed packages.',
+    )),
+    ('check', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.check', 'CheckCommand',
+        'Verify installed packages have compatible dependencies.',
+    )),
+    ('config', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.configuration', 'ConfigurationCommand',
+        'Manage local and global configuration.',
+    )),
+    ('search', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.search', 'SearchCommand',
+        'Search PyPI for packages.',
+    )),
+    ('wheel', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.wheel', 'WheelCommand',
+        'Build wheels from your requirements.',
+    )),
+    ('hash', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.hash', 'HashCommand',
+        'Compute hashes of package archives.',
+    )),
+    ('completion', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.completion', 'CompletionCommand',
+        'A helper command used for command completion.',
+    )),
+    ('debug', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.debug', 'DebugCommand',
+        'Show information useful for debugging.',
+    )),
+    ('help', CommandInfo(
+        'pipenv.patched.notpip._internal.commands.help', 'HelpCommand',
+        'Show help for commands.',
+    )),
+])  # type: OrderedDict[str, CommandInfo]
 
-    for name, command_class in cmditems:
-        yield (name, command_class.summary)
+
+def create_command(name, **kwargs):
+    # type: (str, **Any) -> Command
+    """
+    Create an instance of the Command class with the given name.
+    """
+    module_path, class_name, summary = commands_dict[name]
+    module = importlib.import_module(module_path)
+    command_class = getattr(module, class_name)
+    command = command_class(name=name, summary=summary, **kwargs)
+
+    return command
 
 
 def get_similar_commands(name):
@@ -66,14 +112,3 @@ def get_similar_commands(name):
         return close_commands[0]
     else:
         return False
-
-
-def _sort_commands(cmddict, order):
-    def keyfn(key):
-        try:
-            return order.index(key[1])
-        except ValueError:
-            # unordered items should come last
-            return 0xff
-
-    return sorted(cmddict.items(), key=keyfn)

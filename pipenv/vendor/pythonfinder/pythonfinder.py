@@ -7,9 +7,9 @@ import os
 
 import six
 from click import secho
-from vistir.compat import lru_cache
 
 from . import environment
+from .compat import lru_cache
 from .exceptions import InvalidPythonVersion
 from .utils import Iterable, filter_pythons, version_re
 
@@ -51,7 +51,8 @@ class Finder(object):
         :param system: bool, optional
         :param global_search: Whether to search the global path from os.environ, defaults to True
         :param global_search: bool, optional
-        :param ignore_unsupported: Whether to ignore unsupported python versions, if False, an error is raised, defaults to True
+        :param ignore_unsupported: Whether to ignore unsupported python versions, if False, an
+            error is raised, defaults to True
         :param ignore_unsupported: bool, optional
         :param bool sort_by_path: Whether to always sort by path
         :returns: a :class:`~pythonfinder.pythonfinder.Finder` object.
@@ -133,8 +134,16 @@ class Finder(object):
         return self.system_path.which(exe)
 
     @classmethod
-    def parse_major(cls, major, minor=None, patch=None, pre=None, dev=None, arch=None):
-        # type: (Optional[str], Optional[int], Optional[int], Optional[bool], Optional[bool], Optional[str]) -> Dict[str, Union[int, str, bool, None]]
+    def parse_major(
+        cls,
+        major,  # type: Optional[str]
+        minor=None,  # type: Optional[int]
+        patch=None,  # type: Optional[int]
+        pre=None,  # type: Optional[bool]
+        dev=None,  # type: Optional[bool]
+        arch=None,  # type: Optional[str]
+    ):
+        # type: (...) -> Dict[str, Union[int, str, bool, None]]
         from .models import PythonVersion
 
         major_is_str = major and isinstance(major, six.string_types)
@@ -289,11 +298,18 @@ class Finder(object):
 
     @lru_cache(maxsize=1024)
     def find_all_python_versions(
-        self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None, name=None
+        self,
+        major=None,  # type: Optional[Union[str, int]]
+        minor=None,  # type: Optional[int]
+        patch=None,  # type: Optional[int]
+        pre=None,  # type: Optional[bool]
+        dev=None,  # type: Optional[bool]
+        arch=None,  # type: Optional[str]
+        name=None,  # type: Optional[str]
     ):
-        # type: (Optional[Union[str, int]], Optional[int], Optional[int], Optional[bool], Optional[bool], Optional[str], Optional[str]) -> List[PathEntry]
+        # type: (...) -> List[PathEntry]
         version_sort = operator.attrgetter("as_python.version_sort")
-        python_version_dict = getattr(self.system_path, "python_version_dict")
+        python_version_dict = getattr(self.system_path, "python_version_dict", {})
         if python_version_dict:
             paths = (
                 path

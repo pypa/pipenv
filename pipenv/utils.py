@@ -89,7 +89,11 @@ def cleanup_toml(tml):
 def convert_toml_outline_tables(parsed):
     """Converts all outline tables to inline tables."""
     def convert_tomlkit_table(section):
-        for key, value in section._body:
+        if isinstance(section, tomlkit.items.Table):
+            body = section.value._body
+        else:
+            body = section._body
+        for key, value in body:
             if not key:
                 continue
             if hasattr(value, "keys") and not isinstance(value, tomlkit.items.InlineTable):
@@ -414,19 +418,8 @@ class Resolver(object):
     @staticmethod
     @lru_cache()
     def _get_pip_command():
-        from .vendor.pip_shims.shims import Command, cmdoptions
-
-        class PipCommand(Command):
-            """Needed for pip-tools."""
-
-            name = "PipCommand"
-
-        from pipenv.patched.piptools.pip import get_pip_command
-        pip_cmd = get_pip_command()
-        pip_cmd.parser.add_option(cmdoptions.no_use_pep517())
-        pip_cmd.parser.add_option(cmdoptions.use_pep517())
-        pip_cmd.parser.add_option(cmdoptions.no_build_isolation())
-        return pip_cmd
+        from .vendor.pip_shims.shims import InstallCommand
+        return InstallCommand()
 
     @classmethod
     def get_metadata(
@@ -462,6 +455,10 @@ class Resolver(object):
             )
             index_lookup.update(req_idx)
             markers_lookup.update(markers_idx)
+            # Add dependencies of any file (e.g. wheels/tarballs), source, or local
+            # directories into the initial constraint pool to be resolved with the
+            # rest of the dependencies, while adding the files/vcs deps/paths themselves
+            # to the lockfile directly
             constraint_update, lockfile_update = cls.get_deps_from_req(
                 req, resolver=transient_resolver
             )
@@ -479,6 +476,7 @@ class Resolver(object):
     ):
         # type: (...) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]
         from .vendor.requirementslib.models.requirements import Requirement
+        from .vendor.requirementslib.models.utils import DIRECT_URL_RE
         if index_lookup is None:
             index_lookup = {}
         if markers_lookup is None:
@@ -495,7 +493,15 @@ class Resolver(object):
         try:
             req = Requirement.from_line(line)
         except ValueError:
-            raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
+            direct_url = DIRECT_URL_RE.match(line)
+            if direct_url:
+                line = "{0}#egg={1}".format(line, direct_url.groupdict()["name"])
+                try:
+                    req = Requirement.from_line(line)
+                except ValueError:
+                    raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
+            else:
+                raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
         if url:
             try:
                 index_lookup[req.normalized_name] = project.get_source(
@@ -753,7 +759,7 @@ class Resolver(object):
         if self._repository is None:
             from pipenv.patched.piptools.repositories.pypi import PyPIRepository
             self._repository = PyPIRepository(
-                pip_options=self.pip_options, use_json=False, session=self.session,
+                self.pip_args, use_json=False, session=self.session,
                 build_isolation=self.pip_options.build_isolation
             )
         return self._repository

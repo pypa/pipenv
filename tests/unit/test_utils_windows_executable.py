@@ -13,6 +13,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+@pytest.mark.utils
 @mock.patch('os.path.isfile')
 @mock.patch('pipenv.utils.find_executable')
 def test_find_windows_executable(mocked_find_executable, mocked_isfile):

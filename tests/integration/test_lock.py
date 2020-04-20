@@ -126,6 +126,7 @@ def test_keep_outdated_doesnt_upgrade_pipfile_pins(PipenvInstance):
         assert p.lockfile["default"]["urllib3"]["version"] == "==1.21.1"
 
 
+@pytest.mark.lock
 def test_keep_outdated_keeps_markers_not_removed(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install six click")
@@ -164,10 +165,10 @@ def test_keep_outdated_doesnt_update_satisfied_constraints(PipenvInstance):
 @pytest.mark.lock
 @pytest.mark.complex
 @pytest.mark.needs_internet
-def test_complex_lock_with_vcs_deps(PipenvInstance, pip_src_dir):
+def test_complex_lock_with_vcs_deps(local_tempdir, PipenvInstance, pip_src_dir):
     # This uses the real PyPI since we need Internet to access the Git
     # dependency anyway.
-    with PipenvInstance() as p:
+    with PipenvInstance() as p, local_tempdir:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]

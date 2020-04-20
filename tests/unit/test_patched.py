@@ -123,6 +123,7 @@ get_extras_links_scenarios = {
 }
 
 
+@pytest.mark.patched
 @pytest.mark.parametrize(
     'scenarios,expected',
     list(get_extras_links_scenarios.values()),

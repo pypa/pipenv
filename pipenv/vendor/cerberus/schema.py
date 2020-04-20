@@ -111,7 +111,10 @@ class DefinitionSchema(MutableMapping):
         self.schema[key] = value
 
     def __str__(self):
-        return str(self.schema)
+        if hasattr(self, "schema"):
+            return str(self.schema)
+        else:
+            return "No schema data is set yet."
 
     def copy(self):
         return self.__class__(self.validator, self.schema.copy())
@@ -142,13 +145,13 @@ class DefinitionSchema(MutableMapping):
                 ('allof_', 'anyof_', 'noneof_', 'oneof_')
             )
 
-        for field in schema:
-            for of_rule in (x for x in schema[field] if is_of_rule(x)):
+        for field, rules in schema.items():
+            for of_rule in [x for x in rules if is_of_rule(x)]:
                 operator, rule = of_rule.split('_', 1)
-                schema[field].update({operator: []})
-                for value in schema[field][of_rule]:
-                    schema[field][operator].append({rule: value})
-                del schema[field][of_rule]
+                rules.update({operator: []})
+                for value in rules[of_rule]:
+                    rules[operator].append({rule: value})
+                del rules[of_rule]
         return schema
 
     @classmethod
