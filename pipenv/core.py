@@ -756,6 +756,9 @@ def batch_install(deps_list, procs, failed_deps_queue,
                     del os.environ["PYTHONHOME"]
             if "GIT_CONFIG" in os.environ and dep.is_vcs:
                 del os.environ["GIT_CONFIG"]
+            use_pep517 = True
+            if failed and not dep.is_vcs:
+                use_pep517 = False
 
             c = pip_install(
                 dep,
@@ -768,7 +771,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 pypi_mirror=pypi_mirror,
                 trusted_hosts=trusted_hosts,
                 extra_indexes=extra_indexes,
-                use_pep517=not failed,
+                use_pep517=use_pep517,
             )
             c.dep = dep
             # if dep.is_vcs or dep.editable:

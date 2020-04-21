@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function
 import os
+import sys
 
 import pytest
 
@@ -140,13 +141,17 @@ def test_resolver_unique_markers(PipenvInstance):
     This verifies that we clean that successfully.
     """
     with PipenvInstance(chdir=True) as p:
-        c = p.pipenv('install vcrpy==2.0.1')
+        c = p.pipenv('install vcrpy==2.0.1 --verbose')
         assert c.return_code == 0
-        c = p.pipenv('lock')
+        print(c.out, file=sys.stderr)
+        print(c.err, file=sys.stderr)
+        c = p.pipenv('lock --verbose')
+        print(c.out, file=sys.stderr)
+        print(c.err, file=sys.stderr)
         assert c.return_code == 0
         assert 'yarl' in p.lockfile['default']
         yarl = p.lockfile['default']['yarl']
-        assert 'markers' in yarl
+        assert 'markers' in yarl, os.listdir(os.path.expanduser(os.environ.get("PIPENV_CACHE_DIR", "~/.cache/pipenv")))
         # Two possible marker sets are ok here
         assert yarl['markers'] in [
             "python_version in '3.4, 3.5, 3.6'",
