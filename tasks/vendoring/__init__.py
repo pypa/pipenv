@@ -222,10 +222,12 @@ def update_safety(ctx):
     root = _get_git_root(ctx)
     with TemporaryDirectory(prefix="pipenv-", suffix="-safety") as download_dir:
         log("generating lockfile...")
-        resolve_cmd = "python {0} safety".format(root.joinpath("pipenv/resolver.py").as_posix())
-        py27_resolve_cmd = "python2.7 {0} safety".format(root.joinpath("pipenv/resolver.py").as_posix())
-        _, _, resolved = ctx.run(resolve_cmd, hide=True).stdout.partition("RESULTS:")
-        _, _, resolved_py2 = ctx.run(py27_resolve_cmd, hide=True).stdout.partition("RESULTS:")
+        packages = "\n".join(["safety", "requests[security]"])
+        env = {"PIPENV_PACKAGES": packages}
+        resolve_cmd = "python {0}".format(root.joinpath("pipenv/resolver.py").as_posix())
+        py27_resolve_cmd = "python2.7 {0}".format(root.joinpath("pipenv/resolver.py").as_posix())
+        _, _, resolved = ctx.run(resolve_cmd, hide=True, env=env).stdout.partition("RESULTS:")
+        _, _, resolved_py2 = ctx.run(py27_resolve_cmd, hide=True, env=env).stdout.partition("RESULTS:")
         resolved = json.loads(resolved.strip())
         resolved_py2 = json.loads(resolved_py2.strip())
         pkg_dict, pkg_dict_py2 = {}, {}
