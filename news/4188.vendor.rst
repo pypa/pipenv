@@ -6,3 +6,6 @@ Add and update vendored dependencies to accommodate ``safety`` vendoring:
 - **certifi** ``2019.11.28`` => ``2020.4.5.1``
 - **pyparsing** ``2.4.6`` => ``2.4.7``
 - **resolvelib** ``0.2.2`` => ``0.3.0``
+- **importlib-metadata** ``1.5.1`` => ``1.6.0``
+- **pip-shims** ``0.5.1`` => ``0.5.2``
+- **requirementslib** ``1.5.5`` => ``1.5.6``

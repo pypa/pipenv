@@ -679,7 +679,7 @@ AST_COMPARATORS = dict(
         (ast.And, operator.and_),
         (ast.Or, operator.or_),
         (ast.Not, operator.not_),
-        (ast.In, operator.contains),
+        (ast.In, lambda a, b: operator.contains(b, a)),
     )
 )
 
@@ -746,6 +746,9 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
         unparsed = item.s
     elif isinstance(item, ast.Subscript):
         unparsed = unparse(item.value)
+        if not initial_mapping:
+            if isinstance(item.slice, ast.Index):
+                unparsed = unparsed[unparse(item.slice.value)]
     elif any(isinstance(item, k) for k in AST_BINOP_MAP.keys()):
         unparsed = AST_BINOP_MAP[type(item)]
     elif isinstance(item, ast.Num):
@@ -789,7 +792,7 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
     elif isinstance(item, constant):
         unparsed = item.value
     elif isinstance(item, ast.Compare):
-        if isinstance(item.left, ast.Attribute):
+        if isinstance(item.left, ast.Attribute) or isinstance(item.left, ast.Str):
             import importlib
 
             left = unparse(item.left)

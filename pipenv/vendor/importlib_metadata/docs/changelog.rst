@@ -2,6 +2,17 @@
  importlib_metadata NEWS
 =========================
 
+v1.6.0
+======
+
+* Added ``module`` and ``attr`` attributes to ``EntryPoint``
+
+v1.5.2
+======
+
+* Fix redundant entries from ``FastPath.zip_children``.
+  Closes #117.
+
 v1.5.1
 ======
 
