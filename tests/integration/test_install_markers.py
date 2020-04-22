@@ -131,7 +131,7 @@ funcsigs = "*"
 @pytest.mark.markers
 @pytest.mark.complex
 @pytest.mark.py3_only
-@pytest.mark.lte_py36
+@pytest.mark.skip_py36
 def test_resolver_unique_markers(PipenvInstance):
     """vcrpy has a dependency on `yarl` which comes with a marker
     of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
@@ -141,17 +141,13 @@ def test_resolver_unique_markers(PipenvInstance):
     This verifies that we clean that successfully.
     """
     with PipenvInstance(chdir=True) as p:
-        c = p.pipenv('install vcrpy==2.0.1 --verbose')
+        c = p.pipenv('install vcrpy==2.0.1')
         assert c.return_code == 0
-        print(c.out, file=sys.stderr)
-        print(c.err, file=sys.stderr)
-        c = p.pipenv('lock --verbose')
-        print(c.out, file=sys.stderr)
-        print(c.err, file=sys.stderr)
+        c = p.pipenv('lock')
         assert c.return_code == 0
         assert 'yarl' in p.lockfile['default']
         yarl = p.lockfile['default']['yarl']
-        assert 'markers' in yarl, os.listdir(os.path.expanduser(os.environ.get("PIPENV_CACHE_DIR", "~/.cache/pipenv")))
+        assert 'markers' in yarl
         # Two possible marker sets are ok here
         assert yarl['markers'] in [
             "python_version in '3.4, 3.5, 3.6'",
