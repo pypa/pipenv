@@ -13,6 +13,7 @@ from ..exceptions import (
     ReadTimeoutError,
     ResponseError,
     InvalidHeader,
+    ProxyError,
 )
 from ..packages import six
 
@@ -306,6 +307,8 @@ class Retry(object):
         """ Errors when we're fairly sure that the server did not receive the
         request, so it should be safe to retry.
         """
+        if isinstance(err, ProxyError):
+            err = err.original_error
         return isinstance(err, ConnectTimeoutError)
 
     def _is_read_error(self, err):

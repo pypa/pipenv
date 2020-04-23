@@ -70,7 +70,9 @@ Entry points
 The ``entry_points()`` function returns a dictionary of all entry points,
 keyed by group.  Entry points are represented by ``EntryPoint`` instances;
 each ``EntryPoint`` has a ``.name``, ``.group``, and ``.value`` attributes and
-a ``.load()`` method to resolve the value::
+a ``.load()`` method to resolve the value.  There are also ``.module``,
+``.attr``, and ``.extras`` attributes for getting the components of the
+``.value`` attribute::
 
     >>> eps = entry_points()
     >>> list(eps)
@@ -79,6 +81,12 @@ a ``.load()`` method to resolve the value::
     >>> wheel = [ep for ep in scripts if ep.name == 'wheel'][0]
     >>> wheel
     EntryPoint(name='wheel', value='wheel.cli:main', group='console_scripts')
+    >>> wheel.module
+    'wheel.cli'
+    >>> wheel.attr
+    'main'
+    >>> wheel.extras
+    []
     >>> main = wheel.load()
     >>> main
     <function main at 0x103528488>

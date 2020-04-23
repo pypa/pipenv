@@ -679,7 +679,7 @@ AST_COMPARATORS = dict(
         (ast.And, operator.and_),
         (ast.Or, operator.or_),
         (ast.Not, operator.not_),
-        (ast.In, operator.contains),
+        (ast.In, lambda a, b: operator.contains(b, a)),
     )
 )
 
@@ -688,6 +688,8 @@ class Analyzer(ast.NodeVisitor):
     def __init__(self):
         self.name_types = []
         self.function_map = {}  # type: Dict[Any, Any]
+        self.function_names = {}
+        self.resolved_function_names = {}
         self.functions = []
         self.strings = []
         self.assignments = {}
@@ -725,6 +727,38 @@ class Analyzer(ast.NodeVisitor):
             iter(k for k in self.assignments if getattr(k, "id", "") == match.id), None
         )
 
+    def parse_function_names(self, should_retry=True, function_map=None):
+        if function_map is None:
+            function_map = {}
+        retries = []
+        for k, v in function_map.items():
+            fn_name = ""
+            if k in self.function_names:
+                fn_name = self.function_names[k]
+            elif isinstance(k, ast.Name):
+                fn_name = k.id
+            elif isinstance(k, ast.Attribute):
+                try:
+                    fn = ast_unparse(k, analyzer=self)
+                except Exception:
+                    if should_retry:
+                        retries.append((k, v))
+                    continue
+                else:
+                    if isinstance(fn, six.string_types):
+                        _, _, fn_name = fn.rpartition(".")
+            if fn_name:
+                self.resolved_function_names[fn_name] = ast_unparse(v, analyzer=self)
+        return retries
+
+    def parse_functions(self):
+        retries = self.parse_function_names(function_map=self.function_map)
+        if retries:
+            failures = self.parse_function_names(
+                should_retry=False, function_map=dict(retries)
+            )
+        return self.resolved_function_names
+
 
 def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # noqa:C901
     # type: (Any, bool, Optional[Analyzer], bool) -> Union[List[Any], Dict[Any, Any], Tuple[Any, ...], STRING_TYPE]
@@ -746,6 +780,13 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
         unparsed = item.s
     elif isinstance(item, ast.Subscript):
         unparsed = unparse(item.value)
+        if not initial_mapping:
+            if isinstance(item.slice, ast.Index):
+                try:
+                    unparsed = unparsed[unparse(item.slice.value)]
+                except KeyError:
+                    # not everything can be looked up before runtime
+                    unparsed = item
     elif any(isinstance(item, k) for k in AST_BINOP_MAP.keys()):
         unparsed = AST_BINOP_MAP[type(item)]
     elif isinstance(item, ast.Num):
@@ -789,7 +830,7 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
     elif isinstance(item, constant):
         unparsed = item.value
     elif isinstance(item, ast.Compare):
-        if isinstance(item.left, ast.Attribute):
+        if isinstance(item.left, ast.Attribute) or isinstance(item.left, ast.Str):
             import importlib
 
             left = unparse(item.left)
@@ -934,18 +975,10 @@ def ast_parse_setup_py(path):
     ast_analyzer = ast_parse_file(path)
     setup = {}  # type: Dict[Any, Any]
     ast_analyzer.unmap_binops()
-    for k, v in ast_analyzer.function_map.items():
-        fn_name = ""
-        if isinstance(k, ast.Name):
-            fn_name = k.id
-        elif isinstance(k, ast.Attribute):
-            fn = ast_unparse(k)
-            if isinstance(fn, six.string_types):
-                _, _, fn_name = fn.rpartition(".")
-        if fn_name == "setup":
-            setup = v
-    cleaned_setup = ast_unparse(setup, analyzer=ast_analyzer)
-    return cleaned_setup
+    function_names = ast_analyzer.parse_functions()
+    if "setup" in function_names:
+        setup = ast_unparse(function_names["setup"], analyzer=ast_analyzer)
+    return setup
 
 
 def run_setup(script_path, egg_base=None):
@@ -1557,7 +1590,7 @@ build-backend = "{1}"
             from .dependencies import get_finder
 
             session, finder = get_finder()
-        _, uri = split_vcs_method_from_uri(unquote(ireq.link.url_without_fragment))
+        vcs, uri = split_vcs_method_from_uri(unquote(ireq.link.url_without_fragment))
         parsed = urlparse(uri)
         if "file" in parsed.scheme:
             url_path = parsed.path
@@ -1571,14 +1604,10 @@ build-backend = "{1}"
                 uri = uri.replace("file:/", "file:///")
             path = pip_shims.shims.url_to_path(uri)
         kwargs = _prepare_wheel_building_kwargs(ireq)
-        ireq.source_dir = kwargs["src_dir"]
-        try:
-            is_vcs = ireq.link.is_vcs
-        except AttributeError:
-            try:
-                is_vcs = not ireq.link.is_artifact
-            except AttributeError:
-                is_vcs = False
+        is_artifact_or_vcs = getattr(
+            ireq.link, "is_vcs", getattr(ireq.link, "is_artifact", False)
+        )
+        is_vcs = True if vcs else is_artifact_or_vcs
         if not (ireq.editable and pip_shims.shims.is_file_url(ireq.link) and is_vcs):
             if ireq.is_wheel:
                 only_download = True
@@ -1599,7 +1628,6 @@ build-backend = "{1}"
         ireq.ensure_has_source_dir(kwargs["src_dir"])
         src_dir = ireq.source_dir
         with pip_shims.shims.global_tempdir_manager():
-            ireq.populate_link(finder, False, False)
             pip_shims.shims.shim_unpack(
                 link=ireq.link,
                 location=kwargs["src_dir"],
@@ -1609,7 +1637,9 @@ build-backend = "{1}"
                 hashes=ireq.hashes(False),
                 progress_bar="off",
             )
-        created = cls.create(src_dir, subdirectory=subdir, ireq=ireq, kwargs=kwargs)
+        created = cls.create(
+            kwargs["src_dir"], subdirectory=subdir, ireq=ireq, kwargs=kwargs
+        )
         return created
 
     @classmethod

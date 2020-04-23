@@ -90,7 +90,8 @@ class Environment(object):
         deps.add(dist)
         try:
             reqs = dist.requires()
-        except (AttributeError, OSError, IOError):  # The METADATA file can't be found
+        # KeyError = limited metadata can be found
+        except (KeyError, AttributeError, OSError, IOError):  # The METADATA file can't be found
             return deps
         for req in reqs:
             dist = working_set.find(req)
