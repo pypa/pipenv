@@ -250,3 +250,9 @@ class TestEntryPoints(unittest.TestCase):
         """
         with self.assertRaises(Exception):
             json.dumps(self.ep)
+
+    def test_module(self):
+        assert self.ep.module == 'value'
+
+    def test_attr(self):
+        assert self.ep.attr is None
