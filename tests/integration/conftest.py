@@ -129,6 +129,10 @@ def pytest_runtest_setup(item):
         sys.version_info >= (3, 7)
     ):
         pytest.skip('test only runs on python < 3.7')
+    if item.get_closest_marker('skip_py36') is not None and (
+        sys.version_info[:2] == (3, 6)
+    ):
+        pytest.skip('test is skipped on python 3.6')
 
 
 @pytest.fixture

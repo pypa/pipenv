@@ -125,8 +125,10 @@ def do_clear():
         from pip import locations
 
     try:
-        vistir.path.rmtree(PIPENV_CACHE_DIR)
-        vistir.path.rmtree(locations.USER_CACHE_DIR)
+        vistir.path.rmtree(PIPENV_CACHE_DIR, onerror=vistir.path.handle_remove_readonly)
+        vistir.path.rmtree(
+            locations.USER_CACHE_DIR, onerror=vistir.path.handle_remove_readonly
+        )
     except OSError as e:
         # Ignore FileNotFoundError. This is needed for Python 2.7.
         import errno
@@ -756,6 +758,9 @@ def batch_install(deps_list, procs, failed_deps_queue,
                     del os.environ["PYTHONHOME"]
             if "GIT_CONFIG" in os.environ and dep.is_vcs:
                 del os.environ["GIT_CONFIG"]
+            use_pep517 = True
+            if failed and not dep.is_vcs:
+                use_pep517 = False
 
             c = pip_install(
                 dep,
@@ -768,7 +773,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 pypi_mirror=pypi_mirror,
                 trusted_hosts=trusted_hosts,
                 extra_indexes=extra_indexes,
-                use_pep517=not failed,
+                use_pep517=use_pep517,
             )
             c.dep = dep
             # if dep.is_vcs or dep.editable:
@@ -2583,7 +2588,7 @@ def do_check(
     click.echo(crayons.normal(decode_for_output("Checking PEP 508 requirements…"), bold=True))
     pep508checker_path = pep508checker.__file__.rstrip("cdo")
     safety_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "patched", "safety.zip"
+        os.path.dirname(os.path.abspath(__file__)), "patched", "safety"
     )
     if not system:
         python = which("python")
@@ -2644,9 +2649,10 @@ def do_check(
             err=True,
         )
     else:
-        ignored = ""
-    key = "--key={0}".format(PIPENV_PYUP_API_KEY)
-    cmd = _cmd + [safety_path, "check", "--json", key]
+        ignored = []
+    cmd = _cmd + [safety_path, "check", "--json"]
+    if PIPENV_PYUP_API_KEY:
+        cmd = cmd + ["--key={0}".format(PIPENV_PYUP_API_KEY)]
     if ignored:
         for cve in ignored:
             cmd += cve

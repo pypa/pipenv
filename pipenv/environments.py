@@ -256,7 +256,7 @@ approach, you may set this to '0', 'off', or 'false'.
 """
 
 PIPENV_PYUP_API_KEY = os.environ.get(
-    "PIPENV_PYUP_API_KEY", "1ab8d58f-5122e025-83674263-bc1e79e0"
+    "PIPENV_PYUP_API_KEY", None
 )
 
 # Internal, support running in a different Python from sys.executable.
