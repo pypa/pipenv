@@ -125,8 +125,10 @@ def do_clear():
         from pip import locations
 
     try:
-        vistir.path.rmtree(PIPENV_CACHE_DIR)
-        vistir.path.rmtree(locations.USER_CACHE_DIR)
+        vistir.path.rmtree(PIPENV_CACHE_DIR, onerror=vistir.path.handle_remove_readonly)
+        vistir.path.rmtree(
+            locations.USER_CACHE_DIR, onerror=vistir.path.handle_remove_readonly
+        )
     except OSError as e:
         # Ignore FileNotFoundError. This is needed for Python 2.7.
         import errno
