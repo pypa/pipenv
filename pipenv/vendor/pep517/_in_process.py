@@ -2,7 +2,9 @@
 
 It expects:
 - Command line args: hook_name, control_dir
-- Environment variable: PEP517_BUILD_BACKEND=entry.point:spec
+- Environment variables:
+      PEP517_BUILD_BACKEND=entry.point:spec
+      PEP517_BACKEND_PATH=paths (separated with os.pathsep)
 - control_dir/input.json:
   - {"kwargs": {...}}
 
@@ -12,28 +14,86 @@ Results:
 """
 from glob import glob
 from importlib import import_module
+import json
 import os
+import os.path
 from os.path import join as pjoin
 import re
 import shutil
 import sys
+import traceback
 
-# This is run as a script, not a module, so it can't do a relative import
-import compat
+# This file is run as a script, and `import compat` is not zip-safe, so we
+# include write_json() and read_json() from compat.py.
+#
+# Handle reading and writing JSON in UTF-8, on Python 3 and 2.
+
+if sys.version_info[0] >= 3:
+    # Python 3
+    def write_json(obj, path, **kwargs):
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(obj, f, **kwargs)
+
+    def read_json(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+else:
+    # Python 2
+    def write_json(obj, path, **kwargs):
+        with open(path, 'wb') as f:
+            json.dump(obj, f, encoding='utf-8', **kwargs)
+
+    def read_json(path):
+        with open(path, 'rb') as f:
+            return json.load(f)
 
 
 class BackendUnavailable(Exception):
     """Raised if we cannot import the backend"""
+    def __init__(self, traceback):
+        self.traceback = traceback
+
+
+class BackendInvalid(Exception):
+    """Raised if the backend is invalid"""
+    def __init__(self, message):
+        self.message = message
+
+
+class HookMissing(Exception):
+    """Raised if a hook is missing and we are not executing the fallback"""
+
+
+def contained_in(filename, directory):
+    """Test if a file is located within the given directory."""
+    filename = os.path.normcase(os.path.abspath(filename))
+    directory = os.path.normcase(os.path.abspath(directory))
+    return os.path.commonprefix([filename, directory]) == directory
 
 
 def _build_backend():
     """Find and load the build backend"""
+    # Add in-tree backend directories to the front of sys.path.
+    backend_path = os.environ.get('PEP517_BACKEND_PATH')
+    if backend_path:
+        extra_pathitems = backend_path.split(os.pathsep)
+        sys.path[:0] = extra_pathitems
+
     ep = os.environ['PEP517_BUILD_BACKEND']
     mod_path, _, obj_path = ep.partition(':')
     try:
         obj = import_module(mod_path)
     except ImportError:
-        raise BackendUnavailable
+        raise BackendUnavailable(traceback.format_exc())
+
+    if backend_path:
+        if not any(
+            contained_in(obj.__file__, path)
+            for path in extra_pathitems
+        ):
+            raise BackendInvalid("Backend was not loaded from backend-path")
+
     if obj_path:
         for path_part in obj_path.split('.'):
             obj = getattr(obj, path_part)
@@ -54,15 +114,19 @@ def get_requires_for_build_wheel(config_settings):
         return hook(config_settings)
 
 
-def prepare_metadata_for_build_wheel(metadata_directory, config_settings):
+def prepare_metadata_for_build_wheel(
+        metadata_directory, config_settings, _allow_fallback):
     """Invoke optional prepare_metadata_for_build_wheel
 
-    Implements a fallback by building a wheel if the hook isn't defined.
+    Implements a fallback by building a wheel if the hook isn't defined,
+    unless _allow_fallback is False in which case HookMissing is raised.
     """
     backend = _build_backend()
     try:
         hook = backend.prepare_metadata_for_build_wheel
     except AttributeError:
+        if not _allow_fallback:
+            raise HookMissing()
         return _get_wheel_metadata_from_wheel(backend, metadata_directory,
                                               config_settings)
     else:
@@ -161,6 +225,8 @@ class _DummyException(Exception):
 
 class GotUnsupportedOperation(Exception):
     """For internal use when backend raises UnsupportedOperation"""
+    def __init__(self, traceback):
+        self.traceback = traceback
 
 
 def build_sdist(sdist_directory, config_settings):
@@ -169,7 +235,7 @@ def build_sdist(sdist_directory, config_settings):
     try:
         return backend.build_sdist(sdist_directory, config_settings)
     except getattr(backend, 'UnsupportedOperation', _DummyException):
-        raise GotUnsupportedOperation
+        raise GotUnsupportedOperation(traceback.format_exc())
 
 
 HOOK_NAMES = {
@@ -190,17 +256,24 @@ def main():
         sys.exit("Unknown hook: %s" % hook_name)
     hook = globals()[hook_name]
 
-    hook_input = compat.read_json(pjoin(control_dir, 'input.json'))
+    hook_input = read_json(pjoin(control_dir, 'input.json'))
 
     json_out = {'unsupported': False, 'return_val': None}
     try:
         json_out['return_val'] = hook(**hook_input['kwargs'])
-    except BackendUnavailable:
+    except BackendUnavailable as e:
         json_out['no_backend'] = True
-    except GotUnsupportedOperation:
+        json_out['traceback'] = e.traceback
+    except BackendInvalid as e:
+        json_out['backend_invalid'] = True
+        json_out['backend_error'] = e.message
+    except GotUnsupportedOperation as e:
         json_out['unsupported'] = True
+        json_out['traceback'] = e.traceback
+    except HookMissing:
+        json_out['hook_missing'] = True
 
-    compat.write_json(json_out, pjoin(control_dir, 'output.json'), indent=2)
+    write_json(json_out, pjoin(control_dir, 'output.json'), indent=2)
 
 
 if __name__ == '__main__':

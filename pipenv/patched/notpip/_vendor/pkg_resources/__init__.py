@@ -39,6 +39,8 @@ import tempfile
 import textwrap
 import itertools
 import inspect
+import ntpath
+import posixpath
 from pkgutil import get_importer
 
 try:
@@ -1401,14 +1403,30 @@ class NullProvider:
     def has_resource(self, resource_name):
         return self._has(self._fn(self.module_path, resource_name))
 
+    def _get_metadata_path(self, name):
+        return self._fn(self.egg_info, name)
+
     def has_metadata(self, name):
-        return self.egg_info and self._has(self._fn(self.egg_info, name))
+        if not self.egg_info:
+            return self.egg_info
+
+        path = self._get_metadata_path(name)
+        return self._has(path)
 
     def get_metadata(self, name):
         if not self.egg_info:
             return ""
-        value = self._get(self._fn(self.egg_info, name))
-        return value.decode('utf-8') if six.PY3 else value
+        path = self._get_metadata_path(name)
+        value = self._get(path)
+        if six.PY2:
+            return value
+        try:
+            return value.decode('utf-8')
+        except UnicodeDecodeError as exc:
+            # Include the path in the error message to simplify
+            # troubleshooting, and without changing the exception type.
+            exc.reason += ' in {} file at path: {}'.format(name, path)
+            raise
 
     def get_metadata_lines(self, name):
         return yield_lines(self.get_metadata(name))
@@ -1466,9 +1484,85 @@ class NullProvider:
         )
 
     def _fn(self, base, resource_name):
+        self._validate_resource_path(resource_name)
         if resource_name:
             return os.path.join(base, *resource_name.split('/'))
         return base
+
+    @staticmethod
+    def _validate_resource_path(path):
+        """
+        Validate the resource paths according to the docs.
+        https://setuptools.readthedocs.io/en/latest/pkg_resources.html#basic-resource-access
+
+        >>> warned = getfixture('recwarn')
+        >>> warnings.simplefilter('always')
+        >>> vrp = NullProvider._validate_resource_path
+        >>> vrp('foo/bar.txt')
+        >>> bool(warned)
+        False
+        >>> vrp('../foo/bar.txt')
+        >>> bool(warned)
+        True
+        >>> warned.clear()
+        >>> vrp('/foo/bar.txt')
+        >>> bool(warned)
+        True
+        >>> vrp('foo/../../bar.txt')
+        >>> bool(warned)
+        True
+        >>> warned.clear()
+        >>> vrp('foo/f../bar.txt')
+        >>> bool(warned)
+        False
+
+        Windows path separators are straight-up disallowed.
+        >>> vrp(r'\\foo/bar.txt')
+        Traceback (most recent call last):
+        ...
+        ValueError: Use of .. or absolute path in a resource path \
+is not allowed.
+
+        >>> vrp(r'C:\\foo/bar.txt')
+        Traceback (most recent call last):
+        ...
+        ValueError: Use of .. or absolute path in a resource path \
+is not allowed.
+
+        Blank values are allowed
+
+        >>> vrp('')
+        >>> bool(warned)
+        False
+
+        Non-string values are not.
+
+        >>> vrp(None)
+        Traceback (most recent call last):
+        ...
+        AttributeError: ...
+        """
+        invalid = (
+            os.path.pardir in path.split(posixpath.sep) or
+            posixpath.isabs(path) or
+            ntpath.isabs(path)
+        )
+        if not invalid:
+            return
+
+        msg = "Use of .. or absolute path in a resource path is not allowed."
+
+        # Aggressively disallow Windows absolute paths
+        if ntpath.isabs(path) and not posixpath.isabs(path):
+            raise ValueError(msg)
+
+        # for compatibility, warn; in future
+        # raise ValueError(msg)
+        warnings.warn(
+            msg[:-1] + " and will raise exceptions in a future release.",
+            DeprecationWarning,
+            stacklevel=4,
+        )
 
     def _get(self, path):
         if hasattr(self.loader, 'get_data'):
@@ -1790,6 +1884,9 @@ class FileMetadata(EmptyProvider):
     def __init__(self, path):
         self.path = path
 
+    def _get_metadata_path(self, name):
+        return self.path
+
     def has_metadata(self, name):
         return name == 'PKG-INFO' and os.path.isfile(self.path)
 
@@ -1888,7 +1985,7 @@ def find_eggs_in_zip(importer, path_item, only=False):
     if only:
         # don't yield nested distros
         return
-    for subitem in metadata.resource_listdir('/'):
+    for subitem in metadata.resource_listdir(''):
         if _is_egg_path(subitem):
             subpath = os.path.join(path_item, subitem)
             dists = find_eggs_in_zip(zipimport.zipimporter(subpath), subpath)
@@ -2583,10 +2680,14 @@ class Distribution:
         try:
             return self._version
         except AttributeError:
-            version = _version_from_file(self._get_metadata(self.PKG_INFO))
+            version = self._get_version()
             if version is None:
-                tmpl = "Missing 'Version:' header and/or %s file"
-                raise ValueError(tmpl % self.PKG_INFO, self)
+                path = self._get_metadata_path_for_display(self.PKG_INFO)
+                msg = (
+                    "Missing 'Version:' header and/or {} file at path: {}"
+                ).format(self.PKG_INFO, path)
+                raise ValueError(msg, self)
+
             return version
 
     @property
@@ -2644,10 +2745,33 @@ class Distribution:
                 )
         return deps
 
+    def _get_metadata_path_for_display(self, name):
+        """
+        Return the path to the given metadata file, if available.
+        """
+        try:
+            # We need to access _get_metadata_path() on the provider object
+            # directly rather than through this class's __getattr__()
+            # since _get_metadata_path() is marked private.
+            path = self._provider._get_metadata_path(name)
+
+        # Handle exceptions e.g. in case the distribution's metadata
+        # provider doesn't support _get_metadata_path().
+        except Exception:
+            return '[could not detect]'
+
+        return path
+
     def _get_metadata(self, name):
         if self.has_metadata(name):
             for line in self.get_metadata_lines(name):
                 yield line
+
+    def _get_version(self):
+        lines = self._get_metadata(self.PKG_INFO)
+        version = _version_from_file(lines)
+
+        return version
 
     def activate(self, path=None, replace=False):
         """Ensure distribution is importable on `path` (default=sys.path)"""
@@ -2867,7 +2991,7 @@ class EggInfoDistribution(Distribution):
         take an extra step and try to get the version number from
         the metadata file itself instead of the filename.
         """
-        md_version = _version_from_file(self._get_metadata(self.PKG_INFO))
+        md_version = self._get_version()
         if md_version:
             self._version = md_version
         return self

@@ -191,6 +191,7 @@ class spawn(SpawnBase):
         self.STDIN_FILENO = pty.STDIN_FILENO
         self.STDOUT_FILENO = pty.STDOUT_FILENO
         self.STDERR_FILENO = pty.STDERR_FILENO
+        self.str_last_chars = 100
         self.cwd = cwd
         self.env = env
         self.echo = echo
@@ -212,8 +213,8 @@ class spawn(SpawnBase):
         s.append(repr(self))
         s.append('command: ' + str(self.command))
         s.append('args: %r' % (self.args,))
-        s.append('buffer (last 100 chars): %r' % self.buffer[-100:])
-        s.append('before (last 100 chars): %r' % self.before[-100:] if self.before else '')
+        s.append('buffer (last %s chars): %r' % (self.str_last_chars,self.buffer[-self.str_last_chars:]))
+        s.append('before (last %s chars): %r' % (self.str_last_chars,self.before[-self.str_last_chars:] if self.before else ''))
         s.append('after: %r' % (self.after,))
         s.append('match: %r' % (self.match,))
         s.append('match_index: ' + str(self.match_index))
@@ -752,10 +753,14 @@ class spawn(SpawnBase):
         child process in interact mode is duplicated to the given log.
 
         You may pass in optional input and output filter functions. These
-        functions should take a string and return a string. The output_filter
-        will be passed all the output from the child process. The input_filter
-        will be passed all the keyboard input from the user. The input_filter
-        is run BEFORE the check for the escape_character.
+        functions should take bytes array and return bytes array too. Even
+        with ``encoding='utf-8'`` support, meth:`interact` will always pass
+        input_filter and output_filter bytes. You may need to wrap your
+        function to decode and encode back to UTF-8.
+
+        The output_filter will be passed all the output from the child process.
+        The input_filter will be passed all the keyboard input from the user.
+        The input_filter is run BEFORE the check for the escape_character.
 
         Note that if you change the window size of the parent the SIGWINCH
         signal will not be passed through to the child. If you want the child

@@ -1,0 +1,1 @@
+Fixed an issue with ``pipenv check`` failing due to an invalid API key from ``pyup.io``.

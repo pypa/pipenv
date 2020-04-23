@@ -1,3 +1,6 @@
+# The following comment should be removed at some point in the future.
+# mypy: disallow-untyped-defs=False
+
 from __future__ import absolute_import
 
 import sys
@@ -16,7 +19,7 @@ COMPLETION_SCRIPTS = {
         {
             COMPREPLY=( $( COMP_WORDS="${COMP_WORDS[*]}" \\
                            COMP_CWORD=$COMP_CWORD \\
-                           PIP_AUTO_COMPLETE=1 $1 ) )
+                           PIP_AUTO_COMPLETE=1 $1 2>/dev/null ) )
         }
         complete -o default -F _pip_completion %(prog)s
     """,
@@ -27,7 +30,7 @@ COMPLETION_SCRIPTS = {
           read -cn cword
           reply=( $( COMP_WORDS="$words[*]" \\
                      COMP_CWORD=$(( cword-1 )) \\
-                     PIP_AUTO_COMPLETE=1 $words[1] ) )
+                     PIP_AUTO_COMPLETE=1 $words[1] 2>/dev/null ))
         }
         compctl -K _pip_completion %(prog)s
     """,
@@ -47,8 +50,7 @@ COMPLETION_SCRIPTS = {
 
 class CompletionCommand(Command):
     """A helper command to be used for command completion."""
-    name = 'completion'
-    summary = 'A helper command used for command completion.'
+
     ignore_require_venv = True
 
     def __init__(self, *args, **kw):

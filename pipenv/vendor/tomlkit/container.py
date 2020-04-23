@@ -16,6 +16,9 @@ from .items import Whitespace
 from .items import item as _item
 
 
+_NOT_SET = object()
+
+
 class Container(dict):
     """
     A container for items within a TOMLDocument.
@@ -245,6 +248,9 @@ class Container(dict):
         item = _item(item)
 
         idx = self._map[key]
+        # Insert after the max index if there are many.
+        if isinstance(idx, tuple):
+            idx = max(idx)
         current_item = self._body[idx][1]
         if "\n" not in current_item.trivia.trail:
             current_item.trivia.trail += "\n"
@@ -487,6 +493,36 @@ class Container(dict):
         for k, v in other.items():
             self[k] = v
 
+    def get(self, key, default=None):  # type: (Any, Optional[Any]) -> Any
+        if not isinstance(key, Key):
+            key = Key(key)
+
+        if key not in self:
+            return default
+
+        return self[key]
+
+    def pop(self, key, default=_NOT_SET):
+        try:
+            value = self[key]
+        except KeyError:
+            if default is _NOT_SET:
+                raise
+
+            return default
+
+        del self[key]
+
+        return value
+
+    def setdefault(
+        self, key, default=None
+    ):  # type: (Union[Key, str], Any) -> Union[Item, Container]
+        if key not in self:
+            self[key] = default
+
+        return self[key]
+
     def __contains__(self, key):  # type: (Union[Key, str]) -> bool
         if not isinstance(key, Key):
             key = Key(key)
@@ -502,22 +538,16 @@ class Container(dict):
             raise NonExistentKey(key)
 
         if isinstance(idx, tuple):
-            container = Container(True)
-
-            for i in idx:
-                item = self._body[i][1]
-
-                if isinstance(item, Table):
-                    for k, v in item.value.body:
-                        container.append(k, v)
-                else:
-                    container.append(key, item)
-
-            return container
+            # The item we are getting is an out of order table
+            # so we need a proxy to retrieve the proper objects
+            # from the parent container
+            return OutOfOrderTableProxy(self, idx)
 
         item = self._body[idx][1]
+        if item.is_boolean():
+            return item.value
 
-        return item.value
+        return item
 
     def __setitem__(self, key, value):  # type: (Union[Key, str], Any) -> None
         if key is not None and key in self:
@@ -546,6 +576,9 @@ class Container(dict):
     def _replace_at(
         self, idx, new_key, value
     ):  # type: (Union[int, Tuple[int]], Union[Key, str], Item) -> None
+        if not isinstance(new_key, Key):
+            new_key = Key(new_key)
+
         if isinstance(idx, tuple):
             for i in idx[1:]:
                 self._body[i] = (None, Null())
@@ -555,6 +588,8 @@ class Container(dict):
         k, v = self._body[idx]
 
         self._map[new_key] = self._map.pop(k)
+        if new_key != k:
+            super(Container, self).__delitem__(k)
 
         if isinstance(self._map[new_key], tuple):
             self._map[new_key] = self._map[new_key][0]
@@ -615,3 +650,99 @@ class Container(dict):
         c._map.update(self._map)
 
         return c
+
+
+class OutOfOrderTableProxy(dict):
+    def __init__(self, container, indices):  # type: (Container, Tuple) -> None
+        self._container = container
+        self._internal_container = Container(self._container.parsing)
+        self._tables = []
+        self._tables_map = {}
+        self._map = {}
+
+        for i in indices:
+            key, item = self._container._body[i]
+
+            if isinstance(item, Table):
+                self._tables.append(item)
+                table_idx = len(self._tables) - 1
+                for k, v in item.value.body:
+                    self._internal_container.append(k, v)
+                    self._tables_map[k] = table_idx
+            else:
+                self._internal_container.append(key, item)
+                self._map[key] = i
+
+    def __getitem__(self, key):  # type: (Union[Key, str]) -> Any
+        if key not in self._internal_container:
+            raise NonExistentKey(key)
+
+        return self._internal_container[key]
+
+    def __setitem__(self, key, item):  # type: (Union[Key, str], Any) -> None
+        if key in self._map:
+            idx = self._map[key]
+            self._container._replace_at(idx, key, item)
+        elif key in self._tables_map:
+            table = self._tables[self._tables_map[key]]
+            table[key] = item
+        elif self._tables:
+            table = self._tables[0]
+            table[key] = item
+        else:
+            self._container[key] = item
+
+    def __delitem__(self, key):  # type: (Union[Key, str]) -> None
+        if key in self._map:
+            idx = self._map[key]
+            del self._container[key]
+            del self._map[key]
+        elif key in self._tables_map:
+            table = self._tables[self._tables_map[key]]
+            del table[key]
+            del self._tables_map[key]
+        else:
+            raise NonExistentKey(key)
+
+        del self._internal_container[key]
+
+    def keys(self):
+        return self._internal_container.keys()
+
+    def values(self):
+        return self._internal_container.values()
+
+    def items(self):  # type: () -> Generator[Item]
+        return self._internal_container.items()
+
+    def update(self, other):  # type: (Dict) -> None
+        self._internal_container.update(other)
+
+    def get(self, key, default=None):  # type: (Any, Optional[Any]) -> Any
+        return self._internal_container.get(key, default=default)
+
+    def pop(self, key, default=_NOT_SET):
+        return self._internal_container.pop(key, default=default)
+
+    def setdefault(
+        self, key, default=None
+    ):  # type: (Union[Key, str], Any) -> Union[Item, Container]
+        return self._internal_container.setdefault(key, default=default)
+
+    def __contains__(self, key):
+        return key in self._internal_container
+
+    def __str__(self):
+        return str(self._internal_container)
+
+    def __repr__(self):
+        return repr(self._internal_container)
+
+    def __eq__(self, other):  # type: (Dict) -> bool
+        if not isinstance(other, dict):
+            return NotImplemented
+
+        return self._internal_container == other
+
+    def __getattr__(self, attribute):
+        return getattr(self._internal_container, attribute)

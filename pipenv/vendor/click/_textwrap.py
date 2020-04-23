@@ -3,7 +3,6 @@ from contextlib import contextmanager
 
 
 class TextWrapper(textwrap.TextWrapper):
-
     def _handle_long_word(self, reversed_chunks, cur_line, cur_len, width):
         space_left = max(width - cur_len, 1)
 
@@ -35,4 +34,4 @@ class TextWrapper(textwrap.TextWrapper):
             if idx > 0:
                 indent = self.subsequent_indent
             rv.append(indent + line)
-        return '\n'.join(rv)
+        return "\n".join(rv)
