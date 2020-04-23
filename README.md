@@ -43,6 +43,10 @@ If you\'re on MacOS, you can install Pipenv easily with Homebrew:
 
     $ brew install pipenv
 
+Or, if you\'re using Ubuntu(you need to use Python 3.6+):
+
+    $ pip install pipenv
+
 Or, if you\'re using Debian Buster+:
 
     $ sudo apt install pipenv
