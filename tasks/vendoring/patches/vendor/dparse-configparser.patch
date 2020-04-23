@@ -1,0 +1,13 @@
+diff --git a/pipenv/vendor/dparse/parser.py b/pipenv/vendor/dparse/parser.py
+index c01ebab4..9b2a0728 100644
+--- a/pipenv/vendor/dparse/parser.py
++++ b/pipenv/vendor/dparse/parser.py
+@@ -6,7 +6,7 @@ import yaml
+ 
+ from io import StringIO
+ 
+-from configparser import SafeConfigParser, NoOptionError
++from six.moves.configparser import SafeConfigParser, NoOptionError
+ 
+ 
+ from .regex import URL_REGEX, HASH_REGEX

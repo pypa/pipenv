@@ -45,7 +45,10 @@ class SSLError(HTTPError):
 
 class ProxyError(HTTPError):
     "Raised when the connection to a proxy fails."
-    pass
+
+    def __init__(self, message, error, *args):
+        super(ProxyError, self).__init__(message, error, *args)
+        self.original_error = error
 
 
 class DecodeError(HTTPError):
@@ -190,6 +193,20 @@ class DependencyWarning(HTTPWarning):
     """
     Warned when an attempt is made to import a module with missing optional
     dependencies.
+    """
+
+    pass
+
+
+class InvalidProxyConfigurationWarning(HTTPWarning):
+    """
+    Warned when using an HTTPS proxy and an HTTPS URL. Currently
+    urllib3 doesn't support HTTPS proxies and the proxy will be
+    contacted via HTTP instead. This warning can be fixed by
+    changing your HTTPS proxy URL into an HTTP proxy URL.
+
+    If you encounter this warning read this:
+    https://github.com/urllib3/urllib3/issues/1850
     """
 
     pass
