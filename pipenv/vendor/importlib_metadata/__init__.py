@@ -28,6 +28,7 @@ from ._compat import (
     MetaPathFinder,
     email_message_from_string,
     PyPy_repr,
+    unique_ordered,
     )
 from importlib import import_module
 from itertools import starmap
@@ -94,6 +95,16 @@ class EntryPoint(
         module = import_module(match.group('module'))
         attrs = filter(None, (match.group('attr') or '').split('.'))
         return functools.reduce(getattr, attrs, module)
+
+    @property
+    def module(self):
+        match = self.pattern.match(self.value)
+        return match.group('module')
+
+    @property
+    def attr(self):
+        match = self.pattern.match(self.value)
+        return match.group('attr')
 
     @property
     def extras(self):
@@ -425,8 +436,8 @@ class FastPath:
         names = zip_path.root.namelist()
         self.joinpath = zip_path.joinpath
 
-        return (
-            posixpath.split(child)[0]
+        return unique_ordered(
+            child.split(posixpath.sep, 1)[0]
             for child in names
             )
 

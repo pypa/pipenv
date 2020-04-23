@@ -18,7 +18,7 @@ PERCENT_RE = re.compile(r"%[a-fA-F0-9]{2}")
 SCHEME_RE = re.compile(r"^(?:[a-zA-Z][a-zA-Z0-9+-]*:|/)")
 URI_RE = re.compile(
     r"^(?:([a-zA-Z][a-zA-Z0-9+.-]*):)?"
-    r"(?://([^/?#]*))?"
+    r"(?://([^\\/?#]*))?"
     r"([^?#]*)"
     r"(?:\?([^#]*))?"
     r"(?:#(.*))?$",

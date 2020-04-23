@@ -819,6 +819,11 @@ class SecureTransportContext(object):
         if capath is not None:
             raise ValueError("SecureTransport does not support cert directories")
 
+        # Raise if cafile does not exist.
+        if cafile is not None:
+            with open(cafile):
+                pass
+
         self._trust_bundle = cafile or cadata
 
     def load_cert_chain(self, certfile, keyfile=None, password=None):

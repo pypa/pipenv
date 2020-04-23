@@ -165,6 +165,10 @@ class Pipfile(object):
         return self.projectfile.model
 
     @property
+    def root(self):
+        return self.path.parent
+
+    @property
     def extended_keys(self):
         return [
             k

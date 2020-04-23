@@ -440,3 +440,26 @@ def call_function_with_correct_args(fn, **provided_kwargs):
             continue
         kwargs[arg] = provided_kwargs[arg]
     return fn(*args, **kwargs)
+
+
+def filter_allowed_args(fn, **provided_kwargs):
+    # type: (Callable, Dict[str, Any]) -> Tuple[List[Any], Dict[str, Any]]
+    """
+    Given a function and a kwarg mapping, return only those kwargs used in the function.
+
+    :param Callable fn: A function to inspect
+    :param Dict[str, Any] kwargs: A mapping of kwargs to filter
+    :return: A new, filtered kwarg mapping
+    :rtype: Tuple[List[Any], Dict[str, Any]]
+    """
+    args = []
+    kwargs = {}
+    func_args, func_kwargs = get_allowed_args(fn)
+    for arg in func_args:
+        if arg in provided_kwargs:
+            args.append(provided_kwargs[arg])
+    for arg in func_kwargs:
+        if arg not in provided_kwargs:
+            continue
+        kwargs[arg] = provided_kwargs[arg]
+    return args, kwargs

@@ -1,10 +1,11 @@
 class DirectedGraph(object):
     """A graph structure with directed edges.
     """
+
     def __init__(self):
         self._vertices = set()
-        self._forwards = {}     # <key> -> Set[<key>]
-        self._backwards = {}    # <key> -> Set[<key>]
+        self._forwards = {}  # <key> -> Set[<key>]
+        self._backwards = {}  # <key> -> Set[<key>]
 
     def __iter__(self):
         return iter(self._vertices)
@@ -28,7 +29,7 @@ class DirectedGraph(object):
         """Add a new vertex to the graph.
         """
         if key in self._vertices:
-            raise ValueError('vertex exists')
+            raise ValueError("vertex exists")
         self._vertices.add(key)
         self._forwards[key] = set()
         self._backwards[key] = set()
