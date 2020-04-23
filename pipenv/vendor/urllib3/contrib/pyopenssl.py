@@ -450,9 +450,12 @@ class PyOpenSSLContext(object):
             cafile = cafile.encode("utf-8")
         if capath is not None:
             capath = capath.encode("utf-8")
-        self._ctx.load_verify_locations(cafile, capath)
-        if cadata is not None:
-            self._ctx.load_verify_locations(BytesIO(cadata))
+        try:
+            self._ctx.load_verify_locations(cafile, capath)
+            if cadata is not None:
+                self._ctx.load_verify_locations(BytesIO(cadata))
+        except OpenSSL.SSL.Error as e:
+            raise ssl.SSLError("unable to load trusted certificates: %r" % e)
 
     def load_cert_chain(self, certfile, keyfile=None, password=None):
         self._ctx.use_certificate_chain_file(certfile)

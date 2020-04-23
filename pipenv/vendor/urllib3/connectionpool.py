@@ -65,6 +65,11 @@ class ConnectionPool(object):
     """
     Base class for all connection pools, such as
     :class:`.HTTPConnectionPool` and :class:`.HTTPSConnectionPool`.
+
+    .. note::
+       ConnectionPool.urlopen() does not normalize or percent-encode target URIs
+       which is useful if your target server doesn't support percent-encoded
+       target URIs.
     """
 
     scheme = None
@@ -760,21 +765,6 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                 **response_kw
             )
 
-        def drain_and_release_conn(response):
-            try:
-                # discard any remaining response body, the connection will be
-                # released back to the pool once the entire response is read
-                response.read()
-            except (
-                TimeoutError,
-                HTTPException,
-                SocketError,
-                ProtocolError,
-                BaseSSLError,
-                SSLError,
-            ):
-                pass
-
         # Handle redirect?
         redirect_location = redirect and response.get_redirect_location()
         if redirect_location:
@@ -785,15 +775,11 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                 retries = retries.increment(method, url, response=response, _pool=self)
             except MaxRetryError:
                 if retries.raise_on_redirect:
-                    # Drain and release the connection for this response, since
-                    # we're not returning it to be released manually.
-                    drain_and_release_conn(response)
+                    response.drain_conn()
                     raise
                 return response
 
-            # drain and return the connection to the pool before recursing
-            drain_and_release_conn(response)
-
+            response.drain_conn()
             retries.sleep_for_retry(response)
             log.debug("Redirecting %s -> %s", url, redirect_location)
             return self.urlopen(
@@ -819,15 +805,11 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                 retries = retries.increment(method, url, response=response, _pool=self)
             except MaxRetryError:
                 if retries.raise_on_status:
-                    # Drain and release the connection for this response, since
-                    # we're not returning it to be released manually.
-                    drain_and_release_conn(response)
+                    response.drain_conn()
                     raise
                 return response
 
-            # drain and return the connection to the pool before recursing
-            drain_and_release_conn(response)
-
+            response.drain_conn()
             retries.sleep(response)
             log.debug("Retry: %s", url)
             return self.urlopen(
