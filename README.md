@@ -55,6 +55,10 @@ Or, if you\'re using FreeBSD:
 
     # pkg install py36-pipenv
 
+When none of the above is an option:
+
+    $ pip install pipenv
+
 Otherwise, refer to the [documentation](https://pipenv.pypa.io/en/latest/#install-pipenv-today) for instructions.
 
 ✨🍰✨
