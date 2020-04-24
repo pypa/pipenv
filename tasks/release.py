@@ -126,7 +126,7 @@ def drop_dist_dirs(ctx):
 @invoke.task
 def build_dists(ctx):
     drop_dist_dirs(ctx)
-    for py_version in ["3.6", "2.7"]:
+    for py_version in ["3.6", "3.7", "3.8", "2.7"]:
         env = {"PIPENV_PYTHON": py_version}
         with ctx.cd(ROOT.as_posix()), temp_environ():
             executable = ctx.run(
@@ -139,10 +139,15 @@ def build_dists(ctx):
                 "pipenv run pip install -e . --upgrade --upgrade-strategy=eager", env=env
             )
             log("Building wheel using python %s ...." % py_version)
-            if py_version == "3.6":
-                ctx.run("pipenv run python setup.py sdist bdist_wheel", env=env)
+            tag_arg = "--python-tag py{}".format(py_version.replace(".", ""))
+            if py_version == "3.8":
+                ctx.run(f"pipenv run python setup.py sdist bdist_wheel {tag_arg}", env=env)
             else:
-                ctx.run("pipenv run python setup.py bdist_wheel", env=env)
+                ctx.run(f"pipenv run python setup.py bdist_wheel {tag_arg}", env=env)
+            if py_version in ("3.6", "2.7"):
+                # generate py2 / py3 generic untagged wheels
+                ctx.run(f"pipenv run python setup.py sdist bdist_wheel", env=env)
+
 
 
 @invoke.task(build_dists)
