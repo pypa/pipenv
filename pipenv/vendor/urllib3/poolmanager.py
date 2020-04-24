@@ -2,11 +2,17 @@ from __future__ import absolute_import
 import collections
 import functools
 import logging
+import warnings
 
 from ._collections import RecentlyUsedContainer
 from .connectionpool import HTTPConnectionPool, HTTPSConnectionPool
 from .connectionpool import port_by_scheme
-from .exceptions import LocationValueError, MaxRetryError, ProxySchemeUnknown
+from .exceptions import (
+    LocationValueError,
+    MaxRetryError,
+    ProxySchemeUnknown,
+    InvalidProxyConfigurationWarning,
+)
 from .packages import six
 from .packages.six.moves.urllib.parse import urljoin
 from .request import RequestMethods
@@ -359,6 +365,7 @@ class PoolManager(RequestMethods):
             retries = retries.increment(method, url, response=response, _pool=conn)
         except MaxRetryError:
             if retries.raise_on_redirect:
+                response.drain_conn()
                 raise
             return response
 
@@ -366,6 +373,8 @@ class PoolManager(RequestMethods):
         kw["redirect"] = redirect
 
         log.info("Redirecting %s -> %s", url, redirect_location)
+
+        response.drain_conn()
         return self.urlopen(method, redirect_location, **kw)
 
 
@@ -452,9 +461,22 @@ class ProxyManager(PoolManager):
             headers_.update(headers)
         return headers_
 
+    def _validate_proxy_scheme_url_selection(self, url_scheme):
+        if url_scheme == "https" and self.proxy.scheme == "https":
+            warnings.warn(
+                "Your proxy configuration specified an HTTPS scheme for the proxy. "
+                "Are you sure you want to use HTTPS to contact the proxy? "
+                "This most likely indicates an error in your configuration. "
+                "Read this issue for more info: "
+                "https://github.com/urllib3/urllib3/issues/1850",
+                InvalidProxyConfigurationWarning,
+                stacklevel=3,
+            )
+
     def urlopen(self, method, url, redirect=True, **kw):
         "Same as HTTP(S)ConnectionPool.urlopen, ``url`` must be absolute."
         u = parse_url(url)
+        self._validate_proxy_scheme_url_selection(u.scheme)
 
         if u.scheme == "http":
             # For proxied HTTPS requests, httplib sets the necessary headers

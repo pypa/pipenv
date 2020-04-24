@@ -1,0 +1,11 @@
+Add and update vendored dependencies to accommodate ``safety`` vendoring:
+- **safety** ``(none)`` => ``1.8.7``
+- **dparse** ``(none)`` => ``0.5.0``
+- **pyyaml** ``(none)`` => ``5.3.1``
+- **urllib3** ``1.25.8`` => ``1.25.9``
+- **certifi** ``2019.11.28`` => ``2020.4.5.1``
+- **pyparsing** ``2.4.6`` => ``2.4.7``
+- **resolvelib** ``0.2.2`` => ``0.3.0``
+- **importlib-metadata** ``1.5.1`` => ``1.6.0``
+- **pip-shims** ``0.5.1`` => ``0.5.2``
+- **requirementslib** ``1.5.5`` => ``1.5.6``
