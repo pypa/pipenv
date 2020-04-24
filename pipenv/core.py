@@ -830,9 +830,7 @@ def do_install_dependencies(
     no_deps = not skip_lock  # skip_lock true, no_deps False, pip resolves deps
     deps_list = list(lockfile.get_requirements(dev=dev, only=requirements))
     if requirements:
-        index_args = prepare_pip_source_args(project.sources)
-        if pypi_mirror:
-            index_args.extend(["-i", pypi_mirror])
+        index_args = prepare_pip_source_args(get_source_list(pypi_mirror=pypi_mirror, project=project))
         index_args = " ".join(index_args).replace(" -", "\n-")
         deps = [
             req.as_line(sources=False, include_hashes=False) for req in deps_list
