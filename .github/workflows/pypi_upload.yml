@@ -1,0 +1,63 @@
+name: Create Release & Upload To PyPI
+
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - v?[0-9]+.[0-9]+.[0-9]+  # add .* to allow dev releases
+
+jobs:
+  build:
+    name: pipenv PyPI Upload
+    runs-on: ubuntu-latest
+    env:
+      CI: "1"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v1
+
+    - uses: webfactory/ssh-agent@v0.1.1
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+    - name: Set up Python 3.7
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.7
+
+    - name: Install latest tools for build
+      run: |
+        python -m pip install --upgrade --upgrade-strategy=eager pip setuptools wheel invoke
+        python -m pip install .
+        python -m pipenv install --dev
+    - name: Build wheels
+      run: |
+        python -m pipenv runpython setup.py sdist bdist_wheel
+    # to upload to test pypi, pass repository_url: https://test.pypi.org/legacy/ and use secrets.TEST_PYPI_TOKEN
+    - name: Publish a Python distribution to PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.TEST_PYPI_TOKEN }}
+        repository_url: https://test.pypi.org/legacy/
+        packages_dir: dist/
+    # git push https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:master
+    # we need to use a deploy key for this to get around branch protection as the default token fails
+    - name: Pre-bump
+      run: |
+        git config --local user.name 'Github Action'
+        git config --local user.email action@github.com
+        python -m pipenv run inv release.bump-version --dev --commit
+        git push git@github.com:${{ github.repository }}.git HEAD:master
