@@ -126,27 +126,20 @@ def drop_dist_dirs(ctx):
 @invoke.task
 def build_dists(ctx):
     drop_dist_dirs(ctx)
-    for py_version in ["3.6", "3.7", "3.8", "2.7"]:
-        env = {"PIPENV_PYTHON": py_version}
-        with ctx.cd(ROOT.as_posix()), temp_environ():
-            executable = ctx.run(
-                "python -c 'import sys; print(sys.executable)'", hide=True
-            ).stdout.strip()
-            log("Building sdist using %s ...." % executable)
-            os.environ["PIPENV_PYTHON"] = py_version
-            ctx.run("pipenv install --dev", env=env)
-            ctx.run(
-                "pipenv run pip install -e . --upgrade --upgrade-strategy=eager", env=env
-            )
-            log("Building wheel using python %s ...." % py_version)
-            tag_arg = "--python-tag py{}".format(py_version.replace(".", ""))
-            if py_version == "3.8":
-                ctx.run(f"pipenv run python setup.py sdist bdist_wheel {tag_arg}", env=env)
-            else:
-                ctx.run(f"pipenv run python setup.py bdist_wheel {tag_arg}", env=env)
-            if py_version in ("3.6", "2.7"):
-                # generate py2 / py3 generic untagged wheels
-                ctx.run(f"pipenv run python setup.py sdist bdist_wheel", env=env)
+    py_version = ".".join(str(v) for v in sys.version_info[:2])
+    env = {"PIPENV_PYTHON": py_version}
+    with ctx.cd(ROOT.as_posix()), temp_environ():
+        executable = ctx.run(
+            "python -c 'import sys; print(sys.executable)'", hide=True
+        ).stdout.strip()
+        log("Building sdist using %s ...." % executable)
+        os.environ["PIPENV_PYTHON"] = py_version
+        ctx.run("pipenv install --dev", env=env)
+        ctx.run(
+            "pipenv run pip install -e . --upgrade --upgrade-strategy=eager", env=env
+        )
+        log("Building wheel using python %s ...." % py_version)
+        ctx.run(f"pipenv run python setup.py sdist bdist_wheel", env=env)
 
 
 @invoke.task(build_dists)
