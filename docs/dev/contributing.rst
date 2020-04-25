@@ -102,7 +102,7 @@ When contributing code, you'll want to follow this checklist:
 
 The following sub-sections go into more detail on some of the points above.
 
-.. _development philosophy: https://docs.pipenv.org/dev/philosophy/
+.. _development philosophy: https://pipenv.pypa.io/en/latest/dev/philosophy/
 
 
 .. _dev-setup:
