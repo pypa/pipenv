@@ -1,5 +1,5 @@
 """
-Commonly useful filters for :func:`attr.asdict`.
+Commonly useful filters for `attr.asdict`.
 """
 
 from __future__ import absolute_import, division, print_function
@@ -23,9 +23,9 @@ def include(*what):
     Whitelist *what*.
 
     :param what: What to whitelist.
-    :type what: :class:`list` of :class:`type` or :class:`attr.Attribute`\\ s
+    :type what: `list` of `type` or `attr.Attribute`\\ s
 
-    :rtype: :class:`callable`
+    :rtype: `callable`
     """
     cls, attrs = _split_what(what)
 
@@ -40,9 +40,9 @@ def exclude(*what):
     Blacklist *what*.
 
     :param what: What to blacklist.
-    :type what: :class:`list` of classes or :class:`attr.Attribute`\\ s.
+    :type what: `list` of classes or `attr.Attribute`\\ s.
 
-    :rtype: :class:`callable`
+    :rtype: `callable`
     """
     cls, attrs = _split_what(what)
 

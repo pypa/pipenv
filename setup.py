@@ -42,7 +42,7 @@ extras = {
         "parver",
         "invoke",
     ],
-    "tests": ["pytest<5.0", "pytest-tap", "pytest-xdist", "flaky", "mock"],
+    "tests": ["pytest<5.0", "pytest-timeout", "pytest-xdist", "flaky", "mock"],
 }
 
 
@@ -118,8 +118,8 @@ setup(
     description="Python Development Workflow for Humans.",
     long_description=long_description,
     long_description_content_type='text/markdown',
-    author="Kenneth Reitz",
-    author_email="me@kennethreitz.org",
+    author="Pipenv maintainer team",
+    author_email="distutils-sig@python.org",
     url="https://github.com/pypa/pipenv",
     packages=find_packages(exclude=["tests", "tests.*", "tasks", "tasks.*"]),
     entry_points={
@@ -144,6 +144,7 @@ setup(
         ],
     },
     python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*",
+    zip_safe=True,
     setup_requires=[],
     install_requires=required,
     extras_require=extras,

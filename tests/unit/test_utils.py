@@ -51,11 +51,11 @@ DEP_PIP_PAIRS = [
         # Extras in url
         {
             "discord.py": {
-                "file": "https://github.com/Rapptz/discord.py/archive/rewrite.zip",
+                "file": "https://github.com/Rapptz/discord.py/archive/async.zip",
                 "extras": ["voice"],
             }
         },
-        "https://github.com/Rapptz/discord.py/archive/rewrite.zip#egg=discord.py[voice]",
+        "https://github.com/Rapptz/discord.py/archive/async.zip#egg=discord.py[voice]",
     ),
     (
         {
@@ -217,14 +217,14 @@ class TestUtils:
 
     @pytest.mark.utils
     def test_is_valid_url(self):
-        url = "https://github.com/kennethreitz/requests.git"
+        url = "https://github.com/psf/requests.git"
         not_url = "something_else"
         assert pipenv.utils.is_valid_url(url)
         assert pipenv.utils.is_valid_url(not_url) is False
 
     @pytest.mark.utils
     def test_download_file(self):
-        url = "https://github.com/kennethreitz/pipenv/blob/master/README.md"
+        url = "https://github.com/pypa/pipenv/blob/master/README.md"
         output = "test_download.md"
         pipenv.utils.download_file(url, output)
         assert os.path.exists(output)
@@ -425,6 +425,7 @@ twine = "*"
             == expected_args
         )
 
+    @pytest.mark.utils
     def test_invalid_prepare_pip_source_args(self):
         sources = [{}]
         with pytest.raises(PipenvUsageError):

@@ -20,7 +20,7 @@ This document covers some of Pipenv's more glorious and advanced features.
 If you'd like a specific package to be installed with a specific package index, you can do the following::
 
     [[source]]
-    url = "https://pypi.python.org/simple"
+    url = "https://pypi.org/simple"
     verify_ssl = true
     name = "pypi"
 
@@ -344,6 +344,21 @@ If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv
     >>> os.environ['HELLO']
     'WORLD'
 
+Shell like variable expansion is available in ``.env`` files using `${VARNAME}` syntax.::
+
+    $ cat .env
+    CONFIG_PATH=${HOME}/.config/foo
+
+    $ pipenv run python
+    Loading .env environment variables…
+    Python 3.7.6 (default, Dec 19 2019, 22:52:49)
+    [GCC 9.2.1 20190827 (Red Hat 9.2.1-1)] on linux
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> import os
+    >>> os.environ['CONFIG_PATH']
+    '/home/kennethreitz/.config/foo'
+
+
 This is very useful for keeping production credentials out of your codebase.
 We do not recommend committing ``.env`` files into source control!
 
@@ -354,6 +369,8 @@ If your ``.env`` file is located in a different path or has a different name you
 To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV`` environment variable::
 
     $ PIPENV_DONT_LOAD_ENV=1 pipenv shell
+
+See `theskumar/python-dotenv <https://github.com/theskumar/python-dotenv>`_ for more information on ``.env`` files.
 
 ☤ Custom Script Shortcuts
 -------------------------
@@ -525,7 +542,7 @@ probably a good idea in any case.
 
 A 3rd party plugin, `tox-pipenv`_ is also available to use Pipenv natively with tox.
 
-.. _Requests: https://github.com/kennethreitz/requests
+.. _Requests: https://github.com/psf/requests
 .. _tox: https://tox.readthedocs.io/en/latest/
 .. _tox-pipenv: https://tox-pipenv.readthedocs.io/en/latest/
 .. _Travis-CI: https://travis-ci.org/

@@ -1,202 +1,219 @@
 diff --git a/pipenv/patched/piptools/_compat/__init__.py b/pipenv/patched/piptools/_compat/__init__.py
-index e4ac717..19adcbc 100644
+index eccbf36..fd8ecdd 100644
 --- a/pipenv/patched/piptools/_compat/__init__.py
 +++ b/pipenv/patched/piptools/_compat/__init__.py
-@@ -31,4 +31,6 @@ from .pip_compat import (
-     install_req_from_editable,
-     stdlib_pkgs,
-     DEV_PKGS,
+@@ -11,6 +11,7 @@ from .pip_compat import (
+     FormatControl,
+     InstallationCandidate,
+     InstallCommand,
++    InstallationError,
+     InstallRequirement,
+     Link,
+     PackageFinder,
+@@ -18,6 +19,8 @@ from .pip_compat import (
+     RequirementSet,
+     RequirementTracker,
+     Resolver,
 +    SafeFileCache,
-+    InstallationError
- )
++    VcsSupport,
+     Wheel,
+     WheelCache,
+     cmdoptions,
+@@ -29,6 +32,7 @@ from .pip_compat import (
+     is_vcs_url,
+     parse_requirements,
+     path_to_url,
++    pip_version,
+     stdlib_pkgs,
+     url_to_path,
+     user_cache_dir,
 diff --git a/pipenv/patched/piptools/_compat/pip_compat.py b/pipenv/patched/piptools/_compat/pip_compat.py
-index 82ccb8b..715144a 100644
+index 67da307..765bd49 100644
 --- a/pipenv/patched/piptools/_compat/pip_compat.py
 +++ b/pipenv/patched/piptools/_compat/pip_compat.py
-@@ -1,48 +1,51 @@
+@@ -1,26 +1,24 @@
  # -*- coding=utf-8 -*-
--import importlib
-+__all__ = [
-+    "InstallRequirement",
-+    "parse_requirements",
-+    "RequirementSet",
-+    "FAVORITE_HASH",
-+    "is_file_url",
-+    "path_to_url",
-+    "url_to_path",
-+    "PackageFinder",
-+    "FormatControl",
-+    "Wheel",
-+    "Command",
-+    "cmdoptions",
-+    "get_installed_distributions",
-+    "PyPI",
-+    "stdlib_pkgs",
-+    "DEV_PKGS",
-+    "install_req_from_line",
-+    "install_req_from_editable",
-+    "user_cache_dir",
-+    "SafeFileCache",
-+    "InstallationError"
-+]
- 
+ from __future__ import absolute_import
+-
+ import importlib
+-from contextlib import contextmanager
+-
 -import pip
--import pkg_resources
+-from pip._vendor.packaging.version import parse as parse_version
+-
+-PIP_VERSION = tuple(map(int, parse_version(pip.__version__).base_version.split(".")))
 +import os
++from appdirs import user_cache_dir
 +os.environ["PIP_SHIMS_BASE_MODULE"] = str("pipenv.patched.notpip")
++import pip_shims.shims
++from pip_shims.models import ShimmedPathCollection, ImportTypes
  
--def do_import(module_path, subimport=None, old_path=None):
--    old_path = old_path or module_path
+-try:
+-    from pip._internal.req.req_tracker import RequirementTracker
+-except ImportError:
++InstallationCandidate = ShimmedPathCollection("InstallationCandidate", ImportTypes.CLASS)
++InstallationCandidate.create_path("models.candidate", "18.0", "9999")
++InstallationCandidate.create_path("index", "7.0.3", "10.9.9")
+ 
+-    @contextmanager
+-    def RequirementTracker():
+-        yield
++PIP_VERSION = tuple(map(int, pip_shims.shims.parsed_pip_version.parsed_version.base_version.split(".")))
+ 
++RequirementTracker = pip_shims.shims.RequirementTracker
+ 
+ def do_import(module_path, subimport=None, old_path=None):
+     old_path = old_path or module_path
 -    prefixes = ["pip._internal", "pip"]
--    paths = [module_path, old_path]
--    search_order = ["{0}.{1}".format(p, pth) for p in prefixes for pth in paths if pth is not None]
--    package = subimport if subimport else None
--    for to_import in search_order:
--        if not subimport:
--            to_import, _, package = to_import.rpartition(".")
--        try:
--            imported = importlib.import_module(to_import)
--        except ImportError:
--            continue
--        else:
--            return getattr(imported, package)
--
--
--InstallRequirement = do_import('req.req_install', 'InstallRequirement')
--parse_requirements = do_import('req.req_file', 'parse_requirements')
--RequirementSet = do_import('req.req_set', 'RequirementSet')
--user_cache_dir = do_import('utils.appdirs', 'user_cache_dir')
--FAVORITE_HASH = do_import('utils.hashes', 'FAVORITE_HASH')
--is_file_url = do_import('download', 'is_file_url')
--path_to_url = do_import('download', 'path_to_url')
--url_to_path = do_import('download', 'url_to_path')
--PackageFinder = do_import('index', 'PackageFinder')
--FormatControl = do_import('index', 'FormatControl')
--Wheel = do_import('wheel', 'Wheel')
--Command = do_import('cli.base_command', 'Command', old_path='basecommand')
--cmdoptions = do_import('cli.cmdoptions', old_path='cmdoptions')
--get_installed_distributions = do_import('utils.misc', 'get_installed_distributions', old_path='utils')
--PyPI = do_import('models.index', 'PyPI')
--stdlib_pkgs = do_import('utils.compat', 'stdlib_pkgs', old_path='compat')
--DEV_PKGS = do_import('commands.freeze', 'DEV_PKGS')
--
--# pip 18.1 has refactored InstallRequirement constructors use by pip-tools.
--if pkg_resources.parse_version(pip.__version__) < pkg_resources.parse_version('18.1'):
--    install_req_from_line = InstallRequirement.from_line
--    install_req_from_editable = InstallRequirement.from_editable
--else:
--    install_req_from_line = do_import('req.constructors', 'install_req_from_line')
--    install_req_from_editable = do_import('req.constructors', 'install_req_from_editable')
-+from pip_shims.shims import (
-+    InstallRequirement,
-+    parse_requirements,
-+    RequirementSet,
-+    FAVORITE_HASH,
-+    is_file_url,
-+    path_to_url,
-+    url_to_path,
-+    PackageFinder,
-+    FormatControl,
-+    Wheel,
-+    Command,
-+    cmdoptions,
-+    get_installed_distributions,
-+    PyPI,
-+    stdlib_pkgs,
-+    DEV_PKGS,
-+    install_req_from_line,
-+    install_req_from_editable,
-+    USER_CACHE_DIR as user_cache_dir,
-+    SafeFileCache,
-+    InstallationError
-+)
++    pip_path = os.environ.get("PIP_SHIMS_BASE_MODULE", "pip")
++    prefixes = ["{}._internal".format(pip_path), pip_path]
+     paths = [module_path, old_path]
+     search_order = [
+         "{0}.{1}".format(p, pth) for p in prefixes for pth in paths if pth is not None
+@@ -37,31 +35,29 @@ def do_import(module_path, subimport=None, old_path=None):
+             return getattr(imported, package)
+ 
+ 
+-InstallRequirement = do_import("req.req_install", "InstallRequirement")
+-InstallationCandidate = do_import(
+-    "models.candidate", "InstallationCandidate", old_path="index"
+-)
+-parse_requirements = do_import("req.req_file", "parse_requirements")
+-RequirementSet = do_import("req.req_set", "RequirementSet")
+-user_cache_dir = do_import("utils.appdirs", "user_cache_dir")
+-FAVORITE_HASH = do_import("utils.hashes", "FAVORITE_HASH")
+-path_to_url = do_import("utils.urls", "path_to_url", old_path="download")
+-url_to_path = do_import("utils.urls", "url_to_path", old_path="download")
+-PackageFinder = do_import("index.package_finder", "PackageFinder", old_path="index")
+-FormatControl = do_import("models.format_control", "FormatControl", old_path="index")
+-InstallCommand = do_import("commands.install", "InstallCommand")
+-Wheel = do_import("wheel", "Wheel")
+-cmdoptions = do_import("cli.cmdoptions", old_path="cmdoptions")
+-get_installed_distributions = do_import(
+-    "utils.misc", "get_installed_distributions", old_path="utils"
+-)
+-PyPI = do_import("models.index", "PyPI")
+-stdlib_pkgs = do_import("utils.compat", "stdlib_pkgs", old_path="compat")
+-DEV_PKGS = do_import("commands.freeze", "DEV_PKGS")
+-Link = do_import("models.link", "Link", old_path="index")
++InstallRequirement = pip_shims.shims.InstallRequirement
++InstallationError = pip_shims.shims.InstallationError
++parse_requirements = pip_shims.shims.parse_requirements
++RequirementSet = pip_shims.shims.RequirementSet
++SafeFileCache = pip_shims.shims.SafeFileCache
++FAVORITE_HASH = pip_shims.shims.FAVORITE_HASH
++path_to_url = pip_shims.shims.path_to_url
++url_to_path = pip_shims.shims.url_to_path
++PackageFinder = pip_shims.shims.PackageFinder
++FormatControl = pip_shims.shims.FormatControl
++InstallCommand = pip_shims.shims.InstallCommand
++Wheel = pip_shims.shims.Wheel
++cmdoptions = pip_shims.shims.cmdoptions
++get_installed_distributions = pip_shims.shims.get_installed_distributions
++PyPI = pip_shims.shims.PyPI
++stdlib_pkgs = pip_shims.shims.stdlib_pkgs
++DEV_PKGS = pip_shims.shims.DEV_PKGS
++Link = pip_shims.shims.Link
+ Session = do_import("_vendor.requests.sessions", "Session")
+-Resolver = do_import("legacy_resolve", "Resolver", old_path="resolve")
+-WheelCache = do_import("cache", "WheelCache", old_path="wheel")
++Resolver = pip_shims.shims.Resolver
++VcsSupport = pip_shims.shims.VcsSupport
++WheelCache = pip_shims.shims.WheelCache
++pip_version = pip_shims.shims.pip_version
+ 
+ # pip 18.1 has refactored InstallRequirement constructors use by pip-tools.
+ if PIP_VERSION < (18, 1):
 diff --git a/pipenv/patched/piptools/locations.py b/pipenv/patched/piptools/locations.py
-index 4e6174c..9e0c6f1 100644
+index fb66cf3..bb199f6 100644
 --- a/pipenv/patched/piptools/locations.py
 +++ b/pipenv/patched/piptools/locations.py
-@@ -5,7 +5,11 @@ from .click import secho
- from ._compat import user_cache_dir
+@@ -5,7 +5,10 @@ from ._compat import user_cache_dir
+ from .click import secho
  
  # The user_cache_dir helper comes straight from pip itself
--CACHE_DIR = user_cache_dir('pip-tools')
+-CACHE_DIR = user_cache_dir("pip-tools")
 +try:
-+    from pipenv.environments import PIPENV_CACHE_DIR
-+    CACHE_DIR = PIPENV_CACHE_DIR
++    from pipenv.environments import PIPENV_CACHE_DIR as CACHE_DIR
 +except ImportError:
-+    CACHE_DIR = user_cache_dir('pipenv')
++    CACHE_DIR = user_cache_dir("pipenv")
  
  # NOTE
  # We used to store the cache dir under ~/.pip-tools, which is not the
 diff --git a/pipenv/patched/piptools/repositories/local.py b/pipenv/patched/piptools/repositories/local.py
-index 08dabe1..36bafdb 100644
+index f389784..c1bcf9d 100644
 --- a/pipenv/patched/piptools/repositories/local.py
 +++ b/pipenv/patched/piptools/repositories/local.py
-@@ -56,7 +56,8 @@ class LocalRequirementsRepository(BaseRepository):
+@@ -61,7 +61,8 @@ class LocalRequirementsRepository(BaseRepository):
          if existing_pin and ireq_satisfied_by_existing_pin(ireq, existing_pin):
              project, version, _ = as_tuple(existing_pin)
              return make_install_requirement(
 -                project, version, ireq.extras, constraint=ireq.constraint
-+                project, version, ireq.extras, constraint=ireq.constraint,
-+                markers=ireq.markers
++                project, version, ireq.extras, ireq.markers,
++                constraint=ireq.constraint
              )
          else:
              return self.repository.find_best_match(ireq, prereleases)
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index e54ae08..75b8208 100644
+index acbd680..13378ae 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
-@@ -2,14 +2,22 @@
- from __future__ import (absolute_import, division, print_function,
-                         unicode_literals)
+@@ -2,21 +2,29 @@
+ from __future__ import absolute_import, division, print_function, unicode_literals
  
+ import collections
 +import copy
  import hashlib
  import os
  from contextlib import contextmanager
+ from functools import partial
  from shutil import rmtree
  
--import pip
- import pkg_resources
- 
 +from packaging.requirements import Requirement
-+from packaging.specifiers import SpecifierSet, Specifier
-+
-+os.environ["PIP_SHIMS_BASE_MODULE"] = str("pipenv.patched.notpip")
-+import pip_shims
-+from pip_shims.shims import VcsSupport, WheelCache, InstallationError, pip_version
-+
++from packaging.specifiers import Specifier, SpecifierSet
 +
  from .._compat import (
-     is_file_url,
-     url_to_path,
-@@ -18,13 +26,15 @@ from .._compat import (
-     Wheel,
      FAVORITE_HASH,
-     TemporaryDirectory,
--    PyPI
-+    PyPI,
+     PIP_VERSION,
++    InstallationError,
 +    InstallRequirement,
-+    SafeFileCache
+     Link,
+     PyPI,
+     RequirementSet,
+     RequirementTracker,
+     Resolver as PipResolver,
++    SafeFileCache,
+     TemporaryDirectory,
++    VcsSupport,
+     Wheel,
+     WheelCache,
+     contextlib,
+@@ -24,6 +32,7 @@ from .._compat import (
+     is_file_url,
+     is_vcs_url,
+     path_to_url,
++    pip_version,
+     url_to_path,
  )
- 
  from ..cache import CACHE_DIR
+@@ -31,6 +40,8 @@ from ..click import progressbar
  from ..exceptions import NoCandidateFound
--from ..utils import (fs_str, is_pinned_requirement, lookup_table,
--                     make_install_requirement)
-+from ..utils import (fs_str, is_pinned_requirement, lookup_table, dedup,
-+                     make_install_requirement, clean_requires_python)
+ from ..logging import log
+ from ..utils import (
++    dedup,
++    clean_requires_python,
+     create_install_command,
+     fs_str,
+     is_pinned_requirement,
+@@ -40,10 +51,50 @@ from ..utils import (
+ )
  from .base import BaseRepository
  
- try:
-@@ -34,10 +44,44 @@ except ImportError:
-     def RequirementTracker():
-         yield
++os.environ["PIP_SHIMS_BASE_MODULE"] = str("pip")
+ FILE_CHUNK_SIZE = 4096
+ FileStream = collections.namedtuple("FileStream", "stream size")
  
--try:
--    from pip._internal.cache import WheelCache
--except ImportError:
--    from pip.wheel import WheelCache
-+
+ 
 +class HashCache(SafeFileCache):
 +    """Caches hashes of PyPI artifacts so we do not need to re-download them
 +
@@ -230,36 +247,38 @@ index e54ae08..75b8208 100644
 +
 +    def _get_file_hash(self, location):
 +        h = hashlib.new(FAVORITE_HASH)
-+        with open_local_or_remote_file(location, self.session) as fp:
++        with open_local_or_remote_file(location, self.session) as (fp, size):
 +            for chunk in iter(lambda: fp.read(8096), b""):
 +                h.update(chunk)
 +        return ":".join([FAVORITE_HASH, h.hexdigest()])
- 
- 
++
++
  class PyPIRepository(BaseRepository):
-@@ -49,10 +93,11 @@ class PyPIRepository(BaseRepository):
-     config), but any other PyPI mirror can be used if index_urls is
+     DEFAULT_INDEX_URL = PyPI.simple_url
+ 
+@@ -54,8 +105,9 @@ class PyPIRepository(BaseRepository):
      changed/configured on the Finder.
      """
--    def __init__(self, pip_options, session, build_isolation=False):
-+    def __init__(self, pip_options, session, build_isolation=False, use_json=False):
-         self.session = session
-         self.pip_options = pip_options
+ 
+-    def __init__(self, pip_args, build_isolation=False):
++    def __init__(self, pip_args, session=None, build_isolation=False, use_json=False):
          self.build_isolation = build_isolation
 +        self.use_json = use_json
  
-         index_urls = [pip_options.index_url] + pip_options.extra_index_urls
-         if pip_options.no_index:
-@@ -67,7 +112,7 @@ class PyPIRepository(BaseRepository):
-         }
+         # Use pip's parser for pip.conf management and defaults.
+         # General options (find_links, index_url, extra_index_url, trusted_host,
+@@ -63,7 +115,9 @@ class PyPIRepository(BaseRepository):
+         command = create_install_command()
+         self.options, _ = command.parse_args(pip_args)
  
-         # pip 19.0 has removed process_dependency_links from the PackageFinder constructor
--        if pkg_resources.parse_version(pip.__version__) < pkg_resources.parse_version('19.0'):
-+        if pkg_resources.parse_version(pip_version) < pkg_resources.parse_version('19.0'):
-             finder_kwargs["process_dependency_links"] = pip_options.process_dependency_links
- 
-         self.finder = PackageFinder(**finder_kwargs)
-@@ -82,6 +127,10 @@ class PyPIRepository(BaseRepository):
+-        self.session = command._build_session(self.options)
++        if session is None:
++            session = command._build_session(self.options)
++        self.session = session
+         self.finder = command._build_package_finder(
+             options=self.options, session=self.session
+         )
+@@ -78,6 +132,10 @@ class PyPIRepository(BaseRepository):
          # of all secondary dependencies for the given requirement, so we
          # only have to go to disk once for each requirement
          self._dependencies_cache = {}
@@ -270,15 +289,18 @@ index e54ae08..75b8208 100644
  
          # Setup file paths
          self.freshen_build_caches()
-@@ -122,10 +171,13 @@ class PyPIRepository(BaseRepository):
-         if ireq.editable:
+@@ -118,13 +176,15 @@ class PyPIRepository(BaseRepository):
+         if ireq.editable or is_url_requirement(ireq):
              return ireq  # return itself as the best match
  
 -        all_candidates = self.find_all_candidates(ireq.name)
 +        all_candidates = clean_requires_python(self.find_all_candidates(ireq.name))
-         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version, unique=True)
--        matching_versions = ireq.specifier.filter((candidate.version for candidate in all_candidates),
--                                                  prereleases=prereleases)
+         candidates_by_version = lookup_table(
+             all_candidates, key=lambda c: c.version, unique=True
+         )
+-        matching_versions = ireq.specifier.filter(
+-            (candidate.version for candidate in all_candidates), prereleases=prereleases
+-        )
 +        try:
 +            matching_versions = ireq.specifier.filter((candidate.version for candidate in all_candidates),
 +                                                      prereleases=prereleases)
@@ -287,12 +309,12 @@ index e54ae08..75b8208 100644
  
          # Reuses pip's internal candidate sort key to sort
          matching_candidates = [candidates_by_version[ver] for ver in matching_versions]
-@@ -135,14 +187,75 @@ class PyPIRepository(BaseRepository):
- 
-         # Turn the candidate into a pinned InstallRequirement
-         return make_install_requirement(
--            best_candidate.project, best_candidate.version, ireq.extras, constraint=ireq.constraint
-+            best_candidate.project, best_candidate.version, ireq.extras, ireq.markers, constraint=ireq.constraint
+@@ -153,11 +213,74 @@ class PyPIRepository(BaseRepository):
+             best_candidate.project,
+             best_candidate.version,
+             ireq.extras,
++            ireq.markers,
+             constraint=ireq.constraint,
          )
  
 +    def get_dependencies(self, ireq):
@@ -359,126 +381,174 @@ index e54ae08..75b8208 100644
 +            ireq.populate_link(self.finder, False, False)
 +        if ireq.link and not ireq.link.is_wheel:
 +            ireq.ensure_has_source_dir(self.source_dir)
-         try:
-             from pip._internal.operations.prepare import RequirementPreparer
--            from pip._internal.resolve import Resolver as PipResolver
-         except ImportError:
-             # Pip 9 and below
+ 
+         if PIP_VERSION < (10,):
              reqset = RequirementSet(
-@@ -151,9 +264,11 @@ class PyPIRepository(BaseRepository):
+@@ -166,11 +289,13 @@ class PyPIRepository(BaseRepository):
                  download_dir=download_dir,
                  wheel_download_dir=self._wheel_download_dir,
                  session=self.session,
 +                ignore_installed=True,
 +                ignore_compatibility=False,
-                 wheel_cache=wheel_cache
+                 wheel_cache=wheel_cache,
              )
 -            results = reqset._prepare_file(self.finder, ireq)
 +            results = reqset._prepare_file(self.finder, ireq, ignore_requires_python=True)
          else:
-             # pip >= 10
+-            from pip._internal.operations.prepare import RequirementPreparer
++            from pip_shims.shims import RequirementPreparer
+ 
              preparer_kwargs = {
-@@ -170,11 +285,13 @@ class PyPIRepository(BaseRepository):
-                 'upgrade_strategy': "to-satisfy-only",
-                 'force_reinstall': False,
-                 'ignore_dependencies': False,
--                'ignore_requires_python': False,
-+                'ignore_requires_python': True,
-                 'ignore_installed': True,
--                'isolated': False,
-+                'ignore_compatibility': False,
-+                'isolated': True,
-                 'wheel_cache': wheel_cache,
--                'use_user_site': False
-+                'use_user_site': False,
-+                'use_pep517': True
+                 "build_dir": self.build_dir,
+@@ -186,21 +311,24 @@ class PyPIRepository(BaseRepository):
+                 "upgrade_strategy": "to-satisfy-only",
+                 "force_reinstall": False,
+                 "ignore_dependencies": False,
+-                "ignore_requires_python": False,
++                "ignore_requires_python": True,
+                 "ignore_installed": True,
+                 "use_user_site": False,
++                "ignore_compatibility": False,
++                "use_pep517": True,
              }
+             make_install_req_kwargs = {"isolated": False, "wheel_cache": wheel_cache}
+ 
+             if PIP_VERSION < (19, 3):
+                 resolver_kwargs.update(**make_install_req_kwargs)
+             else:
+-                from pip._internal.req.constructors import install_req_from_req_string
++                from pipenv.vendor.pip_shims.shims import install_req_from_req_string
+ 
+                 make_install_req = partial(
+                     install_req_from_req_string, **make_install_req_kwargs
+                 )
+                 resolver_kwargs["make_install_req"] = make_install_req
++                del resolver_kwargs["use_pep517"]
+ 
+             if PIP_VERSION >= (20,):
+                 preparer_kwargs["session"] = self.session
+@@ -208,6 +336,7 @@ class PyPIRepository(BaseRepository):
+ 
              resolver = None
              preparer = None
-@@ -186,15 +303,21 @@ class PyPIRepository(BaseRepository):
-                 resolver_kwargs['preparer'] = preparer
++            reqset = None
+             with RequirementTracker() as req_tracker:
+                 # Pip 18 uses a requirement tracker to prevent fork bombs
+                 if req_tracker:
+@@ -216,7 +345,6 @@ class PyPIRepository(BaseRepository):
+                 resolver_kwargs["preparer"] = preparer
                  reqset = RequirementSet()
                  ireq.is_direct = True
 -                reqset.add_requirement(ireq)
--                resolver = PipResolver(**resolver_kwargs)
-+                # reqset.add_requirement(ireq)
-+                resolver = pip_shims.shims.Resolver(**resolver_kwargs)
-                 resolver.require_hashes = False
-                 results = resolver._resolve_one(reqset, ireq)
+ 
+                 resolver = PipResolver(**resolver_kwargs)
+                 require_hashes = False
+@@ -225,12 +353,16 @@ class PyPIRepository(BaseRepository):
+                     results = resolver._resolve_one(reqset, ireq)
+                 else:
+                     results = resolver._resolve_one(reqset, ireq, require_hashes)
++        try:
++            reqset.cleanup_files()
++        except (AttributeError, OSError):
++            pass
+ 
 -                reqset.cleanup_files()
++        results = set(results) if results else set()
  
 -        return set(results)
-+        cleanup_fn = getattr(reqset, "cleanup_files", None)
-+        if cleanup_fn is not None:
-+            try:
-+                cleanup_fn()
-+            except OSError:
-+                pass
-+        results = set(results) if results else set()
 +        return results, ireq
  
 -    def get_dependencies(self, ireq):
 +    def get_legacy_dependencies(self, ireq):
          """
-         Given a pinned or an editable InstallRequirement, returns a set of
+         Given a pinned, URL, or editable InstallRequirement, returns a set of
          dependencies (also InstallRequirements, but not necessarily pinned).
-@@ -223,7 +346,8 @@ class PyPIRepository(BaseRepository):
-             wheel_cache = WheelCache(CACHE_DIR, self.pip_options.format_control)
-             prev_tracker = os.environ.get('PIP_REQ_TRACKER')
+@@ -265,9 +397,8 @@ class PyPIRepository(BaseRepository):
+             wheel_cache = WheelCache(CACHE_DIR, self.options.format_control)
+             prev_tracker = os.environ.get("PIP_REQ_TRACKER")
              try:
--                self._dependencies_cache[ireq] = self.resolve_reqs(download_dir, ireq, wheel_cache)
+-                self._dependencies_cache[ireq] = self.resolve_reqs(
+-                    download_dir, ireq, wheel_cache
+-                )
 +                results, ireq = self.resolve_reqs(download_dir, ireq, wheel_cache)
 +                self._dependencies_cache[ireq] = results
              finally:
-                 if 'PIP_REQ_TRACKER' in os.environ:
+                 if "PIP_REQ_TRACKER" in os.environ:
                      if prev_tracker:
-@@ -245,6 +369,10 @@ class PyPIRepository(BaseRepository):
-         if ireq.editable:
-             return set()
+@@ -305,7 +436,7 @@ class PyPIRepository(BaseRepository):
+                     cached_link = Link(path_to_url(cached_path))
+                 else:
+                     cached_link = link
+-                return {self._get_file_hash(cached_link)}
++                return {self._hash_cache._get_file_hash(cached_link)}
  
-+        vcs = VcsSupport()
-+        if ireq.link and ireq.link.scheme in vcs.all_schemes and 'ssh' in ireq.link.scheme:
-+            return set()
-+
          if not is_pinned_requirement(ireq):
-             raise TypeError(
-                 "Expected pinned requirement, got {}".format(ireq))
-@@ -252,24 +380,16 @@ class PyPIRepository(BaseRepository):
+             raise TypeError("Expected pinned requirement, got {}".format(ireq))
+@@ -313,12 +444,10 @@ class PyPIRepository(BaseRepository):
          # We need to get all of the candidates that match our current version
          # pin, these will represent all of the files that could possibly
          # satisfy this constraint.
 -        all_candidates = self.find_all_candidates(ireq.name)
 -        candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version)
 -        matching_versions = list(
--            ireq.specifier.filter((candidate.version for candidate in all_candidates)))
--        matching_candidates = candidates_by_version[matching_versions[0]]
+-            ireq.specifier.filter((candidate.version for candidate in all_candidates))
 +        matching_candidates = (
 +            c for c in clean_requires_python(self.find_all_candidates(ireq.name))
 +            if c.version in ireq.specifier
-+        )
+         )
+-        matching_candidates = candidates_by_version[matching_versions[0]]
+ 
+         log.debug("  {}".format(ireq.name))
+ 
+@@ -328,30 +457,11 @@ class PyPIRepository(BaseRepository):
+             return candidate.link
  
          return {
--            self._get_file_hash(candidate.location)
+-            self._get_file_hash(get_candidate_link(candidate))
 -            for candidate in matching_candidates
-+            h for h in map(lambda c: self._hash_cache.get_hash(c.location),
-+                           matching_candidates) if h is not None
++            h for h in
++            map(lambda c: self._hash_cache.get_hash(get_candidate_link(c)), matching_candidates)
++            if h is not None
          }
  
--    def _get_file_hash(self, location):
+-    def _get_file_hash(self, link):
+-        log.debug("    Hashing {}".format(link.url_without_fragment))
 -        h = hashlib.new(FAVORITE_HASH)
--        with open_local_or_remote_file(location, self.session) as fp:
--            for chunk in iter(lambda: fp.read(8096), b""):
--                h.update(chunk)
+-        with open_local_or_remote_file(link, self.session) as f:
+-            # Chunks to iterate
+-            chunks = iter(lambda: f.stream.read(FILE_CHUNK_SIZE), b"")
+-
+-            # Choose a context manager depending on verbosity
+-            if log.verbosity >= 1:
+-                iter_length = f.size / FILE_CHUNK_SIZE if f.size else None
+-                context_manager = progressbar(chunks, length=iter_length, label="  ")
+-            else:
+-                context_manager = contextlib.nullcontext(chunks)
+-
+-            # Iterate over the chosen context manager
+-            with context_manager as bar:
+-                for chunk in bar:
+-                    h.update(chunk)
 -        return ":".join([FAVORITE_HASH, h.hexdigest()])
 -
      @contextmanager
      def allow_all_wheels(self):
          """
 diff --git a/pipenv/patched/piptools/resolver.py b/pipenv/patched/piptools/resolver.py
-index 494d385..b642bc9 100644
+index fc53f18..7e856fe 100644
 --- a/pipenv/patched/piptools/resolver.py
 +++ b/pipenv/patched/piptools/resolver.py
-@@ -28,6 +28,7 @@ class RequirementSummary(object):
+@@ -6,6 +6,9 @@ import os
+ from functools import partial
+ from itertools import chain, count
+ 
++from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
++from packaging.markers import Marker
++
+ from . import click
+ from ._compat import install_req_from_line
+ from .cache import DependencyCache
+@@ -34,6 +37,7 @@ class RequirementSummary(object):
          self.req = ireq.req
          self.key = key_from_req(ireq.req)
          self.extras = str(sorted(ireq.extras))
@@ -486,29 +556,30 @@ index 494d385..b642bc9 100644
          self.specifier = str(ireq.specifier)
  
      def __eq__(self, other):
-@@ -119,7 +120,7 @@ class Resolver(object):
-     @staticmethod
-     def check_constraints(constraints):
-         for constraint in constraints:
--            if constraint.link is not None and not constraint.editable:
-+            if constraint.link is not None and not constraint.editable and not constraint.is_wheel:
-                 msg = ('pip-compile does not support URLs as packages, unless they are editable. '
-                        'Perhaps add -e option?')
-                 raise UnsupportedConstraint(msg, constraint)
-@@ -155,6 +156,12 @@ class Resolver(object):
-                 # NOTE we may be losing some info on dropped reqs here
-                 combined_ireq.req.specifier &= ireq.req.specifier
-                 combined_ireq.constraint &= ireq.constraint
-+                if not combined_ireq.markers:
-+                    combined_ireq.markers = ireq.markers
+@@ -63,6 +67,17 @@ def combine_install_requirements(ireqs):
+         # NOTE we may be losing some info on dropped reqs here
+         combined_ireq.req.specifier &= ireq.req.specifier
+         combined_ireq.constraint &= ireq.constraint
++        if ireq.markers and not combined_ireq.markers:
++            combined_ireq.markers = copy.deepcopy(ireq.markers)
++        elif ireq.markers and combined_ireq.markers:
++            _markers = []  # type: List[Marker]
++            for marker in [ireq.markers, combined_ireq.markers]:
++                if isinstance(marker, str):
++                    _markers.append(Marker(marker))
 +                else:
-+                    _markers = combined_ireq.markers._markers
-+                    if not isinstance(_markers[0], (tuple, list)):
-+                        combined_ireq.markers._markers = [_markers, 'and', ireq.markers._markers]
-                 # Return a sorted, de-duped tuple of extras
-                 combined_ireq.extras = tuple(sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras))))
-             yield combined_ireq
-@@ -272,6 +279,15 @@ class Resolver(object):
++                    _markers.append(marker)
++            marker_str = " and ".join([normalize_marker_str(m) for m in _markers if m])
++            combined_ireq.markers = Marker(marker_str)
+         # Return a sorted, de-duped tuple of extras
+         combined_ireq.extras = tuple(
+             sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras)))
+@@ -335,10 +350,19 @@ class Resolver(object):
+         Editable requirements will never be looked up, as they may have
+         changed at any time.
+         """
+-        if ireq.editable or is_url_requirement(ireq):
++        if ireq.editable or (is_url_requirement(ireq) and not ireq.link.is_wheel):
              for dependency in self.repository.get_dependencies(ireq):
                  yield dependency
              return
@@ -522,44 +593,54 @@ index 494d385..b642bc9 100644
 +                    ireq.extras = ireq.extra
 +
          elif not is_pinned_requirement(ireq):
-             raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
- 
-@@ -282,7 +298,7 @@ class Resolver(object):
-         if ireq not in self.dependency_cache:
-             log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
+             raise TypeError(
+                 "Expected pinned or editable requirement, got {}".format(ireq)
+@@ -356,7 +380,7 @@ class Resolver(object):
+                 fg="yellow",
+             )
              dependencies = self.repository.get_dependencies(ireq)
 -            self.dependency_cache[ireq] = sorted(str(ireq.req) for ireq in dependencies)
 +            self.dependency_cache[ireq] = sorted(set(format_requirement(ireq) for ireq in dependencies))
  
          # Example: ['Werkzeug>=0.9', 'Jinja2>=2.4']
          dependency_strings = self.dependency_cache[ireq]
+@@ -372,7 +396,8 @@ class Resolver(object):
+             )
+ 
+     def reverse_dependencies(self, ireqs):
++        is_non_wheel_url = lambda r: is_url_requirement(r) and not r.link.is_wheel
+         non_editable = [
+-            ireq for ireq in ireqs if not (ireq.editable or is_url_requirement(ireq))
++            ireq for ireq in ireqs if not (ireq.editable or is_non_wheel_url(ireq))
+         ]
+         return self.dependency_cache.reverse_dependencies(non_editable)
 diff --git a/pipenv/patched/piptools/utils.py b/pipenv/patched/piptools/utils.py
-index 9b4b4c2..8875543 100644
+index 8727f1e..c9f53f7 100644
 --- a/pipenv/patched/piptools/utils.py
 +++ b/pipenv/patched/piptools/utils.py
-@@ -2,10 +2,17 @@
- from __future__ import (absolute_import, division, print_function,
-                         unicode_literals)
+@@ -1,6 +1,7 @@
+ # coding: utf-8
+ from __future__ import absolute_import, division, print_function, unicode_literals
  
 +import os
  import sys
- from itertools import chain, groupby
  from collections import OrderedDict
- 
-+import six
-+
+ from itertools import chain, groupby
+@@ -8,6 +9,10 @@ from itertools import chain, groupby
+ import six
+ from click.utils import LazyFile
+ from six.moves import shlex_quote
 +from pipenv.vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
 +from pipenv.vendor.packaging.version import Version, InvalidVersion, parse as parse_version
 +from pipenv.vendor.packaging.markers import Marker, Op, Value, Variable
 +
- from ._compat import install_req_from_line
  
+ from ._compat import PIP_VERSION, InstallCommand, install_req_from_line
  from .click import style
-@@ -14,6 +21,71 @@ from .click import style
- UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}
+@@ -23,6 +28,70 @@ COMPILE_EXCLUDE_OPTIONS = {
+ }
  
  
-+
 +def simplify_markers(ireq):
 +    """simplify_markers "This code cleans up markers for a specific :class:`~InstallRequirement`"
 +
@@ -611,8 +692,8 @@ index 9b4b4c2..8875543 100644
 +        if getattr(c, "requires_python", None):
 +            # Old specifications had people setting this to single digits
 +            # which is effectively the same as '>=digit,<digit+1'
-+            if c.requires_python.isdigit():
-+                c.requires_python = '>={0},<{1}'.format(c.requires_python, int(c.requires_python) + 1)
++            if len(c.requires_python) == 1 and c.requires_python in ("2", "3"):
++                c.requires_python = '>={0},<{1!s}'.format(c.requires_python, int(c.requires_python) + 1)
 +            try:
 +                specifierset = SpecifierSet(c.requires_python)
 +            except InvalidSpecifier:
@@ -627,8 +708,8 @@ index 9b4b4c2..8875543 100644
  def key_from_ireq(ireq):
      """Get a standardized key for an InstallRequirement."""
      if ireq.req is None and ireq.link is not None:
-@@ -39,16 +111,51 @@ def comment(text):
-     return style(text, fg='green')
+@@ -48,16 +117,51 @@ def comment(text):
+     return style(text, fg="green")
  
  
 -def make_install_requirement(name, version, extras, constraint=False):
@@ -640,8 +721,8 @@ index 9b4b4c2..8875543 100644
          extras_string = "[{}]".format(",".join(sorted(extras)))
  
 -    return install_req_from_line(
--        str('{}{}=={}'.format(name, extras_string, version)),
--        constraint=constraint)
+-        str("{}{}=={}".format(name, extras_string, version)), constraint=constraint
+-    )
 +    if not markers:
 +        return install_req_from_line(
 +            str('{}{}=={}'.format(name, extras_string, version)),
@@ -682,18 +763,18 @@ index 9b4b4c2..8875543 100644
 +    return "".join(parts)
  
  
- def format_requirement(ireq, marker=None, hashes=None):
-@@ -59,10 +166,10 @@ def format_requirement(ireq, marker=None, hashes=None):
-     if ireq.editable:
-         line = '-e {}'.format(ireq.link)
+ def is_url_requirement(ireq):
+@@ -78,10 +182,10 @@ def format_requirement(ireq, marker=None, hashes=None):
+     elif is_url_requirement(ireq):
+         line = ireq.link.url
      else:
 -        line = str(ireq.req).lower()
 +        line = _requirement_to_str_lowercase_name(ireq.req)
  
 -    if marker:
--        line = '{} ; {}'.format(line, marker)
+-        line = "{} ; {}".format(line, marker)
 +    if marker and ';' not in line:
-+        line = '{}; {}'.format(line, marker)
++        line = "{}; {}".format(line, marker)
  
      if hashes:
          for hash_ in sorted(hashes):

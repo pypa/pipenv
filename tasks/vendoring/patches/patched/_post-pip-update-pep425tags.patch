@@ -1,8 +1,19 @@
 diff --git a/pipenv/patched/notpip/_internal/pep425tags.py b/pipenv/patched/notpip/_internal/pep425tags.py
-index 3c760ca3..3b11b965 100644
+index 042ba34b..58decc23 100644
 --- a/pipenv/patched/notpip/_internal/pep425tags.py
 +++ b/pipenv/patched/notpip/_internal/pep425tags.py
-@@ -178,7 +178,7 @@ def is_manylinux1_compatible():
+@@ -170,8 +170,9 @@ def is_linux_armhf():
+         return False
+     # hard-float ABI can be detected from the ELF header of the running
+     # process
++    sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
+     try:
+-        with open(sys.executable, 'rb') as f:
++        with open(sys_executable, 'rb') as f:
+             elf_header_raw = f.read(40)  # read 40 first bytes of ELF header
+     except (IOError, OSError, TypeError):
+         return False
+@@ -205,7 +206,7 @@ def is_manylinux1_compatible():
          pass
  
      # Check glibc version. CentOS 5 uses glibc 2.5.
@@ -11,12 +22,21 @@ index 3c760ca3..3b11b965 100644
  
  
  def is_manylinux2010_compatible():
-@@ -196,7 +196,7 @@ def is_manylinux2010_compatible():
+@@ -223,7 +224,7 @@ def is_manylinux2010_compatible():
          pass
  
      # Check glibc version. CentOS 6 uses glibc 2.12.
 -    return pip._internal.utils.glibc.have_compatible_glibc(2, 12)
 +    return pipenv.patched.notpip._internal.utils.glibc.have_compatible_glibc(2, 12)
+ 
+ 
+ def is_manylinux2014_compatible():
+@@ -249,7 +250,7 @@ def is_manylinux2014_compatible():
+         pass
+ 
+     # Check glibc version. CentOS 7 uses glibc 2.17.
+-    return pip._internal.utils.glibc.have_compatible_glibc(2, 17)
++    return pipenv.patched.notpip._internal.utils.glibc.have_compatible_glibc(2, 17)
  
  
  def get_darwin_arches(major, minor, machine):

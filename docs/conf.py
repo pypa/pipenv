@@ -57,8 +57,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'pipenv'
-copyright = u'2017. A <a href="http://kennethreitz.com/pages/open-projects.html">Kenneth Reitz</a> Project'
-author = u'Kenneth Reitz'
+copyright = u'2020. A project founded by <a href="http://kennethreitz.com/pages/open-projects.html">Kenneth Reitz</a>'
+author = u'Python Packaging Authority'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

@@ -13,6 +13,7 @@ from ..exceptions import (
     ReadTimeoutError,
     ResponseError,
     InvalidHeader,
+    ProxyError,
 )
 from ..packages import six
 
@@ -21,8 +22,9 @@ log = logging.getLogger(__name__)
 
 
 # Data structure for representing the metadata of requests that result in a retry.
-RequestHistory = namedtuple('RequestHistory', ["method", "url", "error",
-                                               "status", "redirect_location"])
+RequestHistory = namedtuple(
+    "RequestHistory", ["method", "url", "error", "status", "redirect_location"]
+)
 
 
 class Retry(object):
@@ -146,21 +148,33 @@ class Retry(object):
         request.
     """
 
-    DEFAULT_METHOD_WHITELIST = frozenset([
-        'HEAD', 'GET', 'PUT', 'DELETE', 'OPTIONS', 'TRACE'])
+    DEFAULT_METHOD_WHITELIST = frozenset(
+        ["HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE"]
+    )
 
     RETRY_AFTER_STATUS_CODES = frozenset([413, 429, 503])
 
-    DEFAULT_REDIRECT_HEADERS_BLACKLIST = frozenset(['Authorization'])
+    DEFAULT_REDIRECT_HEADERS_BLACKLIST = frozenset(["Authorization"])
 
     #: Maximum backoff time.
     BACKOFF_MAX = 120
 
-    def __init__(self, total=10, connect=None, read=None, redirect=None, status=None,
-                 method_whitelist=DEFAULT_METHOD_WHITELIST, status_forcelist=None,
-                 backoff_factor=0, raise_on_redirect=True, raise_on_status=True,
-                 history=None, respect_retry_after_header=True,
-                 remove_headers_on_redirect=DEFAULT_REDIRECT_HEADERS_BLACKLIST):
+    def __init__(
+        self,
+        total=10,
+        connect=None,
+        read=None,
+        redirect=None,
+        status=None,
+        method_whitelist=DEFAULT_METHOD_WHITELIST,
+        status_forcelist=None,
+        backoff_factor=0,
+        raise_on_redirect=True,
+        raise_on_status=True,
+        history=None,
+        respect_retry_after_header=True,
+        remove_headers_on_redirect=DEFAULT_REDIRECT_HEADERS_BLACKLIST,
+    ):
 
         self.total = total
         self.connect = connect
@@ -179,20 +193,25 @@ class Retry(object):
         self.raise_on_status = raise_on_status
         self.history = history or tuple()
         self.respect_retry_after_header = respect_retry_after_header
-        self.remove_headers_on_redirect = frozenset([
-            h.lower() for h in remove_headers_on_redirect])
+        self.remove_headers_on_redirect = frozenset(
+            [h.lower() for h in remove_headers_on_redirect]
+        )
 
     def new(self, **kw):
         params = dict(
             total=self.total,
-            connect=self.connect, read=self.read, redirect=self.redirect, status=self.status,
+            connect=self.connect,
+            read=self.read,
+            redirect=self.redirect,
+            status=self.status,
             method_whitelist=self.method_whitelist,
             status_forcelist=self.status_forcelist,
             backoff_factor=self.backoff_factor,
             raise_on_redirect=self.raise_on_redirect,
             raise_on_status=self.raise_on_status,
             history=self.history,
-            remove_headers_on_redirect=self.remove_headers_on_redirect
+            remove_headers_on_redirect=self.remove_headers_on_redirect,
+            respect_retry_after_header=self.respect_retry_after_header,
         )
         params.update(kw)
         return type(self)(**params)
@@ -217,8 +236,11 @@ class Retry(object):
         :rtype: float
         """
         # We want to consider only the last consecutive errors sequence (Ignore redirects).
-        consecutive_errors_len = len(list(takewhile(lambda x: x.redirect_location is None,
-                                                    reversed(self.history))))
+        consecutive_errors_len = len(
+            list(
+                takewhile(lambda x: x.redirect_location is None, reversed(self.history))
+            )
+        )
         if consecutive_errors_len <= 1:
             return 0
 
@@ -274,7 +296,7 @@ class Retry(object):
         this method will return immediately.
         """
 
-        if response:
+        if self.respect_retry_after_header and response:
             slept = self.sleep_for_retry(response)
             if slept:
                 return
@@ -285,6 +307,8 @@ class Retry(object):
         """ Errors when we're fairly sure that the server did not receive the
         request, so it should be safe to retry.
         """
+        if isinstance(err, ProxyError):
+            err = err.original_error
         return isinstance(err, ConnectTimeoutError)
 
     def _is_read_error(self, err):
@@ -315,8 +339,12 @@ class Retry(object):
         if self.status_forcelist and status_code in self.status_forcelist:
             return True
 
-        return (self.total and self.respect_retry_after_header and
-                has_retry_after and (status_code in self.RETRY_AFTER_STATUS_CODES))
+        return (
+            self.total
+            and self.respect_retry_after_header
+            and has_retry_after
+            and (status_code in self.RETRY_AFTER_STATUS_CODES)
+        )
 
     def is_exhausted(self):
         """ Are we out of retries? """
@@ -327,8 +355,15 @@ class Retry(object):
 
         return min(retry_counts) < 0
 
-    def increment(self, method=None, url=None, response=None, error=None,
-                  _pool=None, _stacktrace=None):
+    def increment(
+        self,
+        method=None,
+        url=None,
+        response=None,
+        error=None,
+        _pool=None,
+        _stacktrace=None,
+    ):
         """ Return a new Retry object with incremented retry counters.
 
         :param response: A response object, or None, if the server did not
@@ -351,7 +386,7 @@ class Retry(object):
         read = self.read
         redirect = self.redirect
         status_count = self.status
-        cause = 'unknown'
+        cause = "unknown"
         status = None
         redirect_location = None
 
@@ -373,7 +408,7 @@ class Retry(object):
             # Redirect retry?
             if redirect is not None:
                 redirect -= 1
-            cause = 'too many redirects'
+            cause = "too many redirects"
             redirect_location = response.get_redirect_location()
             status = response.status
 
@@ -384,16 +419,21 @@ class Retry(object):
             if response and response.status:
                 if status_count is not None:
                     status_count -= 1
-                cause = ResponseError.SPECIFIC_ERROR.format(
-                    status_code=response.status)
+                cause = ResponseError.SPECIFIC_ERROR.format(status_code=response.status)
                 status = response.status
 
-        history = self.history + (RequestHistory(method, url, error, status, redirect_location),)
+        history = self.history + (
+            RequestHistory(method, url, error, status, redirect_location),
+        )
 
         new_retry = self.new(
             total=total,
-            connect=connect, read=read, redirect=redirect, status=status_count,
-            history=history)
+            connect=connect,
+            read=read,
+            redirect=redirect,
+            status=status_count,
+            history=history,
+        )
 
         if new_retry.is_exhausted():
             raise MaxRetryError(_pool, url, error or ResponseError(cause))
@@ -403,9 +443,10 @@ class Retry(object):
         return new_retry
 
     def __repr__(self):
-        return ('{cls.__name__}(total={self.total}, connect={self.connect}, '
-                'read={self.read}, redirect={self.redirect}, status={self.status})').format(
-                    cls=type(self), self=self)
+        return (
+            "{cls.__name__}(total={self.total}, connect={self.connect}, "
+            "read={self.read}, redirect={self.redirect}, status={self.status})"
+        ).format(cls=type(self), self=self)
 
 
 # For backwards compatibility (equivalent to pre-v1.9):

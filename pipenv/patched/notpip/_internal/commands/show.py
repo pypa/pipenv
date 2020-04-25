@@ -1,14 +1,18 @@
+# The following comment should be removed at some point in the future.
+# mypy: disallow-untyped-defs=False
+
 from __future__ import absolute_import
 
 import logging
 import os
-from email.parser import FeedParser  # type: ignore
+from email.parser import FeedParser
 
 from pipenv.patched.notpip._vendor import pkg_resources
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
 from pipenv.patched.notpip._internal.cli.base_command import Command
 from pipenv.patched.notpip._internal.cli.status_codes import ERROR, SUCCESS
+from pipenv.patched.notpip._internal.utils.misc import write_output
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +23,9 @@ class ShowCommand(Command):
 
     The output is in RFC-compliant mail header format.
     """
-    name = 'show'
+
     usage = """
       %prog [options] <package> ..."""
-    summary = 'Show information about installed packages.'
     ignore_require_venv = True
 
     def __init__(self, *args, **kw):
@@ -61,6 +64,20 @@ def search_packages_info(query):
         installed[canonicalize_name(p.project_name)] = p
 
     query_names = [canonicalize_name(name) for name in query]
+    missing = sorted(
+        [name for name, pkg in zip(query, query_names) if pkg not in installed]
+    )
+    if missing:
+        logger.warning('Package(s) not found: %s', ', '.join(missing))
+
+    def get_requiring_packages(package_name):
+        canonical_name = canonicalize_name(package_name)
+        return [
+            pkg.project_name for pkg in pkg_resources.working_set
+            if canonical_name in
+               [canonicalize_name(required.name) for required in
+                pkg.requires()]
+        ]
 
     for dist in [installed[pkg] for pkg in query_names if pkg in installed]:
         package = {
@@ -68,6 +85,7 @@ def search_packages_info(query):
             'version': dist.version,
             'location': dist.location,
             'requires': [dep.project_name for dep in dist.requires()],
+            'required_by': get_requiring_packages(dist.project_name)
         }
         file_list = None
         metadata = None
@@ -130,39 +148,33 @@ def print_results(distributions, list_files=False, verbose=False):
     for i, dist in enumerate(distributions):
         results_printed = True
         if i > 0:
-            logger.info("---")
+            write_output("---")
 
-        name = dist.get('name', '')
-        required_by = [
-            pkg.project_name for pkg in pkg_resources.working_set
-            if name in [required.name for required in pkg.requires()]
-        ]
-
-        logger.info("Name: %s", name)
-        logger.info("Version: %s", dist.get('version', ''))
-        logger.info("Summary: %s", dist.get('summary', ''))
-        logger.info("Home-page: %s", dist.get('home-page', ''))
-        logger.info("Author: %s", dist.get('author', ''))
-        logger.info("Author-email: %s", dist.get('author-email', ''))
-        logger.info("License: %s", dist.get('license', ''))
-        logger.info("Location: %s", dist.get('location', ''))
-        logger.info("Requires: %s", ', '.join(dist.get('requires', [])))
-        logger.info("Required-by: %s", ', '.join(required_by))
+        write_output("Name: %s", dist.get('name', ''))
+        write_output("Version: %s", dist.get('version', ''))
+        write_output("Summary: %s", dist.get('summary', ''))
+        write_output("Home-page: %s", dist.get('home-page', ''))
+        write_output("Author: %s", dist.get('author', ''))
+        write_output("Author-email: %s", dist.get('author-email', ''))
+        write_output("License: %s", dist.get('license', ''))
+        write_output("Location: %s", dist.get('location', ''))
+        write_output("Requires: %s", ', '.join(dist.get('requires', [])))
+        write_output("Required-by: %s", ', '.join(dist.get('required_by', [])))
 
         if verbose:
-            logger.info("Metadata-Version: %s",
-                        dist.get('metadata-version', ''))
-            logger.info("Installer: %s", dist.get('installer', ''))
-            logger.info("Classifiers:")
+            write_output("Metadata-Version: %s",
+                         dist.get('metadata-version', ''))
+            write_output("Installer: %s", dist.get('installer', ''))
+            write_output("Classifiers:")
             for classifier in dist.get('classifiers', []):
-                logger.info("  %s", classifier)
-            logger.info("Entry-points:")
+                write_output("  %s", classifier)
+            write_output("Entry-points:")
             for entry in dist.get('entry_points', []):
-                logger.info("  %s", entry.strip())
+                write_output("  %s", entry.strip())
         if list_files:
-            logger.info("Files:")
+            write_output("Files:")
             for line in dist.get('files', []):
-                logger.info("  %s", line.strip())
+                write_output("  %s", line.strip())
             if "files" not in dist:
-                logger.info("Cannot locate installed-files.txt")
+                write_output("Cannot locate installed-files.txt")
     return results_printed

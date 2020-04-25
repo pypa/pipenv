@@ -21,7 +21,7 @@ Or to search a string for some pattern:
 
 Or find all the occurrences of some pattern in a string:
 
->>> ''.join(r.fixed[0] for r in findall(">{}<", "<p>the <b>bold</b> text</p>"))
+>>> ''.join(r[0] for r in findall(">{}<", "<p>the <b>bold</b> text</p>"))
 'the bold text'
 
 If you're going to use the same pattern to match lots of strings you can
@@ -129,7 +129,8 @@ The differences between `parse()` and `format()` are:
   In addition some regular expression character group types "D", "w", "W", "s"
   and "S" are also available.
 - The "e" and "g" types are case-insensitive so there is not need for
-  the "E" or "G" types.
+  the "E" or "G" types. The "e" type handles Fortran formatted numbers (no
+  leading 0 before the decimal point).
 
 ===== =========================================== ========
 Type  Characters Matched                          Output
@@ -345,6 +346,13 @@ the pattern, the actual match represents the shortest successful match for
 
 **Version history (in brief)**:
 
+- 1.15.0 Several fixes for parsing non-base 10 numbers (thanks @vladikcomper)
+- 1.14.0 More broad acceptance of Fortran number format (thanks @purpleskyfall)
+- 1.13.1 Project metadata correction.
+- 1.13.0 Handle Fortran formatted numbers with no leading 0 before decimal
+  point (thanks @purpleskyfall).
+  Handle comparison of FixedTzOffset with other types of object.
+- 1.12.1 Actually use the `case_sensitive` arg in compile (thanks @jacquev6)
 - 1.12.0 Do not assume closing brace when an opening one is found (thanks @mattsep)
 - 1.11.1 Revert having unicode char in docstring, it breaks Bamboo builds(?!)
 - 1.11.0 Implement `__contains__` for Result instances.
@@ -416,7 +424,7 @@ See the end of the source file for the license of use.
 '''
 
 from __future__ import absolute_import
-__version__ = '1.12.0'
+__version__ = '1.15.0'
 
 # yes, I now have two problems
 import re
@@ -460,15 +468,16 @@ def with_pattern(pattern, regex_group_count=None):
     return decorator
 
 
-def int_convert(base):
+def int_convert(base=None):
     '''Convert a string to an integer.
 
     The string may start with a sign.
 
-    It may be of a base other than 10.
+    It may be of a base other than 2, 8, 10 or 16.
 
-    If may start with a base indicator, 0#nnnn, which we assume should
-    override the specified base.
+    If base isn't specified, it will be detected automatically based
+    on a string format. When string starts with a base indicator, 0#nnnn, 
+    it overrides the default base of 10.
 
     It may also have other non-numeric characters that we can ignore.
     '''
@@ -477,19 +486,28 @@ def int_convert(base):
     def f(string, match, base=base):
         if string[0] == '-':
             sign = -1
+            number_start = 1
+        elif string[0] == '+':
+            sign = 1
+            number_start = 1
         else:
             sign = 1
+            number_start = 0
 
-        if string[0] == '0' and len(string) > 2:
-            if string[1] in 'bB':
-                base = 2
-            elif string[1] in 'oO':
-                base = 8
-            elif string[1] in 'xX':
-                base = 16
-            else:
-                # just go with the base specifed
-                pass
+        # If base wasn't specified, detect it automatically
+        if base is None:
+
+          # Assume decimal number, unless different base is detected
+          base = 10
+
+          # For number formats starting with 0b, 0o, 0x, use corresponding base ...
+          if string[number_start] == '0' and len(string) - number_start > 2:
+              if string[number_start+1] in 'bB':
+                  base = 2
+              elif string[number_start+1] in 'oO':
+                  base = 8
+              elif string[number_start+1] in 'xX':
+                  base = 16
 
         chars = CHARS[:base]
         string = re.sub('[^%s]' % chars, '', string.lower())
@@ -524,6 +542,8 @@ class FixedTzOffset(tzinfo):
         return self.ZERO
 
     def __eq__(self, other):
+        if not isinstance(other, FixedTzOffset):
+            return False
         return self._name == other._name and self._offset == other._offset
 
 
@@ -958,7 +978,7 @@ class Parser(object):
 
         # figure type conversions, if any
         type = format['type']
-        is_numeric = type and type in 'n%fegdobh'
+        is_numeric = type and type in 'n%fegdobx'
         if type in self._extra_types:
             type_converter = self._extra_types[type]
             s = getattr(type_converter, 'pattern', r'.+?')
@@ -991,13 +1011,13 @@ class Parser(object):
             self._group_index += 1
             self._type_conversions[group] = percentage
         elif type == 'f':
-            s = r'\d+\.\d+'
+            s = r'\d*\.\d+'
             self._type_conversions[group] = lambda s, m: float(s)
         elif type == 'F':
-            s = r'\d+\.\d+'
+            s = r'\d*\.\d+'
             self._type_conversions[group] = lambda s, m: Decimal(s)
         elif type == 'e':
-            s = r'\d+\.\d+[eE][-+]?\d+|nan|NAN|[-+]?inf|[-+]?INF'
+            s = r'\d*\.\d+[eE][-+]?\d+|nan|NAN|[-+]?inf|[-+]?INF'
             self._type_conversions[group] = lambda s, m: float(s)
         elif type == 'g':
             s = r'\d+(\.\d+)?([eE][-+]?\d+)?|nan|NAN|[-+]?inf|[-+]?INF'
@@ -1008,8 +1028,8 @@ class Parser(object):
                 width = r'{1,%s}' % int(format['width'])
             else:
                 width = '+'
-            s = r'\d{w}|0[xX][0-9a-fA-F]{w}|0[bB][01]{w}|0[oO][0-7]{w}'.format(w=width)
-            self._type_conversions[group] = int_convert(10)
+            s = r'\d{w}|[-+ ]?0[xX][0-9a-fA-F]{w}|[-+ ]?0[bB][01]{w}|[-+ ]?0[oO][0-7]{w}'.format(w=width)
+            self._type_conversions[group] = int_convert() # do not specify numeber base, determine it automatically
         elif type == 'ti':
             s = r'(\d{4}-\d\d-\d\d)((\s+|T)%s)?(Z|\s*[-+]\d\d:?\d\d)?' % \
                 TIME_PAT
@@ -1310,10 +1330,10 @@ def compile(format, extra_types=None, case_sensitive=False):
 
     Returns a Parser instance.
     '''
-    return Parser(format, extra_types=extra_types)
+    return Parser(format, extra_types=extra_types, case_sensitive=case_sensitive)
 
 
-# Copyright (c) 2012-2019 Richard Jones <richard@python.org>
+# Copyright (c) 2012-2020 Richard Jones <richard@python.org>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal

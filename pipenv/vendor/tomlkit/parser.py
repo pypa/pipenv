@@ -194,7 +194,8 @@ class Parser:
         in_name = False
         current = ""
         t = KeyType.Bare
-        for c in name:
+        parts = 0
+        for c in name.strip():
             c = TOMLChar(c)
 
             if c == ".":
@@ -205,14 +206,20 @@ class Parser:
                 if not current:
                     raise self.parse_error()
 
-                yield Key(current, t=t, sep="")
+                yield Key(current.strip(), t=t, sep="")
+                parts += 1
 
                 current = ""
                 t = KeyType.Bare
                 continue
             elif c in {"'", '"'}:
                 if in_name:
-                    if t == KeyType.Literal and c == '"':
+                    if (
+                        t == KeyType.Literal
+                        and c == '"'
+                        or t == KeyType.Basic
+                        and c == "'"
+                    ):
                         current += c
                         continue
 
@@ -221,17 +228,35 @@ class Parser:
 
                     in_name = False
                 else:
+                    if current and TOMLChar(current[-1]).is_spaces() and not parts:
+                        raise self.parse_error()
+
                     in_name = True
                     t = KeyType.Literal if c == "'" else KeyType.Basic
 
                 continue
             elif in_name or c.is_bare_key_char():
+                if (
+                    not in_name
+                    and current
+                    and TOMLChar(current[-1]).is_spaces()
+                    and not parts
+                ):
+                    raise self.parse_error()
+
                 current += c
+            elif c.is_spaces():
+                # A space is only valid at this point
+                # if it's in between parts.
+                # We store it for now and will check
+                # later if it's valid
+                current += c
+                continue
             else:
                 raise self.parse_error()
 
-        if current:
-            yield Key(current, t=t, sep="")
+        if current.strip():
+            yield Key(current.strip(), t=t, sep="")
 
     def _parse_item(self):  # type: () -> Optional[Tuple[Optional[Key], Item]]
         """
@@ -434,15 +459,21 @@ class Parser:
 
     def _handle_dotted_key(
         self, container, key, value
-    ):  # type: (Container, Key, Any) -> None
+    ):  # type: (Union[Container, Table], Key, Any) -> None
         names = tuple(self._split_table_name(key.key))
         name = names[0]
         name._dotted = True
         if name in container:
-            table = container.item(name)
+            if isinstance(container, Table):
+                table = container.value.item(name)
+            else:
+                table = container.item(name)
         else:
             table = Table(Container(True), Trivia(), False, is_super_table=True)
-            container.append(name, table)
+            if isinstance(container, Table):
+                container.raw_append(name, table)
+            else:
+                container.append(name, table)
 
         for i, _name in enumerate(names[1:]):
             if i == len(names) - 2:
@@ -517,19 +548,41 @@ class Parser:
                 if m.group(1) and m.group(5):
                     # datetime
                     try:
-                        return DateTime(parse_rfc3339(raw), trivia, raw)
+                        dt = parse_rfc3339(raw)
+                        return DateTime(
+                            dt.year,
+                            dt.month,
+                            dt.day,
+                            dt.hour,
+                            dt.minute,
+                            dt.second,
+                            dt.microsecond,
+                            dt.tzinfo,
+                            trivia,
+                            raw,
+                        )
                     except ValueError:
                         raise self.parse_error(InvalidDateTimeError)
 
                 if m.group(1):
                     try:
-                        return Date(parse_rfc3339(raw), trivia, raw)
+                        dt = parse_rfc3339(raw)
+                        return Date(dt.year, dt.month, dt.day, trivia, raw)
                     except ValueError:
                         raise self.parse_error(InvalidDateError)
 
                 if m.group(5):
                     try:
-                        return Time(parse_rfc3339(raw), trivia, raw)
+                        t = parse_rfc3339(raw)
+                        return Time(
+                            t.hour,
+                            t.minute,
+                            t.second,
+                            t.microsecond,
+                            t.tzinfo,
+                            trivia,
+                            raw,
+                        )
                     except ValueError:
                         raise self.parse_error(InvalidTimeError)
 
@@ -876,15 +929,46 @@ class Parser:
 
             is_aot = True
 
-        # Key
+        # Consume any whitespace
         self.mark()
-        while self._current != "]" and self.inc():
-            if self.end():
-                raise self.parse_error(UnexpectedEofError)
-
+        while self._current.is_spaces() and self.inc():
             pass
 
-        name = self.extract()
+        ws_prefix = self.extract()
+
+        # Key
+        if self._current in [StringType.SLL.value, StringType.SLB.value]:
+            delimiter = (
+                StringType.SLL
+                if self._current == StringType.SLL.value
+                else StringType.SLB
+            )
+            name = self._parse_string(delimiter)
+            name = "{delimiter}{name}{delimiter}".format(
+                delimiter=delimiter.value, name=name
+            )
+
+            self.mark()
+            while self._current != "]" and self.inc():
+                if self.end():
+                    raise self.parse_error(UnexpectedEofError)
+
+                pass
+
+            ws_suffix = self.extract()
+            name += ws_suffix
+        else:
+            self.mark()
+            while self._current != "]" and self.inc():
+                if self.end():
+                    raise self.parse_error(UnexpectedEofError)
+
+                pass
+
+            name = self.extract()
+
+        name = ws_prefix + name
+
         if not name.strip():
             raise self.parse_error(EmptyTableNameError)
 
@@ -911,6 +995,13 @@ class Parser:
         cws, comment, trail = self._parse_comment_trail()
 
         result = Null()
+        table = Table(
+            values,
+            Trivia(indent, cws, comment, trail),
+            is_aot,
+            name=name,
+            display_name=name,
+        )
 
         if len(name_parts) > 1:
             if missing_table:
@@ -960,9 +1051,9 @@ class Parser:
                 _key, item = item
                 if not self._merge_ws(item, values):
                     if _key is not None and _key.is_dotted():
-                        self._handle_dotted_key(values, _key, item)
+                        self._handle_dotted_key(table, _key, item)
                     else:
-                        values.append(_key, item)
+                        table.raw_append(_key, item)
             else:
                 if self._current == "[":
                     is_aot_next, name_next = self._peek_table()
@@ -970,7 +1061,7 @@ class Parser:
                     if self._is_child(name, name_next):
                         key_next, table_next = self._parse_table(name)
 
-                        values.append(key_next, table_next)
+                        table.raw_append(key_next, table_next)
 
                         # Picking up any sibling
                         while not self.end():
@@ -981,7 +1072,7 @@ class Parser:
 
                             key_next, table_next = self._parse_table(name)
 
-                            values.append(key_next, table_next)
+                            table.raw_append(key_next, table_next)
 
                     break
                 else:
@@ -991,13 +1082,7 @@ class Parser:
                     )
 
         if isinstance(result, Null):
-            result = Table(
-                values,
-                Trivia(indent, cws, comment, trail),
-                is_aot,
-                name=name,
-                display_name=name,
-            )
+            result = table
 
             if is_aot and (not self._aot_stack or name != self._aot_stack[-1]):
                 result = self._parse_aot(result, name)

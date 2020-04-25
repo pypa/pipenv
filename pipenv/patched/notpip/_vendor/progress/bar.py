@@ -19,18 +19,15 @@ from __future__ import unicode_literals
 import sys
 
 from . import Progress
-from .helpers import WritelnMixin
 
 
-class Bar(WritelnMixin, Progress):
+class Bar(Progress):
     width = 32
-    message = ''
     suffix = '%(index)d/%(max)d'
     bar_prefix = ' |'
     bar_suffix = '| '
     empty_fill = ' '
     fill = '#'
-    hide_cursor = True
 
     def update(self):
         filled_length = int(self.width * self.progress)

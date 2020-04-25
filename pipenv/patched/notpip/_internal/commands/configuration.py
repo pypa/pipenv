@@ -1,13 +1,19 @@
+# The following comment should be removed at some point in the future.
+# mypy: disallow-untyped-defs=False
+
 import logging
 import os
 import subprocess
 
 from pipenv.patched.notpip._internal.cli.base_command import Command
 from pipenv.patched.notpip._internal.cli.status_codes import ERROR, SUCCESS
-from pipenv.patched.notpip._internal.configuration import Configuration, kinds
+from pipenv.patched.notpip._internal.configuration import (
+    Configuration,
+    get_configuration_files,
+    kinds,
+)
 from pipenv.patched.notpip._internal.exceptions import PipError
-from pipenv.patched.notpip._internal.locations import venv_config_file
-from pipenv.patched.notpip._internal.utils.misc import get_prog
+from pipenv.patched.notpip._internal.utils.misc import get_prog, write_output
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +29,13 @@ class ConfigurationCommand(Command):
         set: Set the name=value
         unset: Unset the value associated with name
 
-        If none of --user, --global and --venv are passed, a virtual
+        If none of --user, --global and --site are passed, a virtual
         environment configuration file is used if one is active and the file
         exists. Otherwise, all modifications happen on the to the user file by
         default.
     """
 
-    name = 'config'
+    ignore_require_venv = True
     usage = """
         %prog [<file-option>] list
         %prog [<file-option>] [--editor <editor-path>] edit
@@ -38,8 +44,6 @@ class ConfigurationCommand(Command):
         %prog [<file-option>] set name value
         %prog [<file-option>] unset name
     """
-
-    summary = "Manage local and global configuration."
 
     def __init__(self, *args, **kwargs):
         super(ConfigurationCommand, self).__init__(*args, **kwargs)
@@ -74,11 +78,11 @@ class ConfigurationCommand(Command):
         )
 
         self.cmd_opts.add_option(
-            '--venv',
-            dest='venv_file',
+            '--site',
+            dest='site_file',
             action='store_true',
             default=False,
-            help='Use the virtualenv configuration file only'
+            help='Use the current environment configuration file only'
         )
 
         self.parser.insert_option_group(0, self.cmd_opts)
@@ -127,40 +131,42 @@ class ConfigurationCommand(Command):
         return SUCCESS
 
     def _determine_file(self, options, need_value):
-        file_options = {
-            kinds.USER: options.user_file,
-            kinds.GLOBAL: options.global_file,
-            kinds.VENV: options.venv_file
-        }
+        file_options = [key for key, value in (
+            (kinds.USER, options.user_file),
+            (kinds.GLOBAL, options.global_file),
+            (kinds.SITE, options.site_file),
+        ) if value]
 
-        if sum(file_options.values()) == 0:
+        if not file_options:
             if not need_value:
                 return None
-            # Default to user, unless there's a virtualenv file.
-            elif os.path.exists(venv_config_file):
-                return kinds.VENV
+            # Default to user, unless there's a site file.
+            elif any(
+                os.path.exists(site_config_file)
+                for site_config_file in get_configuration_files()[kinds.SITE]
+            ):
+                return kinds.SITE
             else:
                 return kinds.USER
-        elif sum(file_options.values()) == 1:
-            # There's probably a better expression for this.
-            return [key for key in file_options if file_options[key]][0]
+        elif len(file_options) == 1:
+            return file_options[0]
 
         raise PipError(
             "Need exactly one file to operate upon "
-            "(--user, --venv, --global) to perform."
+            "(--user, --site, --global) to perform."
         )
 
     def list_values(self, options, args):
         self._get_n_args(args, "list", n=0)
 
         for key, value in sorted(self.configuration.items()):
-            logger.info("%s=%r", key, value)
+            write_output("%s=%r", key, value)
 
     def get_name(self, options, args):
         key = self._get_n_args(args, "get [name]", n=1)
         value = self.configuration.get_value(key)
 
-        logger.info("%s", value)
+        write_output("%s", value)
 
     def set_name_value(self, options, args):
         key, value = self._get_n_args(args, "set [name] [value]", n=2)

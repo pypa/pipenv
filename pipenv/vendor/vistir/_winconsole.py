@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# This Module is taken in full from the click project
+# This Module is taken in part from the click project and expanded
 # see https://github.com/pallets/click/blob/6cafd32/click/_winconsole.py
 # Copyright © 2014 by the Pallets team.
 

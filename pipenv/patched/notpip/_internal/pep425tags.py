@@ -10,16 +10,13 @@ import sysconfig
 import warnings
 from collections import OrderedDict
 
-try:
-    import pipenv.patched.notpip._internal.utils.glibc
-except ImportError:
-    import pipenv.patched.notpip.utils.glibc
+import pipenv.patched.notpip._internal.utils.glibc
 from pipenv.patched.notpip._internal.utils.compat import get_extension_suffixes
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import (  # noqa: F401
-        Tuple, Callable, List, Optional, Union, Dict
+    from typing import (
+        Tuple, Callable, List, Optional, Union, Dict, Set
     )
 
     Pep425Tag = Tuple[str, str, str]
@@ -50,6 +47,12 @@ def get_abbr_impl():
     else:
         pyimpl = 'cp'
     return pyimpl
+
+
+def version_info_to_nodot(version_info):
+    # type: (Tuple[int, ...]) -> str
+    # Only use up to the first two numbers.
+    return ''.join(map(str, version_info[:2]))
 
 
 def get_impl_ver():
@@ -102,32 +105,30 @@ def get_abi_tag():
     (CPython 2, PyPy)."""
     soabi = get_config_var('SOABI')
     impl = get_abbr_impl()
+    abi = None  # type: Optional[str]
+
     if not soabi and impl in {'cp', 'pp'} and hasattr(sys, 'maxunicode'):
         d = ''
         m = ''
         u = ''
-        if get_flag('Py_DEBUG',
-                    lambda: hasattr(sys, 'gettotalrefcount'),
-                    warn=(impl == 'cp')):
+        is_cpython = (impl == 'cp')
+        if get_flag(
+                'Py_DEBUG', lambda: hasattr(sys, 'gettotalrefcount'),
+                warn=is_cpython):
             d = 'd'
-        if get_flag('WITH_PYMALLOC',
-                    lambda: impl == 'cp',
-                    warn=(impl == 'cp')):
+        if sys.version_info < (3, 8) and get_flag(
+                'WITH_PYMALLOC', lambda: is_cpython, warn=is_cpython):
             m = 'm'
-        if get_flag('Py_UNICODE_SIZE',
-                    lambda: sys.maxunicode == 0x10ffff,
-                    expected=4,
-                    warn=(impl == 'cp' and
-                          sys.version_info < (3, 3))) \
-                and sys.version_info < (3, 3):
+        if sys.version_info < (3, 3) and get_flag(
+                'Py_UNICODE_SIZE', lambda: sys.maxunicode == 0x10ffff,
+                expected=4, warn=is_cpython):
             u = 'u'
         abi = '%s%s%s%s%s' % (impl, get_impl_ver(), d, m, u)
     elif soabi and soabi.startswith('cpython-'):
         abi = 'cp' + soabi.split('-')[1]
     elif soabi:
         abi = soabi.replace('.', '_').replace('-', '_')
-    else:
-        abi = None
+
     return abi
 
 
@@ -160,6 +161,33 @@ def get_platform():
         # install and run 32 bit compiled extensions in that case.
         result = "linux_i686"
 
+    return result
+
+
+def is_linux_armhf():
+    # type: () -> bool
+    if get_platform() != "linux_armv7l":
+        return False
+    # hard-float ABI can be detected from the ELF header of the running
+    # process
+    sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
+    try:
+        with open(sys_executable, 'rb') as f:
+            elf_header_raw = f.read(40)  # read 40 first bytes of ELF header
+    except (IOError, OSError, TypeError):
+        return False
+    if elf_header_raw is None or len(elf_header_raw) < 40:
+        return False
+    if isinstance(elf_header_raw, str):
+        elf_header = [ord(c) for c in elf_header_raw]
+    else:
+        elf_header = [b for b in elf_header_raw]
+    result = elf_header[0:4] == [0x7f, 0x45, 0x4c, 0x46]  # ELF magic number
+    result &= elf_header[4:5] == [1]  # 32-bit ELF
+    result &= elf_header[5:6] == [1]  # little-endian
+    result &= elf_header[18:20] == [0x28, 0]  # ARM machine
+    result &= elf_header[39:40] == [5]  # ARM EABIv5
+    result &= (elf_header[37:38][0] & 4) == 4  # EF_ARM_ABI_FLOAT_HARD
     return result
 
 
@@ -197,6 +225,32 @@ def is_manylinux2010_compatible():
 
     # Check glibc version. CentOS 6 uses glibc 2.12.
     return pipenv.patched.notpip._internal.utils.glibc.have_compatible_glibc(2, 12)
+
+
+def is_manylinux2014_compatible():
+    # type: () -> bool
+    # Only Linux, and only supported architectures
+    platform = get_platform()
+    if platform not in {"linux_x86_64", "linux_i686", "linux_aarch64",
+                        "linux_armv7l", "linux_ppc64", "linux_ppc64le",
+                        "linux_s390x"}:
+        return False
+
+    # check for hard-float ABI in case we're running linux_armv7l not to
+    # install hard-float ABI wheel in a soft-float ABI environment
+    if platform == "linux_armv7l" and not is_linux_armhf():
+        return False
+
+    # Check for presence of _manylinux module
+    try:
+        import _manylinux
+        return bool(_manylinux.manylinux2014_compatible)
+    except (ImportError, AttributeError):
+        # Fall through to heuristic check below
+        pass
+
+    # Check glibc version. CentOS 7 uses glibc 2.17.
+    return pipenv.patched.notpip._internal.utils.glibc.have_compatible_glibc(2, 17)
 
 
 def get_darwin_arches(major, minor, machine):
@@ -307,7 +361,7 @@ def get_supported(
     if abi:
         abis[0:0] = [abi]
 
-    abi3s = set()
+    abi3s = set()  # type: Set[str]
     for suffix in get_extension_suffixes():
         if suffix.startswith('.abi'):
             abi3s.add(suffix.split('.', 2)[1])
@@ -332,6 +386,16 @@ def get_supported(
             else:
                 # arch pattern didn't match (?!)
                 arches = [arch]
+        elif arch_prefix == 'manylinux2014':
+            arches = [arch]
+            # manylinux1/manylinux2010 wheels run on most manylinux2014 systems
+            # with the exception of wheels depending on ncurses. PEP 599 states
+            # manylinux1/manylinux2010 wheels should be considered
+            # manylinux2014 wheels:
+            # https://www.python.org/dev/peps/pep-0599/#backwards-compatibility-with-manylinux2010-wheels
+            if arch_suffix in {'i686', 'x86_64'}:
+                arches.append('manylinux2010' + arch_sep + arch_suffix)
+                arches.append('manylinux1' + arch_sep + arch_suffix)
         elif arch_prefix == 'manylinux2010':
             # manylinux1 wheels run on most manylinux2010 systems with the
             # exception of wheels depending on ncurses. PEP 571 states
@@ -340,6 +404,8 @@ def get_supported(
             arches = [arch, 'manylinux1' + arch_sep + arch_suffix]
         elif platform is None:
             arches = []
+            if is_manylinux2014_compatible():
+                arches.append('manylinux2014' + arch_sep + arch_suffix)
             if is_manylinux2010_compatible():
                 arches.append('manylinux2010' + arch_sep + arch_suffix)
             if is_manylinux1_compatible():

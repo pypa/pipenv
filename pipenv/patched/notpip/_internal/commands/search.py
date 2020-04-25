@@ -1,3 +1,6 @@
+# The following comment should be removed at some point in the future.
+# mypy: disallow-untyped-defs=False
+
 from __future__ import absolute_import
 
 import logging
@@ -12,22 +15,23 @@ from pipenv.patched.notpip._vendor.packaging.version import parse as parse_versi
 from pipenv.patched.notpip._vendor.six.moves import xmlrpc_client  # type: ignore
 
 from pipenv.patched.notpip._internal.cli.base_command import Command
+from pipenv.patched.notpip._internal.cli.req_command import SessionCommandMixin
 from pipenv.patched.notpip._internal.cli.status_codes import NO_MATCHES_FOUND, SUCCESS
-from pipenv.patched.notpip._internal.download import PipXmlrpcTransport
 from pipenv.patched.notpip._internal.exceptions import CommandError
 from pipenv.patched.notpip._internal.models.index import PyPI
+from pipenv.patched.notpip._internal.network.xmlrpc import PipXmlrpcTransport
 from pipenv.patched.notpip._internal.utils.compat import get_terminal_size
 from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import write_output
 
 logger = logging.getLogger(__name__)
 
 
-class SearchCommand(Command):
+class SearchCommand(Command, SessionCommandMixin):
     """Search for PyPI packages whose name or summary contains <query>."""
-    name = 'search'
+
     usage = """
       %prog [options] <query>"""
-    summary = 'Search PyPI for packages.'
     ignore_require_venv = True
 
     def __init__(self, *args, **kw):
@@ -59,11 +63,13 @@ class SearchCommand(Command):
 
     def search(self, query, options):
         index_url = options.index
-        with self._build_session(options) as session:
-            transport = PipXmlrpcTransport(index_url, session)
-            pypi = xmlrpc_client.ServerProxy(index_url, transport)
-            hits = pypi.search({'name': query, 'summary': query}, 'or')
-            return hits
+
+        session = self.get_default_session(options)
+
+        transport = PipXmlrpcTransport(index_url, session)
+        pypi = xmlrpc_client.ServerProxy(index_url, transport)
+        hits = pypi.search({'name': query, 'summary': query}, 'or')
+        return hits
 
 
 def transform_hits(hits):
@@ -118,15 +124,19 @@ def print_results(hits, name_column_width=None, terminal_width=None):
         line = '%-*s - %s' % (name_column_width,
                               '%s (%s)' % (name, latest), summary)
         try:
-            logger.info(line)
+            write_output(line)
             if name in installed_packages:
                 dist = pkg_resources.get_distribution(name)
                 with indent_log():
                     if dist.version == latest:
-                        logger.info('INSTALLED: %s (latest)', dist.version)
+                        write_output('INSTALLED: %s (latest)', dist.version)
                     else:
-                        logger.info('INSTALLED: %s', dist.version)
-                        logger.info('LATEST:    %s', latest)
+                        write_output('INSTALLED: %s', dist.version)
+                        if parse_version(latest).pre:
+                            write_output('LATEST:    %s (pre-release; install'
+                                         ' with "pip install --pre")', latest)
+                        else:
+                            write_output('LATEST:    %s', latest)
         except UnicodeEncodeError:
             pass
 
