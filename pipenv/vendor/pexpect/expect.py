@@ -6,45 +6,101 @@ class Expecter(object):
     def __init__(self, spawn, searcher, searchwindowsize=-1):
         self.spawn = spawn
         self.searcher = searcher
+        # A value of -1 means to use the figure from spawn, which should
+        # be None or a positive number.
         if searchwindowsize == -1:
             searchwindowsize = spawn.searchwindowsize
         self.searchwindowsize = searchwindowsize
+        self.lookback = None
+        if hasattr(searcher, 'longest_string'):
+            self.lookback = searcher.longest_string
 
-    def new_data(self, data):
+    def do_search(self, window, freshlen):
         spawn = self.spawn
         searcher = self.searcher
-
-        pos = spawn._buffer.tell()
-        spawn._buffer.write(data)
-        spawn._before.write(data)
-
-        # determine which chunk of data to search; if a windowsize is
-        # specified, this is the *new* data + the preceding <windowsize> bytes
-        if self.searchwindowsize:
-            spawn._buffer.seek(max(0, pos - self.searchwindowsize))
-            window = spawn._buffer.read(self.searchwindowsize + len(data))
-        else:
-            # otherwise, search the whole buffer (really slow for large datasets)
-            window = spawn.buffer
-        index = searcher.search(window, len(data))
+        if freshlen > len(window):
+            freshlen = len(window)
+        index = searcher.search(window, freshlen, self.searchwindowsize)
         if index >= 0:
             spawn._buffer = spawn.buffer_type()
             spawn._buffer.write(window[searcher.end:])
-            spawn.before = spawn._before.getvalue()[0:-(len(window) - searcher.start)]
+            spawn.before = spawn._before.getvalue()[
+                0:-(len(window) - searcher.start)]
             spawn._before = spawn.buffer_type()
-            spawn.after = window[searcher.start: searcher.end]
+            spawn._before.write(window[searcher.end:])
+            spawn.after = window[searcher.start:searcher.end]
             spawn.match = searcher.match
             spawn.match_index = index
             # Found a match
             return index
-        elif self.searchwindowsize:
-            spawn._buffer = spawn.buffer_type()
-            spawn._buffer.write(window)
+        elif self.searchwindowsize or self.lookback:
+            maintain = self.searchwindowsize or self.lookback
+            if spawn._buffer.tell() > maintain:
+                spawn._buffer = spawn.buffer_type()
+                spawn._buffer.write(window[-maintain:])
+
+    def existing_data(self):
+        # First call from a new call to expect_loop or expect_async.
+        # self.searchwindowsize may have changed.
+        # Treat all data as fresh.
+        spawn = self.spawn
+        before_len = spawn._before.tell()
+        buf_len = spawn._buffer.tell()
+        freshlen = before_len
+        if before_len > buf_len:
+            if not self.searchwindowsize:
+                spawn._buffer = spawn.buffer_type()
+                window = spawn._before.getvalue()
+                spawn._buffer.write(window)
+            elif buf_len < self.searchwindowsize:
+                spawn._buffer = spawn.buffer_type()
+                spawn._before.seek(
+                    max(0, before_len - self.searchwindowsize))
+                window = spawn._before.read()
+                spawn._buffer.write(window)
+            else:
+                spawn._buffer.seek(max(0, buf_len - self.searchwindowsize))
+                window = spawn._buffer.read()
+        else:
+            if self.searchwindowsize:
+                spawn._buffer.seek(max(0, buf_len - self.searchwindowsize))
+                window = spawn._buffer.read()
+            else:
+                window = spawn._buffer.getvalue()
+        return self.do_search(window, freshlen)
+
+    def new_data(self, data):
+        # A subsequent call, after a call to existing_data.
+        spawn = self.spawn
+        freshlen = len(data)
+        spawn._before.write(data)
+        if not self.searchwindowsize:
+            if self.lookback:
+                # search lookback + new data.
+                old_len = spawn._buffer.tell()
+                spawn._buffer.write(data)
+                spawn._buffer.seek(max(0, old_len - self.lookback))
+                window = spawn._buffer.read()
+            else:
+                # copy the whole buffer (really slow for large datasets).
+                spawn._buffer.write(data)
+                window = spawn.buffer
+        else:
+            if len(data) >= self.searchwindowsize or not spawn._buffer.tell():
+                window = data[-self.searchwindowsize:]
+                spawn._buffer = spawn.buffer_type()
+                spawn._buffer.write(window[-self.searchwindowsize:])
+            else:
+                spawn._buffer.write(data)
+                new_len = spawn._buffer.tell()
+                spawn._buffer.seek(max(0, new_len - self.searchwindowsize))
+                window = spawn._buffer.read()
+        return self.do_search(window, freshlen)
 
     def eof(self, err=None):
         spawn = self.spawn
 
-        spawn.before = spawn.buffer
+        spawn.before = spawn._before.getvalue()
         spawn._buffer = spawn.buffer_type()
         spawn._before = spawn.buffer_type()
         spawn.after = EOF
@@ -60,12 +116,15 @@ class Expecter(object):
             msg += '\nsearcher: %s' % self.searcher
             if err is not None:
                 msg = str(err) + '\n' + msg
-            raise EOF(msg)
-    
+
+            exc = EOF(msg)
+            exc.__cause__ = None # in Python 3.x we can use "raise exc from None"
+            raise exc
+
     def timeout(self, err=None):
         spawn = self.spawn
 
-        spawn.before = spawn.buffer
+        spawn.before = spawn._before.getvalue()
         spawn.after = TIMEOUT
         index = self.searcher.timeout_index
         if index >= 0:
@@ -79,15 +138,18 @@ class Expecter(object):
             msg += '\nsearcher: %s' % self.searcher
             if err is not None:
                 msg = str(err) + '\n' + msg
-            raise TIMEOUT(msg)
+
+            exc = TIMEOUT(msg)
+            exc.__cause__ = None    # in Python 3.x we can use "raise exc from None"
+            raise exc
 
     def errored(self):
         spawn = self.spawn
-        spawn.before = spawn.buffer
+        spawn.before = spawn._before.getvalue()
         spawn.after = None
         spawn.match = None
         spawn.match_index = None
-    
+
     def expect_loop(self, timeout=-1):
         """Blocking expect"""
         spawn = self.spawn
@@ -96,14 +158,10 @@ class Expecter(object):
             end_time = time.time() + timeout
 
         try:
-            incoming = spawn.buffer
-            spawn._buffer = spawn.buffer_type()
-            spawn._before = spawn.buffer_type()
+            idx = self.existing_data()
+            if idx is not None:
+                return idx
             while True:
-                idx = self.new_data(incoming)
-                # Keep reading until exception or return.
-                if idx is not None:
-                    return idx
                 # No match at this point
                 if (timeout is not None) and (timeout < 0):
                     return self.timeout()
@@ -111,6 +169,10 @@ class Expecter(object):
                 incoming = spawn.read_nonblocking(spawn.maxread, timeout)
                 if self.spawn.delayafterread is not None:
                     time.sleep(self.spawn.delayafterread)
+                idx = self.new_data(incoming)
+                # Keep reading until exception or return.
+                if idx is not None:
+                    return idx
                 if timeout is not None:
                     timeout = end_time - time.time()
         except EOF as e:
@@ -148,6 +210,7 @@ class searcher_string(object):
         self.eof_index = -1
         self.timeout_index = -1
         self._strings = []
+        self.longest_string = 0
         for n, s in enumerate(strings):
             if s is EOF:
                 self.eof_index = n
@@ -156,6 +219,8 @@ class searcher_string(object):
                 self.timeout_index = n
                 continue
             self._strings.append((n, s))
+            if len(s) > self.longest_string:
+                self.longest_string = len(s)
 
     def __str__(self):
         '''This returns a human-readable string that represents the state of
@@ -244,7 +309,7 @@ class searcher_re(object):
         self.eof_index = -1
         self.timeout_index = -1
         self._searches = []
-        for n, s in zip(list(range(len(patterns))), patterns):
+        for n, s in enumerate(patterns):
             if s is EOF:
                 self.eof_index = n
                 continue

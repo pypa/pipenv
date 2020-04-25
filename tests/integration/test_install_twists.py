@@ -1,12 +1,14 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, print_function
 import os
 import shutil
+import sys
 
 import pytest
 
 from flaky import flaky
 
 from pipenv._compat import Path
-from pipenv.project import Project
 from pipenv.utils import mkdir_p, temp_environ
 from pipenv.vendor import delegator
 
@@ -14,31 +16,29 @@ from pipenv.vendor import delegator
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.local
-def test_local_extras_install(PipenvInstance, pypi):
+def test_local_extras_install(PipenvInstance):
     """Ensure -e .[extras] installs.
     """
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+    with PipenvInstance(chdir=True) as p:
         setup_py = os.path.join(p.path, "setup.py")
         with open(setup_py, "w") as fh:
             contents = """
 from setuptools import setup, find_packages
 setup(
-name='testpipenv',
-version='0.1',
-description='Pipenv Test Package',
-author='Pipenv Test',
-author_email='test@pipenv.package',
-license='MIT',
-packages=find_packages(),
-install_requires=[],
-extras_require={'dev': ['six']},
-zip_safe=False
+    name='testpipenv',
+    version='0.1',
+    description='Pipenv Test Package',
+    author='Pipenv Test',
+    author_email='test@pipenv.package',
+    license='MIT',
+    packages=find_packages(),
+    install_requires=[],
+    extras_require={'dev': ['six']},
+    zip_safe=False
 )
             """.strip()
             fh.write(contents)
         line = "-e .[dev]"
-        # pipfile = {"testpipenv": {"path": ".", "editable": True, "extras": ["dev"]}}
-        project = Project()
         with open(os.path.join(p.path, 'Pipfile'), 'w') as fh:
             fh.write("""
 [packages]
@@ -52,9 +52,9 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         assert "testpipenv" in p.lockfile["default"]
         assert p.lockfile["default"]["testpipenv"]["extras"] == ["dev"]
         assert "six" in p.lockfile["default"]
-        c = p.pipenv("--rm")
+        c = p.pipenv("uninstall --all")
         assert c.return_code == 0
-        project.write_toml({"packages": {}, "dev-packages": {}})
+        print("Current directory: {0}".format(os.getcwd()), file=sys.stderr)
         c = p.pipenv("install {0}".format(line))
         assert c.return_code == 0
         assert "testpipenv" in p.pipfile["packages"]
@@ -63,11 +63,11 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         assert "six" in p.lockfile["default"]
 
 
-@pytest.mark.install
 @pytest.mark.local
+@pytest.mark.install
 @pytest.mark.needs_internet
 @flaky
-class TestDependencyLinks(object):
+class TestDirectDependencies(object):
     """Ensure dependency_links are parsed and installed.
 
     This is needed for private repo dependencies.
@@ -85,45 +85,44 @@ setup(
     version='0.1',
     packages=[],
     install_requires=[
-        'test-private-dependency'
-    ],
-    dependency_links=[
         '{0}'
-    ]
+    ],
 )
             """.strip().format(deplink)
             fh.write(contents)
 
     @staticmethod
     def helper_dependency_links_install_test(pipenv_instance, deplink):
-        TestDependencyLinks.helper_dependency_links_install_make_setup(pipenv_instance, deplink)
+        TestDirectDependencies.helper_dependency_links_install_make_setup(pipenv_instance, deplink)
         c = pipenv_instance.pipenv("install -v -e .")
         assert c.return_code == 0
         assert "test-private-dependency" in pipenv_instance.lockfile["default"]
         assert "version" in pipenv_instance.lockfile["default"]["test-private-dependency"]
         assert "0.1" in pipenv_instance.lockfile["default"]["test-private-dependency"]["version"]
 
-    def test_https_dependency_links_install(self, PipenvInstance, pypi):
+    def test_https_dependency_links_install(self, PipenvInstance):
         """Ensure dependency_links are parsed and installed (needed for private repo dependencies).
         """
-        with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
-            os.environ['PIP_PROCESS_DEPENDENCY_LINKS'] = '1'
-            TestDependencyLinks.helper_dependency_links_install_test(
+        with temp_environ(), PipenvInstance(chdir=True) as p:
+            os.environ["PIP_NO_BUILD_ISOLATION"] = '1'
+            TestDirectDependencies.helper_dependency_links_install_test(
                 p,
-                'git+https://github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1'
+                'test-private-dependency@ git+https://github.com/atzannes/test-private-dependency@v0.1'
             )
 
     @pytest.mark.needs_github_ssh
-    def test_ssh_dependency_links_install(self, PipenvInstance, pypi):
-        with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
+    def test_ssh_dependency_links_install(self, PipenvInstance):
+        with temp_environ(), PipenvInstance(chdir=True) as p:
             os.environ['PIP_PROCESS_DEPENDENCY_LINKS'] = '1'
-            TestDependencyLinks.helper_dependency_links_install_test(
+            os.environ["PIP_NO_BUILD_ISOLATION"] = '1'
+            TestDirectDependencies.helper_dependency_links_install_test(
                 p,
-                'git+ssh://git@github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1'
+                'test-private-dependency@ git+ssh://git@github.com/atzannes/test-private-dependency@v0.1'
             )
 
 
 @pytest.mark.e
+@pytest.mark.local
 @pytest.mark.install
 @pytest.mark.skip(reason="this doesn't work on windows")
 def test_e_dot(PipenvInstance, pip_src_dir):
@@ -137,14 +136,14 @@ def test_e_dot(PipenvInstance, pip_src_dir):
         assert "path" in p.pipfile["dev-packages"][key]
         assert "requests" in p.lockfile["develop"]
 
-
 @pytest.mark.install
+@pytest.mark.multiprocessing
 @flaky
-def test_multiprocess_bug_and_install(PipenvInstance, pypi):
+def test_multiprocess_bug_and_install(PipenvInstance):
     with temp_environ():
         os.environ["PIPENV_MAX_SUBPROCESS"] = "2"
 
-        with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with PipenvInstance(chdir=True) as p:
             with open(p.pipfile_path, "w") as f:
                 contents = """
 [packages]
@@ -165,12 +164,12 @@ urllib3 = "*"
             assert c.return_code == 0
 
 
-@pytest.mark.sequential
 @pytest.mark.install
+@pytest.mark.sequential
 @flaky
-def test_sequential_mode(PipenvInstance, pypi):
+def test_sequential_mode(PipenvInstance):
 
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [packages]
@@ -191,10 +190,10 @@ pytz = "*"
         assert c.return_code == 0
 
 
-@pytest.mark.install
 @pytest.mark.run
-def test_normalize_name_install(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+@pytest.mark.install
+def test_normalize_name_install(PipenvInstance):
+    with PipenvInstance() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 # Pre comment
@@ -222,18 +221,19 @@ Requests = "==2.14.0"   # Inline comment
             assert "# Inline comment" in contents
 
 
-@pytest.mark.files
-@pytest.mark.resolver
-@pytest.mark.eggs
 @flaky
-def test_local_package(PipenvInstance, pip_src_dir, pypi, testsroot):
+@pytest.mark.eggs
+@pytest.mark.files
+@pytest.mark.local
+@pytest.mark.resolver
+def test_local_package(PipenvInstance, pip_src_dir, testsroot):
     """This test ensures that local packages (directories with a setup.py)
     installed in editable mode have their dependencies resolved as well"""
     file_name = "requests-2.19.1.tar.gz"
     package = "requests-2.19.1"
     # Not sure where travis/appveyor run tests from
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+    with PipenvInstance(chdir=True) as p:
         # This tests for a bug when installing a zipfile in the current dir
         copy_to = os.path.join(p.path, file_name)
         shutil.copy(source_path, copy_to)
@@ -250,13 +250,14 @@ def test_local_package(PipenvInstance, pip_src_dir, pypi, testsroot):
 
 
 @pytest.mark.files
+@pytest.mark.local
 @flaky
-def test_local_zipfiles(PipenvInstance, pypi, testsroot):
+def test_local_zipfiles(PipenvInstance, testsroot):
     file_name = "requests-2.19.1.tar.gz"
     # Not sure where travis/appveyor run tests from
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
 
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+    with PipenvInstance(chdir=True) as p:
         # This tests for a bug when installing a zipfile in the current dir
         shutil.copy(source_path, os.path.join(p.path, file_name))
 
@@ -268,19 +269,20 @@ def test_local_zipfiles(PipenvInstance, pypi, testsroot):
         assert "file" in dep or "path" in dep
         assert c.return_code == 0
 
-        key = [k for k in p.lockfile["default"].keys()][0]
-        dep = p.lockfile["default"][key]
+        # This now gets resolved to its name correctly
+        dep = p.lockfile["default"]["requests"]
 
         assert "file" in dep or "path" in dep
 
 
+@pytest.mark.local
 @pytest.mark.files
 @flaky
-def test_relative_paths(PipenvInstance, pypi, testsroot):
+def test_relative_paths(PipenvInstance, testsroot):
     file_name = "requests-2.19.1.tar.gz"
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
 
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance() as p:
         artifact_dir = "artifacts"
         artifact_path = os.path.join(p.path, artifact_dir)
         mkdir_p(artifact_path)
@@ -297,10 +299,11 @@ def test_relative_paths(PipenvInstance, pypi, testsroot):
 
 
 @pytest.mark.install
+@pytest.mark.local
 @pytest.mark.local_file
 @flaky
-def test_install_local_file_collision(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_install_local_file_collision(PipenvInstance):
+    with PipenvInstance() as p:
         target_package = "alembic"
         fake_file = os.path.join(p.path, target_package)
         with open(fake_file, "w") as f:
@@ -312,7 +315,7 @@ def test_install_local_file_collision(PipenvInstance, pypi):
         assert target_package in p.lockfile["default"]
 
 
-@pytest.mark.url
+@pytest.mark.urls
 @pytest.mark.install
 def test_install_local_uri_special_character(PipenvInstance, testsroot):
     file_name = "six-1.11.0+mkl-py2.py3-none-any.whl"
@@ -336,10 +339,10 @@ six = {{path = "./artifacts/{}"}}
         assert "six" in p.lockfile["default"]
 
 
+@pytest.mark.run
 @pytest.mark.files
 @pytest.mark.install
-@pytest.mark.run
-def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, testsroot):
+def test_multiple_editable_packages_should_not_race(PipenvInstance, testsroot):
     """Test for a race condition that can occur when installing multiple 'editable' packages at
     once, and which causes some of them to not be importable.
 
@@ -356,7 +359,7 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, testsr
 [packages]
 """
 
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+    with PipenvInstance(chdir=True) as p:
         for pkg_name in pkgs:
             source_path = p._pipfile.get_fixture_path("git/{0}/".format(pkg_name)).as_posix()
             c = delegator.run("git clone {0} ./{1}".format(source_path, pkg_name))
@@ -372,3 +375,18 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, testsr
 
         c = p.pipenv('run python -c "import requests, flask, six, jinja2"')
         assert c.return_code == 0, c.err
+
+
+@pytest.mark.outdated
+@pytest.mark.py3_only
+def test_outdated_should_compare_postreleases_without_failing(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv("install ibm-db-sa-py3==0.3.0")
+        assert c.return_code == 0
+        c = p.pipenv("update --outdated")
+        assert c.return_code == 0
+        assert "Skipped Update" in c.err
+        p._pipfile.update("ibm-db-sa-py3", "*")
+        c = p.pipenv("update --outdated")
+        assert c.return_code != 0
+        assert "out-of-date" in c.out

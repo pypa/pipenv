@@ -1,0 +1,61 @@
+build: off
+version: 1.0.{build}
+skip_branch_with_pr: true
+
+init:
+- ps: >-
+
+    git config --global core.sharedRepository true
+
+    git config --global core.longpaths true
+
+    git config --global core.autocrlf input
+
+    if ($env:APPVEYOR_PULL_REQUEST_NUMBER -and $env:APPVEYOR_BUILD_NUMBER -ne ((Invoke-RestMethod `
+            https://ci.appveyor.com/api/projects/$env:APPVEYOR_ACCOUNT_NAME/$env:APPVEYOR_PROJECT_SLUG/history?recordsNumber=50).builds | `
+            Where-Object pullRequestId -eq $env:APPVEYOR_PULL_REQUEST_NUMBER)[0].buildNumber) { `
+              Write-Host "There are newer queued builds for this pull request, skipping build."
+              Exit-AppveyorBuild
+            }
+
+    If (($env:SKIP_NOTAG -eq "true") -and ($env:APPVEYOR_REPO_TAG -ne "true")) {
+              Write-Host "Skipping build, not at a tag."
+              Exit-AppveyorBuild
+          }
+
+environment:
+  GIT_ASK_YESNO: 'false'
+  APPVEYOR_SAVE_CACHE_ON_ERROR: 'true'
+  APPVEYOR_SKIP_FINALIZE_ON_EXIT: 'true'
+  SHELL: 'windows'
+  PYTHON_ARCH: '64'
+  PYTHONIOENCODING: 'utf-8'
+
+  matrix:
+    # Unit and integration tests.
+    - PYTHON: "C:\\Python27"
+      RUN_INTEGRATION_TESTS: "True"
+    - PYTHON: "C:\\Python37-x64"
+      RUN_INTEGRATION_TESTS: "True"
+    # Unit tests only.
+    - PYTHON: "C:\\Python36-x64"
+    - PYTHON: "C:\\Python34-x64"
+    - PYTHON: "C:\\Python35-x64"
+
+cache:
+- '%LocalAppData%\pip\cache'
+- '%LocalAppData%\pipenv\cache'
+
+install:
+  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+  - "python --version"
+  - "python -m pip install --upgrade pip pytest-timeout"
+  - "python -m pip install -e .[tests]"
+
+
+test_script:
+  # Shorten paths, workaround https://bugs.python.org/issue18199
+  - "subst T: %TEMP%"
+  - "set TEMP=T:\\"
+  - "set TMP=T:\\"
+  - "python -m pytest -n auto -v tests"

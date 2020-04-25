@@ -91,7 +91,11 @@ _426_FIELDS = ('Metadata-Version', 'Name', 'Version', 'Platform',
 _426_MARKERS = ('Private-Version', 'Provides-Extra', 'Obsoleted-By',
                 'Setup-Requires-Dist', 'Extension')
 
-_566_FIELDS = _426_FIELDS + ('Description-Content-Type',)
+# See issue #106: Sometimes 'Requires' and 'Provides' occur wrongly in
+# the metadata. Include them in the tuple literal below to allow them
+# (for now).
+_566_FIELDS = _426_FIELDS + ('Description-Content-Type',
+                             'Requires', 'Provides')
 
 _566_MARKERS = ('Description-Content-Type',)
 
@@ -377,8 +381,8 @@ class LegacyMetadata(object):
                 value = msg[field]
                 if value is not None and value != 'UNKNOWN':
                     self.set(field, value)
-        logger.debug('Attempting to set metadata for %s', self)
-        self.set_metadata_version()
+        # logger.debug('Attempting to set metadata for %s', self)
+        # self.set_metadata_version()
 
     def write(self, filepath, skip_unknown=False):
         """Write the metadata fields to filepath."""
@@ -648,6 +652,7 @@ class LegacyMetadata(object):
 
 METADATA_FILENAME = 'pydist.json'
 WHEEL_METADATA_FILENAME = 'metadata.json'
+LEGACY_METADATA_FILENAME = 'METADATA'
 
 
 class Metadata(object):

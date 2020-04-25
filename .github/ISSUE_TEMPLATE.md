@@ -4,7 +4,7 @@ If you're requesting a new feature, please use the PEEP process:
 
     https://github.com/pypa/pipenv/blob/master/peeps/PEEP-000.md
 
-Check the [diagnose documentation](https://docs.pipenv.org/diagnose/) for common issues before posting! We may close your issue if it is very similar to one of them. Please be considerate, or be on your way.
+Check the [diagnose documentation](https://pipenv.pypa.io/en/latest/diagnose/) for common issues before posting! We may close your issue if it is very similar to one of them. Please be considerate, or be on your way.
 
 Make sure to mention your debugging experience if the documented solution failed.
 

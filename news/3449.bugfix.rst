@@ -1,1 +1,1 @@
-Update the index names in lock file when source name in Pipfile is changed.
+Updated the index names in lock file when source name in Pipfile is changed.

@@ -433,6 +433,22 @@ class Wheel(object):
         self.build_zip(pathname, archive_paths)
         return pathname
 
+    def skip_entry(self, arcname):
+        """
+        Determine whether an archive entry should be skipped when verifying
+        or installing.
+        """
+        # The signature file won't be in RECORD,
+        # and we  don't currently don't do anything with it
+        # We also skip directories, as they won't be in RECORD
+        # either. See:
+        #
+        # https://github.com/pypa/wheel/issues/294
+        # https://github.com/pypa/wheel/issues/287
+        # https://github.com/pypa/wheel/pull/289
+        #
+        return arcname.endswith(('/', '/RECORD.jws'))
+
     def install(self, paths, maker, **kwargs):
         """
         Install a wheel to the specified paths. If kwarg ``warner`` is
@@ -442,7 +458,9 @@ class Wheel(object):
         This can be used to issue any warnings to raise any exceptions.
         If kwarg ``lib_only`` is True, only the purelib/platlib files are
         installed, and the headers, scripts, data and dist-info metadata are
-        not written.
+        not written. If kwarg ``bytecode_hashed_invalidation`` is True, written
+        bytecode will try to use file-hash based invalidation (PEP-552) on
+        supported interpreter versions (CPython 2.7+).
 
         The return value is a :class:`InstalledDistribution` instance unless
         ``options.lib_only`` is True, in which case the return value is ``None``.
@@ -451,6 +469,7 @@ class Wheel(object):
         dry_run = maker.dry_run
         warner = kwargs.get('warner')
         lib_only = kwargs.get('lib_only', False)
+        bc_hashed_invalidation = kwargs.get('bytecode_hashed_invalidation', False)
 
         pathname = os.path.join(self.dirname, self.filename)
         name_ver = '%s-%s' % (self.name, self.version)
@@ -511,9 +530,7 @@ class Wheel(object):
                         u_arcname = arcname
                     else:
                         u_arcname = arcname.decode('utf-8')
-                    # The signature file won't be in RECORD,
-                    # and we  don't currently don't do anything with it
-                    if u_arcname.endswith('/RECORD.jws'):
+                    if self.skip_entry(u_arcname):
                         continue
                     row = records[u_arcname]
                     if row[2] and str(zinfo.file_size) != row[2]:
@@ -557,7 +574,8 @@ class Wheel(object):
                                                            '%s' % outfile)
                         if bc and outfile.endswith('.py'):
                             try:
-                                pyc = fileop.byte_compile(outfile)
+                                pyc = fileop.byte_compile(outfile,
+                                                          hashed_invalidation=bc_hashed_invalidation)
                                 outfiles.append(pyc)
                             except Exception:
                                 # Don't give up if byte-compilation fails,
@@ -782,13 +800,15 @@ class Wheel(object):
                     u_arcname = arcname
                 else:
                     u_arcname = arcname.decode('utf-8')
-                if '..' in u_arcname:
+                # See issue #115: some wheels have .. in their entries, but
+                # in the filename ... e.g. __main__..py ! So the check is
+                # updated to look for .. in the directory portions
+                p = u_arcname.split('/')
+                if '..' in p:
                     raise DistlibException('invalid entry in '
                                            'wheel: %r' % u_arcname)
 
-                # The signature file won't be in RECORD,
-                # and we  don't currently don't do anything with it
-                if u_arcname.endswith('/RECORD.jws'):
+                if self.skip_entry(u_arcname):
                     continue
                 row = records[u_arcname]
                 if row[2] and str(zinfo.file_size) != row[2]:

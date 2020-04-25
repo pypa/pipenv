@@ -1,4 +1,5 @@
 # -*- coding=utf-8 -*-
+from __future__ import absolute_import, print_function
 import io
 import os
 import tarfile
@@ -8,6 +9,8 @@ import pytest
 from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.utils import temp_environ
+from pipenv.vendor.vistir.path import is_in_path, normalize_path
+from pipenv.vendor.delegator import run as delegator_run
 
 
 @pytest.mark.project
@@ -35,8 +38,8 @@ pytz = "*"
 @pytest.mark.project
 @pytest.mark.sources
 @pytest.mark.parametrize('lock_first', [True, False])
-def test_get_source(PipenvInstance, pypi, lock_first):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_get_source(PipenvInstance, lock_first):
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -82,8 +85,8 @@ six = {{version = "*", index = "pypi"}}
 @pytest.mark.install
 @pytest.mark.project
 @pytest.mark.parametrize('newlines', [u'\n', u'\r\n'])
-def test_maintain_file_line_endings(PipenvInstance, pypi, newlines):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_maintain_file_line_endings(PipenvInstance, newlines):
+    with PipenvInstance(chdir=True) as p:
         # Initial pipfile + lockfile generation
         c = p.pipenv('install pytz')
         assert c.return_code == 0
@@ -118,8 +121,8 @@ def test_maintain_file_line_endings(PipenvInstance, pypi, newlines):
 
 @pytest.mark.project
 @pytest.mark.sources
-def test_many_indexes(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
+def test_many_indexes(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -150,17 +153,17 @@ six = {{version = "*", index = "pypi"}}
 
 @pytest.mark.install
 @pytest.mark.project
-def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpdir):
-    file_name = "requests-2.19.1.tar.gz"
-    package = pathlib_tmpdir.joinpath("requests-2.19.1")
-    source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+def test_include_editable_packages(PipenvInstance, testsroot, pathlib_tmpdir):
+    file_name = "tablib-0.12.1.tar.gz"
+    package = pathlib_tmpdir.joinpath("tablib-0.12.1")
+    source_path = os.path.abspath(os.path.join(testsroot, "pypi", "tablib", file_name))
+    with PipenvInstance(chdir=True) as p:
         with tarfile.open(source_path, "r:gz") as tarinfo:
             tarinfo.extractall(path=str(pathlib_tmpdir))
-        c = p.pipenv('install -e {}'.format(package))
+        c = p.pipenv('install -e {0}'.format(package.as_posix()))
         assert c.return_code == 0
         project = Project()
-        assert "requests" in [
+        assert "tablib" in [
             package.project_name
             for package in project.environment.get_installed_packages()
         ]
@@ -168,17 +171,59 @@ def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpd
 
 @pytest.mark.project
 @pytest.mark.virtualenv
-def test_run_in_virtualenv(PipenvInstance, pypi, virtualenv):
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
-        os.environ.pop("PIPENV_IGNORE_VIRTUALENVS", None)
+def test_run_in_virtualenv_with_global_context(PipenvInstance, virtualenv):
+    with PipenvInstance(chdir=True, venv_root=virtualenv.as_posix(), ignore_virtualenvs=False, venv_in_project=False) as p:
+        c = delegator_run(
+            "pipenv run pip freeze", cwd=os.path.abspath(p.path),
+            env=os.environ.copy()
+        )
+        assert c.return_code == 0, (c.out, c.err)
+        assert 'Creating a virtualenv' not in c.err, c.err
         project = Project()
-        assert project.virtualenv_location == str(virtualenv)
+        assert project.virtualenv_location == virtualenv.as_posix(), (
+            project.virtualenv_location, virtualenv.as_posix()
+        )
+        c = delegator_run(
+            "pipenv run pip install click", cwd=os.path.abspath(p.path),
+            env=os.environ.copy()
+        )
+        assert c.return_code == 0, (c.out, c.err)
+        assert "Courtesy Notice" in c.err, (c.out, c.err)
+        c = delegator_run(
+            "pipenv install six", cwd=os.path.abspath(p.path), env=os.environ.copy()
+        )
+        assert c.return_code == 0, (c.out, c.err)
+        c = delegator_run(
+            'pipenv run python -c "import click;print(click.__file__)"',
+            cwd=os.path.abspath(p.path), env=os.environ.copy()
+        )
+        assert c.return_code == 0, (c.out, c.err)
+        assert is_in_path(c.out.strip(), str(virtualenv)), (c.out.strip(), str(virtualenv))
+        c = delegator_run(
+            "pipenv clean --dry-run", cwd=os.path.abspath(p.path),
+            env=os.environ.copy()
+        )
+        assert c.return_code == 0, (c.out, c.err)
+        assert "click" in c.out, c.out
+
+
+@pytest.mark.project
+@pytest.mark.virtualenv
+def test_run_in_virtualenv(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv('run pip freeze')
+        assert c.return_code == 0
+        assert 'Creating a virtualenv' in c.err
+        project = Project()
         c = p.pipenv("run pip install click")
         assert c.return_code == 0
-        assert "Courtesy Notice" in c.err
+        c = p.pipenv("install six")
+        assert c.return_code == 0
         c = p.pipenv('run python -c "import click;print(click.__file__)"')
         assert c.return_code == 0
-        assert c.out.strip().startswith(str(virtualenv))
+        assert normalize_path(c.out.strip()).startswith(
+            normalize_path(str(project.virtualenv_location))
+        )
         c = p.pipenv("clean --dry-run")
         assert c.return_code == 0
         assert "click" in c.out

@@ -1,0 +1,122 @@
+name: CI
+trigger:
+  batch: true
+  branches:
+    include:
+    - master
+  paths:
+    exclude:
+    - docs/*
+    - news/*
+    - peeps/*
+    - examples/*
+    - pytest.ini
+    - README.md
+    - pipenv/*.txt
+    - CHANGELOG.rst
+    - CONTRIBUTING.md
+    - CODE_OF_CONDUCT.md
+    - .gitignore
+    - .gitattributes
+    - .editorconfig
+
+variables:
+- group: CI
+
+jobs:
+- job: TestVendoring
+  displayName: Vendoring
+  pool:
+    vmImage: 'Ubuntu-latest'
+  variables:
+    python.version: '3.7'
+    python.architecture: x64
+  steps:
+    - template: .azure-pipelines/steps/run-vendor-scripts.yml
+      parameters:
+        vmImage: 'Ubuntu-latest'
+
+- job: TestPackaging
+  displayName: Packaging
+  pool:
+    vmImage: 'Ubuntu-latest'
+  variables:
+    python.version: '3.7'
+    python.architecture: x64
+  steps:
+    - template: .azure-pipelines/steps/build-package.yml
+      parameters:
+        vmImage: 'Ubuntu-latest'
+
+- job: TestLinux
+  displayName: Linux /
+  pool:
+    vmImage: 'Ubuntu-latest'
+  strategy:
+    matrix:
+      "2.7":
+        python.version: '2.7'
+        python.architecture: x64
+      "3.6":
+        python.version: '3.6'
+        python.architecture: x64
+      "3.7":
+        python.version: '3.7'
+        python.architecture: x64
+      "3.8":
+        python.version: '3.8'
+        python.architecture: x64
+    maxParallel: 8
+  steps:
+  - template: .azure-pipelines/steps/run-tests.yml
+    parameters:
+      vmImage: 'Ubuntu-latest'
+
+- job: TestWindows
+  displayName: Windows /
+  timeoutInMinutes: 0
+  pool:
+    vmImage: windows-latest
+  strategy:
+    matrix:
+      "2.7":
+        python.version: '2.7'
+        python.architecture: x64
+      "3.6":
+        python.version: '3.6'
+        python.architecture: x64
+      "3.7":
+        python.version: '3.7'
+        python.architecture: x64
+      "3.8":
+        python.version: '3.8'
+        python.architecture: x64
+    maxParallel: 8
+  steps:
+    - template: .azure-pipelines/steps/run-tests.yml
+      parameters:
+        vmImage: windows-latest
+
+- job: TestMacOS
+  displayName: MacOS /
+  pool:
+    vmImage: macOS-latest
+  strategy:
+    matrix:
+      "2.7":
+        python.version: '2.7'
+        python.architecture: x64
+      "3.6":
+        python.version: '3.6'
+        python.architecture: x64
+      "3.7":
+        python.version: '3.7'
+        python.architecture: x64
+      "3.8":
+        python.version: '3.8'
+        python.architecture: x64
+    maxParallel: 8
+  steps:
+  - template: .azure-pipelines/steps/run-tests.yml
+    parameters:
+      vmImage: macOS-latest

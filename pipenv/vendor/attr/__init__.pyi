@@ -20,12 +20,27 @@ from . import filters as filters
 from . import converters as converters
 from . import validators as validators
 
+from ._version_info import VersionInfo
+
+__version__: str
+__version_info__: VersionInfo
+__title__: str
+__description__: str
+__url__: str
+__uri__: str
+__author__: str
+__email__: str
+__license__: str
+__copyright__: str
+
 _T = TypeVar("_T")
 _C = TypeVar("_C", bound=type)
 
-_ValidatorType = Callable[[Any, Attribute, _T], Any]
+_ValidatorType = Callable[[Any, Attribute[_T], _T], Any]
 _ConverterType = Callable[[Any], _T]
-_FilterType = Callable[[Attribute, Any], bool]
+_FilterType = Callable[[Attribute[_T], _T], bool]
+_ReprType = Callable[[Any], str]
+_ReprArgType = Union[bool, _ReprType]
 # FIXME: in reality, if multiple validators are passed they must be in a list or tuple,
 # but those are invariant and so would prevent subtypes of _ValidatorType from working
 # when passed in a list or tuple.
@@ -49,18 +64,16 @@ class Attribute(Generic[_T]):
     name: str
     default: Optional[_T]
     validator: Optional[_ValidatorType[_T]]
-    repr: bool
+    repr: _ReprArgType
     cmp: bool
+    eq: bool
+    order: bool
     hash: Optional[bool]
     init: bool
     converter: Optional[_ConverterType[_T]]
     metadata: Dict[Any, Any]
     type: Optional[Type[_T]]
     kw_only: bool
-    def __lt__(self, x: Attribute) -> bool: ...
-    def __le__(self, x: Attribute) -> bool: ...
-    def __gt__(self, x: Attribute) -> bool: ...
-    def __ge__(self, x: Attribute) -> bool: ...
 
 # NOTE: We had several choices for the annotation to use for type arg:
 # 1) Type[_T]
@@ -89,16 +102,17 @@ class Attribute(Generic[_T]):
 def attrib(
     default: None = ...,
     validator: None = ...,
-    repr: bool = ...,
-    cmp: bool = ...,
+    repr: _ReprArgType = ...,
+    cmp: Optional[bool] = ...,
     hash: Optional[bool] = ...,
     init: bool = ...,
-    convert: None = ...,
     metadata: Optional[Mapping[Any, Any]] = ...,
     type: None = ...,
     converter: None = ...,
     factory: None = ...,
     kw_only: bool = ...,
+    eq: Optional[bool] = ...,
+    order: Optional[bool] = ...,
 ) -> Any: ...
 
 # This form catches an explicit None or no default and infers the type from the other arguments.
@@ -106,16 +120,17 @@ def attrib(
 def attrib(
     default: None = ...,
     validator: Optional[_ValidatorArgType[_T]] = ...,
-    repr: bool = ...,
-    cmp: bool = ...,
+    repr: _ReprArgType = ...,
+    cmp: Optional[bool] = ...,
     hash: Optional[bool] = ...,
     init: bool = ...,
-    convert: Optional[_ConverterType[_T]] = ...,
     metadata: Optional[Mapping[Any, Any]] = ...,
     type: Optional[Type[_T]] = ...,
     converter: Optional[_ConverterType[_T]] = ...,
     factory: Optional[Callable[[], _T]] = ...,
     kw_only: bool = ...,
+    eq: Optional[bool] = ...,
+    order: Optional[bool] = ...,
 ) -> _T: ...
 
 # This form catches an explicit default argument.
@@ -123,16 +138,17 @@ def attrib(
 def attrib(
     default: _T,
     validator: Optional[_ValidatorArgType[_T]] = ...,
-    repr: bool = ...,
-    cmp: bool = ...,
+    repr: _ReprArgType = ...,
+    cmp: Optional[bool] = ...,
     hash: Optional[bool] = ...,
     init: bool = ...,
-    convert: Optional[_ConverterType[_T]] = ...,
     metadata: Optional[Mapping[Any, Any]] = ...,
     type: Optional[Type[_T]] = ...,
     converter: Optional[_ConverterType[_T]] = ...,
     factory: Optional[Callable[[], _T]] = ...,
     kw_only: bool = ...,
+    eq: Optional[bool] = ...,
+    order: Optional[bool] = ...,
 ) -> _T: ...
 
 # This form covers type=non-Type: e.g. forward references (str), Any
@@ -140,16 +156,17 @@ def attrib(
 def attrib(
     default: Optional[_T] = ...,
     validator: Optional[_ValidatorArgType[_T]] = ...,
-    repr: bool = ...,
-    cmp: bool = ...,
+    repr: _ReprArgType = ...,
+    cmp: Optional[bool] = ...,
     hash: Optional[bool] = ...,
     init: bool = ...,
-    convert: Optional[_ConverterType[_T]] = ...,
     metadata: Optional[Mapping[Any, Any]] = ...,
     type: object = ...,
     converter: Optional[_ConverterType[_T]] = ...,
     factory: Optional[Callable[[], _T]] = ...,
     kw_only: bool = ...,
+    eq: Optional[bool] = ...,
+    order: Optional[bool] = ...,
 ) -> Any: ...
 @overload
 def attrs(
@@ -157,7 +174,7 @@ def attrs(
     these: Optional[Dict[str, Any]] = ...,
     repr_ns: Optional[str] = ...,
     repr: bool = ...,
-    cmp: bool = ...,
+    cmp: Optional[bool] = ...,
     hash: Optional[bool] = ...,
     init: bool = ...,
     slots: bool = ...,
@@ -167,6 +184,9 @@ def attrs(
     auto_attribs: bool = ...,
     kw_only: bool = ...,
     cache_hash: bool = ...,
+    auto_exc: bool = ...,
+    eq: Optional[bool] = ...,
+    order: Optional[bool] = ...,
 ) -> _C: ...
 @overload
 def attrs(
@@ -174,7 +194,7 @@ def attrs(
     these: Optional[Dict[str, Any]] = ...,
     repr_ns: Optional[str] = ...,
     repr: bool = ...,
-    cmp: bool = ...,
+    cmp: Optional[bool] = ...,
     hash: Optional[bool] = ...,
     init: bool = ...,
     slots: bool = ...,
@@ -184,14 +204,17 @@ def attrs(
     auto_attribs: bool = ...,
     kw_only: bool = ...,
     cache_hash: bool = ...,
+    auto_exc: bool = ...,
+    eq: Optional[bool] = ...,
+    order: Optional[bool] = ...,
 ) -> Callable[[_C], _C]: ...
 
 # TODO: add support for returning NamedTuple from the mypy plugin
-class _Fields(Tuple[Attribute, ...]):
-    def __getattr__(self, name: str) -> Attribute: ...
+class _Fields(Tuple[Attribute[Any], ...]):
+    def __getattr__(self, name: str) -> Attribute[Any]: ...
 
 def fields(cls: type) -> _Fields: ...
-def fields_dict(cls: type) -> Dict[str, Attribute]: ...
+def fields_dict(cls: type) -> Dict[str, Attribute[Any]]: ...
 def validate(inst: Any) -> None: ...
 
 # TODO: add support for returning a proper attrs class from the mypy plugin
@@ -202,7 +225,7 @@ def make_class(
     bases: Tuple[type, ...] = ...,
     repr_ns: Optional[str] = ...,
     repr: bool = ...,
-    cmp: bool = ...,
+    cmp: Optional[bool] = ...,
     hash: Optional[bool] = ...,
     init: bool = ...,
     slots: bool = ...,
@@ -212,6 +235,9 @@ def make_class(
     auto_attribs: bool = ...,
     kw_only: bool = ...,
     cache_hash: bool = ...,
+    auto_exc: bool = ...,
+    eq: Optional[bool] = ...,
+    order: Optional[bool] = ...,
 ) -> type: ...
 
 # _funcs --
@@ -223,7 +249,7 @@ def make_class(
 def asdict(
     inst: Any,
     recurse: bool = ...,
-    filter: Optional[_FilterType] = ...,
+    filter: Optional[_FilterType[Any]] = ...,
     dict_factory: Type[Mapping[Any, Any]] = ...,
     retain_collection_types: bool = ...,
 ) -> Dict[str, Any]: ...
@@ -232,8 +258,8 @@ def asdict(
 def astuple(
     inst: Any,
     recurse: bool = ...,
-    filter: Optional[_FilterType] = ...,
-    tuple_factory: Type[Sequence] = ...,
+    filter: Optional[_FilterType[Any]] = ...,
+    tuple_factory: Type[Sequence[Any]] = ...,
     retain_collection_types: bool = ...,
 ) -> Tuple[Any, ...]: ...
 def has(cls: type) -> bool: ...

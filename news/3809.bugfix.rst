@@ -1,0 +1,1 @@
+Fixed several bugs which could prevent editable VCS dependencies from being installed into target environments, even when reporting successful installation.

@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 HASHER_HASH = re.compile(r'^(\w+)=([a-f0-9]+)')
 CHARSET = re.compile(r';\s*charset\s*=\s*(.*)\s*$', re.I)
 HTML_CONTENT_TYPE = re.compile('text/html|application/x(ht)?ml')
-DEFAULT_INDEX = 'https://pypi.python.org/pypi'
+DEFAULT_INDEX = 'https://pypi.org/pypi'
 
 def get_all_distribution_names(url=None):
     """
@@ -197,7 +197,7 @@ class Locator(object):
         is_downloadable = basename.endswith(self.downloadable_extensions)
         if is_wheel:
             compatible = is_compatible(Wheel(basename), self.wheel_tags)
-        return (t.scheme == 'https', 'pypi.python.org' in t.netloc,
+        return (t.scheme == 'https', 'pypi.org' in t.netloc,
                 is_downloadable, is_wheel, compatible, basename)
 
     def prefer_url(self, url1, url2):
@@ -304,18 +304,25 @@ class Locator(object):
 
     def _get_digest(self, info):
         """
-        Get a digest from a dictionary by looking at keys of the form
-        'algo_digest'.
+        Get a digest from a dictionary by looking at a "digests" dictionary
+        or keys of the form 'algo_digest'.
 
         Returns a 2-tuple (algo, digest) if found, else None. Currently
         looks only for SHA256, then MD5.
         """
         result = None
-        for algo in ('sha256', 'md5'):
-            key = '%s_digest' % algo
-            if key in info:
-                result = (algo, info[key])
-                break
+        if 'digests' in info:
+            digests = info['digests']
+            for algo in ('sha256', 'md5'):
+                if algo in digests:
+                    result = (algo, digests[algo])
+                    break
+        if not result:
+            for algo in ('sha256', 'md5'):
+                key = '%s_digest' % algo
+                if key in info:
+                    result = (algo, info[key])
+                    break
         return result
 
     def _update_version_data(self, result, info):
@@ -1049,7 +1056,7 @@ class AggregatingLocator(Locator):
 # versions which don't conform to PEP 426 / PEP 440.
 default_locator = AggregatingLocator(
                     JSONLocator(),
-                    SimpleScrapingLocator('https://pypi.python.org/simple/',
+                    SimpleScrapingLocator('https://pypi.org/simple/',
                                           timeout=3.0),
                     scheme='legacy')
 

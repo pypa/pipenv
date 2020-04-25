@@ -15,9 +15,6 @@ Pipenv: Python Dev Workflow for Humans
 .. image:: https://img.shields.io/pypi/pyversions/pipenv.svg
     :target: https://pypi.python.org/pypi/pipenv
 
-.. image:: https://img.shields.io/badge/Say%20Thanks!-🦉-1EAEDB.svg
-    :target: https://saythanks.io/to/kennethreitz
-
 ---------------
 
 **Pipenv** is a tool that aims to bring the best of all packaging worlds (bundler, composer, npm, cargo, yarn, etc.) to the Python world. *Windows is a first-class citizen, in our world.*
@@ -26,9 +23,11 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 
 Pipenv is primarily meant to provide users and developers of applications with an easy method to setup a working environment. For the distinction between libraries and applications and the usage of ``setup.py`` vs ``Pipfile`` to define dependencies, see :ref:`pipfile-vs-setuppy`.
 
-.. raw:: html
-
-    <iframe src="https://player.vimeo.com/video/233134524" width="700" height="460" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+.. image:: https://gist.githubusercontent.com/jlusk/855d611bbcfa2b159839db73d07f6ce9/raw/7f5743401809f7e630ee8ff458faa980e19924a0/pipenv.gif
+   :height: 341px
+   :width: 654px
+   :scale: 100 %
+   :alt: a short animation of pipenv at work
 
 The problems that Pipenv seeks to solve are multi-faceted:
 
@@ -69,9 +68,6 @@ Otherwise, refer to the :ref:`installing-pipenv` chapter for instructions.
 
 User Testimonials
 -----------------
-
-**Jannis Leidel**, former pip maintainer—
-    *Pipenv is the porcelain I always wanted to build for pip. It fits my brain and mostly replaces virtualenvwrapper and manual pip calls for me. Use it.*
 
 **David Gang**—
     *This package manager is really awesome. For the first time I know exactly what my dependencies are which I installed and what the transitive dependencies are. Combined with the fact that installs are deterministic, makes this package manager first class, like cargo*.
@@ -121,6 +117,7 @@ Further Documentation Guides
 
    basics
    advanced
+   cli
    diagnose
 
 Contribution Guides
@@ -131,13 +128,6 @@ Contribution Guides
 
    dev/philosophy
    dev/contributing
-
-☤ Pipenv Usage
---------------
-
-.. click:: pipenv:cli
-   :prog: pipenv
-   :show-nested:
 
 Indices and tables
 ==================

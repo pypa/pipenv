@@ -1,3 +1,7 @@
+# The following comment should be removed at some point in the future.
+# mypy: strict-optional=False
+# mypy: disallow-untyped-defs=False
+
 from __future__ import absolute_import, division
 
 import contextlib
@@ -8,11 +12,8 @@ import time
 from signal import SIGINT, default_int_handler, signal
 
 from pipenv.patched.notpip._vendor import six
-from pipenv.patched.notpip._vendor.progress.bar import (
-    Bar, ChargingBar, FillingCirclesBar, FillingSquaresBar, IncrementalBar,
-    ShadyBar,
-)
-from pipenv.patched.notpip._vendor.progress.helpers import HIDE_CURSOR, SHOW_CURSOR, WritelnMixin
+from pipenv.patched.notpip._vendor.progress import HIDE_CURSOR, SHOW_CURSOR
+from pipenv.patched.notpip._vendor.progress.bar import Bar, FillingCirclesBar, IncrementalBar
 from pipenv.patched.notpip._vendor.progress.spinner import Spinner
 
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS
@@ -21,7 +22,7 @@ from pipenv.patched.notpip._internal.utils.misc import format_size
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Any  # noqa: F401
+    from typing import Any, Iterator, IO
 
 try:
     from pipenv.patched.notpip._vendor import colorama
@@ -168,7 +169,7 @@ class WindowsMixin(object):
         # The Windows terminal does not support the hide/show cursor ANSI codes
         # even with colorama. So we'll ensure that hide_cursor is False on
         # Windows.
-        # This call neds to go before the super() call, so that hide_cursor
+        # This call needs to go before the super() call, so that hide_cursor
         # is set in time. The base progress bar class writes the "hide cursor"
         # code to the terminal in its init, so if we don't set this soon
         # enough, we get a "hide" with no corresponding "show"...
@@ -203,7 +204,7 @@ class BaseDownloadProgressBar(WindowsMixin, InterruptibleMixin,
 
 
 class DefaultDownloadProgressBar(BaseDownloadProgressBar,
-                                 _BaseBar):  # type: ignore
+                                 _BaseBar):
     pass
 
 
@@ -211,22 +212,8 @@ class DownloadSilentBar(BaseDownloadProgressBar, SilentBar):  # type: ignore
     pass
 
 
-class DownloadIncrementalBar(BaseDownloadProgressBar,  # type: ignore
-                             IncrementalBar):
-    pass
-
-
-class DownloadChargingBar(BaseDownloadProgressBar,  # type: ignore
-                          ChargingBar):
-    pass
-
-
-class DownloadShadyBar(BaseDownloadProgressBar, ShadyBar):  # type: ignore
-    pass
-
-
-class DownloadFillingSquaresBar(BaseDownloadProgressBar,  # type: ignore
-                                FillingSquaresBar):
+class DownloadBar(BaseDownloadProgressBar,  # type: ignore
+                  Bar):
     pass
 
 
@@ -241,7 +228,7 @@ class DownloadBlueEmojiProgressBar(BaseDownloadProgressBar,  # type: ignore
 
 
 class DownloadProgressSpinner(WindowsMixin, InterruptibleMixin,
-                              DownloadProgressMixin, WritelnMixin, Spinner):
+                              DownloadProgressMixin, Spinner):
 
     file = sys.stdout
     suffix = "%(downloaded)s %(download_speed)s"
@@ -269,7 +256,7 @@ class DownloadProgressSpinner(WindowsMixin, InterruptibleMixin,
 BAR_TYPES = {
     "off": (DownloadSilentBar, DownloadSilentBar),
     "on": (DefaultDownloadProgressBar, DownloadProgressSpinner),
-    "ascii": (DownloadIncrementalBar, DownloadProgressSpinner),
+    "ascii": (DownloadBar, DownloadProgressSpinner),
     "pretty": (DownloadFillingCirclesBar, DownloadProgressSpinner),
     "emoji": (DownloadBlueEmojiProgressBar, DownloadProgressSpinner)
 }
@@ -292,6 +279,7 @@ def DownloadProgressProvider(progress_bar, max=None):
 
 @contextlib.contextmanager
 def hidden_cursor(file):
+    # type: (IO) -> Iterator[None]
     # The Windows terminal does not support the hide/show cursor ANSI codes,
     # even via colorama. So don't even try.
     if WINDOWS:
@@ -311,19 +299,32 @@ def hidden_cursor(file):
 
 class RateLimiter(object):
     def __init__(self, min_update_interval_seconds):
+        # type: (float) -> None
         self._min_update_interval_seconds = min_update_interval_seconds
-        self._last_update = 0
+        self._last_update = 0  # type: float
 
     def ready(self):
+        # type: () -> bool
         now = time.time()
         delta = now - self._last_update
         return delta >= self._min_update_interval_seconds
 
     def reset(self):
+        # type: () -> None
         self._last_update = time.time()
 
 
-class InteractiveSpinner(object):
+class SpinnerInterface(object):
+    def spin(self):
+        # type: () -> None
+        raise NotImplementedError()
+
+    def finish(self, final_status):
+        # type: (str) -> None
+        raise NotImplementedError()
+
+
+class InteractiveSpinner(SpinnerInterface):
     def __init__(self, message, file=None, spin_chars="-\\|/",
                  # Empirically, 8 updates/second looks nice
                  min_update_interval_seconds=0.125):
@@ -352,6 +353,7 @@ class InteractiveSpinner(object):
         self._rate_limiter.reset()
 
     def spin(self):
+        # type: () -> None
         if self._finished:
             return
         if not self._rate_limiter.ready():
@@ -359,6 +361,7 @@ class InteractiveSpinner(object):
         self._write(next(self._spin_cycle))
 
     def finish(self, final_status):
+        # type: (str) -> None
         if self._finished:
             return
         self._write(final_status)
@@ -371,8 +374,9 @@ class InteractiveSpinner(object):
 # We still print updates occasionally (once every 60 seconds by default) to
 # act as a keep-alive for systems like Travis-CI that take lack-of-output as
 # an indication that a task has frozen.
-class NonInteractiveSpinner(object):
+class NonInteractiveSpinner(SpinnerInterface):
     def __init__(self, message, min_update_interval_seconds=60):
+        # type: (str, float) -> None
         self._message = message
         self._finished = False
         self._rate_limiter = RateLimiter(min_update_interval_seconds)
@@ -384,6 +388,7 @@ class NonInteractiveSpinner(object):
         logger.info("%s: %s", self._message, status)
 
     def spin(self):
+        # type: () -> None
         if self._finished:
             return
         if not self._rate_limiter.ready():
@@ -391,6 +396,7 @@ class NonInteractiveSpinner(object):
         self._update("still running...")
 
     def finish(self, final_status):
+        # type: (str) -> None
         if self._finished:
             return
         self._update("finished with status '%s'" % (final_status,))
@@ -399,13 +405,14 @@ class NonInteractiveSpinner(object):
 
 @contextlib.contextmanager
 def open_spinner(message):
+    # type: (str) -> Iterator[SpinnerInterface]
     # Interactive spinner goes directly to sys.stdout rather than being routed
     # through the logging system, but it acts like it has level INFO,
     # i.e. it's only displayed if we're at level INFO or better.
     # Non-interactive spinner goes through the logging system, so it is always
     # in sync with logging configuration.
     if sys.stdout.isatty() and logger.getEffectiveLevel() <= logging.INFO:
-        spinner = InteractiveSpinner(message)
+        spinner = InteractiveSpinner(message)  # type: SpinnerInterface
     else:
         spinner = NonInteractiveSpinner(message)
     try:

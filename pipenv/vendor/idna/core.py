@@ -9,7 +9,7 @@ _virama_combining_class = 9
 _alabel_prefix = b'xn--'
 _unicode_dots_re = re.compile(u'[\u002e\u3002\uff0e\uff61]')
 
-if sys.version_info[0] == 3:
+if sys.version_info[0] >= 3:
     unicode = str
     unichr = chr
 
@@ -267,10 +267,7 @@ def alabel(label):
 
     try:
         label = label.encode('ascii')
-        try:
-            ulabel(label)
-        except IDNAError:
-            raise IDNAError('The label {0} is not a valid A-label'.format(label))
+        ulabel(label)
         if not valid_label_length(label):
             raise IDNAError('Label too long')
         return label
@@ -303,6 +300,8 @@ def ulabel(label):
     label = label.lower()
     if label.startswith(_alabel_prefix):
         label = label[len(_alabel_prefix):]
+        if label.decode('ascii')[-1] == '-':
+            raise IDNAError('A-label must not end with a hyphen')
     else:
         check_label(label)
         return label.decode('ascii')

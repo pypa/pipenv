@@ -1,20 +1,34 @@
+# The following comment should be removed at some point in the future.
+# mypy: disallow-untyped-defs=False
+
 from __future__ import absolute_import
 
 import logging
 import os
 import re
 
-from pipenv.patched.notpip._internal.models.link import Link
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import (
-    display_path, make_vcs_requirement_url, rmtree, split_auth_from_netloc,
+    display_path,
+    is_console_interactive,
+    rmtree,
+    split_auth_from_netloc,
 )
-from pipenv.patched.notpip._internal.vcs import VersionControl, vcs
+from pipenv.patched.notpip._internal.utils.subprocess import make_command
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.vcs.versioncontrol import VersionControl, vcs
 
 _svn_xml_url_re = re.compile('url="([^"]+)"')
 _svn_rev_re = re.compile(r'committed-rev="(\d+)"')
 _svn_info_xml_rev_re = re.compile(r'\s*revision="(\d+)"')
 _svn_info_xml_url_re = re.compile(r'<url>(.*)</url>')
+
+
+if MYPY_CHECK_RUNNING:
+    from typing import Optional, Tuple
+    from pipenv.patched.notpip._internal.utils.subprocess import CommandArgs
+    from pipenv.patched.notpip._internal.utils.misc import HiddenText
+    from pipenv.patched.notpip._internal.vcs.versioncontrol import AuthInfo, RevOptions
 
 
 logger = logging.getLogger(__name__)
@@ -26,56 +40,16 @@ class Subversion(VersionControl):
     repo_name = 'checkout'
     schemes = ('svn', 'svn+ssh', 'svn+http', 'svn+https', 'svn+svn')
 
-    def get_base_rev_args(self, rev):
+    @classmethod
+    def should_add_vcs_url_prefix(cls, remote_url):
+        return True
+
+    @staticmethod
+    def get_base_rev_args(rev):
         return ['-r', rev]
 
-    def export(self, location):
-        """Export the svn repository at the url to the destination location"""
-        url, rev_options = self.get_url_rev_options(self.url)
-
-        logger.info('Exporting svn repository %s to %s', url, location)
-        with indent_log():
-            if os.path.exists(location):
-                # Subversion doesn't like to check out over an existing
-                # directory --force fixes this, but was only added in svn 1.5
-                rmtree(location)
-            cmd_args = ['export'] + rev_options.to_args() + [url, location]
-            self.run_command(cmd_args, show_stdout=False)
-
-    def fetch_new(self, dest, url, rev_options):
-        rev_display = rev_options.to_display()
-        logger.info(
-            'Checking out %s%s to %s',
-            url,
-            rev_display,
-            display_path(dest),
-        )
-        cmd_args = ['checkout', '-q'] + rev_options.to_args() + [url, dest]
-        self.run_command(cmd_args)
-
-    def switch(self, dest, url, rev_options):
-        cmd_args = ['switch'] + rev_options.to_args() + [url, dest]
-        self.run_command(cmd_args)
-
-    def update(self, dest, url, rev_options):
-        cmd_args = ['update'] + rev_options.to_args() + [dest]
-        self.run_command(cmd_args)
-
-    def get_location(self, dist, dependency_links):
-        for url in dependency_links:
-            egg_fragment = Link(url).egg_fragment
-            if not egg_fragment:
-                continue
-            if '-' in egg_fragment:
-                # FIXME: will this work when a package has - in the name?
-                key = '-'.join(egg_fragment.split('-')[:-1]).lower()
-            else:
-                key = egg_fragment
-            if key == dist.key:
-                return url.split('#', 1)[0]
-        return None
-
-    def get_revision(self, location):
+    @classmethod
+    def get_revision(cls, location):
         """
         Return the maximum revision for all files under a given location
         """
@@ -83,16 +57,16 @@ class Subversion(VersionControl):
         revision = 0
 
         for base, dirs, files in os.walk(location):
-            if self.dirname not in dirs:
+            if cls.dirname not in dirs:
                 dirs[:] = []
                 continue    # no sense walking uncontrolled subdirs
-            dirs.remove(self.dirname)
-            entries_fn = os.path.join(base, self.dirname, 'entries')
+            dirs.remove(cls.dirname)
+            entries_fn = os.path.join(base, cls.dirname, 'entries')
             if not os.path.exists(entries_fn):
                 # FIXME: should we warn?
                 continue
 
-            dirurl, localrev = self._get_svn_url_rev(base)
+            dirurl, localrev = cls._get_svn_url_rev(base)
 
             if base == location:
                 base = dirurl + '/'   # save the root url
@@ -102,7 +76,8 @@ class Subversion(VersionControl):
             revision = max(revision, localrev)
         return revision
 
-    def get_netloc_and_auth(self, netloc, scheme):
+    @classmethod
+    def get_netloc_and_auth(cls, netloc, scheme):
         """
         This override allows the auth information to be passed to svn via the
         --username and --password options instead of via the URL.
@@ -110,20 +85,23 @@ class Subversion(VersionControl):
         if scheme == 'ssh':
             # The --username and --password options can't be used for
             # svn+ssh URLs, so keep the auth information in the URL.
-            return super(Subversion, self).get_netloc_and_auth(
-                netloc, scheme)
+            return super(Subversion, cls).get_netloc_and_auth(netloc, scheme)
 
         return split_auth_from_netloc(netloc)
 
-    def get_url_rev_and_auth(self, url):
+    @classmethod
+    def get_url_rev_and_auth(cls, url):
+        # type: (str) -> Tuple[str, Optional[str], AuthInfo]
         # hotfix the URL scheme after removing svn+ from svn+ssh:// readd it
-        url, rev, user_pass = super(Subversion, self).get_url_rev_and_auth(url)
+        url, rev, user_pass = super(Subversion, cls).get_url_rev_and_auth(url)
         if url.startswith('ssh://'):
             url = 'svn+' + url
         return url, rev, user_pass
 
-    def make_rev_args(self, username, password):
-        extra_args = []
+    @staticmethod
+    def make_rev_args(username, password):
+        # type: (Optional[str], Optional[HiddenText]) -> CommandArgs
+        extra_args = []  # type: CommandArgs
         if username:
             extra_args += ['--username', username]
         if password:
@@ -131,7 +109,8 @@ class Subversion(VersionControl):
 
         return extra_args
 
-    def get_url(self, location):
+    @classmethod
+    def get_remote_url(cls, location):
         # In cases where the source is in a subdirectory, not alongside
         # setup.py we have to look up in the location until we find a real
         # setup.py
@@ -149,12 +128,13 @@ class Subversion(VersionControl):
                 )
                 return None
 
-        return self._get_svn_url_rev(location)[0]
+        return cls._get_svn_url_rev(location)[0]
 
-    def _get_svn_url_rev(self, location):
+    @classmethod
+    def _get_svn_url_rev(cls, location):
         from pipenv.patched.notpip._internal.exceptions import InstallationError
 
-        entries_path = os.path.join(location, self.dirname, 'entries')
+        entries_path = os.path.join(location, cls.dirname, 'entries')
         if os.path.exists(entries_path):
             with open(entries_path) as f:
                 data = f.read()
@@ -177,7 +157,12 @@ class Subversion(VersionControl):
         else:
             try:
                 # subversion >= 1.7
-                xml = self.run_command(
+                # Note that using get_remote_call_options is not necessary here
+                # because `svn info` is being run against a local directory.
+                # We don't need to worry about making sure interactive mode
+                # is being used to prompt for passwords, because passwords
+                # are only potentially needed for remote server requests.
+                xml = cls.run_command(
                     ['info', '--xml', location],
                     show_stdout=False,
                 )
@@ -195,19 +180,154 @@ class Subversion(VersionControl):
 
         return url, rev
 
-    def get_src_requirement(self, dist, location):
-        repo = self.get_url(location)
-        if repo is None:
-            return None
-        repo = 'svn+' + repo
-        rev = self.get_revision(location)
-        # FIXME: why not project name?
-        egg_project_name = dist.egg_name().split('-', 1)[0]
-        return make_vcs_requirement_url(repo, rev, egg_project_name)
-
-    def is_commit_id_equal(self, dest, name):
+    @classmethod
+    def is_commit_id_equal(cls, dest, name):
         """Always assume the versions don't match"""
         return False
+
+    def __init__(self, use_interactive=None):
+        # type: (bool) -> None
+        if use_interactive is None:
+            use_interactive = is_console_interactive()
+        self.use_interactive = use_interactive
+
+        # This member is used to cache the fetched version of the current
+        # ``svn`` client.
+        # Special value definitions:
+        #   None: Not evaluated yet.
+        #   Empty tuple: Could not parse version.
+        self._vcs_version = None  # type: Optional[Tuple[int, ...]]
+
+        super(Subversion, self).__init__()
+
+    def call_vcs_version(self):
+        # type: () -> Tuple[int, ...]
+        """Query the version of the currently installed Subversion client.
+
+        :return: A tuple containing the parts of the version information or
+            ``()`` if the version returned from ``svn`` could not be parsed.
+        :raises: BadCommand: If ``svn`` is not installed.
+        """
+        # Example versions:
+        #   svn, version 1.10.3 (r1842928)
+        #      compiled Feb 25 2019, 14:20:39 on x86_64-apple-darwin17.0.0
+        #   svn, version 1.7.14 (r1542130)
+        #      compiled Mar 28 2018, 08:49:13 on x86_64-pc-linux-gnu
+        version_prefix = 'svn, version '
+        version = self.run_command(['--version'], show_stdout=False)
+        if not version.startswith(version_prefix):
+            return ()
+
+        version = version[len(version_prefix):].split()[0]
+        version_list = version.split('.')
+        try:
+            parsed_version = tuple(map(int, version_list))
+        except ValueError:
+            return ()
+
+        return parsed_version
+
+    def get_vcs_version(self):
+        # type: () -> Tuple[int, ...]
+        """Return the version of the currently installed Subversion client.
+
+        If the version of the Subversion client has already been queried,
+        a cached value will be used.
+
+        :return: A tuple containing the parts of the version information or
+            ``()`` if the version returned from ``svn`` could not be parsed.
+        :raises: BadCommand: If ``svn`` is not installed.
+        """
+        if self._vcs_version is not None:
+            # Use cached version, if available.
+            # If parsing the version failed previously (empty tuple),
+            # do not attempt to parse it again.
+            return self._vcs_version
+
+        vcs_version = self.call_vcs_version()
+        self._vcs_version = vcs_version
+        return vcs_version
+
+    def get_remote_call_options(self):
+        # type: () -> CommandArgs
+        """Return options to be used on calls to Subversion that contact the server.
+
+        These options are applicable for the following ``svn`` subcommands used
+        in this class.
+
+            - checkout
+            - export
+            - switch
+            - update
+
+        :return: A list of command line arguments to pass to ``svn``.
+        """
+        if not self.use_interactive:
+            # --non-interactive switch is available since Subversion 0.14.4.
+            # Subversion < 1.8 runs in interactive mode by default.
+            return ['--non-interactive']
+
+        svn_version = self.get_vcs_version()
+        # By default, Subversion >= 1.8 runs in non-interactive mode if
+        # stdin is not a TTY. Since that is how pip invokes SVN, in
+        # call_subprocess(), pip must pass --force-interactive to ensure
+        # the user can be prompted for a password, if required.
+        #   SVN added the --force-interactive option in SVN 1.8. Since
+        # e.g. RHEL/CentOS 7, which is supported until 2024, ships with
+        # SVN 1.7, pip should continue to support SVN 1.7. Therefore, pip
+        # can't safely add the option if the SVN version is < 1.8 (or unknown).
+        if svn_version >= (1, 8):
+            return ['--force-interactive']
+
+        return []
+
+    def export(self, location, url):
+        # type: (str, HiddenText) -> None
+        """Export the svn repository at the url to the destination location"""
+        url, rev_options = self.get_url_rev_options(url)
+
+        logger.info('Exporting svn repository %s to %s', url, location)
+        with indent_log():
+            if os.path.exists(location):
+                # Subversion doesn't like to check out over an existing
+                # directory --force fixes this, but was only added in svn 1.5
+                rmtree(location)
+            cmd_args = make_command(
+                'export', self.get_remote_call_options(),
+                rev_options.to_args(), url, location,
+            )
+            self.run_command(cmd_args, show_stdout=False)
+
+    def fetch_new(self, dest, url, rev_options):
+        # type: (str, HiddenText, RevOptions) -> None
+        rev_display = rev_options.to_display()
+        logger.info(
+            'Checking out %s%s to %s',
+            url,
+            rev_display,
+            display_path(dest),
+        )
+        cmd_args = make_command(
+            'checkout', '-q', self.get_remote_call_options(),
+            rev_options.to_args(), url, dest,
+        )
+        self.run_command(cmd_args)
+
+    def switch(self, dest, url, rev_options):
+        # type: (str, HiddenText, RevOptions) -> None
+        cmd_args = make_command(
+            'switch', self.get_remote_call_options(), rev_options.to_args(),
+            url, dest,
+        )
+        self.run_command(cmd_args)
+
+    def update(self, dest, url, rev_options):
+        # type: (str, HiddenText, RevOptions) -> None
+        cmd_args = make_command(
+            'update', self.get_remote_call_options(), rev_options.to_args(),
+            dest,
+        )
+        self.run_command(cmd_args)
 
 
 vcs.register(Subversion)

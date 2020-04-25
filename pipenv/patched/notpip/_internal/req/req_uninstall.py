@@ -14,15 +14,30 @@ from pipenv.patched.notpip._internal.locations import bin_py, bin_user
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS, cache_from_source, uses_pycache
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import (
-    FakeFile, ask, dist_in_usersite, dist_is_local, egg_link_path, is_local,
-    normalize_path, renames,
+    FakeFile,
+    ask,
+    dist_in_usersite,
+    dist_is_local,
+    egg_link_path,
+    is_local,
+    normalize_path,
+    renames,
+    rmtree,
 )
-from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.temp_dir import AdjacentTempDirectory, TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+
+if MYPY_CHECK_RUNNING:
+    from typing import (
+        Any, Callable, Dict, Iterable, Iterator, List, Optional, Set, Tuple,
+    )
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
 logger = logging.getLogger(__name__)
 
 
 def _script_names(dist, script_name, is_gui):
+    # type: (Distribution, str, bool) -> List[str]
     """Create the fully qualified name of the files created by
     {console,gui}_scripts for the given ``dist``.
     Returns the list of file names
@@ -44,9 +59,11 @@ def _script_names(dist, script_name, is_gui):
 
 
 def _unique(fn):
+    # type: (Callable) -> Callable[..., Iterator[Any]]
     @functools.wraps(fn)
     def unique(*args, **kw):
-        seen = set()
+        # type: (Any, Any) -> Iterator[Any]
+        seen = set()  # type: Set[Any]
         for item in fn(*args, **kw):
             if item not in seen:
                 seen.add(item)
@@ -56,6 +73,7 @@ def _unique(fn):
 
 @_unique
 def uninstallation_paths(dist):
+    # type: (Distribution) -> Iterator[str]
     """
     Yield all the uninstallation paths for dist based on RECORD-without-.py[co]
 
@@ -78,25 +96,67 @@ def uninstallation_paths(dist):
 
 
 def compact(paths):
+    # type: (Iterable[str]) -> Set[str]
     """Compact a path set to contain the minimal number of paths
     necessary to contain all paths in the set. If /a/path/ and
     /a/path/to/a/file.txt are both in the set, leave only the
     shorter path."""
 
     sep = os.path.sep
-    short_paths = set()
+    short_paths = set()  # type: Set[str]
     for path in sorted(paths, key=len):
-        should_add = any(
+        should_skip = any(
             path.startswith(shortpath.rstrip("*")) and
             path[len(shortpath.rstrip("*").rstrip(sep))] == sep
             for shortpath in short_paths
         )
-        if not should_add:
+        if not should_skip:
             short_paths.add(path)
     return short_paths
 
 
+def compress_for_rename(paths):
+    # type: (Iterable[str]) -> Set[str]
+    """Returns a set containing the paths that need to be renamed.
+
+    This set may include directories when the original sequence of paths
+    included every file on disk.
+    """
+    case_map = dict((os.path.normcase(p), p) for p in paths)
+    remaining = set(case_map)
+    unchecked = sorted(set(os.path.split(p)[0]
+                           for p in case_map.values()), key=len)
+    wildcards = set()  # type: Set[str]
+
+    def norm_join(*a):
+        # type: (str) -> str
+        return os.path.normcase(os.path.join(*a))
+
+    for root in unchecked:
+        if any(os.path.normcase(root).startswith(w)
+               for w in wildcards):
+            # This directory has already been handled.
+            continue
+
+        all_files = set()  # type: Set[str]
+        all_subdirs = set()  # type: Set[str]
+        for dirname, subdirs, files in os.walk(root):
+            all_subdirs.update(norm_join(root, dirname, d)
+                               for d in subdirs)
+            all_files.update(norm_join(root, dirname, f)
+                             for f in files)
+        # If all the files we found are in our remaining set of files to
+        # remove, then remove them from the latter set and add a wildcard
+        # for the directory.
+        if not (all_files - remaining):
+            remaining.difference_update(all_files)
+            wildcards.add(root + os.sep)
+
+    return set(map(case_map.__getitem__, remaining)) | wildcards
+
+
 def compress_for_output_listing(paths):
+    # type: (Iterable[str]) -> Tuple[Set[str], Set[str]]
     """Returns a tuple of 2 sets of which paths to display to user
 
     The first set contains paths that would be deleted. Files of a package
@@ -107,7 +167,7 @@ def compress_for_output_listing(paths):
     folders.
     """
 
-    will_remove = list(paths)
+    will_remove = set(paths)
     will_skip = set()
 
     # Determine folders and files
@@ -120,7 +180,8 @@ def compress_for_output_listing(paths):
             folders.add(os.path.dirname(path))
         files.add(path)
 
-    _normcased_files = set(map(os.path.normcase, files))
+    # probably this one https://github.com/python/mypy/issues/390
+    _normcased_files = set(map(os.path.normcase, files))  # type: ignore
 
     folders = compact(folders)
 
@@ -145,18 +206,130 @@ def compress_for_output_listing(paths):
     return will_remove, will_skip
 
 
+class StashedUninstallPathSet(object):
+    """A set of file rename operations to stash files while
+    tentatively uninstalling them."""
+    def __init__(self):
+        # type: () -> None
+        # Mapping from source file root to [Adjacent]TempDirectory
+        # for files under that directory.
+        self._save_dirs = {}  # type: Dict[str, TempDirectory]
+        # (old path, new path) tuples for each move that may need
+        # to be undone.
+        self._moves = []  # type: List[Tuple[str, str]]
+
+    def _get_directory_stash(self, path):
+        # type: (str) -> str
+        """Stashes a directory.
+
+        Directories are stashed adjacent to their original location if
+        possible, or else moved/copied into the user's temp dir."""
+
+        try:
+            save_dir = AdjacentTempDirectory(path)  # type: TempDirectory
+        except OSError:
+            save_dir = TempDirectory(kind="uninstall")
+        self._save_dirs[os.path.normcase(path)] = save_dir
+
+        return save_dir.path
+
+    def _get_file_stash(self, path):
+        # type: (str) -> str
+        """Stashes a file.
+
+        If no root has been provided, one will be created for the directory
+        in the user's temp directory."""
+        path = os.path.normcase(path)
+        head, old_head = os.path.dirname(path), None
+        save_dir = None
+
+        while head != old_head:
+            try:
+                save_dir = self._save_dirs[head]
+                break
+            except KeyError:
+                pass
+            head, old_head = os.path.dirname(head), head
+        else:
+            # Did not find any suitable root
+            head = os.path.dirname(path)
+            save_dir = TempDirectory(kind='uninstall')
+            self._save_dirs[head] = save_dir
+
+        relpath = os.path.relpath(path, head)
+        if relpath and relpath != os.path.curdir:
+            return os.path.join(save_dir.path, relpath)
+        return save_dir.path
+
+    def stash(self, path):
+        # type: (str) -> str
+        """Stashes the directory or file and returns its new location.
+        Handle symlinks as files to avoid modifying the symlink targets.
+        """
+        path_is_dir = os.path.isdir(path) and not os.path.islink(path)
+        if path_is_dir:
+            new_path = self._get_directory_stash(path)
+        else:
+            new_path = self._get_file_stash(path)
+
+        self._moves.append((path, new_path))
+        if (path_is_dir and os.path.isdir(new_path)):
+            # If we're moving a directory, we need to
+            # remove the destination first or else it will be
+            # moved to inside the existing directory.
+            # We just created new_path ourselves, so it will
+            # be removable.
+            os.rmdir(new_path)
+        renames(path, new_path)
+        return new_path
+
+    def commit(self):
+        # type: () -> None
+        """Commits the uninstall by removing stashed files."""
+        for _, save_dir in self._save_dirs.items():
+            save_dir.cleanup()
+        self._moves = []
+        self._save_dirs = {}
+
+    def rollback(self):
+        # type: () -> None
+        """Undoes the uninstall by moving stashed files back."""
+        for p in self._moves:
+            logging.info("Moving to %s\n from %s", *p)
+
+        for new_path, path in self._moves:
+            try:
+                logger.debug('Replacing %s from %s', new_path, path)
+                if os.path.isfile(new_path) or os.path.islink(new_path):
+                    os.unlink(new_path)
+                elif os.path.isdir(new_path):
+                    rmtree(new_path)
+                renames(path, new_path)
+            except OSError as ex:
+                logger.error("Failed to restore %s", new_path)
+                logger.debug("Exception: %s", ex)
+
+        self.commit()
+
+    @property
+    def can_rollback(self):
+        # type: () -> bool
+        return bool(self._moves)
+
+
 class UninstallPathSet(object):
     """A set of file paths to be removed in the uninstallation of a
     requirement."""
     def __init__(self, dist):
-        self.paths = set()
-        self._refuse = set()
-        self.pth = {}
+        # type: (Distribution) -> None
+        self.paths = set()  # type: Set[str]
+        self._refuse = set()  # type: Set[str]
+        self.pth = {}  # type: Dict[str, UninstallPthEntries]
         self.dist = dist
-        self.save_dir = TempDirectory(kind="uninstall")
-        self._moved_paths = []
+        self._moved_paths = StashedUninstallPathSet()
 
     def _permitted(self, path):
+        # type: (str) -> bool
         """
         Return True if the given path is one we are permitted to
         remove/modify, False otherwise.
@@ -165,6 +338,7 @@ class UninstallPathSet(object):
         return is_local(path)
 
     def add(self, path):
+        # type: (str) -> None
         head, tail = os.path.split(path)
 
         # we normalize the head to resolve parent directory symlinks, but not
@@ -184,6 +358,7 @@ class UninstallPathSet(object):
             self.add(cache_from_source(path))
 
     def add_pth(self, pth_file, entry):
+        # type: (str, str) -> None
         pth_file = normalize_path(pth_file)
         if self._permitted(pth_file):
             if pth_file not in self.pth:
@@ -192,12 +367,8 @@ class UninstallPathSet(object):
         else:
             self._refuse.add(pth_file)
 
-    def _stash(self, path):
-        return os.path.join(
-            self.save_dir.path, os.path.splitdrive(path)[1].lstrip(os.path.sep)
-        )
-
     def remove(self, auto_confirm=False, verbose=False):
+        # type: (bool, bool) -> None
         """Remove paths in ``self.paths`` with confirmation (unless
         ``auto_confirm`` is True)."""
 
@@ -215,23 +386,26 @@ class UninstallPathSet(object):
 
         with indent_log():
             if auto_confirm or self._allowed_to_proceed(verbose):
-                self.save_dir.create()
+                moved = self._moved_paths
 
-                for path in sorted(compact(self.paths)):
-                    new_path = self._stash(path)
+                for_rename = compress_for_rename(self.paths)
+
+                for path in sorted(compact(for_rename)):
+                    moved.stash(path)
                     logger.debug('Removing file or directory %s', path)
-                    self._moved_paths.append(path)
-                    renames(path, new_path)
+
                 for pth in self.pth.values():
                     pth.remove()
 
                 logger.info('Successfully uninstalled %s', dist_name_version)
 
     def _allowed_to_proceed(self, verbose):
+        # type: (bool) -> bool
         """Display which files would be deleted and prompt for confirmation
         """
 
         def _display(msg, paths):
+            # type: (str, Iterable[str]) -> None
             if not paths:
                 return
 
@@ -245,38 +419,39 @@ class UninstallPathSet(object):
         else:
             # In verbose mode, display all the files that are going to be
             # deleted.
-            will_remove = list(self.paths)
+            will_remove = set(self.paths)
             will_skip = set()
 
         _display('Would remove:', will_remove)
         _display('Would not remove (might be manually added):', will_skip)
         _display('Would not remove (outside of prefix):', self._refuse)
+        if verbose:
+            _display('Will actually move:', compress_for_rename(self.paths))
 
         return ask('Proceed (y/n)? ', ('y', 'n')) == 'y'
 
     def rollback(self):
+        # type: () -> None
         """Rollback the changes previously made by remove()."""
-        if self.save_dir.path is None:
+        if not self._moved_paths.can_rollback:
             logger.error(
                 "Can't roll back %s; was not uninstalled",
                 self.dist.project_name,
             )
-            return False
+            return
         logger.info('Rolling back uninstall of %s', self.dist.project_name)
-        for path in self._moved_paths:
-            tmp_path = self._stash(path)
-            logger.debug('Replacing %s', path)
-            renames(tmp_path, path)
+        self._moved_paths.rollback()
         for pth in self.pth.values():
             pth.rollback()
 
     def commit(self):
+        # type: () -> None
         """Remove temporary save dir: rollback will no longer be possible."""
-        self.save_dir.cleanup()
-        self._moved_paths = []
+        self._moved_paths.commit()
 
     @classmethod
     def from_dist(cls, dist):
+        # type: (Distribution) -> UninstallPathSet
         dist_path = normalize_path(dist.location)
         if not dist_is_local(dist):
             logger.info(
@@ -408,25 +583,33 @@ class UninstallPathSet(object):
 
 class UninstallPthEntries(object):
     def __init__(self, pth_file):
+        # type: (str) -> None
         if not os.path.isfile(pth_file):
             raise UninstallationError(
                 "Cannot remove entries from nonexistent file %s" % pth_file
             )
         self.file = pth_file
-        self.entries = set()
-        self._saved_lines = None
+        self.entries = set()  # type: Set[str]
+        self._saved_lines = None  # type: Optional[List[bytes]]
 
     def add(self, entry):
+        # type: (str) -> None
         entry = os.path.normcase(entry)
         # On Windows, os.path.normcase converts the entry to use
         # backslashes.  This is correct for entries that describe absolute
         # paths outside of site-packages, but all the others use forward
         # slashes.
+        # os.path.splitdrive is used instead of os.path.isabs because isabs
+        # treats non-absolute paths with drive letter markings like c:foo\bar
+        # as absolute paths. It also does not recognize UNC paths if they don't
+        # have more than "\\sever\share". Valid examples: "\\server\share\" or
+        # "\\server\share\folder". Python 2.7.8+ support UNC in splitdrive.
         if WINDOWS and not os.path.splitdrive(entry)[0]:
             entry = entry.replace('\\', '/')
         self.entries.add(entry)
 
     def remove(self):
+        # type: () -> None
         logger.debug('Removing pth entries from %s:', self.file)
         with open(self.file, 'rb') as fh:
             # windows uses '\r\n' with py3k, but uses '\n' with py2.x
@@ -449,6 +632,7 @@ class UninstallPthEntries(object):
             fh.writelines(lines)
 
     def rollback(self):
+        # type: () -> bool
         if self._saved_lines is None:
             logger.error(
                 'Cannot roll back changes to %s, none were made', self.file

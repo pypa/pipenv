@@ -1,5 +1,5 @@
 include LICENSE README.md CONTRIBUTING.md CODE_OF_CONDUCT.md CHANGELOG.rst NOTICES HISTORY.txt
-include Makefile pyproject.toml get-pipenv.py
+include Makefile pyproject.toml get-pipenv.py .dockerignore *.yml
 include examples/Pipfil*
 recursive-include pipenv LICENSE LICENSE* *LICENSE* *COPYING* t32.exe t64.exe w32.exe w64.exe cacert.pem
 recursive-include pipenv *.cfg
@@ -9,6 +9,7 @@ recursive-include pipenv Makefile
 recursive-include pipenv/vendor vendor.txt
 recursive-include pipenv README
 recursive-include pipenv *.json
+recursive-include pipenv *.rst
 include pipenv/patched/notpip/_vendor/vendor.txt
 include pipenv/patched/safety.zip pipenv/patched/patched.txt
 include pipenv/vendor/pipreqs/stdlib pipenv/vendor/pipreqs/mapping
@@ -37,3 +38,5 @@ prune docs/build
 prune news
 prune tasks
 prune tests
+prune pipenv/vendor/importlib_metadata/tests
+prune pipenv/vendor/importlib_resources/tests

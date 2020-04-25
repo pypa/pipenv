@@ -146,7 +146,7 @@ To upgrade pipenv at any time::
 
 If you don't even have pip installed, you can use this crude installation method, which will bootstrap your whole system::
 
-    $ curl https://raw.githubusercontent.com/kennethreitz/pipenv/master/get-pipenv.py | python
+    $ curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
 
 
 ☤ Installing packages for your project
@@ -223,7 +223,7 @@ have access to your installed packages with ``$ pipenv shell``.
 
 
 ☤ Virtualenv mapping caveat
-============
+===========================
 
 - Pipenv automatically maps projects to their specific virtualenvs.
 - The virtualenv is stored globally with the name of the project’s root directory plus the hash of the full path to the project's root (e.g., ``my_project-a3de50``).

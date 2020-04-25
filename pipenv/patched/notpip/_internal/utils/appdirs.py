@@ -2,6 +2,10 @@
 This code was taken from https://github.com/ActiveState/appdirs and modified
 to suit our purposes.
 """
+
+# The following comment should be removed at some point in the future.
+# mypy: disallow-untyped-defs=False
+
 from __future__ import absolute_import
 
 import os
@@ -10,9 +14,14 @@ import sys
 from pipenv.patched.notpip._vendor.six import PY2, text_type
 
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS, expanduser
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+
+if MYPY_CHECK_RUNNING:
+    from typing import List
 
 
 def user_cache_dir(appname):
+    # type: (str) -> str
     r"""
     Return full path to the user-specific cache dir for this application.
 
@@ -61,6 +70,7 @@ def user_cache_dir(appname):
 
 
 def user_data_dir(appname, roaming=False):
+    # type: (str, bool) -> str
     r"""
     Return full path to the user-specific data dir for this application.
 
@@ -113,6 +123,7 @@ def user_data_dir(appname, roaming=False):
 
 
 def user_config_dir(appname, roaming=True):
+    # type: (str, bool) -> str
     """Return full path to the user-specific config dir for this application.
 
         "appname" is the name of application.
@@ -146,6 +157,7 @@ def user_config_dir(appname, roaming=True):
 # for the discussion regarding site_config_dirs locations
 # see <https://github.com/pypa/pip/issues/1733>
 def site_config_dirs(appname):
+    # type: (str) -> List[str]
     r"""Return a list of potential user-shared config dirs for this application.
 
         "appname" is the name of application.
@@ -186,6 +198,7 @@ def site_config_dirs(appname):
 # -- Windows support functions --
 
 def _get_win_folder_from_registry(csidl_name):
+    # type: (str) -> str
     """
     This is a fallback technique at best. I'm not sure if using the
     registry for this guarantees us the correct answer for all CSIDL_*
@@ -208,6 +221,9 @@ def _get_win_folder_from_registry(csidl_name):
 
 
 def _get_win_folder_with_ctypes(csidl_name):
+    # type: (str) -> str
+    # On Python 2, ctypes.create_unicode_buffer().value returns "unicode",
+    # which isn't the same as str in the annotation above.
     csidl_const = {
         "CSIDL_APPDATA": 26,
         "CSIDL_COMMON_APPDATA": 35,
@@ -215,7 +231,8 @@ def _get_win_folder_with_ctypes(csidl_name):
     }[csidl_name]
 
     buf = ctypes.create_unicode_buffer(1024)
-    ctypes.windll.shell32.SHGetFolderPathW(None, csidl_const, None, 0, buf)
+    windll = ctypes.windll  # type: ignore
+    windll.shell32.SHGetFolderPathW(None, csidl_const, None, 0, buf)
 
     # Downgrade to short path name if have highbit chars. See
     # <http://bugs.activestate.com/show_bug.cgi?id=85099>.
@@ -226,10 +243,11 @@ def _get_win_folder_with_ctypes(csidl_name):
             break
     if has_high_char:
         buf2 = ctypes.create_unicode_buffer(1024)
-        if ctypes.windll.kernel32.GetShortPathNameW(buf.value, buf2, 1024):
+        if windll.kernel32.GetShortPathNameW(buf.value, buf2, 1024):
             buf = buf2
 
-    return buf.value
+    # The type: ignore is explained under the type annotation for this function
+    return buf.value  # type: ignore
 
 
 if WINDOWS:

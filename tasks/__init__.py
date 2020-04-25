@@ -1,8 +1,6 @@
 # -*- coding=utf-8 -*-
 # Copied from pip's vendoring process
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/__init__.py
-import re
-
 from pathlib import Path
 
 import invoke

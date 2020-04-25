@@ -3,11 +3,8 @@ Pipenv: Python Development Workflow for Humans
 
 [![image](https://img.shields.io/pypi/v/pipenv.svg)](https://python.org/pypi/pipenv)
 [![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv)
-[![image](https://badge.buildkite.com/79c7eccf056b17c3151f3c4d0e4c4b8b724539d84f1e037b9b.svg?branch=master)](https://code.kennethreitz.org/source/pipenv/)
-[![Azure Pipelines build status (Linux)](https://dev.azure.com/pypa/pipenv/_apis/build/status/pipenv%20CI%20(Linux)?branchName=master&label=Linux)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=13&branchName=master)
-[![Azure Pipelines build status (Windows)](https://dev.azure.com/pypa/pipenv/_apis/build/status/pipenv%20CI%20(Windows)?branchName=master&label=Windows)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=12&branchName=master)
+[![Azure Pipelines Build Status](https://dev.azure.com/pypa/pipenv/_apis/build/status/Pipenv%20CI?branchName=master)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=16&branchName=master)
 [![image](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://python.org/pypi/pipenv)
-[![image](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/kennethreitz)
 
 ------------------------------------------------------------------------
 
@@ -20,7 +17,7 @@ well as adds/removes packages from your `Pipfile` as you
 install/uninstall packages. It also generates the ever-important
 `Pipfile.lock`, which is used to produce deterministic builds.
 
-![image](http://media.kennethreitz.com.s3.amazonaws.com/pipenv.gif)
+![GIF demonstrating Pipenv's usage](https://gist.githubusercontent.com/jlusk/855d611bbcfa2b159839db73d07f6ce9/raw/7f5743401809f7e630ee8ff458faa980e19924a0/pipenv.gif)
 
 The problems that Pipenv seeks to solve are multi-faceted:
 
@@ -46,22 +43,28 @@ If you\'re on MacOS, you can install Pipenv easily with Homebrew:
 
     $ brew install pipenv
 
-Or, if you\'re using Fedora 28:
+Or, if you\'re using Debian Buster+:
+
+    $ sudo apt install pipenv
+
+Or, if you\'re using Fedora:
 
     $ sudo dnf install pipenv
+    
+Or, if you\'re using FreeBSD:
 
-Otherwise, refer to the [documentation](https://docs.pipenv.org/install/) for instructions.
+    # pkg install py36-pipenv
+
+When none of the above is an option:
+
+    $ pip install pipenv
+
+Otherwise, refer to the [documentation](https://pipenv.pypa.io/en/latest/#install-pipenv-today) for instructions.
 
 ✨🍰✨
 
 ☤ User Testimonials
 -------------------
-
-**Jannis Leidel**, former pip maintainer---
-
-:   *Pipenv is the porcelain I always wanted to build for pip. It fits
-    my brain and mostly replaces virtualenvwrapper and manual pip calls
-    for me. Use it.*
 
 **David Gang**---
 
@@ -297,4 +300,4 @@ Use the shell:
 ☤ Documentation
 ---------------
 
-Documentation resides over at [pipenv.org](http://pipenv.org/).
+Documentation resides over at [pipenv.pypa.io](https://pipenv.pypa.io/en/latest/).

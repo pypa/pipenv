@@ -145,6 +145,10 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# Temporarily generating these with pytype locally for type safety
+typeshed/
+pytype.cfg
+
 ### Python Patch ###
 .venv/
 
@@ -153,3 +157,13 @@ venv.bak/
 
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
 .vs/slnx.sqlite
+
+# mypy/typing section
+typeshed/
+.dmypy.json
+mypyhtml/
+XDG_CACHE_HOME/
+snap/
+prime/
+stage/
+pip-wheel-metadata/

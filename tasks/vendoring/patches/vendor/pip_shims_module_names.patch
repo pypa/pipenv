@@ -1,17 +1,42 @@
 diff --git a/pipenv/vendor/pip_shims/__init__.py b/pipenv/vendor/pip_shims/__init__.py
-index 1342f793..70fb0d58 100644
+index 2af4166e..598b9ad8 100644
 --- a/pipenv/vendor/pip_shims/__init__.py
 +++ b/pipenv/vendor/pip_shims/__init__.py
-@@ -8,10 +8,10 @@ __version__ = '0.3.1'
- from . import shims
- 
- 
--old_module = sys.modules["pip_shims"]
-+old_module = sys.modules[__name__]
+@@ -11,10 +11,13 @@ __version__ = "0.5.1"
+ if "pip_shims" in sys.modules:
+     # mainly to keep a reference to the old module on hand so it doesn't get
+     # weakref'd away
+-    old_module = sys.modules["pip_shims"]
++    if __name__ != "pip_shims":
++        del sys.modules["pip_shims"]
++if __name__ in sys.modules:
++    old_module = sys.modules[__name__]
  
  
 -module = sys.modules["pip_shims"] = shims._new()
-+module = sys.modules[__name__] = shims._new()
++module = sys.modules[__name__] = sys.modules["pip_shims"] = shims._new()
  module.shims = shims
- module.__dict__.update({
-     '__file__': __file__,
+ module.__dict__.update(
+     {
+diff --git a/pipenv/vendor/pip_shims/compat.py b/pipenv/vendor/pip_shims/compat.py
+index ed99d970..63061a6a 100644
+--- a/pipenv/vendor/pip_shims/compat.py
++++ b/pipenv/vendor/pip_shims/compat.py
+@@ -25,14 +25,14 @@ from .utils import (
+ )
+ 
+ if sys.version_info[:2] < (3, 5):
+-    from backports.tempfile import TemporaryDirectory
++    from pipenv.vendor.vistir.compat import TemporaryDirectory
+ else:
+     from tempfile import TemporaryDirectory
+ 
+ if six.PY3:
+     from contextlib import ExitStack
+ else:
+-    from contextlib2 import ExitStack
++    from pipenv.vendor.contextlib2 import ExitStack
+ 
+ 
+ if MYPY_RUNNING:
+

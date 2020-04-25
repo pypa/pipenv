@@ -1,159 +1,80 @@
 """Prepares a distribution for installation
 """
 
+# The following comment should be removed at some point in the future.
+# mypy: strict-optional=False
+# mypy: disallow-untyped-defs=False
+
 import logging
 import os
 
-from pipenv.patched.notpip._vendor import pkg_resources, requests
+from pipenv.patched.notpip._vendor import requests
 
-from pipenv.patched.notpip._internal.build_env import BuildEnvironment
-from pipenv.patched.notpip._internal.download import (
-    is_dir_url, is_file_url, is_vcs_url, unpack_url, url_to_path,
+from pipenv.patched.notpip._internal.distributions import (
+    make_distribution_for_install_requirement,
 )
+from pipenv.patched.notpip._internal.distributions.installed import InstalledDistribution
+from pipenv.patched.notpip._internal.download import unpack_url
 from pipenv.patched.notpip._internal.exceptions import (
-    DirectoryUrlHashUnsupported, HashUnpinned, InstallationError,
-    PreviousBuildDirError, VcsHashUnsupported,
+    DirectoryUrlHashUnsupported,
+    HashUnpinned,
+    InstallationError,
+    PreviousBuildDirError,
+    VcsHashUnsupported,
 )
 from pipenv.patched.notpip._internal.utils.compat import expanduser
 from pipenv.patched.notpip._internal.utils.hashes import MissingHashes
 from pipenv.patched.notpip._internal.utils.logging import indent_log
-from pipenv.patched.notpip._internal.utils.misc import display_path, normalize_path, rmtree
-from pipenv.patched.notpip._internal.vcs import vcs
+from pipenv.patched.notpip._internal.utils.marker_files import write_delete_marker_file
+from pipenv.patched.notpip._internal.utils.misc import display_path, normalize_path
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+
+if MYPY_CHECK_RUNNING:
+    from typing import Optional
+
+    from pipenv.patched.notpip._internal.distributions import AbstractDistribution
+    from pipenv.patched.notpip._internal.index import PackageFinder
+    from pipenv.patched.notpip._internal.network.session import PipSession
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker
 
 logger = logging.getLogger(__name__)
 
 
-def make_abstract_dist(req):
-    """Factory to make an abstract dist object.
-
-    Preconditions: Either an editable req with a source_dir, or satisfied_by or
-    a wheel link, or a non-editable req with a source_dir.
-
-    :return: A concrete DistAbstraction.
+def _get_prepared_distribution(req, req_tracker, finder, build_isolation):
+    """Prepare a distribution for installation.
     """
-    if req.editable:
-        return IsSDist(req)
-    elif req.link and req.link.is_wheel:
-        return IsWheel(req)
-    else:
-        return IsSDist(req)
-
-
-class DistAbstraction(object):
-    """Abstracts out the wheel vs non-wheel Resolver.resolve() logic.
-
-    The requirements for anything installable are as follows:
-     - we must be able to determine the requirement name
-       (or we can't correctly handle the non-upgrade case).
-     - we must be able to generate a list of run-time dependencies
-       without installing any additional packages (or we would
-       have to either burn time by doing temporary isolated installs
-       or alternatively violate pips 'don't start installing unless
-       all requirements are available' rule - neither of which are
-       desirable).
-     - for packages with setup requirements, we must also be able
-       to determine their requirements without installing additional
-       packages (for the same reason as run-time dependencies)
-     - we must be able to create a Distribution object exposing the
-       above metadata.
-    """
-
-    def __init__(self, req):
-        self.req = req
-
-    def dist(self, finder):
-        """Return a setuptools Dist object."""
-        raise NotImplementedError(self.dist)
-
-    def prep_for_dist(self, finder, build_isolation):
-        """Ensure that we can get a Dist for this requirement."""
-        raise NotImplementedError(self.dist)
-
-
-class IsWheel(DistAbstraction):
-
-    def dist(self, finder):
-        return list(pkg_resources.find_distributions(
-            self.req.source_dir))[0]
-
-    def prep_for_dist(self, finder, build_isolation):
-        # FIXME:https://github.com/pypa/pip/issues/1112
-        pass
-
-
-class IsSDist(DistAbstraction):
-
-    def dist(self, finder):
-        dist = self.req.get_dist()
-        # FIXME: shouldn't be globally added.
-        if finder and dist.has_metadata('dependency_links.txt'):
-            finder.add_dependency_links(
-                dist.get_metadata_lines('dependency_links.txt')
-            )
-        return dist
-
-    def prep_for_dist(self, finder, build_isolation):
-        # Prepare for building. We need to:
-        #   1. Load pyproject.toml (if it exists)
-        #   2. Set up the build environment
-
-        self.req.load_pyproject_toml()
-        should_isolate = self.req.use_pep517 and build_isolation
-
-        if should_isolate:
-            # Isolate in a BuildEnvironment and install the build-time
-            # requirements.
-            self.req.build_env = BuildEnvironment()
-            self.req.build_env.install_requirements(
-                finder, self.req.pyproject_requires,
-                "Installing build dependencies"
-            )
-            missing = []
-            if self.req.requirements_to_check:
-                check = self.req.requirements_to_check
-                missing = self.req.build_env.missing_requirements(check)
-            if missing:
-                logger.warning(
-                    "Missing build requirements in pyproject.toml for %s.",
-                    self.req,
-                )
-                logger.warning(
-                    "The project does not specify a build backend, and pip "
-                    "cannot fall back to setuptools without %s.",
-                    " and ".join(map(repr, sorted(missing)))
-                )
-
-        try:
-            self.req.run_egg_info()
-        except (OSError, TypeError):
-            self.req._correct_build_location()
-            self.req.run_egg_info()
-        self.req.assert_source_matches_version()
-
-
-class Installed(DistAbstraction):
-
-    def dist(self, finder):
-        return self.req.satisfied_by
-
-    def prep_for_dist(self, finder, build_isolation):
-        pass
+    abstract_dist = make_distribution_for_install_requirement(req)
+    with req_tracker.track(req):
+        abstract_dist.prepare_distribution_metadata(finder, build_isolation)
+    return abstract_dist
 
 
 class RequirementPreparer(object):
     """Prepares a Requirement
     """
 
-    def __init__(self, build_dir, download_dir, src_dir, wheel_download_dir,
-                 progress_bar, build_isolation, req_tracker):
+    def __init__(
+        self,
+        build_dir,  # type: str
+        download_dir,  # type: Optional[str]
+        src_dir,  # type: str
+        wheel_download_dir,  # type: Optional[str]
+        progress_bar,  # type: str
+        build_isolation,  # type: bool
+        req_tracker  # type: RequirementTracker
+    ):
+        # type: (...) -> None
         super(RequirementPreparer, self).__init__()
 
         self.src_dir = src_dir
         self.build_dir = build_dir
         self.req_tracker = req_tracker
 
-        # Where still packed archives should be written to. If None, they are
+        # Where still-packed archives should be written to. If None, they are
         # not saved, and are deleted immediately after unpacking.
+        if download_dir:
+            download_dir = expanduser(download_dir)
         self.download_dir = download_dir
 
         # Where still-packed .whl files should be written to. If None, they are
@@ -175,28 +96,37 @@ class RequirementPreparer(object):
 
     @property
     def _download_should_save(self):
-        # TODO: Modify to reduce indentation needed
-        if self.download_dir:
-            self.download_dir = expanduser(self.download_dir)
-            if os.path.exists(self.download_dir):
-                return True
-            else:
-                logger.critical('Could not find download directory')
-                raise InstallationError(
-                    "Could not find or access download directory '%s'"
-                    % display_path(self.download_dir))
-        return False
+        # type: () -> bool
+        if not self.download_dir:
+            return False
 
-    def prepare_linked_requirement(self, req, session, finder,
-                                   upgrade_allowed, require_hashes):
+        if os.path.exists(self.download_dir):
+            return True
+
+        logger.critical('Could not find download directory')
+        raise InstallationError(
+            "Could not find or access download directory '%s'"
+            % display_path(self.download_dir))
+
+    def prepare_linked_requirement(
+        self,
+        req,  # type: InstallRequirement
+        session,  # type: PipSession
+        finder,  # type: PackageFinder
+        require_hashes,  # type: bool
+    ):
+        # type: (...) -> AbstractDistribution
         """Prepare a requirement that would be obtained from req.link
         """
+        assert req.link
+        link = req.link
+
         # TODO: Breakup into smaller functions
-        if req.link and req.link.scheme == 'file':
-            path = url_to_path(req.link.url)
+        if link.scheme == 'file':
+            path = link.file_path
             logger.info('Processing %s', display_path(path))
         else:
-            logger.info('Collecting %s', req)
+            logger.info('Collecting %s', req.req or req)
 
         with indent_log():
             # @@ if filesystem packages are not marked
@@ -211,17 +141,6 @@ class RequirementPreparer(object):
             # package unpacked in `req.source_dir`
             if os.path.exists(os.path.join(req.source_dir, 'setup.py')):
                 rmtree(req.source_dir)
-            req.populate_link(finder, upgrade_allowed, require_hashes)
-
-            # We can't hit this spot and have populate_link return None.
-            # req.satisfied_by is None here (because we're
-            # guarded) and upgrade has no impact except when satisfied_by
-            # is not None.
-            # Then inside find_requirement existing_applicable -> False
-            # If no new versions are found, DistributionNotFound is raised,
-            # otherwise a result is guaranteed.
-            assert req.link
-            link = req.link
 
             # Now that we have the real link, we can tell what kind of
             # requirements we have and raise some more informative errors
@@ -233,9 +152,9 @@ class RequirementPreparer(object):
                 # we would report less-useful error messages for
                 # unhashable requirements, complaining that there's no
                 # hash provided.
-                if is_vcs_url(link):
+                if link.is_vcs:
                     raise VcsHashUnsupported()
-                elif is_file_url(link) and is_dir_url(link):
+                elif link.is_existing_dir():
                     raise DirectoryUrlHashUnsupported()
                 if not req.original_link and not req.is_pinned:
                     # Unpinned packages are asking for trouble when a new
@@ -255,26 +174,15 @@ class RequirementPreparer(object):
                 # showing the user what the hash should be.
                 hashes = MissingHashes()
 
+            download_dir = self.download_dir
+            if link.is_wheel and self.wheel_download_dir:
+                # when doing 'pip wheel` we download wheels to a
+                # dedicated dir.
+                download_dir = self.wheel_download_dir
+
             try:
-                download_dir = self.download_dir
-                # We always delete unpacked sdists after pip ran.
-                autodelete_unpacked = True
-                if req.link.is_wheel and self.wheel_download_dir:
-                    # when doing 'pip wheel` we download wheels to a
-                    # dedicated dir.
-                    download_dir = self.wheel_download_dir
-                if req.link.is_wheel:
-                    if download_dir:
-                        # When downloading, we only unpack wheels to get
-                        # metadata.
-                        autodelete_unpacked = True
-                    else:
-                        # When installing a wheel, we use the unpacked
-                        # wheel.
-                        autodelete_unpacked = False
                 unpack_url(
-                    req.link, req.source_dir,
-                    download_dir, autodelete_unpacked,
+                    link, req.source_dir, download_dir,
                     session=session, hashes=hashes,
                     progress_bar=self.progress_bar
                 )
@@ -287,19 +195,42 @@ class RequirementPreparer(object):
                 raise InstallationError(
                     'Could not install requirement %s because of HTTP '
                     'error %s for URL %s' %
-                    (req, exc, req.link)
+                    (req, exc, link)
                 )
-            abstract_dist = make_abstract_dist(req)
-            with self.req_tracker.track(req):
-                abstract_dist.prep_for_dist(finder, self.build_isolation)
+
+            if link.is_wheel:
+                if download_dir:
+                    # When downloading, we only unpack wheels to get
+                    # metadata.
+                    autodelete_unpacked = True
+                else:
+                    # When installing a wheel, we use the unpacked
+                    # wheel.
+                    autodelete_unpacked = False
+            else:
+                # We always delete unpacked sdists after pip runs.
+                autodelete_unpacked = True
+            if autodelete_unpacked:
+                write_delete_marker_file(req.source_dir)
+
+            abstract_dist = _get_prepared_distribution(
+                req, self.req_tracker, finder, self.build_isolation,
+            )
+
             if self._download_should_save:
                 # Make a .zip of the source_dir we already created.
-                if req.link.scheme in vcs.all_schemes:
+                if link.is_vcs:
                     req.archive(self.download_dir)
         return abstract_dist
 
-    def prepare_editable_requirement(self, req, require_hashes, use_user_site,
-                                     finder):
+    def prepare_editable_requirement(
+        self,
+        req,  # type: InstallRequirement
+        require_hashes,  # type: bool
+        use_user_site,  # type: bool
+        finder  # type: PackageFinder
+    ):
+        # type: (...) -> AbstractDistribution
         """Prepare an editable requirement
         """
         assert req.editable, "cannot prepare a non-editable req as editable"
@@ -316,9 +247,9 @@ class RequirementPreparer(object):
             req.ensure_has_source_dir(self.src_dir)
             req.update_editable(not self._download_should_save)
 
-            abstract_dist = make_abstract_dist(req)
-            with self.req_tracker.track(req):
-                abstract_dist.prep_for_dist(finder, self.build_isolation)
+            abstract_dist = _get_prepared_distribution(
+                req, self.req_tracker, finder, self.build_isolation,
+            )
 
             if self._download_should_save:
                 req.archive(self.download_dir)
@@ -326,7 +257,13 @@ class RequirementPreparer(object):
 
         return abstract_dist
 
-    def prepare_installed_requirement(self, req, require_hashes, skip_reason):
+    def prepare_installed_requirement(
+        self,
+        req,  # type: InstallRequirement
+        require_hashes,  # type: bool
+        skip_reason  # type: str
+    ):
+        # type: (...) -> AbstractDistribution
         """Prepare an already-installed requirement
         """
         assert req.satisfied_by, "req should have been satisfied but isn't"
@@ -346,6 +283,6 @@ class RequirementPreparer(object):
                     'completely repeatable environment, install into an '
                     'empty virtualenv.'
                 )
-            abstract_dist = Installed(req)
+            abstract_dist = InstalledDistribution(req)
 
         return abstract_dist

@@ -2,7 +2,9 @@
 
 It expects:
 - Command line args: hook_name, control_dir
-- Environment variable: PEP517_BUILD_BACKEND=entry.point:spec
+- Environment variables:
+      PEP517_BUILD_BACKEND=entry.point:spec
+      PEP517_BACKEND_PATH=paths (separated with os.pathsep)
 - control_dir/input.json:
   - {"kwargs": {...}}
 
@@ -13,27 +15,71 @@ Results:
 from glob import glob
 from importlib import import_module
 import os
+import os.path
 from os.path import join as pjoin
 import re
 import shutil
 import sys
+import traceback
 
 # This is run as a script, not a module, so it can't do a relative import
 import compat
 
+
+class BackendUnavailable(Exception):
+    """Raised if we cannot import the backend"""
+    def __init__(self, traceback):
+        self.traceback = traceback
+
+
+class BackendInvalid(Exception):
+    """Raised if the backend is invalid"""
+    def __init__(self, message):
+        self.message = message
+
+
+class HookMissing(Exception):
+    """Raised if a hook is missing and we are not executing the fallback"""
+
+
+def contained_in(filename, directory):
+    """Test if a file is located within the given directory."""
+    filename = os.path.normcase(os.path.abspath(filename))
+    directory = os.path.normcase(os.path.abspath(directory))
+    return os.path.commonprefix([filename, directory]) == directory
+
+
 def _build_backend():
     """Find and load the build backend"""
+    # Add in-tree backend directories to the front of sys.path.
+    backend_path = os.environ.get('PEP517_BACKEND_PATH')
+    if backend_path:
+        extra_pathitems = backend_path.split(os.pathsep)
+        sys.path[:0] = extra_pathitems
+
     ep = os.environ['PEP517_BUILD_BACKEND']
     mod_path, _, obj_path = ep.partition(':')
-    obj = import_module(mod_path)
+    try:
+        obj = import_module(mod_path)
+    except ImportError:
+        raise BackendUnavailable(traceback.format_exc())
+
+    if backend_path:
+        if not any(
+            contained_in(obj.__file__, path)
+            for path in extra_pathitems
+        ):
+            raise BackendInvalid("Backend was not loaded from backend-path")
+
     if obj_path:
         for path_part in obj_path.split('.'):
             obj = getattr(obj, path_part)
     return obj
 
+
 def get_requires_for_build_wheel(config_settings):
     """Invoke the optional get_requires_for_build_wheel hook
-    
+
     Returns [] if the hook is not defined.
     """
     backend = _build_backend()
@@ -44,21 +90,28 @@ def get_requires_for_build_wheel(config_settings):
     else:
         return hook(config_settings)
 
-def prepare_metadata_for_build_wheel(metadata_directory, config_settings):
+
+def prepare_metadata_for_build_wheel(
+        metadata_directory, config_settings, _allow_fallback):
     """Invoke optional prepare_metadata_for_build_wheel
-    
-    Implements a fallback by building a wheel if the hook isn't defined.
+
+    Implements a fallback by building a wheel if the hook isn't defined,
+    unless _allow_fallback is False in which case HookMissing is raised.
     """
     backend = _build_backend()
     try:
         hook = backend.prepare_metadata_for_build_wheel
     except AttributeError:
+        if not _allow_fallback:
+            raise HookMissing()
         return _get_wheel_metadata_from_wheel(backend, metadata_directory,
                                               config_settings)
     else:
         return hook(metadata_directory, config_settings)
 
+
 WHEEL_BUILT_MARKER = 'PEP517_ALREADY_BUILT_WHEEL'
+
 
 def _dist_info_files(whl_zip):
     """Identify the .dist-info folder inside a wheel ZipFile."""
@@ -71,11 +124,13 @@ def _dist_info_files(whl_zip):
         return res
     raise Exception("No .dist-info folder found in wheel")
 
-def _get_wheel_metadata_from_wheel(backend, metadata_directory, config_settings):
+
+def _get_wheel_metadata_from_wheel(
+        backend, metadata_directory, config_settings):
     """Build a wheel and extract the metadata from it.
-    
-    Fallback for when the build backend does not define the 'get_wheel_metadata'
-    hook.
+
+    Fallback for when the build backend does not
+    define the 'get_wheel_metadata' hook.
     """
     from zipfile import ZipFile
     whl_basename = backend.build_wheel(metadata_directory, config_settings)
@@ -87,6 +142,7 @@ def _get_wheel_metadata_from_wheel(backend, metadata_directory, config_settings)
         dist_info = _dist_info_files(zipf)
         zipf.extractall(path=metadata_directory, members=dist_info)
     return dist_info[0].split('/')[0]
+
 
 def _find_already_built_wheel(metadata_directory):
     """Check for a wheel already built during the get_wheel_metadata hook.
@@ -105,14 +161,16 @@ def _find_already_built_wheel(metadata_directory):
         print('Found multiple .whl files; unspecified behaviour. '
               'Will call build_wheel.')
         return None
-    
+
     # Exactly one .whl file
     return whl_files[0]
 
+
 def build_wheel(wheel_directory, config_settings, metadata_directory=None):
     """Invoke the mandatory build_wheel hook.
-    
-    If a wheel was already built in the prepare_metadata_for_build_wheel fallback, this
+
+    If a wheel was already built in the
+    prepare_metadata_for_build_wheel fallback, this
     will copy it rather than rebuilding the wheel.
     """
     prebuilt_whl = _find_already_built_wheel(metadata_directory)
@@ -137,11 +195,16 @@ def get_requires_for_build_sdist(config_settings):
     else:
         return hook(config_settings)
 
+
 class _DummyException(Exception):
     """Nothing should ever raise this exception"""
 
+
 class GotUnsupportedOperation(Exception):
     """For internal use when backend raises UnsupportedOperation"""
+    def __init__(self, traceback):
+        self.traceback = traceback
+
 
 def build_sdist(sdist_directory, config_settings):
     """Invoke the mandatory build_sdist hook."""
@@ -149,7 +212,8 @@ def build_sdist(sdist_directory, config_settings):
     try:
         return backend.build_sdist(sdist_directory, config_settings)
     except getattr(backend, 'UnsupportedOperation', _DummyException):
-        raise GotUnsupportedOperation
+        raise GotUnsupportedOperation(traceback.format_exc())
+
 
 HOOK_NAMES = {
     'get_requires_for_build_wheel',
@@ -158,6 +222,7 @@ HOOK_NAMES = {
     'get_requires_for_build_sdist',
     'build_sdist',
 }
+
 
 def main():
     if len(sys.argv) < 3:
@@ -173,10 +238,20 @@ def main():
     json_out = {'unsupported': False, 'return_val': None}
     try:
         json_out['return_val'] = hook(**hook_input['kwargs'])
-    except GotUnsupportedOperation:
+    except BackendUnavailable as e:
+        json_out['no_backend'] = True
+        json_out['traceback'] = e.traceback
+    except BackendInvalid as e:
+        json_out['backend_invalid'] = True
+        json_out['backend_error'] = e.message
+    except GotUnsupportedOperation as e:
         json_out['unsupported'] = True
-    
+        json_out['traceback'] = e.traceback
+    except HookMissing:
+        json_out['hook_missing'] = True
+
     compat.write_json(json_out, pjoin(control_dir, 'output.json'), indent=2)
+
 
 if __name__ == '__main__':
     main()

@@ -8,19 +8,15 @@ from click import (
     argument, echo, edit, group, option, pass_context, secho, version_option, Choice
 )
 
-import click_completion
-import crayons
-import delegator
-
-from click_didyoumean import DYMCommandCollection
-
 from ..__version__ import __version__
+from ..patched import crayons
+from ..vendor import click_completion, delegator
 from .options import (
     CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
     general_options, install_options, lock_options, pass_state,
-    pypi_mirror_option, python_option, requirementstxt_option,
-    skip_lock_option, sync_options, system_option, three_option,
-    uninstall_options, verbose_option
+    pypi_mirror_option, python_option, site_packages_option, skip_lock_option,
+    sync_options, system_option, three_option, uninstall_options,
+    verbose_option
 )
 
 
@@ -64,18 +60,15 @@ def cli(
     state,
     where=False,
     venv=False,
-    rm=False,
-    bare=False,
-    three=False,
-    python=False,
-    help=False,
     py=False,
     envs=False,
-    man=False,
+    rm=False,
+    bare=False,
     completion=False,
-    pypi_mirror=None,
+    man=False,
     support=None,
-    clear=False,
+    help=False,
+    site_packages=None,
     **kwargs
 ):
     # Handle this ASAP to make shell startup fast.
@@ -109,7 +102,7 @@ def cli(
 
     if man:
         if system_which("man"):
-            path = os.sep.join([os.path.dirname(__file__), "pipenv.1"])
+            path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "pipenv.1")
             os.execle(system_which("man"), "man", path, os.environ)
             return 0
         else:
@@ -124,7 +117,7 @@ def cli(
         echo(
             "\nYou can learn more at:\n   {0}".format(
                 crayons.green(
-                    "http://docs.pipenv.org/advanced/#configuration-with-environment-variables"
+                    "https://pipenv.pypa.io/en/latest/advanced/#configuration-with-environment-variables"
                 )
             )
         )
@@ -145,16 +138,19 @@ def cli(
             get_pipenv_diagnostics()
             return 0
         # --clear was passed…
-        elif clear:
+        elif state.clear:
             do_clear()
             return 0
-
         # --venv was passed…
         elif venv:
             # There is no virtualenv yet.
             if not project.virtualenv_exists:
                 echo(
-                    crayons.red("No virtualenv has been created for this project yet!"),
+                    "{}({}){}".format(
+                        crayons.red("No virtualenv has been created for this project"),
+                        crayons.white(project.project_directory, bold=True),
+                        crayons.red(" yet!")
+                    ),
                     err=True,
                 )
                 ctx.abort()
@@ -219,6 +215,7 @@ def cli(
 @system_option
 @code_option
 @deploy_option
+@site_packages_option
 @skip_lock_option
 @install_options
 @pass_state
@@ -251,6 +248,7 @@ def install(
         extra_index_url=state.extra_index_urls,
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
+        site_packages=state.site_packages
     )
     if retcode:
         ctx.abort()
@@ -300,6 +298,7 @@ def uninstall(
     if retcode:
         sys.exit(retcode)
 
+
 @cli.command(short_help="Generates Pipfile.lock.", context_settings=CONTEXT_SETTINGS)
 @lock_options
 @pass_state
@@ -311,9 +310,13 @@ def lock(
 ):
     """Generates Pipfile.lock."""
     from ..core import ensure_project, do_init, do_lock
-
     # Ensure that virtualenv is available.
-    ensure_project(three=state.three, python=state.python, pypi_mirror=state.pypi_mirror)
+    # Note that we don't pass clear on to ensure_project as it is also
+    # handled in do_lock
+    ensure_project(
+        three=state.three, python=state.python, pypi_mirror=state.pypi_mirror,
+        warn=(not state.quiet), site_packages=state.site_packages,
+    )
     if state.installstate.requirementstxt:
         do_init(
             dev=state.installstate.dev,
@@ -327,6 +330,7 @@ def lock(
         pre=state.installstate.pre,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
+        write=not state.quiet,
     )
 
 
@@ -338,7 +342,8 @@ def lock(
     "--fancy",
     is_flag=True,
     default=False,
-    help="Run in shell in fancy mode (for elegantly configured shells).",
+    help="Run in shell in fancy mode. Make sure the shell have no path manipulating"
+         " scripts. Run $pipenv shell for issues with compatibility mode.",
 )
 @option(
     "--anyway",
@@ -389,7 +394,6 @@ def shell(
 
 
 @cli.command(
-    add_help_option=False,
     short_help="Spawns a command installed into the virtualenv.",
     context_settings=subcommand_context_no_interspersion,
 )
@@ -400,7 +404,6 @@ def shell(
 def run(state, command, args):
     """Spawns a command installed into the virtualenv."""
     from ..core import do_run
-
     do_run(
         command=command, args=args, three=state.three, python=state.python, pypi_mirror=state.pypi_mirror
     )
@@ -496,12 +499,14 @@ def update(
         do_sync,
         project,
     )
-
-    ensure_project(three=state.three, python=state.python, warn=True, pypi_mirror=state.pypi_mirror)
+    ensure_project(
+        three=state.three, python=state.python, pypi_mirror=state.pypi_mirror,
+        warn=(not state.quiet), site_packages=state.site_packages, clear=state.clear
+    )
     if not outdated:
         outdated = bool(dry_run)
     if outdated:
-        do_outdated(pypi_mirror=state.pypi_mirror)
+        do_outdated(clear=state.clear, pre=state.installstate.pre, pypi_mirror=state.pypi_mirror)
     packages = [p for p in state.installstate.packages if p]
     editable = [p for p in state.installstate.editables if p]
     if not packages:
@@ -526,12 +531,13 @@ def update(
                     err=True,
                 )
                 ctx.abort()
-
     do_lock(
+        ctx=ctx,
         clear=state.clear,
         pre=state.installstate.pre,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
+        write=not state.quiet,
     )
     do_sync(
         ctx=ctx,
@@ -578,7 +584,7 @@ def run_open(state, module, *args, **kwargs):
 
         EDITOR=atom pipenv open requests
     """
-    from ..core import which, ensure_project
+    from ..core import which, ensure_project, inline_activate_virtual_environment
 
     # Ensure that virtualenv is available.
     ensure_project(
@@ -598,6 +604,7 @@ def run_open(state, module, *args, **kwargs):
     else:
         p = c.out.strip().rstrip("cdo")
     echo(crayons.normal("Opening {0!r} in your EDITOR.".format(p), bold=True))
+    inline_activate_virtual_environment()
     edit(filename=p)
     return 0
 
@@ -652,11 +659,9 @@ def sync(
 def clean(ctx, state, dry_run=False, bare=False, user=False):
     """Uninstalls all packages not specified in Pipfile.lock."""
     from ..core import do_clean
-    do_clean(ctx=ctx, three=state.three, python=state.python, dry_run=dry_run)
+    do_clean(ctx=ctx, three=state.three, python=state.python, dry_run=dry_run,
+             system=state.system)
 
 
-# Only invoke the "did you mean" when an argument wasn't passed (it breaks those).
-if "-" not in "".join(sys.argv) and len(sys.argv) > 1:
-    cli = DYMCommandCollection(sources=[cli])
 if __name__ == "__main__":
     cli()

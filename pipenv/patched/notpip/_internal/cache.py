@@ -1,6 +1,9 @@
 """Cache Management
 """
 
+# The following comment should be removed at some point in the future.
+# mypy: strict-optional=False
+
 import errno
 import hashlib
 import logging
@@ -8,11 +11,17 @@ import os
 
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.notpip._internal.download import path_to_url
 from pipenv.patched.notpip._internal.models.link import Link
 from pipenv.patched.notpip._internal.utils.compat import expanduser
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.urls import path_to_url
 from pipenv.patched.notpip._internal.wheel import InvalidWheelFilename, Wheel
+
+if MYPY_CHECK_RUNNING:
+    from typing import Optional, Set, List, Any
+    from pipenv.patched.notpip._internal.index import FormatControl
+    from pipenv.patched.notpip._internal.pep425tags import Pep425Tag
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +38,7 @@ class Cache(object):
     """
 
     def __init__(self, cache_dir, format_control, allowed_formats):
+        # type: (str, FormatControl, Set[str]) -> None
         super(Cache, self).__init__()
         self.cache_dir = expanduser(cache_dir) if cache_dir else None
         self.format_control = format_control
@@ -38,6 +48,7 @@ class Cache(object):
         assert self.allowed_formats.union(_valid_formats) == _valid_formats
 
     def _get_cache_path_parts(self, link):
+        # type: (Link) -> List[str]
         """Get parts of part that must be os.path.joined with cache_dir
         """
 
@@ -63,6 +74,7 @@ class Cache(object):
         return parts
 
     def _get_candidates(self, link, package_name):
+        # type: (Link, Optional[str]) -> List[Any]
         can_not_cache = (
             not self.cache_dir or
             not package_name or
@@ -87,23 +99,32 @@ class Cache(object):
             raise
 
     def get_path_for_link(self, link):
+        # type: (Link) -> str
         """Return a directory to store cached items in for link.
         """
         raise NotImplementedError()
 
-    def get(self, link, package_name):
+    def get(
+        self,
+        link,            # type: Link
+        package_name,    # type: Optional[str]
+        supported_tags,  # type: List[Pep425Tag]
+    ):
+        # type: (...) -> Link
         """Returns a link to a cached item if it exists, otherwise returns the
         passed link.
         """
         raise NotImplementedError()
 
     def _link_for_candidate(self, link, candidate):
+        # type: (Link, str) -> Link
         root = self.get_path_for_link(link)
         path = os.path.join(root, candidate)
 
         return Link(path_to_url(path))
 
     def cleanup(self):
+        # type: () -> None
         pass
 
 
@@ -112,11 +133,13 @@ class SimpleWheelCache(Cache):
     """
 
     def __init__(self, cache_dir, format_control):
+        # type: (str, FormatControl) -> None
         super(SimpleWheelCache, self).__init__(
             cache_dir, format_control, {"binary"}
         )
 
     def get_path_for_link(self, link):
+        # type: (Link) -> str
         """Return a directory to store cached wheels for link
 
         Because there are M wheels for any one sdist, we provide a directory
@@ -136,7 +159,13 @@ class SimpleWheelCache(Cache):
         # Store wheels within the root cache_dir
         return os.path.join(self.cache_dir, "wheels", *parts)
 
-    def get(self, link, package_name):
+    def get(
+        self,
+        link,            # type: Link
+        package_name,    # type: Optional[str]
+        supported_tags,  # type: List[Pep425Tag]
+    ):
+        # type: (...) -> Link
         candidates = []
 
         for wheel_name in self._get_candidates(link, package_name):
@@ -144,10 +173,12 @@ class SimpleWheelCache(Cache):
                 wheel = Wheel(wheel_name)
             except InvalidWheelFilename:
                 continue
-            if not wheel.supported():
+            if not wheel.supported(supported_tags):
                 # Built for a different python/arch/etc
                 continue
-            candidates.append((wheel.support_index_min(), wheel_name))
+            candidates.append(
+                (wheel.support_index_min(supported_tags), wheel_name)
+            )
 
         if not candidates:
             return link
@@ -160,14 +191,15 @@ class EphemWheelCache(SimpleWheelCache):
     """
 
     def __init__(self, format_control):
+        # type: (FormatControl) -> None
         self._temp_dir = TempDirectory(kind="ephem-wheel-cache")
-        self._temp_dir.create()
 
         super(EphemWheelCache, self).__init__(
             self._temp_dir.path, format_control
         )
 
     def cleanup(self):
+        # type: () -> None
         self._temp_dir.cleanup()
 
 
@@ -179,6 +211,7 @@ class WheelCache(Cache):
     """
 
     def __init__(self, cache_dir, format_control):
+        # type: (str, FormatControl) -> None
         super(WheelCache, self).__init__(
             cache_dir, format_control, {'binary'}
         )
@@ -186,17 +219,35 @@ class WheelCache(Cache):
         self._ephem_cache = EphemWheelCache(format_control)
 
     def get_path_for_link(self, link):
+        # type: (Link) -> str
         return self._wheel_cache.get_path_for_link(link)
 
     def get_ephem_path_for_link(self, link):
+        # type: (Link) -> str
         return self._ephem_cache.get_path_for_link(link)
 
-    def get(self, link, package_name):
-        retval = self._wheel_cache.get(link, package_name)
-        if retval is link:
-            retval = self._ephem_cache.get(link, package_name)
-        return retval
+    def get(
+        self,
+        link,            # type: Link
+        package_name,    # type: Optional[str]
+        supported_tags,  # type: List[Pep425Tag]
+    ):
+        # type: (...) -> Link
+        retval = self._wheel_cache.get(
+            link=link,
+            package_name=package_name,
+            supported_tags=supported_tags,
+        )
+        if retval is not link:
+            return retval
+
+        return self._ephem_cache.get(
+            link=link,
+            package_name=package_name,
+            supported_tags=supported_tags,
+        )
 
     def cleanup(self):
+        # type: () -> None
         self._wheel_cache.cleanup()
         self._ephem_cache.cleanup()

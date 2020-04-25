@@ -1,25 +1,27 @@
 # -*- coding=utf-8 -*-
+from __future__ import absolute_import, print_function
 
 import contextlib
 import importlib
+import io
 import json
 import operator
 import os
 import site
 import sys
 
-from distutils.sysconfig import get_python_lib
-from sysconfig import get_paths
+from sysconfig import get_paths, get_python_version
 
+import itertools
 import pkg_resources
 import six
-import vistir
 
 import pipenv
 
-from cached_property import cached_property
+from .vendor.cached_property import cached_property
+from .vendor import vistir
 
-from .utils import normalize_path
+from .utils import normalize_path, make_posix
 
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
@@ -45,6 +47,9 @@ class Environment(object):
         self.extra_dists = []
         prefix = prefix if prefix else sys.prefix
         self.prefix = vistir.compat.Path(prefix)
+        self._base_paths = {}
+        if self.is_venv:
+            self._base_paths = self.get_paths()
         self.sys_paths = get_paths()
 
     def safe_import(self, name):
@@ -85,35 +90,61 @@ class Environment(object):
         deps.add(dist)
         try:
             reqs = dist.requires()
-        except (AttributeError, OSError, IOError):  # The METADATA file can't be found
+        # KeyError = limited metadata can be found
+        except (KeyError, AttributeError, OSError, IOError):  # The METADATA file can't be found
             return deps
         for req in reqs:
             dist = working_set.find(req)
             deps |= cls.resolve_dist(dist, working_set)
         return deps
 
-    def add_dist(self, dist_name):
-        dist = pkg_resources.get_distribution(pkg_resources.Requirement(dist_name))
+    def extend_dists(self, dist):
         extras = self.resolve_dist(dist, self.base_working_set)
+        self.extra_dists.append(dist)
         if extras:
             self.extra_dists.extend(extras)
+
+    def add_dist(self, dist_name):
+        dist = pkg_resources.get_distribution(pkg_resources.Requirement(dist_name))
+        self.extend_dists(dist)
 
     @cached_property
     def python_version(self):
         with self.activated():
-            from sysconfig import get_python_version
-            py_version = get_python_version()
+            sysconfig = self.safe_import("sysconfig")
+            py_version = sysconfig.get_python_version()
             return py_version
+
+    def find_libdir(self):
+        libdir = self.prefix / "lib"
+        return next(iter(list(libdir.iterdir())), None)
 
     @property
     def python_info(self):
         include_dir = self.prefix / "include"
+        if not os.path.exists(include_dir):
+            include_dirs = self.get_include_path()
+            if include_dirs:
+                include_path = include_dirs.get("include", include_dirs.get("platinclude"))
+                if not include_path:
+                    return {}
+                include_dir = vistir.compat.Path(include_path)
         python_path = next(iter(list(include_dir.iterdir())), None)
         if python_path and python_path.name.startswith("python"):
             python_version = python_path.name.replace("python", "")
             py_version_short, abiflags = python_version[:3], python_version[3:]
             return {"py_version_short": py_version_short, "abiflags": abiflags}
         return {}
+
+    def _replace_parent_version(self, path, replace_version):
+        if not os.path.exists(path):
+            base, leaf = os.path.split(path)
+            base, parent = os.path.split(base)
+            leaf = os.path.join(parent, leaf).replace(
+                replace_version, self.python_info.get("py_version_short", get_python_version())
+            )
+            return os.path.join(base, leaf)
+        return path
 
     @cached_property
     def base_paths(self):
@@ -145,50 +176,83 @@ class Environment(object):
         'stdlib': '/home/hawk/.pyenv/versions/3.7.1/lib/python3.7'}
         """
 
-        prefix = self.prefix.as_posix()
-        install_scheme = 'nt' if (os.name == 'nt') else 'posix_prefix'
-        paths = get_paths(install_scheme, vars={
-            'base': prefix,
-            'platbase': prefix,
-        })
+        prefix = make_posix(self.prefix.as_posix())
+        paths = {}
+        if self._base_paths:
+            paths = self._base_paths.copy()
+        else:
+            try:
+                paths = self.get_paths()
+            except Exception:
+                install_scheme = 'nt' if (os.name == 'nt') else 'posix_prefix'
+                paths = get_paths(install_scheme, vars={
+                    'base': prefix,
+                    'platbase': prefix,
+                })
+                current_version = get_python_version()
+                try:
+                    for k in list(paths.keys()):
+                        if not os.path.exists(paths[k]):
+                            paths[k] = self._replace_parent_version(paths[k], current_version)
+                except OSError:
+                    # Sometimes virtualenvs are made using virtualenv interpreters and there is no
+                    # include directory, which will cause this approach to fail. This failsafe
+                    # will make sure we fall back to the shell execution to find the real include path
+                    paths = self.get_include_path()
+                    paths.update(self.get_lib_paths())
+                    paths["scripts"] = self.script_basedir
+        if not paths:
+            install_scheme = 'nt' if (os.name == 'nt') else 'posix_prefix'
+            paths = get_paths(install_scheme, vars={
+                'base': prefix,
+                'platbase': prefix,
+            })
+        if not os.path.exists(paths["purelib"]) and not os.path.exists(paths["platlib"]):
+            lib_paths = self.get_lib_paths()
+            paths.update(lib_paths)
         paths["PATH"] = paths["scripts"] + os.pathsep + os.defpath
         if "prefix" not in paths:
             paths["prefix"] = prefix
-        purelib = get_python_lib(plat_specific=0, prefix=prefix)
-        platlib = get_python_lib(plat_specific=1, prefix=prefix)
+        purelib = paths["purelib"] = make_posix(paths["purelib"])
+        platlib = paths["platlib"] = make_posix(paths["platlib"])
         if purelib == platlib:
             lib_dirs = purelib
         else:
             lib_dirs = purelib + os.pathsep + platlib
         paths["libdir"] = purelib
-        paths["purelib"] = purelib
-        paths["platlib"] = platlib
-        paths['PYTHONPATH'] = lib_dirs
+        paths['PYTHONPATH'] = os.pathsep.join(["", ".", lib_dirs])
         paths["libdirs"] = lib_dirs
         return paths
 
     @cached_property
     def script_basedir(self):
         """Path to the environment scripts dir"""
-        script_dir = self.base_paths["scripts"]
-        return script_dir
+        prefix = make_posix(self.prefix.as_posix())
+        install_scheme = 'nt' if (os.name == 'nt') else 'posix_prefix'
+        paths = get_paths(install_scheme, vars={
+            'base': prefix,
+            'platbase': prefix,
+        })
+        return paths["scripts"]
 
     @property
     def python(self):
         """Path to the environment python"""
-        py = vistir.compat.Path(self.base_paths["scripts"]).joinpath("python").as_posix()
+        py = vistir.compat.Path(self.script_basedir).joinpath("python").absolute().as_posix()
         if not py:
             return vistir.compat.Path(sys.executable).as_posix()
         return py
 
     @cached_property
     def sys_path(self):
-        """The system path inside the environment
+        """
+        The system path inside the environment
 
         :return: The :data:`sys.path` from the environment
         :rtype: list
         """
 
+        from .vendor.vistir.compat import JSONDecodeError
         current_executable = vistir.compat.Path(sys.executable).as_posix()
         if not self.python or self.python == current_executable:
             return sys.path
@@ -196,18 +260,173 @@ class Environment(object):
             return sys.path
         cmd_args = [self.python, "-c", "import json, sys; print(json.dumps(sys.path))"]
         path, _ = vistir.misc.run(cmd_args, return_object=False, nospin=True, block=True, combine_stderr=False, write_to_stdout=False)
-        path = json.loads(path.strip())
+        try:
+            path = json.loads(path.strip())
+        except JSONDecodeError:
+            path = sys.path
         return path
+
+    def build_command(self, python_lib=False, python_inc=False, scripts=False, py_version=False):
+        """Build the text for running a command in the given environment
+
+        :param python_lib: Whether to include the python lib dir commands, defaults to False
+        :type python_lib: bool, optional
+        :param python_inc: Whether to include the python include dir commands, defaults to False
+        :type python_inc: bool, optional
+        :param scripts: Whether to include the scripts directory, defaults to False
+        :type scripts: bool, optional
+        :param py_version: Whether to include the python version info, defaults to False
+        :type py_version: bool, optional
+        :return: A string representing the command to run
+        """
+        pylib_lines = []
+        pyinc_lines = []
+        py_command = (
+            "import sysconfig, distutils.sysconfig, io, json, sys; paths = {{"
+            "%s }}; value = u'{{0}}'.format(json.dumps(paths));"
+            "fh = io.open('{0}', 'w'); fh.write(value); fh.close()"
+        )
+        distutils_line = "distutils.sysconfig.get_python_{0}(plat_specific={1})"
+        sysconfig_line = "sysconfig.get_path('{0}')"
+        if python_lib:
+            for key, var, val in (("pure", "lib", "0"), ("plat", "lib", "1")):
+                dist_prefix = "{0}lib".format(key)
+                # XXX: We need to get 'stdlib' or 'platstdlib'
+                sys_prefix = "{0}stdlib".format("" if key == "pure" else key)
+                pylib_lines.append("u'%s': u'{{0}}'.format(%s)" % (dist_prefix, distutils_line.format(var, val)))
+                pylib_lines.append("u'%s': u'{{0}}'.format(%s)" % (sys_prefix, sysconfig_line.format(sys_prefix)))
+        if python_inc:
+            for key, var, val in (("include", "inc", "0"), ("platinclude", "inc", "1")):
+                pylib_lines.append("u'%s': u'{{0}}'.format(%s)" % (key, distutils_line.format(var, val)))
+        lines = pylib_lines + pyinc_lines
+        if scripts:
+            lines.append("u'scripts': u'{{0}}'.format(%s)" % sysconfig_line.format("scripts"))
+        if py_version:
+            lines.append("u'py_version_short': u'{{0}}'.format(distutils.sysconfig.get_python_version()),")
+        lines_as_str = u",".join(lines)
+        py_command = py_command % lines_as_str
+        return py_command
+
+    def get_paths(self):
+        """
+        Get the paths for the environment by running a subcommand
+
+        :return: The python paths for the environment
+        :rtype: Dict[str, str]
+        """
+        tmpfile = vistir.path.create_tracked_tempfile(suffix=".json")
+        tmpfile.close()
+        tmpfile_path = make_posix(tmpfile.name)
+        py_command = self.build_command(python_lib=True, python_inc=True, scripts=True, py_version=True)
+        command = [self.python, "-c", py_command.format(tmpfile_path)]
+        c = vistir.misc.run(
+            command, return_object=True, block=True, nospin=True, write_to_stdout=False
+        )
+        if c.returncode == 0:
+            paths = {}
+            with io.open(tmpfile_path, "r", encoding="utf-8") as fh:
+                paths = json.load(fh)
+            if "purelib" in paths:
+                paths["libdir"] = paths["purelib"] = make_posix(paths["purelib"])
+            for key in ("platlib", "scripts", "platstdlib", "stdlib", "include", "platinclude"):
+                if key in paths:
+                    paths[key] = make_posix(paths[key])
+            return paths
+        else:
+            vistir.misc.echo("Failed to load paths: {0}".format(c.err), fg="yellow")
+            vistir.misc.echo("Output: {0}".format(c.out), fg="yellow")
+        return None
+
+    def get_lib_paths(self):
+        """Get the include path for the environment
+
+        :return: The python include path for the environment
+        :rtype: Dict[str, str]
+        """
+        tmpfile = vistir.path.create_tracked_tempfile(suffix=".json")
+        tmpfile.close()
+        tmpfile_path = make_posix(tmpfile.name)
+        py_command = self.build_command(python_lib=True)
+        command = [self.python, "-c", py_command.format(tmpfile_path)]
+        c = vistir.misc.run(
+            command, return_object=True, block=True, nospin=True, write_to_stdout=False
+        )
+        paths = None
+        if c.returncode == 0:
+            paths = {}
+            with io.open(tmpfile_path, "r", encoding="utf-8") as fh:
+                paths = json.load(fh)
+            if "purelib" in paths:
+                paths["libdir"] = paths["purelib"] = make_posix(paths["purelib"])
+            for key in ("platlib", "platstdlib", "stdlib"):
+                if key in paths:
+                    paths[key] = make_posix(paths[key])
+            return paths
+        else:
+            vistir.misc.echo("Failed to load paths: {0}".format(c.err), fg="yellow")
+            vistir.misc.echo("Output: {0}".format(c.out), fg="yellow")
+        if not paths:
+            if not self.prefix.joinpath("lib").exists():
+                return {}
+            stdlib_path = next(iter([
+                p for p in self.prefix.joinpath("lib").iterdir()
+                if p.name.startswith("python")
+            ]), None)
+            lib_path = None
+            if stdlib_path:
+                lib_path = next(iter([
+                    p.as_posix() for p in stdlib_path.iterdir()
+                    if p.name == "site-packages"
+                ]))
+                paths = {"stdlib": stdlib_path.as_posix()}
+                if lib_path:
+                    paths["purelib"] = lib_path
+                return paths
+        return {}
+
+    def get_include_path(self):
+        """Get the include path for the environment
+
+        :return: The python include path for the environment
+        :rtype: Dict[str, str]
+        """
+        tmpfile = vistir.path.create_tracked_tempfile(suffix=".json")
+        tmpfile.close()
+        tmpfile_path = make_posix(tmpfile.name)
+        py_command = (
+            "import distutils.sysconfig, io, json, sys; paths = {{u'include': "
+            "u'{{0}}'.format(distutils.sysconfig.get_python_inc(plat_specific=0)), "
+            "u'platinclude': u'{{0}}'.format(distutils.sysconfig.get_python_inc("
+            "plat_specific=1)) }}; value = u'{{0}}'.format(json.dumps(paths));"
+            "fh = io.open('{0}', 'w'); fh.write(value); fh.close()"
+        )
+        command = [self.python, "-c", py_command.format(tmpfile_path)]
+        c = vistir.misc.run(
+            command, return_object=True, block=True, nospin=True, write_to_stdout=False
+        )
+        if c.returncode == 0:
+            paths = []
+            with io.open(tmpfile_path, "r", encoding="utf-8") as fh:
+                paths = json.load(fh)
+            for key in ("include", "platinclude"):
+                if key in paths:
+                    paths[key] = make_posix(paths[key])
+            return paths
+        else:
+            vistir.misc.echo("Failed to load paths: {0}".format(c.err), fg="yellow")
+            vistir.misc.echo("Output: {0}".format(c.out), fg="yellow")
+        return None
 
     @cached_property
     def sys_prefix(self):
-        """The prefix run inside the context of the environment
+        """
+        The prefix run inside the context of the environment
 
         :return: The python prefix inside the environment
         :rtype: :data:`sys.prefix`
         """
 
-        command = [self.python, "-c" "import sys; print(sys.prefix)"]
+        command = [self.python, "-c", "import sys; print(sys.prefix)"]
         c = vistir.misc.run(command, return_object=True, block=True, nospin=True, write_to_stdout=False)
         sys_prefix = vistir.compat.Path(vistir.misc.to_text(c.out).strip()).as_posix()
         return sys_prefix
@@ -236,15 +455,55 @@ class Environment(object):
             return "purelib", purelib
         return "platlib", self.paths["platlib"]
 
+    @property
+    def pip_version(self):
+        """
+        Get the pip version in the environment.  Useful for knowing which args we can use
+        when installing.
+        """
+        from .vendor.packaging.version import parse as parse_version
+        pip = next(iter(
+            pkg for pkg in self.get_installed_packages() if pkg.key == "pip"
+        ), None)
+        if pip is not None:
+            return parse_version(pip.version)
+        return parse_version("19.3")
+
+    def expand_egg_links(self):
+        """
+        Expand paths specified in egg-link files to prevent pip errors during
+        reinstall
+        """
+        prefixes = [
+            vistir.compat.Path(prefix)
+            for prefix in self.base_paths["libdirs"].split(os.pathsep)
+            if vistir.path.is_in_path(prefix, self.prefix.as_posix())
+        ]
+        for loc in prefixes:
+            if not loc.exists():
+                continue
+            for pth in loc.iterdir():
+                if not pth.suffix == ".egg-link":
+                    continue
+                contents = [
+                    vistir.path.normalize_path(line.strip())
+                    for line in pth.read_text().splitlines()
+                ]
+                pth.write_text("\n".join(contents))
+
     def get_distributions(self):
-        """Retrives the distributions installed on the library path of the environment
+        """
+        Retrives the distributions installed on the library path of the environment
 
         :return: A set of distributions found on the library path
         :rtype: iterator
         """
 
         pkg_resources = self.safe_import("pkg_resources")
-        return pkg_resources.find_distributions(self.paths["PYTHONPATH"])
+        libdirs = self.base_paths["libdirs"].split(os.pathsep)
+        dists = (pkg_resources.find_distributions(libdir) for libdir in libdirs)
+        for dist in itertools.chain.from_iterable(dists):
+            yield dist
 
     def find_egg(self, egg_dist):
         """Find an egg by name in the given environment"""
@@ -271,58 +530,56 @@ class Environment(object):
     def dist_is_in_project(self, dist):
         """Determine whether the supplied distribution is in the environment."""
         from .project import _normalized
-        prefix = _normalized(self.base_paths["prefix"])
+        prefixes = [
+            _normalized(prefix) for prefix in self.base_paths["libdirs"].split(os.pathsep)
+            if _normalized(prefix).startswith(_normalized(self.prefix.as_posix()))
+        ]
         location = self.locate_dist(dist)
         if not location:
             return False
-        return _normalized(location).startswith(prefix)
+        location = _normalized(make_posix(location))
+        return any(location.startswith(prefix) for prefix in prefixes)
 
     def get_installed_packages(self):
         """Returns all of the installed packages in a given environment"""
         workingset = self.get_working_set()
-        packages = [pkg for pkg in workingset if self.dist_is_in_project(pkg)]
+        packages = [
+            pkg for pkg in workingset
+            if self.dist_is_in_project(pkg) and pkg.key != "python"
+        ]
         return packages
 
     @contextlib.contextmanager
     def get_finder(self, pre=False):
-        from .vendor.pip_shims import Command, cmdoptions, index_group, PackageFinder
-        from .environments import PIPENV_CACHE_DIR
-        index_urls = [source.get("url") for source in self.sources]
-
-        class PipCommand(Command):
-            name = "PipCommand"
-
-        pip_command = PipCommand()
-        index_opts = cmdoptions.make_option_group(
-            index_group, pip_command.parser
+        from .vendor.pip_shims.shims import (
+            InstallCommand, get_package_finder
         )
-        cmd_opts = pip_command.cmd_opts
-        pip_command.parser.insert_option_group(0, index_opts)
-        pip_command.parser.insert_option_group(0, cmd_opts)
+        from .environments import PIPENV_CACHE_DIR
+
+        pip_command = InstallCommand()
         pip_args = self._modules["pipenv"].utils.prepare_pip_source_args(self.sources)
         pip_options, _ = pip_command.parser.parse_args(pip_args)
         pip_options.cache_dir = PIPENV_CACHE_DIR
         pip_options.pre = self.pipfile.get("pre", pre)
         with pip_command._build_session(pip_options) as session:
-            finder = PackageFinder(
-                find_links=pip_options.find_links,
-                index_urls=index_urls, allow_all_prereleases=pip_options.pre,
-                trusted_hosts=pip_options.trusted_hosts,
-                process_dependency_links=pip_options.process_dependency_links,
-                session=session
-            )
+            finder = get_package_finder(install_cmd=pip_command, options=pip_options, session=session)
             yield finder
 
     def get_package_info(self, pre=False):
+        from .vendor.pip_shims.shims import pip_version, parse_version, CandidateEvaluator
         dependency_links = []
         packages = self.get_installed_packages()
         # This code is borrowed from pip's current implementation
-        for dist in packages:
-            if dist.has_metadata('dependency_links.txt'):
-                dependency_links.extend(dist.get_metadata_lines('dependency_links.txt'))
+        if parse_version(pip_version) < parse_version("19.0"):
+            for dist in packages:
+                if dist.has_metadata('dependency_links.txt'):
+                    dependency_links.extend(
+                        dist.get_metadata_lines('dependency_links.txt')
+                    )
 
         with self.get_finder() as finder:
-            finder.add_dependency_links(dependency_links)
+            if parse_version(pip_version) < parse_version("19.0"):
+                finder.add_dependency_links(dependency_links)
 
             for dist in packages:
                 typ = 'unknown'
@@ -336,9 +593,10 @@ class Environment(object):
 
                 if not all_candidates:
                     continue
-                best_candidate = max(all_candidates, key=finder._candidate_sort_key)
-                remote_version = best_candidate.version
-                if best_candidate.location.is_wheel:
+                candidate_evaluator = finder.make_candidate_evaluator(project_name=dist.key)
+                best_candidate_result = candidate_evaluator.compute_best_candidate(all_candidates)
+                remote_version = best_candidate_result.best_candidate.version
+                if best_candidate_result.best_candidate.link.is_wheel:
                     typ = 'wheel'
                 else:
                     typ = 'sdist'
@@ -350,36 +608,89 @@ class Environment(object):
     def get_outdated_packages(self, pre=False):
         return [
             pkg for pkg in self.get_package_info(pre=pre)
-            if pkg.latest_version._version > pkg.parsed_version._version
+            if pkg.latest_version._key > pkg.parsed_version._key
         ]
 
-    def get_package_requirements(self):
+    @classmethod
+    def _get_requirements_for_package(cls, node, key_tree, parent=None, chain=None):
+        if chain is None:
+            chain = [node.project_name]
+
+        d = node.as_dict()
+        if parent:
+            d['required_version'] = node.version_spec if node.version_spec else 'Any'
+        else:
+            d['required_version'] = d['installed_version']
+
+        get_children = lambda n: key_tree.get(n.key, [])    # noqa
+
+        d['dependencies'] = [
+            cls._get_requirements_for_package(c, key_tree, parent=node,
+                                              chain=chain+[c.project_name])
+            for c in get_children(node)
+            if c.project_name not in chain
+        ]
+
+        return d
+
+    def get_package_requirements(self, pkg=None):
         from .vendor.pipdeptree import flatten, sorted_tree, build_dist_index, construct_tree
-        dist_index = build_dist_index(self.get_installed_packages())
+        packages = self.get_installed_packages()
+        if pkg:
+            packages = [p for p in packages if p.key == pkg]
+        dist_index = build_dist_index(packages)
         tree = sorted_tree(construct_tree(dist_index))
         branch_keys = set(r.key for r in flatten(tree.values()))
-        nodes = [p for p in tree.keys() if p.key not in branch_keys]
+        if pkg is not None:
+            nodes = [p for p in tree.keys() if p.key == pkg]
+        else:
+            nodes = [p for p in tree.keys() if p.key not in branch_keys]
         key_tree = dict((k.key, v) for k, v in tree.items())
-        get_children = lambda n: key_tree.get(n.key, [])
 
-        def aux(node, parent=None, chain=None):
-            if chain is None:
-                chain = [node.project_name]
+        return [self._get_requirements_for_package(p, key_tree) for p in nodes]
 
-            d = node.as_dict()
-            if parent:
-                d['required_version'] = node.version_spec if node.version_spec else 'Any'
-            else:
-                d['required_version'] = d['installed_version']
+    @classmethod
+    def reverse_dependency(cls, node):
+        new_node = {
+            "package_name": node["package_name"],
+            "installed_version": node["installed_version"],
+            "required_version": node["required_version"]
+        }
+        for dependency in node.get("dependencies", []):
+            for dep in cls.reverse_dependency(dependency):
+                new_dep = dep.copy()
+                new_dep["parent"] = (node["package_name"], node["installed_version"])
+                yield new_dep
+        yield new_node
 
-            d['dependencies'] = [
-                aux(c, parent=node, chain=chain+[c.project_name])
-                for c in get_children(node)
-                if c.project_name not in chain
-            ]
-
-            return d
-        return [aux(p) for p in nodes]
+    def reverse_dependencies(self):
+        from vistir.misc import unnest, chunked
+        rdeps = {}
+        for req in self.get_package_requirements():
+            for d in self.reverse_dependency(req):
+                parents = None
+                name = d["package_name"]
+                pkg = {
+                    name: {
+                        "installed": d["installed_version"],
+                        "required": d["required_version"]
+                    }
+                }
+                parents = tuple(d.get("parent", ()))
+                pkg[name]["parents"] = parents
+                if rdeps.get(name):
+                    if not (rdeps[name].get("required") or rdeps[name].get("installed")):
+                        rdeps[name].update(pkg[name])
+                    rdeps[name]["parents"] = rdeps[name].get("parents", ()) + parents
+                else:
+                    rdeps[name] = pkg[name]
+        for k in list(rdeps.keys()):
+            entry = rdeps[k]
+            if entry.get("parents"):
+                rdeps[k]["parents"] = set([
+                   p for p, version in chunked(2, unnest(entry["parents"]))
+                ])
+        return rdeps
 
     def get_working_set(self):
         """Retrieve the working set of installed packages for the environment.
@@ -475,21 +786,34 @@ class Environment(object):
         vendor_dir = parent_path.joinpath("vendor").as_posix()
         patched_dir = parent_path.joinpath("patched").as_posix()
         parent_path = parent_path.as_posix()
+        self.add_dist("pip")
         prefix = self.prefix.as_posix()
         with vistir.contextmanagers.temp_environ(), vistir.contextmanagers.temp_path():
             os.environ["PATH"] = os.pathsep.join([
-                vistir.compat.fs_str(self.scripts_dir),
+                vistir.compat.fs_str(self.script_basedir),
                 vistir.compat.fs_str(self.prefix.as_posix()),
                 os.environ.get("PATH", "")
             ])
             os.environ["PYTHONIOENCODING"] = vistir.compat.fs_str("utf-8")
             os.environ["PYTHONDONTWRITEBYTECODE"] = vistir.compat.fs_str("1")
-            os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
+            from .environments import PIPENV_USE_SYSTEM
             if self.is_venv:
+                os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
                 os.environ["VIRTUAL_ENV"] = vistir.compat.fs_str(prefix)
+            else:
+                if not PIPENV_USE_SYSTEM and not os.environ.get("VIRTUAL_ENV"):
+                    os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
+                    os.environ.pop("PYTHONHOME", None)
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
             site.addsitedir(self.base_paths["purelib"])
+            pip = self.safe_import("pip")       # noqa
+            pip_vendor = self.safe_import("pip._vendor")
+            pep517_dir = os.path.join(os.path.dirname(pip_vendor.__file__), "pep517")
+            site.addsitedir(pep517_dir)
+            os.environ["PYTHONPATH"] = os.pathsep.join([
+                os.environ.get("PYTHONPATH", self.base_paths["PYTHONPATH"]), pep517_dir
+            ])
             if include_extras:
                 site.addsitedir(parent_path)
                 sys.path.extend([parent_path, patched_dir, vendor_dir])
@@ -543,7 +867,7 @@ class Environment(object):
 
     def install(self, requirements):
         if not isinstance(requirements, (tuple, list)):
-            requirements = [requirements,]
+            requirements = [requirements]
         with self.get_finder() as finder:
             args = []
             for format_control in ('no_binary', 'only_binary'):
@@ -593,12 +917,9 @@ class Environment(object):
                 monkey_patch.activate()
             pip_shims = self.safe_import("pip_shims")
             pathset_base = pip_shims.UninstallPathSet
-            import recursive_monkey_patch
-            recursive_monkey_patch.monkey_patch(
-                PatchedUninstaller, pathset_base
-            )
+            pathset_base._permitted = PatchedUninstaller._permitted
             dist = next(
-                iter(filter(lambda d: d.project_name == pkgname, self.get_working_set())),
+                iter(d for d in self.get_working_set() if d.project_name == pkgname),
                 None
             )
             pathset = pathset_base.from_dist(dist)
@@ -606,7 +927,7 @@ class Environment(object):
                 pathset.remove(auto_confirm=auto_confirm, verbose=verbose)
             try:
                 yield pathset
-            except Exception as e:
+            except Exception:
                 if pathset is not None:
                     pathset.rollback()
             else:

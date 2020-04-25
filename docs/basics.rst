@@ -10,6 +10,12 @@ This document covers some of Pipenv's more basic features.
 ☤ Example Pipfile & Pipfile.lock
 --------------------------------
 
+Pipfiles contain information for the dependencies of the project, and supersedes
+the requirements.txt file used in most Python projects. You should add a Pipfile in the
+Git repository letting users who clone the repository know the only thing required would be
+installing Pipenv in the machine and typing ``pipenv install``. Pipenv is a reference
+implementation for using Pipfile.
+
 .. _example_files:
 
 Here is a simple example of a ``Pipfile`` and the resulting ``Pipfile.lock``.
@@ -125,8 +131,9 @@ Example Pipfile.lock
 
 - Generally, keep both ``Pipfile`` and ``Pipfile.lock`` in version control.
 - Do not keep ``Pipfile.lock`` in version control if multiple versions of Python are being targeted.
-- Specify your target Python version in your `Pipfile`'s ``[requires]`` section. Ideally, you should only have one target Python version, as this is a deployment tool.
+- Specify your target Python version in your `Pipfile`'s ``[requires]`` section. Ideally, you should only have one target Python version, as this is a deployment tool. ``python_version`` should be in the format ``X.Y`` and ``python_full_version`` should be in ``X.Y.Z`` format.
 - ``pipenv install`` is fully compatible with ``pip install`` syntax, for which the full documentation can be found `here <https://pip.pypa.io/en/stable/user_guide/#installing-packages>`_.
+- Note that the ``Pipfile`` uses the `TOML Spec <https://github.com/toml-lang/toml#user-content-spec>`_.
 
 
 
@@ -182,12 +189,12 @@ in your ``Pipfile.lock`` for now, run ``pipenv lock --keep-outdated``.  Make sur
 ☤ Specifying Versions of a Package
 ----------------------------------
 
-You can specify versions of a package using the `Semantic Versioning scheme <https://semver.org/>`_ 
-(i.e. ``major.minor.micro``). 
+You can specify versions of a package using the `Semantic Versioning scheme <https://semver.org/>`_
+(i.e. ``major.minor.micro``).
 
 For example, to install requests you can use: ::
 
-    $ pipenv install requests~=1.2   # equivalent to requests~=1.2.0 
+    $ pipenv install requests~=1.2
 
 Pipenv will install version ``1.2`` and any minor update, but not ``2.0``.
 
@@ -195,19 +202,19 @@ This will update your ``Pipfile`` to reflect this requirement, automatically.
 
 In general, Pipenv uses the same specifier format as pip. However, note that according to `PEP 440`_ , you can't use versions containing a hyphen or a plus sign.
 
-.. _`PEP 440`: <https://www.python.org/dev/peps/pep-0440/>
+.. _`PEP 440`: https://www.python.org/dev/peps/pep-0440/
 
 To make inclusive or exclusive version comparisons you can use: ::
 
     $ pipenv install "requests>=1.4"   # will install a version equal or larger than 1.4.0
     $ pipenv install "requests<=2.13"  # will install a version equal or lower than 2.13.0
-    $ pipenv install "requests>2.19"   # will install 2.19.1 but not 2.19.0 
+    $ pipenv install "requests>2.19"   # will install 2.19.1 but not 2.19.0
 
-.. note:: The use of ``" "`` around the package and version specification is highly recommended 
+.. note:: The use of double quotes around the package and version specification (i.e. ``"requests>2.19"``) is highly recommended
     to avoid issues with `Input and output redirection <https://robots.thoughtbot.com/input-output-redirection-in-the-shell>`_
-    in Unix-based operating systems. 
+    in Unix-based operating systems.
 
-The use of ``~=`` is preferred over the ``==`` identifier as the former prevents pipenv from updating the packages:  ::
+The use of ``~=`` is preferred over the ``==`` identifier as the latter prevents pipenv from updating the packages:  ::
 
     $ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using ==2.*)
 
@@ -215,7 +222,7 @@ To avoid installing a specific version you can use the ``!=`` identifier.
 
 For an in depth explanation of the valid identifiers and more complex use cases check `the relevant section of PEP-440`_.
 
-.. _`the relevant section of PEP-440`: https://www.python.org/dev/peps/pep-0440/#version-specifiers>
+.. _`the relevant section of PEP-440`: https://www.python.org/dev/peps/pep-0440/#version-specifiers
 
 ☤ Specifying Versions of Python
 -------------------------------
@@ -314,6 +321,7 @@ The user can provide these additional parameters:
 
     - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile``.
     - ``--system`` — Use the system ``pip`` command rather than the one from your virtualenv.
+    - ``--deploy`` — Make sure the packages are properly locked in Pipfile.lock, and abort if the lock file is out-of-date.
     - ``--ignore-pipfile`` — Ignore the ``Pipfile`` and install from the ``Pipfile.lock``.
     - ``--skip-lock`` — Ignore the ``Pipfile.lock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.
 
@@ -398,10 +406,8 @@ environment into production. You can use ``pipenv lock`` to compile your depende
 your development environment and deploy the compiled ``Pipfile.lock`` to all of your
 production environments for reproducible builds.
 
-.. note:
+.. note::
 
     If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv lock -r``.
     This will include all hashes, however (which is great!). To get a ``requirements.txt``
     without hashes, use ``$ pipenv run pip freeze``.
-
-.. _configuration-with-environment-variables:https://docs.pipenv.org/advanced/#configuration-with-environment-variables

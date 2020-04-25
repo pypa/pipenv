@@ -52,15 +52,20 @@ def assert_header_parsing(headers):
     # This will fail silently if we pass in the wrong kind of parameter.
     # To make debugging easier add an explicit check.
     if not isinstance(headers, httplib.HTTPMessage):
-        raise TypeError('expected httplib.Message, got {0}.'.format(
-            type(headers)))
+        raise TypeError("expected httplib.Message, got {0}.".format(type(headers)))
 
-    defects = getattr(headers, 'defects', None)
-    get_payload = getattr(headers, 'get_payload', None)
+    defects = getattr(headers, "defects", None)
+    get_payload = getattr(headers, "get_payload", None)
 
     unparsed_data = None
-    if get_payload:  # Platform-specific: Python 3.
-        unparsed_data = get_payload()
+    if get_payload:
+        # get_payload is actually email.message.Message.get_payload;
+        # we're only interested in the result if it's not a multipart message
+        if not headers.is_multipart():
+            payload = get_payload()
+
+            if isinstance(payload, (bytes, str)):
+                unparsed_data = payload
 
     if defects or unparsed_data:
         raise HeaderParsingError(defects=defects, unparsed_data=unparsed_data)
@@ -78,4 +83,4 @@ def is_response_to_head(response):
     method = response._method
     if isinstance(method, int):  # Platform-specific: Appengine
         return method == 3
-    return method.upper() == 'HEAD'
+    return method.upper() == "HEAD"

@@ -4,11 +4,6 @@
 Exposes a standard API that enables compatibility across python versions,
 operating systems, etc.
 """
-
-import functools
-import importlib
-import io
-import os
 import sys
 import warnings
 
@@ -122,6 +117,12 @@ UNICODE_TO_ASCII_TRANSLATION_MAP = {
 }
 
 
+def decode_for_output(output, target=sys.stdout):
+    return vistir.misc.decode_for_output(
+        output, sys.stdout, translation_map=UNICODE_TO_ASCII_TRANSLATION_MAP
+    )
+
+
 def decode_output(output):
     if not isinstance(output, six.string_types):
         return output
@@ -129,7 +130,7 @@ def decode_output(output):
         output = output.encode(DEFAULT_ENCODING)
     except (AttributeError, UnicodeDecodeError, UnicodeEncodeError):
         if six.PY2:
-            output = unicode.translate(vistir.misc.to_text(output),
+            output = unicode.translate(vistir.misc.to_text(output),  # noqa
                                        UNICODE_TO_ASCII_TRANSLATION_MAP)
         else:
             output = output.translate(UNICODE_TO_ASCII_TRANSLATION_MAP)
@@ -144,5 +145,5 @@ def fix_utf8(text):
         text = decode_output(text)
     except UnicodeDecodeError:
         if six.PY2:
-            text = unicode.translate(vistir.misc.to_text(text), UNICODE_TO_ASCII_TRANSLATION_MAP)
+            text = unicode.translate(vistir.misc.to_text(text), UNICODE_TO_ASCII_TRANSLATION_MAP)   # noqa
     return text

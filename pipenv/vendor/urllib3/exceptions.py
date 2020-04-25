@@ -1,7 +1,6 @@
 from __future__ import absolute_import
-from .packages.six.moves.http_client import (
-    IncompleteRead as httplib_IncompleteRead
-)
+from .packages.six.moves.http_client import IncompleteRead as httplib_IncompleteRead
+
 # Base Exceptions
 
 
@@ -17,6 +16,7 @@ class HTTPWarning(Warning):
 
 class PoolError(HTTPError):
     "Base exception for errors caused within a pool."
+
     def __init__(self, pool, message):
         self.pool = pool
         HTTPError.__init__(self, "%s: %s" % (pool, message))
@@ -28,6 +28,7 @@ class PoolError(HTTPError):
 
 class RequestError(PoolError):
     "Base exception for PoolErrors that have associated URLs."
+
     def __init__(self, pool, url, message):
         self.url = url
         PoolError.__init__(self, pool, message)
@@ -44,7 +45,10 @@ class SSLError(HTTPError):
 
 class ProxyError(HTTPError):
     "Raised when the connection to a proxy fails."
-    pass
+
+    def __init__(self, message, error, *args):
+        super(ProxyError, self).__init__(message, error, *args)
+        self.original_error = error
 
 
 class DecodeError(HTTPError):
@@ -63,6 +67,7 @@ ConnectionError = ProtocolError
 
 # Leaf Exceptions
 
+
 class MaxRetryError(RequestError):
     """Raised when the maximum number of retries is exceeded.
 
@@ -76,8 +81,7 @@ class MaxRetryError(RequestError):
     def __init__(self, pool, url, reason=None):
         self.reason = reason
 
-        message = "Max retries exceeded with url: %s (Caused by %r)" % (
-            url, reason)
+        message = "Max retries exceeded with url: %s (Caused by %r)" % (url, reason)
 
         RequestError.__init__(self, pool, url, message)
 
@@ -93,6 +97,7 @@ class HostChangedError(RequestError):
 
 class TimeoutStateError(HTTPError):
     """ Raised when passing an invalid state to a timeout """
+
     pass
 
 
@@ -102,6 +107,7 @@ class TimeoutError(HTTPError):
     Catching this error will catch both :exc:`ReadTimeoutErrors
     <ReadTimeoutError>` and :exc:`ConnectTimeoutErrors <ConnectTimeoutError>`.
     """
+
     pass
 
 
@@ -149,8 +155,8 @@ class LocationParseError(LocationValueError):
 
 class ResponseError(HTTPError):
     "Used as a container for an error reason supplied in a MaxRetryError."
-    GENERIC_ERROR = 'too many error responses'
-    SPECIFIC_ERROR = 'too many {status_code} error responses'
+    GENERIC_ERROR = "too many error responses"
+    SPECIFIC_ERROR = "too many {status_code} error responses"
 
 
 class SecurityWarning(HTTPWarning):
@@ -188,6 +194,21 @@ class DependencyWarning(HTTPWarning):
     Warned when an attempt is made to import a module with missing optional
     dependencies.
     """
+
+    pass
+
+
+class InvalidProxyConfigurationWarning(HTTPWarning):
+    """
+    Warned when using an HTTPS proxy and an HTTPS URL. Currently
+    urllib3 doesn't support HTTPS proxies and the proxy will be
+    contacted via HTTP instead. This warning can be fixed by
+    changing your HTTPS proxy URL into an HTTP proxy URL.
+
+    If you encounter this warning read this:
+    https://github.com/urllib3/urllib3/issues/1850
+    """
+
     pass
 
 
@@ -201,6 +222,7 @@ class BodyNotHttplibCompatible(HTTPError):
     Body should be httplib.HTTPResponse like (have an fp attribute which
     returns raw chunks) for read_chunked().
     """
+
     pass
 
 
@@ -212,12 +234,15 @@ class IncompleteRead(HTTPError, httplib_IncompleteRead):
     for `partial` to avoid creating large objects on streamed
     reads.
     """
+
     def __init__(self, partial, expected):
         super(IncompleteRead, self).__init__(partial, expected)
 
     def __repr__(self):
-        return ('IncompleteRead(%i bytes read, '
-                '%i more expected)' % (self.partial, self.expected))
+        return "IncompleteRead(%i bytes read, %i more expected)" % (
+            self.partial,
+            self.expected,
+        )
 
 
 class InvalidHeader(HTTPError):
@@ -236,8 +261,9 @@ class ProxySchemeUnknown(AssertionError, ValueError):
 
 class HeaderParsingError(HTTPError):
     "Raised by assert_header_parsing, but we convert it to a log.warning statement."
+
     def __init__(self, defects, unparsed_data):
-        message = '%s, unparsed data: %r' % (defects or 'Unknown', unparsed_data)
+        message = "%s, unparsed data: %r" % (defects or "Unknown", unparsed_data)
         super(HeaderParsingError, self).__init__(message)
 
 

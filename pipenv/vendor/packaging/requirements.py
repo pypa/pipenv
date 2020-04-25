@@ -11,8 +11,12 @@ from pyparsing import ZeroOrMore, Word, Optional, Regex, Combine
 from pyparsing import Literal as L  # noqa
 from six.moves.urllib import parse as urlparse
 
+from ._typing import MYPY_CHECK_RUNNING
 from .markers import MARKER_EXPR, Marker
 from .specifiers import LegacySpecifier, Specifier, SpecifierSet
+
+if MYPY_CHECK_RUNNING:  # pragma: no cover
+    from typing import List
 
 
 class InvalidRequirement(ValueError):
@@ -38,8 +42,8 @@ IDENTIFIER = Combine(ALPHANUM + ZeroOrMore(IDENTIFIER_END))
 NAME = IDENTIFIER("name")
 EXTRA = IDENTIFIER
 
-URI = Regex(r'[^ ]+')("url")
-URL = (AT + URI)
+URI = Regex(r"[^ ]+")("url")
+URL = AT + URI
 
 EXTRAS_LIST = EXTRA + ZeroOrMore(COMMA + EXTRA)
 EXTRAS = (LBRACKET + Optional(EXTRAS_LIST) + RBRACKET)("extras")
@@ -48,17 +52,18 @@ VERSION_PEP440 = Regex(Specifier._regex_str, re.VERBOSE | re.IGNORECASE)
 VERSION_LEGACY = Regex(LegacySpecifier._regex_str, re.VERBOSE | re.IGNORECASE)
 
 VERSION_ONE = VERSION_PEP440 ^ VERSION_LEGACY
-VERSION_MANY = Combine(VERSION_ONE + ZeroOrMore(COMMA + VERSION_ONE),
-                       joinString=",", adjacent=False)("_raw_spec")
+VERSION_MANY = Combine(
+    VERSION_ONE + ZeroOrMore(COMMA + VERSION_ONE), joinString=",", adjacent=False
+)("_raw_spec")
 _VERSION_SPEC = Optional(((LPAREN + VERSION_MANY + RPAREN) | VERSION_MANY))
-_VERSION_SPEC.setParseAction(lambda s, l, t: t._raw_spec or '')
+_VERSION_SPEC.setParseAction(lambda s, l, t: t._raw_spec or "")
 
 VERSION_SPEC = originalTextFor(_VERSION_SPEC)("specifier")
 VERSION_SPEC.setParseAction(lambda s, l, t: t[1])
 
 MARKER_EXPR = originalTextFor(MARKER_EXPR())("marker")
 MARKER_EXPR.setParseAction(
-    lambda s, l, t: Marker(s[t._original_start:t._original_end])
+    lambda s, l, t: Marker(s[t._original_start : t._original_end])
 )
 MARKER_SEPARATOR = SEMICOLON
 MARKER = MARKER_SEPARATOR + MARKER_EXPR
@@ -66,8 +71,7 @@ MARKER = MARKER_SEPARATOR + MARKER_EXPR
 VERSION_AND_MARKER = VERSION_SPEC + Optional(MARKER)
 URL_AND_MARKER = URL + Optional(MARKER)
 
-NAMED_REQUIREMENT = \
-    NAME + Optional(EXTRAS) + (URL_AND_MARKER | VERSION_AND_MARKER)
+NAMED_REQUIREMENT = NAME + Optional(EXTRAS) + (URL_AND_MARKER | VERSION_AND_MARKER)
 
 REQUIREMENT = stringStart + NAMED_REQUIREMENT + stringEnd
 # pyparsing isn't thread safe during initialization, so we do it eagerly, see
@@ -89,18 +93,25 @@ class Requirement(object):
     # TODO: Can we normalize the name and extra name?
 
     def __init__(self, requirement_string):
+        # type: (str) -> None
         try:
             req = REQUIREMENT.parseString(requirement_string)
         except ParseException as e:
-            raise InvalidRequirement("Parse error at \"{0!r}\": {1}".format(
-                requirement_string[e.loc:e.loc + 8], e.msg
-            ))
+            raise InvalidRequirement(
+                'Parse error at "{0!r}": {1}'.format(
+                    requirement_string[e.loc : e.loc + 8], e.msg
+                )
+            )
 
         self.name = req.name
         if req.url:
             parsed_url = urlparse.urlparse(req.url)
-            if not (parsed_url.scheme and parsed_url.netloc) or (
-                    not parsed_url.scheme and not parsed_url.netloc):
+            if parsed_url.scheme == "file":
+                if urlparse.urlunparse(parsed_url) != req.url:
+                    raise InvalidRequirement("Invalid URL given")
+            elif not (parsed_url.scheme and parsed_url.netloc) or (
+                not parsed_url.scheme and not parsed_url.netloc
+            ):
                 raise InvalidRequirement("Invalid URL: {0}".format(req.url))
             self.url = req.url
         else:
@@ -110,7 +121,8 @@ class Requirement(object):
         self.marker = req.marker if req.marker else None
 
     def __str__(self):
-        parts = [self.name]
+        # type: () -> str
+        parts = [self.name]  # type: List[str]
 
         if self.extras:
             parts.append("[{0}]".format(",".join(sorted(self.extras))))
@@ -120,6 +132,8 @@ class Requirement(object):
 
         if self.url:
             parts.append("@ {0}".format(self.url))
+            if self.marker:
+                parts.append(" ")
 
         if self.marker:
             parts.append("; {0}".format(self.marker))
@@ -127,4 +141,5 @@ class Requirement(object):
         return "".join(parts)
 
     def __repr__(self):
+        # type: () -> str
         return "<Requirement({0!r})>".format(str(self))

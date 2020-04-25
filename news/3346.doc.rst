@@ -1,0 +1,1 @@
+Move CLI docs to its own page.

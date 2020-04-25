@@ -1,3 +1,6 @@
+# The following comment should be removed at some point in the future.
+# mypy: disallow-untyped-defs=False
+
 from __future__ import absolute_import
 
 import hashlib
@@ -5,9 +8,23 @@ import hashlib
 from pipenv.patched.notpip._vendor.six import iteritems, iterkeys, itervalues
 
 from pipenv.patched.notpip._internal.exceptions import (
-    HashMismatch, HashMissing, InstallationError,
+    HashMismatch,
+    HashMissing,
+    InstallationError,
 )
 from pipenv.patched.notpip._internal.utils.misc import read_chunks
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+
+if MYPY_CHECK_RUNNING:
+    from typing import (
+        Dict, List, BinaryIO, NoReturn, Iterator
+    )
+    from pipenv.patched.notpip._vendor.six import PY3
+    if PY3:
+        from hashlib import _Hash
+    else:
+        from hashlib import _hash as _Hash
+
 
 # The recommended hash algo of the moment. Change this whenever the state of
 # the art changes; it won't hurt backward compatibility.
@@ -25,13 +42,28 @@ class Hashes(object):
 
     """
     def __init__(self, hashes=None):
+        # type: (Dict[str, List[str]]) -> None
         """
         :param hashes: A dict of algorithm names pointing to lists of allowed
             hex digests
         """
         self._allowed = {} if hashes is None else hashes
 
+    @property
+    def digest_count(self):
+        # type: () -> int
+        return sum(len(digests) for digests in self._allowed.values())
+
+    def is_hash_allowed(
+        self,
+        hash_name,   # type: str
+        hex_digest,  # type: str
+    ):
+        """Return whether the given hex digest is allowed."""
+        return hex_digest in self._allowed.get(hash_name, [])
+
     def check_against_chunks(self, chunks):
+        # type: (Iterator[bytes]) -> None
         """Check good hashes against ones built from iterable of chunks of
         data.
 
@@ -55,9 +87,11 @@ class Hashes(object):
         self._raise(gots)
 
     def _raise(self, gots):
+        # type: (Dict[str, _Hash]) -> NoReturn
         raise HashMismatch(self._allowed, gots)
 
     def check_against_file(self, file):
+        # type: (BinaryIO) -> None
         """Check good hashes against a file-like object
 
         Raise HashMismatch if none match.
@@ -66,14 +100,17 @@ class Hashes(object):
         return self.check_against_chunks(read_chunks(file))
 
     def check_against_path(self, path):
+        # type: (str) -> None
         with open(path, 'rb') as file:
             return self.check_against_file(file)
 
     def __nonzero__(self):
+        # type: () -> bool
         """Return whether I know any known-good hashes."""
         return bool(self._allowed)
 
     def __bool__(self):
+        # type: () -> bool
         return self.__nonzero__()
 
 
@@ -85,10 +122,12 @@ class MissingHashes(Hashes):
 
     """
     def __init__(self):
+        # type: () -> None
         """Don't offer the ``hashes`` kwarg."""
         # Pass our favorite hash in to generate a "gotten hash". With the
         # empty list, it will never match, so an error will always raise.
         super(MissingHashes, self).__init__(hashes={FAVORITE_HASH: []})
 
     def _raise(self, gots):
+        # type: (Dict[str, _Hash]) -> NoReturn
         raise HashMissing(gots[FAVORITE_HASH].hexdigest())
