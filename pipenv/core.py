@@ -677,6 +677,9 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
             click.echo(crayons.blue(c.out.strip() or c.err.strip()))
         # The Installation failed…
         if failed:
+            # If there is a mismatch in installed locations or the install fails
+            # due to wrongful disabling of pep517, we should allow for
+            # additional passes at installation
             if "does not match installed location" in c.err:
                 project.environment.expand_egg_links()
                 click.echo("{0}".format(
@@ -687,6 +690,10 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
                     )
                 ))
                 dep = c.dep.copy()
+                dep.use_pep517 = True
+            elif "Disabling PEP 517 processing is invalid" in c.err:
+                dep = c.dep.copy()
+                dep.use_pep517 = True
             elif not retry:
                 # The Installation failed…
                 # We echo both c.out and c.err because pip returns error details on out.
@@ -698,6 +705,7 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
             else:
                 # Alert the user.
                 dep = c.dep.copy()
+                dep.use_pep517 = False
                 click.echo(
                     "{0} {1}! Will try again.".format(
                         crayons.red("An error occurred while installing"),
@@ -760,7 +768,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 del os.environ["GIT_CONFIG"]
             use_pep517 = True
             if failed and not dep.is_vcs:
-                use_pep517 = False
+                use_pep517 = getattr(dep, "use_pep517", False)
 
             c = pip_install(
                 dep,
