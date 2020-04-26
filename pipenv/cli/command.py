@@ -435,7 +435,7 @@ def run(state, command, args):
     "--output",
     type=Choice(["default", "json", "full-report", "bare"]),
     default="default",
-    help="Translates to --json, --ful-report or --bare from safety check",
+    help="Translates to --json, --full-report or --bare from safety check",
 )
 @option(
     "--quiet",
