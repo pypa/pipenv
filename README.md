@@ -6,7 +6,9 @@ Pipenv: Python Development Workflow for Humans
 [![Azure Pipelines Build Status](https://dev.azure.com/pypa/pipenv/_apis/build/status/Pipenv%20CI?branchName=master)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=16&branchName=master)
 [![image](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://python.org/pypi/pipenv)
 
+
 ------------------------------------------------------------------------
+[[ ~ Dependency Scanning by PyUp.io ~ ]](https://pyup.io)
 
 **Pipenv** is a tool that aims to bring the best of all packaging worlds
 (bundler, composer, npm, cargo, yarn, etc.) to the Python world.
