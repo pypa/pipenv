@@ -349,7 +349,7 @@ def lock(
     "--anyway",
     is_flag=True,
     default=False,
-    help="Always spawn a subshell, even if one is already spawned.",
+    help="Always spawn a sub-shell, even if one is already spawned.",
 )
 @argument("shell_args", nargs=-1)
 @pypi_mirror_option

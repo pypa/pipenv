@@ -102,7 +102,7 @@ def extra_index_option(f):
         state.extra_index_urls.extend(list(value))
         return value
     return option("--extra-index-url", multiple=True, expose_value=False,
-                  help=u"URLs to the extra PyPI compatible indexes to query for package lookups.",
+                  help=u"URLs to the extra PyPI compatible indexes to query for package look-ups.",
                   callback=callback, envvar="PIP_EXTRA_INDEX_URL")(f)
 
 
@@ -112,8 +112,10 @@ def editable_option(f):
         state.installstate.editables.extend(value)
         return value
     return option('-e', '--editable', expose_value=False, multiple=True,
-                  help='An editable python package URL or path, often to a VCS repo.',
-                  callback=callback, type=click.types.STRING)(f)
+                  callback=callback, type=click.types.STRING, help=(
+                      "An editable python package URL or path, often to a VCS "
+                      "repository."
+                  ))(f)
 
 
 def sequential_option(f):

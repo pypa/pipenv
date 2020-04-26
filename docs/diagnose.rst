@@ -29,7 +29,7 @@ usually one of the following locations:
 * ``%LOCALAPPDATA%\pipenv\pipenv\Cache`` (Windows)
 * ``~/.cache/pipenv`` (other operating systems)
 
-Pipenv does not install prereleases (i.e. a version with an alpha/beta/etc.
+Pipenv does not install pre-releases (i.e. a version with an alpha/beta/etc.
 suffix, such as *1.0b1*) by default. You will need to pass the ``--pre`` flag
 in your command, or set
 
@@ -124,7 +124,7 @@ for more information.
 ---------------------------------------------
 
 When you configure a supervisor program's ``command`` with ``pipenv run ...``, you
-need to set locale enviroment variables properly to make it work.
+need to set locale envirnoment variables properly to make it work.
 
 Add this line under ``[supervisord]`` section in ``/etc/supervisor/supervisord.conf``::
 

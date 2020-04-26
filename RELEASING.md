@@ -105,6 +105,20 @@ $ export PIPENV_PYTHON=2.7
 $ pipenv install --dev && pytest -ra tests
 ```
 
+## Check Spelling in Documentation
+
+Pipenv now leverages `sphinxcontrib.spelling` to help ensure documentation does not contain typographical mistakes. To validate documentation, please make sure to rebuild an rectify any documentation issues before pushing the new release:
+
+```console
+$ pipenv shell
+$ cd docs
+$ make clean && make html
+$ make spelling
+```
+
+Validate the results, adding any new exceptions to `docs/spelling_wordlist.txt`.
+
+
 ## Releasing
 
 1. Set a version: `pipenv run inv release.bump-version --trunc-month --pre --tag=a` - this will truncate the current month, creating an alpha pre-release, e.g. `2020.4.1a1`
