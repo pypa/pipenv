@@ -5,7 +5,7 @@ import os
 import sys
 
 from click import (
-    argument, echo, edit, group, option, pass_context, secho, version_option
+    argument, echo, edit, group, option, pass_context, secho, version_option, Choice
 )
 
 from ..__version__ import __version__
@@ -420,10 +420,27 @@ def run(state, command, args):
     help="Given a code path, show potentially unused dependencies.",
 )
 @option(
+    "--db",
+    nargs=1,
+    default=lambda: os.environ.get('PIPENV_SAFETY_DB', False),
+    help="Path to a local vulnerability database. Default: ENV PIPENV_SAFETY_DB or None",
+)
+@option(
     "--ignore",
     "-i",
     multiple=True,
     help="Ignore specified vulnerability during safety checks.",
+)
+@option(
+    "--output",
+    type=Choice(["default", "json", "full-report", "bare"]),
+    default="default",
+    help="Translates to --json, --full-report or --bare from safety check",
+)
+@option(
+    "--quiet",
+    is_flag=True,
+    help="Quiet stdout except vulnerability report."
 )
 @common_options
 @system_option
@@ -432,8 +449,11 @@ def run(state, command, args):
 def check(
     state,
     unused=False,
+    db=False,
     style=False,
     ignore=None,
+    output="default",
+    quiet=False,
     args=None,
     **kwargs
 ):
@@ -445,7 +465,10 @@ def check(
         python=state.python,
         system=state.system,
         unused=unused,
+        db=db,
         ignore=ignore,
+        output=output,
+        quiet=quiet,
         args=args,
         pypi_mirror=state.pypi_mirror,
     )
