@@ -363,7 +363,7 @@ index 1dc1a576..4cc06026 100644
  
 -    def __init__(self, name, version, link):
 -        # type: (str, str, Link) -> None
-+    def __init__(self, name, version, link, requies_python=None):
++    def __init__(self, name, version, link, requires_python=None):
 +        # type: (str, str, Link, Any) -> None
          self.name = name
          self.version = parse_version(version)  # type: _BaseVersion
