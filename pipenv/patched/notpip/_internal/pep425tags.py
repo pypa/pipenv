@@ -3,6 +3,7 @@ from __future__ import absolute_import
 
 import distutils.util
 import logging
+import os
 import platform
 import re
 import sys
