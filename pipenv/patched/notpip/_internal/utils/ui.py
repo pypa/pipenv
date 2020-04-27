@@ -156,10 +156,10 @@ class DownloadProgressMixin(object):
             return "eta %s" % self.eta_td
         return ""
 
-    def iter(self, it, n=1):
+    def iter(self, it):
         for x in it:
             yield x
-            self.next(n)
+            self.next(len(x))
         self.finish()
 
 
@@ -279,7 +279,7 @@ def DownloadProgressProvider(progress_bar, max=None):
 
 @contextlib.contextmanager
 def hidden_cursor(file):
-    # type: (IO) -> Iterator[None]
+    # type: (IO[Any]) -> Iterator[None]
     # The Windows terminal does not support the hide/show cursor ANSI codes,
     # even via colorama. So don't even try.
     if WINDOWS:

@@ -254,7 +254,7 @@ def call_subprocess(
 
 
 def runner_with_spinner_message(message):
-    # type: (str) -> Callable
+    # type: (str) -> Callable[..., None]
     """Provide a subprocess_runner that shows a spinner message.
 
     Intended for use with for pep517's Pep517HookCaller. Thus, the runner has

@@ -27,15 +27,13 @@ from .pip_compat import (
     get_installed_distributions,
     install_req_from_editable,
     install_req_from_line,
-    is_dir_url,
-    is_file_url,
-    is_vcs_url,
     parse_requirements,
     path_to_url,
     pip_version,
     stdlib_pkgs,
     url_to_path,
     user_cache_dir,
+    normalize_path,
 )
 
 if six.PY2:

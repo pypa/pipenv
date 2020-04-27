@@ -1,9 +1,12 @@
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
-
-from pipenv.patched.notpip._vendor import pkg_resources
+from zipfile import ZipFile
 
 from pipenv.patched.notpip._internal.distributions.base import AbstractDistribution
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.wheel import pkg_resources_distribution_for_wheel
+
+if MYPY_CHECK_RUNNING:
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
 
 
 class WheelDistribution(AbstractDistribution):
@@ -13,8 +16,21 @@ class WheelDistribution(AbstractDistribution):
     """
 
     def get_pkg_resources_distribution(self):
-        return list(pkg_resources.find_distributions(
-                    self.req.source_dir))[0]
+        # type: () -> Distribution
+        """Loads the metadata from the wheel file into memory and returns a
+        Distribution that uses it, not relying on the wheel file or
+        requirement.
+        """
+        # Set as part of preparation during download.
+        assert self.req.local_file_path
+        # Wheels are never unnamed.
+        assert self.req.name
+
+        with ZipFile(self.req.local_file_path, allowZip64=True) as z:
+            return pkg_resources_distribution_for_wheel(
+                z, self.req.name, self.req.local_file_path
+            )
 
     def prepare_distribution_metadata(self, finder, build_isolation):
+        # type: (PackageFinder, bool) -> None
         pass

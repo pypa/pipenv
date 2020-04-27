@@ -7,16 +7,18 @@ from __future__ import absolute_import
 
 import logging
 import os
+import shutil
 
 from pipenv.patched.notpip._internal.cache import WheelCache
 from pipenv.patched.notpip._internal.cli import cmdoptions
 from pipenv.patched.notpip._internal.cli.req_command import RequirementCommand
 from pipenv.patched.notpip._internal.exceptions import CommandError, PreviousBuildDirError
 from pipenv.patched.notpip._internal.req import RequirementSet
-from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker
+from pipenv.patched.notpip._internal.req.req_tracker import get_requirement_tracker
+from pipenv.patched.notpip._internal.utils.misc import ensure_dir, normalize_path
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.wheel import WheelBuilder
+from pipenv.patched.notpip._internal.wheel_builder import build, should_build_for_wheel_command
 
 if MYPY_CHECK_RUNNING:
     from optparse import Values
@@ -114,24 +116,20 @@ class WheelCommand(RequirementCommand):
         # type: (Values, List[Any]) -> None
         cmdoptions.check_install_build_global(options)
 
-        if options.build_dir:
-            options.build_dir = os.path.abspath(options.build_dir)
-
-        options.src_dir = os.path.abspath(options.src_dir)
-
         session = self.get_default_session(options)
 
         finder = self._build_package_finder(options, session)
         build_delete = (not (options.no_clean or options.build_dir))
         wheel_cache = WheelCache(options.cache_dir, options.format_control)
 
-        with RequirementTracker() as req_tracker, TempDirectory(
+        options.wheel_dir = normalize_path(options.wheel_dir)
+        ensure_dir(options.wheel_dir)
+
+        with get_requirement_tracker() as req_tracker, TempDirectory(
             options.build_dir, delete=build_delete, kind="wheel"
         ) as directory:
 
-            requirement_set = RequirementSet(
-                require_hashes=options.require_hashes,
-            )
+            requirement_set = RequirementSet()
 
             try:
                 self.populate_requirement_set(
@@ -143,30 +141,49 @@ class WheelCommand(RequirementCommand):
                     temp_build_dir=directory,
                     options=options,
                     req_tracker=req_tracker,
+                    session=session,
+                    finder=finder,
                     wheel_download_dir=options.wheel_dir,
+                    use_user_site=False,
                 )
 
                 resolver = self.make_resolver(
                     preparer=preparer,
                     finder=finder,
-                    session=session,
                     options=options,
                     wheel_cache=wheel_cache,
                     ignore_requires_python=options.ignore_requires_python,
                     use_pep517=options.use_pep517,
                 )
+
+                self.trace_basic_info(finder)
+
                 resolver.resolve(requirement_set)
 
+                reqs_to_build = [
+                    r for r in requirement_set.requirements.values()
+                    if should_build_for_wheel_command(r)
+                ]
+
                 # build wheels
-                wb = WheelBuilder(
-                    preparer, wheel_cache,
+                build_successes, build_failures = build(
+                    reqs_to_build,
+                    wheel_cache=wheel_cache,
                     build_options=options.build_options or [],
                     global_options=options.global_options or [],
-                    no_clean=options.no_clean,
                 )
-                build_failures = wb.build(
-                    requirement_set.requirements.values(),
-                )
+                for req in build_successes:
+                    assert req.link and req.link.is_wheel
+                    assert req.local_file_path
+                    # copy from cache to target directory
+                    try:
+                        shutil.copy(req.local_file_path, options.wheel_dir)
+                    except OSError as e:
+                        logger.warning(
+                            "Building wheel for %s failed: %s",
+                            req.name, e,
+                        )
+                        build_failures.append(req)
                 if len(build_failures) != 0:
                     raise CommandError(
                         "Failed to build one or more wheels"

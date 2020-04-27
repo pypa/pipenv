@@ -415,6 +415,7 @@ class SecurityConst(object):
     kTLSProtocol1 = 4
     kTLSProtocol11 = 7
     kTLSProtocol12 = 8
+    # SecureTransport does not support TLS 1.3 even if there's a constant for it
     kTLSProtocol13 = 10
     kTLSProtocolMaxSupported = 999
 
