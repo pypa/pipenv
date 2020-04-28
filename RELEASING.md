@@ -107,7 +107,7 @@ $ pipenv install --dev && pytest -ra tests
 
 ## Check Spelling in Documentation
 
-Pipenv now leverages `sphinxcontrib.spelling` to help ensure documentation does not contain typographical mistakes. To validate documentation, please make sure to rebuild an rectify any documentation issues before pushing the new release:
+Pipenv now leverages `sphinxcontrib.spelling` to help ensure documentation does not contain typographical mistakes. To validate documentation, please make sure to rebuild and rectify any documentation issues before pushing the new release:
 
 ```console
 $ pipenv shell
