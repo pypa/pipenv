@@ -185,7 +185,7 @@ index ec3a796..1aa29f0 100644
          else:
              return self.repository.find_best_match(ireq, prereleases)
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index ef5ba4e..fe6e735 100644
+index ef5ba4e..b96acf6 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -2,28 +2,48 @@
@@ -254,7 +254,7 @@ index ef5ba4e..fe6e735 100644
  )
  from .base import BaseRepository
  
-+os.environ["PIP_SHIMS_BASE_MODULE"] = str("pip")
++os.environ["PIP_SHIMS_BASE_MODULE"] = str("pipenv.patched.notpip")
  FILE_CHUNK_SIZE = 4096
  FileStream = collections.namedtuple("FileStream", "stream size")
  
@@ -301,7 +301,7 @@ index ef5ba4e..fe6e735 100644
  class PyPIRepository(BaseRepository):
      DEFAULT_INDEX_URL = PyPI.simple_url
  
-@@ -46,19 +106,27 @@ class PyPIRepository(BaseRepository):
+@@ -46,21 +106,29 @@ class PyPIRepository(BaseRepository):
      changed/configured on the Finder.
      """
  
@@ -330,8 +330,11 @@ index ef5ba4e..fe6e735 100644
 +            session = self.command._build_session(self.options)
 +        self.session = session
          self.finder = self.command._build_package_finder(
-             options=self.options, session=self.session
+-            options=self.options, session=self.session
++            options=self.options, session=self.session, ignore_requires_python=True
          )
+ 
+         # Caches
 @@ -73,6 +141,10 @@ class PyPIRepository(BaseRepository):
          # of all secondary dependencies for the given requirement, so we
          # only have to go to disk once for each requirement
@@ -465,7 +468,7 @@ index ef5ba4e..fe6e735 100644
  
          if not is_pinned_requirement(ireq):
              raise TypeError("Expected pinned requirement, got {}".format(ireq))
-@@ -260,39 +393,19 @@ class PyPIRepository(BaseRepository):
+@@ -260,38 +393,28 @@ class PyPIRepository(BaseRepository):
          # We need to get all of the candidates that match our current version
          # pin, these will represent all of the files that could possibly
          # satisfy this constraint.
@@ -473,21 +476,15 @@ index ef5ba4e..fe6e735 100644
 -        candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version)
 -        matching_versions = list(
 -            ireq.specifier.filter((candidate.version for candidate in all_candidates))
-+        matching_candidates = (
-+            c for c in clean_requires_python(self.find_all_candidates(ireq.name))
-+            if c.version in ireq.specifier
-         )
+-        )
 -        matching_candidates = candidates_by_version[matching_versions[0]]
+-
+-        log.debug("  {}".format(ireq.name))
  
-         log.debug("  {}".format(ireq.name))
- 
-         return {
+-        return {
 -            self._get_file_hash(candidate.link) for candidate in matching_candidates
-+            h for h in
-+            map(lambda c: self._hash_cache.get_hash(c.link), matching_candidates)
-+            if h is not None
-         }
- 
+-        }
+-
 -    def _get_file_hash(self, link):
 -        log.debug("    Hashing {}".format(link.url_without_fragment))
 -        h = hashlib.new(FAVORITE_HASH)
@@ -501,16 +498,35 @@ index ef5ba4e..fe6e735 100644
 -                context_manager = progressbar(chunks, length=iter_length, label="  ")
 -            else:
 -                context_manager = contextlib.nullcontext(chunks)
--
++        result = {}
++        with self.allow_all_links():
++            matching_candidates = (
++                c for c in clean_requires_python(self.find_all_candidates(ireq.name))
++                if c.version in ireq.specifier
++            )
++            log.debug("  {}".format(ireq.name))
++            result = {
++                h for h in
++                map(lambda c: self._hash_cache.get_hash(c.link), matching_candidates)
++                if h is not None
++            }
++         return result
+ 
 -            # Iterate over the chosen context manager
 -            with context_manager as bar:
 -                for chunk in bar:
 -                    h.update(chunk)
 -        return ":".join([FAVORITE_HASH, h.hexdigest()])
--
++    @contextmanager
++    def allow_all_links(self):
++        try:
++            self.finder._ignore_compatibility = True
++            yield
++        finally:
++            self.finder._ignore_compatibility = False
+ 
      @contextmanager
      def allow_all_wheels(self):
-         """
 diff --git a/pipenv/patched/piptools/resolver.py b/pipenv/patched/piptools/resolver.py
 index 0116992..550069d 100644
 --- a/pipenv/patched/piptools/resolver.py

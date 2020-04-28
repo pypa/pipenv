@@ -52,7 +52,7 @@ from ..utils import (
 )
 from .base import BaseRepository
 
-os.environ["PIP_SHIMS_BASE_MODULE"] = str("pip")
+os.environ["PIP_SHIMS_BASE_MODULE"] = str("pipenv.patched.notpip")
 FILE_CHUNK_SIZE = 4096
 FileStream = collections.namedtuple("FileStream", "stream size")
 
@@ -128,7 +128,7 @@ class PyPIRepository(BaseRepository):
             session = self.command._build_session(self.options)
         self.session = session
         self.finder = self.command._build_package_finder(
-            options=self.options, session=self.session
+            options=self.options, session=self.session, ignore_requires_python=True
         )
 
         # Caches
@@ -296,7 +296,7 @@ class PyPIRepository(BaseRepository):
                 wheel_cache=wheel_cache,
                 use_user_site=False,
                 ignore_installed=True,
-                ignore_requires_python=False,
+                ignore_requires_python=True,
                 force_reinstall=False,
                 upgrade_strategy="to-satisfy-only",
             )
@@ -393,18 +393,28 @@ class PyPIRepository(BaseRepository):
         # We need to get all of the candidates that match our current version
         # pin, these will represent all of the files that could possibly
         # satisfy this constraint.
-        matching_candidates = (
-            c for c in clean_requires_python(self.find_all_candidates(ireq.name))
-            if c.version in ireq.specifier
-        )
 
-        log.debug("  {}".format(ireq.name))
+        result = {}
+        with self.allow_all_links():
+            matching_candidates = (
+                c for c in clean_requires_python(self.find_all_candidates(ireq.name))
+                if c.version in ireq.specifier
+            )
+            log.debug("  {}".format(ireq.name))
+            result = {
+                h for h in
+                map(lambda c: self._hash_cache.get_hash(c.link), matching_candidates)
+                if h is not None
+            }
+        return result
 
-        return {
-            h for h in
-            map(lambda c: self._hash_cache.get_hash(c.link), matching_candidates)
-            if h is not None
-        }
+    @contextmanager
+    def allow_all_links(self):
+        try:
+            self.finder._ignore_compatibility = True
+            yield
+        finally:
+            self.finder._ignore_compatibility = False
 
     @contextmanager
     def allow_all_wheels(self):
