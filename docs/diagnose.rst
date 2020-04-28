@@ -124,7 +124,7 @@ for more information.
 ---------------------------------------------
 
 When you configure a supervisor program's ``command`` with ``pipenv run ...``, you
-need to set locale envirnoment variables properly to make it work.
+need to set locale environment variables properly to make it work.
 
 Add this line under ``[supervisord]`` section in ``/etc/supervisor/supervisord.conf``::
 
