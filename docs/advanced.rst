@@ -41,7 +41,7 @@ Very fancy.
 ☤ Using a PyPI Mirror
 ----------------------------
 
-If you'd like to override the default PyPI index urls with the url for a PyPI mirror, you can use the following::
+If you would like to override the default PyPI index URLs with the URL for a PyPI mirror, you can use the following::
 
     $ pipenv install --pypi-mirror <mirror_url>
 

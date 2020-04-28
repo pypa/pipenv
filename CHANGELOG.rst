@@ -202,7 +202,7 @@ Behavior Changes
 Bug Fixes
 ---------
 
-- Fixed a bug which prevented installation of editable requirements using ``ssh://`` style urls  `#1393 <https://github.com/pypa/pipenv/issues/1393>`_
+- Fixed a bug which prevented installation of editable requirements using ``ssh://`` style URLs  `#1393 <https://github.com/pypa/pipenv/issues/1393>`_
 
 - VCS Refs for locked local editable dependencies will now update appropriately to the latest hash when running ``pipenv update``.  `#1690 <https://github.com/pypa/pipenv/issues/1690>`_
 
@@ -412,7 +412,7 @@ Bug Fixes
 - Pipenv will now ensure that its internal package names registry files are written with unicode strings.  `#2450 <https://github.com/pypa/pipenv/issues/2450>`_
 
 - Fixed a bug causing requirements input as relative paths to be output as absolute paths or URIs.
-  Fixed a bug affecting normalization of ``git+git@host`` urls.  `#2453 <https://github.com/pypa/pipenv/issues/2453>`_
+  Fixed a bug affecting normalization of ``git+git@host`` URLs.  `#2453 <https://github.com/pypa/pipenv/issues/2453>`_
 
 - Pipenv will now always use ``pathlib2`` for ``Path`` based filesystem interactions by default on ``python<3.5``.  `#2454 <https://github.com/pypa/pipenv/issues/2454>`_
 
@@ -479,7 +479,7 @@ Features & Improvements
   patched piptools version.  `#2255
   <https://github.com/pypa/pipenv/issues/2255>`_
 
-- PyPI mirror URLs can now be set to override instances of PyPI urls by passing
+- PyPI mirror URLs can now be set to override instances of PyPI URLs by passing
   the ``--pypi-mirror`` argument from the command line or setting the
   ``PIPENV_PYPI_MIRROR`` environment variable.  `#2281
   <https://github.com/pypa/pipenv/issues/2281>`_
