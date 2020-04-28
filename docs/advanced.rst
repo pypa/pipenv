@@ -237,16 +237,15 @@ Example::
 
 .. note::
 
-   In order to enable this functionality while maintaining its permissive
-   copyright license, `pipenv` embeds an API client key for the backend
-   Safety API operated by pyup.io rather than including a full copy of the
-   CC-BY-NC-SA licensed Safety-DB database. This embedded client key is
-   shared across all `pipenv check` users, and hence will be subject to
-   API access throttling based on overall usage rather than individual
-   client usage.
+   Each month, `PyUp.io` updates the ``safety`` database of
+   insecure Python packages and `makes it available to the
+   community for free <https://pyup.io/safety/>`__. Pipenv
+   makes an API call to retrieve those results and use them
+   each time you run ``pipenv check`` to show you vulnerable
+   dependencies.
 
-   You can also use your own safety API key by setting the
-   environment variable ``PIPENV_PYUP_API_KEY``.
+   For more up-to-date vulnerability data, you may also use your own safety
+   API key by setting the environment variable ``PIPENV_PYUP_API_KEY``.
 
 
 ☤ Community Integrations
