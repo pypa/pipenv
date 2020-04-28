@@ -4,7 +4,7 @@ on:
   push:
     # Sequence of patterns matched against refs/tags
     tags:
-      - v?[0-9]+.[0-9]+.[0-9]+  # add .* to allow dev releases
+      - v?[0-9]+.[0-9]+.[0-9]+.?(a|b|rc|dev)?[0-9]+  # add .* to allow dev releases
 
 jobs:
   build:
