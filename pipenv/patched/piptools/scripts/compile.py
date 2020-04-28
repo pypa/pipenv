@@ -2,33 +2,30 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
+import shlex
 import sys
 import tempfile
 
 from click.utils import safecall
+from ._compat import InstallCommand
+from ._compat import install_req_from_line
 
 from .. import click
-from .._compat import install_req_from_line, parse_requirements
+from .._compat import parse_requirements
+from ..cache import DependencyCache
 from ..exceptions import PipToolsError
+from ..locations import CACHE_DIR
 from ..logging import log
 from ..repositories import LocalRequirementsRepository, PyPIRepository
 from ..resolver import Resolver
-from ..utils import (
-    UNSAFE_PACKAGES,
-    create_install_command,
-    dedup,
-    get_trusted_hosts,
-    is_pinned_requirement,
-    key_from_ireq,
-    key_from_req,
-)
+from ..utils import UNSAFE_PACKAGES, dedup, is_pinned_requirement, key_from_ireq
 from ..writer import OutputWriter
 
 DEFAULT_REQUIREMENTS_FILE = "requirements.in"
 DEFAULT_REQUIREMENTS_OUTPUT_FILE = "requirements.txt"
 
 # Get default values of the pip's options (including options from pipenv.patched.notpip.conf).
-install_command = create_install_command()
+install_command = InstallComand()
 pip_defaults = install_command.parser.get_default_values()
 
 
@@ -161,7 +158,7 @@ pip_defaults = install_command.parser.get_default_values()
 @click.option(
     "--build-isolation/--no-build-isolation",
     is_flag=True,
-    default=False,
+    default=True,
     help="Enable isolation when building a modern source distribution. "
     "Build dependencies specified by PEP 518 must be already installed "
     "if build isolation is disabled.",
@@ -172,6 +169,16 @@ pip_defaults = install_command.parser.get_default_values()
     default=True,
     help="Add the find-links option to generated file",
 )
+@click.option(
+    "--cache-dir",
+    help="Store the cache data in DIRECTORY.",
+    default=CACHE_DIR,
+    envvar="PIP_TOOLS_CACHE_DIR",
+    show_default=True,
+    show_envvar=True,
+    type=click.Path(file_okay=False, writable=True),
+)
+@click.option("--pip-args", help="Arguments to pass directly to the pip command.")
 def cli(
     ctx,
     verbose,
@@ -198,6 +205,8 @@ def cli(
     max_rounds,
     build_isolation,
     emit_find_links,
+    cache_dir,
+    pip_args,
 ):
     """Compiles requirements.txt from requirements.in specs."""
     log.verbosity = verbose - quiet
@@ -241,6 +250,7 @@ def cli(
     # Setup
     ###
 
+    right_args = shlex.split(pip_args or "")
     pip_args = []
     if find_links:
         for link in find_links:
@@ -260,32 +270,42 @@ def cli(
         for host in trusted_host:
             pip_args.extend(["--trusted-host", host])
 
-    repository = PyPIRepository(pip_args, build_isolation=build_isolation)
+    if not build_isolation:
+        pip_args.append("--no-build-isolation")
+    pip_args.extend(right_args)
+
+    repository = PyPIRepository(pip_args, cache_dir=cache_dir)
 
     # Parse all constraints coming from --upgrade-package/-P
     upgrade_reqs_gen = (install_req_from_line(pkg) for pkg in upgrade_packages)
     upgrade_install_reqs = {
-        key_from_req(install_req.req): install_req for install_req in upgrade_reqs_gen
+        key_from_ireq(install_req): install_req for install_req in upgrade_reqs_gen
     }
+
+    existing_pins_to_upgrade = set()
 
     # Proxy with a LocalRequirementsRepository if --upgrade is not specified
     # (= default invocation)
     if not upgrade and os.path.exists(output_file.name):
+        # Use a temporary repository to ensure outdated(removed) options from
+        # existing requirements.txt wouldn't get into the current repository.
+        tmp_repository = PyPIRepository(pip_args, cache_dir=cache_dir)
         ireqs = parse_requirements(
             output_file.name,
-            finder=repository.finder,
-            session=repository.session,
-            options=repository.options,
+            finder=tmp_repository.finder,
+            session=tmp_repository.session,
+            options=tmp_repository.options,
         )
 
         # Exclude packages from --upgrade-package/-P from the existing
-        # constraints
-        existing_pins = {
-            key_from_req(ireq.req): ireq
-            for ireq in ireqs
-            if is_pinned_requirement(ireq)
-            and key_from_req(ireq.req) not in upgrade_install_reqs
-        }
+        # constraints, and separately gather pins to be upgraded
+        existing_pins = {}
+        for ireq in filter(is_pinned_requirement, ireqs):
+            key = key_from_ireq(ireq)
+            if key in upgrade_install_reqs:
+                existing_pins_to_upgrade.add(key)
+            else:
+                existing_pins[key] = ireq
         repository = LocalRequirementsRepository(existing_pins, repository)
 
     ###
@@ -306,10 +326,14 @@ def cli(
 
                 dist = run_setup(src_file)
                 tmpfile.write("\n".join(dist.install_requires))
+                comes_from = "{name} ({filename})".format(
+                    name=dist.get_name(), filename=src_file
+                )
             else:
                 tmpfile.write(sys.stdin.read())
+                comes_from = "-r -"
             tmpfile.flush()
-            constraints.extend(
+            reqs = list(
                 parse_requirements(
                     tmpfile.name,
                     finder=repository.finder,
@@ -317,6 +341,9 @@ def cli(
                     options=repository.options,
                 )
             )
+            for req in reqs:
+                req.comes_from = comes_from
+            constraints.extend(reqs)
         else:
             constraints.extend(
                 parse_requirements(
@@ -331,7 +358,10 @@ def cli(
         key_from_ireq(ireq) for ireq in constraints if not ireq.constraint
     }
 
-    constraints.extend(upgrade_install_reqs.values())
+    allowed_upgrades = primary_packages | existing_pins_to_upgrade
+    constraints.extend(
+        ireq for key, ireq in upgrade_install_reqs.items() if key in allowed_upgrades
+    )
 
     # Filter out pip environment markers which do not match (PEP496)
     constraints = [
@@ -353,6 +383,7 @@ def cli(
             constraints,
             repository,
             prereleases=repository.finder.allow_all_prereleases or pre,
+            cache=DependencyCache(cache_dir),
             clear_caches=rebuild,
             allow_unsafe=allow_unsafe,
         )
@@ -371,33 +402,6 @@ def cli(
     # Output
     ##
 
-    # Compute reverse dependency annotations statically, from the
-    # dependency cache that the resolver has populated by now.
-    #
-    # TODO (1a): reverse deps for any editable package are lost
-    #            what SHOULD happen is that they are cached in memory, just
-    #            not persisted to disk!
-    #
-    # TODO (1b): perhaps it's easiest if the dependency cache has an API
-    #            that could take InstallRequirements directly, like:
-    #
-    #              cache.set(ireq, ...)
-    #
-    #            then, when ireq is editable, it would store in
-    #
-    #              editables[egg_name][link_without_fragment] = deps
-    #              editables['pip-tools']['git+...ols.git@future'] = {
-    #                  'click>=3.0', 'six'
-    #              }
-    #
-    #            otherwise:
-    #
-    #              self[as_name_version_tuple(ireq)] = {'click>=3.0', 'six'}
-    #
-    reverse_dependencies = None
-    if annotate:
-        reverse_dependencies = resolver.reverse_dependencies(results)
-
     writer = OutputWriter(
         src_files,
         output_file,
@@ -410,7 +414,7 @@ def cli(
         generate_hashes=generate_hashes,
         default_index_url=repository.DEFAULT_INDEX_URL,
         index_urls=repository.finder.index_urls,
-        trusted_hosts=get_trusted_hosts(repository.finder),
+        trusted_hosts=repository.finder.trusted_hosts,
         format_control=repository.finder.format_control,
         allow_unsafe=allow_unsafe,
         find_links=repository.finder.find_links,
@@ -419,8 +423,6 @@ def cli(
     writer.write(
         results=results,
         unsafe_requirements=resolver.unsafe_constraints,
-        reverse_dependencies=reverse_dependencies,
-        primary_packages=primary_packages,
         markers={
             key_from_ireq(ireq): ireq.markers for ireq in constraints if ireq.markers
         },

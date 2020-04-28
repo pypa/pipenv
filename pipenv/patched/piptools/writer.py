@@ -1,7 +1,10 @@
 from __future__ import unicode_literals
 
 import os
+import re
 from itertools import chain
+
+import six
 
 from .click import unstyle
 from .logging import log
@@ -34,6 +37,15 @@ MESSAGE_UNINSTALLABLE = (
     "The generated requirements file may be rejected by pip install. "
     "See # WARNING lines for details."
 )
+
+
+strip_comes_from_line_re = re.compile(r" \(line \d+\)$")
+
+
+def _comes_from_as_string(ireq):
+    if isinstance(ireq.comes_from, six.string_types):
+        return strip_comes_from_line_re.sub("", ireq.comes_from)
+    return key_from_ireq(ireq.comes_from)
 
 
 class OutputWriter(object):
@@ -102,9 +114,9 @@ class OutputWriter(object):
                 yield "--trusted-host {}".format(trusted_host)
 
     def write_format_controls(self):
-        for nb in dedup(self.format_control.no_binary):
+        for nb in dedup(sorted(self.format_control.no_binary)):
             yield "--no-binary {}".format(nb)
-        for ob in dedup(self.format_control.only_binary):
+        for ob in dedup(sorted(self.format_control.only_binary)):
             yield "--only-binary {}".format(ob)
 
     def write_find_links(self):
@@ -125,19 +137,9 @@ class OutputWriter(object):
         if emitted:
             yield ""
 
-    def _iter_lines(
-        self,
-        results,
-        unsafe_requirements=None,
-        reverse_dependencies=None,
-        primary_packages=None,
-        markers=None,
-        hashes=None,
-    ):
+    def _iter_lines(self, results, unsafe_requirements=None, markers=None, hashes=None):
         # default values
         unsafe_requirements = unsafe_requirements or []
-        reverse_dependencies = reverse_dependencies or {}
-        primary_packages = primary_packages or []
         markers = markers or {}
         hashes = hashes or {}
 
@@ -169,11 +171,7 @@ class OutputWriter(object):
                     yield MESSAGE_UNHASHED_PACKAGE
                     warn_uninstallable = True
                 line = self._format_requirement(
-                    ireq,
-                    reverse_dependencies,
-                    primary_packages,
-                    markers.get(key_from_ireq(ireq)),
-                    hashes=hashes,
+                    ireq, markers.get(key_from_ireq(ireq)), hashes=hashes
                 )
                 yield line
             yielded = True
@@ -194,11 +192,7 @@ class OutputWriter(object):
                     yield comment("# {}".format(ireq_key))
                 else:
                     line = self._format_requirement(
-                        ireq,
-                        reverse_dependencies,
-                        primary_packages,
-                        marker=markers.get(ireq_key),
-                        hashes=hashes,
+                        ireq, marker=markers.get(ireq_key), hashes=hashes
                     )
                     yield line
 
@@ -209,41 +203,32 @@ class OutputWriter(object):
         if warn_uninstallable:
             log.warning(MESSAGE_UNINSTALLABLE)
 
-    def write(
-        self,
-        results,
-        unsafe_requirements,
-        reverse_dependencies,
-        primary_packages,
-        markers,
-        hashes,
-    ):
+    def write(self, results, unsafe_requirements, markers, hashes):
 
-        for line in self._iter_lines(
-            results,
-            unsafe_requirements,
-            reverse_dependencies,
-            primary_packages,
-            markers,
-            hashes,
-        ):
+        for line in self._iter_lines(results, unsafe_requirements, markers, hashes):
             log.info(line)
             if not self.dry_run:
                 self.dst_file.write(unstyle(line).encode("utf-8"))
                 self.dst_file.write(os.linesep.encode("utf-8"))
 
-    def _format_requirement(
-        self, ireq, reverse_dependencies, primary_packages, marker=None, hashes=None
-    ):
+    def _format_requirement(self, ireq, marker=None, hashes=None):
         ireq_hashes = (hashes if hashes is not None else {}).get(ireq)
 
         line = format_requirement(ireq, marker=marker, hashes=ireq_hashes)
 
-        if not self.annotate or key_from_ireq(ireq) in primary_packages:
+        if not self.annotate:
             return line
 
-        # Annotate what packages this package is required by
-        required_by = reverse_dependencies.get(ireq.name.lower(), [])
+        # Annotate what packages or reqs-ins this package is required by
+        required_by = set()
+        if hasattr(ireq, "_source_ireqs"):
+            required_by |= {
+                _comes_from_as_string(src_ireq)
+                for src_ireq in ireq._source_ireqs
+                if src_ireq.comes_from
+            }
+        elif ireq.comes_from:
+            required_by.add(_comes_from_as_string(ireq))
         if required_by:
             annotation = ", ".join(sorted(required_by))
             line = "{:24}{}{}".format(

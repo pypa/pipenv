@@ -1,4 +1,4 @@
-from pipenv.patched.notpip._internal.distributions.source.legacy import SourceDistribution
+from pipenv.patched.notpip._internal.distributions.sdist import SourceDistribution
 from pipenv.patched.notpip._internal.distributions.wheel import WheelDistribution
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 

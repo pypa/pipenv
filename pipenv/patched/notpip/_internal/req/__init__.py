@@ -23,6 +23,16 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
+class InstallationResult(object):
+    def __init__(self, name):
+        # type: (str) -> None
+        self.name = name
+
+    def __repr__(self):
+        # type: () -> str
+        return "InstallationResult(name={!r})".format(self.name)
+
+
 def install_given_reqs(
     to_install,  # type: List[InstallRequirement]
     install_options,  # type: List[str]
@@ -30,7 +40,7 @@ def install_given_reqs(
     *args,  # type: Any
     **kwargs  # type: Any
 ):
-    # type: (...) -> List[InstallRequirement]
+    # type: (...) -> List[InstallationResult]
     """
     Install everything in the given list.
 
@@ -43,13 +53,12 @@ def install_given_reqs(
             ', '.join([req.name for req in to_install]),
         )
 
+    installed = []
+
     with indent_log():
         for requirement in to_install:
-            if requirement.conflicts_with:
-                logger.info(
-                    'Found existing installation: %s',
-                    requirement.conflicts_with,
-                )
+            if requirement.should_reinstall:
+                logger.info('Attempting uninstall: %s', requirement.name)
                 with indent_log():
                     uninstalled_pathset = requirement.uninstall(
                         auto_confirm=True
@@ -63,7 +72,7 @@ def install_given_reqs(
                 )
             except Exception:
                 should_rollback = (
-                    requirement.conflicts_with and
+                    requirement.should_reinstall and
                     not requirement.install_succeeded
                 )
                 # if install did not succeed, rollback previous uninstall
@@ -72,11 +81,12 @@ def install_given_reqs(
                 raise
             else:
                 should_commit = (
-                    requirement.conflicts_with and
+                    requirement.should_reinstall and
                     requirement.install_succeeded
                 )
                 if should_commit:
                     uninstalled_pathset.commit()
-            requirement.remove_temporary_source()
 
-    return to_install
+            installed.append(InstallationResult(requirement.name))
+
+    return installed

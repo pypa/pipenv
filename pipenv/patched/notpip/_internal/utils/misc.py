@@ -7,6 +7,7 @@ from __future__ import absolute_import
 import contextlib
 import errno
 import getpass
+import hashlib
 import io
 import logging
 import os
@@ -38,8 +39,7 @@ from pipenv.patched.notpip._internal.utils.compat import (
     stdlib_pkgs,
     str_to_display,
 )
-from pipenv.patched.notpip._internal.utils.marker_files import write_delete_marker_file
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING, cast
 from pipenv.patched.notpip._internal.utils.virtualenv import (
     running_under_virtualenv,
     virtualenv_no_global,
@@ -53,16 +53,11 @@ else:
 if MYPY_CHECK_RUNNING:
     from typing import (
         Any, AnyStr, Container, Iterable, List, Optional, Text,
-        Tuple, Union, cast,
+        Tuple, Union,
     )
     from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
     VersionInfo = Tuple[int, int, int]
-else:
-    # typing's cast() is needed at runtime, but we don't want to import typing.
-    # Thus, we use a dummy no-op version, which we tell mypy to ignore.
-    def cast(type_, value):  # type: ignore
-        return value
 
 
 __all__ = ['rmtree', 'display_path', 'backup_dir',
@@ -115,7 +110,8 @@ def ensure_dir(path):
     try:
         os.makedirs(path)
     except OSError as e:
-        if e.errno != errno.EEXIST:
+        # Windows can raise spurious ENOTEMPTY errors. See #6426.
+        if e.errno != errno.EEXIST and e.errno != errno.ENOTEMPTY:
             raise
 
 
@@ -270,13 +266,13 @@ def ask_password(message):
 def format_size(bytes):
     # type: (float) -> str
     if bytes > 1000 * 1000:
-        return '%.1fMB' % (bytes / 1000.0 / 1000)
+        return '%.1f MB' % (bytes / 1000.0 / 1000)
     elif bytes > 10 * 1000:
-        return '%ikB' % (bytes / 1000)
+        return '%i kB' % (bytes / 1000)
     elif bytes > 1000:
-        return '%.1fkB' % (bytes / 1000.0)
+        return '%.1f kB' % (bytes / 1000.0)
     else:
-        return '%ibytes' % bytes
+        return '%i bytes' % bytes
 
 
 def is_installable_dir(path):
@@ -460,8 +456,7 @@ def get_installed_distributions(
         def user_test(d):
             return True
 
-    # because of pkg_resources vendoring, mypy cannot find stub in typeshed
-    return [d for d in working_set  # type: ignore
+    return [d for d in working_set
             if local_test(d) and
             d.key not in skip and
             editable_test(d) and
@@ -525,11 +520,6 @@ def dist_location(dist):
 def write_output(msg, *args):
     # type: (str, str) -> None
     logger.info(msg, *args)
-
-
-def _make_build_dir(build_dir):
-    os.makedirs(build_dir)
-    write_delete_marker_file(build_dir)
 
 
 class FakeFile(object):
@@ -840,11 +830,11 @@ def protect_pip_from_modification_on_windows(modifying_pip):
     On Windows, any operation modifying pip should be run as:
         python -m pip ...
     """
-    pip_names = set()
-    for ext in ('', '.exe'):
-        pip_names.add('pip{ext}'.format(ext=ext))
-        pip_names.add('pip{}{ext}'.format(sys.version_info[0], ext=ext))
-        pip_names.add('pip{}.{}{ext}'.format(*sys.version_info[:2], ext=ext))
+    pip_names = [
+        "pip.exe",
+        "pip{}.exe".format(sys.version_info[0]),
+        "pip{}.{}.exe".format(*sys.version_info[:2])
+    ]
 
     # See https://github.com/pypa/pip/issues/1299 for more discussion
     should_show_use_python_msg = (
@@ -868,3 +858,29 @@ def is_console_interactive():
     """Is this console interactive?
     """
     return sys.stdin is not None and sys.stdin.isatty()
+
+
+def hash_file(path, blocksize=1 << 20):
+    # type: (str, int) -> Tuple[Any, int]
+    """Return (hash, length) for path using hashlib.sha256()
+    """
+
+    h = hashlib.sha256()
+    length = 0
+    with open(path, 'rb') as f:
+        for block in read_chunks(f, size=blocksize):
+            length += len(block)
+            h.update(block)
+    return h, length
+
+
+def is_wheel_installed():
+    """
+    Return whether the wheel package is installed.
+    """
+    try:
+        import wheel  # noqa: F401
+    except ImportError:
+        return False
+
+    return True

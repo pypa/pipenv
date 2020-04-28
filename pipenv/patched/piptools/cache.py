@@ -3,13 +3,24 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import json
 import os
+import platform
 import sys
 
-from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
+from pipenv.vendor.packaging.requirements import Requirement
 
 from .exceptions import PipToolsError
-from .locations import CACHE_DIR
 from .utils import as_tuple, key_from_req, lookup_table
+
+_PEP425_PY_TAGS = {"cpython": "cp", "pypy": "pp", "ironpython": "ip", "jython": "jy"}
+
+
+def _implementation_name():
+    """similar to PEP 425, however the minor version is separated from the
+    major to differentation "3.10" and "31.0".
+    """
+    implementation_name = platform.python_implementation().lower()
+    implementation = _PEP425_PY_TAGS.get(implementation_name, "??")
+    return "{}{}.{}".format(implementation, *sys.version_info)
 
 
 class CorruptCacheError(PipToolsError):
@@ -46,16 +57,14 @@ class DependencyCache(object):
 
         ~/.cache/pip-tools/depcache-pyX.Y.json
 
+    Where py indicates the Python implementation.
     Where X.Y indicates the Python version.
     """
 
-    def __init__(self, cache_dir=None):
-        if cache_dir is None:
-            cache_dir = CACHE_DIR
+    def __init__(self, cache_dir):
         if not os.path.isdir(cache_dir):
             os.makedirs(cache_dir)
-        py_version = ".".join(str(digit) for digit in sys.version_info[:2])
-        cache_filename = "depcache-py{}.json".format(py_version)
+        cache_filename = "depcache-{}.json".format(_implementation_name())
 
         self._cache_file = os.path.join(cache_dir, cache_filename)
         self._cache = None

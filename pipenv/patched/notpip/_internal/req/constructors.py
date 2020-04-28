@@ -10,7 +10,6 @@ InstallRequirement.
 
 # The following comment should be removed at some point in the future.
 # mypy: strict-optional=False
-# mypy: disallow-untyped-defs=False
 
 import logging
 import os
@@ -24,6 +23,7 @@ from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError, p
 from pipenv.patched.notpip._internal.exceptions import InstallationError
 from pipenv.patched.notpip._internal.models.index import PyPI, TestPyPI
 from pipenv.patched.notpip._internal.models.link import Link
+from pipenv.patched.notpip._internal.models.wheel import Wheel
 from pipenv.patched.notpip._internal.pyproject import make_pyproject_path
 from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 from pipenv.patched.notpip._internal.utils.filetypes import ARCHIVE_EXTENSIONS
@@ -31,7 +31,6 @@ from pipenv.patched.notpip._internal.utils.misc import is_installable_dir, split
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 from pipenv.patched.notpip._internal.utils.urls import path_to_url
 from pipenv.patched.notpip._internal.vcs import is_url, vcs
-from pipenv.patched.notpip._internal.wheel import Wheel
 
 if MYPY_CHECK_RUNNING:
     from typing import (
@@ -347,6 +346,7 @@ def parse_req_from_line(name, line_source):
     extras = convert_extras(extras_as_string)
 
     def with_source(text):
+        # type: (str) -> str
         if not line_source:
             return text
         return '{} (from {})'.format(text, line_source)

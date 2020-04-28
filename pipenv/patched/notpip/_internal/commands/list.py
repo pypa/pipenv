@@ -12,7 +12,7 @@ from pipenv.patched.notpip._vendor.six.moves import zip_longest
 from pipenv.patched.notpip._internal.cli import cmdoptions
 from pipenv.patched.notpip._internal.cli.req_command import IndexGroupCommand
 from pipenv.patched.notpip._internal.exceptions import CommandError
-from pipenv.patched.notpip._internal.index import PackageFinder
+from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
 from pipenv.patched.notpip._internal.models.selection_prefs import SelectionPreferences
 from pipenv.patched.notpip._internal.self_outdated_check import make_link_collector
 from pipenv.patched.notpip._internal.utils.misc import (

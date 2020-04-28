@@ -27,3 +27,12 @@ Ref: https://github.com/python/mypy/issues/3216
 """
 
 MYPY_CHECK_RUNNING = False
+
+
+if MYPY_CHECK_RUNNING:
+    from typing import cast
+else:
+    # typing's cast() is needed at runtime, but we don't want to import typing.
+    # Thus, we use a dummy no-op version, which we tell mypy to ignore.
+    def cast(type_, value):  # type: ignore
+        return value
