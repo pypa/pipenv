@@ -113,7 +113,7 @@ def editable_option(f):
         return value
     return option('-e', '--editable', expose_value=False, multiple=True,
                   callback=callback, type=click.types.STRING, help=(
-                      "An editable python package URL or path, often to a VCS "
+                      "An editable Python package URL or path, often to a VCS "
                       "repository."
                   ))(f)
 
