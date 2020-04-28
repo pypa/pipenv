@@ -71,7 +71,7 @@ Homebrew/Linuxbrew installer takes care of pip for you.
 ===================
 
 Pipenv is a dependency manager for Python projects. If you're familiar
-with Node's `npm`_ or Ruby's `bundler`_, it is similar in spirit to those
+with Node\.js's `npm`_ or Ruby's `bundler`_, it is similar in spirit to those
 tools. While pip can install Python packages, Pipenv is recommended as
 it's a higher-level tool that simplifies dependency management for common use
 cases.

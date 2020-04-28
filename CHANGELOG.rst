@@ -60,7 +60,7 @@ Bug Fixes
 - Remote non-PyPI artifacts and local wheels and artifacts will now include their own hashes rather than including hashes from ``PyPI``.  `#2394 <https://github.com/pypa/pipenv/issues/2394>`_
 - Non-ascii characters will now be handled correctly when parsed by pipenv's ``ToML`` parsers.  `#2737 <https://github.com/pypa/pipenv/issues/2737>`_
 - Updated ``pipenv uninstall`` to respect the ``--skip-lock`` argument.  `#2848 <https://github.com/pypa/pipenv/issues/2848>`_
-- Fixed a bug which caused un-installation to sometimes fail to successfully remove packages from ``Pipfiles`` with comments on preceding or following lines.  `#2885 <https://github.com/pypa/pipenv/issues/2885>`_,
+- Fixed a bug which caused uninstallation to sometimes fail to successfully remove packages from ``Pipfiles`` with comments on preceding or following lines.  `#2885 <https://github.com/pypa/pipenv/issues/2885>`_,
   `#3099 <https://github.com/pypa/pipenv/issues/3099>`_
 - Pipenv will no longer fail when encountering python versions on Windows that have been uninstalled.  `#2983 <https://github.com/pypa/pipenv/issues/2983>`_
 - Fixed unnecessary extras are added when translating markers  `#3026 <https://github.com/pypa/pipenv/issues/3026>`_
@@ -77,7 +77,7 @@ Bug Fixes
 - Pipenv will avoid leaving build artifacts in the current working directory.  `#3106 <https://github.com/pypa/pipenv/issues/3106>`_
 - Fixed issues with broken subprocess calls leaking resource handles and causing random and sporadic failures.  `#3109 <https://github.com/pypa/pipenv/issues/3109>`_
 - Fixed an issue which caused ``pipenv clean`` to sometimes clean packages from the base ``site-packages`` folder or fail entirely.  `#3113 <https://github.com/pypa/pipenv/issues/3113>`_
-- Updated ``pythonfinder`` to correct an issue with un-nesting of nested paths when searching for python versions.  `#3121 <https://github.com/pypa/pipenv/issues/3121>`_
+- Updated ``pythonfinder`` to correct an issue with unnesting of nested paths when searching for python versions.  `#3121 <https://github.com/pypa/pipenv/issues/3121>`_
 - Added additional logic for ignoring and replacing non-ascii characters when formatting console output on non-UTF-8 systems.  `#3131 <https://github.com/pypa/pipenv/issues/3131>`_
 - Fix virtual environment discovery when ``PIPENV_VENV_IN_PROJECT`` is set, but the in-project `.venv` is a file.  `#3134 <https://github.com/pypa/pipenv/issues/3134>`_
 - Hashes for remote and local non-PyPI artifacts will now be included in ``Pipfile.lock`` during resolution.  `#3145 <https://github.com/pypa/pipenv/issues/3145>`_
@@ -166,7 +166,7 @@ Features & Improvements
 - Added environment variables `PIPENV_VERBOSE` and `PIPENV_QUIET` to control
   output verbosity without needing to pass options.  `#2527 <https://github.com/pypa/pipenv/issues/2527>`_
 
-- Updated test-PyPI add-on to better support json-api access (forward compatibility).
+- Updated test-PyPI add-on to better support json-API access (forward compatibility).
   Improved testing process for new contributors.  `#2568 <https://github.com/pypa/pipenv/issues/2568>`_
 
 - Greatly enhanced python discovery functionality:
@@ -178,7 +178,7 @@ Features & Improvements
 
 - Enhanced resolution of editable and VCS dependencies.  `#2643 <https://github.com/pypa/pipenv/issues/2643>`_
 
-- De-duplicate and refactor CLI to use stateful arguments and object passing.  See `this issue <https://github.com/pallets/click/issues/108>`_ for reference.  `#2814 <https://github.com/pypa/pipenv/issues/2814>`_
+- Deduplicate and refactor CLI to use stateful arguments and object passing.  See `this issue <https://github.com/pallets/click/issues/108>`_ for reference.  `#2814 <https://github.com/pypa/pipenv/issues/2814>`_
 
 
 Behavior Changes
@@ -228,14 +228,14 @@ Bug Fixes
   `#2894 <https://github.com/pypa/pipenv/issues/2894>`_,
   `#2933 <https://github.com/pypa/pipenv/issues/2933>`_
 
-- Fix sub-shell invocation on Windows for Python 2.  `#2515 <https://github.com/pypa/pipenv/issues/2515>`_
+- Fix subshell invocation on Windows for Python 2.  `#2515 <https://github.com/pypa/pipenv/issues/2515>`_
 
 - Fixed a bug which sometimes caused pipenv to throw a ``TypeError`` or to run into encoding issues when writing a Lockfile on python 2.  `#2561 <https://github.com/pypa/pipenv/issues/2561>`_
 
 - Improve quoting logic for ``pipenv run`` so it works better with Windows
   built-in commands.  `#2563 <https://github.com/pypa/pipenv/issues/2563>`_
 
-- Fixed a bug related to parsing VCS requirements with both extras and sub-directory fragments.
+- Fixed a bug related to parsing VCS requirements with both extras and subdirectory fragments.
   Corrected an issue in the ``requirementslib`` parser which led to some markers being discarded rather than evaluated.  `#2564 <https://github.com/pypa/pipenv/issues/2564>`_
 
 - Fixed multiple issues with finding the correct system python locations.  `#2582 <https://github.com/pypa/pipenv/issues/2582>`_
@@ -364,7 +364,7 @@ Improved Documentation
 - Stopped recommending `--system` for Docker contexts.  `#2762 <https://github.com/pypa/pipenv/issues/2762>`_
 
 - Fixed the example url for doing "pipenv install -e
-  some-repo-url#egg=something", it was missing the "egg=" in the fragment
+  some-repository-url#egg=something", it was missing the "egg=" in the fragment
   identifier.  `#2792 <https://github.com/pypa/pipenv/issues/2792>`_
 
 - Fixed link to the "be cordial" essay in the contribution documentation.  `#2793 <https://github.com/pypa/pipenv/issues/2793>`_

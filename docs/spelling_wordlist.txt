@@ -11,6 +11,7 @@ codebase
 Conda
 CPython
 cygwin
+Deduplicate
 Devops
 eval
 filesystem
@@ -19,6 +20,7 @@ ini
 installable
 Integrations
 io
+js
 json
 Linuxbrew
 lockfile
@@ -27,9 +29,12 @@ Makefile
 manpage
 metadata
 mingw
+misconfiguration
+misconfigured
 msys
 natively
 npm
+parallelization
 parsers
 pathlib
 pexpect
@@ -43,6 +48,7 @@ Powershell
 pre
 py
 pyenv
+pypi
 PyPI
 pythonfinder
 resolvers
@@ -52,6 +58,10 @@ sayers
 scandir
 sha
 stateful
+subdirectory
+subprocess
+subprocesses
+subshell
 supervisord
 tox
 Tox
@@ -59,6 +69,8 @@ tracebacks
 triaging
 txt
 unicode
+uninstallation
+unnesting
 untrusted
 url
 urls
