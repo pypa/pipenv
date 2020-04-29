@@ -19,6 +19,7 @@ import six
 import pipenv
 
 from .vendor.cached_property import cached_property
+from .vendor.packaging.utils import canonicalize_name
 from .vendor import vistir
 
 from .utils import normalize_path, make_posix
@@ -711,6 +712,23 @@ class Environment(object):
         """
 
         return any(d for d in self.get_distributions() if d.project_name == pkgname)
+
+    def is_satisfied(self, req):
+        match = next(
+            iter(
+                d for d in self.get_distributions()
+                if canonicalize_name(d.project_name) == req.normalized_name
+            ), None
+        )
+        if match is not None:
+            if req.editable and self.find_egg(match):
+                return req.line_instance.path == match.location
+            elif req.line_instance.specifiers is not None:
+                return req.line_instance.specifiers.contains(
+                    match.version, prereleases=True
+                )
+            return True
+        return False
 
     def run(self, cmd, cwd=os.curdir):
         """Run a command with :class:`~subprocess.Popen` in the context of the environment
