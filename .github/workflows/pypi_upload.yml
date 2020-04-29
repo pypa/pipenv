@@ -43,7 +43,7 @@ jobs:
         python -m pip install .
         python -m pipenv install --dev
       env:
-        PIPENV_PYTHON: "3.7"
+        PIPENV_DEFAULT_PYTHON_VERSION: "3.7"
 
     - name: Build wheels
       run: |
