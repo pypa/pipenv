@@ -1,0 +1,1 @@
+Fixed a bug which caused pipenv to prefer source distributions over wheels from ``PyPI`` during the dependency resolution phase.
