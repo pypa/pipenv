@@ -43,7 +43,7 @@ subcommand_context_no_interspersion["allow_interspersed_args"] = False
     "--completion",
     is_flag=True,
     default=False,
-    help="Output completion (to be eval'd).",
+    help="Output completion (to be executed by the shell).",
 )
 @option("--man", is_flag=True, default=False, help="Display manpage.")
 @option(
@@ -255,14 +255,14 @@ def install(
 
 
 @cli.command(
-    short_help="Un-installs a provided package and removes it from Pipfile.",
+    short_help="Uninstalls a provided package and removes it from Pipfile.",
     context_settings=subcommand_context
 )
 @option(
     "--all-dev",
     is_flag=True,
     default=False,
-    help="Un-install all package from [dev-packages].",
+    help="Uninstall all package from [dev-packages].",
 )
 @option(
     "--all",
@@ -280,7 +280,7 @@ def uninstall(
     all=False,
     **kwargs
 ):
-    """Un-installs a provided package and removes it from Pipfile."""
+    """Uninstalls a provided package and removes it from Pipfile."""
     from ..core import do_uninstall
     retcode = do_uninstall(
         packages=state.installstate.packages,
@@ -349,7 +349,7 @@ def lock(
     "--anyway",
     is_flag=True,
     default=False,
-    help="Always spawn a subshell, even if one is already spawned.",
+    help="Always spawn a sub-shell, even if one is already spawned.",
 )
 @argument("shell_args", nargs=-1)
 @pypi_mirror_option
@@ -440,7 +440,7 @@ def run(state, command, args):
 @option(
     "--quiet",
     is_flag=True,
-    help="Quiet stdout except vulnerability report."
+    help="Quiet standard output, except vulnerability report."
 )
 @common_options
 @system_option

@@ -118,10 +118,10 @@ To get your development environment setup, run:
   pipenv install --dev
 
 
-This will install the repo version of Pipenv and then install the development
+This will install the repository version of Pipenv and then install the development
 dependencies. Once that has completed, you can start developing.
 
-The repo version of Pipenv must be installed over other global versions to
+The repository version of Pipenv must be installed over other global versions to
 resolve conflicts with the ``pipenv`` folder being implicitly added to ``sys.path``.
 See `pypa/pipenv#2557`_ for more details.
 
@@ -152,7 +152,7 @@ tests, the standard pytest filters are available, such as:
 Code Review
 ~~~~~~~~~~~
 
-Contributions will not be merged until they've been code reviewed. You should
+Contributions will not be merged until they have been code reviewed. You should
 implement any code review feedback unless you strongly object to it. In the
 event that you object to the code review feedback, you should make your case
 clearly and calmly. If, after doing so, the feedback is judged to still apply,
@@ -205,7 +205,7 @@ be aware of the following things when filing bug reports:
    to check whether your bug report or feature request has been mentioned in
    the past. Duplicate bug reports and feature requests are a huge maintenance
    burden on the limited resources of the project. If it is clear from your
-   report that you would have struggled to find the original, that's ok, but
+   report that you would have struggled to find the original, that's okay, but
    if searching for a selection of words in your issue title would have found
    the duplicate then the issue will likely be closed extremely abruptly.
 2. When filing bug reports about exceptions or tracebacks, please include the
