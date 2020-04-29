@@ -33,9 +33,7 @@ recursive-exclue tests/test_artifacts *.pyd *.so *.pyc *.egg-info PKG-INFO
 
 prune peeps
 prune .azure-pipelines
-prune .buildkite
 prune .github
-prune .vsts-ci
 prune docs/build
 prune news
 prune tasks
