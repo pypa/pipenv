@@ -114,7 +114,7 @@ index 02a187c8..f917e645 100644
                      modifying_pip=modifying_pip
                  )
 diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patched/pip/_internal/index/package_finder.py
-index a74d78db..11128f4d 100644
+index a74d78db..7c9dc1be 100644
 --- a/pipenv/patched/pip/_internal/index/package_finder.py
 +++ b/pipenv/patched/pip/_internal/index/package_finder.py
 @@ -121,6 +121,7 @@ class LinkEvaluator(object):
@@ -201,7 +201,7 @@ index a74d78db..11128f4d 100644
              if self._prefer_binary:
                  binary_preference = 1
 -            pri = -(wheel.support_index_min(valid_tags))
-+            tags = self.valid_tags if not ignore_compatibility else None
++            tags = valid_tags
 +            try:
 +                pri = -(wheel.support_index_min(tags=tags))
 +            except TypeError:
