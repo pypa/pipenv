@@ -285,6 +285,9 @@ def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=Fals
         if not tag:
             print('Using "pre" requires a corresponding tag.')
             return
+        if new_version.pre_tag and new_version.pre_tag != tag:
+            log("Swapping prerelease tag: {0} for {1}".format(new_version.pre_tag, tag))
+            new_version = new_version.replace(pre_tag=tag, pre=0)
         new_version = new_version.bump_pre(tag=tag)
     else:
         new_version = new_version.replace(pre=None, dev=None)
