@@ -2,9 +2,35 @@ name: CI
 
 on:
   push:
+    paths-ignore:
+    - 'docs/**'
+    - 'news/**'
+    - 'examples/**'
+    - 'peeps/**'
+    - '*.ini'
+    - '*.md'
+    - '**/*.txt'
+    - '*.rst'
+    - '.gitignore'
+    - '.gitmodules'
+    - '.gitattributes'
+    - '.editorconfig'
     branches:
     - master
   pull_request:
+    paths-ignore:
+    - 'docs/**'
+    - 'news/**'
+    - 'examples/**'
+    - 'peeps/**'
+    - '*.ini'
+    - '*.md'
+    - '**/*.txt'
+    - '*.rst'
+    - '.gitignore'
+    - '.gitmodules'
+    - '.gitattributes'
+    - '.editorconfig'
 
 jobs:
   build:
