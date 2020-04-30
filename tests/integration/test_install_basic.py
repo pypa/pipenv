@@ -286,7 +286,7 @@ def test_requirements_to_pipfile(PipenvInstance, pypi):
 
         # Write a requirements file
         with open("requirements.txt", "w") as f:
-            f.write("-i {}\nrequests[socks]==2.18.1\n".format(pypi.url))
+            f.write("-i {}\nrequests[socks]==2.19.1\n".format(pypi.url))
 
         c = p.pipenv("install")
         assert c.return_code == 0
