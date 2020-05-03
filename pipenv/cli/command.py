@@ -397,7 +397,7 @@ def shell(
     short_help="Spawns a command installed into the virtualenv.",
     context_settings=subcommand_context_no_interspersion,
 )
-@common_options
+#@common_options
 @argument("command")
 @argument("args", nargs=-1)
 @pass_state
@@ -405,7 +405,7 @@ def run(state, command, args):
     """Spawns a command installed into the virtualenv."""
     from ..core import do_run
     do_run(
-        command=command, args=args, three=state.three, python=state.python, pypi_mirror=state.pypi_mirror
+        command=command, args=args, state=state,
     )
 
 

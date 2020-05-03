@@ -2491,7 +2491,7 @@ def do_run_posix(script, command):
     )
 
 
-def do_run(command, args, three=None, python=False, pypi_mirror=None):
+def do_run(command, args, state):
     """Attempt to run command either pulling from project or interpreting as executable.
 
     Args are appended to the command in [scripts] section of project if found.
@@ -2500,7 +2500,10 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
 
     # Ensure that virtualenv is available.
     ensure_project(
-        three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
+        three=state.three,
+        python=state.python,
+        validate=False,
+        pypi_mirror=state.pypi_mirror,
     )
 
     load_dot_env()
@@ -2520,8 +2523,10 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
     os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
     try:
-        script = project.build_script(command, args)
+        # We first build the command
+        script = project.build_script(command, extra_args=args)
         cmd_string = ' '.join([script.command] + script.args)
+        # -------------
         if environments.is_verbose():
             click.echo(crayons.normal("$ {0}".format(cmd_string)), err=True)
     except ScriptEmptyError:
