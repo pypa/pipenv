@@ -3,6 +3,8 @@ import re
 import shlex
 import os
 import six
+import click
+import crayons
 
 
 class UnixShellEnvironmentVariable(object):
@@ -35,26 +37,39 @@ class UnixShellEnvironmentVariable(object):
         value_rgx=ENV_VAR_VALUE_REGEX
     )
 
-    def __init__(self, full_expr, name, value):
-        self.full_expr = full_expr
+    def __init__(self, name, value, full_expr=None):
+        m = re.match(self.ENV_VAR_NAME_REGEX, name)
+        if not m:
+            raise ValueError("The value '{}' didn't match the ENV_VAR_NAME_REGEX!".format(name))
+
+        m = re.match(self.ENV_VAR_NAME_REGEX, value)
+        if not m:
+            raise ValueError("The value '{}' didn't match the ENV_VAR_VALUE_REGEX!".format(value))
+
         self._name = name
         self._value = value
+        if full_expr:
+            self.full_expr = full_expr
+        else:
+            self.full_expr = '{}=\'{}\''.format(name, value)
 
     @classmethod
-    def parse(cls, env_var_assignment):
+    def parse_inline(cls, env_var_assignment):
         m = re.match(cls.ENV_VAR_REGEX, env_var_assignment)
         if not m:
             raise ValueError("The value '{}' didn't match the ENV_VAR_REGEX!".format(env_var_assignment))
 
         return cls(
-            m.group(0),
             m.group(1),
-            (m.group(4) or m.group(6) or m.group(7))
+            (m.group(4) or m.group(6) or m.group(7)),
+            full_expr=m.group(0),
         )
 
+    @property
     def name(self):
         return self._name
 
+    @property
     def value(self):
         return self._value
 
@@ -75,36 +90,56 @@ class Script(object):
     This always works in POSIX mode, even on Windows.
     """
 
-    def __init__(self, command, args=None, env_vars=None):
+    def __init__(
+        self,
+        command,
+        args=None,
+        env_vars=None
+    ):
         self._parts = [command]
         if args:
             self._parts.extend(args)
 
         for env_var in (env_vars or []):
             os.environ.putenv(
-                env_var.name(),
-                env_var.value()
+                env_var.name,
+                env_var.value
             )
 
     @classmethod
     def parse(cls, value):
+        env_vars = []
         if isinstance(value, six.string_types):
-            value = shlex.split(value)
+            command = shlex.split(value)
+
+            for el in command:
+                try:
+                    env_var = UnixShellEnvironmentVariable.parse_inline(el)
+                    env_vars.append(env_var)
+                    command.remove(el)
+                    click.echo(
+                        crayons.yellow(
+                            "WARNING: Found environment variable '{}' in command. ".format(env_var.full_expr) +
+                            "Use env property in Pipfile instead!"
+                        )
+                    )
+                except ValueError:
+                    pass
+
+        if isinstance(value, dict):
+            command = shlex.split(value['cmd'])
+
+            for k, v in (value.get('env') or {}).items():
+                env_vars.append(
+                    UnixShellEnvironmentVariable(k, v)
+                )
+
         if not value:
             raise ScriptEmptyError(value)
 
-        env_vars = []
-        for el in value:
-            try:
-                env_var = UnixShellEnvironmentVariable.parse(el)
-                env_vars.append(env_var)
-                value.remove(el)
-            except ValueError:
-                pass
-
         return cls(
-            value[0],
-            args=value[1:],
+            command[0],
+            args=command[1:],
             env_vars=env_vars,
         )
 
