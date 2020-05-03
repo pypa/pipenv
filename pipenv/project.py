@@ -559,11 +559,8 @@ class Project(object):
         try:
             # Case 1: Named execution with an alias.
             script = Script.parse(self.parsed_pipfile["scripts"][name])
-            print("build_script: ", name, self.parsed_pipfile["scripts"][name], extra_args)
         except KeyError:
-            print("build_script: ", name, extra_args)
             # Case 2: A command directly provided to pipenv run.
-            #script = Script(name)
             script = Script.parse(name)
         if extra_args:
             script.extend(extra_args)

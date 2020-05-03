@@ -65,9 +65,11 @@ class UnixShellEnvironmentVariable(object):
             full_expr=m.group(0),
         )
 
+    @property
     def name(self):
         return self._name
 
+    @property
     def value(self):
         return self._value
 
@@ -100,11 +102,9 @@ class Script(object):
 
         for env_var in (env_vars or []):
             os.environ.putenv(
-                env_var.name(),
-                env_var.value()
+                env_var.name,
+                env_var.value
             )
-
-        print("command: ", self.command, "\t|\t", "args: ", self.args)
 
     @classmethod
     def parse(cls, value):
