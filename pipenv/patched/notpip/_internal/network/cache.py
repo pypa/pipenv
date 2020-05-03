@@ -9,6 +9,7 @@ from contextlib import contextmanager
 
 from pipenv.patched.notpip._vendor.cachecontrol.cache import BaseCache
 from pipenv.patched.notpip._vendor.cachecontrol.caches import FileCache
+from pipenv.patched.notpip._vendor.requests.models import Response
 
 from pipenv.patched.notpip._internal.utils.filesystem import adjacent_tmp_file, replace
 from pipenv.patched.notpip._internal.utils.misc import ensure_dir
@@ -16,6 +17,11 @@ from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Optional
+
+
+def is_from_cache(response):
+    # type: (Response) -> bool
+    return getattr(response, "from_cache", False)
 
 
 @contextmanager

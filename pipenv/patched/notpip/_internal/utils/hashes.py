@@ -1,6 +1,3 @@
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
-
 from __future__ import absolute_import
 
 import hashlib
@@ -59,6 +56,7 @@ class Hashes(object):
         hash_name,   # type: str
         hex_digest,  # type: str
     ):
+        # type: (...) -> bool
         """Return whether the given hex digest is allowed."""
         return hex_digest in self._allowed.get(hash_name, [])
 

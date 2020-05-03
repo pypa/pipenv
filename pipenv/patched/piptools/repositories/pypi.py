@@ -6,9 +6,14 @@ import copy
 import hashlib
 import os
 from contextlib import contextmanager
-from functools import partial
 from shutil import rmtree
 
+from pip_shims.shims import (
+    TempDirectory,
+    global_tempdir_manager,
+    get_requirement_tracker,
+    InstallCommand
+)
 from packaging.requirements import Requirement
 from packaging.specifiers import Specifier, SpecifierSet
 
@@ -18,31 +23,27 @@ from .._compat import (
     InstallationError,
     InstallRequirement,
     Link,
+    normalize_path,
     PyPI,
     RequirementSet,
     RequirementTracker,
-    Resolver as PipResolver,
     SafeFileCache,
     TemporaryDirectory,
     VcsSupport,
     Wheel,
     WheelCache,
     contextlib,
-    is_dir_url,
-    is_file_url,
-    is_vcs_url,
     path_to_url,
     pip_version,
     url_to_path,
 )
-from ..cache import CACHE_DIR
+from ..locations import CACHE_DIR
 from ..click import progressbar
 from ..exceptions import NoCandidateFound
 from ..logging import log
 from ..utils import (
     dedup,
     clean_requires_python,
-    create_install_command,
     fs_str,
     is_pinned_requirement,
     is_url_requirement,
@@ -105,21 +106,29 @@ class PyPIRepository(BaseRepository):
     changed/configured on the Finder.
     """
 
-    def __init__(self, pip_args, session=None, build_isolation=False, use_json=False):
+    def __init__(self, pip_args, cache_dir=CACHE_DIR, session=None, build_isolation=False, use_json=False):
         self.build_isolation = build_isolation
         self.use_json = use_json
+        self.cache_dir = cache_dir
 
         # Use pip's parser for pip.conf management and defaults.
         # General options (find_links, index_url, extra_index_url, trusted_host,
         # and pre) are deferred to pip.
-        command = create_install_command()
-        self.options, _ = command.parse_args(pip_args)
+        self.command = InstallCommand()
+        self.options, _ = self.command.parse_args(pip_args)
+        if self.build_isolation is not None:
+            self.options.build_isolation = build_isolation
+        if self.options.cache_dir:
+            self.options.cache_dir = normalize_path(self.options.cache_dir)
+
+        self.options.require_hashes = False
+        self.options.ignore_dependencies = False
 
         if session is None:
-            session = command._build_session(self.options)
+            session = self.command._build_session(self.options)
         self.session = session
-        self.finder = command._build_package_finder(
-            options=self.options, session=self.session
+        self.finder = self.command._build_package_finder(
+            options=self.options, session=self.session, ignore_requires_python=True
         )
 
         # Caches
@@ -139,8 +148,9 @@ class PyPIRepository(BaseRepository):
 
         # Setup file paths
         self.freshen_build_caches()
-        self._download_dir = fs_str(os.path.join(CACHE_DIR, "pkgs"))
-        self._wheel_download_dir = fs_str(os.path.join(CACHE_DIR, "wheels"))
+        self._cache_dir = normalize_path(cache_dir)
+        self._download_dir = fs_str(os.path.join(self._cache_dir, "pkgs"))
+        self._wheel_download_dir = fs_str(os.path.join(self._cache_dir, "wheels"))
 
     def freshen_build_caches(self):
         """
@@ -191,26 +201,13 @@ class PyPIRepository(BaseRepository):
         if not matching_candidates:
             raise NoCandidateFound(ireq, all_candidates, self.finder)
 
-        if PIP_VERSION < (19, 1):
-            best_candidate = max(
-                matching_candidates, key=self.finder._candidate_sort_key
-            )
-        elif PIP_VERSION < (19, 2):
-            evaluator = self.finder.candidate_evaluator
-            best_candidate = evaluator.get_best_candidate(matching_candidates)
-        elif PIP_VERSION < (19, 3):
-            evaluator = self.finder.make_candidate_evaluator(ireq.name)
-            best_candidate = evaluator.get_best_candidate(matching_candidates)
-        else:
-            evaluator = self.finder.make_candidate_evaluator(ireq.name)
-            best_candidate_result = evaluator.compute_best_candidate(
-                matching_candidates
-            )
-            best_candidate = best_candidate_result.best_candidate
+        evaluator = self.finder.make_candidate_evaluator(ireq.name)
+        best_candidate_result = evaluator.compute_best_candidate(matching_candidates)
+        best_candidate = best_candidate_result.best_candidate
 
         # Turn the candidate into a pinned InstallRequirement
         return make_install_requirement(
-            best_candidate.project,
+            best_candidate.name,
             best_candidate.version,
             ireq.extras,
             ireq.markers,
@@ -274,90 +271,39 @@ class PyPIRepository(BaseRepository):
             return set()
 
     def resolve_reqs(self, download_dir, ireq, wheel_cache):
-        results = None
-        ireq.isolated = self.build_isolation
-        ireq._wheel_cache = wheel_cache
-        if ireq and not ireq.link:
-            ireq.populate_link(self.finder, False, False)
-        if ireq.link and not ireq.link.is_wheel:
-            ireq.ensure_has_source_dir(self.source_dir)
-
-        if PIP_VERSION < (10,):
-            reqset = RequirementSet(
-                self.build_dir,
-                self.source_dir,
+        with get_requirement_tracker() as req_tracker, TempDirectory(
+            kind="resolver"
+        ) as temp_dir:
+            preparer = self.command.make_requirement_preparer(
+                temp_build_dir=temp_dir,
+                options=self.options,
+                req_tracker=req_tracker,
+                session=self.session,
+                finder=self.finder,
+                use_user_site=False,
                 download_dir=download_dir,
                 wheel_download_dir=self._wheel_download_dir,
-                session=self.session,
-                ignore_installed=True,
-                ignore_compatibility=False,
-                wheel_cache=wheel_cache,
             )
-            results = reqset._prepare_file(self.finder, ireq, ignore_requires_python=True)
-        else:
-            from pip_shims.shims import RequirementPreparer
 
-            preparer_kwargs = {
-                "build_dir": self.build_dir,
-                "src_dir": self.source_dir,
-                "download_dir": download_dir,
-                "wheel_download_dir": self._wheel_download_dir,
-                "progress_bar": "off",
-                "build_isolation": self.build_isolation,
-            }
-            resolver_kwargs = {
-                "finder": self.finder,
-                "session": self.session,
-                "upgrade_strategy": "to-satisfy-only",
-                "force_reinstall": False,
-                "ignore_dependencies": False,
-                "ignore_requires_python": True,
-                "ignore_installed": True,
-                "use_user_site": False,
-                "ignore_compatibility": False,
-                "use_pep517": True,
-            }
-            make_install_req_kwargs = {"isolated": False, "wheel_cache": wheel_cache}
+            reqset = RequirementSet()
+            ireq.is_direct = True
+            reqset.add_requirement(ireq)
 
-            if PIP_VERSION < (19, 3):
-                resolver_kwargs.update(**make_install_req_kwargs)
-            else:
-                from pipenv.vendor.pip_shims.shims import install_req_from_req_string
+            resolver = self.command.make_resolver(
+                preparer=preparer,
+                finder=self.finder,
+                options=self.options,
+                wheel_cache=wheel_cache,
+                use_user_site=False,
+                ignore_installed=True,
+                ignore_requires_python=True,
+                force_reinstall=False,
+                upgrade_strategy="to-satisfy-only",
+            )
+            results = resolver._resolve_one(reqset, ireq)
 
-                make_install_req = partial(
-                    install_req_from_req_string, **make_install_req_kwargs
-                )
-                resolver_kwargs["make_install_req"] = make_install_req
-                del resolver_kwargs["use_pep517"]
-
-            if PIP_VERSION >= (20,):
-                preparer_kwargs["session"] = self.session
-                del resolver_kwargs["session"]
-
-            resolver = None
-            preparer = None
-            reqset = None
-            with RequirementTracker() as req_tracker:
-                # Pip 18 uses a requirement tracker to prevent fork bombs
-                if req_tracker:
-                    preparer_kwargs["req_tracker"] = req_tracker
-                preparer = RequirementPreparer(**preparer_kwargs)
-                resolver_kwargs["preparer"] = preparer
-                reqset = RequirementSet()
-                ireq.is_direct = True
-
-                resolver = PipResolver(**resolver_kwargs)
-                require_hashes = False
-                if PIP_VERSION < (20,):
-                    resolver.require_hashes = require_hashes
-                    results = resolver._resolve_one(reqset, ireq)
-                else:
-                    results = resolver._resolve_one(reqset, ireq, require_hashes)
-        try:
-            reqset.cleanup_files()
-        except (AttributeError, OSError):
-            pass
-
+            if PIP_VERSION[:2] <= (20, 0):
+                reqset.cleanup_files()
         results = set(results) if results else set()
 
         return results, ireq
@@ -383,7 +329,7 @@ class PyPIRepository(BaseRepository):
                 # If a download_dir is passed, pip will  unnecessarely
                 # archive the entire source directory
                 download_dir = None
-            elif ireq.link and is_vcs_url(ireq.link):
+            elif ireq.link and ireq.link.is_vcs:
                 # No download_dir for VCS sources.  This also works around pip
                 # using git-checkout-index, which gets rid of the .git dir.
                 download_dir = None
@@ -394,21 +340,24 @@ class PyPIRepository(BaseRepository):
             if not os.path.isdir(self._wheel_download_dir):
                 os.makedirs(self._wheel_download_dir)
 
-            wheel_cache = WheelCache(CACHE_DIR, self.options.format_control)
-            prev_tracker = os.environ.get("PIP_REQ_TRACKER")
-            try:
-                results, ireq = self.resolve_reqs(download_dir, ireq, wheel_cache)
-                self._dependencies_cache[ireq] = results
-            finally:
-                if "PIP_REQ_TRACKER" in os.environ:
-                    if prev_tracker:
-                        os.environ["PIP_REQ_TRACKER"] = prev_tracker
-                    else:
-                        del os.environ["PIP_REQ_TRACKER"]
+            with global_tempdir_manager():
+                wheel_cache = WheelCache(self._cache_dir, self.options.format_control)
+                prev_tracker = os.environ.get("PIP_REQ_TRACKER")
+                try:
+                    results, ireq = self.resolve_reqs(
+                        download_dir, ireq, wheel_cache
+                    )
+                    self._dependencies_cache[ireq] = results
+                finally:
+                    if "PIP_REQ_TRACKER" in os.environ:
+                        if prev_tracker:
+                            os.environ["PIP_REQ_TRACKER"] = prev_tracker
+                        else:
+                            del os.environ["PIP_REQ_TRACKER"]
 
-                # WheelCache.cleanup() introduced in pip==10.0.0
-                if PIP_VERSION >= (10,):
-                    wheel_cache.cleanup()
+                    if PIP_VERSION[:2] <= (20, 0):
+                        wheel_cache.cleanup()
+
         return self._dependencies_cache[ireq]
 
     def get_hashes(self, ireq):
@@ -421,7 +370,7 @@ class PyPIRepository(BaseRepository):
         if ireq.link:
             link = ireq.link
 
-            if is_vcs_url(link) or (is_file_url(link) and is_dir_url(link)):
+            if link.is_vcs or (link.is_file and link.is_existing_dir()):
                 # Return empty set for unhashable requirements.
                 # Unhashable logic modeled on pip's
                 # RequirementPreparer.prepare_linked_requirement
@@ -444,23 +393,28 @@ class PyPIRepository(BaseRepository):
         # We need to get all of the candidates that match our current version
         # pin, these will represent all of the files that could possibly
         # satisfy this constraint.
-        matching_candidates = (
-            c for c in clean_requires_python(self.find_all_candidates(ireq.name))
-            if c.version in ireq.specifier
-        )
 
-        log.debug("  {}".format(ireq.name))
+        result = {}
+        with self.allow_all_links():
+            matching_candidates = (
+                c for c in clean_requires_python(self.find_all_candidates(ireq.name))
+                if c.version in ireq.specifier
+            )
+            log.debug("  {}".format(ireq.name))
+            result = {
+                h for h in
+                map(lambda c: self._hash_cache.get_hash(c.link), matching_candidates)
+                if h is not None
+            }
+        return result
 
-        def get_candidate_link(candidate):
-            if PIP_VERSION < (19, 2):
-                return candidate.location
-            return candidate.link
-
-        return {
-            h for h in
-            map(lambda c: self._hash_cache.get_hash(get_candidate_link(c)), matching_candidates)
-            if h is not None
-        }
+    @contextmanager
+    def allow_all_links(self):
+        try:
+            self.finder._ignore_compatibility = True
+            yield
+        finally:
+            self.finder._ignore_compatibility = False
 
     @contextmanager
     def allow_all_wheels(self):
@@ -507,7 +461,7 @@ def open_local_or_remote_file(link, session):
     """
     url = link.url_without_fragment
 
-    if is_file_url(link):
+    if link.is_file:
         # Local URL
         local_path = url_to_path(url)
         if os.path.isdir(local_path):

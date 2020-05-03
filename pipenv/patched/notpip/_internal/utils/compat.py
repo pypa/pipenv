@@ -14,20 +14,11 @@ import shutil
 import sys
 
 from pipenv.patched.notpip._vendor.six import PY2, text_type
-from pipenv.patched.notpip._vendor.urllib3.util import IS_PYOPENSSL
 
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Optional, Text, Tuple, Union
-
-try:
-    import _ssl  # noqa
-except ImportError:
-    ssl = None
-else:
-    # This additional assignment was needed to prevent a mypy error.
-    ssl = _ssl
 
 try:
     import ipaddress
@@ -41,15 +32,12 @@ except ImportError:
 
 
 __all__ = [
-    "ipaddress", "uses_pycache", "console_to_str", "native_str",
+    "ipaddress", "uses_pycache", "console_to_str",
     "get_path_uid", "stdlib_pkgs", "WINDOWS", "samefile", "get_terminal_size",
-    "get_extension_suffixes",
 ]
 
 
 logger = logging.getLogger(__name__)
-
-HAS_TLS = (ssl is not None) or IS_PYOPENSSL
 
 if PY2:
     import imp
@@ -84,6 +72,18 @@ if PY2:
     backslashreplace_decode = "backslashreplace_decode"
 else:
     backslashreplace_decode = "backslashreplace"
+
+
+def has_tls():
+    # type: () -> bool
+    try:
+        import _ssl  # noqa: F401  # ignore unused
+        return True
+    except ImportError:
+        pass
+
+    from pipenv.patched.notpip._vendor.urllib3.util import IS_PYOPENSSL
+    return IS_PYOPENSSL
 
 
 def str_to_display(data, desc=None):
@@ -159,22 +159,6 @@ def console_to_str(data):
     return str_to_display(data, desc='Subprocess output')
 
 
-if PY2:
-    def native_str(s, replace=False):
-        # type: (str, bool) -> str
-        # Replace is ignored -- unicode to UTF-8 can't fail
-        if isinstance(s, text_type):
-            return s.encode('utf-8')
-        return s
-
-else:
-    def native_str(s, replace=False):
-        # type: (str, bool) -> str
-        if isinstance(s, bytes):
-            return s.decode('utf-8', 'replace' if replace else 'strict')
-        return s
-
-
 def get_path_uid(path):
     # type: (str) -> int
     """
@@ -203,19 +187,6 @@ def get_path_uid(path):
                 "%s is a symlink; Will not return uid for symlinks" % path
             )
     return file_uid
-
-
-if PY2:
-    from imp import get_suffixes
-
-    def get_extension_suffixes():
-        return [suffix[0] for suffix in get_suffixes()]
-
-else:
-    from importlib.machinery import EXTENSION_SUFFIXES
-
-    def get_extension_suffixes():
-        return EXTENSION_SUFFIXES
 
 
 def expanduser(path):
@@ -286,12 +257,13 @@ else:
             return cr
         cr = ioctl_GWINSZ(0) or ioctl_GWINSZ(1) or ioctl_GWINSZ(2)
         if not cr:
-            try:
-                fd = os.open(os.ctermid(), os.O_RDONLY)
-                cr = ioctl_GWINSZ(fd)
-                os.close(fd)
-            except Exception:
-                pass
+            if sys.platform != "win32":
+                try:
+                    fd = os.open(os.ctermid(), os.O_RDONLY)
+                    cr = ioctl_GWINSZ(fd)
+                    os.close(fd)
+                except Exception:
+                    pass
         if not cr:
             cr = (os.environ.get('LINES', 25), os.environ.get('COLUMNS', 80))
         return int(cr[1]), int(cr[0])

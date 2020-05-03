@@ -10,8 +10,7 @@ from pipenv.patched.notpip._internal.cli import cmdoptions
 from pipenv.patched.notpip._internal.cli.cmdoptions import make_target_python
 from pipenv.patched.notpip._internal.cli.req_command import RequirementCommand
 from pipenv.patched.notpip._internal.req import RequirementSet
-from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker
-from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
+from pipenv.patched.notpip._internal.req.req_tracker import get_requirement_tracker
 from pipenv.patched.notpip._internal.utils.misc import ensure_dir, normalize_path, write_output
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 
@@ -86,7 +85,6 @@ class DownloadCommand(RequirementCommand):
 
         cmdoptions.check_dist_restriction(options)
 
-        options.src_dir = os.path.abspath(options.src_dir)
         options.download_dir = normalize_path(options.download_dir)
 
         ensure_dir(options.download_dir)
@@ -100,24 +98,12 @@ class DownloadCommand(RequirementCommand):
             target_python=target_python,
         )
         build_delete = (not (options.no_clean or options.build_dir))
-        if options.cache_dir and not check_path_owner(options.cache_dir):
-            logger.warning(
-                "The directory '%s' or its parent directory is not owned "
-                "by the current user and caching wheels has been "
-                "disabled. check the permissions and owner of that "
-                "directory. If executing pip with sudo, you may want "
-                "sudo's -H flag.",
-                options.cache_dir,
-            )
-            options.cache_dir = None
 
-        with RequirementTracker() as req_tracker, TempDirectory(
+        with get_requirement_tracker() as req_tracker, TempDirectory(
             options.build_dir, delete=build_delete, kind="download"
         ) as directory:
 
-            requirement_set = RequirementSet(
-                require_hashes=options.require_hashes,
-            )
+            requirement_set = RequirementSet()
             self.populate_requirement_set(
                 requirement_set,
                 args,
@@ -131,16 +117,21 @@ class DownloadCommand(RequirementCommand):
                 temp_build_dir=directory,
                 options=options,
                 req_tracker=req_tracker,
+                session=session,
+                finder=finder,
                 download_dir=options.download_dir,
+                use_user_site=False,
             )
 
             resolver = self.make_resolver(
                 preparer=preparer,
                 finder=finder,
-                session=session,
                 options=options,
                 py_version_info=options.python_version,
             )
+
+            self.trace_basic_info(finder)
+
             resolver.resolve(requirement_set)
 
             downloaded = ' '.join([

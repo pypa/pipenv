@@ -203,7 +203,7 @@ class Timeout(object):
         """
         if self._start_connect is None:
             raise TimeoutStateError(
-                "Can't get connect duration for timer " "that has not started."
+                "Can't get connect duration for timer that has not started."
             )
         return current_time() - self._start_connect
 

@@ -720,7 +720,7 @@ def shim_unpack(
     :type unpack_fn: Callable
     :param str download_dir: The directory to download the file to
     :param TShimmedFunc tempdir_manager_provider: A callable or shim referring to
-        `global_tempdir_manager` function from pip or a shimmed no-op context manager
+        `global_tempdir_manager` function from pipenv.patched.notpip or a shimmed no-op context manager
     :param Optional[:class:`~pip._internal.req.req_install.InstallRequirement`] ireq:
         an Install Requirement instance, defaults to None
     :param Optional[:class:`~pip._internal.models.link.Link`] link: A Link instance,

@@ -1,0 +1,1 @@
+Added functionality to check spelling in documentation and cleaned up existing typographical issues.

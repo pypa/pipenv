@@ -10,9 +10,9 @@ from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
 from pipenv.patched.notpip._internal import pep425tags
 from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.models.wheel import Wheel
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.wheel import Wheel
 
 if MYPY_CHECK_RUNNING:
     from typing import Dict, Iterable, List, Optional, Tuple
@@ -24,13 +24,12 @@ logger = logging.getLogger(__name__)
 
 class RequirementSet(object):
 
-    def __init__(self, require_hashes=False, check_supported_wheels=True, ignore_compatibility=True):
-        # type: (bool) -> None
+    def __init__(self, check_supported_wheels=True, ignore_compatibility=True):
+        # type: (bool, bool) -> None
         """Create a RequirementSet.
         """
 
         self.requirements = OrderedDict()  # type: Dict[str, InstallRequirement]  # noqa: E501
-        self.require_hashes = require_hashes
         self.check_supported_wheels = check_supported_wheels
 
         self.unnamed_requirements = []  # type: List[InstallRequirement]

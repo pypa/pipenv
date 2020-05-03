@@ -1,3 +1,3 @@
 from .core import where
 
-__version__ = "2019.09.11"
+__version__ = "2019.11.28"
