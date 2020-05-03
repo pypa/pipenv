@@ -2531,10 +2531,8 @@ def do_run(command, args, state):
     os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
     try:
-        # We first build the command
         script = project.build_script(command, extra_args=args)
         cmd_string = ' '.join([script.command] + script.args)
-        # -------------
         if environments.is_verbose():
             click.echo(crayons.normal("$ {0}".format(cmd_string)), err=True)
     except ScriptEmptyError:
