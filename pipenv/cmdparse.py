@@ -109,15 +109,14 @@ class Script(object):
     @classmethod
     def parse(cls, value):
         env_vars = []
-        command = value
         if isinstance(value, six.string_types):
-            command = shlex.split(value)
+            value = shlex.split(value)
 
-            for el in command:
+            for el in value:
                 try:
                     env_var = UnixShellEnvironmentVariable.parse_inline(el)
                     env_vars.append(env_var)
-                    command.remove(el)
+                    value.remove(el)
                     click.echo(
                         crayons.yellow(
                             "WARNING: Found environment variable '{}' in command. ".format(env_var.full_expr) +
@@ -128,7 +127,7 @@ class Script(object):
                     pass
 
         if isinstance(value, dict):
-            command = shlex.split(value['cmd'])
+            value = shlex.split(value['cmd'])
 
             for k, v in (value.get('env') or {}).items():
                 env_vars.append(
@@ -139,8 +138,8 @@ class Script(object):
             raise ScriptEmptyError(value)
 
         return cls(
-            command[0],
-            args=command[1:],
+            value[0],
+            args=value[1:],
             env_vars=env_vars,
         )
 
