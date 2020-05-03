@@ -88,8 +88,8 @@ __import__('pipenv.patched.notpip._vendor.packaging.markers')
 __metaclass__ = type
 
 
-if (3, 0) < sys.version_info < (3, 4):
-    raise RuntimeError("Python 3.4 or later is required")
+if (3, 0) < sys.version_info < (3, 5):
+    raise RuntimeError("Python 3.5 or later is required")
 
 if six.PY2:
     # Those builtin exceptions are only defined in Python 3
@@ -333,7 +333,7 @@ class UnknownExtra(ResolutionError):
 
 _provider_factories = {}
 
-PY_MAJOR = sys.version[:3]
+PY_MAJOR = '{}.{}'.format(*sys.version_info)
 EGG_DIST = 3
 BINARY_DIST = 2
 SOURCE_DIST = 1
@@ -3109,6 +3109,7 @@ class Requirement(packaging.requirements.Requirement):
         self.extras = tuple(map(safe_extra, self.extras))
         self.hashCmp = (
             self.key,
+            self.url,
             self.specifier,
             frozenset(self.extras),
             str(self.marker) if self.marker else None,

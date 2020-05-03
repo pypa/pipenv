@@ -1,6 +1,7 @@
 include LICENSE README.md CONTRIBUTING.md CODE_OF_CONDUCT.md CHANGELOG.rst NOTICES HISTORY.txt
 include Makefile pyproject.toml get-pipenv.py .dockerignore *.yml
 include examples/Pipfil*
+include *.md
 recursive-include pipenv LICENSE LICENSE* *LICENSE* *COPYING* t32.exe t64.exe w32.exe w64.exe cacert.pem
 recursive-include pipenv *.cfg
 recursive-include pipenv/vendor *.c *.j2
@@ -28,12 +29,11 @@ recursive-include docs/_static *.js *.css *.png
 recursive-exclude docs requirements*.txt
 recursive-exclude pipenv *.pyi
 recursive-exclude pipenv *.typed
+recursive-exclue tests/test_artifacts *.pyd *.so *.pyc *.egg-info PKG-INFO
 
 prune peeps
 prune .azure-pipelines
-prune .buildkite
 prune .github
-prune .vsts-ci
 prune docs/build
 prune news
 prune tasks

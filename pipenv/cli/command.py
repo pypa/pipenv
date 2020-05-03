@@ -5,7 +5,7 @@ import os
 import sys
 
 from click import (
-    argument, echo, edit, group, option, pass_context, secho, version_option
+    argument, echo, edit, group, option, pass_context, secho, version_option, Choice
 )
 
 from ..__version__ import __version__
@@ -43,7 +43,7 @@ subcommand_context_no_interspersion["allow_interspersed_args"] = False
     "--completion",
     is_flag=True,
     default=False,
-    help="Output completion (to be eval'd).",
+    help="Output completion (to be executed by the shell).",
 )
 @option("--man", is_flag=True, default=False, help="Display manpage.")
 @option(
@@ -255,14 +255,14 @@ def install(
 
 
 @cli.command(
-    short_help="Un-installs a provided package and removes it from Pipfile.",
+    short_help="Uninstalls a provided package and removes it from Pipfile.",
     context_settings=subcommand_context
 )
 @option(
     "--all-dev",
     is_flag=True,
     default=False,
-    help="Un-install all package from [dev-packages].",
+    help="Uninstall all package from [dev-packages].",
 )
 @option(
     "--all",
@@ -280,7 +280,7 @@ def uninstall(
     all=False,
     **kwargs
 ):
-    """Un-installs a provided package and removes it from Pipfile."""
+    """Uninstalls a provided package and removes it from Pipfile."""
     from ..core import do_uninstall
     retcode = do_uninstall(
         packages=state.installstate.packages,
@@ -349,7 +349,7 @@ def lock(
     "--anyway",
     is_flag=True,
     default=False,
-    help="Always spawn a subshell, even if one is already spawned.",
+    help="Always spawn a sub-shell, even if one is already spawned.",
 )
 @argument("shell_args", nargs=-1)
 @pypi_mirror_option
@@ -420,10 +420,27 @@ def run(state, command, args):
     help="Given a code path, show potentially unused dependencies.",
 )
 @option(
+    "--db",
+    nargs=1,
+    default=lambda: os.environ.get('PIPENV_SAFETY_DB', False),
+    help="Path to a local vulnerability database. Default: ENV PIPENV_SAFETY_DB or None",
+)
+@option(
     "--ignore",
     "-i",
     multiple=True,
     help="Ignore specified vulnerability during safety checks.",
+)
+@option(
+    "--output",
+    type=Choice(["default", "json", "full-report", "bare"]),
+    default="default",
+    help="Translates to --json, --full-report or --bare from safety check",
+)
+@option(
+    "--quiet",
+    is_flag=True,
+    help="Quiet standard output, except vulnerability report."
 )
 @common_options
 @system_option
@@ -432,8 +449,11 @@ def run(state, command, args):
 def check(
     state,
     unused=False,
+    db=False,
     style=False,
     ignore=None,
+    output="default",
+    quiet=False,
     args=None,
     **kwargs
 ):
@@ -445,7 +465,10 @@ def check(
         python=state.python,
         system=state.system,
         unused=unused,
+        db=db,
         ignore=ignore,
+        output=output,
+        quiet=quiet,
         args=args,
         pypi_mirror=state.pypi_mirror,
     )

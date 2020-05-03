@@ -257,7 +257,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             if self.block:
                 raise EmptyPoolError(
                     self,
-                    "Pool reached maximum size and no more " "connections are allowed.",
+                    "Pool reached maximum size and no more connections are allowed.",
                 )
             pass  # Oh well, we'll create a new connection then
 
@@ -626,7 +626,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         #
         # See issue #651 [1] for details.
         #
-        # [1] <https://github.com/shazow/urllib3/issues/651>
+        # [1] <https://github.com/urllib3/urllib3/issues/651>
         release_this_conn = release_conn
 
         # Merge the proxy headers. Only do this in HTTP. We have to copy the
@@ -742,10 +742,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         if not conn:
             # Try again
             log.warning(
-                "Retrying (%r) after connection " "broken by '%r': %s",
-                retries,
-                err,
-                url,
+                "Retrying (%r) after connection broken by '%r': %s", retries, err, url
             )
             return self.urlopen(
                 method,
@@ -758,6 +755,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                 timeout=timeout,
                 pool_timeout=pool_timeout,
                 release_conn=release_conn,
+                chunked=chunked,
                 body_pos=body_pos,
                 **response_kw
             )
@@ -809,6 +807,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                 timeout=timeout,
                 pool_timeout=pool_timeout,
                 release_conn=release_conn,
+                chunked=chunked,
                 body_pos=body_pos,
                 **response_kw
             )
@@ -842,6 +841,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                 timeout=timeout,
                 pool_timeout=pool_timeout,
                 release_conn=release_conn,
+                chunked=chunked,
                 body_pos=body_pos,
                 **response_kw
             )
@@ -961,7 +961,7 @@ class HTTPSConnectionPool(HTTPConnectionPool):
 
         if not self.ConnectionCls or self.ConnectionCls is DummyConnection:
             raise SSLError(
-                "Can't connect to HTTPS URL because the SSL " "module is not available."
+                "Can't connect to HTTPS URL because the SSL module is not available."
             )
 
         actual_host = self.host

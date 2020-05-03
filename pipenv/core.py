@@ -677,6 +677,9 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
             click.echo(crayons.blue(c.out.strip() or c.err.strip()))
         # The Installation failed…
         if failed:
+            # If there is a mismatch in installed locations or the install fails
+            # due to wrongful disabling of pep517, we should allow for
+            # additional passes at installation
             if "does not match installed location" in c.err:
                 project.environment.expand_egg_links()
                 click.echo("{0}".format(
@@ -687,6 +690,10 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
                     )
                 ))
                 dep = c.dep.copy()
+                dep.use_pep517 = True
+            elif "Disabling PEP 517 processing is invalid" in c.err:
+                dep = c.dep.copy()
+                dep.use_pep517 = True
             elif not retry:
                 # The Installation failed…
                 # We echo both c.out and c.err because pip returns error details on out.
@@ -698,6 +705,7 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
             else:
                 # Alert the user.
                 dep = c.dep.copy()
+                dep.use_pep517 = False
                 click.echo(
                     "{0} {1}! Will try again.".format(
                         crayons.red("An error occurred while installing"),
@@ -760,7 +768,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 del os.environ["GIT_CONFIG"]
             use_pep517 = True
             if failed and not dep.is_vcs:
-                use_pep517 = False
+                use_pep517 = getattr(dep, "use_pep517", False)
 
             c = pip_install(
                 dep,
@@ -796,7 +804,7 @@ def do_install_dependencies(
     skip_lock=False,
     concurrent=True,
     requirements_dir=None,
-    pypi_mirror=False,
+    pypi_mirror=None,
 ):
     """"
     Executes the install functionality.
@@ -830,7 +838,7 @@ def do_install_dependencies(
     no_deps = not skip_lock  # skip_lock true, no_deps False, pip resolves deps
     deps_list = list(lockfile.get_requirements(dev=dev, only=requirements))
     if requirements:
-        index_args = prepare_pip_source_args(project.sources)
+        index_args = prepare_pip_source_args(get_source_list(pypi_mirror=pypi_mirror, project=project))
         index_args = " ".join(index_args).replace(" -", "\n-")
         deps = [
             req.as_line(sources=False, include_hashes=False) for req in deps_list
@@ -2553,9 +2561,12 @@ def do_check(
     python=False,
     system=False,
     unused=False,
+    db=False,
     ignore=None,
+    output="default",
+    quiet=False,
     args=None,
-    pypi_mirror=None,
+    pypi_mirror=None
 ):
     from pipenv.vendor.vistir.compat import JSONDecodeError
     from pipenv.vendor.first import first
@@ -2580,17 +2591,19 @@ def do_check(
             except ValueError:
                 pass
         if deps_required:
-            click.echo(
-                crayons.normal(
-                    "The following dependencies appear unused, and may be safe for removal:"
+            if not quiet and not environments.is_quiet():
+                click.echo(
+                    crayons.normal(
+                        "The following dependencies appear unused, and may be safe for removal:"
+                    )
                 )
-            )
-            for dep in deps_required:
-                click.echo("  - {0}".format(crayons.green(dep)))
-            sys.exit(1)
+                for dep in deps_required:
+                    click.echo("  - {0}".format(crayons.green(dep)))
+                sys.exit(1)
         else:
             sys.exit(0)
-    click.echo(crayons.normal(decode_for_output("Checking PEP 508 requirements…"), bold=True))
+    if not quiet and not environments.is_quiet():
+        click.echo(crayons.normal(decode_for_output("Checking PEP 508 requirements…"), bold=True))
     pep508checker_path = pep508checker.__file__.rstrip("cdo")
     safety_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "patched", "safety"
@@ -2639,51 +2652,67 @@ def do_check(
         click.echo(crayons.red("Failed!"), err=True)
         sys.exit(1)
     else:
-        click.echo(crayons.green("Passed!"))
-    click.echo(crayons.normal(
-        decode_for_output("Checking installed package safety…"), bold=True)
-    )
+        if not quiet and not environments.is_quiet():
+            click.echo(crayons.green("Passed!"))
+    if not quiet and not environments.is_quiet():
+        click.echo(crayons.normal(
+            decode_for_output("Checking installed package safety…"), bold=True)
+        )
     if ignore:
         if not isinstance(ignore, (tuple, list)):
             ignore = [ignore]
         ignored = [["--ignore", cve] for cve in ignore]
-        click.echo(
-            crayons.normal(
-                "Notice: Ignoring CVE(s) {0}".format(crayons.yellow(", ".join(ignore)))
-            ),
-            err=True,
-        )
+        if not quiet and not environments.is_quiet():
+            click.echo(
+                crayons.normal(
+                    "Notice: Ignoring CVE(s) {0}".format(crayons.yellow(", ".join(ignore)))
+                ),
+                err=True,
+            )
     else:
         ignored = []
-    cmd = _cmd + [safety_path, "check", "--json"]
-    if PIPENV_PYUP_API_KEY:
+
+    switch = output
+    if output == "default":
+        switch = "json"
+
+    cmd = _cmd + [safety_path, "check", "--{0}".format(switch)]
+    if db:
+        if not quiet and not environments.is_quiet():
+            click.echo(crayons.normal("Using local database {}".format(db)))
+        cmd.append("--db={0}".format(db))
+    if PIPENV_PYUP_API_KEY and not db:
         cmd = cmd + ["--key={0}".format(PIPENV_PYUP_API_KEY)]
     if ignored:
         for cve in ignored:
             cmd += cve
     c = run_command(cmd, catch_exceptions=False)
-    try:
-        results = simplejson.loads(c.out)
-    except (ValueError, JSONDecodeError):
-        raise exceptions.JSONParseError(c.out, c.err)
-    except Exception:
-        raise exceptions.PipenvCmdError(c.cmd, c.out, c.err, c.return_code)
-    if c.ok:
-        click.echo(crayons.green("All good!"))
-        sys.exit(0)
-    for (package, resolved, installed, description, vuln) in results:
-        click.echo(
-            "{0}: {1} {2} resolved ({3} installed)!".format(
-                crayons.normal(vuln, bold=True),
-                crayons.green(package),
-                crayons.red(resolved, bold=False),
-                crayons.red(installed, bold=True),
+    if output == "default":
+        try:
+            results = simplejson.loads(c.out)
+        except (ValueError, JSONDecodeError):
+            raise exceptions.JSONParseError(c.out, c.err)
+        except Exception:
+            raise exceptions.PipenvCmdError(c.cmd, c.out, c.err, c.return_code)
+        for (package, resolved, installed, description, vuln) in results:
+            click.echo(
+                "{0}: {1} {2} resolved ({3} installed)!".format(
+                    crayons.normal(vuln, bold=True),
+                    crayons.green(package),
+                    crayons.red(resolved, bold=False),
+                    crayons.red(installed, bold=True),
+                )
             )
-        )
-        click.echo("{0}".format(description))
-        click.echo()
+            click.echo("{0}".format(description))
+            click.echo()
+        if c.ok:
+            click.echo(crayons.green("All good!"))
+            sys.exit(0)
+        else:
+            sys.exit(1)
     else:
-        sys.exit(1)
+        click.echo(c.out)
+        sys.exit(c.return_code)
 
 
 def do_graph(bare=False, json=False, json_tree=False, reverse=False):

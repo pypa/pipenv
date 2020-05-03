@@ -19,9 +19,10 @@ test:
 
 .PHONY: install
 install:
-	pip install -e .
+	pip install -e . && pipenv install --dev
 
-install.stamp: install
+install.stamp:
+	[ ! -e install.stamp ] && $(MAKE) install
 	@touch install.stamp
 
 .PHONY: install-py%
@@ -74,8 +75,12 @@ retest: virtualenv submodules test-install
 	. $(get_venv_path)/bin/activate && pipenv run pytest -ra -k 'test_check_unused or test_install_editable_git_tag or test_get_vcs_refs or test_skip_requirements_when_pipfile or test_editable_vcs_install or test_basic_vcs_install or test_git_vcs_install or test_ssh_vcs_install or test_vcs_can_use_markers' -vvv --full-trace --tb=long
 
 .PHONY: build
-build: install-virtualenvs.stamp install.stamp
-	PIPENV_PYTHON=3.7 pipenv run python setup.py sdist bdist_wheel
+build: install.stamp
+	pipenv run python setup.py sdist bdist_wheel
+
+build.stamp:
+	[ ! -e build.stamp ] && $(MAKE) build
+	@touch build.stamp
 
 .PHONY: update-version
 update-version:
@@ -113,5 +118,5 @@ cleanbuild:
 	@rm -rf build.stamp
 
 .PHONY: clean
-clean:
+clean: cleanbuild
 	rm -rf install.stamp build.stamp install-virtualenvs.stamp

@@ -13,7 +13,7 @@ Management Style
 
 `Dan Ryan <http://github.com/techalchemy>`__, `Tzu-ping Chung <https://github.com/uranusjr>`__, and `Nate Prewitt <https://github.com/nateprewitt>`__ are the core contributors.
 They are responsible for triaging bug reports, reviewing pull requests and ensuring that Kenneth is kept up to speed with developments around the library.
-The day-to-day managing of the project is done by the core contributors. They are responsible for making judgements about whether or not a feature request is
+The day-to-day managing of the project is done by the core contributors. They are responsible for making judgments about whether or not a feature request is
 likely to be accepted by Kenneth.
 
 Values

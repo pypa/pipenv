@@ -96,9 +96,7 @@ class NTLMConnectionPool(HTTPSConnectionPool):
         log.debug("Response data: %s [...]", res.read()[:100])
         if res.status != 200:
             if res.status == 401:
-                raise Exception(
-                    "Server rejected request: wrong " "username or password"
-                )
+                raise Exception("Server rejected request: wrong username or password")
             raise Exception("Wrong server response: %s %s" % (res.status, res.reason))
 
         res.fp = None

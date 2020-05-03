@@ -437,15 +437,20 @@ def install(ctx, vendor_dir, package=None):
                 license_file.read_text()
             )
         elif vendor_dir.joinpath("{0}.py".format(pkg)).exists():
-            vendor_dir.joinpath("{0}.py.LICENSE".format(pkg)).write_text(
+            vendor_dir.joinpath("{0}.LICENSE".format(pkg)).write_text(
                 license_file.read_text()
             )
         else:
+            pkg = pkg.replace("-", "?").replace("_", "?")
             matched_path = next(
                 iter(pth for pth in vendor_dir.glob("{0}*".format(pkg))), None
             )
             if matched_path is not None:
-                vendor_dir.joinpath("{0}.LICENSE".format(matched_path)).write_text(
+                if matched_path.is_dir():
+                    target = vendor_dir.joinpath(matched_path).joinpath("LICENSE")
+                else:
+                    target = vendor_dir.joinpath("{0}.LICENSE".format(matched_path))
+                target.write_text(
                     license_file.read_text()
                 )
 
@@ -525,8 +530,11 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
 
 
 @invoke.task
-def redo_imports(ctx, library):
-    vendor_dir = _get_vendor_dir(ctx)
+def redo_imports(ctx, library, vendor_dir=None):
+    if vendor_dir is None:
+        vendor_dir = _get_vendor_dir(ctx)
+    else:
+        vendor_dir = Path(vendor_dir).absolute()
     log("Using vendor dir: %s" % vendor_dir)
     vendored_libs = detect_vendored_libs(vendor_dir)
     item = vendor_dir / library
@@ -537,7 +545,6 @@ def redo_imports(ctx, library):
         rewrite_imports(item, vendored_libs, vendor_dir)
     else:
         rewrite_file_imports(library_name, vendored_libs, vendor_dir)
-
 
 @invoke.task
 def rewrite_all_imports(ctx):

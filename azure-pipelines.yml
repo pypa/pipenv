@@ -6,19 +6,48 @@ trigger:
     - master
   paths:
     exclude:
-    - docs/*
-    - news/*
-    - peeps/*
-    - examples/*
-    - pytest.ini
-    - README.md
-    - pipenv/*.txt
-    - CHANGELOG.rst
-    - CONTRIBUTING.md
-    - CODE_OF_CONDUCT.md
-    - .gitignore
-    - .gitattributes
-    - .editorconfig
+    - 'docs/*'
+    - 'news/*'
+    - 'peeps/*'
+    - 'examples/*'
+    - 'pytest.ini'
+    - 'README.md'
+    - 'pipenv/patched/patched.txt'
+    - 'pipenv/vendor/vendor_pip.txt'
+    - '*/LICENSE.txt'
+    - '*/LICENSE'
+    - '*.LICENSE'
+    - '*/vendor.txt'
+    - 'CHANGELOG.rst'
+    - 'CONTRIBUTING.md'
+    - 'CODE_OF_CONDUCT.md'
+    - '*.md'
+    - '.gitignore'
+    - '.gitattributes'
+    - '.editorconfig'
+
+pr:
+  paths:
+    exclude:
+    - 'docs/*'
+    - 'news/*'
+    - 'peeps/*'
+    - 'examples/*'
+    - 'pytest.ini'
+    - 'README.md'
+    - 'pipenv/patched/patched.txt'
+    - 'pipenv/vendor/vendor_pip.txt'
+    - '*/LICENSE.txt'
+    - '*/LICENSE'
+    - '*.LICENSE'
+    - '*/vendor.txt'
+    - 'CHANGELOG.rst'
+    - 'CONTRIBUTING.md'
+    - 'CODE_OF_CONDUCT.md'
+    - '*.md'
+    - '.gitignore'
+    - '.gitattributes'
+    - '.editorconfig'
 
 variables:
 - group: CI

@@ -210,7 +210,7 @@ def isolate(create_tmpdir):
     os.environ["GIT_ASK_YESNO"] = fs_str("false")
     workon_home = create_tmpdir()
     os.environ["WORKON_HOME"] = fs_str(str(workon_home))
-    os.environ["HOME"] = home_dir
+    os.environ["HOME"] = os.path.abspath(home_dir)
     mkdir_p(os.path.join(home_dir, "projects"))
     # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
     os.environ.pop("PIPENV_ACTIVE", None)

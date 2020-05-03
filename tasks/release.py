@@ -126,28 +126,20 @@ def drop_dist_dirs(ctx):
 @invoke.task
 def build_dists(ctx):
     drop_dist_dirs(ctx)
-    for py_version in ["3.6", "3.7", "3.8", "2.7"]:
-        env = {"PIPENV_PYTHON": py_version}
-        with ctx.cd(ROOT.as_posix()), temp_environ():
-            executable = ctx.run(
-                "python -c 'import sys; print(sys.executable)'", hide=True
-            ).stdout.strip()
-            log("Building sdist using %s ...." % executable)
-            os.environ["PIPENV_PYTHON"] = py_version
-            ctx.run("pipenv install --dev", env=env)
-            ctx.run(
-                "pipenv run pip install -e . --upgrade --upgrade-strategy=eager", env=env
-            )
-            log("Building wheel using python %s ...." % py_version)
-            tag_arg = "--python-tag py{}".format(py_version.replace(".", ""))
-            if py_version == "3.8":
-                ctx.run(f"pipenv run python setup.py sdist bdist_wheel {tag_arg}", env=env)
-            else:
-                ctx.run(f"pipenv run python setup.py bdist_wheel {tag_arg}", env=env)
-            if py_version in ("3.6", "2.7"):
-                # generate py2 / py3 generic untagged wheels
-                ctx.run(f"pipenv run python setup.py sdist bdist_wheel", env=env)
-
+    py_version = ".".join(str(v) for v in sys.version_info[:2])
+    env = {"PIPENV_PYTHON": py_version}
+    with ctx.cd(ROOT.as_posix()), temp_environ():
+        executable = ctx.run(
+            "python -c 'import sys; print(sys.executable)'", hide=True
+        ).stdout.strip()
+        log("Building sdist using %s ...." % executable)
+        os.environ["PIPENV_PYTHON"] = py_version
+        ctx.run("pipenv install --dev", env=env)
+        ctx.run(
+            "pipenv run pip install -e . --upgrade --upgrade-strategy=eager", env=env
+        )
+        log("Building wheel using python %s ...." % py_version)
+        ctx.run(f"pipenv run python setup.py sdist bdist_wheel", env=env)
 
 
 @invoke.task(build_dists)
@@ -239,28 +231,66 @@ def tag_version(ctx, push=False):
         ctx.run("git push --tags")
 
 
+def add_one_day(dt):
+    return dt + datetime.timedelta(days=1)
+
+
+def date_offset(dt, month_offset=0, day_offset=0, truncate=False):
+    new_month = (dt.month + month_offset) % 12
+    year_offset = month_offset // 12
+    replace_args = {
+        "month": dt.month + month_offset,
+        "year": dt.year + year_offset,
+    }
+    log("Getting updated date from date: {0} using month offset: {1} and year offset {2}".format(
+        dt, new_month, replace_args["year"]
+    ))
+    if day_offset:
+        dt = dt + datetime.timedelta(days=day_offset)
+        log("updated date using day offset: {0} => {1}".format(day_offset, dt))
+    if truncate:
+        log("Truncating...")
+        replace_args["day"] = 1
+    return dt.replace(**replace_args)
+
+
 @invoke.task
-def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=False):
+def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=False, month_offset="0", trunc_month=False):
     current_version = Version.parse(__version__)
     today = datetime.date.today()
+    day_offset = 0
     tomorrow = today + datetime.timedelta(days=1)
-    if pre and not tag:
-        print('Using "pre" requires a corresponding tag.')
-        return
-    if not (dev or pre or tag):
-        new_version = current_version.replace(release=today.timetuple()[:3]).clear(
-            pre=True, dev=True
-        )
+    month_offset = int(month_offset)
+    if month_offset:
+        # if we are offsetting by a month, grab the first day of the month
+        trunc_month = True
+    else:
+        target_day = today
+        if dev or pre:
+            target_day = date_offset(today, day_offset=1)
+    target_day = date_offset(
+        today,
+        month_offset=month_offset,
+        day_offset=day_offset,
+        truncate=trunc_month
+    )
+    log("target_day: {0}".format(target_day))
+    target_timetuple = target_day.timetuple()[:3]
+    new_version = current_version.replace(release=target_timetuple)
     if pre and dev:
         raise RuntimeError("Can't use 'pre' and 'dev' together!")
-    if dev or pre:
-        new_version = current_version.replace(release=tomorrow.timetuple()[:3]).clear(
-            pre=True, dev=True
-        )
-        if dev:
-            new_version = new_version.bump_dev()
-        else:
-            new_version = new_version.bump_pre(tag=tag)
+    if dev:
+        new_version = new_version.replace(pre=None).bump_dev()
+    elif pre:
+        if not tag:
+            print('Using "pre" requires a corresponding tag.')
+            return
+        if new_version.pre_tag and new_version.pre_tag != tag:
+            log("Swapping prerelease tag: {0} for {1}".format(new_version.pre_tag, tag))
+            new_version = new_version.replace(pre_tag=tag, pre=0)
+        new_version = new_version.bump_pre(tag=tag)
+    else:
+        new_version = new_version.replace(pre=None, dev=None)
     log("Updating version to %s" % new_version.normalize())
     version = find_version(ctx)
     log("Found current version: %s" % version)

@@ -280,14 +280,13 @@ def test_bad_packages(PipenvInstance):
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.requirements
-@pytest.mark.skip(reason="Not mocking this.")
-def test_requirements_to_pipfile(PipenvInstance):
+def test_requirements_to_pipfile(PipenvInstance, pypi):
 
     with PipenvInstance(pipfile=False, chdir=True) as p:
 
         # Write a requirements file
         with open("requirements.txt", "w") as f:
-            f.write("requests[socks]==2.18.1\n")
+            f.write("-i {}\nrequests[socks]==2.19.1\n".format(pypi.url))
 
         c = p.pipenv("install")
         assert c.return_code == 0

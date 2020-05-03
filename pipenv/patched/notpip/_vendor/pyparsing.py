@@ -95,8 +95,8 @@ classes inherit from. Use the docstrings for examples of how to:
    namespace class
 """
 
-__version__ = "2.4.2"
-__versionTime__ = "29 Jul 2019 02:58 UTC"
+__version__ = "2.4.6"
+__versionTime__ = "24 Dec 2019 04:27 UTC"
 __author__ = "Paul McGuire <ptmcg@users.sourceforge.net>"
 
 import string
@@ -114,6 +114,7 @@ from datetime import datetime
 from operator import itemgetter
 import itertools
 from functools import wraps
+from contextlib import contextmanager
 
 try:
     # Python 3
@@ -184,8 +185,15 @@ __diag__.warn_ungrouped_named_tokens_in_collection = False
 __diag__.warn_name_set_on_empty_Forward = False
 __diag__.warn_on_multiple_string_args_to_oneof = False
 __diag__.enable_debug_on_named_expressions = False
+__diag__._all_names = [nm for nm in vars(__diag__) if nm.startswith("enable_") or nm.startswith("warn_")]
 
-# ~ sys.stderr.write("testing pyparsing module, version %s, %s\n" % (__version__, __versionTime__))
+def _enable_all_warnings():
+    __diag__.warn_multiple_tokens_in_named_alternation = True
+    __diag__.warn_ungrouped_named_tokens_in_collection = True
+    __diag__.warn_name_set_on_empty_Forward = True
+    __diag__.warn_on_multiple_string_args_to_oneof = True
+__diag__.enable_all_warnings = _enable_all_warnings
+
 
 __all__ = ['__version__', '__versionTime__', '__author__', '__compat__', '__diag__',
            'And', 'CaselessKeyword', 'CaselessLiteral', 'CharsNotIn', 'Combine', 'Dict', 'Each', 'Empty',
@@ -206,7 +214,7 @@ __all__ = ['__version__', '__versionTime__', '__author__', '__compat__', '__diag
            'stringStart', 'traceParseAction', 'unicodeString', 'upcaseTokens', 'withAttribute',
            'indentedBlock', 'originalTextFor', 'ungroup', 'infixNotation', 'locatedExpr', 'withClass',
            'CloseMatch', 'tokenMap', 'pyparsing_common', 'pyparsing_unicode', 'unicode_set',
-           'conditionAsParseAction',
+           'conditionAsParseAction', 're',
            ]
 
 system_version = tuple(sys.version_info)[:3]
@@ -2561,15 +2569,13 @@ class ParserElement(object):
                 raise exc
 
     def __eq__(self, other):
-        if isinstance(other, ParserElement):
-            if PY_3:
-                self is other or super(ParserElement, self).__eq__(other)
-            else:
-                return self is other or vars(self) == vars(other)
+        if self is other:
+            return True
         elif isinstance(other, basestring):
             return self.matches(other)
-        else:
-            return super(ParserElement, self) == other
+        elif isinstance(other, ParserElement):
+            return vars(self) == vars(other)
+        return False
 
     def __ne__(self, other):
         return not (self == other)
@@ -3252,14 +3258,23 @@ class Regex(Token):
     If the given regex contains named groups (defined using ``(?P<name>...)``),
     these will be preserved as named parse results.
 
+    If instead of the Python stdlib re module you wish to use a different RE module
+    (such as the `regex` module), you can replace it by either building your
+    Regex object with a compiled RE that was compiled using regex:
+
     Example::
 
         realnum = Regex(r"[+-]?\d+\.\d*")
         date = Regex(r'(?P<year>\d{4})-(?P<month>\d\d?)-(?P<day>\d\d?)')
         # ref: https://stackoverflow.com/questions/267399/how-do-you-match-only-valid-roman-numerals-with-a-regular-expression
         roman = Regex(r"M{0,4}(CM|CD|D?{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})")
+
+        # use regex module instead of stdlib re module to construct a Regex using
+        # a compiled regular expression
+        import regex
+        parser = pp.Regex(regex.compile(r'[0-9]'))
+
     """
-    compiledREtype = type(re.compile("[A-Z]"))
     def __init__(self, pattern, flags=0, asGroupList=False, asMatch=False):
         """The parameters ``pattern`` and ``flags`` are passed
         to the ``re.compile()`` function as-is. See the Python
@@ -3284,13 +3299,13 @@ class Regex(Token):
                               SyntaxWarning, stacklevel=2)
                 raise
 
-        elif isinstance(pattern, Regex.compiledREtype):
+        elif hasattr(pattern, 'pattern') and hasattr(pattern, 'match'):
             self.re = pattern
-            self.pattern = self.reString = str(pattern)
+            self.pattern = self.reString = pattern.pattern
             self.flags = flags
 
         else:
-            raise ValueError("Regex may only be constructed with a string or a compiled RE object")
+            raise TypeError("Regex may only be constructed with a string or a compiled RE object")
 
         self.re_match = self.re.match
 
@@ -3617,24 +3632,24 @@ class White(Token):
         '\n': '<LF>',
         '\r': '<CR>',
         '\f': '<FF>',
-        'u\00A0': '<NBSP>',
-        'u\1680': '<OGHAM_SPACE_MARK>',
-        'u\180E': '<MONGOLIAN_VOWEL_SEPARATOR>',
-        'u\2000': '<EN_QUAD>',
-        'u\2001': '<EM_QUAD>',
-        'u\2002': '<EN_SPACE>',
-        'u\2003': '<EM_SPACE>',
-        'u\2004': '<THREE-PER-EM_SPACE>',
-        'u\2005': '<FOUR-PER-EM_SPACE>',
-        'u\2006': '<SIX-PER-EM_SPACE>',
-        'u\2007': '<FIGURE_SPACE>',
-        'u\2008': '<PUNCTUATION_SPACE>',
-        'u\2009': '<THIN_SPACE>',
-        'u\200A': '<HAIR_SPACE>',
-        'u\200B': '<ZERO_WIDTH_SPACE>',
-        'u\202F': '<NNBSP>',
-        'u\205F': '<MMSP>',
-        'u\3000': '<IDEOGRAPHIC_SPACE>',
+        u'\u00A0': '<NBSP>',
+        u'\u1680': '<OGHAM_SPACE_MARK>',
+        u'\u180E': '<MONGOLIAN_VOWEL_SEPARATOR>',
+        u'\u2000': '<EN_QUAD>',
+        u'\u2001': '<EM_QUAD>',
+        u'\u2002': '<EN_SPACE>',
+        u'\u2003': '<EM_SPACE>',
+        u'\u2004': '<THREE-PER-EM_SPACE>',
+        u'\u2005': '<FOUR-PER-EM_SPACE>',
+        u'\u2006': '<SIX-PER-EM_SPACE>',
+        u'\u2007': '<FIGURE_SPACE>',
+        u'\u2008': '<PUNCTUATION_SPACE>',
+        u'\u2009': '<THIN_SPACE>',
+        u'\u200A': '<HAIR_SPACE>',
+        u'\u200B': '<ZERO_WIDTH_SPACE>',
+        u'\u202F': '<NNBSP>',
+        u'\u205F': '<MMSP>',
+        u'\u3000': '<IDEOGRAPHIC_SPACE>',
         }
     def __init__(self, ws=" \t\r\n", min=1, max=0, exact=0):
         super(White, self).__init__()
@@ -4566,6 +4581,7 @@ class PrecededBy(ParseElementEnhance):
         self.retreat = retreat
         self.errmsg = "not preceded by " + str(expr)
         self.skipWhitespace = False
+        self.parseAction.append(lambda s, l, t: t.__delitem__(slice(None, None)))
 
     def parseImpl(self, instring, loc=0, doActions=True):
         if self.exact:
@@ -4576,19 +4592,18 @@ class PrecededBy(ParseElementEnhance):
         else:
             # retreat specified a maximum lookbehind window, iterate
             test_expr = self.expr + StringEnd()
-            instring_slice = instring[:loc]
+            instring_slice = instring[max(0, loc - self.retreat):loc]
             last_expr = ParseException(instring, loc, self.errmsg)
-            for offset in range(1, min(loc, self.retreat + 1)):
+            for offset in range(1, min(loc, self.retreat + 1)+1):
                 try:
-                    _, ret = test_expr._parse(instring_slice, loc - offset)
+                    # print('trying', offset, instring_slice, repr(instring_slice[loc - offset:]))
+                    _, ret = test_expr._parse(instring_slice, len(instring_slice) - offset)
                 except ParseBaseException as pbe:
                     last_expr = pbe
                 else:
                     break
             else:
                 raise last_expr
-        # return empty list of tokens, but preserve any defined results names
-        del ret[:]
         return loc, ret
 
 
@@ -6051,7 +6066,7 @@ def infixNotation(baseExpr, opList, lpar=Suppress('('), rpar=Suppress(')')):
                     matchExpr = _FB(lastExpr + lastExpr) + Group(lastExpr + OneOrMore(lastExpr))
             elif arity == 3:
                 matchExpr = (_FB(lastExpr + opExpr1 + lastExpr + opExpr2 + lastExpr)
-                             + Group(lastExpr + opExpr1 + lastExpr + opExpr2 + lastExpr))
+                             + Group(lastExpr + OneOrMore(opExpr1 + lastExpr + opExpr2 + lastExpr)))
             else:
                 raise ValueError("operator must be unary (1), binary (2), or ternary (3)")
         elif rightLeftAssoc == opAssoc.RIGHT:
@@ -6305,18 +6320,18 @@ def indentedBlock(blockStatementExpr, indentStack, indent=True):
         if curCol < indentStack[-1]:
             indentStack.pop()
 
-    NL = OneOrMore(LineEnd().setWhitespaceChars("\t ").suppress())
+    NL = OneOrMore(LineEnd().setWhitespaceChars("\t ").suppress(), stopOn=StringEnd())
     INDENT = (Empty() + Empty().setParseAction(checkSubIndent)).setName('INDENT')
     PEER   = Empty().setParseAction(checkPeerIndent).setName('')
     UNDENT = Empty().setParseAction(checkUnindent).setName('UNINDENT')
     if indent:
         smExpr = Group(Optional(NL)
                        + INDENT
-                       + OneOrMore(PEER + Group(blockStatementExpr) + Optional(NL))
+                       + OneOrMore(PEER + Group(blockStatementExpr) + Optional(NL), stopOn=StringEnd())
                        + UNDENT)
     else:
         smExpr = Group(Optional(NL)
-                       + OneOrMore(PEER + Group(blockStatementExpr) + Optional(NL))
+                       + OneOrMore(PEER + Group(blockStatementExpr) + Optional(NL), stopOn=StringEnd())
                        + UNDENT)
     smExpr.setFailAction(lambda a, b, c, d: reset_stack())
     blockStatementExpr.ignore(_bslash + LineEnd())
@@ -6820,6 +6835,187 @@ if PY_3:
     setattr(pyparsing_unicode, u"한국어", pyparsing_unicode.Korean)
     setattr(pyparsing_unicode, u"ไทย", pyparsing_unicode.Thai)
     setattr(pyparsing_unicode, u"देवनागरी", pyparsing_unicode.Devanagari)
+
+
+class pyparsing_test:
+    """
+    namespace class for classes useful in writing unit tests
+    """
+
+    class reset_pyparsing_context:
+        """
+        Context manager to be used when writing unit tests that modify pyparsing config values:
+         - packrat parsing
+         - default whitespace characters.
+         - default keyword characters
+         - literal string auto-conversion class
+         - __diag__ settings
+
+        Example:
+            with reset_pyparsing_context():
+                # test that literals used to construct a grammar are automatically suppressed
+                ParserElement.inlineLiteralsUsing(Suppress)
+
+                term = Word(alphas) | Word(nums)
+                group = Group('(' + term[...] + ')')
+
+                # assert that the '()' characters are not included in the parsed tokens
+                self.assertParseAndCheckLisst(group, "(abc 123 def)", ['abc', '123', 'def'])
+
+            # after exiting context manager, literals are converted to Literal expressions again
+        """
+
+        def __init__(self):
+            self._save_context = {}
+
+        def save(self):
+            self._save_context["default_whitespace"] = ParserElement.DEFAULT_WHITE_CHARS
+            self._save_context["default_keyword_chars"] = Keyword.DEFAULT_KEYWORD_CHARS
+            self._save_context[
+                "literal_string_class"
+            ] = ParserElement._literalStringClass
+            self._save_context["packrat_enabled"] = ParserElement._packratEnabled
+            self._save_context["packrat_parse"] = ParserElement._parse
+            self._save_context["__diag__"] = {
+                name: getattr(__diag__, name) for name in __diag__._all_names
+            }
+            self._save_context["__compat__"] = {
+                "collect_all_And_tokens": __compat__.collect_all_And_tokens
+            }
+            return self
+
+        def restore(self):
+            # reset pyparsing global state
+            if (
+                ParserElement.DEFAULT_WHITE_CHARS
+                != self._save_context["default_whitespace"]
+            ):
+                ParserElement.setDefaultWhitespaceChars(
+                    self._save_context["default_whitespace"]
+                )
+            Keyword.DEFAULT_KEYWORD_CHARS = self._save_context["default_keyword_chars"]
+            ParserElement.inlineLiteralsUsing(
+                self._save_context["literal_string_class"]
+            )
+            for name, value in self._save_context["__diag__"].items():
+                setattr(__diag__, name, value)
+            ParserElement._packratEnabled = self._save_context["packrat_enabled"]
+            ParserElement._parse = self._save_context["packrat_parse"]
+            __compat__.collect_all_And_tokens = self._save_context["__compat__"]
+
+        def __enter__(self):
+            return self.save()
+
+        def __exit__(self, *args):
+            return self.restore()
+
+    class TestParseResultsAsserts:
+        """
+        A mixin class to add parse results assertion methods to normal unittest.TestCase classes.
+        """
+        def assertParseResultsEquals(
+            self, result, expected_list=None, expected_dict=None, msg=None
+        ):
+            """
+            Unit test assertion to compare a ParseResults object with an optional expected_list,
+            and compare any defined results names with an optional expected_dict.
+            """
+            if expected_list is not None:
+                self.assertEqual(expected_list, result.asList(), msg=msg)
+            if expected_dict is not None:
+                self.assertEqual(expected_dict, result.asDict(), msg=msg)
+
+        def assertParseAndCheckList(
+            self, expr, test_string, expected_list, msg=None, verbose=True
+        ):
+            """
+            Convenience wrapper assert to test a parser element and input string, and assert that
+            the resulting ParseResults.asList() is equal to the expected_list.
+            """
+            result = expr.parseString(test_string, parseAll=True)
+            if verbose:
+                print(result.dump())
+            self.assertParseResultsEquals(result, expected_list=expected_list, msg=msg)
+
+        def assertParseAndCheckDict(
+            self, expr, test_string, expected_dict, msg=None, verbose=True
+        ):
+            """
+            Convenience wrapper assert to test a parser element and input string, and assert that
+            the resulting ParseResults.asDict() is equal to the expected_dict.
+            """
+            result = expr.parseString(test_string, parseAll=True)
+            if verbose:
+                print(result.dump())
+            self.assertParseResultsEquals(result, expected_dict=expected_dict, msg=msg)
+
+        def assertRunTestResults(
+            self, run_tests_report, expected_parse_results=None, msg=None
+        ):
+            """
+            Unit test assertion to evaluate output of ParserElement.runTests(). If a list of
+            list-dict tuples is given as the expected_parse_results argument, then these are zipped
+            with the report tuples returned by runTests and evaluated using assertParseResultsEquals.
+            Finally, asserts that the overall runTests() success value is True.
+
+            :param run_tests_report: tuple(bool, [tuple(str, ParseResults or Exception)]) returned from runTests
+            :param expected_parse_results (optional): [tuple(str, list, dict, Exception)]
+            """
+            run_test_success, run_test_results = run_tests_report
+
+            if expected_parse_results is not None:
+                merged = [
+                    (rpt[0], rpt[1], expected)
+                    for rpt, expected in zip(run_test_results, expected_parse_results)
+                ]
+                for test_string, result, expected in merged:
+                    # expected should be a tuple containing a list and/or a dict or an exception,
+                    # and optional failure message string
+                    # an empty tuple will skip any result validation
+                    fail_msg = next(
+                        (exp for exp in expected if isinstance(exp, str)), None
+                    )
+                    expected_exception = next(
+                        (
+                            exp
+                            for exp in expected
+                            if isinstance(exp, type) and issubclass(exp, Exception)
+                        ),
+                        None,
+                    )
+                    if expected_exception is not None:
+                        with self.assertRaises(
+                            expected_exception=expected_exception, msg=fail_msg or msg
+                        ):
+                            if isinstance(result, Exception):
+                                raise result
+                    else:
+                        expected_list = next(
+                            (exp for exp in expected if isinstance(exp, list)), None
+                        )
+                        expected_dict = next(
+                            (exp for exp in expected if isinstance(exp, dict)), None
+                        )
+                        if (expected_list, expected_dict) != (None, None):
+                            self.assertParseResultsEquals(
+                                result,
+                                expected_list=expected_list,
+                                expected_dict=expected_dict,
+                                msg=fail_msg or msg,
+                            )
+                        else:
+                            # warning here maybe?
+                            print("no validation for {!r}".format(test_string))
+
+            # do this last, in case some specific test results can be reported instead
+            self.assertTrue(
+                run_test_success, msg=msg if msg is not None else "failed runTests"
+            )
+
+        @contextmanager
+        def assertRaisesParseException(self, exc_type=ParseException, msg=None):
+            with self.assertRaises(exc_type, msg=msg):
+                yield
 
 
 if __name__ == "__main__":
