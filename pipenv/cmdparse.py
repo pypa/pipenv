@@ -109,6 +109,7 @@ class Script(object):
     @classmethod
     def parse(cls, value):
         env_vars = []
+        command = value
         if isinstance(value, six.string_types):
             command = shlex.split(value)
 
