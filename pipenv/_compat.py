@@ -141,9 +141,4 @@ def decode_output(output):
 def fix_utf8(text):
     if not isinstance(text, six.string_types):
         return text
-    try:
-        text = decode_output(text)
-    except UnicodeDecodeError:
-        if six.PY2:
-            text = unicode.translate(vistir.misc.to_text(text), UNICODE_TO_ASCII_TRANSLATION_MAP)   # noqa
-    return text
+    return decode_output(text)
