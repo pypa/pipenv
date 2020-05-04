@@ -2200,8 +2200,7 @@ def find_python(finder, line=None):
     if not result and not line.startswith("python"):
         line = "python{0}".format(line)
         result = find_python(finder, line)
-    if not result:
-        result = next(iter(finder.find_all_python_versions()), None)
+
     if result:
         if not isinstance(result, six.string_types):
             return result.path.as_posix()
