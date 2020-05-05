@@ -122,7 +122,7 @@ def rewind_body(body, body_pos):
             body_seek(body_pos)
         except (IOError, OSError):
             raise UnrewindableBodyError(
-                "An error occurred when rewinding request " "body for redirect/retry."
+                "An error occurred when rewinding request body for redirect/retry."
             )
     elif body_pos is _FAILEDTELL:
         raise UnrewindableBodyError(
@@ -131,5 +131,5 @@ def rewind_body(body, body_pos):
         )
     else:
         raise ValueError(
-            "body_pos must be of type integer, " "instead it was %s." % type(body_pos)
+            "body_pos must be of type integer, instead it was %s." % type(body_pos)
         )

@@ -1,6 +1,3 @@
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
-
 import os.path
 
 DELETE_MARKER_MESSAGE = '''\
@@ -14,6 +11,7 @@ PIP_DELETE_MARKER_FILENAME = 'pip-delete-this-directory.txt'
 
 
 def has_delete_marker_file(directory):
+    # type: (str) -> bool
     return os.path.exists(os.path.join(directory, PIP_DELETE_MARKER_FILENAME))
 
 

@@ -1,6 +1,3 @@
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
-
 import os
 import posixpath
 import re
@@ -19,7 +16,7 @@ from pipenv.patched.notpip._internal.utils.urls import path_to_url, url_to_path
 
 if MYPY_CHECK_RUNNING:
     from typing import Optional, Text, Tuple, Union
-    from pipenv.patched.notpip._internal.collector import HTMLPage
+    from pipenv.patched.notpip._internal.index.collector import HTMLPage
     from pipenv.patched.notpip._internal.utils.hashes import Hashes
 
 
@@ -67,6 +64,7 @@ class Link(KeyBasedCompareMixin):
         super(Link, self).__init__(key=url, defining_class=Link)
 
     def __str__(self):
+        # type: () -> str
         if self.requires_python:
             rp = ' (requires-python:%s)' % self.requires_python
         else:
@@ -78,6 +76,7 @@ class Link(KeyBasedCompareMixin):
             return redact_auth_from_url(str(self._url))
 
     def __repr__(self):
+        # type: () -> str
         return '<Link %s>' % self
 
     @property
@@ -180,7 +179,7 @@ class Link(KeyBasedCompareMixin):
 
     @property
     def show_url(self):
-        # type: () -> Optional[str]
+        # type: () -> str
         return posixpath.basename(self._url.split('#', 1)[0].split('?', 1)[0])
 
     @property
@@ -211,6 +210,7 @@ class Link(KeyBasedCompareMixin):
 
     @property
     def has_hash(self):
+        # type: () -> bool
         return self.hash_name is not None
 
     def is_hash_allowed(self, hashes):

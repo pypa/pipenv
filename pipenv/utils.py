@@ -781,10 +781,12 @@ class Resolver(object):
         return self._parsed_constraints
 
     def get_resolver(self, clear=False, pre=False):
-        from pipenv.patched.piptools.resolver import Resolver
-        self._resolver = Resolver(
+        from pipenv.patched.piptools.resolver import Resolver as PiptoolsResolver
+        from pipenv.patched.piptools.cache import DependencyCache
+        self._resolver = PiptoolsResolver(
             constraints=self.parsed_constraints, repository=self.repository,
-            clear_caches=clear, prereleases=pre,
+            cache=DependencyCache(environments.PIPENV_CACHE_DIR), clear_caches=clear,
+            prereleases=pre, allow_unsafe=False
         )
 
     @property

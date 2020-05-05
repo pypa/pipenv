@@ -4,8 +4,10 @@ import sys
 import tempfile
 from subprocess import check_call  # nosec
 
+from ._compat import DEV_PKGS
+from ._compat import stdlib_pkgs
+
 from . import click
-from ._compat import DEV_PKGS, stdlib_pkgs
 from .exceptions import IncompatibleRequirements
 from .utils import (
     flat_map,
@@ -80,18 +82,19 @@ def merge(requirements, ignore_conflicts):
         # Limitation: URL requirements are merged by precise string match, so
         # "file:///example.zip#egg=example", "file:///example.zip", and
         # "example==1.0" will not merge with each other
-        key = key_from_ireq(ireq)
+        if ireq.match_markers():
+            key = key_from_ireq(ireq)
 
-        if not ignore_conflicts:
-            existing_ireq = by_key.get(key)
-            if existing_ireq:
-                # NOTE: We check equality here since we can assume that the
-                # requirements are all pinned
-                if ireq.specifier != existing_ireq.specifier:
-                    raise IncompatibleRequirements(ireq, existing_ireq)
+            if not ignore_conflicts:
+                existing_ireq = by_key.get(key)
+                if existing_ireq:
+                    # NOTE: We check equality here since we can assume that the
+                    # requirements are all pinned
+                    if ireq.specifier != existing_ireq.specifier:
+                        raise IncompatibleRequirements(ireq, existing_ireq)
 
-        # TODO: Always pick the largest specifier in case of a conflict
-        by_key[key] = ireq
+            # TODO: Always pick the largest specifier in case of a conflict
+            by_key[key] = ireq
     return by_key.values()
 
 

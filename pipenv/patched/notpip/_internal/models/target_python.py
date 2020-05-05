@@ -6,7 +6,8 @@ from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import List, Optional, Tuple
-    from pipenv.patched.notpip._internal.pep425tags import Pep425Tag
+
+    from pipenv.patched.notpip._vendor.packaging.tags import Tag
 
 
 class TargetPython(object):
@@ -55,7 +56,7 @@ class TargetPython(object):
         self.py_version_info = py_version_info
 
         # This is used to cache the return value of get_tags().
-        self._valid_tags = None  # type: Optional[List[Pep425Tag]]
+        self._valid_tags = None  # type: Optional[List[Tag]]
 
     def format_given(self):
         # type: () -> str
@@ -80,7 +81,7 @@ class TargetPython(object):
         )
 
     def get_tags(self):
-        # type: () -> List[Pep425Tag]
+        # type: () -> List[Tag]
         """
         Return the supported PEP 425 tags to check wheel candidates against.
 
@@ -91,12 +92,12 @@ class TargetPython(object):
             # versions=None uses special default logic.
             py_version_info = self._given_py_version_info
             if py_version_info is None:
-                versions = None
+                version = None
             else:
-                versions = [version_info_to_nodot(py_version_info)]
+                version = version_info_to_nodot(py_version_info)
 
             tags = get_supported(
-                versions=versions,
+                version=version,
                 platform=self.platform,
                 abi=self.abi,
                 impl=self.implementation,

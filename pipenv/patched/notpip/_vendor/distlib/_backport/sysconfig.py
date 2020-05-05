@@ -119,11 +119,9 @@ def _expand_globals(config):
 
 #_expand_globals(_SCHEMES)
 
- # FIXME don't rely on sys.version here, its format is an implementation detail
- # of CPython, use sys.version_info or sys.hexversion
-_PY_VERSION = sys.version.split()[0]
-_PY_VERSION_SHORT = sys.version[:3]
-_PY_VERSION_SHORT_NO_DOT = _PY_VERSION[0] + _PY_VERSION[2]
+_PY_VERSION = '%s.%s.%s' % sys.version_info[:3]
+_PY_VERSION_SHORT = '%s.%s' % sys.version_info[:2]
+_PY_VERSION_SHORT_NO_DOT = '%s%s' % sys.version_info[:2]
 _PREFIX = os.path.normpath(sys.prefix)
 _EXEC_PREFIX = os.path.normpath(sys.exec_prefix)
 _CONFIG_VARS = None

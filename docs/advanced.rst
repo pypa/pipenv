@@ -41,7 +41,7 @@ Very fancy.
 ☤ Using a PyPI Mirror
 ----------------------------
 
-If you'd like to override the default PyPI index urls with the url for a PyPI mirror, you can use the following::
+If you would like to override the default PyPI index URLs with the URL for a PyPI mirror, you can use the following::
 
     $ pipenv install --pypi-mirror <mirror_url>
 
@@ -237,16 +237,15 @@ Example::
 
 .. note::
 
-   In order to enable this functionality while maintaining its permissive
-   copyright license, `pipenv` embeds an API client key for the backend
-   Safety API operated by pyup.io rather than including a full copy of the
-   CC-BY-NC-SA licensed Safety-DB database. This embedded client key is
-   shared across all `pipenv check` users, and hence will be subject to
-   API access throttling based on overall usage rather than individual
-   client usage.
+   Each month, `PyUp.io` updates the ``safety`` database of
+   insecure Python packages and `makes it available to the
+   community for free <https://pyup.io/safety/>`__. Pipenv
+   makes an API call to retrieve those results and use them
+   each time you run ``pipenv check`` to show you vulnerable
+   dependencies.
 
-   You can also use your own safety API key by setting the
-   environment variable ``PIPENV_PYUP_API_KEY``.
+   For more up-to-date vulnerability data, you may also use your own safety
+   API key by setting the environment variable ``PIPENV_PYUP_API_KEY``.
 
 
 ☤ Community Integrations
@@ -468,7 +467,7 @@ In addition, you can also have Pipenv stick the virtualenv in ``project/.venv`` 
 
 Pipenv is being used in projects like `Requests`_ for declaring development dependencies and running the test suite.
 
-We've currently tested deployments with both `Travis-CI`_ and `tox`_ with success.
+We have currently tested deployments with both `Travis-CI`_ and `tox`_ with success.
 
 Travis CI
 /////////
@@ -550,11 +549,11 @@ A 3rd party plugin, `tox-pipenv`_ is also available to use Pipenv natively with 
 ☤ Shell Completion
 ------------------
 
-To enable completion in fish, add this to your config::
+To enable completion in fish, add this to your configuration::
 
     eval (pipenv --completion)
 
-Alternatively, with bash or zsh, add this to your config::
+Alternatively, with bash or zsh, add this to your configuration::
 
     eval "$(pipenv --completion)"
 
@@ -588,9 +587,9 @@ at all, use the `PIP_IGNORE_INSTALLED` setting::
 
 There is a subtle but very important distinction to be made between **applications** and **libraries**. This is a very common source of confusion in the Python community.
 
-Libraries provide reusable functionality to other libraries and applications (let's use the umbrella term **projects** here). They are required to work alongside other libraries, all with their own set of subdependencies. They define **abstract dependencies**. To avoid version conflicts in subdependencies of different libraries within a project, libraries should never ever pin dependency versions. Although they may specify lower or (less frequently) upper bounds, if they rely on some specific feature/fix/bug. Library dependencies are specified via ``install_requires`` in ``setup.py``.
+Libraries provide reusable functionality to other libraries and applications (let's use the umbrella term **projects** here). They are required to work alongside other libraries, all with their own set of sub-dependencies. They define **abstract dependencies**. To avoid version conflicts in sub-dependencies of different libraries within a project, libraries should never ever pin dependency versions. Although they may specify lower or (less frequently) upper bounds, if they rely on some specific feature/fix/bug. Library dependencies are specified via ``install_requires`` in ``setup.py``.
 
-Libraries are ultimately meant to be used in some **application**. Applications are different in that they usually are not depended on by other projects. They are meant to be deployed into some specific environment and only then should the exact versions of all their dependencies and subdependencies be made concrete. To make this process easier is currently the main goal of Pipenv.
+Libraries are ultimately meant to be used in some **application**. Applications are different in that they usually are not depended on by other projects. They are meant to be deployed into some specific environment and only then should the exact versions of all their dependencies and sub-dependencies be made concrete. To make this process easier is currently the main goal of Pipenv.
 
 To summarize:
 

@@ -121,7 +121,7 @@ def _has_ipv6(host):
         # has_ipv6 returns true if cPython was compiled with IPv6 support.
         # It does not tell us if the system has IPv6 support enabled. To
         # determine that we must bind to an IPv6 address.
-        # https://github.com/shazow/urllib3/pull/611
+        # https://github.com/urllib3/urllib3/pull/611
         # https://bugs.python.org/issue658327
         try:
             sock = socket.socket(socket.AF_INET6)

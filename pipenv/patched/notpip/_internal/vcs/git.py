@@ -12,7 +12,7 @@ from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
 from pipenv.patched.notpip._vendor.six.moves.urllib import request as urllib_request
 
 from pipenv.patched.notpip._internal.exceptions import BadCommand
-from pipenv.patched.notpip._internal.utils.misc import display_path
+from pipenv.patched.notpip._internal.utils.misc import display_path, hide_url
 from pipenv.patched.notpip._internal.utils.subprocess import make_command
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
@@ -58,6 +58,23 @@ class Git(VersionControl):
     @staticmethod
     def get_base_rev_args(rev):
         return [rev]
+
+    def is_immutable_rev_checkout(self, url, dest):
+        # type: (str, str) -> bool
+        _, rev_options = self.get_url_rev_options(hide_url(url))
+        if not rev_options.rev:
+            return False
+        if not self.is_commit_id_equal(dest, rev_options.rev):
+            # the current commit is different from rev,
+            # which means rev was something else than a commit hash
+            return False
+        # return False in the rare case rev is both a commit hash
+        # and a tag or a branch; we don't want to cache in that case
+        # because that branch/tag could point to something else in the future
+        is_tag_or_branch = bool(
+            self.get_revision_sha(dest, rev_options.rev)[0]
+        )
+        return not is_tag_or_branch
 
     def get_git_version(self):
         VERSION_PFX = 'git version '

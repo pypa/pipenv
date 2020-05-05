@@ -379,10 +379,8 @@ fake-package = "*"
         assert c.return_code == 0
         c = p.pipenv('lock -r --pypi-mirror {0}'.format(mirror_url))
         assert c.return_code == 0
-        assert '-i https://pypi.org/simple' in c.out.strip()
+        assert '-i {0}'.format(mirror_url) in c.out.strip()
         assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
-        # Mirror url should not have replaced source URLs
-        assert '-i {0}'.format(mirror_url) not in c.out.strip()
         assert '--extra-index-url {}'.format(mirror_url) not in c.out.strip()
 
 
