@@ -181,6 +181,8 @@ def format_requirement(ireq, marker=None, hashes=None):
     """
     if ireq.editable:
         line = "-e {}".format(ireq.link.url)
+    elif ireq.link and ireq.link.is_vcs:
+        line = str(ireq.req)
     elif is_url_requirement(ireq):
         line = ireq.link.url
     else:

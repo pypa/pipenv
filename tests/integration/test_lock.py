@@ -494,6 +494,9 @@ requests = {git = "https://github.com/psf/requests.git", editable = true, extras
         assert "socks" in p.lockfile["default"]["requests"]["extras"]
         c = p.pipenv('install')
         assert c.return_code == 0
+        assert "requests" in p.lockfile["default"]
+        # For backward compatibility we want to make sure not to include the 'version' key
+        assert "version" not in p.lockfile["default"]["requests"]
 
 
 @pytest.mark.vcs
@@ -658,4 +661,19 @@ six = "*"
         c = p.pipenv("lock --clear")
         assert c.return_code == 0
         assert "index" in p.lockfile["default"]["six"]
-        assert p.lockfile["default"]["six"]["index"] == "custom", Path(p.lockfile_path).read_text()  # p.lockfile["default"]["six"]
+        assert p.lockfile["default"]["six"]["index"] == "custom", Path(p.lockfile_path).read_text()
+
+
+@pytest.mark.lock
+def test_lock_nested_direct_url(PipenvInstance):
+    """
+    The dependency 'test_package' has a declared dependency on
+    a PEP508 style VCS URL. This ensures that we capture the dependency
+    here along with its own dependencies.
+    """
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv("install test_package")
+        assert c.return_code == 0
+        assert "vistir" in p.lockfile["default"]
+        assert "colorama" in p.lockfile["default"]
+        assert "six" in p.lockfile["default"]
