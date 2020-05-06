@@ -351,6 +351,42 @@ def find_a_system_python(line):
     return python_entry
 
 
+def find_python_installer(name, env_var):
+    """
+    Given a python installer (pyenv or asdf), try to locate the binary for that
+    installer.
+
+    pyenv/asdf are not always present on PATH. Both installers also support a
+    custom environment variable (PYENV_ROOT or ASDF_DIR) which alows them to
+    be installed into a non-default location (the default/suggested source
+    install location is in ~/.pyenv or ~/.asdf).
+
+    For systems without the installers on PATH, and with a custom location
+    (e.g. /opt/pyenv), Pipenv can use those installers without modifications to
+    PATH, and only with their respective environment variables in a .env file.
+    This is desirable, since setting PATH in an .env file is annoying due to
+    the common need to reference the pre-existing PATH variable, which is not
+    supported in .env.
+
+    This function searches for installer binaries using PATH, their respective
+    environment variables, and their respective default install locations. This
+    allows Pipenv to use those installers regardless of shell configuration, so
+    long as PYENV_ROOT or ASDF_DIR is specified in an .env file.
+    """
+    for candidate in (
+        # Look for the Python installer using the equivalent of 'which'. On
+        # Homebrew-installed systems, the env var may not be set, but this
+        # strategy will work.
+        find_windows_executable('', name),
+        # Check for explicitly set install locations (e.g. PYENV_ROOT, ASDF_DIR).
+        os.path.join(os.path.expanduser(os.getenv(env_var, '/dev/null')), 'bin', name),
+        # Check the pyenv/asdf-recommended from-source install locations
+        os.path.join(os.path.expanduser('~/.{}'.format(name)), 'bin', name),
+    ):
+        if candidate is not None and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+
+
 def ensure_python(three=None, python=None):
     # Support for the PIPENV_PYTHON environment variable.
     from .environments import PIPENV_PYTHON
@@ -395,18 +431,20 @@ def ensure_python(three=None, python=None):
             err=True,
         )
         # check for python installers
-        from .vendor.pythonfinder.environment import PYENV_INSTALLED, ASDF_INSTALLED
         from .installers import Pyenv, Asdf, InstallerError
 
         # prefer pyenv if both pyenv and asdf are installed as it's
         # dedicated to python installs so probably the preferred
         # method of the user for new python installs.
-        if PYENV_INSTALLED and not PIPENV_DONT_USE_PYENV:
-            installer = Pyenv("pyenv")
-        elif ASDF_INSTALLED and not PIPENV_DONT_USE_ASDF:
-            installer = Asdf("asdf")
-        else:
-            installer = None
+        installer = None
+        if not PIPENV_DONT_USE_PYENV:
+            pyenv_path = find_python_installer('pyenv', 'PYENV_ROOT')
+            if pyenv_path is not None:
+                installer = Pyenv(pyenv_path)
+        if installer is None and not PIPENV_DONT_USE_ASDF:
+            asdf_path = find_python_installer('asdf', 'ASDF_DIR')
+            if asdf_path is not None:
+                installer = Asdf(asdf_path)
 
         if not installer:
             abort()
@@ -2932,3 +2970,4 @@ def do_clean(
             if c.return_code != 0:
                 failure = True
     sys.exit(int(failure))
+
