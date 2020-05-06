@@ -1,0 +1,1 @@
+Fixed a bug which caused versions from VCS dependencies to be included in ``Pipfile.lock`` inadvertently.

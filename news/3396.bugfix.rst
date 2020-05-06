@@ -1,0 +1,1 @@
+Dependencies with direct ``PEP508`` compliant VCS URLs specified in their ``install_requires`` will now be successfully locked during the resolution process.
