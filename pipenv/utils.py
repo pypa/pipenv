@@ -764,7 +764,7 @@ class Resolver(object):
             from pipenv.patched.piptools.repositories.pypi import PyPIRepository
             self._repository = PyPIRepository(
                 self.pip_args, use_json=False, session=self.session,
-                build_isolation=False
+                build_isolation=self.pip_options.build_isolation
             )
         return self._repository
 
