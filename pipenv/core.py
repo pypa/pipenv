@@ -2970,4 +2970,3 @@ def do_clean(
             if c.return_code != 0:
                 failure = True
     sys.exit(int(failure))
-
