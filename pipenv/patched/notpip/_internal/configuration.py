@@ -13,7 +13,6 @@ Some terminology:
 
 # The following comment should be removed at some point in the future.
 # mypy: strict-optional=False
-# mypy: disallow-untyped-defs=False
 
 import locale
 import logging
@@ -78,6 +77,7 @@ CONFIG_BASENAME = 'pip.ini' if WINDOWS else 'pip.conf'
 
 
 def get_configuration_files():
+    # type: () -> Dict[Kind, List[str]]
     global_config_files = [
         os.path.join(path, CONFIG_BASENAME)
         for path in appdirs.site_config_dirs('pip')

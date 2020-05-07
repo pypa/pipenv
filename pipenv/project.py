@@ -790,7 +790,7 @@ class Project(object):
         except Exception:
             document = tomlkit.document()
             for section in ("packages", "dev-packages"):
-                document[section] = tomlkit.container.Table()
+                document[section] = tomlkit.table()
                 # Convert things to inline tables — fancy :)
                 for package in data.get(section, {}):
                     if hasattr(data[section][package], "keys"):

@@ -26,8 +26,7 @@ from pipenv.patched.notpip import __version__
 from pipenv.patched.notpip._internal.network.auth import MultiDomainBasicAuth
 from pipenv.patched.notpip._internal.network.cache import SafeFileCache
 # Import ssl from compat so the initial import occurs in only one place.
-from pipenv.patched.notpip._internal.utils.compat import HAS_TLS, ipaddress, ssl
-from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
+from pipenv.patched.notpip._internal.utils.compat import has_tls, ipaddress
 from pipenv.patched.notpip._internal.utils.glibc import libc_ver
 from pipenv.patched.notpip._internal.utils.misc import (
     build_url_from_netloc,
@@ -153,7 +152,8 @@ def user_agent():
     if platform.machine():
         data["cpu"] = platform.machine()
 
-    if HAS_TLS:
+    if has_tls():
+        import _ssl as ssl
         data["openssl_version"] = ssl.OPENSSL_VERSION
 
     setuptools_version = get_installed_version("setuptools")
@@ -212,8 +212,9 @@ class LocalFSAdapter(BaseAdapter):
 class InsecureHTTPAdapter(HTTPAdapter):
 
     def cert_verify(self, conn, url, verify, cert):
-        conn.cert_reqs = 'CERT_NONE'
-        conn.ca_certs = None
+        super(InsecureHTTPAdapter, self).cert_verify(
+            conn=conn, url=url, verify=False, cert=cert
+        )
 
 
 class PipSession(requests.Session):
@@ -261,19 +262,6 @@ class PipSession(requests.Session):
             # order to prevent hammering the service.
             backoff_factor=0.25,
         )
-
-        # Check to ensure that the directory containing our cache directory
-        # is owned by the user current executing pip. If it does not exist
-        # we will check the parent directory until we find one that does exist.
-        if cache and not check_path_owner(cache):
-            logger.warning(
-                "The directory '%s' or its parent directory is not owned by "
-                "the current user and the cache has been disabled. Please "
-                "check the permissions and owner of that directory. If "
-                "executing pip with sudo, you may want sudo's -H flag.",
-                cache,
-            )
-            cache = None
 
         # We want to _only_ cache responses on securely fetched origins. We do
         # this because we can't validate the response of an insecurely fetched
@@ -360,22 +348,13 @@ class PipSession(requests.Session):
                 continue
 
             try:
-                # We need to do this decode dance to ensure that we have a
-                # unicode object, even on Python 2.x.
                 addr = ipaddress.ip_address(
-                    origin_host
-                    if (
-                        isinstance(origin_host, six.text_type) or
-                        origin_host is None
-                    )
-                    else origin_host.decode("utf8")
+                    None
+                    if origin_host is None
+                    else six.ensure_text(origin_host)
                 )
                 network = ipaddress.ip_network(
-                    secure_host
-                    if isinstance(secure_host, six.text_type)
-                    # setting secure_host to proper Union[bytes, str]
-                    # creates problems in other places
-                    else secure_host.decode("utf8")  # type: ignore
+                    six.ensure_text(secure_host)
                 )
             except ValueError:
                 # We don't have both a valid address or a valid network, so

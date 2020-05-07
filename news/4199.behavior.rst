@@ -1,0 +1,1 @@
+Make sure `pipenv lock -r --pypi-mirror {MIRROR_URL}` will respect the pypi-mirror in requirements output.

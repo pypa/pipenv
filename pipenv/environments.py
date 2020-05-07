@@ -160,7 +160,7 @@ PIPENV_SPINNER = "dots" if not os.name == "nt" else "bouncingBar"
 PIPENV_SPINNER = os.environ.get("PIPENV_SPINNER", PIPENV_SPINNER)
 """Sets the default spinner type.
 
-Spinners are identitcal to the node.js spinners and can be found at
+Spinners are identical to the ``node.js`` spinners and can be found at
 https://github.com/sindresorhus/cli-spinners
 """
 
@@ -244,10 +244,14 @@ NOTE: This only affects the ``install`` and ``uninstall`` commands.
 PIP_EXISTS_ACTION = os.environ.get("PIP_EXISTS_ACTION", "w")
 """Specifies the value for pip's --exists-action option
 
-Defaullts to (w)ipe
+Defaults to ``(w)ipe``
 """
 
-PIPENV_RESOLVE_VCS = _is_env_truthy(os.environ.get("PIPENV_RESOLVE_VCS", 'true'))
+PIPENV_RESOLVE_VCS = (
+    os.environ.get("PIPENV_RESOLVE_VCS") is None
+    or _is_env_truthy("PIPENV_RESOLVE_VCS")
+)
+
 """Tells Pipenv whether to resolve all VCS dependencies in full.
 
 As of Pipenv 2018.11.26, only editable VCS dependencies were resolved in full.

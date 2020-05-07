@@ -108,13 +108,6 @@ class AppEngineManager(RequestMethods):
                 "URLFetch is not available in this environment."
             )
 
-        if is_prod_appengine_mvms():
-            raise AppEnginePlatformError(
-                "Use normal urllib3.PoolManager instead of AppEngineManager"
-                "on Managed VMs, as using URLFetch is not necessary in "
-                "this environment."
-            )
-
         warnings.warn(
             "urllib3 is using URLFetch on Google App Engine sandbox instead "
             "of sockets. To use sockets directly instead of URLFetch see "

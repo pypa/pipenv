@@ -55,7 +55,7 @@ IPV6_PAT = "(?:" + "|".join([x % _subs for x in _variations]) + ")"
 ZONE_ID_PAT = "(?:%25|%)(?:[" + UNRESERVED_PAT + "]|%[a-fA-F0-9]{2})+"
 IPV6_ADDRZ_PAT = r"\[" + IPV6_PAT + r"(?:" + ZONE_ID_PAT + r")?\]"
 REG_NAME_PAT = r"(?:[^\[\]%:/?#]|%[a-fA-F0-9]{2})*"
-TARGET_RE = re.compile(r"^(/[^?]*)(?:\?([^#]+))?(?:#(.*))?$")
+TARGET_RE = re.compile(r"^(/[^?#]*)(?:\?([^#]*))?(?:#.*)?$")
 
 IPV4_RE = re.compile("^" + IPV4_PAT + "$")
 IPV6_RE = re.compile("^" + IPV6_PAT + "$")
@@ -325,14 +325,11 @@ def _encode_target(target):
     if not target.startswith("/"):
         return target
 
-    path, query, fragment = TARGET_RE.match(target).groups()
+    path, query = TARGET_RE.match(target).groups()
     target = _encode_invalid_chars(path, PATH_CHARS)
     query = _encode_invalid_chars(query, QUERY_CHARS)
-    fragment = _encode_invalid_chars(fragment, FRAGMENT_CHARS)
     if query is not None:
         target += "?" + query
-    if fragment is not None:
-        target += "#" + target
     return target
 
 

@@ -18,7 +18,6 @@
 #
 import os
 
-
 # Path hackery to get current version number.
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -41,6 +40,7 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
     'sphinx_click.ext',
+    'sphinxcontrib.spelling',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -87,6 +87,8 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
+spelling_word_list_filename = "spelling_wordlist.txt"
+spelling_show_suggestions = True
 
 # -- Options for HTML output ----------------------------------------------
 

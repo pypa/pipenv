@@ -2,7 +2,6 @@
 
 # The following comment should be removed at some point in the future.
 # mypy: strict-optional=False
-# mypy: disallow-untyped-defs=False
 
 from __future__ import absolute_import
 
@@ -14,14 +13,18 @@ import sys
 import sysconfig
 from distutils import sysconfig as distutils_sysconfig
 from distutils.command.install import SCHEME_KEYS  # type: ignore
+from distutils.command.install import install as distutils_install_command
 
+from pipenv.patched.notpip._internal.models.scheme import Scheme
 from pipenv.patched.notpip._internal.utils import appdirs
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING, cast
 from pipenv.patched.notpip._internal.utils.virtualenv import running_under_virtualenv
 
 if MYPY_CHECK_RUNNING:
-    from typing import Any, Union, Dict, List, Optional
+    from typing import Dict, List, Optional, Union
+
+    from distutils.cmd import Command as DistutilsCommand
 
 
 # Application Directories
@@ -38,6 +41,7 @@ def get_major_minor_version():
 
 
 def get_src_prefix():
+    # type: () -> str
     if running_under_virtualenv():
         src_prefix = os.path.join(sys.prefix, 'src')
     else:
@@ -88,29 +92,25 @@ else:
         bin_py = '/usr/local/bin'
 
 
-def distutils_scheme(dist_name, user=False, home=None, root=None,
-                     isolated=False, prefix=None):
-    # type:(str, bool, str, str, bool, str) -> dict
+def distutils_scheme(
+    dist_name, user=False, home=None, root=None, isolated=False, prefix=None
+):
+    # type:(str, bool, str, str, bool, str) -> Dict[str, str]
     """
     Return a distutils install scheme
     """
     from distutils.dist import Distribution
 
-    scheme = {}
-
-    if isolated:
-        extra_dist_args = {"script_args": ["--no-user-cfg"]}
-    else:
-        extra_dist_args = {}
     dist_args = {'name': dist_name}  # type: Dict[str, Union[str, List[str]]]
-    dist_args.update(extra_dist_args)
+    if isolated:
+        dist_args["script_args"] = ["--no-user-cfg"]
 
     d = Distribution(dist_args)
-    # Ignoring, typeshed issue reported python/typeshed/issues/2567
     d.parse_config_files()
-    # NOTE: Ignoring type since mypy can't find attributes on 'Command'
-    i = d.get_command_obj('install', create=True)  # type: Any
-    assert i is not None
+    obj = None  # type: Optional[DistutilsCommand]
+    obj = d.get_command_obj('install', create=True)
+    assert obj is not None
+    i = cast(distutils_install_command, obj)
     # NOTE: setting user or home has the side-effect of creating the home dir
     # or user base for installations during finalize_options()
     # ideally, we'd prefer a scheme class that has no side-effects.
@@ -123,6 +123,8 @@ def distutils_scheme(dist_name, user=False, home=None, root=None,
     i.home = home or i.home
     i.root = root or i.root
     i.finalize_options()
+
+    scheme = {}
     for key in SCHEME_KEYS:
         scheme[key] = getattr(i, 'install_' + key)
 
@@ -131,9 +133,7 @@ def distutils_scheme(dist_name, user=False, home=None, root=None,
     # platlib).  Note, i.install_lib is *always* set after
     # finalize_options(); we only want to override here if the user
     # has explicitly requested it hence going back to the config
-
-    # Ignoring, typeshed issue reported python/typeshed/issues/2567
-    if 'install_lib' in d.get_option_dict('install'):  # type: ignore
+    if 'install_lib' in d.get_option_dict('install'):
         scheme.update(dict(purelib=i.install_lib, platlib=i.install_lib))
 
     if running_under_virtualenv():
@@ -154,3 +154,41 @@ def distutils_scheme(dist_name, user=False, home=None, root=None,
             )
 
     return scheme
+
+
+def get_scheme(
+    dist_name,  # type: str
+    user=False,  # type: bool
+    home=None,  # type: Optional[str]
+    root=None,  # type: Optional[str]
+    isolated=False,  # type: bool
+    prefix=None,  # type: Optional[str]
+):
+    # type: (...) -> Scheme
+    """
+    Get the "scheme" corresponding to the input parameters. The distutils
+    documentation provides the context for the available schemes:
+    https://docs.python.org/3/install/index.html#alternate-installation
+
+    :param dist_name: the name of the package to retrieve the scheme for, used
+        in the headers scheme path
+    :param user: indicates to use the "user" scheme
+    :param home: indicates to use the "home" scheme and provides the base
+        directory for the same
+    :param root: root under which other directories are re-based
+    :param isolated: equivalent to --no-user-cfg, i.e. do not consider
+        ~/.pydistutils.cfg (posix) or ~/pydistutils.cfg (non-posix) for
+        scheme paths
+    :param prefix: indicates to use the "prefix" scheme and provides the
+        base directory for the same
+    """
+    scheme = distutils_scheme(
+        dist_name, user, home, root, isolated, prefix
+    )
+    return Scheme(
+        platlib=scheme["platlib"],
+        purelib=scheme["purelib"],
+        headers=scheme["headers"],
+        scripts=scheme["scripts"],
+        data=scheme["data"],
+    )

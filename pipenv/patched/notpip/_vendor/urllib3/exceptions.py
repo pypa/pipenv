@@ -222,7 +222,7 @@ class IncompleteRead(HTTPError, httplib_IncompleteRead):
         super(IncompleteRead, self).__init__(partial, expected)
 
     def __repr__(self):
-        return "IncompleteRead(%i bytes read, " "%i more expected)" % (
+        return "IncompleteRead(%i bytes read, %i more expected)" % (
             self.partial,
             self.expected,
         )

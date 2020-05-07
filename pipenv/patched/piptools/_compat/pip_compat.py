@@ -34,6 +34,12 @@ def do_import(module_path, subimport=None, old_path=None):
         else:
             return getattr(imported, package)
 
+if PIP_VERSION[:2] <= (20, 0):
+    def install_req_from_parsed_requirement(req, **kwargs):
+        return req
+
+else:
+    from pipenv.patched.notpip._internal.req.constructors import install_req_from_parsed_requirement
 
 InstallRequirement = pip_shims.shims.InstallRequirement
 InstallationError = pip_shims.shims.InstallationError
@@ -58,37 +64,14 @@ Resolver = pip_shims.shims.Resolver
 VcsSupport = pip_shims.shims.VcsSupport
 WheelCache = pip_shims.shims.WheelCache
 pip_version = pip_shims.shims.pip_version
+normalize_path = do_import("utils.misc", "normalize_path")
+install_req_from_line = pip_shims.shims.install_req_from_line
+install_req_from_editable = pip_shims.shims.install_req_from_editable
 
-# pip 18.1 has refactored InstallRequirement constructors use by pip-tools.
-if PIP_VERSION < (18, 1):
-    install_req_from_line = InstallRequirement.from_line
-    install_req_from_editable = InstallRequirement.from_editable
-else:
-    install_req_from_line = do_import("req.constructors", "install_req_from_line")
-    install_req_from_editable = do_import(
-        "req.constructors", "install_req_from_editable"
-    )
-
-
-def is_vcs_url(link):
-    if PIP_VERSION < (19, 3):
-        _is_vcs_url = do_import("download", "is_vcs_url")
-        return _is_vcs_url(link)
-
-    return link.is_vcs
-
-
-def is_file_url(link):
-    if PIP_VERSION < (19, 3):
-        _is_file_url = do_import("download", "is_file_url")
-        return _is_file_url(link)
-
-    return link.is_file
-
-
-def is_dir_url(link):
-    if PIP_VERSION < (19, 3):
-        _is_dir_url = do_import("download", "is_dir_url")
-        return _is_dir_url(link)
-
-    return link.is_existing_dir()
+def parse_requirements(
+    filename, session, finder=None, options=None, constraint=False, isolated=False
+):
+    for parsed_req in _parse_requirements(
+        filename, session, finder=finder, options=options, constraint=constraint
+    ):
+        yield install_req_from_parsed_requirement(parsed_req, isolated=isolated)

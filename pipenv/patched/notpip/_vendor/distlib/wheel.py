@@ -684,7 +684,7 @@ class Wheel(object):
         if cache is None:
             # Use native string to avoid issues on 2.x: see Python #20140.
             base = os.path.join(get_cache_base(), str('dylib-cache'),
-                                sys.version[:3])
+                                '%s.%s' % sys.version_info[:2])
             cache = Cache(base)
         return cache
 

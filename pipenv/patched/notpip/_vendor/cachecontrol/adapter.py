@@ -24,7 +24,7 @@ class CacheControlAdapter(HTTPAdapter):
         **kw
     ):
         super(CacheControlAdapter, self).__init__(*args, **kw)
-        self.cache = cache or DictCache()
+        self.cache = DictCache() if cache is None else cache
         self.heuristic = heuristic
         self.cacheable_methods = cacheable_methods or ("GET",)
 

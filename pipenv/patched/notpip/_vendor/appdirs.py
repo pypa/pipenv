@@ -37,6 +37,10 @@ if sys.platform.startswith('java'):
         # are actually checked for and the rest of the module expects
         # *sys.platform* style strings.
         system = 'linux2'
+elif sys.platform == 'cli' and os.name == 'nt':
+    # Detect Windows in IronPython to match pip._internal.utils.compat.WINDOWS
+    # Discussion: <https://github.com/pypa/pip/pull/7501>
+    system = 'win32'
 else:
     system = sys.platform
 
@@ -64,7 +68,7 @@ def user_data_dir(appname=None, appauthor=None, version=None, roaming=False):
             for a discussion of issues.
 
     Typical user data directories are:
-        Mac OS X:               ~/Library/Application Support/<AppName>
+        Mac OS X:               ~/Library/Application Support/<AppName>  # or ~/.config/<AppName>, if the other does not exist
         Unix:                   ~/.local/share/<AppName>    # or in $XDG_DATA_HOME, if defined
         Win XP (not roaming):   C:\Documents and Settings\<username>\Application Data\<AppAuthor>\<AppName>
         Win XP (roaming):       C:\Documents and Settings\<username>\Local Settings\Application Data\<AppAuthor>\<AppName>
@@ -88,6 +92,10 @@ def user_data_dir(appname=None, appauthor=None, version=None, roaming=False):
         path = os.path.expanduser('~/Library/Application Support/')
         if appname:
             path = os.path.join(path, appname)
+        if not os.path.isdir(path):
+            path = os.path.expanduser('~/.config/')
+            if appname:
+                path = os.path.join(path, appname)
     else:
         path = os.getenv('XDG_DATA_HOME', os.path.expanduser("~/.local/share"))
         if appname:
@@ -150,7 +158,7 @@ def site_data_dir(appname=None, appauthor=None, version=None, multipath=False):
         if appname:
             if version:
                 appname = os.path.join(appname, version)
-            pathlist = [os.sep.join([x, appname]) for x in pathlist]
+            pathlist = [os.path.join(x, appname) for x in pathlist]
 
         if multipath:
             path = os.pathsep.join(pathlist)
@@ -203,6 +211,8 @@ def user_config_dir(appname=None, appauthor=None, version=None, roaming=False):
     return path
 
 
+# for the discussion regarding site_config_dir locations
+# see <https://github.com/pypa/pip/issues/1733>
 def site_config_dir(appname=None, appauthor=None, version=None, multipath=False):
     r"""Return full path to the user-shared data dir for this application.
 
@@ -238,14 +248,17 @@ def site_config_dir(appname=None, appauthor=None, version=None, multipath=False)
         if appname and version:
             path = os.path.join(path, version)
     else:
-        # XDG default for $XDG_CONFIG_DIRS
+        # XDG default for $XDG_CONFIG_DIRS (missing or empty)
+        # see <https://github.com/pypa/pip/pull/7501#discussion_r360624829>
         # only first, if multipath is False
-        path = os.getenv('XDG_CONFIG_DIRS', '/etc/xdg')
-        pathlist = [os.path.expanduser(x.rstrip(os.sep)) for x in path.split(os.pathsep)]
+        path = os.getenv('XDG_CONFIG_DIRS') or '/etc/xdg'
+        pathlist = [os.path.expanduser(x.rstrip(os.sep)) for x in path.split(os.pathsep) if x]
         if appname:
             if version:
                 appname = os.path.join(appname, version)
-            pathlist = [os.sep.join([x, appname]) for x in pathlist]
+            pathlist = [os.path.join(x, appname) for x in pathlist]
+        # always look in /etc directly as well
+        pathlist.append('/etc')
 
         if multipath:
             path = os.pathsep.join(pathlist)
@@ -291,6 +304,10 @@ def user_cache_dir(appname=None, appauthor=None, version=None, opinion=True):
         if appauthor is None:
             appauthor = appname
         path = os.path.normpath(_get_win_folder("CSIDL_LOCAL_APPDATA"))
+        # When using Python 2, return paths as bytes on Windows like we do on
+        # other operating systems. See helper function docs for more details.
+        if not PY3 and isinstance(path, unicode):
+            path = _win_path_to_bytes(path)
         if appname:
             if appauthor is not False:
                 path = os.path.join(path, appauthor, appname)
@@ -565,6 +582,24 @@ if system == "win32":
             _get_win_folder = _get_win_folder_with_jna
         except ImportError:
             _get_win_folder = _get_win_folder_from_registry
+
+
+def _win_path_to_bytes(path):
+    """Encode Windows paths to bytes. Only used on Python 2.
+
+    Motivation is to be consistent with other operating systems where paths
+    are also returned as bytes. This avoids problems mixing bytes and Unicode
+    elsewhere in the codebase. For more details and discussion see
+    <https://github.com/pypa/pip/issues/3463>.
+
+    If encoding using ASCII and MBCS fails, return the original Unicode path.
+    """
+    for encoding in ('ASCII', 'MBCS'):
+        try:
+            return path.encode(encoding)
+        except (UnicodeEncodeError, LookupError):
+            pass
+    return path
 
 
 #---- self test code
