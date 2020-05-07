@@ -226,7 +226,9 @@ def install(
     **kwargs
 ):
     """Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile."""
-    from ..core import do_install
+    from ..core import do_install, load_dot_env
+
+    load_dot_env()
 
     retcode = do_install(
         dev=state.installstate.dev,
