@@ -78,6 +78,7 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
 
 @pytest.mark.utils
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
+@pytest.mark.needs_internet
 def test_convert_deps_to_pip(monkeypatch, deps, expected):
     with monkeypatch.context() as m:
         import pip_shims
@@ -223,6 +224,7 @@ class TestUtils:
         assert pipenv.utils.is_valid_url(not_url) is False
 
     @pytest.mark.utils
+    @pytest.mark.needs_internet
     def test_download_file(self):
         url = "https://github.com/pypa/pipenv/blob/master/README.md"
         output = "test_download.md"
