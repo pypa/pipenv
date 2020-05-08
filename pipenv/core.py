@@ -164,7 +164,7 @@ def load_dot_env():
                     err=True,
                 )
         dotenv.load_dotenv(dotenv_file, override=True)
-        reload(environments)
+        six.moves.reload_module(environments)
 
 def add_to_path(p):
     """Adds a given path to the PATH."""
