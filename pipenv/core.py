@@ -164,7 +164,7 @@ def load_dot_env():
                     err=True,
                 )
         dotenv.load_dotenv(dotenv_file, override=True)
-
+        reload(environments)
 
 def add_to_path(p):
     """Adds a given path to the PATH."""
@@ -388,8 +388,8 @@ def find_python_installer(name, env_var):
 
 
 def ensure_python(three=None, python=None):
-    # Support for the PIPENV_PYTHON environment variable.
-    from .environments import PIPENV_PYTHON
+    # Runtime import is necessary due to the possibility that the environments module may have been reloaded.
+    from .environments import PIPENV_PYTHON, PIPENV_YES
 
     if PIPENV_PYTHON and python is False and three is None:
         python = PIPENV_PYTHON
