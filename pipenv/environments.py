@@ -24,6 +24,36 @@ def _is_env_truthy(name):
     return os.environ.get(name).lower() not in ("0", "false", "no", "off")
 
 
+def get_from_env(arg, prefix="PIPENV", check_for_negation=True):
+    """
+    Check the environment for a variable, returning its truthy or stringified value
+
+    For example, setting ``PIPENV_NO_RESOLVE_VCS=1`` would mean that
+    ``get_from_env("RESOLVE_VCS", prefix="PIPENV")`` would return ``False``.
+
+    :param str arg: The name of the variable to look for
+    :param str prefix: The prefix to attach to the variable, defaults to "PIPENV"
+    :param bool check_for_negation: Whether to check for ``<PREFIX>_NO_<arg>``, defaults
+        to True
+    :return: The value from the environment if available
+    :rtype: Optional[Union[str, bool]]
+    """
+    negative_lookup = "NO_{0}".format(arg)
+    positive_lookup = arg
+    if prefix:
+        positive_lookup = "{0}_{1}".format(prefix, arg)
+        negative_lookup = "{0}_{1}".format(prefix, negative_lookup)
+    if positive_lookup in os.environ:
+        if _is_env_truthy(positive_lookup):
+            return bool(os.environ[positive_lookup])
+        return os.environ[positive_lookup]
+    if negative_lookup in os.environ:
+        if _is_env_truthy(negative_lookup):
+            return not bool(os.environ[negative_lookup])
+        return os.environ[negative_lookup]
+    return None
+
+
 PIPENV_IS_CI = bool("CI" in os.environ or "TF_BUILD" in os.environ)
 
 # HACK: Prevent invalid shebangs with Homebrew-installed Python:

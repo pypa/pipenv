@@ -589,3 +589,17 @@ index 65e41bc7..9eabf28e 100644
  
  
  class AdjacentTempDirectory(TempDirectory):
+diff --git a/pipenv/patched/pip/__main__.py b/pipenv/patched/pip/__main__.py
+index 56f669fa..3c216189 100644
+--- a/pipenv/patched/pip/__main__.py
++++ b/pipenv/patched/pip/__main__.py
+@@ -11,7 +11,9 @@ if __package__ == '':
+     # Resulting path is the name of the wheel itself
+     # Add that to sys.path so we can import pip
+     path = os.path.dirname(os.path.dirname(__file__))
++    pipenv = os.path.dirname(os.path.dirname(path))
+     sys.path.insert(0, path)
++    sys.path.insert(0, pipenv)
+ 
+ from pip._internal.cli.main import main as _main  # isort:skip # noqa
+ 
