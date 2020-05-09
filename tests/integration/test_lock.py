@@ -386,6 +386,7 @@ fake-package = "*"
 
 @pytest.mark.lock
 @pytest.mark.install
+@pytest.mark.skip_windows
 @pytest.mark.needs_internet
 def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInstance):
     """
@@ -413,6 +414,7 @@ def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInst
 
 @pytest.mark.lock
 @pytest.mark.install
+@pytest.mark.skip_windows
 @pytest.mark.needs_internet
 def test_outdated_setuptools_with_pep517_cython_import_in_setuppy(PipenvInstance):
     """

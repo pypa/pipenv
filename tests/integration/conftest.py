@@ -133,6 +133,8 @@ def pytest_runtest_setup(item):
         sys.version_info[:2] == (3, 6)
     ):
         pytest.skip('test is skipped on python 3.6')
+    if item.get_closest_marker('skip_windows') is not None and (os.name == 'nt'):
+        pytest.skip('test does not run on windows')
 
 
 @pytest.fixture
