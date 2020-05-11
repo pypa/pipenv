@@ -236,14 +236,14 @@ class HackedPythonVersion(object):
     def __enter__(self):
         # Only inject when the value is valid
         if self.python_version:
-            os.environ["PIP_PYTHON_VERSION"] = str(self.python_version)
+            os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = str(self.python_version)
         if self.python_path:
             os.environ["PIP_PYTHON_PATH"] = str(self.python_path)
 
     def __exit__(self, *args):
         # Restore original Python version information.
         try:
-            del os.environ["PIP_PYTHON_VERSION"]
+            del os.environ["PIPENV_REQUESTED_PYTHON_VERSION"]
         except KeyError:
             pass
 
@@ -682,25 +682,21 @@ class Resolver(object):
             self._pip_command = self._get_pip_command()
         return self._pip_command
 
-    def prepare_pip_args(self, use_pep517=True, build_isolation=True):
+    def prepare_pip_args(self, use_pep517=False, build_isolation=True):
         pip_args = []
         if self.sources:
             pip_args = prepare_pip_source_args(self.sources, pip_args)
-        if not use_pep517:
+        if use_pep517 is False:
             pip_args.append("--no-use-pep517")
-        if not build_isolation:
+        if build_isolation is False:
             pip_args.append("--no-build-isolation")
         pip_args.extend(["--cache-dir", environments.PIPENV_CACHE_DIR])
         return pip_args
 
     @property
     def pip_args(self):
-        use_pep517 = False if (
-            os.environ.get("PIP_NO_USE_PEP517", None) is not None
-        ) else (True if os.environ.get("PIP_USE_PEP517", None) is not None else None)
-        build_isolation = False if (
-            os.environ.get("PIP_NO_BUILD_ISOLATION", None) is not None
-        ) else (True if os.environ.get("PIP_BUILD_ISOLATION", None) is not None else None)
+        use_pep517 = environments.get_from_env("USE_PEP517", prefix="PIP")
+        build_isolation = environments.get_from_env("BUILD_ISOLATION", prefix="PIP")
         if self._pip_args is None:
             self._pip_args = self.prepare_pip_args(
                 use_pep517=use_pep517, build_isolation=build_isolation
@@ -790,6 +786,7 @@ class Resolver(object):
         self._resolver = PiptoolsResolver(
             constraints=self.parsed_constraints, repository=self.repository,
             cache=DependencyCache(environments.PIPENV_CACHE_DIR), clear_caches=clear,
+            # TODO: allow users to toggle the 'allow unsafe' flag to resolve setuptools?
             prereleases=pre, allow_unsafe=False
         )
 
