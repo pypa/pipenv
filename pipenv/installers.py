@@ -1,3 +1,4 @@
+import os
 import operator
 import re
 from abc import ABCMeta, abstractmethod
@@ -5,6 +6,7 @@ from abc import ABCMeta, abstractmethod
 
 from .environments import PIPENV_INSTALL_TIMEOUT
 from .vendor import attr, delegator
+from .utils import find_windows_executable
 
 
 @attr.s
