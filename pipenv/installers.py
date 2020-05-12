@@ -1,5 +1,7 @@
 import operator
 import re
+from abc import ABCMeta, abstractmethod
+
 
 from .environments import PIPENV_INSTALL_TIMEOUT
 from .vendor import attr, delegator
@@ -48,6 +50,10 @@ class Version(object):
         return (self.major, self.minor) == (other.major, other.minor)
 
 
+class InstallerNotFound(RuntimeError):
+    pass
+
+
 class InstallerError(RuntimeError):
     def __init__(self, desc, c):
         super(InstallerError, self).__init__(desc)
@@ -56,12 +62,52 @@ class InstallerError(RuntimeError):
 
 
 class Installer(object):
+    __metaclass__ = ABCMeta
 
-    def __init__(self, cmd):
-        self._cmd = cmd
+    def __init__(self):
+        self._cmd = self._find_installer()
+        super(Installer, self).__init__()
 
-    def __str__(self):
-        return self._cmd
+    @abstractmethod
+    def _find_installer(self):
+        pass
+
+    @staticmethod
+    def _find_python_installer_by_name_and_env(name, env_var):
+        """
+        Given a python installer (pyenv or asdf), try to locate the binary for that
+        installer.
+
+        pyenv/asdf are not always present on PATH. Both installers also support a
+        custom environment variable (PYENV_ROOT or ASDF_DIR) which alows them to
+        be installed into a non-default location (the default/suggested source
+        install location is in ~/.pyenv or ~/.asdf).
+
+        For systems without the installers on PATH, and with a custom location
+        (e.g. /opt/pyenv), Pipenv can use those installers without modifications to
+        PATH, if an installer's respective environment variable is present in an
+        environment's .env file.
+
+        This function searches for installer binaries in the following locations,
+        by precedence:
+            1. On PATH, equivalent to which(1).
+            2. In the "bin" subdirectory of PYENV_ROOT or ASDF_DIR, depending on the
+               installer.
+            3. In ~/.pyenv/bin or ~/.asdf/bin, depending on the installer.
+        """
+        for candidate in (
+            # Look for the Python installer using the equivalent of 'which'. On
+            # Homebrew-installed systems, the env var may not be set, but this
+            # strategy will work.
+            find_windows_executable('', name),
+            # Check for explicitly set install locations (e.g. PYENV_ROOT, ASDF_DIR).
+            os.path.join(os.path.expanduser(os.getenv(env_var, '/dev/null')), 'bin', name),
+            # Check the pyenv/asdf-recommended from-source install locations
+            os.path.join(os.path.expanduser('~/.{}'.format(name)), 'bin', name),
+        ):
+            if candidate is not None and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                return candidate
+        raise InstallerNotFound()
 
     def _run(self, *args, **kwargs):
         timeout = kwargs.pop('timeout', delegator.TIMEOUT)
@@ -72,13 +118,14 @@ class Installer(object):
         c = delegator.run(args, block=False, timeout=timeout)
         c.block()
         if c.return_code != 0:
-            raise InstallerError('faild to run {0}'.format(args), c)
+            raise InstallerError('failed to run {0}'.format(args), c)
         return c
 
+    @abstractmethod
     def iter_installable_versions(self):
         """Iterate through CPython versions available for Pipenv to install.
         """
-        raise NotImplementedError
+        pass
 
     def find_version_to_install(self, name):
         """Find a version in the installer from the version supplied.
@@ -100,6 +147,7 @@ class Installer(object):
             )
         return best_match
 
+    @abstractmethod
     def install(self, version):
         """Install the given version with runner implementation.
 
@@ -109,10 +157,13 @@ class Installer(object):
         A ValueError is raised if the given version does not have a match in
         the runner. A InstallerError is raised if the runner command fails.
         """
-        raise NotImplementedError
+        pass
 
 
 class Pyenv(Installer):
+
+    def _find_installer(self):
+        return self._find_python_installer_by_name_and_env('pyenv', 'PYENV_ROOT')
 
     def iter_installable_versions(self):
         """Iterate through CPython versions available for Pipenv to install.
@@ -139,6 +190,9 @@ class Pyenv(Installer):
 
 
 class Asdf(Installer):
+
+    def _find_installer(self):
+        return self._find_python_installer_by_name_and_env('asdf', 'ASDF_DIR')
 
     def iter_installable_versions(self):
         """Iterate through CPython versions available for asdf to install.

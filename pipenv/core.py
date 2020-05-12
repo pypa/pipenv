@@ -351,42 +351,6 @@ def find_a_system_python(line):
     return python_entry
 
 
-def find_python_installer(name, env_var):
-    """
-    Given a python installer (pyenv or asdf), try to locate the binary for that
-    installer.
-
-    pyenv/asdf are not always present on PATH. Both installers also support a
-    custom environment variable (PYENV_ROOT or ASDF_DIR) which alows them to
-    be installed into a non-default location (the default/suggested source
-    install location is in ~/.pyenv or ~/.asdf).
-
-    For systems without the installers on PATH, and with a custom location
-    (e.g. /opt/pyenv), Pipenv can use those installers without modifications to
-    PATH, and only with their respective environment variables in a .env file.
-    This is desirable, since setting PATH in an .env file is annoying due to
-    the common need to reference the pre-existing PATH variable, which is not
-    supported in .env.
-
-    This function searches for installer binaries using PATH, their respective
-    environment variables, and their respective default install locations. This
-    allows Pipenv to use those installers regardless of shell configuration, so
-    long as PYENV_ROOT or ASDF_DIR is specified in an .env file.
-    """
-    for candidate in (
-        # Look for the Python installer using the equivalent of 'which'. On
-        # Homebrew-installed systems, the env var may not be set, but this
-        # strategy will work.
-        find_windows_executable('', name),
-        # Check for explicitly set install locations (e.g. PYENV_ROOT, ASDF_DIR).
-        os.path.join(os.path.expanduser(os.getenv(env_var, '/dev/null')), 'bin', name),
-        # Check the pyenv/asdf-recommended from-source install locations
-        os.path.join(os.path.expanduser('~/.{}'.format(name)), 'bin', name),
-    ):
-        if candidate is not None and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-            return candidate
-
-
 def ensure_python(three=None, python=None):
     # Runtime import is necessary due to the possibility that the environments module may have been reloaded.
     from .environments import PIPENV_PYTHON, PIPENV_YES
@@ -394,9 +358,10 @@ def ensure_python(three=None, python=None):
     if PIPENV_PYTHON and python is False and three is None:
         python = PIPENV_PYTHON
 
-    def abort():
+    def abort(msg=''):
         click.echo(
-            "You can specify specific versions of Python with:\n  {0}".format(
+            "{0}\nYou can specify specific versions of Python with:\n{1}".format(
+                crayons.red(msg),
                 crayons.red(
                     "$ pipenv --python {0}".format(
                         os.sep.join(("path", "to", "python"))
@@ -431,23 +396,25 @@ def ensure_python(three=None, python=None):
             err=True,
         )
         # check for python installers
-        from .installers import Pyenv, Asdf, InstallerError
+        from .installers import Pyenv, Asdf, InstallerError, InstallerNotFound
 
         # prefer pyenv if both pyenv and asdf are installed as it's
         # dedicated to python installs so probably the preferred
         # method of the user for new python installs.
         installer = None
         if not PIPENV_DONT_USE_PYENV:
-            pyenv_path = find_python_installer('pyenv', 'PYENV_ROOT')
-            if pyenv_path is not None:
-                installer = Pyenv(pyenv_path)
+            try:
+                installer = Pyenv()
+            except InstallerNotFound:
+                pass
         if installer is None and not PIPENV_DONT_USE_ASDF:
-            asdf_path = find_python_installer('asdf', 'ASDF_DIR')
-            if asdf_path is not None:
-                installer = Asdf(asdf_path)
+            try:
+                installer = Pyenv()
+            except InstallerNotFound:
+                pass
 
         if not installer:
-            abort()
+            abort("Neither 'pyenv' nor 'asdf' could be found to install Python.")
         else:
             if SESSION_IS_INTERACTIVE or PIPENV_YES:
                 try:
@@ -455,9 +422,7 @@ def ensure_python(three=None, python=None):
                 except ValueError:
                     abort()
                 except InstallerError as e:
-                    click.echo(fix_utf8("Something went wrong…"))
-                    click.echo(crayons.blue(e.err), err=True)
-                    abort()
+                    abort('Something went wrong while installing Python:\n{}'.format(e.err))
                 s = "{0} {1} {2}".format(
                     "Would you like us to install",
                     crayons.green("CPython {0}".format(version)),
