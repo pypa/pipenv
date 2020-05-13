@@ -1815,7 +1815,10 @@ def do_outdated(pypi_mirror=None, pre=False, clear=False):
         (pkg.project_name, pkg.parsed_version, pkg.latest_version)
         for pkg in project.environment.get_outdated_packages()
     }
-    reverse_deps = project.environment.reverse_dependencies()
+    reverse_deps = {
+        canonicalize_name(name): deps
+        for name, deps in project.environment.reverse_dependencies().items()
+    }
     for result in installed_packages:
         dep = Requirement.from_line(str(result.as_requirement()))
         packages.update(dep.as_pipfile())
@@ -1845,9 +1848,9 @@ def do_outdated(pypi_mirror=None, pre=False, clear=False):
         version = None
         if name_in_pipfile:
             version = get_version(project.packages[name_in_pipfile])
-            reverse_deps = reverse_deps.get(name_in_pipfile)
-            if isinstance(reverse_deps, Mapping) and "required" in reverse_deps:
-                required = " {0} required".format(reverse_deps["required"])
+            rdeps = reverse_deps.get(canonicalize_name(package))
+            if isinstance(rdeps, Mapping) and "required" in rdeps:
+                required = " {0} required".format(rdeps["required"])
             if version:
                 pipfile_version_text = " ({0} set in Pipfile)".format(version)
             else:
