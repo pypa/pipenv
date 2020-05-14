@@ -535,7 +535,7 @@ class CandidateEvaluator(object):
                 )
             if self._prefer_binary:
                 binary_preference = 1
-            tags = self.valid_tags if not ignore_compatibility else None
+            tags = valid_tags
             try:
                 pri = -(wheel.support_index_min(tags=tags))
             except TypeError:
