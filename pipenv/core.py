@@ -409,7 +409,7 @@ def ensure_python(three=None, python=None):
                 pass
         if installer is None and not PIPENV_DONT_USE_ASDF:
             try:
-                installer = Pyenv()
+                installer = Asdf()
             except InstallerNotFound:
                 pass
 
@@ -437,7 +437,7 @@ def ensure_python(three=None, python=None):
                         u"{0} {1} {2} {3}{4}".format(
                             crayons.normal(u"Installing", bold=True),
                             crayons.green(u"CPython {0}".format(version), bold=True),
-                            crayons.normal(u"with {0}".format(installer), bold=True),
+                            crayons.normal(u"with {0}".format(installer.cmd), bold=True),
                             crayons.normal(u"(this may take a few minutes)"),
                             crayons.normal(fix_utf8("…"), bold=True),
                         )

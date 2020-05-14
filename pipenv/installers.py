@@ -67,7 +67,7 @@ class Installer(object):
     __metaclass__ = ABCMeta
 
     def __init__(self):
-        self._cmd = self._find_installer()
+        self.cmd = self._find_installer()
         super(Installer, self).__init__()
 
     @abstractmethod
@@ -116,7 +116,7 @@ class Installer(object):
         if kwargs:
             k = list(kwargs.keys())[0]
             raise TypeError('unexpected keyword argument {0!r}'.format(k))
-        args = (self._cmd,) + tuple(args)
+        args = (self.cmd,) + tuple(args)
         c = delegator.run(args, block=False, timeout=timeout)
         c.block()
         if c.return_code != 0:
