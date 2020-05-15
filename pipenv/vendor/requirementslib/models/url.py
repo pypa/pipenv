@@ -108,12 +108,18 @@ class URI(object):
         query_dict = omdict()
         queries = query.split("&")
         query_items = []
+        subdirectory = self.subdirectory if self.subdirectory else None
         for q in queries:
             key, _, val = q.partition("=")
             val = unquote_plus(val.replace("+", " "))
-            query_items.append((key, val))
+            if key == "subdirectory" and not subdirectory:
+                subdirectory = val
+            else:
+                query_items.append((key, val))
         query_dict.load(query_items)
-        return attr.evolve(self, query_dict=query_dict, query=query)
+        return attr.evolve(
+            self, query_dict=query_dict, subdirectory=subdirectory, query=query
+        )
 
     def _parse_fragment(self):
         # type: () -> URI
@@ -187,7 +193,10 @@ class URI(object):
         subdir = None
         if "&subdirectory" in url_part:
             url_part, _, subdir = url_part.rpartition("&")
-            subdir = "&{0}".format(subdir.strip())
+            if "#egg=" not in url_part:
+                subdir = "#{0}".format(subdir.strip())
+            else:
+                subdir = "&{0}".format(subdir.strip())
         return url_part.strip(), subdir
 
     @classmethod
@@ -295,9 +304,11 @@ class URI(object):
         query = ""
         if self.query:
             query = "{query}?{self.query}".format(query=query, self=self)
+        subdir_prefix = "#"
         if not direct:
             if self.name and not strip_name:
                 fragment = "#egg={self.name_with_extras}".format(self=self)
+                subdir_prefix = "&"
             elif not strip_name and (
                 self.extras and self.scheme and self.scheme.startswith("file")
             ):
@@ -308,8 +319,8 @@ class URI(object):
                 fragment = ""
             query = "{query}{fragment}".format(query=query, fragment=fragment)
         if self.subdirectory and not strip_subdir:
-            query = "{query}&subdirectory={self.subdirectory}".format(
-                query=query, self=self
+            query = "{query}{subdir_prefix}subdirectory={self.subdirectory}".format(
+                query=query, subdir_prefix=subdir_prefix, self=self
             )
         host_port_path = self.get_host_port_path(strip_ref=strip_ref)
         url = "{self.scheme}://{auth}{host_port_path}{query}".format(

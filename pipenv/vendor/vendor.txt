@@ -1,7 +1,7 @@
-appdirs==1.4.3
+appdirs==1.4.4
 backports.shutil_get_terminal_size==1.0.0
 backports.weakref==1.0.post1
-click==7.1.1
+click==7.1.2
 click-completion==0.5.2
 click-didyoumean==0.0.3
 colorama==0.4.3
@@ -26,7 +26,7 @@ requests==2.23.0
     idna==2.9
     urllib3==1.25.9
     certifi==2020.4.5.1
-requirementslib==1.5.7
+requirementslib==1.5.8
     attrs==19.3.0
     distlib==0.3.0
     packaging==20.3
@@ -38,7 +38,7 @@ six==1.14.0
 semver==2.9.0
 toml==0.10.0
 cached-property==1.5.1
-vistir==0.5.0
+vistir==0.5.1
 pip-shims==0.5.2
     contextlib2==0.6.0.post1
     funcsigs==1.0.2

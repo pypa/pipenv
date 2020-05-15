@@ -23,9 +23,10 @@ import six
 from appdirs import user_cache_dir
 from distlib.wheel import Wheel
 from packaging.markers import Marker
+from pip_shims.utils import call_function_with_correct_args
 from six.moves import configparser
 from six.moves.urllib.parse import unquote, urlparse, urlunparse
-from vistir.compat import FileNotFoundError, Iterable, Mapping, Path, lru_cache
+from vistir.compat import FileNotFoundError, Iterable, Mapping, Path, finalize, lru_cache
 from vistir.contextmanagers import cd, temp_path
 from vistir.misc import run
 from vistir.path import create_tracked_tempdir, ensure_mkdir_p, mkdir_p, rmtree
@@ -1111,29 +1112,34 @@ class Extra(object):
         return {self.name: tuple([r.requirement for r in self.requirements])}
 
 
-@attr.s(slots=True, cmp=True, hash=True)
+@attr.s(slots=True, eq=True, hash=True)
 class SetupInfo(object):
-    name = attr.ib(default=None, cmp=True)  # type: STRING_TYPE
-    base_dir = attr.ib(default=None, cmp=True, hash=False)  # type: STRING_TYPE
-    _version = attr.ib(default=None, cmp=True)  # type: STRING_TYPE
+    name = attr.ib(default=None, eq=True)  # type: STRING_TYPE
+    base_dir = attr.ib(default=None, eq=True, hash=False)  # type: STRING_TYPE
+    _version = attr.ib(default=None, eq=True)  # type: STRING_TYPE
     _requirements = attr.ib(
-        type=frozenset, factory=frozenset, cmp=True, hash=True
+        type=frozenset, factory=frozenset, eq=True, hash=True
     )  # type: Optional[frozenset]
-    build_requires = attr.ib(default=None, cmp=True)  # type: Optional[Tuple]
-    build_backend = attr.ib(cmp=True)  # type: STRING_TYPE
-    setup_requires = attr.ib(default=None, cmp=True)  # type: Optional[Tuple]
+    build_requires = attr.ib(default=None, eq=True)  # type: Optional[Tuple]
+    build_backend = attr.ib(eq=True)  # type: STRING_TYPE
+    setup_requires = attr.ib(default=None, eq=True)  # type: Optional[Tuple]
     python_requires = attr.ib(
-        default=None, cmp=True
+        default=None, eq=True
     )  # type: Optional[packaging.specifiers.SpecifierSet]
-    _extras_requirements = attr.ib(default=None, cmp=True)  # type: Optional[Tuple]
-    setup_cfg = attr.ib(type=Path, default=None, cmp=True, hash=False)
-    setup_py = attr.ib(type=Path, default=None, cmp=True, hash=False)
-    pyproject = attr.ib(type=Path, default=None, cmp=True, hash=False)
+    _extras_requirements = attr.ib(default=None, eq=True)  # type: Optional[Tuple]
+    setup_cfg = attr.ib(type=Path, default=None, eq=True, hash=False)
+    setup_py = attr.ib(type=Path, default=None, eq=True, hash=False)
+    pyproject = attr.ib(type=Path, default=None, eq=True, hash=False)
     ireq = attr.ib(
-        default=None, cmp=True, hash=False
+        default=None, eq=True, hash=False
     )  # type: Optional[InstallRequirement]
-    extra_kwargs = attr.ib(default=attr.Factory(dict), type=dict, cmp=False, hash=False)
+    extra_kwargs = attr.ib(default=attr.Factory(dict), type=dict, eq=False, hash=False)
     metadata = attr.ib(default=None)  # type: Optional[Tuple[STRING_TYPE]]
+    stack = attr.ib(default=None, eq=False)  # type: Optional[ExitStack]
+    _finalizer = attr.ib(default=None, eq=False)  # type: Any
+
+    def __attrs_post_init__(self):
+        self._finalizer = finalize(self, self.stack.close)
 
     @build_backend.default
     def get_build_backend(self):
@@ -1586,10 +1592,13 @@ build-backend = "{1}"
             return None
         if ireq.link.is_wheel:
             return None
-        if not finder:
-            from .dependencies import get_finder
-
-            session, finder = get_finder()
+        stack = ExitStack()
+        if not session:
+            cmd = pip_shims.shims.InstallCommand()
+            options, _ = cmd.parser.parse_args([])
+            session = cmd._build_session(options)
+            finder = cmd._build_package_finder(options, session)
+        tempdir_manager = stack.enter_context(pip_shims.shims.global_tempdir_manager())
         vcs, uri = split_vcs_method_from_uri(unquote(ireq.link.url_without_fragment))
         parsed = urlparse(uri)
         if "file" in parsed.scheme:
@@ -1599,7 +1608,9 @@ build-backend = "{1}"
             parsed = parsed._replace(path=url_path)
             uri = urlunparse(parsed)
         path = None
+        is_file = False
         if ireq.link.scheme == "file" or uri.startswith("file://"):
+            is_file = True
             if "file:/" in uri and "file:///" not in uri:
                 uri = uri.replace("file:/", "file:///")
             path = pip_shims.shims.url_to_path(uri)
@@ -1608,7 +1619,11 @@ build-backend = "{1}"
             ireq.link, "is_vcs", getattr(ireq.link, "is_artifact", False)
         )
         is_vcs = True if vcs else is_artifact_or_vcs
-        if not (ireq.editable and pip_shims.shims.is_file_url(ireq.link) and is_vcs):
+        if is_file and not is_vcs and path is not None and os.path.isdir(path):
+            target = os.path.join(kwargs["src_dir"], os.path.basename(path))
+            shutil.copytree(path, target)
+            ireq.source_dir = target
+        if not (ireq.editable and is_file and is_vcs):
             if ireq.is_wheel:
                 only_download = True
                 download_dir = kwargs["wheel_download_dir"]
@@ -1624,27 +1639,33 @@ build-backend = "{1}"
         build_location_func = getattr(ireq, "build_location", None)
         if build_location_func is None:
             build_location_func = getattr(ireq, "ensure_build_location", None)
-        build_location_func(kwargs["build_dir"])
-        ireq.ensure_has_source_dir(kwargs["src_dir"])
-        src_dir = ireq.source_dir
-        with pip_shims.shims.global_tempdir_manager():
+        if not ireq.source_dir:
+            build_kwargs = {"build_dir": kwargs["build_dir"], "autodelete": False}
+            call_function_with_correct_args(build_location_func, **build_kwargs)
+            ireq.ensure_has_source_dir(kwargs["src_dir"])
+            src_dir = ireq.source_dir
             pip_shims.shims.shim_unpack(
-                link=ireq.link,
-                location=kwargs["src_dir"],
                 download_dir=download_dir,
+                ireq=ireq,
                 only_download=only_download,
                 session=session,
                 hashes=ireq.hashes(False),
-                progress_bar="off",
             )
         created = cls.create(
-            kwargs["src_dir"], subdirectory=subdir, ireq=ireq, kwargs=kwargs
+            ireq.source_dir, subdirectory=subdir, ireq=ireq, kwargs=kwargs, stack=stack
         )
         return created
 
     @classmethod
-    def create(cls, base_dir, subdirectory=None, ireq=None, kwargs=None):
-        # type: (AnyStr, Optional[AnyStr], Optional[InstallRequirement], Optional[Dict[AnyStr, AnyStr]]) -> Optional[SetupInfo]
+    def create(
+        cls,
+        base_dir,  # type: str
+        subdirectory=None,  # type: Optional[str]
+        ireq=None,  # type: Optional[InstallRequirement]
+        kwargs=None,  # type: Optional[Dict[str, str]]
+        stack=None,  # type: Optional[ExitStack]
+    ):
+        # type: (...) -> Optional[SetupInfo]
         if not base_dir or base_dir is None:
             return None
 
@@ -1661,6 +1682,9 @@ build-backend = "{1}"
         creation_kwargs["pyproject"] = pyproject
         creation_kwargs["setup_py"] = setup_py
         creation_kwargs["setup_cfg"] = setup_cfg
+        if stack is None:
+            stack = ExitStack()
+        creation_kwargs["stack"] = stack
         if ireq:
             creation_kwargs["ireq"] = ireq
         created = cls(**creation_kwargs)
