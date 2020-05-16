@@ -671,7 +671,7 @@ class Filter(Expr):
         # python 3.  because of that, do not rename filter_ to filter!
         filter_ = self.environment.filters.get(self.name)
 
-        if filter_ is None or getattr(filter_, "contextfilter", False):
+        if filter_ is None or getattr(filter_, "contextfilter", False) is True:
             raise Impossible()
 
         # We cannot constant handle async filters, so we need to make sure
@@ -684,9 +684,9 @@ class Filter(Expr):
         args, kwargs = args_as_const(self, eval_ctx)
         args.insert(0, self.node.as_const(eval_ctx))
 
-        if getattr(filter_, "evalcontextfilter", False):
+        if getattr(filter_, "evalcontextfilter", False) is True:
             args.insert(0, eval_ctx)
-        elif getattr(filter_, "environmentfilter", False):
+        elif getattr(filter_, "environmentfilter", False) is True:
             args.insert(0, self.environment)
 
         try:

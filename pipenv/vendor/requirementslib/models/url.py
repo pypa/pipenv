@@ -24,8 +24,7 @@ if MYPY_RUNNING:
 
 def _get_parsed_url(url):
     # type: (S) -> Url
-    """
-    This is a stand-in function for `urllib3.util.parse_url`
+    """This is a stand-in function for `urllib3.util.parse_url`
 
     The orignal function doesn't handle special characters very well, this simply splits
     out the authentication section, creates the parsed url, then puts the authentication
@@ -49,8 +48,7 @@ def _get_parsed_url(url):
 
 def remove_password_from_url(url):
     # type: (S) -> S
-    """
-    Given a url, remove the password and insert 4 dashes
+    """Given a url, remove the password and insert 4 dashes.
 
     :param url: The url to replace the authentication in
     :type url: S
@@ -264,8 +262,8 @@ class URI(object):
         strip_subdir=False,  # type: bool
     ):
         # type: (...) -> str
-        """
-        Converts the current URI to a string, unquoting or escaping the password as needed
+        """Converts the current URI to a string, unquoting or escaping the
+        password as needed.
 
         :param escape_password: Whether to replace password with ``----``, default True
         :param escape_password: bool, optional
@@ -488,7 +486,6 @@ def update_url_name_and_fragment(name_with_extras, ref, parsed_dict):
                 if fragment_extras:
                     parsed_extras = parsed_extras + tuple(parse_extras(fragment_extras))
                 name_with_extras = "{0}{1}".format(name, extras_to_string(parsed_extras))
-                parsed_dict["fragment"] = "egg={0}".format(name_with_extras)
         elif (
             parsed_dict.get("path") is not None and "&subdirectory" in parsed_dict["path"]
         ):
