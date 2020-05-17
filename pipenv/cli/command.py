@@ -410,7 +410,8 @@ def run(state, command, args):
 
 
 @cli.command(
-    short_help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.",
+    short_help="Checks for PyUp Safety security vulnerabilities and against"
+               " PEP 508 markers provided in Pipfile.",
     context_settings=subcommand_context
 )
 @option(
@@ -423,22 +424,23 @@ def run(state, command, args):
     "--db",
     nargs=1,
     default=lambda: os.environ.get('PIPENV_SAFETY_DB', False),
-    help="Path to a local vulnerability database. Default: ENV PIPENV_SAFETY_DB or None",
+    help="Path to a local PyUp Safety vulnerabilities database."
+         " Default: ENV PIPENV_SAFETY_DB or None.",
 )
 @option(
     "--ignore",
     "-i",
     multiple=True,
-    help="Ignore specified vulnerability during safety checks.",
+    help="Ignore specified vulnerability during PyUp Safety checks.",
 )
 @option(
     "--output",
     type=Choice(["default", "json", "full-report", "bare"]),
     default="default",
-    help="Translates to --json, --full-report or --bare from safety check",
+    help="Translates to --json, --full-report or --bare from PyUp Safety check",
 )
 @option(
-    "--safety-key",
+    "--key",
     help="Safety API key from PyUp.io for scanning dependencies against a live"
          " vulnerabilities database. Leave blank for scanning against a"
          " database that only updates once a month.",
@@ -459,12 +461,12 @@ def check(
     style=False,
     ignore=None,
     output="default",
-    safety_key=None,
+    key=None,
     quiet=False,
     args=None,
     **kwargs
 ):
-    """Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile."""
+    """Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile."""
     from ..core import do_check
 
     do_check(
@@ -475,7 +477,7 @@ def check(
         db=db,
         ignore=ignore,
         output=output,
-        safety_key=safety_key,
+        key=key,
         quiet=quiet,
         args=args,
         pypi_mirror=state.pypi_mirror,
