@@ -438,6 +438,12 @@ def run(state, command, args):
     help="Translates to --json, --full-report or --bare from safety check",
 )
 @option(
+    "--safety-key",
+    help="Safety API key from PyUp.io for scanning dependencies against a live"
+         " vulnerabilities database. Leave blank for scanning against a"
+         " database that only updates once a month.",
+)
+@option(
     "--quiet",
     is_flag=True,
     help="Quiet standard output, except vulnerability report."
@@ -453,6 +459,7 @@ def check(
     style=False,
     ignore=None,
     output="default",
+    safety_key=None,
     quiet=False,
     args=None,
     **kwargs
@@ -468,6 +475,7 @@ def check(
         db=db,
         ignore=ignore,
         output=output,
+        safety_key=safety_key,
         quiet=quiet,
         args=args,
         pypi_mirror=state.pypi_mirror,
