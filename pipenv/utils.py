@@ -997,6 +997,8 @@ class Resolver(object):
         for req, ireq in reqs:
             if (req.vcs and req.editable and not req.is_direct_url):
                 continue
+            elif req.normalized_name in self.skipped.keys():
+                continue
             collected_hashes = self.collect_hashes(ireq)
             req = req.add_hashes(collected_hashes)
             if not collected_hashes and self._should_include_hash(ireq):
