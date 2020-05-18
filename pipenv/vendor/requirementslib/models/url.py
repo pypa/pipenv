@@ -10,6 +10,7 @@ from urllib3.util import parse_url as urllib3_parse
 from urllib3.util.url import Url
 
 from ..environment import MYPY_RUNNING
+from ..utils import is_installable_file
 from .utils import extras_to_string, parse_extras
 
 if MYPY_RUNNING:
@@ -449,6 +450,11 @@ class URI(object):
     def uri_escape(self):
         # type: () -> str
         return self.to_string(escape_password=False, unquote=False)
+
+    @property
+    def is_installable(self):
+        # type: () -> bool
+        return self.is_file_url and is_installable_file(self.bare_url)
 
     @property
     def is_vcs(self):

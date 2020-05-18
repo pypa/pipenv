@@ -137,9 +137,6 @@ if MYPY_RUNNING:
 SPECIFIERS_BY_LENGTH = sorted(list(Specifier._operators.keys()), key=len, reverse=True)
 
 
-run = partial(vistir.misc.run, combine_stderr=False, return_object=True, nospin=True)
-
-
 class Line(object):
     def __init__(self, line, extras=None):
         # type: (AnyStr, Optional[Union[List[S], Set[S], Tuple[S, ...]]]) -> None
@@ -300,7 +297,7 @@ class Line(object):
     def line_for_ireq(self):
         # type: () -> STRING_TYPE
         line = ""  # type: STRING_TYPE
-        if self.is_file or self.is_url and not self.is_vcs:
+        if self.is_file or self.is_remote_url and not self.is_vcs:
             scheme = self.preferred_scheme if self.preferred_scheme is not None else "uri"
             local_line = next(
                 iter(
@@ -339,7 +336,7 @@ class Line(object):
         if self.editable:
             if not line:
                 if self.is_path or self.is_file:
-                    if not self.path:
+                    if not self.path and self.url is not None:
                         line = pip_shims.shims.url_to_path(self.url)
                     else:
                         line = self.path
@@ -436,7 +433,7 @@ class Line(object):
             # note: we need versions for direct dependencies at the very least
             if (
                 self.is_file
-                or self.is_url
+                or self.is_remote_url
                 or self.is_path
                 or (self.is_vcs and not self.editable)
             ):
@@ -484,7 +481,7 @@ class Line(object):
             self.parse_requirement()
             if self._requirement is None and self._name is not None:
                 self._requirement = init_requirement(canonicalize_name(self.name))
-                if self.is_file or self.is_url and self._requirement is not None:
+                if self.is_file or self.is_remote_url and self._requirement is not None:
                     self._requirement.url = self.url
         if (
             self._requirement
@@ -600,13 +597,9 @@ class Line(object):
     def get_url(self):
         # type: () -> STRING_TYPE
         """Sets ``self.name`` if given a **PEP-508** style URL."""
-        try:
-            return self.parsed_url.to_string(
-                escape_password=False, direct=False, strip_ref=True
-            )
-        except ValueError:
-            pass
-        return self.line
+        return self.parsed_url.to_string(
+            escape_password=False, direct=False, strip_ref=True
+        )
 
     @property
     def name(self):
@@ -681,26 +674,36 @@ class Line(object):
         # type: () -> bool
         # Installable local files and installable non-vcs urls are handled
         # as files, generally speaking
-        if is_vcs(self.line) or is_vcs(self.get_url()):
-            return True
-        return False
-
-    @property
-    def is_url(self):
-        # type: () -> bool
-        # url = self.get_url()
-        # if is_valid_url(url) or is_file_url(url):
-        #     return True
-        # return False
         try:
-            return bool(self.parsed_url)
+            if is_vcs(self.line) or is_vcs(self.get_url()):
+                return True
         except ValueError:
             return False
         return False
 
     @property
+    def is_url(self):
+        # type: () -> bool
+        try:
+            url = self.get_url()
+        except ValueError:
+            return False
+        if is_valid_url(url) or is_file_url(url):
+            return True
+        return False
+
+    @property
+    def is_remote_url(self):
+        # type: () -> bool
+        return self.is_url and self.parsed_url.host is not None
+
+    @property
     def is_path(self):
         # type: () -> bool
+        try:
+            line_url = self.get_url()
+        except ValueError:
+            line_url = None
         if (
             self.path
             and (
@@ -712,7 +715,7 @@ class Line(object):
         ):
             return True
         elif (os.path.exists(self.line) and is_installable_file(self.line)) or (
-            os.path.exists(self.get_url()) and is_installable_file(self.get_url())
+            line_url and os.path.exists(line_url) and is_installable_file(line_ur)
         ):
             return True
         return False
@@ -720,11 +723,14 @@ class Line(object):
     @property
     def is_file_url(self):
         # type: () -> bool
-        url = self.get_url()
+        try:
+            url = self.get_url()
+        except ValueError:
+            return False
         try:
             parsed_url_scheme = self.parsed_url.scheme
         except ValueError:
-            parsed_url_scheme = ""
+            return False
         if url and is_file_url(url) or parsed_url_scheme == "file":
             return True
         return False
@@ -732,9 +738,13 @@ class Line(object):
     @property
     def is_file(self):
         # type: () -> bool
+        try:
+            url = self.get_url()
+        except ValueError:
+            return False
         if (
             self.is_path
-            or (is_file_url(self.get_url()) and is_installable_file(self.get_url()))
+            or (is_file_url(url) and is_installable_file(url))
             or (
                 self._parsed_url
                 and self._parsed_url.is_file_url
@@ -747,7 +757,13 @@ class Line(object):
     @property
     def is_named(self):
         # type: () -> bool
-        return not (self.is_file_url or self.is_url or self.is_file or self.is_vcs)
+        return not (
+            self.is_file_url
+            or self.is_url
+            or self.is_file
+            or self.is_vcs
+            or self.is_direct_url
+        )
 
     @property
     def ref(self):
@@ -766,7 +782,11 @@ class Line(object):
     @property
     def is_installable(self):
         # type: () -> bool
-        possible_paths = (self.line, self.get_url(), self.path, self.base_path)
+        try:
+            url = self.get_url()
+        except ValueError:
+            url = None
+        possible_paths = (self.line, url, self.path, self.base_path)
         return any(is_installable_file(p) for p in possible_paths if p is not None)
 
     @property
@@ -907,7 +927,7 @@ class Line(object):
             ireq = pip_shims.shims.install_req_from_line(line)
         if self.is_named:
             ireq = pip_shims.shims.install_req_from_line(self.line)
-        if self.is_file or self.is_url:
+        if self.is_file or self.is_remote_url:
             ireq.link = self.link
         if self.extras and not ireq.extras:
             ireq.extras = set(self.extras)
@@ -1001,10 +1021,11 @@ class Line(object):
         # type: () -> "Line"
         if self._name is None:
             name = None
-            if self.link is not None:
+            if self.link is not None and self.line_is_installable:
                 name = self._parse_name_from_link()
             if name is None and (
-                (self.is_url or self.is_artifact or self.is_vcs) and self._parsed_url
+                (self.is_remote_url or self.is_artifact or self.is_vcs)
+                and self._parsed_url
             ):
                 if self._parsed_url.fragment:
                     _, _, name = self._parsed_url.fragment.partition("egg=")
@@ -1013,7 +1034,7 @@ class Line(object):
                         name, _, _ = name.partition("&")
             if name is None and self.is_named:
                 name = self._parse_name_from_line()
-            elif name is None and self.is_file or self.is_url or self.is_path:
+            elif name is None and self.is_file or self.is_remote_url or self.is_path:
                 if self.is_local:
                     name = self._parse_name_from_path()
             if name is not None:
@@ -1107,53 +1128,57 @@ class Line(object):
     def parse_link(self):
         # type: () -> "Line"
         parsed_url = None  # type: Optional[URI]
-        if not is_valid_url(self.line) and (
-            self.line.startswith("./")
-            or (os.path.exists(self.line) or os.path.isabs(self.line))
+        if (
+            not is_valid_url(self.line)
+            and (
+                self.line.startswith("./")
+                or (os.path.exists(self.line) or os.path.isabs(self.line))
+            )
+            and is_installable_file(os.path.abspath(self.line))
         ):
             url = pip_shims.shims.path_to_url(os.path.abspath(self.line))
             self._parsed_url = parsed_url = URI.parse(url)
         elif is_valid_url(self.line) or is_vcs(self.line) or is_file_url(self.line):
             parsed_url = URI.parse(self.line)
-        if parsed_url is not None:
-            line = parsed_url.to_string(
-                escape_password=False, direct=False, strip_ref=True, strip_ssh=False
-            )
-            if parsed_url.is_vcs:
-                self.vcs, _ = parsed_url.scheme.split("+")
-            if parsed_url.is_file_url:
-                self.is_local = True
-            parsed_link = parsed_url.as_link
-            self._ref = parsed_url.ref
-            self.uri = parsed_url.bare_url
-            if parsed_url.name:
-                self._name = parsed_url.name
-            if parsed_url.extras:
-                self.extras = tuple(sorted(set(parsed_url.extras)))
+        if parsed_url is None or (
+            parsed_url.is_file_url and not parsed_url.is_installable
+        ):
+            return None
+        if parsed_url.is_vcs:
+            self.vcs, _ = parsed_url.scheme.split("+")
+        if parsed_url.is_file_url:
+            self.is_local = True
+        parsed_link = parsed_url.as_link
+        self._ref = parsed_url.ref
+        self.uri = parsed_url.bare_url
+        if parsed_url.name:
+            self._name = parsed_url.name
+        if parsed_url.extras:
+            self.extras = tuple(sorted(set(parsed_url.extras)))
+        self._link = parsed_link
+        vcs, prefer, relpath, path, uri, link = FileRequirement.get_link_from_line(
+            self.line
+        )
+        ref = None
+        if link is not None and "@" in unquote(link.path) and uri is not None:
+            uri, _, ref = unquote(uri).rpartition("@")
+        if relpath is not None and "@" in relpath:
+            relpath, _, ref = relpath.rpartition("@")
+        if path is not None and "@" in path:
+            path, _ = split_ref_from_uri(path)
+        link_url = link.url_without_fragment
+        if "@" in link_url:
+            link_url, _ = split_ref_from_uri(link_url)
+        self.preferred_scheme = prefer
+        self.relpath = relpath
+        self.path = path
+        # self.uri = uri
+        if prefer in ("path", "relpath") or uri.startswith("file"):
+            self.is_local = True
+        if parsed_url.is_vcs or parsed_url.is_direct_url and parsed_link:
             self._link = parsed_link
-            vcs, prefer, relpath, path, uri, link = FileRequirement.get_link_from_line(
-                self.line
-            )
-            ref = None
-            if link is not None and "@" in unquote(link.path) and uri is not None:
-                uri, _, ref = unquote(uri).rpartition("@")
-            if relpath is not None and "@" in relpath:
-                relpath, _, ref = relpath.rpartition("@")
-            if path is not None and "@" in path:
-                path, _ = split_ref_from_uri(path)
-            link_url = link.url_without_fragment
-            if "@" in link_url:
-                link_url, _ = split_ref_from_uri(link_url)
-            self.preferred_scheme = prefer
-            self.relpath = relpath
-            self.path = path
-            # self.uri = uri
-            if prefer in ("path", "relpath") or uri.startswith("file"):
-                self.is_local = True
-            if parsed_url.is_vcs or parsed_url.is_direct_url and parsed_link:
-                self._link = parsed_link
-            else:
-                self._link = link
+        else:
+            self._link = link
         return self
 
     def parse_markers(self):
@@ -1252,6 +1277,8 @@ class Line(object):
                 raise RequirementError(
                     "Supplied requirement is not installable: {0!r}".format(self.line)
                 )
+        elif self.is_named and self._name is None:
+            self.parse_name()
         self.parse_link()
         # self.parse_requirement()
         # self.parse_ireq()
@@ -2617,7 +2644,8 @@ class Requirement(object):
             None
         )  # type: Optional[Union[VCSRequirement, FileRequirement, NamedRequirement]]
         if (
-            (parsed_line.is_file and parsed_line.is_installable) or parsed_line.is_url
+            (parsed_line.is_file and parsed_line.is_installable)
+            or parsed_line.is_remote_url
         ) and not parsed_line.is_vcs:
             r = file_req_from_parsed_line(parsed_line)
         elif parsed_line.is_vcs:
