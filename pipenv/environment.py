@@ -26,6 +26,7 @@ from .utils import normalize_path, make_posix
 
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
+# TODO: Unittests for this class
 
 
 class Environment(object):
@@ -723,6 +724,15 @@ class Environment(object):
         if match is not None:
             if req.editable and self.find_egg(match):
                 return req.line_instance.path == match.location
+            elif match.has_metadata("direct_url.json"):
+                direct_url_metadata = json.loads(match.get_metadata("direct_url.json"))
+                commit_id = direct_url_metadata.get("vcs_info", {}).get("commit_id", "")
+                vcs_type = direct_url_metadata.get("vcs_info", {}).get("vcs", "")
+                _, pipfile_part = req.as_pipfile().popitem()
+                return (
+                    vcs_type == req.vcs and commit_id == req.commit_hash
+                    and direct_url_metadata["url"] == pipfile_part[req.vcs]
+                )
             elif req.line_instance.specifiers is not None:
                 return req.line_instance.specifiers.contains(
                     match.version, prereleases=True
