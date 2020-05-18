@@ -548,8 +548,8 @@ class Line(object):
 
     def parse_hashes(self):
         # type: () -> "Line"
-        """
-        Parse hashes from *self.line* and set them on the current object.
+        """Parse hashes from *self.line* and set them on the current object.
+
         :returns: Self
         :rtype: `:class:~Line`
         """
@@ -599,7 +599,7 @@ class Line(object):
 
     def get_url(self):
         # type: () -> STRING_TYPE
-        """Sets ``self.name`` if given a **PEP-508** style URL"""
+        """Sets ``self.name`` if given a **PEP-508** style URL."""
         try:
             return self.parsed_url.to_string(
                 escape_password=False, direct=False, strip_ref=True
@@ -737,8 +737,8 @@ class Line(object):
             or (is_file_url(self.get_url()) and is_installable_file(self.get_url()))
             or (
                 self._parsed_url
-                and self._parsed_url.scheme == "file"
-                and is_installable_file(urllib_parse.urlunparse(self._parsed_url))
+                and self._parsed_url.is_file_url
+                and is_installable_file(self._parsed_url.url_without_fragment_or_ref)
             )
         ):
             return True
@@ -1206,14 +1206,15 @@ class Line(object):
     @property
     def line_is_installable(self):
         # type: () -> bool
-        """
-        This is a safeguard against decoy requirements when a user installs a package
-        whose name coincides with the name of a folder in the cwd, e.g. install *alembic*
-        when there is a folder called *alembic* in the working directory.
+        """This is a safeguard against decoy requirements when a user installs
+        a package whose name coincides with the name of a folder in the cwd,
+        e.g. install *alembic* when there is a folder called *alembic* in the
+        working directory.
 
-        In this case we first need to check that the given requirement is a valid
-        URL, VCS requirement, or installable filesystem path before deciding to treat it
-        as a file requirement over a named requirement.
+        In this case we first need to check that the given requirement
+        is a valid URL, VCS requirement, or installable filesystem path
+        before deciding to treat it as a file requirement over a named
+        requirement.
         """
         line = self.line
         if is_file_url(line):
@@ -1222,10 +1223,8 @@ class Line(object):
             line, _ = split_ref_from_uri(line)
         if (
             is_vcs(line)
-            or (
-                is_valid_url(line)
-                and (not is_file_url(line) or is_installable_file(line))
-            )
+            or (not is_file_url(line) and is_valid_url(line))
+            or (is_file_url(line) and is_installable_file(line))
             or is_installable_file(line)
         ):
             return True
@@ -2235,7 +2234,7 @@ class VCSRequirement(FileRequirement):
     @property
     def line_part(self):
         # type: () -> STRING_TYPE
-        """requirements.txt compatible line part sans-extras"""
+        """requirements.txt compatible line part sans-extras."""
         base = ""  # type: STRING_TYPE
         if self.is_local:
             base_link = self.link
