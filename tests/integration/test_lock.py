@@ -737,7 +737,7 @@ def test_lock_nested_direct_url(PipenvInstance):
 def test_lock_nested_vcs_direct_url(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         p._pipfile.add("pep508_package", {
-            "git": "https://github.com/techalchemy/test-package.git",
+            "git": "https://github.com/techalchemy/test-project.git",
             "editable": True,  "ref": "master",
             "subdirectory": "parent_folder/pep508-package"
         })
