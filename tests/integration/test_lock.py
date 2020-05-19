@@ -733,38 +733,18 @@ def test_lock_nested_direct_url(PipenvInstance):
 
 
 @pytest.mark.lock
-def test_lock_nested_vcs_direct_url(PipenvInstance, monkeypatch):
-    package_parent = Path(__file__).absolute().parent.parent.joinpath(
-        "fixtures"
-    ).joinpath("parent_folder")
-    pep508_package = package_parent.joinpath("pep508-package")
-    sibling_package = package_parent.joinpath("sibling_package")
-    pep508_setuppy = pep508_package.joinpath("setup.py")
-    lines = []
-    for line in pep508_setuppy.read_text().split("\n"):
-        if line.strip().startswith('"sibling_package'):
-            line = line.format("{0}@master#subdirectory={1}".format(package_parent.as_uri(), "sibling_package"))
-        lines.append(line)
-    pep508_setuppy.write_text("\n".join(lines))
-    try:
-        with monkeypatch.context() as m:
-            m.chdir(package_parent.as_posix())
-            c = delegator.run("git init")
-            assert c.return_code == 0
-            c = delegator.run("git add .")
-            assert c.return_code == 0
-            c = delegator.run('git commit -m "initial commit"')
-            assert c.return_code == 0
-        with PipenvInstance() as p:
-            p._pipfile.add("pep508_package", {
-                "editable": True, "git": "{0}".format(package_parent.as_uri()),
-                "ref": "master", "subdirectory": "pep508-package"
-            })
-            c = p.pipenv("install")
-            assert c.return_code == 0
-            assert "git" in p.lockfile["default"]["pep508_package"]
-            assert "sibling_package" in p.lockfile["default"]
-            assert "git" in p.lockfie["default"]["sibling_package"]
-            assert "subdirectory" in p.lockfile["default"]["sibling_package"]
-    finally:
-        shutil.rmtree(package_parent.joinpath(".git").as_posix())
+@pytest.mark.needs_internet
+def test_lock_nested_vcs_direct_url(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        p._pipfile.add("pep508_package", {
+            "git": "https://github.com/techalchemy/test-package.git",
+            "editable": True,  "ref": "master",
+            "subdirectory": "parent_folder/pep508-package"
+        })
+        c = p.pipenv("install")
+        assert c.return_code == 0
+        assert "git" in p.lockfile["default"]["pep508_package"]
+        assert "sibling_package" in p.lockfile["default"]
+        assert "git" in p.lockfie["default"]["sibling_package"]
+        assert "subdirectory" in p.lockfile["default"]["sibling_package"]
+        assert "version" not in p.lockfile["default"]["sibling_package"]
