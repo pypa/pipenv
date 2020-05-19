@@ -722,8 +722,9 @@ class Environment(object):
             ), None
         )
         if match is not None:
-            if req.editable and req.local and req.line_instance.path and self.find_egg(match):
-                return vistir.compat.samefile(req.line_instance.path, match.location)
+            if req.editable and req.line_instance.is_local and self.find_egg(match):
+                requested_path = req.line_instance.path
+                return requested_path and vistir.compat.samefile(requested_path, match.location)
             elif match.has_metadata("direct_url.json"):
                 direct_url_metadata = json.loads(match.get_metadata("direct_url.json"))
                 commit_id = direct_url_metadata.get("vcs_info", {}).get("commit_id", "")
