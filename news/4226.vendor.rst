@@ -1,0 +1,11 @@
+Updated vendored dependencies to latest versions for security and bug fixes:
+
+- **requirementslib** ``1.5.8`` => ``1.5.9``
+- **vistir** ``0.5.0`` => ``0.5.1``
+- **jinja2** ``2.11.1`` => ``2.11.2``
+- **click** ``7.1.1`` => ``7.1.2``
+- **dateutil** ``(none)`` => ``2.8.1``
+- **backports.functools_lru_cache** ``1.5.0`` => ``1.6.1``
+- **enum34** ``1.1.6`` => ``1.1.10``
+- **toml** ``0.10.0`` => ``0.10.1``
+- **importlib_resources** ``1.4.0`` => ``1.5.0``

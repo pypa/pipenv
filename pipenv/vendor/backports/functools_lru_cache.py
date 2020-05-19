@@ -8,10 +8,12 @@ _CacheInfo = namedtuple("CacheInfo", ["hits", "misses", "maxsize", "currsize"])
 
 
 @functools.wraps(functools.update_wrapper)
-def update_wrapper(wrapper,
-                   wrapped,
-                   assigned = functools.WRAPPER_ASSIGNMENTS,
-                   updated = functools.WRAPPER_UPDATES):
+def update_wrapper(
+    wrapper,
+    wrapped,
+    assigned=functools.WRAPPER_ASSIGNMENTS,
+    updated=functools.WRAPPER_UPDATES,
+):
     """
     Patch two bugs in functools.update_wrapper.
     """
@@ -34,10 +36,17 @@ class _HashedSeq(list):
         return self.hashvalue
 
 
-def _make_key(args, kwds, typed,
-              kwd_mark=(object(),),
-              fasttypes=set([int, str, frozenset, type(None)]),
-              sorted=sorted, tuple=tuple, type=type, len=len):
+def _make_key(
+    args,
+    kwds,
+    typed,
+    kwd_mark=(object(),),
+    fasttypes=set([int, str, frozenset, type(None)]),
+    sorted=sorted,
+    tuple=tuple,
+    type=type,
+    len=len,
+):
     'Make a cache key from optionally typed positional and keyword arguments'
     key = args
     if kwds:
@@ -82,16 +91,16 @@ def lru_cache(maxsize=100, typed=False):
     def decorating_function(user_function):
 
         cache = dict()
-        stats = [0, 0]                  # make statistics updateable non-locally
-        HITS, MISSES = 0, 1             # names for the stats fields
+        stats = [0, 0]  # make statistics updateable non-locally
+        HITS, MISSES = 0, 1  # names for the stats fields
         make_key = _make_key
-        cache_get = cache.get           # bound method to lookup key or return None
-        _len = len                      # localize the global len() function
-        lock = RLock()                  # because linkedlist updates aren't threadsafe
-        root = []                       # root of the circular doubly linked list
-        root[:] = [root, root, None, None]      # initialize by pointing to self
-        nonlocal_root = [root]                  # make updateable non-locally
-        PREV, NEXT, KEY, RESULT = 0, 1, 2, 3    # names for the link fields
+        cache_get = cache.get  # bound method to lookup key or return None
+        _len = len  # localize the global len() function
+        lock = RLock()  # because linkedlist updates aren't threadsafe
+        root = []  # root of the circular doubly linked list
+        root[:] = [root, root, None, None]  # initialize by pointing to self
+        nonlocal_root = [root]  # make updateable non-locally
+        PREV, NEXT, KEY, RESULT = 0, 1, 2, 3  # names for the link fields
 
         if maxsize == 0:
 
@@ -106,7 +115,9 @@ def lru_cache(maxsize=100, typed=False):
             def wrapper(*args, **kwds):
                 # simple caching without ordering or size limit
                 key = make_key(args, kwds, typed)
-                result = cache_get(key, root)   # root used here as a unique not-found sentinel
+                result = cache_get(
+                    key, root
+                )  # root used here as a unique not-found sentinel
                 if result is not root:
                     stats[HITS] += 1
                     return result
@@ -123,7 +134,8 @@ def lru_cache(maxsize=100, typed=False):
                 with lock:
                     link = cache_get(key)
                     if link is not None:
-                        # record recent use of the key by moving it to the front of the list
+                        # record recent use of the key by moving it
+                        # to the front of the list
                         root, = nonlocal_root
                         link_prev, link_next, key, result = link
                         link_prev[NEXT] = link_next

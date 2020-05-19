@@ -29,11 +29,23 @@ __all__ = [
     "TemporaryDirectory",
     "NamedTemporaryFile",
     "to_native_string",
-    "Iterable",
+    "samefile",
     "Mapping",
-    "Sequence",
-    "Set",
+    "Hashable",
+    "MutableMapping",
+    "Container",
+    "Iterator",
+    "KeysView",
     "ItemsView",
+    "MappingView",
+    "Iterable",
+    "Set",
+    "Sequence",
+    "Sized",
+    "ValuesView",
+    "MutableSet",
+    "MutableSequence",
+    "Callable",
     "fs_encode",
     "fs_decode",
     "_fs_encode_errors",
@@ -45,22 +57,78 @@ if sys.version_info >= (3, 5):  # pragma: no cover
 else:  # pragma: no cover
     from pipenv.vendor.pathlib2 import Path
 
-if six.PY3:  # pragma: no cover
+if sys.version_info >= (3, 4):  # pragma: no cover
     # Only Python 3.4+ is supported
     from functools import lru_cache, partialmethod
     from tempfile import NamedTemporaryFile
     from shutil import get_terminal_size
     from weakref import finalize
+    from collections.abc import (
+        Mapping,
+        Hashable,
+        MutableMapping,
+        Container,
+        Iterator,
+        KeysView,
+        ItemsView,
+        MappingView,
+        Iterable,
+        Set,
+        Sequence,
+        Sized,
+        ValuesView,
+        MutableSet,
+        MutableSequence,
+        Callable,
+    )
+    from os.path import samefile
+
 else:  # pragma: no cover
     # Only Python 2.7 is supported
     from pipenv.vendor.backports.functools_lru_cache import lru_cache
-    from .backports.functools import partialmethod  # type: ignore
     from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
+    from .backports.functools import partialmethod  # type: ignore
     from .backports.surrogateescape import register_surrogateescape
+    from collections import (
+        Mapping,
+        Hashable,
+        MutableMapping,
+        Container,
+        Iterator,
+        KeysView,
+        ItemsView,
+        MappingView,
+        Iterable,
+        Set,
+        Sequence,
+        Sized,
+        ValuesView,
+        MutableSet,
+        MutableSequence,
+        Callable,
+    )
 
     register_surrogateescape()
     NamedTemporaryFile = _NamedTemporaryFile
     from pipenv.vendor.backports.weakref import finalize  # type: ignore
+
+    try:
+        from os.path import samefile
+    except ImportError:
+
+        def samestat(s1, s2):
+            """Test whether two stat buffers reference the same file."""
+            return s1.st_ino == s2.st_ino and s1.st_dev == s2.st_dev
+
+        def samefile(f1, f2):
+            """Test whether two pathnames reference the same actual file or
+            directory This is determined by the device number and i-node number
+            and raises an exception if an os.stat() call on either pathname
+            fails."""
+            s1 = os.stat(f1)
+            s2 = os.stat(f2)
+            return samestat(s1, s2)
+
 
 try:
     # Introduced Python 3.5
@@ -76,7 +144,7 @@ if six.PY2:  # pragma: no cover
         pass
 
     class FileNotFoundError(IOError):
-        """No such file or directory"""
+        """No such file or directory."""
 
         def __init__(self, *args, **kwargs):
             self.errno = errno.ENOENT
@@ -95,7 +163,7 @@ if six.PY2:  # pragma: no cover
             super(TimeoutError, self).__init__(*args, **kwargs)
 
     class IsADirectoryError(OSError):
-        """The command does not work on directories"""
+        """The command does not work on directories."""
 
         def __init__(self, *args, **kwargs):
             self.errno = errno.EISDIR
@@ -117,24 +185,6 @@ else:  # pragma: no cover
         TimeoutError,
     )
     from io import StringIO
-
-six.add_move(
-    six.MovedAttribute("Iterable", "collections", "collections.abc")
-)  # type: ignore
-six.add_move(
-    six.MovedAttribute("Mapping", "collections", "collections.abc")
-)  # type: ignore
-six.add_move(
-    six.MovedAttribute("Sequence", "collections", "collections.abc")
-)  # type: ignore
-six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # type: ignore
-six.add_move(
-    six.MovedAttribute("ItemsView", "collections", "collections.abc")
-)  # type: ignore
-
-# fmt: off
-from six.moves import ItemsView, Iterable, Mapping, Sequence, Set  # type: ignore  # noqa  # isort:skip
-# fmt: on
 
 
 if not sys.warnoptions:
@@ -213,7 +263,7 @@ class TemporaryDirectory(object):
 
 
 def is_bytes(string):
-    """Check if a string is a bytes instance
+    """Check if a string is a bytes instance.
 
     :param Union[str, bytes] string: A string that may be string or bytes like
     :return: Whether the provided string is a bytes type or not
@@ -227,7 +277,7 @@ def is_bytes(string):
 
 
 def fs_str(string):
-    """Encodes a string into the proper filesystem encoding
+    """Encodes a string into the proper filesystem encoding.
 
     Borrowed from pip-tools
     """
@@ -239,8 +289,7 @@ def fs_str(string):
 
 
 def _get_path(path):
-    """
-    Fetch the string value from a path-like object
+    """Fetch the string value from a path-like object.
 
     Returns **None** if there is no string value.
     """
@@ -324,8 +373,7 @@ def _chunks(b, indexes):
 
 
 def fs_encode(path):
-    """
-    Encode a filesystem path to the proper filesystem encoding
+    """Encode a filesystem path to the proper filesystem encoding.
 
     :param Union[str, bytes] path: A string-like path
     :returns: A bytes-encoded filesystem path representation
@@ -349,8 +397,7 @@ def fs_encode(path):
 
 
 def fs_decode(path):
-    """
-    Decode a filesystem path using the proper filesystem encoding
+    """Decode a filesystem path using the proper filesystem encoding.
 
     :param path: The filesystem path to decode from bytes or string
     :return: The filesystem path, decoded with the determined encoding
@@ -376,17 +423,15 @@ def fs_decode(path):
 
 
 if sys.version_info[0] < 3:  # pragma: no cover
-    _fs_encode_errors = "surrogateescape"
+    _fs_encode_errors = "surrogatepass" if sys.platform == "win32" else "surrogateescape"
     _fs_decode_errors = "surrogateescape"
     _fs_encoding = "utf-8"
 else:  # pragma: no cover
     _fs_encoding = "utf-8"
+    _fs_decode_errors = "surrogateescape"
     if sys.platform.startswith("win"):
         _fs_error_fn = None
-        if sys.version_info[:2] > (3, 4):
-            alt_strategy = "surrogatepass"
-        else:
-            alt_strategy = "surrogateescape"
+        _fs_encode_errors = "surrogatepass"
     else:
         if sys.version_info >= (3, 3):
             _fs_encoding = sys.getfilesystemencoding()
@@ -394,8 +439,8 @@ else:  # pragma: no cover
                 _fs_encoding = sys.getdefaultencoding()
         alt_strategy = "surrogateescape"
         _fs_error_fn = getattr(sys, "getfilesystemencodeerrors", None)
-    _fs_encode_errors = _fs_error_fn() if _fs_error_fn else alt_strategy
-    _fs_decode_errors = _fs_error_fn() if _fs_error_fn else alt_strategy
+        _fs_encode_errors = _fs_error_fn() if _fs_error_fn else alt_strategy
+        _fs_decode_errors = _fs_error_fn() if _fs_error_fn else _fs_decode_errors
 
 _byte = chr if sys.version_info < (3,) else lambda i: bytes([i])
 

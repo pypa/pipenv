@@ -76,4 +76,4 @@ from .utils import open_file
 # literals.
 disable_unicode_literals_warning = False
 
-__version__ = "7.1.1"
+__version__ = "7.1.2"

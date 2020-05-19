@@ -47,6 +47,19 @@ except ImportError:
     from zipp import Path as ZipPath  # type: ignore
 
 
+try:
+    from typing import runtime_checkable  # type: ignore
+except ImportError:
+    def runtime_checkable(cls):  # type: ignore
+        return cls
+
+
+try:
+    from typing import Protocol  # type: ignore
+except ImportError:
+    Protocol = ABC  # type: ignore
+
+
 class PackageSpec(object):
 	def __init__(self, **kwargs):
 		vars(self).update(kwargs)

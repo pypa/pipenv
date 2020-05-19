@@ -24,7 +24,7 @@ def _detect_pathlib_path(p):
 
 
 def _ispath(p):
-    if isinstance(p, basestring):
+    if isinstance(p, (bytes, basestring)):
         return True
     return _detect_pathlib_path(p)
 
@@ -44,7 +44,7 @@ except NameError:
     FNFError = IOError
 
 
-TIME_RE = re.compile("([0-9]{2}):([0-9]{2}):([0-9]{2})(\.([0-9]{3,6}))?")
+TIME_RE = re.compile(r"([0-9]{2}):([0-9]{2}):([0-9]{2})(\.([0-9]{3,6}))?")
 
 
 class TomlDecodeError(ValueError):
@@ -64,6 +64,27 @@ class TomlDecodeError(ValueError):
 
 # Matches a TOML number, which allows underscores for readability
 _number_with_underscores = re.compile('([0-9])(_([0-9]))*')
+
+
+class CommentValue(object):
+    def __init__(self, val, comment, beginline, _dict):
+        self.val = val
+        separator = "\n" if beginline else " "
+        self.comment = separator + comment
+        self._dict = _dict
+
+    def __getitem__(self, key):
+        return self.val[key]
+
+    def __setitem__(self, key, value):
+        self.val[key] = value
+
+    def dump(self, dump_value_func):
+        retstr = dump_value_func(self.val)
+        if isinstance(self.val, self._dict):
+            return self.comment + "\n" + unicode(retstr)
+        else:
+            return unicode(retstr) + self.comment
 
 
 def _strictly_valid_num(n):
@@ -96,6 +117,7 @@ def load(f, _dict=dict, decoder=None):
         f: Path to the file to open, array of files to read into single dict
            or a file descriptor
         _dict: (optional) Specifies the class of the returned toml dictionary
+        decoder: The decoder to use
 
     Returns:
         Parsed toml file represented as a dictionary
@@ -120,9 +142,9 @@ def load(f, _dict=dict, decoder=None):
                           "existing file.")
             raise FNFError(error_msg)
         if decoder is None:
-            decoder = TomlDecoder()
+            decoder = TomlDecoder(_dict)
         d = decoder.get_empty_table()
-        for l in f:
+        for l in f:  # noqa: E741
             if op.exists(l):
                 d.update(load(l, _dict, decoder))
             else:
@@ -177,19 +199,30 @@ def loads(s, _dict=dict, decoder=None):
     keygroup = False
     dottedkey = False
     keyname = 0
+    key = ''
+    prev_key = ''
+    line_no = 1
+
     for i, item in enumerate(sl):
         if item == '\r' and sl[i + 1] == '\n':
             sl[i] = ' '
             continue
         if keyname:
+            key += item
             if item == '\n':
                 raise TomlDecodeError("Key name found without value."
                                       " Reached end of line.", original, i)
             if openstring:
                 if item == openstrchar:
-                    keyname = 2
-                    openstring = False
-                    openstrchar = ""
+                    oddbackslash = False
+                    k = 1
+                    while i >= k and sl[i - k] == '\\':
+                        oddbackslash = not oddbackslash
+                        k += 1
+                    if not oddbackslash:
+                        keyname = 2
+                        openstring = False
+                        openstrchar = ""
                 continue
             elif keyname == 1:
                 if item.isspace():
@@ -220,6 +253,8 @@ def loads(s, _dict=dict, decoder=None):
                     continue
             if item == '=':
                 keyname = 0
+                prev_key = key[:-1].rstrip()
+                key = ''
                 dottedkey = False
             else:
                 raise TomlDecodeError("Found invalid character in key name: '" +
@@ -272,12 +307,16 @@ def loads(s, _dict=dict, decoder=None):
         if item == '#' and (not openstring and not keygroup and
                             not arrayoftables):
             j = i
+            comment = ""
             try:
                 while sl[j] != '\n':
+                    comment += s[j]
                     sl[j] = ' '
                     j += 1
             except IndexError:
                 break
+            if not openarr:
+                decoder.preserve_comment(line_no, prev_key, comment, beginline)
         if item == '[' and (not openstring and not keygroup and
                             not arrayoftables):
             if beginline:
@@ -308,12 +347,20 @@ def loads(s, _dict=dict, decoder=None):
                 sl[i] = ' '
             else:
                 beginline = True
+            line_no += 1
         elif beginline and sl[i] != ' ' and sl[i] != '\t':
             beginline = False
             if not keygroup and not arrayoftables:
                 if sl[i] == '=':
                     raise TomlDecodeError("Found empty keyname. ", original, i)
                 keyname = 1
+                key += item
+    if keyname:
+        raise TomlDecodeError("Key name found without value."
+                              " Reached end of file.", original, len(s))
+    if openstring:  # reached EOF and have an unterminated string
+        raise TomlDecodeError("Unterminated string found."
+                              " Reached end of file.", original, len(s))
     s = ''.join(sl)
     s = s.split('\n')
     multikey = None
@@ -323,6 +370,9 @@ def loads(s, _dict=dict, decoder=None):
     for idx, line in enumerate(s):
         if idx > 0:
             pos += len(s[idx - 1]) + 1
+
+        decoder.embed_comments(idx, currentlevel)
+
         if not multilinestr or multibackslash or '\n' not in multilinestr:
             line = line.strip()
         if line == "" and (not multikey or multibackslash):
@@ -333,9 +383,14 @@ def loads(s, _dict=dict, decoder=None):
             else:
                 multilinestr += line
             multibackslash = False
-            if len(line) > 2 and (line[-1] == multilinestr[0] and
-                                  line[-2] == multilinestr[0] and
-                                  line[-3] == multilinestr[0]):
+            closed = False
+            if multilinestr[0] == '[':
+                closed = line[-1] == ']'
+            elif len(line) > 2:
+                closed = (line[-1] == multilinestr[0] and
+                          line[-2] == multilinestr[0] and
+                          line[-3] == multilinestr[0])
+            if closed:
                 try:
                     value, vtype = decoder.load_value(multilinestr)
                 except ValueError as err:
@@ -663,13 +718,16 @@ class TomlDecoder(object):
         while len(pair[-1]) and (pair[-1][0] != ' ' and pair[-1][0] != '\t' and
                                  pair[-1][0] != "'" and pair[-1][0] != '"' and
                                  pair[-1][0] != '[' and pair[-1][0] != '{' and
-                                 pair[-1] != 'true' and pair[-1] != 'false'):
+                                 pair[-1].strip() != 'true' and
+                                 pair[-1].strip() != 'false'):
             try:
                 float(pair[-1])
                 break
             except ValueError:
                 pass
             if _load_date(pair[-1]) is not None:
+                break
+            if TIME_RE.match(pair[-1]):
                 break
             i += 1
             prev_val = pair[-1]
@@ -704,16 +762,10 @@ class TomlDecoder(object):
             pair[0] = levels[-1].strip()
         elif (pair[0][0] == '"' or pair[0][0] == "'") and \
                 (pair[0][-1] == pair[0][0]):
-            pair[0] = pair[0][1:-1]
-        if len(pair[1]) > 2 and ((pair[1][0] == '"' or pair[1][0] == "'") and
-                                 pair[1][1] == pair[1][0] and
-                                 pair[1][2] == pair[1][0] and
-                                 not (len(pair[1]) > 5 and
-                                      pair[1][-1] == pair[1][0] and
-                                      pair[1][-2] == pair[1][0] and
-                                      pair[1][-3] == pair[1][0])):
-            k = len(pair[1]) - 1
-            while k > -1 and pair[1][k] == '\\':
+            pair[0] = _unescape(pair[0][1:-1])
+        k, koffset = self._load_line_multiline_str(pair[1])
+        if k > -1:
+            while k > -1 and pair[1][k + koffset] == '\\':
                 multibackslash = not multibackslash
                 k -= 1
             if multibackslash:
@@ -733,6 +785,26 @@ class TomlDecoder(object):
                 return multikey, multilinestr, multibackslash
             else:
                 currentlevel[pair[0]] = value
+
+    def _load_line_multiline_str(self, p):
+        poffset = 0
+        if len(p) < 3:
+            return -1, poffset
+        if p[0] == '[' and (p.strip()[-1] != ']' and
+                            self._load_array_isstrarray(p)):
+            newp = p[1:].strip().split(',')
+            while len(newp) > 1 and newp[-1][0] != '"' and newp[-1][0] != "'":
+                newp = newp[:-2] + [newp[-2] + ',' + newp[-1]]
+            newp = newp[-1]
+            poffset = len(p) - len(newp)
+            p = newp
+        if p[0] != '"' and p[0] != "'":
+            return -1, poffset
+        if p[1] != p[0] or p[2] != p[0]:
+            return -1, poffset
+        if len(p) > 5 and p[-1] == p[0] and p[-2] == p[0] and p[-3] == p[0]:
+            return -1, poffset
+        return len(p) - 1, poffset
 
     def load_value(self, v, strictly_valid=True):
         if not v:
@@ -769,7 +841,8 @@ class TomlDecoder(object):
                         pass
                     if not oddbackslash:
                         if closed:
-                            raise ValueError("Stuff after closed string. WTF?")
+                            raise ValueError("Found tokens after a closed " +
+                                             "string. Invalid TOML.")
                         else:
                             if not triplequote or triplequotecount > 1:
                                 closed = True
@@ -857,15 +930,18 @@ class TomlDecoder(object):
                 break
         return not backslash
 
+    def _load_array_isstrarray(self, a):
+        a = a[1:-1].strip()
+        if a != '' and (a[0] == '"' or a[0] == "'"):
+            return True
+        return False
+
     def load_array(self, a):
         atype = None
         retval = []
         a = a.strip()
         if '[' not in a[1:-1] or "" != a[1:-1].split('[')[0].strip():
-            strarray = False
-            tmpa = a[1:-1].strip()
-            if tmpa != '' and (tmpa[0] == '"' or tmpa[0] == "'"):
-                strarray = True
+            strarray = self._load_array_isstrarray(a)
             if not a[1:-1].strip().startswith('{'):
                 a = a[1:-1].split(',')
             else:
@@ -874,6 +950,7 @@ class TomlDecoder(object):
                 new_a = []
                 start_group_index = 1
                 end_group_index = 2
+                open_bracket_count = 1 if a[start_group_index] == '{' else 0
                 in_str = False
                 while end_group_index < len(a[1:]):
                     if a[end_group_index] == '"' or a[end_group_index] == "'":
@@ -884,7 +961,13 @@ class TomlDecoder(object):
                                 in_str = not in_str
                                 backslash_index -= 1
                         in_str = not in_str
+                    if not in_str and a[end_group_index] == '{':
+                        open_bracket_count += 1
                     if in_str or a[end_group_index] != '}':
+                        end_group_index += 1
+                        continue
+                    elif a[end_group_index] == '}' and open_bracket_count > 1:
+                        open_bracket_count -= 1
                         end_group_index += 1
                         continue
 
@@ -943,3 +1026,27 @@ class TomlDecoder(object):
                     atype = ntype
                 retval.append(nval)
         return retval
+
+    def preserve_comment(self, line_no, key, comment, beginline):
+        pass
+
+    def embed_comments(self, idx, currentlevel):
+        pass
+
+
+class TomlPreserveCommentDecoder(TomlDecoder):
+
+    def __init__(self, _dict=dict):
+        self.saved_comments = {}
+        super(TomlPreserveCommentDecoder, self).__init__(_dict)
+
+    def preserve_comment(self, line_no, key, comment, beginline):
+        self.saved_comments[line_no] = (key, comment, beginline)
+
+    def embed_comments(self, idx, currentlevel):
+        if idx not in self.saved_comments:
+            return
+
+        key, comment, beginline = self.saved_comments[idx]
+        currentlevel[key] = CommentValue(currentlevel[key], comment, beginline,
+                                         self._dict)
