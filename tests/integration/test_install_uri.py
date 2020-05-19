@@ -42,7 +42,6 @@ def test_git_vcs_install(PipenvInstance):
         assert p.lockfile["default"]["six"] == {
             "git": "git://github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
-            "version": "==1.11.0"
         }
 
 
