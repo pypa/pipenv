@@ -15,30 +15,32 @@ diff --git a/pipenv/vendor/vistir/compat.py b/pipenv/vendor/vistir/compat.py
 index b5904bc7..a44aafbe 100644
 --- a/pipenv/vendor/vistir/compat.py
 +++ b/pipenv/vendor/vistir/compat.py
-@@ -43,7 +43,7 @@ __all__ = [
+@@ -55,7 +55,7 @@ __all__ = [
  if sys.version_info >= (3, 5):  # pragma: no cover
      from pathlib import Path
  else:  # pragma: no cover
 -    from pathlib2 import Path
 +    from pipenv.vendor.pathlib2 import Path
  
- if six.PY3:  # pragma: no cover
+ if sys.version_info >= (3, 4):  # pragma: no cover
      # Only Python 3.4+ is supported
-@@ -53,14 +53,14 @@ if six.PY3:  # pragma: no cover
-     from weakref import finalize
+@@ -85,8 +85,8 @@ if sys.version_info >= (3, 4):  # pragma: no cover
+ 
  else:  # pragma: no cover
      # Only Python 2.7 is supported
 -    from backports.functools_lru_cache import lru_cache
-+    from pipenv.vendor.backports.functools_lru_cache import lru_cache
-     from .backports.functools import partialmethod  # type: ignore
 -    from backports.shutil_get_terminal_size import get_terminal_size
++    from pipenv.vendor.backports.functools_lru_cache import lru_cache
 +    from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
+     from .backports.functools import partialmethod  # type: ignore
      from .backports.surrogateescape import register_surrogateescape
+     from collections import (
+@@ -110,7 +110,7 @@ else:  # pragma: no cover
  
      register_surrogateescape()
      NamedTemporaryFile = _NamedTemporaryFile
 -    from backports.weakref import finalize  # type: ignore
 +    from pipenv.vendor.backports.weakref import finalize  # type: ignore
  
- try:
-     # Introduced Python 3.5
+     try:
+         from os.path import samefile
