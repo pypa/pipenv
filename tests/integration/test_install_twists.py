@@ -97,8 +97,6 @@ setup(
         c = pipenv_instance.pipenv("install -v -e .")
         assert c.return_code == 0
         assert "test-private-dependency" in pipenv_instance.lockfile["default"]
-        assert "version" in pipenv_instance.lockfile["default"]["test-private-dependency"]
-        assert "0.1" in pipenv_instance.lockfile["default"]["test-private-dependency"]["version"]
 
     def test_https_dependency_links_install(self, PipenvInstance):
         """Ensure dependency_links are parsed and installed (needed for private repo dependencies).

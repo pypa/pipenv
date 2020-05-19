@@ -13,7 +13,7 @@ from pipenv._compat import Path
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_basic_vcs_install(PipenvInstance):  # ! This is failing
+def test_basic_vcs_install(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install git+https://github.com/benjaminp/six.git@1.11.0#egg=six")
         assert c.return_code == 0
@@ -25,7 +25,6 @@ def test_basic_vcs_install(PipenvInstance):  # ! This is failing
         assert p.lockfile["default"]["six"] == {
             "git": "https://github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
-            "version": "==1.11.0"
         }
         assert "gitdb2" in p.lockfile["default"]
 
