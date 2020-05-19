@@ -723,7 +723,7 @@ class Environment(object):
         )
         if match is not None:
             if req.editable and self.find_egg(match):
-                return req.line_instance.path == match.location
+                return vistir.compat.samefile(req.line_instance.path, match.location)
             elif match.has_metadata("direct_url.json"):
                 direct_url_metadata = json.loads(match.get_metadata("direct_url.json"))
                 commit_id = direct_url_metadata.get("vcs_info", {}).get("commit_id", "")
