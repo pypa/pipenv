@@ -432,7 +432,7 @@ def test_system_and_deploy_work(PipenvInstance):
         Path(p.pipfile_path).write_text(
             u"""
 [packages]
-requests
+requests = "*"
         """.strip()
         )
         c = p.pipenv("install --system")
