@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import sys
 
 import pytest
@@ -10,6 +11,7 @@ from flaky import flaky
 from vistir.compat import Path
 from vistir.misc import to_text
 from pipenv.utils import temp_environ
+import delegator
 
 
 @pytest.mark.lock
@@ -728,3 +730,21 @@ def test_lock_nested_direct_url(PipenvInstance):
         assert "vistir" in p.lockfile["default"]
         assert "colorama" in p.lockfile["default"]
         assert "six" in p.lockfile["default"]
+
+
+@pytest.mark.lock
+@pytest.mark.needs_internet
+def test_lock_nested_vcs_direct_url(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        p._pipfile.add("pep508_package", {
+            "git": "https://github.com/techalchemy/test-project.git",
+            "editable": True,  "ref": "master",
+            "subdirectory": "parent_folder/pep508-package"
+        })
+        c = p.pipenv("install")
+        assert c.return_code == 0
+        assert "git" in p.lockfile["default"]["pep508-package"]
+        assert "sibling-package" in p.lockfile["default"]
+        assert "git" in p.lockfile["default"]["sibling-package"]
+        assert "subdirectory" in p.lockfile["default"]["sibling-package"]
+        assert "version" not in p.lockfile["default"]["sibling-package"]

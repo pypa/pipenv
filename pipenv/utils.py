@@ -586,7 +586,7 @@ class Resolver(object):
                     constraints.add(line)
             # ensure the top level entry remains as provided
             # note that we shouldn't pin versions for editable vcs deps
-            if (not req.is_vcs or (req.is_vcs and not req.editable)):
+            if not req.is_vcs:
                 if req.specifiers:
                     locked_deps[name]["version"] = req.specifiers
                 elif parsed_line.setup_info and parsed_line.setup_info.version:
@@ -997,6 +997,8 @@ class Resolver(object):
         for req, ireq in reqs:
             if (req.vcs and req.editable and not req.is_direct_url):
                 continue
+            elif req.normalized_name in self.skipped.keys():
+                continue
             collected_hashes = self.collect_hashes(ireq)
             req = req.add_hashes(collected_hashes)
             if not collected_hashes and self._should_include_hash(ireq):
@@ -1041,9 +1043,9 @@ def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=No
         entry["version"] = pf_entry.lstrip("=")
     else:
         entry.update(pf_entry)
-        if version is not None:
+        if version is not None and not req.is_vcs:
             entry["version"] = version
-        if req.line_instance.is_direct_url:
+        if req.line_instance.is_direct_url and not req.is_vcs:
             entry["file"] = req.req.uri
     if hashes:
         entry["hashes"] = sorted(set(hashes))
@@ -1054,7 +1056,7 @@ def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=No
         entry.update({"markers": markers})
     entry = translate_markers(entry)
     if req.vcs or req.editable:
-        for key in ("index", "version"):
+        for key in ("index", "version", "file"):
             try:
                 del entry[key]
             except KeyError:
@@ -1879,11 +1881,6 @@ def get_vcs_deps(
                     lockfile[name] = requirement.pipfile_entry[1]
                     lockfile[name]['ref'] = commit_hash
                     result.append(requirement)
-                    version = requirement.specifiers
-                    if not version and requirement.specifiers:
-                        version = requirement.specifiers
-                    if version:
-                        lockfile[name]['version'] = version
             except OSError:
                 continue
     return result, lockfile

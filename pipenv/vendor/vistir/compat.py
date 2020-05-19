@@ -29,6 +29,7 @@ __all__ = [
     "TemporaryDirectory",
     "NamedTemporaryFile",
     "to_native_string",
+    "samefile",
     "Mapping",
     "Hashable",
     "MutableMapping",
@@ -80,6 +81,7 @@ if sys.version_info >= (3, 4):  # pragma: no cover
         MutableSequence,
         Callable,
     )
+    from os.path import samefile
 
 else:  # pragma: no cover
     # Only Python 2.7 is supported
@@ -109,6 +111,24 @@ else:  # pragma: no cover
     register_surrogateescape()
     NamedTemporaryFile = _NamedTemporaryFile
     from pipenv.vendor.backports.weakref import finalize  # type: ignore
+
+    try:
+        from os.path import samefile
+    except ImportError:
+
+        def samestat(s1, s2):
+            """Test whether two stat buffers reference the same file."""
+            return s1.st_ino == s2.st_ino and s1.st_dev == s2.st_dev
+
+        def samefile(f1, f2):
+            """Test whether two pathnames reference the same actual file or
+            directory This is determined by the device number and i-node number
+            and raises an exception if an os.stat() call on either pathname
+            fails."""
+            s1 = os.stat(f1)
+            s2 = os.stat(f2)
+            return samestat(s1, s2)
+
 
 try:
     # Introduced Python 3.5
