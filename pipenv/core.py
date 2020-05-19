@@ -1335,8 +1335,10 @@ def get_pip_args(
     no_deps=False,  # type: bool,
     selective_upgrade=False,  # type: bool
     src_dir=None,  # type: Optional[str]
+    allow_global=False,  # type: bool
 ):
     # type: (...) -> List[str]
+    from .environment import Environment
     from .vendor.packaging.version import parse as parse_version
     arg_map = {
         "pre": ["--pre"],
@@ -1352,9 +1354,10 @@ def get_pip_args(
         ],
         "src_dir": src_dir,
     }
-    if project.environment.pip_version >= parse_version("19.0"):
+    environment = project.get_environment(allow_global=allow_global)
+    if environment.pip_version >= parse_version("19.0"):
         arg_map["no_use_pep517"].append("--no-use-pep517")
-    if project.environment.pip_version < parse_version("19.1"):
+    if environment.pip_version < parse_version("19.1"):
         arg_map["no_use_pep517"].append("--no-build-isolation")
     arg_set = []
     for key in arg_map.keys():
@@ -1495,7 +1498,7 @@ def pip_install(
     pip_args = get_pip_args(
         pre=pre, verbose=environments.is_verbose(), upgrade=True,
         selective_upgrade=selective_upgrade, no_use_pep517=not use_pep517,
-        no_deps=no_deps, require_hashes=not ignore_hashes
+        no_deps=no_deps, require_hashes=not ignore_hashes, allow_global=allow_global
     )
     pip_command.extend(pip_args)
     if r:
