@@ -715,7 +715,7 @@ class Line(object):
         ):
             return True
         elif (os.path.exists(self.line) and is_installable_file(self.line)) or (
-            line_url and os.path.exists(line_url) and is_installable_file(line_ur)
+            line_url and os.path.exists(line_url) and is_installable_file(line_url)
         ):
             return True
         return False
@@ -799,7 +799,7 @@ class Line(object):
         # type: () -> SetupInfo
         setup_info = None
         with pip_shims.shims.global_tempdir_manager():
-            setup_info = SetupInfo.from_ireq(self.ireq)
+            setup_info = SetupInfo.from_ireq(self.ireq, subdir=self.subdirectory)
             if not setup_info.name:
                 setup_info.get_info()
         return setup_info
@@ -1130,16 +1130,23 @@ class Line(object):
         parsed_url = None  # type: Optional[URI]
         if (
             not is_valid_url(self.line)
+            and is_installable_file(os.path.abspath(self.line))
             and (
                 self.line.startswith("./")
                 or (os.path.exists(self.line) or os.path.isabs(self.line))
             )
-            and is_installable_file(os.path.abspath(self.line))
         ):
             url = pip_shims.shims.path_to_url(os.path.abspath(self.line))
             self._parsed_url = parsed_url = URI.parse(url)
-        elif is_valid_url(self.line) or is_vcs(self.line) or is_file_url(self.line):
-            parsed_url = URI.parse(self.line)
+        elif any(
+            [
+                is_valid_url(self.line),
+                is_vcs(self.line),
+                is_file_url(self.line),
+                self.is_direct_url,
+            ]
+        ):
+            parsed_url = self.parsed_url
         if parsed_url is None or (
             parsed_url.is_file_url and not parsed_url.is_installable
         ):
@@ -1242,6 +1249,31 @@ class Line(object):
         requirement.
         """
         line = self.line
+        direct_url_match = DIRECT_URL_RE.match(line)
+        if direct_url_match:
+            match_dict = direct_url_match.groupdict()
+            auth = ""
+            username = match_dict.get("username", None)
+            password = match_dict.get("password", None)
+            port = match_dict.get("port", None)
+            path = match_dict.get("path", None)
+            ref = match_dict.get("ref", None)
+            if username is not None:
+                auth = "{0}".format(username)
+            if password:
+                auth = "{0}:{1}".format(auth, password) if auth else password
+            line = match_dict.get("host", "")
+            if auth:
+                line = "{auth}@{line}".format(auth=auth, line=line)
+            if port:
+                line = "{line}:{port}".format(line=line, port=port)
+            if path:
+                line = "{line}{pathsep}{path}".format(
+                    line=line, pathsep=match_dict["pathsep"], path=path
+                )
+            if ref:
+                line = "{line}@{ref}".format(line=line, ref=ref)
+            line = "{scheme}{line}".format(scheme=match_dict["scheme"], line=line)
         if is_file_url(line):
             link = create_link(line)
             line = link.url_without_fragment
@@ -1411,6 +1443,7 @@ class FileRequirement(object):
     pyproject_backend = attr.ib(default=None, cmp=True)  # type: Optional[STRING_TYPE]
     #: PyProject Path
     pyproject_path = attr.ib(default=None, cmp=True)  # type: Optional[STRING_TYPE]
+    subdirectory = attr.ib(default=None)  # type: Optional[STRING_TYPE]
     #: Setup metadata e.g. dependencies
     _setup_info = attr.ib(default=None, cmp=True)  # type: Optional[SetupInfo]
     _has_hashed_name = attr.ib(default=False, cmp=True)  # type: bool
@@ -1577,8 +1610,6 @@ class FileRequirement(object):
     @property
     def setup_info(self):
         # type: () -> Optional[SetupInfo]
-        from .setup_info import SetupInfo
-
         if self._setup_info is None and self.parsed_line:
             if self.parsed_line and self._parsed_line and self.parsed_line.setup_info:
                 if (
@@ -1592,7 +1623,9 @@ class FileRequirement(object):
                 self.parsed_line.ireq and not self.parsed_line.is_wheel
             ):
                 with pip_shims.shims.global_tempdir_manager():
-                    self._setup_info = SetupInfo.from_ireq(self.parsed_line.ireq)
+                    self._setup_info = SetupInfo.from_ireq(
+                        self.parsed_line.ireq, subdir=self.subdirectory
+                    )
             else:
                 if self.link and not self.link.is_wheel:
                     self._setup_info = Line(self.line_part).setup_info
@@ -1915,7 +1948,6 @@ class VCSRequirement(FileRequirement):
     #: vcs reference name (branch / commit / tag)
     ref = attr.ib(default=None)  # type: Optional[STRING_TYPE]
     #: Subdirectory to use for installation if applicable
-    subdirectory = attr.ib(default=None)  # type: Optional[STRING_TYPE]
     _repo = attr.ib(default=None)  # type: Optional[VCSRepository]
     _base_line = attr.ib(default=None)  # type: Optional[STRING_TYPE]
     name = attr.ib()  # type: STRING_TYPE
@@ -1986,20 +2018,18 @@ class VCSRequirement(FileRequirement):
                 with pip_shims.shims.global_tempdir_manager():
                     self._parsed_line._setup_info.get_info()
             return self._parsed_line.setup_info
+        subdir = self.subdirectory or self.parsed_line.subdirectory
         if self._repo:
-            from .setup_info import SetupInfo
-
             with pip_shims.shims.global_tempdir_manager():
                 self._setup_info = SetupInfo.from_ireq(
-                    Line(self._repo.checkout_directory).ireq
+                    Line(self._repo.checkout_directory).ireq, subdir=subdir
                 )
                 self._setup_info.get_info()
             return self._setup_info
         ireq = self.parsed_line.ireq
-        from .setup_info import SetupInfo
 
         with pip_shims.shims.global_tempdir_manager():
-            self._setup_info = SetupInfo.from_ireq(ireq)
+            self._setup_info = SetupInfo.from_ireq(ireq, subdir=subdir)
         return self._setup_info
 
     @setup_info.setter
@@ -2029,7 +2059,7 @@ class VCSRequirement(FileRequirement):
             )
         req = init_requirement(canonicalize_name(self.name))
         req.editable = self.editable
-        if not getattr(req, "url"):
+        if not getattr(req, "url", None):
             if url is not None:
                 url = add_ssh_scheme_to_git_uri(url)
             elif self.uri is not None:
@@ -2981,7 +3011,6 @@ class Requirement(object):
         elif self.line_instance and self.line_instance.setup_info is not None:
             info_dict = self.line_instance.setup_info.as_dict()
         else:
-            from .setup_info import SetupInfo
 
             if not finder:
                 from .dependencies import get_finder
