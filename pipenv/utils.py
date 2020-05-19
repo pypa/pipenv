@@ -586,7 +586,7 @@ class Resolver(object):
                     constraints.add(line)
             # ensure the top level entry remains as provided
             # note that we shouldn't pin versions for editable vcs deps
-            if (not req.is_vcs or (req.is_vcs and not req.editable)):
+            if not req.is_vcs:
                 if req.specifiers:
                     locked_deps[name]["version"] = req.specifiers
                 elif parsed_line.setup_info and parsed_line.setup_info.version:
