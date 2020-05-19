@@ -735,6 +735,9 @@ def batch_install(deps_list, procs, failed_deps_queue,
 
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
+    deps_to_install = [
+        dep for dep in deps_to_install if not project.environment.is_satisfied(dep)
+    ]
     sequential_dep_names = [d.name for d in sequential_deps]
 
     deps_list_bar = progress.bar(
