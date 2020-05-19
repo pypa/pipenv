@@ -1,0 +1,1 @@
+``pipenv install`` and ``pipenv sync`` will no longer attempt to install satisfied dependencies during installation.
