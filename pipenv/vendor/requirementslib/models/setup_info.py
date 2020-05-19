@@ -926,7 +926,7 @@ class Analyzer(ast.NodeVisitor):
         return unparsed
 
     def unparse_list(self, item):
-        return type(item)([unparse(el) for el in item])
+        return type(item)([self.unparse(el) for el in item])
 
     def unparse_tuple(self, item):
         return self.unparse_list(item)
@@ -965,6 +965,17 @@ class Analyzer(ast.NodeVisitor):
                 should_retry=False, function_map=dict(retries)
             )
         return self.resolved_function_names
+
+    def parse_setup_function(self):
+        setup = {}  # type: Dict[Any, Any]
+        self.unmap_binops()
+        function_names = self.parse_functions()
+        if "setup" in function_names:
+            setup = self.unparse(function_names["setup"])
+        keys = list(setup.keys())
+        if len(keys) == 1 and keys[0] is None:
+            _, setup = setup.popitem()
+        return setup
 
 
 def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # noqa:C901
