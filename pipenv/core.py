@@ -802,9 +802,9 @@ def batch_install(deps_list, procs, failed_deps_queue,
 
 def do_install_dependencies(
     dev=False,
-    only=False,
+    dev_only=False,
     bare=False,
-    requirements=False,
+    emit_requirements=False,
     allow_global=False,
     ignore_hashes=False,
     skip_lock=False,
@@ -815,14 +815,14 @@ def do_install_dependencies(
     """"
     Executes the install functionality.
 
-    If requirements is True, simply spits out a requirements format to stdout.
+    If emit_requirements is True, simply spits out a requirements format to stdout.
     """
 
     from six.moves import queue
-    if requirements:
+    if emit_requirements:
         bare = True
-    # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
-    if skip_lock or only or not project.lockfile_exists:
+    # Load the lockfile if it exists, or if dev_only is being used.
+    if skip_lock or not project.lockfile_exists:
         if not bare:
             click.echo(
                 crayons.normal(fix_utf8("Installing dependencies from Pipfile…"), bold=True)
@@ -842,14 +842,14 @@ def do_install_dependencies(
             )
     # Allow pip to resolve dependencies when in skip-lock mode.
     no_deps = not skip_lock  # skip_lock true, no_deps False, pip resolves deps
-    deps_list = list(lockfile.get_requirements(dev=dev, only=requirements))
-    if requirements:
+    dev = dev or dev_only
+    deps_list = list(lockfile.get_requirements(dev=dev, only=dev_only))
+    if emit_requirements:
         index_args = prepare_pip_source_args(get_source_list(pypi_mirror=pypi_mirror, project=project))
         index_args = " ".join(index_args).replace(" -", "\n-")
         deps = [
             req.as_line(sources=False, include_hashes=False) for req in deps_list
         ]
-        # Output only default dependencies
         click.echo(index_args)
         click.echo(
             "\n".join(sorted(deps))
@@ -1201,7 +1201,8 @@ def do_purge(bare=False, downloads=False, allow_global=False):
 
 def do_init(
     dev=False,
-    requirements=False,
+    dev_only=False,
+    emit_requirements=False,
     allow_global=False,
     ignore_pipfile=False,
     skip_lock=False,
@@ -1306,7 +1307,8 @@ def do_init(
             )
     do_install_dependencies(
         dev=dev,
-        requirements=requirements,
+        dev_only=dev_only,
+        emit_requirements=emit_requirements,
         allow_global=allow_global,
         skip_lock=skip_lock,
         concurrent=concurrent,
@@ -1891,7 +1893,7 @@ def do_install(
     lock=True,
     ignore_pipfile=False,
     skip_lock=False,
-    requirements=False,
+    requirementstxt=False,
     sequential=False,
     pre=False,
     code=False,
@@ -1914,7 +1916,7 @@ def do_install(
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
     skip_requirements = False
     # Don't search for requirements.txt files if the user provides one
-    if requirements or package_args or project.pipfile_exists:
+    if requirementstxt or package_args or project.pipfile_exists:
         skip_requirements = True
     concurrent = not sequential
     # Ensure that virtualenv is available and pipfile are available
@@ -1939,7 +1941,7 @@ def do_install(
         pre = project.settings.get("allow_prereleases")
     if not keep_outdated:
         keep_outdated = project.settings.get("keep_outdated")
-    remote = requirements and is_valid_url(requirements)
+    remote = requirementstxt and is_valid_url(requirementstxt)
     # Warn and exit if --system is used without a pipfile.
     if (system and package_args) and not (PIPENV_VIRTUALENV):
         raise exceptions.SystemUsageError
@@ -1958,17 +1960,17 @@ def do_install(
             prefix="pipenv-", suffix="-requirement.txt", dir=requirements_directory
         )
         temp_reqs = fd.name
-        requirements_url = requirements
+        requirements_url = requirementstxt
         # Download requirements file
         try:
-            download_file(requirements, temp_reqs)
+            download_file(requirements_url, temp_reqs)
         except IOError:
             fd.close()
             os.unlink(temp_reqs)
             click.echo(
                 crayons.red(
                     u"Unable to find requirements file at {0}.".format(
-                        crayons.normal(requirements)
+                        crayons.normal(requirements_url)
                     )
                 ),
                 err=True,
@@ -1977,9 +1979,9 @@ def do_install(
         finally:
             fd.close()
         # Replace the url with the temporary requirements file
-        requirements = temp_reqs
+        requirementstxt = temp_reqs
         remote = True
-    if requirements:
+    if requirementstxt:
         error, traceback = None, None
         click.echo(
             crayons.normal(
@@ -1988,10 +1990,10 @@ def do_install(
             err=True,
         )
         try:
-            import_requirements(r=project.path_to(requirements), dev=dev)
+            import_requirements(r=project.path_to(requirementstxt), dev=dev)
         except (UnicodeDecodeError, PipError) as e:
             # Don't print the temp file path if remote since it will be deleted.
-            req_path = requirements_url if remote else project.path_to(requirements)
+            req_path = requirements_url if remote else project.path_to(requirementstxt)
             error = (
                 u"Unexpected syntax in {0}. Are you sure this is a "
                 "requirements.txt style file?".format(req_path)
