@@ -1338,7 +1338,6 @@ def get_pip_args(
     allow_global=False,  # type: bool
 ):
     # type: (...) -> List[str]
-    from .environment import Environment
     from .vendor.packaging.version import parse as parse_version
     arg_map = {
         "pre": ["--pre"],
@@ -1354,10 +1353,9 @@ def get_pip_args(
         ],
         "src_dir": src_dir,
     }
-    environment = project.get_environment(allow_global=allow_global)
-    if environment.pip_version >= parse_version("19.0"):
+    if project.environment.pip_version >= parse_version("19.0"):
         arg_map["no_use_pep517"].append("--no-use-pep517")
-    if environment.pip_version < parse_version("19.1"):
+    if project.environment.pip_version < parse_version("19.1"):
         arg_map["no_use_pep517"].append("--no-build-isolation")
     arg_set = []
     for key in arg_map.keys():
