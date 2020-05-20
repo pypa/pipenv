@@ -5,28 +5,33 @@ from __future__ import absolute_import, division, print_function
 
 import re
 
+from ._typing import MYPY_CHECK_RUNNING
 from .version import InvalidVersion, Version
 
+if MYPY_CHECK_RUNNING:  # pragma: no cover
+    from typing import Union
 
 _canonicalize_regex = re.compile(r"[-_.]+")
 
 
 def canonicalize_name(name):
+    # type: (str) -> str
     # This is taken from PEP 503.
     return _canonicalize_regex.sub("-", name).lower()
 
 
-def canonicalize_version(version):
+def canonicalize_version(_version):
+    # type: (str) -> Union[Version, str]
     """
-    This is very similar to Version.__str__, but has one subtle differences
+    This is very similar to Version.__str__, but has one subtle difference
     with the way it handles the release segment.
     """
 
     try:
-        version = Version(version)
+        version = Version(_version)
     except InvalidVersion:
         # Legacy versions cannot be normalized
-        return version
+        return _version
 
     parts = []
 

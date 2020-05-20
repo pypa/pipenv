@@ -1,0 +1,605 @@
+diff --git a/pipenv/patched/pip/_internal/build_env.py b/pipenv/patched/pip/_internal/build_env.py
+index f55f0e6b..dc7ece39 100644
+--- a/pipenv/patched/pip/_internal/build_env.py
++++ b/pipenv/patched/pip/_internal/build_env.py
+@@ -169,8 +169,9 @@ class BuildEnvironment(object):
+         prefix.setup = True
+         if not requirements:
+             return
++        sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
+         args = [
+-            sys.executable, os.path.dirname(pip_location), 'install',
++            sys_executable, os.path.dirname(pip_location), 'install',
+             '--ignore-installed', '--no-user', '--prefix', prefix.path,
+             '--no-warn-script-location',
+         ]  # type: List[str]
+diff --git a/pipenv/patched/pip/_internal/commands/__init__.py b/pipenv/patched/pip/_internal/commands/__init__.py
+index 2a311f8f..9f2f1aaa 100644
+--- a/pipenv/patched/pip/_internal/commands/__init__.py
++++ b/pipenv/patched/pip/_internal/commands/__init__.py
+@@ -21,7 +21,7 @@ CommandInfo = namedtuple('CommandInfo', 'module_path, class_name, summary')
+ 
+ # The ordering matters for help display.
+ #    Also, even though the module path starts with the same
+-# "pip._internal.commands" prefix in each case, we include the full path
++# "pipenv.patched.notpip._internal.commands" prefix in each case, we include the full path
+ # because it makes testing easier (specifically when modifying commands_dict
+ # in test setup / teardown by adding info for a FakeCommand class defined
+ # in a test-related module).
+@@ -29,59 +29,59 @@ CommandInfo = namedtuple('CommandInfo', 'module_path, class_name, summary')
+ # so that the ordering won't be lost when using Python 2.7.
+ commands_dict = OrderedDict([
+     ('install', CommandInfo(
+-        'pip._internal.commands.install', 'InstallCommand',
++        'pipenv.patched.notpip._internal.commands.install', 'InstallCommand',
+         'Install packages.',
+     )),
+     ('download', CommandInfo(
+-        'pip._internal.commands.download', 'DownloadCommand',
++        'pipenv.patched.notpip._internal.commands.download', 'DownloadCommand',
+         'Download packages.',
+     )),
+     ('uninstall', CommandInfo(
+-        'pip._internal.commands.uninstall', 'UninstallCommand',
++        'pipenv.patched.notpip._internal.commands.uninstall', 'UninstallCommand',
+         'Uninstall packages.',
+     )),
+     ('freeze', CommandInfo(
+-        'pip._internal.commands.freeze', 'FreezeCommand',
++        'pipenv.patched.notpip._internal.commands.freeze', 'FreezeCommand',
+         'Output installed packages in requirements format.',
+     )),
+     ('list', CommandInfo(
+-        'pip._internal.commands.list', 'ListCommand',
++        'pipenv.patched.notpip._internal.commands.list', 'ListCommand',
+         'List installed packages.',
+     )),
+     ('show', CommandInfo(
+-        'pip._internal.commands.show', 'ShowCommand',
++        'pipenv.patched.notpip._internal.commands.show', 'ShowCommand',
+         'Show information about installed packages.',
+     )),
+     ('check', CommandInfo(
+-        'pip._internal.commands.check', 'CheckCommand',
++        'pipenv.patched.notpip._internal.commands.check', 'CheckCommand',
+         'Verify installed packages have compatible dependencies.',
+     )),
+     ('config', CommandInfo(
+-        'pip._internal.commands.configuration', 'ConfigurationCommand',
++        'pipenv.patched.notpip._internal.commands.configuration', 'ConfigurationCommand',
+         'Manage local and global configuration.',
+     )),
+     ('search', CommandInfo(
+-        'pip._internal.commands.search', 'SearchCommand',
++        'pipenv.patched.notpip._internal.commands.search', 'SearchCommand',
+         'Search PyPI for packages.',
+     )),
+     ('wheel', CommandInfo(
+-        'pip._internal.commands.wheel', 'WheelCommand',
++        'pipenv.patched.notpip._internal.commands.wheel', 'WheelCommand',
+         'Build wheels from your requirements.',
+     )),
+     ('hash', CommandInfo(
+-        'pip._internal.commands.hash', 'HashCommand',
++        'pipenv.patched.notpip._internal.commands.hash', 'HashCommand',
+         'Compute hashes of package archives.',
+     )),
+     ('completion', CommandInfo(
+-        'pip._internal.commands.completion', 'CompletionCommand',
++        'pipenv.patched.notpip._internal.commands.completion', 'CompletionCommand',
+         'A helper command used for command completion.',
+     )),
+     ('debug', CommandInfo(
+-        'pip._internal.commands.debug', 'DebugCommand',
++        'pipenv.patched.notpip._internal.commands.debug', 'DebugCommand',
+         'Show information useful for debugging.',
+     )),
+     ('help', CommandInfo(
+-        'pip._internal.commands.help', 'HelpCommand',
++        'pipenv.patched.notpip._internal.commands.help', 'HelpCommand',
+         'Show help for commands.',
+     )),
+ ])  # type: OrderedDict[str, CommandInfo]
+diff --git a/pipenv/patched/pip/_internal/commands/install.py b/pipenv/patched/pip/_internal/commands/install.py
+index 02a187c8..f917e645 100644
+--- a/pipenv/patched/pip/_internal/commands/install.py
++++ b/pipenv/patched/pip/_internal/commands/install.py
+@@ -337,7 +337,7 @@ class InstallCommand(RequirementCommand):
+                 else:
+                     # If we're not replacing an already installed pip,
+                     # we're not modifying it.
+-                    modifying_pip = pip_req.satisfied_by is None
++                    modifying_pip = getattr(pip_req, "satisfied_by", None) is None
+                 protect_pip_from_modification_on_windows(
+                     modifying_pip=modifying_pip
+                 )
+diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patched/pip/_internal/index/package_finder.py
+index a74d78db..7c9dc1be 100644
+--- a/pipenv/patched/pip/_internal/index/package_finder.py
++++ b/pipenv/patched/pip/_internal/index/package_finder.py
+@@ -121,6 +121,7 @@ class LinkEvaluator(object):
+         target_python,   # type: TargetPython
+         allow_yanked,    # type: bool
+         ignore_requires_python=None,  # type: Optional[bool]
++        ignore_compatibility=None,  # type: Optional[bool]
+     ):
+         # type: (...) -> None
+         """
+@@ -139,15 +140,20 @@ class LinkEvaluator(object):
+         :param ignore_requires_python: Whether to ignore incompatible
+             PEP 503 "data-requires-python" values in HTML links. Defaults
+             to False.
++        :param Optional[bool] ignore_compatibility: Whether to ignore
++            compatibility of python versions and allow all versions of packages.
+         """
+         if ignore_requires_python is None:
+             ignore_requires_python = False
++        if ignore_compatibility is None:
++            ignore_compatibility = True
+ 
+         self._allow_yanked = allow_yanked
+         self._canonical_name = canonical_name
+         self._ignore_requires_python = ignore_requires_python
+         self._formats = formats
+         self._target_python = target_python
++        self._ignore_compatibility = ignore_compatibility
+ 
+         self.project_name = project_name
+ 
+@@ -178,10 +184,10 @@ class LinkEvaluator(object):
+                 return (False, 'not a file')
+             if ext not in SUPPORTED_EXTENSIONS:
+                 return (False, 'unsupported archive format: %s' % ext)
+-            if "binary" not in self._formats and ext == WHEEL_EXTENSION:
++            if "binary" not in self._formats and ext == WHEEL_EXTENSION and not self._ignore_compatibility:
+                 reason = 'No binaries permitted for %s' % self.project_name
+                 return (False, reason)
+-            if "macosx10" in link.path and ext == '.zip':
++            if "macosx10" in link.path and ext == '.zip' and not self._ignore_compatibility:
+                 return (False, 'macosx10 one')
+             if ext == WHEEL_EXTENSION:
+                 try:
+@@ -193,7 +199,7 @@ class LinkEvaluator(object):
+                     return (False, reason)
+ 
+                 supported_tags = self._target_python.get_tags()
+-                if not wheel.supported(supported_tags):
++                if not wheel.supported(supported_tags) and not self._ignore_compatibility:
+                     # Include the wheel's tags in the reason string to
+                     # simplify troubleshooting compatibility issues.
+                     file_tags = wheel.get_formatted_file_tags()
+@@ -230,7 +236,7 @@ class LinkEvaluator(object):
+             link, version_info=self._target_python.py_version_info,
+             ignore_requires_python=self._ignore_requires_python,
+         )
+-        if not supports_python:
++        if not supports_python and not self._ignore_compatibility:
+             # Return None for the reason text to suppress calling
+             # _log_skipped_link().
+             return (False, None)
+@@ -483,8 +489,8 @@ class CandidateEvaluator(object):
+ 
+         return sorted(filtered_applicable_candidates, key=self._sort_key)
+ 
+-    def _sort_key(self, candidate):
+-        # type: (InstallationCandidate) -> CandidateSortingKey
++    def _sort_key(self, candidate, ignore_compatibility=True):
++        # type: (InstallationCandidate, bool) -> CandidateSortingKey
+         """
+         Function to pass as the `key` argument to a call to sorted() to sort
+         InstallationCandidates by preference.
+@@ -522,14 +528,18 @@ class CandidateEvaluator(object):
+         if link.is_wheel:
+             # can raise InvalidWheelFilename
+             wheel = Wheel(link.filename)
+-            if not wheel.supported(valid_tags):
++            if not wheel.supported(valid_tags) and not ignore_compatibility:
+                 raise UnsupportedWheel(
+                     "%s is not a supported wheel for this platform. It "
+                     "can't be sorted." % wheel.filename
+                 )
+             if self._prefer_binary:
+                 binary_preference = 1
+-            pri = -(wheel.support_index_min(valid_tags))
++            tags = valid_tags
++            try:
++                pri = -(wheel.support_index_min(tags=tags))
++            except TypeError:
++                pri = -(support_num)
+             if wheel.build_tag is not None:
+                 match = re.match(r'^(\d+)(.*)$', wheel.build_tag)
+                 build_tag_groups = match.groups()
+@@ -607,6 +617,7 @@ class PackageFinder(object):
+         format_control=None,  # type: Optional[FormatControl]
+         candidate_prefs=None,         # type: CandidatePreferences
+         ignore_requires_python=None,  # type: Optional[bool]
++        ignore_compatibility=None,  # type: Optional[bool]
+     ):
+         # type: (...) -> None
+         """
+@@ -621,6 +632,8 @@ class PackageFinder(object):
+         """
+         if candidate_prefs is None:
+             candidate_prefs = CandidatePreferences()
++        if ignore_compatibility is None:
++            ignore_compatibility = False
+ 
+         format_control = format_control or FormatControl(set(), set())
+ 
+@@ -629,12 +642,16 @@ class PackageFinder(object):
+         self._ignore_requires_python = ignore_requires_python
+         self._link_collector = link_collector
+         self._target_python = target_python
++        self._ignore_compatibility = ignore_compatibility
+ 
+         self.format_control = format_control
+ 
+         # These are boring links that have already been logged somehow.
+         self._logged_links = set()  # type: Set[Link]
+ 
++        # Kenneth's Hack
++        self.extra = None
++
+     # Don't include an allow_yanked default value to make sure each call
+     # site considers whether yanked releases are allowed. This also causes
+     # that decision to be made explicit in the calling code, which helps
+@@ -672,6 +689,23 @@ class PackageFinder(object):
+             ignore_requires_python=selection_prefs.ignore_requires_python,
+         )
+ 
++    @staticmethod
++    def get_extras_links(links):
++        requires = []
++        extras = {}
++
++        current_list = requires
++
++        for link in links:
++            if not link:
++                current_list = requires
++            if link.startswith('['):
++                current_list = []
++                extras[link[1:-1]] = current_list
++            else:
++                current_list.append(link)
++        return extras
++
+     @property
+     def search_scope(self):
+         # type: () -> SearchScope
+@@ -719,6 +753,7 @@ class PackageFinder(object):
+             target_python=self._target_python,
+             allow_yanked=self._allow_yanked,
+             ignore_requires_python=self._ignore_requires_python,
++            ignore_compatibility=self._ignore_compatibility
+         )
+ 
+     def _sort_links(self, links):
+@@ -767,6 +802,7 @@ class PackageFinder(object):
+             # Convert the Text result to str since InstallationCandidate
+             # accepts str.
+             version=str(result),
++            requires_python=getattr(link, "requires_python", None)
+         )
+ 
+     def evaluate_links(self, link_evaluator, links):
+diff --git a/pipenv/patched/pip/_internal/legacy_resolve.py b/pipenv/patched/pip/_internal/legacy_resolve.py
+index ca269121..999922b8 100644
+--- a/pipenv/patched/pip/_internal/legacy_resolve.py
++++ b/pipenv/patched/pip/_internal/legacy_resolve.py
+@@ -121,6 +121,7 @@ class Resolver(object):
+         force_reinstall,  # type: bool
+         upgrade_strategy,  # type: str
+         py_version_info=None,  # type: Optional[Tuple[int, ...]]
++        ignore_compatibility=False,  # type: bool
+     ):
+         # type: (...) -> None
+         super(Resolver, self).__init__()
+@@ -143,6 +144,10 @@ class Resolver(object):
+         self.ignore_requires_python = ignore_requires_python
+         self.use_user_site = use_user_site
+         self._make_install_req = make_install_req
++        self.ignore_compatibility = ignore_compatibility
++        self.requires_python = None
++        if self.ignore_compatibility:
++            self.ignore_requires_python = True
+ 
+         self._discovered_dependencies = \
+             defaultdict(list)  # type: DiscoveredDependencies
+@@ -313,6 +318,7 @@ class Resolver(object):
+         self,
+         requirement_set,  # type: RequirementSet
+         req_to_install,  # type: InstallRequirement
++        ignore_requires_python=False,  # type: bool
+     ):
+         # type: (...) -> List[InstallRequirement]
+         """Prepare a single requirements file.
+@@ -336,11 +342,21 @@ class Resolver(object):
+         dist = abstract_dist.get_pkg_resources_distribution()
+         # This will raise UnsupportedPythonVersion if the given Python
+         # version isn't compatible with the distribution's Requires-Python.
++        ignore_requires_python = (
++            ignore_requires_python or self.ignore_requires_python or
++            self.ignore_compatibility
++        )
+         _check_dist_requires_python(
+             dist, version_info=self._py_version_info,
+-            ignore_requires_python=self.ignore_requires_python,
++            ignore_requires_python=ignore_requires_python,
+         )
+-
++        # Patched in - lets get the python version on here then
++        # FIXME: Does this patch even work? it puts the python version
++        # on the resolver... why?
++        try:
++            self.requires_python = get_requires_python(dist)
++        except TypeError:
++            self.requires_python = None
+         more_reqs = []  # type: List[InstallRequirement]
+ 
+         def add_req(subreq, extras_requested):
+@@ -367,9 +383,14 @@ class Resolver(object):
+                 # 'unnamed' requirements will get added here
+                 # 'unnamed' requirements can only come from being directly
+                 # provided by the user.
++                req_to_install.is_direct = True
+                 assert req_to_install.is_direct
++                available_requested = sorted(
++                    set(dist.extras) & set(req_to_install.extras)
++                )
+                 requirement_set.add_requirement(
+                     req_to_install, parent_req_name=None,
++                    extras_requested=available_requested,
+                 )
+ 
+             if not self.ignore_dependencies:
+diff --git a/pipenv/patched/pip/_internal/models/candidate.py b/pipenv/patched/pip/_internal/models/candidate.py
+index 1dc1a576..4cc06026 100644
+--- a/pipenv/patched/pip/_internal/models/candidate.py
++++ b/pipenv/patched/pip/_internal/models/candidate.py
+@@ -12,11 +12,12 @@ class InstallationCandidate(KeyBasedCompareMixin):
+     """Represents a potential "candidate" for installation.
+     """
+ 
+-    def __init__(self, name, version, link):
+-        # type: (str, str, Link) -> None
++    def __init__(self, name, version, link, requires_python=None):
++        # type: (str, str, Link, Any) -> None
+         self.name = name
+         self.version = parse_version(version)  # type: _BaseVersion
+         self.link = link
++        self.requires_python = requires_python
+ 
+         super(InstallationCandidate, self).__init__(
+             key=(self.name, self.version, self.link),
+diff --git a/pipenv/patched/pip/_internal/operations/prepare.py b/pipenv/patched/pip/_internal/operations/prepare.py
+index 0b61f205..ddfb75a6 100644
+--- a/pipenv/patched/pip/_internal/operations/prepare.py
++++ b/pipenv/patched/pip/_internal/operations/prepare.py
+@@ -429,14 +429,7 @@ class RequirementPreparer(object):
+             # FIXME: this won't upgrade when there's an existing
+             # package unpacked in `req.source_dir`
+             if os.path.exists(os.path.join(req.source_dir, 'setup.py')):
+-                raise PreviousBuildDirError(
+-                    "pip can't proceed with requirements '{}' due to a"
+-                    " pre-existing build directory ({}). This is "
+-                    "likely due to a previous installation that failed"
+-                    ". pip is being responsible and not assuming it "
+-                    "can delete this. Please delete it and try again."
+-                    .format(req, req.source_dir)
+-                )
++                rmtree(req.source_dir)
+ 
+             # Now that we have the real link, we can tell what kind of
+             # requirements we have and raise some more informative errors
+diff --git a/pipenv/patched/pip/_internal/req/req_set.py b/pipenv/patched/pip/_internal/req/req_set.py
+index 087ac592..01e7394a 100644
+--- a/pipenv/patched/pip/_internal/req/req_set.py
++++ b/pipenv/patched/pip/_internal/req/req_set.py
+@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
+ 
+ class RequirementSet(object):
+ 
+-    def __init__(self, check_supported_wheels=True):
+-        # type: (bool) -> None
++    def __init__(self, check_supported_wheels=True, ignore_compatibility=True):
++        # type: (bool, bool) -> None
+         """Create a RequirementSet.
+         """
+ 
+@@ -35,6 +35,9 @@ class RequirementSet(object):
+         self.unnamed_requirements = []  # type: List[InstallRequirement]
+         self.successfully_downloaded = []  # type: List[InstallRequirement]
+         self.reqs_to_cleanup = []  # type: List[InstallRequirement]
++        if ignore_compatibility:
++            self.check_supported_wheels = False
++        self.ignore_compatibility = (check_supported_wheels is False or ignore_compatibility is True)
+ 
+     def __str__(self):
+         # type: () -> str
+@@ -198,7 +201,7 @@ class RequirementSet(object):
+         if project_name in self.requirements:
+             return self.requirements[project_name]
+ 
+-        raise KeyError("No project with the name %r" % name)
++        pass
+ 
+     def cleanup_files(self):
+         # type: () -> None
+diff --git a/pipenv/patched/pip/_internal/utils/logging.py b/pipenv/patched/pip/_internal/utils/logging.py
+index 7767111a..52738e16 100644
+--- a/pipenv/patched/pip/_internal/utils/logging.py
++++ b/pipenv/patched/pip/_internal/utils/logging.py
+@@ -314,8 +314,8 @@ def setup_logging(verbosity, no_color, user_log_file):
+         "stderr": "ext://sys.stderr",
+     }
+     handler_classes = {
+-        "stream": "pip._internal.utils.logging.ColorizedStreamHandler",
+-        "file": "pip._internal.utils.logging.BetterRotatingFileHandler",
++        "stream": "pipenv.patched.notpip._internal.utils.logging.ColorizedStreamHandler",
++        "file": "pipenv.patched.notpip._internal.utils.logging.BetterRotatingFileHandler",
+     }
+     handlers = ["console", "console_errors", "console_subprocess"] + (
+         ["user_log"] if include_user_log else []
+@@ -326,7 +326,7 @@ def setup_logging(verbosity, no_color, user_log_file):
+         "disable_existing_loggers": False,
+         "filters": {
+             "exclude_warnings": {
+-                "()": "pip._internal.utils.logging.MaxLevelFilter",
++                "()": "pipenv.patched.notpip._internal.utils.logging.MaxLevelFilter",
+                 "level": logging.WARNING,
+             },
+             "restrict_to_subprocess": {
+@@ -334,7 +334,7 @@ def setup_logging(verbosity, no_color, user_log_file):
+                 "name": subprocess_logger.name,
+             },
+             "exclude_subprocess": {
+-                "()": "pip._internal.utils.logging.ExcludeLoggerFilter",
++                "()": "pipenv.patched.notpip._internal.utils.logging.ExcludeLoggerFilter",
+                 "name": subprocess_logger.name,
+             },
+         },
+diff --git a/pipenv/patched/pip/_internal/utils/misc.py b/pipenv/patched/pip/_internal/utils/misc.py
+index 4a581601..ef0c127f 100644
+--- a/pipenv/patched/pip/_internal/utils/misc.py
++++ b/pipenv/patched/pip/_internal/utils/misc.py
+@@ -132,8 +132,8 @@ def get_prog():
+ @retry(stop_max_delay=3000, wait_fixed=500)
+ def rmtree(dir, ignore_errors=False):
+     # type: (str, bool) -> None
+-    shutil.rmtree(dir, ignore_errors=ignore_errors,
+-                  onerror=rmtree_errorhandler)
++    from pipenv.vendor.vistir.path import rmtree as vistir_rmtree, handle_remove_readonly
++    vistir_rmtree(dir, onerror=handle_remove_readonly, ignore_errors=ignore_errors)
+ 
+ 
+ def rmtree_errorhandler(func, path, exc_info):
+diff --git a/pipenv/patched/pip/_internal/utils/packaging.py b/pipenv/patched/pip/_internal/utils/packaging.py
+index 68aa86ed..8577d387 100644
+--- a/pipenv/patched/pip/_internal/utils/packaging.py
++++ b/pipenv/patched/pip/_internal/utils/packaging.py
+@@ -1,6 +1,7 @@
+ from __future__ import absolute_import
+ 
+ import logging
++import sys
+ from email.parser import FeedParser
+ 
+ from pip._vendor import pkg_resources
+@@ -37,7 +38,7 @@ def check_requires_python(requires_python, version_info):
+         return True
+     requires_python_specifier = specifiers.SpecifierSet(requires_python)
+ 
+-    python_version = version.parse('.'.join(map(str, version_info)))
++    python_version = version.parse('{0}.{1}.{2}'.format(*sys.version_info[:3]))
+     return python_version in requires_python_specifier
+ 
+ 
+diff --git a/pipenv/patched/pip/_internal/utils/setuptools_build.py b/pipenv/patched/pip/_internal/utils/setuptools_build.py
+index 4147a650..f05fb11c 100644
+--- a/pipenv/patched/pip/_internal/utils/setuptools_build.py
++++ b/pipenv/patched/pip/_internal/utils/setuptools_build.py
+@@ -1,3 +1,4 @@
++import os
+ import sys
+ 
+ from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+@@ -36,7 +37,8 @@ def make_setuptools_shim_args(
+     :param unbuffered_output: If True, adds the unbuffered switch to the
+      argument list.
+     """
+-    args = [sys.executable]
++    sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
++    args = [sys_executable]
+     if unbuffered_output:
+         args += ["-u"]
+     args += ["-c", _SETUPTOOLS_SHIM.format(setup_py_path)]
+diff --git a/pipenv/patched/pip/_internal/utils/temp_dir.py b/pipenv/patched/pip/_internal/utils/temp_dir.py
+index 65e41bc7..9eabf28e 100644
+--- a/pipenv/patched/pip/_internal/utils/temp_dir.py
++++ b/pipenv/patched/pip/_internal/utils/temp_dir.py
+@@ -8,9 +8,11 @@ import tempfile
+ from contextlib import contextmanager
+ 
+ from pip._vendor.contextlib2 import ExitStack
++import warnings
+ 
+ from pip._internal.utils.misc import rmtree
+ from pip._internal.utils.typing import MYPY_CHECK_RUNNING
++from pipenv.vendor.vistir.compat import finalize, ResourceWarning
+ 
+ if MYPY_CHECK_RUNNING:
+     from typing import Any, Dict, Iterator, Optional, TypeVar
+@@ -119,11 +121,25 @@ class TempDirectory(object):
+         self._deleted = False
+         self.delete = delete
+         self.kind = kind
++        self._finalizer = None
++        if self._path:
++            self._register_finalizer()
+ 
+         if globally_managed:
+             assert _tempdir_manager is not None
+             _tempdir_manager.enter_context(self)
+ 
++    def _register_finalizer(self):
++        if self.delete and self._path:
++            self._finalizer = finalize(
++                self,
++                self._cleanup,
++                self._path,
++                warn_message = None
++            )
++        else:
++            self._finalizer = None
++
+     @property
+     def path(self):
+         # type: () -> str
+@@ -166,13 +182,29 @@ class TempDirectory(object):
+         logger.debug("Created temporary directory: {}".format(path))
+         return path
+ 
++    @classmethod
++    def _cleanup(cls, name, warn_message=None):
++        if not os.path.exists(name):
++            return
++        try:
++            rmtree(name)
++        except OSError:
++            pass
++        else:
++            if warn_message:
++                warnings.warn(warn_message, ResourceWarning)
++
+     def cleanup(self):
+         # type: () -> None
+         """Remove the temporary directory created and reset state
+         """
+-        self._deleted = True
+-        if os.path.exists(self._path):
+-            rmtree(self._path)
++        if getattr(self._finalizer, "detach", None) and self._finalizer.detach():
++            if os.path.exists(self._path):
++                self._deleted = True
++                try:
++                    rmtree(self._path)
++                except OSError:
++                    pass
+ 
+ 
+ class AdjacentTempDirectory(TempDirectory):
+diff --git a/pipenv/patched/pip/__main__.py b/pipenv/patched/pip/__main__.py
+index 56f669fa..3c216189 100644
+--- a/pipenv/patched/pip/__main__.py
++++ b/pipenv/patched/pip/__main__.py
+@@ -11,7 +11,9 @@ if __package__ == '':
+     # Resulting path is the name of the wheel itself
+     # Add that to sys.path so we can import pip
+     path = os.path.dirname(os.path.dirname(__file__))
++    pipenv = os.path.dirname(os.path.dirname(path))
+     sys.path.insert(0, path)
++    sys.path.insert(0, pipenv)
+ 
+ from pip._internal.cli.main import main as _main  # isort:skip # noqa
+ 

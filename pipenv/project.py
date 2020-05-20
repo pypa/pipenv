@@ -15,8 +15,6 @@ import toml
 import tomlkit
 import vistir
 
-from first import first
-
 import pipfile
 import pipfile.api
 
@@ -27,7 +25,7 @@ from .environment import Environment
 from .environments import (
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_IGNORE_VIRTUALENVS, PIPENV_MAX_DEPTH,
     PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_VENV_IN_PROJECT,
-    is_in_virtualenv, is_type_checking
+    PIPENV_USE_SYSTEM, is_in_virtualenv, is_type_checking
 )
 from .vendor.requirementslib.models.utils import get_default_pyproject_backend
 from .utils import (
@@ -209,14 +207,12 @@ class Project(object):
                 # First exclude anything that is a vcs entry either in the key or value
                 if not (
                     any(is_vcs(i) for i in [k, v])
-                    or
                     # Then exclude any installable files that are not directories
                     # Because pip-tools can resolve setup.py for example
-                    any(is_installable_file(i) for i in [k, v])
-                    or
+                    or any(is_installable_file(i) for i in [k, v])
                     # Then exclude any URLs because they need to be editable also
                     # Things that are excluded can only be 'shallow resolved'
-                    any(is_valid_url(i) for i in [k, v])
+                    or any(is_valid_url(i) for i in [k, v])
                 ):
                     ps.update({k: v})
         return ps
@@ -332,21 +328,30 @@ class Project(object):
             "combined": dev_keys | default_keys
         }
 
+    def get_environment(self, allow_global=False):
+        # type: (bool) -> Environment
+        if allow_global:
+            prefix = sys.prefix
+        else:
+            prefix = self.virtualenv_location
+        is_venv = is_in_virtualenv()
+        sources = self.sources if self.sources else [DEFAULT_SOURCE]
+        environment = Environment(
+            prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
+            project=self
+        )
+        pipenv_dist = get_pipenv_dist(pkg="pipenv")
+        if pipenv_dist:
+            environment.extend_dists(pipenv_dist)
+        else:
+            environment.add_dist("pipenv")
+        return environment
+
     @property
     def environment(self):
         if not self._environment:
-            prefix = self.virtualenv_location
-            is_venv = is_in_virtualenv()
-            sources = self.sources if self.sources else [DEFAULT_SOURCE,]
-            self._environment = Environment(
-                prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
-                project=self
-            )
-            pipenv_dist = get_pipenv_dist(pkg="pipenv")
-            if pipenv_dist:
-                self._environment.extend_dists(pipenv_dist)
-            else:
-                self._environment.add_dist("pipenv")
+            allow_global = os.environ.get("PIPENV_USE_SYSTEM", PIPENV_USE_SYSTEM)
+            self._environment = self.get_environment(allow_global=allow_global)
         return self._environment
 
     def get_outdated_packages(self):
@@ -421,8 +426,10 @@ class Project(object):
     def virtualenv_location(self):
         # if VIRTUAL_ENV is set, use that.
         virtualenv_env = os.getenv("VIRTUAL_ENV")
-        if ("PIPENV_ACTIVE" not in os.environ and
-                not PIPENV_IGNORE_VIRTUALENVS and virtualenv_env):
+        if (
+            "PIPENV_ACTIVE" not in os.environ
+            and not PIPENV_IGNORE_VIRTUALENVS and virtualenv_env
+        ):
             return virtualenv_env
 
         if not self._virtualenv_location:  # Use cached version, if available.
@@ -542,7 +549,6 @@ class Project(object):
     @property
     def build_requires(self):
         return self._build_system.get("requires", ["setuptools>=40.8.0", "wheel"])
-
 
     @property
     def build_backend(self):
@@ -689,7 +695,7 @@ class Project(object):
             .lstrip("\n")
             .split("\n")
         )
-        sources = [DEFAULT_SOURCE,]
+        sources = [DEFAULT_SOURCE]
         for i, index in enumerate(indexes):
             if not index:
                 continue
@@ -727,7 +733,7 @@ class Project(object):
         if "verify_ssl" not in source:
             source["verify_ssl"] = "https://" in source["url"]
         if not isinstance(source["verify_ssl"], bool):
-            source["verify_ssl"] = source["verify_ssl"].lower() == "true"
+            source["verify_ssl"] = str(source["verify_ssl"]).lower() == "true"
         return source
 
     def get_or_create_lockfile(self, from_pipfile=False):
@@ -757,7 +763,7 @@ class Project(object):
             if not sources:
                 sources = self.pipfile_sources
             elif not isinstance(sources, list):
-                sources = [sources,]
+                sources = [sources]
             lockfile_dict["_meta"]["sources"] = [
                 self.populate_source(s) for s in sources
             ]
@@ -776,7 +782,7 @@ class Project(object):
         else:
             sources = [dict(source) for source in self.parsed_pipfile["source"]]
         if not isinstance(sources, list):
-            sources = [sources,]
+            sources = [sources]
         return {
             "hash": {"sha256": self.calculate_pipfile_hash()},
             "pipfile-spec": PIPFILE_SPEC_CURRENT,
@@ -794,7 +800,7 @@ class Project(object):
         except Exception:
             document = tomlkit.document()
             for section in ("packages", "dev-packages"):
-                document[section] = tomlkit.container.Table()
+                document[section] = tomlkit.table()
                 # Convert things to inline tables — fancy :)
                 for package in data.get(section, {}):
                     if hasattr(data[section][package], "keys"):

@@ -13,7 +13,7 @@ from pipenv._compat import Path
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_basic_vcs_install(PipenvInstance):  # ! This is failing
+def test_basic_vcs_install(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install git+https://github.com/benjaminp/six.git@1.11.0#egg=six")
         assert c.return_code == 0
@@ -25,7 +25,6 @@ def test_basic_vcs_install(PipenvInstance):  # ! This is failing
         assert p.lockfile["default"]["six"] == {
             "git": "https://github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
-            "version": "==1.11.0"
         }
         assert "gitdb2" in p.lockfile["default"]
 
@@ -43,7 +42,6 @@ def test_git_vcs_install(PipenvInstance):
         assert p.lockfile["default"]["six"] == {
             "git": "git://github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
-            "version": "==1.11.0"
         }
 
 
@@ -123,6 +121,7 @@ def test_local_vcs_urls_work(PipenvInstance, tmpdir):
 
 @pytest.mark.e
 @pytest.mark.vcs
+@pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_editable_vcs_install(PipenvInstance_NoPyPI):
@@ -142,7 +141,7 @@ def test_editable_vcs_install(PipenvInstance_NoPyPI):
 
 
 @pytest.mark.vcs
-@pytest.mark.tablib
+@pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_install_editable_git_tag(PipenvInstance_NoPyPI):
@@ -163,6 +162,7 @@ def test_install_editable_git_tag(PipenvInstance_NoPyPI):
         assert "ref" in p.lockfile["default"]["six"]
 
 
+@pytest.mark.urls
 @pytest.mark.index
 @pytest.mark.install
 @pytest.mark.needs_internet
@@ -191,6 +191,7 @@ six = "*"
 
 
 @pytest.mark.vcs
+@pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_install_local_vcs_not_in_lockfile(PipenvInstance):
@@ -207,6 +208,7 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance):
 
 
 @pytest.mark.vcs
+@pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_get_vcs_refs(PipenvInstance_NoPyPI):
@@ -235,9 +237,11 @@ def test_get_vcs_refs(PipenvInstance_NoPyPI):
 
 
 @pytest.mark.vcs
+@pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
 @pytest.mark.skip_py27_win
+@pytest.mark.skip_py38
 def test_vcs_entry_supersedes_non_vcs(PipenvInstance):
     """See issue #2181 -- non-editable VCS dep was specified, but not showing up
     in the lockfile -- due to not running pip install before locking and not locking
@@ -256,7 +260,7 @@ name = "pypi"
 
 [packages]
 PyUpdater = "*"
-PyInstaller = {{ref = "develop", git = "{0}"}}
+PyInstaller = {{ref = "v3.6", git = "{0}"}}
             """.format(pyinstaller_uri).strip()
             )
         c = p.pipenv("install")
@@ -273,6 +277,7 @@ PyInstaller = {{ref = "develop", git = "{0}"}}
 
 
 @pytest.mark.vcs
+@pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_vcs_can_use_markers(PipenvInstance):

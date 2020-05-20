@@ -137,7 +137,7 @@ def check(packages, key, db_mirror, cached, ignore_ids, proxy):
                 spec_set = SpecifierSet(specifiers=specifier)
                 if spec_set.contains(pkg.version):
                     if not db_full:
-                        db_full = fetch_database(full=True, key=key, db=db_mirror)
+                        db_full = fetch_database(full=True, key=key, db=db_mirror, cached=cached, proxy=proxy)
                     for data in get_vulnerabilities(pkg=name, spec=specifier, db=db_full):
                         vuln_id = data.get("id").replace("pyup.io-", "")
                         if vuln_id and vuln_id not in ignore_ids:

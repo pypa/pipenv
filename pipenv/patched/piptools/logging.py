@@ -1,10 +1,13 @@
 # coding: utf-8
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
-import sys
+import logging
 
 from . import click
+
+# Initialise the builtin logging module for other component using it.
+# Ex: pip
+logging.basicConfig()
 
 
 class LogContext(object):
@@ -12,6 +15,7 @@ class LogContext(object):
         self.verbosity = verbosity
 
     def log(self, *args, **kwargs):
+        kwargs.setdefault("err", True)
         click.secho(*args, **kwargs)
 
     def debug(self, *args, **kwargs):
@@ -23,13 +27,11 @@ class LogContext(object):
             self.log(*args, **kwargs)
 
     def warning(self, *args, **kwargs):
-        kwargs.setdefault('fg', 'yellow')
-        kwargs.setdefault('file', sys.stderr)
+        kwargs.setdefault("fg", "yellow")
         self.log(*args, **kwargs)
 
     def error(self, *args, **kwargs):
-        kwargs.setdefault('fg', 'red')
-        kwargs.setdefault('file', sys.stderr)
+        kwargs.setdefault("fg", "red")
         self.log(*args, **kwargs)
 
 

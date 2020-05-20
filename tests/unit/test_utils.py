@@ -3,11 +3,7 @@ import os
 
 import pytest
 
-from first import first
-from mock import Mock, patch
-
 import pipenv.utils
-import pythonfinder.utils
 from pipenv.exceptions import PipenvUsageError
 
 
@@ -55,11 +51,11 @@ DEP_PIP_PAIRS = [
         # Extras in url
         {
             "discord.py": {
-                "file": "https://github.com/Rapptz/discord.py/archive/rewrite.zip",
+                "file": "https://github.com/Rapptz/discord.py/archive/async.zip",
                 "extras": ["voice"],
             }
         },
-        "https://github.com/Rapptz/discord.py/archive/rewrite.zip#egg=discord.py[voice]",
+        "https://github.com/Rapptz/discord.py/archive/async.zip#egg=discord.py[voice]",
     ),
     (
         {
@@ -82,6 +78,7 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
 
 @pytest.mark.utils
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
+@pytest.mark.needs_internet
 def test_convert_deps_to_pip(monkeypatch, deps, expected):
     with monkeypatch.context() as m:
         import pip_shims
@@ -129,11 +126,8 @@ def test_convert_deps_to_pip(monkeypatch, deps, expected):
         ),
     ],
 )
-def test_convert_deps_to_pip_one_way(monkeypatch, deps, expected):
-    with monkeypatch.context() as m:
-        import pip_shims
-        # m.setattr(pip_shims.shims, "unpack_url", mock_unpack)
-        assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected.lower()]
+def test_convert_deps_to_pip_one_way(deps, expected):
+    assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected.lower()]
 
 
 @pytest.mark.skipif(isinstance(u"", str), reason="don't need to test if unicode is str")
@@ -218,20 +212,21 @@ class TestUtils:
     @pytest.mark.windows
     @pytest.mark.skipif(os.name != "nt", reason="Windows test only")
     def test_windows_shellquote(self):
-        test_path = "C:\Program Files\Python36\python.exe"
+        test_path = r"C:\Program Files\Python36\python.exe"
         expected_path = '"C:\\\\Program Files\\\\Python36\\\\python.exe"'
         assert pipenv.utils.escape_grouped_arguments(test_path) == expected_path
 
     @pytest.mark.utils
     def test_is_valid_url(self):
-        url = "https://github.com/kennethreitz/requests.git"
+        url = "https://github.com/psf/requests.git"
         not_url = "something_else"
         assert pipenv.utils.is_valid_url(url)
         assert pipenv.utils.is_valid_url(not_url) is False
 
     @pytest.mark.utils
+    @pytest.mark.needs_internet
     def test_download_file(self):
-        url = "https://github.com/kennethreitz/pipenv/blob/master/README.md"
+        url = "https://github.com/pypa/pipenv/blob/master/README.md"
         output = "test_download.md"
         pipenv.utils.download_file(url, output)
         assert os.path.exists(output)
@@ -432,6 +427,7 @@ twine = "*"
             == expected_args
         )
 
+    @pytest.mark.utils
     def test_invalid_prepare_pip_source_args(self):
         sources = [{}]
         with pytest.raises(PipenvUsageError):

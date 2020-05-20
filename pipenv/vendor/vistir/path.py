@@ -8,7 +8,9 @@ import os
 import posixpath
 import shutil
 import stat
+import sys
 import time
+import unicodedata
 import warnings
 
 import six
@@ -30,8 +32,36 @@ from .compat import (
     fs_encode,
 )
 
+# fmt: off
+if six.PY3:
+    from urllib.parse import quote_from_bytes as quote
+else:
+    from urllib import quote
+# fmt: on
+
+
 if IS_TYPE_CHECKING:
-    from typing import Optional, Callable, Text, ByteString, AnyStr
+    from types import TracebackType
+    from typing import (
+        Any,
+        AnyStr,
+        ByteString,
+        Callable,
+        Generator,
+        Iterator,
+        List,
+        Optional,
+        Text,
+        Tuple,
+        Type,
+        Union,
+    )
+
+    if six.PY3:
+        TPath = os.PathLike
+    else:
+        TPath = Union[str, bytes]
+    TFunc = Callable[..., Any]
 
 __all__ = [
     "check_for_unc_path",
@@ -64,16 +94,18 @@ if os.name == "nt":
 
 
 def unicode_path(path):
+    # type: (TPath) -> Text
     # Paths are supposed to be represented as unicode here
-    if six.PY2 and not isinstance(path, six.text_type):
+    if six.PY2 and isinstance(path, six.binary_type):
         return path.decode(_fs_encoding)
     return path
 
 
 def native_path(path):
-    if six.PY2 and not isinstance(path, bytes):
+    # type: (TPath) -> str
+    if six.PY2 and isinstance(path, six.text_type):
         return path.encode(_fs_encoding)
-    return path
+    return str(path)
 
 
 # once again thank you django...
@@ -83,20 +115,18 @@ if six.PY3 or os.name == "nt":
 else:
 
     def abspathu(path):
-        """
-        Version of os.path.abspath that uses the unicode representation
-        of the current working directory, thus avoiding a UnicodeDecodeError
-        in join when the cwd has non-ASCII characters.
-        """
+        # type: (TPath) -> Text
+        """Version of os.path.abspath that uses the unicode representation of
+        the current working directory, thus avoiding a UnicodeDecodeError in
+        join when the cwd has non-ASCII characters."""
         if not os.path.isabs(path):
             path = os.path.join(os.getcwdu(), path)
         return os.path.normpath(path)
 
 
 def normalize_path(path):
-    # type: (AnyStr) -> AnyStr
-    """
-    Return a case-normalized absolute variable-expanded path.
+    # type: (TPath) -> Text
+    """Return a case-normalized absolute variable-expanded path.
 
     :param str path: The non-normalized path
     :return: A normalized, expanded, case-normalized path
@@ -113,9 +143,8 @@ def normalize_path(path):
 
 
 def is_in_path(path, parent):
-    # type: (AnyStr, AnyStr) -> bool
-    """
-    Determine if the provided full path is in the given parent root.
+    # type: (TPath, TPath) -> bool
+    """Determine if the provided full path is in the given parent root.
 
     :param str path: The full path to check the location of.
     :param str parent: The parent path to check for membership in
@@ -123,11 +152,11 @@ def is_in_path(path, parent):
     :rtype: bool
     """
 
-    return normalize_path(str(path)).startswith(normalize_path(str(parent)))
+    return normalize_path(path).startswith(normalize_path(parent))
 
 
 def normalize_drive(path):
-    # type: (str) -> Text
+    # type: (TPath) -> Text
     """Normalize drive in path so they stay consistent.
 
     This currently only affects local drives on Windows, which can be
@@ -136,8 +165,10 @@ def normalize_drive(path):
     """
     from .misc import to_text
 
-    if os.name != "nt" or not isinstance(path, six.string_types):
-        return path
+    if os.name != "nt" or not (
+        isinstance(path, six.string_types) or getattr(path, "__fspath__", None)
+    ):
+        return path  # type: ignore
 
     drive, tail = os.path.splitdrive(path)
     # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
@@ -148,7 +179,7 @@ def normalize_drive(path):
 
 
 def path_to_url(path):
-    # type: (str) -> Text
+    # type: (TPath) -> Text
     """Convert the supplied local path to a file uri.
 
     :param str path: A string pointing to or representing a local path
@@ -158,23 +189,31 @@ def path_to_url(path):
     >>> path_to_url("/home/user/code/myrepo/myfile.zip")
     'file:///home/user/code/myrepo/myfile.zip'
     """
-    from .misc import to_text, to_bytes
+    from .misc import to_bytes
 
     if not path:
-        return path
-    path = to_bytes(path, encoding="utf-8")
-    normalized_path = to_text(normalize_drive(os.path.abspath(path)), encoding="utf-8")
-    return to_text(Path(normalized_path).as_uri(), encoding="utf-8")
+        return path  # type: ignore
+    normalized_path = Path(normalize_drive(os.path.abspath(path))).as_posix()
+    if os.name == "nt" and normalized_path[1] == ":":
+        drive, _, path = normalized_path.partition(":")
+        # XXX: This enables us to handle half-surrogates that were never
+        # XXX: actually part of a surrogate pair, but were just incidentally
+        # XXX: passed in as a piece of a filename
+        quoted_path = quote(fs_encode(path))
+        return fs_decode("file:///{}:{}".format(drive, quoted_path))
+    # XXX: This is also here to help deal with incidental dangling surrogates
+    # XXX: on linux, by making sure they are preserved during encoding so that
+    # XXX: we can urlencode the backslash correctly
+    bytes_path = to_bytes(normalized_path, errors="backslashreplace")
+    return fs_decode("file://{}".format(quote(bytes_path)))
 
 
 def url_to_path(url):
-    # type: (str) -> ByteString
-    """
-    Convert a valid file url to a local filesystem path
+    # type: (str) -> str
+    """Convert a valid file url to a local filesystem path.
 
     Follows logic taken from pip's equivalent function
     """
-    from .misc import to_bytes
 
     assert is_file_url(url), "Only file: urls can be converted to local paths"
     _, netloc, path, _, _ = urllib_parse.urlsplit(url)
@@ -183,41 +222,45 @@ def url_to_path(url):
         netloc = "\\\\" + netloc
 
     path = urllib_request.url2pathname(netloc + path)
-    return to_bytes(path, encoding="utf-8")
+    return urllib_parse.unquote(path)
 
 
 def is_valid_url(url):
-    """Checks if a given string is an url"""
+    # type: (Union[str, bytes]) -> bool
+    """Checks if a given string is an url."""
     from .misc import to_text
 
     if not url:
-        return url
+        return url  # type: ignore
     pieces = urllib_parse.urlparse(to_text(url))
     return all([pieces.scheme, pieces.netloc])
 
 
 def is_file_url(url):
-    """Returns true if the given url is a file url"""
+    # type: (Any) -> bool
+    """Returns true if the given url is a file url."""
     from .misc import to_text
 
     if not url:
         return False
     if not isinstance(url, six.string_types):
         try:
-            url = getattr(url, "url")
+            url = url.url
         except AttributeError:
-            raise ValueError("Cannot parse url from unknown type: {0!r}".format(url))
+            raise ValueError("Cannot parse url from unknown type: {!r}".format(url))
     url = to_text(url, encoding="utf-8")
     return urllib_parse.urlparse(url.lower()).scheme == "file"
 
 
 def is_readonly_path(fn):
+    # type: (TPath) -> bool
     """Check if a provided path exists and is readonly.
 
-    Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
+    Permissions check is `bool(path.stat & stat.S_IREAD)` or `not
+    os.access(path, os.W_OK)`
     """
 
-    fn = fs_encode(fn)
+    fn = fs_decode(fs_encode(fn))
     if os.path.exists(fn):
         file_stat = os.stat(fn).st_mode
         return not bool(file_stat & stat.S_IWRITE) or not os.access(fn, os.W_OK)
@@ -225,47 +268,35 @@ def is_readonly_path(fn):
 
 
 def mkdir_p(newdir, mode=0o777):
-    """Recursively creates the target directory and all of its parents if they do not
-    already exist.  Fails silently if they do.
+    # type: (TPath, int) -> None
+    """Recursively creates the target directory and all of its parents if they
+    do not already exist.  Fails silently if they do.
 
     :param str newdir: The directory path to ensure
     :raises: OSError if a file is encountered along the way
     """
-    # http://code.activestate.com/recipes/82465-a-friendly-mkdir/
-
-    newdir = fs_encode(newdir)
+    newdir = fs_decode(fs_encode(newdir))
     if os.path.exists(newdir):
         if not os.path.isdir(newdir):
             raise OSError(
-                "a file with the same name as the desired dir, '{0}', already exists.".format(
+                "a file with the same name as the desired dir, '{}', already exists.".format(
                     fs_decode(newdir)
                 )
             )
-    else:
-        head, tail = os.path.split(newdir)
-        # Make sure the tail doesn't point to the asame place as the head
-        curdir = fs_encode(".")
-        tail_and_head_match = (
-            os.path.relpath(tail, start=os.path.basename(head)) == curdir
-        )
-        if tail and not tail_and_head_match and not os.path.isdir(newdir):
-            target = os.path.join(head, tail)
-            if os.path.exists(target) and os.path.isfile(target):
-                raise OSError(
-                    "A file with the same name as the desired dir, '{0}', already exists.".format(
-                        fs_decode(newdir)
-                    )
-                )
-            os.makedirs(os.path.join(head, tail), mode)
+        return None
+    os.makedirs(newdir, mode)
 
 
 def ensure_mkdir_p(mode=0o777):
-    """Decorator to ensure `mkdir_p` is called to the function's return value.
-    """
+    # type: (int) -> Callable[Callable[..., Any], Callable[..., Any]]
+    """Decorator to ensure `mkdir_p` is called to the function's return
+    value."""
 
     def decorator(f):
+        # type: (Callable[..., Any]) -> Callable[..., Any]
         @functools.wraps(f)
         def decorated(*args, **kwargs):
+            # type: () -> str
             path = f(*args, **kwargs)
             mkdir_p(path, mode=mode)
             return path
@@ -279,6 +310,7 @@ TRACKED_TEMPORARY_DIRECTORIES = []
 
 
 def create_tracked_tempdir(*args, **kwargs):
+    # type: (Any, Any) -> str
     """Create a tracked temporary directory.
 
     This uses `TemporaryDirectory`, but does not remove the directory when
@@ -296,6 +328,7 @@ def create_tracked_tempdir(*args, **kwargs):
 
 
 def create_tracked_tempfile(*args, **kwargs):
+    # type: (Any, Any) -> str
     """Create a tracked temporary file.
 
     This uses the `NamedTemporaryFile` construct, but does not remove the file
@@ -309,6 +342,7 @@ def create_tracked_tempfile(*args, **kwargs):
 
 
 def _find_icacls_exe():
+    # type: () -> Optional[Text]
     if os.name == "nt":
         paths = [
             os.path.expandvars(r"%windir%\{0}").format(subdir)
@@ -326,15 +360,14 @@ def _find_icacls_exe():
 
 def set_write_bit(fn):
     # type: (str) -> None
-    """
-    Set read-write permissions for the current user on the target path.  Fail silently
-    if the path doesn't exist.
+    """Set read-write permissions for the current user on the target path. Fail
+    silently if the path doesn't exist.
 
     :param str fn: The target filename or path
     :return: None
     """
 
-    fn = fs_encode(fn)
+    fn = fs_decode(fs_encode(fn))
     if not os.path.exists(fn):
         return
     file_stat = os.stat(fn).st_mode
@@ -350,13 +383,15 @@ def set_write_bit(fn):
             c = run(
                 [
                     icacls_exe,
-                    "''{0}''".format(fn),
+                    "''{}''".format(fn),
                     "/grant",
-                    "{0}:WD".format(user_sid),
+                    "{}:WD".format(user_sid),
                     "/T",
                     "/C",
                     "/Q",
-                ], nospin=True, return_object=True
+                ],
+                nospin=True,
+                return_object=True,
             )
             if not c.err and c.returncode == 0:
                 return
@@ -377,8 +412,7 @@ def set_write_bit(fn):
 
 def rmtree(directory, ignore_errors=False, onerror=None):
     # type: (str, bool, Optional[Callable]) -> None
-    """
-    Stand-in for :func:`~shutil.rmtree` with additional error-handling.
+    """Stand-in for :func:`~shutil.rmtree` with additional error-handling.
 
     This version of `rmtree` handles read-only paths, especially in the case of index
     files written by certain source control systems.
@@ -392,20 +426,20 @@ def rmtree(directory, ignore_errors=False, onerror=None):
        Setting `ignore_errors=True` may cause this to silently fail to delete the path
     """
 
-    directory = fs_encode(directory)
+    directory = fs_decode(fs_encode(directory))
     if onerror is None:
         onerror = handle_remove_readonly
     try:
         shutil.rmtree(directory, ignore_errors=ignore_errors, onerror=onerror)
-    except (IOError, OSError, FileNotFoundError, PermissionError) as exc:
+    except (IOError, OSError, FileNotFoundError, PermissionError) as exc:  # noqa:B014
         # Ignore removal failures where the file doesn't exist
         if exc.errno != errno.ENOENT:
             raise
 
 
 def _wait_for_files(path):  # pragma: no cover
-    """
-    Retry with backoff up to 1 second to delete files from a directory.
+    # type: (Union[str, TPath]) -> Optional[List[TPath]]
+    """Retry with backoff up to 1 second to delete files from a directory.
 
     :param str path: The path to crawl to delete files from
     :return: A list of remaining paths or None
@@ -427,7 +461,7 @@ def _wait_for_files(path):  # pragma: no cover
         except FileNotFoundError as e:
             if e.errno == errno.ENOENT:
                 return
-        except (OSError, IOError, PermissionError):
+        except (OSError, IOError, PermissionError):  # noqa:B014
             time.sleep(timeout)
             timeout *= 2
             remaining.append(path)
@@ -437,6 +471,7 @@ def _wait_for_files(path):  # pragma: no cover
 
 
 def handle_remove_readonly(func, path, exc):
+    # type: (Callable[..., str], TPath, Tuple[Type[OSError], OSError, TracebackType]) -> None
     """Error handler for shutil.rmtree.
 
     Windows source repo folders are read-only by default, so this error handler
@@ -461,7 +496,7 @@ def handle_remove_readonly(func, path, exc):
         set_write_bit(path)
         try:
             func(path)
-        except (
+        except (  # noqa:B014
             OSError,
             IOError,
             FileNotFoundError,
@@ -484,7 +519,7 @@ def handle_remove_readonly(func, path, exc):
         remaining = _wait_for_files(path)
         try:
             func(path)
-        except (OSError, IOError, FileNotFoundError, PermissionError) as e:
+        except (OSError, IOError, FileNotFoundError, PermissionError) as e:  # noqa:B014
             if e.errno in PERM_ERRORS:
                 if e.errno != errno.ENOENT:  # File still exists
                     warnings.warn(default_warning_message.format(path), ResourceWarning)
@@ -494,10 +529,12 @@ def handle_remove_readonly(func, path, exc):
 
 
 def walk_up(bottom):
+    # type: (Union[TPath, str]) -> Generator[Tuple[str, List[str], List[str]], None, None]
     """Mimic os.walk, but walk 'up' instead of down the directory tree.
+
     From: https://gist.github.com/zdavkeos/1098474
     """
-    bottom = os.path.realpath(bottom)
+    bottom = os.path.realpath(str(bottom))
     # Get files in current dir.
     try:
         names = os.listdir(bottom)
@@ -522,7 +559,8 @@ def walk_up(bottom):
 
 
 def check_for_unc_path(path):
-    """ Checks to see if a pathlib `Path` object is a unc path or not"""
+    # type: (Path) -> bool
+    """Checks to see if a pathlib `Path` object is a unc path or not."""
     if (
         os.name == "nt"
         and len(path.drive) > 2
@@ -535,6 +573,7 @@ def check_for_unc_path(path):
 
 
 def get_converted_relative_path(path, relative_to=None):
+    # type: (TPath, Optional[TPath]) -> str
     """Convert `path` to be relative.
 
     Given a vague relative path, return the path relative to the given
@@ -590,11 +629,11 @@ def get_converted_relative_path(path, relative_to=None):
 
 
 def safe_expandvars(value):
-    """Call os.path.expandvars if value is a string, otherwise do nothing.
-    """
+    # type: (TPath) -> str
+    """Call os.path.expandvars if value is a string, otherwise do nothing."""
     if isinstance(value, six.string_types):
         return os.path.expandvars(value)
-    return value
+    return value  # type: ignore
 
 
 class _TrackedTempfileWrapper(_TemporaryFileWrapper, object):

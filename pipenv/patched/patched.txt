@@ -1,5 +1,5 @@
-safety
+safety==1.8.7
 crayons==0.1.2
 pipfile==0.0.2
-pip-tools==3.5.0
-pip==19.0.3
+pip-tools==5.0.0
+pip==20.0.2

@@ -3,25 +3,56 @@
 import argparse
 import logging
 import os
-import contextlib
-import pytoml
+import toml
 import shutil
-import errno
-import tempfile
 
 from .envbuild import BuildEnvironment
 from .wrappers import Pep517HookCaller
+from .dirtools import tempdir, mkdir_p
+from .compat import FileNotFoundError
 
 log = logging.getLogger(__name__)
 
 
-@contextlib.contextmanager
-def tempdir():
-    td = tempfile.mkdtemp()
+def validate_system(system):
+    """
+    Ensure build system has the requisite fields.
+    """
+    required = {'requires', 'build-backend'}
+    if not (required <= set(system)):
+        message = "Missing required fields: {missing}".format(
+            missing=required-set(system),
+        )
+        raise ValueError(message)
+
+
+def load_system(source_dir):
+    """
+    Load the build system from a source dir (pyproject.toml).
+    """
+    pyproject = os.path.join(source_dir, 'pyproject.toml')
+    with open(pyproject) as f:
+        pyproject_data = toml.load(f)
+    return pyproject_data['build-system']
+
+
+def compat_system(source_dir):
+    """
+    Given a source dir, attempt to get a build system backend
+    and requirements from pyproject.toml. Fallback to
+    setuptools but only if the file was not found or a build
+    system was not indicated.
+    """
     try:
-        yield td
-    finally:
-        shutil.rmtree(td)
+        system = load_system(source_dir)
+    except (FileNotFoundError, KeyError):
+        system = {}
+    system.setdefault(
+        'build-backend',
+        'setuptools.build_meta:__legacy__',
+    )
+    system.setdefault('requires', ['setuptools', 'wheel'])
+    return system
 
 
 def _do_build(hooks, env, dist, dest):
@@ -42,33 +73,18 @@ def _do_build(hooks, env, dist, dest):
         shutil.move(source, os.path.join(dest, os.path.basename(filename)))
 
 
-def mkdir_p(*args, **kwargs):
-    """Like `mkdir`, but does not raise an exception if the
-    directory already exists.
-    """
-    try:
-        return os.mkdir(*args, **kwargs)
-    except OSError as exc:
-        if exc.errno != errno.EEXIST:
-            raise
-
-
-def build(source_dir, dist, dest=None):
-    pyproject = os.path.join(source_dir, 'pyproject.toml')
+def build(source_dir, dist, dest=None, system=None):
+    system = system or load_system(source_dir)
     dest = os.path.join(source_dir, dest or 'dist')
     mkdir_p(dest)
 
-    with open(pyproject) as f:
-        pyproject_data = pytoml.load(f)
-    # Ensure the mandatory data can be loaded
-    buildsys = pyproject_data['build-system']
-    requires = buildsys['requires']
-    backend = buildsys['build-backend']
-
-    hooks = Pep517HookCaller(source_dir, backend)
+    validate_system(system)
+    hooks = Pep517HookCaller(
+        source_dir, system['build-backend'], system.get('backend-path')
+    )
 
     with BuildEnvironment() as env:
-        env.pip_install(requires)
+        env.pip_install(system['requires'])
         _do_build(hooks, env, dist, dest)
 
 

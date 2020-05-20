@@ -1,46 +1,41 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+
 import contextlib
 import errno
 import logging
 import os
 import posixpath
 import re
-import signal
 import shutil
+import signal
 import stat
 import sys
 import warnings
-
 from contextlib import contextmanager
 from distutils.spawn import find_executable
 
 import six
 import toml
-import tomlkit
-
 from click import echo as click_echo
 from six.moves.urllib.parse import urlparse
-from .vendor.vistir.compat import ResourceWarning, lru_cache, Mapping, Sequence, Set
-from .vendor.vistir.misc import fs_str, run
 
 import crayons
 import parse
+import tomlkit
 
 from . import environments
-from .exceptions import (
-    PipenvUsageError, RequirementError, PipenvCmdError, ResolutionFailure
-)
+from .exceptions import PipenvCmdError, PipenvUsageError, RequirementError, ResolutionFailure
 from .pep508checker import lookup
+from .vendor.packaging.markers import Marker
 from .vendor.urllib3 import util as urllib3_util
-
+from .vendor.vistir.compat import Mapping, ResourceWarning, Sequence, Set, lru_cache
+from .vendor.vistir.misc import fs_str, run
 
 if environments.MYPY_RUNNING:
     from typing import Tuple, Dict, Any, List, Union, Optional, Text
     from .vendor.requirementslib.models.requirements import Requirement, Line
     from .vendor.requirementslib.models.pipfile import Pipfile
-    from .vendor.packaging.markers import Marker
-    from .vendor.packaging.specifiers import Specifier
     from .project import Project, TSource
 
 
@@ -94,7 +89,11 @@ def cleanup_toml(tml):
 def convert_toml_outline_tables(parsed):
     """Converts all outline tables to inline tables."""
     def convert_tomlkit_table(section):
-        for key, value in section._body:
+        if isinstance(section, tomlkit.items.Table):
+            body = section.value._body
+        else:
+            body = section._body
+        for key, value in body:
             if not key:
                 continue
             if hasattr(value, "keys") and not isinstance(value, tomlkit.items.InlineTable):
@@ -237,14 +236,14 @@ class HackedPythonVersion(object):
     def __enter__(self):
         # Only inject when the value is valid
         if self.python_version:
-            os.environ["PIP_PYTHON_VERSION"] = str(self.python_version)
+            os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = str(self.python_version)
         if self.python_path:
             os.environ["PIP_PYTHON_PATH"] = str(self.python_path)
 
     def __exit__(self, *args):
         # Restore original Python version information.
         try:
-            del os.environ["PIP_PYTHON_VERSION"]
+            del os.environ["PIPENV_REQUESTED_PYTHON_VERSION"]
         except KeyError:
             pass
 
@@ -316,7 +315,7 @@ def get_source_list(
         sources.append(get_project_index(index))
     if extra_indexes:
         if isinstance(extra_indexes, six.string_types):
-            extra_indexes = [extra_indexes,]
+            extra_indexes = [extra_indexes]
         for source in extra_indexes:
             extra_src = get_project_index(source)
             if not sources or extra_src["url"] != sources[0]["url"]:
@@ -419,19 +418,8 @@ class Resolver(object):
     @staticmethod
     @lru_cache()
     def _get_pip_command():
-        from .vendor.pip_shims.shims import Command, cmdoptions
-
-        class PipCommand(Command):
-            """Needed for pip-tools."""
-
-            name = "PipCommand"
-
-        from pipenv.patched.piptools.pip import get_pip_command
-        pip_cmd = get_pip_command()
-        pip_cmd.parser.add_option(cmdoptions.no_use_pep517())
-        pip_cmd.parser.add_option(cmdoptions.use_pep517())
-        pip_cmd.parser.add_option(cmdoptions.no_build_isolation())
-        return pip_cmd
+        from .vendor.pip_shims.shims import InstallCommand
+        return InstallCommand()
 
     @classmethod
     def get_metadata(
@@ -467,6 +455,10 @@ class Resolver(object):
             )
             index_lookup.update(req_idx)
             markers_lookup.update(markers_idx)
+            # Add dependencies of any file (e.g. wheels/tarballs), source, or local
+            # directories into the initial constraint pool to be resolved with the
+            # rest of the dependencies, while adding the files/vcs deps/paths themselves
+            # to the lockfile directly
             constraint_update, lockfile_update = cls.get_deps_from_req(
                 req, resolver=transient_resolver
             )
@@ -484,6 +476,7 @@ class Resolver(object):
     ):
         # type: (...) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]
         from .vendor.requirementslib.models.requirements import Requirement
+        from .vendor.requirementslib.models.utils import DIRECT_URL_RE
         if index_lookup is None:
             index_lookup = {}
         if markers_lookup is None:
@@ -500,7 +493,15 @@ class Resolver(object):
         try:
             req = Requirement.from_line(line)
         except ValueError:
-            raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
+            direct_url = DIRECT_URL_RE.match(line)
+            if direct_url:
+                line = "{0}#egg={1}".format(line, direct_url.groupdict()["name"])
+                try:
+                    req = Requirement.from_line(line)
+                except ValueError:
+                    raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
+            else:
+                raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
         if url:
             try:
                 index_lookup[req.normalized_name] = project.get_source(
@@ -555,8 +556,8 @@ class Resolver(object):
             # but leave it on for local, installable folders on the filesystem
             if environments.PIPENV_RESOLVE_VCS or (
                 req.editable or parsed_line.is_wheel or (
-                    req.is_file_or_url and parsed_line.is_local and
-                    is_installable_dir(parsed_line.path)
+                    req.is_file_or_url and parsed_line.is_local
+                    and is_installable_dir(parsed_line.path)
                 )
             ):
                 requirements = [v for v in getattr(setup_info, "requires", {}).values()]
@@ -585,7 +586,7 @@ class Resolver(object):
                     constraints.add(line)
             # ensure the top level entry remains as provided
             # note that we shouldn't pin versions for editable vcs deps
-            if (not req.is_vcs or (req.is_vcs and not req.editable)):
+            if not req.is_vcs:
                 if req.specifiers:
                     locked_deps[name]["version"] = req.specifiers
                 elif parsed_line.setup_info and parsed_line.setup_info.version:
@@ -681,25 +682,21 @@ class Resolver(object):
             self._pip_command = self._get_pip_command()
         return self._pip_command
 
-    def prepare_pip_args(self, use_pep517=True, build_isolation=True):
+    def prepare_pip_args(self, use_pep517=False, build_isolation=True):
         pip_args = []
         if self.sources:
             pip_args = prepare_pip_source_args(self.sources, pip_args)
-        if not use_pep517:
+        if use_pep517 is False:
             pip_args.append("--no-use-pep517")
-        if not build_isolation:
+        if build_isolation is False:
             pip_args.append("--no-build-isolation")
         pip_args.extend(["--cache-dir", environments.PIPENV_CACHE_DIR])
         return pip_args
 
     @property
     def pip_args(self):
-        use_pep517 = False if (
-            os.environ.get("PIP_NO_USE_PEP517", None) is not None
-        ) else (True if os.environ.get("PIP_USE_PEP517", None) is not None else None)
-        build_isolation = False if (
-            os.environ.get("PIP_NO_BUILD_ISOLATION", None) is not None
-        ) else (True if os.environ.get("PIP_BUILD_ISOLATION", None) is not None else None)
+        use_pep517 = environments.get_from_env("USE_PEP517", prefix="PIP")
+        build_isolation = environments.get_from_env("BUILD_ISOLATION", prefix="PIP")
         if self._pip_args is None:
             self._pip_args = self.prepare_pip_args(
                 use_pep517=use_pep517, build_isolation=build_isolation
@@ -740,6 +737,10 @@ class Resolver(object):
         if self._pip_options is None:
             pip_options, _ = self.pip_command.parser.parse_args(self.pip_args)
             pip_options.cache_dir = environments.PIPENV_CACHE_DIR
+            pip_options.no_python_version_warning = True
+            pip_options.no_input = True
+            pip_options.progress_bar = "off"
+            pip_options.ignore_requires_python = True
             self._pip_options = pip_options
         return self._pip_options
 
@@ -758,7 +759,7 @@ class Resolver(object):
         if self._repository is None:
             from pipenv.patched.piptools.repositories.pypi import PyPIRepository
             self._repository = PyPIRepository(
-                pip_options=self.pip_options, use_json=False, session=self.session,
+                self.pip_args, use_json=False, session=self.session,
                 build_isolation=self.pip_options.build_isolation
             )
         return self._repository
@@ -780,10 +781,13 @@ class Resolver(object):
         return self._parsed_constraints
 
     def get_resolver(self, clear=False, pre=False):
-        from pipenv.patched.piptools.resolver import Resolver
-        self._resolver = Resolver(
+        from pipenv.patched.piptools.resolver import Resolver as PiptoolsResolver
+        from pipenv.patched.piptools.cache import DependencyCache
+        self._resolver = PiptoolsResolver(
             constraints=self.parsed_constraints, repository=self.repository,
-            clear_caches=clear, prereleases=pre,
+            cache=DependencyCache(environments.PIPENV_CACHE_DIR), clear_caches=clear,
+            # TODO: allow users to toggle the 'allow unsafe' flag to resolve setuptools?
+            prereleases=pre, allow_unsafe=False
         )
 
     @property
@@ -920,8 +924,10 @@ class Resolver(object):
 
         # We also don't want to try to hash directories as this will fail
         # as these are editable deps and are not hashable.
-        if (ireq.link.scheme == "file" and
-                Path(to_native_string(url_to_path(ireq.link.url))).is_dir()):
+        if (
+            ireq.link.scheme == "file"
+            and Path(to_native_string(url_to_path(ireq.link.url))).is_dir()
+        ):
             return False
         return True
 
@@ -991,6 +997,8 @@ class Resolver(object):
         for req, ireq in reqs:
             if (req.vcs and req.editable and not req.is_direct_url):
                 continue
+            elif req.normalized_name in self.skipped.keys():
+                continue
             collected_hashes = self.collect_hashes(ireq)
             req = req.add_hashes(collected_hashes)
             if not collected_hashes and self._should_include_hash(ireq):
@@ -1035,20 +1043,24 @@ def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=No
         entry["version"] = pf_entry.lstrip("=")
     else:
         entry.update(pf_entry)
-        if version is not None:
+        if version is not None and not req.is_vcs:
             entry["version"] = version
-        if req.line_instance.is_direct_url:
+        if req.line_instance.is_direct_url and not req.is_vcs:
             entry["file"] = req.req.uri
     if hashes:
         entry["hashes"] = sorted(set(hashes))
     entry["name"] = name
-    if index:  # and index != next(iter(project.sources), {}).get("name"):
+    if index:
         entry.update({"index": index})
     if markers:
         entry.update({"markers": markers})
     entry = translate_markers(entry)
-    if req.vcs or req.editable and entry.get("index"):
-        del entry["index"]
+    if req.vcs or req.editable:
+        for key in ("index", "version", "file"):
+            try:
+                del entry[key]
+            except KeyError:
+                pass
     return name, entry
 
 
@@ -1069,7 +1081,6 @@ def actually_resolve_deps(
     req_dir=None,
 ):
     from pipenv.vendor.vistir.path import create_tracked_tempdir
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
@@ -1290,7 +1301,11 @@ def venv_resolve_deps(
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
         os.environ["PIPENV_REQ_DIR"] = fs_str(req_dir)
         os.environ["PIP_NO_INPUT"] = fs_str("1")
-        os.environ["PIPENV_SITE_DIR"] = get_pipenv_sitedir()
+        pipenv_site_dir = get_pipenv_sitedir()
+        if pipenv_site_dir is not None:
+            os.environ["PIPENV_SITE_DIR"] = pipenv_site_dir
+        else:
+            os.environ.pop("PIPENV_SITE_DIR", None)
         if keep_outdated:
             os.environ["PIPENV_KEEP_OUTDATED"] = fs_str("1")
         with create_spinner(text=decode_for_output("Locking...")) as sp:
@@ -1866,11 +1881,6 @@ def get_vcs_deps(
                     lockfile[name] = requirement.pipfile_entry[1]
                     lockfile[name]['ref'] = commit_hash
                     result.append(requirement)
-                    version = requirement.specifiers
-                    if not version and requirement.specifiers:
-                        version = requirement.specifiers
-                    if version:
-                        lockfile[name]['version'] = version
             except OSError:
                 continue
     return result, lockfile
@@ -1889,7 +1899,7 @@ def translate_markers(pipfile_entry):
     """
     if not isinstance(pipfile_entry, Mapping):
         raise TypeError("Entry is not a pipfile formatted mapping.")
-    from .vendor.packaging.markers import Marker, default_environment
+    from .vendor.packaging.markers import default_environment
     from .vendor.vistir.misc import dedup
 
     allowed_marker_keys = ["markers"] + list(default_environment().keys())
@@ -2192,8 +2202,7 @@ def find_python(finder, line=None):
     if not result and not line.startswith("python"):
         line = "python{0}".format(line)
         result = find_python(finder, line)
-    if not result:
-        result = next(iter(finder.find_all_python_versions()), None)
+
     if result:
         if not isinstance(result, six.string_types):
             return result.path.as_posix()
@@ -2217,8 +2226,8 @@ def is_python_command(line):
 
     from pipenv.vendor.pythonfinder.utils import PYTHON_IMPLEMENTATIONS
     is_version = re.match(r'[\d\.]+', line)
-    if (line.startswith("python") or is_version or
-            any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS)):
+    if (line.startswith("python") or is_version
+            or any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS)):
         return True
     # we are less sure about this but we can guess
     if line.startswith("py"):

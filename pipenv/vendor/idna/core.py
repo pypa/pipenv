@@ -9,7 +9,7 @@ _virama_combining_class = 9
 _alabel_prefix = b'xn--'
 _unicode_dots_re = re.compile(u'[\u002e\u3002\uff0e\uff61]')
 
-if sys.version_info[0] == 3:
+if sys.version_info[0] >= 3:
     unicode = str
     unichr = chr
 
@@ -300,6 +300,8 @@ def ulabel(label):
     label = label.lower()
     if label.startswith(_alabel_prefix):
         label = label[len(_alabel_prefix):]
+        if label.decode('ascii')[-1] == '-':
+            raise IDNAError('A-label must not end with a hyphen')
     else:
         check_label(label)
         return label.decode('ascii')

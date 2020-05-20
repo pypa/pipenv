@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# This Module is taken in full from the click project
+# This Module is taken in part from the click project and expanded
 # see https://github.com/pallets/click/blob/6cafd32/click/_winconsole.py
 # Copyright © 2014 by the Pallets team.
 
@@ -60,7 +60,7 @@ from ctypes import (
     py_object,
     windll,
 )
-from ctypes.wintypes import LPCWSTR, LPWSTR
+from ctypes.wintypes import HANDLE, LPCWSTR, LPWSTR
 from itertools import count
 
 import msvcrt
@@ -83,19 +83,18 @@ if IS_TYPE_CHECKING:
 
 
 c_ssize_p = POINTER(c_ssize_t)
-
-kernel32 = windll.kernel32
-GetStdHandle = kernel32.GetStdHandle
-ReadConsoleW = kernel32.ReadConsoleW
-WriteConsoleW = kernel32.WriteConsoleW
-GetLastError = kernel32.GetLastError
-GetConsoleCursorInfo = kernel32.GetConsoleCursorInfo
-SetConsoleCursorInfo = kernel32.SetConsoleCursorInfo
-GetCommandLineW = WINFUNCTYPE(LPWSTR)(("GetCommandLineW", windll.kernel32))
 CommandLineToArgvW = WINFUNCTYPE(POINTER(LPWSTR), LPCWSTR, POINTER(c_int))(
     ("CommandLineToArgvW", windll.shell32)
 )
-
+kernel32 = windll.kernel32
+GetLastError = kernel32.GetLastError
+GetCommandLineW = WINFUNCTYPE(LPWSTR)(("GetCommandLineW", windll.kernel32))
+GetConsoleCursorInfo = kernel32.GetConsoleCursorInfo
+GetStdHandle = kernel32.GetStdHandle
+LocalFree = WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p)(("LocalFree", windll.kernel32))
+ReadConsoleW = kernel32.ReadConsoleW
+SetConsoleCursorInfo = kernel32.SetConsoleCursorInfo
+WriteConsoleW = kernel32.WriteConsoleW
 
 # XXX: Added for cursor hiding on windows
 STDOUT_HANDLE_ID = ctypes.c_ulong(-11)
@@ -354,7 +353,11 @@ if PY2:
     def _get_windows_argv():
         argc = c_int(0)
         argv_unicode = CommandLineToArgvW(GetCommandLineW(), byref(argc))
-        argv = [argv_unicode[i] for i in range(0, argc.value)]
+        try:
+            argv = [argv_unicode[i] for i in range(0, argc.value)]
+        finally:
+            LocalFree(argv_unicode)
+            del argv_unicode
 
         if not hasattr(sys, "frozen"):
             argv = argv[1:]

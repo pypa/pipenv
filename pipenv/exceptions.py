@@ -84,7 +84,7 @@ class PipenvException(ClickException):
             file = vistir.misc.get_text_stderr()
         if self.extra:
             if isinstance(self.extra, STRING_TYPES):
-                self.extra = [self.extra,]
+                self.extra = [self.extra]
             for extra in self.extra:
                 extra = "[pipenv.exceptions.{0!s}]: {1}".format(
                     self.__class__.__name__, extra
@@ -163,14 +163,13 @@ class PipenvUsageError(UsageError):
             color = self.ctx.color
         if self.extra:
             if isinstance(self.extra, STRING_TYPES):
-                self.extra = [self.extra,]
+                self.extra = [self.extra]
             for extra in self.extra:
                 if color:
                     extra = getattr(crayons, color, "blue")(extra)
                 click_echo(decode_for_output(extra, file), file=file)
         hint = ''
-        if (self.cmd is not None and
-                self.cmd.get_help_option(self.ctx) is not None):
+        if self.cmd is not None and self.cmd.get_help_option(self.ctx) is not None:
             hint = ('Try "%s %s" for help.\n'
                     % (self.ctx.command_path, self.ctx.help_option_names[0]))
         if self.ctx is not None:
@@ -199,7 +198,7 @@ class PipenvFileError(FileError):
             file = vistir.misc.get_text_stderr()
         if self.extra:
             if isinstance(self.extra, STRING_TYPES):
-                self.extra = [self.extra,]
+                self.extra = [self.extra]
             for extra in self.extra:
                 click_echo(decode_for_output(extra, file), file=file)
         click_echo(self.message, file=file)
@@ -234,7 +233,7 @@ class LockfileNotFound(PipenvFileError):
 class DeployException(PipenvUsageError):
     def __init__(self, message=None, **kwargs):
         if not message:
-            message = crayons.normal("Aborting deploy", bold=True)
+            message = str(crayons.normal("Aborting deploy", bold=True))
         extra = kwargs.pop("extra", [])
         PipenvUsageError.__init__(self, message=message, extra=extra, **kwargs)
 
@@ -257,7 +256,9 @@ class SystemUsageError(PipenvOptionsError):
             ),
         ]
         if message is None:
-            message = crayons.blue("See also: {0}".format(crayons.white("--deploy flag.")))
+            message = str(
+                crayons.blue("See also: {0}".format(crayons.white("--deploy flag.")))
+            )
         super(SystemUsageError, self).__init__(option_name, message=message, ctx=ctx, extra=extra, **kwargs)
 
 
@@ -311,8 +312,10 @@ class VirtualenvCreationException(VirtualenvException):
             # so replacement or parsing requires this step
             extra = ANSI_REMOVAL_RE.sub("", "{0}".format(extra))
             if "KeyboardInterrupt" in extra:
-                extra = crayons.red("Virtualenv creation interrupted by user", bold=True)
-            self.extra = extra = [extra,]
+                extra = str(
+                    crayons.red("Virtualenv creation interrupted by user", bold=True)
+                )
+            self.extra = extra = [extra]
         VirtualenvException.__init__(self, message, extra=extra)
 
 
@@ -321,9 +324,9 @@ class UninstallError(PipenvException):
         extra = [
             "{0} {1}".format(
                 crayons.blue("Attempted to run command: "),
-                crayons.yellow("$ {0!r}".format(command), bold=True
+                crayons.yellow("$ {0!r}".format(command), bold=True)
             )
-        )]
+        ]
         extra.extend([crayons.blue(line.strip()) for line in return_values.splitlines()])
         if isinstance(package, (tuple, list, set)):
             package = " ".join(package)

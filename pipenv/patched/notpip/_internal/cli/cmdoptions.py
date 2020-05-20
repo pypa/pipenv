@@ -5,31 +5,41 @@ The principle here is to define options once, but *not* instantiate them
 globally. One reason being that options with action='append' can carry state
 between parses. pip parses general options twice internally, and shouldn't
 pass on state. To be consistent, all options will follow this design.
-
 """
+
+# The following comment should be removed at some point in the future.
+# mypy: strict-optional=False
+
 from __future__ import absolute_import
 
+import logging
+import os
 import textwrap
 import warnings
 from distutils.util import strtobool
 from functools import partial
 from optparse import SUPPRESS_HELP, Option, OptionGroup
+from textwrap import dedent
 
 from pipenv.patched.notpip._internal.exceptions import CommandError
-from pipenv.patched.notpip._internal.locations import USER_CACHE_DIR, src_prefix
+from pipenv.patched.notpip._internal.locations import USER_CACHE_DIR, get_src_prefix
 from pipenv.patched.notpip._internal.models.format_control import FormatControl
 from pipenv.patched.notpip._internal.models.index import PyPI
+from pipenv.patched.notpip._internal.models.target_python import TargetPython
 from pipenv.patched.notpip._internal.utils.hashes import STRONG_HASHES
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 from pipenv.patched.notpip._internal.utils.ui import BAR_TYPES
 
 if MYPY_CHECK_RUNNING:
-    from typing import Any, Callable, Dict, List, Optional, Union  # noqa: F401
-    from optparse import OptionParser, Values  # noqa: F401
-    from pipenv.patched.notpip._internal.cli.parser import ConfigOptionParser  # noqa: F401
+    from typing import Any, Callable, Dict, Optional, Tuple
+    from optparse import OptionParser, Values
+    from pipenv.patched.notpip._internal.cli.parser import ConfigOptionParser
+
+logger = logging.getLogger(__name__)
 
 
 def raise_option_error(parser, option, msg):
+    # type: (OptionParser, Option, str) -> None
     """
     Raise an option parsing error using parser.error().
 
@@ -68,14 +78,15 @@ def check_install_build_global(options, check_options=None):
         check_options = options
 
     def getname(n):
+        # type: (str) -> Optional[Any]
         return getattr(check_options, n, None)
     names = ["build_options", "global_options", "install_options"]
     if any(map(getname, names)):
         control = options.format_control
         control.disallow_binaries()
         warnings.warn(
-            'Disabling all use of wheels due to the use of --build-options '
-            '/ --global-options / --install-options.', stacklevel=2,
+            'Disabling all use of wheels due to the use of --build-option '
+            '/ --global-option / --install-option.', stacklevel=2,
         )
 
 
@@ -101,7 +112,7 @@ def check_dist_restriction(options, check_target=False):
 
     # Installations or downloads using dist restrictions must not combine
     # source distributions and dist-specific wheels, as they are not
-    # gauranteed to be locally compatible.
+    # guaranteed to be locally compatible.
     if dist_restriction_set and sdist_dependencies_allowed:
         raise CommandError(
             "When restricting platform and interpreter constraints using "
@@ -117,6 +128,17 @@ def check_dist_restriction(options, check_target=False):
                 "Can not use any platform or abi specific options unless "
                 "installing via '--target'"
             )
+
+
+def _path_option_check(option, opt, value):
+    # type: (Option, str, str) -> str
+    return os.path.expanduser(value)
+
+
+class PipOption(Option):
+    TYPES = Option.TYPES + ("path",)
+    TYPE_CHECKER = Option.TYPE_CHECKER.copy()
+    TYPE_CHECKER["path"] = _path_option_check
 
 
 ###########
@@ -206,10 +228,11 @@ progress_bar = partial(
 )  # type: Callable[..., Option]
 
 log = partial(
-    Option,
+    PipOption,
     "--log", "--log-file", "--local-log",
     dest="log",
     metavar="path",
+    type="path",
     help="Path to a verbose appending log."
 )  # type: Callable[..., Option]
 
@@ -275,24 +298,24 @@ def exists_action():
         action='append',
         metavar='action',
         help="Default action when a path already exists: "
-             "(s)witch, (i)gnore, (w)ipe, (b)ackup, (a)bort).",
+             "(s)witch, (i)gnore, (w)ipe, (b)ackup, (a)bort.",
     )
 
 
 cert = partial(
-    Option,
+    PipOption,
     '--cert',
     dest='cert',
-    type='str',
+    type='path',
     metavar='path',
     help="Path to alternate CA bundle.",
 )  # type: Callable[..., Option]
 
 client_cert = partial(
-    Option,
+    PipOption,
     '--client-cert',
     dest='client_cert',
-    type='str',
+    type='path',
     default=None,
     metavar='path',
     help="Path to SSL client certificate, a single file containing the "
@@ -305,7 +328,7 @@ index_url = partial(
     dest='index_url',
     metavar='URL',
     default=PyPI.simple_url,
-    help="Base URL of Python Package Index (default %default). "
+    help="Base URL of the Python Package Index (default %default). "
          "This should point to a repository compliant with PEP 503 "
          "(the simple repository API) or a local directory laid out "
          "in the same format.",
@@ -313,6 +336,7 @@ index_url = partial(
 
 
 def extra_index_url():
+    # type: () -> Option
     return Option(
         '--extra-index-url',
         dest='extra_index_urls',
@@ -357,8 +381,8 @@ def trusted_host():
         action="append",
         metavar="HOSTNAME",
         default=[],
-        help="Mark this host as trusted, even though it does not have valid "
-             "or any HTTPS.",
+        help="Mark this host or host:port pair as trusted, even though it "
+             "does not have valid or any HTTPS.",
     )
 
 
@@ -401,12 +425,21 @@ def editable():
     )
 
 
+def _handle_src(option, opt_str, value, parser):
+    # type: (Option, str, str, OptionParser) -> None
+    value = os.path.abspath(value)
+    setattr(parser.values, option.dest, value)
+
+
 src = partial(
-    Option,
+    PipOption,
     '--src', '--source', '--source-dir', '--source-directory',
     dest='src_dir',
+    type='path',
     metavar='dir',
-    default=src_prefix,
+    default=get_src_prefix(),
+    action='callback',
+    callback=_handle_src,
     help='Directory to check out editable projects into. '
     'The default in a virtualenv is "<venv path>/src". '
     'The default for global installs is "<current dir>/src".'
@@ -445,9 +478,9 @@ def no_binary():
         help="Do not use binary packages. Can be supplied multiple times, and "
              "each time adds to the existing value. Accepts either :all: to "
              "disable all binary packages, :none: to empty the set, or one or "
-             "more package names with commas between them. Note that some "
-             "packages are tricky to compile and may fail to install when "
-             "this option is used on them.",
+             "more package names with commas between them (no colons). Note "
+             "that some packages are tricky to compile and may fail to "
+             "install when this option is used on them.",
     )
 
 
@@ -478,18 +511,69 @@ platform = partial(
 )  # type: Callable[..., Option]
 
 
+# This was made a separate function for unit-testing purposes.
+def _convert_python_version(value):
+    # type: (str) -> Tuple[Tuple[int, ...], Optional[str]]
+    """
+    Convert a version string like "3", "37", or "3.7.3" into a tuple of ints.
+
+    :return: A 2-tuple (version_info, error_msg), where `error_msg` is
+        non-None if and only if there was a parsing error.
+    """
+    if not value:
+        # The empty string is the same as not providing a value.
+        return (None, None)
+
+    parts = value.split('.')
+    if len(parts) > 3:
+        return ((), 'at most three version parts are allowed')
+
+    if len(parts) == 1:
+        # Then we are in the case of "3" or "37".
+        value = parts[0]
+        if len(value) > 1:
+            parts = [value[0], value[1:]]
+
+    try:
+        version_info = tuple(int(part) for part in parts)
+    except ValueError:
+        return ((), 'each version part must be an integer')
+
+    return (version_info, None)
+
+
+def _handle_python_version(option, opt_str, value, parser):
+    # type: (Option, str, str, OptionParser) -> None
+    """
+    Handle a provided --python-version value.
+    """
+    version_info, error_msg = _convert_python_version(value)
+    if error_msg is not None:
+        msg = (
+            'invalid --python-version value: {!r}: {}'.format(
+                value, error_msg,
+            )
+        )
+        raise_option_error(parser, option=option, msg=msg)
+
+    parser.values.python_version = version_info
+
+
 python_version = partial(
     Option,
     '--python-version',
     dest='python_version',
     metavar='python_version',
+    action='callback',
+    callback=_handle_python_version, type='str',
     default=None,
-    help=("Only use wheels compatible with Python "
-          "interpreter version <version>. If not specified, then the "
-          "current system interpreter minor version is used. A major "
-          "version (e.g. '2') can be specified to match all "
-          "minor revs of that major version.  A minor version "
-          "(e.g. '34') can also be specified."),
+    help=dedent("""\
+    The Python interpreter version to use for wheel and "Requires-Python"
+    compatibility checks. Defaults to a version derived from the running
+    interpreter. The version can be specified using up to three dot-separated
+    integers (e.g. "3" for 3.0.0, "3.7" for 3.7.0, or "3.7.3"). A major-minor
+    version can also be given as a string without dots (e.g. "37" for 3.7.0).
+    """),
 )  # type: Callable[..., Option]
 
 
@@ -522,6 +606,26 @@ abi = partial(
 )  # type: Callable[..., Option]
 
 
+def add_target_python_options(cmd_opts):
+    # type: (OptionGroup) -> None
+    cmd_opts.add_option(platform())
+    cmd_opts.add_option(python_version())
+    cmd_opts.add_option(implementation())
+    cmd_opts.add_option(abi())
+
+
+def make_target_python(options):
+    # type: (Values) -> TargetPython
+    target_python = TargetPython(
+        platform=options.platform,
+        py_version_info=options.python_version,
+        abi=options.abi,
+        implementation=options.implementation,
+    )
+
+    return target_python
+
+
 def prefer_binary():
     # type: () -> Option
     return Option(
@@ -534,16 +638,18 @@ def prefer_binary():
 
 
 cache_dir = partial(
-    Option,
+    PipOption,
     "--cache-dir",
     dest="cache_dir",
     default=USER_CACHE_DIR,
     metavar="dir",
+    type='path',
     help="Store the cache data in <dir>."
 )  # type: Callable[..., Option]
 
 
-def no_cache_dir_callback(option, opt, value, parser):
+def _handle_no_cache_dir(option, opt, value, parser):
+    # type: (Option, str, str, OptionParser) -> None
     """
     Process a value provided for the --no-cache-dir option.
 
@@ -575,7 +681,7 @@ no_cache = partial(
     "--no-cache-dir",
     dest="cache_dir",
     action="callback",
-    callback=no_cache_dir_callback,
+    callback=_handle_no_cache_dir,
     help="Disable the cache.",
 )  # type: Callable[..., Option]
 
@@ -588,11 +694,22 @@ no_deps = partial(
     help="Don't install package dependencies.",
 )  # type: Callable[..., Option]
 
+
+def _handle_build_dir(option, opt, value, parser):
+    # type: (Option, str, str, OptionParser) -> None
+    if value:
+        value = os.path.abspath(value)
+    setattr(parser.values, option.dest, value)
+
+
 build_dir = partial(
-    Option,
+    PipOption,
     '-b', '--build', '--build-dir', '--build-directory',
     dest='build_dir',
+    type='path',
     metavar='dir',
+    action='callback',
+    callback=_handle_build_dir,
     help='Directory to unpack packages into and build in. Note that '
          'an initial build still takes place in a temporary directory. '
          'The location of temporary directories can be controlled by setting '
@@ -620,7 +737,8 @@ no_build_isolation = partial(
 )  # type: Callable[..., Option]
 
 
-def no_use_pep517_callback(option, opt, value, parser):
+def _handle_no_use_pep517(option, opt, value, parser):
+    # type: (Option, str, str, OptionParser) -> None
     """
     Process a value provided for the --no-use-pep517 option.
 
@@ -658,7 +776,7 @@ no_use_pep517 = partial(
     '--no-use-pep517',
     dest='use_pep517',
     action='callback',
-    callback=no_use_pep517_callback,
+    callback=_handle_no_use_pep517,
     default=None,
     help=SUPPRESS_HELP
 )  # type: Any
@@ -724,12 +842,12 @@ always_unzip = partial(
 )  # type: Callable[..., Option]
 
 
-def _merge_hash(option, opt_str, value, parser):
+def _handle_merge_hash(option, opt_str, value, parser):
     # type: (Option, str, str, OptionParser) -> None
     """Given a value spelled "algo:digest", append the digest to a list
     pointed to in a dict by the algo name."""
     if not parser.values.hashes:
-        parser.values.hashes = {}  # type: ignore
+        parser.values.hashes = {}
     try:
         algo, digest = value.split(':', 1)
     except ValueError:
@@ -749,7 +867,7 @@ hash = partial(
     # __dict__ copying in process_line().
     dest='hashes',
     action='callback',
-    callback=_merge_hash,
+    callback=_handle_merge_hash,
     type='string',
     help="Verify that the package's archive matches this "
          'hash before installing. Example: --hash=sha256:abcdef...',
@@ -765,6 +883,35 @@ require_hashes = partial(
     help='Require a hash to check each requirement against, for '
          'repeatable installs. This option is implied when any package in a '
          'requirements file has a --hash option.',
+)  # type: Callable[..., Option]
+
+
+list_path = partial(
+    PipOption,
+    '--path',
+    dest='path',
+    type='path',
+    action='append',
+    help='Restrict to the specified installation path for listing '
+         'packages (can be used multiple times).'
+)  # type: Callable[..., Option]
+
+
+def check_list_path_option(options):
+    # type: (Values) -> None
+    if options.path and (options.user or options.local):
+        raise CommandError(
+            "Cannot combine '--path' with '--user' or '--local'"
+        )
+
+
+no_python_version_warning = partial(
+    Option,
+    '--no-python-version-warning',
+    dest='no_python_version_warning',
+    action='store_true',
+    default=False,
+    help='Silence deprecation warnings for upcoming unsupported Pythons.',
 )  # type: Callable[..., Option]
 
 
@@ -795,6 +942,7 @@ general_group = {
         no_cache,
         disable_pip_version_check,
         no_color,
+        no_python_version_warning,
     ]
 }  # type: Dict[str, Any]
 

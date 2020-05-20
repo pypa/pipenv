@@ -12,8 +12,8 @@ import os
 import re
 import sys
 
-import shellingham
-import colorama
+from pipenv.vendor import shellingham
+from pipenv.vendor import colorama
 
 PY3 = sys.version_info[0] >= 3
 

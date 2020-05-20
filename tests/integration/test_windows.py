@@ -5,7 +5,6 @@ import os
 import pytest
 
 from pipenv._compat import Path
-from pipenv.project import Project
 
 
 # This module is run only on Windows.
@@ -40,6 +39,7 @@ def test_case_changes_windows(PipenvInstance):
 
 
 @pytest.mark.files
+@pytest.mark.local
 def test_local_path_windows(PipenvInstance):
     whl = (
         Path(__file__).parent.parent
@@ -54,6 +54,7 @@ def test_local_path_windows(PipenvInstance):
         assert c.return_code == 0
 
 
+@pytest.mark.local
 @pytest.mark.files
 def test_local_path_windows_forward_slash(PipenvInstance):
     whl = (

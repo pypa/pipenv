@@ -5,20 +5,22 @@ import hashlib
 from pipenv.patched.notpip._vendor.six import iteritems, iterkeys, itervalues
 
 from pipenv.patched.notpip._internal.exceptions import (
-    HashMismatch, HashMissing, InstallationError,
+    HashMismatch,
+    HashMissing,
+    InstallationError,
 )
 from pipenv.patched.notpip._internal.utils.misc import read_chunks
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import (  # noqa: F401
+    from typing import (
         Dict, List, BinaryIO, NoReturn, Iterator
     )
     from pipenv.patched.notpip._vendor.six import PY3
     if PY3:
-        from hashlib import _Hash  # noqa: F401
+        from hashlib import _Hash
     else:
-        from hashlib import _hash as _Hash  # noqa: F401
+        from hashlib import _hash as _Hash
 
 
 # The recommended hash algo of the moment. Change this whenever the state of
@@ -43,6 +45,20 @@ class Hashes(object):
             hex digests
         """
         self._allowed = {} if hashes is None else hashes
+
+    @property
+    def digest_count(self):
+        # type: () -> int
+        return sum(len(digests) for digests in self._allowed.values())
+
+    def is_hash_allowed(
+        self,
+        hash_name,   # type: str
+        hex_digest,  # type: str
+    ):
+        # type: (...) -> bool
+        """Return whether the given hex digest is allowed."""
+        return hex_digest in self._allowed.get(hash_name, [])
 
     def check_against_chunks(self, chunks):
         # type: (Iterator[bytes]) -> None

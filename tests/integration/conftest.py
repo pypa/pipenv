@@ -1,30 +1,34 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
+
 import errno
 import json
 import logging
 import os
 import shutil
-import signal
-import socket
 import sys
-import time
 import warnings
 
-from shutil import copyfileobj, rmtree as _rmtree
+from shutil import rmtree as _rmtree
 
 import pytest
 import requests
 
-from pipenv.vendor.vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError, TemporaryDirectory
-from pipenv.vendor.vistir.misc import run
-from pipenv.vendor.vistir.contextmanagers import temp_environ
-from pipenv.vendor.vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
-
 from pipenv._compat import Path
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.vendor import delegator, toml, tomlkit
-from pytest_pypi.app import prepare_fixtures, prepare_packages as prepare_pypi_packages
+from pipenv.vendor.vistir.compat import (
+    FileNotFoundError, PermissionError, ResourceWarning, TemporaryDirectory,
+    fs_encode, fs_str
+)
+from pipenv.vendor.vistir.contextmanagers import temp_environ
+from pipenv.vendor.vistir.misc import run
+from pipenv.vendor.vistir.path import (
+    create_tracked_tempdir, handle_remove_readonly, mkdir_p
+)
+from pytest_pypi.app import prepare_fixtures
+from pytest_pypi.app import prepare_packages as prepare_pypi_packages
+
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
@@ -65,7 +69,7 @@ def check_github_ssh():
         # GitHub does not provide shell access.' if ssh keys are available and
         # registered with GitHub. Otherwise, the command will fail with
         # return_code=255 and say 'Permission denied (publickey).'
-        c = delegator.run('ssh -T git@github.com')
+        c = delegator.run('ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no -T git@github.com', timeout=30)
         res = True if c.return_code == 1 else False
     except KeyboardInterrupt:
         warnings.warn(
@@ -111,6 +115,10 @@ def pytest_runtest_setup(item):
         sys.version_info[:2] <= (2, 7) and os.name == "nt"
     ):
         pytest.skip('must use python > 2.7 on windows')
+    if item.get_closest_marker('skip_py38') is not None and (
+        sys.version_info[:2] == (3, 8)
+    ):
+        pytest.skip('test not applicable on python 3.8')
     if item.get_closest_marker('py3_only') is not None and (
         sys.version_info < (3, 0)
     ):
@@ -121,6 +129,12 @@ def pytest_runtest_setup(item):
         sys.version_info >= (3, 7)
     ):
         pytest.skip('test only runs on python < 3.7')
+    if item.get_closest_marker('skip_py36') is not None and (
+        sys.version_info[:2] == (3, 6)
+    ):
+        pytest.skip('test is skipped on python 3.6')
+    if item.get_closest_marker('skip_windows') is not None and (os.name == 'nt'):
+        pytest.skip('test does not run on windows')
 
 
 @pytest.fixture
@@ -145,6 +159,22 @@ def _create_tracked_dir():
 def vistir_tmpdir():
     temp_path = _create_tracked_dir()
     yield Path(temp_path)
+
+
+@pytest.fixture()
+def local_tempdir(request):
+    old_temp = os.environ.get("TEMP", "")
+    new_temp = Path(os.getcwd()).absolute() / "temp"
+    new_temp.mkdir(parents=True, exist_ok=True)
+    os.environ["TEMP"] = new_temp.as_posix()
+
+    def finalize():
+        os.environ['TEMP'] = fs_str(old_temp)
+        _rmtree_func(new_temp.as_posix())
+
+    request.addfinalizer(finalize)
+    with TemporaryDirectory(dir=new_temp.as_posix()) as temp_dir:
+        yield Path(temp_dir.name)
 
 
 @pytest.fixture(name='create_tmpdir')
@@ -179,9 +209,10 @@ def isolate(create_tmpdir):
     os.environ["GIT_CONFIG_NOSYSTEM"] = fs_str("1")
     os.environ["GIT_AUTHOR_NAME"] = fs_str("pipenv")
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
+    os.environ["GIT_ASK_YESNO"] = fs_str("false")
     workon_home = create_tmpdir()
     os.environ["WORKON_HOME"] = fs_str(str(workon_home))
-    os.environ["HOME"] = home_dir
+    os.environ["HOME"] = os.path.abspath(home_dir)
     mkdir_p(os.path.join(home_dir, "projects"))
     # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
     os.environ.pop("PIPENV_ACTIVE", None)
@@ -399,7 +430,6 @@ class _PipenvInstance(object):
 
 def _rmtree_func(path, ignore_errors=True, onerror=None):
     directory = fs_encode(path)
-    global _rmtree
     shutil_rmtree = _rmtree
     if onerror is None:
         onerror = handle_remove_readonly

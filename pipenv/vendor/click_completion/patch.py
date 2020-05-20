@@ -75,7 +75,29 @@ def multicommand_get_command_short_help(self, ctx, cmd_name):
     str
         The sub command short help
     """
-    return self.get_command(ctx, cmd_name).short_help
+    return self.get_command(ctx, cmd_name).get_short_help_str()
+
+
+def multicommand_get_command_hidden(self, ctx, cmd_name):
+    """Returns the short help of a subcommand
+
+    It allows MultiCommand subclasses to implement more efficient ways to provide the subcommand hidden attribute, for
+    example by leveraging some caching.
+
+    Parameters
+    ----------
+    ctx : click.core.Context
+        The current context
+    cmd_name :
+        The sub command name
+
+    Returns
+    -------
+    bool
+        The sub command hidden status
+    """
+    cmd = self.get_command(ctx, cmd_name)
+    return cmd.hidden if cmd else False
 
 
 def _shellcomplete(cli, prog_name, complete_var=None):
@@ -139,4 +161,5 @@ def patch():
     click.types.ParamType.complete = param_type_complete
     click.types.Choice.complete = choice_complete
     click.core.MultiCommand.get_command_short_help = multicommand_get_command_short_help
+    click.core.MultiCommand.get_command_hidden = multicommand_get_command_hidden
     click.core._bashcomplete = _shellcomplete

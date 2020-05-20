@@ -1,6 +1,10 @@
 """Build Environment used for isolation during sdist building
 """
 
+# The following comment should be removed at some point in the future.
+# mypy: strict-optional=False
+# mypy: disallow-untyped-defs=False
+
 import logging
 import os
 import sys
@@ -12,14 +16,14 @@ from sysconfig import get_paths
 from pipenv.patched.notpip._vendor.pkg_resources import Requirement, VersionConflict, WorkingSet
 
 from pipenv.patched.notpip import __file__ as pip_location
-from pipenv.patched.notpip._internal.utils.misc import call_subprocess
+from pipenv.patched.notpip._internal.utils.subprocess import call_subprocess
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 from pipenv.patched.notpip._internal.utils.ui import open_spinner
 
 if MYPY_CHECK_RUNNING:
-    from typing import Tuple, Set, Iterable, Optional, List  # noqa: F401
-    from pipenv.patched.notpip._internal.index import PackageFinder  # noqa: F401
+    from typing import Tuple, Set, Iterable, Optional, List
+    from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +55,6 @@ class BuildEnvironment(object):
     def __init__(self):
         # type: () -> None
         self._temp_dir = TempDirectory(kind="build-env")
-        self._temp_dir.create()
 
         self._prefixes = OrderedDict((
             (name, _Prefix(os.path.join(self._temp_dir.path, name)))
@@ -166,8 +169,9 @@ class BuildEnvironment(object):
         prefix.setup = True
         if not requirements:
             return
+        sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
         args = [
-            sys.executable, os.path.dirname(pip_location), 'install',
+            sys_executable, os.path.dirname(pip_location), 'install',
             '--ignore-installed', '--no-user', '--prefix', prefix.path,
             '--no-warn-script-location',
         ]  # type: List[str]
@@ -177,22 +181,25 @@ class BuildEnvironment(object):
             formats = getattr(finder.format_control, format_control)
             args.extend(('--' + format_control.replace('_', '-'),
                          ','.join(sorted(formats or {':none:'}))))
-        if finder.index_urls:
-            args.extend(['-i', finder.index_urls[0]])
-            for extra_index in finder.index_urls[1:]:
+
+        index_urls = finder.index_urls
+        if index_urls:
+            args.extend(['-i', index_urls[0]])
+            for extra_index in index_urls[1:]:
                 args.extend(['--extra-index-url', extra_index])
         else:
             args.append('--no-index')
         for link in finder.find_links:
             args.extend(['--find-links', link])
-        for _, host, _ in finder.secure_origins:
+
+        for host in finder.trusted_hosts:
             args.extend(['--trusted-host', host])
         if finder.allow_all_prereleases:
             args.append('--pre')
         args.append('--')
         args.extend(requirements)
         with open_spinner(message) as spinner:
-            call_subprocess(args, show_stdout=False, spinner=spinner)
+            call_subprocess(args, spinner=spinner)
 
 
 class NoOpBuildEnvironment(BuildEnvironment):

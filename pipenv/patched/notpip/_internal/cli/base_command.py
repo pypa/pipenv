@@ -1,4 +1,5 @@
 """Base Command class, and related routines"""
+
 from __future__ import absolute_import, print_function
 
 import logging
@@ -10,61 +11,61 @@ import sys
 import traceback
 
 from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.command_context import CommandContextMixIn
 from pipenv.patched.notpip._internal.cli.parser import (
-    ConfigOptionParser, UpdatingDefaultsHelpFormatter,
+    ConfigOptionParser,
+    UpdatingDefaultsHelpFormatter,
 )
 from pipenv.patched.notpip._internal.cli.status_codes import (
-    ERROR, PREVIOUS_BUILD_DIR_ERROR, SUCCESS, UNKNOWN_ERROR,
+    ERROR,
+    PREVIOUS_BUILD_DIR_ERROR,
+    SUCCESS,
+    UNKNOWN_ERROR,
     VIRTUALENV_NOT_FOUND,
 )
-from pipenv.patched.notpip._internal.download import PipSession
 from pipenv.patched.notpip._internal.exceptions import (
-    BadCommand, CommandError, InstallationError, PreviousBuildDirError,
+    BadCommand,
+    CommandError,
+    InstallationError,
+    PreviousBuildDirError,
     UninstallationError,
 )
-from pipenv.patched.notpip._internal.index import PackageFinder
-from pipenv.patched.notpip._internal.locations import running_under_virtualenv
-from pipenv.patched.notpip._internal.req.constructors import (
-    install_req_from_editable, install_req_from_line,
-)
-from pipenv.patched.notpip._internal.req.req_file import parse_requirements
 from pipenv.patched.notpip._internal.utils.deprecation import deprecated
+from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
 from pipenv.patched.notpip._internal.utils.logging import BrokenStdoutLoggingError, setup_logging
-from pipenv.patched.notpip._internal.utils.misc import (
-    get_prog, normalize_path, redact_password_from_url,
-)
-from pipenv.patched.notpip._internal.utils.outdated import pip_version_check
+from pipenv.patched.notpip._internal.utils.misc import get_prog, normalize_path
+from pipenv.patched.notpip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.virtualenv import running_under_virtualenv
 
 if MYPY_CHECK_RUNNING:
-    from typing import Optional, List, Tuple, Any  # noqa: F401
-    from optparse import Values  # noqa: F401
-    from pipenv.patched.notpip._internal.cache import WheelCache  # noqa: F401
-    from pipenv.patched.notpip._internal.req.req_set import RequirementSet  # noqa: F401
+    from typing import List, Tuple, Any
+    from optparse import Values
 
 __all__ = ['Command']
 
 logger = logging.getLogger(__name__)
 
 
-class Command(object):
-    name = None  # type: Optional[str]
-    usage = None  # type: Optional[str]
-    hidden = False  # type: bool
+class Command(CommandContextMixIn):
+    usage = None  # type: str
     ignore_require_venv = False  # type: bool
 
-    def __init__(self, isolated=False):
-        # type: (bool) -> None
+    def __init__(self, name, summary, isolated=False):
+        # type: (str, str, bool) -> None
+        super(Command, self).__init__()
         parser_kw = {
             'usage': self.usage,
-            'prog': '%s %s' % (get_prog(), self.name),
+            'prog': '%s %s' % (get_prog(), name),
             'formatter': UpdatingDefaultsHelpFormatter(),
             'add_help_option': False,
-            'name': self.name,
+            'name': name,
             'description': self.__doc__,
             'isolated': isolated,
         }
 
+        self.name = name
+        self.summary = summary
         self.parser = ConfigOptionParser(**parser_kw)
 
         # Commands should add options to this option group
@@ -78,54 +79,39 @@ class Command(object):
         )
         self.parser.add_option_group(gen_opts)
 
+    def handle_pip_version_check(self, options):
+        # type: (Values) -> None
+        """
+        This is a no-op so that commands by default do not do the pip version
+        check.
+        """
+        # Make sure we do the pip version check if the index_group options
+        # are present.
+        assert not hasattr(options, 'no_index')
+
     def run(self, options, args):
         # type: (Values, List[Any]) -> Any
         raise NotImplementedError
 
-    def _build_session(self, options, retries=None, timeout=None):
-        # type: (Values, Optional[int], Optional[int]) -> PipSession
-        session = PipSession(
-            cache=(
-                normalize_path(os.path.join(options.cache_dir, "http"))
-                if options.cache_dir else None
-            ),
-            retries=retries if retries is not None else options.retries,
-            insecure_hosts=options.trusted_hosts,
-        )
-
-        # Handle custom ca-bundles from the user
-        if options.cert:
-            session.verify = options.cert
-
-        # Handle SSL client certificate
-        if options.client_cert:
-            session.cert = options.client_cert
-
-        # Handle timeouts
-        if options.timeout or timeout:
-            session.timeout = (
-                timeout if timeout is not None else options.timeout
-            )
-
-        # Handle configured proxies
-        if options.proxy:
-            session.proxies = {
-                "http": options.proxy,
-                "https": options.proxy,
-            }
-
-        # Determine if we can prompt the user for authentication or not
-        session.auth.prompting = not options.no_input
-
-        return session
-
     def parse_args(self, args):
-        # type: (List[str]) -> Tuple
+        # type: (List[str]) -> Tuple[Any, Any]
         # factored out for testability
         return self.parser.parse_args(args)
 
     def main(self, args):
         # type: (List[str]) -> int
+        try:
+            with self.main_context():
+                return self._main(args)
+        finally:
+            logging.shutdown()
+
+    def _main(self, args):
+        # type: (List[str]) -> int
+        # Intentionally set as early as possible so globally-managed temporary
+        # directories are available to the rest of the code.
+        self.enter_context(global_tempdir_manager())
+
         options, args = self.parse_args(args)
 
         # Set verbosity so that it can be used elsewhere.
@@ -137,25 +123,33 @@ class Command(object):
             user_log_file=options.log,
         )
 
-        if sys.version_info[:2] == (3, 4):
-            deprecated(
-                "Python 3.4 support has been deprecated. pip 19.1 will be the "
-                "last one supporting it. Please upgrade your Python as Python "
-                "3.4 won't be maintained after March 2019 (cf PEP 429).",
-                replacement=None,
-                gone_in='19.2',
-            )
-        elif sys.version_info[:2] == (2, 7):
+        if (
+            sys.version_info[:2] == (2, 7) and
+            not options.no_python_version_warning
+        ):
             message = (
-                "A future version of pip will drop support for Python 2.7."
+                "A future version of pip will drop support for Python 2.7. "
+                "More details about Python 2 support in pip, can be found at "
+                "https://pip.pypa.io/en/latest/development/release-process/#python-2-support"  # noqa
             )
             if platform.python_implementation() == "CPython":
                 message = (
-                    "Python 2.7 will reach the end of its life on January "
+                    "Python 2.7 reached the end of its life on January "
                     "1st, 2020. Please upgrade your Python as Python 2.7 "
-                    "won't be maintained after that date. "
+                    "is no longer maintained. "
                 ) + message
             deprecated(message, replacement=None, gone_in=None)
+
+        if options.skip_requirements_regex:
+            deprecated(
+                "--skip-requirements-regex is unsupported and will be removed",
+                replacement=(
+                    "manage requirements/constraints files explicitly, "
+                    "possibly generating them from metadata"
+                ),
+                gone_in="20.1",
+                issue=7297,
+            )
 
         # TODO: Try to get these passing down from the command?
         #       without resorting to os.environ to hold these.
@@ -175,6 +169,19 @@ class Command(object):
                 )
                 sys.exit(VIRTUALENV_NOT_FOUND)
 
+        if options.cache_dir:
+            options.cache_dir = normalize_path(options.cache_dir)
+            if not check_path_owner(options.cache_dir):
+                logger.warning(
+                    "The directory '%s' or its parent directory is not owned "
+                    "or is not writable by the current user. The cache "
+                    "has been disabled. Check the permissions and owner of "
+                    "that directory. If executing pip with sudo, you may want "
+                    "sudo's -H flag.",
+                    options.cache_dir,
+                )
+                options.cache_dir = None
+
         try:
             status = self.run(options, args)
             # FIXME: all commands should return an exit status
@@ -192,7 +199,7 @@ class Command(object):
 
             return ERROR
         except CommandError as exc:
-            logger.critical('ERROR: %s', exc)
+            logger.critical('%s', exc)
             logger.debug('Exception information:', exc_info=True)
 
             return ERROR
@@ -214,128 +221,6 @@ class Command(object):
 
             return UNKNOWN_ERROR
         finally:
-            allow_version_check = (
-                # Does this command have the index_group options?
-                hasattr(options, "no_index") and
-                # Is this command allowed to perform this check?
-                not (options.disable_pip_version_check or options.no_index)
-            )
-            # Check if we're using the latest version of pip available
-            if allow_version_check:
-                session = self._build_session(
-                    options,
-                    retries=0,
-                    timeout=min(5, options.timeout)
-                )
-                with session:
-                    pip_version_check(session, options)
-
-            # Shutdown the logging module
-            logging.shutdown()
+            self.handle_pip_version_check(options)
 
         return SUCCESS
-
-
-class RequirementCommand(Command):
-
-    @staticmethod
-    def populate_requirement_set(requirement_set,  # type: RequirementSet
-                                 args,             # type: List[str]
-                                 options,          # type: Values
-                                 finder,           # type: PackageFinder
-                                 session,          # type: PipSession
-                                 name,             # type: str
-                                 wheel_cache       # type: Optional[WheelCache]
-                                 ):
-        # type: (...) -> None
-        """
-        Marshal cmd line args into a requirement set.
-        """
-        # NOTE: As a side-effect, options.require_hashes and
-        #       requirement_set.require_hashes may be updated
-
-        for filename in options.constraints:
-            for req_to_add in parse_requirements(
-                    filename,
-                    constraint=True, finder=finder, options=options,
-                    session=session, wheel_cache=wheel_cache):
-                req_to_add.is_direct = True
-                requirement_set.add_requirement(req_to_add)
-
-        for req in args:
-            req_to_add = install_req_from_line(
-                req, None, isolated=options.isolated_mode,
-                use_pep517=options.use_pep517,
-                wheel_cache=wheel_cache
-            )
-            req_to_add.is_direct = True
-            requirement_set.add_requirement(req_to_add)
-
-        for req in options.editables:
-            req_to_add = install_req_from_editable(
-                req,
-                isolated=options.isolated_mode,
-                use_pep517=options.use_pep517,
-                wheel_cache=wheel_cache
-            )
-            req_to_add.is_direct = True
-            requirement_set.add_requirement(req_to_add)
-
-        for filename in options.requirements:
-            for req_to_add in parse_requirements(
-                    filename,
-                    finder=finder, options=options, session=session,
-                    wheel_cache=wheel_cache,
-                    use_pep517=options.use_pep517):
-                req_to_add.is_direct = True
-                requirement_set.add_requirement(req_to_add)
-        # If --require-hashes was a line in a requirements file, tell
-        # RequirementSet about it:
-        requirement_set.require_hashes = options.require_hashes
-
-        if not (args or options.editables or options.requirements):
-            opts = {'name': name}
-            if options.find_links:
-                raise CommandError(
-                    'You must give at least one requirement to %(name)s '
-                    '(maybe you meant "pip %(name)s %(links)s"?)' %
-                    dict(opts, links=' '.join(options.find_links)))
-            else:
-                raise CommandError(
-                    'You must give at least one requirement to %(name)s '
-                    '(see "pip help %(name)s")' % opts)
-
-    def _build_package_finder(
-        self,
-        options,               # type: Values
-        session,               # type: PipSession
-        platform=None,         # type: Optional[str]
-        python_versions=None,  # type: Optional[List[str]]
-        abi=None,              # type: Optional[str]
-        implementation=None    # type: Optional[str]
-    ):
-        # type: (...) -> PackageFinder
-        """
-        Create a package finder appropriate to this requirement command.
-        """
-        index_urls = [options.index_url] + options.extra_index_urls
-        if options.no_index:
-            logger.debug(
-                'Ignoring indexes: %s',
-                ','.join(redact_password_from_url(url) for url in index_urls),
-            )
-            index_urls = []
-
-        return PackageFinder(
-            find_links=options.find_links,
-            format_control=options.format_control,
-            index_urls=index_urls,
-            trusted_hosts=options.trusted_hosts,
-            allow_all_prereleases=options.pre,
-            session=session,
-            platform=platform,
-            versions=python_versions,
-            abi=abi,
-            implementation=implementation,
-            prefer_binary=options.prefer_binary,
-        )

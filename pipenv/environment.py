@@ -10,7 +10,6 @@ import os
 import site
 import sys
 
-from distutils.sysconfig import get_python_lib
 from sysconfig import get_paths, get_python_version
 
 import itertools
@@ -20,12 +19,14 @@ import six
 import pipenv
 
 from .vendor.cached_property import cached_property
+from .vendor.packaging.utils import canonicalize_name
 from .vendor import vistir
 
 from .utils import normalize_path, make_posix
 
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
+# TODO: Unittests for this class
 
 
 class Environment(object):
@@ -91,7 +92,8 @@ class Environment(object):
         deps.add(dist)
         try:
             reqs = dist.requires()
-        except (AttributeError, OSError, IOError):  # The METADATA file can't be found
+        # KeyError = limited metadata can be found
+        except (KeyError, AttributeError, OSError, IOError):  # The METADATA file can't be found
             return deps
         for req in reqs:
             dist = working_set.find(req)
@@ -467,7 +469,29 @@ class Environment(object):
         ), None)
         if pip is not None:
             return parse_version(pip.version)
-        return parse_version("18.0")
+        return parse_version("19.3")
+
+    def expand_egg_links(self):
+        """
+        Expand paths specified in egg-link files to prevent pip errors during
+        reinstall
+        """
+        prefixes = [
+            vistir.compat.Path(prefix)
+            for prefix in self.base_paths["libdirs"].split(os.pathsep)
+            if vistir.path.is_in_path(prefix, self.prefix.as_posix())
+        ]
+        for loc in prefixes:
+            if not loc.exists():
+                continue
+            for pth in loc.iterdir():
+                if not pth.suffix == ".egg-link":
+                    continue
+                contents = [
+                    vistir.path.normalize_path(line.strip())
+                    for line in pth.read_text().splitlines()
+                ]
+                pth.write_text("\n".join(contents))
 
     def get_distributions(self):
         """
@@ -530,42 +554,21 @@ class Environment(object):
     @contextlib.contextmanager
     def get_finder(self, pre=False):
         from .vendor.pip_shims.shims import (
-            Command, cmdoptions, index_group, PackageFinder, parse_version, pip_version
+            InstallCommand, get_package_finder
         )
         from .environments import PIPENV_CACHE_DIR
-        index_urls = [source.get("url") for source in self.sources]
 
-        class PipCommand(Command):
-            name = "PipCommand"
-
-        pip_command = PipCommand()
-        index_opts = cmdoptions.make_option_group(
-            index_group, pip_command.parser
-        )
-        cmd_opts = pip_command.cmd_opts
-        pip_command.parser.insert_option_group(0, index_opts)
-        pip_command.parser.insert_option_group(0, cmd_opts)
+        pip_command = InstallCommand()
         pip_args = self._modules["pipenv"].utils.prepare_pip_source_args(self.sources)
         pip_options, _ = pip_command.parser.parse_args(pip_args)
         pip_options.cache_dir = PIPENV_CACHE_DIR
         pip_options.pre = self.pipfile.get("pre", pre)
         with pip_command._build_session(pip_options) as session:
-            finder_args = {
-                "find_links": pip_options.find_links,
-                "index_urls": index_urls,
-                "allow_all_prereleases": pip_options.pre,
-                "trusted_hosts": pip_options.trusted_hosts,
-                "session": session
-            }
-            if parse_version(pip_version) < parse_version("19.0"):
-                finder_args.update(
-                    {"process_dependency_links": pip_options.process_dependency_links}
-                )
-            finder = PackageFinder(**finder_args)
+            finder = get_package_finder(install_cmd=pip_command, options=pip_options, session=session)
             yield finder
 
     def get_package_info(self, pre=False):
-        from .vendor.pip_shims.shims import pip_version, parse_version
+        from .vendor.pip_shims.shims import pip_version, parse_version, CandidateEvaluator
         dependency_links = []
         packages = self.get_installed_packages()
         # This code is borrowed from pip's current implementation
@@ -592,9 +595,10 @@ class Environment(object):
 
                 if not all_candidates:
                     continue
-                best_candidate = max(all_candidates, key=finder._candidate_sort_key)
-                remote_version = best_candidate.version
-                if best_candidate.location.is_wheel:
+                candidate_evaluator = finder.make_candidate_evaluator(project_name=dist.key)
+                best_candidate_result = candidate_evaluator.compute_best_candidate(all_candidates)
+                remote_version = best_candidate_result.best_candidate.version
+                if best_candidate_result.best_candidate.link.is_wheel:
                     typ = 'wheel'
                 else:
                     typ = 'sdist'
@@ -620,7 +624,7 @@ class Environment(object):
         else:
             d['required_version'] = d['installed_version']
 
-        get_children = lambda n: key_tree.get(n.key, [])
+        get_children = lambda n: key_tree.get(n.key, [])    # noqa
 
         d['dependencies'] = [
             cls._get_requirements_for_package(c, key_tree, parent=node,
@@ -709,6 +713,33 @@ class Environment(object):
         """
 
         return any(d for d in self.get_distributions() if d.project_name == pkgname)
+
+    def is_satisfied(self, req):
+        match = next(
+            iter(
+                d for d in self.get_distributions()
+                if canonicalize_name(d.project_name) == req.normalized_name
+            ), None
+        )
+        if match is not None:
+            if req.editable and req.line_instance.is_local and self.find_egg(match):
+                requested_path = req.line_instance.path
+                return requested_path and vistir.compat.samefile(requested_path, match.location)
+            elif match.has_metadata("direct_url.json"):
+                direct_url_metadata = json.loads(match.get_metadata("direct_url.json"))
+                commit_id = direct_url_metadata.get("vcs_info", {}).get("commit_id", "")
+                vcs_type = direct_url_metadata.get("vcs_info", {}).get("vcs", "")
+                _, pipfile_part = req.as_pipfile().popitem()
+                return (
+                    vcs_type == req.vcs and commit_id == req.commit_hash
+                    and direct_url_metadata["url"] == pipfile_part[req.vcs]
+                )
+            elif req.line_instance.specifiers is not None:
+                return req.line_instance.specifiers.contains(
+                    match.version, prereleases=True
+                )
+            return True
+        return False
 
     def run(self, cmd, cwd=os.curdir):
         """Run a command with :class:`~subprocess.Popen` in the context of the environment
@@ -805,7 +836,7 @@ class Environment(object):
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
             site.addsitedir(self.base_paths["purelib"])
-            pip = self.safe_import("pip")
+            pip = self.safe_import("pip")       # noqa
             pip_vendor = self.safe_import("pip._vendor")
             pep517_dir = os.path.join(os.path.dirname(pip_vendor.__file__), "pep517")
             site.addsitedir(pep517_dir)
@@ -865,7 +896,7 @@ class Environment(object):
 
     def install(self, requirements):
         if not isinstance(requirements, (tuple, list)):
-            requirements = [requirements,]
+            requirements = [requirements]
         with self.get_finder() as finder:
             args = []
             for format_control in ('no_binary', 'only_binary'):
@@ -917,7 +948,7 @@ class Environment(object):
             pathset_base = pip_shims.UninstallPathSet
             pathset_base._permitted = PatchedUninstaller._permitted
             dist = next(
-                iter(filter(lambda d: d.project_name == pkgname, self.get_working_set())),
+                iter(d for d in self.get_working_set() if d.project_name == pkgname),
                 None
             )
             pathset = pathset_base.from_dist(dist)
@@ -925,7 +956,7 @@ class Environment(object):
                 pathset.remove(auto_confirm=auto_confirm, verbose=verbose)
             try:
                 yield pathset
-            except Exception as e:
+            except Exception:
                 if pathset is not None:
                     pathset.rollback()
             else:

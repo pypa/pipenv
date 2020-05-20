@@ -5,12 +5,37 @@ import io
 import os
 import stat
 import sys
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 
 import six
 
-from .compat import NamedTemporaryFile, Path
+from .compat import IS_TYPE_CHECKING, NamedTemporaryFile, Path
 from .path import is_file_url, is_valid_url, path_to_url, url_to_path
+
+if IS_TYPE_CHECKING:
+    from typing import (
+        Any,
+        Bytes,
+        Callable,
+        ContextManager,
+        Dict,
+        IO,
+        Iterator,
+        Optional,
+        Union,
+        Text,
+        Tuple,
+        TypeVar,
+    )
+    from types import ModuleType
+    from requests import Session
+    from six.moves.http_client import HTTPResponse as Urllib_HTTPResponse
+    from urllib3.response import HTTPResponse as Urllib3_HTTPResponse
+    from .spin import VistirSpinner, DummySpinner
+
+    TSpinner = Union[VistirSpinner, DummySpinner]
+    _T = TypeVar("_T")
+
 
 __all__ = [
     "temp_environ",
@@ -29,6 +54,7 @@ __all__ = [
 # See https://github.com/berdario/pew/blob/master/pew/_utils.py#L82
 @contextmanager
 def temp_environ():
+    # type: () -> Iterator[None]
     """Allow the ability to set os.environ temporarily"""
     environ = dict(os.environ)
     try:
@@ -40,17 +66,30 @@ def temp_environ():
 
 @contextmanager
 def temp_path():
+    # type: () -> Iterator[None]
     """A context manager which allows the ability to set sys.path temporarily
 
     >>> path_from_virtualenv = load_path("/path/to/venv/bin/python")
     >>> print(sys.path)
-    ['/home/user/.pyenv/versions/3.7.0/bin', '/home/user/.pyenv/versions/3.7.0/lib/python37.zip', '/home/user/.pyenv/versions/3.7.0/lib/python3.7', '/home/user/.pyenv/versions/3.7.0/lib/python3.7/lib-dynload', '/home/user/.pyenv/versions/3.7.0/lib/python3.7/site-packages']
+    [
+        '/home/user/.pyenv/versions/3.7.0/bin',
+        '/home/user/.pyenv/versions/3.7.0/lib/python37.zip',
+        '/home/user/.pyenv/versions/3.7.0/lib/python3.7',
+        '/home/user/.pyenv/versions/3.7.0/lib/python3.7/lib-dynload',
+        '/home/user/.pyenv/versions/3.7.0/lib/python3.7/site-packages'
+    ]
     >>> with temp_path():
             sys.path = path_from_virtualenv
             # Running in the context of the path above
             run(["pip", "install", "stuff"])
     >>> print(sys.path)
-    ['/home/user/.pyenv/versions/3.7.0/bin', '/home/user/.pyenv/versions/3.7.0/lib/python37.zip', '/home/user/.pyenv/versions/3.7.0/lib/python3.7', '/home/user/.pyenv/versions/3.7.0/lib/python3.7/lib-dynload', '/home/user/.pyenv/versions/3.7.0/lib/python3.7/site-packages']
+    [
+        '/home/user/.pyenv/versions/3.7.0/bin',
+        '/home/user/.pyenv/versions/3.7.0/lib/python37.zip',
+        '/home/user/.pyenv/versions/3.7.0/lib/python3.7',
+        '/home/user/.pyenv/versions/3.7.0/lib/python3.7/lib-dynload',
+        '/home/user/.pyenv/versions/3.7.0/lib/python3.7/site-packages'
+    ]
 
     """
     path = [p for p in sys.path]
@@ -62,6 +101,7 @@ def temp_path():
 
 @contextmanager
 def cd(path):
+    # type: () -> Iterator[None]
     """Context manager to temporarily change working directories
 
     :param str path: The directory to move into
@@ -88,6 +128,7 @@ def cd(path):
 
 @contextmanager
 def dummy_spinner(spin_type, text, **kwargs):
+    # type: (str, str, Any)
     class FakeClass(object):
         def __init__(self, text=""):
             self.text = text
@@ -110,12 +151,13 @@ def dummy_spinner(spin_type, text, **kwargs):
 
 @contextmanager
 def spinner(
-    spinner_name=None,
-    start_text=None,
-    handler_map=None,
-    nospin=False,
-    write_to_stdout=True,
+    spinner_name=None,  # type: Optional[str]
+    start_text=None,  # type: Optional[str]
+    handler_map=None,  # type: Optional[Dict[str, Callable]]
+    nospin=False,  # type: bool
+    write_to_stdout=True,  # type: bool
 ):
+    # type: (...) -> ContextManager[TSpinner]
     """Get a spinner object or a dummy spinner to wrap a context.
 
     :param str spinner_name: A spinner type e.g. "dots" or "bouncingBar" (default: {"bouncingBar"})
@@ -165,6 +207,7 @@ def spinner(
 
 @contextmanager
 def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
+    # type: (str, bool, Optional[str], Optional[str]) -> None
     """Atomically open `target` for writing.
 
     This is based on Lektor's `atomic_open()` utility, but simplified a lot
@@ -173,8 +216,10 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
 
     :param str target: Target filename to write
     :param bool binary: Whether to open in binary mode, default False
-    :param str newline: The newline character to use when writing, determined from system if not supplied
-    :param str encoding: The encoding to use when writing, defaults to system encoding
+    :param Optional[str] newline: The newline character to use when writing, determined
+        from system if not supplied.
+    :param Optional[str] encoding: The encoding to use when writing, defaults to system
+        encoding.
 
     How this works:
 
@@ -234,7 +279,10 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
         delete=False,
     )
     # set permissions to 0644
-    os.chmod(f.name, stat.S_IWUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+    try:
+        os.chmod(f.name, stat.S_IWUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+    except OSError:
+        pass
     try:
         yield f
     except BaseException:
@@ -254,13 +302,19 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
 
 
 @contextmanager
-def open_file(link, session=None, stream=True):
+def open_file(
+    link,  # type: Union[_T, str]
+    session=None,  # type: Optional[Session]
+    stream=True,  # type: bool
+):
+    # type: (...) -> ContextManager[Union[IO[bytes], Urllib3_HTTPResponse, Urllib_HTTPResponse]]
     """
     Open local or remote file for reading.
 
-    :type link: pip._internal.index.Link or str
-    :type session: requests.Session
-    :param bool stream: Try to stream if remote, default True
+    :param pip._internal.index.Link link: A link object from resolving dependencies with
+        pip, or else a URL.
+    :param Optional[Session] session: A :class:`~requests.Session` instance
+    :param bool stream: Whether to stream the content if remote, default True
     :raises ValueError: If link points to a local directory.
     :return: a context manager to the opened file-like object
     """
@@ -285,24 +339,32 @@ def open_file(link, session=None, stream=True):
         # Remote URL
         headers = {"Accept-Encoding": "identity"}
         if not session:
-            from requests import Session
-
-            session = Session()
-        with session.get(link, headers=headers, stream=stream) as resp:
             try:
-                raw = getattr(resp, "raw", None)
-                result = raw if raw else resp
-                yield result
-            finally:
-                if raw:
-                    conn = getattr(raw, "_connection")
-                    if conn is not None:
-                        conn.close()
-                result.close()
+                from requests import Session  # noqa
+            except ImportError:
+                session = None
+            else:
+                session = Session()
+        if session is None:
+            with closing(six.moves.urllib.request.urlopen(link)) as f:
+                yield f
+        else:
+            with session.get(link, headers=headers, stream=stream) as resp:
+                try:
+                    raw = getattr(resp, "raw", None)
+                    result = raw if raw else resp
+                    yield result
+                finally:
+                    if raw:
+                        conn = raw._connection
+                        if conn is not None:
+                            conn.close()
+                    result.close()
 
 
 @contextmanager
 def replaced_stream(stream_name):
+    # type: (str) -> Iterator[IO[Text]]
     """
     Context manager to temporarily swap out *stream_name* with a stream wrapper.
 
@@ -329,6 +391,7 @@ def replaced_stream(stream_name):
 
 @contextmanager
 def replaced_streams():
+    # type: () -> Iterator[Tuple[IO[Text], IO[Text]]]
     """
     Context manager to replace both ``sys.stdout`` and ``sys.stderr`` using
     ``replaced_stream``

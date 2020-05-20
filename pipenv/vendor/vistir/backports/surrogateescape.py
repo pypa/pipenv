@@ -35,7 +35,7 @@ if six.PY3:
     _unichr = chr
     bytes_chr = lambda code: bytes((code,))
 else:
-    _unichr = unichr
+    _unichr = unichr  # type: ignore
     bytes_chr = chr
 
 

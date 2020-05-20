@@ -15,7 +15,7 @@ try:
 except ImportError:
     ipaddress = None
 
-__version__ = '3.5.0.1'
+__version__ = "3.5.0.1"
 
 
 class CertificateError(ValueError):
@@ -33,18 +33,19 @@ def _dnsname_match(dn, hostname, max_wildcards=1):
 
     # Ported from python3-syntax:
     # leftmost, *remainder = dn.split(r'.')
-    parts = dn.split(r'.')
+    parts = dn.split(r".")
     leftmost = parts[0]
     remainder = parts[1:]
 
-    wildcards = leftmost.count('*')
+    wildcards = leftmost.count("*")
     if wildcards > max_wildcards:
         # Issue #17980: avoid denials of service by refusing more
         # than one wildcard per fragment.  A survey of established
         # policy among SSL implementations showed it to be a
         # reasonable choice.
         raise CertificateError(
-            "too many wildcards in certificate DNS name: " + repr(dn))
+            "too many wildcards in certificate DNS name: " + repr(dn)
+        )
 
     # speed up common case w/o wildcards
     if not wildcards:
@@ -53,11 +54,11 @@ def _dnsname_match(dn, hostname, max_wildcards=1):
     # RFC 6125, section 6.4.3, subitem 1.
     # The client SHOULD NOT attempt to match a presented identifier in which
     # the wildcard character comprises a label other than the left-most label.
-    if leftmost == '*':
+    if leftmost == "*":
         # When '*' is a fragment by itself, it matches a non-empty dotless
         # fragment.
-        pats.append('[^.]+')
-    elif leftmost.startswith('xn--') or hostname.startswith('xn--'):
+        pats.append("[^.]+")
+    elif leftmost.startswith("xn--") or hostname.startswith("xn--"):
         # RFC 6125, section 6.4.3, subitem 3.
         # The client SHOULD NOT attempt to match a presented identifier
         # where the wildcard character is embedded within an A-label or
@@ -65,20 +66,21 @@ def _dnsname_match(dn, hostname, max_wildcards=1):
         pats.append(re.escape(leftmost))
     else:
         # Otherwise, '*' matches any dotless string, e.g. www*
-        pats.append(re.escape(leftmost).replace(r'\*', '[^.]*'))
+        pats.append(re.escape(leftmost).replace(r"\*", "[^.]*"))
 
     # add the remaining fragments, ignore any wildcards
     for frag in remainder:
         pats.append(re.escape(frag))
 
-    pat = re.compile(r'\A' + r'\.'.join(pats) + r'\Z', re.IGNORECASE)
+    pat = re.compile(r"\A" + r"\.".join(pats) + r"\Z", re.IGNORECASE)
     return pat.match(hostname)
 
 
 def _to_unicode(obj):
     if isinstance(obj, str) and sys.version_info < (3,):
-        obj = unicode(obj, encoding='ascii', errors='strict')
+        obj = unicode(obj, encoding="ascii", errors="strict")
     return obj
+
 
 def _ipaddress_match(ipname, host_ip):
     """Exact matching of IP addresses.
@@ -101,9 +103,11 @@ def match_hostname(cert, hostname):
     returns nothing.
     """
     if not cert:
-        raise ValueError("empty or no certificate, match_hostname needs a "
-                         "SSL socket or SSL context with either "
-                         "CERT_OPTIONAL or CERT_REQUIRED")
+        raise ValueError(
+            "empty or no certificate, match_hostname needs a "
+            "SSL socket or SSL context with either "
+            "CERT_OPTIONAL or CERT_REQUIRED"
+        )
     try:
         # Divergence from upstream: ipaddress can't handle byte str
         host_ip = ipaddress.ip_address(_to_unicode(hostname))
@@ -122,35 +126,35 @@ def match_hostname(cert, hostname):
         else:
             raise
     dnsnames = []
-    san = cert.get('subjectAltName', ())
+    san = cert.get("subjectAltName", ())
     for key, value in san:
-        if key == 'DNS':
+        if key == "DNS":
             if host_ip is None and _dnsname_match(value, hostname):
                 return
             dnsnames.append(value)
-        elif key == 'IP Address':
+        elif key == "IP Address":
             if host_ip is not None and _ipaddress_match(value, host_ip):
                 return
             dnsnames.append(value)
     if not dnsnames:
         # The subject is only checked when there is no dNSName entry
         # in subjectAltName
-        for sub in cert.get('subject', ()):
+        for sub in cert.get("subject", ()):
             for key, value in sub:
                 # XXX according to RFC 2818, the most specific Common Name
                 # must be used.
-                if key == 'commonName':
+                if key == "commonName":
                     if _dnsname_match(value, hostname):
                         return
                     dnsnames.append(value)
     if len(dnsnames) > 1:
-        raise CertificateError("hostname %r "
-            "doesn't match either of %s"
-            % (hostname, ', '.join(map(repr, dnsnames))))
+        raise CertificateError(
+            "hostname %r "
+            "doesn't match either of %s" % (hostname, ", ".join(map(repr, dnsnames)))
+        )
     elif len(dnsnames) == 1:
-        raise CertificateError("hostname %r "
-            "doesn't match %r"
-            % (hostname, dnsnames[0]))
+        raise CertificateError("hostname %r doesn't match %r" % (hostname, dnsnames[0]))
     else:
-        raise CertificateError("no appropriate commonName or "
-            "subjectAltName fields were found")
+        raise CertificateError(
+            "no appropriate commonName or subjectAltName fields were found"
+        )

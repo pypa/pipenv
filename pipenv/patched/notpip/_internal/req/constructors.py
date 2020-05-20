@@ -8,6 +8,9 @@ These are meant to be used elsewhere within pip to create instances of
 InstallRequirement.
 """
 
+# The following comment should be removed at some point in the future.
+# mypy: strict-optional=False
+
 import logging
 import os
 import re
@@ -17,24 +20,23 @@ from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirem
 from pipenv.patched.notpip._vendor.packaging.specifiers import Specifier
 from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError, parse_requirements
 
-from pipenv.patched.notpip._internal.download import (
-    is_archive_file, is_url, path_to_url, url_to_path,
-)
 from pipenv.patched.notpip._internal.exceptions import InstallationError
 from pipenv.patched.notpip._internal.models.index import PyPI, TestPyPI
 from pipenv.patched.notpip._internal.models.link import Link
+from pipenv.patched.notpip._internal.models.wheel import Wheel
 from pipenv.patched.notpip._internal.pyproject import make_pyproject_path
 from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
-from pipenv.patched.notpip._internal.utils.misc import is_installable_dir
+from pipenv.patched.notpip._internal.utils.filetypes import ARCHIVE_EXTENSIONS
+from pipenv.patched.notpip._internal.utils.misc import is_installable_dir, splitext
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.vcs import vcs
-from pipenv.patched.notpip._internal.wheel import Wheel
+from pipenv.patched.notpip._internal.utils.urls import path_to_url
+from pipenv.patched.notpip._internal.vcs import is_url, vcs
 
 if MYPY_CHECK_RUNNING:
-    from typing import (   # noqa: F401
-        Optional, Tuple, Set, Any, Union, Text, Dict,
+    from typing import (
+        Any, Dict, Optional, Set, Tuple, Union,
     )
-    from pipenv.patched.notpip._internal.cache import WheelCache  # noqa: F401
+    from pipenv.patched.notpip._internal.cache import WheelCache
 
 
 __all__ = [
@@ -44,6 +46,15 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 operators = Specifier._operators.keys()
+
+
+def is_archive_file(name):
+    # type: (str) -> bool
+    """Return True if `name` is a considered as an archive file."""
+    ext = splitext(name)[1].lower()
+    if ext in ARCHIVE_EXTENSIONS:
+        return True
+    return False
 
 
 def _strip_extras(path):
@@ -57,6 +68,13 @@ def _strip_extras(path):
         path_no_extras = path
 
     return path_no_extras, extras
+
+
+def convert_extras(extras):
+    # type: (Optional[str]) -> Set[str]
+    if not extras:
+        return set()
+    return Requirement("placeholder" + extras.lower()).extras
 
 
 def parse_editable(editable_req):
@@ -111,9 +129,9 @@ def parse_editable(editable_req):
 
     if '+' not in url:
         raise InstallationError(
-            '%s should either be a path to a local project or a VCS url '
-            'beginning with svn+, git+, hg+, or bzr+' %
-            editable_req
+            '{} is not a valid editable requirement. '
+            'It should either be a path to a local project or a VCS URL '
+            '(beginning with svn+, git+, hg+, or bzr+).'.format(editable_req)
         )
 
     vc_type = url.split('+', 1)[0].lower()
@@ -161,6 +179,37 @@ def deduce_helpful_msg(req):
     return msg
 
 
+class RequirementParts(object):
+    def __init__(
+            self,
+            requirement,  # type: Optional[Requirement]
+            link,         # type: Optional[Link]
+            markers,      # type: Optional[Marker]
+            extras,       # type: Set[str]
+    ):
+        self.requirement = requirement
+        self.link = link
+        self.markers = markers
+        self.extras = extras
+
+
+def parse_req_from_editable(editable_req):
+    # type: (str) -> RequirementParts
+    name, url, extras_override = parse_editable(editable_req)
+
+    if name is not None:
+        try:
+            req = Requirement(name)
+        except InvalidRequirement:
+            raise InstallationError("Invalid requirement: '%s'" % name)
+    else:
+        req = None
+
+    link = Link(url)
+
+    return RequirementParts(req, link, None, extras_override)
+
+
 # ---- The actual constructors follow ----
 
 
@@ -174,45 +223,80 @@ def install_req_from_editable(
     constraint=False  # type: bool
 ):
     # type: (...) -> InstallRequirement
-    name, url, extras_override = parse_editable(editable_req)
-    if url.startswith('file:'):
-        source_dir = url_to_path(url)
-    else:
-        source_dir = None
 
-    if name is not None:
-        try:
-            req = Requirement(name)
-        except InvalidRequirement:
-            raise InstallationError("Invalid requirement: '%s'" % name)
-    else:
-        req = None
+    parts = parse_req_from_editable(editable_req)
+
+    source_dir = parts.link.file_path if parts.link.scheme == 'file' else None
+
     return InstallRequirement(
-        req, comes_from, source_dir=source_dir,
+        parts.requirement, comes_from, source_dir=source_dir,
         editable=True,
-        link=Link(url),
+        link=parts.link,
         constraint=constraint,
         use_pep517=use_pep517,
         isolated=isolated,
         options=options if options else {},
         wheel_cache=wheel_cache,
-        extras=extras_override or (),
+        extras=parts.extras,
     )
 
 
-def install_req_from_line(
-    name,  # type: str
-    comes_from=None,  # type: Optional[Union[str, InstallRequirement]]
-    use_pep517=None,  # type: Optional[bool]
-    isolated=False,  # type: bool
-    options=None,  # type: Optional[Dict[str, Any]]
-    wheel_cache=None,  # type: Optional[WheelCache]
-    constraint=False  # type: bool
-):
-    # type: (...) -> InstallRequirement
-    """Creates an InstallRequirement from a name, which might be a
-    requirement, directory containing 'setup.py', filename, or URL.
+def _looks_like_path(name):
+    # type: (str) -> bool
+    """Checks whether the string "looks like" a path on the filesystem.
+
+    This does not check whether the target actually exists, only judge from the
+    appearance.
+
+    Returns true if any of the following conditions is true:
+    * a path separator is found (either os.path.sep or os.path.altsep);
+    * a dot is found (which represents the current directory).
     """
+    if os.path.sep in name:
+        return True
+    if os.path.altsep is not None and os.path.altsep in name:
+        return True
+    if name.startswith("."):
+        return True
+    return False
+
+
+def _get_url_from_path(path, name):
+    # type: (str, str) -> str
+    """
+    First, it checks whether a provided path is an installable directory
+    (e.g. it has a setup.py). If it is, returns the path.
+
+    If false, check if the path is an archive file (such as a .whl).
+    The function checks if the path is a file. If false, if the path has
+    an @, it will treat it as a PEP 440 URL requirement and return the path.
+    """
+    if _looks_like_path(name) and os.path.isdir(path):
+        if is_installable_dir(path):
+            return path_to_url(path)
+        raise InstallationError(
+            "Directory %r is not installable. Neither 'setup.py' "
+            "nor 'pyproject.toml' found." % name
+        )
+    if not is_archive_file(path):
+        return None
+    if os.path.isfile(path):
+        return path_to_url(path)
+    urlreq_parts = name.split('@', 1)
+    if len(urlreq_parts) >= 2 and not _looks_like_path(urlreq_parts[0]):
+        # If the path contains '@' and the part before it does not look
+        # like a path, try to treat it as a PEP 440 URL req instead.
+        return None
+    logger.warning(
+        'Requirement %r looks like a filename, but the '
+        'file does not exist',
+        name
+    )
+    return path_to_url(path)
+
+
+def parse_req_from_line(name, line_source):
+    # type: (str, Optional[str]) -> RequirementParts
     if is_url(name):
         marker_sep = '; '
     else:
@@ -236,26 +320,9 @@ def install_req_from_line(
         link = Link(name)
     else:
         p, extras_as_string = _strip_extras(path)
-        looks_like_dir = os.path.isdir(p) and (
-            os.path.sep in name or
-            (os.path.altsep is not None and os.path.altsep in name) or
-            name.startswith('.')
-        )
-        if looks_like_dir:
-            if not is_installable_dir(p):
-                raise InstallationError(
-                    "Directory %r is not installable. Neither 'setup.py' "
-                    "nor 'pyproject.toml' found." % name
-                )
-            link = Link(path_to_url(p))
-        elif is_archive_file(p):
-            if not os.path.isfile(p):
-                logger.warning(
-                    'Requirement %r looks like a filename, but the '
-                    'file does not exist',
-                    name
-                )
-            link = Link(path_to_url(p))
+        url = _get_url_from_path(p, name)
+        if url is not None:
+            link = Link(url)
 
     # it's a local file, dir, or url
     if link:
@@ -276,10 +343,14 @@ def install_req_from_line(
     else:
         req_as_string = name
 
-    if extras_as_string:
-        extras = Requirement("placeholder" + extras_as_string.lower()).extras
-    else:
-        extras = ()
+    extras = convert_extras(extras_as_string)
+
+    def with_source(text):
+        # type: (str) -> str
+        if not line_source:
+            return text
+        return '{} (from {})'.format(text, line_source)
+
     if req_as_string is not None:
         try:
             req = Requirement(req_as_string)
@@ -291,20 +362,45 @@ def install_req_from_line(
                   not any(op in req_as_string for op in operators)):
                 add_msg = "= is not a valid operator. Did you mean == ?"
             else:
-                add_msg = ""
-            raise InstallationError(
-                "Invalid requirement: '%s'\n%s" % (req_as_string, add_msg)
+                add_msg = ''
+            msg = with_source(
+                'Invalid requirement: {!r}'.format(req_as_string)
             )
+            if add_msg:
+                msg += '\nHint: {}'.format(add_msg)
+            raise InstallationError(msg)
     else:
         req = None
 
+    return RequirementParts(req, link, markers, extras)
+
+
+def install_req_from_line(
+    name,  # type: str
+    comes_from=None,  # type: Optional[Union[str, InstallRequirement]]
+    use_pep517=None,  # type: Optional[bool]
+    isolated=False,  # type: bool
+    options=None,  # type: Optional[Dict[str, Any]]
+    wheel_cache=None,  # type: Optional[WheelCache]
+    constraint=False,  # type: bool
+    line_source=None,  # type: Optional[str]
+):
+    # type: (...) -> InstallRequirement
+    """Creates an InstallRequirement from a name, which might be a
+    requirement, directory containing 'setup.py', filename, or URL.
+
+    :param line_source: An optional string describing where the line is from,
+        for logging purposes in case of an error.
+    """
+    parts = parse_req_from_line(name, line_source)
+
     return InstallRequirement(
-        req, comes_from, link=link, markers=markers,
+        parts.requirement, comes_from, link=parts.link, markers=parts.markers,
         use_pep517=use_pep517, isolated=isolated,
         options=options if options else {},
         wheel_cache=wheel_cache,
         constraint=constraint,
-        extras=extras,
+        extras=parts.extras,
     )
 
 
@@ -319,13 +415,14 @@ def install_req_from_req_string(
     try:
         req = Requirement(req_string)
     except InvalidRequirement:
-        raise InstallationError("Invalid requirement: '%s'" % req)
+        raise InstallationError("Invalid requirement: '%s'" % req_string)
 
     domains_not_allowed = [
         PyPI.file_storage_domain,
         TestPyPI.file_storage_domain,
     ]
-    if req.url and comes_from.link.netloc in domains_not_allowed:
+    if (req.url and comes_from and comes_from.link and
+            comes_from.link.netloc in domains_not_allowed):
         # Explicitly disallow pypi packages that depend on external urls
         raise InstallationError(
             "Packages installed from PyPI cannot depend on packages "

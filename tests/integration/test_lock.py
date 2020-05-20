@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import sys
 
 import pytest
@@ -10,12 +11,13 @@ from flaky import flaky
 from vistir.compat import Path
 from vistir.misc import to_text
 from pipenv.utils import temp_environ
+import delegator
 
 
 @pytest.mark.lock
 @pytest.mark.requirements
 def test_lock_handle_eggs(PipenvInstance):
-    """Ensure locking works with packages provoding egg formats.
+    """Ensure locking works with packages providing egg formats.
     """
     with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
@@ -126,6 +128,7 @@ def test_keep_outdated_doesnt_upgrade_pipfile_pins(PipenvInstance):
         assert p.lockfile["default"]["urllib3"]["version"] == "==1.21.1"
 
 
+@pytest.mark.lock
 def test_keep_outdated_keeps_markers_not_removed(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install six click")
@@ -164,17 +167,17 @@ def test_keep_outdated_doesnt_update_satisfied_constraints(PipenvInstance):
 @pytest.mark.lock
 @pytest.mark.complex
 @pytest.mark.needs_internet
-def test_complex_lock_with_vcs_deps(PipenvInstance, pip_src_dir):
+def test_complex_lock_with_vcs_deps(local_tempdir, PipenvInstance, pip_src_dir):
     # This uses the real PyPI since we need Internet to access the Git
     # dependency anyway.
-    with PipenvInstance() as p:
+    with PipenvInstance() as p, local_tempdir:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
 click = "==6.7"
 
 [dev-packages]
-requests = {git = "https://github.com/kennethreitz/requests.git"}
+requests = {git = "https://github.com/psf/requests.git"}
             """.strip()
             f.write(contents)
 
@@ -378,11 +381,60 @@ fake-package = "*"
         assert c.return_code == 0
         c = p.pipenv('lock -r --pypi-mirror {0}'.format(mirror_url))
         assert c.return_code == 0
-        assert '-i https://pypi.org/simple' in c.out.strip()
+        assert '-i {0}'.format(mirror_url) in c.out.strip()
         assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
-        # Mirror url should not have replaced source URLs
-        assert '-i {0}'.format(mirror_url) not in c.out.strip()
         assert '--extra-index-url {}'.format(mirror_url) not in c.out.strip()
+
+
+@pytest.mark.lock
+@pytest.mark.install
+@pytest.mark.skip_windows
+@pytest.mark.needs_internet
+def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInstance):
+    """
+    This test ensures we are using build isolation and a pep517 backend
+    because the package in question includes ``pyproject.toml`` but lacks
+    a ``build-backend`` declaration. In this case, ``pip`` defaults to using
+    ``setuptools.build_meta:__legacy__`` as a builder, but without ``pep517``
+    enabled and with ``setuptools==40.2.0`` installed, this build backend was
+    not yet available. ``setuptools<40.8`` will not be aware of this backend.
+
+    If pip is able to build in isolation with a pep517 backend, this will not
+    matter and the test will still pass as pip will by default install a more
+    recent version of ``setuptools``.
+    """
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv('run pip install "setuptools<=40.2"')
+        assert c.return_code == 0
+        c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
+        assert c.return_code == 0
+        assert c.out.strip() == "40.2.0"
+        c = p.pipenv("install legacy-backend-package")
+        assert c.return_code == 0
+        assert "vistir" in p.lockfile["default"]
+
+
+@pytest.mark.lock
+@pytest.mark.install
+@pytest.mark.skip_windows
+@pytest.mark.needs_internet
+def test_outdated_setuptools_with_pep517_cython_import_in_setuppy(PipenvInstance):
+    """
+    This test ensures we are using build isolation and a pep517 backend
+    because the package in question declares 'cython' as a build dependency
+    in ``pyproject.toml``, then imports it in ``setup.py``.  The pep517
+    backend will have to install it first, so this will only pass if the
+    resolver is buliding with a proper backend.
+    """
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv('run pip install "setuptools<=40.2"')
+        assert c.return_code == 0
+        c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
+        assert c.return_code == 0
+        assert c.out.strip() == "40.2.0"
+        c = p.pipenv("install cython-import-package")
+        assert c.return_code == 0
+        assert "vistir" in p.lockfile["default"]
 
 
 @pytest.mark.index
@@ -429,7 +481,7 @@ def test_lock_editable_vcs_without_install(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/kennethreitz/requests.git", ref = "master", editable = true}
+requests = {git = "https://github.com/psf/requests.git", ref = "master", editable = true}
             """.strip())
         c = p.pipenv('lock')
         assert c.return_code == 0
@@ -448,11 +500,11 @@ def test_lock_editable_vcs_with_ref_in_git(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/kennethreitz/requests.git@883caaf", editable = true}
+requests = {git = "https://github.com/psf/requests.git@883caaf", editable = true}
             """.strip())
         c = p.pipenv('lock')
         assert c.return_code == 0
-        assert p.lockfile['default']['requests']['git'] == 'https://github.com/kennethreitz/requests.git'
+        assert p.lockfile['default']['requests']['git'] == 'https://github.com/psf/requests.git'
         assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
         c = p.pipenv('install')
         assert c.return_code == 0
@@ -466,11 +518,11 @@ def test_lock_editable_vcs_with_ref(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/kennethreitz/requests.git", ref = "883caaf", editable = true}
+requests = {git = "https://github.com/psf/requests.git", ref = "883caaf", editable = true}
             """.strip())
         c = p.pipenv('lock')
         assert c.return_code == 0
-        assert p.lockfile['default']['requests']['git'] == 'https://github.com/kennethreitz/requests.git'
+        assert p.lockfile['default']['requests']['git'] == 'https://github.com/psf/requests.git'
         assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
         c = p.pipenv('install')
         assert c.return_code == 0
@@ -485,7 +537,7 @@ def test_lock_editable_vcs_with_extras_without_install(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/kennethreitz/requests.git", editable = true, extras = ["socks"]}
+requests = {git = "https://github.com/psf/requests.git", editable = true, extras = ["socks"]}
             """.strip())
         c = p.pipenv('lock')
         assert c.return_code == 0
@@ -495,6 +547,9 @@ requests = {git = "https://github.com/kennethreitz/requests.git", editable = tru
         assert "socks" in p.lockfile["default"]["requests"]["extras"]
         c = p.pipenv('install')
         assert c.return_code == 0
+        assert "requests" in p.lockfile["default"]
+        # For backward compatibility we want to make sure not to include the 'version' key
+        assert "version" not in p.lockfile["default"]["requests"]
 
 
 @pytest.mark.vcs
@@ -505,7 +560,7 @@ def test_lock_editable_vcs_with_markers_without_install(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/kennethreitz/requests.git", ref = "master", editable = true, markers = "python_version >= '2.6'"}
+requests = {git = "https://github.com/psf/requests.git", ref = "master", editable = true, markers = "python_version >= '2.6'"}
             """.strip())
         c = p.pipenv('lock')
         assert c.return_code == 0
@@ -659,4 +714,37 @@ six = "*"
         c = p.pipenv("lock --clear")
         assert c.return_code == 0
         assert "index" in p.lockfile["default"]["six"]
-        assert p.lockfile["default"]["six"]["index"] == "custom", Path(p.lockfile_path).read_text() # p.lockfile["default"]["six"]
+        assert p.lockfile["default"]["six"]["index"] == "custom", Path(p.lockfile_path).read_text()
+
+
+@pytest.mark.lock
+def test_lock_nested_direct_url(PipenvInstance):
+    """
+    The dependency 'test_package' has a declared dependency on
+    a PEP508 style VCS URL. This ensures that we capture the dependency
+    here along with its own dependencies.
+    """
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv("install test_package")
+        assert c.return_code == 0
+        assert "vistir" in p.lockfile["default"]
+        assert "colorama" in p.lockfile["default"]
+        assert "six" in p.lockfile["default"]
+
+
+@pytest.mark.lock
+@pytest.mark.needs_internet
+def test_lock_nested_vcs_direct_url(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        p._pipfile.add("pep508_package", {
+            "git": "https://github.com/techalchemy/test-project.git",
+            "editable": True,  "ref": "master",
+            "subdirectory": "parent_folder/pep508-package"
+        })
+        c = p.pipenv("install")
+        assert c.return_code == 0
+        assert "git" in p.lockfile["default"]["pep508-package"]
+        assert "sibling-package" in p.lockfile["default"]
+        assert "git" in p.lockfile["default"]["sibling-package"]
+        assert "subdirectory" in p.lockfile["default"]["sibling-package"]
+        assert "version" not in p.lockfile["default"]["sibling-package"]

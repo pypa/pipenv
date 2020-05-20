@@ -9,9 +9,8 @@ import pytest
 from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.utils import temp_environ
-from pipenv.vendor.vistir.path import is_in_path
+from pipenv.vendor.vistir.path import is_in_path, normalize_path
 from pipenv.vendor.delegator import run as delegator_run
-import pipenv.environments
 
 
 @pytest.mark.project
@@ -222,7 +221,9 @@ def test_run_in_virtualenv(PipenvInstance):
         assert c.return_code == 0
         c = p.pipenv('run python -c "import click;print(click.__file__)"')
         assert c.return_code == 0
-        assert c.out.strip().startswith(str(project.virtualenv_location))
+        assert normalize_path(c.out.strip()).startswith(
+            normalize_path(str(project.virtualenv_location))
+        )
         c = p.pipenv("clean --dry-run")
         assert c.return_code == 0
         assert "click" in c.out

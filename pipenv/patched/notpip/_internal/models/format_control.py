@@ -1,9 +1,13 @@
+# The following comment should be removed at some point in the future.
+# mypy: strict-optional=False
+
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
+from pipenv.patched.notpip._internal.exceptions import CommandError
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Optional, Set, FrozenSet  # noqa: F401
+    from typing import Optional, Set, FrozenSet
 
 
 class FormatControl(object):
@@ -11,7 +15,7 @@ class FormatControl(object):
     """
 
     def __init__(self, no_binary=None, only_binary=None):
-        # type: (Optional[Set], Optional[Set]) -> None
+        # type: (Optional[Set[str]], Optional[Set[str]]) -> None
         if no_binary is None:
             no_binary = set()
         if only_binary is None:
@@ -21,12 +25,15 @@ class FormatControl(object):
         self.only_binary = only_binary
 
     def __eq__(self, other):
+        # type: (object) -> bool
         return self.__dict__ == other.__dict__
 
     def __ne__(self, other):
+        # type: (object) -> bool
         return not self.__eq__(other)
 
     def __repr__(self):
+        # type: () -> str
         return "{}({}, {})".format(
             self.__class__.__name__,
             self.no_binary,
@@ -35,7 +42,11 @@ class FormatControl(object):
 
     @staticmethod
     def handle_mutual_excludes(value, target, other):
-        # type: (str, Optional[Set], Optional[Set]) -> None
+        # type: (str, Optional[Set[str]], Optional[Set[str]]) -> None
+        if value.startswith('-'):
+            raise CommandError(
+                "--no-binary / --only-binary option requires 1 argument."
+            )
         new = value.split(',')
         while ':all:' in new:
             other.clear()
@@ -54,7 +65,7 @@ class FormatControl(object):
             target.add(name)
 
     def get_allowed_formats(self, canonical_name):
-        # type: (str) -> FrozenSet
+        # type: (str) -> FrozenSet[str]
         result = {"binary", "source"}
         if canonical_name in self.only_binary:
             result.discard('source')

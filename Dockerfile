@@ -7,7 +7,7 @@ ENV LANG C.UTF-8
 ENV PYTHONDONTWRITEBYTECODE 1
 
 # -- Install Pipenv:
-RUN apt update && apt upgrade -y && apt install python3.7-dev libffi-dev -y
+RUN apt update && apt install python3.7-dev libffi-dev -y
 RUN curl --silent https://bootstrap.pypa.io/get-pip.py | python3.7
 
 # Backwards compatility.

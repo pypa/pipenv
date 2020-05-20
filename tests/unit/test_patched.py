@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import pytest
 
-from notpip._internal.index import PackageFinder
+from notpip._internal.index.package_finder import PackageFinder
 
 
 get_extras_links_scenarios = {
@@ -122,6 +122,8 @@ get_extras_links_scenarios = {
     ),
 }
 
+
+@pytest.mark.patched
 @pytest.mark.parametrize(
     'scenarios,expected',
     list(get_extras_links_scenarios.values()),

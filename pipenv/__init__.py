@@ -8,7 +8,7 @@ import os
 import sys
 import warnings
 
-from .__version__ import __version__
+from .__version__ import __version__    # noqa
 
 
 PIPENV_ROOT = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
@@ -53,7 +53,7 @@ sys.stdout = stdout
 sys.stderr = stderr
 
 from .cli import cli
-from . import resolver
+from . import resolver  # noqa
 
 if __name__ == "__main__":
     cli()

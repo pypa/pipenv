@@ -1,24 +1,22 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, unicode_literals
 
-import codecs
 import io
 import os
 import re
 import shutil
 import sys
-from subprocess import Popen
 import tempfile
 import warnings
 from collections import OrderedDict
 from contextlib import contextmanager
 
-from .compat import StringIO, PY2, IS_TYPE_CHECKING
+from .compat import StringIO, PY2, to_env, IS_TYPE_CHECKING
+from .parser import parse_stream
 
-if IS_TYPE_CHECKING:  # pragma: no cover
+if IS_TYPE_CHECKING:
     from typing import (
-        Dict, Iterator, List, Match, Optional, Pattern, Union,
-        Text, IO, Tuple
+        Dict, Iterator, Match, Optional, Pattern, Union, Text, IO, Tuple
     )
     if sys.version_info >= (3, 6):
         _PathLike = os.PathLike
@@ -31,99 +29,6 @@ if IS_TYPE_CHECKING:  # pragma: no cover
         _StringIO = StringIO[Text]
 
 __posix_variable = re.compile(r'\$\{[^\}]*\}')  # type: Pattern[Text]
-
-_binding = re.compile(
-    r"""
-        (
-            \s*                     # leading whitespace
-            (?:export{0}+)?         # export
-
-            ( '[^']+'               # single-quoted key
-            | [^=\#\s]+             # or unquoted key
-            )?
-
-            (?:
-                (?:{0}*={0}*)       # equal sign
-
-                ( '(?:\\'|[^'])*'   # single-quoted value
-                | "(?:\\"|[^"])*"   # or double-quoted value
-                | [^\#\r\n]*        # or unquoted value
-                )
-            )?
-
-            \s*                     # trailing whitespace
-            (?:\#[^\r\n]*)?         # comment
-            (?:\r|\n|\r\n)?         # newline
-        )
-    """.format(r'[^\S\r\n]'),
-    re.MULTILINE | re.VERBOSE,
-)  # type: Pattern[Text]
-
-_escape_sequence = re.compile(r"\\[\\'\"abfnrtv]")  # type: Pattern[Text]
-
-try:
-    from typing import NamedTuple, Optional, Text
-    Binding = NamedTuple("Binding", [("key", Optional[Text]),
-                                     ("value", Optional[Text]),
-                                     ("original", Text)])
-except ImportError:
-    from collections import namedtuple
-    Binding = namedtuple("Binding", ["key", "value", "original"])
-
-
-def decode_escapes(string):
-    # type: (Text) -> Text
-    def decode_match(match):
-        # type: (Match[Text]) -> Text
-        return codecs.decode(match.group(0), 'unicode-escape')  # type: ignore
-
-    return _escape_sequence.sub(decode_match, string)
-
-
-def is_surrounded_by(string, char):
-    # type: (Text, Text) -> bool
-    return (
-        len(string) > 1
-        and string[0] == string[-1] == char
-    )
-
-
-def parse_binding(string, position):
-    # type: (Text, int) -> Tuple[Binding, int]
-    match = _binding.match(string, position)
-    assert match is not None
-    (matched, key, value) = match.groups()
-    if key is None or value is None:
-        key = None
-        value = None
-    else:
-        value_quoted = is_surrounded_by(value, "'") or is_surrounded_by(value, '"')
-        if value_quoted:
-            value = decode_escapes(value[1:-1])
-        else:
-            value = value.strip()
-    return (Binding(key=key, value=value, original=matched), match.end())
-
-
-def parse_stream(stream):
-    # type:(IO[Text]) -> Iterator[Binding]
-    string = stream.read()
-    position = 0
-    length = len(string)
-    while position < length:
-        (binding, position) = parse_binding(string, position)
-        yield binding
-
-
-def to_env(text):
-    # type: (Text) -> str
-    """
-    Encode a string the same way whether it comes from the environment or a `.env` file.
-    """
-    if PY2:
-        return text.encode(sys.getfilesystemencoding() or "utf-8")
-    else:
-        return text
 
 
 class DotEnv():
@@ -331,8 +236,14 @@ def find_dotenv(filename='.env', raise_error_if_not_found=False, usecwd=False):
 
     Returns path to the file if found, or an empty string otherwise
     """
-    if usecwd or '__file__' not in globals():
-        # should work without __file__, e.g. in REPL or IPython notebook
+
+    def _is_interactive():
+        """ Decide whether this is running in a REPL or IPython notebook """
+        main = __import__('__main__', None, None, fromlist=['__file__'])
+        return not hasattr(main, '__file__')
+
+    if usecwd or _is_interactive():
+        # Should work without __file__, e.g. in REPL or IPython notebook.
         path = os.getcwd()
     else:
         # will work for .py files
@@ -363,6 +274,14 @@ def find_dotenv(filename='.env', raise_error_if_not_found=False, usecwd=False):
 
 def load_dotenv(dotenv_path=None, stream=None, verbose=False, override=False, **kwargs):
     # type: (Union[Text, _PathLike, None], Optional[_StringIO], bool, bool, Union[None, Text]) -> bool
+    """Parse a .env file and then load all the variables found as environment variables.
+
+    - *dotenv_path*: absolute or relative path to .env file.
+    - *stream*: `StringIO` object with .env content.
+    - *verbose*: whether to output the warnings related to missing .env file etc. Defaults to `False`.
+    - *override*: where to override the system environment variables with the variables in `.env` file.
+                  Defaults to `False`.
+    """
     f = dotenv_path or stream or find_dotenv()
     return DotEnv(f, verbose=verbose, **kwargs).set_as_environment_variables(override=override)
 
@@ -371,38 +290,3 @@ def dotenv_values(dotenv_path=None, stream=None, verbose=False, **kwargs):
     # type: (Union[Text, _PathLike, None], Optional[_StringIO], bool, Union[None, Text]) -> Dict[Text, Text]
     f = dotenv_path or stream or find_dotenv()
     return DotEnv(f, verbose=verbose, **kwargs).dict()
-
-
-def run_command(command, env):
-    # type: (List[str], Dict[str, str]) -> int
-    """Run command in sub process.
-
-    Runs the command in a sub process with the variables from `env`
-    added in the current environment variables.
-
-    Parameters
-    ----------
-    command: List[str]
-        The command and it's parameters
-    env: Dict
-        The additional environment variables
-
-    Returns
-    -------
-    int
-        The return code of the command
-
-    """
-    # copy the current environment variables and add the vales from
-    # `env`
-    cmd_env = os.environ.copy()
-    cmd_env.update(env)
-
-    p = Popen(command,
-              universal_newlines=True,
-              bufsize=0,
-              shell=False,
-              env=cmd_env)
-    _, _ = p.communicate()
-
-    return p.returncode

@@ -15,9 +15,6 @@ Pipenv: Python Dev Workflow for Humans
 .. image:: https://img.shields.io/pypi/pyversions/pipenv.svg
     :target: https://pypi.python.org/pypi/pipenv
 
-.. image:: https://img.shields.io/badge/Say%20Thanks!-🦉-1EAEDB.svg
-    :target: https://saythanks.io/to/kennethreitz
-
 ---------------
 
 **Pipenv** is a tool that aims to bring the best of all packaging worlds (bundler, composer, npm, cargo, yarn, etc.) to the Python world. *Windows is a first-class citizen, in our world.*
@@ -26,7 +23,7 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 
 Pipenv is primarily meant to provide users and developers of applications with an easy method to setup a working environment. For the distinction between libraries and applications and the usage of ``setup.py`` vs ``Pipfile`` to define dependencies, see :ref:`pipfile-vs-setuppy`.
 
-.. image:: https://s3.amazonaws.com/media.kennethreitz.com/pipenv.gif
+.. image:: https://gist.githubusercontent.com/jlusk/855d611bbcfa2b159839db73d07f6ce9/raw/7f5743401809f7e630ee8ff458faa980e19924a0/pipenv.gif
    :height: 341px
    :width: 654px
    :scale: 100 %
@@ -87,7 +84,7 @@ User Testimonials
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
 - Automatically generates a ``Pipfile``, if one doesn't exist.
 - Automatically creates a virtualenv in a standard location.
-- Automatically adds/removes packages to a ``Pipfile`` when they are un/installed.
+- Automatically adds/removes packages to a ``Pipfile`` when they are installed or uninstalled.
 - Automatically loads ``.env`` files, if they exist.
 
 The main commands are ``install``, ``uninstall``, and ``lock``, which generates a ``Pipfile.lock``. These are intended to replace ``$ pip install`` usage, as well as manual virtualenv management (to activate a virtualenv, run ``$ pipenv shell``).
@@ -120,6 +117,7 @@ Further Documentation Guides
 
    basics
    advanced
+   cli
    diagnose
 
 Contribution Guides
@@ -130,13 +128,6 @@ Contribution Guides
 
    dev/philosophy
    dev/contributing
-
-☤ Pipenv Usage
---------------
-
-.. click:: pipenv:cli
-   :prog: pipenv
-   :show-nested:
 
 Indices and tables
 ==================
