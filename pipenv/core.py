@@ -164,7 +164,7 @@ def load_dot_env():
                     err=True,
                 )
         dotenv.load_dotenv(dotenv_file, override=True)
-
+        six.moves.reload_module(environments)
 
 def add_to_path(p):
     """Adds a given path to the PATH."""
@@ -352,15 +352,16 @@ def find_a_system_python(line):
 
 
 def ensure_python(three=None, python=None):
-    # Support for the PIPENV_PYTHON environment variable.
-    from .environments import PIPENV_PYTHON
+    # Runtime import is necessary due to the possibility that the environments module may have been reloaded.
+    from .environments import PIPENV_PYTHON, PIPENV_YES
 
     if PIPENV_PYTHON and python is False and three is None:
         python = PIPENV_PYTHON
 
-    def abort():
+    def abort(msg=''):
         click.echo(
-            "You can specify specific versions of Python with:\n  {0}".format(
+            "{0}\nYou can specify specific versions of Python with:\n{1}".format(
+                crayons.red(msg),
                 crayons.red(
                     "$ pipenv --python {0}".format(
                         os.sep.join(("path", "to", "python"))
@@ -395,21 +396,25 @@ def ensure_python(three=None, python=None):
             err=True,
         )
         # check for python installers
-        from .vendor.pythonfinder.environment import PYENV_INSTALLED, ASDF_INSTALLED
-        from .installers import Pyenv, Asdf, InstallerError
+        from .installers import Pyenv, Asdf, InstallerError, InstallerNotFound
 
         # prefer pyenv if both pyenv and asdf are installed as it's
         # dedicated to python installs so probably the preferred
         # method of the user for new python installs.
-        if PYENV_INSTALLED and not PIPENV_DONT_USE_PYENV:
-            installer = Pyenv("pyenv")
-        elif ASDF_INSTALLED and not PIPENV_DONT_USE_ASDF:
-            installer = Asdf("asdf")
-        else:
-            installer = None
+        installer = None
+        if not PIPENV_DONT_USE_PYENV:
+            try:
+                installer = Pyenv()
+            except InstallerNotFound:
+                pass
+        if installer is None and not PIPENV_DONT_USE_ASDF:
+            try:
+                installer = Asdf()
+            except InstallerNotFound:
+                pass
 
         if not installer:
-            abort()
+            abort("Neither 'pyenv' nor 'asdf' could be found to install Python.")
         else:
             if SESSION_IS_INTERACTIVE or PIPENV_YES:
                 try:
@@ -417,9 +422,7 @@ def ensure_python(three=None, python=None):
                 except ValueError:
                     abort()
                 except InstallerError as e:
-                    click.echo(fix_utf8("Something went wrong…"))
-                    click.echo(crayons.blue(e.err), err=True)
-                    abort()
+                    abort('Something went wrong while installing Python:\n{}'.format(e.err))
                 s = "{0} {1} {2}".format(
                     "Would you like us to install",
                     crayons.green("CPython {0}".format(version)),
@@ -434,7 +437,7 @@ def ensure_python(three=None, python=None):
                         u"{0} {1} {2} {3}{4}".format(
                             crayons.normal(u"Installing", bold=True),
                             crayons.green(u"CPython {0}".format(version), bold=True),
-                            crayons.normal(u"with {0}".format(installer), bold=True),
+                            crayons.normal(u"with {0}".format(installer.cmd), bold=True),
                             crayons.normal(u"(this may take a few minutes)"),
                             crayons.normal(fix_utf8("…"), bold=True),
                         )
@@ -732,6 +735,9 @@ def batch_install(deps_list, procs, failed_deps_queue,
 
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
+    deps_to_install = [
+        dep for dep in deps_to_install if not project.environment.is_satisfied(dep)
+    ]
     sequential_dep_names = [d.name for d in sequential_deps]
 
     deps_list_bar = progress.bar(
@@ -1491,7 +1497,7 @@ def pip_install(
     pip_args = get_pip_args(
         pre=pre, verbose=environments.is_verbose(), upgrade=True,
         selective_upgrade=selective_upgrade, no_use_pep517=not use_pep517,
-        no_deps=no_deps, require_hashes=not ignore_hashes
+        no_deps=no_deps, require_hashes=not ignore_hashes,
     )
     pip_command.extend(pip_args)
     if r:
@@ -1814,7 +1820,10 @@ def do_outdated(pypi_mirror=None, pre=False, clear=False):
         (pkg.project_name, pkg.parsed_version, pkg.latest_version)
         for pkg in project.environment.get_outdated_packages()
     }
-    reverse_deps = project.environment.reverse_dependencies()
+    reverse_deps = {
+        canonicalize_name(name): deps
+        for name, deps in project.environment.reverse_dependencies().items()
+    }
     for result in installed_packages:
         dep = Requirement.from_line(str(result.as_requirement()))
         packages.update(dep.as_pipfile())
@@ -1844,9 +1853,9 @@ def do_outdated(pypi_mirror=None, pre=False, clear=False):
         version = None
         if name_in_pipfile:
             version = get_version(project.packages[name_in_pipfile])
-            reverse_deps = reverse_deps.get(name_in_pipfile)
-            if isinstance(reverse_deps, Mapping) and "required" in reverse_deps:
-                required = " {0} required".format(reverse_deps["required"])
+            rdeps = reverse_deps.get(canonicalize_name(package))
+            if isinstance(rdeps, Mapping) and "required" in rdeps:
+                required = " {0} required".format(rdeps["required"])
             if version:
                 pipfile_version_text = " ({0} set in Pipfile)".format(version)
             else:

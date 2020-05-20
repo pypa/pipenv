@@ -1,0 +1,1 @@
+Fixed a bug which caused pipenv to search non-existent virtual environments for ``pip`` when installing using ``--system``.

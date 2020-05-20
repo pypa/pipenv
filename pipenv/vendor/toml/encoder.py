@@ -1,6 +1,7 @@
 import datetime
 import re
 import sys
+from decimal import Decimal
 
 from toml.decoder import InlineTableDict
 
@@ -8,12 +9,13 @@ if sys.version_info >= (3,):
     unicode = str
 
 
-def dump(o, f):
+def dump(o, f, encoder=None):
     """Writes out dict as toml to a file
 
     Args:
         o: Object to dump into toml
         f: File descriptor where the toml should be stored
+        encoder: The ``TomlEncoder`` to use for constructing the output string
 
     Returns:
         String containing the toml corresponding to dictionary
@@ -24,7 +26,7 @@ def dump(o, f):
 
     if not f.write:
         raise TypeError("You can only dump an object to a file descriptor")
-    d = dumps(o)
+    d = dumps(o, encoder=encoder)
     f.write(d)
     return d
 
@@ -34,11 +36,22 @@ def dumps(o, encoder=None):
 
     Args:
         o: Object to dump into toml
-
-        preserve: Boolean parameter. If true, preserve inline tables.
+        encoder: The ``TomlEncoder`` to use for constructing the output string
 
     Returns:
         String containing the toml corresponding to dict
+
+    Examples:
+        ```python
+        >>> import toml
+        >>> output = {
+        ... 'a': "I'm a string",
+        ... 'b': ["I'm", "a", "list"],
+        ... 'c': 2400
+        ... }
+        >>> toml.dumps(output)
+        'a = "I\'m a string"\nb = [ "I\'m", "a", "list",]\nc = 2400\n'
+        ```
     """
 
     retval = ""
@@ -46,7 +59,13 @@ def dumps(o, encoder=None):
         encoder = TomlEncoder(o.__class__)
     addtoretval, sections = encoder.dump_sections(o, "")
     retval += addtoretval
+    outer_objs = [id(o)]
     while sections:
+        section_ids = [id(section) for section in sections]
+        for outer_obj in outer_objs:
+            if outer_obj in section_ids:
+                raise ValueError("Circular reference detected")
+        outer_objs += section_ids
         newsections = encoder.get_empty_table()
         for section in sections:
             addtoretval, addtosections = encoder.dump_sections(
@@ -96,7 +115,7 @@ def _dump_str(v):
 
 
 def _dump_float(v):
-    return "{0:.16}".format(v).replace("e+0", "e+").replace("e-0", "e-")
+    return "{}".format(v).replace("e+0", "e+").replace("e-0", "e-")
 
 
 def _dump_time(v):
@@ -119,6 +138,7 @@ class TomlEncoder(object):
             bool: lambda v: unicode(v).lower(),
             int: lambda v: v,
             float: _dump_float,
+            Decimal: _dump_float,
             datetime.datetime: lambda v: v.isoformat().replace('+00:00', 'Z'),
             datetime.time: _dump_time,
             datetime.date: lambda v: v.isoformat()
@@ -169,10 +189,7 @@ class TomlEncoder(object):
             section = unicode(section)
             qsection = section
             if not re.match(r'^[A-Za-z0-9_-]+$', section):
-                if '"' in section:
-                    qsection = "'" + section + "'"
-                else:
-                    qsection = '"' + section + '"'
+                qsection = _dump_str(section)
             if not isinstance(o[section], dict):
                 arrayoftables = False
                 if isinstance(o[section], list):
@@ -248,3 +265,40 @@ class TomlArraySeparatorEncoder(TomlEncoder):
             t = s
         retval += "]"
         return retval
+
+
+class TomlNumpyEncoder(TomlEncoder):
+
+    def __init__(self, _dict=dict, preserve=False):
+        import numpy as np
+        super(TomlNumpyEncoder, self).__init__(_dict, preserve)
+        self.dump_funcs[np.float16] = _dump_float
+        self.dump_funcs[np.float32] = _dump_float
+        self.dump_funcs[np.float64] = _dump_float
+        self.dump_funcs[np.int16] = self._dump_int
+        self.dump_funcs[np.int32] = self._dump_int
+        self.dump_funcs[np.int64] = self._dump_int
+
+    def _dump_int(self, v):
+        return "{}".format(int(v))
+
+
+class TomlPreserveCommentEncoder(TomlEncoder):
+
+    def __init__(self, _dict=dict, preserve=False):
+        from toml.decoder import CommentValue
+        super(TomlPreserveCommentEncoder, self).__init__(_dict, preserve)
+        self.dump_funcs[CommentValue] = lambda v: v.dump(self.dump_value)
+
+
+class TomlPathlibEncoder(TomlEncoder):
+
+    def _dump_pathlib_path(self, v):
+        return _dump_str(str(v))
+
+    def dump_value(self, v):
+        if (3, 4) <= sys.version_info:
+            import pathlib
+            if isinstance(v, pathlib.PurePath):
+                v = str(v)
+        return super(TomlPathlibEncoder, self).dump_value(v)

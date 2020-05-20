@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import sys
 
 import pytest
@@ -10,6 +11,7 @@ from flaky import flaky
 from vistir.compat import Path
 from vistir.misc import to_text
 from pipenv.utils import temp_environ
+import delegator
 
 
 @pytest.mark.lock
@@ -384,6 +386,57 @@ fake-package = "*"
         assert '--extra-index-url {}'.format(mirror_url) not in c.out.strip()
 
 
+@pytest.mark.lock
+@pytest.mark.install
+@pytest.mark.skip_windows
+@pytest.mark.needs_internet
+def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInstance):
+    """
+    This test ensures we are using build isolation and a pep517 backend
+    because the package in question includes ``pyproject.toml`` but lacks
+    a ``build-backend`` declaration. In this case, ``pip`` defaults to using
+    ``setuptools.build_meta:__legacy__`` as a builder, but without ``pep517``
+    enabled and with ``setuptools==40.2.0`` installed, this build backend was
+    not yet available. ``setuptools<40.8`` will not be aware of this backend.
+
+    If pip is able to build in isolation with a pep517 backend, this will not
+    matter and the test will still pass as pip will by default install a more
+    recent version of ``setuptools``.
+    """
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv('run pip install "setuptools<=40.2"')
+        assert c.return_code == 0
+        c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
+        assert c.return_code == 0
+        assert c.out.strip() == "40.2.0"
+        c = p.pipenv("install legacy-backend-package")
+        assert c.return_code == 0
+        assert "vistir" in p.lockfile["default"]
+
+
+@pytest.mark.lock
+@pytest.mark.install
+@pytest.mark.skip_windows
+@pytest.mark.needs_internet
+def test_outdated_setuptools_with_pep517_cython_import_in_setuppy(PipenvInstance):
+    """
+    This test ensures we are using build isolation and a pep517 backend
+    because the package in question declares 'cython' as a build dependency
+    in ``pyproject.toml``, then imports it in ``setup.py``.  The pep517
+    backend will have to install it first, so this will only pass if the
+    resolver is buliding with a proper backend.
+    """
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv('run pip install "setuptools<=40.2"')
+        assert c.return_code == 0
+        c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
+        assert c.return_code == 0
+        assert c.out.strip() == "40.2.0"
+        c = p.pipenv("install cython-import-package")
+        assert c.return_code == 0
+        assert "vistir" in p.lockfile["default"]
+
+
 @pytest.mark.index
 @pytest.mark.install
 def test_lock_updated_source(PipenvInstance):
@@ -677,3 +730,21 @@ def test_lock_nested_direct_url(PipenvInstance):
         assert "vistir" in p.lockfile["default"]
         assert "colorama" in p.lockfile["default"]
         assert "six" in p.lockfile["default"]
+
+
+@pytest.mark.lock
+@pytest.mark.needs_internet
+def test_lock_nested_vcs_direct_url(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        p._pipfile.add("pep508_package", {
+            "git": "https://github.com/techalchemy/test-project.git",
+            "editable": True,  "ref": "master",
+            "subdirectory": "parent_folder/pep508-package"
+        })
+        c = p.pipenv("install")
+        assert c.return_code == 0
+        assert "git" in p.lockfile["default"]["pep508-package"]
+        assert "sibling-package" in p.lockfile["default"]
+        assert "git" in p.lockfile["default"]["sibling-package"]
+        assert "subdirectory" in p.lockfile["default"]["sibling-package"]
+        assert "version" not in p.lockfile["default"]["sibling-package"]

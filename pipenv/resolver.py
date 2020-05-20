@@ -771,7 +771,7 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
 
 
 def _main(pre, clear, verbose, system, write, requirements_dir, packages, parse_only=False):
-    os.environ["PIP_PYTHON_VERSION"] = ".".join([str(s) for s in sys.version_info[:3]])
+    os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = ".".join([str(s) for s in sys.version_info[:3]])
     os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
     if parse_only:
         parse_packages(

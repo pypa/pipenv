@@ -25,7 +25,7 @@ from .environment import Environment
 from .environments import (
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_IGNORE_VIRTUALENVS, PIPENV_MAX_DEPTH,
     PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_VENV_IN_PROJECT,
-    is_in_virtualenv, is_type_checking
+    PIPENV_USE_SYSTEM, is_in_virtualenv, is_type_checking
 )
 from .vendor.requirementslib.models.utils import get_default_pyproject_backend
 from .utils import (
@@ -328,21 +328,30 @@ class Project(object):
             "combined": dev_keys | default_keys
         }
 
+    def get_environment(self, allow_global=False):
+        # type: (bool) -> Environment
+        if allow_global:
+            prefix = sys.prefix
+        else:
+            prefix = self.virtualenv_location
+        is_venv = is_in_virtualenv()
+        sources = self.sources if self.sources else [DEFAULT_SOURCE]
+        environment = Environment(
+            prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
+            project=self
+        )
+        pipenv_dist = get_pipenv_dist(pkg="pipenv")
+        if pipenv_dist:
+            environment.extend_dists(pipenv_dist)
+        else:
+            environment.add_dist("pipenv")
+        return environment
+
     @property
     def environment(self):
         if not self._environment:
-            prefix = self.virtualenv_location
-            is_venv = is_in_virtualenv()
-            sources = self.sources if self.sources else [DEFAULT_SOURCE]
-            self._environment = Environment(
-                prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
-                project=self
-            )
-            pipenv_dist = get_pipenv_dist(pkg="pipenv")
-            if pipenv_dist:
-                self._environment.extend_dists(pipenv_dist)
-            else:
-                self._environment.add_dist("pipenv")
+            allow_global = os.environ.get("PIPENV_USE_SYSTEM", PIPENV_USE_SYSTEM)
+            self._environment = self.get_environment(allow_global=allow_global)
         return self._environment
 
     def get_outdated_packages(self):

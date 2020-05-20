@@ -57,6 +57,7 @@ if MYPY_RUNNING:
         Command,
     )
     from packaging.requirements import Requirement as PackagingRequirement
+    from packaging.markers import Marker
 
     TRequirement = TypeVar("TRequirement")
     RequirementType = TypeVar(
@@ -71,9 +72,14 @@ PKGS_DOWNLOAD_DIR = fs_str(os.path.join(CACHE_DIR, "pkgs"))
 WHEEL_DOWNLOAD_DIR = fs_str(os.path.join(CACHE_DIR, "wheels"))
 
 DEPENDENCY_CACHE = DependencyCache()
-WHEEL_CACHE = pip_shims.shims.WheelCache(
-    CACHE_DIR, pip_shims.shims.FormatControl(set(), set())
-)
+
+
+@contextlib.contextmanager
+def _get_wheel_cache():
+    with pip_shims.shims.global_tempdir_manager():
+        yield pip_shims.shims.WheelCache(
+            CACHE_DIR, pip_shims.shims.FormatControl(set(), set())
+        )
 
 
 def _get_filtered_versions(ireq, versions, prereleases):
@@ -351,6 +357,7 @@ def get_dependencies(ireq, sources=None, parent=None):
 
 
 def get_dependencies_from_wheel_cache(ireq):
+    # type: (pip_shims.shims.InstallRequirement) -> Optional[Set[pip_shims.shims.InstallRequirement]]
     """Retrieves dependencies for the given install requirement from the wheel cache.
 
     :param ireq: A single InstallRequirement
@@ -361,13 +368,14 @@ def get_dependencies_from_wheel_cache(ireq):
 
     if ireq.editable or not is_pinned_requirement(ireq):
         return
-    matches = WHEEL_CACHE.get(ireq.link, name_from_req(ireq.req))
-    if matches:
-        matches = set(matches)
-        if not DEPENDENCY_CACHE.get(ireq):
-            DEPENDENCY_CACHE[ireq] = [format_requirement(m) for m in matches]
-        return matches
-    return
+    with _get_wheel_cache() as wheel_cache:
+        matches = wheel_cache.get(ireq.link, name_from_req(ireq.req))
+        if matches:
+            matches = set(matches)
+            if not DEPENDENCY_CACHE.get(ireq):
+                DEPENDENCY_CACHE[ireq] = [format_requirement(m) for m in matches]
+            return matches
+        return None
 
 
 def _marker_contains_extra(ireq):
@@ -477,12 +485,12 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
     """
 
     session, finder = get_finder(sources=sources, pip_options=pip_options)
-    if not wheel_cache:
-        wheel_cache = WHEEL_CACHE
     dep.is_direct = True
     requirements = None
     setup_requires = {}
-    with temp_environ():
+    with temp_environ(), ExitStack() as stack:
+        if not wheel_cache:
+            wheel_cache = stack.enter_context(_get_wheel_cache())
         os.environ["PIP_EXISTS_ACTION"] = "i"
         if dep.editable and not dep.prepared and not dep.req:
             setup_info = SetupInfo.from_ireq(dep)
@@ -570,10 +578,6 @@ def start_resolver(finder=None, session=None, wheel_cache=None):
     if not session:
         session = pip_command._build_session(pip_options)
 
-    if not wheel_cache:
-        wheel_cache = WHEEL_CACHE
-    _ensure_dir(fs_str(os.path.join(wheel_cache.cache_dir, "wheels")))
-
     download_dir = PKGS_DOWNLOAD_DIR
     _ensure_dir(download_dir)
 
@@ -582,6 +586,9 @@ def start_resolver(finder=None, session=None, wheel_cache=None):
     try:
         with ExitStack() as ctx:
             ctx.enter_context(pip_shims.shims.global_tempdir_manager())
+            if not wheel_cache:
+                wheel_cache = ctx.enter_context(_get_wheel_cache())
+            _ensure_dir(fs_str(os.path.join(wheel_cache.cache_dir, "wheels")))
             preparer = ctx.enter_context(
                 pip_shims.shims.make_preparer(
                     options=pip_options,
