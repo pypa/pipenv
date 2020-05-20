@@ -107,6 +107,7 @@ def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, 
         if pre:
             log("generating towncrier draft...")
             ctx.run("towncrier --draft > CHANGELOG.draft.rst")
+            ctx.run("git add {0}".format(get_version_file(ctx).as_posix()))
         else:
             ctx.run("towncrier")
             ctx.run(
@@ -133,15 +134,16 @@ def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, 
         generate_markdown(ctx)
         clean_mdchangelog(ctx)
         ctx.run(f'git tag -a v{version} -m "Version v{version}\n\n{tag_content}"')
-    if dry_run or not local:
+    if local:
+        build_dists(ctx)
         dist_pattern = f'{PACKAGE_NAME.replace("-", "[-_]")}-*'
         artifacts = list(ROOT.joinpath("dist").glob(dist_pattern))
-        filename_display = "\n".join(f"  {a}" for a in artifacts)
-        log(f"Would upload dists: {filename_display}")
-    else:
-        build_dists(ctx)
-        upload_dists(ctx)
-        bump_version(ctx, dev=True)
+        if dry_run:
+            filename_display = "\n".join(f"  {a}" for a in artifacts)
+            log(f"Would upload dists: {filename_display}")
+        else:
+            upload_dists(ctx)
+            bump_version(ctx, dev=True)
 
 
 def drop_dist_dirs(ctx):
