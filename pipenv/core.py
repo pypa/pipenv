@@ -2568,6 +2568,7 @@ def do_check(
     db=False,
     ignore=None,
     output="default",
+    key=None,
     quiet=False,
     args=None,
     pypi_mirror=None
@@ -2685,8 +2686,8 @@ def do_check(
         if not quiet and not environments.is_quiet():
             click.echo(crayons.normal("Using local database {}".format(db)))
         cmd.append("--db={0}".format(db))
-    if PIPENV_PYUP_API_KEY and not db:
-        cmd = cmd + ["--key={0}".format(PIPENV_PYUP_API_KEY)]
+    elif key or PIPENV_PYUP_API_KEY:
+        cmd = cmd + ["--key={0}".format(key or PIPENV_PYUP_API_KEY)]
     if ignored:
         for cve in ignored:
             cmd += cve
