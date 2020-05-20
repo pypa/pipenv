@@ -38,7 +38,7 @@ six==1.14.0
 semver==2.9.0
 toml==0.10.1
 cached-property==1.5.1
-vistir==0.5.1
+vistir==0.5.2
 pip-shims==0.5.2
     contextlib2==0.6.0.post1
     funcsigs==1.0.2

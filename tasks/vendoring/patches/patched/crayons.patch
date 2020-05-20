@@ -8,8 +8,9 @@ index 455d3e90..de735daf 100644
  
 -PY3 = sys.version_info[0] >= 3
 -
-+import shellingham
- import colorama
+-import colorama
++from pipenv.vendor import shellingham
++from pipenv.vendor import colorama
  
 +PY3 = sys.version_info[0] >= 3
 +
