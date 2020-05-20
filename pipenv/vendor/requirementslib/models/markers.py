@@ -25,7 +25,7 @@ if MYPY_RUNNING:
     STRING_TYPE = Union[str, bytes, Text]
 
 
-MAX_VERSIONS = {2: 7, 3: 11, 4: 0}
+MAX_VERSIONS = {1: 7, 2: 7, 3: 11, 4: 0}
 DEPRECATED_VERSIONS = ["3.0", "3.1", "3.2", "3.3"]
 
 
@@ -557,7 +557,7 @@ def _split_specifierset_str(specset_str, prefix="=="):
     else:
         values = [v.strip() for v in specset_str.split(",")]
     if prefix == "!=" and any(v in values for v in DEPRECATED_VERSIONS):
-        values = DEPRECATED_VERSIONS[:]
+        values += DEPRECATED_VERSIONS[:]
     for value in sorted(values):
         specifiers.add(Specifier("{0}{1}".format(prefix, value)))
     return specifiers

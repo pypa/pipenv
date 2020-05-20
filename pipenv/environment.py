@@ -19,12 +19,14 @@ import six
 import pipenv
 
 from .vendor.cached_property import cached_property
+from .vendor.packaging.utils import canonicalize_name
 from .vendor import vistir
 
 from .utils import normalize_path, make_posix
 
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
+# TODO: Unittests for this class
 
 
 class Environment(object):
@@ -711,6 +713,33 @@ class Environment(object):
         """
 
         return any(d for d in self.get_distributions() if d.project_name == pkgname)
+
+    def is_satisfied(self, req):
+        match = next(
+            iter(
+                d for d in self.get_distributions()
+                if canonicalize_name(d.project_name) == req.normalized_name
+            ), None
+        )
+        if match is not None:
+            if req.editable and req.line_instance.is_local and self.find_egg(match):
+                requested_path = req.line_instance.path
+                return requested_path and vistir.compat.samefile(requested_path, match.location)
+            elif match.has_metadata("direct_url.json"):
+                direct_url_metadata = json.loads(match.get_metadata("direct_url.json"))
+                commit_id = direct_url_metadata.get("vcs_info", {}).get("commit_id", "")
+                vcs_type = direct_url_metadata.get("vcs_info", {}).get("vcs", "")
+                _, pipfile_part = req.as_pipfile().popitem()
+                return (
+                    vcs_type == req.vcs and commit_id == req.commit_hash
+                    and direct_url_metadata["url"] == pipfile_part[req.vcs]
+                )
+            elif req.line_instance.specifiers is not None:
+                return req.line_instance.specifiers.contains(
+                    match.version, prereleases=True
+                )
+            return True
+        return False
 
     def run(self, cmd, cwd=os.curdir):
         """Run a command with :class:`~subprocess.Popen` in the context of the environment

@@ -443,8 +443,7 @@ class ParsedTag(object):
 
 def parse_tag(tag):
     # type: (Tag) -> ParsedTag
-    """
-    Parse a :class:`~packaging.tags.Tag` instance
+    """Parse a :class:`~packaging.tags.Tag` instance.
 
     :param :class:`~packaging.tags.Tag` tag: A tag to parse
     :return: A parsed tag with combined markers, supported platform and python version
@@ -520,6 +519,8 @@ class ReleaseUrl(object):
     name = attr.ib(type=str, default=None)
     #: The available comments of the given upload
     comment_text = attr.ib(type=str, default="")
+    #: Whether the url has been yanked from the server
+    yanked = attr.ib(type=bool, default=False)
     #: The number of downloads (deprecated)
     downloads = attr.ib(type=int, default=-1)
     #: The filename of the current upload
@@ -716,8 +717,8 @@ class ReleaseUrlCollection(Sequence):
 
     def find_package_type(self, type_):
         # type: (str) -> Optional[ReleaseUrl]
-        """
-        Given a package type (e.g. sdist, bdist_wheel), find the matching release
+        """Given a package type (e.g. sdist, bdist_wheel), find the matching
+        release.
 
         :param str type_: A package type from :const:`~PACKAGE_TYPES`
         :return: The package from this collection matching that type, if available
@@ -956,8 +957,7 @@ class PackageInfo(object):
 
     def create_dependencies(self, force=False):
         # type: (bool) -> "PackageInfo"
-        """
-        Create values for **self.dependencies**.
+        """Create values for **self.dependencies**.
 
         :param bool force: Sets **self.dependencies** to an empty tuple if it would be
             None, defaults to False.

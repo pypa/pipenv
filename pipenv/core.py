@@ -735,6 +735,9 @@ def batch_install(deps_list, procs, failed_deps_queue,
 
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
+    deps_to_install = [
+        dep for dep in deps_to_install if not project.environment.is_satisfied(dep)
+    ]
     sequential_dep_names = [d.name for d in sequential_deps]
 
     deps_list_bar = progress.bar(
@@ -1492,7 +1495,7 @@ def pip_install(
     pip_args = get_pip_args(
         pre=pre, verbose=environments.is_verbose(), upgrade=True,
         selective_upgrade=selective_upgrade, no_use_pep517=not use_pep517,
-        no_deps=no_deps, require_hashes=not ignore_hashes
+        no_deps=no_deps, require_hashes=not ignore_hashes,
     )
     pip_command.extend(pip_args)
     if r:

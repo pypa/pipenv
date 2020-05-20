@@ -492,20 +492,20 @@ class Environment(object):
         if func is None:
             fail_for_missing_callable("no filter named %r", name)
         args = [value] + list(args or ())
-        if getattr(func, "contextfilter", False):
+        if getattr(func, "contextfilter", False) is True:
             if context is None:
                 raise TemplateRuntimeError(
                     "Attempted to invoke context filter without context"
                 )
             args.insert(0, context)
-        elif getattr(func, "evalcontextfilter", False):
+        elif getattr(func, "evalcontextfilter", False) is True:
             if eval_ctx is None:
                 if context is not None:
                     eval_ctx = context.eval_ctx
                 else:
                     eval_ctx = EvalContext(self)
             args.insert(0, eval_ctx)
-        elif getattr(func, "environmentfilter", False):
+        elif getattr(func, "environmentfilter", False) is True:
             args.insert(0, self)
         return func(*args, **(kwargs or {}))
 
