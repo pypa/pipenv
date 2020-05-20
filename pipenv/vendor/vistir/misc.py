@@ -207,11 +207,14 @@ class SubprocessStreamWrapper(object):
         stdout_allowed=False,  # type: bool
     ):
         # type: (...) -> None
+        stdout_encoding = None
+        stderr_encoding = None
+        preferred_encoding = getpreferredencoding()
         if subprocess is not None:
             stdout_encoding = self.get_subprocess_encoding(subprocess, "stdout")
             stderr_encoding = self.get_subprocess_encoding(subprocess, "stderr")
-        self.stdout_encoding = stdout_encoding or PREFERRED_ENCODING
-        self.stderr_encoding = stderr_encoding or PREFERRED_ENCODING
+        self.stdout_encoding = stdout_encoding or preferred_encoding
+        self.stderr_encoding = stderr_encoding or preferred_encoding
         self.stdout_lines = []
         self.text_stdout_lines = []
         self.stderr_lines = []

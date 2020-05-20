@@ -1495,7 +1495,7 @@ def pip_install(
     pip_args = get_pip_args(
         pre=pre, verbose=environments.is_verbose(), upgrade=True,
         selective_upgrade=selective_upgrade, no_use_pep517=not use_pep517,
-        no_deps=no_deps, require_hashes=not ignore_hashes
+        no_deps=no_deps, require_hashes=not ignore_hashes,
     )
     pip_command.extend(pip_args)
     if r:
