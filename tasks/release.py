@@ -123,11 +123,11 @@ def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, 
     tag_content = tag_content.replace('"', '\\"')
     if dry_run or pre:
         log(f"Generated tag content: {tag_content}")
-        markdown = ctx.run(
-            "pandoc CHANGELOG.draft.rst -f rst -t markdown", hide=True
-        ).stdout.strip()
-        content = clean_mdchangelog(ctx, markdown)
-        log(f"would generate markdown: {content}")
+        draft_rstfile = "CHANGELOG.draft.rst"
+        markdown_path = pathlib.Path(draft_rstfile).with_suffix(".md")
+        generate_markdown(ctx, source_rstfile=draft_rstfile)
+        content = clean_mdchangelog(ctx, markdown_path.as_posix())
+        log(f"would generate markdown: {markdown_path.read_text()}")
         if pre and not dry_run:
             ctx.run(f'git tag -a v{version} -m "Version v{version}\n\n{tag_content}"')
     else:
@@ -189,15 +189,21 @@ def upload_dists(ctx, repo="pypi"):
 
 
 @invoke.task
-def generate_markdown(ctx):
+def generate_markdown(ctx, source_rstfile=None):
     log("Generating markdown from changelog...")
-    ctx.run("pandoc CHANGELOG.rst -f rst -t markdown -o CHANGELOG.md")
+    if source_rstfile is None:
+        source_rstfile = "CHANGELOG.rst"
+    source_file = pathlib.Path(source_rstfile)
+    dest_file = source_file.with_suffix(".md")
+    ctx.run(
+        f"pandoc {source_file.as_posix()} -f rst -t markdown -o {dest_file.as_posix()}"
+    )
 
 
 @invoke.task
 def generate_manual(ctx, commit=False):
     log("Generating manual from reStructuredText source...")
-    ctx.run("make man -C docs")
+    ctx.run("make man")
     ctx.run("cp docs/_build/man/pipenv.1 pipenv/")
     if commit:
         log("Commiting...")
@@ -232,10 +238,13 @@ def generate_changelog(ctx, commit=False, draft=False):
 
 
 @invoke.task
-def clean_mdchangelog(ctx, content=None):
+def clean_mdchangelog(ctx, filename=None, content=None):
     changelog = None
     if not content:
-        changelog = _get_git_root(ctx) / "CHANGELOG.md"
+        if filename is not None:
+            changelog = pathlib.Path(filename)
+        else:
+            changelog = _get_git_root(ctx) / "CHANGELOG.md"
         content = changelog.read_text()
     content = re.sub(
         r"([^\n]+)\n?\s+\[[\\]+(#\d+)\]\(https://github\.com/pypa/[\w\-]+/issues/\d+\)",

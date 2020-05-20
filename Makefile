@@ -98,6 +98,9 @@ pre-bump:
 lint:
 	flake8 .
 
+man:
+	$(MAKE) -C docs $@
+
 .PHONY: check
 check: build.stamp
 	pipenv run twine check dist/* && pipenv run check-manifest .
