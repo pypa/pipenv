@@ -6,7 +6,7 @@ import copy
 import functools
 import os
 
-import attr
+from pipenv.vendor import attr
 import packaging.markers
 import packaging.version
 import pip_shims.shims

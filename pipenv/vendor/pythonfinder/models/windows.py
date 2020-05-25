@@ -4,7 +4,7 @@ from __future__ import absolute_import, print_function
 import operator
 from collections import defaultdict
 
-import attr
+from pipenv.vendor import attr
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import InvalidPythonVersion

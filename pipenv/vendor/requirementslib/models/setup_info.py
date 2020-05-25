@@ -12,7 +12,7 @@ import shutil
 import sys
 from functools import partial
 
-import attr
+from pipenv.vendor import attr
 import chardet
 import packaging.specifiers
 import packaging.utils

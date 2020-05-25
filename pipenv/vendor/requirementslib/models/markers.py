@@ -3,7 +3,7 @@ import itertools
 import operator
 import re
 
-import attr
+from pipenv.vendor import attr
 import distlib.markers
 import packaging.version
 import six
