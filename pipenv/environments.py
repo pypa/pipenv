@@ -14,6 +14,25 @@ from .vendor.vistir.misc import _isatty, fs_str
 # HACK: avoid resolver.py uses the wrong byte code files.
 # I hope I can remove this one day.
 os.environ["PYTHONDONTWRITEBYTECODE"] = fs_str("1")
+_false_values = ("0", "false", "no", "off")
+_true_values = ("1", "true", "yes", "on")
+
+
+def env_to_bool(val):
+    """
+    Convert **val** to boolean, returning True if truthy or False if falsey
+
+    :param Any val: The value to convert
+    :return: False if Falsey, True if truthy
+    :rtype: bool
+    """
+    if isinstance(val, bool):
+        return val
+    if val.lower() in _false_values:
+        return False
+    if val.lower() in _true_values:
+        return True
+    raise ValueError("Value is not a valid boolean-like: {0}".format(val))
 
 
 def _is_env_truthy(name):
@@ -21,7 +40,41 @@ def _is_env_truthy(name):
     """
     if name not in os.environ:
         return False
-    return os.environ.get(name).lower() not in ("0", "false", "no", "off")
+    return os.environ.get(name).lower() not in _false_values
+
+
+def get_from_env(arg, prefix="PIPENV", check_for_negation=True):
+    """
+    Check the environment for a variable, returning its truthy or stringified value
+
+    For example, setting ``PIPENV_NO_RESOLVE_VCS=1`` would mean that
+    ``get_from_env("RESOLVE_VCS", prefix="PIPENV")`` would return ``False``.
+
+    :param str arg: The name of the variable to look for
+    :param str prefix: The prefix to attach to the variable, defaults to "PIPENV"
+    :param bool check_for_negation: Whether to check for ``<PREFIX>_NO_<arg>``, defaults
+        to True
+    :return: The value from the environment if available
+    :rtype: Optional[Union[str, bool]]
+    """
+    negative_lookup = "NO_{0}".format(arg)
+    positive_lookup = arg
+    if prefix:
+        positive_lookup = "{0}_{1}".format(prefix, arg)
+        negative_lookup = "{0}_{1}".format(prefix, negative_lookup)
+    if positive_lookup in os.environ:
+        value = os.environ[positive_lookup]
+        try:
+            return env_to_bool(value)
+        except ValueError:
+            return value
+    if check_for_negation and negative_lookup in os.environ:
+        value = os.environ[negative_lookup]
+        try:
+            return not env_to_bool(value)
+        except ValueError:
+            return value
+    return None
 
 
 PIPENV_IS_CI = bool("CI" in os.environ or "TF_BUILD" in os.environ)

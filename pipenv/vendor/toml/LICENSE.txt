@@ -1,11 +1,12 @@
 The MIT License
 
-Copyright 2013-2018 William Pearson
+Copyright 2013-2019 William Pearson
 Copyright 2015-2016 Julien Enselme
 Copyright 2016 Google Inc.
 Copyright 2017 Samuel Vasko
 Copyright 2017 Nate Prewitt
 Copyright 2017 Jack Evans
+Copyright 2019 Filippo Broggini
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

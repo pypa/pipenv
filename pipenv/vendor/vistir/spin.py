@@ -12,10 +12,30 @@ from io import StringIO
 import colorama
 import six
 
-from .compat import to_native_string
+from .compat import IS_TYPE_CHECKING, to_native_string
 from .cursor import hide_cursor, show_cursor
 from .misc import decode_for_output, to_text
 from .termcolors import COLOR_MAP, COLORS, DISABLE_COLORS, colored
+
+if IS_TYPE_CHECKING:
+    from typing import (
+        Any,
+        Callable,
+        ContextManager,
+        Dict,
+        IO,
+        Optional,
+        Text,
+        Type,
+        TypeVar,
+        Union,
+    )
+
+    TSignalMap = Dict[
+        Type[signal.SIGINT],
+        Callable[..., int, str, Union["DummySpinner", "VistirSpinner"]],
+    ]
+    _T = TypeVar("_T", covariant=True)
 
 try:
     import yaspin
@@ -66,6 +86,7 @@ decode_output = functools.partial(decode_for_output, translation_map=TRANSLATION
 
 class DummySpinner(object):
     def __init__(self, text="", **kwargs):
+        # type: (str, Any) -> None
         if DISABLE_COLORS:
             colorama.init()
         self.text = to_native_string(decode_output(text)) if text else ""
@@ -108,6 +129,7 @@ class DummySpinner(object):
                 pass
 
     def fail(self, exitcode=1, text="FAIL"):
+        # type: (int, str) -> None
         if text is not None and text != "None":
             if self.write_to_stdout:
                 self.write(text)
@@ -116,6 +138,7 @@ class DummySpinner(object):
         self._close_output_buffer()
 
     def ok(self, text="OK"):
+        # type: (str) -> int
         if text is not None and text != "None":
             if self.write_to_stdout:
                 self.write(text)
@@ -125,6 +148,7 @@ class DummySpinner(object):
         return 0
 
     def hide_and_write(self, text, target=None):
+        # type: (str, Optional[str]) -> None
         if not target:
             target = self.stdout
         if text is None or isinstance(text, six.string_types) and text == "None":
@@ -136,6 +160,7 @@ class DummySpinner(object):
         self._show_cursor(target=target)
 
     def write(self, text=None):
+        # type: (Optional[str]) -> None
         if not self.write_to_stdout:
             return self.write_err(text)
         if text is None or isinstance(text, six.string_types) and text == "None":
@@ -151,6 +176,7 @@ class DummySpinner(object):
         stdout.write(CLEAR_LINE)
 
     def write_err(self, text=None):
+        # type: (Optional[str]) -> None
         if text is None or isinstance(text, six.string_types) and text == "None":
             pass
         text = to_text(text)
@@ -168,10 +194,12 @@ class DummySpinner(object):
 
     @staticmethod
     def _hide_cursor(target=None):
+        # type: (Optional[IO]) -> None
         pass
 
     @staticmethod
     def _show_cursor(target=None):
+        # type: (Optional[IO]) -> None
         pass
 
 
@@ -183,6 +211,7 @@ class VistirSpinner(SpinBase):
     "A spinner class for handling spinners on windows and posix."
 
     def __init__(self, *args, **kwargs):
+        # type: (Any, Any)
         """
         Get a spinner object or a dummy spinner to wrap a context.
 
@@ -196,7 +225,7 @@ class VistirSpinner(SpinBase):
 
         self.handler = handler
         colorama.init()
-        sigmap = {}
+        sigmap = {}  # type: TSignalMap
         if handler:
             sigmap.update({signal.SIGINT: handler, signal.SIGTERM: handler})
         handler_map = kwargs.pop("handler_map", {})
@@ -218,11 +247,15 @@ class VistirSpinner(SpinBase):
         self.out_buff = StringIO()
         self.write_to_stdout = write_to_stdout
         self.is_dummy = bool(yaspin is None)
+        self._stop_spin = None  # type: Optional[threading.Event]
+        self._hide_spin = None  # type: Optional[threading.Event]
+        self._spin_thread = None  # type: Optional[threading.Thread]
         super(VistirSpinner, self).__init__(*args, **kwargs)
         if DISABLE_COLORS:
             colorama.deinit()
 
     def ok(self, text=u"OK", err=False):
+        # type: (str, bool) -> None
         """Set Ok (success) finalizer to a spinner."""
         # Do not display spin text for ok state
         self._text = None
@@ -232,6 +265,7 @@ class VistirSpinner(SpinBase):
         self._freeze(_text, err=err)
 
     def fail(self, text=u"FAIL", err=False):
+        # type: (str, bool) -> None
         """Set fail finalizer to a spinner."""
         # Do not display spin text for fail state
         self._text = None
@@ -241,6 +275,7 @@ class VistirSpinner(SpinBase):
         self._freeze(_text, err=err)
 
     def hide_and_write(self, text, target=None):
+        # type: (str, Optional[str]) -> None
         if not target:
             target = self.stdout
         if text is None or isinstance(text, six.string_types) and text == u"None":
@@ -252,6 +287,7 @@ class VistirSpinner(SpinBase):
         self._show_cursor(target=target)
 
     def write(self, text):  # pragma: no cover
+        # type: (str) -> None
         if not self.write_to_stdout:
             return self.write_err(text)
         stdout = self.stdout
@@ -266,6 +302,7 @@ class VistirSpinner(SpinBase):
         self.out_buff.write(text)
 
     def write_err(self, text):  # pragma: no cover
+        # type: (str) -> None
         """Write error text in the terminal without breaking the spinner."""
         stderr = self.stderr
         if self.stderr.closed:
@@ -279,6 +316,7 @@ class VistirSpinner(SpinBase):
         self.out_buff.write(decode_output(text, target_stream=self.out_buff))
 
     def start(self):
+        # type: () -> None
         if self._sigmap:
             self._register_signal_handlers()
 
@@ -292,6 +330,7 @@ class VistirSpinner(SpinBase):
         self._spin_thread.start()
 
     def stop(self):
+        # type: () -> None
         if self._dfl_sigmap:
             # Reset registered signal handlers to default ones
             self._reset_signal_handlers()
@@ -314,6 +353,7 @@ class VistirSpinner(SpinBase):
         self.out_buff.close()
 
     def _freeze(self, final_text, err=False):
+        # type: (str, bool) -> None
         """Stop spinner, compose last frame and 'freeze' it."""
         if not final_text:
             final_text = ""
@@ -330,12 +370,14 @@ class VistirSpinner(SpinBase):
         target.write(self._last_frame)
 
     def _compose_color_func(self):
+        # type: () -> Callable[..., str]
         fn = functools.partial(
             colored, color=self._color, on_color=self._on_color, attrs=list(self._attrs)
         )
         return fn
 
     def _compose_out(self, frame, mode=None):
+        # type: (str, Optional[str]) -> Text
         # Ensure Unicode input
 
         frame = to_text(frame)
@@ -355,6 +397,7 @@ class VistirSpinner(SpinBase):
         return out
 
     def _spin(self):
+        # type: () -> None
         target = self.stdout if self.write_to_stdout else self.stderr
         clear_fn = self._clear_line if self.write_to_stdout else self._clear_err
         while not self._stop_spin.is_set():
@@ -379,6 +422,7 @@ class VistirSpinner(SpinBase):
             target.write("\b")
 
     def _register_signal_handlers(self):
+        # type: () -> None
         # SIGKILL cannot be caught or ignored, and the receiving
         # process cannot perform any clean-up upon receiving this
         # signal.
@@ -411,31 +455,37 @@ class VistirSpinner(SpinBase):
             signal.signal(sig, sig_handler)
 
     def _reset_signal_handlers(self):
+        # type: () -> None
         for sig, sig_handler in self._dfl_sigmap.items():
             signal.signal(sig, sig_handler)
 
     @staticmethod
     def _hide_cursor(target=None):
+        # type: (Optional[IO]) -> None
         if not target:
             target = sys.stdout
         hide_cursor(stream=target)
 
     @staticmethod
     def _show_cursor(target=None):
+        # type: (Optional[IO]) -> None
         if not target:
             target = sys.stdout
         show_cursor(stream=target)
 
     @staticmethod
     def _clear_err():
+        # type: () -> None
         sys.stderr.write(CLEAR_LINE)
 
     @staticmethod
     def _clear_line():
+        # type: () -> None
         sys.stdout.write(CLEAR_LINE)
 
 
 def create_spinner(*args, **kwargs):
+    # type: (Any, Any) -> Union[DummySpinner, VistirSpinner]
     nospin = kwargs.pop("nospin", False)
     use_yaspin = kwargs.pop("use_yaspin", not nospin)
     if nospin or not use_yaspin:

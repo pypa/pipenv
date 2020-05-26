@@ -174,8 +174,6 @@ if PY2:
     iteritems = lambda x: x.iteritems()
     range_type = xrange
 
-    from pipes import quote as shlex_quote
-
     def is_bytes(x):
         return isinstance(x, (buffer, bytearray))
 
@@ -283,8 +281,6 @@ else:
     range_type = range
     isidentifier = lambda x: x.isidentifier()
     iteritems = lambda x: iter(x.items())
-
-    from shlex import quote as shlex_quote
 
     def is_bytes(x):
         return isinstance(x, (bytes, memoryview, bytearray))

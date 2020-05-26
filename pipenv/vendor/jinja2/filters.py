@@ -761,7 +761,7 @@ def do_wordwrap(
 
 def do_wordcount(s):
     """Count the words in that string."""
-    return len(_word_re.findall(s))
+    return len(_word_re.findall(soft_unicode(s)))
 
 
 def do_int(value, default=0, base=10):

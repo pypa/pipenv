@@ -149,7 +149,9 @@ Anaconda uses Conda to manage packages. To reuse Conda–installed Python packag
 ☤ Generating a ``requirements.txt``
 -----------------------------------
 
-You can convert a ``Pipfile`` and ``Pipfile.lock`` into a ``requirements.txt`` file very easily, and get all the benefits of extras and other goodies we have included.
+You can convert a ``Pipfile`` and ``Pipfile.lock`` into a ``requirements.txt``
+file very easily, and get all the benefits of extras and other goodies we have
+included.
 
 Let's take this ``Pipfile``::
 
@@ -160,7 +162,10 @@ Let's take this ``Pipfile``::
     [packages]
     requests = {version="*"}
 
-And generate a ``requirements.txt`` out of it::
+    [dev-packages]
+    pytest = {version="*"}
+
+And generate a set of requirements out of it with only the default dependencies::
 
     $ pipenv lock -r
     chardet==3.0.4
@@ -169,22 +174,41 @@ And generate a ``requirements.txt`` out of it::
     idna==2.6
     urllib3==1.22
 
-If you wish to generate a ``requirements.txt`` with only the development requirements you can do that too!  Let's take the following ``Pipfile``::
-
-    [[source]]
-    url = "https://pypi.python.org/simple"
-    verify_ssl = true
-
-    [dev-packages]
-    pytest = {version="*"}
-
-And generate a ``requirements.txt`` out of it::
+As with other commands, passing ``--dev`` will include both the default and
+development dependencies::
 
     $ pipenv lock -r --dev
+    chardet==3.0.4
+    requests==2.18.4
+    certifi==2017.7.27.1
+    idna==2.6
+    urllib3==1.22
     py==1.4.34
     pytest==3.2.3
 
-Very fancy.
+Finally, if you wish to generate a requirements file with only the
+development requirements you can do that too, using the ``--dev-only``
+flag::
+
+    $ pipenv lock -r --dev-only
+    py==1.4.34
+    pytest==3.2.3
+
+The locked requirements are written to stdout, with shell output redirection
+used to write them to a file::
+
+    $ pipenv lock -r > requirements.txt
+    $ pipenv lock -r --dev-only > dev-requirements.txt
+    $ cat requirements.txt
+    chardet==3.0.4
+    requests==2.18.4
+    certifi==2017.7.27.1
+    idna==2.6
+    urllib3==1.22
+    $ cat dev-requirements.txt
+    py==1.4.34
+    pytest==3.2.3
+
 
 ☤ Detection of Security Vulnerabilities
 ---------------------------------------

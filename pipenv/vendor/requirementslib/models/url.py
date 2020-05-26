@@ -10,6 +10,7 @@ from urllib3.util import parse_url as urllib3_parse
 from urllib3.util.url import Url
 
 from ..environment import MYPY_RUNNING
+from ..utils import is_installable_file
 from .utils import extras_to_string, parse_extras
 
 if MYPY_RUNNING:
@@ -24,8 +25,7 @@ if MYPY_RUNNING:
 
 def _get_parsed_url(url):
     # type: (S) -> Url
-    """
-    This is a stand-in function for `urllib3.util.parse_url`
+    """This is a stand-in function for `urllib3.util.parse_url`
 
     The orignal function doesn't handle special characters very well, this simply splits
     out the authentication section, creates the parsed url, then puts the authentication
@@ -49,8 +49,7 @@ def _get_parsed_url(url):
 
 def remove_password_from_url(url):
     # type: (S) -> S
-    """
-    Given a url, remove the password and insert 4 dashes
+    """Given a url, remove the password and insert 4 dashes.
 
     :param url: The url to replace the authentication in
     :type url: S
@@ -108,12 +107,18 @@ class URI(object):
         query_dict = omdict()
         queries = query.split("&")
         query_items = []
+        subdirectory = self.subdirectory if self.subdirectory else None
         for q in queries:
             key, _, val = q.partition("=")
             val = unquote_plus(val.replace("+", " "))
-            query_items.append((key, val))
+            if key == "subdirectory" and not subdirectory:
+                subdirectory = val
+            else:
+                query_items.append((key, val))
         query_dict.load(query_items)
-        return attr.evolve(self, query_dict=query_dict, query=query)
+        return attr.evolve(
+            self, query_dict=query_dict, subdirectory=subdirectory, query=query
+        )
 
     def _parse_fragment(self):
         # type: () -> URI
@@ -187,7 +192,10 @@ class URI(object):
         subdir = None
         if "&subdirectory" in url_part:
             url_part, _, subdir = url_part.rpartition("&")
-            subdir = "&{0}".format(subdir.strip())
+            if "#egg=" not in url_part:
+                subdir = "#{0}".format(subdir.strip())
+            else:
+                subdir = "&{0}".format(subdir.strip())
         return url_part.strip(), subdir
 
     @classmethod
@@ -255,8 +263,8 @@ class URI(object):
         strip_subdir=False,  # type: bool
     ):
         # type: (...) -> str
-        """
-        Converts the current URI to a string, unquoting or escaping the password as needed
+        """Converts the current URI to a string, unquoting or escaping the
+        password as needed.
 
         :param escape_password: Whether to replace password with ``----``, default True
         :param escape_password: bool, optional
@@ -295,9 +303,11 @@ class URI(object):
         query = ""
         if self.query:
             query = "{query}?{self.query}".format(query=query, self=self)
+        subdir_prefix = "#"
         if not direct:
             if self.name and not strip_name:
                 fragment = "#egg={self.name_with_extras}".format(self=self)
+                subdir_prefix = "&"
             elif not strip_name and (
                 self.extras and self.scheme and self.scheme.startswith("file")
             ):
@@ -308,8 +318,8 @@ class URI(object):
                 fragment = ""
             query = "{query}{fragment}".format(query=query, fragment=fragment)
         if self.subdirectory and not strip_subdir:
-            query = "{query}&subdirectory={self.subdirectory}".format(
-                query=query, self=self
+            query = "{query}{subdir_prefix}subdirectory={self.subdirectory}".format(
+                query=query, subdir_prefix=subdir_prefix, self=self
             )
         host_port_path = self.get_host_port_path(strip_ref=strip_ref)
         url = "{self.scheme}://{auth}{host_port_path}{query}".format(
@@ -442,6 +452,11 @@ class URI(object):
         return self.to_string(escape_password=False, unquote=False)
 
     @property
+    def is_installable(self):
+        # type: () -> bool
+        return self.is_file_url and is_installable_file(self.bare_url)
+
+    @property
     def is_vcs(self):
         # type: () -> bool
         from ..utils import VCS_SCHEMES
@@ -477,7 +492,6 @@ def update_url_name_and_fragment(name_with_extras, ref, parsed_dict):
                 if fragment_extras:
                     parsed_extras = parsed_extras + tuple(parse_extras(fragment_extras))
                 name_with_extras = "{0}{1}".format(name, extras_to_string(parsed_extras))
-                parsed_dict["fragment"] = "egg={0}".format(name_with_extras)
         elif (
             parsed_dict.get("path") is not None and "&subdirectory" in parsed_dict["path"]
         ):

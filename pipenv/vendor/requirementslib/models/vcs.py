@@ -106,7 +106,8 @@ class VCSRepository(object):
 
     def get_commit_hash(self, ref=None):
         # type: (Optional[str]) -> str
-        return self.repo_backend.get_revision(self.checkout_directory)
+        with pip_shims.shims.global_tempdir_manager():
+            return self.repo_backend.get_revision(self.checkout_directory)
 
     @classmethod
     def monkeypatch_pip(cls):

@@ -17,7 +17,6 @@ from ._compat import int_types
 from ._compat import isatty
 from ._compat import open_stream
 from ._compat import range_type
-from ._compat import shlex_quote
 from ._compat import strip_ansi
 from ._compat import term_len
 from ._compat import WIN
@@ -346,10 +345,7 @@ def pager(generator, color=None):
     fd, filename = tempfile.mkstemp()
     os.close(fd)
     try:
-        if (
-            hasattr(os, "system")
-            and os.system("more {}".format(shlex_quote(filename))) == 0
-        ):
+        if hasattr(os, "system") and os.system('more "{}"'.format(filename)) == 0:
             return _pipepager(generator, "more", color)
         return _nullpager(stdout, generator, color)
     finally:
@@ -418,7 +414,7 @@ def _tempfilepager(generator, cmd, color):
     with open_stream(filename, "wb")[0] as f:
         f.write(text.encode(encoding))
     try:
-        os.system("{} {}".format(shlex_quote(cmd), shlex_quote(filename)))
+        os.system('{} "{}"'.format(cmd, filename))
     finally:
         os.unlink(filename)
 
@@ -463,9 +459,7 @@ class Editor(object):
             environ = None
         try:
             c = subprocess.Popen(
-                "{} {}".format(shlex_quote(editor), shlex_quote(filename)),
-                env=environ,
-                shell=True,
+                '{} "{}"'.format(editor, filename), env=environ, shell=True,
             )
             exit_code = c.wait()
             if exit_code != 0:
@@ -536,16 +530,18 @@ def open_url(url, wait=False, locate=False):
     elif WIN:
         if locate:
             url = _unquote_file(url)
-            args = "explorer /select,{}".format(shlex_quote(url))
+            args = 'explorer /select,"{}"'.format(_unquote_file(url.replace('"', "")))
         else:
-            args = 'start {} "" {}'.format("/WAIT" if wait else "", shlex_quote(url))
+            args = 'start {} "" "{}"'.format(
+                "/WAIT" if wait else "", url.replace('"', "")
+            )
         return os.system(args)
     elif CYGWIN:
         if locate:
             url = _unquote_file(url)
-            args = "cygstart {}".format(shlex_quote(os.path.dirname(url)))
+            args = 'cygstart "{}"'.format(os.path.dirname(url).replace('"', ""))
         else:
-            args = "cygstart {} {}".format("-w" if wait else "", shlex_quote(url))
+            args = 'cygstart {} "{}"'.format("-w" if wait else "", url.replace('"', ""))
         return os.system(args)
 
     try:

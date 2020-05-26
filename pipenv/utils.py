@@ -236,14 +236,14 @@ class HackedPythonVersion(object):
     def __enter__(self):
         # Only inject when the value is valid
         if self.python_version:
-            os.environ["PIP_PYTHON_VERSION"] = str(self.python_version)
+            os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = str(self.python_version)
         if self.python_path:
             os.environ["PIP_PYTHON_PATH"] = str(self.python_path)
 
     def __exit__(self, *args):
         # Restore original Python version information.
         try:
-            del os.environ["PIP_PYTHON_VERSION"]
+            del os.environ["PIPENV_REQUESTED_PYTHON_VERSION"]
         except KeyError:
             pass
 
@@ -586,7 +586,7 @@ class Resolver(object):
                     constraints.add(line)
             # ensure the top level entry remains as provided
             # note that we shouldn't pin versions for editable vcs deps
-            if (not req.is_vcs or (req.is_vcs and not req.editable)):
+            if not req.is_vcs:
                 if req.specifiers:
                     locked_deps[name]["version"] = req.specifiers
                 elif parsed_line.setup_info and parsed_line.setup_info.version:
@@ -682,25 +682,21 @@ class Resolver(object):
             self._pip_command = self._get_pip_command()
         return self._pip_command
 
-    def prepare_pip_args(self, use_pep517=True, build_isolation=True):
+    def prepare_pip_args(self, use_pep517=False, build_isolation=True):
         pip_args = []
         if self.sources:
             pip_args = prepare_pip_source_args(self.sources, pip_args)
-        if not use_pep517:
+        if use_pep517 is False:
             pip_args.append("--no-use-pep517")
-        if not build_isolation:
+        if build_isolation is False:
             pip_args.append("--no-build-isolation")
         pip_args.extend(["--cache-dir", environments.PIPENV_CACHE_DIR])
         return pip_args
 
     @property
     def pip_args(self):
-        use_pep517 = False if (
-            os.environ.get("PIP_NO_USE_PEP517", None) is not None
-        ) else (True if os.environ.get("PIP_USE_PEP517", None) is not None else None)
-        build_isolation = False if (
-            os.environ.get("PIP_NO_BUILD_ISOLATION", None) is not None
-        ) else (True if os.environ.get("PIP_BUILD_ISOLATION", None) is not None else None)
+        use_pep517 = environments.get_from_env("USE_PEP517", prefix="PIP")
+        build_isolation = environments.get_from_env("BUILD_ISOLATION", prefix="PIP")
         if self._pip_args is None:
             self._pip_args = self.prepare_pip_args(
                 use_pep517=use_pep517, build_isolation=build_isolation
@@ -741,6 +737,10 @@ class Resolver(object):
         if self._pip_options is None:
             pip_options, _ = self.pip_command.parser.parse_args(self.pip_args)
             pip_options.cache_dir = environments.PIPENV_CACHE_DIR
+            pip_options.no_python_version_warning = True
+            pip_options.no_input = True
+            pip_options.progress_bar = "off"
+            pip_options.ignore_requires_python = True
             self._pip_options = pip_options
         return self._pip_options
 
@@ -786,6 +786,7 @@ class Resolver(object):
         self._resolver = PiptoolsResolver(
             constraints=self.parsed_constraints, repository=self.repository,
             cache=DependencyCache(environments.PIPENV_CACHE_DIR), clear_caches=clear,
+            # TODO: allow users to toggle the 'allow unsafe' flag to resolve setuptools?
             prereleases=pre, allow_unsafe=False
         )
 
@@ -996,6 +997,8 @@ class Resolver(object):
         for req, ireq in reqs:
             if (req.vcs and req.editable and not req.is_direct_url):
                 continue
+            elif req.normalized_name in self.skipped.keys():
+                continue
             collected_hashes = self.collect_hashes(ireq)
             req = req.add_hashes(collected_hashes)
             if not collected_hashes and self._should_include_hash(ireq):
@@ -1040,20 +1043,24 @@ def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=No
         entry["version"] = pf_entry.lstrip("=")
     else:
         entry.update(pf_entry)
-        if version is not None:
+        if version is not None and not req.is_vcs:
             entry["version"] = version
-        if req.line_instance.is_direct_url:
+        if req.line_instance.is_direct_url and not req.is_vcs:
             entry["file"] = req.req.uri
     if hashes:
         entry["hashes"] = sorted(set(hashes))
     entry["name"] = name
-    if index:  # and index != next(iter(project.sources), {}).get("name"):
+    if index:
         entry.update({"index": index})
     if markers:
         entry.update({"markers": markers})
     entry = translate_markers(entry)
-    if req.vcs or req.editable and entry.get("index"):
-        del entry["index"]
+    if req.vcs or req.editable:
+        for key in ("index", "version", "file"):
+            try:
+                del entry[key]
+            except KeyError:
+                pass
     return name, entry
 
 
@@ -1882,11 +1889,6 @@ def get_vcs_deps(
                     lockfile[name] = requirement.pipfile_entry[1]
                     lockfile[name]['ref'] = commit_hash
                     result.append(requirement)
-                    version = requirement.specifiers
-                    if not version and requirement.specifiers:
-                        version = requirement.specifiers
-                    if version:
-                        lockfile[name]['version'] = version
             except OSError:
                 continue
     return result, lockfile
@@ -2208,8 +2210,7 @@ def find_python(finder, line=None):
     if not result and not line.startswith("python"):
         line = "python{0}".format(line)
         result = find_python(finder, line)
-    if not result:
-        result = next(iter(finder.find_all_python_versions()), None)
+
     if result:
         if not isinstance(result, six.string_types):
             return result.path.as_posix()

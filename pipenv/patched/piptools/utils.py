@@ -76,7 +76,7 @@ def simplify_markers(ireq):
 def clean_requires_python(candidates):
     """Get a cleaned list of all the candidates with valid specifiers in the `requires_python` attributes."""
     all_candidates = []
-    py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', '.'.join(map(str, sys.version_info[:3]))))
+    py_version = parse_version(os.environ.get('PIPENV_REQUESTED_PYTHON_VERSION', '.'.join(map(str, sys.version_info[:3]))))
     for c in candidates:
         if getattr(c, "requires_python", None):
             # Old specifications had people setting this to single digits
@@ -181,6 +181,8 @@ def format_requirement(ireq, marker=None, hashes=None):
     """
     if ireq.editable:
         line = "-e {}".format(ireq.link.url)
+    elif ireq.link and ireq.link.is_vcs:
+        line = str(ireq.req)
     elif is_url_requirement(ireq):
         line = ireq.link.url
     else:

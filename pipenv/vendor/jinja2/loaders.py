@@ -3,11 +3,9 @@
 sources.
 """
 import os
-import pkgutil
 import sys
 import weakref
 from hashlib import sha1
-from importlib import import_module
 from os import path
 from types import ModuleType
 
@@ -217,141 +215,75 @@ class FileSystemLoader(BaseLoader):
 
 
 class PackageLoader(BaseLoader):
-    """Load templates from a directory in a Python package.
+    """Load templates from python eggs or packages.  It is constructed with
+    the name of the python package and the path to the templates in that
+    package::
 
-    :param package_name: Import name of the package that contains the
-        template directory.
-    :param package_path: Directory within the imported package that
-        contains the templates.
-    :param encoding: Encoding of template files.
+        loader = PackageLoader('mypackage', 'views')
 
-    The following example looks up templates in the ``pages`` directory
-    within the ``project.ui`` package.
+    If the package path is not given, ``'templates'`` is assumed.
 
-    .. code-block:: python
-
-        loader = PackageLoader("project.ui", "pages")
-
-    Only packages installed as directories (standard pip behavior) or
-    zip/egg files (less common) are supported. The Python API for
-    introspecting data in packages is too limited to support other
-    installation methods the way this loader requires.
-
-    There is limited support for :pep:`420` namespace packages. The
-    template directory is assumed to only be in one namespace
-    contributor. Zip files contributing to a namespace are not
-    supported.
-
-    .. versionchanged:: 2.11.0
-        No longer uses ``setuptools`` as a dependency.
-
-    .. versionchanged:: 2.11.0
-        Limited PEP 420 namespace package support.
+    Per default the template encoding is ``'utf-8'`` which can be changed
+    by setting the `encoding` parameter to something else.  Due to the nature
+    of eggs it's only possible to reload templates if the package was loaded
+    from the file system and not a zip file.
     """
 
     def __init__(self, package_name, package_path="templates", encoding="utf-8"):
-        if package_path == os.path.curdir:
-            package_path = ""
-        elif package_path[:2] == os.path.curdir + os.path.sep:
-            package_path = package_path[2:]
+        from pkg_resources import DefaultProvider
+        from pkg_resources import get_provider
+        from pkg_resources import ResourceManager
 
-        package_path = os.path.normpath(package_path).rstrip(os.path.sep)
-        self.package_path = package_path
-        self.package_name = package_name
+        provider = get_provider(package_name)
         self.encoding = encoding
-
-        # Make sure the package exists. This also makes namespace
-        # packages work, otherwise get_loader returns None.
-        import_module(package_name)
-        self._loader = loader = pkgutil.get_loader(package_name)
-
-        # Zip loader's archive attribute points at the zip.
-        self._archive = getattr(loader, "archive", None)
-        self._template_root = None
-
-        if hasattr(loader, "get_filename"):
-            # A standard directory package, or a zip package.
-            self._template_root = os.path.join(
-                os.path.dirname(loader.get_filename(package_name)), package_path
-            )
-        elif hasattr(loader, "_path"):
-            # A namespace package, limited support. Find the first
-            # contributor with the template directory.
-            for root in loader._path:
-                root = os.path.join(root, package_path)
-
-                if os.path.isdir(root):
-                    self._template_root = root
-                    break
-
-        if self._template_root is None:
-            raise ValueError(
-                "The %r package was not installed in a way that"
-                " PackageLoader understands." % package_name
-            )
+        self.manager = ResourceManager()
+        self.filesystem_bound = isinstance(provider, DefaultProvider)
+        self.provider = provider
+        self.package_path = package_path
 
     def get_source(self, environment, template):
-        p = os.path.join(self._template_root, *split_template_path(template))
+        pieces = split_template_path(template)
+        p = "/".join((self.package_path,) + tuple(pieces))
 
-        if self._archive is None:
-            # Package is a directory.
-            if not os.path.isfile(p):
-                raise TemplateNotFound(template)
+        if not self.provider.has_resource(p):
+            raise TemplateNotFound(template)
 
-            with open(p, "rb") as f:
-                source = f.read()
+        filename = uptodate = None
 
-            mtime = os.path.getmtime(p)
+        if self.filesystem_bound:
+            filename = self.provider.get_resource_filename(self.manager, p)
+            mtime = path.getmtime(filename)
 
-            def up_to_date():
-                return os.path.isfile(p) and os.path.getmtime(p) == mtime
+            def uptodate():
+                try:
+                    return path.getmtime(filename) == mtime
+                except OSError:
+                    return False
 
-        else:
-            # Package is a zip file.
-            try:
-                source = self._loader.get_data(p)
-            except OSError:
-                raise TemplateNotFound(template)
-
-            # Could use the zip's mtime for all template mtimes, but
-            # would need to safely reload the module if it's out of
-            # date, so just report it as always current.
-            up_to_date = None
-
-        return source.decode(self.encoding), p, up_to_date
+        source = self.provider.get_resource_string(self.manager, p)
+        return source.decode(self.encoding), filename, uptodate
 
     def list_templates(self):
+        path = self.package_path
+
+        if path[:2] == "./":
+            path = path[2:]
+        elif path == ".":
+            path = ""
+
+        offset = len(path)
         results = []
 
-        if self._archive is None:
-            # Package is a directory.
-            offset = len(self._template_root)
+        def _walk(path):
+            for filename in self.provider.resource_listdir(path):
+                fullname = path + "/" + filename
 
-            for dirpath, _, filenames in os.walk(self._template_root):
-                dirpath = dirpath[offset:].lstrip(os.path.sep)
-                results.extend(
-                    os.path.join(dirpath, name).replace(os.path.sep, "/")
-                    for name in filenames
-                )
-        else:
-            if not hasattr(self._loader, "_files"):
-                raise TypeError(
-                    "This zip import does not have the required"
-                    " metadata to list templates."
-                )
+                if self.provider.resource_isdir(fullname):
+                    _walk(fullname)
+                else:
+                    results.append(fullname[offset:].lstrip("/"))
 
-            # Package is a zip file.
-            prefix = (
-                self._template_root[len(self._archive) :].lstrip(os.path.sep)
-                + os.path.sep
-            )
-            offset = len(prefix)
-
-            for name in self._loader._files.keys():
-                # Find names under the templates directory that aren't directories.
-                if name.startswith(prefix) and name[-1] != os.path.sep:
-                    results.append(name[offset:].replace(os.path.sep, "/"))
-
+        _walk(path)
         results.sort()
         return results
 

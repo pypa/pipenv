@@ -65,6 +65,7 @@ class State(object):
         self.clear = False
         self.system = False
         self.installstate = InstallState()
+        self.lockoptions = LockOptions()
 
 
 class InstallState(object):
@@ -82,6 +83,11 @@ class InstallState(object):
         self.packages = []
         self.editables = []
 
+class LockOptions(object):
+    def __init__(self):
+        self.dev_only = False
+        self.emit_requirements = False
+        self.emit_requirements_header = False
 
 pass_state = make_pass_decorator(State, ensure=True)
 
@@ -169,14 +175,26 @@ def ignore_pipfile_option(f):
                   callback=callback, type=click.types.BOOL, show_envvar=True)(f)
 
 
-def dev_option(f):
+def _dev_option(f, help_text):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.dev = value
         return value
     return option("--dev", "-d", is_flag=True, default=False, type=click.types.BOOL,
-                  help="Install both develop and default packages.", callback=callback,
+                  help=help_text, callback=callback,
                   expose_value=False, show_envvar=True)(f)
+
+
+def install_dev_option(f):
+    return _dev_option(f, "Install both develop and default packages")
+
+
+def lock_dev_option(f):
+    return _dev_option(f, "Generate both develop and default requirements")
+
+
+def uninstall_dev_option(f):
+    return _dev_option(f, "Deprecated (as it has no effect). May be removed in a future release.")
 
 
 def pre_option(f):
@@ -302,15 +320,32 @@ def requirementstxt_option(f):
                   help="Import a requirements.txt file.", callback=callback)(f)
 
 
-def requirements_flag(f):
+def emit_requirements_flag(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
-            state.installstate.requirementstxt = value
+            state.lockoptions.emit_requirements = value
         return value
     return option("--requirements", "-r", default=False, is_flag=True, expose_value=False,
                   help="Generate output in requirements.txt format.", callback=callback)(f)
 
+def emit_requirements_header_flag(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        if value:
+            state.lockoptions.emit_requirements_header = value
+        return value
+    return option("--header/--no-header", default=True, is_flag=True, expose_value=False,
+                  help="Add header to generated requirements", callback=callback)(f)
+
+def dev_only_flag(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        if value:
+            state.lockoptions.dev_only = value
+        return value
+    return option("--dev-only", default=False, is_flag=True, expose_value=False,
+                  help="Emit development dependencies *only* (overrides --dev)", callback=callback)(f)
 
 def code_option(f):
     def callback(ctx, param, value):
@@ -382,7 +417,6 @@ def common_options(f):
 
 def install_base_options(f):
     f = common_options(f)
-    f = dev_option(f)
     f = pre_option(f)
     f = keep_outdated_option(f)
     return f
@@ -390,6 +424,7 @@ def install_base_options(f):
 
 def uninstall_options(f):
     f = install_base_options(f)
+    f = uninstall_dev_option(f)
     f = skip_lock_option(f)
     f = editable_option(f)
     f = package_arg(f)
@@ -398,12 +433,15 @@ def uninstall_options(f):
 
 def lock_options(f):
     f = install_base_options(f)
-    f = requirements_flag(f)
+    f = lock_dev_option(f)
+    f = emit_requirements_flag(f)
+    f = dev_only_flag(f)
     return f
 
 
 def sync_options(f):
     f = install_base_options(f)
+    f = install_dev_option(f)
     f = sequential_option(f)
     return f
 

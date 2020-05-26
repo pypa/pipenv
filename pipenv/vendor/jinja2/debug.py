@@ -245,10 +245,7 @@ else:
     class _CTraceback(ctypes.Structure):
         _fields_ = [
             # Extra PyObject slots when compiled with Py_TRACE_REFS.
-            (
-                "PyObject_HEAD",
-                ctypes.c_byte * (32 if hasattr(sys, "getobjects") else 16),
-            ),
+            ("PyObject_HEAD", ctypes.c_byte * object().__sizeof__()),
             # Only care about tb_next as an object, not a traceback.
             ("tb_next", ctypes.py_object),
         ]
