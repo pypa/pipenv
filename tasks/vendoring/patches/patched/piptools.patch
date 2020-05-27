@@ -510,7 +510,7 @@ index ef5ba4e..b96acf6 100644
 +                map(lambda c: self._hash_cache.get_hash(c.link), matching_candidates)
 +                if h is not None
 +            }
-+         return result
++        return result
  
 -            # Iterate over the chosen context manager
 -            with context_manager as bar:
