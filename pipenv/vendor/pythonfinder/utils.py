@@ -10,7 +10,7 @@ from collections import OrderedDict
 from fnmatch import fnmatch
 from threading import Timer
 
-import attr
+from pipenv.vendor import attr
 import six
 from packaging.version import LegacyVersion, Version
 

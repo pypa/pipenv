@@ -7,7 +7,7 @@ import platform
 import sys
 from collections import defaultdict
 
-import attr
+from pipenv.vendor import attr
 import six
 from packaging.version import Version
 

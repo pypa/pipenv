@@ -7,7 +7,7 @@ import sys
 from collections import defaultdict
 from itertools import chain
 
-import attr
+from pipenv.vendor import attr
 import six
 from cached_property import cached_property
 from ..compat import Path, fs_str

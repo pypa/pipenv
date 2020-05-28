@@ -1,0 +1,221 @@
+diff --git a/pipenv/vendor/passa/models/projects.py b/pipenv/vendor/passa/models/projects.py
+index f6e037d6..c7807c05 100644
+--- a/pipenv/vendor/passa/models/projects.py
++++ b/pipenv/vendor/passa/models/projects.py
+@@ -6,7 +6,7 @@ import collections
+ import io
+ import os
+ 
+-import attr
++from pipenv.vendor import attr
+ import packaging.markers
+ import packaging.utils
+ import plette
+diff --git a/pipenv/vendor/pythonfinder/models/mixins.py b/pipenv/vendor/pythonfinder/models/mixins.py
+index 76327115..aeba0443 100644
+--- a/pipenv/vendor/pythonfinder/models/mixins.py
++++ b/pipenv/vendor/pythonfinder/models/mixins.py
+@@ -5,7 +5,7 @@ import abc
+ import operator
+ from collections import defaultdict
+ 
+-import attr
++from pipenv.vendor import attr
+ import six
+ 
+ from ..compat import fs_str
+diff --git a/pipenv/vendor/pythonfinder/models/path.py b/pipenv/vendor/pythonfinder/models/path.py
+index b855a05d..a8070c91 100644
+--- a/pipenv/vendor/pythonfinder/models/path.py
++++ b/pipenv/vendor/pythonfinder/models/path.py
+@@ -7,7 +7,7 @@ import sys
+ from collections import defaultdict
+ from itertools import chain
+ 
+-import attr
++from pipenv.vendor import attr
+ import six
+ from cached_property import cached_property
+ from ..compat import Path, fs_str
+diff --git a/pipenv/vendor/pythonfinder/models/python.py b/pipenv/vendor/pythonfinder/models/python.py
+index 619e7761..ff249be2 100644
+--- a/pipenv/vendor/pythonfinder/models/python.py
++++ b/pipenv/vendor/pythonfinder/models/python.py
+@@ -7,7 +7,7 @@ import platform
+ import sys
+ from collections import defaultdict
+ 
+-import attr
++from pipenv.vendor import attr
+ import six
+ from packaging.version import Version
+ 
+diff --git a/pipenv/vendor/pythonfinder/models/windows.py b/pipenv/vendor/pythonfinder/models/windows.py
+index a0e69b03..39353cdb 100644
+--- a/pipenv/vendor/pythonfinder/models/windows.py
++++ b/pipenv/vendor/pythonfinder/models/windows.py
+@@ -4,7 +4,7 @@ from __future__ import absolute_import, print_function
+ import operator
+ from collections import defaultdict
+ 
+-import attr
++from pipenv.vendor import attr
+ 
+ from ..environment import MYPY_RUNNING
+ from ..exceptions import InvalidPythonVersion
+diff --git a/pipenv/vendor/pythonfinder/utils.py b/pipenv/vendor/pythonfinder/utils.py
+index 8150545c..ef48e628 100644
+--- a/pipenv/vendor/pythonfinder/utils.py
++++ b/pipenv/vendor/pythonfinder/utils.py
+@@ -10,7 +10,7 @@ from collections import OrderedDict
+ from fnmatch import fnmatch
+ from threading import Timer
+ 
+-import attr
++from pipenv.vendor import attr
+ import six
+ from packaging.version import LegacyVersion, Version
+ 
+diff --git a/pipenv/vendor/requirementslib/models/dependencies.py b/pipenv/vendor/requirementslib/models/dependencies.py
+index 2608479a..1a610ce7 100644
+--- a/pipenv/vendor/requirementslib/models/dependencies.py
++++ b/pipenv/vendor/requirementslib/models/dependencies.py
+@@ -6,7 +6,7 @@ import copy
+ import functools
+ import os
+ 
+-import attr
++from pipenv.vendor import attr
+ import packaging.markers
+ import packaging.version
+ import pip_shims.shims
+diff --git a/pipenv/vendor/requirementslib/models/lockfile.py b/pipenv/vendor/requirementslib/models/lockfile.py
+index 3eabc504..841fc74c 100644
+--- a/pipenv/vendor/requirementslib/models/lockfile.py
++++ b/pipenv/vendor/requirementslib/models/lockfile.py
+@@ -5,7 +5,7 @@ import copy
+ import itertools
+ import os
+ 
+-import attr
++from pipenv.vendor import attr
+ import plette.lockfiles
+ import six
+ from vistir.compat import FileNotFoundError, JSONDecodeError, Path
+diff --git a/pipenv/vendor/requirementslib/models/markers.py b/pipenv/vendor/requirementslib/models/markers.py
+index 94410a20..b07e444c 100644
+--- a/pipenv/vendor/requirementslib/models/markers.py
++++ b/pipenv/vendor/requirementslib/models/markers.py
+@@ -3,7 +3,7 @@ import itertools
+ import operator
+ import re
+ 
+-import attr
++from pipenv.vendor import attr
+ import distlib.markers
+ import packaging.version
+ import six
+diff --git a/pipenv/vendor/requirementslib/models/metadata.py b/pipenv/vendor/requirementslib/models/metadata.py
+index b45b1f02..671a311b 100644
+--- a/pipenv/vendor/requirementslib/models/metadata.py
++++ b/pipenv/vendor/requirementslib/models/metadata.py
+@@ -9,7 +9,7 @@ import os
+ import zipfile
+ from collections import defaultdict
+ 
+-import attr
++from pipenv.vendor import attr
+ import dateutil.parser
+ import distlib.metadata
+ import distlib.wheel
+diff --git a/pipenv/vendor/requirementslib/models/pipfile.py b/pipenv/vendor/requirementslib/models/pipfile.py
+index 9c0aea4e..9bda73d4 100644
+--- a/pipenv/vendor/requirementslib/models/pipfile.py
++++ b/pipenv/vendor/requirementslib/models/pipfile.py
+@@ -7,7 +7,7 @@ import itertools
+ import os
+ import sys
+ 
+-import attr
++from pipenv.vendor import attr
+ import plette.models.base
+ import plette.pipfiles
+ import tomlkit
+diff --git a/pipenv/vendor/requirementslib/models/project.py b/pipenv/vendor/requirementslib/models/project.py
+index 7c1b0e81..4c73823c 100644
+--- a/pipenv/vendor/requirementslib/models/project.py
++++ b/pipenv/vendor/requirementslib/models/project.py
+@@ -6,7 +6,7 @@ import collections
+ import io
+ import os
+ 
+-import attr
++from pipenv.vendor import attr
+ import packaging.markers
+ import packaging.utils
+ import plette
+diff --git a/pipenv/vendor/requirementslib/models/requirements.py b/pipenv/vendor/requirementslib/models/requirements.py
+index a0045f45..3ce8d8f5 100644
+--- a/pipenv/vendor/requirementslib/models/requirements.py
++++ b/pipenv/vendor/requirementslib/models/requirements.py
+@@ -10,7 +10,7 @@ from contextlib import contextmanager
+ from distutils.sysconfig import get_python_lib
+ from functools import partial
+ 
+-import attr
++from pipenv.vendor import attr
+ import pip_shims
+ import six
+ import vistir
+diff --git a/pipenv/vendor/requirementslib/models/resolvers.py b/pipenv/vendor/requirementslib/models/resolvers.py
+index 43590523..4554b299 100644
+--- a/pipenv/vendor/requirementslib/models/resolvers.py
++++ b/pipenv/vendor/requirementslib/models/resolvers.py
+@@ -1,7 +1,7 @@
+ # -*- coding=utf-8 -*-
+ from contextlib import contextmanager
+ 
+-import attr
++from pipenv.vendor import attr
+ import six
+ from pip_shims.shims import Wheel
+ 
+diff --git a/pipenv/vendor/requirementslib/models/setup_info.py b/pipenv/vendor/requirementslib/models/setup_info.py
+index f0d40f29..9c97a394 100644
+--- a/pipenv/vendor/requirementslib/models/setup_info.py
++++ b/pipenv/vendor/requirementslib/models/setup_info.py
+@@ -12,7 +12,7 @@ import shutil
+ import sys
+ from functools import partial
+ 
+-import attr
++from pipenv.vendor import attr
+ import chardet
+ import packaging.specifiers
+ import packaging.utils
+diff --git a/pipenv/vendor/requirementslib/models/url.py b/pipenv/vendor/requirementslib/models/url.py
+index 3d5743e6..b0c98de8 100644
+--- a/pipenv/vendor/requirementslib/models/url.py
++++ b/pipenv/vendor/requirementslib/models/url.py
+@@ -1,7 +1,7 @@
+ # -*- coding=utf-8 -*-
+ from __future__ import absolute_import, print_function
+ 
+-import attr
++from pipenv.vendor import attr
+ import pip_shims.shims
+ from orderedmultidict import omdict
+ from six.moves.urllib.parse import quote_plus, unquote_plus
+diff --git a/pipenv/vendor/requirementslib/models/vcs.py b/pipenv/vendor/requirementslib/models/vcs.py
+index 0f96a331..273305db 100644
+--- a/pipenv/vendor/requirementslib/models/vcs.py
++++ b/pipenv/vendor/requirementslib/models/vcs.py
+@@ -5,7 +5,7 @@ import importlib
+ import os
+ import sys
+ 
+-import attr
++from pipenv.vendor import attr
+ import pip_shims
+ import six
+ 

@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from distutils.sysconfig import get_python_lib
 from functools import partial
 
-import attr
+from pipenv.vendor import attr
 import pip_shims
 import six
 import vistir
