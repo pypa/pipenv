@@ -159,11 +159,11 @@ If in doubt, follow the basic instructions below.
 3. Get credentials to co-maintain the pipenv project on PyPI.org -- **SPOF alert**
 4. Set the version number to [a pre-release identifier](https://www.python.org/dev/peps/pep-0440/#pre-release-separators)
 5. Package and upload pipenv [to PyPI](https://pypi.org/project/pipenv/#history) as a pre-release/alpha
-6. Publicize on distutils-sig, pypa-dev, and the relevant GitHub issue(s)
+6. Publicize on distutils-sig, [Discourse](https://discuss.python.org/c/packaging), and the relevant GitHub issue(s)
     a. write up diplomatic notification
 7. Recruit manual testing ([example](https://pad.sfconservancy.org/p/help-test-pipenv-2020-03-26)) for workflows we don't account for
 8. Wait a week, then update version number to a canonical release and re-release on PyPI.org
-10. Publicize on lists, GitHub issues
+10. Publicize on lists, Discourse, GitHub issues
 
 
 
