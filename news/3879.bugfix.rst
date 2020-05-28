@@ -1,1 +1,0 @@
-Pass ``--pre`` and ``--clear`` options to ``pipenv update --outdated``.

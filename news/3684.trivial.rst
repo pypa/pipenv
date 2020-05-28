@@ -1,1 +1,0 @@
-Cleaned up some conditional logic that would always evaluate ``True``.

@@ -1,1 +1,0 @@
-Fixed the wrong order of old and new hashes in message.

@@ -1,1 +1,0 @@
-Pipenv will now successfully recursively lock VCS sub-dependencies.

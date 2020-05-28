@@ -1,1 +1,0 @@
-Updated the documentation with the new ``pytest`` entrypoint.

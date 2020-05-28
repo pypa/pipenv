@@ -1,1 +1,0 @@
-Updated ``pip_shims`` to support ``--outdated`` with new pip versions.

@@ -1,2 +1,0 @@
-The ``--keep-outdated`` argument to ``pipenv install`` and ``pipenv lock`` will now drop specifier constraints when encountering editable dependencies.
-- In addition, ``--keep-outdated`` will retain specifiers that would otherwise be dropped from any entries that have not been updated.

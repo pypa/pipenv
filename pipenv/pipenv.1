@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PIPENV" "1" "May 20, 2020" "2020.4.1b2" "pipenv"
+.TH "PIPENV" "1" "May 28, 2020" "2020.5.28" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 .
@@ -396,6 +396,439 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2020.5.28 (2020\-05\-28)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+\fBpipenv install\fP and \fBpipenv sync\fP will no longer attempt to install satisfied dependencies during installation.  \fI\%#3057\fP,
+\fI\%#3506\fP
+.IP \(bu 2
+Added support for resolution of direct\-url dependencies in \fBsetup.py\fP files to respect \fBPEP\-508\fP style URL dependencies.  \fI\%#3148\fP
+.IP \(bu 2
+Added full support for resolution of all dependency types including direct URLs, zip archives, tarballs, etc.
+.INDENT 2.0
+.IP \(bu 2
+Improved error handling and formatting.
+.IP \(bu 2
+Introduced improved cross platform stream wrappers for better \fBstdout\fP and \fBstderr\fP consistency.  \fI\%#3298\fP
+.UNINDENT
+.IP \(bu 2
+For consistency with other commands and the \fB\-\-dev\fP option
+description, \fBpipenv lock \-\-requirements \-\-dev\fP now emits
+both default and development dependencies.
+The new \fB\-\-dev\-only\fP option requests the previous
+behaviour (e.g. to generate a \fBdev\-requirements.txt\fP file).  \fI\%#3316\fP
+.IP \(bu 2
+Pipenv will now successfully recursively lock VCS sub\-dependencies.  \fI\%#3328\fP
+.IP \(bu 2
+Added support for \fB\-\-verbose\fP output to \fBpipenv run\fP\&.  \fI\%#3348\fP
+.IP \(bu 2
+Pipenv will now discover and resolve the intrinsic dependencies of \fBall\fP VCS dependencies, whether they are editable or not, to prevent resolution conflicts.  \fI\%#3368\fP
+.IP \(bu 2
+Added a new environment variable, \fBPIPENV_RESOLVE_VCS\fP, to toggle dependency resolution off for non\-editable VCS, file, and URL based dependencies.  \fI\%#3577\fP
+.IP \(bu 2
+Added the ability for Windows users to enable emojis by setting \fBPIPENV_HIDE_EMOJIS=0\fP\&.  \fI\%#3595\fP
+.IP \(bu 2
+Allow overriding PIPENV_INSTALL_TIMEOUT environment variable (in seconds).  \fI\%#3652\fP
+.IP \(bu 2
+Allow overriding PIP_EXISTS_ACTION evironment variable (value is passed to pip install).
+Possible values here: \fI\%https://pip.pypa.io/en/stable/reference/pip/#exists\-action\-option\fP
+Useful when you need to \fIPIP_EXISTS_ACTION=i\fP (ignore existing packages) \- great for CI environments, where you need really fast setup.  \fI\%#3738\fP
+.IP \(bu 2
+Pipenv will no longer forcibly override \fBPIP_NO_DEPS\fP on all vcs and file dependencies as resolution happens on these in a pre\-lock step.  \fI\%#3763\fP
+.IP \(bu 2
+Improved verbose logging output during \fBpipenv lock\fP will now stream output to the console while maintaining a spinner.  \fI\%#3810\fP
+.IP \(bu 2
+Added support for automatic python installs via \fBasdf\fP and associated \fBPIPENV_DONT_USE_ASDF\fP environment variable.  \fI\%#4018\fP
+.IP \(bu 2
+Pyenv/asdf can now be used whether or not they are available on PATH. Setting PYENV_ROOT/ASDF_DIR in a Pipenv\(aqs .env allows Pipenv to install an interpreter without any shell customizations, so long as pyenv/asdf is installed.  \fI\%#4245\fP
+.IP \(bu 2
+Added \fB\-\-key\fP command line parameter for including personal PyUp.io API tokens when running \fBpipenv check\fP\&.  \fI\%#4257\fP
+.UNINDENT
+.SS Behavior Changes
+.INDENT 0.0
+.IP \(bu 2
+Make conservative checks of known exceptions when subprocess returns output, so user won\(aqt see the whole traceback \- just the error.  \fI\%#2553\fP
+.IP \(bu 2
+Do not touch Pipfile early and rely on it so that one can do \fBpipenv sync\fP without a Pipfile.  \fI\%#3386\fP
+.IP \(bu 2
+Re\-enable \fB\-\-help\fP option for \fBpipenv run\fP command.  \fI\%#3844\fP
+.IP \(bu 2
+Make sure \fBpipenv lock \-r \-\-pypi\-mirror {MIRROR_URL}\fP will respect the pypi\-mirror in requirements output.  \fI\%#4199\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Raise \fIPipenvUsageError\fP when [[source]] does not contain url field.  \fI\%#2373\fP
+.IP \(bu 2
+Fixed a bug which caused editable package resolution to sometimes fail with an unhelpful setuptools\-related error message.  \fI\%#2722\fP
+.IP \(bu 2
+Fixed an issue which caused errors due to reliance on the system utilities \fBwhich\fP and \fBwhere\fP which may not always exist on some systems.
+\- Fixed a bug which caused periodic failures in python discovery when executables named \fBpython\fP were not present on the target \fB$PATH\fP\&.  \fI\%#2783\fP
+.IP \(bu 2
+Dependency resolution now writes hashes for local and remote files to the lockfile.  \fI\%#3053\fP
+.IP \(bu 2
+Fixed a bug which prevented \fBpipenv graph\fP from correctly showing all dependencies when running from within \fBpipenv shell\fP\&.  \fI\%#3071\fP
+.IP \(bu 2
+Fixed resolution of direct\-url dependencies in \fBsetup.py\fP files to respect \fBPEP\-508\fP style URL dependencies.  \fI\%#3148\fP
+.IP \(bu 2
+Fixed a bug which caused failures in warning reporting when running pipenv inside a virtualenv under some circumstances.
+.INDENT 2.0
+.IP \(bu 2
+Fixed a bug with package discovery when running \fBpipenv clean\fP\&.  \fI\%#3298\fP
+.UNINDENT
+.IP \(bu 2
+Quote command arguments with carets (\fB^\fP) on Windows to work around unintended shell escapes.  \fI\%#3307\fP
+.IP \(bu 2
+Handle alternate names for UTF\-8 encoding.  \fI\%#3313\fP
+.IP \(bu 2
+Abort pipenv before adding the non\-exist package to Pipfile.  \fI\%#3318\fP
+.IP \(bu 2
+Don\(aqt normalize the package name user passes in.  \fI\%#3324\fP
+.IP \(bu 2
+Fix a bug where custom virtualenv can not be activated with pipenv shell  \fI\%#3339\fP
+.IP \(bu 2
+Fix a bug that \fB\-\-site\-packages\fP flag is not recognized.  \fI\%#3351\fP
+.IP \(bu 2
+Fix a bug where pipenv \-\-clear is not working  \fI\%#3353\fP
+.IP \(bu 2
+Fix unhashable type error during \fB$ pipenv install \-\-selective\-upgrade\fP  \fI\%#3384\fP
+.IP \(bu 2
+Dependencies with direct \fBPEP508\fP compliant VCS URLs specified in their \fBinstall_requires\fP will now be successfully locked during the resolution process.  \fI\%#3396\fP
+.IP \(bu 2
+Fixed a keyerror which could occur when locking VCS dependencies in some cases.  \fI\%#3404\fP
+.IP \(bu 2
+Fixed a bug that \fBValidationError\fP is thrown when some fields are missing in source section.  \fI\%#3427\fP
+.IP \(bu 2
+Updated the index names in lock file when source name in Pipfile is changed.  \fI\%#3449\fP
+.IP \(bu 2
+Fixed an issue which caused \fBpipenv install \-\-help\fP to show duplicate entries for \fB\-\-pre\fP\&.  \fI\%#3479\fP
+.IP \(bu 2
+Fix bug causing \fB[SSL: CERTIFICATE_VERIFY_FAILED]\fP when Pipfile \fB[[source]]\fP has verify_ssl=false and url with custom port.  \fI\%#3502\fP
+.IP \(bu 2
+Fix \fBsync \-\-sequential\fP ignoring \fBpip install\fP errors and logs.  \fI\%#3537\fP
+.IP \(bu 2
+Fix the issue that lock file can\(aqt be created when \fBPIPENV_PIPFILE\fP is not under working directory.  \fI\%#3584\fP
+.IP \(bu 2
+Pipenv will no longer inadvertently set \fBeditable=True\fP on all vcs dependencies.  \fI\%#3647\fP
+.IP \(bu 2
+The \fB\-\-keep\-outdated\fP argument to \fBpipenv install\fP and \fBpipenv lock\fP will now drop specifier constraints when encountering editable dependencies.
+\- In addition, \fB\-\-keep\-outdated\fP will retain specifiers that would otherwise be dropped from any entries that have not been updated.  \fI\%#3656\fP
+.IP \(bu 2
+Fixed a bug which sometimes caused pipenv to fail to respect the \fB\-\-site\-packages\fP flag when passed with \fBpipenv install\fP\&.  \fI\%#3718\fP
+.IP \(bu 2
+Normalize the package names to lowercase when comparing used and in\-Pipfile packages.  \fI\%#3745\fP
+.IP \(bu 2
+\fBpipenv update \-\-outdated\fP will now correctly handle comparisons between pre/post\-releases and normal releases.  \fI\%#3766\fP
+.IP \(bu 2
+Fixed a \fBKeyError\fP which could occur when pinning outdated VCS dependencies via \fBpipenv lock \-\-keep\-outdated\fP\&.  \fI\%#3768\fP
+.IP \(bu 2
+Resolved an issue which caused resolution to fail when encountering poorly formatted \fBpython_version\fP markers in \fBsetup.py\fP and \fBsetup.cfg\fP files.  \fI\%#3786\fP
+.IP \(bu 2
+Fix a bug that installation errors are displayed as a list.  \fI\%#3794\fP
+.IP \(bu 2
+Update \fBpythonfinder\fP to fix a problem that \fBpython.exe\fP will be mistakenly chosen for
+virtualenv creation under WSL.  \fI\%#3807\fP
+.IP \(bu 2
+Fixed several bugs which could prevent editable VCS dependencies from being installed into target environments, even when reporting successful installation.  \fI\%#3809\fP
+.IP \(bu 2
+\fBpipenv check \-\-system\fP should find the correct Python interpreter when \fBpython\fP does not exist on the system.  \fI\%#3819\fP
+.IP \(bu 2
+Resolve the symlinks when the path is absolute.  \fI\%#3842\fP
+.IP \(bu 2
+Pass \fB\-\-pre\fP and \fB\-\-clear\fP options to \fBpipenv update \-\-outdated\fP\&.  \fI\%#3879\fP
+.IP \(bu 2
+Fixed a bug which prevented resolution of direct URL dependencies which have PEP508 style direct url VCS sub\-dependencies with subdirectories.  \fI\%#3976\fP
+.IP \(bu 2
+Honor PIPENV_SPINNER environment variable  \fI\%#4045\fP
+.IP \(bu 2
+Fixed an issue with \fBpipenv check\fP failing due to an invalid API key from \fBpyup.io\fP\&.  \fI\%#4188\fP
+.IP \(bu 2
+Fixed a bug which caused versions from VCS dependencies to be included in \fBPipfile.lock\fP inadvertently.  \fI\%#4217\fP
+.IP \(bu 2
+Fixed a bug which caused pipenv to search non\-existent virtual environments for \fBpip\fP when installing using \fB\-\-system\fP\&.  \fI\%#4220\fP
+.IP \(bu 2
+\fBRequires\-Python\fP values specifying constraint versions of python starting from \fB1.x\fP will now be parsed successfully.  \fI\%#4226\fP
+.IP \(bu 2
+Fix a bug of \fBpipenv update \-\-outdated\fP that can\(aqt print output correctly.  \fI\%#4229\fP
+.IP \(bu 2
+Fixed a bug which caused pipenv to prefer source distributions over wheels from \fBPyPI\fP during the dependency resolution phase.
+Fixed an issue which prevented proper build isolation using \fBpep517\fP based builders during dependency resolution.  \fI\%#4231\fP
+.IP \(bu 2
+Don\(aqt fallback to system Python when no matching Python version is found.  \fI\%#4232\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Updated vendored dependencies:
+.INDENT 2.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fBattrs\fP: \fB18.2.0\fP => \fB19.1.0\fP
+.IP \(bu 2
+\fBcertifi\fP: \fB2018.10.15\fP => \fB2019.3.9\fP
+.IP \(bu 2
+\fBcached_property\fP: \fB1.4.3\fP => \fB1.5.1\fP
+.IP \(bu 2
+\fBcerberus\fP: \fB1.2.0\fP => \fB1.3.1\fP
+.IP \(bu 2
+\fBclick\-completion\fP: \fB0.5.0\fP => \fB0.5.1\fP
+.IP \(bu 2
+\fBcolorama\fP: \fB0.3.9\fP => \fB0.4.1\fP
+.IP \(bu 2
+\fBdistlib\fP: \fB0.2.8\fP => \fB0.2.9\fP
+.IP \(bu 2
+\fBidna\fP: \fB2.7\fP => \fB2.8\fP
+.IP \(bu 2
+\fBjinja2\fP: \fB2.10.0\fP => \fB2.10.1\fP
+.IP \(bu 2
+\fBmarkupsafe\fP: \fB1.0\fP => \fB1.1.1\fP
+.IP \(bu 2
+\fBorderedmultidict\fP: \fB(new)\fP => \fB1.0\fP
+.IP \(bu 2
+\fBpackaging\fP: \fB18.0\fP => \fB19.0\fP
+.IP \(bu 2
+\fBparse\fP: \fB1.9.0\fP => \fB1.12.0\fP
+.IP \(bu 2
+\fBpathlib2\fP: \fB2.3.2\fP => \fB2.3.3\fP
+.IP \(bu 2
+\fBpep517\fP: \fB(new)\fP => \fB0.5.0\fP
+.IP \(bu 2
+\fBpexpect\fP: \fB4.6.0\fP => \fB4.7.0\fP
+.IP \(bu 2
+\fBpipdeptree\fP: \fB0.13.0\fP => \fB0.13.2\fP
+.IP \(bu 2
+\fBpyparsing\fP: \fB2.2.2\fP => \fB2.3.1\fP
+.IP \(bu 2
+\fBpython\-dotenv\fP: \fB0.9.1\fP => \fB0.10.2\fP
+.IP \(bu 2
+\fBpythonfinder\fP: \fB1.1.10\fP => \fB1.2.1\fP
+.IP \(bu 2
+\fBpytoml\fP: \fB(new)\fP => \fB0.1.20\fP
+.IP \(bu 2
+\fBrequests\fP: \fB2.20.1\fP => \fB2.21.0\fP
+.IP \(bu 2
+\fBrequirementslib\fP: \fB1.3.3\fP => \fB1.5.0\fP
+.IP \(bu 2
+\fBscandir\fP: \fB1.9.0\fP => \fB1.10.0\fP
+.IP \(bu 2
+\fBshellingham\fP: \fB1.2.7\fP => \fB1.3.1\fP
+.IP \(bu 2
+\fBsix\fP: \fB1.11.0\fP => \fB1.12.0\fP
+.IP \(bu 2
+\fBtomlkit\fP: \fB0.5.2\fP => \fB0.5.3\fP
+.IP \(bu 2
+\fBurllib3\fP: \fB1.24\fP => \fB1.25.2\fP
+.IP \(bu 2
+\fBvistir\fP: \fB0.3.0\fP => \fB0.4.1\fP
+.IP \(bu 2
+\fByaspin\fP: \fB0.14.0\fP => \fB0.14.3\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 2.0
+.IP \(bu 2
+Removed vendored dependency \fBcursor\fP\&.  \fI\%#3298\fP
+.UNINDENT
+.IP \(bu 2
+Updated \fBpip_shims\fP to support \fB\-\-outdated\fP with new pip versions.  \fI\%#3766\fP
+.IP \(bu 2
+Update vendored dependencies and invocations
+.INDENT 2.0
+.IP \(bu 2
+Update vendored and patched dependencies
+\- Update patches on \fBpiptools\fP, \fBpip\fP, \fBpip\-shims\fP, 
+.nf
+\(ga\(ga
+.fi
+tomlkit\(ga
+.IP \(bu 2
+Fix invocations of dependencies
+\- Fix custom 
+.nf
+\(ga\(ga
+.fi
+InstallCommand\(ga instantiation
+\- Update 
+.nf
+\(ga\(ga
+.fi
+PackageFinder\(ga usage
+\- Fix 
+.nf
+\(ga\(ga
+.fi
+Bool\(ga stringify attempts from 
+.nf
+\(ga\(ga
+.fi
+tomlkit\(ga
+.UNINDENT
+.INDENT 2.0
+.TP
+.B Updated vendored dependencies:
+.INDENT 7.0
+.IP \(bu 2
+\fBattrs\fP: \fB\(ga18.2.0\fP => \fB\(ga19.1.0\fP
+.IP \(bu 2
+\fBcertifi\fP: \fB\(ga2018.10.15\fP => \fB\(ga2019.3.9\fP
+.IP \(bu 2
+\fBcached_property\fP: \fB\(ga1.4.3\fP => \fB\(ga1.5.1\fP
+.IP \(bu 2
+\fBcerberus\fP: \fB\(ga1.2.0\fP => \fB\(ga1.3.1\fP
+.IP \(bu 2
+\fBclick\fP: \fB\(ga7.0.0\fP => \fB\(ga7.1.1\fP
+.IP \(bu 2
+\fBclick\-completion\fP: \fB\(ga0.5.0\fP => \fB\(ga0.5.1\fP
+.IP \(bu 2
+\fBcolorama\fP: \fB\(ga0.3.9\fP => \fB\(ga0.4.3\fP
+.IP \(bu 2
+\fBcontextlib2\fP: \fB\(ga(new)\fP => \fB\(ga0.6.0.post1\fP
+.IP \(bu 2
+\fBdistlib\fP: \fB\(ga0.2.8\fP => \fB\(ga0.2.9\fP
+.IP \(bu 2
+\fBfuncsigs\fP: \fB\(ga(new)\fP => \fB\(ga1.0.2\fP
+.IP \(bu 2
+\fBimportlib_metadata\fP \fB\(ga1.3.0\fP => \fB\(ga1.5.1\fP
+.IP \(bu 2
+\fBimportlib\-resources\fP:  \fB\(ga(new)\fP => \fB\(ga1.4.0\fP
+.IP \(bu 2
+\fBidna\fP: \fB\(ga2.7\fP => \fB\(ga2.9\fP
+.IP \(bu 2
+\fBjinja2\fP: \fB\(ga2.10.0\fP => \fB\(ga2.11.1\fP
+.IP \(bu 2
+\fBmarkupsafe\fP: \fB\(ga1.0\fP => \fB\(ga1.1.1\fP
+.IP \(bu 2
+\fBmore\-itertools\fP: \fB\(ga(new)\fP => \fB\(ga5.0.0\fP
+.IP \(bu 2
+\fBorderedmultidict\fP: \fB\(ga(new)\fP => \fB\(ga1.0\fP
+.IP \(bu 2
+\fBpackaging\fP: \fB\(ga18.0\fP => \fB\(ga19.0\fP
+.IP \(bu 2
+\fBparse\fP: \fB\(ga1.9.0\fP => \fB\(ga1.15.0\fP
+.IP \(bu 2
+\fBpathlib2\fP: \fB\(ga2.3.2\fP => \fB\(ga2.3.3\fP
+.IP \(bu 2
+\fBpep517\fP: \fB\(ga(new)\fP => \fB\(ga0.5.0\fP
+.IP \(bu 2
+\fBpexpect\fP: \fB\(ga4.6.0\fP => \fB\(ga4.8.0\fP
+.IP \(bu 2
+\fBpip\-shims\fP: \fB\(ga0.2.0\fP => \fB\(ga0.5.1\fP
+.IP \(bu 2
+\fBpipdeptree\fP: \fB\(ga0.13.0\fP => \fB\(ga0.13.2\fP
+.IP \(bu 2
+\fBpyparsing\fP: \fB\(ga2.2.2\fP => \fB\(ga2.4.6\fP
+.IP \(bu 2
+\fBpython\-dotenv\fP: \fB\(ga0.9.1\fP => \fB\(ga0.10.2\fP
+.IP \(bu 2
+\fBpythonfinder\fP: \fB\(ga1.1.10\fP => \fB\(ga1.2.2\fP
+.IP \(bu 2
+\fBpytoml\fP: \fB\(ga(new)\fP => \fB\(ga0.1.20\fP
+.IP \(bu 2
+\fBrequests\fP: \fB\(ga2.20.1\fP => \fB\(ga2.23.0\fP
+.IP \(bu 2
+\fBrequirementslib\fP: \fB\(ga1.3.3\fP => \fB\(ga1.5.4\fP
+.IP \(bu 2
+\fBscandir\fP: \fB\(ga1.9.0\fP => \fB\(ga1.10.0\fP
+.IP \(bu 2
+\fBshellingham\fP: \fB\(ga1.2.7\fP => \fB\(ga1.3.2\fP
+.IP \(bu 2
+\fBsix\fP: \fB\(ga1.11.0\fP => \fB\(ga1.14.0\fP
+.IP \(bu 2
+\fBtomlkit\fP: \fB\(ga0.5.2\fP => \fB\(ga0.5.11\fP
+.IP \(bu 2
+\fBurllib3\fP: \fB\(ga1.24\fP => \fB\(ga1.25.8\fP
+.IP \(bu 2
+\fBvistir\fP: \fB\(ga0.3.0\fP => \fB\(ga0.5.0\fP
+.IP \(bu 2
+\fByaspin\fP: \fB\(ga0.14.0\fP => \fB\(ga0.14.3\fP
+.IP \(bu 2
+\fBzipp\fP: \fB\(ga0.6.0\fP
+.UNINDENT
+.UNINDENT
+.INDENT 2.0
+.IP \(bu 2
+Removed vendored dependency \fBcursor\fP\&.  \fI\%#4169\fP
+.UNINDENT
+.IP \(bu 2
+Add and update vendored dependencies to accommodate \fBsafety\fP vendoring:
+\- \fBsafety\fP \fB(none)\fP => \fB1.8.7\fP
+\- \fBdparse\fP \fB(none)\fP => \fB0.5.0\fP
+\- \fBpyyaml\fP \fB(none)\fP => \fB5.3.1\fP
+\- \fBurllib3\fP \fB1.25.8\fP => \fB1.25.9\fP
+\- \fBcertifi\fP \fB2019.11.28\fP => \fB2020.4.5.1\fP
+\- \fBpyparsing\fP \fB2.4.6\fP => \fB2.4.7\fP
+\- \fBresolvelib\fP \fB0.2.2\fP => \fB0.3.0\fP
+\- \fBimportlib\-metadata\fP \fB1.5.1\fP => \fB1.6.0\fP
+\- \fBpip\-shims\fP \fB0.5.1\fP => \fB0.5.2\fP
+\- \fBrequirementslib\fP \fB1.5.5\fP => \fB1.5.6\fP  \fI\%#4188\fP
+.IP \(bu 2
+Updated vendored \fBpip\fP => \fB20.0.2\fP and \fBpip\-tools\fP => \fB5.0.0\fP\&.  \fI\%#4215\fP
+.IP \(bu 2
+Updated vendored dependencies to latest versions for security and bug fixes:
+.INDENT 2.0
+.IP \(bu 2
+\fBrequirementslib\fP \fB1.5.8\fP => \fB1.5.9\fP
+.IP \(bu 2
+\fBvistir\fP \fB0.5.0\fP => \fB0.5.1\fP
+.IP \(bu 2
+\fBjinja2\fP \fB2.11.1\fP => \fB2.11.2\fP
+.IP \(bu 2
+\fBclick\fP \fB7.1.1\fP => \fB7.1.2\fP
+.IP \(bu 2
+\fBdateutil\fP \fB(none)\fP => \fB2.8.1\fP
+.IP \(bu 2
+\fBbackports.functools_lru_cache\fP \fB1.5.0\fP => \fB1.6.1\fP
+.IP \(bu 2
+\fBenum34\fP \fB1.1.6\fP => \fB1.1.10\fP
+.IP \(bu 2
+\fBtoml\fP \fB0.10.0\fP => \fB0.10.1\fP
+.IP \(bu 2
+\fBimportlib_resources\fP \fB1.4.0\fP => \fB1.5.0\fP  \fI\%#4226\fP
+.UNINDENT
+.IP \(bu 2
+Changed attrs import path in vendored dependencies to always import from \fBpipenv.vendor\fP\&.  \fI\%#4267\fP
+.UNINDENT
+.SS Improved Documentation
+.INDENT 0.0
+.IP \(bu 2
+Added documenation about variable expansion in \fBPipfile\fP entries.  \fI\%#2317\fP
+.IP \(bu 2
+Consolidate all contributing docs in the rst file  \fI\%#3120\fP
+.IP \(bu 2
+Update the out\-dated manual page.  \fI\%#3246\fP
+.IP \(bu 2
+Move CLI docs to its own page.  \fI\%#3346\fP
+.IP \(bu 2
+Replace (non\-existant) video on docs index.rst with equivalent gif.  \fI\%#3499\fP
+.IP \(bu 2
+Clarify wording in Basic Usage example on using double quotes to escape shell redirection  \fI\%#3522\fP
+.IP \(bu 2
+Ensure docs show navigation on small\-screen devices  \fI\%#3527\fP
+.IP \(bu 2
+Added a link to the TOML Spec under General Recommendations & Version Control to clarify how Pipfiles should be written.  \fI\%#3629\fP
+.IP \(bu 2
+Updated the documentation with the new \fBpytest\fP entrypoint.  \fI\%#3759\fP
+.IP \(bu 2
+Fix link to GIF in README.md demonstrating Pipenv\(aqs usage, and add descriptive alt text.  \fI\%#3911\fP
+.IP \(bu 2
+Added a line describing potential issues in fancy extension.  \fI\%#3912\fP
+.IP \(bu 2
+Documental description of how Pipfile works and association with Pipenv.  \fI\%#3913\fP
+.IP \(bu 2
+Clarify the proper value of \fBpython_version\fP and \fBpython_full_version\fP\&.  \fI\%#3914\fP
+.IP \(bu 2
+Write description for \-\-deploy extension and few extensions differences.  \fI\%#3915\fP
+.IP \(bu 2
+More documentation for \fB\&.env\fP files  \fI\%#4100\fP
+.IP \(bu 2
+Updated documentation to point to working links.  \fI\%#4137\fP
+.IP \(bu 2
+Replace docs.pipenv.org with pipenv.pypa.io  \fI\%#4167\fP
+.IP \(bu 2
+Added functionality to check spelling in documentation and cleaned up existing typographical issues.  \fI\%#4209\fP
+.UNINDENT
 .SS 2018.11.26 (2018\-11\-26)
 .SS Bug Fixes
 .INDENT 0.0

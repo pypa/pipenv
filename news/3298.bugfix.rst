@@ -1,3 +1,0 @@
-Fixed a bug which caused failures in warning reporting when running pipenv inside a virtualenv under some circumstances.
-
-- Fixed a bug with package discovery when running ``pipenv clean``.

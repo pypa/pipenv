@@ -1,1 +1,0 @@
-Resolved an issue which caused resolution to fail when encountering poorly formatted ``python_version`` markers in ``setup.py`` and ``setup.cfg`` files.

@@ -1,1 +1,0 @@
-Changed attrs import path in vendored dependencies to always import from ``pipenv.vendor``.

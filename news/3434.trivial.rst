@@ -1,1 +1,0 @@
-Improve the error message when one tries to initialize a Pipenv project under ``/``.

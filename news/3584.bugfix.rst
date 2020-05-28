@@ -1,1 +1,0 @@
-Fix the issue that lock file can't be created when ``PIPENV_PIPFILE`` is not under working directory.

@@ -1,1 +1,0 @@
-Remove a misleading code comment from Specifying Versions documentation.
