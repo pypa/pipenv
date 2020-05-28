@@ -166,6 +166,7 @@ def load_dot_env():
         dotenv.load_dotenv(dotenv_file, override=True)
         six.moves.reload_module(environments)
 
+
 def add_to_path(p):
     """Adds a given path to the PATH."""
     if p not in os.environ["PATH"]:
