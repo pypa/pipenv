@@ -685,8 +685,8 @@ class Project(object):
         from .vendor.pip_shims.shims import (
             ConfigOptionParser, make_option_group, index_group
         )
-
-        config_parser = ConfigOptionParser(name=self.name)
+        # Inherit the pip's index configuration of install command.
+        config_parser = ConfigOptionParser(name="install")
         config_parser.add_option_group(make_option_group(index_group, config_parser))
         install = config_parser.option_groups[0]
         indexes = (

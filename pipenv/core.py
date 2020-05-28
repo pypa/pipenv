@@ -568,14 +568,6 @@ def ensure_project(
         system = True
     if not project.pipfile_exists and deploy:
         raise exceptions.PipfileNotFound
-    # Fail if working under /
-    if not project.name:
-        click.echo(
-            "{0}: Pipenv is not intended to work under the root directory, "
-            "please choose another path.".format(crayons.red("ERROR")),
-            err=True
-        )
-        sys.exit(1)
     # Skip virtualenv creation when --system was used.
     if not system:
         ensure_virtualenv(
