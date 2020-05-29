@@ -126,9 +126,6 @@ def do_clear():
 
     try:
         vistir.path.rmtree(PIPENV_CACHE_DIR, onerror=vistir.path.handle_remove_readonly)
-        vistir.path.rmtree(
-            locations.USER_CACHE_DIR, onerror=vistir.path.handle_remove_readonly
-        )
     except OSError as e:
         # Ignore FileNotFoundError. This is needed for Python 2.7.
         import errno
@@ -136,6 +133,8 @@ def do_clear():
         if e.errno == errno.ENOENT:
             pass
         raise
+    # Other processes may be writing into this directory simultaneously.
+    vistir.path.rmtree(locations.USER_CACHE_DIR, ignore_errors=True)
 
 
 def load_dot_env():
