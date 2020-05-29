@@ -988,8 +988,10 @@ def do_create_virtualenv(python=None, site_packages=None, pypi_mirror=None):
         f.write(vistir.misc.fs_str(project.project_directory))
     from .environment import Environment
     sources = project.pipfile_sources
+    # project.get_location_for_virtualenv is only for if we are creating a new virtualenv
+    # whereas virtualenv_location is for the current path to the runtime
     project._environment = Environment(
-        prefix=project.get_location_for_virtualenv(),
+        prefix=project.virtualenv_location,
         is_venv=True,
         sources=sources,
         pipfile=project.parsed_pipfile,
