@@ -682,18 +682,10 @@ class Project(object):
 
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
-        from .vendor.pip_shims.shims import (
-            ConfigOptionParser, make_option_group, index_group
-        )
-
-        config_parser = ConfigOptionParser(name=self.name)
-        config_parser.add_option_group(make_option_group(index_group, config_parser))
-        install = config_parser.option_groups[0]
-        indexes = (
-            " ".join(install.get_option("--extra-index-url").default)
-            .lstrip("\n")
-            .split("\n")
-        )
+        from .vendor.pip_shims.shims import InstallCommand
+        # Inherit the pip's index configuration of install command.
+        command = InstallCommand()
+        indexes = command.cmd_opts.get_option("--extra-index-url").default
         sources = [DEFAULT_SOURCE]
         for i, index in enumerate(indexes):
             if not index:
