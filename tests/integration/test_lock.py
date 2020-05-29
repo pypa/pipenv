@@ -617,6 +617,7 @@ def test_lockfile_with_empty_dict(PipenvInstance):
 @pytest.mark.lock
 @pytest.mark.install
 @pytest.mark.skip_lock
+@pytest.mark.needs_internet
 def test_lock_with_incomplete_source(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
@@ -693,6 +694,7 @@ def test_vcs_lock_respects_top_level_pins(PipenvInstance):
 
 
 @pytest.mark.lock
+@pytest.mark.needs_internet
 def test_lock_after_update_source_name(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         contents = """

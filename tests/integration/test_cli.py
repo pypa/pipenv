@@ -158,6 +158,7 @@ def test_pipenv_check(PipenvInstance):
 
 
 @pytest.mark.cli
+@pytest.mark.needs_internet
 def test_pipenv_clean_pip_no_warnings(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with open('setup.py', 'w') as f:
@@ -172,6 +173,7 @@ def test_pipenv_clean_pip_no_warnings(PipenvInstance):
 
 
 @pytest.mark.cli
+@pytest.mark.needs_internet
 def test_pipenv_clean_pip_warnings(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with open('setup.py', 'w') as f:

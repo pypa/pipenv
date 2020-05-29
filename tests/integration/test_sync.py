@@ -24,6 +24,7 @@ def test_sync_error_without_lockfile(PipenvInstance):
 
 @pytest.mark.sync
 @pytest.mark.lock
+@pytest.mark.needs_internet
 def test_mirror_lock_sync(PipenvInstance):
     with temp_environ(), PipenvInstance(chdir=True) as p:
         mirror_url = os.environ.pop('PIPENV_TEST_INDEX', "https://pypi.kennethreitz.org/simple")

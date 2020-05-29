@@ -37,6 +37,7 @@ pytz = "*"
 
 @pytest.mark.project
 @pytest.mark.sources
+@pytest.mark.needs_internet
 @pytest.mark.parametrize('lock_first', [True, False])
 def test_get_source(PipenvInstance, lock_first):
     with PipenvInstance(chdir=True) as p:
@@ -121,6 +122,7 @@ def test_maintain_file_line_endings(PipenvInstance, newlines):
 
 @pytest.mark.project
 @pytest.mark.sources
+@pytest.mark.needs_internet
 def test_many_indexes(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
@@ -171,6 +173,7 @@ def test_include_editable_packages(PipenvInstance, testsroot, pathlib_tmpdir):
 
 @pytest.mark.project
 @pytest.mark.virtualenv
+@pytest.mark.needs_internet
 def test_run_in_virtualenv_with_global_context(PipenvInstance, virtualenv):
     with PipenvInstance(chdir=True, venv_root=virtualenv.as_posix(), ignore_virtualenvs=False, venv_in_project=False) as p:
         c = delegator_run(
@@ -209,6 +212,7 @@ def test_run_in_virtualenv_with_global_context(PipenvInstance, virtualenv):
 
 @pytest.mark.project
 @pytest.mark.virtualenv
+@pytest.mark.needs_internet
 def test_run_in_virtualenv(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv('run pip freeze')

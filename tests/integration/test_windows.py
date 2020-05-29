@@ -71,6 +71,7 @@ def test_local_path_windows_forward_slash(PipenvInstance):
 
 
 @pytest.mark.cli
+@pytest.mark.needs_internet
 def test_pipenv_clean_windows(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv('install requests')

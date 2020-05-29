@@ -1,0 +1,1 @@
+Add ``needs_internet`` marker to tests missing it.
