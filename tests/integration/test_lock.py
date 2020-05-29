@@ -748,3 +748,16 @@ def test_lock_nested_vcs_direct_url(PipenvInstance):
         assert "git" in p.lockfile["default"]["sibling-package"]
         assert "subdirectory" in p.lockfile["default"]["sibling-package"]
         assert "version" not in p.lockfile["default"]["sibling-package"]
+
+
+@pytest.mark.lock
+@pytest.mark.install
+def test_lock_package_with_wildcard_version(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv("install 'six==1.11.*'")
+        assert c.ok
+        assert "six" in p.pipfile["packages"]
+        assert p.pipfile["packages"]["six"] == "==1.11.*"
+        assert "six" in p.lockfile["default"]
+        assert "version" in p.lockfile["default"]["six"]
+        assert p.lockfile["default"]["six"]["version"] == "==1.11.0"
