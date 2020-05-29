@@ -330,11 +330,11 @@ class Project(object):
 
     def get_environment(self, allow_global=False):
         # type: (bool) -> Environment
-        if allow_global:
+        is_venv = is_in_virtualenv()
+        if allow_global and not is_venv:
             prefix = sys.prefix
         else:
             prefix = self.virtualenv_location
-        is_venv = is_in_virtualenv()
         sources = self.sources if self.sources else [DEFAULT_SOURCE]
         environment = Environment(
             prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
