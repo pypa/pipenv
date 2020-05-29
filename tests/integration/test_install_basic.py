@@ -493,3 +493,12 @@ extras = ["socks"]
         assert 'six = {version = "*"}' in contents
         assert 'requests = {version = "*"' in contents
         assert 'flask = "*"' in contents
+
+
+@pytest.mark.basic
+@pytest.mark.install
+def test_dont_write_wildcard_version_to_lockfile(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv("install 'flask==1.1.*'")
+        assert c.return_code == 0
+        assert p.lockfile["default"]["flask"]["version"] != "1.1.*"

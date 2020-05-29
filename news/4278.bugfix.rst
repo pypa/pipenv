@@ -1,0 +1,1 @@
+Fix a bug that wildcard version will be unexpectedly saved in lock file.

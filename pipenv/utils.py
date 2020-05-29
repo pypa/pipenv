@@ -1191,7 +1191,10 @@ def get_locked_dep(dep, pipfile_section, prefer_pipfile=True):
     lockfile_name, lockfile_dict = lockfile_entry.copy().popitem()
     lockfile_version = lockfile_dict.get("version", "")
     # Keep pins from the lockfile
-    if prefer_pipfile and lockfile_version != version and version.startswith("=="):
+    if (
+        prefer_pipfile and lockfile_version != version
+        and version.startswith("==") and "*" not in version
+    ):
         lockfile_dict["version"] = version
     lockfile_entry[lockfile_name] = lockfile_dict
     return lockfile_entry
