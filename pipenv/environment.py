@@ -25,6 +25,9 @@ from .vendor import vistir
 from .utils import normalize_path, make_posix
 
 
+if False:
+    from typing import Optional
+
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
 # TODO: Unittests for this class
 
@@ -469,7 +472,7 @@ class Environment(object):
         ), None)
         if pip is not None:
             return parse_version(pip.version)
-        return parse_version("19.3")
+        return parse_version("20.2")
 
     def expand_egg_links(self):
         """

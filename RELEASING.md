@@ -31,6 +31,15 @@ You can begin by reviewing vendored dependencies which can be found in `pipenv/v
 Next you can consult `pipenv/patched/patched.txt` which enumerates the patched dependencies. Follow the same process, but be aware that you will need to rewrite patches for each dependency once you update (most likely) as they do tend to change somewhat substantially.
 
 
+### Update Safety
+
+Pipenv also includes a vendored copy of `safety` for checking for vulnerabilities against the `pyup.io` database. In order to update the `safety` package, run the following:
+
+```console
+$ inv vendoring.update-safety
+```
+
+
 ### Updating patches
 
 For larger libraries you can keep local clones of them and simply generate full patch sets in which you replace the updated path in pipenv when you are done making changes.  Here is an example of a script used from inside a local clone of `pip` to generate a patch and copy it to pipenv's local patches directory.
@@ -74,12 +83,18 @@ $ pipenv run inv vendoring.update
 
 This will automatically remove the `./pipenv/vendor/` and `./pipenv/patched/` directories and re-download and patch the specified dependencies. It will also attempt to download any relevant licenses. Once this is completed, run `git status` and inspect the output -- look through the `git diff` for anything that may cause breakages. If any licenses have been deleted, you will need to determine why they were not replaced by the license download tooling.
 
+## Review Vendored Licenses
+
+
 Make sure to read through any modified license files for changes -- note that we cannot redistribute code that is licensed under a [copyleft](https://en.wikipedia.org/wiki/Copyleft) license, such as the [GPL](https://en.wikipedia.org/wiki/GPL). Similarly, all vendored code **must** be licensed or it cannot be redistributed. If vendored libraries have become unlicensed or are no longer usable, suitable replacements will have to be found and potentially patched into the vendored dependencies. This may be a good time to consider simply including the dependency as an install requirement.
+
+### TODO
+Look into using a tool like https://fossa.com/ to help with this.
 
 
 ## Update Pipfile.lock
 
-Now we will need to update the lockfile. You will need to run the following:
+Now we will need to update the lockfile. This is required to ensure tests run against the latest versions of libraries. You will need to run the following:
 
 ```bash
 # use the latest python here
@@ -144,10 +159,14 @@ If in doubt, follow the basic instructions below.
 3. Get credentials to co-maintain the pipenv project on PyPI.org -- **SPOF alert**
 4. Set the version number to [a pre-release identifier](https://www.python.org/dev/peps/pep-0440/#pre-release-separators)
 5. Package and upload pipenv [to PyPI](https://pypi.org/project/pipenv/#history) as a pre-release/alpha
-6. Publicize on distutils-sig, pypa-dev, and the relevant GitHub issue(s)
-7. Wait a week, then update version number to a canonical release and re-release on PyPI.org
+6. Publicize on distutils-sig, [Discourse](https://discuss.python.org/c/packaging), and the relevant GitHub issue(s)
+    a. write up diplomatic notification
+7. Recruit manual testing ([example](https://pad.sfconservancy.org/p/help-test-pipenv-2020-03-26)) for workflows we don't account for
+8. Wait a week, then update version number to a canonical release and re-release on PyPI.org
+10. Publicize on lists, Discourse, GitHub issues
+
 
 
 ## Looking ahead
 
-Most of the pipenv related ecosystem libraries are using [github actions](https://github.com/sarugaku/vistir/blob/master/.github/workflows/pypi_upload.yml) to automate releases when tags are pushed. Most likely we will look to move in this direction and simplify the process.
+Most of the pipenv related ecosystem libraries are using [GitHub actions](https://github.com/sarugaku/vistir/blob/master/.github/workflows/pypi_upload.yml) to automate releases when tags are pushed. Most likely we will look to move in this direction and simplify the process.

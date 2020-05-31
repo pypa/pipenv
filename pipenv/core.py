@@ -126,8 +126,11 @@ def do_clear():
 
     try:
         vistir.path.rmtree(PIPENV_CACHE_DIR, onerror=vistir.path.handle_remove_readonly)
+        # Other processes may be writing into this directory simultaneously.
         vistir.path.rmtree(
-            locations.USER_CACHE_DIR, onerror=vistir.path.handle_remove_readonly
+            locations.USER_CACHE_DIR,
+            ignore_errors=environments.PIPENV_IS_CI,
+            onerror=vistir.path.handle_remove_readonly
         )
     except OSError as e:
         # Ignore FileNotFoundError. This is needed for Python 2.7.
@@ -568,14 +571,6 @@ def ensure_project(
         system = True
     if not project.pipfile_exists and deploy:
         raise exceptions.PipfileNotFound
-    # Fail if working under /
-    if not project.name:
-        click.echo(
-            "{0}: Pipenv is not intended to work under the root directory, "
-            "please choose another path.".format(crayons.red("ERROR")),
-            err=True
-        )
-        sys.exit(1)
     # Skip virtualenv creation when --system was used.
     if not system:
         ensure_virtualenv(
@@ -993,8 +988,10 @@ def do_create_virtualenv(python=None, site_packages=None, pypi_mirror=None):
         f.write(vistir.misc.fs_str(project.project_directory))
     from .environment import Environment
     sources = project.pipfile_sources
+    # project.get_location_for_virtualenv is only for if we are creating a new virtualenv
+    # whereas virtualenv_location is for the current path to the runtime
     project._environment = Environment(
-        prefix=project.get_location_for_virtualenv(),
+        prefix=project.virtualenv_location,
         is_venv=True,
         sources=sources,
         pipfile=project.parsed_pipfile,

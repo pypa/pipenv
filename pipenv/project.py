@@ -330,11 +330,11 @@ class Project(object):
 
     def get_environment(self, allow_global=False):
         # type: (bool) -> Environment
-        if allow_global:
+        is_venv = is_in_virtualenv()
+        if allow_global and not is_venv:
             prefix = sys.prefix
         else:
             prefix = self.virtualenv_location
-        is_venv = is_in_virtualenv()
         sources = self.sources if self.sources else [DEFAULT_SOURCE]
         environment = Environment(
             prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
@@ -682,18 +682,10 @@ class Project(object):
 
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
-        from .vendor.pip_shims.shims import (
-            ConfigOptionParser, make_option_group, index_group
-        )
-
-        config_parser = ConfigOptionParser(name=self.name)
-        config_parser.add_option_group(make_option_group(index_group, config_parser))
-        install = config_parser.option_groups[0]
-        indexes = (
-            " ".join(install.get_option("--extra-index-url").default)
-            .lstrip("\n")
-            .split("\n")
-        )
+        from .vendor.pip_shims.shims import InstallCommand
+        # Inherit the pip's index configuration of install command.
+        command = InstallCommand()
+        indexes = command.cmd_opts.get_option("--extra-index-url").default
         sources = [DEFAULT_SOURCE]
         for i, index in enumerate(indexes):
             if not index:
