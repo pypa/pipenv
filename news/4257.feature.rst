@@ -1,1 +1,0 @@
-Added ``--key`` command line parameter for including personal PyUp.io API tokens when running ``pipenv check``.

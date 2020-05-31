@@ -1,1 +1,0 @@
-Added a link to the TOML Spec under General Recommendations & Version Control to clarify how Pipfiles should be written.

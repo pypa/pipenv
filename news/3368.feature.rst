@@ -1,1 +1,0 @@
-Pipenv will now discover and resolve the intrinsic dependencies of **all** VCS dependencies, whether they are editable or not, to prevent resolution conflicts.

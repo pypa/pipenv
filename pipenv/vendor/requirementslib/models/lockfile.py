@@ -5,7 +5,7 @@ import copy
 import itertools
 import os
 
-import attr
+from pipenv.vendor import attr
 import plette.lockfiles
 import six
 from vistir.compat import FileNotFoundError, JSONDecodeError, Path
@@ -264,8 +264,6 @@ class Lockfile(object):
         """Produces a generator which generates requirements from the desired section.
 
         :param bool dev: Indicates whether to use dev requirements, defaults to False
-        :param bool only: When dev is True, indicates whether to use *only* dev
-                          requirements, defaults to False
         :return: Requirements from the relevant the relevant pipfile
         :rtype: :class:`~requirementslib.models.requirements.Requirement`
         """

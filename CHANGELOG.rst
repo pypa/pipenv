@@ -1,3 +1,236 @@
+2020.5.28 (2020-05-28)
+======================
+
+Features & Improvements
+-----------------------
+
+- ``pipenv install`` and ``pipenv sync`` will no longer attempt to install satisfied dependencies during installation.  `#3057 <https://github.com/pypa/pipenv/issues/3057>`_,
+  `#3506 <https://github.com/pypa/pipenv/issues/3506>`_
+- Added support for resolution of direct-url dependencies in ``setup.py`` files to respect ``PEP-508`` style URL dependencies.  `#3148 <https://github.com/pypa/pipenv/issues/3148>`_
+- Added full support for resolution of all dependency types including direct URLs, zip archives, tarballs, etc.
+
+  - Improved error handling and formatting.
+
+  - Introduced improved cross platform stream wrappers for better ``stdout`` and ``stderr`` consistency.  `#3298 <https://github.com/pypa/pipenv/issues/3298>`_
+- For consistency with other commands and the ``--dev`` option
+  description, ``pipenv lock --requirements --dev`` now emits
+  both default and development dependencies.
+  The new ``--dev-only`` option requests the previous
+  behaviour (e.g. to generate a ``dev-requirements.txt`` file).  `#3316 <https://github.com/pypa/pipenv/issues/3316>`_
+- Pipenv will now successfully recursively lock VCS sub-dependencies.  `#3328 <https://github.com/pypa/pipenv/issues/3328>`_
+- Added support for ``--verbose`` output to ``pipenv run``.  `#3348 <https://github.com/pypa/pipenv/issues/3348>`_
+- Pipenv will now discover and resolve the intrinsic dependencies of **all** VCS dependencies, whether they are editable or not, to prevent resolution conflicts.  `#3368 <https://github.com/pypa/pipenv/issues/3368>`_
+- Added a new environment variable, ``PIPENV_RESOLVE_VCS``, to toggle dependency resolution off for non-editable VCS, file, and URL based dependencies.  `#3577 <https://github.com/pypa/pipenv/issues/3577>`_
+- Added the ability for Windows users to enable emojis by setting ``PIPENV_HIDE_EMOJIS=0``.  `#3595 <https://github.com/pypa/pipenv/issues/3595>`_
+- Allow overriding PIPENV_INSTALL_TIMEOUT environment variable (in seconds).  `#3652 <https://github.com/pypa/pipenv/issues/3652>`_
+- Allow overriding PIP_EXISTS_ACTION evironment variable (value is passed to pip install). 
+  Possible values here: https://pip.pypa.io/en/stable/reference/pip/#exists-action-option
+  Useful when you need to `PIP_EXISTS_ACTION=i` (ignore existing packages) - great for CI environments, where you need really fast setup.  `#3738 <https://github.com/pypa/pipenv/issues/3738>`_
+- Pipenv will no longer forcibly override ``PIP_NO_DEPS`` on all vcs and file dependencies as resolution happens on these in a pre-lock step.  `#3763 <https://github.com/pypa/pipenv/issues/3763>`_
+- Improved verbose logging output during ``pipenv lock`` will now stream output to the console while maintaining a spinner.  `#3810 <https://github.com/pypa/pipenv/issues/3810>`_
+- Added support for automatic python installs via ``asdf`` and associated ``PIPENV_DONT_USE_ASDF`` environment variable.  `#4018 <https://github.com/pypa/pipenv/issues/4018>`_
+- Pyenv/asdf can now be used whether or not they are available on PATH. Setting PYENV_ROOT/ASDF_DIR in a Pipenv's .env allows Pipenv to install an interpreter without any shell customizations, so long as pyenv/asdf is installed.  `#4245 <https://github.com/pypa/pipenv/issues/4245>`_
+- Added ``--key`` command line parameter for including personal PyUp.io API tokens when running ``pipenv check``.  `#4257 <https://github.com/pypa/pipenv/issues/4257>`_
+
+Behavior Changes
+----------------
+
+- Make conservative checks of known exceptions when subprocess returns output, so user won't see the whole traceback - just the error.  `#2553 <https://github.com/pypa/pipenv/issues/2553>`_
+- Do not touch Pipfile early and rely on it so that one can do ``pipenv sync`` without a Pipfile.  `#3386 <https://github.com/pypa/pipenv/issues/3386>`_
+- Re-enable ``--help`` option for ``pipenv run`` command.  `#3844 <https://github.com/pypa/pipenv/issues/3844>`_
+- Make sure ``pipenv lock -r --pypi-mirror {MIRROR_URL}`` will respect the pypi-mirror in requirements output.  `#4199 <https://github.com/pypa/pipenv/issues/4199>`_
+
+Bug Fixes
+---------
+
+- Raise `PipenvUsageError` when [[source]] does not contain url field.  `#2373 <https://github.com/pypa/pipenv/issues/2373>`_
+- Fixed a bug which caused editable package resolution to sometimes fail with an unhelpful setuptools-related error message.  `#2722 <https://github.com/pypa/pipenv/issues/2722>`_
+- Fixed an issue which caused errors due to reliance on the system utilities ``which`` and ``where`` which may not always exist on some systems.
+  - Fixed a bug which caused periodic failures in python discovery when executables named ``python`` were not present on the target ``$PATH``.  `#2783 <https://github.com/pypa/pipenv/issues/2783>`_
+- Dependency resolution now writes hashes for local and remote files to the lockfile.  `#3053 <https://github.com/pypa/pipenv/issues/3053>`_
+- Fixed a bug which prevented ``pipenv graph`` from correctly showing all dependencies when running from within ``pipenv shell``.  `#3071 <https://github.com/pypa/pipenv/issues/3071>`_
+- Fixed resolution of direct-url dependencies in ``setup.py`` files to respect ``PEP-508`` style URL dependencies.  `#3148 <https://github.com/pypa/pipenv/issues/3148>`_
+- Fixed a bug which caused failures in warning reporting when running pipenv inside a virtualenv under some circumstances.
+
+  - Fixed a bug with package discovery when running ``pipenv clean``.  `#3298 <https://github.com/pypa/pipenv/issues/3298>`_
+- Quote command arguments with carets (``^``) on Windows to work around unintended shell escapes.  `#3307 <https://github.com/pypa/pipenv/issues/3307>`_
+- Handle alternate names for UTF-8 encoding.  `#3313 <https://github.com/pypa/pipenv/issues/3313>`_
+- Abort pipenv before adding the non-exist package to Pipfile.  `#3318 <https://github.com/pypa/pipenv/issues/3318>`_
+- Don't normalize the package name user passes in.  `#3324 <https://github.com/pypa/pipenv/issues/3324>`_
+- Fix a bug where custom virtualenv can not be activated with pipenv shell  `#3339 <https://github.com/pypa/pipenv/issues/3339>`_
+- Fix a bug that ``--site-packages`` flag is not recognized.  `#3351 <https://github.com/pypa/pipenv/issues/3351>`_
+- Fix a bug where pipenv --clear is not working  `#3353 <https://github.com/pypa/pipenv/issues/3353>`_
+- Fix unhashable type error during ``$ pipenv install --selective-upgrade``  `#3384 <https://github.com/pypa/pipenv/issues/3384>`_
+- Dependencies with direct ``PEP508`` compliant VCS URLs specified in their ``install_requires`` will now be successfully locked during the resolution process.  `#3396 <https://github.com/pypa/pipenv/issues/3396>`_
+- Fixed a keyerror which could occur when locking VCS dependencies in some cases.  `#3404 <https://github.com/pypa/pipenv/issues/3404>`_
+- Fixed a bug that ``ValidationError`` is thrown when some fields are missing in source section.  `#3427 <https://github.com/pypa/pipenv/issues/3427>`_
+- Updated the index names in lock file when source name in Pipfile is changed.  `#3449 <https://github.com/pypa/pipenv/issues/3449>`_
+- Fixed an issue which caused ``pipenv install --help`` to show duplicate entries for ``--pre``.  `#3479 <https://github.com/pypa/pipenv/issues/3479>`_
+- Fix bug causing ``[SSL: CERTIFICATE_VERIFY_FAILED]`` when Pipfile ``[[source]]`` has verify_ssl=false and url with custom port.  `#3502 <https://github.com/pypa/pipenv/issues/3502>`_
+- Fix ``sync --sequential`` ignoring ``pip install`` errors and logs.  `#3537 <https://github.com/pypa/pipenv/issues/3537>`_
+- Fix the issue that lock file can't be created when ``PIPENV_PIPFILE`` is not under working directory.  `#3584 <https://github.com/pypa/pipenv/issues/3584>`_
+- Pipenv will no longer inadvertently set ``editable=True`` on all vcs dependencies.  `#3647 <https://github.com/pypa/pipenv/issues/3647>`_
+- The ``--keep-outdated`` argument to ``pipenv install`` and ``pipenv lock`` will now drop specifier constraints when encountering editable dependencies.
+  - In addition, ``--keep-outdated`` will retain specifiers that would otherwise be dropped from any entries that have not been updated.  `#3656 <https://github.com/pypa/pipenv/issues/3656>`_
+- Fixed a bug which sometimes caused pipenv to fail to respect the ``--site-packages`` flag when passed with ``pipenv install``.  `#3718 <https://github.com/pypa/pipenv/issues/3718>`_
+- Normalize the package names to lowercase when comparing used and in-Pipfile packages.  `#3745 <https://github.com/pypa/pipenv/issues/3745>`_
+- ``pipenv update --outdated`` will now correctly handle comparisons between pre/post-releases and normal releases.  `#3766 <https://github.com/pypa/pipenv/issues/3766>`_
+- Fixed a ``KeyError`` which could occur when pinning outdated VCS dependencies via ``pipenv lock --keep-outdated``.  `#3768 <https://github.com/pypa/pipenv/issues/3768>`_
+- Resolved an issue which caused resolution to fail when encountering poorly formatted ``python_version`` markers in ``setup.py`` and ``setup.cfg`` files.  `#3786 <https://github.com/pypa/pipenv/issues/3786>`_
+- Fix a bug that installation errors are displayed as a list.  `#3794 <https://github.com/pypa/pipenv/issues/3794>`_
+- Update ``pythonfinder`` to fix a problem that ``python.exe`` will be mistakenly chosen for
+  virtualenv creation under WSL.  `#3807 <https://github.com/pypa/pipenv/issues/3807>`_
+- Fixed several bugs which could prevent editable VCS dependencies from being installed into target environments, even when reporting successful installation.  `#3809 <https://github.com/pypa/pipenv/issues/3809>`_
+- ``pipenv check --system`` should find the correct Python interpreter when ``python`` does not exist on the system.  `#3819 <https://github.com/pypa/pipenv/issues/3819>`_
+- Resolve the symlinks when the path is absolute.  `#3842 <https://github.com/pypa/pipenv/issues/3842>`_
+- Pass ``--pre`` and ``--clear`` options to ``pipenv update --outdated``.  `#3879 <https://github.com/pypa/pipenv/issues/3879>`_
+- Fixed a bug which prevented resolution of direct URL dependencies which have PEP508 style direct url VCS sub-dependencies with subdirectories.  `#3976 <https://github.com/pypa/pipenv/issues/3976>`_
+- Honor PIPENV_SPINNER environment variable  `#4045 <https://github.com/pypa/pipenv/issues/4045>`_
+- Fixed an issue with ``pipenv check`` failing due to an invalid API key from ``pyup.io``.  `#4188 <https://github.com/pypa/pipenv/issues/4188>`_
+- Fixed a bug which caused versions from VCS dependencies to be included in ``Pipfile.lock`` inadvertently.  `#4217 <https://github.com/pypa/pipenv/issues/4217>`_
+- Fixed a bug which caused pipenv to search non-existent virtual environments for ``pip`` when installing using ``--system``.  `#4220 <https://github.com/pypa/pipenv/issues/4220>`_
+- ``Requires-Python`` values specifying constraint versions of python starting from ``1.x`` will now be parsed successfully.  `#4226 <https://github.com/pypa/pipenv/issues/4226>`_
+- Fix a bug of ``pipenv update --outdated`` that can't print output correctly.  `#4229 <https://github.com/pypa/pipenv/issues/4229>`_
+- Fixed a bug which caused pipenv to prefer source distributions over wheels from ``PyPI`` during the dependency resolution phase.
+  Fixed an issue which prevented proper build isolation using ``pep517`` based builders during dependency resolution.  `#4231 <https://github.com/pypa/pipenv/issues/4231>`_
+- Don't fallback to system Python when no matching Python version is found.  `#4232 <https://github.com/pypa/pipenv/issues/4232>`_
+
+Vendored Libraries
+------------------
+
+- Updated vendored dependencies:
+
+    - **attrs**: ``18.2.0`` => ``19.1.0``
+    - **certifi**: ``2018.10.15`` => ``2019.3.9``
+    - **cached_property**: ``1.4.3`` => ``1.5.1``
+    - **cerberus**: ``1.2.0`` => ``1.3.1``
+    - **click-completion**: ``0.5.0`` => ``0.5.1``
+    - **colorama**: ``0.3.9`` => ``0.4.1``
+    - **distlib**: ``0.2.8`` => ``0.2.9``
+    - **idna**: ``2.7`` => ``2.8``
+    - **jinja2**: ``2.10.0`` => ``2.10.1``
+    - **markupsafe**: ``1.0`` => ``1.1.1``
+    - **orderedmultidict**: ``(new)`` => ``1.0``
+    - **packaging**: ``18.0`` => ``19.0``
+    - **parse**: ``1.9.0`` => ``1.12.0``
+    - **pathlib2**: ``2.3.2`` => ``2.3.3``
+    - **pep517**: ``(new)`` => ``0.5.0``
+    - **pexpect**: ``4.6.0`` => ``4.7.0``
+    - **pipdeptree**: ``0.13.0`` => ``0.13.2``
+    - **pyparsing**: ``2.2.2`` => ``2.3.1``
+    - **python-dotenv**: ``0.9.1`` => ``0.10.2``
+    - **pythonfinder**: ``1.1.10`` => ``1.2.1``
+    - **pytoml**: ``(new)`` => ``0.1.20``
+    - **requests**: ``2.20.1`` => ``2.21.0``
+    - **requirementslib**: ``1.3.3`` => ``1.5.0``
+    - **scandir**: ``1.9.0`` => ``1.10.0``
+    - **shellingham**: ``1.2.7`` => ``1.3.1``
+    - **six**: ``1.11.0`` => ``1.12.0``
+    - **tomlkit**: ``0.5.2`` => ``0.5.3``
+    - **urllib3**: ``1.24`` => ``1.25.2``
+    - **vistir**: ``0.3.0`` => ``0.4.1``
+    - **yaspin**: ``0.14.0`` => ``0.14.3``
+
+  - Removed vendored dependency **cursor**.  `#3298 <https://github.com/pypa/pipenv/issues/3298>`_
+- Updated ``pip_shims`` to support ``--outdated`` with new pip versions.  `#3766 <https://github.com/pypa/pipenv/issues/3766>`_
+- Update vendored dependencies and invocations
+
+  - Update vendored and patched dependencies
+    - Update patches on ``piptools``, ``pip``, ``pip-shims``, ``tomlkit`
+  - Fix invocations of dependencies
+    - Fix custom ``InstallCommand` instantiation
+    - Update ``PackageFinder` usage
+    - Fix ``Bool` stringify attempts from ``tomlkit`
+
+  Updated vendored dependencies:
+    - **attrs**: ```18.2.0`` => ```19.1.0``
+    - **certifi**: ```2018.10.15`` => ```2019.3.9``
+    - **cached_property**: ```1.4.3`` => ```1.5.1``
+    - **cerberus**: ```1.2.0`` => ```1.3.1``
+    - **click**: ```7.0.0`` => ```7.1.1``
+    - **click-completion**: ```0.5.0`` => ```0.5.1``
+    - **colorama**: ```0.3.9`` => ```0.4.3``
+    - **contextlib2**: ```(new)`` => ```0.6.0.post1``
+    - **distlib**: ```0.2.8`` => ```0.2.9``
+    - **funcsigs**: ```(new)`` => ```1.0.2``
+    - **importlib_metadata** ```1.3.0`` => ```1.5.1``
+    - **importlib-resources**:  ```(new)`` => ```1.4.0``
+    - **idna**: ```2.7`` => ```2.9``
+    - **jinja2**: ```2.10.0`` => ```2.11.1``
+    - **markupsafe**: ```1.0`` => ```1.1.1``
+    - **more-itertools**: ```(new)`` => ```5.0.0``
+    - **orderedmultidict**: ```(new)`` => ```1.0``
+    - **packaging**: ```18.0`` => ```19.0``
+    - **parse**: ```1.9.0`` => ```1.15.0``
+    - **pathlib2**: ```2.3.2`` => ```2.3.3``
+    - **pep517**: ```(new)`` => ```0.5.0``
+    - **pexpect**: ```4.6.0`` => ```4.8.0``
+    - **pip-shims**: ```0.2.0`` => ```0.5.1``
+    - **pipdeptree**: ```0.13.0`` => ```0.13.2``
+    - **pyparsing**: ```2.2.2`` => ```2.4.6``
+    - **python-dotenv**: ```0.9.1`` => ```0.10.2``
+    - **pythonfinder**: ```1.1.10`` => ```1.2.2``
+    - **pytoml**: ```(new)`` => ```0.1.20``
+    - **requests**: ```2.20.1`` => ```2.23.0``
+    - **requirementslib**: ```1.3.3`` => ```1.5.4``
+    - **scandir**: ```1.9.0`` => ```1.10.0``
+    - **shellingham**: ```1.2.7`` => ```1.3.2``
+    - **six**: ```1.11.0`` => ```1.14.0``
+    - **tomlkit**: ```0.5.2`` => ```0.5.11``
+    - **urllib3**: ```1.24`` => ```1.25.8``
+    - **vistir**: ```0.3.0`` => ```0.5.0``
+    - **yaspin**: ```0.14.0`` => ```0.14.3``
+    - **zipp**: ```0.6.0``
+
+  - Removed vendored dependency **cursor**.  `#4169 <https://github.com/pypa/pipenv/issues/4169>`_
+- Add and update vendored dependencies to accommodate ``safety`` vendoring:
+  - **safety** ``(none)`` => ``1.8.7``
+  - **dparse** ``(none)`` => ``0.5.0``
+  - **pyyaml** ``(none)`` => ``5.3.1``
+  - **urllib3** ``1.25.8`` => ``1.25.9``
+  - **certifi** ``2019.11.28`` => ``2020.4.5.1``
+  - **pyparsing** ``2.4.6`` => ``2.4.7``
+  - **resolvelib** ``0.2.2`` => ``0.3.0``
+  - **importlib-metadata** ``1.5.1`` => ``1.6.0``
+  - **pip-shims** ``0.5.1`` => ``0.5.2``
+  - **requirementslib** ``1.5.5`` => ``1.5.6``  `#4188 <https://github.com/pypa/pipenv/issues/4188>`_
+- Updated vendored ``pip`` => ``20.0.2`` and ``pip-tools`` => ``5.0.0``.  `#4215 <https://github.com/pypa/pipenv/issues/4215>`_
+- Updated vendored dependencies to latest versions for security and bug fixes:
+
+  - **requirementslib** ``1.5.8`` => ``1.5.9``
+  - **vistir** ``0.5.0`` => ``0.5.1``
+  - **jinja2** ``2.11.1`` => ``2.11.2``
+  - **click** ``7.1.1`` => ``7.1.2``
+  - **dateutil** ``(none)`` => ``2.8.1``
+  - **backports.functools_lru_cache** ``1.5.0`` => ``1.6.1``
+  - **enum34** ``1.1.6`` => ``1.1.10``
+  - **toml** ``0.10.0`` => ``0.10.1``
+  - **importlib_resources** ``1.4.0`` => ``1.5.0``  `#4226 <https://github.com/pypa/pipenv/issues/4226>`_
+- Changed attrs import path in vendored dependencies to always import from ``pipenv.vendor``.  `#4267 <https://github.com/pypa/pipenv/issues/4267>`_
+
+Improved Documentation
+----------------------
+
+- Added documenation about variable expansion in ``Pipfile`` entries.  `#2317 <https://github.com/pypa/pipenv/issues/2317>`_
+- Consolidate all contributing docs in the rst file  `#3120 <https://github.com/pypa/pipenv/issues/3120>`_
+- Update the out-dated manual page.  `#3246 <https://github.com/pypa/pipenv/issues/3246>`_
+- Move CLI docs to its own page.  `#3346 <https://github.com/pypa/pipenv/issues/3346>`_
+- Replace (non-existant) video on docs index.rst with equivalent gif.  `#3499 <https://github.com/pypa/pipenv/issues/3499>`_
+- Clarify wording in Basic Usage example on using double quotes to escape shell redirection  `#3522 <https://github.com/pypa/pipenv/issues/3522>`_
+- Ensure docs show navigation on small-screen devices  `#3527 <https://github.com/pypa/pipenv/issues/3527>`_
+- Added a link to the TOML Spec under General Recommendations & Version Control to clarify how Pipfiles should be written.  `#3629 <https://github.com/pypa/pipenv/issues/3629>`_
+- Updated the documentation with the new ``pytest`` entrypoint.  `#3759 <https://github.com/pypa/pipenv/issues/3759>`_
+- Fix link to GIF in README.md demonstrating Pipenv's usage, and add descriptive alt text.  `#3911 <https://github.com/pypa/pipenv/issues/3911>`_
+- Added a line describing potential issues in fancy extension.  `#3912 <https://github.com/pypa/pipenv/issues/3912>`_
+- Documental description of how Pipfile works and association with Pipenv.  `#3913 <https://github.com/pypa/pipenv/issues/3913>`_
+- Clarify the proper value of ``python_version`` and ``python_full_version``.  `#3914 <https://github.com/pypa/pipenv/issues/3914>`_
+- Write description for --deploy extension and few extensions differences.  `#3915 <https://github.com/pypa/pipenv/issues/3915>`_
+- More documentation for ``.env`` files  `#4100 <https://github.com/pypa/pipenv/issues/4100>`_
+- Updated documentation to point to working links.  `#4137 <https://github.com/pypa/pipenv/issues/4137>`_
+- Replace docs.pipenv.org with pipenv.pypa.io  `#4167 <https://github.com/pypa/pipenv/issues/4167>`_
+- Added functionality to check spelling in documentation and cleaned up existing typographical issues.  `#4209 <https://github.com/pypa/pipenv/issues/4209>`_
+
+
 2018.11.26 (2018-11-26)
 =======================
 

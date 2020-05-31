@@ -114,7 +114,9 @@ def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, 
                 "git add CHANGELOG.rst news/ {0}".format(get_version_file(ctx).as_posix())
             )
             log("removing changelog draft if present")
-            ctx.run("git rm CHANGELOG.draft.rst")
+            draft_changelog = pathlib.Path("CHANGELOG.draft.rst")
+            if draft_changelog.exists():
+                draft_changelog.unlink()
         log("generating man files...")
         generate_manual(ctx)
         ctx.run("git add pipenv/pipenv.1")

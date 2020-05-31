@@ -1,1 +1,0 @@
-Consolidate all contributing docs in the rst file

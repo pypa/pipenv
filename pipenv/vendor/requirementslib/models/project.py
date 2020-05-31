@@ -6,7 +6,7 @@ import collections
 import io
 import os
 
-import attr
+from pipenv.vendor import attr
 import packaging.markers
 import packaging.utils
 import plette

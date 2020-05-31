@@ -1,1 +1,0 @@
-Fix a bug of ``pipenv update --outdated`` that can't print output correctly.

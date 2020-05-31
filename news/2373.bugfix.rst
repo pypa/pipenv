@@ -1,1 +1,0 @@
-Raise `PipenvUsageError` when [[source]] does not contain url field.

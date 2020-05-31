@@ -1,1 +1,0 @@
-Fix a bug where custom virtualenv can not be activated with pipenv shell

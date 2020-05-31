@@ -1,1 +1,0 @@
-Fixed a bug that ``ValidationError`` is thrown when some fields are missing in source section.

@@ -1,1 +1,0 @@
-Dependency resolution now writes hashes for local and remote files to the lockfile.

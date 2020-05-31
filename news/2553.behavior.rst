@@ -1,1 +1,0 @@
-Make conservative checks of known exceptions when subprocess returns output, so user won't see the whole traceback - just the error.

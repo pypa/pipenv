@@ -1,5 +1,0 @@
-Added full support for resolution of all dependency types including direct URLs, zip archives, tarballs, etc.
-
-- Improved error handling and formatting.
-
-- Introduced improved cross platform stream wrappers for better ``stdout`` and ``stderr`` consistency.

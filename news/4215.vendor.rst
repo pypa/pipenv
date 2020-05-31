@@ -1,1 +1,0 @@
-Updated vendored ``pip`` => ``20.0.2`` and ``pip-tools`` => ``5.0.0``.

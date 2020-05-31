@@ -1,1 +1,0 @@
-Handle alternate names for UTF-8 encoding.
