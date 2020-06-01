@@ -1013,7 +1013,7 @@ class Line(object):
             parsed_setup_py = self.parsed_setup_py
             if parsed_setup_py:
                 name = parsed_setup_py.get("name", "")
-                if name:
+                if name and isinstance(name, six.string_types):
                     return name
         return None
 

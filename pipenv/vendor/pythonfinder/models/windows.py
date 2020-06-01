@@ -42,7 +42,10 @@ class WindowsFinder(BaseFinder):
         )
         pythons = [py for py in self.version_list if version_matcher(py)]
         version_sort = operator.attrgetter("version_sort")
-        return [c.comes_from for c in sorted(pythons, key=version_sort, reverse=True)]
+        return [
+            c.comes_from for c in sorted(pythons, key=version_sort, reverse=True)
+            if c.comes_from
+        ]
 
     def find_python_version(
         self,

@@ -4,7 +4,7 @@ from __future__ import absolute_import, print_function
 from pipenv.vendor import attr
 import pip_shims.shims
 from orderedmultidict import omdict
-from six.moves.urllib.parse import quote_plus, unquote_plus
+from six.moves.urllib.parse import quote, unquote_plus, unquote as url_unquote
 from urllib3 import util as urllib3_util
 from urllib3.util import parse_url as urllib3_parse
 from urllib3.util.url import Url
@@ -42,8 +42,8 @@ def _get_parsed_url(url):
         auth, _, url = url.rpartition("@")
         url = "{scheme}://{url}".format(scheme=scheme, url=url)
         parsed = urllib3_parse(url)._replace(auth=auth)
-    if parsed.auth and unquote_plus(parsed.auth) != parsed.auth:
-        return parsed._replace(auth=unquote_plus(parsed.auth))
+    if parsed.auth:
+        return parsed._replace(auth=url_unquote(parsed.auth))
     return parsed
 
 
@@ -110,7 +110,7 @@ class URI(object):
         subdirectory = self.subdirectory if self.subdirectory else None
         for q in queries:
             key, _, val = q.partition("=")
-            val = unquote_plus(val.replace("+", " "))
+            val = unquote_plus(val)
             if key == "subdirectory" and not subdirectory:
                 subdirectory = val
             else:
@@ -132,7 +132,7 @@ class URI(object):
         extras = self.extras
         for q in fragments:
             key, _, val = q.partition("=")
-            val = unquote_plus(val.replace("+", " "))
+            val = unquote_plus(val)
             fragment_items[key] = val
             if key == "egg":
                 from .utils import parse_extras
@@ -158,10 +158,10 @@ class URI(object):
             username_is_quoted, password_is_quoted = False, False
             quoted_username, quoted_password = "", ""
             if password:
-                quoted_password = quote_plus(password)
+                quoted_password = quote(password)
                 password_is_quoted = quoted_password != password
             if username:
-                quoted_username = quote_plus(username)
+                quoted_username = quote(username)
                 username_is_quoted = quoted_username != username
             return attr.evolve(
                 self,
@@ -176,14 +176,14 @@ class URI(object):
         # type: (bool, bool) -> str
         password = self.password if self.password else ""
         if password and unquote and self._password_is_quoted:
-            password = unquote_plus(password)
+            password = url_unquote(password)
         return password
 
     def get_username(self, unquote=False):
         # type: (bool) -> str
         username = self.username if self.username else ""
         if username and unquote and self._username_is_quoted:
-            username = unquote_plus(username)
+            username = url_unquote(username)
         return username
 
     @staticmethod
