@@ -357,7 +357,7 @@ def lock(
             dev_only=dev_only,
             emit_requirements=emit_requirements,
             pypi_mirror=state.pypi_mirror,
-            pre=state.installstate.pre,
+            pre=pre,
         )
     elif state.lockoptions.dev_only:
         raise PipenvOptionsError(
@@ -368,7 +368,7 @@ def lock(
     do_lock(
         ctx=ctx,
         clear=state.clear,
-        pre=state.installstate.pre,
+        pre=pre,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
         write=not state.quiet,

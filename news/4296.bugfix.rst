@@ -1,0 +1,1 @@
+Fixed a bug with the discovery of python paths on Windows which could prevent installation of environments during ``pipenv install``.

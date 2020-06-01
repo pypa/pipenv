@@ -1,2 +1,1 @@
-Remove expection of ``version`` key in ``test_ssh_vcs_install`` to prevent it
-from failing.
+Remove expection of ``version`` key in ``test_ssh_vcs_install`` to prevent it from failing.

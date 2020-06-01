@@ -1,1 +1,1 @@
-Fix a bug that system-wide packages will be considered when inside a venv.
+Fixed a bug which caused Pipenv to fail to install packages in a virtual environment if those packages were already present in the system global environment.
