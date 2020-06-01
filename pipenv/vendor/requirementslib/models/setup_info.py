@@ -469,21 +469,18 @@ def iter_metadata(path, pkg_name=None, metadata_type="egg-info"):
     # type: (AnyStr, Optional[AnyStr], AnyStr) -> Generator
     if pkg_name is not None:
         pkg_variants = get_name_variants(pkg_name)
-    non_matching_dirs = []
-    with contextlib.closing(ScandirCloser(path)) as path_iterator:
-        for entry in path_iterator:
-            if entry.is_dir():
-                entry_name, ext = os.path.splitext(entry.name)
-                if ext.endswith(metadata_type):
-                    if pkg_name is None or entry_name.lower() in pkg_variants:
-                        yield entry
-                elif not entry.name.endswith(metadata_type):
-                    non_matching_dirs.append(entry)
-        for entry in non_matching_dirs:
-            for dir_entry in iter_metadata(
-                entry.path, pkg_name=pkg_name, metadata_type=metadata_type
-            ):
-                yield dir_entry
+    dirs_to_search = [path]
+    while dirs_to_search:
+        p = dirs_to_search.pop(0)
+        with contextlib.closing(ScandirCloser(p)) as path_iterator:
+            for entry in path_iterator:
+                if entry.is_dir():
+                    entry_name, ext = os.path.splitext(entry.name)
+                    if ext.endswith(metadata_type):
+                        if pkg_name is None or entry_name.lower() in pkg_variants:
+                            yield entry
+                    elif not entry.name.endswith(metadata_type):
+                        dirs_to_search.append(entry.path)
 
 
 def find_egginfo(target, pkg_name=None):
@@ -729,14 +726,16 @@ class Analyzer(ast.NodeVisitor):
             self.binOps_map[binop] = ast_unparse(binop, analyzer=self)
 
     def match_assignment_str(self, match):
-        return next(
-            iter(k for k in self.assignments if getattr(k, "id", "") == match), None
-        )
+        matches = [k for k in self.assignments if getattr(k, "id", "") == match]
+        if matches:
+            return matches[-1]
+        return None
 
     def match_assignment_name(self, match):
-        return next(
-            iter(k for k in self.assignments if getattr(k, "id", "") == match.id), None
-        )
+        matches = [k for k in self.assignments if getattr(k, "id", "") == match.id]
+        if matches:
+            return matches[-1]
+        return None
 
     def generic_unparse(self, item):
         if any(isinstance(item, k) for k in AST_BINOP_MAP.keys()):
@@ -771,7 +770,7 @@ class Analyzer(ast.NodeVisitor):
         if isinstance(item.slice, ast.Index):
             try:
                 unparsed = unparsed[self.unparse(item.slice.value)]
-            except KeyError:
+            except (KeyError, TypeError):
                 # not everything can be looked up before runtime
                 unparsed = item
         return unparsed
@@ -838,7 +837,7 @@ class Analyzer(ast.NodeVisitor):
         if isinstance(item.left, ast.Attribute) or isinstance(item.left, ast.Str):
             import importlib
 
-            left = unparse(item.left)
+            left = self.unparse(item.left)
             if "." in left:
                 name, _, val = left.rpartition(".")
                 left = getattr(importlib.import_module(name), val, left)
@@ -1002,7 +1001,7 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
             if isinstance(item.slice, ast.Index):
                 try:
                     unparsed = unparsed[unparse(item.slice.value)]
-                except KeyError:
+                except (KeyError, TypeError):
                     # not everything can be looked up before runtime
                     unparsed = item
     elif any(isinstance(item, k) for k in AST_BINOP_MAP.keys()):
@@ -1848,7 +1847,7 @@ build-backend = "{1}"
         is_vcs = True if vcs else is_artifact_or_vcs
         if is_file and not is_vcs and path is not None and os.path.isdir(path):
             target = os.path.join(kwargs["src_dir"], os.path.basename(path))
-            shutil.copytree(path, target)
+            shutil.copytree(path, target, symlinks=True)
             ireq.source_dir = target
         if not (ireq.editable and is_file and is_vcs):
             if ireq.is_wheel:

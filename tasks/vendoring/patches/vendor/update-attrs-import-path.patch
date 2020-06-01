@@ -205,7 +205,7 @@ index 3d5743e6..b0c98de8 100644
 +from pipenv.vendor import attr
  import pip_shims.shims
  from orderedmultidict import omdict
- from six.moves.urllib.parse import quote_plus, unquote_plus
+ from six.moves.urllib.parse import quote, unquote_plus, unquote as url_unquote
 diff --git a/pipenv/vendor/requirementslib/models/vcs.py b/pipenv/vendor/requirementslib/models/vcs.py
 index 0f96a331..273305db 100644
 --- a/pipenv/vendor/requirementslib/models/vcs.py
