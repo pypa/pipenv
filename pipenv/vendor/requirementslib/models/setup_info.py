@@ -974,6 +974,16 @@ class Analyzer(ast.NodeVisitor):
         keys = list(setup.keys())
         if len(keys) == 1 and keys[0] is None:
             _, setup = setup.popitem()
+        keys = list(setup.keys())
+        for k in keys:
+            # XXX: Remove unresolved functions from the setup dictionary
+            if isinstance(setup[k], dict):
+                if not setup[k]:
+                    continue
+                key = next(iter(setup[k].keys()))
+                val = setup[k][key]
+                if key in function_names and val is None or val == {}:
+                    setup.pop(k)
         return setup
 
 
@@ -1204,6 +1214,16 @@ def ast_parse_setup_py(path):
     keys = list(setup.keys())
     if len(keys) == 1 and keys[0] is None:
         _, setup = setup.popitem()
+    keys = list(setup.keys())
+    for k in keys:
+        # XXX: Remove unresolved functions from the setup dictionary
+        if isinstance(setup[k], dict):
+            if not setup[k]:
+                continue
+            key = next(iter(setup[k].keys()))
+            val = setup[k][key]
+            if key in function_names and val is None or val == {}:
+                setup.pop(k)
     return setup
 
 

@@ -1,0 +1,1 @@
+Fixed an issue with resolving packages with names defined by function calls in ``setup.py``.
