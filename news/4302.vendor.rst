@@ -1,4 +1,3 @@
-- Updated vendored dependencies:
-
-    - **pythonfinder**: ``1.2.2`` => ``1.2.4``
-    - **requirementslib**: ``1.5.9`` => ``1.5.10``
+Updated vendored dependencies:
+  - **pythonfinder**: ``1.2.2`` => ``1.2.4``
+  - **requirementslib**: ``1.5.9`` => ``1.5.10``
