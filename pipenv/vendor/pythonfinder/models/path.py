@@ -27,7 +27,6 @@ from ..utils import (
     Sequence,
     dedup,
     ensure_path,
-    expand_paths,
     filter_pythons,
     is_in_path,
     normalize_path,

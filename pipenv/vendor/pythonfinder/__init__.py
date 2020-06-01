@@ -10,7 +10,7 @@ from .exceptions import InvalidPythonVersion
 from .models import SystemPath, WindowsFinder
 from .pythonfinder import Finder
 
-__version__ = "1.2.2"
+__version__ = "1.2.4"
 
 
 logger = logging.getLogger(__name__)
