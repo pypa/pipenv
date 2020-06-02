@@ -1,1 +1,0 @@
-Fix a bug that caused non-specific versions to be pinned in ``Pipfile.lock``.

@@ -1,1 +1,0 @@
-Corrected a missing exception import and invalid function call invocations in ``pipenv.cli.command``.

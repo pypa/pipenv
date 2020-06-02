@@ -1,1 +1,0 @@
-Fixed a regression which caused Pipenv to fail when running under ``/``.

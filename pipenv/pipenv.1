@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PIPENV" "1" "May 28, 2020" "2020.5.28" "pipenv"
+.TH "PIPENV" "1" "Jun 02, 2020" "2020.6.2" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 .
@@ -396,6 +396,53 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2020.6.2 (2020\-06\-02)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+Pipenv will now detect existing \fBvenv\fP and \fBvirtualenv\fP based virtual environments more robustly.  \fI\%#4276\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+\fB+\fP signs in URL authentication fragments will no longer be incorrectly replaced with space ( \(ga\(ga \(ga\(ga ) characters.  \fI\%#4271\fP
+.IP \(bu 2
+Fixed a regression which caused Pipenv to fail when running under \fB/\fP\&.  \fI\%#4273\fP
+.IP \(bu 2
+\fBsetup.py\fP files with \fBversion\fP variables read from \fBos.environ\fP are now able to be parsed successfully.  \fI\%#4274\fP
+.IP \(bu 2
+Fixed a bug which caused Pipenv to fail to install packages in a virtual environment if those packages were already present in the system global environment.  \fI\%#4276\fP
+.IP \(bu 2
+Fix a bug that caused non\-specific versions to be pinned in \fBPipfile.lock\fP\&.  \fI\%#4278\fP
+.IP \(bu 2
+Corrected a missing exception import and invalid function call invocations in \fBpipenv.cli.command\fP\&.  \fI\%#4286\fP
+.IP \(bu 2
+Fixed an issue with resolving packages with names defined by function calls in \fBsetup.py\fP\&.  \fI\%#4292\fP
+.IP \(bu 2
+Fixed a regression with installing the current directory, or \fB\&.\fP, inside a \fBvenv\fP based virtual environment.  \fI\%#4295\fP
+.IP \(bu 2
+Fixed a bug with the discovery of python paths on Windows which could prevent installation of environments during \fBpipenv install\fP\&.  \fI\%#4296\fP
+.IP \(bu 2
+Fixed an issue in the \fBrequirementslib\fP AST parser which prevented parsing of \fBsetup.py\fP files for dependency metadata.  \fI\%#4298\fP
+.IP \(bu 2
+Fix a bug where Pipenv doesn\(aqt realize the session is interactive  \fI\%#4305\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Updated requirementslib to version \fB1.5.11\fP\&.  \fI\%#4292\fP
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B Updated vendored dependencies:
+.INDENT 7.0
+.IP \(bu 2
+\fBpythonfinder\fP: \fB1.2.2\fP => \fB1.2.4\fP
+.IP \(bu 2
+\fBrequirementslib\fP: \fB1.5.9\fP => \fB1.5.10\fP  \fI\%#4302\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
 .SS 2020.5.28 (2020\-05\-28)
 .SS Features & Improvements
 .INDENT 0.0

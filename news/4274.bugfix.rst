@@ -1,1 +1,0 @@
-``setup.py`` files with ``version`` variables read from ``os.environ`` are now able to be parsed successfully.

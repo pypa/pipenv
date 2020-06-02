@@ -1,1 +1,0 @@
-Print class name instead of the object reference when using installer to install a python version

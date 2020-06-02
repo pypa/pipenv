@@ -1,1 +1,0 @@
-Fixed a bug which caused Pipenv to fail to install packages in a virtual environment if those packages were already present in the system global environment.

@@ -1,1 +1,0 @@
-Fixed a regression with installing the current directory, or ``.``, inside a ``venv`` based virtual environment.

@@ -1,3 +1,35 @@
+2020.6.2 (2020-06-02)
+=====================
+
+Features & Improvements
+-----------------------
+
+- Pipenv will now detect existing ``venv`` and ``virtualenv`` based virtual environments more robustly.  `#4276 <https://github.com/pypa/pipenv/issues/4276>`_
+
+Bug Fixes
+---------
+
+- ``+`` signs in URL authentication fragments will no longer be incorrectly replaced with space ( `` `` ) characters.  `#4271 <https://github.com/pypa/pipenv/issues/4271>`_
+- Fixed a regression which caused Pipenv to fail when running under ``/``.  `#4273 <https://github.com/pypa/pipenv/issues/4273>`_
+- ``setup.py`` files with ``version`` variables read from ``os.environ`` are now able to be parsed successfully.  `#4274 <https://github.com/pypa/pipenv/issues/4274>`_
+- Fixed a bug which caused Pipenv to fail to install packages in a virtual environment if those packages were already present in the system global environment.  `#4276 <https://github.com/pypa/pipenv/issues/4276>`_
+- Fix a bug that caused non-specific versions to be pinned in ``Pipfile.lock``.  `#4278 <https://github.com/pypa/pipenv/issues/4278>`_
+- Corrected a missing exception import and invalid function call invocations in ``pipenv.cli.command``.  `#4286 <https://github.com/pypa/pipenv/issues/4286>`_
+- Fixed an issue with resolving packages with names defined by function calls in ``setup.py``.  `#4292 <https://github.com/pypa/pipenv/issues/4292>`_
+- Fixed a regression with installing the current directory, or ``.``, inside a ``venv`` based virtual environment.  `#4295 <https://github.com/pypa/pipenv/issues/4295>`_
+- Fixed a bug with the discovery of python paths on Windows which could prevent installation of environments during ``pipenv install``.  `#4296 <https://github.com/pypa/pipenv/issues/4296>`_
+- Fixed an issue in the ``requirementslib`` AST parser which prevented parsing of ``setup.py`` files for dependency metadata.  `#4298 <https://github.com/pypa/pipenv/issues/4298>`_
+- Fix a bug where Pipenv doesn't realize the session is interactive  `#4305 <https://github.com/pypa/pipenv/issues/4305>`_
+
+Vendored Libraries
+------------------
+
+- Updated requirementslib to version ``1.5.11``.  `#4292 <https://github.com/pypa/pipenv/issues/4292>`_
+- Updated vendored dependencies:
+    - **pythonfinder**: ``1.2.2`` => ``1.2.4``
+    - **requirementslib**: ``1.5.9`` => ``1.5.10``  `#4302 <https://github.com/pypa/pipenv/issues/4302>`_
+
+
 2020.5.28 (2020-05-28)
 ======================
 
