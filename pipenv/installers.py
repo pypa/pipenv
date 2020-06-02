@@ -71,6 +71,9 @@ class Installer(object):
         self.cmd = self._find_installer()
         super(Installer, self).__init__()
 
+    def __str__(self):
+        return self.__class__.__name__
+
     @abstractmethod
     def _find_installer(self):
         pass
