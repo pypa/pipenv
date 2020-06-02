@@ -1,0 +1,1 @@
+Fix a bug where Pipenv doesn't realize the session is interactive

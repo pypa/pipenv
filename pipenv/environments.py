@@ -341,11 +341,7 @@ PIPENV_SHELL = (
 )
 
 # Internal, to tell whether the command line session is interactive.
-try:
-    SESSION_IS_INTERACTIVE = _isatty(sys.stdout.fileno())
-except UnsupportedOperation:
-    SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
-
+SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
 
 # Internal, consolidated verbosity representation as an integer. The default
 # level is 0, increased for wordiness and decreased for terseness.
