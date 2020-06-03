@@ -2236,8 +2236,8 @@ def do_uninstall(
     editable_pkgs = [
         Requirement.from_line("-e {0}".format(p)).name for p in editable_packages if p
     ]
-    packages = packages + editable_pkgs
-    package_names = [p for p in packages if p]
+    packages += editable_pkgs
+    package_names = set(p for p in packages if p)
     package_map = {
         canonicalize_name(p): p for p in packages if p
     }
@@ -2264,7 +2264,7 @@ def do_uninstall(
                 fix_utf8("Un-installing {0}…".format(crayons.red("[dev-packages]"))), bold=True
             )
         )
-        package_names = project_pkg_names["dev"]
+        package_names = set(project_pkg_names["dev"]) - set(project_pkg_names["default"])
 
     # Remove known "bad packages" from the list.
     bad_pkgs = get_canonical_names(BAD_PACKAGES)
@@ -2272,12 +2272,10 @@ def do_uninstall(
     for ignored_pkg in ignored_packages:
         if environments.is_verbose():
             click.echo("Ignoring {0}.".format(ignored_pkg), err=True)
-        pkg_name_index = package_names.index(package_map[ignored_pkg])
-        del package_names[pkg_name_index]
+        del package_names[package_map[ignored_pkg]]
 
     used_packages = project_pkg_names["combined"] & installed_package_names
     failure = False
-    packages_to_remove = set()
     if all:
         click.echo(
             crayons.normal(
@@ -2289,10 +2287,7 @@ def do_uninstall(
         )
         do_purge(bare=False, allow_global=system)
         sys.exit(0)
-    if all_dev:
-        package_names = project_pkg_names["dev"]
-    else:
-        package_names = set([pkg_name for pkg_name in package_names])
+
     selected_pkg_map = {
         canonicalize_name(p): p for p in package_names
     }
