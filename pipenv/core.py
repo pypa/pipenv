@@ -2272,7 +2272,7 @@ def do_uninstall(
     for ignored_pkg in ignored_packages:
         if environments.is_verbose():
             click.echo("Ignoring {0}.".format(ignored_pkg), err=True)
-        del package_names[package_map[ignored_pkg]]
+        package_names.discard(package_map[ignored_pkg])
 
     used_packages = project_pkg_names["combined"] & installed_package_names
     failure = False
