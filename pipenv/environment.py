@@ -267,7 +267,10 @@ class Environment(object):
     def python(self):
         # type: () -> str
         """Path to the environment python"""
-        py = vistir.compat.Path(self.script_basedir).joinpath("python").absolute().as_posix()
+        if os.name == "nt" and not self.is_venv:
+            py = vistir.compat.Path(self.prefix).joinpath("python").absolute().as_posix()
+        else:
+            py = vistir.compat.Path(self.script_basedir).joinpath("python").absolute().as_posix()
         if not py:
             return vistir.compat.Path(sys.executable).as_posix()
         return py
