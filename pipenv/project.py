@@ -352,12 +352,14 @@ class Project(object):
         is_venv = is_in_virtualenv()
         if allow_global and not is_venv:
             prefix = sys.prefix
+            python = sys.executable
         else:
             prefix = self.virtualenv_location
+            python = None
         sources = self.sources if self.sources else [DEFAULT_SOURCE]
         environment = Environment(
-            prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
-            project=self
+            prefix=prefix, python=python, is_venv=is_venv, sources=sources,
+            pipfile=self.parsed_pipfile, project=self
         )
         pipenv_dist = get_pipenv_dist(pkg="pipenv")
         if pipenv_dist:
