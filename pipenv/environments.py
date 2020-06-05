@@ -81,7 +81,7 @@ PIPENV_IS_CI = bool("CI" in os.environ or "TF_BUILD" in os.environ)
 
 # HACK: Prevent invalid shebangs with Homebrew-installed Python:
 # https://bugs.python.org/issue22490
-_OSX_VENV = os.environ.pop("__PYVENV_LAUNCHER__", None)
+os.environ.pop("__PYVENV_LAUNCHER__", None)
 
 # Load patched pip instead of system pip
 os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
@@ -326,7 +326,7 @@ PIPENV_TEST_INDEX = os.environ.get("PIPENV_TEST_INDEX")
 PIPENV_USE_SYSTEM = False
 PIPENV_VIRTUALENV = None
 if "PIPENV_ACTIVE" not in os.environ and not PIPENV_IGNORE_VIRTUALENVS:
-    PIPENV_VIRTUALENV = os.environ.get("VIRTUAL_ENV") or _OSX_VENV
+    PIPENV_VIRTUALENV = os.environ.get("VIRTUAL_ENV")
     PIPENV_USE_SYSTEM = bool(PIPENV_VIRTUALENV)
 
 # Internal, tells Pipenv to skip case-checking (slow internet connections).
@@ -370,7 +370,7 @@ def is_quiet(threshold=-1):
 def _is_using_venv():
     # type: () -> bool
     """Check for venv-based virtual environment which sets sys.base_prefix"""
-    return _OSX_VENV is not None or sys.prefix != getattr(sys, "base_prefix", sys.prefix)
+    return sys.prefix != getattr(sys, "base_prefix", sys.prefix)
 
 
 def _is_using_virtualenv():
