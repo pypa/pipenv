@@ -1,0 +1,1 @@
+Fix a bug that incorrect Python path will be used when ``--system`` flag is on.

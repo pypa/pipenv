@@ -1946,6 +1946,8 @@ def do_install(
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
+    if system:
+        os.environ["PIPENV_USE_SYSTEM"] = "1"
     # Check if the file is remote or not
     if remote:
         click.echo(

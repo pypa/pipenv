@@ -41,6 +41,7 @@ class Environment(object):
     def __init__(
         self,
         prefix=None,  # type: Optional[str]
+        python=None,  # type: Optional[str]
         is_venv=False,  # type: bool
         base_working_set=None,  # type: pkg_resources.WorkingSet
         pipfile=None,  # type: Optional[Union[tomlkit.toml_document.TOMLDocument, TPipfile]]
@@ -51,6 +52,9 @@ class Environment(object):
         self._modules = {'pkg_resources': pkg_resources, 'pipenv': pipenv}
         self.base_working_set = base_working_set if base_working_set else BASE_WORKING_SET
         prefix = normalize_path(prefix)
+        self._python = None
+        if python is not None:
+            self._python = vistir.compat.Path(python).absolute().as_posix()
         self.is_venv = is_venv or prefix != normalize_path(sys.prefix)
         if not sources:
             sources = []
@@ -267,9 +271,15 @@ class Environment(object):
     def python(self):
         # type: () -> str
         """Path to the environment python"""
-        py = vistir.compat.Path(self.script_basedir).joinpath("python").absolute().as_posix()
+        if self._python is not None:
+            return self._python
+        if os.name == "nt" and not self.is_venv:
+            py = vistir.compat.Path(self.prefix).joinpath("python").absolute().as_posix()
+        else:
+            py = vistir.compat.Path(self.script_basedir).joinpath("python").absolute().as_posix()
         if not py:
-            return vistir.compat.Path(sys.executable).as_posix()
+            py = vistir.compat.Path(sys.executable).as_posix()
+        self._python = py
         return py
 
     @cached_property
