@@ -170,3 +170,19 @@ python_DateUtil = "*"   # Inline comment
             contents = f.read()
             assert "# Pre comment" in contents
             assert "# Inline comment" in contents
+
+
+@pytest.mark.install
+@pytest.mark.uninstall
+def test_uninstall_all_dev_with_shared_dependencies(PipenvInstance):
+    with PipenvInstance() as p:
+        c = p.pipenv("install pytest")
+        assert c.return_code == 0
+
+        c = p.pipenv("install --dev six")
+        assert c.return_code == 0
+
+        c = p.pipenv("uninstall --all-dev")
+        assert c.return_code == 0
+
+        assert "six" in p.lockfile["develop"]
