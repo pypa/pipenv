@@ -2231,10 +2231,7 @@ def do_uninstall(
     ensure_project(three=three, python=python, pypi_mirror=pypi_mirror)
     # Un-install all dependencies, if --all was provided.
     if not any([packages, editable_packages, all_dev, all]):
-        raise exceptions.MissingParameter(
-            crayons.red("No package provided!"),
-            ctx=ctx, param_type="parameter",
-        )
+        raise exceptions.PipenvUsageError("No package provided!", ctx=ctx)
     editable_pkgs = [
         Requirement.from_line("-e {0}".format(p)).name for p in editable_packages if p
     ]
