@@ -62,8 +62,8 @@ jobs:
     # we need to use a deploy key for this to get around branch protection as the default token fails
     - name: Pre-bump
       run: |
-        git config --local user.name 'Github Action'
-        git config --local user.email action@github.com
+        git config --local user.name 'github-actions[bot]'
+        git config --local user.email 'github-actions[bot]@users.noreply.github.com'
         python -m pipenv run inv release.bump-version --dev --commit
         git push git@github.com:${{ github.repository }}.git HEAD:master
 
