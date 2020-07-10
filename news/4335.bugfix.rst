@@ -1,0 +1,1 @@
+Fix a bug that Pipenv can't locate the correct file of special directives in ``setup.cfg`` of an editable package.
