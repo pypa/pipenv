@@ -574,7 +574,10 @@ def packages_missing_licenses(
         for lic in itertools.product(("LICENSE", "LICENSE-MIT"), LICENSE_EXTS)
     ]
     for i, req in enumerate(requirements):
-        pkg = req.strip().split("=")[0]
+        if req.startswith("git+"):
+            pkg = req.strip().split("#egg=")[1]
+        else:
+            pkg = req.strip().split("=")[0]
         possible_pkgs = [pkg, pkg.replace("-", "_")]
         match_found = False
         if pkg in PY2_DOWNLOAD:

@@ -10,3 +10,16 @@ index 53b19b17..358cc33b 100644
      return
  
  
+diff --git a/pipenv/vendor/passa/models/projects.py b/pipenv/vendor/passa/models/projects.py
+index f6e037d6..c7807c05 100644
+--- a/pipenv/vendor/passa/models/projects.py
++++ b/pipenv/vendor/passa/models/projects.py
+@@ -6,7 +6,7 @@ import collections
+ import io
+ import os
+ 
+-import attr
++from pipenv.vendor import attr
+ import packaging.markers
+ import packaging.utils
+ import plette
