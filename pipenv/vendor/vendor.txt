@@ -26,7 +26,7 @@ requests==2.23.0
     idna==2.9
     urllib3==1.25.9
     certifi==2020.4.5.1
-requirementslib==1.5.11
+requirementslib==1.5.12
     attrs==19.3.0
     distlib==0.3.0
     packaging==20.3

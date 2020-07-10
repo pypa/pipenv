@@ -887,9 +887,7 @@ class Line(object):
             and self.setup_cfg
         ):
             return {}
-        base_dir = os.path.dirname(os.path.abspath(self.setup_cfg))
-        setup_content = read_source(self.setup_cfg)
-        return parse_setup_cfg(setup_content, base_dir)
+        return self.setup_info.parse_setup_cfg()
 
     @cached_property
     def parsed_setup_py(self):

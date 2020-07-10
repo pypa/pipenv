@@ -250,7 +250,7 @@ def get_package_dir_from_setupcfg(parser, base_dir=None):
         if "find:" in pkg_dir:
             _, pkg_dir = pkg_dir.split("find:")
             pkg_dir = pkg_dir.strip()
-        package_dir = os.path.join(package_dir, pkg_dir)
+            package_dir = os.path.join(package_dir, pkg_dir)
     elif os.path.exists(os.path.join(package_dir, "setup.py")):
         setup_py = ast_parse_setup_py(os.path.join(package_dir, "setup.py"))
         if "package_dir" in setup_py:
@@ -681,6 +681,11 @@ AST_COMPARATORS = dict(
     )
 )
 
+if getattr(ast, "AnnAssign", None):
+    ASSIGN_NODES = (ast.Assign, ast.AnnAssign)
+else:
+    ASSIGN_NODES = (ast.Assign,)
+
 
 class Analyzer(ast.NodeVisitor):
     def __init__(self):
@@ -704,7 +709,7 @@ class Analyzer(ast.NodeVisitor):
             self.name_types.append(node)
         if isinstance(node, ast.Str):
             self.strings.append(node)
-        if isinstance(node, ast.Assign):
+        if isinstance(node, ASSIGN_NODES):
             self.assignments.update(ast_unparse(node, initial_mapping=True))
         super(Analyzer, self).generic_visit(node)
 
@@ -1139,20 +1144,24 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
                         unparsed[func_name].update(unparse(keyword))
     elif isinstance(item, ast.keyword):
         unparsed = {unparse(item.arg): unparse(item.value)}
-    elif isinstance(item, ast.Assign):
+    elif isinstance(item, ASSIGN_NODES):
         # XXX: DO NOT UNPARSE THIS
         # XXX: If we unparse this it becomes impossible to map it back
         # XXX: To the original node in the AST so we can find the
         # XXX: Original reference
+        try:
+            targets = item.targets  # for ast.Assign
+        except AttributeError:      # for ast.AnnAssign
+            targets = (item.target,)
         if not initial_mapping:
-            target = unparse(next(iter(item.targets)), recurse=False)
+            target = unparse(next(iter(targets)), recurse=False)
             val = unparse(item.value, recurse=False)
             if isinstance(target, (tuple, set, list)):
                 unparsed = dict(zip(target, val))
             else:
                 unparsed = {target: val}
         else:
-            unparsed = {next(iter(item.targets)): item}
+            unparsed = {next(iter(targets)): item}
     elif isinstance(item, Mapping):
         unparsed = {}
         for k, v in item.items():
