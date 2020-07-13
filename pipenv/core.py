@@ -1913,6 +1913,18 @@ def do_install(
     editable_packages = editable_packages if editable_packages else []
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
     skip_requirements = False
+    # ===================================================================================
+    # This can either be taken as protected member or re-implemented in pipenv.utils
+    from pipenv.patched.notpip._internal.utils.misc import ask_input
+    if not project.pipfile_exists:
+        prompt_no_pipfile = ask_input("No Pipfile detected. This command will generate a Pipfile, "
+                                      "Pipfile.lock, and a virtualenv for this project. Do you wish to continue? [y/n]")
+        if prompt_no_pipfile in ['n', 'N']:
+            sys.exit(0)
+        elif prompt_no_pipfile not in ['y', 'y']:
+            print('Please respond with y/n. assuming n')
+            sys.exit(0)
+    # ===================================================================================
     # Don't search for requirements.txt files if the user provides one
     if requirementstxt or package_args or project.pipfile_exists:
         skip_requirements = True
