@@ -2733,8 +2733,9 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
     except RuntimeError:
         pass
     else:
-        python_path = vistir.compat.Path(python_path).as_posix()
-        pipdeptree_path = vistir.compat.Path(pipdeptree_path).as_posix()
+        if not os.name == 'nt':    # bugfix #4388
+            python_path = vistir.compat.Path(python_path).as_posix()
+            pipdeptree_path = vistir.compat.Path(pipdeptree_path).as_posix()
 
     if reverse and json:
         click.echo(
