@@ -1,4 +1,4 @@
-include LICENSE README.md CONTRIBUTING.md CODE_OF_CONDUCT.md CHANGELOG.rst NOTICES HISTORY.txt
+include LICENSE README.md CONTRIBUTING.md CHANGELOG.rst NOTICES HISTORY.txt
 include Makefile pyproject.toml get-pipenv.py .dockerignore *.yml
 include examples/Pipfil*
 include *.md

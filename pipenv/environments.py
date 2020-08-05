@@ -367,16 +367,16 @@ def is_quiet(threshold=-1):
     return PIPENV_VERBOSITY <= threshold
 
 
-def _is_using_venv():
+def is_using_venv():
     # type: () -> bool
     """Check for venv-based virtual environment which sets sys.base_prefix"""
-    return sys.prefix != getattr(sys, "base_prefix", sys.prefix)
-
-
-def _is_using_virtualenv():
-    # type: () -> bool
-    """Check for virtualenv-based environment which sets sys.real_prefix"""
-    return getattr(sys, "real_prefix", None) is not None
+    if getattr(sys, 'real_prefix', None) is not None:
+        # virtualenv venvs
+        result = True
+    else:
+        # PEP 405 venvs
+        result = sys.prefix != getattr(sys, 'base_prefix', sys.prefix)
+    return result
 
 
 def is_in_virtualenv():
@@ -388,16 +388,9 @@ def is_in_virtualenv():
     """
 
     pipenv_active = os.environ.get("PIPENV_ACTIVE", False)
-    virtual_env = None
-    use_system = False
+    virtual_env = bool(os.environ.get("VIRTUAL_ENV"))
     ignore_virtualenvs = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS", False))
-
-    if not pipenv_active and not ignore_virtualenvs:
-        virtual_env = any([
-            _is_using_virtualenv(), _is_using_venv(), os.environ.get("VIRTUAL_ENV")
-        ])
-        use_system = bool(virtual_env)
-    return (use_system or virtual_env) and not (pipenv_active or ignore_virtualenvs)
+    return virtual_env and not (pipenv_active or ignore_virtualenvs)
 
 
 PIPENV_SPINNER_FAIL_TEXT = fix_utf8(u"✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
