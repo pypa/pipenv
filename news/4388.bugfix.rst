@@ -1,0 +1,1 @@
+Fix a bug that ``pipenv graph`` throws an exception that PipenvCmdError(cmd_string, c.out, c.err, return_code).
