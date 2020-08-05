@@ -1,0 +1,1 @@
+Correctly detect whether Pipenv in run under an activated virtualenv.

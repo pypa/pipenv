@@ -25,7 +25,7 @@ from .environment import Environment
 from .environments import (
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_IGNORE_VIRTUALENVS, PIPENV_MAX_DEPTH,
     PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_VENV_IN_PROJECT,
-    PIPENV_USE_SYSTEM, is_in_virtualenv, is_type_checking
+    PIPENV_USE_SYSTEM, is_in_virtualenv, is_type_checking, is_using_venv
 )
 from .vendor.requirementslib.models.utils import get_default_pyproject_backend
 from .utils import (
@@ -349,7 +349,7 @@ class Project(object):
 
     def get_environment(self, allow_global=False):
         # type: (bool) -> Environment
-        is_venv = is_in_virtualenv()
+        is_venv = is_in_virtualenv() or is_using_venv()
         if allow_global and not is_venv:
             prefix = sys.prefix
             python = sys.executable
