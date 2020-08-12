@@ -239,7 +239,7 @@ def test_get_vcs_refs(PipenvInstance_NoPyPI):
 @pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
-@pytest.mark.skip_py27_win
+@pytest.mark.py3_only
 @pytest.mark.skip_py38
 def test_vcs_entry_supersedes_non_vcs(PipenvInstance):
     """See issue #2181 -- non-editable VCS dep was specified, but not showing up
