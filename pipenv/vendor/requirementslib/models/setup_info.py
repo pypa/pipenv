@@ -1874,10 +1874,7 @@ build-backend = "{1}"
             ireq.link, "is_vcs", getattr(ireq.link, "is_artifact", False)
         )
         is_vcs = True if vcs else is_artifact_or_vcs
-        if is_file and not is_vcs and path is not None and os.path.isdir(path):
-            target = os.path.join(kwargs["src_dir"], os.path.basename(path))
-            shutil.copytree(path, target, symlinks=True)
-            ireq.source_dir = target
+
         if not (ireq.editable and is_file and is_vcs):
             if ireq.is_wheel:
                 only_download = True
@@ -1895,10 +1892,12 @@ build-backend = "{1}"
         if build_location_func is None:
             build_location_func = getattr(ireq, "ensure_build_location", None)
         if not ireq.source_dir:
-            build_kwargs = {"build_dir": kwargs["build_dir"], "autodelete": False}
+            build_kwargs = {
+                "build_dir": kwargs["build_dir"],
+                "autodelete": False, "parallel_builds": True
+            }
             call_function_with_correct_args(build_location_func, **build_kwargs)
             ireq.ensure_has_source_dir(kwargs["src_dir"])
-            src_dir = ireq.source_dir
             pip_shims.shims.shim_unpack(
                 download_dir=download_dir,
                 ireq=ireq,

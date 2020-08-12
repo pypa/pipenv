@@ -720,7 +720,7 @@ def shim_unpack(
     :type unpack_fn: Callable
     :param str download_dir: The directory to download the file to
     :param TShimmedFunc tempdir_manager_provider: A callable or shim referring to
-        `global_tempdir_manager` function from pipenv.patched.notpip or a shimmed no-op context manager
+        `global_tempdir_manager` function from pip or a shimmed no-op context manager
     :param Optional[:class:`~pip._internal.req.req_install.InstallRequirement`] ireq:
         an Install Requirement instance, defaults to None
     :param Optional[:class:`~pip._internal.models.link.Link`] link: A Link instance,
@@ -904,13 +904,9 @@ def make_preparer(
     if options is not None and pip_options_created:
         for k, v in options_map.items():
             suppress_setattr(options, k, v, filter_none=True)
-    if all([session is None, install_cmd is None, session_is_required]):
-        raise TypeError(
-            "Preparer requires a session instance which was not supplied and cannot be "
-            "created without an InstallCommand."
-        )
-    elif all([session is None, session_is_required]):
-        session = get_session(install_cmd=install_cmd, options=options)
+    if session_is_required:
+        if session is None:
+            session = get_session(install_cmd=install_cmd, options=options)
         preparer_args["session"] = session
     if finder_is_required:
         finder = _ensure_finder(
@@ -928,7 +924,7 @@ def make_preparer(
         if "req_tracker" in required_args:
             req_tracker = tracker_ctx if req_tracker is None else req_tracker
             preparer_args["req_tracker"] = req_tracker
-
+        preparer_args["lazy_wheel"] = True
         result = call_function_with_correct_args(preparer_fn, **preparer_args)
         yield result
 
@@ -1318,7 +1314,11 @@ def resolve(  # noqa:C901
             wheel_cache_provider(kwargs["cache_dir"], format_control)
         )  # type: ignore
         ireq.is_direct = True  # type: ignore
-        build_location_kwargs = {"build_dir": kwargs["build_dir"], "autodelete": True}
+        build_location_kwargs = {
+            "build_dir": kwargs["build_dir"],
+            "autodelete": True,
+            "parallel_builds": False
+        }
         call_function_with_correct_args(ireq.build_location, **build_location_kwargs)
         if reqset_provider is None:
             raise TypeError(

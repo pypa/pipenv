@@ -26,7 +26,7 @@ requests==2.23.0
     idna==2.9
     urllib3==1.25.9
     certifi==2020.4.5.1
-requirementslib==1.5.12
+requirementslib==1.5.13
     attrs==19.3.0
     distlib==0.3.0
     packaging==20.3
@@ -39,7 +39,7 @@ semver==2.9.0
 toml==0.10.1
 cached-property==1.5.1
 vistir==0.5.2
-pip-shims==0.5.2
+pip-shims==0.5.3
     contextlib2==0.6.0.post1
     funcsigs==1.0.2
 enum34==1.1.10
