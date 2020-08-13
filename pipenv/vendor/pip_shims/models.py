@@ -441,27 +441,20 @@ class ShimmedPath(object):
         )
         if not methods and not classmethods:
             return provided
-        new_functions = provided.__dict__.copy()
-        if classmethods:
-            new_functions.update(
-                {
-                    method_name: clsmethod
-                    for method_name, clsmethod in classmethods.items()
-                    if method_name not in provided.__dict__
-                }
-            )
-        if methods:
-            new_functions.update(
-                {
-                    method_name: method
-                    for method_name, method in methods.items()
-                    if method_name not in provided.__dict__
-                }
-            )
         classname = provided.__name__
         if six.PY2:
             classname = classname.encode(sys.getdefaultencoding())
-        type_ = type(classname, (provided,), new_functions)
+        type_ = type(classname, (provided,), {})
+
+        if classmethods:
+            for method_name, clsmethod in classmethods.items():
+                if method_name not in provided.__dict__:
+                    type.__setattr__(type_, method_name, clsmethod)
+
+        if methods:
+            for method_name, clsmethod in methods.items():
+                if method_name not in provided.__dict__:
+                    type.__setattr__(type_, method_name, clsmethod)
         return type_
 
     @property

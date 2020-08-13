@@ -1,0 +1,1 @@
+Do not copy the whole directory tree of local file package.

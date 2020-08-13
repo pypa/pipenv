@@ -823,8 +823,8 @@ def do_install_dependencies(
             click.echo(
                 crayons.normal(fix_utf8("Installing dependencies from Pipfile…"), bold=True)
             )
-            # skip_lock should completely bypass the lockfile (broken in 4dac1676)
-            lockfile = project.get_or_create_lockfile(from_pipfile=True)
+        # skip_lock should completely bypass the lockfile (broken in 4dac1676)
+        lockfile = project.get_or_create_lockfile(from_pipfile=True)
     else:
         lockfile = project.get_or_create_lockfile()
         if not bare:
@@ -851,7 +851,6 @@ def do_install_dependencies(
             "\n".join(sorted(deps))
         )
         sys.exit(0)
-
     if concurrent:
         nprocs = PIPENV_MAX_SUBPROCESS
     else:

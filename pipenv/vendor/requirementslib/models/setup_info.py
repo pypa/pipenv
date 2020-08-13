@@ -1580,29 +1580,7 @@ class SetupInfo(object):
 
     def build_wheel(self):
         # type: () -> S
-        if not self.pyproject.exists():
-            build_requires = ", ".join(['"{0}"'.format(r) for r in self.build_requires])
-            self.pyproject.write_text(
-                six.text_type(
-                    """
-[build-system]
-requires = [{0}]
-build-backend = "{1}"
-                """.format(
-                        build_requires, self.build_backend
-                    ).strip()
-                )
-            )
-        return build_pep517(
-            self.base_dir,
-            self.extra_kwargs["build_dir"],
-            config_settings=self.pep517_config,
-            dist_type="wheel",
-        )
-
-    # noinspection PyPackageRequirements
-    def build_sdist(self):
-        # type: () -> S
+        need_delete = False
         if not self.pyproject.exists():
             if not self.build_requires:
                 build_requires = '"setuptools", "wheel"'
@@ -1621,12 +1599,49 @@ build-backend = "{1}"
                     ).strip()
                 )
             )
-        return build_pep517(
+            need_delete = True
+        result = build_pep517(
+            self.base_dir,
+            self.extra_kwargs["build_dir"],
+            config_settings=self.pep517_config,
+            dist_type="wheel",
+        )
+        if need_delete:
+            self.pyproject.unlink()
+        return result
+
+    # noinspection PyPackageRequirements
+    def build_sdist(self):
+        # type: () -> S
+        need_delete = False
+        if not self.pyproject.exists():
+            if not self.build_requires:
+                build_requires = '"setuptools", "wheel"'
+            else:
+                build_requires = ", ".join(
+                    ['"{0}"'.format(r) for r in self.build_requires]
+                )
+            self.pyproject.write_text(
+                six.text_type(
+                    """
+[build-system]
+requires = [{0}]
+build-backend = "{1}"
+                """.format(
+                        build_requires, self.build_backend
+                    ).strip()
+                )
+            )
+            need_delete = True
+        result = build_pep517(
             self.base_dir,
             self.extra_kwargs["build_dir"],
             config_settings=self.pep517_config,
             dist_type="sdist",
         )
+        if need_delete:
+            self.pyproject.unlink()
+        return result
 
     def build(self):
         # type: () -> "SetupInfo"
@@ -1874,10 +1889,7 @@ build-backend = "{1}"
             ireq.link, "is_vcs", getattr(ireq.link, "is_artifact", False)
         )
         is_vcs = True if vcs else is_artifact_or_vcs
-        if is_file and not is_vcs and path is not None and os.path.isdir(path):
-            target = os.path.join(kwargs["src_dir"], os.path.basename(path))
-            shutil.copytree(path, target, symlinks=True)
-            ireq.source_dir = target
+
         if not (ireq.editable and is_file and is_vcs):
             if ireq.is_wheel:
                 only_download = True
@@ -1895,10 +1907,12 @@ build-backend = "{1}"
         if build_location_func is None:
             build_location_func = getattr(ireq, "ensure_build_location", None)
         if not ireq.source_dir:
-            build_kwargs = {"build_dir": kwargs["build_dir"], "autodelete": False}
+            build_kwargs = {
+                "build_dir": kwargs["build_dir"],
+                "autodelete": False, "parallel_builds": True
+            }
             call_function_with_correct_args(build_location_func, **build_kwargs)
             ireq.ensure_has_source_dir(kwargs["src_dir"])
-            src_dir = ireq.source_dir
             pip_shims.shims.shim_unpack(
                 download_dir=download_dir,
                 ireq=ireq,

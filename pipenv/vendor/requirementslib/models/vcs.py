@@ -112,12 +112,18 @@ class VCSRepository(object):
     @classmethod
     def monkeypatch_pip(cls):
         # type: () -> Tuple[Any, ...]
+        from pip_shims.compat import get_allowed_args
+
         target_module = pip_shims.shims.VcsSupport.__module__
         pip_vcs = importlib.import_module(target_module)
+        args, kwargs = get_allowed_args(pip_vcs.VersionControl.run_command)
         run_command_defaults = pip_vcs.VersionControl.run_command.__defaults__
-        # set the default to not write stdout, the first option sets this value
-        new_defaults = [False] + list(run_command_defaults)[1:]
-        new_defaults = tuple(new_defaults)
+        if "show_stdout" not in args and "show_stdout" not in kwargs:
+            new_defaults = run_command_defaults
+        else:
+            # set the default to not write stdout, the first option sets this value
+            new_defaults = [False] + list(run_command_defaults)[1:]
+            new_defaults = tuple(new_defaults)
         if six.PY3:
             try:
                 pip_vcs.VersionControl.run_command.__defaults__ = new_defaults
