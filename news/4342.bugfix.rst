@@ -1,1 +1,0 @@
-Fix a bug that ``setup.py`` can't be parsed correctly when the assignment is type-annotated.

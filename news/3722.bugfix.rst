@@ -1,2 +1,0 @@
-Fixed behaviour of ``pipenv uninstall --all-dev``.
-From now on it does not uninstall regular packages.

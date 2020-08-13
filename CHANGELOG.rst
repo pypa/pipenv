@@ -1,3 +1,28 @@
+2020.8.13 (2020-08-13)
+======================
+
+Bug Fixes
+---------
+
+- Fixed behaviour of ``pipenv uninstall --all-dev``.
+  From now on it does not uninstall regular packages.  `#3722 <https://github.com/pypa/pipenv/issues/3722>`_
+- Fix a bug that incorrect Python path will be used when ``--system`` flag is on.  `#4315 <https://github.com/pypa/pipenv/issues/4315>`_
+- Fix falsely flagging a Homebrew installed Python as a virtual environment  `#4316 <https://github.com/pypa/pipenv/issues/4316>`_
+- Fix a bug that ``pipenv uninstall`` throws an exception that does not exist.  `#4321 <https://github.com/pypa/pipenv/issues/4321>`_
+- Fix a bug that Pipenv can't locate the correct file of special directives in ``setup.cfg`` of an editable package.  `#4335 <https://github.com/pypa/pipenv/issues/4335>`_
+- Fix a bug that ``setup.py`` can't be parsed correctly when the assignment is type-annotated.  `#4342 <https://github.com/pypa/pipenv/issues/4342>`_
+- Fix a bug that ``pipenv graph`` throws an exception that PipenvCmdError(cmd_string, c.out, c.err, return_code).  `#4388 <https://github.com/pypa/pipenv/issues/4388>`_
+- Do not copy the whole directory tree of local file package.  `#4403 <https://github.com/pypa/pipenv/issues/4403>`_
+- Correctly detect whether Pipenv in run under an activated virtualenv.  `#4412 <https://github.com/pypa/pipenv/issues/4412>`_
+
+Vendored Libraries
+------------------
+
+- Update ``requirementslib`` to ``1.5.12``.  `#4385 <https://github.com/pypa/pipenv/issues/4385>`_
+- * Update ``requirements`` to ``1.5.13``.
+  * Update ``pip-shims`` to ``0.5.3``.  `#4421 <https://github.com/pypa/pipenv/issues/4421>`_
+
+
 2020.6.2 (2020-06-02)
 =====================
 

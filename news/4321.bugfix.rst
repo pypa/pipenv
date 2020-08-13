@@ -1,1 +1,0 @@
-Fix a bug that ``pipenv uninstall`` throws an exception that does not exist.

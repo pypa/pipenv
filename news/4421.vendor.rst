@@ -1,2 +1,0 @@
-* Update ``requirements`` to ``1.5.13``.
-* Update ``pip-shims`` to ``0.5.3``.

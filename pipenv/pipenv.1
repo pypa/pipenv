@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PIPENV" "1" "Jun 02, 2020" "2020.6.2" "pipenv"
+.TH "PIPENV" "1" "Aug 13, 2020" "2020.8.13" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 .
@@ -396,6 +396,41 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2020.8.13 (2020\-08\-13)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fixed behaviour of \fBpipenv uninstall \-\-all\-dev\fP\&.
+From now on it does not uninstall regular packages.  \fI\%#3722\fP
+.IP \(bu 2
+Fix a bug that incorrect Python path will be used when \fB\-\-system\fP flag is on.  \fI\%#4315\fP
+.IP \(bu 2
+Fix falsely flagging a Homebrew installed Python as a virtual environment  \fI\%#4316\fP
+.IP \(bu 2
+Fix a bug that \fBpipenv uninstall\fP throws an exception that does not exist.  \fI\%#4321\fP
+.IP \(bu 2
+Fix a bug that Pipenv can\(aqt locate the correct file of special directives in \fBsetup.cfg\fP of an editable package.  \fI\%#4335\fP
+.IP \(bu 2
+Fix a bug that \fBsetup.py\fP can\(aqt be parsed correctly when the assignment is type\-annotated.  \fI\%#4342\fP
+.IP \(bu 2
+Fix a bug that \fBpipenv graph\fP throws an exception that PipenvCmdError(cmd_string, c.out, c.err, return_code).  \fI\%#4388\fP
+.IP \(bu 2
+Do not copy the whole directory tree of local file package.  \fI\%#4403\fP
+.IP \(bu 2
+Correctly detect whether Pipenv in run under an activated virtualenv.  \fI\%#4412\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Update \fBrequirementslib\fP to \fB1.5.12\fP\&.  \fI\%#4385\fP
+.IP \(bu 2
+.INDENT 2.0
+.IP \(bu 2
+Update \fBrequirements\fP to \fB1.5.13\fP\&.
+.IP \(bu 2
+Update \fBpip\-shims\fP to \fB0.5.3\fP\&.  \fI\%#4421\fP
+.UNINDENT
+.UNINDENT
 .SS 2020.6.2 (2020\-06\-02)
 .SS Features & Improvements
 .INDENT 0.0
@@ -1834,7 +1869,7 @@ Generally, keep both \fBPipfile\fP and \fBPipfile.lock\fP in version control.
 .IP \(bu 2
 Do not keep \fBPipfile.lock\fP in version control if multiple versions of Python are being targeted.
 .IP \(bu 2
-Specify your target Python version in your \fIPipfile\fP\(aqs \fB[requires]\fP section. Ideally, you should only have one target Python version, as this is a deployment tool. \fBpython_version\fP should be in the format \fBX.Y\fP and \fBpython_full_version\fP should be in \fBX.Y.Z\fP format.
+Specify your target Python version in your \fIPipfile\fP\(aqs \fB[requires]\fP section. Ideally, you should only have one target Python version, as this is a deployment tool. \fBpython_version\fP should be in the format \fBX.Y\fP (or \fBX\fP) and \fBpython_full_version\fP should be in \fBX.Y.Z\fP format.
 .IP \(bu 2
 \fBpipenv install\fP is fully compatible with \fBpip install\fP syntax, for which the full documentation can be found \fI\%here\fP\&.
 .IP \(bu 2
@@ -2920,7 +2955,7 @@ variables. To activate them, simply create the variable in your shell and pipenv
 will detect it.
 .INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_CACHE_DIR = \(aq/home/techalchemy/.cache/pipenv\(aq
+.B pipenv.environments.PIPENV_CACHE_DIR = \(aq/home/frostming/.cache/pipenv\(aq
 Location for Pipenv to store it\(aqs package cache.
 .sp
 Default is to use appdir\(aqs user cache directory.
@@ -2935,7 +2970,7 @@ to show colors.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_DEFAULT_PYTHON_VERSION = \(aq3.8\(aq
+.B pipenv.environments.PIPENV_DEFAULT_PYTHON_VERSION = None
 Use this Python version when creating new virtual environments by default.
 .sp
 This can be set to a version string, e.g. \fB3.6\fP, or a path. Default is to use
@@ -3077,7 +3112,7 @@ approach, you may set this to \(aq0\(aq, \(aqoff\(aq, or \(aqfalse\(aq.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_SHELL = \(aq/usr/bin/fish\(aq
+.B pipenv.environments.PIPENV_SHELL = \(aq/bin/bash\(aq
 An absolute path to the preferred shell for \fBpipenv shell\fP\&.
 .sp
 Default is to detect automatically what shell is currently in use.
@@ -3193,6 +3228,11 @@ True or false depending on whether we are in a regular virtualenv or not
 .B Return type
 bool
 .UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B pipenv.environments.is_using_venv()
+Check for venv\-based virtual environment which sets sys.base_prefix
 .UNINDENT
 .sp
 If you\(aqd like to set these environment variables on a per\-project basis, I recommend utilizing the fantastic \fI\%direnv\fP project, in order to do so.

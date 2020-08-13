@@ -1,1 +1,0 @@
-Fix falsely flagging a Homebrew installed Python as a virtual environment
