@@ -1117,8 +1117,8 @@ def create_spinner(text, nospin=None, spinner_name=None):
 
 
 def resolve(cmd, sp):
-    import delegator
     from .cmdparse import Script
+    from .vendor import delegator
     from .vendor.pexpect.exceptions import EOF, TIMEOUT
     from .vendor.vistir.compat import to_native_string
     from .vendor.vistir.misc import echo
