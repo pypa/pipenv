@@ -1,0 +1,1 @@
+Fix a bug that ``pexept.exceptions.TIMEOUT`` is not caught correctly because of the wrong import path.
