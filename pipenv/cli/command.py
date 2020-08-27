@@ -664,6 +664,7 @@ def run_open(state, module, *args, **kwargs):
     short_help="Installs all packages specified in Pipfile.lock.",
     context_settings=CONTEXT_SETTINGS
 )
+@system_option
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @sync_options
 @pass_state
@@ -691,6 +692,7 @@ def sync(
         unused=unused,
         sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
+        system=state.system
     )
     if retcode:
         ctx.abort()
