@@ -96,7 +96,7 @@ class WindowsFinder(BaseFinder):
                 py_version = PythonVersion.from_windows_launcher(
                     version_object, name=name, company=company
                 )
-            except InvalidPythonVersion:
+            except (InvalidPythonVersion, AttributeError):
                 continue
             if py_version is None:
                 continue

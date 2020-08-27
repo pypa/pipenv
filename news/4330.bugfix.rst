@@ -1,0 +1,1 @@
+Fix a bug that paths are not normalized before comparison.
