@@ -4,22 +4,29 @@ from __future__ import unicode_literals
 import re
 import string
 
+from typing import Any
+from typing import Generator
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
+
 from ._compat import chr
 from ._compat import decode
-from ._utils import _escaped
 from ._utils import RFC_3339_LOOSE
+from ._utils import _escaped
 from ._utils import parse_rfc3339
 from .container import Container
 from .exceptions import EmptyKeyError
 from .exceptions import EmptyTableNameError
 from .exceptions import InternalParserError
 from .exceptions import InvalidCharInStringError
-from .exceptions import InvalidDateTimeError
+from .exceptions import InvalidControlChar
 from .exceptions import InvalidDateError
-from .exceptions import InvalidTimeError
+from .exceptions import InvalidDateTimeError
 from .exceptions import InvalidNumberError
+from .exceptions import InvalidTimeError
 from .exceptions import InvalidUnicodeValueError
-from .exceptions import MixedArrayTypesError
 from .exceptions import ParseError
 from .exceptions import UnexpectedCharError
 from .exceptions import UnexpectedEofError
@@ -46,6 +53,13 @@ from .items import Whitespace
 from .source import Source
 from .toml_char import TOMLChar
 from .toml_document import TOMLDocument
+
+
+CTRL_I = 0x09  # Tab
+CTRL_J = 0x0A  # Line feed
+CTRL_M = 0x0D  # Carriage return
+CTRL_CHAR_LIMIT = 0x1F
+CHR_DEL = 0x7F
 
 
 class Parser:
@@ -195,7 +209,7 @@ class Parser:
         current = ""
         t = KeyType.Bare
         parts = 0
-        for c in name.strip():
+        for c in name:
             c = TOMLChar(c)
 
             if c == ".":
@@ -206,7 +220,8 @@ class Parser:
                 if not current:
                     raise self.parse_error()
 
-                yield Key(current.strip(), t=t, sep="")
+                yield Key(current.strip(), t=t, sep="", original=current)
+
                 parts += 1
 
                 current = ""
@@ -228,7 +243,11 @@ class Parser:
 
                     in_name = False
                 else:
-                    if current and TOMLChar(current[-1]).is_spaces() and not parts:
+                    if (
+                        current.strip()
+                        and TOMLChar(current[-1]).is_spaces()
+                        and not parts
+                    ):
                         raise self.parse_error()
 
                     in_name = True
@@ -236,14 +255,6 @@ class Parser:
 
                 continue
             elif in_name or c.is_bare_key_char():
-                if (
-                    not in_name
-                    and current
-                    and TOMLChar(current[-1]).is_spaces()
-                    and not parts
-                ):
-                    raise self.parse_error()
-
                 current += c
             elif c.is_spaces():
                 # A space is only valid at this point
@@ -256,7 +267,7 @@ class Parser:
                 raise self.parse_error()
 
         if current.strip():
-            yield Key(current.strip(), t=t, sep="")
+            yield Key(current.strip(), t=t, sep="", original=current)
 
     def _parse_item(self):  # type: () -> Optional[Tuple[Optional[Key], Item]]
         """
@@ -319,8 +330,13 @@ class Parser:
                 self.inc()  # Skip #
 
                 # The comment itself
-                while not self.end() and not self._current.is_nl() and self.inc():
-                    pass
+                while not self.end() and not self._current.is_nl():
+                    code = ord(self._current)
+                    if code == CHR_DEL or code <= CTRL_CHAR_LIMIT and code != CTRL_I:
+                        raise self.parse_error(InvalidControlChar, code, "comments")
+
+                    if not self.inc():
+                        break
 
                 comment = self.extract()
                 self.mark()
@@ -360,8 +376,6 @@ class Parser:
 
         # Key
         key = self._parse_key()
-        if not key.key.strip():
-            raise self.parse_error(EmptyKeyError)
 
         self.mark()
 
@@ -374,16 +388,20 @@ class Parser:
                     found_equals = True
             pass
 
-        key.sep = self.extract()
+        if not key.sep:
+            key.sep = self.extract()
+        else:
+            key.sep += self.extract()
 
         # Value
         val = self._parse_value()
-
         # Comment
         if parse_comment:
             cws, comment, trail = self._parse_comment_trail()
             meta = val.trivia
-            meta.comment_ws = cws
+            if not meta.comment_ws:
+                meta.comment_ws = cws
+
             meta.comment = comment
             meta.trail = trail
         else:
@@ -444,30 +462,64 @@ class Parser:
         dotted = False
 
         self.mark()
-        while self._current.is_bare_key_char() and self.inc():
+        while (
+            self._current.is_bare_key_char() or self._current.is_spaces()
+        ) and self.inc():
             pass
 
-        key = self.extract()
+        original = self.extract()
+        key = original.strip()
+        if not key:
+            # Empty key
+            raise self.parse_error(ParseError, "Empty key found")
+
+        if " " in key:
+            # Bare key with spaces in it
+            raise self.parse_error(ParseError, 'Invalid key "{}"'.format(key))
 
         if self._current == ".":
             self.inc()
             dotted = True
-            key += "." + self._parse_key().as_string()
+            original += "." + self._parse_key().as_string()
+            key = original.strip()
             key_type = KeyType.Bare
 
-        return Key(key, key_type, "", dotted)
+        return Key(key, key_type, "", dotted, original=original)
 
     def _handle_dotted_key(
         self, container, key, value
     ):  # type: (Union[Container, Table], Key, Any) -> None
-        names = tuple(self._split_table_name(key.key))
+        names = tuple(self._split_table_name(key.as_string()))
         name = names[0]
         name._dotted = True
         if name in container:
-            if isinstance(container, Table):
-                table = container.value.item(name)
-            else:
-                table = container.item(name)
+            if not isinstance(value, Table):
+                table = Table(Container(True), Trivia(), False, is_super_table=True)
+                _table = table
+                for i, _name in enumerate(names[1:]):
+                    if i == len(names) - 2:
+                        _name.sep = key.sep
+
+                        _table.append(_name, value)
+                    else:
+                        _name._dotted = True
+                        _table.append(
+                            _name,
+                            Table(
+                                Container(True),
+                                Trivia(),
+                                False,
+                                is_super_table=i < len(names) - 2,
+                            ),
+                        )
+
+                        _table = _table[_name]
+
+                value = table
+
+            container.append(name, value)
+
+            return
         else:
             table = Table(Container(True), Trivia(), False, is_super_table=True)
             if isinstance(container, Table):
@@ -483,7 +535,7 @@ class Parser:
             else:
                 _name._dotted = True
                 if _name in table.value:
-                    table = table.value.item(_name)
+                    table = table.value[_name]
                 else:
                     table.append(
                         _name,
@@ -567,7 +619,29 @@ class Parser:
                 if m.group(1):
                     try:
                         dt = parse_rfc3339(raw)
-                        return Date(dt.year, dt.month, dt.day, trivia, raw)
+                        date = Date(dt.year, dt.month, dt.day, trivia, raw)
+                        self.mark()
+                        while self._current not in "\t\n\r#,]}" and self.inc():
+                            pass
+
+                        time_raw = self.extract()
+                        if not time_raw.strip():
+                            trivia.comment_ws = time_raw
+                            return date
+
+                        dt = parse_rfc3339(raw + time_raw)
+                        return DateTime(
+                            dt.year,
+                            dt.month,
+                            dt.day,
+                            dt.hour,
+                            dt.minute,
+                            dt.second,
+                            dt.microsecond,
+                            dt.tzinfo,
+                            trivia,
+                            raw + time_raw,
+                        )
                     except ValueError:
                         raise self.parse_error(InvalidDateError)
 
@@ -667,10 +741,7 @@ class Parser:
         except ValueError:
             pass
         else:
-            if res.is_homogeneous():
-                return res
-
-        raise self.parse_error(MixedArrayTypesError)
+            return res
 
     def _parse_inline_table(self):  # type: () -> InlineTable
         # consume opening bracket, EOF here is an issue (middle of array)
@@ -693,15 +764,25 @@ class Parser:
                     # consume closing bracket, EOF here doesn't matter
                     self.inc()
                     break
-                if trailing_comma is False:
+
+                if (
+                    trailing_comma is False
+                    or trailing_comma is None
+                    and self._current == ","
+                ):
+                    # Either the previous key-value pair was not followed by a comma
+                    # or the table has an unexpected leading comma.
                     raise self.parse_error(UnexpectedCharError, self._current)
             else:
                 # True: previous key-value pair was followed by a comma
-                if self._current == "}":
+                if self._current == "}" or self._current == ",":
                     raise self.parse_error(UnexpectedCharError, self._current)
 
             key, val = self._parse_key_value(False)
-            elems.add(key, val)
+            if key.is_dotted():
+                self._handle_dotted_key(elems, key, val)
+            else:
+                elems.add(key, val)
 
             # consume trailing whitespace
             mark = self._idx
@@ -728,7 +809,7 @@ class Parser:
         if (
             len(raw) > 1
             and raw.startswith("0")
-            and not raw.startswith(("0.", "0o", "0x", "0b"))
+            and not raw.startswith(("0.", "0o", "0x", "0b", "0e"))
         ):
             return
 
@@ -851,33 +932,52 @@ class Parser:
 
         escaped = False  # whether the previous key was ESCAPE
         while True:
-            if delim.is_singleline() and self._current.is_nl():
-                # single line cannot have actual newline characters
-                raise self.parse_error(InvalidCharInStringError, self._current)
+            code = ord(self._current)
+            if (
+                delim.is_singleline()
+                and not escaped
+                and (code == CHR_DEL or code <= CTRL_CHAR_LIMIT and code != CTRL_I)
+            ):
+                raise self.parse_error(InvalidControlChar, code, "strings")
+            elif (
+                delim.is_multiline()
+                and not escaped
+                and (
+                    code == CHR_DEL
+                    or code <= CTRL_CHAR_LIMIT
+                    and code not in [CTRL_I, CTRL_J, CTRL_M]
+                )
+            ):
+                raise self.parse_error(InvalidControlChar, code, "strings")
             elif not escaped and self._current == delim.unit:
                 # try to process current as a closing delim
                 original = self.extract()
 
                 close = ""
                 if delim.is_multiline():
-                    # try consuming three delims as this would mean the end of
-                    # the string
-                    for last in [False, False, True]:
-                        if self._current != delim.unit:
-                            # Not a triple quote, leave in result as-is.
-                            # Adding back the characters we already consumed
-                            value += close
-                            close = ""  # clear the close
-                            break
+                    # Consume the delimiters to see if we are at the end of the string
+                    close = ""
+                    while self._current == delim.unit:
+                        close += self._current
+                        self.inc()
 
-                        close += delim.unit
-
-                        # consume this delim, EOF here is only an issue if this
-                        # is not the third (last) delim character
-                        self.inc(exception=UnexpectedEofError if not last else None)
-
-                    if not close:  # if there is no close characters, keep parsing
+                    if len(close) < 3:
+                        # Not a triple quote, leave in result as-is.
+                        # Adding back the characters we already consumed
+                        value += close
                         continue
+
+                    if len(close) == 3:
+                        # We are at the end of the string
+                        return String(delim, value, original, Trivia())
+
+                    if len(close) >= 6:
+                        raise self.parse_error(InvalidCharInStringError, self._current)
+
+                    value += close[:-3]
+                    original += close[:-3]
+
+                    return String(delim, value, original, Trivia())
                 else:
                     # consume the closing delim, we do not care if EOF occurs as
                     # that would simply imply the end of self._src
@@ -906,8 +1006,8 @@ class Parser:
                 self.inc(exception=UnexpectedEofError)
 
     def _parse_table(
-        self, parent_name=None
-    ):  # type: (Optional[str]) -> Tuple[Key, Union[Table, AoT]]
+        self, parent_name=None, parent=None
+    ):  # type: (Optional[str], Optional[Table]) -> Tuple[Key, Union[Table, AoT]]
         """
         Parses a table element.
         """
@@ -974,6 +1074,9 @@ class Parser:
 
         key = Key(name, sep="")
         name_parts = tuple(self._split_table_name(name))
+        if any(" " in part.key.strip() and part.is_bare() for part in name_parts):
+            raise self.parse_error(ParseError, 'Invalid table name "{}"'.format(name))
+
         missing_table = False
         if parent_name:
             parent_name_parts = tuple(self._split_table_name(parent_name))
@@ -1059,7 +1162,7 @@ class Parser:
                     is_aot_next, name_next = self._peek_table()
 
                     if self._is_child(name, name_next):
-                        key_next, table_next = self._parse_table(name)
+                        key_next, table_next = self._parse_table(name, table)
 
                         table.raw_append(key_next, table_next)
 
@@ -1070,7 +1173,7 @@ class Parser:
                             if not self._is_child(name, name_next):
                                 break
 
-                            key_next, table_next = self._parse_table(name)
+                            key_next, table_next = self._parse_table(name, table)
 
                             table.raw_append(key_next, table_next)
 
@@ -1190,7 +1293,7 @@ class Parser:
 
                 try:
                     value = chr(int(extracted, 16))
-                except ValueError:
+                except (ValueError, OverflowError):
                     value = None
 
             return value, extracted
