@@ -1,0 +1,1 @@
+Fix a bug that invalid Python paths from Windows registry break ``pipenv install``.
