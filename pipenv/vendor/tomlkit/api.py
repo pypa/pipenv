@@ -1,7 +1,5 @@
 import datetime as _datetime
 
-from typing import Tuple
-
 from ._utils import parse_rfc3339
 from .container import Container
 from .items import AoT

@@ -1,8 +1,5 @@
 import io
 
-from typing import Any
-from typing import Dict
-
 from .api import loads
 from .toml_document import TOMLDocument
 

@@ -6,13 +6,6 @@ import string
 from datetime import date
 from datetime import datetime
 from datetime import time
-from enum import Enum
-from typing import Any
-from typing import Dict
-from typing import Generator
-from typing import List
-from typing import Optional
-from typing import Union
 
 from ._compat import PY2
 from ._compat import PY38
@@ -23,8 +16,10 @@ from ._utils import escape_string
 
 
 if PY2:
+    from pipenv.vendor.backports.enum import Enum
     from pipenv.vendor.backports.functools_lru_cache import lru_cache
 else:
+    from enum import Enum
     from functools import lru_cache
 
 

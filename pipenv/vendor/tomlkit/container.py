@@ -2,14 +2,6 @@ from __future__ import unicode_literals
 
 import copy
 
-from typing import Any
-from typing import Dict
-from typing import Generator
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
-
 from ._compat import decode
 from ._utils import merge_dicts
 from .exceptions import KeyAlreadyPresent
