@@ -504,55 +504,6 @@ class Entry(object):
         """
         if self.is_in_pipfile:
             return self.pipfile_entry.as_ireq()
-        return self.constraint_from_parent_conflicts()
-
-    def constraint_from_parent_conflicts(self):
-        """
-        Given a resolved entry with multiple parent dependencies with different
-        constraints, searches for the resolution that satisfies all of the parent
-        constraints.
-
-        :return: A new **InstallRequirement** satisfying all parent constraints
-        :raises: :exc:`~pipenv.exceptions.DependencyConflict` if resolution is impossible
-        """
-        # ensure that we satisfy the parent dependencies of this dep
-        parent_dependencies = set()
-        has_mismatch = False
-        can_use_original = True
-        for p in self.parent_deps:
-            # updated dependencies should be satisfied since they were resolved already
-            if p.is_updated:
-                continue
-            # parents with no requirements can't conflict
-            if not p.requirements:
-                continue
-            entry_ref = p.get_dependency(self.name)
-            required = entry_ref.get("required_version", "*")
-            required = self.clean_specifier(required)
-            parent_requires = self.make_requirement(self.name, required)
-            parent_dependencies.add("{0} => {1} ({2})".format(p.name, self.name, required))
-            # use pre=True here or else prereleases dont satisfy constraints
-            if parent_requires.requirement.specifier and (
-                not parent_requires.requirement.specifier.contains(self.original_version, prereleases=True)
-            ):
-                can_use_original = False
-            if parent_requires.requirement.specifier and (
-                not parent_requires.requirement.specifier.contains(self.updated_version, prereleases=True)
-            ):
-                if not self.entry.editable and self.updated_version != self.original_version:
-                    has_mismatch = True
-        if has_mismatch and not can_use_original:
-            from pipenv.exceptions import DependencyConflict
-            msg = (
-                "Cannot resolve {0} ({1}) due to conflicting parent dependencies: "
-                "\n\t{2}".format(
-                    self.name, self.updated_version, "\n\t".join(parent_dependencies)
-                )
-            )
-            raise DependencyConflict(msg)
-        elif can_use_original:
-            return self.lockfile_entry.as_ireq()
-        return self.entry.as_ireq()
 
     def validate_constraints(self):
         """
@@ -562,19 +513,24 @@ class Entry(object):
         :return: True if the constraints are satisfied by the resolution provided
         :raises: :exc:`pipenv.exceptions.DependencyConflict` if the constraints dont exist
         """
+        from pipenv.exceptions import DependencyConflict
+        from pipenv.environments import is_verbose
+
         constraints = self.get_constraints()
+        pinned_version = self.updated_version
         for constraint in constraints:
-            try:
-                constraint.check_if_exists(False)
-            except Exception:
-                from pipenv.exceptions import DependencyConflict
-                from pipenv.environments import is_verbose
+            if not constraint.req:
+                continue
+            if pinned_version and not constraint.req.specifier.contains(
+                str(pinned_version), prereleases=True
+            ):
                 if is_verbose():
                     print("Tried constraint: {0!r}".format(constraint), file=sys.stderr)
                 msg = (
                     "Cannot resolve conflicting version {0}{1} while {2}{3} is "
                     "locked.".format(
-                        self.name, self.updated_specifier, self.old_name, self.old_specifiers
+                        self.name, constraint.req.specifier,
+                        self.name, self.updated_specifier
                     )
                 )
                 raise DependencyConflict(msg)
