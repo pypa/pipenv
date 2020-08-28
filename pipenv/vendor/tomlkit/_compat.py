@@ -1,6 +1,7 @@
 import re
 import sys
 
+
 try:
     from datetime import timezone
 except ImportError:
@@ -147,6 +148,12 @@ else:
     unicode = str
     chr = chr
     long = int
+
+
+if PY36:
+    OrderedDict = dict
+else:
+    from collections import OrderedDict
 
 
 def decode(string, encodings=None):

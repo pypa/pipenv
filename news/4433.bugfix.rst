@@ -1,0 +1,1 @@
+Fix a bug that compound TOML table is not parsed correctly.
