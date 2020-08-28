@@ -727,12 +727,13 @@ def script(state, args):
     """Lists scripts in current environment config."""
     from ..core import project
     if not project:
-        print("project not found")
+        echo(u"project not found", err=True)
         exit(1)
-    scripts = project.parsed_pipfile.get('scripts', [])
-    print("command\tscript")
+    scripts = project.parsed_pipfile.get('scripts', {})
+    rpt = u"command\tscript\n"
     for k, v in scripts.items():
-        print(f"{k}\t{v}")
+        rpt += u"{0}\t{1}".format(k, v)
+    echo(rpt)
     return
 
 
