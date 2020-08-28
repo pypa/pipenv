@@ -41,25 +41,21 @@ You can quickly play with Pipenv right in your browser:
 Installation
 ------------
 
-If you\'re on MacOS, you can install Pipenv easily with Homebrew:
-
-    $ brew install pipenv
-
-Or, if you\'re using Debian Buster+:
+If you\'re using Debian Buster+:
 
     $ sudo apt install pipenv
 
 Or, if you\'re using Fedora:
 
     $ sudo dnf install pipenv
-    
+
 Or, if you\'re using FreeBSD:
 
     # pkg install py36-pipenv
 
-When none of the above is an option:
+When none of the above is an option, it is recommended to use [Pipx](https://pypi.org/p/pipx):
 
-    $ pip install pipenv
+    $ pipx install pipenv
 
 Otherwise, refer to the [documentation](https://pipenv.pypa.io/en/latest/#install-pipenv-today) for instructions.
 
