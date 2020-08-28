@@ -80,22 +80,17 @@ cases.
 .. _bundler: http://bundler.io/
 
 
-☤ Homebrew Installation of Pipenv
----------------------------------
+☤ Isolated Installation of Pipenv with Pipx
+-------------------------------------------
 
-`Homebrew`_ is a popular open-source package management system for macOS. For Linux users, `Linuxbrew`_  is a Linux port of that.
+`Pipx`_ is a tool to help you install and run end-user applications written in Python. It installs applications
+into an isolated and clean environment on their own. To install pipx, just run::
 
-Installing pipenv via Homebrew or Linuxbrew will keep pipenv and all of its dependencies in
-an isolated virtual environment so it doesn't interfere with the rest of your
-Python installation.
+    $ pip install --user pipx
 
-Once you have installed Homebrew or Linuxbrew simply run::
+Once you have ``pipx`` ready on your system, continue to install Pipenv::
 
-    $ brew install pipenv
-
-To upgrade pipenv at any time::
-
-    $ brew upgrade pipenv
+    $ pipx install pipenv
 
 
 ☤ Pragmatic Installation of Pipenv
@@ -147,6 +142,27 @@ To upgrade pipenv at any time::
 If you don't even have pip installed, you can use this crude installation method, which will bootstrap your whole system::
 
     $ curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
+
+
+☤ Homebrew Installation of Pipenv(Discouraged)
+----------------------------------------------
+`Homebrew`_ is a popular open-source package management system for macOS. For Linux users, `Linuxbrew`_  is a Linux port of that.
+
+Installing pipenv via Homebrew or Linuxbrew will keep pipenv and all of its dependencies in
+an isolated virtual environment so it doesn't interfere with the rest of your
+Python installation.
+
+Once you have installed Homebrew or Linuxbrew simply run::
+
+    $ brew install pipenv
+
+To upgrade pipenv at any time::
+
+    $ brew upgrade pipenv
+
+.. Note::
+    Homebrew installation is discouraged because each time the Homebrew Python is upgraded, which Pipenv depends on,
+    users have to re-install Pipenv, and perhaps all virtual environments managed by it.
 
 
 ☤ Installing packages for your project
