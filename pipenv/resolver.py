@@ -562,13 +562,15 @@ class Entry(object):
         :return: True if the constraints are satisfied by the resolution provided
         :raises: :exc:`pipenv.exceptions.DependencyConflict` if the constraints dont exist
         """
+        from pipenv.exceptions import DependencyConflict
+        from pipenv.environments import is_verbose
+
         constraints = self.get_constraints()
+        old_version = self.strip_version(self.old_specifiers)
         for constraint in constraints:
-            try:
-                constraint.check_if_exists(False)
-            except Exception:
-                from pipenv.exceptions import DependencyConflict
-                from pipenv.environments import is_verbose
+            if not constraint.req:
+                continue
+            if not constraint.req.specifier.contains(str(old_version), prereleases=True):
                 if is_verbose():
                     print("Tried constraint: {0!r}".format(constraint), file=sys.stderr)
                 msg = (
