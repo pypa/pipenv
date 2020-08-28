@@ -2883,6 +2883,7 @@ def do_sync(
     )
     do_init(
         dev=dev,
+        allow_global=system,
         concurrent=(not sequential),
         requirements_dir=requirements_dir,
         ignore_pipfile=True,  # Don't check if Pipfile and lock match.
