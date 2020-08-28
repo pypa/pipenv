@@ -841,15 +841,15 @@ def do_install_dependencies(
     dev = dev or dev_only
     deps_list = list(lockfile.get_requirements(dev=dev, only=dev_only))
     if emit_requirements:
-        index_args = prepare_pip_source_args(get_source_list(pypi_mirror=pypi_mirror, project=project))
+        index_args = prepare_pip_source_args(
+            get_source_list(pypi_mirror=pypi_mirror, project=project)
+        )
         index_args = " ".join(index_args).replace(" -", "\n-")
         deps = [
             req.as_line(sources=False, include_hashes=False) for req in deps_list
         ]
         click.echo(index_args)
-        click.echo(
-            "\n".join(sorted(deps))
-        )
+        click.echo("\n".join(sorted(deps)))
         sys.exit(0)
     if concurrent:
         nprocs = PIPENV_MAX_SUBPROCESS
