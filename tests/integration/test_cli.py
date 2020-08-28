@@ -198,6 +198,19 @@ def test_bare_output(PipenvInstance):
 
 
 @pytest.mark.cli
+def test_scripts(PipenvInstance):
+    with PipenvInstance() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[scripts]
+pyver = "which python"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('scripts')
+        assert 'pyver' in c.out
+
+
+@pytest.mark.cli
 def test_help(PipenvInstance):
     with PipenvInstance() as p:
         assert p.pipenv('--help').out
