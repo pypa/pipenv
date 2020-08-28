@@ -566,19 +566,19 @@ class Entry(object):
         from pipenv.environments import is_verbose
 
         constraints = self.get_constraints()
-        old_version = self.original_version
+        pinned_version = self.updated_version
         for constraint in constraints:
             if not constraint.req:
                 continue
-            if old_version and not constraint.req.specifier.contains(
-                str(old_version), prereleases=True
+            if pinned_version and not constraint.req.specifier.contains(
+                str(pinned_version), prereleases=True
             ):
                 if is_verbose():
                     print("Tried constraint: {0!r}".format(constraint), file=sys.stderr)
                 msg = (
                     "Cannot resolve conflicting version {0}{1} while {2}{3} is "
                     "locked.".format(
-                        self.name, self.updated_specifier, self.old_name, self.old_specifiers
+                        self.name, self.updated_specifier, self.name, pinned_version
                     )
                 )
                 raise DependencyConflict(msg)
