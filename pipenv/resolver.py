@@ -566,11 +566,13 @@ class Entry(object):
         from pipenv.environments import is_verbose
 
         constraints = self.get_constraints()
-        old_version = self.strip_version(self.old_specifiers)
+        old_version = self.original_version
         for constraint in constraints:
             if not constraint.req:
                 continue
-            if not constraint.req.specifier.contains(str(old_version), prereleases=True):
+            if old_version and not constraint.req.specifier.contains(
+                str(old_version), prereleases=True
+            ):
                 if is_verbose():
                     print("Tried constraint: {0!r}".format(constraint), file=sys.stderr)
                 msg = (
