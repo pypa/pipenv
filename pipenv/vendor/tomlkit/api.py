@@ -3,24 +3,24 @@ import datetime as _datetime
 from ._utils import parse_rfc3339
 from .container import Container
 from .items import AoT
-from .items import Comment
-from .items import InlineTable
-from .items import Item as _Item
 from .items import Array
 from .items import Bool
-from .items import Key
+from .items import Comment
 from .items import Date
 from .items import DateTime
 from .items import Float
-from .items import Table
+from .items import InlineTable
 from .items import Integer
+from .items import Item as _Item
+from .items import Key
+from .items import String
+from .items import Table
+from .items import Time
 from .items import Trivia
 from .items import Whitespace
-from .items import String
 from .items import item
 from .parser import Parser
 from .toml_document import TOMLDocument as _TOMLDocument
-from .items import Time
 
 
 def loads(string):  # type: (str) -> _TOMLDocument
@@ -32,12 +32,12 @@ def loads(string):  # type: (str) -> _TOMLDocument
     return parse(string)
 
 
-def dumps(data):  # type: (_TOMLDocument) -> str
+def dumps(data, sort_keys=False):  # type: (_TOMLDocument, bool) -> str
     """
     Dumps a TOMLDocument into a string.
     """
     if not isinstance(data, _TOMLDocument) and isinstance(data, dict):
-        data = item(data)
+        data = item(data, _sort_keys=sort_keys)
 
     return data.as_string()
 

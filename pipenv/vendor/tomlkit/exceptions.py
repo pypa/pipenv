@@ -200,3 +200,20 @@ class KeyAlreadyPresent(TOMLKitError):
         message = 'Key "{}" already exists.'.format(key)
 
         super(KeyAlreadyPresent, self).__init__(message)
+
+
+class InvalidControlChar(ParseError):
+    def __init__(self, line, col, char, type):  # type: (int, int, int, str) -> None
+        display_code = "\\u00"
+
+        if char < 16:
+            display_code += "0"
+
+        display_code += str(char)
+
+        message = (
+            "Control characters (codes less than 0x1f and 0x7f) are not allowed in {}, "
+            "use {} instead".format(type, display_code)
+        )
+
+        super(InvalidControlChar, self).__init__(line, col, message=message)

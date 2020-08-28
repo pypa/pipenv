@@ -566,7 +566,10 @@ def packages_missing_licenses(
 ):
     if not vendor_dir:
         vendor_dir = _get_vendor_dir(ctx)
-    requirements = vendor_dir.joinpath(requirements_file).read_text().splitlines()
+    if package is not None:
+        requirements = [package]
+    else:
+        requirements = vendor_dir.joinpath(requirements_file).read_text().splitlines()
     new_requirements = []
     LICENSE_EXTS = ("rst", "txt", "APACHE", "BSD", "md")
     LICENSES = [

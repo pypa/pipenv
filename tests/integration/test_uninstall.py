@@ -156,7 +156,7 @@ def test_normalize_name_uninstall(PipenvInstance):
 # Pre comment
 [packages]
 Requests = "*"
-python_DateUtil = "*"   # Inline comment
+python_DateUtil = "*"
 """
             f.write(contents)
 
@@ -169,7 +169,6 @@ python_DateUtil = "*"   # Inline comment
         with open(p.pipfile_path) as f:
             contents = f.read()
             assert "# Pre comment" in contents
-            assert "# Inline comment" in contents
 
 
 @pytest.mark.install
