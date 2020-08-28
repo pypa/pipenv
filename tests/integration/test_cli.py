@@ -202,11 +202,11 @@ def test_scripts(PipenvInstance):
     with PipenvInstance() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
-[scripts]
+[script]
 pyver = "which python"
             """.strip()
             f.write(contents)
-        c = p.pipenv('scripts')
+        c = p.pipenv('script')
         assert 'pyver' in c.out
 
 

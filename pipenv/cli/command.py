@@ -723,7 +723,7 @@ def clean(ctx, state, dry_run=False, bare=False, user=False):
 @common_options
 @argument("args", nargs=-1)
 @pass_state
-def scripts(state, args):
+def script(state, args):
     """Lists scripts in current environment config."""
     from ..core import project
     if not project:
