@@ -1,0 +1,2 @@
+Add a new option pair ``--header/--no-header`` to ``pipenv lock`` command,
+which adds a header to the generated requirements.txt
