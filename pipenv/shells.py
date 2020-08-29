@@ -92,8 +92,26 @@ class Shell(object):
             os.environ["PROMPT"] = "({0}) {1}".format(name, os.environ["PROMPT"])
         if "PS1" in os.environ:
             os.environ["PS1"] = "({0}) {1}".format(name, os.environ["PS1"])
+        
         with self.inject_path(venv):
-            os.chdir(cwd)
+            # fix of 4438
+            if cwd.startswith("\\\\"):
+                import win32net
+                drive_letters = {}
+                resume = 0
+                while True:
+                    (_drives, total, resume) = win32net.NetUseEnum(None, 0, resume)
+                    for drive in _drives:
+                        if drive["local"]:
+                            drive_letters[drive["remote"]] = drive["local"]
+                    if not resume:
+                        break
+                remote_share, path = os.path.splitdrive(cwd) 
+                new_path = os.path.join(drive_letters[remote_share], path)
+                os.chdir(new_path)
+                    
+            else:
+                os.chdir(cwd)
             _handover(self.cmd, self.args + list(args))
 
     def fork_compat(self, venv, cwd, args):
