@@ -419,7 +419,7 @@ def test_install_venv_project_directory(PipenvInstance):
 @pytest.mark.system
 def test_system_and_deploy_work(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
-        c = p.pipenv("install six requests")
+        c = p.pipenv("install tablib")
         assert c.return_code == 0
         c = p.pipenv("--rm")
         assert c.return_code == 0
@@ -432,7 +432,7 @@ def test_system_and_deploy_work(PipenvInstance):
         Path(p.pipfile_path).write_text(
             u"""
 [packages]
-requests = "*"
+tablib = "*"
         """.strip()
         )
         c = p.pipenv("install --system")
