@@ -16,7 +16,6 @@ steps:
     git submodule sync
     git submodule update --init --recursive
     $(PY_EXE) -m pip install --upgrade --upgrade-strategy=eager pip setuptools wheel
-    $(PY_EXE) -m pip install "virtualenv<20"
   env:
     PIPENV_DEFAULT_PYTHON_VERSION: ${{ parameters.python_version }}
     PYTHONWARNINGS: 'ignore:DEPRECATION'
