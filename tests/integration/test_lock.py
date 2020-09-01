@@ -622,11 +622,11 @@ def test_lock_with_incomplete_source(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [[source]]
-url = "https://test.pypi.org/simple"
+url = "{}"
 
 [packages]
 requests = "*"
-            """)
+            """.format(p.index_url))
         c = p.pipenv('install --skip-lock')
         assert c.return_code == 0
         c = p.pipenv('install')
@@ -697,13 +697,13 @@ def test_lock_after_update_source_name(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         contents = """
 [[source]]
-url = "https://test.pypi.org/simple"
+url = "{}"
 verify_ssl = true
 name = "test"
 
 [packages]
 six = "*"
-        """.strip()
+        """.format(p.index_url).strip()
         with open(p.pipfile_path, 'w') as f:
             f.write(contents)
         c = p.pipenv("lock")
