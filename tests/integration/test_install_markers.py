@@ -158,6 +158,7 @@ def test_resolver_unique_markers(PipenvInstance):
 
 @flaky
 @pytest.mark.project
+@pytest.mark.needs_internet
 def test_environment_variable_value_does_not_change_hash(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with temp_environ():
