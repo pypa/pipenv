@@ -121,6 +121,7 @@ def test_maintain_file_line_endings(PipenvInstance, newlines):
 
 @pytest.mark.project
 @pytest.mark.sources
+@pytest.mark.needs_internet
 def test_many_indexes(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
@@ -184,13 +185,15 @@ def test_run_in_virtualenv_with_global_context(PipenvInstance, virtualenv):
             project.virtualenv_location, virtualenv.as_posix()
         )
         c = delegator_run(
-            "pipenv run pip install click", cwd=os.path.abspath(p.path),
+            "pipenv run pip install -i {} click".format(p.index_url),
+            cwd=os.path.abspath(p.path),
             env=os.environ.copy()
         )
         assert c.return_code == 0, (c.out, c.err)
         assert "Courtesy Notice" in c.err, (c.out, c.err)
         c = delegator_run(
-            "pipenv install six", cwd=os.path.abspath(p.path), env=os.environ.copy()
+            "pipenv install -i {} six".format(p.index_url),
+            cwd=os.path.abspath(p.path), env=os.environ.copy()
         )
         assert c.return_code == 0, (c.out, c.err)
         c = delegator_run(

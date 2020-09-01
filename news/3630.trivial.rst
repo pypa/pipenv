@@ -1,0 +1,1 @@
+Adapt test cases to prefer the mocked PyPI.
