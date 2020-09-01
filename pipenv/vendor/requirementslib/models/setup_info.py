@@ -992,6 +992,15 @@ class Analyzer(ast.NodeVisitor):
         return setup
 
 
+def _ensure_hashable(item):
+    try:
+        hash(item)
+    except TypeError:
+        return str(item)
+    else:
+        return item
+
+
 def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # noqa:C901
     # type: (Any, bool, Optional[Analyzer], bool) -> Union[List[Any], Dict[Any, Any], Tuple[Any, ...], STRING_TYPE]
     unparse = partial(
@@ -1003,7 +1012,7 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
         constant = ast.Ellipsis
     unparsed = item
     if isinstance(item, ast.Dict):
-        unparsed = dict(zip(unparse(item.keys), unparse(item.values)))
+        unparsed = dict(zip(map(_ensure_hashable, unparse(item.keys)), unparse(item.values)))
     elif isinstance(item, ast.List):
         unparsed = [unparse(el) for el in item.elts]
     elif isinstance(item, ast.Tuple):
