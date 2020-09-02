@@ -723,14 +723,14 @@ def clean(ctx, state, dry_run=False, bare=False, user=False):
 @common_options
 @argument("args", nargs=-1)
 @pass_state
-def script(state, args):
+def scripts(state, args):
     """Lists scripts in current environment config."""
     from ..core import project
     if not project:
         echo(u"project not found", err=True)
         exit(1)
     scripts = project.parsed_pipfile.get('scripts', {})
-    rpt = u"command\tscript\n"
+    rpt = u"command\tscripts\n"
     for k, v in scripts.items():
         rpt += u"{0}\t{1}".format(k, v)
     echo(rpt)

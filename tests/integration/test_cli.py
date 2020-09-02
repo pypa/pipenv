@@ -206,7 +206,7 @@ def test_scripts(PipenvInstance):
 pyver = "which python"
             """.strip()
             f.write(contents)
-        c = p.pipenv('script')
+        c = p.pipenv('scripts')
         assert 'pyver' in c.out
 
 
