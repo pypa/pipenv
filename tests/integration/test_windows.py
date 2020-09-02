@@ -75,7 +75,7 @@ def test_pipenv_clean_windows(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv('install requests')
         assert c.return_code == 0
-        c = p.pipenv('run pip install click')
+        c = p.pipenv('run pip install -i {} click'.format(p.index_url))
         assert c.return_code == 0
 
         c = p.pipenv('clean --dry-run')

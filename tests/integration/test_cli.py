@@ -164,7 +164,7 @@ def test_pipenv_clean_pip_no_warnings(PipenvInstance):
             f.write('from setuptools import setup; setup(name="empty")')
         c = p.pipenv('install -e .')
         assert c.return_code == 0
-        c = p.pipenv('run pip install pytz')
+        c = p.pipenv('run pip install -i {} pytz'.format(p.index_url))
         assert c.return_code == 0
         c = p.pipenv('clean')
         assert c.return_code == 0
@@ -178,7 +178,7 @@ def test_pipenv_clean_pip_warnings(PipenvInstance):
             f.write('from setuptools import setup; setup(name="empty")')
         # create a fake git repo to trigger a pip freeze warning
         os.mkdir('.git')
-        c = p.pipenv("run pip install -e .")
+        c = p.pipenv("run pip install -i {} -e .".format(p.index_url))
         assert c.return_code == 0
         c = p.pipenv('clean')
         assert c.return_code == 0
