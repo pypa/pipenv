@@ -208,6 +208,7 @@ pyver = "which python"
             f.write(contents)
         c = p.pipenv('scripts')
         assert 'pyver' in c.out
+        assert 'which python' in c.out
 
 
 @pytest.mark.cli
