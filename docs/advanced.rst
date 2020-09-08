@@ -428,6 +428,15 @@ For example:
     $ pipenv run echospam "indeed"
     I am really a very silly example indeed
 
+You can then display the names and commands of your shortcuts by running ``pipenv scripts`` in your terminal.
+
+::
+
+    $ pipenv scripts
+    command   script
+    echospam  echo I am really a very silly example
+
+
 ☤ Support for Environment Variables
 -----------------------------------
 
