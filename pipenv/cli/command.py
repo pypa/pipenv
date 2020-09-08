@@ -730,11 +730,11 @@ def scripts(state, args):
         echo(u"project not found", err=True)
         exit(1)
     scripts = project.parsed_pipfile.get('scripts', {})
-    rpt = u"command\tscripts\n"
+    rpt = u"command\tscript\n"
     for k, v in scripts.items():
         rpt += u"{0}\t{1}".format(k, v)
     echo(rpt)
-    return
+    return 0
 
 
 if __name__ == "__main__":
