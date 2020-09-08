@@ -734,7 +734,7 @@ def scripts(state, args):
     for k, v in scripts.items():
         rpt += u"{0}\t{1}".format(k, v)
     echo(rpt)
-    return
+    return 0
 
 
 if __name__ == "__main__":
