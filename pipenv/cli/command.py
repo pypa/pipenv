@@ -716,5 +716,26 @@ def clean(ctx, state, dry_run=False, bare=False, user=False):
              system=state.system)
 
 
+@cli.command(
+    short_help="Lists scripts in current environment config.",
+    context_settings=subcommand_context_no_interspersion,
+)
+@common_options
+@argument("args", nargs=-1)
+@pass_state
+def scripts(state, args):
+    """Lists scripts in current environment config."""
+    from ..core import project
+    if not project:
+        echo(u"project not found", err=True)
+        exit(1)
+    scripts = project.parsed_pipfile.get('scripts', {})
+    rpt = u"command\tscript\n"
+    for k, v in scripts.items():
+        rpt += u"{0}\t{1}".format(k, v)
+    echo(rpt)
+    return 0
+
+
 if __name__ == "__main__":
     cli()

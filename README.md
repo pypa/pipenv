@@ -191,6 +191,8 @@ Fish is the best shell. You should use it.
       lock       Generates Pipfile.lock.
       open       View a given module in your editor.
       run        Spawns a command installed into the virtualenv.
+      scripts    Displays the shortcuts in the (optional) [scripts] section of 
+                 Pipfile. 
       shell      Spawns a shell within the virtualenv.
       sync       Installs all packages specified in Pipfile.lock.
       uninstall  Un-installs a provided package and removes it from Pipfile.
