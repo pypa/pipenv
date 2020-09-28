@@ -131,6 +131,8 @@ of the tests, the standard pytest filters are available, such as:
 -   provide a nodeid: `pytest tests/unit/test_cmdparse.py::test_parse`
 -   provide a test marker: `pytest -m lock`
 
+For more details, see [Run the tests](#Run-the-tests).
+
 ### Code Review
 
 Contributions will not be merged until they\'ve been code reviewed. You
