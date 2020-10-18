@@ -89,8 +89,8 @@ Otherwise, refer to the [documentation](https://pipenv.pypa.io/en/latest/#instal
 -   Automatically generates a `Pipfile`, if one doesn\'t exist.
 -   Automatically creates a virtualenv in a standard location.
 -   Automatically adds/removes packages to a `Pipfile` when they are
-    un/installed.
--   Automatically loads `.env` files, if they exist.
+    uninstalled/installed.
+-   Automatically loads `.env` files, if they exists.
 
 The main commands are `install`, `uninstall`, and `lock`, which
 generates a `Pipfile.lock`. These are intended to replace
@@ -100,7 +100,7 @@ activate a virtualenv, run `$ pipenv shell`).
 ### Basic Concepts
 
 -   A virtualenv will automatically be created, when one doesn\'t exist.
--   When no parameters are passed to `install`, all packages
+-   When no parameters are passed to `install` ,all packages
     `[packages]` specified will be installed.
 -   To initialize a Python 3 virtual environment, run
     `$ pipenv --three`.
@@ -231,9 +231,9 @@ You can install packages with pipenv from git and other version control systems 
 
     <vcs_type>+<scheme>://<location>/<user_or_organization>/<repository>@<branch_or_tag>#<package_name>
 
-The only optional section is the `@<branch_or_tag>` section.  When using git over SSH, you may use the shorthand vcs and scheme alias `git+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#<package_name>`. Note that this is translated to `git+ssh://git@<location>` when parsed.
+The only optional section is the `@<branch_or_tag>` section. When using git over SSH, you may use the shorthand vcs and scheme alias `git+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#<package_name>`. Note that this is translated to `git+ssh://git@<location>` when parsed.
 
-Valid values for `<vcs_type>` include `git`, `bzr`, `svn`, and `hg`.  Valid values for `<scheme>` include `http,`, `https`, `ssh`, and `file`.  In specific cases you also have access to other schemes: `svn` may be combined with `svn` as a scheme, and `bzr` can be combined with `sftp` and `lp`.
+Valid values for `<vcs_type>` include `git`, `bzr`, `svn` and `hg`. Valid values for `<scheme>` include `http`, `https`, `ssh` and `file`.  In specific cases you also have access to other schemes: `svn` may be combined with `svn` as a scheme, and `bzr` can be combined with `sftp` and `lp`.
 
 Note that it is **strongly recommended** that you install any version-controlled dependencies in editable mode, using `pipenv install -e`, in order to ensure that dependency resolution can be performed with an up to date copy of the repository each time it is performed, and that it includes all known dependencies.
 
