@@ -80,7 +80,7 @@ class HashCache(SafeFileCache):
         can_hash = new_location.hash
         if can_hash:
             # hash url WITH fragment
-            hash_value = self.get(new_location.url)
+            hash_value = self.get(new_location.url) or new_location.hash
         if not hash_value:
             hash_value = self._get_file_hash(new_location) if not new_location.url.startswith("ssh") else None
             hash_value = hash_value.encode('utf8') if hash_value else None
