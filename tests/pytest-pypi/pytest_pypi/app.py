@@ -155,9 +155,9 @@ def prepare_packages(path):
                     packages[package_name] = Package(package_name)
 
                 packages[package_name].add_release(os.path.join(root, file))
-    remaining = get_pypi_package_names() - set(list(packages.keys()))
-    for pypi_pkg in remaining:
-        packages[pypi_pkg] = Package(pypi_pkg)
+    # remaining = get_pypi_package_names() - set(list(packages.keys()))
+    # for pypi_pkg in remaining:
+    #     packages[pypi_pkg] = Package(pypi_pkg)
 
 
 @app.route('/')
