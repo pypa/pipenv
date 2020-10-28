@@ -97,7 +97,7 @@ class Package(object):
             with open(path_to_binary + ".sha256") as f:
                 hash_value = f.read().strip()
         self.releases[release] = ReleaseTuple(path_to_binary, requires_python, hash_value)
-        self._package_dirs.add(ReleaseTuple(path, requires_python))
+        self._package_dirs.add(ReleaseTuple(path, requires_python, hash_value))
 
 
 class Artifact(object):
