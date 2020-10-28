@@ -16,7 +16,7 @@ from six.moves import xmlrpc_client
 from flask import Flask, redirect, abort, render_template, send_file, jsonify
 
 
-ReleaseTuple = collections.namedtuple("ReleaseTuple", ["path", "requires_python"])
+ReleaseTuple = collections.namedtuple("ReleaseTuple", ["path", "requires_python", "hash"])
 
 app = Flask(__name__)
 session = requests.Session()
@@ -86,14 +86,18 @@ class Package(object):
         path_to_binary = os.path.abspath(path_to_binary)
         path, release = os.path.split(path_to_binary)
         requires_python = ""
+        hash_value = ""
         if path_to_binary.endswith(".whl"):
             pkg = distlib.wheel.Wheel(path_to_binary)
             md_dict = pkg.metadata.todict()
             requires_python = md_dict.get("requires_python", "")
             if requires_python.count(".") > 1:
                 requires_python, _, _ = requires_python.rpartition(".")
-        self.releases[release] = ReleaseTuple(path_to_binary, requires_python)
-        self._package_dirs.add(ReleaseTuple(path, requires_python))
+        if os.path.isfile(path_to_binary + ".sha256"):
+            with open(path_to_binary + ".sha256") as f:
+                hash_value = f.read().strip()
+        self.releases[release] = ReleaseTuple(path_to_binary, requires_python, hash_value)
+        self._package_dirs.add(ReleaseTuple(path, requires_python, hash_value))
 
 
 class Artifact(object):
@@ -155,9 +159,9 @@ def prepare_packages(path):
                     packages[package_name] = Package(package_name)
 
                 packages[package_name].add_release(os.path.join(root, file))
-    remaining = get_pypi_package_names() - set(list(packages.keys()))
-    for pypi_pkg in remaining:
-        packages[pypi_pkg] = Package(pypi_pkg)
+    # remaining = get_pypi_package_names() - set(list(packages.keys()))
+    # for pypi_pkg in remaining:
+    #     packages[pypi_pkg] = Package(pypi_pkg)
 
 
 @app.route('/')

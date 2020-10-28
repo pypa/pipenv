@@ -42,7 +42,7 @@ index fda80d5..4f7efbf 100644
  if six.PY2:
      from .tempfile import TemporaryDirectory
 diff --git a/pipenv/patched/piptools/_compat/pip_compat.py b/pipenv/patched/piptools/_compat/pip_compat.py
-index 9508b75..103b831 100644
+index 9508b75..ea51421 100644
 --- a/pipenv/patched/piptools/_compat/pip_compat.py
 +++ b/pipenv/patched/piptools/_compat/pip_compat.py
 @@ -1,22 +1,72 @@
@@ -93,7 +93,8 @@ index 9508b75..103b831 100644
  
 -
  else:
-     from pip._internal.req.constructors import install_req_from_parsed_requirement
+-    from pip._internal.req.constructors import install_req_from_parsed_requirement
++    from pipenv.patched.notpip._internal.req.constructors import install_req_from_parsed_requirement
  
 +InstallRequirement = pip_shims.shims.InstallRequirement
 +InstallationError = pip_shims.shims.InstallationError
@@ -138,7 +139,7 @@ index 9b6bf55..983ddb6 100644
  from .exceptions import PipToolsError
  from .utils import as_tuple, key_from_req, lookup_table
 diff --git a/pipenv/patched/piptools/locations.py b/pipenv/patched/piptools/locations.py
-index 9ca0ffe..37125c9 100644
+index 9ca0ffe..36cc538 100644
 --- a/pipenv/patched/piptools/locations.py
 +++ b/pipenv/patched/piptools/locations.py
 @@ -1,12 +1,15 @@
@@ -150,8 +151,9 @@ index 9ca0ffe..37125c9 100644
  
  from .click import secho
  
- # The user_cache_dir helper comes straight from pip itself
+-# The user_cache_dir helper comes straight from pip itself
 -CACHE_DIR = user_cache_dir("pip-tools")
++# The user_cache_dir helper comes straight from pipenv.patched.notpip itself
 +try:
 +    from pipenv.environments import PIPENV_CACHE_DIR as CACHE_DIR
 +except ImportError:
@@ -185,7 +187,7 @@ index ec3a796..1aa29f0 100644
          else:
              return self.repository.find_best_match(ireq, prereleases)
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index ef5ba4e..b96acf6 100644
+index ef5ba4e..8f74271 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -2,28 +2,48 @@
@@ -250,7 +252,7 @@ index ef5ba4e..b96acf6 100644
      fs_str,
      is_pinned_requirement,
      is_url_requirement,
-@@ -32,10 +52,50 @@ from ..utils import (
+@@ -32,10 +52,53 @@ from ..utils import (
  )
  from .base import BaseRepository
  
@@ -283,6 +285,9 @@ index ef5ba4e..b96acf6 100644
 +        if can_hash:
 +            # hash url WITH fragment
 +            hash_value = self.get(new_location.url)
++            if not hash_value:
++                hash_value = "{}:{}".format(new_location.hash_name, new_location.hash)
++                hash_value = hash_value.encode('utf8')
 +        if not hash_value:
 +            hash_value = self._get_file_hash(new_location) if not new_location.url.startswith("ssh") else None
 +            hash_value = hash_value.encode('utf8') if hash_value else None
@@ -301,7 +306,7 @@ index ef5ba4e..b96acf6 100644
  class PyPIRepository(BaseRepository):
      DEFAULT_INDEX_URL = PyPI.simple_url
  
-@@ -46,21 +106,29 @@ class PyPIRepository(BaseRepository):
+@@ -46,21 +109,29 @@ class PyPIRepository(BaseRepository):
      changed/configured on the Finder.
      """
  
@@ -335,7 +340,7 @@ index ef5ba4e..b96acf6 100644
          )
  
          # Caches
-@@ -73,6 +141,10 @@ class PyPIRepository(BaseRepository):
+@@ -73,6 +144,10 @@ class PyPIRepository(BaseRepository):
          # of all secondary dependencies for the given requirement, so we
          # only have to go to disk once for each requirement
          self._dependencies_cache = {}
@@ -346,7 +351,7 @@ index ef5ba4e..b96acf6 100644
  
          # Setup file paths
          self.freshen_build_caches()
-@@ -114,13 +186,15 @@ class PyPIRepository(BaseRepository):
+@@ -114,13 +189,15 @@ class PyPIRepository(BaseRepository):
          if ireq.editable or is_url_requirement(ireq):
              return ireq  # return itself as the best match
  
@@ -366,7 +371,7 @@ index ef5ba4e..b96acf6 100644
  
          # Reuses pip's internal candidate sort key to sort
          matching_candidates = [candidates_by_version[ver] for ver in matching_versions]
-@@ -136,9 +210,66 @@ class PyPIRepository(BaseRepository):
+@@ -136,9 +213,66 @@ class PyPIRepository(BaseRepository):
              best_candidate.name,
              best_candidate.version,
              ireq.extras,
@@ -433,7 +438,16 @@ index ef5ba4e..b96acf6 100644
      def resolve_reqs(self, download_dir, ireq, wheel_cache):
          with get_requirement_tracker() as req_tracker, TempDirectory(
              kind="resolver"
-@@ -173,10 +304,11 @@ class PyPIRepository(BaseRepository):
+@@ -165,7 +299,7 @@ class PyPIRepository(BaseRepository):
+                 wheel_cache=wheel_cache,
+                 use_user_site=False,
+                 ignore_installed=True,
+-                ignore_requires_python=False,
++                ignore_requires_python=True,
+                 force_reinstall=False,
+                 upgrade_strategy="to-satisfy-only",
+             )
+@@ -173,10 +307,11 @@ class PyPIRepository(BaseRepository):
  
              if PIP_VERSION[:2] <= (20, 0):
                  reqset.cleanup_files()
@@ -447,7 +461,7 @@ index ef5ba4e..b96acf6 100644
          """
          Given a pinned, URL, or editable InstallRequirement, returns a set of
          dependencies (also InstallRequirements, but not necessarily pinned).
-@@ -212,9 +344,10 @@ class PyPIRepository(BaseRepository):
+@@ -212,9 +347,10 @@ class PyPIRepository(BaseRepository):
                  wheel_cache = WheelCache(self._cache_dir, self.options.format_control)
                  prev_tracker = os.environ.get("PIP_REQ_TRACKER")
                  try:
@@ -459,7 +473,7 @@ index ef5ba4e..b96acf6 100644
                  finally:
                      if "PIP_REQ_TRACKER" in os.environ:
                          if prev_tracker:
-@@ -252,7 +385,7 @@ class PyPIRepository(BaseRepository):
+@@ -252,7 +388,7 @@ class PyPIRepository(BaseRepository):
                      cached_link = Link(path_to_url(cached_path))
                  else:
                      cached_link = link
@@ -468,7 +482,7 @@ index ef5ba4e..b96acf6 100644
  
          if not is_pinned_requirement(ireq):
              raise TypeError("Expected pinned requirement, got {}".format(ireq))
-@@ -260,38 +393,28 @@ class PyPIRepository(BaseRepository):
+@@ -260,38 +396,28 @@ class PyPIRepository(BaseRepository):
          # We need to get all of the candidates that match our current version
          # pin, these will represent all of the files that could possibly
          # satisfy this constraint.
@@ -609,7 +623,7 @@ index 0116992..550069d 100644
          ]
          return self.dependency_cache.reverse_dependencies(non_editable)
 diff --git a/pipenv/patched/piptools/scripts/compile.py b/pipenv/patched/piptools/scripts/compile.py
-index 03232a8..a7bfb4c 100755
+index 03232a8..f83b13e 100755
 --- a/pipenv/patched/piptools/scripts/compile.py
 +++ b/pipenv/patched/piptools/scripts/compile.py
 @@ -7,8 +7,8 @@ import sys
@@ -623,11 +637,13 @@ index 03232a8..a7bfb4c 100755
  
  from .. import click
  from .._compat import parse_requirements
-@@ -25,7 +25,7 @@ DEFAULT_REQUIREMENTS_FILE = "requirements.in"
+@@ -24,8 +24,8 @@ from ..writer import OutputWriter
+ DEFAULT_REQUIREMENTS_FILE = "requirements.in"
  DEFAULT_REQUIREMENTS_OUTPUT_FILE = "requirements.txt"
  
- # Get default values of the pip's options (including options from pip.conf).
+-# Get default values of the pip's options (including options from pip.conf).
 -install_command = create_command("install")
++# Get default values of the pip's options (including options from pipenv.patched.notpip.conf).
 +install_command = InstallComand()
  pip_defaults = install_command.parser.get_default_values()
  
@@ -671,7 +687,7 @@ index 430b4bb..015ff7a 100644
  from . import click
  from .exceptions import IncompatibleRequirements
 diff --git a/pipenv/patched/piptools/utils.py b/pipenv/patched/piptools/utils.py
-index 7733447..e6f232f 100644
+index 7733447..1123fb6 100644
 --- a/pipenv/patched/piptools/utils.py
 +++ b/pipenv/patched/piptools/utils.py
 @@ -1,14 +1,19 @@
