@@ -12,7 +12,6 @@ Pipenv: Python Development Workflow for Humans
 
 **Pipenv** is a tool that aims to bring the best of all packaging worlds
 (bundler, composer, npm, cargo, yarn, etc.) to the Python world.
-*Windows is a first-class citizen, in our world.*
 
 It automatically creates and manages a virtualenv for your projects, as
 well as adds/removes packages from your `Pipfile` as you
