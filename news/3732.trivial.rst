@@ -1,0 +1,1 @@
+Red colors are restricted to error messages before aborting.

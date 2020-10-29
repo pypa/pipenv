@@ -80,4 +80,4 @@ jobs:
         PYTHONIOENCODING: 'utf-8'
         GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
       run: |
-        pipenv run pytest -ra -n 4 tests
+        pipenv run pytest -ra -n 4 --fulltrace tests
