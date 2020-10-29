@@ -465,6 +465,18 @@ class ScandirCloser(object):
             pass
 
 
+def _is_venv_dir(path):
+    # type: (AnyStr) -> bool
+    if os.name == "nt":
+        return os.path.isfile(os.path.join(path, "Scripts/python.exe")) or os.path.isfile(
+            os.path.join(path, "Scripts/activate")
+        )
+    else:
+        return os.path.isfile(os.path.join(path, "bin/python")) or os.path.isfile(
+            os.path.join(path, "bin/activate")
+        )
+
+
 def iter_metadata(path, pkg_name=None, metadata_type="egg-info"):
     # type: (AnyStr, Optional[AnyStr], AnyStr) -> Generator
     if pkg_name is not None:
@@ -472,6 +484,9 @@ def iter_metadata(path, pkg_name=None, metadata_type="egg-info"):
     dirs_to_search = [path]
     while dirs_to_search:
         p = dirs_to_search.pop(0)
+        # Skip when the directory is like a venv
+        if _is_venv_dir(p):
+            continue
         with contextlib.closing(ScandirCloser(p)) as path_iterator:
             for entry in path_iterator:
                 if entry.is_dir():

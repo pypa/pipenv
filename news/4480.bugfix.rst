@@ -1,0 +1,1 @@
+Fix a bug that dist-info inside ``venv`` directory will be mistaken as the editable package's metadata.
