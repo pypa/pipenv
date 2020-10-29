@@ -155,7 +155,7 @@ def run_command(cmd, *args, **kwargs):
     return_code = c.return_code
     if environments.is_verbose():
         click_echo("Command output: {0}".format(
-            crayons.blue(decode_for_output(c.out))
+            crayons.cyan(decode_for_output(c.out))
         ), err=True)
     if not c.ok and catch_exceptions:
         raise PipenvCmdError(cmd_string, c.out, c.err, return_code)
@@ -750,7 +750,7 @@ class Resolver(object):
             self._session = self.pip_command._build_session(self.pip_options)
             # if environments.is_verbose():
             #     click_echo(
-            #         crayons.blue("Using pip: {0}".format(" ".join(self.pip_args))), err=True
+            #         crayons.cyan("Using pip: {0}".format(" ".join(self.pip_args))), err=True
             #     )
         return self._session
 

@@ -125,31 +125,31 @@ def cli(
         return 0
     warn_in_virtualenv()
     if ctx.invoked_subcommand is None:
-        # --where was passed…
+        # --where was passed...
         if where:
             do_where(bare=True)
             return 0
         elif py:
             do_py()
             return 0
-        # --support was passed…
+        # --support was passed...
         elif support:
             from ..help import get_pipenv_diagnostics
 
             get_pipenv_diagnostics()
             return 0
-        # --clear was passed…
+        # --clear was passed...
         elif state.clear:
             do_clear()
             return 0
-        # --venv was passed…
+        # --venv was passed...
         elif venv:
             # There is no virtualenv yet.
             if not project.virtualenv_exists:
                 echo(
                     "{}({}){}".format(
                         crayons.red("No virtualenv has been created for this project"),
-                        crayons.white(project.project_directory, bold=True),
+                        crayons.normal(project.project_directory, bold=True),
                         crayons.red(" yet!")
                     ),
                     err=True,
@@ -158,7 +158,7 @@ def cli(
             else:
                 echo(project.virtualenv_location)
                 return 0
-        # --rm was passed…
+        # --rm was passed...
         elif rm:
             # Abort if --system (or running in a virtualenv).
             from ..environments import PIPENV_USE_SYSTEM
@@ -174,7 +174,7 @@ def cli(
                 loc = project.virtualenv_location
                 echo(
                     crayons.normal(
-                        u"{0} ({1})…".format(
+                        u"{0} ({1})...".format(
                             crayons.normal("Removing virtualenv", bold=True),
                             crayons.green(loc),
                         )
@@ -193,7 +193,7 @@ def cli(
                     err=True,
                 )
                 ctx.abort()
-    # --two / --three was passed…
+    # --two / --three was passed...
     if (state.python or state.three is not None) or state.site_packages:
         ensure_project(
             three=state.three,
@@ -563,11 +563,11 @@ def update(
     if not packages:
         echo(
             "{0} {1} {2} {3}{4}".format(
-                crayons.white("Running", bold=True),
-                crayons.red("$ pipenv lock", bold=True),
-                crayons.white("then", bold=True),
-                crayons.red("$ pipenv sync", bold=True),
-                crayons.white(".", bold=True),
+                crayons.normal("Running", bold=True),
+                crayons.yellow("$ pipenv lock", bold=True),
+                crayons.normal("then", bold=True),
+                crayons.yellow("$ pipenv sync", bold=True),
+                crayons.normal(".", bold=True),
             )
         )
     else:

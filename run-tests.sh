@@ -30,7 +30,7 @@ fi
 pip install certifi
 export GIT_SSL_CAINFO=$(python -m certifi)
 echo "Path: $PATH"
-echo "Installing Pipenv…"
+echo "Installing Pipenv..."
 python -m pip install --upgrade -e "$(pwd)" setuptools wheel pip
 VENV_CMD="python -m pipenv --venv"
 RM_CMD="pipenv --rm"
@@ -38,7 +38,7 @@ echo "$ PIPENV_PYTHON=2.7 $VENV_CMD && PIPENV_PYTHON=2.7 $RM_CMD"
 echo "$ PIPENV_PYTHON=3.7 $VENV_CMD && PIPENV_PYTHON=3.7 $RM_CMD"
 { PIPENV_PYTHON=2.7 $VENV_CMD && PIPENV_PYTHON=2.7 $RM_CMD ; PIPENV_PYTHON=3.7 $VENV_CMD && PIPENV_PYTHON=3.7 $RM_CMD ; }
 
-echo "Installing dependencies…"
+echo "Installing dependencies..."
 INSTALL_CMD="python -m pipenv install --deploy --dev"
 echo "$ PIPENV_PYTHON=2.7 $INSTALL_CMD"
 echo "$ PIPENV_PYTHON=3.7 $INSTALL_CMD"

@@ -720,28 +720,28 @@ Update vendored dependencies and invocations
 .INDENT 2.0
 .IP \(bu 2
 Update vendored and patched dependencies
-\- Update patches on \fBpiptools\fP, \fBpip\fP, \fBpip\-shims\fP, 
+\- Update patches on \fBpiptools\fP, \fBpip\fP, \fBpip\-shims\fP,
 .nf
 \(ga\(ga
 .fi
 tomlkit\(ga
 .IP \(bu 2
 Fix invocations of dependencies
-\- Fix custom 
+\- Fix custom
 .nf
 \(ga\(ga
 .fi
 InstallCommand\(ga instantiation
-\- Update 
+\- Update
 .nf
 \(ga\(ga
 .fi
 PackageFinder\(ga usage
-\- Fix 
+\- Fix
 .nf
 \(ga\(ga
 .fi
-Bool\(ga stringify attempts from 
+Bool\(ga stringify attempts from
 .nf
 \(ga\(ga
 .fi
@@ -2632,9 +2632,9 @@ $ cat Pipfile
 django = "==1.10.1"
 
 $ pipenv check
-Checking PEP 508 requirements…
+Checking PEP 508 requirements...
 Passed!
-Checking installed package safety…
+Checking installed package safety...
 
 33075: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
 Django before 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3, when settings.DEBUG is True, allow remote attackers to conduct DNS rebinding attacks by leveraging failure to validate the HTTP Host header against settings.ALLOWED_HOSTS.
@@ -2723,7 +2723,7 @@ Pipenv allows you to open any Python module that is installed (including ones in
 .nf
 .ft C
 $ pipenv install \-e git+https://github.com/kennethreitz/background.git#egg=background
-Installing \-e git+https://github.com/kennethreitz/background.git#egg=background…
+Installing \-e git+https://github.com/kennethreitz/background.git#egg=background...
 \&...
 Updated Pipfile.lock!
 
@@ -2766,17 +2766,17 @@ requests = "*"
 python_version = "3.6"
 
 $ pipenv install
-Warning: Python 3.6 was not found on your system…
+Warning: Python 3.6 was not found on your system...
 Would you like us to install latest CPython 3.6 with pyenv? [Y/n]: y
-Installing CPython 3.6.2 with pyenv (this may take a few minutes)…
+Installing CPython 3.6.2 with pyenv (this may take a few minutes)...
 \&...
-Making Python installation global…
-Creating a virtualenv for this project…
-Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv…
+Making Python installation global...
+Creating a virtualenv for this project...
+Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv...
 \&...
 No package provided, installing all dependencies.
 \&...
-Installing dependencies from Pipfile.lock…
+Installing dependencies from Pipfile.lock...
 🐍   ❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒ 5/5 — 00:00:03
 To activate this project\(aqs virtualenv, run the following:
  $ pipenv shell
@@ -2800,7 +2800,7 @@ $ cat .env
 HELLO=WORLD⏎
 
 $ pipenv run python
-Loading .env environment variables…
+Loading .env environment variables...
 Python 2.7.13 (default, Jul 18 2017, 09:17:00)
 [GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang\-802.0.42)] on darwin
 Type "help", "copyright", "credits" or "license" for more information.
@@ -2822,7 +2822,7 @@ $ cat .env
 CONFIG_PATH=${HOME}/.config/foo
 
 $ pipenv run python
-Loading .env environment variables…
+Loading .env environment variables...
 Python 3.7.6 (default, Dec 19 2019, 22:52:49)
 [GCC 9.2.1 20190827 (Red Hat 9.2.1\-1)] on linux
 Type "help", "copyright", "credits" or "license" for more information.
@@ -4494,7 +4494,7 @@ environment=LC_ALL=\(aqen_US.UTF\-8\(aq,LANG=\(aqen_US.UTF\-8\(aq
 .fi
 .UNINDENT
 .UNINDENT
-.SS ☤ An exception is raised during \fBLocking dependencies…\fP
+.SS ☤ An exception is raised during \fBLocking dependencies...\fP
 .sp
 Run \fBpipenv lock \-\-clear\fP and try again. The lock sequence caches results
 to speed up subsequent runs. The cache may contain faulty results if a bug

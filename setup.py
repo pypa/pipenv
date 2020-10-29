@@ -66,15 +66,15 @@ class DebCommand(Command):
 
     def run(self):
         try:
-            self.status("Removing previous builds…")
+            self.status("Removing previous builds...")
             rmtree(os.path.join(here, "deb_dist"))
         except FileNotFoundError:
             pass
-        self.status(u"Creating debian mainfest…")
+        self.status(u"Creating debian mainfest...")
         os.system(
             "python setup.py --command-packages=stdeb.command sdist_dsc -z artful --package3=pipenv --depends3=python3-virtualenv-clone"
         )
-        self.status(u"Building .deb…")
+        self.status(u"Building .deb...")
         os.chdir("deb_dist/pipenv-{0}".format(about["__version__"]))
         os.system("dpkg-buildpackage -rfakeroot -uc -us")
 
@@ -98,15 +98,15 @@ class UploadCommand(Command):
 
     def run(self):
         try:
-            self.status("Removing previous builds…")
+            self.status("Removing previous builds...")
             rmtree(os.path.join(here, "dist"))
         except FileNotFoundError:
             pass
-        self.status("Building Source distribution…")
+        self.status("Building Source distribution...")
         os.system("{0} setup.py sdist bdist_wheel".format(sys.executable))
-        self.status("Uploading the package to PyPI via Twine…")
+        self.status("Uploading the package to PyPI via Twine...")
         os.system("twine upload dist/*")
-        self.status("Pushing git tags…")
+        self.status("Pushing git tags...")
         os.system("git tag v{0}".format(about["__version__"]))
         os.system("git push --tags")
         sys.exit()
