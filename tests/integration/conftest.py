@@ -217,12 +217,10 @@ def isolate(create_tmpdir):
     # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
     os.environ.pop("PIPENV_ACTIVE", None)
     os.environ.pop("VIRTUAL_ENV", None)
-    global WE_HAVE_GITHUB_SSH_KEYS
-    WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 
 
 WE_HAVE_INTERNET = check_internet()
-WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
+WE_HAVE_GITHUB_SSH_KEYS = False
 
 
 class _Pipfile(object):
