@@ -443,7 +443,13 @@ class Project(object):
     def virtualenv_name(self):
         # type: () -> str
         sanitized, encoded_hash = self._get_virtualenv_hash(self.name)
-        suffix = "-{0}".format(PIPENV_PYTHON) if PIPENV_PYTHON else ""
+        suffix = ""
+        if PIPENV_PYTHON:
+            if os.path.isabs(PIPENV_PYTHON):
+                suffix = "-{0}".format(os.path.basename(PIPENV_PYTHON))
+            else:
+                suffix = "-{0}".format(PIPENV_PYTHON)
+
         # If the pipfile was located at '/home/user/MY_PROJECT/Pipfile',
         # the name of its virtualenv will be 'my-project-wyUfYPqE'
         return sanitized + "-" + encoded_hash + suffix
