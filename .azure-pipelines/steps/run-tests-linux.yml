@@ -21,7 +21,7 @@ steps:
     # Fix Git SSL errors
     echo "Using pipenv python version: $(PIPENV_DEFAULT_PYTHON_VERSION)"
     git submodule sync && git submodule update --init --recursive
-    pipenv run pytest -n 4 --junitxml=junit/test-results.xml
+    pipenv run pytest -n 4 --junitxml=junit/test-results.xml --timeout=300 tests
   displayName: Run integration tests
   env:
     PYTHONWARNINGS: ignore:DEPRECATION
