@@ -240,15 +240,13 @@ def test_get_vcs_refs(PipenvInstance_NoPyPI):
 @pytest.mark.install
 @pytest.mark.needs_internet
 @pytest.mark.py3_only
-@pytest.mark.skip_py38
 def test_vcs_entry_supersedes_non_vcs(PipenvInstance):
     """See issue #2181 -- non-editable VCS dep was specified, but not showing up
     in the lockfile -- due to not running pip install before locking and not locking
     the resolution graph of non-editable vcs dependencies.
     """
     with PipenvInstance(chdir=True) as p:
-        # pyinstaller_path = p._pipfile.get_fixture_path("git/pyinstaller")
-        pyinstaller_uri = "https://github.com/pyinstaller/pyinstaller.git"
+        jinja2_uri = p._pipfile.get_fixture_path("git/jinja2").as_uri()
         with open(p.pipfile_path, "w") as f:
             f.write(
                 """
@@ -258,20 +256,20 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-PyUpdater = "*"
-PyInstaller = {{ref = "v3.6", git = "{0}"}}
-            """.format(pyinstaller_uri).strip()
+Flask = "*"
+Jinja2 = {{ref = "2.11.0", git = "{0}"}}
+            """.format(jinja2_uri).strip()
             )
         c = p.pipenv("install")
         assert c.return_code == 0
-        installed_packages = ["PyUpdater", "PyInstaller"]
+        installed_packages = ["Flask", "Jinja2"]
         assert all([k in p.pipfile["packages"] for k in installed_packages])
         assert all([k.lower() in p.lockfile["default"] for k in installed_packages])
-        assert all([k in p.lockfile["default"]["pyinstaller"] for k in ["ref", "git"]]), str(p.lockfile["default"])
-        assert p.lockfile["default"]["pyinstaller"].get("ref") is not None
+        assert all([k in p.lockfile["default"]["jinja2"] for k in ["ref", "git"]]), str(p.lockfile["default"])
+        assert p.lockfile["default"]["jinja2"].get("ref") is not None
         assert (
-            p.lockfile["default"]["pyinstaller"]["git"]
-            == pyinstaller_uri
+            p.lockfile["default"]["jinja2"]["git"]
+            == jinja2_uri
         )
 
 

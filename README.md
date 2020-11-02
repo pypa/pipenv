@@ -293,7 +293,7 @@ Uninstall everything:
 Use the shell:
 
     $ pipenv shell
-    Loading .env environment variables…
+    Loading .env environment variables...
     Launching subshell in virtual environment. Type 'exit' or 'Ctrl+D' to return.
     $ ▯
 

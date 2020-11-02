@@ -69,7 +69,7 @@ def check_github_ssh():
         # GitHub does not provide shell access.' if ssh keys are available and
         # registered with GitHub. Otherwise, the command will fail with
         # return_code=255 and say 'Permission denied (publickey).'
-        c = delegator.run('ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no -T git@github.com', timeout=30)
+        c = delegator.run('ssh -o StrictHostKeyChecking=no -o CheckHostIP=no -T git@github.com', timeout=30)
         res = True if c.return_code == 1 else False
     except KeyboardInterrupt:
         warnings.warn(
@@ -217,12 +217,10 @@ def isolate(create_tmpdir):
     # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
     os.environ.pop("PIPENV_ACTIVE", None)
     os.environ.pop("VIRTUAL_ENV", None)
-    global WE_HAVE_GITHUB_SSH_KEYS
-    WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 
 
 WE_HAVE_INTERNET = check_internet()
-WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
+WE_HAVE_GITHUB_SSH_KEYS = False
 
 
 class _Pipfile(object):

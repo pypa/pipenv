@@ -223,9 +223,9 @@ Example::
     django = "==1.10.1"
 
     $ pipenv check
-    Checking PEP 508 requirements…
+    Checking PEP 508 requirements...
     Passed!
-    Checking installed package safety…
+    Checking installed package safety...
 
     33075: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
     Django before 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3, when settings.DEBUG is True, allow remote attackers to conduct DNS rebinding attacks by leveraging failure to validate the HTTP Host header against settings.ALLOWED_HOSTS.
@@ -299,7 +299,7 @@ Works in progress:
 Pipenv allows you to open any Python module that is installed (including ones in your codebase), with the ``$ pipenv open`` command::
 
     $ pipenv install -e git+https://github.com/kennethreitz/background.git#egg=background
-    Installing -e git+https://github.com/kennethreitz/background.git#egg=background…
+    Installing -e git+https://github.com/kennethreitz/background.git#egg=background...
     ...
     Updated Pipfile.lock!
 
@@ -331,17 +331,17 @@ This is a very fancy feature, and we're very proud of it::
     python_version = "3.6"
 
     $ pipenv install
-    Warning: Python 3.6 was not found on your system…
+    Warning: Python 3.6 was not found on your system...
     Would you like us to install latest CPython 3.6 with pyenv? [Y/n]: y
-    Installing CPython 3.6.2 with pyenv (this may take a few minutes)…
+    Installing CPython 3.6.2 with pyenv (this may take a few minutes)...
     ...
-    Making Python installation global…
-    Creating a virtualenv for this project…
-    Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv…
+    Making Python installation global...
+    Creating a virtualenv for this project...
+    Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv...
     ...
     No package provided, installing all dependencies.
     ...
-    Installing dependencies from Pipfile.lock…
+    Installing dependencies from Pipfile.lock...
     🐍   ❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒ 5/5 — 00:00:03
     To activate this project's virtualenv, run the following:
      $ pipenv shell
@@ -359,7 +359,7 @@ If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv
     HELLO=WORLD⏎
 
     $ pipenv run python
-    Loading .env environment variables…
+    Loading .env environment variables...
     Python 2.7.13 (default, Jul 18 2017, 09:17:00)
     [GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang-802.0.42)] on darwin
     Type "help", "copyright", "credits" or "license" for more information.
@@ -373,7 +373,7 @@ Shell like variable expansion is available in ``.env`` files using `${VARNAME}` 
     CONFIG_PATH=${HOME}/.config/foo
 
     $ pipenv run python
-    Loading .env environment variables…
+    Loading .env environment variables...
     Python 3.7.6 (default, Dec 19 2019, 22:52:49)
     [GCC 9.2.1 20190827 (Red Hat 9.2.1-1)] on linux
     Type "help", "copyright", "credits" or "license" for more information.
