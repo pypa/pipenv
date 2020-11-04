@@ -25,7 +25,7 @@ from distlib.wheel import Wheel
 from packaging.markers import Marker
 from pip_shims.utils import call_function_with_correct_args
 from six.moves import configparser
-from six.moves.urllib.parse import unquote, urlparse, urlunparse
+from six.moves.urllib.parse import urlparse, urlunparse
 from vistir.compat import FileNotFoundError, Iterable, Mapping, Path, finalize, lru_cache
 from vistir.contextmanagers import cd, temp_path
 from vistir.misc import run
@@ -1893,7 +1893,7 @@ build-backend = "{1}"
             session = cmd._build_session(options)
             finder = cmd._build_package_finder(options, session)
         tempdir_manager = stack.enter_context(pip_shims.shims.global_tempdir_manager())
-        vcs, uri = split_vcs_method_from_uri(unquote(ireq.link.url_without_fragment))
+        vcs, uri = split_vcs_method_from_uri(ireq.link.url_without_fragment)
         parsed = urlparse(uri)
         if "file" in parsed.scheme:
             url_path = parsed.path

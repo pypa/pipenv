@@ -1799,7 +1799,7 @@ class FileRequirement(object):
         if link_info:
             link = link_info.link
             if link.url_without_fragment:
-                uri = unquote(link.url_without_fragment)
+                uri = link.url_without_fragment
         extras = ()  # type: Optional[Tuple[STRING_TYPE, ...]]
         if "extras" in pipfile:
             extras = tuple(pipfile["extras"])  # type: ignore
@@ -1821,10 +1821,10 @@ class FileRequirement(object):
         else:
             if name:
                 line_name = "{0}{1}".format(name, extras_string)
-                line = "{0}#egg={1}".format(unquote(link.url_without_fragment), line_name)
+                line = "{0}#egg={1}".format(link.url_without_fragment, line_name)
             else:
                 if link:
-                    line = unquote(link.url)
+                    line = link.url
                 elif uri and isinstance(uri, six.string_types):
                     line = uri
                 else:
@@ -1847,7 +1847,7 @@ class FileRequirement(object):
         link_url = None  # type: Optional[STRING_TYPE]
         seed = None  # type: Optional[STRING_TYPE]
         if self.link is not None:
-            link_url = unquote(self.link.url_without_fragment)
+            link_url = self.link.url_without_fragment
         is_vcs = getattr(self.link, "is_vcs", not self.link.is_artifact)
         if self._uri_scheme and self._uri_scheme == "path":
             # We may need any one of these for passing to pip
