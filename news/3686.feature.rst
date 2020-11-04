@@ -1,2 +1,0 @@
-Add a new command ``pipenv scripts`` to display shortcuts from Pipfile.
-

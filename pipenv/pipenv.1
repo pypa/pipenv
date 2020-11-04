@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PIPENV" "1" "Aug 13, 2020" "2020.8.13" "pipenv"
+.TH "PIPENV" "1" "Nov 04, 2020" "2020.11.4" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 .
@@ -182,33 +182,32 @@ with Node.js\(aqs \fI\%npm\fP or Ruby\(aqs \fI\%bundler\fP, it is similar in spi
 tools. While pip can install Python packages, Pipenv is recommended as
 it\(aqs a higher\-level tool that simplifies dependency management for common use
 cases.
-.SS ☤ Homebrew Installation of Pipenv
+.SS ☤ Isolated Installation of Pipenv with Pipx
 .sp
-\fI\%Homebrew\fP is a popular open\-source package management system for macOS. For Linux users, \fI\%Linuxbrew\fP  is a Linux port of that.
-.sp
-Installing pipenv via Homebrew or Linuxbrew will keep pipenv and all of its dependencies in
-an isolated virtual environment so it doesn\(aqt interfere with the rest of your
-Python installation.
-.sp
-Once you have installed Homebrew or Linuxbrew simply run:
+
+.nf
+\(gaPipx\(ga_
+.fi
+ is a tool to help you install and run end\-user applications written in Python. It installs applications
+into an isolated and clean environment on their own. To install pipx, just run:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-$ brew install pipenv
+$ pip install \-\-user pipx
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
 .sp
-To upgrade pipenv at any time:
+Once you have \fBpipx\fP ready on your system, continue to install Pipenv:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-$ brew upgrade pipenv
+$ pipx install pipenv
 .ft P
 .fi
 .UNINDENT
@@ -278,6 +277,45 @@ If you don\(aqt even have pip installed, you can use this crude installation met
 $ curl https://raw.githubusercontent.com/pypa/pipenv/master/get\-pipenv.py | python
 .ft P
 .fi
+.UNINDENT
+.UNINDENT
+.SS ☤ Homebrew Installation of Pipenv(Discouraged)
+.sp
+\fI\%Homebrew\fP is a popular open\-source package management system for macOS. For Linux users, \fI\%Linuxbrew\fP  is a Linux port of that.
+.sp
+Installing pipenv via Homebrew or Linuxbrew will keep pipenv and all of its dependencies in
+an isolated virtual environment so it doesn\(aqt interfere with the rest of your
+Python installation.
+.sp
+Once you have installed Homebrew or Linuxbrew simply run:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ brew install pipenv
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+To upgrade pipenv at any time:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ brew upgrade pipenv
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Homebrew installation is discouraged because each time the Homebrew Python is upgraded, which Pipenv depends on,
+users have to re\-install Pipenv, and perhaps all virtual environments managed by it.
 .UNINDENT
 .UNINDENT
 .SS ☤ Installing packages for your project
@@ -396,6 +434,56 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2020.11.4 (2020\-11\-04)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+Add a new command \fBpipenv scripts\fP to display shortcuts from Pipfile.  \fI\%#3686\fP
+.IP \(bu 2
+Retrieve package file hash from URL to accelerate the locking process.  \fI\%#3827\fP
+.IP \(bu 2
+Add the missing \fB\-\-system\fP option to \fBpipenv sync\fP\&.  \fI\%#4441\fP
+.IP \(bu 2
+Add a new option pair \fB\-\-header/\-\-no\-header\fP to \fBpipenv lock\fP command,
+which adds a header to the generated requirements.txt  \fI\%#4443\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fix a bug that percent encoded characters will be unquoted incorrectly in the file URL.  \fI\%#4089\fP
+.IP \(bu 2
+Fix a bug where setting PIPENV_PYTHON to file path breaks environment name  \fI\%#4225\fP
+.IP \(bu 2
+Fix a bug that paths are not normalized before comparison.  \fI\%#4330\fP
+.IP \(bu 2
+Handle Python major and minor versions correctly in Pipfile creation.  \fI\%#4379\fP
+.IP \(bu 2
+Fix a bug that non\-wheel file requirements can be resolved successfully.  \fI\%#4386\fP
+.IP \(bu 2
+Fix a bug that \fBpexept.exceptions.TIMEOUT\fP is not caught correctly because of the wrong import path.  \fI\%#4424\fP
+.IP \(bu 2
+Fix a bug that compound TOML table is not parsed correctly.  \fI\%#4433\fP
+.IP \(bu 2
+Fix a bug that invalid Python paths from Windows registry break \fBpipenv install\fP\&.  \fI\%#4436\fP
+.IP \(bu 2
+Fix a bug that function calls in \fBsetup.py\fP can\(aqt be parsed rightly.  \fI\%#4446\fP
+.IP \(bu 2
+Fix a bug that dist\-info inside \fBvenv\fP directory will be mistaken as the editable package\(aqs metadata.  \fI\%#4480\fP
+.IP \(bu 2
+Make the order of hashes in resolution result stable.  \fI\%#4513\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Update \fBtomlkit\fP from \fB0.5.11\fP to \fB0.7.0\fP\&.  \fI\%#4433\fP
+.IP \(bu 2
+Update \fBrequirementslib\fP from \fB1.5.13\fP to \fB1.5.14\fP\&.  \fI\%#4480\fP
+.UNINDENT
+.SS Improved Documentation
+.INDENT 0.0
+.IP \(bu 2
+Discourage homebrew installation in installation guides.  \fI\%#4013\fP
+.UNINDENT
 .SS 2020.8.13 (2020\-08\-13)
 .SS Bug Fixes
 .INDENT 0.0
@@ -720,28 +808,28 @@ Update vendored dependencies and invocations
 .INDENT 2.0
 .IP \(bu 2
 Update vendored and patched dependencies
-\- Update patches on \fBpiptools\fP, \fBpip\fP, \fBpip\-shims\fP,
+\- Update patches on \fBpiptools\fP, \fBpip\fP, \fBpip\-shims\fP, 
 .nf
 \(ga\(ga
 .fi
 tomlkit\(ga
 .IP \(bu 2
 Fix invocations of dependencies
-\- Fix custom
+\- Fix custom 
 .nf
 \(ga\(ga
 .fi
 InstallCommand\(ga instantiation
-\- Update
+\- Update 
 .nf
 \(ga\(ga
 .fi
 PackageFinder\(ga usage
-\- Fix
+\- Fix 
 .nf
 \(ga\(ga
 .fi
-Bool\(ga stringify attempts from
+Bool\(ga stringify attempts from 
 .nf
 \(ga\(ga
 .fi
@@ -2919,6 +3007,20 @@ I am really a very silly example indeed
 .fi
 .UNINDENT
 .UNINDENT
+.sp
+You can then display the names and commands of your shortcuts by running \fBpipenv scripts\fP in your terminal.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pipenv scripts
+command   script
+echospam  echo I am really a very silly example
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
 .SS ☤ Support for Environment Variables
 .sp
 Pipenv supports the usage of environment variables in place of authentication fragments
@@ -2955,7 +3057,7 @@ variables. To activate them, simply create the variable in your shell and pipenv
 will detect it.
 .INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_CACHE_DIR = \(aq/home/frostming/.cache/pipenv\(aq
+.B pipenv.environments.PIPENV_CACHE_DIR = \(aq/Users/fming/Library/Caches/pipenv\(aq
 Location for Pipenv to store it\(aqs package cache.
 .sp
 Default is to use appdir\(aqs user cache directory.
@@ -3095,7 +3197,7 @@ See also \fBPIPENV_MAX_DEPTH\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_PYPI_MIRROR = None
+.B pipenv.environments.PIPENV_PYPI_MIRROR = \(aqhttps://mirrors.tencent.com/pypi/simple\(aq
 If set, tells pipenv to override PyPI index urls with a mirror.
 .sp
 Default is to not mirror PyPI, i.e. use the real one, pypi.org. The
@@ -3112,7 +3214,7 @@ approach, you may set this to \(aq0\(aq, \(aqoff\(aq, or \(aqfalse\(aq.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_SHELL = \(aq/bin/bash\(aq
+.B pipenv.environments.PIPENV_SHELL = \(aq/bin/zsh\(aq
 An absolute path to the preferred shell for \fBpipenv shell\fP\&.
 .sp
 Default is to detect automatically what shell is currently in use.
@@ -3874,6 +3976,11 @@ Emit development dependencies \fIonly\fP (overrides \-\-dev)
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-\-header, \-\-no\-header
+Add header to generated requirements
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-r, \-\-requirements
 Generate output in requirements.txt format.
 .UNINDENT
@@ -4016,6 +4123,49 @@ Required argument
 .B ARGS
 Optional argument(s)
 .UNINDENT
+.SS scripts
+.sp
+Lists scripts in current environment config.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+pipenv scripts [OPTIONS] [ARGS]...
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+Options.INDENT 0.0
+.TP
+.B \-\-python <python>
+Specify which version of Python virtualenv should use.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-three, \-\-two
+Use Python 3/2 when creating virtualenv.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-clear
+Clears caches (pipenv, pip, and pip\-tools).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-v, \-\-verbose
+Verbose mode.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-pypi\-mirror <pypi_mirror>
+Specify a PyPI mirror.
+.UNINDENT
+Arguments.INDENT 0.0
+.TP
+.B ARGS
+Optional argument(s)
+.UNINDENT
 .SS shell
 .sp
 Spawns a shell within the virtualenv.
@@ -4073,6 +4223,11 @@ pipenv sync [OPTIONS]
 .UNINDENT
 .UNINDENT
 Options.INDENT 0.0
+.TP
+.B \-\-system
+System pip management.
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \-\-bare
 Minimal output.

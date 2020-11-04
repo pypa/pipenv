@@ -1,3 +1,42 @@
+2020.11.4 (2020-11-04)
+======================
+
+Features & Improvements
+-----------------------
+
+- Add a new command ``pipenv scripts`` to display shortcuts from Pipfile.  `#3686 <https://github.com/pypa/pipenv/issues/3686>`_
+- Retrieve package file hash from URL to accelerate the locking process.  `#3827 <https://github.com/pypa/pipenv/issues/3827>`_
+- Add the missing ``--system`` option to ``pipenv sync``.  `#4441 <https://github.com/pypa/pipenv/issues/4441>`_
+- Add a new option pair ``--header/--no-header`` to ``pipenv lock`` command,
+  which adds a header to the generated requirements.txt  `#4443 <https://github.com/pypa/pipenv/issues/4443>`_
+
+Bug Fixes
+---------
+
+- Fix a bug that percent encoded characters will be unquoted incorrectly in the file URL.  `#4089 <https://github.com/pypa/pipenv/issues/4089>`_
+- Fix a bug where setting PIPENV_PYTHON to file path breaks environment name  `#4225 <https://github.com/pypa/pipenv/issues/4225>`_
+- Fix a bug that paths are not normalized before comparison.  `#4330 <https://github.com/pypa/pipenv/issues/4330>`_
+- Handle Python major and minor versions correctly in Pipfile creation.  `#4379 <https://github.com/pypa/pipenv/issues/4379>`_
+- Fix a bug that non-wheel file requirements can be resolved successfully.  `#4386 <https://github.com/pypa/pipenv/issues/4386>`_
+- Fix a bug that ``pexept.exceptions.TIMEOUT`` is not caught correctly because of the wrong import path.  `#4424 <https://github.com/pypa/pipenv/issues/4424>`_
+- Fix a bug that compound TOML table is not parsed correctly.  `#4433 <https://github.com/pypa/pipenv/issues/4433>`_
+- Fix a bug that invalid Python paths from Windows registry break ``pipenv install``.  `#4436 <https://github.com/pypa/pipenv/issues/4436>`_
+- Fix a bug that function calls in ``setup.py`` can't be parsed rightly.  `#4446 <https://github.com/pypa/pipenv/issues/4446>`_
+- Fix a bug that dist-info inside ``venv`` directory will be mistaken as the editable package's metadata.  `#4480 <https://github.com/pypa/pipenv/issues/4480>`_
+- Make the order of hashes in resolution result stable.  `#4513 <https://github.com/pypa/pipenv/issues/4513>`_
+
+Vendored Libraries
+------------------
+
+- Update ``tomlkit`` from ``0.5.11`` to ``0.7.0``.  `#4433 <https://github.com/pypa/pipenv/issues/4433>`_
+- Update ``requirementslib`` from ``1.5.13`` to ``1.5.14``.  `#4480 <https://github.com/pypa/pipenv/issues/4480>`_
+
+Improved Documentation
+----------------------
+
+- Discourage homebrew installation in installation guides.  `#4013 <https://github.com/pypa/pipenv/issues/4013>`_
+
+
 2020.8.13 (2020-08-13)
 ======================
 

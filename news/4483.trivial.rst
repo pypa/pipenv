@@ -1,1 +1,0 @@
-Change all occurrences of U+2026 to "..." in CLI output.

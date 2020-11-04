@@ -1,1 +1,0 @@
-Make the order of hashes in resolution result stable.

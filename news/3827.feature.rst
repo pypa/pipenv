@@ -1,1 +1,0 @@
-Retrieve package file hash from URL to accelerate the locking process.

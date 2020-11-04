@@ -1,1 +1,0 @@
-Fix a bug where setting PIPENV_PYTHON to file path breaks environment name
