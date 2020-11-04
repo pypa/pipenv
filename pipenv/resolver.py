@@ -250,7 +250,7 @@ class Entry(object):
         entry_hashes = set(self.entry.hashes)
         locked_hashes = set(self.lockfile_entry.hashes)
         if entry_hashes != locked_hashes and not self.is_updated:
-            self.entry_dict["hashes"] = list(entry_hashes | locked_hashes)
+            self.entry_dict["hashes"] = sorted(entry_hashes | locked_hashes)
         self.entry_dict["name"] = self.name
         if "version" in self.entry_dict:
             self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
