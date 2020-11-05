@@ -790,6 +790,8 @@ class Environment(object):
                     vcs_type == req.vcs and commit_id == req.commit_hash
                     and direct_url_metadata["url"] == pipfile_part[req.vcs]
                 )
+            elif req.is_vcs or req.is_file_or_url:
+                return False
             elif req.line_instance.specifiers is not None:
                 return req.line_instance.specifiers.contains(
                     match.version, prereleases=True
