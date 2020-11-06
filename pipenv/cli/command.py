@@ -730,12 +730,12 @@ def scripts():
         echo("No Pipfile present at project home.", err=True)
         sys.exit(1)
     scripts = project.parsed_pipfile.get('scripts', {})
-    first_column_width = max(len(word) for word in ["Command"] + list(scripts.keys()))
+    first_column_width = max(len(word) for word in ["Command"] + list(scripts))
     second_column_width = max(len(word) for word in ["Script"] + list(scripts.values()))
-    lines = ["{}  Script".format("Command".ljust(first_column_width))]
+    lines = ["{0:<{width}}  Script".format("Command", width=first_column_width)]
     lines.append("{}  {}".format("-" * first_column_width, "-" * second_column_width))
     lines.extend(
-        "{}  {}".format(name.ljust(first_column_width), script)
+        "{0:<{width}}  {1}".format(name, script, width=first_column_width)
         for name, script in scripts.items()
     )
     echo(os.linesep.join(fix_utf8(line) for line in lines))
