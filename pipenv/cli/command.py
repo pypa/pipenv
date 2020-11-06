@@ -9,6 +9,7 @@ from click import (
 )
 
 from ..__version__ import __version__
+from .._compat import fix_utf8
 from ..exceptions import PipenvOptionsError
 from ..patched import crayons
 from ..vendor import click_completion, delegator
@@ -737,7 +738,7 @@ def scripts():
         "{}  {}".format(name.ljust(first_column_width), script)
         for name, script in scripts.items()
     )
-    echo(os.linesep.join(lines))
+    echo(os.linesep.join(fix_utf8(line) for line in lines))
 
 
 if __name__ == "__main__":
