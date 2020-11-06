@@ -1,0 +1,1 @@
+Fix the output of ``pipenv scripts`` under Windows platform.
