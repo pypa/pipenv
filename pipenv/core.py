@@ -1662,6 +1662,7 @@ def format_help(help):
     help = help.replace("  open", str(crayons.red("  open", bold=True)))
     help = help.replace("  run", str(crayons.yellow("  run", bold=True)))
     help = help.replace("  shell", str(crayons.yellow("  shell", bold=True)))
+    help = help.replace("  scripts", str(crayons.yellow("  scripts", bold=True)))
     help = help.replace("  sync", str(crayons.green("  sync", bold=True)))
     help = help.replace("  uninstall", str(crayons.magenta("  uninstall", bold=True)))
     help = help.replace("  update", str(crayons.green("  update", bold=True)))
