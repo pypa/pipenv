@@ -738,7 +738,7 @@ def scripts():
         "{0:<{width}}  {1}".format(name, script, width=first_column_width)
         for name, script in scripts.items()
     )
-    echo(os.linesep.join(fix_utf8(line) for line in lines))
+    echo("\n".join(fix_utf8(line) for line in lines))
 
 
 if __name__ == "__main__":
