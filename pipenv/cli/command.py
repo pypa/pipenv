@@ -9,6 +9,7 @@ from click import (
 )
 
 from ..__version__ import __version__
+from .._compat import fix_utf8
 from ..exceptions import PipenvOptionsError
 from ..patched import crayons
 from ..vendor import click_completion, delegator
@@ -721,20 +722,23 @@ def clean(ctx, state, dry_run=False, bare=False, user=False):
     context_settings=subcommand_context_no_interspersion,
 )
 @common_options
-@argument("args", nargs=-1)
-@pass_state
-def scripts(state, args):
+def scripts():
     """Lists scripts in current environment config."""
     from ..core import project
-    if not project:
-        echo(u"project not found", err=True)
-        exit(1)
+
+    if not project.pipfile_exists:
+        echo("No Pipfile present at project home.", err=True)
+        sys.exit(1)
     scripts = project.parsed_pipfile.get('scripts', {})
-    rpt = u"command\tscript\n"
-    for k, v in scripts.items():
-        rpt += u"{0}\t{1}".format(k, v)
-    echo(rpt)
-    return 0
+    first_column_width = max(len(word) for word in ["Command"] + list(scripts))
+    second_column_width = max(len(word) for word in ["Script"] + list(scripts.values()))
+    lines = ["{0:<{width}}  Script".format("Command", width=first_column_width)]
+    lines.append("{}  {}".format("-" * first_column_width, "-" * second_column_width))
+    lines.extend(
+        "{0:<{width}}  {1}".format(name, script, width=first_column_width)
+        for name, script in scripts.items()
+    )
+    echo("\n".join(fix_utf8(line) for line in lines))
 
 
 if __name__ == "__main__":
