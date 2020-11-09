@@ -528,9 +528,10 @@ class Resolver(object):
     @classmethod
     def get_deps_from_req(cls, req, resolver=None):
         # type: (Requirement, Optional["Resolver"]) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]
+        from .patched.piptools.exceptions import NoCandidateFound
         from .vendor.requirementslib.models.utils import _requirement_to_str_lowercase_name
         from .vendor.requirementslib.models.requirements import Requirement
-        from requirementslib.utils import is_installable_dir
+        from .vendor.requirementslib.utils import is_installable_dir
         # TODO: this is way too complex, refactor this
         constraints = set()  # type: Set[str]
         locked_deps = dict()  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
@@ -607,13 +608,27 @@ class Resolver(object):
                 req.requirement.marker and not req.requirement.marker.evaluate()
             ):
                 pypi = resolver.repository if resolver else None
-                best_match = pypi.find_best_match(req.ireq) if pypi else None
+                try:
+                    best_match = pypi.find_best_match(req.ireq) if pypi else None
+                except NoCandidateFound:
+                    best_match = None
                 if best_match:
                     hashes = resolver.collect_hashes(best_match) if resolver else []
                     new_req = Requirement.from_ireq(best_match)
                     new_req = new_req.add_hashes(hashes)
                     name, entry = new_req.pipfile_entry
                     locked_deps[pep423_name(name)] = translate_markers(entry)
+                    click_echo(
+                        "{} doesn't match your environment, "
+                        "its dependencies won't be resolved.".format(req.as_line()),
+                        err=True
+                    )
+                else:
+                    click_echo(
+                        "Could not find a version of {} that matches your environment, "
+                        "it will be skipped.".format(req.as_line()),
+                        err=True
+                    )
                 return constraints, locked_deps
             constraints.add(req.constraint_line)
             return constraints, locked_deps
@@ -1324,6 +1339,8 @@ def venv_resolve_deps(
             results = c.out.strip()
             if c.ok:
                 sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                if c.out.strip():
+                    click_echo(crayons.yellow("Warning: {0}".format(c.out.strip())), err=True)
             else:
                 sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
                 click_echo("Output: {0}".format(c.out.strip()), err=True)
