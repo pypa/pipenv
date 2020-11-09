@@ -105,11 +105,25 @@ def test_keep_outdated_doesnt_remove_lockfile_entries(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         p._pipfile.add("requests", "==2.18.4")
         p._pipfile.add("colorama", {"version": "*", "markers": "os_name=='FakeOS'"})
-        p.pipenv("install")
+        c = p.pipenv("install")
+        assert c.ok
+        assert "doesn't match your environment, its dependencies won't be resolved." in c.err
         p._pipfile.add("six", "*")
         p.pipenv("lock --keep-outdated")
         assert "colorama" in p.lockfile["default"]
         assert p.lockfile["default"]["colorama"]["markers"] == "os_name == 'FakeOS'"
+
+
+@pytest.mark.lock
+def test_resolve_skip_unmatched_requirements(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        p._pipfile.add("missing-package", {"markers": "os_name=='FakeOS'"})
+        c = p.pipenv("lock")
+        assert c.ok
+        assert (
+            "Could not find a version of missing-package; "
+            "os_name == 'FakeOS' that matches your environment"
+        ) in c.err
 
 
 @pytest.mark.lock
