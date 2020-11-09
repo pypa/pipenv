@@ -1613,7 +1613,7 @@ def which_pip(allow_global=False):
 
 def system_which(command, mult=False):
     """Emulates the system's which. Returns None if not found."""
-    _which = "which -a" if not os.name == "nt" else "where"
+    _which = "where" if os.name == "nt" else "which -a"
     os.environ.update({
         vistir.compat.fs_str(k): vistir.compat.fs_str(val)
         for k, val in os.environ.items()

@@ -2224,7 +2224,7 @@ def is_python_command(line):
         raise TypeError("Not a valid command to check: {0!r}".format(line))
 
     from pipenv.vendor.pythonfinder.utils import PYTHON_IMPLEMENTATIONS
-    is_version = re.match(r'[\d\.]+', line)
+    is_version = re.match(r'\d+(\.\d+)*', line)
     if (line.startswith("python") or is_version
             or any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS)):
         return True
