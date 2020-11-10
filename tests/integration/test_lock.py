@@ -775,3 +775,15 @@ def test_lock_package_with_wildcard_version(PipenvInstance):
         assert "six" in p.lockfile["default"]
         assert "version" in p.lockfile["default"]["six"]
         assert p.lockfile["default"]["six"]["version"] == "==1.11.0"
+
+
+@pytest.mark.lock
+@pytest.mark.install
+def test_default_lock_overwrite_dev_lock(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv("install 'click==6.7'")
+        assert c.ok
+        c = p.pipenv("install -d flask")
+        assert c.ok
+        assert p.lockfile["default"]["click"]["version"] == "==6.7"
+        assert p.lockfile["develop"]["click"]["version"] == "==6.7"

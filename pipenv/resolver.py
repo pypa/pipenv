@@ -670,7 +670,7 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
         print(json.dumps([]))
 
 
-def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages):
+def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages, dev):
     from pipenv.utils import create_mirror_source, resolve_deps, replace_pypi_sources
     pypi_mirror_source = (
         create_mirror_source(os.environ["PIPENV_PYPI_MIRROR"])
@@ -709,9 +709,9 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
         requirements_dir=requirements_dir,
     )
     if keep_outdated:
-        results = clean_outdated(results, resolver, project)
+        results = clean_outdated(results, resolver, project, dev)
     else:
-        results = clean_results(results, resolver, project)
+        results = clean_results(results, resolver, project, dev)
     if write:
         with open(write, "w") as fh:
             if not results:
@@ -726,7 +726,7 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
             print(json.dumps([]))
 
 
-def _main(pre, clear, verbose, system, write, requirements_dir, packages, parse_only=False):
+def _main(pre, clear, verbose, system, write, requirements_dir, packages, parse_only=False, dev=False):
     os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = ".".join([str(s) for s in sys.version_info[:3]])
     os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
     if parse_only:
@@ -738,7 +738,7 @@ def _main(pre, clear, verbose, system, write, requirements_dir, packages, parse_
             requirements_dir=requirements_dir,
         )
     else:
-        resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages)
+        resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages, dev)
 
 
 def main():
@@ -756,7 +756,8 @@ def main():
     os.environ["PYTHONUNBUFFERED"] = str("1")
     parsed = handle_parsed_args(parsed)
     _main(parsed.pre, parsed.clear, parsed.verbose, parsed.system, parsed.write,
-          parsed.requirements_dir, parsed.packages, parse_only=parsed.parse_only)
+          parsed.requirements_dir, parsed.packages, parse_only=parsed.parse_only,
+          dev=parsed.dev)
 
 
 if __name__ == "__main__":
