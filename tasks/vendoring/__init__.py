@@ -8,7 +8,6 @@ import itertools
 import json
 import re
 import shutil
-import sys
 
 # from tempfile import TemporaryDirectory
 import tarfile
@@ -22,7 +21,6 @@ import requests
 
 from urllib3.util import parse_url as urllib3_parse
 
-from pipenv.utils import mkdir_p
 from pipenv.vendor.vistir.compat import NamedTemporaryFile, TemporaryDirectory
 from pipenv.vendor.vistir.contextmanagers import open_file
 from pipenv.vendor.requirementslib.models.lockfile import Lockfile, merge_items
@@ -833,25 +831,25 @@ def unpin_file(contents):
 
 
 def unpin_and_copy_requirements(ctx, requirement_file, name="requirements.txt"):
-    with TemporaryDirectory() as tempdir:
-        target = Path(tempdir.name).joinpath("requirements.txt")
-        contents = unpin_file(requirement_file.read_text())
-        target.write_text(contents)
-        env = {
-            "PIPENV_IGNORE_VIRTUALENVS": "1",
-            "PIPENV_NOSPIN": "1",
-            "PIPENV_PYTHON": "2.7",
-        }
-        with ctx.cd(tempdir.name):
-            ctx.run("pipenv install -r {0}".format(target.as_posix()), env=env, hide=True)
-            result = ctx.run("pipenv lock -r", env=env, hide=True).stdout.strip()
-            ctx.run("pipenv --rm", env=env, hide=True)
-            result = list(sorted([line.strip() for line in result.splitlines()[1:]]))
-            new_requirements = requirement_file.parent.joinpath(name)
-            requirement_file.rename(
-                requirement_file.parent.joinpath("{}.bak".format(name))
-            )
-            new_requirements.write_text("\n".join(result))
+    tempdir = TemporaryDirectory(dir="D:/Workspace/tempdir")
+    target = Path(tempdir.name).joinpath("requirements.txt")
+    contents = unpin_file(requirement_file.read_text())
+    target.write_text(contents)
+    env = {
+        "PIPENV_IGNORE_VIRTUALENVS": "1",
+        "PIPENV_NOSPIN": "1",
+        "PIPENV_PYTHON": "2.7",
+    }
+    with ctx.cd(tempdir.name):
+        ctx.run("pipenv install -r {0}".format(target.as_posix()), env=env, hide=True)
+        result = ctx.run("pipenv lock -r", env=env, hide=True).stdout.strip()
+        # ctx.run("pipenv --rm", env=env, hide=True)
+        result = list(sorted([line.strip() for line in result.splitlines()[1:]]))
+        new_requirements = requirement_file.parent.joinpath(name)
+        requirement_file.rename(
+            requirement_file.parent.joinpath("{}.bak".format(name))
+        )
+        new_requirements.write_text("\n".join(result))
     return result
 
 
