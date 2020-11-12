@@ -1,5 +1,6 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
+import os
 import pytest
 
 from flaky import flaky
@@ -41,6 +42,23 @@ def test_git_vcs_install(PipenvInstance):
         assert "git" in p.pipfile["packages"]["six"]
         assert p.lockfile["default"]["six"] == {
             "git": "git://github.com/benjaminp/six.git",
+            "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
+        }
+
+
+@flaky
+@pytest.mark.vcs
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_git_vcs_install_with_env_var(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        os.environ["GIT_HOST"] = "github.com"
+        c = p.pipenv("install git+git://${GIT_HOST}/benjaminp/six.git@1.11.0#egg=six")
+        assert c.return_code == 0
+        assert "six" in p.pipfile["packages"]
+        assert "git" in p.pipfile["packages"]["six"]
+        assert p.lockfile["default"]["six"] == {
+            "git": "git://${GIT_HOST}/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
         }
 
