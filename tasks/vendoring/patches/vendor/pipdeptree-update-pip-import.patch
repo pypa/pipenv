@@ -1,8 +1,8 @@
 diff --git a/pipenv/vendor/pipdeptree.py b/pipenv/vendor/pipdeptree.py
-index 7820aa5..2082fc8 100644
+index 6f6f2a10..78c19e31 100644
 --- a/pipenv/vendor/pipdeptree.py
 +++ b/pipenv/vendor/pipdeptree.py
-@@ -13,11 +13,9 @@ try:
+@@ -13,13 +13,9 @@ try:
  except ImportError:
      from ordereddict import OrderedDict
  
@@ -11,10 +11,10 @@ index 7820aa5..2082fc8 100644
 -    from pipenv.patched.notpip._internal.operations.freeze import FrozenRequirement
 -except ImportError:
 -    from pipenv.patched.notpip import get_installed_distributions, FrozenRequirement
-+pardir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-+sys.path.append(pardir)
 +from pipenv.vendor.pip_shims import get_installed_distributions, FrozenRequirement
  
- import pkg_resources
+-from pipenv.patched.notpip._vendor import pkg_resources
++import pkg_resources
  # inline:
-
+ # from graphviz import backend, Digraph
+ 

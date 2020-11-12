@@ -13,8 +13,6 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
-pardir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(pardir)
 from pipenv.vendor.pip_shims import get_installed_distributions, FrozenRequirement
 
 import pkg_resources
