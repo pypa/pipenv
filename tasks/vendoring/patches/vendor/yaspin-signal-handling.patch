@@ -1,8 +1,8 @@
 diff --git a/pipenv/vendor/yaspin/core.py b/pipenv/vendor/yaspin/core.py
-index d01fb98e..06b8b621 100644
+index b6d5d9d1..a215a46f 100644
 --- a/pipenv/vendor/yaspin/core.py
 +++ b/pipenv/vendor/yaspin/core.py
-@@ -16,6 +16,9 @@ import sys
+@@ -20,12 +20,17 @@ import sys
  import threading
  import time
  
@@ -12,17 +12,15 @@ index d01fb98e..06b8b621 100644
  from .base_spinner import default_spinner
  from .compat import PY2, basestring, builtin_str, bytes, iteritems, str
  from .constants import COLOR_ATTRS, COLOR_MAP, ENCODING, SPINNER_ATTRS
-@@ -23,6 +26,9 @@ from .helpers import to_unicode
+ from .helpers import to_unicode
  from .termcolor import colored
- 
  
 +colorama.init()
 +
-+
+ 
  class Yaspin(object):
      """Implements a context manager that spawns a thread
-     to write spinner frames into a tty (stdout) during
-@@ -369,11 +375,14 @@ class Yaspin(object):
+@@ -394,11 +399,14 @@ class Yaspin(object):
          # SIGKILL cannot be caught or ignored, and the receiving
          # process cannot perform any clean-up upon receiving this
          # signal.
@@ -42,7 +40,7 @@ index d01fb98e..06b8b621 100644
  
          for sig, sig_handler in iteritems(self._sigmap):
              # A handler for a particular signal, once set, remains
-@@ -521,14 +530,12 @@ class Yaspin(object):
+@@ -543,14 +551,12 @@ class Yaspin(object):
  
      @staticmethod
      def _hide_cursor():
@@ -60,19 +58,3 @@ index d01fb98e..06b8b621 100644
      def _clear_line():
 -        sys.stdout.write("\033[K")
 +        sys.stdout.write(chr(27) + "[K")
-diff --git a/pipenv/vendor/yaspin/spinners.py b/pipenv/vendor/yaspin/spinners.py
-index 9c3fa7b8..60822a2c 100644
---- a/pipenv/vendor/yaspin/spinners.py
-+++ b/pipenv/vendor/yaspin/spinners.py
-@@ -11,10 +11,7 @@ import codecs
- import os
- from collections import namedtuple
- 
--try:
--    import simplejson as json
--except ImportError:
--    import json
-+import json
- 
- 
- THIS_DIR = os.path.dirname(os.path.realpath(__file__))
