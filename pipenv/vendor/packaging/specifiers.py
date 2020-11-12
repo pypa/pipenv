@@ -9,10 +9,11 @@ import itertools
 import re
 
 from ._compat import string_types, with_metaclass
-from ._typing import MYPY_CHECK_RUNNING
+from ._typing import TYPE_CHECKING
+from .utils import canonicalize_version
 from .version import Version, LegacyVersion, parse
 
-if MYPY_CHECK_RUNNING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from typing import (
         List,
         Dict,
@@ -132,9 +133,14 @@ class _IndividualSpecifier(BaseSpecifier):
         # type: () -> str
         return "{0}{1}".format(*self._spec)
 
+    @property
+    def _canonical_spec(self):
+        # type: () -> Tuple[str, Union[Version, str]]
+        return self._spec[0], canonicalize_version(self._spec[1])
+
     def __hash__(self):
         # type: () -> int
-        return hash(self._spec)
+        return hash(self._canonical_spec)
 
     def __eq__(self, other):
         # type: (object) -> bool
@@ -146,7 +152,7 @@ class _IndividualSpecifier(BaseSpecifier):
         elif not isinstance(other, self.__class__):
             return NotImplemented
 
-        return self._spec == other._spec
+        return self._canonical_spec == other._canonical_spec
 
     def __ne__(self, other):
         # type: (object) -> bool
@@ -510,12 +516,20 @@ class Specifier(_IndividualSpecifier):
     @_require_version_compare
     def _compare_less_than_equal(self, prospective, spec):
         # type: (ParsedVersion, str) -> bool
-        return prospective <= Version(spec)
+
+        # NB: Local version identifiers are NOT permitted in the version
+        # specifier, so local version labels can be universally removed from
+        # the prospective version.
+        return Version(prospective.public) <= Version(spec)
 
     @_require_version_compare
     def _compare_greater_than_equal(self, prospective, spec):
         # type: (ParsedVersion, str) -> bool
-        return prospective >= Version(spec)
+
+        # NB: Local version identifiers are NOT permitted in the version
+        # specifier, so local version labels can be universally removed from
+        # the prospective version.
+        return Version(prospective.public) >= Version(spec)
 
     @_require_version_compare
     def _compare_less_than(self, prospective, spec_str):

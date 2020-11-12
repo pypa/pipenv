@@ -12,7 +12,7 @@ def is_type_checking():
     # type: () -> bool
     try:
         from typing import TYPE_CHECKING
-    except ImportError:  # pragma: no cover
+    except ImportError:
         return False
     return TYPE_CHECKING
 

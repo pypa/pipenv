@@ -1,7 +1,7 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
 
-from pipenv.vendor import attr
+import attr
 import pip_shims.shims
 from orderedmultidict import omdict
 from six.moves.urllib.parse import quote, unquote_plus, unquote as url_unquote

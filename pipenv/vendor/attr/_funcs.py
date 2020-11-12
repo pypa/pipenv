@@ -13,6 +13,7 @@ def asdict(
     filter=None,
     dict_factory=dict,
     retain_collection_types=False,
+    value_serializer=None,
 ):
     """
     Return the ``attrs`` attribute values of *inst* as a dict.
@@ -32,6 +33,10 @@ def asdict(
     :param bool retain_collection_types: Do not convert to ``list`` when
         encountering an attribute whose type is ``tuple`` or ``set``.  Only
         meaningful if ``recurse`` is ``True``.
+    :param Optional[callable] value_serializer: A hook that is called for every
+        attribute or dict key/value.  It receives the current instance, field
+        and value and must return the (updated) value.  The hook is run *after*
+        the optional *filter* has been applied.
 
     :rtype: return type of *dict_factory*
 
@@ -40,6 +45,7 @@ def asdict(
 
     ..  versionadded:: 16.0.0 *dict_factory*
     ..  versionadded:: 16.1.0 *retain_collection_types*
+    ..  versionadded:: 20.3.0 *value_serializer*
     """
     attrs = fields(inst.__class__)
     rv = dict_factory()
@@ -47,17 +53,30 @@ def asdict(
         v = getattr(inst, a.name)
         if filter is not None and not filter(a, v):
             continue
+
+        if value_serializer is not None:
+            v = value_serializer(inst, a, v)
+
         if recurse is True:
             if has(v.__class__):
                 rv[a.name] = asdict(
-                    v, True, filter, dict_factory, retain_collection_types
+                    v,
+                    True,
+                    filter,
+                    dict_factory,
+                    retain_collection_types,
+                    value_serializer,
                 )
-            elif isinstance(v, (tuple, list, set)):
+            elif isinstance(v, (tuple, list, set, frozenset)):
                 cf = v.__class__ if retain_collection_types is True else list
                 rv[a.name] = cf(
                     [
                         _asdict_anything(
-                            i, filter, dict_factory, retain_collection_types
+                            i,
+                            filter,
+                            dict_factory,
+                            retain_collection_types,
+                            value_serializer,
                         )
                         for i in v
                     ]
@@ -67,10 +86,18 @@ def asdict(
                 rv[a.name] = df(
                     (
                         _asdict_anything(
-                            kk, filter, df, retain_collection_types
+                            kk,
+                            filter,
+                            df,
+                            retain_collection_types,
+                            value_serializer,
                         ),
                         _asdict_anything(
-                            vv, filter, df, retain_collection_types
+                            vv,
+                            filter,
+                            df,
+                            retain_collection_types,
+                            value_serializer,
                         ),
                     )
                     for kk, vv in iteritems(v)
@@ -82,19 +109,36 @@ def asdict(
     return rv
 
 
-def _asdict_anything(val, filter, dict_factory, retain_collection_types):
+def _asdict_anything(
+    val,
+    filter,
+    dict_factory,
+    retain_collection_types,
+    value_serializer,
+):
     """
     ``asdict`` only works on attrs instances, this works on anything.
     """
     if getattr(val.__class__, "__attrs_attrs__", None) is not None:
         # Attrs class.
-        rv = asdict(val, True, filter, dict_factory, retain_collection_types)
-    elif isinstance(val, (tuple, list, set)):
+        rv = asdict(
+            val,
+            True,
+            filter,
+            dict_factory,
+            retain_collection_types,
+            value_serializer,
+        )
+    elif isinstance(val, (tuple, list, set, frozenset)):
         cf = val.__class__ if retain_collection_types is True else list
         rv = cf(
             [
                 _asdict_anything(
-                    i, filter, dict_factory, retain_collection_types
+                    i,
+                    filter,
+                    dict_factory,
+                    retain_collection_types,
+                    value_serializer,
                 )
                 for i in val
             ]
@@ -103,13 +147,20 @@ def _asdict_anything(val, filter, dict_factory, retain_collection_types):
         df = dict_factory
         rv = df(
             (
-                _asdict_anything(kk, filter, df, retain_collection_types),
-                _asdict_anything(vv, filter, df, retain_collection_types),
+                _asdict_anything(
+                    kk, filter, df, retain_collection_types, value_serializer
+                ),
+                _asdict_anything(
+                    vv, filter, df, retain_collection_types, value_serializer
+                ),
             )
             for kk, vv in iteritems(val)
         )
     else:
         rv = val
+        if value_serializer is not None:
+            rv = value_serializer(None, None, rv)
+
     return rv
 
 
@@ -164,7 +215,7 @@ def astuple(
                         retain_collection_types=retain,
                     )
                 )
-            elif isinstance(v, (tuple, list, set)):
+            elif isinstance(v, (tuple, list, set, frozenset)):
                 cf = v.__class__ if retain is True else list
                 rv.append(
                     cf(
@@ -209,6 +260,7 @@ def astuple(
                 rv.append(v)
         else:
             rv.append(v)
+
     return rv if tuple_factory is list else tuple_factory(rv)
 
 
@@ -287,4 +339,52 @@ def evolve(inst, **changes):
         init_name = attr_name if attr_name[0] != "_" else attr_name[1:]
         if init_name not in changes:
             changes[init_name] = getattr(inst, attr_name)
+
     return cls(**changes)
+
+
+def resolve_types(cls, globalns=None, localns=None):
+    """
+    Resolve any strings and forward annotations in type annotations.
+
+    This is only required if you need concrete types in `Attribute`'s *type*
+    field. In other words, you don't need to resolve your types if you only
+    use them for static type checking.
+
+    With no arguments, names will be looked up in the module in which the class
+    was created. If this is not what you want, e.g. if the name only exists
+    inside a method, you may pass *globalns* or *localns* to specify other
+    dictionaries in which to look up these names. See the docs of
+    `typing.get_type_hints` for more details.
+
+    :param type cls: Class to resolve.
+    :param Optional[dict] globalns: Dictionary containing global variables.
+    :param Optional[dict] localns: Dictionary containing local variables.
+
+    :raise TypeError: If *cls* is not a class.
+    :raise attr.exceptions.NotAnAttrsClassError: If *cls* is not an ``attrs``
+        class.
+    :raise NameError: If types cannot be resolved because of missing variables.
+
+    :returns: *cls* so you can use this function also as a class decorator.
+        Please note that you have to apply it **after** `attr.s`. That means
+        the decorator has to come in the line **before** `attr.s`.
+
+    ..  versionadded:: 20.1.0
+    """
+    try:
+        # Since calling get_type_hints is expensive we cache whether we've
+        # done it already.
+        cls.__attrs_types_resolved__
+    except AttributeError:
+        import typing
+
+        hints = typing.get_type_hints(cls, globalns=globalns, localns=localns)
+        for field in fields(cls):
+            if field.name in hints:
+                # Since fields have been frozen we must work around it.
+                _obj_setattr(field, "type", hints[field.name])
+        cls.__attrs_types_resolved__ = True
+
+    # Return the class so you can use it as a decorator too.
+    return cls

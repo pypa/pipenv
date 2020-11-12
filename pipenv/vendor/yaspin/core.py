@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+#
+# :copyright: (c) 2020 by Pavlo Dmytrenko.
+# :license: MIT, see LICENSE for more details.
 
 """
 yaspin.yaspin
@@ -9,6 +12,7 @@ A lightweight terminal spinner.
 
 from __future__ import absolute_import
 
+import contextlib
 import functools
 import itertools
 import signal
@@ -16,17 +20,11 @@ import sys
 import threading
 import time
 
-import colorama
-from pipenv.vendor.vistir import cursor
-
 from .base_spinner import default_spinner
 from .compat import PY2, basestring, builtin_str, bytes, iteritems, str
 from .constants import COLOR_ATTRS, COLOR_MAP, ENCODING, SPINNER_ATTRS
 from .helpers import to_unicode
 from .termcolor import colored
-
-
-colorama.init()
 
 
 class Yaspin(object):
@@ -83,6 +81,7 @@ class Yaspin(object):
         self._spin_thread = None
         self._last_frame = None
         self._stdout_lock = threading.Lock()
+        self._hidden_level = 0
 
         # Signals
 
@@ -266,6 +265,20 @@ class Yaspin(object):
                 # can be rewritten to
                 sys.stdout.flush()
 
+    @contextlib.contextmanager
+    def hidden(self):
+        """Hide the spinner within a block, can be nested"""
+        if self._hidden_level == 0:
+            self.hide()
+        self._hidden_level += 1
+
+        try:
+            yield
+        finally:
+            self._hidden_level -= 1
+            if self._hidden_level == 0:
+                self.show()
+
     def show(self):
         """Show the hidden spinner."""
         thr_is_alive = self._spin_thread and self._spin_thread.is_alive()
@@ -381,14 +394,11 @@ class Yaspin(object):
         # SIGKILL cannot be caught or ignored, and the receiving
         # process cannot perform any clean-up upon receiving this
         # signal.
-        try:
-            if signal.SIGKILL in self._sigmap.keys():
-                raise ValueError(
-                    "Trying to set handler for SIGKILL signal. "
-                    "SIGKILL cannot be cought or ignored in POSIX systems."
-                )
-        except AttributeError:
-            pass
+        if signal.SIGKILL in self._sigmap.keys():
+            raise ValueError(
+                "Trying to set handler for SIGKILL signal. "
+                "SIGKILL cannot be cought or ignored in POSIX systems."
+            )
 
         for sig, sig_handler in iteritems(self._sigmap):
             # A handler for a particular signal, once set, remains
@@ -461,9 +471,6 @@ class Yaspin(object):
 
     @staticmethod
     def _set_spinner(spinner):
-        if not spinner:
-            sp = default_spinner
-
         if hasattr(spinner, "frames") and hasattr(spinner, "interval"):
             if not spinner.frames or not spinner.interval:
                 sp = default_spinner
@@ -536,12 +543,14 @@ class Yaspin(object):
 
     @staticmethod
     def _hide_cursor():
-        cursor.hide_cursor()
+        sys.stdout.write("\033[?25l")
+        sys.stdout.flush()
 
     @staticmethod
     def _show_cursor():
-        cursor.show_cursor()
+        sys.stdout.write("\033[?25h")
+        sys.stdout.flush()
 
     @staticmethod
     def _clear_line():
-        sys.stdout.write(chr(27) + "[K")
+        sys.stdout.write("\033[K")

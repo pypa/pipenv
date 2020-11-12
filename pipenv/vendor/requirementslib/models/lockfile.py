@@ -5,7 +5,7 @@ import copy
 import itertools
 import os
 
-from pipenv.vendor import attr
+import attr
 import plette.lockfiles
 import six
 from vistir.compat import FileNotFoundError, JSONDecodeError, Path

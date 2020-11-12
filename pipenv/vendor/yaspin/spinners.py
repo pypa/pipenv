@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+#
+# :copyright: (c) 2020 by Pavlo Dmytrenko.
+# :license: MIT, see LICENSE for more details.
 
 """
 yaspin.spinners
@@ -7,20 +10,23 @@ yaspin.spinners
 A collection of cli spinners.
 """
 
-import codecs
-import os
+import pkgutil
 from collections import namedtuple
 
-import json
+
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 
-THIS_DIR = os.path.dirname(os.path.realpath(__file__))
-SPINNERS_PATH = os.path.join(THIS_DIR, "data/spinners.json")
+SPINNERS_DATA = pkgutil.get_data(__name__, "data/spinners.json").decode(
+    "utf-8"
+)
 
 
 def _hook(dct):
     return namedtuple("Spinner", dct.keys())(*dct.values())
 
 
-with codecs.open(SPINNERS_PATH, encoding="utf-8") as f:
-    Spinners = json.load(f, object_hook=_hook)
+Spinners = json.loads(SPINNERS_DATA, object_hook=_hook)

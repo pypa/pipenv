@@ -1,7 +1,7 @@
 # -*- coding=utf-8 -*-
 from contextlib import contextmanager
 
-from pipenv.vendor import attr
+import attr
 import six
 from pip_shims.shims import Wheel
 

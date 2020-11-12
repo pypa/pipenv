@@ -22,7 +22,7 @@ import pkg_resources
 # from graphviz import backend, Digraph
 
 
-__version__ = '0.13.2'
+__version__ = '1.0.0'
 
 
 flatten = chain.from_iterable

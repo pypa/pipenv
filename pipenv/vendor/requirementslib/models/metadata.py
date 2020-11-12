@@ -9,7 +9,7 @@ import os
 import zipfile
 from collections import defaultdict
 
-from pipenv.vendor import attr
+import attr
 import dateutil.parser
 import distlib.metadata
 import distlib.wheel

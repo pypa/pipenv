@@ -18,22 +18,31 @@ curious maintainer can reach here to read this.
 
 In packaging, all static-typing related imports should be guarded as follows:
 
-    from packaging._typing import MYPY_CHECK_RUNNING
+    from packaging._typing import TYPE_CHECKING
 
-    if MYPY_CHECK_RUNNING:
+    if TYPE_CHECKING:
         from typing import ...
 
 Ref: https://github.com/python/mypy/issues/3216
 """
 
-MYPY_CHECK_RUNNING = False
+__all__ = ["TYPE_CHECKING", "cast"]
 
-if MYPY_CHECK_RUNNING:  # pragma: no cover
-    import typing
-
-    cast = typing.cast
+# The TYPE_CHECKING constant defined by the typing module is False at runtime
+# but True while type checking.
+if False:  # pragma: no cover
+    from typing import TYPE_CHECKING
 else:
-    # typing's cast() is needed at runtime, but we don't want to import typing.
-    # Thus, we use a dummy no-op version, which we tell mypy to ignore.
-    def cast(type_, value):  # type: ignore
+    TYPE_CHECKING = False
+
+# typing's cast syntax requires calling typing.cast at runtime, but we don't
+# want to import typing at runtime. Here, we inform the type checkers that
+# we're importing `typing.cast` as `cast` and re-implement typing.cast's
+# runtime behavior in a block that is ignored by type checkers.
+if TYPE_CHECKING:  # pragma: no cover
+    # not executed at runtime
+    from typing import cast
+else:
+    # executed at runtime
+    def cast(type_, value):  # noqa
         return value

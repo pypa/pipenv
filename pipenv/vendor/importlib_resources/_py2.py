@@ -3,44 +3,13 @@ import errno
 
 from . import _common
 from ._compat import FileNotFoundError
-from importlib import import_module
 from io import BytesIO, TextIOWrapper, open as io_open
-
-
-def _resolve(name):
-    """If name is a string, resolve to a module."""
-    if not isinstance(name, basestring):                    # noqa: F821
-        return name
-    return import_module(name)
-
-
-def _get_package(package):
-    """Normalize a path by ensuring it is a string.
-
-    If the resulting string contains path separators, an exception is raised.
-    """
-    module = _resolve(package)
-    if not hasattr(module, '__path__'):
-        raise TypeError("{!r} is not a package".format(package))
-    return module
-
-
-def _normalize_path(path):
-    """Normalize a path by ensuring it is a string.
-
-    If the resulting string contains path separators, an exception is raised.
-    """
-    str_path = str(path)
-    parent, file_name = os.path.split(str_path)
-    if parent:
-        raise ValueError("{!r} must be only a file name".format(path))
-    return file_name
 
 
 def open_binary(package, resource):
     """Return a file-like object opened for binary reading of the resource."""
-    resource = _normalize_path(resource)
-    package = _get_package(package)
+    resource = _common.normalize_path(resource)
+    package = _common.get_package(package)
     # Using pathlib doesn't work well here due to the lack of 'strict' argument
     # for pathlib.Path.resolve() prior to Python 3.6.
     package_path = os.path.dirname(package.__file__)
@@ -89,10 +58,6 @@ def read_text(package, resource, encoding='utf-8', errors='strict'):
         return fp.read()
 
 
-def files(package):
-    return _common.from_package(_get_package(package))
-
-
 def path(package, resource):
     """A context manager providing a file path object to the resource.
 
@@ -102,7 +67,7 @@ def path(package, resource):
     raised if the file was deleted prior to the context manager
     exiting).
     """
-    path = files(package).joinpath(_normalize_path(resource))
+    path = _common.files(package).joinpath(_common.normalize_path(resource))
     if not path.is_file():
         raise FileNotFoundError(path)
     return _common.as_file(path)
@@ -113,8 +78,8 @@ def is_resource(package, name):
 
     Directories are *not* resources.
     """
-    package = _get_package(package)
-    _normalize_path(name)
+    package = _common.get_package(package)
+    _common.normalize_path(name)
     try:
         package_contents = set(contents(package))
     except OSError as error:
@@ -138,5 +103,5 @@ def contents(package):
     not considered resources.  Use `is_resource()` on each entry returned here
     to check if it is a resource or not.
     """
-    package = _get_package(package)
+    package = _common.get_package(package)
     return list(item.name for item in _common.from_package(package).iterdir())

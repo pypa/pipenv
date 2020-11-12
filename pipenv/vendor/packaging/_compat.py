@@ -5,9 +5,9 @@ from __future__ import absolute_import, division, print_function
 
 import sys
 
-from ._typing import MYPY_CHECK_RUNNING
+from ._typing import TYPE_CHECKING
 
-if MYPY_CHECK_RUNNING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Dict, Tuple, Type
 
 

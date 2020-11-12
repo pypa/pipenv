@@ -8,12 +8,10 @@ import os
 import sys
 from contextlib import contextmanager
 from distutils.sysconfig import get_python_lib
-from functools import partial
 
-from pipenv.vendor import attr
+import attr
 import pip_shims
 import six
-import vistir
 from cached_property import cached_property
 from packaging.markers import Marker
 from packaging.requirements import Requirement as PackagingRequirement
@@ -50,10 +48,6 @@ from ..utils import (
     strip_ssh_from_git_uri,
 )
 from .markers import (
-    cleanup_pyspecs,
-    contains_pyversion,
-    format_pyversion,
-    get_contained_pyversions,
     normalize_marker_str,
 )
 from .setup_info import (
@@ -67,10 +61,10 @@ from .url import URI
 from .utils import (
     DIRECT_URL_RE,
     HASH_STRING,
-    URL_RE,
     build_vcs_uri,
     convert_direct_url_to_url,
     create_link,
+    expand_env_variables,
     extras_to_string,
     filter_none,
     format_requirement,
@@ -82,7 +76,6 @@ from .utils import (
     make_install_requirement,
     normalize_name,
     parse_extras,
-    read_source,
     specs_to_string,
     split_markers_from_line,
     split_ref_from_uri,
@@ -926,7 +919,7 @@ class Line(object):
         if self.is_named:
             ireq = pip_shims.shims.install_req_from_line(self.line)
         if self.is_file or self.is_remote_url:
-            ireq.link = self.link
+            ireq.link = pip_shims.shims.Link(expand_env_variables(self.link.url))
         if self.extras and not ireq.extras:
             ireq.extras = set(self.extras)
         if self.parsed_marker is not None and not ireq.markers:
@@ -1413,43 +1406,51 @@ LinkInfo = collections.namedtuple(
 )
 
 
-@attr.s(slots=True, cmp=True, hash=True)
+@attr.s(slots=True, eq=True, order=True, hash=True)
 class FileRequirement(object):
     """File requirements for tar.gz installable files or wheels or setup.py
     containing directories."""
 
     #: Path to the relevant `setup.py` location
-    setup_path = attr.ib(default=None, cmp=True)  # type: Optional[STRING_TYPE]
+    setup_path = attr.ib(default=None, eq=True, order=True)  # type: Optional[STRING_TYPE]
     #: path to hit - without any of the VCS prefixes (like git+ / http+ / etc)
-    path = attr.ib(default=None, cmp=True)  # type: Optional[STRING_TYPE]
+    path = attr.ib(default=None, eq=True, order=True)  # type: Optional[STRING_TYPE]
     #: Whether the package is editable
-    editable = attr.ib(default=False, cmp=True)  # type: bool
+    editable = attr.ib(default=False, eq=True, order=True)  # type: bool
     #: Extras if applicable
     extras = attr.ib(
-        default=attr.Factory(tuple), cmp=True
+        default=attr.Factory(tuple), eq=True, order=True
     )  # type: Tuple[STRING_TYPE, ...]
-    _uri_scheme = attr.ib(default=None, cmp=True)  # type: Optional[STRING_TYPE]
+    _uri_scheme = attr.ib(
+        default=None, eq=True, order=True
+    )  # type: Optional[STRING_TYPE]
     #: URI of the package
-    uri = attr.ib(cmp=True)  # type: Optional[STRING_TYPE]
+    uri = attr.ib(eq=True, order=True)  # type: Optional[STRING_TYPE]
     #: Link object representing the package to clone
-    link = attr.ib(cmp=True)  # type: Optional[Link]
+    link = attr.ib(eq=True, order=True)  # type: Optional[Link]
     #: PyProject Requirements
     pyproject_requires = attr.ib(
-        factory=tuple, cmp=True
+        factory=tuple, eq=True, order=True
     )  # type: Optional[Tuple[STRING_TYPE, ...]]
     #: PyProject Build System
-    pyproject_backend = attr.ib(default=None, cmp=True)  # type: Optional[STRING_TYPE]
+    pyproject_backend = attr.ib(
+        default=None, eq=True, order=True
+    )  # type: Optional[STRING_TYPE]
     #: PyProject Path
-    pyproject_path = attr.ib(default=None, cmp=True)  # type: Optional[STRING_TYPE]
+    pyproject_path = attr.ib(
+        default=None, eq=True, order=True
+    )  # type: Optional[STRING_TYPE]
     subdirectory = attr.ib(default=None)  # type: Optional[STRING_TYPE]
     #: Setup metadata e.g. dependencies
-    _setup_info = attr.ib(default=None, cmp=True)  # type: Optional[SetupInfo]
-    _has_hashed_name = attr.ib(default=False, cmp=True)  # type: bool
-    _parsed_line = attr.ib(default=None, cmp=False, hash=True)  # type: Optional[Line]
+    _setup_info = attr.ib(default=None, eq=True, order=True)  # type: Optional[SetupInfo]
+    _has_hashed_name = attr.ib(default=False, eq=True, order=True)  # type: bool
+    _parsed_line = attr.ib(
+        default=None, eq=False, order=False, hash=True
+    )  # type: Optional[Line]
     #: Package name
-    name = attr.ib(cmp=True)  # type: Optional[STRING_TYPE]
+    name = attr.ib(eq=True, order=True)  # type: Optional[STRING_TYPE]
     #: A :class:`~pkg_resources.Requirement` instance
-    req = attr.ib(cmp=True)  # type: Optional[PackagingRequirement]
+    req = attr.ib(eq=True, order=True)  # type: Optional[PackagingRequirement]
 
     @classmethod
     def get_link_from_line(cls, line):
@@ -2140,7 +2141,7 @@ class VCSRequirement(FileRequirement):
         if checkout_dir is None:
             checkout_dir = self.get_checkout_dir(src_dir=src_dir)
         vcsrepo = VCSRepository(
-            url=self.url,
+            url=expand_env_variables(self.url),
             name=self.name,
             ref=self.ref if self.ref else None,
             checkout_directory=checkout_dir,
@@ -2373,29 +2374,34 @@ class VCSRequirement(FileRequirement):
         return {name: pipfile_dict}  # type: ignore
 
 
-@attr.s(cmp=True, hash=True)
+@attr.s(eq=True, order=True, hash=True)
 class Requirement(object):
-    _name = attr.ib(cmp=True)  # type: STRING_TYPE
+    _name = attr.ib(eq=True, order=True)  # type: STRING_TYPE
     vcs = attr.ib(
-        default=None, validator=attr.validators.optional(validate_vcs), cmp=True
+        default=None,
+        validator=attr.validators.optional(validate_vcs),
+        eq=True,
+        order=True,
     )  # type: Optional[STRING_TYPE]
     req = attr.ib(
-        default=None, cmp=True
+        default=None, eq=True, order=True
     )  # type: Optional[Union[VCSRequirement, FileRequirement, NamedRequirement]]
-    markers = attr.ib(default=None, cmp=True)  # type: Optional[STRING_TYPE]
+    markers = attr.ib(default=None, eq=True, order=True)  # type: Optional[STRING_TYPE]
     _specifiers = attr.ib(
-        validator=attr.validators.optional(validate_specifiers), cmp=True
+        validator=attr.validators.optional(validate_specifiers), eq=True, order=True
     )  # type: Optional[STRING_TYPE]
-    index = attr.ib(default=None, cmp=True)  # type: Optional[STRING_TYPE]
-    editable = attr.ib(default=None, cmp=True)  # type: Optional[bool]
+    index = attr.ib(default=None, eq=True, order=True)  # type: Optional[STRING_TYPE]
+    editable = attr.ib(default=None, eq=True, order=True)  # type: Optional[bool]
     hashes = attr.ib(
-        factory=frozenset, converter=frozenset, cmp=True
+        factory=frozenset, converter=frozenset, eq=True, order=True
     )  # type: FrozenSet[STRING_TYPE]
-    extras = attr.ib(factory=tuple, cmp=True)  # type: Tuple[STRING_TYPE, ...]
-    abstract_dep = attr.ib(default=None, cmp=False)  # type: Optional[AbstractDependency]
-    _line_instance = attr.ib(default=None, cmp=False)  # type: Optional[Line]
+    extras = attr.ib(factory=tuple, eq=True, order=True)  # type: Tuple[STRING_TYPE, ...]
+    abstract_dep = attr.ib(
+        default=None, eq=False, order=False
+    )  # type: Optional[AbstractDependency]
+    _line_instance = attr.ib(default=None, eq=False, order=False)  # type: Optional[Line]
     _ireq = attr.ib(
-        default=None, cmp=False
+        default=None, eq=False, order=False
     )  # type: Optional[pip_shims.InstallRequirement]
 
     def __hash__(self):

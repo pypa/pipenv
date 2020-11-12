@@ -9,7 +9,7 @@ except ImportError:
                      'Run pip install "python-dotenv[cli]" to fix this.')
     sys.exit(1)
 
-from .compat import IS_TYPE_CHECKING
+from .compat import IS_TYPE_CHECKING, to_env
 from .main import dotenv_values, get_key, set_key, unset_key
 from .version import __version__
 
@@ -19,19 +19,23 @@ if IS_TYPE_CHECKING:
 
 @click.group()
 @click.option('-f', '--file', default=os.path.join(os.getcwd(), '.env'),
-              type=click.Path(exists=True),
+              type=click.Path(file_okay=True),
               help="Location of the .env file, defaults to .env file in current working directory.")
 @click.option('-q', '--quote', default='always',
               type=click.Choice(['always', 'never', 'auto']),
               help="Whether to quote or not the variable values. Default mode is always. This does not affect parsing.")
+@click.option('-e', '--export', default=False,
+              type=click.BOOL,
+              help="Whether to write the dot file as an executable bash script.")
 @click.version_option(version=__version__)
 @click.pass_context
-def cli(ctx, file, quote):
-    # type: (click.Context, Any, Any) -> None
+def cli(ctx, file, quote, export):
+    # type: (click.Context, Any, Any, Any) -> None
     '''This script is used to set, get or unset values from a .env file.'''
     ctx.obj = {}
-    ctx.obj['FILE'] = file
     ctx.obj['QUOTE'] = quote
+    ctx.obj['EXPORT'] = export
+    ctx.obj['FILE'] = file
 
 
 @cli.command()
@@ -40,6 +44,11 @@ def list(ctx):
     # type: (click.Context) -> None
     '''Display all the stored key/value.'''
     file = ctx.obj['FILE']
+    if not os.path.isfile(file):
+        raise click.BadParameter(
+            'Path "%s" does not exist.' % (file),
+            ctx=ctx
+        )
     dotenv_as_dict = dotenv_values(file)
     for k, v in dotenv_as_dict.items():
         click.echo('%s=%s' % (k, v))
@@ -54,7 +63,8 @@ def set(ctx, key, value):
     '''Store the given key/value.'''
     file = ctx.obj['FILE']
     quote = ctx.obj['QUOTE']
-    success, key, value = set_key(file, key, value, quote)
+    export = ctx.obj['EXPORT']
+    success, key, value = set_key(file, key, value, quote, export)
     if success:
         click.echo('%s=%s' % (key, value))
     else:
@@ -68,6 +78,11 @@ def get(ctx, key):
     # type: (click.Context, Any) -> None
     '''Retrieve the value for the given key.'''
     file = ctx.obj['FILE']
+    if not os.path.isfile(file):
+        raise click.BadParameter(
+            'Path "%s" does not exist.' % (file),
+            ctx=ctx
+        )
     stored_value = get_key(file, key)
     if stored_value:
         click.echo('%s=%s' % (key, stored_value))
@@ -97,11 +112,17 @@ def run(ctx, commandline):
     # type: (click.Context, List[str]) -> None
     """Run command with environment variables present."""
     file = ctx.obj['FILE']
-    dotenv_as_dict = dotenv_values(file)
+    if not os.path.isfile(file):
+        raise click.BadParameter(
+            'Invalid value for \'-f\' "%s" does not exist.' % (file),
+            ctx=ctx
+        )
+    dotenv_as_dict = {to_env(k): to_env(v) for (k, v) in dotenv_values(file).items() if v is not None}
+
     if not commandline:
         click.echo('No command given.')
         exit(1)
-    ret = run_command(commandline, dotenv_as_dict)  # type: ignore
+    ret = run_command(commandline, dotenv_as_dict)
     exit(ret)
 
 
