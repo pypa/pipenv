@@ -58,7 +58,6 @@ Alternatively, you can set the ``PIPENV_PYPI_MIRROR`` environment variable.
 ☤ Injecting credentials into Pipfiles via environment variables
 -----------------------------------------------------------------
 
-
 Pipenv will expand environment variables (if defined) in your Pipfile. Quite
 useful if you need to authenticate to a private PyPI::
 
@@ -75,6 +74,17 @@ If your credentials contain a special character, surround the references to the 
 
     [[source]]
     url = "https://$USERNAME:'${PASSWORD}'@mypypi.example.com/simple"
+
+Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+
+On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+
+Environment variables in the URL part of requirement specifiers can also be expanded, where the variable must be in the form of ``${VAR_NAME}``. Neither ``$VAR_NAME`` nor ``%VAR_NAME%`` is acceptable::
+
+    [[package]]
+    requests = {git = "git://${USERNAME}:${PASSWORD}@private.git.com/psf/requests.git", ref = "2.22.0"}
+
+Keep in mind that environment variables are expanded in runtime, leaving the entries in ``Pipfile`` or ``Pipfile.lock`` untouched. This is to avoid the accidental leakage of credentials in the source code.
 
 
 ☤ Specifying Basically Anything
@@ -435,32 +445,6 @@ You can then display the names and commands of your shortcuts by running ``pipen
     $ pipenv scripts
     command   script
     echospam  echo I am really a very silly example
-
-
-☤ Support for Environment Variables
------------------------------------
-
-Pipenv supports the usage of environment variables in place of authentication fragments
-in your Pipfile. These will only be parsed if they are present in the ``[[source]]``
-section. For example:
-
-.. code-block:: toml
-
-    [[source]]
-    url = "https://${PYPI_USERNAME}:${PYPI_PASSWORD}@my_private_repo.example.com/simple"
-    verify_ssl = true
-    name = "pypi"
-
-    [dev-packages]
-
-    [packages]
-    requests = {version="*", index="home"}
-    maya = {version="*", index="pypi"}
-    records = "*"
-
-Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
-
-On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
 
 .. _configuration-with-environment-variables:
 
