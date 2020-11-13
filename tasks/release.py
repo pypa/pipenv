@@ -88,7 +88,7 @@ def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, 
     if pre:
         trunc_month = True
     drop_dist_dirs(ctx)
-    bump_version(
+    version = bump_version(
         ctx,
         dry_run=dry_run,
         pre=pre,
@@ -96,7 +96,6 @@ def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, 
         month_offset=month_offset,
         trunc_month=trunc_month
     )
-    version = find_version(ctx)
     tag_content = _render_log()
     if dry_run:
         ctx.run("towncrier --draft > CHANGELOG.draft.rst")
@@ -126,16 +125,16 @@ def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, 
     tag_content = tag_content.replace('"', '\\"')
     if dry_run or pre:
         log(f"Generated tag content: {tag_content}")
-        draft_rstfile = "CHANGELOG.draft.rst"
-        markdown_path = pathlib.Path(draft_rstfile).with_suffix(".md")
-        generate_markdown(ctx, source_rstfile=draft_rstfile)
-        clean_mdchangelog(ctx, markdown_path.as_posix())
-        log(f"would generate markdown: {markdown_path.read_text()}")
-        if pre and not dry_run:
+        # draft_rstfile = "CHANGELOG.draft.rst"
+        # markdown_path = pathlib.Path(draft_rstfile).with_suffix(".md")
+        # generate_markdown(ctx, source_rstfile=draft_rstfile)
+        # clean_mdchangelog(ctx, markdown_path.as_posix())
+        # log(f"would generate markdown: {markdown_path.read_text()}")
+        if not dry_run:
             ctx.run(f'git tag -a v{version} -m "Version v{version}\n\n{tag_content}"')
     else:
-        generate_markdown(ctx)
-        clean_mdchangelog(ctx)
+        # generate_markdown(ctx)
+        # clean_mdchangelog(ctx)
         ctx.run(f'git tag -a v{version} -m "Version v{version}\n\n{tag_content}"')
     if local:
         build_dists(ctx)
@@ -299,16 +298,19 @@ def date_offset(dt, month_offset=0, day_offset=0, truncate=False):
 @invoke.task
 def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=False, month_offset="0", trunc_month=False):
     current_version = Version.parse(__version__)
+    current_date = datetime.date(*current_version.release)
     today = datetime.date.today()
     day_offset = 0
     month_offset = int(month_offset)
     if month_offset:
         # if we are offsetting by a month, grab the first day of the month
         trunc_month = True
-    else:
-        target_day = today
-        if dev or pre:
-            target_day = date_offset(today, day_offset=1)
+    elif (
+        current_date == today
+        and not current_version.is_prerelease
+        and not current_version.is_release_candidate
+    ):
+        day_offset = 1
     target_day = date_offset(
         today,
         month_offset=month_offset,
@@ -360,3 +362,4 @@ def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=Fals
             ctx.run("git add {0}".format(version_file.as_posix()))
             log("Committing...")
             ctx.run('git commit -s -m "Bumped version."')
+    return str(new_version)
