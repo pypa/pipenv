@@ -52,8 +52,9 @@ def test_git_vcs_install(PipenvInstance):
 @pytest.mark.needs_internet
 def test_git_vcs_install_with_env_var(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
+        p._pipfile.add("six", {"git": "git://${GIT_HOST}/benjaminp/six.git", "ref": "1.11.0"})
         os.environ["GIT_HOST"] = "github.com"
-        c = p.pipenv("install git+git://${GIT_HOST}/benjaminp/six.git@1.11.0#egg=six")
+        c = p.pipenv("install")
         assert c.return_code == 0
         assert "six" in p.pipfile["packages"]
         assert "git" in p.pipfile["packages"]["six"]
