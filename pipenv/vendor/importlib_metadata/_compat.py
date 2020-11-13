@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 
 import io
 import abc
@@ -25,6 +25,8 @@ else:  # pragma: nocover
     IsADirectoryError = IOError, OSError
     NotADirectoryError = IOError, OSError
     PermissionError = IOError, OSError
+
+str = type('')
 
 suppress = contextlib.suppress
 

@@ -7,9 +7,11 @@ from .. import (
     )
 
 try:
-    from importlib.resources import path
-except ImportError:
-    from importlib_resources import path
+    from importlib import resources
+    getattr(resources, 'files')
+    getattr(resources, 'as_file')
+except (ImportError, AttributeError):
+    import importlib_resources as resources
 
 try:
     from contextlib import ExitStack
@@ -20,15 +22,19 @@ except ImportError:
 class TestZip(unittest.TestCase):
     root = 'importlib_metadata.tests.data'
 
+    def _fixture_on_path(self, filename):
+        pkg_file = resources.files(self.root).joinpath(filename)
+        file = self.resources.enter_context(resources.as_file(pkg_file))
+        assert file.name.startswith('example-'), file.name
+        sys.path.insert(0, str(file))
+        self.resources.callback(sys.path.pop, 0)
+
     def setUp(self):
         # Find the path to the example-*.whl so we can add it to the front of
         # sys.path, where we'll then try to find the metadata thereof.
         self.resources = ExitStack()
         self.addCleanup(self.resources.close)
-        wheel = self.resources.enter_context(
-            path(self.root, 'example-21.12-py3-none-any.whl'))
-        sys.path.insert(0, str(wheel))
-        self.resources.callback(sys.path.pop, 0)
+        self._fixture_on_path('example-21.12-py3-none-any.whl')
 
     def test_zip_version(self):
         self.assertEqual(version('example'), '21.12')
@@ -66,10 +72,7 @@ class TestEgg(TestZip):
         # sys.path, where we'll then try to find the metadata thereof.
         self.resources = ExitStack()
         self.addCleanup(self.resources.close)
-        egg = self.resources.enter_context(
-            path(self.root, 'example-21.12-py3.6.egg'))
-        sys.path.insert(0, str(egg))
-        self.resources.callback(sys.path.pop, 0)
+        self._fixture_on_path('example-21.12-py3.6.egg')
 
     def test_files(self):
         for file in files('example'):

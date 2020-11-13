@@ -5,19 +5,22 @@ from __future__ import absolute_import, division, print_function
 
 import re
 
-from ._typing import MYPY_CHECK_RUNNING
+from ._typing import TYPE_CHECKING, cast
 from .version import InvalidVersion, Version
 
-if MYPY_CHECK_RUNNING:  # pragma: no cover
-    from typing import Union
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import NewType, Union
+
+    NormalizedName = NewType("NormalizedName", str)
 
 _canonicalize_regex = re.compile(r"[-_.]+")
 
 
 def canonicalize_name(name):
-    # type: (str) -> str
+    # type: (str) -> NormalizedName
     # This is taken from PEP 503.
-    return _canonicalize_regex.sub("-", name).lower()
+    value = _canonicalize_regex.sub("-", name).lower()
+    return cast("NormalizedName", value)
 
 
 def canonicalize_version(_version):

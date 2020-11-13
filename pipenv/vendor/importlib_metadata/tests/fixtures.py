@@ -5,6 +5,7 @@ import sys
 import shutil
 import tempfile
 import textwrap
+import test.support
 
 from .._compat import pathlib, contextlib
 
@@ -166,6 +167,21 @@ class EggInfoFile(OnSysPath, SiteDir):
         build_files(EggInfoFile.files, prefix=self.site_dir)
 
 
+class LocalPackage:
+    files = {
+        "setup.py": """
+            import setuptools
+            setuptools.setup(name="local-pkg", version="2.0.1")
+            """,
+        }
+
+    def setUp(self):
+        self.fixtures = contextlib.ExitStack()
+        self.addCleanup(self.fixtures.close)
+        self.fixtures.enter_context(tempdir_as_cwd())
+        build_files(self.files)
+
+
 def build_files(file_defs, prefix=pathlib.Path()):
     """Build a set of files/directories, as described by the
 
@@ -198,6 +214,12 @@ def build_files(file_defs, prefix=pathlib.Path()):
             else:
                 with full_name.open('w') as f:
                     f.write(DALS(contents))
+
+
+class FileBuilder:
+    def unicode_filename(self):
+        return test.support.FS_NONASCII or \
+            self.skip("File system does not support non-ascii.")
 
 
 def DALS(str):

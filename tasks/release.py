@@ -81,6 +81,7 @@ release_help = {
     "month_offset": "How many months to offset the release date by.",
 }
 
+
 @invoke.task(help=release_help)
 def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, month_offset="0"):
     trunc_month = False
@@ -128,7 +129,7 @@ def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, 
         draft_rstfile = "CHANGELOG.draft.rst"
         markdown_path = pathlib.Path(draft_rstfile).with_suffix(".md")
         generate_markdown(ctx, source_rstfile=draft_rstfile)
-        content = clean_mdchangelog(ctx, markdown_path.as_posix())
+        clean_mdchangelog(ctx, markdown_path.as_posix())
         log(f"would generate markdown: {markdown_path.read_text()}")
         if pre and not dry_run:
             ctx.run(f'git tag -a v{version} -m "Version v{version}\n\n{tag_content}"')
@@ -300,7 +301,6 @@ def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=Fals
     current_version = Version.parse(__version__)
     today = datetime.date.today()
     day_offset = 0
-    tomorrow = today + datetime.timedelta(days=1)
     month_offset = int(month_offset)
     if month_offset:
         # if we are offsetting by a month, grab the first day of the month

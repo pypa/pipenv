@@ -9,6 +9,15 @@ from tempfile import mkdtemp
 
 from . import compat
 
+__all__ = [
+    'BackendUnavailable',
+    'BackendInvalid',
+    'HookMissing',
+    'UnsupportedOperation',
+    'default_subprocess_runner',
+    'quiet_subprocess_runner',
+    'Pep517HookCaller',
+]
 
 try:
     import importlib.resources as resources
@@ -102,19 +111,22 @@ def norm_and_check(source_tree, requested):
 class Pep517HookCaller(object):
     """A wrapper around a source directory to be built with a PEP 517 backend.
 
-    source_dir : The path to the source directory, containing pyproject.toml.
-    build_backend : The build backend spec, as per PEP 517, from
+    :param source_dir: The path to the source directory, containing
         pyproject.toml.
-    backend_path : The backend path, as per PEP 517, from pyproject.toml.
-    runner : A callable that invokes the wrapper subprocess.
+    :param build_backend: The build backend spec, as per PEP 517, from
+        pyproject.toml.
+    :param backend_path: The backend path, as per PEP 517, from pyproject.toml.
+    :param runner: A callable that invokes the wrapper subprocess.
+    :param python_executable: The Python executable used to invoke the backend
 
     The 'runner', if provided, must expect the following:
-        cmd : a list of strings representing the command and arguments to
-            execute, as would be passed to e.g. 'subprocess.check_call'.
-        cwd : a string representing the working directory that must be
-            used for the subprocess. Corresponds to the provided source_dir.
-        extra_environ : a dict mapping environment variable names to values
-            which must be set for the subprocess execution.
+
+    - cmd: a list of strings representing the command and arguments to
+      execute, as would be passed to e.g. 'subprocess.check_call'.
+    - cwd: a string representing the working directory that must be
+      used for the subprocess. Corresponds to the provided source_dir.
+    - extra_environ: a dict mapping environment variable names to values
+      which must be set for the subprocess execution.
     """
     def __init__(
             self,
@@ -122,6 +134,7 @@ class Pep517HookCaller(object):
             build_backend,
             backend_path=None,
             runner=None,
+            python_executable=None,
     ):
         if runner is None:
             runner = default_subprocess_runner
@@ -134,6 +147,9 @@ class Pep517HookCaller(object):
             ]
         self.backend_path = backend_path
         self._subprocess_runner = runner
+        if not python_executable:
+            python_executable = sys.executable
+        self.python_executable = python_executable
 
     @contextmanager
     def subprocess_runner(self, runner):
@@ -150,7 +166,8 @@ class Pep517HookCaller(object):
     def get_requires_for_build_wheel(self, config_settings=None):
         """Identify packages required for building a wheel
 
-        Returns a list of dependency specifications, e.g.:
+        Returns a list of dependency specifications, e.g.::
+
             ["wheel >= 0.25", "setuptools"]
 
         This does not include requirements specified in pyproject.toml.
@@ -164,7 +181,7 @@ class Pep517HookCaller(object):
     def prepare_metadata_for_build_wheel(
             self, metadata_directory, config_settings=None,
             _allow_fallback=True):
-        """Prepare a *.dist-info folder with metadata for this project.
+        """Prepare a ``*.dist-info`` folder with metadata for this project.
 
         Returns the name of the newly created folder.
 
@@ -202,7 +219,8 @@ class Pep517HookCaller(object):
     def get_requires_for_build_sdist(self, config_settings=None):
         """Identify packages required for building a wheel
 
-        Returns a list of dependency specifications, e.g.:
+        Returns a list of dependency specifications, e.g.::
+
             ["setuptools >= 26"]
 
         This does not include requirements specified in pyproject.toml.
@@ -252,8 +270,9 @@ class Pep517HookCaller(object):
 
             # Run the hook in a subprocess
             with _in_proc_script_path() as script:
+                python = self.python_executable
                 self._subprocess_runner(
-                    [sys.executable, str(script), hook_name, td],
+                    [python, abspath(str(script)), hook_name, td],
                     cwd=self.source_dir,
                     extra_environ=extra_environ
                 )

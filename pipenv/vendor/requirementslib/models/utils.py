@@ -1028,6 +1028,22 @@ def read_source(path, encoding="utf-8"):
             return fp.read()
 
 
+def expand_env_variables(line):
+    # type: (AnyStr) -> AnyStr
+    """Expand the env vars in a line following pip's standard.
+    https://pip.pypa.io/en/stable/reference/pip_install/#id10
+
+    Matches environment variable-style values in '${MY_VARIABLE_1}' with the
+    variable name consisting of only uppercase letters, digits or the '_'
+    """
+
+    def replace_with_env(match):
+        value = os.getenv(match.group(1))
+        return value if value else match.group()
+
+    return re.sub(r"\$\{([A-Z0-9_]+)\}", replace_with_env, line)
+
+
 SETUPTOOLS_SHIM = (
     "import setuptools, tokenize;__file__=%r;"
     "f=getattr(tokenize, 'open', open)(__file__);"

@@ -8,9 +8,9 @@ import itertools
 import re
 
 from ._structures import Infinity, NegativeInfinity
-from ._typing import MYPY_CHECK_RUNNING
+from ._typing import TYPE_CHECKING
 
-if MYPY_CHECK_RUNNING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Callable, Iterator, List, Optional, SupportsInt, Tuple, Union
 
     from ._structures import InfinityType, NegativeInfinityType

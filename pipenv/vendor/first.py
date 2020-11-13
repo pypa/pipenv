@@ -33,10 +33,10 @@ match in a more advanced way.
 """
 
 __title__ = 'first'
-__version__ = '2.0.1'
+__version__ = '2.0.2'
 __author__ = 'Hynek Schlawack'
 __license__ = 'MIT'
-__copyright__ = 'Copyright 2012–2013 Hynek Schlawack'
+__copyright__ = 'Copyright 2012 Hynek Schlawack'
 
 
 def first(iterable, default=None, key=None):

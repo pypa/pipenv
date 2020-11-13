@@ -12,7 +12,7 @@ import shutil
 import sys
 from functools import partial
 
-from pipenv.vendor import attr
+import attr
 import chardet
 import packaging.specifiers
 import packaging.utils
@@ -1027,7 +1027,9 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
         constant = ast.Ellipsis
     unparsed = item
     if isinstance(item, ast.Dict):
-        unparsed = dict(zip(map(_ensure_hashable, unparse(item.keys)), unparse(item.values)))
+        unparsed = dict(
+            zip(map(_ensure_hashable, unparse(item.keys)), unparse(item.values))
+        )
     elif isinstance(item, ast.List):
         unparsed = [unparse(el) for el in item.elts]
     elif isinstance(item, ast.Tuple):
@@ -1175,7 +1177,7 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
         # XXX: Original reference
         try:
             targets = item.targets  # for ast.Assign
-        except AttributeError:      # for ast.AnnAssign
+        except AttributeError:  # for ast.AnnAssign
             targets = (item.target,)
         if not initial_mapping:
             target = unparse(next(iter(targets)), recurse=False)
@@ -1326,9 +1328,9 @@ def run_setup(script_path, egg_base=None):
 
 @attr.s(slots=True, frozen=True)
 class BaseRequirement(object):
-    name = attr.ib(default="", cmp=True)  # type: STRING_TYPE
+    name = attr.ib(default="", eq=True, order=True)  # type: STRING_TYPE
     requirement = attr.ib(
-        default=None, cmp=True
+        default=None, eq=True, order=True
     )  # type: Optional[PkgResourcesRequirement]
 
     def __str__(self):
@@ -1368,8 +1370,8 @@ class BaseRequirement(object):
 
 @attr.s(slots=True, frozen=True)
 class Extra(object):
-    name = attr.ib(default=None, cmp=True)  # type: STRING_TYPE
-    requirements = attr.ib(factory=frozenset, cmp=True, type=frozenset)
+    name = attr.ib(default=None, eq=True, order=True)  # type: STRING_TYPE
+    requirements = attr.ib(factory=frozenset, eq=True, order=True, type=frozenset)
 
     def __str__(self):
         # type: () -> S
@@ -1933,7 +1935,8 @@ build-backend = "{1}"
         if not ireq.source_dir:
             build_kwargs = {
                 "build_dir": kwargs["build_dir"],
-                "autodelete": False, "parallel_builds": True
+                "autodelete": False,
+                "parallel_builds": True,
             }
             call_function_with_correct_args(build_location_func, **build_kwargs)
             ireq.ensure_has_source_dir(kwargs["src_dir"])

@@ -13,10 +13,10 @@ from pyparsing import ZeroOrMore, Group, Forward, QuotedString
 from pyparsing import Literal as L  # noqa
 
 from ._compat import string_types
-from ._typing import MYPY_CHECK_RUNNING
+from ._typing import TYPE_CHECKING
 from .specifiers import Specifier, InvalidSpecifier
 
-if MYPY_CHECK_RUNNING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
     Operator = Callable[[str, str], bool]

@@ -1,8 +1,7 @@
 import codecs
 import re
 
-from .compat import to_text, IS_TYPE_CHECKING
-
+from .compat import IS_TYPE_CHECKING, to_text
 
 if IS_TYPE_CHECKING:
     from typing import (  # noqa:F401
@@ -16,16 +15,18 @@ def make_regex(string, extra_flags=0):
     return re.compile(to_text(string), re.UNICODE | extra_flags)
 
 
-_whitespace = make_regex(r"\s*", extra_flags=re.MULTILINE)
+_newline = make_regex(r"(\r\n|\n|\r)")
+_multiline_whitespace = make_regex(r"\s*", extra_flags=re.MULTILINE)
+_whitespace = make_regex(r"[^\S\r\n]*")
 _export = make_regex(r"(?:export[^\S\r\n]+)?")
 _single_quoted_key = make_regex(r"'([^']+)'")
 _unquoted_key = make_regex(r"([^=\#\s]+)")
-_equal_sign = make_regex(r"[^\S\r\n]*=[^\S\r\n]*")
+_equal_sign = make_regex(r"(=[^\S\r\n]*)")
 _single_quoted_value = make_regex(r"'((?:\\'|[^'])*)'")
 _double_quoted_value = make_regex(r'"((?:\\"|[^"])*)"')
-_unquoted_value_part = make_regex(r"([^ \r\n]*)")
-_comment = make_regex(r"(?:\s*#[^\r\n]*)?")
-_end_of_line = make_regex(r"[^\S\r\n]*(?:\r\n|\n|\r)?")
+_unquoted_value = make_regex(r"([^\r\n]*)")
+_comment = make_regex(r"(?:[^\S\r\n]*#[^\r\n]*)?")
+_end_of_line = make_regex(r"[^\S\r\n]*(?:\r\n|\n|\r|$)")
 _rest_of_line = make_regex(r"[^\r\n]*(?:\r|\n|\r\n)?")
 _double_quote_escapes = make_regex(r"\\[\\'\"abfnrtv]")
 _single_quote_escapes = make_regex(r"\\[\\']")
@@ -36,14 +37,64 @@ try:
     # when we are type checking, and the linter is upset if we
     # re-import
     import typing
-    Binding = typing.NamedTuple("Binding", [("key", typing.Optional[typing.Text]),
-                                            ("value", typing.Optional[typing.Text]),
-                                            ("original", typing.Text)])
-except ImportError:  # pragma: no cover
+
+    Original = typing.NamedTuple(
+        "Original",
+        [
+            ("string", typing.Text),
+            ("line", int),
+        ],
+    )
+
+    Binding = typing.NamedTuple(
+        "Binding",
+        [
+            ("key", typing.Optional[typing.Text]),
+            ("value", typing.Optional[typing.Text]),
+            ("original", Original),
+            ("error", bool),
+        ],
+    )
+except (ImportError, AttributeError):
     from collections import namedtuple
-    Binding = namedtuple("Binding", ["key",  # type: ignore
-                                     "value",
-                                     "original"])  # type: Tuple[Optional[Text], Optional[Text], Text]
+    Original = namedtuple(  # type: ignore
+        "Original",
+        [
+            "string",
+            "line",
+        ],
+    )
+    Binding = namedtuple(  # type: ignore
+        "Binding",
+        [
+            "key",
+            "value",
+            "original",
+            "error",
+        ],
+    )
+
+
+class Position:
+    def __init__(self, chars, line):
+        # type: (int, int) -> None
+        self.chars = chars
+        self.line = line
+
+    @classmethod
+    def start(cls):
+        # type: () -> Position
+        return cls(chars=0, line=1)
+
+    def set(self, other):
+        # type: (Position) -> None
+        self.chars = other.chars
+        self.line = other.line
+
+    def advance(self, string):
+        # type: (Text) -> None
+        self.chars += len(string)
+        self.line += len(re.findall(_newline, string))
 
 
 class Error(Exception):
@@ -54,39 +105,42 @@ class Reader:
     def __init__(self, stream):
         # type: (IO[Text]) -> None
         self.string = stream.read()
-        self.position = 0
-        self.mark = 0
+        self.position = Position.start()
+        self.mark = Position.start()
 
     def has_next(self):
         # type: () -> bool
-        return self.position < len(self.string)
+        return self.position.chars < len(self.string)
 
     def set_mark(self):
         # type: () -> None
-        self.mark = self.position
+        self.mark.set(self.position)
 
     def get_marked(self):
-        # type: () -> Text
-        return self.string[self.mark:self.position]
+        # type: () -> Original
+        return Original(
+            string=self.string[self.mark.chars:self.position.chars],
+            line=self.mark.line,
+        )
 
     def peek(self, count):
         # type: (int) -> Text
-        return self.string[self.position:self.position + count]
+        return self.string[self.position.chars:self.position.chars + count]
 
     def read(self, count):
         # type: (int) -> Text
-        result = self.string[self.position:self.position + count]
+        result = self.string[self.position.chars:self.position.chars + count]
         if len(result) < count:
             raise Error("read: End of string")
-        self.position += count
+        self.position.advance(result)
         return result
 
     def read_regex(self, regex):
         # type: (Pattern[Text]) -> Sequence[Text]
-        match = regex.match(self.string, self.position)
+        match = regex.match(self.string, self.position.chars)
         if match is None:
             raise Error("read_regex: Pattern not found")
-        self.position = match.end()
+        self.position.advance(self.string[match.start():match.end()])
         return match.groups()
 
 
@@ -100,9 +154,11 @@ def decode_escapes(regex, string):
 
 
 def parse_key(reader):
-    # type: (Reader) -> Text
+    # type: (Reader) -> Optional[Text]
     char = reader.peek(1)
-    if char == "'":
+    if char == "#":
+        return None
+    elif char == "'":
         (key,) = reader.read_regex(_single_quoted_key)
     else:
         (key,) = reader.read_regex(_unquoted_key)
@@ -111,14 +167,8 @@ def parse_key(reader):
 
 def parse_unquoted_value(reader):
     # type: (Reader) -> Text
-    value = u""
-    while True:
-        (part,) = reader.read_regex(_unquoted_value_part)
-        value += part
-        after = reader.peek(2)
-        if len(after) < 2 or after[0] in u"\r\n" or after[1] in u" #\r\n":
-            return value
-        value += reader.read(2)
+    (part,) = reader.read_regex(_unquoted_value)
+    return re.sub(r"\s+#.*", "", part).rstrip()
 
 
 def parse_value(reader):
@@ -140,24 +190,42 @@ def parse_binding(reader):
     # type: (Reader) -> Binding
     reader.set_mark()
     try:
-        reader.read_regex(_whitespace)
+        reader.read_regex(_multiline_whitespace)
+        if not reader.has_next():
+            return Binding(
+                key=None,
+                value=None,
+                original=reader.get_marked(),
+                error=False,
+            )
         reader.read_regex(_export)
         key = parse_key(reader)
-        reader.read_regex(_equal_sign)
-        value = parse_value(reader)
+        reader.read_regex(_whitespace)
+        if reader.peek(1) == "=":
+            reader.read_regex(_equal_sign)
+            value = parse_value(reader)  # type: Optional[Text]
+        else:
+            value = None
         reader.read_regex(_comment)
         reader.read_regex(_end_of_line)
-        return Binding(key=key, value=value, original=reader.get_marked())
+        return Binding(
+            key=key,
+            value=value,
+            original=reader.get_marked(),
+            error=False,
+        )
     except Error:
         reader.read_regex(_rest_of_line)
-        return Binding(key=None, value=None, original=reader.get_marked())
+        return Binding(
+            key=None,
+            value=None,
+            original=reader.get_marked(),
+            error=True,
+        )
 
 
 def parse_stream(stream):
-    # type:(IO[Text]) -> Iterator[Binding]
+    # type: (IO[Text]) -> Iterator[Binding]
     reader = Reader(stream)
     while reader.has_next():
-        try:
-            yield parse_binding(reader)
-        except Error:
-            return
+        yield parse_binding(reader)

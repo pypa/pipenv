@@ -5,7 +5,7 @@ import importlib
 import os
 import sys
 
-from pipenv.vendor import attr
+import attr
 import pip_shims
 import six
 

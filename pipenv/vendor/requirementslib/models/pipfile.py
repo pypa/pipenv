@@ -7,7 +7,7 @@ import itertools
 import os
 import sys
 
-from pipenv.vendor import attr
+import attr
 import plette.models.base
 import plette.pipfiles
 import tomlkit

@@ -22,9 +22,9 @@ import sys
 import sysconfig
 import warnings
 
-from ._typing import MYPY_CHECK_RUNNING, cast
+from ._typing import TYPE_CHECKING, cast
 
-if MYPY_CHECK_RUNNING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from typing import (
         Dict,
         FrozenSet,
@@ -58,6 +58,12 @@ _32_BIT_INTERPRETER = sys.maxsize <= 2 ** 32
 
 
 class Tag(object):
+    """
+    A representation of the tag triple for a wheel.
+
+    Instances are considered immutable and thus are hashable. Equality checking
+    is also supported.
+    """
 
     __slots__ = ["_interpreter", "_abi", "_platform"]
 
@@ -108,6 +114,12 @@ class Tag(object):
 
 def parse_tag(tag):
     # type: (str) -> FrozenSet[Tag]
+    """
+    Parses the provided tag (e.g. `py3-none-any`) into a frozenset of Tag instances.
+
+    Returning a set is required due to the possibility that the tag is a
+    compressed tag set.
+    """
     tags = set()
     interpreters, abis, platforms = tag.split("-")
     for interpreter in interpreters.split("."):
@@ -541,7 +553,7 @@ class _ELFFileHeader(object):
         def unpack(fmt):
             # type: (str) -> int
             try:
-                result, = struct.unpack(
+                (result,) = struct.unpack(
                     fmt, file.read(struct.calcsize(fmt))
                 )  # type: (int, )
             except struct.error:

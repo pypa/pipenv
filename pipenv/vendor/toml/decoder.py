@@ -440,7 +440,8 @@ def loads(s, _dict=dict, decoder=None):
                                            groups[i][0] == "'"):
                     groupstr = groups[i]
                     j = i + 1
-                    while not groupstr[0] == groupstr[-1]:
+                    while ((not groupstr[0] == groupstr[-1]) or
+                           len(groupstr) == 1):
                         j += 1
                         if j > len(groups) + 2:
                             raise TomlDecodeError("Invalid group name '" +
@@ -811,8 +812,12 @@ class TomlDecoder(object):
             raise ValueError("Empty value is invalid")
         if v == 'true':
             return (True, "bool")
+        elif v.lower() == 'true':
+            raise ValueError("Only all lowercase booleans allowed")
         elif v == 'false':
             return (False, "bool")
+        elif v.lower() == 'false':
+            raise ValueError("Only all lowercase booleans allowed")
         elif v[0] == '"' or v[0] == "'":
             quotechar = v[0]
             testv = v[1:].split(quotechar)
