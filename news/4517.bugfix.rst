@@ -1,1 +1,0 @@
-Restrict the acceptable hash type to SHA256 only.

@@ -1,1 +1,0 @@
-Fix a bug that VCS dependencies always satisfy even if the ref has changed.

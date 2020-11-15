@@ -1,1 +1,0 @@
-Support expanding environment variables in requirement URLs.

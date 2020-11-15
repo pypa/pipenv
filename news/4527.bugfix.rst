@@ -1,1 +1,0 @@
-Fix a bug that the resolver takes wrong section to validate constraints.

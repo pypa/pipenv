@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PIPENV" "1" "Nov 04, 2020" "2020.11.4" "pipenv"
+.TH "PIPENV" "1" "Nov 15, 2020" "2020.11.15" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 .
@@ -434,6 +434,61 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2020.11.15 (2020\-11\-15)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+Support expanding environment variables in requirement URLs.  \fI\%#3516\fP
+.IP \(bu 2
+Show warning message when a dependency is skipped in locking due to the mismatch of its markers.  \fI\%#4346\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fix a bug that executable scripts with leading backslash can\(aqt be executed via \fBpipenv run\fP\&.  \fI\%#4368\fP
+.IP \(bu 2
+Fix a bug that VCS dependencies always satisfy even if the ref has changed.  \fI\%#4387\fP
+.IP \(bu 2
+Restrict the acceptable hash type to SHA256 only.  \fI\%#4517\fP
+.IP \(bu 2
+Fix the output of \fBpipenv scripts\fP under Windows platform.  \fI\%#4523\fP
+.IP \(bu 2
+Fix a bug that the resolver takes wrong section to validate constraints.  \fI\%#4527\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Update vendored dependencies:
+\- \fBcolorama\fP from \fB0.4.3\fP to \fB0.4.4\fP
+\- \fBpython\-dotenv\fP from \fB0.10.3\fP to \fB0.15.0\fP
+\- \fBfirst\fP from \fB2.0.1\fP to \fB2.0.2\fP
+\- \fBiso8601\fP from \fB0.1.12\fP to \fB0.1.13\fP
+\- \fBparse\fP from \fB1.15.0\fP to \fB1.18.0\fP
+\- \fBpipdeptree\fP from \fB0.13.2\fP to \fB1.0.0\fP
+\- \fBrequests\fP from \fB2.23.0\fP to \fB2.25.0\fP
+\- \fBidna\fP from \fB2.9\fP to \fB2.10\fP
+\- \fBurllib3\fP from \fB1.25.9\fP to \fB1.26.1\fP
+\- \fBcertifi\fP from \fB2020.4.5.1\fP to \fB2020.11.8\fP
+\- \fBrequirementslib\fP from \fB1.5.15\fP to \fB1.5.16\fP
+\- \fBattrs\fP from \fB19.3.0\fP to \fB20.3.0\fP
+\- \fBdistlib\fP from \fB0.3.0\fP to \fB0.3.1\fP
+\- \fBpackaging\fP from \fB20.3\fP to \fB20.4\fP
+\- \fBsix\fP from \fB1.14.0\fP to \fB1.15.0\fP
+\- \fBsemver\fP from \fB2.9.0\fP to \fB2.13.0\fP
+\- \fBtoml\fP from \fB0.10.1\fP to \fB0.10.2\fP
+\- \fBcached\-property\fP from \fB1.5.1\fP to \fB1.5.2\fP
+\- \fByaspin\fP from \fB0.14.3\fP to \fB1.2.0\fP
+\- \fBresolvelib\fP from \fB0.3.0\fP to \fB0.5.2\fP
+\- \fBpep517\fP from \fB0.8.2\fP to \fB0.9.1\fP
+\- \fBzipp\fP from \fB0.6.0\fP to \fB1.2.0\fP
+\- \fBimportlib\-metadata\fP from \fB1.6.0\fP to \fB2.0.0\fP
+\- \fBimportlib\-resources\fP from \fB1.5.0\fP to \fB3.3.0\fP  \fI\%#4533\fP
+.UNINDENT
+.SS Improved Documentation
+.INDENT 0.0
+.IP \(bu 2
+Fix suggested pyenv setup to avoid using shimmed interpreter  \fI\%#4534\fP
+.UNINDENT
 .SS 2020.11.4 (2020\-11\-04)
 .SS Features & Improvements
 .INDENT 0.0
@@ -2483,6 +2538,25 @@ url = "https://$USERNAME:\(aq${PASSWORD}\(aq@mypypi.example.com/simple"
 .fi
 .UNINDENT
 .UNINDENT
+.sp
+Environment variables may be specified as \fB${MY_ENVAR}\fP or \fB$MY_ENVAR\fP\&.
+.sp
+On Windows, \fB%MY_ENVAR%\fP is supported in addition to \fB${MY_ENVAR}\fP or \fB$MY_ENVAR\fP\&.
+.sp
+Environment variables in the URL part of requirement specifiers can also be expanded, where the variable must be in the form of \fB${VAR_NAME}\fP\&. Neither \fB$VAR_NAME\fP nor \fB%VAR_NAME%\fP is acceptable:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+[[package]]
+requests = {git = "git://${USERNAME}:${PASSWORD}@private.git.com/psf/requests.git", ref = "2.22.0"}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Keep in mind that environment variables are expanded in runtime, leaving the entries in \fBPipfile\fP or \fBPipfile.lock\fP untouched. This is to avoid the accidental leakage of credentials in the source code.
 .SS ☤ Specifying Basically Anything
 .sp
 If you\(aqd like to specify that a specific package only be installed on certain systems,
@@ -3021,35 +3095,6 @@ echospam  echo I am really a very silly example
 .fi
 .UNINDENT
 .UNINDENT
-.SS ☤ Support for Environment Variables
-.sp
-Pipenv supports the usage of environment variables in place of authentication fragments
-in your Pipfile. These will only be parsed if they are present in the \fB[[source]]\fP
-section. For example:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-[[source]]
-url = "https://${PYPI_USERNAME}:${PYPI_PASSWORD}@my_private_repo.example.com/simple"
-verify_ssl = true
-name = "pypi"
-
-[dev\-packages]
-
-[packages]
-requests = {version="*", index="home"}
-maya = {version="*", index="pypi"}
-records = "*"
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-Environment variables may be specified as \fB${MY_ENVAR}\fP or \fB$MY_ENVAR\fP\&.
-.sp
-On Windows, \fB%MY_ENVAR%\fP is supported in addition to \fB${MY_ENVAR}\fP or \fB$MY_ENVAR\fP\&.
 .SS ☤ Configuration With Environment Variables
 .sp
 Pipenv comes with a handful of options that can be enabled via shell environment
@@ -4131,7 +4176,7 @@ Lists scripts in current environment config.
 .sp
 .nf
 .ft C
-pipenv scripts [OPTIONS] [ARGS]...
+pipenv scripts [OPTIONS]
 .ft P
 .fi
 .UNINDENT
@@ -4160,11 +4205,6 @@ Verbose mode.
 .TP
 .B \-\-pypi\-mirror <pypi_mirror>
 Specify a PyPI mirror.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B ARGS
-Optional argument(s)
 .UNINDENT
 .SS shell
 .sp
@@ -4562,14 +4602,9 @@ distributions, with version name like \fB3.6.4\fP or similar.
 .SS ☤ Pipenv does not respect pyenv’s global and local Python versions
 .sp
 Pipenv by default uses the Python it is installed against to create the
-virtualenv. You can set the \fB\-\-python\fP option, or
-\fB$PYENV_ROOT/shims/python\fP to let it consult pyenv when choosing the
-interpreter. See specifying_versions for more information.
-.sp
-If you want Pipenv to automatically “do the right thing”, you can set the
-environment variable \fBPIPENV_PYTHON\fP to \fB$PYENV_ROOT/shims/python\fP\&. This
-will make Pipenv use pyenv’s active Python version to create virtual
-environments by default.
+virtualenv. You can set the \fB\-\-python\fP option to \fB$(pyenv which python)\fP
+to use your current pyenv interpreter. See specifying_versions for more
+information.
 .SS ☤ ValueError: unknown locale: UTF\-8
 .sp
 macOS has a bug in its locale detection that prevents us from detecting your

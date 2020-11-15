@@ -1,1 +1,0 @@
-Fix a bug that executable scripts with leading backslash can't be executed via ``pipenv run``.

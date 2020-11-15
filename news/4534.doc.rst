@@ -1,1 +1,0 @@
-Fix suggested pyenv setup to avoid using shimmed interpreter

@@ -1,3 +1,56 @@
+2020.11.15 (2020-11-15)
+=======================
+
+Features & Improvements
+-----------------------
+
+- Support expanding environment variables in requirement URLs.  `#3516 <https://github.com/pypa/pipenv/issues/3516>`_
+- Show warning message when a dependency is skipped in locking due to the mismatch of its markers.  `#4346 <https://github.com/pypa/pipenv/issues/4346>`_
+
+Bug Fixes
+---------
+
+- Fix a bug that executable scripts with leading backslash can't be executed via ``pipenv run``.  `#4368 <https://github.com/pypa/pipenv/issues/4368>`_
+- Fix a bug that VCS dependencies always satisfy even if the ref has changed.  `#4387 <https://github.com/pypa/pipenv/issues/4387>`_
+- Restrict the acceptable hash type to SHA256 only.  `#4517 <https://github.com/pypa/pipenv/issues/4517>`_
+- Fix the output of ``pipenv scripts`` under Windows platform.  `#4523 <https://github.com/pypa/pipenv/issues/4523>`_
+- Fix a bug that the resolver takes wrong section to validate constraints.  `#4527 <https://github.com/pypa/pipenv/issues/4527>`_
+
+Vendored Libraries
+------------------
+
+- Update vendored dependencies:
+  - ``colorama`` from ``0.4.3`` to ``0.4.4``
+  - ``python-dotenv`` from ``0.10.3`` to ``0.15.0``
+  - ``first`` from ``2.0.1`` to ``2.0.2``
+  - ``iso8601`` from ``0.1.12`` to ``0.1.13``
+  - ``parse`` from ``1.15.0`` to ``1.18.0``
+  - ``pipdeptree`` from ``0.13.2`` to ``1.0.0``
+  - ``requests`` from ``2.23.0`` to ``2.25.0``
+  - ``idna`` from ``2.9`` to ``2.10``
+  - ``urllib3`` from ``1.25.9`` to ``1.26.1``
+  - ``certifi`` from ``2020.4.5.1`` to ``2020.11.8``
+  - ``requirementslib`` from ``1.5.15`` to ``1.5.16``
+  - ``attrs`` from ``19.3.0`` to ``20.3.0``
+  - ``distlib`` from ``0.3.0`` to ``0.3.1``
+  - ``packaging`` from ``20.3`` to ``20.4``
+  - ``six`` from ``1.14.0`` to ``1.15.0``
+  - ``semver`` from ``2.9.0`` to ``2.13.0``
+  - ``toml`` from ``0.10.1`` to ``0.10.2``
+  - ``cached-property`` from ``1.5.1`` to ``1.5.2``
+  - ``yaspin`` from ``0.14.3`` to ``1.2.0``
+  - ``resolvelib`` from ``0.3.0`` to ``0.5.2``
+  - ``pep517`` from ``0.8.2`` to ``0.9.1``
+  - ``zipp`` from ``0.6.0`` to ``1.2.0``
+  - ``importlib-metadata`` from ``1.6.0`` to ``2.0.0``
+  - ``importlib-resources`` from ``1.5.0`` to ``3.3.0``  `#4533 <https://github.com/pypa/pipenv/issues/4533>`_
+
+Improved Documentation
+----------------------
+
+- Fix suggested pyenv setup to avoid using shimmed interpreter  `#4534 <https://github.com/pypa/pipenv/issues/4534>`_
+
+
 2020.11.4 (2020-11-04)
 ======================
 
