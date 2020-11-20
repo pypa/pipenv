@@ -48,7 +48,7 @@ def _get_activate_script(cmd, venv):
     else:
         suffix = ""
         command = "."
-    # Escape any spaces located within the virtualenv path to allow
+    # Escape any special characters located within the virtualenv path to allow
     # for proper activation.
     venv_location = re.sub(r'([ &$])', r"\\\1", str(venv))
     # The leading space can make history cleaner in some shells.
