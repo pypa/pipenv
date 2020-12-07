@@ -233,8 +233,7 @@ def test_run_in_virtualenv(PipenvInstance):
 
 @pytest.mark.project
 @pytest.mark.sources
-@pytest.mark.needs_internet
-def test_not_sources_in_pipfile(PipenvInstance):
+def test_no_sources_in_pipfile(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
