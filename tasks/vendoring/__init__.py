@@ -6,6 +6,7 @@
 import io
 import itertools
 import json
+import os
 import re
 import shutil
 
@@ -21,7 +22,7 @@ import requests
 
 from urllib3.util import parse_url as urllib3_parse
 
-from pipenv.vendor.vistir.compat import NamedTemporaryFile, TemporaryDirectory
+from pipenv.vendor.vistir.compat import TemporaryDirectory
 from pipenv.vendor.vistir.contextmanagers import open_file
 from pipenv.vendor.requirementslib.models.lockfile import Lockfile, merge_items
 import pipenv.vendor.parse as parse
@@ -205,14 +206,10 @@ def _recursive_write_to_zip(zf, path, root=None):
 
 @invoke.task
 def update_safety(ctx):
-    ignore_subdeps = ["pip", "pip-egg-info", "bin", "pipenv", "virtualenv", "virtualenv-clone", "setuptools",]
+    ignore_subdeps = ["pip", "pip-egg-info", "bin", "pipenv", "virtualenv", "virtualenv-clone", "setuptools"]
     ignore_files = ["pip-delete-this-directory.txt", "PKG-INFO", "easy_install.py", "clonevirtualenv.py"]
     ignore_patterns = ["*.pyd", "*.so", "**/*.pyc", "*.pyc"]
-    cmd_envvars = {
-        "PIPENV_NO_INHERIT": "true",
-        "PIPENV_IGNORE_VIRTUALENVS": "true",
-        "PIPENV_VENV_IN_PROJECT": "true"
-    }
+
     patched_dir = _get_patched_dir(ctx)
     vendor_dir = _get_vendor_dir(ctx)
     safety_dir = Path(__file__).absolute().parent.joinpath("safety")
@@ -264,7 +261,7 @@ def update_safety(ctx):
         )
         log("downloading deps via pip: {0}".format(pip_command))
         ctx.run(pip_command)
-        safety_build_dir = build_dir / "safety"
+
         yaml_build_dir = build_dir / "pyyaml"
         lib_dir = safety_dir.joinpath("lib")
 
@@ -388,10 +385,10 @@ def install_pyyaml(ctx, vendor_dir):
         pip_command = "pip download -b {0} --no-binary=:all: --no-clean --no-deps -d {1} pyyaml safety".format(
             build_dir.absolute().as_posix(), str(download_dir.name),
         )
+        temp_env = "TEMP" if os.name == "nt" else "TMPDIR"
         log("downloading deps via pip: {0}".format(pip_command))
-        ctx.run(pip_command)
-    safety_build_dir = build_dir / "safety"
-    yaml_build_dir = build_dir / "pyyaml"
+        ctx.run(pip_command, env={temp_env: build_dir})
+    yaml_build_dir = next(build_dir.glob('pip-download-*/pyyaml_*'))
     yaml_dir = vendor_dir / "yaml"
     yaml_lib_dir_map = {
         "2": {
