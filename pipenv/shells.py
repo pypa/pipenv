@@ -1,6 +1,7 @@
 import collections
 import contextlib
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -47,9 +48,9 @@ def _get_activate_script(cmd, venv):
     else:
         suffix = ""
         command = "."
-    # Escape any spaces located within the virtualenv path to allow
+    # Escape any special characters located within the virtualenv path to allow
     # for proper activation.
-    venv_location = str(venv).replace(" ", r"\ ")
+    venv_location = re.sub(r'([ &$])', r"\\\1", str(venv))
     # The leading space can make history cleaner in some shells.
     return " {2} {0}/bin/activate{1}".format(venv_location, suffix, command)
 
