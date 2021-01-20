@@ -1,0 +1,1 @@
+Fix a bug that ``importlib-metadata`` from the project's dependencies conflicts with that from ``pipenv``'s.
