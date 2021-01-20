@@ -381,13 +381,14 @@ def install_pyyaml(ctx, vendor_dir):
     if build_dir.exists() and build_dir.is_dir():
         log("dropping pre-existing build dir at {0}".format(build_dir.as_posix()))
         drop_dir(build_dir)
+    build_dir.mkdir()
     with TemporaryDirectory(prefix="pipenv-", suffix="-safety") as download_dir:
         pip_command = "pip download -b {0} --no-binary=:all: --no-clean --no-deps -d {1} pyyaml safety".format(
             build_dir.absolute().as_posix(), str(download_dir.name),
         )
         temp_env = "TEMP" if os.name == "nt" else "TMPDIR"
         log("downloading deps via pip: {0}".format(pip_command))
-        ctx.run(pip_command, env={temp_env: build_dir})
+        ctx.run(pip_command, env={temp_env: str(build_dir)})
     yaml_build_dir = next(build_dir.glob('pip-download-*/pyyaml_*'))
     yaml_dir = vendor_dir / "yaml"
     yaml_lib_dir_map = {
