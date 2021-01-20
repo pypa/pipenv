@@ -216,7 +216,7 @@ To make inclusive or exclusive version comparisons you can use: ::
 
 The use of ``~=`` is preferred over the ``==`` identifier as the latter prevents pipenv from updating the packages:  ::
 
-    $ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using ==2.*)
+    $ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using >=2.2, ==2.*)
 
 To avoid installing a specific version you can use the ``!=`` identifier.
 

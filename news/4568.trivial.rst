@@ -1,0 +1,1 @@
+Fix description of the compatible-release operator
