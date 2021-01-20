@@ -12,7 +12,7 @@ os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 def find_site_path(pkg, site_dir=None):
     import pkg_resources
-    if site_dir is not None:
+    if site_dir is None:
         site_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     working_set = pkg_resources.WorkingSet([site_dir] + sys.path[:])
     for dist in working_set:
