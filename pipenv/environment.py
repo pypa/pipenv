@@ -118,7 +118,12 @@ class Environment(object):
         except (KeyError, AttributeError, OSError, IOError):  # The METADATA file can't be found
             return deps
         for req in reqs:
-            dist = working_set.find(req)
+            try:
+                dist = working_set.find(req)
+            except pkg_resources.VersionConflict:
+                # https://github.com/pypa/pipenv/issues/4549
+                # The requirement is already present with incompatible version.
+                continue
             deps |= cls.resolve_dist(dist, working_set)
         return deps
 
