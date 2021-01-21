@@ -13,6 +13,7 @@ except ImportError:  # pragma: no cover
 
     EXTENSION_SUFFIXES = [x[0] for x in imp.get_suffixes()]
     del imp
+import collections
 import logging
 import os
 import platform
@@ -57,6 +58,24 @@ INTERPRETER_SHORT_NAMES = {
 _32_BIT_INTERPRETER = sys.maxsize <= 2 ** 32
 
 
+_LEGACY_MANYLINUX_MAP = {
+    # CentOS 7 w/ glibc 2.17 (PEP 599)
+    (2, 17): "manylinux2014",
+    # CentOS 6 w/ glibc 2.12 (PEP 571)
+    (2, 12): "manylinux2010",
+    # CentOS 5 w/ glibc 2.5 (PEP 513)
+    (2, 5): "manylinux1",
+}
+
+# If glibc ever changes its major version, we need to know what the last
+# minor version was, so we can build the complete list of all versions.
+# For now, guess what the highest minor version might be, assume it will
+# be 50 for testing. Once this actually happens, update the dictionary
+# with the actual value.
+_LAST_GLIBC_MINOR = collections.defaultdict(lambda: 50)  # type: Dict[int, int]
+glibcVersion = collections.namedtuple("Version", ["major", "minor"])
+
+
 class Tag(object):
     """
     A representation of the tag triple for a wheel.
@@ -65,13 +84,19 @@ class Tag(object):
     is also supported.
     """
 
-    __slots__ = ["_interpreter", "_abi", "_platform"]
+    __slots__ = ["_interpreter", "_abi", "_platform", "_hash"]
 
     def __init__(self, interpreter, abi, platform):
         # type: (str, str, str) -> None
         self._interpreter = interpreter.lower()
         self._abi = abi.lower()
         self._platform = platform.lower()
+        # The __hash__ of every single element in a Set[Tag] will be evaluated each time
+        # that a set calls its `.disjoint()` method, which may be called hundreds of
+        # times when scanning a page of links for packages with tags matching that
+        # Set[Tag]. Pre-computing the value here produces significant speedups for
+        # downstream consumers.
+        self._hash = hash((self._interpreter, self._abi, self._platform))
 
     @property
     def interpreter(self):
@@ -101,7 +126,7 @@ class Tag(object):
 
     def __hash__(self):
         # type: () -> int
-        return hash((self._interpreter, self._abi, self._platform))
+        return self._hash
 
     def __str__(self):
         # type: () -> str
@@ -382,7 +407,12 @@ def _mac_binary_formats(version, cpu_arch):
             return []
         formats.extend(["fat32", "fat"])
 
-    formats.append("universal")
+    if cpu_arch in {"arm64", "x86_64"}:
+        formats.append("universal2")
+
+    if cpu_arch in {"x86_64", "i386", "ppc64", "ppc", "intel"}:
+        formats.append("universal")
+
     return formats
 
 
@@ -405,30 +435,73 @@ def mac_platforms(version=None, arch=None):
         arch = _mac_arch(cpu_arch)
     else:
         arch = arch
-    for minor_version in range(version[1], -1, -1):
-        compat_version = version[0], minor_version
-        binary_formats = _mac_binary_formats(compat_version, arch)
-        for binary_format in binary_formats:
-            yield "macosx_{major}_{minor}_{binary_format}".format(
-                major=compat_version[0],
-                minor=compat_version[1],
-                binary_format=binary_format,
-            )
+
+    if (10, 0) <= version and version < (11, 0):
+        # Prior to Mac OS 11, each yearly release of Mac OS bumped the
+        # "minor" version number.  The major version was always 10.
+        for minor_version in range(version[1], -1, -1):
+            compat_version = 10, minor_version
+            binary_formats = _mac_binary_formats(compat_version, arch)
+            for binary_format in binary_formats:
+                yield "macosx_{major}_{minor}_{binary_format}".format(
+                    major=10, minor=minor_version, binary_format=binary_format
+                )
+
+    if version >= (11, 0):
+        # Starting with Mac OS 11, each yearly release bumps the major version
+        # number.   The minor versions are now the midyear updates.
+        for major_version in range(version[0], 10, -1):
+            compat_version = major_version, 0
+            binary_formats = _mac_binary_formats(compat_version, arch)
+            for binary_format in binary_formats:
+                yield "macosx_{major}_{minor}_{binary_format}".format(
+                    major=major_version, minor=0, binary_format=binary_format
+                )
+
+    if version >= (11, 0) and arch == "x86_64":
+        # Mac OS 11 on x86_64 is compatible with binaries from previous releases.
+        # Arm64 support was introduced in 11.0, so no Arm binaries from previous
+        # releases exist.
+        for minor_version in range(16, 3, -1):
+            compat_version = 10, minor_version
+            binary_formats = _mac_binary_formats(compat_version, arch)
+            for binary_format in binary_formats:
+                yield "macosx_{major}_{minor}_{binary_format}".format(
+                    major=compat_version[0],
+                    minor=compat_version[1],
+                    binary_format=binary_format,
+                )
 
 
-# From PEP 513.
-def _is_manylinux_compatible(name, glibc_version):
-    # type: (str, GlibcVersion) -> bool
+# From PEP 513, PEP 600
+def _is_manylinux_compatible(name, arch, glibc_version):
+    # type: (str, str, GlibcVersion) -> bool
+    sys_glibc = _get_glibc_version()
+    if sys_glibc < glibc_version:
+        return False
     # Check for presence of _manylinux module.
     try:
         import _manylinux  # noqa
-
-        return bool(getattr(_manylinux, name + "_compatible"))
-    except (ImportError, AttributeError):
-        # Fall through to heuristic check below.
+    except ImportError:
         pass
-
-    return _have_compatible_glibc(*glibc_version)
+    else:
+        if hasattr(_manylinux, "manylinux_compatible"):
+            result = _manylinux.manylinux_compatible(
+                glibc_version[0], glibc_version[1], arch
+            )
+            if result is not None:
+                return bool(result)
+        else:
+            if glibc_version == (2, 5):
+                if hasattr(_manylinux, "manylinux1_compatible"):
+                    return bool(_manylinux.manylinux1_compatible)
+            if glibc_version == (2, 12):
+                if hasattr(_manylinux, "manylinux2010_compatible"):
+                    return bool(_manylinux.manylinux2010_compatible)
+            if glibc_version == (2, 17):
+                if hasattr(_manylinux, "manylinux2014_compatible"):
+                    return bool(_manylinux.manylinux2014_compatible)
+    return True
 
 
 def _glibc_version_string():
@@ -474,8 +547,20 @@ def _glibc_version_string_ctypes():
     # main program". This way we can let the linker do the work to figure out
     # which libc our process is actually using.
     #
-    # Note: typeshed is wrong here so we are ignoring this line.
-    process_namespace = ctypes.CDLL(None)  # type: ignore
+    # We must also handle the special case where the executable is not a
+    # dynamically linked executable. This can occur when using musl libc,
+    # for example. In this situation, dlopen() will error, leading to an
+    # OSError. Interestingly, at least in the case of musl, there is no
+    # errno set on the OSError. The single string argument used to construct
+    # OSError comes from libc itself and is therefore not portable to
+    # hard code here. In any case, failure to call dlopen() means we
+    # can proceed, so we bail on our attempt.
+    try:
+        # Note: typeshed is wrong here so we are ignoring this line.
+        process_namespace = ctypes.CDLL(None)  # type: ignore
+    except OSError:
+        return None
+
     try:
         gnu_get_libc_version = process_namespace.gnu_get_libc_version
     except AttributeError:
@@ -493,10 +578,9 @@ def _glibc_version_string_ctypes():
     return version_str
 
 
-# Separated out from have_compatible_glibc for easier unit testing.
-def _check_glibc_version(version_str, required_major, minimum_minor):
-    # type: (str, int, int) -> bool
-    # Parse string and check against requested version.
+def _parse_glibc_version(version_str):
+    # type: (str) -> Tuple[int, int]
+    # Parse glibc version.
     #
     # We use a regexp instead of str.split because we want to discard any
     # random junk that might come after the minor version -- this might happen
@@ -509,19 +593,23 @@ def _check_glibc_version(version_str, required_major, minimum_minor):
             " got: %s" % version_str,
             RuntimeWarning,
         )
-        return False
-    return (
-        int(m.group("major")) == required_major
-        and int(m.group("minor")) >= minimum_minor
-    )
+        return -1, -1
+    return (int(m.group("major")), int(m.group("minor")))
 
 
-def _have_compatible_glibc(required_major, minimum_minor):
-    # type: (int, int) -> bool
+_glibc_version = []  #  type: List[Tuple[int, int]]
+
+
+def _get_glibc_version():
+    # type: () -> Tuple[int, int]
+    if _glibc_version:
+        return _glibc_version[0]
     version_str = _glibc_version_string()
     if version_str is None:
-        return False
-    return _check_glibc_version(version_str, required_major, minimum_minor)
+        _glibc_version.append((-1, -1))
+    else:
+        _glibc_version.append(_parse_glibc_version(version_str))
+    return _glibc_version[0]
 
 
 # Python does not provide platform information at sufficient granularity to
@@ -639,7 +727,42 @@ def _have_compatible_manylinux_abi(arch):
         return _is_linux_armhf()
     if arch == "i686":
         return _is_linux_i686()
-    return True
+    return arch in {"x86_64", "aarch64", "ppc64", "ppc64le", "s390x"}
+
+
+def _manylinux_tags(linux, arch):
+    # type: (str, str) -> Iterator[str]
+    # Oldest glibc to be supported regardless of architecture is (2, 17).
+    too_old_glibc2 = glibcVersion(2, 16)
+    if arch in {"x86_64", "i686"}:
+        # On x86/i686 also oldest glibc to be supported is (2, 5).
+        too_old_glibc2 = glibcVersion(2, 4)
+    current_glibc = glibcVersion(*_get_glibc_version())
+    glibc_max_list = [current_glibc]
+    # We can assume compatibility across glibc major versions.
+    # https://sourceware.org/bugzilla/show_bug.cgi?id=24636
+    #
+    # Build a list of maximum glibc versions so that we can
+    # output the canonical list of all glibc from current_glibc
+    # down to too_old_glibc2, including all intermediary versions.
+    for glibc_major in range(current_glibc.major - 1, 1, -1):
+        glibc_max_list.append(glibcVersion(glibc_major, _LAST_GLIBC_MINOR[glibc_major]))
+    for glibc_max in glibc_max_list:
+        if glibc_max.major == too_old_glibc2.major:
+            min_minor = too_old_glibc2.minor
+        else:
+            # For other glibc major versions oldest supported is (x, 0).
+            min_minor = -1
+        for glibc_minor in range(glibc_max.minor, min_minor, -1):
+            glibc_version = (glibc_max.major, glibc_minor)
+            tag = "manylinux_{}_{}".format(*glibc_version)
+            if _is_manylinux_compatible(tag, arch, glibc_version):
+                yield linux.replace("linux", tag)
+            # Handle the legacy manylinux1, manylinux2010, manylinux2014 tags.
+            if glibc_version in _LEGACY_MANYLINUX_MAP:
+                legacy_tag = _LEGACY_MANYLINUX_MAP[glibc_version]
+                if _is_manylinux_compatible(legacy_tag, arch, glibc_version):
+                    yield linux.replace("linux", legacy_tag)
 
 
 def _linux_platforms(is_32bit=_32_BIT_INTERPRETER):
@@ -650,28 +773,10 @@ def _linux_platforms(is_32bit=_32_BIT_INTERPRETER):
             linux = "linux_i686"
         elif linux == "linux_aarch64":
             linux = "linux_armv7l"
-    manylinux_support = []
     _, arch = linux.split("_", 1)
     if _have_compatible_manylinux_abi(arch):
-        if arch in {"x86_64", "i686", "aarch64", "armv7l", "ppc64", "ppc64le", "s390x"}:
-            manylinux_support.append(
-                ("manylinux2014", (2, 17))
-            )  # CentOS 7 w/ glibc 2.17 (PEP 599)
-        if arch in {"x86_64", "i686"}:
-            manylinux_support.append(
-                ("manylinux2010", (2, 12))
-            )  # CentOS 6 w/ glibc 2.12 (PEP 571)
-            manylinux_support.append(
-                ("manylinux1", (2, 5))
-            )  # CentOS 5 w/ glibc 2.5 (PEP 513)
-    manylinux_support_iter = iter(manylinux_support)
-    for name, glibc_version in manylinux_support_iter:
-        if _is_manylinux_compatible(name, glibc_version):
-            yield linux.replace("linux", name)
-            break
-    # Support for a later manylinux implies support for an earlier version.
-    for name, _ in manylinux_support_iter:
-        yield linux.replace("linux", name)
+        for tag in _manylinux_tags(linux, arch):
+            yield tag
     yield linux
 
 
@@ -722,11 +827,7 @@ def interpreter_version(**kwargs):
 
 def _version_nodot(version):
     # type: (PythonVersion) -> str
-    if any(v >= 10 for v in version):
-        sep = "_"
-    else:
-        sep = ""
-    return sep.join(map(str, version))
+    return "".join(map(str, version))
 
 
 def sys_tags(**kwargs):

@@ -29,7 +29,7 @@ requests==2.25.0
 requirementslib==1.5.16
     attrs==20.3.0
     distlib==0.3.1
-    packaging==20.4
+    packaging==20.8
     pyparsing==2.4.7
     plette==0.2.3
         tomlkit==0.7.0
@@ -55,3 +55,4 @@ pep517==0.9.1
 orderedmultidict==1.0.1
 dparse==0.5.0
 python-dateutil==2.8.1
+packaging

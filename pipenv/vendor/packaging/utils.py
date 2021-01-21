@@ -12,6 +12,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import NewType, Union
 
     NormalizedName = NewType("NormalizedName", str)
+else:
+    NormalizedName = str
 
 _canonicalize_regex = re.compile(r"[-_.]+")
 
@@ -23,18 +25,18 @@ def canonicalize_name(name):
     return cast("NormalizedName", value)
 
 
-def canonicalize_version(_version):
-    # type: (str) -> Union[Version, str]
+def canonicalize_version(version):
+    # type: (Union[Version, str]) -> Union[Version, str]
     """
     This is very similar to Version.__str__, but has one subtle difference
     with the way it handles the release segment.
     """
-
-    try:
-        version = Version(_version)
-    except InvalidVersion:
-        # Legacy versions cannot be normalized
-        return _version
+    if not isinstance(version, Version):
+        try:
+            version = Version(version)
+        except InvalidVersion:
+            # Legacy versions cannot be normalized
+            return version
 
     parts = []
 
