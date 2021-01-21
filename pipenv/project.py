@@ -821,8 +821,10 @@ class Project(object):
         from .vendor.plette.lockfiles import PIPFILE_SPEC_CURRENT
         if self.lockfile_exists:
             sources = self.lockfile_content.get("_meta", {}).get("sources", [])
-        else:
+        elif "source" in self.parsed_pipfile:
             sources = [dict(source) for source in self.parsed_pipfile["source"]]
+        else:
+            sources = self.pipfile_sources
         if not isinstance(sources, list):
             sources = [sources]
         return {

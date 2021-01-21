@@ -230,3 +230,17 @@ def test_run_in_virtualenv(PipenvInstance):
         c = p.pipenv("clean --dry-run")
         assert c.return_code == 0
         assert "click" in c.out
+
+@pytest.mark.project
+@pytest.mark.sources
+def test_no_sources_in_pipfile(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+pytest = "*"
+            """.format(os.environ['PIPENV_TEST_INDEX']).strip()
+            f.write(contents)
+        c = p.pipenv('install --skip-lock')
+        assert c.return_code == 0
+

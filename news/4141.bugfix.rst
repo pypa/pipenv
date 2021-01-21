@@ -1,0 +1,1 @@
+Fix a bug where passing --skip-lock when PIPFILE has no [SOURCE] section throws the error: "tomlkit.exceptions.NonExistentKey: 'Key "source" does not exist.'"
