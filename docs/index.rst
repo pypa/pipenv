@@ -48,15 +48,19 @@ You can quickly play with Pipenv right in your browser:
 Install Pipenv Today!
 ---------------------
 
-If you're on MacOS, you can install Pipenv easily with Homebrew. You can also use Linuxbrew on Linux using the same command::
+If you already have Python and pip, you can easily install Pipenv into your home directory::
 
-    $ brew install pipenv
+    $ pip install --user pipenv
 
 Or, if you're using Fedora 28::
 
     $ sudo dnf install pipenv
 
-Otherwise, refer to the :ref:`installing-pipenv` chapter for instructions.
+It's possible to install Pipenv with Homebrew on MacOS, or with Linuxbrew on Linux systems. However, **this is now discouraged**, because updates to the brewed Python distribution will break Pipenv, and perhaps all virtual environments managed by it. You'll then need to re-install Pipenv at least. If you want to give it a try despite this warning, use::
+
+    $ brew install pipenv
+
+More detailed installation instructions can be found in the :ref:`installing-pipenv` chapter.
 
 ✨🍰✨
 
