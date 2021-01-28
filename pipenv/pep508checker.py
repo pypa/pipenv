@@ -31,7 +31,7 @@ lookup = {
     "platform_release": platform.release(),
     "platform_system": platform.system(),
     "platform_version": platform.version(),
-    "python_version": platform.python_version()[:3],
+    "python_version": ".".join(platform.python_version().split(".")[:2]),
     "python_full_version": platform.python_version(),
     "implementation_name": implementation_name,
     "implementation_version": implementation_version,
