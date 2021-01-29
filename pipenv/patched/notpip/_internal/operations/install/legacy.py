@@ -3,28 +3,34 @@
 
 import logging
 import os
+import sys
 from distutils.util import change_root
 
-from pipenv.patched.notpip._internal.utils.deprecation import deprecated
-from pipenv.patched.notpip._internal.utils.logging import indent_log
-from pipenv.patched.notpip._internal.utils.misc import ensure_dir
-from pipenv.patched.notpip._internal.utils.setuptools_build import make_setuptools_install_args
-from pipenv.patched.notpip._internal.utils.subprocess import runner_with_spinner_message
-from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.exceptions import InstallationError
+from pip._internal.utils.logging import indent_log
+from pip._internal.utils.misc import ensure_dir
+from pip._internal.utils.setuptools_build import make_setuptools_install_args
+from pip._internal.utils.subprocess import runner_with_spinner_message
+from pip._internal.utils.temp_dir import TempDirectory
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import List, Optional, Sequence
 
-    from pipenv.patched.notpip._internal.models.scheme import Scheme
-    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+    from pip._internal.build_env import BuildEnvironment
+    from pip._internal.models.scheme import Scheme
 
 
 logger = logging.getLogger(__name__)
 
 
+class LegacyInstallFailure(Exception):
+    def __init__(self):
+        # type: () -> None
+        self.parent = sys.exc_info()
+
+
 def install(
-    install_req,  # type: InstallRequirement
     install_options,  # type: List[str]
     global_options,  # type: Sequence[str]
     root,  # type: Optional[str]
@@ -33,49 +39,53 @@ def install(
     use_user_site,  # type: bool
     pycompile,  # type: bool
     scheme,  # type: Scheme
+    setup_py_path,  # type: str
+    isolated,  # type: bool
+    req_name,  # type: str
+    build_env,  # type: BuildEnvironment
+    unpacked_source_directory,  # type: str
+    req_description,  # type: str
 ):
-    # type: (...) -> None
-    # Extend the list of global and install options passed on to
-    # the setup.py call with the ones from the requirements file.
-    # Options specified in requirements file override those
-    # specified on the command line, since the last option given
-    # to setup.py is the one that is used.
-    global_options = list(global_options) + \
-        install_req.options.get('global_options', [])
-    install_options = list(install_options) + \
-        install_req.options.get('install_options', [])
+    # type: (...) -> bool
 
     header_dir = scheme.headers
 
     with TempDirectory(kind="record") as temp_dir:
-        record_filename = os.path.join(temp_dir.path, 'install-record.txt')
-        install_args = make_setuptools_install_args(
-            install_req.setup_py_path,
-            global_options=global_options,
-            install_options=install_options,
-            record_filename=record_filename,
-            root=root,
-            prefix=prefix,
-            header_dir=header_dir,
-            home=home,
-            use_user_site=use_user_site,
-            no_user_config=install_req.isolated,
-            pycompile=pycompile,
-        )
-
-        runner = runner_with_spinner_message(
-            "Running setup.py install for {}".format(install_req.name)
-        )
-        with indent_log(), install_req.build_env:
-            runner(
-                cmd=install_args,
-                cwd=install_req.unpacked_source_directory,
+        try:
+            record_filename = os.path.join(temp_dir.path, 'install-record.txt')
+            install_args = make_setuptools_install_args(
+                setup_py_path,
+                global_options=global_options,
+                install_options=install_options,
+                record_filename=record_filename,
+                root=root,
+                prefix=prefix,
+                header_dir=header_dir,
+                home=home,
+                use_user_site=use_user_site,
+                no_user_config=isolated,
+                pycompile=pycompile,
             )
 
-        if not os.path.exists(record_filename):
-            logger.debug('Record file %s not found', record_filename)
-            return
-        install_req.install_succeeded = True
+            runner = runner_with_spinner_message(
+                f"Running setup.py install for {req_name}"
+            )
+            with indent_log(), build_env:
+                runner(
+                    cmd=install_args,
+                    cwd=unpacked_source_directory,
+                )
+
+            if not os.path.exists(record_filename):
+                logger.debug('Record file %s not found', record_filename)
+                # Signal to the caller that we didn't install the new package
+                return False
+
+        except Exception:
+            # Signal to the caller that we didn't install the new package
+            raise LegacyInstallFailure
+
+        # At this point, we have successfully installed the requirement.
 
         # We intentionally do not use any encoding to read the file because
         # setuptools writes the file using distutils.file_util.write_file,
@@ -96,24 +106,13 @@ def install(
             egg_info_dir = prepend_root(directory)
             break
     else:
-        deprecated(
-            reason=(
-                "{} did not indicate that it installed an "
-                ".egg-info directory. Only setup.py projects "
-                "generating .egg-info directories are supported."
-            ).format(install_req),
-            replacement=(
-                "for maintainers: updating the setup.py of {0}. "
-                "For users: contact the maintainers of {0} to let "
-                "them know to update their setup.py.".format(
-                    install_req.name
-                )
-            ),
-            gone_in="20.2",
-            issue=6998,
-        )
-        # FIXME: put the record somewhere
-        return
+        message = (
+            "{} did not indicate that it installed an "
+            ".egg-info directory. Only setup.py projects "
+            "generating .egg-info directories are supported."
+        ).format(req_description)
+        raise InstallationError(message)
+
     new_lines = []
     for line in record_lines:
         filename = line.strip()
@@ -127,3 +126,5 @@ def install(
     inst_files_path = os.path.join(egg_info_dir, 'installed-files.txt')
     with open(inst_files_path, 'w') as f:
         f.write('\n'.join(new_lines) + '\n')
+
+    return True

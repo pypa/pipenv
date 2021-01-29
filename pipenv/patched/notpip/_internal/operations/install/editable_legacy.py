@@ -2,15 +2,15 @@
 """
 import logging
 
-from pipenv.patched.notpip._internal.utils.logging import indent_log
-from pipenv.patched.notpip._internal.utils.setuptools_build import make_setuptools_develop_args
-from pipenv.patched.notpip._internal.utils.subprocess import call_subprocess
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.logging import indent_log
+from pip._internal.utils.setuptools_build import make_setuptools_develop_args
+from pip._internal.utils.subprocess import call_subprocess
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import List, Optional, Sequence
 
-    from pipenv.patched.notpip._internal.build_env import BuildEnvironment
+    from pip._internal.build_env import BuildEnvironment
 
 
 logger = logging.getLogger(__name__)

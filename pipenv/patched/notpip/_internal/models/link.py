@@ -1,35 +1,45 @@
 import os
 import posixpath
 import re
+import urllib.parse
 
-from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
-
-from pipenv.patched.notpip._internal.utils.filetypes import WHEEL_EXTENSION
-from pipenv.patched.notpip._internal.utils.misc import (
+from pip._internal.utils.filetypes import WHEEL_EXTENSION
+from pip._internal.utils.misc import (
     redact_auth_from_url,
     split_auth_from_netloc,
     splitext,
 )
-from pipenv.patched.notpip._internal.utils.models import KeyBasedCompareMixin
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.utils.urls import path_to_url, url_to_path
+from pip._internal.utils.models import KeyBasedCompareMixin
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.urls import path_to_url, url_to_path
 
 if MYPY_CHECK_RUNNING:
-    from typing import Optional, Text, Tuple, Union
-    from pipenv.patched.notpip._internal.index.collector import HTMLPage
-    from pipenv.patched.notpip._internal.utils.hashes import Hashes
+    from typing import Optional, Tuple, Union
+
+    from pip._internal.index.collector import HTMLPage
+    from pip._internal.utils.hashes import Hashes
 
 
 class Link(KeyBasedCompareMixin):
     """Represents a parsed link from a Package Index's simple URL
     """
 
+    __slots__ = [
+        "_parsed_url",
+        "_url",
+        "comes_from",
+        "requires_python",
+        "yanked_reason",
+        "cache_link_parsing",
+    ]
+
     def __init__(
         self,
         url,                   # type: str
         comes_from=None,       # type: Optional[Union[str, HTMLPage]]
         requires_python=None,  # type: Optional[str]
-        yanked_reason=None,    # type: Optional[Text]
+        yanked_reason=None,    # type: Optional[str]
+        cache_link_parsing=True,  # type: bool
     ):
         # type: (...) -> None
         """
@@ -46,13 +56,18 @@ class Link(KeyBasedCompareMixin):
             a simple repository HTML link. If the file has been yanked but
             no reason was provided, this should be the empty string. See
             PEP 592 for more information and the specification.
+        :param cache_link_parsing: A flag that is used elsewhere to determine
+                                   whether resources retrieved from this link
+                                   should be cached. PyPI index urls should
+                                   generally have this set to False, for
+                                   example.
         """
 
         # url can be a UNC windows share
         if url.startswith('\\\\'):
             url = path_to_url(url)
 
-        self._parsed_url = urllib_parse.urlsplit(url)
+        self._parsed_url = urllib.parse.urlsplit(url)
         # Store the url as a private attribute to prevent accidentally
         # trying to set a new value.
         self._url = url
@@ -61,23 +76,25 @@ class Link(KeyBasedCompareMixin):
         self.requires_python = requires_python if requires_python else None
         self.yanked_reason = yanked_reason
 
-        super(Link, self).__init__(key=url, defining_class=Link)
+        super().__init__(key=url, defining_class=Link)
+
+        self.cache_link_parsing = cache_link_parsing
 
     def __str__(self):
         # type: () -> str
         if self.requires_python:
-            rp = ' (requires-python:%s)' % self.requires_python
+            rp = f' (requires-python:{self.requires_python})'
         else:
             rp = ''
         if self.comes_from:
-            return '%s (from %s)%s' % (redact_auth_from_url(self._url),
-                                       self.comes_from, rp)
+            return '{} (from {}){}'.format(
+                redact_auth_from_url(self._url), self.comes_from, rp)
         else:
             return redact_auth_from_url(str(self._url))
 
     def __repr__(self):
         # type: () -> str
-        return '<Link %s>' % self
+        return f'<Link {self}>'
 
     @property
     def url(self):
@@ -95,8 +112,9 @@ class Link(KeyBasedCompareMixin):
             netloc, user_pass = split_auth_from_netloc(self.netloc)
             return netloc
 
-        name = urllib_parse.unquote(name)
-        assert name, ('URL %r produced no filename' % self._url)
+        name = urllib.parse.unquote(name)
+        assert name, (
+            'URL {self._url!r} produced no filename'.format(**locals()))
         return name
 
     @property
@@ -120,7 +138,7 @@ class Link(KeyBasedCompareMixin):
     @property
     def path(self):
         # type: () -> str
-        return urllib_parse.unquote(self._parsed_url.path)
+        return urllib.parse.unquote(self._parsed_url.path)
 
     def splitext(self):
         # type: () -> Tuple[str, str]
@@ -135,7 +153,7 @@ class Link(KeyBasedCompareMixin):
     def url_without_fragment(self):
         # type: () -> str
         scheme, netloc, path, query, fragment = self._parsed_url
-        return urllib_parse.urlunsplit((scheme, netloc, path, query, None))
+        return urllib.parse.urlunsplit((scheme, netloc, path, query, None))
 
     _egg_fragment_re = re.compile(r'[#&]egg=([^&]*)')
 
@@ -199,7 +217,7 @@ class Link(KeyBasedCompareMixin):
     @property
     def is_vcs(self):
         # type: () -> bool
-        from pipenv.patched.notpip._internal.vcs import vcs
+        from pip._internal.vcs import vcs
 
         return self.scheme in vcs.all_schemes
 

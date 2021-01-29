@@ -1,19 +1,19 @@
 from contextlib import contextmanager
 
-from pipenv.patched.notpip._vendor.contextlib2 import ExitStack
+from pip._vendor.contextlib2 import ExitStack
 
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Iterator, ContextManager, TypeVar
+    from typing import ContextManager, Iterator, TypeVar
 
     _T = TypeVar('_T', covariant=True)
 
 
-class CommandContextMixIn(object):
+class CommandContextMixIn:
     def __init__(self):
         # type: () -> None
-        super(CommandContextMixIn, self).__init__()
+        super().__init__()
         self._in_main_context = False
         self._main_context = ExitStack()
 

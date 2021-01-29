@@ -5,27 +5,23 @@ import logging
 import mimetypes
 import os
 
-from pipenv.patched.notpip._vendor import requests
-from pipenv.patched.notpip._vendor.requests.models import CONTENT_CHUNK_SIZE
+from pip._vendor.requests.models import CONTENT_CHUNK_SIZE
 
-from pipenv.patched.notpip._internal.models.index import PyPI
-from pipenv.patched.notpip._internal.network.cache import is_from_cache
-from pipenv.patched.notpip._internal.network.utils import response_chunks
-from pipenv.patched.notpip._internal.utils.misc import (
-    format_size,
-    redact_auth_from_url,
-    splitext,
-)
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.utils.ui import DownloadProgressProvider
+from pip._internal.cli.progress_bars import DownloadProgressProvider
+from pip._internal.exceptions import NetworkConnectionError
+from pip._internal.models.index import PyPI
+from pip._internal.network.cache import is_from_cache
+from pip._internal.network.utils import HEADERS, raise_for_status, response_chunks
+from pip._internal.utils.misc import format_size, redact_auth_from_url, splitext
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Iterable, Optional
+    from typing import Iterable, Optional, Tuple
 
-    from pipenv.patched.notpip._vendor.requests.models import Response
+    from pip._vendor.requests.models import Response
 
-    from pipenv.patched.notpip._internal.models.link import Link
-    from pipenv.patched.notpip._internal.network.session import PipSession
+    from pip._internal.models.link import Link
+    from pip._internal.network.session import PipSession
 
 logger = logging.getLogger(__name__)
 
@@ -132,48 +128,12 @@ def _get_http_response_filename(resp, link):
 def _http_get_download(session, link):
     # type: (PipSession, Link) -> Response
     target_url = link.url.split('#', 1)[0]
-    resp = session.get(
-        target_url,
-        # We use Accept-Encoding: identity here because requests
-        # defaults to accepting compressed responses. This breaks in
-        # a variety of ways depending on how the server is configured.
-        # - Some servers will notice that the file isn't a compressible
-        #   file and will leave the file alone and with an empty
-        #   Content-Encoding
-        # - Some servers will notice that the file is already
-        #   compressed and will leave the file alone and will add a
-        #   Content-Encoding: gzip header
-        # - Some servers won't notice anything at all and will take
-        #   a file that's already been compressed and compress it again
-        #   and set the Content-Encoding: gzip header
-        # By setting this to request only the identity encoding We're
-        # hoping to eliminate the third case. Hopefully there does not
-        # exist a server which when given a file will notice it is
-        # already compressed and that you're not asking for a
-        # compressed file and will then decompress it before sending
-        # because if that's the case I don't think it'll ever be
-        # possible to make this work.
-        headers={"Accept-Encoding": "identity"},
-        stream=True,
-    )
-    resp.raise_for_status()
+    resp = session.get(target_url, headers=HEADERS, stream=True)
+    raise_for_status(resp)
     return resp
 
 
-class Download(object):
-    def __init__(
-        self,
-        response,  # type: Response
-        filename,  # type: str
-        chunks,  # type: Iterable[bytes]
-    ):
-        # type: (...) -> None
-        self.response = response
-        self.filename = filename
-        self.chunks = chunks
-
-
-class Downloader(object):
+class Downloader:
     def __init__(
         self,
         session,  # type: PipSession
@@ -183,18 +143,60 @@ class Downloader(object):
         self._session = session
         self._progress_bar = progress_bar
 
-    def __call__(self, link):
-        # type: (Link) -> Download
+    def __call__(self, link, location):
+        # type: (Link, str) -> Tuple[str, str]
+        """Download the file given by link into location."""
         try:
             resp = _http_get_download(self._session, link)
-        except requests.HTTPError as e:
+        except NetworkConnectionError as e:
+            assert e.response is not None
             logger.critical(
                 "HTTP error %s while getting %s", e.response.status_code, link
             )
             raise
 
-        return Download(
-            resp,
-            _get_http_response_filename(resp, link),
-            _prepare_download(resp, link, self._progress_bar),
-        )
+        filename = _get_http_response_filename(resp, link)
+        filepath = os.path.join(location, filename)
+
+        chunks = _prepare_download(resp, link, self._progress_bar)
+        with open(filepath, 'wb') as content_file:
+            for chunk in chunks:
+                content_file.write(chunk)
+        content_type = resp.headers.get('Content-Type', '')
+        return filepath, content_type
+
+
+class BatchDownloader:
+
+    def __init__(
+        self,
+        session,  # type: PipSession
+        progress_bar,  # type: str
+    ):
+        # type: (...) -> None
+        self._session = session
+        self._progress_bar = progress_bar
+
+    def __call__(self, links, location):
+        # type: (Iterable[Link], str) -> Iterable[Tuple[str, Tuple[str, str]]]
+        """Download the files given by links into location."""
+        for link in links:
+            try:
+                resp = _http_get_download(self._session, link)
+            except NetworkConnectionError as e:
+                assert e.response is not None
+                logger.critical(
+                    "HTTP error %s while getting %s",
+                    e.response.status_code, link,
+                )
+                raise
+
+            filename = _get_http_response_filename(resp, link)
+            filepath = os.path.join(location, filename)
+
+            chunks = _prepare_download(resp, link, self._progress_bar)
+            with open(filepath, 'wb') as content_file:
+                for chunk in chunks:
+                    content_file.write(chunk)
+            content_type = resp.headers.get('Content-Type', '')
+            yield link.url, (filepath, content_type)

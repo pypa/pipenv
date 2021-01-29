@@ -1,7 +1,6 @@
-import os
 import sys
 
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import List, Optional, Sequence
@@ -37,8 +36,7 @@ def make_setuptools_shim_args(
     :param unbuffered_output: If True, adds the unbuffered switch to the
      argument list.
     """
-    sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
-    args = [sys_executable]
+    args = [sys.executable]
     if unbuffered_output:
         args += ["-u"]
     args += ["-c", _SETUPTOOLS_SHIM.format(setup_py_path)]
@@ -123,9 +121,9 @@ def make_setuptools_egg_info_args(
     no_user_config,  # type: bool
 ):
     # type: (...) -> List[str]
-    args = make_setuptools_shim_args(setup_py_path)
-    if no_user_config:
-        args += ["--no-user-cfg"]
+    args = make_setuptools_shim_args(
+        setup_py_path, no_user_config=no_user_config
+    )
 
     args += ["egg_info"]
 

@@ -1,12 +1,10 @@
-from __future__ import absolute_import
-
 import logging
 import os
 import re
 import site
 import sys
 
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import List, Optional
@@ -51,9 +49,11 @@ def _get_pyvenv_cfg_lines():
     """
     pyvenv_cfg_file = os.path.join(sys.prefix, 'pyvenv.cfg')
     try:
-        with open(pyvenv_cfg_file) as f:
+        # Although PEP 405 does not specify, the built-in venv module always
+        # writes with UTF-8. (pypa/pip#8717)
+        with open(pyvenv_cfg_file, encoding='utf-8') as f:
             return f.read().splitlines()  # avoids trailing newlines
-    except IOError:
+    except OSError:
         return None
 
 
@@ -105,11 +105,12 @@ def virtualenv_no_global():
     # type: () -> bool
     """Returns a boolean, whether running in venv with no system site-packages.
     """
+    # PEP 405 compliance needs to be checked first since virtualenv >=20 would
+    # return True for both checks, but is only able to use the PEP 405 config.
+    if _running_under_venv():
+        return _no_global_under_venv()
 
     if _running_under_regular_virtualenv():
         return _no_global_under_regular_virtualenv()
-
-    if _running_under_venv():
-        return _no_global_under_venv()
 
     return False

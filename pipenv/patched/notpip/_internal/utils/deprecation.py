@@ -5,15 +5,13 @@ A module that implements tooling to enable easy warnings about deprecations.
 # The following comment should be removed at some point in the future.
 # mypy: disallow-untyped-defs=False
 
-from __future__ import absolute_import
-
 import logging
 import warnings
 
-from pipenv.patched.notpip._vendor.packaging.version import parse
+from pip._vendor.packaging.version import parse
 
-from pipenv.patched.notpip import __version__ as current_version
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip import __version__ as current_version
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Optional

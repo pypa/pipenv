@@ -1,8 +1,6 @@
 # The following comment should be removed at some point in the future.
 # mypy: disallow-untyped-defs=False
 
-from __future__ import absolute_import
-
 import contextlib
 import errno
 import logging
@@ -11,11 +9,9 @@ import os
 import sys
 from logging import Filter, getLogger
 
-from pipenv.patched.notpip._vendor.six import PY2
-
-from pipenv.patched.notpip._internal.utils.compat import WINDOWS
-from pipenv.patched.notpip._internal.utils.deprecation import DEPRECATION_MSG_PREFIX
-from pipenv.patched.notpip._internal.utils.misc import ensure_dir
+from pip._internal.utils.compat import WINDOWS
+from pip._internal.utils.deprecation import DEPRECATION_MSG_PREFIX
+from pip._internal.utils.misc import ensure_dir
 
 try:
     import threading
@@ -24,35 +20,14 @@ except ImportError:
 
 
 try:
-    # Use "import as" and set colorama in the else clause to avoid mypy
-    # errors and get the following correct revealed type for colorama:
-    # `Union[_importlib_modulespec.ModuleType, None]`
-    # Otherwise, we get an error like the following in the except block:
-    #  > Incompatible types in assignment (expression has type "None",
-    #   variable has type Module)
-    # TODO: eliminate the need to use "import as" once mypy addresses some
-    #  of its issues with conditional imports. Here is an umbrella issue:
-    #  https://github.com/python/mypy/issues/1297
-    from pipenv.patched.notpip._vendor import colorama as _colorama
+    from pip._vendor import colorama
 # Lots of different errors can come from this, including SystemError and
 # ImportError.
 except Exception:
     colorama = None
-else:
-    # Import Fore explicitly rather than accessing below as colorama.Fore
-    # to avoid the following error running mypy:
-    # > Module has no attribute "Fore"
-    # TODO: eliminate the need to import Fore once mypy addresses some of its
-    #  issues with conditional imports. This particular case could be an
-    #  instance of the following issue (but also see the umbrella issue above):
-    #  https://github.com/python/mypy/issues/3500
-    from pipenv.patched.notpip._vendor.colorama import Fore
-
-    colorama = _colorama
 
 
 _log_state = threading.local()
-_log_state.indentation = 0
 subprocess_logger = getLogger('pip.subprocessor')
 
 
@@ -63,30 +38,18 @@ class BrokenStdoutLoggingError(Exception):
     pass
 
 
-# BrokenPipeError does not exist in Python 2 and, in addition, manifests
-# differently in Windows and non-Windows.
+# BrokenPipeError manifests differently in Windows and non-Windows.
 if WINDOWS:
     # In Windows, a broken pipe can show up as EINVAL rather than EPIPE:
     # https://bugs.python.org/issue19612
     # https://bugs.python.org/issue30418
-    if PY2:
-        def _is_broken_pipe_error(exc_class, exc):
-            """See the docstring for non-Windows Python 3 below."""
-            return (exc_class is IOError and
-                    exc.errno in (errno.EINVAL, errno.EPIPE))
-    else:
-        # In Windows, a broken pipe IOError became OSError in Python 3.
-        def _is_broken_pipe_error(exc_class, exc):
-            """See the docstring for non-Windows Python 3 below."""
-            return ((exc_class is BrokenPipeError) or  # noqa: F821
-                    (exc_class is OSError and
-                     exc.errno in (errno.EINVAL, errno.EPIPE)))
-elif PY2:
     def _is_broken_pipe_error(exc_class, exc):
-        """See the docstring for non-Windows Python 3 below."""
-        return (exc_class is IOError and exc.errno == errno.EPIPE)
+        """See the docstring for non-Windows below."""
+        return ((exc_class is BrokenPipeError) or
+                (exc_class is OSError and
+                 exc.errno in (errno.EINVAL, errno.EPIPE)))
 else:
-    # Then we are in the non-Windows Python 3 case.
+    # Then we are in the non-Windows case.
     def _is_broken_pipe_error(exc_class, exc):
         """
         Return whether an exception is a broken pipe error.
@@ -95,7 +58,7 @@ else:
           exc_class: an exception class.
           exc: an exception instance.
         """
-        return (exc_class is BrokenPipeError)  # noqa: F821
+        return (exc_class is BrokenPipeError)
 
 
 @contextlib.contextmanager
@@ -104,6 +67,8 @@ def indent_log(num=2):
     A context manager which will cause the log output to be indented for any
     log messages emitted inside it.
     """
+    # For thread-safety
+    _log_state.indentation = get_indentation()
     _log_state.indentation += num
     try:
         yield
@@ -116,6 +81,7 @@ def get_indentation():
 
 
 class IndentingFormatter(logging.Formatter):
+    default_time_format = "%Y-%m-%dT%H:%M:%S"
 
     def __init__(self, *args, **kwargs):
         """
@@ -125,7 +91,7 @@ class IndentingFormatter(logging.Formatter):
             with their record's timestamp.
         """
         self.add_timestamp = kwargs.pop("add_timestamp", False)
-        super(IndentingFormatter, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_message_start(self, formatted, levelno):
         """
@@ -148,15 +114,13 @@ class IndentingFormatter(logging.Formatter):
         Calls the standard formatter, but will indent all of the log message
         lines by our current indentation level.
         """
-        formatted = super(IndentingFormatter, self).format(record)
+        formatted = super().format(record)
         message_start = self.get_message_start(formatted, record.levelno)
         formatted = message_start + formatted
 
         prefix = ''
         if self.add_timestamp:
-            # TODO: Use Formatter.default_time_format after dropping PY2.
-            t = self.formatTime(record, "%Y-%m-%dT%H:%M:%S")
-            prefix = '%s,%03d ' % (t, record.msecs)
+            prefix = f"{self.formatTime(record)} "
         prefix += " " * get_indentation()
         formatted = "".join([
             prefix + line
@@ -177,14 +141,14 @@ class ColorizedStreamHandler(logging.StreamHandler):
     if colorama:
         COLORS = [
             # This needs to be in order from highest logging level to lowest.
-            (logging.ERROR, _color_wrap(Fore.RED)),
-            (logging.WARNING, _color_wrap(Fore.YELLOW)),
+            (logging.ERROR, _color_wrap(colorama.Fore.RED)),
+            (logging.WARNING, _color_wrap(colorama.Fore.YELLOW)),
         ]
     else:
         COLORS = []
 
     def __init__(self, stream=None, no_color=None):
-        logging.StreamHandler.__init__(self, stream)
+        super().__init__(stream)
         self._no_color = no_color
 
         if WINDOWS and colorama:
@@ -243,7 +207,7 @@ class ColorizedStreamHandler(logging.StreamHandler):
                 _is_broken_pipe_error(exc_class, exc)):
             raise BrokenStdoutLoggingError()
 
-        return super(ColorizedStreamHandler, self).handleError(record)
+        return super().handleError(record)
 
 
 class BetterRotatingFileHandler(logging.handlers.RotatingFileHandler):
@@ -271,7 +235,7 @@ class ExcludeLoggerFilter(Filter):
     def filter(self, record):
         # The base Filter class allows only records from a logger (or its
         # children).
-        return not super(ExcludeLoggerFilter, self).filter(record)
+        return not super().filter(record)
 
 
 def setup_logging(verbosity, no_color, user_log_file):
@@ -314,8 +278,8 @@ def setup_logging(verbosity, no_color, user_log_file):
         "stderr": "ext://sys.stderr",
     }
     handler_classes = {
-        "stream": "pipenv.patched.notpip._internal.utils.logging.ColorizedStreamHandler",
-        "file": "pipenv.patched.notpip._internal.utils.logging.BetterRotatingFileHandler",
+        "stream": "pip._internal.utils.logging.ColorizedStreamHandler",
+        "file": "pip._internal.utils.logging.BetterRotatingFileHandler",
     }
     handlers = ["console", "console_errors", "console_subprocess"] + (
         ["user_log"] if include_user_log else []
@@ -326,7 +290,7 @@ def setup_logging(verbosity, no_color, user_log_file):
         "disable_existing_loggers": False,
         "filters": {
             "exclude_warnings": {
-                "()": "pipenv.patched.notpip._internal.utils.logging.MaxLevelFilter",
+                "()": "pip._internal.utils.logging.MaxLevelFilter",
                 "level": logging.WARNING,
             },
             "restrict_to_subprocess": {
@@ -334,7 +298,7 @@ def setup_logging(verbosity, no_color, user_log_file):
                 "name": subprocess_logger.name,
             },
             "exclude_subprocess": {
-                "()": "pipenv.patched.notpip._internal.utils.logging.ExcludeLoggerFilter",
+                "()": "pip._internal.utils.logging.ExcludeLoggerFilter",
                 "name": subprocess_logger.name,
             },
         },

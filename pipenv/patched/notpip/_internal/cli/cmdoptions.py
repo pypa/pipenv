@@ -10,32 +10,30 @@ pass on state. To be consistent, all options will follow this design.
 # The following comment should be removed at some point in the future.
 # mypy: strict-optional=False
 
-from __future__ import absolute_import
-
-import logging
 import os
 import textwrap
 import warnings
-from distutils.util import strtobool
 from functools import partial
 from optparse import SUPPRESS_HELP, Option, OptionGroup
 from textwrap import dedent
 
-from pipenv.patched.notpip._internal.exceptions import CommandError
-from pipenv.patched.notpip._internal.locations import USER_CACHE_DIR, get_src_prefix
-from pipenv.patched.notpip._internal.models.format_control import FormatControl
-from pipenv.patched.notpip._internal.models.index import PyPI
-from pipenv.patched.notpip._internal.models.target_python import TargetPython
-from pipenv.patched.notpip._internal.utils.hashes import STRONG_HASHES
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.utils.ui import BAR_TYPES
+from pip._vendor.packaging.utils import canonicalize_name
+
+from pip._internal.cli.progress_bars import BAR_TYPES
+from pip._internal.exceptions import CommandError
+from pip._internal.locations import USER_CACHE_DIR, get_src_prefix
+from pip._internal.models.format_control import FormatControl
+from pip._internal.models.index import PyPI
+from pip._internal.models.target_python import TargetPython
+from pip._internal.utils.hashes import STRONG_HASHES
+from pip._internal.utils.misc import strtobool
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Any, Callable, Dict, Optional, Tuple
     from optparse import OptionParser, Values
-    from pipenv.patched.notpip._internal.cli.parser import ConfigOptionParser
+    from typing import Any, Callable, Dict, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+    from pip._internal.cli.parser import ConfigOptionParser
 
 
 def raise_option_error(parser, option, msg):
@@ -48,7 +46,7 @@ def raise_option_error(parser, option, msg):
       option: an Option instance.
       msg: the error text.
     """
-    msg = '{} error: {}'.format(option, msg)
+    msg = f'{option} error: {msg}'
     msg = textwrap.fill(' '.join(msg.split()))
     parser.error(msg)
 
@@ -99,8 +97,8 @@ def check_dist_restriction(options, check_target=False):
     """
     dist_restriction_set = any([
         options.python_version,
-        options.platform,
-        options.abi,
+        options.platforms,
+        options.abis,
         options.implementation,
     ])
 
@@ -135,9 +133,15 @@ def _path_option_check(option, opt, value):
     return os.path.expanduser(value)
 
 
+def _package_name_option_check(option, opt, value):
+    # type: (Option, str, str) -> str
+    return canonicalize_name(value)
+
+
 class PipOption(Option):
-    TYPES = Option.TYPES + ("path",)
+    TYPES = Option.TYPES + ("path", "package_name")
     TYPE_CHECKER = Option.TYPE_CHECKER.copy()
+    TYPE_CHECKER["package_name"] = _package_name_option_check
     TYPE_CHECKER["path"] = _path_option_check
 
 
@@ -190,7 +194,7 @@ no_color = partial(
     dest='no_color',
     action='store_true',
     default=False,
-    help="Suppress colored output",
+    help="Suppress colored output.",
 )  # type: Callable[..., Option]
 
 version = partial(
@@ -243,7 +247,7 @@ no_input = partial(
     dest='no_input',
     action='store_true',
     default=False,
-    help=SUPPRESS_HELP
+    help="Disable prompting for input."
 )  # type: Callable[..., Option]
 
 proxy = partial(
@@ -273,16 +277,6 @@ timeout = partial(
     type='float',
     default=15,
     help='Set the socket timeout (default %default seconds).',
-)  # type: Callable[..., Option]
-
-skip_requirements_regex = partial(
-    Option,
-    # A regex to be used to skip requirements
-    '--skip-requirements-regex',
-    dest='skip_requirements_regex',
-    type='str',
-    default='',
-    help=SUPPRESS_HELP,
 )  # type: Callable[..., Option]
 
 
@@ -367,9 +361,11 @@ def find_links():
         action='append',
         default=[],
         metavar='url',
-        help="If a url or path to an html file, then parse for links to "
-             "archives. If a local path or file:// url that's a directory, "
-             "then look for archives in the directory listing.",
+        help="If a URL or path to an html file, then parse for links to "
+             "archives such as sdist (.tar.gz) or wheel (.whl) files. "
+             "If a local path or file:// URL that's a directory,  "
+             "then look for archives in the directory listing. "
+             "Links to VCS project URLs are not supported.",
     )
 
 
@@ -475,12 +471,12 @@ def no_binary():
         "--no-binary", dest="format_control", action="callback",
         callback=_handle_no_binary, type="str",
         default=format_control,
-        help="Do not use binary packages. Can be supplied multiple times, and "
-             "each time adds to the existing value. Accepts either :all: to "
-             "disable all binary packages, :none: to empty the set, or one or "
-             "more package names with commas between them (no colons). Note "
-             "that some packages are tricky to compile and may fail to "
-             "install when this option is used on them.",
+        help='Do not use binary packages. Can be supplied multiple times, and '
+             'each time adds to the existing value. Accepts either ":all:" to '
+             'disable all binary packages, ":none:" to empty the set (notice '
+             'the colons), or one or more package names with commas between '
+             'them (no colons). Note that some packages are tricky to compile '
+             'and may fail to install when this option is used on them.',
     )
 
 
@@ -491,23 +487,25 @@ def only_binary():
         "--only-binary", dest="format_control", action="callback",
         callback=_handle_only_binary, type="str",
         default=format_control,
-        help="Do not use source packages. Can be supplied multiple times, and "
-             "each time adds to the existing value. Accepts either :all: to "
-             "disable all source packages, :none: to empty the set, or one or "
-             "more package names with commas between them. Packages without "
-             "binary distributions will fail to install when this option is "
-             "used on them.",
+        help='Do not use source packages. Can be supplied multiple times, and '
+             'each time adds to the existing value. Accepts either ":all:" to '
+             'disable all source packages, ":none:" to empty the set, or one '
+             'or more package names with commas between them. Packages '
+             'without binary distributions will fail to install when this '
+             'option is used on them.',
     )
 
 
-platform = partial(
+platforms = partial(
     Option,
     '--platform',
-    dest='platform',
+    dest='platforms',
     metavar='platform',
+    action='append',
     default=None,
-    help=("Only use wheels compatible with <platform>. "
-          "Defaults to the platform of the running system."),
+    help=("Only use wheels compatible with <platform>. Defaults to the "
+          "platform of the running system. Use this option multiple times to "
+          "specify multiple platforms supported by the target interpreter."),
 )  # type: Callable[..., Option]
 
 
@@ -591,35 +589,36 @@ implementation = partial(
 )  # type: Callable[..., Option]
 
 
-abi = partial(
+abis = partial(
     Option,
     '--abi',
-    dest='abi',
+    dest='abis',
     metavar='abi',
+    action='append',
     default=None,
-    help=("Only use wheels compatible with Python "
-          "abi <abi>, e.g. 'pypy_41'.  If not specified, then the "
-          "current interpreter abi tag is used.  Generally "
-          "you will need to specify --implementation, "
-          "--platform, and --python-version when using "
-          "this option."),
+    help=("Only use wheels compatible with Python abi <abi>, e.g. 'pypy_41'. "
+          "If not specified, then the current interpreter abi tag is used. "
+          "Use this option multiple times to specify multiple abis supported "
+          "by the target interpreter. Generally you will need to specify "
+          "--implementation, --platform, and --python-version when using this "
+          "option."),
 )  # type: Callable[..., Option]
 
 
 def add_target_python_options(cmd_opts):
     # type: (OptionGroup) -> None
-    cmd_opts.add_option(platform())
+    cmd_opts.add_option(platforms())
     cmd_opts.add_option(python_version())
     cmd_opts.add_option(implementation())
-    cmd_opts.add_option(abi())
+    cmd_opts.add_option(abis())
 
 
 def make_target_python(options):
     # type: (Values) -> TargetPython
     target_python = TargetPython(
-        platform=options.platform,
+        platforms=options.platforms,
         py_version_info=options.python_version,
-        abi=options.abi,
+        abis=options.abis,
         implementation=options.implementation,
     )
 
@@ -694,27 +693,13 @@ no_deps = partial(
     help="Don't install package dependencies.",
 )  # type: Callable[..., Option]
 
-
-def _handle_build_dir(option, opt, value, parser):
-    # type: (Option, str, str, OptionParser) -> None
-    if value:
-        value = os.path.abspath(value)
-    setattr(parser.values, option.dest, value)
-
-
 build_dir = partial(
     PipOption,
     '-b', '--build', '--build-dir', '--build-directory',
     dest='build_dir',
     type='path',
     metavar='dir',
-    action='callback',
-    callback=_handle_build_dir,
-    help='Directory to unpack packages into and build in. Note that '
-         'an initial build still takes place in a temporary directory. '
-         'The location of temporary directories can be controlled by setting '
-         'the TMPDIR environment variable (TEMP on Windows) appropriately. '
-         'When passed, build directories are not cleaned in case of failures.'
+    help=SUPPRESS_HELP,
 )  # type: Callable[..., Option]
 
 ignore_requires_python = partial(
@@ -832,16 +817,6 @@ disable_pip_version_check = partial(
 )  # type: Callable[..., Option]
 
 
-# Deprecated, Remove later
-always_unzip = partial(
-    Option,
-    '-Z', '--always-unzip',
-    dest='always_unzip',
-    action='store_true',
-    help=SUPPRESS_HELP,
-)  # type: Callable[..., Option]
-
-
 def _handle_merge_hash(option, opt_str, value, parser):
     # type: (Option, str, str, OptionParser) -> None
     """Given a value spelled "algo:digest", append the digest to a list
@@ -851,12 +826,12 @@ def _handle_merge_hash(option, opt_str, value, parser):
     try:
         algo, digest = value.split(':', 1)
     except ValueError:
-        parser.error('Arguments to %s must be a hash name '
-                     'followed by a value, like --hash=sha256:abcde...' %
-                     opt_str)
+        parser.error('Arguments to {} must be a hash name '  # noqa
+                     'followed by a value, like --hash=sha256:'
+                     'abcde...'.format(opt_str))
     if algo not in STRONG_HASHES:
-        parser.error('Allowed hash algorithms for %s are %s.' %
-                     (opt_str, ', '.join(STRONG_HASHES)))
+        parser.error('Allowed hash algorithms for {} are {}.'.format(  # noqa
+                     opt_str, ', '.join(STRONG_HASHES)))
     parser.values.hashes.setdefault(algo, []).append(digest)
 
 
@@ -905,6 +880,17 @@ def check_list_path_option(options):
         )
 
 
+list_exclude = partial(
+    PipOption,
+    '--exclude',
+    dest='excludes',
+    action='append',
+    metavar='package',
+    type='package_name',
+    help="Exclude specified package from the output",
+)  # type: Callable[..., Option]
+
+
 no_python_version_warning = partial(
     Option,
     '--no-python-version-warning',
@@ -912,6 +898,31 @@ no_python_version_warning = partial(
     action='store_true',
     default=False,
     help='Silence deprecation warnings for upcoming unsupported Pythons.',
+)  # type: Callable[..., Option]
+
+
+use_new_feature = partial(
+    Option,
+    '--use-feature',
+    dest='features_enabled',
+    metavar='feature',
+    action='append',
+    default=[],
+    choices=['2020-resolver', 'fast-deps'],
+    help='Enable new functionality, that may be backward incompatible.',
+)  # type: Callable[..., Option]
+
+use_deprecated_feature = partial(
+    Option,
+    '--use-deprecated',
+    dest='deprecated_features_enabled',
+    metavar='feature',
+    action='append',
+    default=[],
+    choices=['legacy-resolver'],
+    help=(
+        'Enable deprecated functionality, that will be removed in the future.'
+    ),
 )  # type: Callable[..., Option]
 
 
@@ -933,7 +944,6 @@ general_group = {
         proxy,
         retries,
         timeout,
-        skip_requirements_regex,
         exists_action,
         trusted_host,
         cert,
@@ -943,6 +953,8 @@ general_group = {
         disable_pip_version_check,
         no_color,
         no_python_version_warning,
+        use_new_feature,
+        use_deprecated_feature,
     ]
 }  # type: Dict[str, Any]
 

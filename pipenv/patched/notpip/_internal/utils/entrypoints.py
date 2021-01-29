@@ -1,10 +1,10 @@
 import sys
 
-from pipenv.patched.notpip._internal.cli.main import main
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.cli.main import main
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Optional, List
+    from typing import List, Optional
 
 
 def _wrapper(args=None):

@@ -1,20 +1,18 @@
-from __future__ import absolute_import
-
 import logging
-import sys
 from email.parser import FeedParser
 
-from pipenv.patched.notpip._vendor import pkg_resources
-from pipenv.patched.notpip._vendor.packaging import specifiers, version
+from pip._vendor import pkg_resources
+from pip._vendor.packaging import specifiers, version
 
-from pipenv.patched.notpip._internal.exceptions import NoneMetadataError
-from pipenv.patched.notpip._internal.utils.misc import display_path
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.exceptions import NoneMetadataError
+from pip._internal.utils.misc import display_path
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Optional, Tuple
     from email.message import Message
-    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
+    from typing import Optional, Tuple
+
+    from pip._vendor.pkg_resources import Distribution
 
 
 logger = logging.getLogger(__name__)
@@ -38,7 +36,7 @@ def check_requires_python(requires_python, version_info):
         return True
     requires_python_specifier = specifiers.SpecifierSet(requires_python)
 
-    python_version = version.parse('{0}.{1}.{2}'.format(*sys.version_info[:3]))
+    python_version = version.parse('.'.join(map(str, version_info)))
     return python_version in requires_python_specifier
 
 

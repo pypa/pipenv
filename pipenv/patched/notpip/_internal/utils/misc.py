@@ -2,8 +2,6 @@
 # mypy: strict-optional=False
 # mypy: disallow-untyped-defs=False
 
-from __future__ import absolute_import
-
 import contextlib
 import errno
 import getpass
@@ -15,49 +13,45 @@ import posixpath
 import shutil
 import stat
 import sys
-from collections import deque
+import urllib.parse
+from io import StringIO
+from itertools import filterfalse, tee, zip_longest
 
-from pipenv.patched.notpip._vendor import pkg_resources
+from pip._vendor import pkg_resources
+from pip._vendor.packaging.utils import canonicalize_name
+
 # NOTE: retrying is not annotated in typeshed as on 2017-07-17, which is
 #       why we ignore the type on this import.
-from pipenv.patched.notpip._vendor.retrying import retry  # type: ignore
-from pipenv.patched.notpip._vendor.six import PY2, text_type
-from pipenv.patched.notpip._vendor.six.moves import input
-from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
-from pipenv.patched.notpip._vendor.six.moves.urllib.parse import unquote as urllib_unquote
+from pip._vendor.retrying import retry  # type: ignore
 
-from pipenv.patched.notpip import __version__
-from pipenv.patched.notpip._internal.exceptions import CommandError
-from pipenv.patched.notpip._internal.locations import (
-    get_major_minor_version,
-    site_packages,
-    user_site,
-)
-from pipenv.patched.notpip._internal.utils.compat import (
-    WINDOWS,
-    expanduser,
-    stdlib_pkgs,
-    str_to_display,
-)
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING, cast
-from pipenv.patched.notpip._internal.utils.virtualenv import (
+from pip import __version__
+from pip._internal.exceptions import CommandError
+from pip._internal.locations import get_major_minor_version, site_packages, user_site
+from pip._internal.utils.compat import WINDOWS, stdlib_pkgs
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING, cast
+from pip._internal.utils.virtualenv import (
     running_under_virtualenv,
     virtualenv_no_global,
 )
 
-if PY2:
-    from io import BytesIO as StringIO
-else:
-    from io import StringIO
-
 if MYPY_CHECK_RUNNING:
     from typing import (
-        Any, AnyStr, Container, Iterable, List, Optional, Text,
-        Tuple, Union,
+        Any,
+        AnyStr,
+        Callable,
+        Container,
+        Iterable,
+        Iterator,
+        List,
+        Optional,
+        Tuple,
+        TypeVar,
     )
-    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
+
+    from pip._vendor.pkg_resources import Distribution
 
     VersionInfo = Tuple[int, int, int]
+    T = TypeVar("T")
 
 
 __all__ = ['rmtree', 'display_path', 'backup_dir',
@@ -120,7 +114,7 @@ def get_prog():
     try:
         prog = os.path.basename(sys.argv[0])
         if prog in ('__main__.py', '-c'):
-            return "%s -m pip" % sys.executable
+            return f"{sys.executable} -m pip"
         else:
             return prog
     except (AttributeError, TypeError, IndexError):
@@ -131,9 +125,9 @@ def get_prog():
 # Retry every half second for up to 3 seconds
 @retry(stop_max_delay=3000, wait_fixed=500)
 def rmtree(dir, ignore_errors=False):
-    # type: (str, bool) -> None
-    from pipenv.vendor.vistir.path import rmtree as vistir_rmtree, handle_remove_readonly
-    vistir_rmtree(dir, onerror=handle_remove_readonly, ignore_errors=ignore_errors)
+    # type: (AnyStr, bool) -> None
+    shutil.rmtree(dir, ignore_errors=ignore_errors,
+                  onerror=rmtree_errorhandler)
 
 
 def rmtree_errorhandler(func, path, exc_info):
@@ -142,7 +136,7 @@ def rmtree_errorhandler(func, path, exc_info):
     read-only attribute, and hopefully continue without problems."""
     try:
         has_attr_readonly = not (os.stat(path).st_mode & stat.S_IWRITE)
-    except (IOError, OSError):
+    except OSError:
         # it's equivalent to os.path.exists
         return
 
@@ -157,7 +151,7 @@ def rmtree_errorhandler(func, path, exc_info):
 
 
 def path_to_display(path):
-    # type: (Optional[Union[str, Text]]) -> Optional[Text]
+    # type: (Optional[str]) -> Optional[str]
     """
     Convert a bytes (or text) path to text (unicode in Python 2) for display
     and logging purposes.
@@ -167,7 +161,7 @@ def path_to_display(path):
     """
     if path is None:
         return None
-    if isinstance(path, text_type):
+    if isinstance(path, str):
         return path
     # Otherwise, path is a bytes object (str in Python 2).
     try:
@@ -175,29 +169,16 @@ def path_to_display(path):
     except UnicodeDecodeError:
         # Include the full bytes to make troubleshooting easier, even though
         # it may not be very human readable.
-        if PY2:
-            # Convert the bytes to a readable str representation using
-            # repr(), and then convert the str to unicode.
-            #   Also, we add the prefix "b" to the repr() return value both
-            # to make the Python 2 output look like the Python 3 output, and
-            # to signal to the user that this is a bytes representation.
-            display_path = str_to_display('b{!r}'.format(path))
-        else:
-            # Silence the "F821 undefined name 'ascii'" flake8 error since
-            # in Python 3 ascii() is a built-in.
-            display_path = ascii(path)  # noqa: F821
+        display_path = ascii(path)
 
     return display_path
 
 
 def display_path(path):
-    # type: (Union[str, Text]) -> str
+    # type: (str) -> str
     """Gives the display value for a given path, making it relative to cwd
     if possible."""
     path = os.path.normcase(os.path.abspath(path))
-    if sys.version_info[0] == 2:
-        path = path.decode(sys.getfilesystemencoding(), 'replace')
-        path = path.encode(sys.getdefaultencoding(), 'replace')
     if path.startswith(os.getcwd() + os.path.sep):
         path = '.' + path[len(os.getcwd()):]
     return path
@@ -228,8 +209,8 @@ def _check_no_input(message):
     """Raise an error if no input is allowed."""
     if os.environ.get('PIP_NO_INPUT'):
         raise Exception(
-            'No input was expected ($PIP_NO_INPUT set); question: %s' %
-            message
+            'No input was expected ($PIP_NO_INPUT set); question: {}'.format(
+                message)
         )
 
 
@@ -242,8 +223,8 @@ def ask(message, options):
         response = response.strip().lower()
         if response not in options:
             print(
-                'Your response (%r) was not one of the expected responses: '
-                '%s' % (response, ', '.join(options))
+                'Your response ({!r}) was not one of the expected responses: '
+                '{}'.format(response, ', '.join(options))
             )
         else:
             return response
@@ -263,16 +244,48 @@ def ask_password(message):
     return getpass.getpass(message)
 
 
+def strtobool(val):
+    # type: (str) -> int
+    """Convert a string representation of truth to true (1) or false (0).
+
+    True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
+    are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
+    'val' is anything else.
+    """
+    val = val.lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return 1
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return 0
+    else:
+        raise ValueError("invalid truth value %r" % (val,))
+
+
 def format_size(bytes):
     # type: (float) -> str
     if bytes > 1000 * 1000:
-        return '%.1f MB' % (bytes / 1000.0 / 1000)
+        return '{:.1f} MB'.format(bytes / 1000.0 / 1000)
     elif bytes > 10 * 1000:
-        return '%i kB' % (bytes / 1000)
+        return '{} kB'.format(int(bytes / 1000))
     elif bytes > 1000:
-        return '%.1f kB' % (bytes / 1000.0)
+        return '{:.1f} kB'.format(bytes / 1000.0)
     else:
-        return '%i bytes' % bytes
+        return '{} bytes'.format(int(bytes))
+
+
+def tabulate(rows):
+    # type: (Iterable[Iterable[Any]]) -> Tuple[List[str], List[int]]
+    """Return a list of formatted rows and a list of column sizes.
+
+    For example::
+
+    >>> tabulate([['foobar', 2000], [0xdeadbeef]])
+    (['foobar     2000', '3735928559'], [10, 4])
+    """
+    rows = [tuple(map(str, row)) for row in rows]
+    sizes = [max(map(len, col)) for col in zip_longest(*rows, fillvalue='')]
+    table = [" ".join(map(str.ljust, row, sizes)).rstrip() for row in rows]
+    return table, sizes
 
 
 def is_installable_dir(path):
@@ -305,7 +318,7 @@ def normalize_path(path, resolve_symlinks=True):
     Convert a path to its canonical, case-normalized, absolute version.
 
     """
-    path = expanduser(path)
+    path = os.path.expanduser(path)
     if resolve_symlinks:
         path = os.path.realpath(path)
     else:
@@ -465,6 +478,57 @@ def get_installed_distributions(
             ]
 
 
+def _search_distribution(req_name):
+    # type: (str) -> Optional[Distribution]
+    """Find a distribution matching the ``req_name`` in the environment.
+
+    This searches from *all* distributions available in the environment, to
+    match the behavior of ``pkg_resources.get_distribution()``.
+    """
+    # Canonicalize the name before searching in the list of
+    # installed distributions and also while creating the package
+    # dictionary to get the Distribution object
+    req_name = canonicalize_name(req_name)
+    packages = get_installed_distributions(
+        local_only=False,
+        skip=(),
+        include_editables=True,
+        editables_only=False,
+        user_only=False,
+        paths=None,
+    )
+    pkg_dict = {canonicalize_name(p.key): p for p in packages}
+    return pkg_dict.get(req_name)
+
+
+def get_distribution(req_name):
+    # type: (str) -> Optional[Distribution]
+    """Given a requirement name, return the installed Distribution object.
+
+    This searches from *all* distributions available in the environment, to
+    match the behavior of ``pkg_resources.get_distribution()``.
+    """
+
+    # Search the distribution by looking through the working set
+    dist = _search_distribution(req_name)
+
+    # If distribution could not be found, call working_set.require
+    # to update the working set, and try to find the distribution
+    # again.
+    # This might happen for e.g. when you install a package
+    # twice, once using setup.py develop and again using setup.py install.
+    # Now when run pip uninstall twice, the package gets removed
+    # from the working set in the first uninstall, so we have to populate
+    # the working set again so that pip knows about it and the packages
+    # gets picked up and is successfully uninstalled the second time too.
+    if not dist:
+        try:
+            pkg_resources.working_set.require(req_name)
+        except pkg_resources.DistributionNotFound:
+            return None
+    return _search_distribution(req_name)
+
+
 def egg_link_path(dist):
     # type: (Distribution) -> Optional[str]
     """
@@ -518,27 +582,8 @@ def dist_location(dist):
 
 
 def write_output(msg, *args):
-    # type: (str, str) -> None
+    # type: (Any, Any) -> None
     logger.info(msg, *args)
-
-
-class FakeFile(object):
-    """Wrap a list of lines in an object with readline() to make
-    ConfigParser happy."""
-    def __init__(self, lines):
-        self._gen = (l for l in lines)
-
-    def readline(self):
-        try:
-            try:
-                return next(self._gen)
-            except NameError:
-                return self._gen.next()
-        except StopIteration:
-            return ''
-
-    def __iter__(self):
-        return self._gen
 
 
 class StreamWrapper(StringIO):
@@ -588,26 +633,6 @@ def captured_stderr():
     return captured_output('stderr')
 
 
-class cached_property(object):
-    """A property that is only computed once per instance and then replaces
-       itself with an ordinary attribute. Deleting the attribute resets the
-       property.
-
-       Source: https://github.com/bottlepy/bottle/blob/0.11.5/bottle.py#L175
-    """
-
-    def __init__(self, func):
-        self.__doc__ = getattr(func, '__doc__')
-        self.func = func
-
-    def __get__(self, obj, cls):
-        if obj is None:
-            # We're being accessed from the class itself, not from an object
-            return self
-        value = obj.__dict__[self.func.__name__] = self.func(obj)
-        return value
-
-
 def get_installed_version(dist_name, working_set=None):
     """Get the installed version of dist_name avoiding pkg_resources cache"""
     # Create a requirement that we'll look for inside of setuptools.
@@ -624,11 +649,6 @@ def get_installed_version(dist_name, working_set=None):
     # Check to see if we got an installed distribution or not, if we did
     # we want to return it's version.
     return dist.version if dist else None
-
-
-def consume(iterator):
-    """Consume an iterable at C speed."""
-    deque(iterator, maxlen=0)
 
 
 # Simulates an enum
@@ -648,8 +668,8 @@ def build_netloc(host, port):
         return host
     if ':' in host:
         # Only wrap host with square brackets when it is IPv6
-        host = '[{}]'.format(host)
-    return '{}:{}'.format(host, port)
+        host = f'[{host}]'
+    return f'{host}:{port}'
 
 
 def build_url_from_netloc(netloc, scheme='https'):
@@ -659,8 +679,8 @@ def build_url_from_netloc(netloc, scheme='https'):
     """
     if netloc.count(':') >= 2 and '@' not in netloc and '[' not in netloc:
         # It must be a bare IPv6 address, so wrap it with brackets.
-        netloc = '[{}]'.format(netloc)
-    return '{}://{}'.format(scheme, netloc)
+        netloc = f'[{netloc}]'
+    return f'{scheme}://{netloc}'
 
 
 def parse_netloc(netloc):
@@ -669,7 +689,7 @@ def parse_netloc(netloc):
     Return the host-port pair from a netloc.
     """
     url = build_url_from_netloc(netloc)
-    parsed = urllib_parse.urlparse(url)
+    parsed = urllib.parse.urlparse(url)
     return parsed.hostname, parsed.port
 
 
@@ -695,7 +715,7 @@ def split_auth_from_netloc(netloc):
         user_pass = auth, None
 
     user_pass = tuple(
-        None if x is None else urllib_unquote(x) for x in user_pass
+        None if x is None else urllib.parse.unquote(x) for x in user_pass
     )
 
     return netloc, user_pass
@@ -717,7 +737,7 @@ def redact_netloc(netloc):
         user = '****'
         password = ''
     else:
-        user = urllib_parse.quote(user)
+        user = urllib.parse.quote(user)
         password = ':****'
     return '{user}{password}@{netloc}'.format(user=user,
                                               password=password,
@@ -734,13 +754,13 @@ def _transform_url(url, transform_netloc):
     Returns a tuple containing the transformed url as item 0 and the
     original tuple returned by transform_netloc as item 1.
     """
-    purl = urllib_parse.urlsplit(url)
+    purl = urllib.parse.urlsplit(url)
     netloc_tuple = transform_netloc(purl.netloc)
     # stripped url
     url_pieces = (
         purl.scheme, netloc_tuple[0], purl.path, purl.query, purl.fragment
     )
-    surl = urllib_parse.urlunsplit(url_pieces)
+    surl = urllib.parse.urlunsplit(url_pieces)
     return surl, netloc_tuple
 
 
@@ -777,7 +797,7 @@ def redact_auth_from_url(url):
     return _transform_url(url, _redact_netloc)[0]
 
 
-class HiddenText(object):
+class HiddenText:
     def __init__(
         self,
         secret,    # type: str
@@ -804,12 +824,6 @@ class HiddenText(object):
         # The string being used for redaction doesn't also have to match,
         # just the raw, original string.
         return (self.secret == other.secret)
-
-    # We need to provide an explicit __ne__ implementation for Python 2.
-    # TODO: remove this when we drop PY2 support.
-    def __ne__(self, other):
-        # type: (Any) -> bool
-        return not self == other
 
 
 def hide_value(value):
@@ -884,3 +898,30 @@ def is_wheel_installed():
         return False
 
     return True
+
+
+def pairwise(iterable):
+    # type: (Iterable[Any]) -> Iterator[Tuple[Any, Any]]
+    """
+    Return paired elements.
+
+    For example:
+        s -> (s0, s1), (s2, s3), (s4, s5), ...
+    """
+    iterable = iter(iterable)
+    return zip_longest(iterable, iterable)
+
+
+def partition(
+    pred,  # type: Callable[[T], bool]
+    iterable,  # type: Iterable[T]
+):
+    # type: (...) -> Tuple[Iterable[T], Iterable[T]]
+    """
+    Use a predicate to partition entries into false entries and true entries,
+    like
+
+        partition(is_odd, range(10)) --> 0 2 4 6 8   and  1 3 5 7 9
+    """
+    t1, t2 = tee(iterable)
+    return filterfalse(pred, t1), filter(pred, t2)

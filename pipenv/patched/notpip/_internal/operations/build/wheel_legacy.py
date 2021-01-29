@@ -1,31 +1,29 @@
 import logging
 import os.path
 
-from pipenv.patched.notpip._internal.utils.setuptools_build import (
-    make_setuptools_bdist_wheel_args,
-)
-from pipenv.patched.notpip._internal.utils.subprocess import (
+from pip._internal.cli.spinners import open_spinner
+from pip._internal.utils.setuptools_build import make_setuptools_bdist_wheel_args
+from pip._internal.utils.subprocess import (
     LOG_DIVIDER,
     call_subprocess,
     format_command_args,
 )
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.utils.ui import open_spinner
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import List, Optional, Text
+    from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 def format_command_result(
     command_args,  # type: List[str]
-    command_output,  # type: Text
+    command_output,  # type: str
 ):
     # type: (...) -> str
     """Format command information for logging."""
     command_desc = format_command_args(command_args)
-    text = 'Command arguments: {}\n'.format(command_desc)
+    text = f'Command arguments: {command_desc}\n'
 
     if not command_output:
         text += 'Command output: None'
@@ -34,7 +32,7 @@ def format_command_result(
     else:
         if not command_output.endswith('\n'):
             command_output += '\n'
-        text += 'Command output:\n{}{}'.format(command_output, LOG_DIVIDER)
+        text += f'Command output:\n{command_output}{LOG_DIVIDER}'
 
     return text
 
@@ -44,7 +42,7 @@ def get_legacy_build_wheel_path(
     temp_dir,  # type: str
     name,  # type: str
     command_args,  # type: List[str]
-    command_output,  # type: Text
+    command_output,  # type: str
 ):
     # type: (...) -> Optional[str]
     """Return the path to the wheel in the temporary build directory."""
@@ -89,7 +87,7 @@ def build_wheel_legacy(
         destination_dir=tempd,
     )
 
-    spin_message = 'Building wheel for %s (setup.py)' % (name,)
+    spin_message = f'Building wheel for {name} (setup.py)'
     with open_spinner(spin_message) as spinner:
         logger.debug('Destination directory: %s', tempd)
 

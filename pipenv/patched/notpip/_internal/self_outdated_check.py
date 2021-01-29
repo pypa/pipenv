@@ -1,8 +1,3 @@
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
-
-from __future__ import absolute_import
-
 import datetime
 import hashlib
 import json
@@ -10,33 +5,22 @@ import logging
 import os.path
 import sys
 
-from pipenv.patched.notpip._vendor import pkg_resources
-from pipenv.patched.notpip._vendor.packaging import version as packaging_version
-from pipenv.patched.notpip._vendor.six import ensure_binary
+from pip._vendor.packaging import version as packaging_version
+from pip._vendor.six import ensure_binary
 
-from pipenv.patched.notpip._internal.index.collector import LinkCollector
-from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
-from pipenv.patched.notpip._internal.models.search_scope import SearchScope
-from pipenv.patched.notpip._internal.models.selection_prefs import SelectionPreferences
-from pipenv.patched.notpip._internal.utils.filesystem import (
-    adjacent_tmp_file,
-    check_path_owner,
-    replace,
-)
-from pipenv.patched.notpip._internal.utils.misc import (
-    ensure_dir,
-    get_installed_version,
-    redact_auth_from_url,
-)
-from pipenv.patched.notpip._internal.utils.packaging import get_installer
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.index.collector import LinkCollector
+from pip._internal.index.package_finder import PackageFinder
+from pip._internal.models.selection_prefs import SelectionPreferences
+from pip._internal.utils.filesystem import adjacent_tmp_file, check_path_owner, replace
+from pip._internal.utils.misc import ensure_dir, get_distribution, get_installed_version
+from pip._internal.utils.packaging import get_installer
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     import optparse
-    from optparse import Values
-    from typing import Any, Dict, Text, Union
+    from typing import Any, Dict
 
-    from pipenv.patched.notpip._internal.network.session import PipSession
+    from pip._internal.network.session import PipSession
 
 
 SELFCHECK_DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
@@ -45,45 +29,14 @@ SELFCHECK_DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
 logger = logging.getLogger(__name__)
 
 
-def make_link_collector(
-    session,  # type: PipSession
-    options,  # type: Values
-    suppress_no_index=False,  # type: bool
-):
-    # type: (...) -> LinkCollector
-    """
-    :param session: The Session to use to make requests.
-    :param suppress_no_index: Whether to ignore the --no-index option
-        when constructing the SearchScope object.
-    """
-    index_urls = [options.index_url] + options.extra_index_urls
-    if options.no_index and not suppress_no_index:
-        logger.debug(
-            'Ignoring indexes: %s',
-            ','.join(redact_auth_from_url(url) for url in index_urls),
-        )
-        index_urls = []
-
-    # Make sure find_links is a list before passing to create().
-    find_links = options.find_links or []
-
-    search_scope = SearchScope.create(
-        find_links=find_links, index_urls=index_urls,
-    )
-
-    link_collector = LinkCollector(session=session, search_scope=search_scope)
-
-    return link_collector
-
-
 def _get_statefile_name(key):
-    # type: (Union[str, Text]) -> str
+    # type: (str) -> str
     key_bytes = ensure_binary(key)
     name = hashlib.sha224(key_bytes).hexdigest()
     return name
 
 
-class SelfCheckState(object):
+class SelfCheckState:
     def __init__(self, cache_dir):
         # type: (str) -> None
         self.state = {}  # type: Dict[str, Any]
@@ -97,13 +50,14 @@ class SelfCheckState(object):
             try:
                 with open(self.statefile_path) as statefile:
                     self.state = json.load(statefile)
-            except (IOError, ValueError, KeyError):
+            except (OSError, ValueError, KeyError):
                 # Explicitly suppressing exceptions, since we don't want to
                 # error out if the cache file is invalid.
                 pass
 
     @property
     def key(self):
+        # type: () -> str
         return sys.prefix
 
     def save(self, pypi_version, current_time):
@@ -149,11 +103,10 @@ def was_installed_by_pip(pkg):
     This is used not to display the upgrade message when pip is in fact
     installed by system package manager, such as dnf on Fedora.
     """
-    try:
-        dist = pkg_resources.get_distribution(pkg)
-        return "pip" == get_installer(dist)
-    except pkg_resources.DistributionNotFound:
+    dist = get_distribution(pkg)
+    if not dist:
         return False
+    return "pip" == get_installer(dist)
 
 
 def pip_self_version_check(session, options):
@@ -187,7 +140,7 @@ def pip_self_version_check(session, options):
         # Refresh the version if we need to or just see if we need to warn
         if pypi_version is None:
             # Lets use PackageFinder to see what the latest pip version is
-            link_collector = make_link_collector(
+            link_collector = LinkCollector.create(
                 session,
                 options=options,
                 suppress_no_index=True,
@@ -228,7 +181,7 @@ def pip_self_version_check(session, options):
         # command context, so be pragmatic here and suggest the command
         # that's always available. This does not accommodate spaces in
         # `sys.executable`.
-        pip_cmd = "{} -m pip".format(sys.executable)
+        pip_cmd = f"{sys.executable} -m pip"
         logger.warning(
             "You are using pip version %s; however, version %s is "
             "available.\nYou should consider upgrading via the "

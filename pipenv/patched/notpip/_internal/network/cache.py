@@ -1,22 +1,19 @@
 """HTTP cache implementation.
 """
 
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
-
 import os
 from contextlib import contextmanager
 
-from pipenv.patched.notpip._vendor.cachecontrol.cache import BaseCache
-from pipenv.patched.notpip._vendor.cachecontrol.caches import FileCache
-from pipenv.patched.notpip._vendor.requests.models import Response
+from pip._vendor.cachecontrol.cache import BaseCache
+from pip._vendor.cachecontrol.caches import FileCache
+from pip._vendor.requests.models import Response
 
-from pipenv.patched.notpip._internal.utils.filesystem import adjacent_tmp_file, replace
-from pipenv.patched.notpip._internal.utils.misc import ensure_dir
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.filesystem import adjacent_tmp_file, replace
+from pip._internal.utils.misc import ensure_dir
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Optional
+    from typing import Iterator, Optional
 
 
 def is_from_cache(response):
@@ -26,12 +23,13 @@ def is_from_cache(response):
 
 @contextmanager
 def suppressed_cache_errors():
+    # type: () -> Iterator[None]
     """If we can't access the cache then we can just skip caching and process
     requests as if caching wasn't enabled.
     """
     try:
         yield
-    except (OSError, IOError):
+    except OSError:
         pass
 
 
@@ -44,7 +42,7 @@ class SafeFileCache(BaseCache):
     def __init__(self, directory):
         # type: (str) -> None
         assert directory is not None, "Cache directory must not be None."
-        super(SafeFileCache, self).__init__()
+        super().__init__()
         self.directory = directory
 
     def _get_cache_path(self, name):

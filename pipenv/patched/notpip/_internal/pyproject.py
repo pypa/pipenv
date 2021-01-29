@@ -1,37 +1,27 @@
-from __future__ import absolute_import
-
-import io
 import os
-import sys
 from collections import namedtuple
 
-from pipenv.patched.notpip._vendor import pytoml, six
-from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
+from pip._vendor import toml
+from pip._vendor.packaging.requirements import InvalidRequirement, Requirement
 
-from pipenv.patched.notpip._internal.exceptions import InstallationError
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.exceptions import InstallationError
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Any, Optional, List
+    from typing import Any, List, Optional
 
 
 def _is_list_of_str(obj):
     # type: (Any) -> bool
     return (
         isinstance(obj, list) and
-        all(isinstance(item, six.string_types) for item in obj)
+        all(isinstance(item, str) for item in obj)
     )
 
 
 def make_pyproject_path(unpacked_source_directory):
     # type: (str) -> str
-    path = os.path.join(unpacked_source_directory, 'pyproject.toml')
-
-    # Python2 __file__ should not be unicode
-    if six.PY2 and isinstance(path, six.text_type):
-        path = path.encode(sys.getfilesystemencoding())
-
-    return path
+    return os.path.join(unpacked_source_directory, 'pyproject.toml')
 
 
 BuildSystemDetails = namedtuple('BuildSystemDetails', [
@@ -71,8 +61,8 @@ def load_pyproject_toml(
     has_setup = os.path.isfile(setup_py)
 
     if has_pyproject:
-        with io.open(pyproject_toml, encoding="utf-8") as f:
-            pp_toml = pytoml.load(f)
+        with open(pyproject_toml, encoding="utf-8") as f:
+            pp_toml = toml.load(f)
         build_system = pp_toml.get("build-system")
     else:
         build_system = None

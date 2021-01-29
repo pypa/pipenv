@@ -6,11 +6,12 @@ from __future__ import absolute_import, division, print_function
 import collections
 import itertools
 import re
+import warnings
 
 from ._structures import Infinity, NegativeInfinity
-from ._typing import MYPY_CHECK_RUNNING
+from ._typing import TYPE_CHECKING
 
-if MYPY_CHECK_RUNNING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Callable, Iterator, List, Optional, SupportsInt, Tuple, Union
 
     from ._structures import InfinityType, NegativeInfinityType
@@ -71,36 +72,50 @@ class _BaseVersion(object):
         # type: () -> int
         return hash(self._key)
 
+    # Please keep the duplicated `isinstance` check
+    # in the six comparisons hereunder
+    # unless you find a way to avoid adding overhead function calls.
     def __lt__(self, other):
         # type: (_BaseVersion) -> bool
-        return self._compare(other, lambda s, o: s < o)
-
-    def __le__(self, other):
-        # type: (_BaseVersion) -> bool
-        return self._compare(other, lambda s, o: s <= o)
-
-    def __eq__(self, other):
-        # type: (object) -> bool
-        return self._compare(other, lambda s, o: s == o)
-
-    def __ge__(self, other):
-        # type: (_BaseVersion) -> bool
-        return self._compare(other, lambda s, o: s >= o)
-
-    def __gt__(self, other):
-        # type: (_BaseVersion) -> bool
-        return self._compare(other, lambda s, o: s > o)
-
-    def __ne__(self, other):
-        # type: (object) -> bool
-        return self._compare(other, lambda s, o: s != o)
-
-    def _compare(self, other, method):
-        # type: (object, VersionComparisonMethod) -> Union[bool, NotImplemented]
         if not isinstance(other, _BaseVersion):
             return NotImplemented
 
-        return method(self._key, other._key)
+        return self._key < other._key
+
+    def __le__(self, other):
+        # type: (_BaseVersion) -> bool
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+
+        return self._key <= other._key
+
+    def __eq__(self, other):
+        # type: (object) -> bool
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+
+        return self._key == other._key
+
+    def __ge__(self, other):
+        # type: (_BaseVersion) -> bool
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+
+        return self._key >= other._key
+
+    def __gt__(self, other):
+        # type: (_BaseVersion) -> bool
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+
+        return self._key > other._key
+
+    def __ne__(self, other):
+        # type: (object) -> bool
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+
+        return self._key != other._key
 
 
 class LegacyVersion(_BaseVersion):
@@ -108,6 +123,12 @@ class LegacyVersion(_BaseVersion):
         # type: (str) -> None
         self._version = str(version)
         self._key = _legacy_cmpkey(self._version)
+
+        warnings.warn(
+            "Creating a LegacyVersion has been deprecated and will be "
+            "removed in the next major release",
+            DeprecationWarning,
+        )
 
     def __str__(self):
         # type: () -> str

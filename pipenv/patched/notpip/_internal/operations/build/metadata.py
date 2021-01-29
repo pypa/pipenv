@@ -1,18 +1,16 @@
 """Metadata generation logic for source distributions.
 """
 
-import logging
 import os
 
-from pipenv.patched.notpip._internal.utils.subprocess import runner_with_spinner_message
-from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.subprocess import runner_with_spinner_message
+from pip._internal.utils.temp_dir import TempDirectory
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from pipenv.patched.notpip._internal.build_env import BuildEnvironment
-    from pipenv.patched.notpip._vendor.pep517.wrappers import Pep517HookCaller
+    from pip._vendor.pep517.wrappers import Pep517HookCaller
 
-logger = logging.getLogger(__name__)
+    from pip._internal.build_env import BuildEnvironment
 
 
 def generate_metadata(build_env, backend):

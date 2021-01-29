@@ -1,19 +1,15 @@
 """Handles all VCS (version control) support"""
 
-from __future__ import absolute_import
-
-import errno
 import logging
 import os
 import shutil
 import sys
+import urllib.parse
 
-from pipenv.patched.notpip._vendor import pkg_resources
-from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
+from pip._vendor import pkg_resources
 
-from pipenv.patched.notpip._internal.exceptions import BadCommand
-from pipenv.patched.notpip._internal.utils.compat import samefile
-from pipenv.patched.notpip._internal.utils.misc import (
+from pip._internal.exceptions import BadCommand, InstallationError
+from pip._internal.utils.misc import (
     ask_path_exists,
     backup_dir,
     display_path,
@@ -21,18 +17,27 @@ from pipenv.patched.notpip._internal.utils.misc import (
     hide_value,
     rmtree,
 )
-from pipenv.patched.notpip._internal.utils.subprocess import call_subprocess, make_command
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.utils.urls import get_url_scheme
+from pip._internal.utils.subprocess import call_subprocess, make_command
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.urls import get_url_scheme
 
 if MYPY_CHECK_RUNNING:
     from typing import (
-        Any, Dict, Iterable, Iterator, List, Mapping, Optional, Text, Tuple,
-        Type, Union
+        Any,
+        Dict,
+        Iterable,
+        Iterator,
+        List,
+        Mapping,
+        Optional,
+        Tuple,
+        Type,
+        Union,
     )
-    from pipenv.patched.notpip._internal.utils.ui import SpinnerInterface
-    from pipenv.patched.notpip._internal.utils.misc import HiddenText
-    from pipenv.patched.notpip._internal.utils.subprocess import CommandArgs
+
+    from pip._internal.cli.spinners import SpinnerInterface
+    from pip._internal.utils.misc import HiddenText
+    from pip._internal.utils.subprocess import CommandArgs
 
     AuthInfo = Tuple[Optional[str], Optional[str]]
 
@@ -44,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 
 def is_url(name):
-    # type: (Union[str, Text]) -> bool
+    # type: (str) -> bool
     """
     Return true if the name looks like a URL.
     """
@@ -64,9 +69,9 @@ def make_vcs_requirement_url(repo_url, rev, project_name, subdir=None):
       project_name: the (unescaped) project name.
     """
     egg_project_name = pkg_resources.to_filename(project_name)
-    req = '{}@{}#egg={}'.format(repo_url, rev, egg_project_name)
+    req = f'{repo_url}@{rev}#egg={egg_project_name}'
     if subdir:
-        req += '&subdirectory={}'.format(subdir)
+        req += f'&subdirectory={subdir}'
 
     return req
 
@@ -93,7 +98,7 @@ def find_path_to_setup_from_repo_root(location, repo_root):
             )
             return None
 
-    if samefile(repo_root, location):
+    if os.path.samefile(repo_root, location):
         return None
 
     return os.path.relpath(location, repo_root)
@@ -103,7 +108,7 @@ class RemoteNotFoundError(Exception):
     pass
 
 
-class RevOptions(object):
+class RevOptions:
 
     """
     Encapsulates a VCS-specific revision to install, along with any VCS
@@ -135,7 +140,7 @@ class RevOptions(object):
 
     def __repr__(self):
         # type: () -> str
-        return '<RevOptions {}: rev={!r}>'.format(self.vc_class.name, self.rev)
+        return f'<RevOptions {self.vc_class.name}: rev={self.rev!r}>'
 
     @property
     def arg_rev(self):
@@ -163,7 +168,7 @@ class RevOptions(object):
         if not self.rev:
             return ''
 
-        return ' (to revision {})'.format(self.rev)
+        return f' (to revision {self.rev})'
 
     def make_new(self, rev):
         # type: (str) -> RevOptions
@@ -176,7 +181,7 @@ class RevOptions(object):
         return self.vc_class.make_rev_options(rev, extra_args=self.extra_args)
 
 
-class VcsSupport(object):
+class VcsSupport:
     _registry = {}  # type: Dict[str, VersionControl]
     schemes = ['ssh', 'git', 'hg', 'bzr', 'sftp', 'svn']
 
@@ -184,11 +189,8 @@ class VcsSupport(object):
         # type: () -> None
         # Register more schemes with urlparse for various version control
         # systems
-        urllib_parse.uses_netloc.extend(self.schemes)
-        # Python >= 2.7.4, 3.3 doesn't have uses_fragment
-        if getattr(urllib_parse, 'uses_fragment', None):
-            urllib_parse.uses_fragment.extend(self.schemes)
-        super(VcsSupport, self).__init__()
+        urllib.parse.uses_netloc.extend(self.schemes)
+        super().__init__()
 
     def __iter__(self):
         # type: () -> Iterator[str]
@@ -232,12 +234,24 @@ class VcsSupport(object):
         Return a VersionControl object if a repository of that type is found
         at the given directory.
         """
+        vcs_backends = {}
         for vcs_backend in self._registry.values():
-            if vcs_backend.controls_location(location):
-                logger.debug('Determine that %s uses VCS: %s',
-                             location, vcs_backend.name)
-                return vcs_backend
-        return None
+            repo_path = vcs_backend.get_repository_root(location)
+            if not repo_path:
+                continue
+            logger.debug('Determine that %s uses VCS: %s',
+                         location, vcs_backend.name)
+            vcs_backends[repo_path] = vcs_backend
+
+        if not vcs_backends:
+            return None
+
+        # Choose the VCS in the inner-most directory. Since all repository
+        # roots found here would be either `location` or one of its
+        # parents, the longest path should have the most path components,
+        # i.e. the backend representing the inner-most repository.
+        inner_most_repo_path = max(vcs_backends, key=len)
+        return vcs_backends[inner_most_repo_path]
 
     def get_backend_for_scheme(self, scheme):
         # type: (str) -> Optional[VersionControl]
@@ -261,7 +275,7 @@ class VcsSupport(object):
 vcs = VcsSupport()
 
 
-class VersionControl(object):
+class VersionControl:
     name = ''
     dirname = ''
     repo_name = ''
@@ -278,7 +292,7 @@ class VersionControl(object):
         Return whether the vcs prefix (e.g. "git+") should be added to a
         repository's remote url when used in a requirement.
         """
-        return not remote_url.lower().startswith('{}:'.format(cls.name))
+        return not remote_url.lower().startswith(f'{cls.name}:')
 
     @classmethod
     def get_subdirectory(cls, location):
@@ -299,7 +313,7 @@ class VersionControl(object):
 
     @classmethod
     def get_src_requirement(cls, repo_dir, project_name):
-        # type: (str, str) -> Optional[str]
+        # type: (str, str) -> str
         """
         Return the requirement string to use to redownload the files
         currently at the given repository directory.
@@ -312,11 +326,9 @@ class VersionControl(object):
             {repository_url}@{revision}#egg={project_name}
         """
         repo_url = cls.get_remote_url(repo_dir)
-        if repo_url is None:
-            return None
 
         if cls.should_add_vcs_url_prefix(repo_url):
-            repo_url = '{}+{}'.format(cls.name, repo_url)
+            repo_url = f'{cls.name}+{repo_url}'
 
         revision = cls.get_requirement_revision(repo_dir)
         subdir = cls.get_subdirectory(repo_dir)
@@ -411,7 +423,7 @@ class VersionControl(object):
 
         Returns: (url, rev, (username, password)).
         """
-        scheme, netloc, path, query, frag = urllib_parse.urlsplit(url)
+        scheme, netloc, path, query, frag = urllib.parse.urlsplit(url)
         if '+' not in scheme:
             raise ValueError(
                 "Sorry, {!r} is a malformed VCS url. "
@@ -424,7 +436,13 @@ class VersionControl(object):
         rev = None
         if '@' in path:
             path, rev = path.rsplit('@', 1)
-        url = urllib_parse.urlunsplit((scheme, netloc, path, query, ''))
+            if not rev:
+                raise InstallationError(
+                    "The URL {!r} has an empty revision (after @) "
+                    "which is not supported. Include a revision after @ "
+                    "or remove @ from the URL.".format(url)
+                )
+        url = urllib.parse.urlunsplit((scheme, netloc, path, query, ''))
         return url, rev, user_pass
 
     @staticmethod
@@ -458,7 +476,7 @@ class VersionControl(object):
         Normalize a URL for comparison by unquoting it and removing any
         trailing slash.
         """
-        return urllib_parse.unquote(url).rstrip('/')
+        return urllib.parse.unquote(url).rstrip('/')
 
     @classmethod
     def compare_urls(cls, url1, url2):
@@ -574,7 +592,8 @@ class VersionControl(object):
             self.name,
             url,
         )
-        response = ask_path_exists('What to do?  %s' % prompt[0], prompt[1])
+        response = ask_path_exists('What to do?  {}'.format(
+            prompt[0]), prompt[1])
 
         if response == 'a':
             sys.exit(-1)
@@ -647,9 +666,10 @@ class VersionControl(object):
         command_desc=None,  # type: Optional[str]
         extra_environ=None,  # type: Optional[Mapping[str, Any]]
         spinner=None,  # type: Optional[SpinnerInterface]
-        log_failed_cmd=True  # type: bool
+        log_failed_cmd=True,  # type: bool
+        stdout_only=False,  # type: bool
     ):
-        # type: (...) -> Text
+        # type: (...) -> str
         """
         Run a VCS subcommand
         This is simply a wrapper around call_subprocess that adds the VCS
@@ -664,17 +684,15 @@ class VersionControl(object):
                                    extra_environ=extra_environ,
                                    unset_environ=cls.unset_environ,
                                    spinner=spinner,
-                                   log_failed_cmd=log_failed_cmd)
-        except OSError as e:
+                                   log_failed_cmd=log_failed_cmd,
+                                   stdout_only=stdout_only)
+        except FileNotFoundError:
             # errno.ENOENT = no such file or directory
             # In other words, the VCS executable isn't available
-            if e.errno == errno.ENOENT:
-                raise BadCommand(
-                    'Cannot find command %r - do you have '
-                    '%r installed and in your '
-                    'PATH?' % (cls.name, cls.name))
-            else:
-                raise  # re-raise exception if a different error occurred
+            raise BadCommand(
+                'Cannot find command {cls.name!r} - do you have '
+                '{cls.name!r} installed and in your '
+                'PATH?'.format(**locals()))
 
     @classmethod
     def is_repository_directory(cls, path):
@@ -687,14 +705,18 @@ class VersionControl(object):
         return os.path.exists(os.path.join(path, cls.dirname))
 
     @classmethod
-    def controls_location(cls, location):
-        # type: (str) -> bool
+    def get_repository_root(cls, location):
+        # type: (str) -> Optional[str]
         """
-        Check if a location is controlled by the vcs.
+        Return the "root" (top-level) directory controlled by the vcs,
+        or `None` if the directory is not in any.
+
         It is meant to be overridden to implement smarter detection
         mechanisms for specific vcs.
 
-        This can do more than is_repository_directory() alone.  For example,
-        the Git override checks that Git is actually available.
+        This can do more than is_repository_directory() alone. For
+        example, the Git override checks that Git is actually available.
         """
-        return cls.is_repository_directory(location)
+        if cls.is_repository_directory(location):
+            return location
+        return None

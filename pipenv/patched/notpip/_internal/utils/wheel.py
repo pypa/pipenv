@@ -1,30 +1,23 @@
 """Support functions for working with wheel files.
 """
 
-from __future__ import absolute_import
-
 import logging
 from email.parser import Parser
-from zipfile import ZipFile
+from zipfile import BadZipFile, ZipFile
 
-from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.notpip._vendor.pkg_resources import DistInfoDistribution
-from pipenv.patched.notpip._vendor.six import PY2, ensure_str
+from pip._vendor.packaging.utils import canonicalize_name
+from pip._vendor.pkg_resources import DistInfoDistribution
+from pip._vendor.six import ensure_str
 
-from pipenv.patched.notpip._internal.exceptions import UnsupportedWheel
-from pipenv.patched.notpip._internal.utils.pkg_resources import DictMetadata
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.exceptions import UnsupportedWheel
+from pip._internal.utils.pkg_resources import DictMetadata
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from email.message import Message
     from typing import Dict, Tuple
 
-    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
-
-if PY2:
-    from zipfile import BadZipfile as BadZipFile
-else:
-    from zipfile import BadZipFile
+    from pip._vendor.pkg_resources import Distribution
 
 
 VERSION_COMPATIBLE = (1, 0)
@@ -39,13 +32,13 @@ class WheelMetadata(DictMetadata):
     """
     def __init__(self, metadata, wheel_name):
         # type: (Dict[str, bytes], str) -> None
-        super(WheelMetadata, self).__init__(metadata)
+        super().__init__(metadata)
         self._wheel_name = wheel_name
 
     def get_metadata(self, name):
         # type: (str) -> str
         try:
-            return super(WheelMetadata, self).get_metadata(name)
+            return super().get_metadata(name)
         except UnicodeDecodeError as e:
             # Augment the default error with the origin of the file.
             raise UnsupportedWheel(
@@ -64,7 +57,7 @@ def pkg_resources_distribution_for_wheel(wheel_zip, name, location):
     info_dir, _ = parse_wheel(wheel_zip, name)
 
     metadata_files = [
-        p for p in wheel_zip.namelist() if p.startswith("{}/".format(info_dir))
+        p for p in wheel_zip.namelist() if p.startswith(f"{info_dir}/")
     ]
 
     metadata_text = {}  # type: Dict[str, bytes]
@@ -121,7 +114,7 @@ def wheel_dist_info_dir(source, name):
     it doesn't match the provided name.
     """
     # Zip file path separators must be /
-    subdirs = list(set(p.split("/")[0] for p in source.namelist()))
+    subdirs = {p.split("/", 1)[0] for p in source.namelist()}
 
     info_dirs = [s for s in subdirs if s.endswith('.dist-info')]
 
@@ -159,7 +152,7 @@ def read_wheel_metadata_file(source, path):
         # and RuntimeError for password-protected files
     except (BadZipFile, KeyError, RuntimeError) as e:
         raise UnsupportedWheel(
-            "could not read {!r} file: {!r}".format(path, e)
+            f"could not read {path!r} file: {e!r}"
         )
 
 
@@ -168,14 +161,14 @@ def wheel_metadata(source, dist_info_dir):
     """Return the WHEEL metadata of an extracted wheel, if possible.
     Otherwise, raise UnsupportedWheel.
     """
-    path = "{}/WHEEL".format(dist_info_dir)
+    path = f"{dist_info_dir}/WHEEL"
     # Zip file path separators must be /
     wheel_contents = read_wheel_metadata_file(source, path)
 
     try:
         wheel_text = ensure_str(wheel_contents)
     except UnicodeDecodeError as e:
-        raise UnsupportedWheel("error decoding {!r}: {!r}".format(path, e))
+        raise UnsupportedWheel(f"error decoding {path!r}: {e!r}")
 
     # FeedParser (used by Parser) does not raise any exceptions. The returned
     # message may have .defects populated, but for backwards-compatibility we
@@ -197,14 +190,14 @@ def wheel_version(wheel_data):
     try:
         return tuple(map(int, version.split('.')))
     except ValueError:
-        raise UnsupportedWheel("invalid Wheel-Version: {!r}".format(version))
+        raise UnsupportedWheel(f"invalid Wheel-Version: {version!r}")
 
 
 def check_compatibility(version, name):
     # type: (Tuple[int, ...], str) -> None
     """Raises errors or warns if called with an incompatible Wheel-Version.
 
-    Pip should refuse to install a Wheel-Version that's a major series
+    pip should refuse to install a Wheel-Version that's a major series
     ahead of what it's compatible with (e.g 2.0 > 1.1); and warn when
     installing a version only minor version ahead (e.g 1.2 > 1.1).
 
@@ -215,8 +208,8 @@ def check_compatibility(version, name):
     """
     if version[0] > VERSION_COMPATIBLE[0]:
         raise UnsupportedWheel(
-            "%s's Wheel-Version (%s) is not compatible with this version "
-            "of pip" % (name, '.'.join(map(str, version)))
+            "{}'s Wheel-Version ({}) is not compatible with this version "
+            "of pip".format(name, '.'.join(map(str, version)))
         )
     elif version > VERSION_COMPATIBLE:
         logger.warning(

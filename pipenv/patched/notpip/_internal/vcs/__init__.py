@@ -3,11 +3,11 @@
 # (The test directory and imports protected by MYPY_CHECK_RUNNING may
 # still need to import from a vcs sub-package.)
 # Import all vcs modules to register each VCS in the VcsSupport object.
-import pipenv.patched.notpip._internal.vcs.bazaar
-import pipenv.patched.notpip._internal.vcs.git
-import pipenv.patched.notpip._internal.vcs.mercurial
-import pipenv.patched.notpip._internal.vcs.subversion  # noqa: F401
-from pipenv.patched.notpip._internal.vcs.versioncontrol import (  # noqa: F401
+import pip._internal.vcs.bazaar
+import pip._internal.vcs.git
+import pip._internal.vcs.mercurial
+import pip._internal.vcs.subversion  # noqa: F401
+from pip._internal.vcs.versioncontrol import (  # noqa: F401
     RemoteNotFoundError,
     is_url,
     make_vcs_requirement_url,

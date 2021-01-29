@@ -4,7 +4,7 @@ import argparse
 import logging
 import os
 from os.path import isfile, join as pjoin
-from toml import TomlDecodeError, load as toml_load
+from pip._vendor.toml import TomlDecodeError, load as toml_load
 import shutil
 from subprocess import CalledProcessError
 import sys

@@ -1,22 +1,20 @@
 # The following comment should be removed at some point in the future.
 # mypy: disallow-untyped-defs=False
 
-from __future__ import absolute_import
-
 import logging
 import os
 import re
 
-from pipenv.patched.notpip._internal.utils.logging import indent_log
-from pipenv.patched.notpip._internal.utils.misc import (
+from pip._internal.utils.logging import indent_log
+from pip._internal.utils.misc import (
     display_path,
     is_console_interactive,
     rmtree,
     split_auth_from_netloc,
 )
-from pipenv.patched.notpip._internal.utils.subprocess import make_command
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.vcs.versioncontrol import VersionControl, vcs
+from pip._internal.utils.subprocess import make_command
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.vcs.versioncontrol import RemoteNotFoundError, VersionControl, vcs
 
 _svn_xml_url_re = re.compile('url="([^"]+)"')
 _svn_rev_re = re.compile(r'committed-rev="(\d+)"')
@@ -26,9 +24,10 @@ _svn_info_xml_url_re = re.compile(r'<url>(.*)</url>')
 
 if MYPY_CHECK_RUNNING:
     from typing import Optional, Tuple
-    from pipenv.patched.notpip._internal.utils.subprocess import CommandArgs
-    from pipenv.patched.notpip._internal.utils.misc import HiddenText
-    from pipenv.patched.notpip._internal.vcs.versioncontrol import AuthInfo, RevOptions
+
+    from pip._internal.utils.misc import HiddenText
+    from pip._internal.utils.subprocess import CommandArgs
+    from pip._internal.vcs.versioncontrol import AuthInfo, RevOptions
 
 
 logger = logging.getLogger(__name__)
@@ -38,7 +37,9 @@ class Subversion(VersionControl):
     name = 'svn'
     dirname = '.svn'
     repo_name = 'checkout'
-    schemes = ('svn', 'svn+ssh', 'svn+http', 'svn+https', 'svn+svn')
+    schemes = (
+        'svn+ssh', 'svn+http', 'svn+https', 'svn+svn', 'svn+file'
+    )
 
     @classmethod
     def should_add_vcs_url_prefix(cls, remote_url):
@@ -50,13 +51,14 @@ class Subversion(VersionControl):
 
     @classmethod
     def get_revision(cls, location):
+        # type: (str) -> str
         """
         Return the maximum revision for all files under a given location
         """
         # Note: taken from setuptools.command.egg_info
         revision = 0
 
-        for base, dirs, files in os.walk(location):
+        for base, dirs, _ in os.walk(location):
             if cls.dirname not in dirs:
                 dirs[:] = []
                 continue    # no sense walking uncontrolled subdirs
@@ -74,7 +76,7 @@ class Subversion(VersionControl):
                 dirs[:] = []
                 continue    # not part of the same svn tree, skip it
             revision = max(revision, localrev)
-        return revision
+        return str(revision)
 
     @classmethod
     def get_netloc_and_auth(cls, netloc, scheme):
@@ -85,7 +87,7 @@ class Subversion(VersionControl):
         if scheme == 'ssh':
             # The --username and --password options can't be used for
             # svn+ssh URLs, so keep the auth information in the URL.
-            return super(Subversion, cls).get_netloc_and_auth(netloc, scheme)
+            return super().get_netloc_and_auth(netloc, scheme)
 
         return split_auth_from_netloc(netloc)
 
@@ -93,7 +95,7 @@ class Subversion(VersionControl):
     def get_url_rev_and_auth(cls, url):
         # type: (str) -> Tuple[str, Optional[str], AuthInfo]
         # hotfix the URL scheme after removing svn+ from svn+ssh:// readd it
-        url, rev, user_pass = super(Subversion, cls).get_url_rev_and_auth(url)
+        url, rev, user_pass = super().get_url_rev_and_auth(url)
         if url.startswith('ssh://'):
             url = 'svn+' + url
         return url, rev, user_pass
@@ -111,6 +113,7 @@ class Subversion(VersionControl):
 
     @classmethod
     def get_remote_url(cls, location):
+        # type: (str) -> str
         # In cases where the source is in a subdirectory, not alongside
         # setup.py we have to look up in the location until we find a real
         # setup.py
@@ -126,13 +129,17 @@ class Subversion(VersionControl):
                     "parent directories)",
                     orig_location,
                 )
-                return None
+                raise RemoteNotFoundError
 
-        return cls._get_svn_url_rev(location)[0]
+        url, _rev = cls._get_svn_url_rev(location)
+        if url is None:
+            raise RemoteNotFoundError
+
+        return url
 
     @classmethod
     def _get_svn_url_rev(cls, location):
-        from pipenv.patched.notpip._internal.exceptions import InstallationError
+        from pip._internal.exceptions import InstallationError
 
         entries_path = os.path.join(location, cls.dirname, 'entries')
         if os.path.exists(entries_path):
@@ -151,7 +158,8 @@ class Subversion(VersionControl):
         elif data.startswith('<?xml'):
             match = _svn_xml_url_re.search(data)
             if not match:
-                raise ValueError('Badly formatted data: %r' % data)
+                raise ValueError(
+                    'Badly formatted data: {data!r}'.format(**locals()))
             url = match.group(1)    # get repository URL
             revs = [int(m.group(1)) for m in _svn_rev_re.finditer(data)] + [0]
         else:
@@ -165,6 +173,7 @@ class Subversion(VersionControl):
                 xml = cls.run_command(
                     ['info', '--xml', location],
                     show_stdout=False,
+                    stdout_only=True,
                 )
                 url = _svn_info_xml_url_re.search(xml).group(1)
                 revs = [
@@ -198,7 +207,7 @@ class Subversion(VersionControl):
         #   Empty tuple: Could not parse version.
         self._vcs_version = None  # type: Optional[Tuple[int, ...]]
 
-        super(Subversion, self).__init__()
+        super().__init__()
 
     def call_vcs_version(self):
         # type: () -> Tuple[int, ...]
@@ -213,13 +222,17 @@ class Subversion(VersionControl):
         #      compiled Feb 25 2019, 14:20:39 on x86_64-apple-darwin17.0.0
         #   svn, version 1.7.14 (r1542130)
         #      compiled Mar 28 2018, 08:49:13 on x86_64-pc-linux-gnu
+        #   svn, version 1.12.0-SlikSvn (SlikSvn/1.12.0)
+        #      compiled May 28 2019, 13:44:56 on x86_64-microsoft-windows6.2
         version_prefix = 'svn, version '
-        version = self.run_command(['--version'], show_stdout=False)
+        version = self.run_command(
+            ['--version'], show_stdout=False, stdout_only=True
+        )
         if not version.startswith(version_prefix):
             return ()
 
         version = version[len(version_prefix):].split()[0]
-        version_list = version.split('.')
+        version_list = version.partition('-')[0].split('.')
         try:
             parsed_version = tuple(map(int, version_list))
         except ValueError:

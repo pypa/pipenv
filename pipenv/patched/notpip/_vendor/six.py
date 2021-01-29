@@ -29,7 +29,7 @@ import sys
 import types
 
 __author__ = "Benjamin Peterson <benjamin@python.org>"
-__version__ = "1.14.0"
+__version__ = "1.15.0"
 
 
 # Useful for very coarse version differentiation.
@@ -890,12 +890,11 @@ def ensure_binary(s, encoding='utf-8', errors='strict'):
       - `str` -> encoded to `bytes`
       - `bytes` -> `bytes`
     """
+    if isinstance(s, binary_type):
+        return s
     if isinstance(s, text_type):
         return s.encode(encoding, errors)
-    elif isinstance(s, binary_type):
-        return s
-    else:
-        raise TypeError("not expecting type '%s'" % type(s))
+    raise TypeError("not expecting type '%s'" % type(s))
 
 
 def ensure_str(s, encoding='utf-8', errors='strict'):
@@ -909,12 +908,15 @@ def ensure_str(s, encoding='utf-8', errors='strict'):
       - `str` -> `str`
       - `bytes` -> decoded to `str`
     """
-    if not isinstance(s, (text_type, binary_type)):
-        raise TypeError("not expecting type '%s'" % type(s))
+    # Optimization: Fast return for the common case.
+    if type(s) is str:
+        return s
     if PY2 and isinstance(s, text_type):
-        s = s.encode(encoding, errors)
+        return s.encode(encoding, errors)
     elif PY3 and isinstance(s, binary_type):
-        s = s.decode(encoding, errors)
+        return s.decode(encoding, errors)
+    elif not isinstance(s, (text_type, binary_type)):
+        raise TypeError("not expecting type '%s'" % type(s))
     return s
 
 

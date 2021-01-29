@@ -1,20 +1,18 @@
-from __future__ import absolute_import
-
 import csv
 import functools
 import logging
 import os
 import sys
 import sysconfig
+from importlib.util import cache_from_source
 
-from pipenv.patched.notpip._vendor import pkg_resources
+from pip._vendor import pkg_resources
 
-from pipenv.patched.notpip._internal.exceptions import UninstallationError
-from pipenv.patched.notpip._internal.locations import bin_py, bin_user
-from pipenv.patched.notpip._internal.utils.compat import WINDOWS, cache_from_source, uses_pycache
-from pipenv.patched.notpip._internal.utils.logging import indent_log
-from pipenv.patched.notpip._internal.utils.misc import (
-    FakeFile,
+from pip._internal.exceptions import UninstallationError
+from pip._internal.locations import bin_py, bin_user
+from pip._internal.utils.compat import WINDOWS
+from pip._internal.utils.logging import indent_log
+from pip._internal.utils.misc import (
     ask,
     dist_in_usersite,
     dist_is_local,
@@ -24,14 +22,23 @@ from pipenv.patched.notpip._internal.utils.misc import (
     renames,
     rmtree,
 )
-from pipenv.patched.notpip._internal.utils.temp_dir import AdjacentTempDirectory, TempDirectory
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.temp_dir import AdjacentTempDirectory, TempDirectory
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import (
-        Any, Callable, Dict, Iterable, Iterator, List, Optional, Set, Tuple,
+        Any,
+        Callable,
+        Dict,
+        Iterable,
+        Iterator,
+        List,
+        Optional,
+        Set,
+        Tuple,
     )
-    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
+
+    from pip._vendor.pkg_resources import Distribution
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +89,7 @@ def uninstallation_paths(dist):
 
     UninstallPathSet.add() takes care of the __pycache__ .py[co].
     """
-    r = csv.reader(FakeFile(dist.get_metadata_lines('RECORD')))
+    r = csv.reader(dist.get_metadata_lines('RECORD'))
     for row in r:
         path = os.path.join(dist.location, row[0])
         yield path
@@ -122,10 +129,9 @@ def compress_for_rename(paths):
     This set may include directories when the original sequence of paths
     included every file on disk.
     """
-    case_map = dict((os.path.normcase(p), p) for p in paths)
+    case_map = {os.path.normcase(p): p for p in paths}
     remaining = set(case_map)
-    unchecked = sorted(set(os.path.split(p)[0]
-                           for p in case_map.values()), key=len)
+    unchecked = sorted({os.path.split(p)[0] for p in case_map.values()}, key=len)
     wildcards = set()  # type: Set[str]
 
     def norm_join(*a):
@@ -206,7 +212,7 @@ def compress_for_output_listing(paths):
     return will_remove, will_skip
 
 
-class StashedUninstallPathSet(object):
+class StashedUninstallPathSet:
     """A set of file rename operations to stash files while
     tentatively uninstalling them."""
     def __init__(self):
@@ -317,7 +323,7 @@ class StashedUninstallPathSet(object):
         return bool(self._moves)
 
 
-class UninstallPathSet(object):
+class UninstallPathSet:
     """A set of file paths to be removed in the uninstallation of a
     requirement."""
     def __init__(self, dist):
@@ -354,7 +360,7 @@ class UninstallPathSet(object):
 
         # __pycache__ files can show up after 'installed-files.txt' is created,
         # due to imports
-        if os.path.splitext(path)[1] == '.py' and uses_pycache:
+        if os.path.splitext(path)[1] == '.py':
             self.add(cache_from_source(path))
 
     def add_pth(self, pth_file, entry):
@@ -540,8 +546,9 @@ class UninstallPathSet(object):
             with open(develop_egg_link, 'r') as fh:
                 link_pointer = os.path.normcase(fh.readline().strip())
             assert (link_pointer == dist.location), (
-                'Egg-link %s does not match installed location of %s '
-                '(at %s)' % (link_pointer, dist.project_name, dist.location)
+                'Egg-link {} does not match installed location of {} '
+                '(at {})'.format(
+                    link_pointer, dist.project_name, dist.location)
             )
             paths_to_remove.add(develop_egg_link)
             easy_install_pth = os.path.join(os.path.dirname(develop_egg_link),
@@ -581,13 +588,9 @@ class UninstallPathSet(object):
         return paths_to_remove
 
 
-class UninstallPthEntries(object):
+class UninstallPthEntries:
     def __init__(self, pth_file):
         # type: (str) -> None
-        if not os.path.isfile(pth_file):
-            raise UninstallationError(
-                "Cannot remove entries from nonexistent file %s" % pth_file
-            )
         self.file = pth_file
         self.entries = set()  # type: Set[str]
         self._saved_lines = None  # type: Optional[List[bytes]]
@@ -603,7 +606,7 @@ class UninstallPthEntries(object):
         # treats non-absolute paths with drive letter markings like c:foo\bar
         # as absolute paths. It also does not recognize UNC paths if they don't
         # have more than "\\sever\share". Valid examples: "\\server\share\" or
-        # "\\server\share\folder". Python 2.7.8+ support UNC in splitdrive.
+        # "\\server\share\folder".
         if WINDOWS and not os.path.splitdrive(entry)[0]:
             entry = entry.replace('\\', '/')
         self.entries.add(entry)
@@ -611,6 +614,13 @@ class UninstallPthEntries(object):
     def remove(self):
         # type: () -> None
         logger.debug('Removing pth entries from %s:', self.file)
+
+        # If the file doesn't exist, log a warning and return
+        if not os.path.isfile(self.file):
+            logger.warning(
+                "Cannot remove entries from nonexistent file %s", self.file
+            )
+            return
         with open(self.file, 'rb') as fh:
             # windows uses '\r\n' with py3k, but uses '\n' with py2.x
             lines = fh.readlines()

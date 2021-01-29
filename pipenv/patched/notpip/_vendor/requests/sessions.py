@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 """
-requests.session
-~~~~~~~~~~~~~~~~
+requests.sessions
+~~~~~~~~~~~~~~~~~
 
 This module provides a Session object to manage and persist settings across
 requests (cookies, auth, proxies).
@@ -11,9 +11,10 @@ import os
 import sys
 import time
 from datetime import timedelta
+from collections import OrderedDict
 
 from .auth import _basic_auth_str
-from .compat import cookielib, is_py3, OrderedDict, urljoin, urlparse, Mapping
+from .compat import cookielib, is_py3, urljoin, urlparse, Mapping
 from .cookies import (
     cookiejar_from_dict, extract_cookies_to_jar, RequestsCookieJar, merge_cookies)
 from .models import Request, PreparedRequest, DEFAULT_REDIRECT_LIMIT
@@ -162,7 +163,7 @@ class SessionRedirectMixin(object):
                 resp.raw.read(decode_content=False)
 
             if len(resp.history) >= self.max_redirects:
-                raise TooManyRedirects('Exceeded %s redirects.' % self.max_redirects, response=resp)
+                raise TooManyRedirects('Exceeded {} redirects.'.format(self.max_redirects), response=resp)
 
             # Release the connection back into the pool.
             resp.close()
@@ -170,7 +171,7 @@ class SessionRedirectMixin(object):
             # Handle redirection without scheme (see: RFC 1808 Section 4)
             if url.startswith('//'):
                 parsed_rurl = urlparse(resp.url)
-                url = '%s:%s' % (to_native_string(parsed_rurl.scheme), url)
+                url = ':'.join([to_native_string(parsed_rurl.scheme), url])
 
             # Normalize url case and attach previous fragment if needed (RFC 7231 7.1.2)
             parsed = urlparse(url)
@@ -192,19 +193,16 @@ class SessionRedirectMixin(object):
 
             self.rebuild_method(prepared_request, resp)
 
-            # https://github.com/requests/requests/issues/1084
+            # https://github.com/psf/requests/issues/1084
             if resp.status_code not in (codes.temporary_redirect, codes.permanent_redirect):
-                # https://github.com/requests/requests/issues/3490
+                # https://github.com/psf/requests/issues/3490
                 purged_headers = ('Content-Length', 'Content-Type', 'Transfer-Encoding')
                 for header in purged_headers:
                     prepared_request.headers.pop(header, None)
                 prepared_request.body = None
 
             headers = prepared_request.headers
-            try:
-                del headers['Cookie']
-            except KeyError:
-                pass
+            headers.pop('Cookie', None)
 
             # Extract any cookies sent on the response to the cookiejar
             # in the new request. Because we've mutated our copied prepared
@@ -271,7 +269,6 @@ class SessionRedirectMixin(object):
         if new_auth is not None:
             prepared_request.prepare_auth(new_auth)
 
-        return
 
     def rebuild_proxies(self, prepared_request, proxies):
         """This method re-evaluates the proxy configuration by considering the
@@ -352,13 +349,13 @@ class Session(SessionRedirectMixin):
     Or as a context manager::
 
       >>> with requests.Session() as s:
-      >>>     s.get('https://httpbin.org/get')
+      ...     s.get('https://httpbin.org/get')
       <Response [200]>
     """
 
     __attrs__ = [
         'headers', 'cookies', 'auth', 'proxies', 'hooks', 'params', 'verify',
-        'cert', 'prefetch', 'adapters', 'stream', 'trust_env',
+        'cert', 'adapters', 'stream', 'trust_env',
         'max_redirects',
     ]
 
@@ -390,6 +387,13 @@ class Session(SessionRedirectMixin):
         self.stream = False
 
         #: SSL Verification default.
+        #: Defaults to `True`, requiring requests to verify the TLS certificate at the
+        #: remote end.
+        #: If verify is set to `False`, requests will accept any TLS certificate
+        #: presented by the server, and will ignore hostname mismatches and/or
+        #: expired certificates, which will make your application vulnerable to
+        #: man-in-the-middle (MitM) attacks.
+        #: Only set this to `False` for testing.
         self.verify = True
 
         #: SSL client certificate default, if String, path to ssl client
@@ -498,7 +502,12 @@ class Session(SessionRedirectMixin):
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``.
+            to a CA bundle to use. Defaults to ``True``. When set to
+            ``False``, requests will accept any TLS certificate presented by
+            the server, and will ignore hostname mismatches and/or expired
+            certificates, which will make your application vulnerable to
+            man-in-the-middle (MitM) attacks. Setting verify to ``False`` 
+            may be useful during local development or testing.
         :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair.
         :rtype: requests.Response
@@ -661,11 +670,13 @@ class Session(SessionRedirectMixin):
 
         extract_cookies_to_jar(self.cookies, request, r.raw)
 
-        # Redirect resolving generator.
-        gen = self.resolve_redirects(r, request, **kwargs)
-
         # Resolve redirects if allowed.
-        history = [resp for resp in gen] if allow_redirects else []
+        if allow_redirects:
+            # Redirect resolving generator.
+            gen = self.resolve_redirects(r, request, **kwargs)
+            history = [resp for resp in gen]
+        else:
+            history = []
 
         # Shuffle things around if there's history.
         if history:
@@ -728,7 +739,7 @@ class Session(SessionRedirectMixin):
                 return adapter
 
         # Nothing matches :-/
-        raise InvalidSchema("No connection adapters were found for '%s'" % url)
+        raise InvalidSchema("No connection adapters were found for {!r}".format(url))
 
     def close(self):
         """Closes all adapters and as such the session"""

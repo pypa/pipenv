@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, unicode_literals
 from collections import OrderedDict
 import re
 
-from pipenv.patched.notpip._vendor.six import string_types
+from pip._vendor.six import string_types
 
 from . import base
 from .._utils import moduleFactoryFactory
@@ -126,5 +126,6 @@ def getETreeBuilder(ElementTreeImplementation):
                     return parent, list(parents[-1]).index(parent), parents, None
 
     return locals()
+
 
 getETreeModule = moduleFactoryFactory(getETreeBuilder)

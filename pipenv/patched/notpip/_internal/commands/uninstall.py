@@ -1,16 +1,20 @@
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
+from pip._vendor.packaging.utils import canonicalize_name
 
-from __future__ import absolute_import
+from pip._internal.cli.base_command import Command
+from pip._internal.cli.req_command import SessionCommandMixin
+from pip._internal.cli.status_codes import SUCCESS
+from pip._internal.exceptions import InstallationError
+from pip._internal.req import parse_requirements
+from pip._internal.req.constructors import (
+    install_req_from_line,
+    install_req_from_parsed_requirement,
+)
+from pip._internal.utils.misc import protect_pip_from_modification_on_windows
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
-from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
-
-from pipenv.patched.notpip._internal.cli.base_command import Command
-from pipenv.patched.notpip._internal.cli.req_command import SessionCommandMixin
-from pipenv.patched.notpip._internal.exceptions import InstallationError
-from pipenv.patched.notpip._internal.req import parse_requirements
-from pipenv.patched.notpip._internal.req.constructors import install_req_from_line
-from pipenv.patched.notpip._internal.utils.misc import protect_pip_from_modification_on_windows
+if MYPY_CHECK_RUNNING:
+    from optparse import Values
+    from typing import List
 
 
 class UninstallCommand(Command, SessionCommandMixin):
@@ -28,8 +32,8 @@ class UninstallCommand(Command, SessionCommandMixin):
       %prog [options] <package> ...
       %prog [options] -r <requirements file> ..."""
 
-    def __init__(self, *args, **kw):
-        super(UninstallCommand, self).__init__(*args, **kw)
+    def add_options(self):
+        # type: () -> None
         self.cmd_opts.add_option(
             '-r', '--requirement',
             dest='requirements',
@@ -48,6 +52,7 @@ class UninstallCommand(Command, SessionCommandMixin):
         self.parser.insert_option_group(0, self.cmd_opts)
 
     def run(self, options, args):
+        # type: (Values, List[str]) -> int
         session = self.get_default_session(options)
 
         reqs_to_uninstall = {}
@@ -58,16 +63,20 @@ class UninstallCommand(Command, SessionCommandMixin):
             if req.name:
                 reqs_to_uninstall[canonicalize_name(req.name)] = req
         for filename in options.requirements:
-            for req in parse_requirements(
+            for parsed_req in parse_requirements(
                     filename,
                     options=options,
                     session=session):
+                req = install_req_from_parsed_requirement(
+                    parsed_req,
+                    isolated=options.isolated_mode
+                )
                 if req.name:
                     reqs_to_uninstall[canonicalize_name(req.name)] = req
         if not reqs_to_uninstall:
             raise InstallationError(
-                'You must give at least one requirement to %(name)s (see '
-                '"pip help %(name)s")' % dict(name=self.name)
+                'You must give at least one requirement to {self.name} (see '
+                '"pip help {self.name}")'.format(**locals())
             )
 
         protect_pip_from_modification_on_windows(
@@ -80,3 +89,5 @@ class UninstallCommand(Command, SessionCommandMixin):
             )
             if uninstall_pathset:
                 uninstall_pathset.commit()
+
+        return SUCCESS

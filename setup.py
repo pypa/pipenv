@@ -22,7 +22,7 @@ if sys.argv[-1] == "publish":
     sys.exit()
 
 required = [
-    "pip>=18.0",
+    "pip>=21.0",
     "certifi",
     "setuptools>=36.2.1",
     "virtualenv-clone>=0.2.5",

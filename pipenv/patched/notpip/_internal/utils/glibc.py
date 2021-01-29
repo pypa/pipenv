@@ -1,12 +1,10 @@
 # The following comment should be removed at some point in the future.
 # mypy: strict-optional=False
 
-from __future__ import absolute_import
-
 import os
 import sys
 
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Optional, Tuple

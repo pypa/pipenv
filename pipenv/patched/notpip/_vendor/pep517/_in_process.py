@@ -14,6 +14,7 @@ Results:
 """
 from glob import glob
 from importlib import import_module
+import json
 import os
 import os.path
 from os.path import join as pjoin
@@ -22,8 +23,30 @@ import shutil
 import sys
 import traceback
 
-# This is run as a script, not a module, so it can't do a relative import
-import compat
+# This file is run as a script, and `import compat` is not zip-safe, so we
+# include write_json() and read_json() from compat.py.
+#
+# Handle reading and writing JSON in UTF-8, on Python 3 and 2.
+
+if sys.version_info[0] >= 3:
+    # Python 3
+    def write_json(obj, path, **kwargs):
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(obj, f, **kwargs)
+
+    def read_json(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+else:
+    # Python 2
+    def write_json(obj, path, **kwargs):
+        with open(path, 'wb') as f:
+            json.dump(obj, f, encoding='utf-8', **kwargs)
+
+    def read_json(path):
+        with open(path, 'rb') as f:
+            return json.load(f)
 
 
 class BackendUnavailable(Exception):
@@ -233,7 +256,7 @@ def main():
         sys.exit("Unknown hook: %s" % hook_name)
     hook = globals()[hook_name]
 
-    hook_input = compat.read_json(pjoin(control_dir, 'input.json'))
+    hook_input = read_json(pjoin(control_dir, 'input.json'))
 
     json_out = {'unsupported': False, 'return_val': None}
     try:
@@ -250,7 +273,7 @@ def main():
     except HookMissing:
         json_out['hook_missing'] = True
 
-    compat.write_json(json_out, pjoin(control_dir, 'output.json'), indent=2)
+    write_json(json_out, pjoin(control_dir, 'output.json'), indent=2)
 
 
 if __name__ == '__main__':

@@ -1,43 +1,33 @@
-# The following comment should be removed at some point in the future.
-# mypy: strict-optional=False
-
-from __future__ import absolute_import
-
 import logging
 from collections import OrderedDict
 
-from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.notpip._internal import pep425tags
-from pipenv.patched.notpip._internal.exceptions import InstallationError
-from pipenv.patched.notpip._internal.models.wheel import Wheel
-from pipenv.patched.notpip._internal.utils.logging import indent_log
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.exceptions import InstallationError
+from pip._internal.models.wheel import Wheel
+from pip._internal.utils import compatibility_tags
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Dict, Iterable, List, Optional, Tuple
-    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+
+    from pip._internal.req.req_install import InstallRequirement
 
 
 logger = logging.getLogger(__name__)
 
 
-class RequirementSet(object):
+class RequirementSet:
 
-    def __init__(self, check_supported_wheels=True, ignore_compatibility=True):
-        # type: (bool, bool) -> None
+    def __init__(self, check_supported_wheels=True):
+        # type: (bool) -> None
         """Create a RequirementSet.
         """
 
-        self.requirements = OrderedDict()  # type: Dict[str, InstallRequirement]  # noqa: E501
+        self.requirements = OrderedDict()  # type: Dict[str, InstallRequirement]
         self.check_supported_wheels = check_supported_wheels
 
         self.unnamed_requirements = []  # type: List[InstallRequirement]
-        self.successfully_downloaded = []  # type: List[InstallRequirement]
-        self.reqs_to_cleanup = []  # type: List[InstallRequirement]
-        if ignore_compatibility:
-            self.check_supported_wheels = False
-        self.ignore_compatibility = (check_supported_wheels is False or ignore_compatibility is True)
 
     def __str__(self):
         # type: () -> str
@@ -79,7 +69,7 @@ class RequirementSet(object):
         parent_req_name=None,  # type: Optional[str]
         extras_requested=None  # type: Optional[Iterable[str]]
     ):
-        # type: (...) -> Tuple[List[InstallRequirement], Optional[InstallRequirement]]  # noqa: E501
+        # type: (...) -> Tuple[List[InstallRequirement], Optional[InstallRequirement]]
         """Add install_req as a requirement to install.
 
         :param parent_req_name: The name of the requirement that needed this
@@ -108,17 +98,16 @@ class RequirementSet(object):
         # single requirements file.
         if install_req.link and install_req.link.is_wheel:
             wheel = Wheel(install_req.link.filename)
-            tags = pep425tags.get_supported()
+            tags = compatibility_tags.get_supported()
             if (self.check_supported_wheels and not wheel.supported(tags)):
                 raise InstallationError(
-                    "%s is not a supported wheel on this platform." %
-                    wheel.filename
+                    "{} is not a supported wheel on this platform.".format(
+                        wheel.filename)
                 )
 
         # This next bit is really a sanity check.
-        assert install_req.is_direct == (parent_req_name is None), (
-            "a direct req shouldn't have a parent and also, "
-            "a non direct req should have a parent"
+        assert not install_req.user_supplied or parent_req_name is None, (
+            "a user supplied req shouldn't have a parent"
         )
 
         # Unnamed requirements are scanned again and the requirement won't be
@@ -128,7 +117,8 @@ class RequirementSet(object):
             return [install_req], None
 
         try:
-            existing_req = self.get_requirement(install_req.name)
+            existing_req = self.get_requirement(
+                install_req.name)  # type: Optional[InstallRequirement]
         except KeyError:
             existing_req = None
 
@@ -141,8 +131,8 @@ class RequirementSet(object):
         )
         if has_conflicting_requirement:
             raise InstallationError(
-                "Double requirement given: %s (already in %s, name=%r)"
-                % (install_req, existing_req, install_req.name)
+                "Double requirement given: {} (already in {}, name={!r})"
+                .format(install_req, existing_req, install_req.name)
             )
 
         # When no existing requirement exists, add the requirement as a
@@ -165,15 +155,18 @@ class RequirementSet(object):
             )
         )
         if does_not_satisfy_constraint:
-            self.reqs_to_cleanup.append(install_req)
             raise InstallationError(
-                "Could not satisfy constraints for '%s': "
+                "Could not satisfy constraints for '{}': "
                 "installation from path or url cannot be "
-                "constrained to a version" % install_req.name,
+                "constrained to a version".format(install_req.name)
             )
         # If we're now installing a constraint, mark the existing
         # object for real installation.
         existing_req.constraint = False
+        # If we're now installing a user supplied requirement,
+        # mark the existing object as such.
+        if install_req.user_supplied:
+            existing_req.user_supplied = True
         existing_req.extras = tuple(sorted(
             set(existing_req.extras) | set(install_req.extras)
         ))
@@ -201,12 +194,9 @@ class RequirementSet(object):
         if project_name in self.requirements:
             return self.requirements[project_name]
 
-        pass
+        raise KeyError("No project with the name {name!r}".format(**locals()))
 
-    def cleanup_files(self):
-        # type: () -> None
-        """Clean up files, remove builds."""
-        logger.debug('Cleaning up...')
-        with indent_log():
-            for req in self.reqs_to_cleanup:
-                req.remove_temporary_source()
+    @property
+    def all_requirements(self):
+        # type: () -> List[InstallRequirement]
+        return self.unnamed_requirements + list(self.requirements.values())

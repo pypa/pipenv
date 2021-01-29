@@ -11,22 +11,22 @@ and maintain connections.
 import os.path
 import socket
 
-from pipenv.patched.notpip._vendor.urllib3.poolmanager import PoolManager, proxy_from_url
-from pipenv.patched.notpip._vendor.urllib3.response import HTTPResponse
-from pipenv.patched.notpip._vendor.urllib3.util import parse_url
-from pipenv.patched.notpip._vendor.urllib3.util import Timeout as TimeoutSauce
-from pipenv.patched.notpip._vendor.urllib3.util.retry import Retry
-from pipenv.patched.notpip._vendor.urllib3.exceptions import ClosedPoolError
-from pipenv.patched.notpip._vendor.urllib3.exceptions import ConnectTimeoutError
-from pipenv.patched.notpip._vendor.urllib3.exceptions import HTTPError as _HTTPError
-from pipenv.patched.notpip._vendor.urllib3.exceptions import MaxRetryError
-from pipenv.patched.notpip._vendor.urllib3.exceptions import NewConnectionError
-from pipenv.patched.notpip._vendor.urllib3.exceptions import ProxyError as _ProxyError
-from pipenv.patched.notpip._vendor.urllib3.exceptions import ProtocolError
-from pipenv.patched.notpip._vendor.urllib3.exceptions import ReadTimeoutError
-from pipenv.patched.notpip._vendor.urllib3.exceptions import SSLError as _SSLError
-from pipenv.patched.notpip._vendor.urllib3.exceptions import ResponseError
-from pipenv.patched.notpip._vendor.urllib3.exceptions import LocationValueError
+from pip._vendor.urllib3.poolmanager import PoolManager, proxy_from_url
+from pip._vendor.urllib3.response import HTTPResponse
+from pip._vendor.urllib3.util import parse_url
+from pip._vendor.urllib3.util import Timeout as TimeoutSauce
+from pip._vendor.urllib3.util.retry import Retry
+from pip._vendor.urllib3.exceptions import ClosedPoolError
+from pip._vendor.urllib3.exceptions import ConnectTimeoutError
+from pip._vendor.urllib3.exceptions import HTTPError as _HTTPError
+from pip._vendor.urllib3.exceptions import MaxRetryError
+from pip._vendor.urllib3.exceptions import NewConnectionError
+from pip._vendor.urllib3.exceptions import ProxyError as _ProxyError
+from pip._vendor.urllib3.exceptions import ProtocolError
+from pip._vendor.urllib3.exceptions import ReadTimeoutError
+from pip._vendor.urllib3.exceptions import SSLError as _SSLError
+from pip._vendor.urllib3.exceptions import ResponseError
+from pip._vendor.urllib3.exceptions import LocationValueError
 
 from .models import Response
 from .compat import urlparse, basestring
@@ -41,7 +41,7 @@ from .exceptions import (ConnectionError, ConnectTimeout, ReadTimeout, SSLError,
 from .auth import _basic_auth_str
 
 try:
-    from pipenv.patched.notpip._vendor.urllib3.contrib.socks import SOCKSProxyManager
+    from pip._vendor.urllib3.contrib.socks import SOCKSProxyManager
 except ImportError:
     def SOCKSProxyManager(*args, **kwargs):
         raise InvalidSchema("Missing dependencies for SOCKS support.")

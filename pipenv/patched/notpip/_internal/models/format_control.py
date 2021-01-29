@@ -1,18 +1,17 @@
-# The following comment should be removed at some point in the future.
-# mypy: strict-optional=False
+from pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
-
-from pipenv.patched.notpip._internal.exceptions import CommandError
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.exceptions import CommandError
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Optional, Set, FrozenSet
+    from typing import FrozenSet, Optional, Set
 
 
-class FormatControl(object):
+class FormatControl:
     """Helper for managing formats from which a package can be installed.
     """
+
+    __slots__ = ["no_binary", "only_binary"]
 
     def __init__(self, no_binary=None, only_binary=None):
         # type: (Optional[Set[str]], Optional[Set[str]]) -> None
@@ -26,11 +25,16 @@ class FormatControl(object):
 
     def __eq__(self, other):
         # type: (object) -> bool
-        return self.__dict__ == other.__dict__
+        if not isinstance(other, self.__class__):
+            return NotImplemented
 
-    def __ne__(self, other):
-        # type: (object) -> bool
-        return not self.__eq__(other)
+        if self.__slots__ != other.__slots__:
+            return False
+
+        return all(
+            getattr(self, k) == getattr(other, k)
+            for k in self.__slots__
+        )
 
     def __repr__(self):
         # type: () -> str
@@ -42,7 +46,7 @@ class FormatControl(object):
 
     @staticmethod
     def handle_mutual_excludes(value, target, other):
-        # type: (str, Optional[Set[str]], Optional[Set[str]]) -> None
+        # type: (str, Set[str], Set[str]) -> None
         if value.startswith('-'):
             raise CommandError(
                 "--no-binary / --only-binary option requires 1 argument."

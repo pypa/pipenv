@@ -3,7 +3,7 @@
 
 import os
 import logging
-import toml
+from pip._vendor import toml
 import shutil
 from subprocess import check_call
 import sys

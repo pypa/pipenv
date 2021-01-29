@@ -1,11 +1,11 @@
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
+from pip._internal.cli.base_command import Command
+from pip._internal.cli.status_codes import SUCCESS
+from pip._internal.exceptions import CommandError
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
-from __future__ import absolute_import
-
-from pipenv.patched.notpip._internal.cli.base_command import Command
-from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
-from pipenv.patched.notpip._internal.exceptions import CommandError
+if MYPY_CHECK_RUNNING:
+    from optparse import Values
+    from typing import List
 
 
 class HelpCommand(Command):
@@ -16,8 +16,11 @@ class HelpCommand(Command):
     ignore_require_venv = True
 
     def run(self, options, args):
-        from pipenv.patched.notpip._internal.commands import (
-            commands_dict, create_command, get_similar_commands,
+        # type: (Values, List[str]) -> int
+        from pip._internal.commands import (
+            commands_dict,
+            create_command,
+            get_similar_commands,
         )
 
         try:
@@ -29,9 +32,9 @@ class HelpCommand(Command):
         if cmd_name not in commands_dict:
             guess = get_similar_commands(cmd_name)
 
-            msg = ['unknown command "%s"' % cmd_name]
+            msg = [f'unknown command "{cmd_name}"']
             if guess:
-                msg.append('maybe you meant "%s"' % guess)
+                msg.append(f'maybe you meant "{guess}"')
 
             raise CommandError(' - '.join(msg))
 

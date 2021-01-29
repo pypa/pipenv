@@ -6,42 +6,42 @@ network request configuration and behavior.
 # mypy: disallow-untyped-defs=False
 
 import email.utils
+import ipaddress
 import json
 import logging
 import mimetypes
 import os
 import platform
 import sys
+import urllib.parse
 import warnings
 
-from pipenv.patched.notpip._vendor import requests, six, urllib3
-from pipenv.patched.notpip._vendor.cachecontrol import CacheControlAdapter
-from pipenv.patched.notpip._vendor.requests.adapters import BaseAdapter, HTTPAdapter
-from pipenv.patched.notpip._vendor.requests.models import Response
-from pipenv.patched.notpip._vendor.requests.structures import CaseInsensitiveDict
-from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
-from pipenv.patched.notpip._vendor.urllib3.exceptions import InsecureRequestWarning
+from pip._vendor import requests, six, urllib3
+from pip._vendor.cachecontrol import CacheControlAdapter
+from pip._vendor.requests.adapters import BaseAdapter, HTTPAdapter
+from pip._vendor.requests.models import Response
+from pip._vendor.requests.structures import CaseInsensitiveDict
+from pip._vendor.urllib3.exceptions import InsecureRequestWarning
 
-from pipenv.patched.notpip import __version__
-from pipenv.patched.notpip._internal.network.auth import MultiDomainBasicAuth
-from pipenv.patched.notpip._internal.network.cache import SafeFileCache
+from pip import __version__
+from pip._internal.network.auth import MultiDomainBasicAuth
+from pip._internal.network.cache import SafeFileCache
+
 # Import ssl from compat so the initial import occurs in only one place.
-from pipenv.patched.notpip._internal.utils.compat import has_tls, ipaddress
-from pipenv.patched.notpip._internal.utils.glibc import libc_ver
-from pipenv.patched.notpip._internal.utils.misc import (
+from pip._internal.utils.compat import has_tls
+from pip._internal.utils.glibc import libc_ver
+from pip._internal.utils.misc import (
     build_url_from_netloc,
     get_installed_version,
     parse_netloc,
 )
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.utils.urls import url_to_path
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.urls import url_to_path
 
 if MYPY_CHECK_RUNNING:
-    from typing import (
-        Iterator, List, Optional, Tuple, Union,
-    )
+    from typing import Iterator, List, Optional, Tuple, Union
 
-    from pipenv.patched.notpip._internal.models.link import Link
+    from pip._internal.models.link import Link
 
     SecureOrigin = Tuple[str, str, Optional[Union[int, str]]]
 
@@ -126,7 +126,7 @@ def user_agent():
         data["implementation"]["version"] = platform.python_version()
 
     if sys.platform.startswith("linux"):
-        from pipenv.patched.notpip._vendor import distro
+        from pip._vendor import distro
         distro_infos = dict(filter(
             lambda x: x[1],
             zip(["name", "version", "id"], distro.linux_distribution()),
@@ -212,9 +212,13 @@ class LocalFSAdapter(BaseAdapter):
 class InsecureHTTPAdapter(HTTPAdapter):
 
     def cert_verify(self, conn, url, verify, cert):
-        super(InsecureHTTPAdapter, self).cert_verify(
-            conn=conn, url=url, verify=False, cert=cert
-        )
+        super().cert_verify(conn=conn, url=url, verify=False, cert=cert)
+
+
+class InsecureCacheControlAdapter(CacheControlAdapter):
+
+    def cert_verify(self, conn, url, verify, cert):
+        super().cert_verify(conn=conn, url=url, verify=False, cert=cert)
 
 
 class PipSession(requests.Session):
@@ -231,7 +235,7 @@ class PipSession(requests.Session):
         trusted_hosts = kwargs.pop("trusted_hosts", [])  # type: List[str]
         index_urls = kwargs.pop("index_urls", None)
 
-        super(PipSession, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Namespace the attribute with "pip_" just in case to prevent
         # possible conflicts with the base class.
@@ -263,8 +267,16 @@ class PipSession(requests.Session):
             backoff_factor=0.25,
         )
 
-        # We want to _only_ cache responses on securely fetched origins. We do
-        # this because we can't validate the response of an insecurely fetched
+        # Our Insecure HTTPAdapter disables HTTPS validation. It does not
+        # support caching so we'll use it for all http:// URLs.
+        # If caching is disabled, we will also use it for
+        # https:// hosts that we've marked as ignoring
+        # TLS errors for (trusted-hosts).
+        insecure_adapter = InsecureHTTPAdapter(max_retries=retries)
+
+        # We want to _only_ cache responses on securely fetched origins or when
+        # the host is specified as trusted. We do this because
+        # we can't validate the response of an insecurely/untrusted fetched
         # origin, and we don't want someone to be able to poison the cache and
         # require manual eviction from the cache to fix it.
         if cache:
@@ -272,16 +284,13 @@ class PipSession(requests.Session):
                 cache=SafeFileCache(cache),
                 max_retries=retries,
             )
+            self._trusted_host_adapter = InsecureCacheControlAdapter(
+                cache=SafeFileCache(cache),
+                max_retries=retries,
+            )
         else:
             secure_adapter = HTTPAdapter(max_retries=retries)
-
-        # Our Insecure HTTPAdapter disables HTTPS validation. It does not
-        # support caching (see above) so we'll use it for all http:// URLs as
-        # well as any https:// host that we've marked as ignoring TLS errors
-        # for.
-        insecure_adapter = InsecureHTTPAdapter(max_retries=retries)
-        # Save this for later use in add_insecure_host().
-        self._insecure_adapter = insecure_adapter
+            self._trusted_host_adapter = insecure_adapter
 
         self.mount("https://", secure_adapter)
         self.mount("http://", insecure_adapter)
@@ -292,6 +301,14 @@ class PipSession(requests.Session):
         for host in trusted_hosts:
             self.add_trusted_host(host, suppress_logging=True)
 
+    def update_index_urls(self, new_index_urls):
+        # type: (List[str]) -> None
+        """
+        :param new_index_urls: New index urls to update the authentication
+            handler with.
+        """
+        self.auth.index_urls = new_index_urls
+
     def add_trusted_host(self, host, source=None, suppress_logging=False):
         # type: (str, Optional[str], bool) -> None
         """
@@ -301,34 +318,36 @@ class PipSession(requests.Session):
             string came from.
         """
         if not suppress_logging:
-            msg = 'adding trusted host: {!r}'.format(host)
+            msg = f'adding trusted host: {host!r}'
             if source is not None:
-                msg += ' (from {})'.format(source)
+                msg += f' (from {source})'
             logger.info(msg)
 
         host_port = parse_netloc(host)
         if host_port not in self.pip_trusted_origins:
             self.pip_trusted_origins.append(host_port)
 
-        self.mount(build_url_from_netloc(host) + '/', self._insecure_adapter)
+        self.mount(
+            build_url_from_netloc(host) + '/',
+            self._trusted_host_adapter
+        )
         if not host_port[1]:
             # Mount wildcard ports for the same host.
             self.mount(
                 build_url_from_netloc(host) + ':',
-                self._insecure_adapter
+                self._trusted_host_adapter
             )
 
     def iter_secure_origins(self):
         # type: () -> Iterator[SecureOrigin]
-        for secure_origin in SECURE_ORIGINS:
-            yield secure_origin
+        yield from SECURE_ORIGINS
         for host, port in self.pip_trusted_origins:
             yield ('*', host, '*' if port is None else port)
 
     def is_secure_origin(self, location):
         # type: (Link) -> bool
         # Determine if this url used a secure transport mechanism
-        parsed = urllib_parse.urlparse(str(location))
+        parsed = urllib.parse.urlparse(str(location))
         origin_protocol, origin_host, origin_port = (
             parsed.scheme, parsed.hostname, parsed.port,
         )
@@ -402,4 +421,4 @@ class PipSession(requests.Session):
         kwargs.setdefault("timeout", self.timeout)
 
         # Dispatch the actual request
-        return super(PipSession, self).request(method, url, *args, **kwargs)
+        return super().request(method, url, *args, **kwargs)

@@ -48,7 +48,7 @@ if __name__ == '__main__':
 '''
 
 
-def _enquote_executable(executable):
+def enquote_executable(executable):
     if ' ' in executable:
         # make sure we quote only the executable in case of env
         # for example /usr/bin/env "/dir with spaces/bin/jython"
@@ -63,6 +63,8 @@ def _enquote_executable(executable):
                 executable = '"%s"' % executable
     return executable
 
+# Keep the old name around (for now), as there is at least one project using it!
+_enquote_executable = enquote_executable
 
 class ScriptMaker(object):
     """
@@ -88,6 +90,7 @@ class ScriptMaker(object):
 
         self._is_nt = os.name == 'nt' or (
             os.name == 'java' and os._name == 'nt')
+        self.version_info = sys.version_info
 
     def _get_alternate_executable(self, executable, options):
         if options.get('gui', False) and self._is_nt:  # pragma: no cover
@@ -185,7 +188,7 @@ class ScriptMaker(object):
         # If the user didn't specify an executable, it may be necessary to
         # cater for executable paths with spaces (not uncommon on Windows)
         if enquote:
-            executable = _enquote_executable(executable)
+            executable = enquote_executable(executable)
         # Issue #51: don't use fsencode, since we later try to
         # check that the shebang is decodable using utf-8.
         executable = executable.encode('utf-8')
@@ -293,10 +296,10 @@ class ScriptMaker(object):
         if '' in self.variants:
             scriptnames.add(name)
         if 'X' in self.variants:
-            scriptnames.add('%s%s' % (name, sys.version_info[0]))
+            scriptnames.add('%s%s' % (name, self.version_info[0]))
         if 'X.Y' in self.variants:
-            scriptnames.add('%s-%s.%s' % (name, sys.version_info[0],
-                            sys.version_info[1]))
+            scriptnames.add('%s-%s.%s' % (name, self.version_info[0],
+                                          self.version_info[1]))
         if options and options.get('gui', False):
             ext = 'pyw'
         else:

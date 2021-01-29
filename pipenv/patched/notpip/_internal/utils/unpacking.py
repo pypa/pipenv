@@ -1,12 +1,6 @@
 """Utilities related archives.
 """
 
-# The following comment should be removed at some point in the future.
-# mypy: strict-optional=False
-# mypy: disallow-untyped-defs=False
-
-from __future__ import absolute_import
-
 import logging
 import os
 import shutil
@@ -14,18 +8,19 @@ import stat
 import tarfile
 import zipfile
 
-from pipenv.patched.notpip._internal.exceptions import InstallationError
-from pipenv.patched.notpip._internal.utils.filetypes import (
+from pip._internal.exceptions import InstallationError
+from pip._internal.utils.filetypes import (
     BZ2_EXTENSIONS,
     TAR_EXTENSIONS,
     XZ_EXTENSIONS,
     ZIP_EXTENSIONS,
 )
-from pipenv.patched.notpip._internal.utils.misc import ensure_dir
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.misc import ensure_dir
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Iterable, List, Optional, Text, Union
+    from typing import Iterable, List, Optional
+    from zipfile import ZipInfo
 
 
 logger = logging.getLogger(__name__)
@@ -48,6 +43,7 @@ except ImportError:
 
 
 def current_umask():
+    # type: () -> int
     """Get the current umask which involves having to set it temporarily."""
     mask = os.umask(0)
     os.umask(mask)
@@ -55,7 +51,7 @@ def current_umask():
 
 
 def split_leading_dir(path):
-    # type: (Union[str, Text]) -> List[Union[str, Text]]
+    # type: (str) -> List[str]
     path = path.lstrip('/').lstrip('\\')
     if (
         '/' in path and (
@@ -71,7 +67,7 @@ def split_leading_dir(path):
 
 
 def has_leading_dir(paths):
-    # type: (Iterable[Union[str, Text]]) -> bool
+    # type: (Iterable[str]) -> bool
     """Returns true if all the paths have the same leading path name
     (i.e., everything is in one subdirectory in an archive)"""
     common_prefix = None
@@ -87,7 +83,7 @@ def has_leading_dir(paths):
 
 
 def is_within_directory(directory, target):
-    # type: ((Union[str, Text]), (Union[str, Text])) -> bool
+    # type: (str, str) -> bool
     """
     Return true if the absolute path of target is within the directory
     """
@@ -96,6 +92,23 @@ def is_within_directory(directory, target):
 
     prefix = os.path.commonprefix([abs_directory, abs_target])
     return prefix == abs_directory
+
+
+def set_extracted_file_to_default_mode_plus_executable(path):
+    # type: (str) -> None
+    """
+    Make file present at path have execute for user/group/world
+    (chmod +x) is no-op on windows per python docs
+    """
+    os.chmod(path, (0o777 & ~current_umask() | 0o111))
+
+
+def zip_item_is_executable(info):
+    # type: (ZipInfo) -> bool
+    mode = info.external_attr >> 16
+    # if mode and regular file and any execute permissions for
+    # user/group/world?
+    return bool(mode and stat.S_ISREG(mode) and mode & 0o111)
 
 
 def unzip_file(filename, location, flatten=True):
@@ -139,13 +152,8 @@ def unzip_file(filename, location, flatten=True):
                         shutil.copyfileobj(fp, destfp)
                 finally:
                     fp.close()
-                    mode = info.external_attr >> 16
-                    # if mode and regular file and any execute permissions for
-                    # user/group/world?
-                    if mode and stat.S_ISREG(mode) and mode & 0o111:
-                        # make dest file have execute for user/group/world
-                        # (chmod +x) no-op on windows per python docs
-                        os.chmod(fn, (0o777 - current_umask() | 0o111))
+                    if zip_item_is_executable(info):
+                        set_extracted_file_to_default_mode_plus_executable(fn)
     finally:
         zipfp.close()
 
@@ -182,8 +190,7 @@ def untar_file(filename, location):
         for member in tar.getmembers():
             fn = member.name
             if leading:
-                # https://github.com/python/mypy/issues/1174
-                fn = split_leading_dir(fn)[1]  # type: ignore
+                fn = split_leading_dir(fn)[1]
             path = os.path.join(location, fn)
             if not is_within_directory(location, path):
                 message = (
@@ -219,17 +226,15 @@ def untar_file(filename, location):
                     )
                     continue
                 ensure_dir(os.path.dirname(path))
+                assert fp is not None
                 with open(path, 'wb') as destfp:
                     shutil.copyfileobj(fp, destfp)
                 fp.close()
                 # Update the timestamp (useful for cython compiled files)
-                # https://github.com/python/typeshed/issues/2673
-                tar.utime(member, path)  # type: ignore
+                tar.utime(member, path)
                 # member have any execute permissions for user/group/world?
                 if member.mode & 0o111:
-                    # make dest file have execute for user/group/world
-                    # no-op on windows per python docs
-                    os.chmod(path, (0o777 - current_umask() | 0o111))
+                    set_extracted_file_to_default_mode_plus_executable(path)
     finally:
         tar.close()
 
@@ -268,5 +273,5 @@ def unpack_file(
             filename, location, content_type,
         )
         raise InstallationError(
-            'Cannot determine archive format of {}'.format(location)
+            f'Cannot determine archive format of {location}'
         )

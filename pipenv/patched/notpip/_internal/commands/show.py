@@ -1,18 +1,18 @@
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
-
-from __future__ import absolute_import
-
 import logging
 import os
 from email.parser import FeedParser
 
-from pipenv.patched.notpip._vendor import pkg_resources
-from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pip._vendor import pkg_resources
+from pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.notpip._internal.cli.base_command import Command
-from pipenv.patched.notpip._internal.cli.status_codes import ERROR, SUCCESS
-from pipenv.patched.notpip._internal.utils.misc import write_output
+from pip._internal.cli.base_command import Command
+from pip._internal.cli.status_codes import ERROR, SUCCESS
+from pip._internal.utils.misc import write_output
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+
+if MYPY_CHECK_RUNNING:
+    from optparse import Values
+    from typing import Dict, Iterator, List
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +28,8 @@ class ShowCommand(Command):
       %prog [options] <package> ..."""
     ignore_require_venv = True
 
-    def __init__(self, *args, **kw):
-        super(ShowCommand, self).__init__(*args, **kw)
+    def add_options(self):
+        # type: () -> None
         self.cmd_opts.add_option(
             '-f', '--files',
             dest='files',
@@ -40,6 +40,7 @@ class ShowCommand(Command):
         self.parser.insert_option_group(0, self.cmd_opts)
 
     def run(self, options, args):
+        # type: (Values, List[str]) -> int
         if not args:
             logger.warning('ERROR: Please provide a package name or names.')
             return ERROR
@@ -53,6 +54,7 @@ class ShowCommand(Command):
 
 
 def search_packages_info(query):
+    # type: (List[str]) -> Iterator[Dict[str, str]]
     """
     Gather details from installed distributions. Print distribution name,
     version, location, and installed files. Installed files requires a
@@ -71,6 +73,7 @@ def search_packages_info(query):
         logger.warning('Package(s) not found: %s', ', '.join(missing))
 
     def get_requiring_packages(package_name):
+        # type: (str) -> List[str]
         canonical_name = canonicalize_name(package_name)
         return [
             pkg.project_name for pkg in pkg_resources.working_set
@@ -88,12 +91,12 @@ def search_packages_info(query):
             'required_by': get_requiring_packages(dist.project_name)
         }
         file_list = None
-        metadata = None
+        metadata = ''
         if isinstance(dist, pkg_resources.DistInfoDistribution):
             # RECORDs should be part of .dist-info metadatas
             if dist.has_metadata('RECORD'):
                 lines = dist.get_metadata_lines('RECORD')
-                paths = [l.split(',')[0] for l in lines]
+                paths = [line.split(',')[0] for line in lines]
                 paths = [os.path.join(dist.location, p) for p in paths]
                 file_list = [os.path.relpath(p, dist.location) for p in paths]
 
@@ -141,8 +144,9 @@ def search_packages_info(query):
 
 
 def print_results(distributions, list_files=False, verbose=False):
+    # type: (Iterator[Dict[str, str]], bool, bool) -> bool
     """
-    Print the informations from installed distributions found.
+    Print the information from installed distributions found.
     """
     results_printed = False
     for i, dist in enumerate(distributions):

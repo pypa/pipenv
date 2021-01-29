@@ -1,16 +1,17 @@
 import logging
 
-from pipenv.patched.notpip._internal.build_env import BuildEnvironment
-from pipenv.patched.notpip._internal.distributions.base import AbstractDistribution
-from pipenv.patched.notpip._internal.exceptions import InstallationError
-from pipenv.patched.notpip._internal.utils.subprocess import runner_with_spinner_message
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.build_env import BuildEnvironment
+from pip._internal.distributions.base import AbstractDistribution
+from pip._internal.exceptions import InstallationError
+from pip._internal.utils.subprocess import runner_with_spinner_message
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Set, Tuple
 
-    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
-    from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+    from pip._vendor.pkg_resources import Distribution
+
+    from pip._internal.index.package_finder import PackageFinder
 
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ class SourceDistribution(AbstractDistribution):
                 requirement=self.req,
                 conflicting_with=conflicting_with,
                 description=', '.join(
-                    '{} is incompatible with {}'.format(installed, wanted)
+                    f'{installed} is incompatible with {wanted}'
                     for installed, wanted in sorted(conflicting)
                 )
             )

@@ -1,10 +1,6 @@
 """Build Environment used for isolation during sdist building
 """
 
-# The following comment should be removed at some point in the future.
-# mypy: strict-optional=False
-# mypy: disallow-untyped-defs=False
-
 import logging
 import os
 import sys
@@ -13,17 +9,19 @@ from collections import OrderedDict
 from distutils.sysconfig import get_python_lib
 from sysconfig import get_paths
 
-from pipenv.patched.notpip._vendor.pkg_resources import Requirement, VersionConflict, WorkingSet
+from pip._vendor.pkg_resources import Requirement, VersionConflict, WorkingSet
 
-from pipenv.patched.notpip import __file__ as pip_location
-from pipenv.patched.notpip._internal.utils.subprocess import call_subprocess
-from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.utils.ui import open_spinner
+from pip import __file__ as pip_location
+from pip._internal.cli.spinners import open_spinner
+from pip._internal.utils.subprocess import call_subprocess
+from pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Tuple, Set, Iterable, Optional, List
-    from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+    from types import TracebackType
+    from typing import Iterable, List, Optional, Set, Tuple, Type
+
+    from pip._internal.index.package_finder import PackageFinder
 
 logger = logging.getLogger(__name__)
 
@@ -48,16 +46,18 @@ class _Prefix:
             self.lib_dirs = [purelib, platlib]
 
 
-class BuildEnvironment(object):
+class BuildEnvironment:
     """Creates and manages an isolated environment to install build deps
     """
 
     def __init__(self):
         # type: () -> None
-        self._temp_dir = TempDirectory(kind="build-env")
+        temp_dir = TempDirectory(
+            kind=tempdir_kinds.BUILD_ENV, globally_managed=True
+        )
 
         self._prefixes = OrderedDict((
-            (name, _Prefix(os.path.join(self._temp_dir.path, name)))
+            (name, _Prefix(os.path.join(temp_dir.path, name)))
             for name in ('normal', 'overlay')
         ))
 
@@ -76,7 +76,7 @@ class BuildEnvironment(object):
                 get_python_lib(plat_specific=True),
             )
         }
-        self._site_dir = os.path.join(self._temp_dir.path, 'site')
+        self._site_dir = os.path.join(temp_dir.path, 'site')
         if not os.path.exists(self._site_dir):
             os.mkdir(self._site_dir)
         with open(os.path.join(self._site_dir, 'sitecustomize.py'), 'w') as fp:
@@ -108,6 +108,7 @@ class BuildEnvironment(object):
             ).format(system_sites=system_sites, lib_dirs=self._lib_dirs))
 
     def __enter__(self):
+        # type: () -> None
         self._save_env = {
             name: os.environ.get(name, None)
             for name in ('PATH', 'PYTHONNOUSERSITE', 'PYTHONPATH')
@@ -126,16 +127,18 @@ class BuildEnvironment(object):
             'PYTHONPATH': os.pathsep.join(pythonpath),
         })
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type,  # type: Optional[Type[BaseException]]
+        exc_val,  # type: Optional[BaseException]
+        exc_tb  # type: Optional[TracebackType]
+    ):
+        # type: (...) -> None
         for varname, old_value in self._save_env.items():
             if old_value is None:
                 os.environ.pop(varname, None)
             else:
                 os.environ[varname] = old_value
-
-    def cleanup(self):
-        # type: () -> None
-        self._temp_dir.cleanup()
 
     def check_requirements(self, reqs):
         # type: (Iterable[str]) -> Tuple[Set[Tuple[str, str]], Set[str]]
@@ -161,7 +164,7 @@ class BuildEnvironment(object):
         finder,  # type: PackageFinder
         requirements,  # type: Iterable[str]
         prefix_as_string,  # type: str
-        message  # type: Optional[str]
+        message  # type: str
     ):
         # type: (...) -> None
         prefix = self._prefixes[prefix_as_string]
@@ -169,9 +172,8 @@ class BuildEnvironment(object):
         prefix.setup = True
         if not requirements:
             return
-        sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
         args = [
-            sys_executable, os.path.dirname(pip_location), 'install',
+            sys.executable, os.path.dirname(pip_location), 'install',
             '--ignore-installed', '--no-user', '--prefix', prefix.path,
             '--no-warn-script-location',
         ]  # type: List[str]
@@ -196,6 +198,8 @@ class BuildEnvironment(object):
             args.extend(['--trusted-host', host])
         if finder.allow_all_prereleases:
             args.append('--pre')
+        if finder.prefer_binary:
+            args.append('--prefer-binary')
         args.append('--')
         args.extend(requirements)
         with open_spinner(message) as spinner:
@@ -207,16 +211,32 @@ class NoOpBuildEnvironment(BuildEnvironment):
     """
 
     def __init__(self):
+        # type: () -> None
         pass
 
     def __enter__(self):
+        # type: () -> None
         pass
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type,  # type: Optional[Type[BaseException]]
+        exc_val,  # type: Optional[BaseException]
+        exc_tb  # type: Optional[TracebackType]
+    ):
+        # type: (...) -> None
         pass
 
     def cleanup(self):
+        # type: () -> None
         pass
 
-    def install_requirements(self, finder, requirements, prefix, message):
+    def install_requirements(
+        self,
+        finder,  # type: PackageFinder
+        requirements,  # type: Iterable[str]
+        prefix_as_string,  # type: str
+        message  # type: str
+    ):
+        # type: (...) -> None
         raise NotImplementedError()

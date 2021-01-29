@@ -1,15 +1,18 @@
-from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
+import urllib.parse
 
 
-class PackageIndex(object):
+class PackageIndex:
     """Represents a Package Index and provides easier access to endpoints
     """
 
+    __slots__ = ['url', 'netloc', 'simple_url', 'pypi_url',
+                 'file_storage_domain']
+
     def __init__(self, url, file_storage_domain):
         # type: (str, str) -> None
-        super(PackageIndex, self).__init__()
+        super().__init__()
         self.url = url
-        self.netloc = urllib_parse.urlsplit(url).netloc
+        self.netloc = urllib.parse.urlsplit(url).netloc
         self.simple_url = self._url_for_path('simple')
         self.pypi_url = self._url_for_path('pypi')
 
@@ -20,7 +23,7 @@ class PackageIndex(object):
 
     def _url_for_path(self, path):
         # type: (str) -> str
-        return urllib_parse.urljoin(self.url, path)
+        return urllib.parse.urljoin(self.url, path)
 
 
 PyPI = PackageIndex(

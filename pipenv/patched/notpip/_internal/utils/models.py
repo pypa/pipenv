@@ -6,9 +6,11 @@
 import operator
 
 
-class KeyBasedCompareMixin(object):
+class KeyBasedCompareMixin:
     """Provides comparison capabilities that is based on a key
     """
+
+    __slots__ = ['_compare_key', '_defining_class']
 
     def __init__(self, key, defining_class):
         self._compare_key = key
@@ -31,9 +33,6 @@ class KeyBasedCompareMixin(object):
 
     def __eq__(self, other):
         return self._compare(other, operator.__eq__)
-
-    def __ne__(self, other):
-        return self._compare(other, operator.__ne__)
 
     def _compare(self, other, method):
         if not isinstance(other, self._defining_class):

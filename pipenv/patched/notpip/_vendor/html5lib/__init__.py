@@ -6,7 +6,7 @@ is largely compatible with modern desktop web browsers.
 
 Example usage::
 
-    from pipenv.patched.notpip._vendor import html5lib
+    from pip._vendor import html5lib
     with open("my_document.html", "rb") as f:
         tree = html5lib.parse(f)
 
@@ -32,4 +32,4 @@ __all__ = ["HTMLParser", "parse", "parseFragment", "getTreeBuilder",
 
 # this has to be at the top level, see how setup.py parses this
 #: Distribution version number.
-__version__ = "1.0.1"
+__version__ = "1.1"

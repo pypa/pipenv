@@ -2,26 +2,22 @@
 Package containing all pip commands
 """
 
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
-
-from __future__ import absolute_import
-
 import importlib
 from collections import OrderedDict, namedtuple
 
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Any
-    from pipenv.patched.notpip._internal.cli.base_command import Command
+    from typing import Any, Optional
+
+    from pip._internal.cli.base_command import Command
 
 
 CommandInfo = namedtuple('CommandInfo', 'module_path, class_name, summary')
 
 # The ordering matters for help display.
 #    Also, even though the module path starts with the same
-# "pipenv.patched.notpip._internal.commands" prefix in each case, we include the full path
+# "pip._internal.commands" prefix in each case, we include the full path
 # because it makes testing easier (specifically when modifying commands_dict
 # in test setup / teardown by adding info for a FakeCommand class defined
 # in a test-related module).
@@ -29,59 +25,63 @@ CommandInfo = namedtuple('CommandInfo', 'module_path, class_name, summary')
 # so that the ordering won't be lost when using Python 2.7.
 commands_dict = OrderedDict([
     ('install', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.install', 'InstallCommand',
+        'pip._internal.commands.install', 'InstallCommand',
         'Install packages.',
     )),
     ('download', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.download', 'DownloadCommand',
+        'pip._internal.commands.download', 'DownloadCommand',
         'Download packages.',
     )),
     ('uninstall', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.uninstall', 'UninstallCommand',
+        'pip._internal.commands.uninstall', 'UninstallCommand',
         'Uninstall packages.',
     )),
     ('freeze', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.freeze', 'FreezeCommand',
+        'pip._internal.commands.freeze', 'FreezeCommand',
         'Output installed packages in requirements format.',
     )),
     ('list', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.list', 'ListCommand',
+        'pip._internal.commands.list', 'ListCommand',
         'List installed packages.',
     )),
     ('show', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.show', 'ShowCommand',
+        'pip._internal.commands.show', 'ShowCommand',
         'Show information about installed packages.',
     )),
     ('check', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.check', 'CheckCommand',
+        'pip._internal.commands.check', 'CheckCommand',
         'Verify installed packages have compatible dependencies.',
     )),
     ('config', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.configuration', 'ConfigurationCommand',
+        'pip._internal.commands.configuration', 'ConfigurationCommand',
         'Manage local and global configuration.',
     )),
     ('search', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.search', 'SearchCommand',
+        'pip._internal.commands.search', 'SearchCommand',
         'Search PyPI for packages.',
     )),
+    ('cache', CommandInfo(
+        'pip._internal.commands.cache', 'CacheCommand',
+        "Inspect and manage pip's wheel cache.",
+    )),
     ('wheel', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.wheel', 'WheelCommand',
+        'pip._internal.commands.wheel', 'WheelCommand',
         'Build wheels from your requirements.',
     )),
     ('hash', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.hash', 'HashCommand',
+        'pip._internal.commands.hash', 'HashCommand',
         'Compute hashes of package archives.',
     )),
     ('completion', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.completion', 'CompletionCommand',
+        'pip._internal.commands.completion', 'CompletionCommand',
         'A helper command used for command completion.',
     )),
     ('debug', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.debug', 'DebugCommand',
+        'pip._internal.commands.debug', 'DebugCommand',
         'Show information useful for debugging.',
     )),
     ('help', CommandInfo(
-        'pipenv.patched.notpip._internal.commands.help', 'HelpCommand',
+        'pip._internal.commands.help', 'HelpCommand',
         'Show help for commands.',
     )),
 ])  # type: OrderedDict[str, CommandInfo]
@@ -101,6 +101,7 @@ def create_command(name, **kwargs):
 
 
 def get_similar_commands(name):
+    # type: (str) -> Optional[str]
     """Command name auto-correct."""
     from difflib import get_close_matches
 
@@ -111,4 +112,4 @@ def get_similar_commands(name):
     if close_commands:
         return close_commands[0]
     else:
-        return False
+        return None

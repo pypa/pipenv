@@ -8,35 +8,31 @@ These are meant to be used elsewhere within pip to create instances of
 InstallRequirement.
 """
 
-# The following comment should be removed at some point in the future.
-# mypy: strict-optional=False
-
 import logging
 import os
 import re
 
-from pipenv.patched.notpip._vendor.packaging.markers import Marker
-from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
-from pipenv.patched.notpip._vendor.packaging.specifiers import Specifier
-from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError, parse_requirements
+from pip._vendor.packaging.markers import Marker
+from pip._vendor.packaging.requirements import InvalidRequirement, Requirement
+from pip._vendor.packaging.specifiers import Specifier
+from pip._vendor.pkg_resources import RequirementParseError, parse_requirements
 
-from pipenv.patched.notpip._internal.exceptions import InstallationError
-from pipenv.patched.notpip._internal.models.index import PyPI, TestPyPI
-from pipenv.patched.notpip._internal.models.link import Link
-from pipenv.patched.notpip._internal.models.wheel import Wheel
-from pipenv.patched.notpip._internal.pyproject import make_pyproject_path
-from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
-from pipenv.patched.notpip._internal.utils.filetypes import ARCHIVE_EXTENSIONS
-from pipenv.patched.notpip._internal.utils.misc import is_installable_dir, splitext
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.utils.urls import path_to_url
-from pipenv.patched.notpip._internal.vcs import is_url, vcs
+from pip._internal.exceptions import InstallationError
+from pip._internal.models.index import PyPI, TestPyPI
+from pip._internal.models.link import Link
+from pip._internal.models.wheel import Wheel
+from pip._internal.pyproject import make_pyproject_path
+from pip._internal.req.req_install import InstallRequirement
+from pip._internal.utils.filetypes import is_archive_file
+from pip._internal.utils.misc import is_installable_dir
+from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pip._internal.utils.urls import path_to_url
+from pip._internal.vcs import is_url, vcs
 
 if MYPY_CHECK_RUNNING:
-    from typing import (
-        Any, Dict, Optional, Set, Tuple, Union,
-    )
-    from pipenv.patched.notpip._internal.cache import WheelCache
+    from typing import Any, Dict, Optional, Set, Tuple, Union
+
+    from pip._internal.req.req_file import ParsedRequirement
 
 
 __all__ = [
@@ -46,15 +42,6 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 operators = Specifier._operators.keys()
-
-
-def is_archive_file(name):
-    # type: (str) -> bool
-    """Return True if `name` is a considered as an archive file."""
-    ext = splitext(name)[1].lower()
-    if ext in ARCHIVE_EXTENSIONS:
-        return True
-    return False
 
 
 def _strip_extras(path):
@@ -78,7 +65,7 @@ def convert_extras(extras):
 
 
 def parse_editable(editable_req):
-    # type: (str) -> Tuple[Optional[str], str, Optional[Set[str]]]
+    # type: (str) -> Tuple[Optional[str], str, Set[str]]
     """Parses an editable requirement into:
         - a requirement name
         - an URL
@@ -120,35 +107,30 @@ def parse_editable(editable_req):
                 Requirement("placeholder" + extras.lower()).extras,
             )
         else:
-            return package_name, url_no_extras, None
+            return package_name, url_no_extras, set()
 
     for version_control in vcs:
-        if url.lower().startswith('%s:' % version_control):
-            url = '%s+%s' % (version_control, url)
+        if url.lower().startswith(f'{version_control}:'):
+            url = f'{version_control}+{url}'
             break
 
-    if '+' not in url:
+    link = Link(url)
+
+    if not link.is_vcs:
+        backends = ", ".join(vcs.all_schemes)
         raise InstallationError(
-            '{} is not a valid editable requirement. '
-            'It should either be a path to a local project or a VCS URL '
-            '(beginning with svn+, git+, hg+, or bzr+).'.format(editable_req)
+            f'{editable_req} is not a valid editable requirement. '
+            f'It should either be a path to a local project or a VCS URL '
+            f'(beginning with {backends}).'
         )
 
-    vc_type = url.split('+', 1)[0].lower()
-
-    if not vcs.get_backend(vc_type):
-        error_message = 'For --editable=%s only ' % editable_req + \
-            ', '.join([backend.name + '+URL' for backend in vcs.backends]) + \
-            ' is currently supported'
-        raise InstallationError(error_message)
-
-    package_name = Link(url).egg_fragment
+    package_name = link.egg_fragment
     if not package_name:
         raise InstallationError(
-            "Could not detect requirement name for '%s', please specify one "
-            "with #egg=your_package_name" % editable_req
+            "Could not detect requirement name for '{}', please specify one "
+            "with #egg=your_package_name".format(editable_req)
         )
-    return package_name, url, None
+    return package_name, url, set()
 
 
 def deduce_helpful_msg(req):
@@ -160,26 +142,29 @@ def deduce_helpful_msg(req):
     """
     msg = ""
     if os.path.exists(req):
-        msg = " It does exist."
+        msg = " The path does exist. "
         # Try to parse and check if it is a requirements file.
         try:
             with open(req, 'r') as fp:
                 # parse first line only
                 next(parse_requirements(fp.read()))
-                msg += " The argument you provided " + \
-                    "(%s) appears to be a" % (req) + \
-                    " requirements file. If that is the" + \
-                    " case, use the '-r' flag to install" + \
+                msg += (
+                    "The argument you provided "
+                    "({}) appears to be a"
+                    " requirements file. If that is the"
+                    " case, use the '-r' flag to install"
                     " the packages specified within it."
+                ).format(req)
         except RequirementParseError:
-            logger.debug("Cannot parse '%s' as requirements \
-            file" % (req), exc_info=True)
+            logger.debug(
+                "Cannot parse '%s' as requirements file", req, exc_info=True
+            )
     else:
-        msg += " File '%s' does not exist." % (req)
+        msg += f" File '{req}' does not exist."
     return msg
 
 
-class RequirementParts(object):
+class RequirementParts:
     def __init__(
             self,
             requirement,  # type: Optional[Requirement]
@@ -201,7 +186,7 @@ def parse_req_from_editable(editable_req):
         try:
             req = Requirement(name)
         except InvalidRequirement:
-            raise InstallationError("Invalid requirement: '%s'" % name)
+            raise InstallationError(f"Invalid requirement: '{name}'")
     else:
         req = None
 
@@ -215,28 +200,29 @@ def parse_req_from_editable(editable_req):
 
 def install_req_from_editable(
     editable_req,  # type: str
-    comes_from=None,  # type: Optional[str]
+    comes_from=None,  # type: Optional[Union[InstallRequirement, str]]
     use_pep517=None,  # type: Optional[bool]
     isolated=False,  # type: bool
     options=None,  # type: Optional[Dict[str, Any]]
-    wheel_cache=None,  # type: Optional[WheelCache]
-    constraint=False  # type: bool
+    constraint=False,  # type: bool
+    user_supplied=False,  # type: bool
 ):
     # type: (...) -> InstallRequirement
 
     parts = parse_req_from_editable(editable_req)
 
-    source_dir = parts.link.file_path if parts.link.scheme == 'file' else None
-
     return InstallRequirement(
-        parts.requirement, comes_from, source_dir=source_dir,
+        parts.requirement,
+        comes_from=comes_from,
+        user_supplied=user_supplied,
         editable=True,
         link=parts.link,
         constraint=constraint,
         use_pep517=use_pep517,
         isolated=isolated,
-        options=options if options else {},
-        wheel_cache=wheel_cache,
+        install_options=options.get("install_options", []) if options else [],
+        global_options=options.get("global_options", []) if options else [],
+        hash_options=options.get("hashes", {}) if options else {},
         extras=parts.extras,
     )
 
@@ -262,7 +248,7 @@ def _looks_like_path(name):
 
 
 def _get_url_from_path(path, name):
-    # type: (str, str) -> str
+    # type: (str, str) -> Optional[str]
     """
     First, it checks whether a provided path is an installable directory
     (e.g. it has a setup.py). If it is, returns the path.
@@ -275,8 +261,8 @@ def _get_url_from_path(path, name):
         if is_installable_dir(path):
             return path_to_url(path)
         raise InstallationError(
-            "Directory %r is not installable. Neither 'setup.py' "
-            "nor 'pyproject.toml' found." % name
+            "Directory {name!r} is not installable. Neither 'setup.py' "
+            "nor 'pyproject.toml' found.".format(**locals())
         )
     if not is_archive_file(path):
         return None
@@ -333,7 +319,7 @@ def parse_req_from_line(name, line_source):
         # wheel file
         if link.is_wheel:
             wheel = Wheel(link.filename)  # can raise InvalidWheelFilename
-            req_as_string = "%s==%s" % (wheel.name, wheel.version)
+            req_as_string = "{wheel.name}=={wheel.version}".format(**locals())
         else:
             # set the req to the egg fragment.  when it's not there, this
             # will become an 'unnamed' requirement
@@ -349,7 +335,7 @@ def parse_req_from_line(name, line_source):
         # type: (str) -> str
         if not line_source:
             return text
-        return '{} (from {})'.format(text, line_source)
+        return f'{text} (from {line_source})'
 
     if req_as_string is not None:
         try:
@@ -364,11 +350,21 @@ def parse_req_from_line(name, line_source):
             else:
                 add_msg = ''
             msg = with_source(
-                'Invalid requirement: {!r}'.format(req_as_string)
+                f'Invalid requirement: {req_as_string!r}'
             )
             if add_msg:
-                msg += '\nHint: {}'.format(add_msg)
+                msg += f'\nHint: {add_msg}'
             raise InstallationError(msg)
+        else:
+            # Deprecate extras after specifiers: "name>=1.0[extras]"
+            # This currently works by accident because _strip_extras() parses
+            # any extras in the end of the string and those are saved in
+            # RequirementParts
+            for spec in req.specifier:
+                spec_str = str(spec)
+                if spec_str.endswith(']'):
+                    msg = f"Extras after version '{spec_str}'."
+                    raise InstallationError(msg)
     else:
         req = None
 
@@ -381,9 +377,9 @@ def install_req_from_line(
     use_pep517=None,  # type: Optional[bool]
     isolated=False,  # type: bool
     options=None,  # type: Optional[Dict[str, Any]]
-    wheel_cache=None,  # type: Optional[WheelCache]
     constraint=False,  # type: bool
     line_source=None,  # type: Optional[str]
+    user_supplied=False,  # type: bool
 ):
     # type: (...) -> InstallRequirement
     """Creates an InstallRequirement from a name, which might be a
@@ -397,10 +393,12 @@ def install_req_from_line(
     return InstallRequirement(
         parts.requirement, comes_from, link=parts.link, markers=parts.markers,
         use_pep517=use_pep517, isolated=isolated,
-        options=options if options else {},
-        wheel_cache=wheel_cache,
+        install_options=options.get("install_options", []) if options else [],
+        global_options=options.get("global_options", []) if options else [],
+        hash_options=options.get("hashes", {}) if options else {},
         constraint=constraint,
         extras=parts.extras,
+        user_supplied=user_supplied,
     )
 
 
@@ -408,14 +406,14 @@ def install_req_from_req_string(
     req_string,  # type: str
     comes_from=None,  # type: Optional[InstallRequirement]
     isolated=False,  # type: bool
-    wheel_cache=None,  # type: Optional[WheelCache]
-    use_pep517=None  # type: Optional[bool]
+    use_pep517=None,  # type: Optional[bool]
+    user_supplied=False,  # type: bool
 ):
     # type: (...) -> InstallRequirement
     try:
         req = Requirement(req_string)
     except InvalidRequirement:
-        raise InstallationError("Invalid requirement: '%s'" % req_string)
+        raise InstallationError(f"Invalid requirement: '{req_string}'")
 
     domains_not_allowed = [
         PyPI.file_storage_domain,
@@ -427,10 +425,44 @@ def install_req_from_req_string(
         raise InstallationError(
             "Packages installed from PyPI cannot depend on packages "
             "which are not also hosted on PyPI.\n"
-            "%s depends on %s " % (comes_from.name, req)
+            "{} depends on {} ".format(comes_from.name, req)
         )
 
     return InstallRequirement(
-        req, comes_from, isolated=isolated, wheel_cache=wheel_cache,
-        use_pep517=use_pep517
+        req,
+        comes_from,
+        isolated=isolated,
+        use_pep517=use_pep517,
+        user_supplied=user_supplied,
     )
+
+
+def install_req_from_parsed_requirement(
+    parsed_req,  # type: ParsedRequirement
+    isolated=False,  # type: bool
+    use_pep517=None,  # type: Optional[bool]
+    user_supplied=False,  # type: bool
+):
+    # type: (...) -> InstallRequirement
+    if parsed_req.is_editable:
+        req = install_req_from_editable(
+            parsed_req.requirement,
+            comes_from=parsed_req.comes_from,
+            use_pep517=use_pep517,
+            constraint=parsed_req.constraint,
+            isolated=isolated,
+            user_supplied=user_supplied,
+        )
+
+    else:
+        req = install_req_from_line(
+            parsed_req.requirement,
+            comes_from=parsed_req.comes_from,
+            use_pep517=use_pep517,
+            isolated=isolated,
+            options=parsed_req.options,
+            constraint=parsed_req.constraint,
+            line_source=parsed_req.line_source,
+            user_supplied=user_supplied,
+        )
+    return req

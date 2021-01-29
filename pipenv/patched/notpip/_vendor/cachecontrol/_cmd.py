@@ -1,10 +1,10 @@
 import logging
 
-from pipenv.patched.notpip._vendor import requests
+from pip._vendor import requests
 
-from pipenv.patched.notpip._vendor.cachecontrol.adapter import CacheControlAdapter
-from pipenv.patched.notpip._vendor.cachecontrol.cache import DictCache
-from pipenv.patched.notpip._vendor.cachecontrol.controller import logger
+from pip._vendor.cachecontrol.adapter import CacheControlAdapter
+from pip._vendor.cachecontrol.cache import DictCache
+from pip._vendor.cachecontrol.controller import logger
 
 from argparse import ArgumentParser
 

@@ -8,7 +8,7 @@ This module handles import compatibility issues between Python 2 and
 Python 3.
 """
 
-from pipenv.patched.notpip._vendor import chardet
+from pip._vendor import chardet
 
 import sys
 
@@ -47,6 +47,7 @@ if is_py2:
     import cookielib
     from Cookie import Morsel
     from StringIO import StringIO
+    # Keep OrderedDict for backwards compatibility.
     from collections import Callable, Mapping, MutableMapping, OrderedDict
 
 
@@ -63,6 +64,7 @@ elif is_py3:
     from http import cookiejar as cookielib
     from http.cookies import Morsel
     from io import StringIO
+    # Keep OrderedDict for backwards compatibility.
     from collections import OrderedDict
     from collections.abc import Callable, Mapping, MutableMapping
 
