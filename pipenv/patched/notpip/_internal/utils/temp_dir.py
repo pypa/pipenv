@@ -3,7 +3,9 @@ import itertools
 import logging
 import os.path
 import tempfile
+import warnings
 from contextlib import contextmanager
+from weakref import finalize
 
 from pip._vendor.contextlib2 import ExitStack
 from pip._vendor.six import ensure_text
@@ -142,10 +144,24 @@ class TempDirectory:
         self._deleted = False
         self.delete = delete
         self.kind = kind
+        self._finalizer = None
+        if self._path:
+            self._register_finalizer()
 
         if globally_managed:
             assert _tempdir_manager is not None
             _tempdir_manager.enter_context(self)
+
+    def _register_finalizer(self):
+        if self.delete and self._path:
+            self._finalizer = finalize(
+                self,
+                self._cleanup,
+                self._path,
+                warn_message = None
+            )
+        else:
+            self._finalizer = None
 
     @property
     def path(self):
@@ -154,6 +170,18 @@ class TempDirectory:
             f"Attempted to access deleted path: {self._path}"
         )
         return self._path
+
+    @classmethod
+    def _cleanup(cls, name, warn_message=None):
+        if not os.path.exists(name):
+            return
+        try:
+            rmtree(name)
+        except OSError:
+            pass
+        else:
+            if warn_message:
+                warnings.warn(warn_message, ResourceWarning)
 
     def __repr__(self):
         # type: () -> str
@@ -193,19 +221,13 @@ class TempDirectory:
         # type: () -> None
         """Remove the temporary directory created and reset state
         """
-        self._deleted = True
-        if not os.path.exists(self._path):
-            return
-        # Make sure to pass unicode on Python 2 to make the contents also
-        # use unicode, ensuring non-ASCII names and can be represented.
-        # This is only done on Windows because POSIX platforms use bytes
-        # natively for paths, and the bytes-text conversion omission avoids
-        # errors caused by the environment configuring encodings incorrectly.
-        if WINDOWS:
-            rmtree(ensure_text(self._path))
-        else:
-            rmtree(self._path)
-
+        if getattr(self._finalizer, "detach", None) and self._finalizer.detach():
+            if os.path.exists(self._path):
+                self._deleted = True
+                try:
+                    rmtree(self._path)
+                except OSError:
+                    pass
 
 class AdjacentTempDirectory(TempDirectory):
     """Helper class that creates a temporary directory adjacent to a real one.

@@ -15,11 +15,12 @@ class InstallationCandidate(KeyBasedCompareMixin):
 
     __slots__ = ["name", "version", "link"]
 
-    def __init__(self, name, version, link):
-        # type: (str, str, Link) -> None
+    def __init__(self, name, version, link, requires_python=None):
+        # type: (str, str, Link, Any) -> None
         self.name = name
         self.version = parse_version(version)  # type: _BaseVersion
         self.link = link
+        self.requires_python = requires_python
 
         super().__init__(
             key=(self.name, self.version, self.link),

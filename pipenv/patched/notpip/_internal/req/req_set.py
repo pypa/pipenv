@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 class RequirementSet:
 
-    def __init__(self, check_supported_wheels=True):
-        # type: (bool) -> None
+    def __init__(self, check_supported_wheels=True, ignore_compatibility=True):
+        # type: (bool, bool) -> None
         """Create a RequirementSet.
         """
 
@@ -28,6 +28,9 @@ class RequirementSet:
         self.check_supported_wheels = check_supported_wheels
 
         self.unnamed_requirements = []  # type: List[InstallRequirement]
+        if ignore_compatibility:
+            self.check_supported_wheels = False
+        self.ignore_compatibility = (check_supported_wheels is False or ignore_compatibility is True)
 
     def __str__(self):
         # type: () -> str
@@ -194,7 +197,7 @@ class RequirementSet:
         if project_name in self.requirements:
             return self.requirements[project_name]
 
-        raise KeyError("No project with the name {name!r}".format(**locals()))
+        pass
 
     @property
     def all_requirements(self):

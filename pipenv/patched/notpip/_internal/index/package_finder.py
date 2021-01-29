@@ -118,6 +118,7 @@ class LinkEvaluator:
         target_python,   # type: TargetPython
         allow_yanked,    # type: bool
         ignore_requires_python=None,  # type: Optional[bool]
+        ignore_compatibility=None,  # type: Optional[bool]
     ):
         # type: (...) -> None
         """
@@ -136,15 +137,20 @@ class LinkEvaluator:
         :param ignore_requires_python: Whether to ignore incompatible
             PEP 503 "data-requires-python" values in HTML links. Defaults
             to False.
+        :param Optional[bool] ignore_compatibility: Whether to ignore
+            compatibility of python versions and allow all versions of packages.
         """
         if ignore_requires_python is None:
             ignore_requires_python = False
+        if ignore_compatibility is None:
+            ignore_compatibility = True
 
         self._allow_yanked = allow_yanked
         self._canonical_name = canonical_name
         self._ignore_requires_python = ignore_requires_python
         self._formats = formats
         self._target_python = target_python
+        self._ignore_compatibility = ignore_compatibility
 
         self.project_name = project_name
 
@@ -172,11 +178,11 @@ class LinkEvaluator:
                 return (False, 'not a file')
             if ext not in SUPPORTED_EXTENSIONS:
                 return (False, f'unsupported archive format: {ext}')
-            if "binary" not in self._formats and ext == WHEEL_EXTENSION:
+            if "binary" not in self._formats and ext == WHEEL_EXTENSION and not self._ignore_compatibility:
                 reason = 'No binaries permitted for {}'.format(
                     self.project_name)
                 return (False, reason)
-            if "macosx10" in link.path and ext == '.zip':
+            if "macosx10" in link.path and ext == '.zip' and not self._ignore_compatibility:
                 return (False, 'macosx10 one')
             if ext == WHEEL_EXTENSION:
                 try:
@@ -189,7 +195,7 @@ class LinkEvaluator:
                     return (False, reason)
 
                 supported_tags = self._target_python.get_tags()
-                if not wheel.supported(supported_tags):
+                if not wheel.supported(supported_tags) and not self._ignore_compatibility:
                     # Include the wheel's tags in the reason string to
                     # simplify troubleshooting compatibility issues.
                     file_tags = wheel.get_formatted_file_tags()
@@ -226,7 +232,7 @@ class LinkEvaluator:
             link, version_info=self._target_python.py_version_info,
             ignore_requires_python=self._ignore_requires_python,
         )
-        if not supports_python:
+        if not supports_python and not self._ignore_compatibility:
             # Return None for the reason text to suppress calling
             # _log_skipped_link().
             return (False, None)
@@ -479,8 +485,8 @@ class CandidateEvaluator:
 
         return sorted(filtered_applicable_candidates, key=self._sort_key)
 
-    def _sort_key(self, candidate):
-        # type: (InstallationCandidate) -> CandidateSortingKey
+    def _sort_key(self, candidate, ignore_compatibility=True):
+        # type: (InstallationCandidate, bool) -> CandidateSortingKey
         """
         Function to pass as the `key` argument to a call to sorted() to sort
         InstallationCandidates by preference.
@@ -518,14 +524,18 @@ class CandidateEvaluator:
         if link.is_wheel:
             # can raise InvalidWheelFilename
             wheel = Wheel(link.filename)
-            if not wheel.supported(valid_tags):
+            if not wheel.supported(valid_tags) and not ignore_compatibility:
                 raise UnsupportedWheel(
                     "{} is not a supported wheel for this platform. It "
                     "can't be sorted.".format(wheel.filename)
                 )
             if self._prefer_binary:
                 binary_preference = 1
-            pri = -(wheel.support_index_min(valid_tags))
+            tags = valid_tags
+            try:
+                pri = -(wheel.support_index_min(tags=tags))
+            except TypeError:
+                pri = -(support_num)
             if wheel.build_tag is not None:
                 match = re.match(r'^(\d+)(.*)$', wheel.build_tag)
                 build_tag_groups = match.groups()
@@ -587,6 +597,7 @@ class PackageFinder:
         format_control=None,  # type: Optional[FormatControl]
         candidate_prefs=None,         # type: CandidatePreferences
         ignore_requires_python=None,  # type: Optional[bool]
+        ignore_compatibility=None,  # type: Optional[bool]
     ):
         # type: (...) -> None
         """
@@ -601,6 +612,8 @@ class PackageFinder:
         """
         if candidate_prefs is None:
             candidate_prefs = CandidatePreferences()
+        if ignore_compatibility is None:
+            ignore_compatibility = False
 
         format_control = format_control or FormatControl(set(), set())
 
@@ -609,11 +622,15 @@ class PackageFinder:
         self._ignore_requires_python = ignore_requires_python
         self._link_collector = link_collector
         self._target_python = target_python
+        self._ignore_compatibility = ignore_compatibility
 
         self.format_control = format_control
 
         # These are boring links that have already been logged somehow.
         self._logged_links = set()  # type: Set[Link]
+
+        # Kenneth's Hack
+        self.extra = None
 
     # Don't include an allow_yanked default value to make sure each call
     # site considers whether yanked releases are allowed. This also causes
@@ -651,6 +668,22 @@ class PackageFinder:
             format_control=selection_prefs.format_control,
             ignore_requires_python=selection_prefs.ignore_requires_python,
         )
+
+    @staticmethod
+    def get_extras_links(links):
+        requires = []
+        extras = {}
+        current_list = requires
+
+        for link in links:
+            if not link:
+                current_list = requires
+            if link.startswith('['):
+                current_list = []
+                extras[link[1:-1]] = current_list
+            else:
+                current_list.append(link)
+        return extras
 
     @property
     def target_python(self):
@@ -713,6 +746,7 @@ class PackageFinder:
             target_python=self._target_python,
             allow_yanked=self._allow_yanked,
             ignore_requires_python=self._ignore_requires_python,
+            ignore_compatibility=self._ignore_compatibility,
         )
 
     def _sort_links(self, links):
@@ -756,6 +790,7 @@ class PackageFinder:
             name=link_evaluator.project_name,
             link=link,
             version=result,
+            requires_python=getattr(link, "requires_python", None)
         )
 
     def evaluate_links(self, link_evaluator, links):

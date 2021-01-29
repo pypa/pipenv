@@ -324,7 +324,7 @@ class InstallCommand(RequirementCommand):
             else:
                 # If we're not replacing an already installed pip,
                 # we're not modifying it.
-                modifying_pip = pip_req.satisfied_by is None
+                modifying_pip = getattr(pip_req, "satisfied_by", None) is None
             protect_pip_from_modification_on_windows(
                 modifying_pip=modifying_pip
             )

@@ -359,13 +359,7 @@ class RequirementPreparer:
         # FIXME: this won't upgrade when there's an existing
         # package unpacked in `req.source_dir`
         if os.path.exists(os.path.join(req.source_dir, 'setup.py')):
-            raise PreviousBuildDirError(
-                "pip can't proceed with requirements '{}' due to a"
-                "pre-existing build directory ({}). This is likely "
-                "due to a previous installation that failed . pip is "
-                "being responsible and not assuming it can delete this. "
-                "Please delete it and try again.".format(req, req.source_dir)
-            )
+            rmtree(req.source_dir)
 
     def _get_linked_req_hashes(self, req):
         # type: (InstallRequirement) -> Hashes

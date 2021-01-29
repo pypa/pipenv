@@ -172,8 +172,9 @@ class BuildEnvironment:
         prefix.setup = True
         if not requirements:
             return
+        sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
         args = [
-            sys.executable, os.path.dirname(pip_location), 'install',
+            sys_executable, os.path.dirname(pip_location), 'install',
             '--ignore-installed', '--no-user', '--prefix', prefix.path,
             '--no-warn-script-location',
         ]  # type: List[str]

@@ -1,3 +1,4 @@
+import os
 import sys
 
 from pip._internal.utils.typing import MYPY_CHECK_RUNNING
@@ -36,7 +37,8 @@ def make_setuptools_shim_args(
     :param unbuffered_output: If True, adds the unbuffered switch to the
      argument list.
     """
-    args = [sys.executable]
+    sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
+    args = [sys_executable]
     if unbuffered_output:
         args += ["-u"]
     args += ["-c", _SETUPTOOLS_SHIM.format(setup_py_path)]
