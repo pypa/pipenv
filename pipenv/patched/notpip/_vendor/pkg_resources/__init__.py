@@ -79,10 +79,10 @@ except ImportError:
 from . import py31compat
 from pipenv.patched.notpip._vendor import appdirs
 from pipenv.patched.notpip._vendor import packaging
-__import__('pip._vendor.packaging.version')
-__import__('pip._vendor.packaging.specifiers')
-__import__('pip._vendor.packaging.requirements')
-__import__('pip._vendor.packaging.markers')
+__import__('pipenv.patched.notpip._vendor.packaging.version')
+__import__('pipenv.patched.notpip._vendor.packaging.specifiers')
+__import__('pipenv.patched.notpip._vendor.packaging.requirements')
+__import__('pipenv.patched.notpip._vendor.packaging.markers')
 
 
 __metaclass__ = type
