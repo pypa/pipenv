@@ -1,12 +1,12 @@
 import sys
 
-from pip._internal.cli import cmdoptions
-from pip._internal.cli.base_command import Command
-from pip._internal.cli.status_codes import SUCCESS
-from pip._internal.operations.freeze import freeze
-from pip._internal.utils.compat import stdlib_pkgs
-from pip._internal.utils.deprecation import deprecated
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.base_command import Command
+from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.notpip._internal.operations.freeze import freeze
+from pipenv.patched.notpip._internal.utils.compat import stdlib_pkgs
+from pipenv.patched.notpip._internal.utils.deprecation import deprecated
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 DEV_PKGS = {'pip', 'setuptools', 'distribute', 'wheel'}
 

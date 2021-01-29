@@ -17,23 +17,23 @@ from functools import partial
 from optparse import SUPPRESS_HELP, Option, OptionGroup
 from textwrap import dedent
 
-from pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from pip._internal.cli.progress_bars import BAR_TYPES
-from pip._internal.exceptions import CommandError
-from pip._internal.locations import USER_CACHE_DIR, get_src_prefix
-from pip._internal.models.format_control import FormatControl
-from pip._internal.models.index import PyPI
-from pip._internal.models.target_python import TargetPython
-from pip._internal.utils.hashes import STRONG_HASHES
-from pip._internal.utils.misc import strtobool
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.cli.progress_bars import BAR_TYPES
+from pipenv.patched.notpip._internal.exceptions import CommandError
+from pipenv.patched.notpip._internal.locations import USER_CACHE_DIR, get_src_prefix
+from pipenv.patched.notpip._internal.models.format_control import FormatControl
+from pipenv.patched.notpip._internal.models.index import PyPI
+from pipenv.patched.notpip._internal.models.target_python import TargetPython
+from pipenv.patched.notpip._internal.utils.hashes import STRONG_HASHES
+from pipenv.patched.notpip._internal.utils.misc import strtobool
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from optparse import OptionParser, Values
     from typing import Any, Callable, Dict, Optional, Tuple
 
-    from pip._internal.cli.parser import ConfigOptionParser
+    from pipenv.patched.notpip._internal.cli.parser import ConfigOptionParser
 
 
 def raise_option_error(parser, option, msg):

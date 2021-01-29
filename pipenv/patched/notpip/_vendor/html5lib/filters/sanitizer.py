@@ -12,7 +12,7 @@ import re
 import warnings
 from xml.sax.saxutils import escape, unescape
 
-from pip._vendor.six.moves import urllib_parse as urlparse
+from pipenv.patched.notpip._vendor.six.moves import urllib_parse as urlparse
 
 from . import base
 from ..constants import namespaces, prefixes

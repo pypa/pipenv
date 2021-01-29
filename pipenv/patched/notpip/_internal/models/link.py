@@ -3,21 +3,21 @@ import posixpath
 import re
 import urllib.parse
 
-from pip._internal.utils.filetypes import WHEEL_EXTENSION
-from pip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.utils.filetypes import WHEEL_EXTENSION
+from pipenv.patched.notpip._internal.utils.misc import (
     redact_auth_from_url,
     split_auth_from_netloc,
     splitext,
 )
-from pip._internal.utils.models import KeyBasedCompareMixin
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.urls import path_to_url, url_to_path
+from pipenv.patched.notpip._internal.utils.models import KeyBasedCompareMixin
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.urls import path_to_url, url_to_path
 
 if MYPY_CHECK_RUNNING:
     from typing import Optional, Tuple, Union
 
-    from pip._internal.index.collector import HTMLPage
-    from pip._internal.utils.hashes import Hashes
+    from pipenv.patched.notpip._internal.index.collector import HTMLPage
+    from pipenv.patched.notpip._internal.utils.hashes import Hashes
 
 
 class Link(KeyBasedCompareMixin):
@@ -217,7 +217,7 @@ class Link(KeyBasedCompareMixin):
     @property
     def is_vcs(self):
         # type: () -> bool
-        from pip._internal.vcs import vcs
+        from pipenv.patched.notpip._internal.vcs import vcs
 
         return self.scheme in vcs.all_schemes
 

@@ -8,10 +8,10 @@ A module that implements tooling to enable easy warnings about deprecations.
 import logging
 import warnings
 
-from pip._vendor.packaging.version import parse
+from pipenv.patched.notpip._vendor.packaging.version import parse
 
 from pip import __version__ as current_version
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Optional

@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, unicode_literals
 from collections import OrderedDict
 import re
 
-from pip._vendor.six import string_types
+from pipenv.patched.notpip._vendor.six import string_types
 
 from . import base
 from .._utils import moduleFactoryFactory

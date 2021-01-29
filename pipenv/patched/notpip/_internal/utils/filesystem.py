@@ -10,11 +10,11 @@ from tempfile import NamedTemporaryFile
 
 # NOTE: retrying is not annotated in typeshed as on 2017-07-17, which is
 #       why we ignore the type on this import.
-from pip._vendor.retrying import retry  # type: ignore
+from pipenv.patched.notpip._vendor.retrying import retry  # type: ignore
 
-from pip._internal.utils.compat import get_path_uid
-from pip._internal.utils.misc import format_size
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING, cast
+from pipenv.patched.notpip._internal.utils.compat import get_path_uid
+from pipenv.patched.notpip._internal.utils.misc import format_size
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING, cast
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, BinaryIO, Iterator, List, Union

@@ -17,14 +17,14 @@ import logging
 import os
 import sys
 
-from pip._internal.exceptions import (
+from pipenv.patched.notpip._internal.exceptions import (
     ConfigurationError,
     ConfigurationFileCouldNotBeLoaded,
 )
-from pip._internal.utils import appdirs
-from pip._internal.utils.compat import WINDOWS
-from pip._internal.utils.misc import ensure_dir, enum
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils import appdirs
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS
+from pipenv.patched.notpip._internal.utils.misc import ensure_dir, enum
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Dict, Iterable, List, NewType, Optional, Tuple

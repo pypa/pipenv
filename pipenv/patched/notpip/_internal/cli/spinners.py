@@ -4,11 +4,11 @@ import logging
 import sys
 import time
 
-from pip._vendor.progress import HIDE_CURSOR, SHOW_CURSOR
+from pipenv.patched.notpip._vendor.progress import HIDE_CURSOR, SHOW_CURSOR
 
-from pip._internal.utils.compat import WINDOWS
-from pip._internal.utils.logging import get_indentation
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS
+from pipenv.patched.notpip._internal.utils.logging import get_indentation
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import IO, Iterator

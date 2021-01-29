@@ -2,24 +2,24 @@ import functools
 import logging
 import os
 
-from pip._vendor import six
-from pip._vendor.packaging.utils import canonicalize_name
-from pip._vendor.resolvelib import ResolutionImpossible
-from pip._vendor.resolvelib import Resolver as RLResolver
+from pipenv.patched.notpip._vendor import six
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.resolvelib import ResolutionImpossible
+from pipenv.patched.notpip._vendor.resolvelib import Resolver as RLResolver
 
-from pip._internal.exceptions import InstallationError
-from pip._internal.req.req_install import check_invalid_constraint_type
-from pip._internal.req.req_set import RequirementSet
-from pip._internal.resolution.base import BaseResolver
-from pip._internal.resolution.resolvelib.provider import PipProvider
-from pip._internal.resolution.resolvelib.reporter import (
+from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.req.req_install import check_invalid_constraint_type
+from pipenv.patched.notpip._internal.req.req_set import RequirementSet
+from pipenv.patched.notpip._internal.resolution.base import BaseResolver
+from pipenv.patched.notpip._internal.resolution.resolvelib.provider import PipProvider
+from pipenv.patched.notpip._internal.resolution.resolvelib.reporter import (
     PipDebuggingReporter,
     PipReporter,
 )
-from pip._internal.utils.deprecation import deprecated
-from pip._internal.utils.filetypes import is_archive_file
-from pip._internal.utils.misc import dist_is_editable
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.deprecation import deprecated
+from pipenv.patched.notpip._internal.utils.filetypes import is_archive_file
+from pipenv.patched.notpip._internal.utils.misc import dist_is_editable
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 from .base import Constraint
 from .factory import Factory
@@ -27,14 +27,14 @@ from .factory import Factory
 if MYPY_CHECK_RUNNING:
     from typing import Dict, List, Optional, Set, Tuple
 
-    from pip._vendor.resolvelib.resolvers import Result
-    from pip._vendor.resolvelib.structs import Graph
+    from pipenv.patched.notpip._vendor.resolvelib.resolvers import Result
+    from pipenv.patched.notpip._vendor.resolvelib.structs import Graph
 
-    from pip._internal.cache import WheelCache
-    from pip._internal.index.package_finder import PackageFinder
-    from pip._internal.operations.prepare import RequirementPreparer
-    from pip._internal.req.req_install import InstallRequirement
-    from pip._internal.resolution.base import InstallRequirementProvider
+    from pipenv.patched.notpip._internal.cache import WheelCache
+    from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.notpip._internal.resolution.base import InstallRequirementProvider
 
 
 logger = logging.getLogger(__name__)

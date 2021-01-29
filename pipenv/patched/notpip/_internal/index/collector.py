@@ -13,19 +13,19 @@ import urllib.parse
 import urllib.request
 from collections import OrderedDict
 
-from pip._vendor import html5lib, requests
-from pip._vendor.distlib.compat import unescape
-from pip._vendor.requests.exceptions import RetryError, SSLError
+from pipenv.patched.notpip._vendor import html5lib, requests
+from pipenv.patched.notpip._vendor.distlib.compat import unescape
+from pipenv.patched.notpip._vendor.requests.exceptions import RetryError, SSLError
 
-from pip._internal.exceptions import NetworkConnectionError
-from pip._internal.models.link import Link
-from pip._internal.models.search_scope import SearchScope
-from pip._internal.network.utils import raise_for_status
-from pip._internal.utils.filetypes import is_archive_file
-from pip._internal.utils.misc import pairwise, redact_auth_from_url
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.urls import path_to_url, url_to_path
-from pip._internal.vcs import is_url, vcs
+from pipenv.patched.notpip._internal.exceptions import NetworkConnectionError
+from pipenv.patched.notpip._internal.models.link import Link
+from pipenv.patched.notpip._internal.models.search_scope import SearchScope
+from pipenv.patched.notpip._internal.network.utils import raise_for_status
+from pipenv.patched.notpip._internal.utils.filetypes import is_archive_file
+from pipenv.patched.notpip._internal.utils.misc import pairwise, redact_auth_from_url
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.urls import path_to_url, url_to_path
+from pipenv.patched.notpip._internal.vcs import is_url, vcs
 
 if MYPY_CHECK_RUNNING:
     import xml.etree.ElementTree
@@ -41,9 +41,9 @@ if MYPY_CHECK_RUNNING:
         Union,
     )
 
-    from pip._vendor.requests import Response
+    from pipenv.patched.notpip._vendor.requests import Response
 
-    from pip._internal.network.session import PipSession
+    from pipenv.patched.notpip._internal.network.session import PipSession
 
     HTMLElement = xml.etree.ElementTree.Element
     ResponseHeaders = MutableMapping[str, str]

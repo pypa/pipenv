@@ -18,7 +18,7 @@ curious maintainer can reach here to read this.
 
 In pip, all static-typing related imports should be guarded as follows:
 
-    from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+    from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
     if MYPY_CHECK_RUNNING:
         from typing import ...

@@ -1,9 +1,9 @@
 from collections import defaultdict
 from logging import getLogger
 
-from pip._vendor.resolvelib.reporters import BaseReporter
+from pipenv.patched.notpip._vendor.resolvelib.reporters import BaseReporter
 
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, DefaultDict

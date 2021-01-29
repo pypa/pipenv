@@ -5,23 +5,23 @@ import logging
 import mimetypes
 import os
 
-from pip._vendor.requests.models import CONTENT_CHUNK_SIZE
+from pipenv.patched.notpip._vendor.requests.models import CONTENT_CHUNK_SIZE
 
-from pip._internal.cli.progress_bars import DownloadProgressProvider
-from pip._internal.exceptions import NetworkConnectionError
-from pip._internal.models.index import PyPI
-from pip._internal.network.cache import is_from_cache
-from pip._internal.network.utils import HEADERS, raise_for_status, response_chunks
-from pip._internal.utils.misc import format_size, redact_auth_from_url, splitext
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.cli.progress_bars import DownloadProgressProvider
+from pipenv.patched.notpip._internal.exceptions import NetworkConnectionError
+from pipenv.patched.notpip._internal.models.index import PyPI
+from pipenv.patched.notpip._internal.network.cache import is_from_cache
+from pipenv.patched.notpip._internal.network.utils import HEADERS, raise_for_status, response_chunks
+from pipenv.patched.notpip._internal.utils.misc import format_size, redact_auth_from_url, splitext
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Iterable, Optional, Tuple
 
-    from pip._vendor.requests.models import Response
+    from pipenv.patched.notpip._vendor.requests.models import Response
 
-    from pip._internal.models.link import Link
-    from pip._internal.network.session import PipSession
+    from pipenv.patched.notpip._internal.models.link import Link
+    from pipenv.patched.notpip._internal.network.session import PipSession
 
 logger = logging.getLogger(__name__)
 

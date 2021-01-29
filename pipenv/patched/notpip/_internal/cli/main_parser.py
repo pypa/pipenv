@@ -4,12 +4,12 @@
 import os
 import sys
 
-from pip._internal.cli import cmdoptions
-from pip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
-from pip._internal.commands import commands_dict, get_similar_commands
-from pip._internal.exceptions import CommandError
-from pip._internal.utils.misc import get_pip_version, get_prog
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
+from pipenv.patched.notpip._internal.commands import commands_dict, get_similar_commands
+from pipenv.patched.notpip._internal.exceptions import CommandError
+from pipenv.patched.notpip._internal.utils.misc import get_pip_version, get_prog
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import List, Tuple

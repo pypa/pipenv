@@ -9,36 +9,36 @@ import logging
 import os
 from functools import partial
 
-from pip._internal.cli import cmdoptions
-from pip._internal.cli.base_command import Command
-from pip._internal.cli.command_context import CommandContextMixIn
-from pip._internal.exceptions import CommandError, PreviousBuildDirError
-from pip._internal.index.collector import LinkCollector
-from pip._internal.index.package_finder import PackageFinder
-from pip._internal.models.selection_prefs import SelectionPreferences
-from pip._internal.network.session import PipSession
-from pip._internal.operations.prepare import RequirementPreparer
-from pip._internal.req.constructors import (
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.base_command import Command
+from pipenv.patched.notpip._internal.cli.command_context import CommandContextMixIn
+from pipenv.patched.notpip._internal.exceptions import CommandError, PreviousBuildDirError
+from pipenv.patched.notpip._internal.index.collector import LinkCollector
+from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+from pipenv.patched.notpip._internal.models.selection_prefs import SelectionPreferences
+from pipenv.patched.notpip._internal.network.session import PipSession
+from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
+from pipenv.patched.notpip._internal.req.constructors import (
     install_req_from_editable,
     install_req_from_line,
     install_req_from_parsed_requirement,
     install_req_from_req_string,
 )
-from pip._internal.req.req_file import parse_requirements
-from pip._internal.self_outdated_check import pip_self_version_check
-from pip._internal.utils.temp_dir import tempdir_kinds
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.req.req_file import parse_requirements
+from pipenv.patched.notpip._internal.self_outdated_check import pip_self_version_check
+from pipenv.patched.notpip._internal.utils.temp_dir import tempdir_kinds
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from optparse import Values
     from typing import Any, List, Optional, Tuple
 
-    from pip._internal.cache import WheelCache
-    from pip._internal.models.target_python import TargetPython
-    from pip._internal.req.req_install import InstallRequirement
-    from pip._internal.req.req_tracker import RequirementTracker
-    from pip._internal.resolution.base import BaseResolver
-    from pip._internal.utils.temp_dir import TempDirectory, TempDirectoryTypeRegistry
+    from pipenv.patched.notpip._internal.cache import WheelCache
+    from pipenv.patched.notpip._internal.models.target_python import TargetPython
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker
+    from pipenv.patched.notpip._internal.resolution.base import BaseResolver
+    from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory, TempDirectoryTypeRegistry
 
 
 logger = logging.getLogger(__name__)

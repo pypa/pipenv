@@ -28,7 +28,7 @@ from . import etree as etree_builders
 from .. import _ihatexml
 
 import lxml.etree as etree
-from pip._vendor.six import PY3, binary_type
+from pipenv.patched.notpip._vendor.six import PY3, binary_type
 
 
 fullTree = True

@@ -1,14 +1,14 @@
 import logging
 import os
 
-from pip._internal.cli import cmdoptions
-from pip._internal.cli.cmdoptions import make_target_python
-from pip._internal.cli.req_command import RequirementCommand, with_cleanup
-from pip._internal.cli.status_codes import SUCCESS
-from pip._internal.req.req_tracker import get_requirement_tracker
-from pip._internal.utils.misc import ensure_dir, normalize_path, write_output
-from pip._internal.utils.temp_dir import TempDirectory
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.cmdoptions import make_target_python
+from pipenv.patched.notpip._internal.cli.req_command import RequirementCommand, with_cleanup
+from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.notpip._internal.req.req_tracker import get_requirement_tracker
+from pipenv.patched.notpip._internal.utils.misc import ensure_dir, normalize_path, write_output
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from optparse import Values

@@ -2,17 +2,17 @@
 
 from itertools import chain, groupby, repeat
 
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     import configparser
     from hashlib import _Hash
     from typing import Dict, List, Optional
 
-    from pip._vendor.pkg_resources import Distribution
-    from pip._vendor.requests.models import Request, Response
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._vendor.requests.models import Request, Response
 
-    from pip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 
 
 class PipError(Exception):
@@ -274,7 +274,7 @@ class HashMissing(HashError):
     def body(self):
         # type: () -> str
         # Dodge circular import.
-        from pip._internal.utils.hashes import FAVORITE_HASH
+        from pipenv.patched.notpip._internal.utils.hashes import FAVORITE_HASH
 
         package = None
         if self.req:

@@ -1,16 +1,16 @@
-from pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from pip._internal.cli.base_command import Command
-from pip._internal.cli.req_command import SessionCommandMixin
-from pip._internal.cli.status_codes import SUCCESS
-from pip._internal.exceptions import InstallationError
-from pip._internal.req import parse_requirements
-from pip._internal.req.constructors import (
+from pipenv.patched.notpip._internal.cli.base_command import Command
+from pipenv.patched.notpip._internal.cli.req_command import SessionCommandMixin
+from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.req import parse_requirements
+from pipenv.patched.notpip._internal.req.constructors import (
     install_req_from_line,
     install_req_from_parsed_requirement,
 )
-from pip._internal.utils.misc import protect_pip_from_modification_on_windows
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.misc import protect_pip_from_modification_on_windows
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from optparse import Values

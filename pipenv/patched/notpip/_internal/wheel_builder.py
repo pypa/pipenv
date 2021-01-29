@@ -7,30 +7,30 @@ import re
 import shutil
 import zipfile
 
-from pip._vendor.packaging.utils import canonicalize_name, canonicalize_version
-from pip._vendor.packaging.version import InvalidVersion, Version
-from pip._vendor.pkg_resources import Distribution
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name, canonicalize_version
+from pipenv.patched.notpip._vendor.packaging.version import InvalidVersion, Version
+from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
-from pip._internal.exceptions import InvalidWheelFilename, UnsupportedWheel
-from pip._internal.models.link import Link
-from pip._internal.models.wheel import Wheel
-from pip._internal.operations.build.wheel import build_wheel_pep517
-from pip._internal.operations.build.wheel_legacy import build_wheel_legacy
-from pip._internal.utils.logging import indent_log
-from pip._internal.utils.misc import ensure_dir, hash_file, is_wheel_installed
-from pip._internal.utils.setuptools_build import make_setuptools_clean_args
-from pip._internal.utils.subprocess import call_subprocess
-from pip._internal.utils.temp_dir import TempDirectory
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.urls import path_to_url
-from pip._internal.utils.wheel import pkg_resources_distribution_for_wheel
-from pip._internal.vcs import vcs
+from pipenv.patched.notpip._internal.exceptions import InvalidWheelFilename, UnsupportedWheel
+from pipenv.patched.notpip._internal.models.link import Link
+from pipenv.patched.notpip._internal.models.wheel import Wheel
+from pipenv.patched.notpip._internal.operations.build.wheel import build_wheel_pep517
+from pipenv.patched.notpip._internal.operations.build.wheel_legacy import build_wheel_legacy
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import ensure_dir, hash_file, is_wheel_installed
+from pipenv.patched.notpip._internal.utils.setuptools_build import make_setuptools_clean_args
+from pipenv.patched.notpip._internal.utils.subprocess import call_subprocess
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.urls import path_to_url
+from pipenv.patched.notpip._internal.utils.wheel import pkg_resources_distribution_for_wheel
+from pipenv.patched.notpip._internal.vcs import vcs
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Callable, Iterable, List, Optional, Tuple
 
-    from pip._internal.cache import WheelCache
-    from pip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.notpip._internal.cache import WheelCache
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 
     BinaryAllowedPredicate = Callable[[InstallRequirement], bool]
     BuildResult = Tuple[List[InstallRequirement], List[InstallRequirement]]

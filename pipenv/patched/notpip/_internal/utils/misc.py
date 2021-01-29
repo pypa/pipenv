@@ -17,19 +17,19 @@ import urllib.parse
 from io import StringIO
 from itertools import filterfalse, tee, zip_longest
 
-from pip._vendor import pkg_resources
-from pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor import pkg_resources
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
 # NOTE: retrying is not annotated in typeshed as on 2017-07-17, which is
 #       why we ignore the type on this import.
-from pip._vendor.retrying import retry  # type: ignore
+from pipenv.patched.notpip._vendor.retrying import retry  # type: ignore
 
 from pip import __version__
-from pip._internal.exceptions import CommandError
-from pip._internal.locations import get_major_minor_version, site_packages, user_site
-from pip._internal.utils.compat import WINDOWS, stdlib_pkgs
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING, cast
-from pip._internal.utils.virtualenv import (
+from pipenv.patched.notpip._internal.exceptions import CommandError
+from pipenv.patched.notpip._internal.locations import get_major_minor_version, site_packages, user_site
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS, stdlib_pkgs
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING, cast
+from pipenv.patched.notpip._internal.utils.virtualenv import (
     running_under_virtualenv,
     virtualenv_no_global,
 )
@@ -48,7 +48,7 @@ if MYPY_CHECK_RUNNING:
         TypeVar,
     )
 
-    from pip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
     VersionInfo = Tuple[int, int, int]
     T = TypeVar("T")

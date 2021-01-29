@@ -1,8 +1,8 @@
 import collections
 import logging
 
-from pip._internal.utils.logging import indent_log
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 from .req_file import parse_requirements
 from .req_install import InstallRequirement

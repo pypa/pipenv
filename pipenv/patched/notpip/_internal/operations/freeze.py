@@ -2,21 +2,21 @@ import collections
 import logging
 import os
 
-from pip._vendor.packaging.utils import canonicalize_name
-from pip._vendor.pkg_resources import RequirementParseError
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError
 
-from pip._internal.exceptions import BadCommand, InstallationError
-from pip._internal.req.constructors import (
+from pipenv.patched.notpip._internal.exceptions import BadCommand, InstallationError
+from pipenv.patched.notpip._internal.req.constructors import (
     install_req_from_editable,
     install_req_from_line,
 )
-from pip._internal.req.req_file import COMMENT_RE
-from pip._internal.utils.direct_url_helpers import (
+from pipenv.patched.notpip._internal.req.req_file import COMMENT_RE
+from pipenv.patched.notpip._internal.utils.direct_url_helpers import (
     direct_url_as_pep440_direct_reference,
     dist_get_direct_url,
 )
-from pip._internal.utils.misc import dist_is_editable, get_installed_distributions
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.misc import dist_is_editable, get_installed_distributions
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import (
@@ -31,7 +31,7 @@ if MYPY_CHECK_RUNNING:
         Union,
     )
 
-    from pip._vendor.pkg_resources import Distribution, Requirement
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution, Requirement
 
     RequirementInfo = Tuple[Optional[Union[str, Requirement]], bool, List[str]]
 
@@ -182,7 +182,7 @@ def get_requirement_info(dist):
 
     location = os.path.normcase(os.path.abspath(dist.location))
 
-    from pip._internal.vcs import RemoteNotFoundError, vcs
+    from pipenv.patched.notpip._internal.vcs import RemoteNotFoundError, vcs
     vcs_backend = vcs.get_backend_for_dir(location)
 
     if vcs_backend is None:

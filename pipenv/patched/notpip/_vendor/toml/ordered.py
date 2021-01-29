@@ -1,6 +1,6 @@
 from collections import OrderedDict
-from pip._vendor.toml import TomlEncoder
-from pip._vendor.toml import TomlDecoder
+from pipenv.patched.notpip._vendor.toml import TomlEncoder
+from pipenv.patched.notpip._vendor.toml import TomlDecoder
 
 
 class TomlOrderedDecoder(TomlDecoder):

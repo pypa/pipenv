@@ -7,9 +7,9 @@ import string
 import re
 import sys
 
-from pip._vendor.pyparsing import stringStart, stringEnd, originalTextFor, ParseException
-from pip._vendor.pyparsing import ZeroOrMore, Word, Optional, Regex, Combine
-from pip._vendor.pyparsing import Literal as L  # noqa
+from pipenv.patched.notpip._vendor.pyparsing import stringStart, stringEnd, originalTextFor, ParseException
+from pipenv.patched.notpip._vendor.pyparsing import ZeroOrMore, Word, Optional, Regex, Combine
+from pipenv.patched.notpip._vendor.pyparsing import Literal as L  # noqa
 
 from ._typing import TYPE_CHECKING
 from .markers import MARKER_EXPR, Marker

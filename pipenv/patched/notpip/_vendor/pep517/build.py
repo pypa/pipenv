@@ -3,7 +3,7 @@
 import argparse
 import logging
 import os
-from pip._vendor import toml
+from pipenv.patched.notpip._vendor import toml
 import shutil
 
 from .envbuild import BuildEnvironment

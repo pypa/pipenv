@@ -1,16 +1,16 @@
-from pip._vendor.packaging.specifiers import SpecifierSet
-from pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from pip._internal.req.req_install import InstallRequirement
-from pip._internal.utils.hashes import Hashes
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._internal.utils.hashes import Hashes
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import FrozenSet, Iterable, Optional, Tuple
 
-    from pip._vendor.packaging.version import _BaseVersion
+    from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion
 
-    from pip._internal.models.link import Link
+    from pipenv.patched.notpip._internal.models.link import Link
 
     CandidateLookup = Tuple[
         Optional["Candidate"],

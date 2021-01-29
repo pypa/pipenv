@@ -7,24 +7,24 @@ providing credentials in the context of network requests.
 import logging
 import urllib.parse
 
-from pip._vendor.requests.auth import AuthBase, HTTPBasicAuth
-from pip._vendor.requests.utils import get_netrc_auth
+from pipenv.patched.notpip._vendor.requests.auth import AuthBase, HTTPBasicAuth
+from pipenv.patched.notpip._vendor.requests.utils import get_netrc_auth
 
-from pip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.utils.misc import (
     ask,
     ask_input,
     ask_password,
     remove_auth_from_url,
     split_auth_netloc_from_url,
 )
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Dict, List, Optional, Tuple
 
-    from pip._vendor.requests.models import Request, Response
+    from pipenv.patched.notpip._vendor.requests.models import Request, Response
 
-    from pip._internal.vcs.versioncontrol import AuthInfo
+    from pipenv.patched.notpip._internal.vcs.versioncontrol import AuthInfo
 
     Credentials = Tuple[str, str, str]
 

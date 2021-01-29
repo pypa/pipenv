@@ -1,14 +1,14 @@
 import logging
 import os.path
 
-from pip._internal.cli.spinners import open_spinner
-from pip._internal.utils.setuptools_build import make_setuptools_bdist_wheel_args
-from pip._internal.utils.subprocess import (
+from pipenv.patched.notpip._internal.cli.spinners import open_spinner
+from pipenv.patched.notpip._internal.utils.setuptools_build import make_setuptools_bdist_wheel_args
+from pipenv.patched.notpip._internal.utils.subprocess import (
     LOG_DIVIDER,
     call_subprocess,
     format_command_args,
 )
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import List, Optional

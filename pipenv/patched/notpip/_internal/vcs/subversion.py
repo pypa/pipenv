@@ -5,16 +5,16 @@ import logging
 import os
 import re
 
-from pip._internal.utils.logging import indent_log
-from pip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import (
     display_path,
     is_console_interactive,
     rmtree,
     split_auth_from_netloc,
 )
-from pip._internal.utils.subprocess import make_command
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.vcs.versioncontrol import RemoteNotFoundError, VersionControl, vcs
+from pipenv.patched.notpip._internal.utils.subprocess import make_command
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.vcs.versioncontrol import RemoteNotFoundError, VersionControl, vcs
 
 _svn_xml_url_re = re.compile('url="([^"]+)"')
 _svn_rev_re = re.compile(r'committed-rev="(\d+)"')
@@ -25,9 +25,9 @@ _svn_info_xml_url_re = re.compile(r'<url>(.*)</url>')
 if MYPY_CHECK_RUNNING:
     from typing import Optional, Tuple
 
-    from pip._internal.utils.misc import HiddenText
-    from pip._internal.utils.subprocess import CommandArgs
-    from pip._internal.vcs.versioncontrol import AuthInfo, RevOptions
+    from pipenv.patched.notpip._internal.utils.misc import HiddenText
+    from pipenv.patched.notpip._internal.utils.subprocess import CommandArgs
+    from pipenv.patched.notpip._internal.vcs.versioncontrol import AuthInfo, RevOptions
 
 
 logger = logging.getLogger(__name__)
@@ -139,7 +139,7 @@ class Subversion(VersionControl):
 
     @classmethod
     def _get_svn_url_rev(cls, location):
-        from pip._internal.exceptions import InstallationError
+        from pipenv.patched.notpip._internal.exceptions import InstallationError
 
         entries_path = os.path.join(location, cls.dirname, 'entries')
         if os.path.exists(entries_path):

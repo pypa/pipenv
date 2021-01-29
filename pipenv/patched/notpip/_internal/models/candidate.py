@@ -1,12 +1,12 @@
-from pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
 
-from pip._internal.utils.models import KeyBasedCompareMixin
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.models import KeyBasedCompareMixin
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from pip._vendor.packaging.version import _BaseVersion
+    from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion
 
-    from pip._internal.models.link import Link
+    from pipenv.patched.notpip._internal.models.link import Link
 
 
 class InstallationCandidate(KeyBasedCompareMixin):

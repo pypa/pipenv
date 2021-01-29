@@ -1,11 +1,11 @@
 import os
 from collections import namedtuple
 
-from pip._vendor import toml
-from pip._vendor.packaging.requirements import InvalidRequirement, Requirement
+from pipenv.patched.notpip._vendor import toml
+from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
 
-from pip._internal.exceptions import InstallationError
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, List, Optional

@@ -8,13 +8,13 @@ import re
 import shlex
 import urllib.parse
 
-from pip._internal.cli import cmdoptions
-from pip._internal.exceptions import InstallationError, RequirementsFileParseError
-from pip._internal.models.search_scope import SearchScope
-from pip._internal.network.utils import raise_for_status
-from pip._internal.utils.encoding import auto_decode
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.urls import get_url_scheme, url_to_path
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.exceptions import InstallationError, RequirementsFileParseError
+from pipenv.patched.notpip._internal.models.search_scope import SearchScope
+from pipenv.patched.notpip._internal.network.utils import raise_for_status
+from pipenv.patched.notpip._internal.utils.encoding import auto_decode
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.urls import get_url_scheme, url_to_path
 
 if MYPY_CHECK_RUNNING:
     from optparse import Values
@@ -30,8 +30,8 @@ if MYPY_CHECK_RUNNING:
         Tuple,
     )
 
-    from pip._internal.index.package_finder import PackageFinder
-    from pip._internal.network.session import PipSession
+    from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.notpip._internal.network.session import PipSession
 
     ReqFileLines = Iterator[Tuple[int, Text]]
 

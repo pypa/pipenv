@@ -1,4 +1,4 @@
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import List, Optional
@@ -13,6 +13,6 @@ def main(args=None):
 
     For additional details, see https://github.com/pypa/pip/issues/7498.
     """
-    from pip._internal.utils.entrypoints import _wrapper
+    from pipenv.patched.notpip._internal.utils.entrypoints import _wrapper
 
     return _wrapper(args)

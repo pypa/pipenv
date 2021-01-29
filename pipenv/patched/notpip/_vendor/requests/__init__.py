@@ -40,8 +40,8 @@ is at <https://requests.readthedocs.io>.
 :license: Apache 2.0, see LICENSE for more details.
 """
 
-from pip._vendor import urllib3
-from pip._vendor import chardet
+from pipenv.patched.notpip._vendor import urllib3
+from pipenv.patched.notpip._vendor import chardet
 import warnings
 from .exceptions import RequestsDependencyWarning
 
@@ -94,7 +94,7 @@ except (AssertionError, ValueError):
 try:
     # Note: This logic prevents upgrading cryptography on Windows, if imported
     #       as part of pip.
-    from pip._internal.utils.compat import WINDOWS
+    from pipenv.patched.notpip._internal.utils.compat import WINDOWS
     if not WINDOWS:
         raise ImportError("pip internals: don't import cryptography on Windows")
     try:
@@ -103,7 +103,7 @@ try:
         ssl = None
 
     if not getattr(ssl, "HAS_SNI", False):
-        from pip._vendor.urllib3.contrib import pyopenssl
+        from pipenv.patched.notpip._vendor.urllib3.contrib import pyopenssl
         pyopenssl.inject_into_urllib3()
 
         # Check cryptography version
@@ -113,7 +113,7 @@ except ImportError:
     pass
 
 # urllib3's DependencyWarnings should be silenced.
-from pip._vendor.urllib3.exceptions import DependencyWarning
+from pipenv.patched.notpip._vendor.urllib3.exceptions import DependencyWarning
 warnings.simplefilter('ignore', DependencyWarning)
 
 from .__version__ import __title__, __description__, __url__, __version__

@@ -11,9 +11,9 @@ something.
 import functools
 import itertools
 
-from pip._vendor.six.moves import collections_abc  # type: ignore
+from pipenv.patched.notpip._vendor.six.moves import collections_abc  # type: ignore
 
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Callable, Iterator, Optional

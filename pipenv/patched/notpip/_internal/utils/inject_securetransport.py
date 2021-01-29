@@ -26,7 +26,7 @@ def inject_securetransport():
         return
 
     try:
-        from pip._vendor.urllib3.contrib import securetransport
+        from pipenv.patched.notpip._vendor.urllib3.contrib import securetransport
     except (ImportError, OSError):
         return
 

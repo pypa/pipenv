@@ -12,27 +12,27 @@ import logging
 import os
 import re
 
-from pip._vendor.packaging.markers import Marker
-from pip._vendor.packaging.requirements import InvalidRequirement, Requirement
-from pip._vendor.packaging.specifiers import Specifier
-from pip._vendor.pkg_resources import RequirementParseError, parse_requirements
+from pipenv.patched.notpip._vendor.packaging.markers import Marker
+from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
+from pipenv.patched.notpip._vendor.packaging.specifiers import Specifier
+from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError, parse_requirements
 
-from pip._internal.exceptions import InstallationError
-from pip._internal.models.index import PyPI, TestPyPI
-from pip._internal.models.link import Link
-from pip._internal.models.wheel import Wheel
-from pip._internal.pyproject import make_pyproject_path
-from pip._internal.req.req_install import InstallRequirement
-from pip._internal.utils.filetypes import is_archive_file
-from pip._internal.utils.misc import is_installable_dir
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.urls import path_to_url
-from pip._internal.vcs import is_url, vcs
+from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.models.index import PyPI, TestPyPI
+from pipenv.patched.notpip._internal.models.link import Link
+from pipenv.patched.notpip._internal.models.wheel import Wheel
+from pipenv.patched.notpip._internal.pyproject import make_pyproject_path
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._internal.utils.filetypes import is_archive_file
+from pipenv.patched.notpip._internal.utils.misc import is_installable_dir
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.urls import path_to_url
+from pipenv.patched.notpip._internal.vcs import is_url, vcs
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Dict, Optional, Set, Tuple, Union
 
-    from pip._internal.req.req_file import ParsedRequirement
+    from pipenv.patched.notpip._internal.req.req_file import ParsedRequirement
 
 
 __all__ = [

@@ -7,16 +7,16 @@ import os
 import sys
 import traceback
 
-from pip._internal.cli import cmdoptions
-from pip._internal.cli.command_context import CommandContextMixIn
-from pip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
-from pip._internal.cli.status_codes import (
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.command_context import CommandContextMixIn
+from pipenv.patched.notpip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
+from pipenv.patched.notpip._internal.cli.status_codes import (
     ERROR,
     PREVIOUS_BUILD_DIR_ERROR,
     UNKNOWN_ERROR,
     VIRTUALENV_NOT_FOUND,
 )
-from pip._internal.exceptions import (
+from pipenv.patched.notpip._internal.exceptions import (
     BadCommand,
     CommandError,
     InstallationError,
@@ -24,19 +24,19 @@ from pip._internal.exceptions import (
     PreviousBuildDirError,
     UninstallationError,
 )
-from pip._internal.utils.deprecation import deprecated
-from pip._internal.utils.filesystem import check_path_owner
-from pip._internal.utils.logging import BrokenStdoutLoggingError, setup_logging
-from pip._internal.utils.misc import get_prog, normalize_path
-from pip._internal.utils.temp_dir import global_tempdir_manager, tempdir_registry
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.notpip._internal.utils.deprecation import deprecated
+from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
+from pipenv.patched.notpip._internal.utils.logging import BrokenStdoutLoggingError, setup_logging
+from pipenv.patched.notpip._internal.utils.misc import get_prog, normalize_path
+from pipenv.patched.notpip._internal.utils.temp_dir import global_tempdir_manager, tempdir_registry
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.virtualenv import running_under_virtualenv
 
 if MYPY_CHECK_RUNNING:
     from optparse import Values
     from typing import Any, List, Optional, Tuple
 
-    from pip._internal.utils.temp_dir import (
+    from pipenv.patched.notpip._internal.utils.temp_dir import (
         TempDirectoryTypeRegistry as TempDirRegistry,
     )
 

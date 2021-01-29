@@ -7,14 +7,14 @@ import re
 import urllib.parse
 import urllib.request
 
-from pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
 
-from pip._internal.exceptions import BadCommand, InstallationError
-from pip._internal.utils.misc import display_path, hide_url
-from pip._internal.utils.subprocess import make_command
-from pip._internal.utils.temp_dir import TempDirectory
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.vcs.versioncontrol import (
+from pipenv.patched.notpip._internal.exceptions import BadCommand, InstallationError
+from pipenv.patched.notpip._internal.utils.misc import display_path, hide_url
+from pipenv.patched.notpip._internal.utils.subprocess import make_command
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.vcs.versioncontrol import (
     RemoteNotFoundError,
     VersionControl,
     find_path_to_setup_from_repo_root,
@@ -24,8 +24,8 @@ from pip._internal.vcs.versioncontrol import (
 if MYPY_CHECK_RUNNING:
     from typing import Optional, Tuple
 
-    from pip._internal.utils.misc import HiddenText
-    from pip._internal.vcs.versioncontrol import AuthInfo, RevOptions
+    from pipenv.patched.notpip._internal.utils.misc import HiddenText
+    from pipenv.patched.notpip._internal.vcs.versioncontrol import AuthInfo, RevOptions
 
 
 urlsplit = urllib.parse.urlsplit

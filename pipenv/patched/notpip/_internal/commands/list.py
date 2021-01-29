@@ -1,31 +1,31 @@
 import json
 import logging
 
-from pip._internal.cli import cmdoptions
-from pip._internal.cli.req_command import IndexGroupCommand
-from pip._internal.cli.status_codes import SUCCESS
-from pip._internal.exceptions import CommandError
-from pip._internal.index.collector import LinkCollector
-from pip._internal.index.package_finder import PackageFinder
-from pip._internal.models.selection_prefs import SelectionPreferences
-from pip._internal.utils.compat import stdlib_pkgs
-from pip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.req_command import IndexGroupCommand
+from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.notpip._internal.exceptions import CommandError
+from pipenv.patched.notpip._internal.index.collector import LinkCollector
+from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+from pipenv.patched.notpip._internal.models.selection_prefs import SelectionPreferences
+from pipenv.patched.notpip._internal.utils.compat import stdlib_pkgs
+from pipenv.patched.notpip._internal.utils.misc import (
     dist_is_editable,
     get_installed_distributions,
     tabulate,
     write_output,
 )
-from pip._internal.utils.packaging import get_installer
-from pip._internal.utils.parallel import map_multithread
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.packaging import get_installer
+from pipenv.patched.notpip._internal.utils.parallel import map_multithread
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from optparse import Values
     from typing import Iterator, List, Set, Tuple
 
-    from pip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
-    from pip._internal.network.session import PipSession
+    from pipenv.patched.notpip._internal.network.session import PipSession
 
 logger = logging.getLogger(__name__)
 

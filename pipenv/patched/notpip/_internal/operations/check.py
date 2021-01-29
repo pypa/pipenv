@@ -4,19 +4,19 @@
 import logging
 from collections import namedtuple
 
-from pip._vendor.packaging.utils import canonicalize_name
-from pip._vendor.pkg_resources import RequirementParseError
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError
 
-from pip._internal.distributions import make_distribution_for_install_requirement
-from pip._internal.utils.misc import get_installed_distributions
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.distributions import make_distribution_for_install_requirement
+from pipenv.patched.notpip._internal.utils.misc import get_installed_distributions
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 logger = logging.getLogger(__name__)
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
-    from pip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 
     # Shorthands
     PackageSet = Dict[str, 'PackageDetails']

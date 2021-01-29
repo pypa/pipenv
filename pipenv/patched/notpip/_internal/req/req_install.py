@@ -8,34 +8,34 @@ import sys
 import uuid
 import zipfile
 
-from pip._vendor import pkg_resources, six
-from pip._vendor.packaging.requirements import Requirement
-from pip._vendor.packaging.utils import canonicalize_name
-from pip._vendor.packaging.version import Version
-from pip._vendor.packaging.version import parse as parse_version
-from pip._vendor.pep517.wrappers import Pep517HookCaller
+from pipenv.patched.notpip._vendor import pkg_resources, six
+from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.version import Version
+from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.notpip._vendor.pep517.wrappers import Pep517HookCaller
 
-from pip._internal.build_env import NoOpBuildEnvironment
-from pip._internal.exceptions import InstallationError
-from pip._internal.locations import get_scheme
-from pip._internal.models.link import Link
-from pip._internal.operations.build.metadata import generate_metadata
-from pip._internal.operations.build.metadata_legacy import (
+from pipenv.patched.notpip._internal.build_env import NoOpBuildEnvironment
+from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.locations import get_scheme
+from pipenv.patched.notpip._internal.models.link import Link
+from pipenv.patched.notpip._internal.operations.build.metadata import generate_metadata
+from pipenv.patched.notpip._internal.operations.build.metadata_legacy import (
     generate_metadata as generate_metadata_legacy,
 )
-from pip._internal.operations.install.editable_legacy import (
+from pipenv.patched.notpip._internal.operations.install.editable_legacy import (
     install_editable as install_editable_legacy,
 )
-from pip._internal.operations.install.legacy import LegacyInstallFailure
-from pip._internal.operations.install.legacy import install as install_legacy
-from pip._internal.operations.install.wheel import install_wheel
-from pip._internal.pyproject import load_pyproject_toml, make_pyproject_path
-from pip._internal.req.req_uninstall import UninstallPathSet
-from pip._internal.utils.deprecation import deprecated
-from pip._internal.utils.direct_url_helpers import direct_url_from_link
-from pip._internal.utils.hashes import Hashes
-from pip._internal.utils.logging import indent_log
-from pip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.operations.install.legacy import LegacyInstallFailure
+from pipenv.patched.notpip._internal.operations.install.legacy import install as install_legacy
+from pipenv.patched.notpip._internal.operations.install.wheel import install_wheel
+from pipenv.patched.notpip._internal.pyproject import load_pyproject_toml, make_pyproject_path
+from pipenv.patched.notpip._internal.req.req_uninstall import UninstallPathSet
+from pipenv.patched.notpip._internal.utils.deprecation import deprecated
+from pipenv.patched.notpip._internal.utils.direct_url_helpers import direct_url_from_link
+from pipenv.patched.notpip._internal.utils.hashes import Hashes
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import (
     ask_path_exists,
     backup_dir,
     display_path,
@@ -46,20 +46,20 @@ from pip._internal.utils.misc import (
     hide_url,
     redact_auth_from_url,
 )
-from pip._internal.utils.packaging import get_metadata
-from pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.virtualenv import running_under_virtualenv
-from pip._internal.vcs import vcs
+from pipenv.patched.notpip._internal.utils.packaging import get_metadata
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.notpip._internal.vcs import vcs
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 
-    from pip._vendor.packaging.markers import Marker
-    from pip._vendor.packaging.specifiers import SpecifierSet
-    from pip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._vendor.packaging.markers import Marker
+    from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
-    from pip._internal.build_env import BuildEnvironment
+    from pipenv.patched.notpip._internal.build_env import BuildEnvironment
 
 
 logger = logging.getLogger(__name__)

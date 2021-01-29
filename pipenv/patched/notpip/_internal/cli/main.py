@@ -5,12 +5,12 @@ import logging
 import os
 import sys
 
-from pip._internal.cli.autocompletion import autocomplete
-from pip._internal.cli.main_parser import parse_command
-from pip._internal.commands import create_command
-from pip._internal.exceptions import PipError
-from pip._internal.utils import deprecation
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.cli.autocompletion import autocomplete
+from pipenv.patched.notpip._internal.cli.main_parser import parse_command
+from pipenv.patched.notpip._internal.commands import create_command
+from pipenv.patched.notpip._internal.exceptions import PipError
+from pipenv.patched.notpip._internal.utils import deprecation
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import List, Optional

@@ -19,35 +19,35 @@ import sys
 from collections import defaultdict
 from itertools import chain
 
-from pip._vendor.packaging import specifiers
+from pipenv.patched.notpip._vendor.packaging import specifiers
 
-from pip._internal.exceptions import (
+from pipenv.patched.notpip._internal.exceptions import (
     BestVersionAlreadyInstalled,
     DistributionNotFound,
     HashError,
     HashErrors,
     UnsupportedPythonVersion,
 )
-from pip._internal.req.req_install import check_invalid_constraint_type
-from pip._internal.req.req_set import RequirementSet
-from pip._internal.resolution.base import BaseResolver
-from pip._internal.utils.compatibility_tags import get_supported
-from pip._internal.utils.logging import indent_log
-from pip._internal.utils.misc import dist_in_usersite, normalize_version_info
-from pip._internal.utils.packaging import check_requires_python, get_requires_python
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.req.req_install import check_invalid_constraint_type
+from pipenv.patched.notpip._internal.req.req_set import RequirementSet
+from pipenv.patched.notpip._internal.resolution.base import BaseResolver
+from pipenv.patched.notpip._internal.utils.compatibility_tags import get_supported
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import dist_in_usersite, normalize_version_info
+from pipenv.patched.notpip._internal.utils.packaging import check_requires_python, get_requires_python
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import DefaultDict, List, Optional, Set, Tuple
 
-    from pip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
-    from pip._internal.cache import WheelCache
-    from pip._internal.index.package_finder import PackageFinder
-    from pip._internal.models.link import Link
-    from pip._internal.operations.prepare import RequirementPreparer
-    from pip._internal.req.req_install import InstallRequirement
-    from pip._internal.resolution.base import InstallRequirementProvider
+    from pipenv.patched.notpip._internal.cache import WheelCache
+    from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.notpip._internal.models.link import Link
+    from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.notpip._internal.resolution.base import InstallRequirementProvider
 
     DiscoveredDependencies = DefaultDict[str, List[InstallRequirement]]
 

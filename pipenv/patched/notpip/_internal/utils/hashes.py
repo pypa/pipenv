@@ -1,8 +1,8 @@
 import hashlib
 
-from pip._internal.exceptions import HashMismatch, HashMissing, InstallationError
-from pip._internal.utils.misc import read_chunks
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.exceptions import HashMismatch, HashMissing, InstallationError
+from pipenv.patched.notpip._internal.utils.misc import read_chunks
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from hashlib import _Hash

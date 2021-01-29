@@ -1,30 +1,30 @@
 import logging
 import sys
 
-from pip._vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
-from pip._vendor.packaging.utils import canonicalize_name
-from pip._vendor.packaging.version import Version
+from pipenv.patched.notpip._vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.version import Version
 
-from pip._internal.exceptions import HashError, MetadataInconsistent
-from pip._internal.models.wheel import Wheel
-from pip._internal.req.constructors import (
+from pipenv.patched.notpip._internal.exceptions import HashError, MetadataInconsistent
+from pipenv.patched.notpip._internal.models.wheel import Wheel
+from pipenv.patched.notpip._internal.req.constructors import (
     install_req_from_editable,
     install_req_from_line,
 )
-from pip._internal.req.req_install import InstallRequirement
-from pip._internal.utils.misc import dist_is_editable, normalize_version_info
-from pip._internal.utils.packaging import get_requires_python
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._internal.utils.misc import dist_is_editable, normalize_version_info
+from pipenv.patched.notpip._internal.utils.packaging import get_requires_python
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 from .base import Candidate, format_name
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, FrozenSet, Iterable, Optional, Tuple, Union
 
-    from pip._vendor.packaging.version import _BaseVersion
-    from pip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
-    from pip._internal.models.link import Link
+    from pipenv.patched.notpip._internal.models.link import Link
 
     from .base import Requirement
     from .factory import Factory

@@ -6,41 +6,41 @@ import shutil
 import site
 from optparse import SUPPRESS_HELP
 
-from pip._vendor import pkg_resources
-from pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor import pkg_resources
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from pip._internal.cache import WheelCache
-from pip._internal.cli import cmdoptions
-from pip._internal.cli.cmdoptions import make_target_python
-from pip._internal.cli.req_command import RequirementCommand, with_cleanup
-from pip._internal.cli.status_codes import ERROR, SUCCESS
-from pip._internal.exceptions import CommandError, InstallationError
-from pip._internal.locations import distutils_scheme
-from pip._internal.operations.check import check_install_conflicts
-from pip._internal.req import install_given_reqs
-from pip._internal.req.req_tracker import get_requirement_tracker
-from pip._internal.utils.distutils_args import parse_distutils_args
-from pip._internal.utils.filesystem import test_writable_dir
-from pip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.cache import WheelCache
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.cmdoptions import make_target_python
+from pipenv.patched.notpip._internal.cli.req_command import RequirementCommand, with_cleanup
+from pipenv.patched.notpip._internal.cli.status_codes import ERROR, SUCCESS
+from pipenv.patched.notpip._internal.exceptions import CommandError, InstallationError
+from pipenv.patched.notpip._internal.locations import distutils_scheme
+from pipenv.patched.notpip._internal.operations.check import check_install_conflicts
+from pipenv.patched.notpip._internal.req import install_given_reqs
+from pipenv.patched.notpip._internal.req.req_tracker import get_requirement_tracker
+from pipenv.patched.notpip._internal.utils.distutils_args import parse_distutils_args
+from pipenv.patched.notpip._internal.utils.filesystem import test_writable_dir
+from pipenv.patched.notpip._internal.utils.misc import (
     ensure_dir,
     get_installed_version,
     get_pip_version,
     protect_pip_from_modification_on_windows,
     write_output,
 )
-from pip._internal.utils.temp_dir import TempDirectory
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.virtualenv import virtualenv_no_global
-from pip._internal.wheel_builder import build, should_build_for_install_command
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.virtualenv import virtualenv_no_global
+from pipenv.patched.notpip._internal.wheel_builder import build, should_build_for_install_command
 
 if MYPY_CHECK_RUNNING:
     from optparse import Values
     from typing import Iterable, List, Optional
 
-    from pip._internal.models.format_control import FormatControl
-    from pip._internal.operations.check import ConflictDetails
-    from pip._internal.req.req_install import InstallRequirement
-    from pip._internal.wheel_builder import BinaryAllowedPredicate
+    from pipenv.patched.notpip._internal.models.format_control import FormatControl
+    from pipenv.patched.notpip._internal.operations.check import ConflictDetails
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.notpip._internal.wheel_builder import BinaryAllowedPredicate
 
 
 logger = logging.getLogger(__name__)

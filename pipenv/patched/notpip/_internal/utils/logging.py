@@ -9,9 +9,9 @@ import os
 import sys
 from logging import Filter, getLogger
 
-from pip._internal.utils.compat import WINDOWS
-from pip._internal.utils.deprecation import DEPRECATION_MSG_PREFIX
-from pip._internal.utils.misc import ensure_dir
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS
+from pipenv.patched.notpip._internal.utils.deprecation import DEPRECATION_MSG_PREFIX
+from pipenv.patched.notpip._internal.utils.misc import ensure_dir
 
 try:
     import threading
@@ -20,7 +20,7 @@ except ImportError:
 
 
 try:
-    from pip._vendor import colorama
+    from pipenv.patched.notpip._vendor import colorama
 # Lots of different errors can come from this, including SystemError and
 # ImportError.
 except Exception:

@@ -255,7 +255,7 @@ def create_urllib3_context(
 
     If you wish to enable SSLv3, you can do::
 
-        from pip._vendor.urllib3.util import ssl_
+        from pipenv.patched.notpip._vendor.urllib3.util import ssl_
         context = ssl_.create_urllib3_context()
         context.options &= ~ssl_.OP_NO_SSLv3
 

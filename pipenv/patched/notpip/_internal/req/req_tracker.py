@@ -3,17 +3,17 @@ import hashlib
 import logging
 import os
 
-from pip._vendor import contextlib2
+from pipenv.patched.notpip._vendor import contextlib2
 
-from pip._internal.utils.temp_dir import TempDirectory
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from types import TracebackType
     from typing import Dict, Iterator, Optional, Set, Type, Union
 
-    from pip._internal.models.link import Link
-    from pip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.notpip._internal.models.link import Link
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 
 logger = logging.getLogger(__name__)
 

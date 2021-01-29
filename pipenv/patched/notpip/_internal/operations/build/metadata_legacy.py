@@ -4,14 +4,14 @@
 import logging
 import os
 
-from pip._internal.exceptions import InstallationError
-from pip._internal.utils.setuptools_build import make_setuptools_egg_info_args
-from pip._internal.utils.subprocess import call_subprocess
-from pip._internal.utils.temp_dir import TempDirectory
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.utils.setuptools_build import make_setuptools_egg_info_args
+from pipenv.patched.notpip._internal.utils.subprocess import call_subprocess
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from pip._internal.build_env import BuildEnvironment
+    from pipenv.patched.notpip._internal.build_env import BuildEnvironment
 
 logger = logging.getLogger(__name__)
 

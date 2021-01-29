@@ -20,7 +20,7 @@ if __package__ == '':
     sys.path.insert(0, path)
     sys.path.insert(0, pipenv)
 
-from pip._internal.cli.main import main as _main
+from pipenv.patched.notpip._internal.cli.main import main as _main
 
 if __name__ == '__main__':
     sys.exit(_main())

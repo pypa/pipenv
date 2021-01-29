@@ -1,13 +1,13 @@
 from zipfile import ZipFile
 
-from pip._internal.distributions.base import AbstractDistribution
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.wheel import pkg_resources_distribution_for_wheel
+from pipenv.patched.notpip._internal.distributions.base import AbstractDistribution
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.wheel import pkg_resources_distribution_for_wheel
 
 if MYPY_CHECK_RUNNING:
-    from pip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
-    from pip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
 
 
 class WheelDistribution(AbstractDistribution):

@@ -6,10 +6,10 @@ import shutil
 import sys
 import urllib.parse
 
-from pip._vendor import pkg_resources
+from pipenv.patched.notpip._vendor import pkg_resources
 
-from pip._internal.exceptions import BadCommand, InstallationError
-from pip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.exceptions import BadCommand, InstallationError
+from pipenv.patched.notpip._internal.utils.misc import (
     ask_path_exists,
     backup_dir,
     display_path,
@@ -17,9 +17,9 @@ from pip._internal.utils.misc import (
     hide_value,
     rmtree,
 )
-from pip._internal.utils.subprocess import call_subprocess, make_command
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.urls import get_url_scheme
+from pipenv.patched.notpip._internal.utils.subprocess import call_subprocess, make_command
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.urls import get_url_scheme
 
 if MYPY_CHECK_RUNNING:
     from typing import (
@@ -35,9 +35,9 @@ if MYPY_CHECK_RUNNING:
         Union,
     )
 
-    from pip._internal.cli.spinners import SpinnerInterface
-    from pip._internal.utils.misc import HiddenText
-    from pip._internal.utils.subprocess import CommandArgs
+    from pipenv.patched.notpip._internal.cli.spinners import SpinnerInterface
+    from pipenv.patched.notpip._internal.utils.misc import HiddenText
+    from pipenv.patched.notpip._internal.utils.subprocess import CommandArgs
 
     AuthInfo = Tuple[Optional[str], Optional[str]]
 

@@ -7,41 +7,41 @@ import functools
 import logging
 import re
 
-from pip._vendor.packaging import specifiers
-from pip._vendor.packaging.utils import canonicalize_name
-from pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.notpip._vendor.packaging import specifiers
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
 
-from pip._internal.exceptions import (
+from pipenv.patched.notpip._internal.exceptions import (
     BestVersionAlreadyInstalled,
     DistributionNotFound,
     InvalidWheelFilename,
     UnsupportedWheel,
 )
-from pip._internal.index.collector import parse_links
-from pip._internal.models.candidate import InstallationCandidate
-from pip._internal.models.format_control import FormatControl
-from pip._internal.models.link import Link
-from pip._internal.models.selection_prefs import SelectionPreferences
-from pip._internal.models.target_python import TargetPython
-from pip._internal.models.wheel import Wheel
-from pip._internal.utils.filetypes import WHEEL_EXTENSION
-from pip._internal.utils.logging import indent_log
-from pip._internal.utils.misc import build_netloc
-from pip._internal.utils.packaging import check_requires_python
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.unpacking import SUPPORTED_EXTENSIONS
-from pip._internal.utils.urls import url_to_path
+from pipenv.patched.notpip._internal.index.collector import parse_links
+from pipenv.patched.notpip._internal.models.candidate import InstallationCandidate
+from pipenv.patched.notpip._internal.models.format_control import FormatControl
+from pipenv.patched.notpip._internal.models.link import Link
+from pipenv.patched.notpip._internal.models.selection_prefs import SelectionPreferences
+from pipenv.patched.notpip._internal.models.target_python import TargetPython
+from pipenv.patched.notpip._internal.models.wheel import Wheel
+from pipenv.patched.notpip._internal.utils.filetypes import WHEEL_EXTENSION
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import build_netloc
+from pipenv.patched.notpip._internal.utils.packaging import check_requires_python
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.unpacking import SUPPORTED_EXTENSIONS
+from pipenv.patched.notpip._internal.utils.urls import url_to_path
 
 if MYPY_CHECK_RUNNING:
     from typing import FrozenSet, Iterable, List, Optional, Set, Tuple, Union
 
-    from pip._vendor.packaging.tags import Tag
-    from pip._vendor.packaging.version import _BaseVersion
+    from pipenv.patched.notpip._vendor.packaging.tags import Tag
+    from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion
 
-    from pip._internal.index.collector import LinkCollector
-    from pip._internal.models.search_scope import SearchScope
-    from pip._internal.req import InstallRequirement
-    from pip._internal.utils.hashes import Hashes
+    from pipenv.patched.notpip._internal.index.collector import LinkCollector
+    from pipenv.patched.notpip._internal.models.search_scope import SearchScope
+    from pipenv.patched.notpip._internal.req import InstallRequirement
+    from pipenv.patched.notpip._internal.utils.hashes import Hashes
 
     BuildTag = Union[Tuple[()], Tuple[int, str]]
     CandidateSortingKey = (

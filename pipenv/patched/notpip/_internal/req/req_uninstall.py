@@ -6,13 +6,13 @@ import sys
 import sysconfig
 from importlib.util import cache_from_source
 
-from pip._vendor import pkg_resources
+from pipenv.patched.notpip._vendor import pkg_resources
 
-from pip._internal.exceptions import UninstallationError
-from pip._internal.locations import bin_py, bin_user
-from pip._internal.utils.compat import WINDOWS
-from pip._internal.utils.logging import indent_log
-from pip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.exceptions import UninstallationError
+from pipenv.patched.notpip._internal.locations import bin_py, bin_user
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import (
     ask,
     dist_in_usersite,
     dist_is_local,
@@ -22,8 +22,8 @@ from pip._internal.utils.misc import (
     renames,
     rmtree,
 )
-from pip._internal.utils.temp_dir import AdjacentTempDirectory, TempDirectory
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.temp_dir import AdjacentTempDirectory, TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import (
@@ -38,7 +38,7 @@ if MYPY_CHECK_RUNNING:
         Tuple,
     )
 
-    from pip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
 logger = logging.getLogger(__name__)
 

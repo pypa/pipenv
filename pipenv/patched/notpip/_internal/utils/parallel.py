@@ -22,9 +22,9 @@ from contextlib import contextmanager
 from multiprocessing import Pool as ProcessPool
 from multiprocessing.dummy import Pool as ThreadPool
 
-from pip._vendor.requests.adapters import DEFAULT_POOLSIZE
+from pipenv.patched.notpip._vendor.requests.adapters import DEFAULT_POOLSIZE
 
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from multiprocessing import pool

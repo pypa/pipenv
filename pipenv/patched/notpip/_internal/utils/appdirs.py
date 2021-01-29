@@ -8,9 +8,9 @@ and eventually drop this after all usages are changed.
 
 import os
 
-from pip._vendor import appdirs as _appdirs
+from pipenv.patched.notpip._vendor import appdirs as _appdirs
 
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import List

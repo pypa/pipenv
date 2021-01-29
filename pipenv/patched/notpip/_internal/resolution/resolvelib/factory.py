@@ -1,8 +1,8 @@
 import logging
 
-from pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from pip._internal.exceptions import (
+from pipenv.patched.notpip._internal.exceptions import (
     DistributionNotFound,
     InstallationError,
     InstallationSubprocessError,
@@ -10,17 +10,17 @@ from pip._internal.exceptions import (
     UnsupportedPythonVersion,
     UnsupportedWheel,
 )
-from pip._internal.models.wheel import Wheel
-from pip._internal.req.req_install import InstallRequirement
-from pip._internal.utils.compatibility_tags import get_supported
-from pip._internal.utils.hashes import Hashes
-from pip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.models.wheel import Wheel
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._internal.utils.compatibility_tags import get_supported
+from pipenv.patched.notpip._internal.utils.hashes import Hashes
+from pipenv.patched.notpip._internal.utils.misc import (
     dist_in_site_packages,
     dist_in_usersite,
     get_installed_distributions,
 )
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.virtualenv import running_under_virtualenv
 
 from .base import Constraint
 from .candidates import (
@@ -52,16 +52,16 @@ if MYPY_CHECK_RUNNING:
         TypeVar,
     )
 
-    from pip._vendor.packaging.specifiers import SpecifierSet
-    from pip._vendor.packaging.version import _BaseVersion
-    from pip._vendor.pkg_resources import Distribution
-    from pip._vendor.resolvelib import ResolutionImpossible
+    from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
+    from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._vendor.resolvelib import ResolutionImpossible
 
-    from pip._internal.cache import CacheEntry, WheelCache
-    from pip._internal.index.package_finder import PackageFinder
-    from pip._internal.models.link import Link
-    from pip._internal.operations.prepare import RequirementPreparer
-    from pip._internal.resolution.base import InstallRequirementProvider
+    from pipenv.patched.notpip._internal.cache import CacheEntry, WheelCache
+    from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.notpip._internal.models.link import Link
+    from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
+    from pipenv.patched.notpip._internal.resolution.base import InstallRequirementProvider
 
     from .base import Candidate, Requirement
     from .candidates import BaseCandidate

@@ -18,7 +18,7 @@ curious maintainer can reach here to read this.
 
 In packaging, all static-typing related imports should be guarded as follows:
 
-    from pip._vendor.packaging._typing import TYPE_CHECKING
+    from pipenv.patched.notpip._vendor.packaging._typing import TYPE_CHECKING
 
     if TYPE_CHECKING:
         from typing import ...

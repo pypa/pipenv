@@ -1,7 +1,7 @@
 """Filetype information.
 """
-from pip._internal.utils.misc import splitext
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.misc import splitext
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Tuple

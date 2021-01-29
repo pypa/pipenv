@@ -3,7 +3,7 @@ import json
 import re
 import urllib.parse
 
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Dict, Iterable, Optional, Type, TypeVar, Union

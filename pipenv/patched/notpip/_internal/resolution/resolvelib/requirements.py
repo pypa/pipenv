@@ -1,13 +1,13 @@
-from pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 from .base import Requirement, format_name
 
 if MYPY_CHECK_RUNNING:
-    from pip._vendor.packaging.specifiers import SpecifierSet
+    from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
 
-    from pip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 
     from .base import Candidate, CandidateLookup
 

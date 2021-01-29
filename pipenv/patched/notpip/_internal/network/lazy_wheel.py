@@ -7,19 +7,19 @@ from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 from zipfile import BadZipfile, ZipFile
 
-from pip._vendor.requests.models import CONTENT_CHUNK_SIZE
+from pipenv.patched.notpip._vendor.requests.models import CONTENT_CHUNK_SIZE
 
-from pip._internal.network.utils import HEADERS, raise_for_status, response_chunks
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.wheel import pkg_resources_distribution_for_wheel
+from pipenv.patched.notpip._internal.network.utils import HEADERS, raise_for_status, response_chunks
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.wheel import pkg_resources_distribution_for_wheel
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Dict, Iterator, List, Optional, Tuple
 
-    from pip._vendor.pkg_resources import Distribution
-    from pip._vendor.requests.models import Response
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._vendor.requests.models import Response
 
-    from pip._internal.network.session import PipSession
+    from pipenv.patched.notpip._internal.network.session import PipSession
 
 
 class HTTPRangeRequestUnsupported(Exception):

@@ -9,11 +9,11 @@ import shutil
 import sys
 import textwrap
 
-from pip._vendor.contextlib2 import suppress
+from pipenv.patched.notpip._vendor.contextlib2 import suppress
 
-from pip._internal.cli.status_codes import UNKNOWN_ERROR
-from pip._internal.configuration import Configuration, ConfigurationError
-from pip._internal.utils.misc import redact_auth_from_url, strtobool
+from pipenv.patched.notpip._internal.cli.status_codes import UNKNOWN_ERROR
+from pipenv.patched.notpip._internal.configuration import Configuration, ConfigurationError
+from pipenv.patched.notpip._internal.utils.misc import redact_auth_from_url, strtobool
 
 logger = logging.getLogger(__name__)
 

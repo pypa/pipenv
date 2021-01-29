@@ -7,12 +7,12 @@ import warnings
 from contextlib import contextmanager
 from weakref import finalize
 
-from pip._vendor.contextlib2 import ExitStack
-from pip._vendor.six import ensure_text
+from pipenv.patched.notpip._vendor.contextlib2 import ExitStack
+from pipenv.patched.notpip._vendor.six import ensure_text
 
-from pip._internal.utils.compat import WINDOWS
-from pip._internal.utils.misc import enum, rmtree
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS
+from pipenv.patched.notpip._internal.utils.misc import enum, rmtree
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Dict, Iterator, Optional, TypeVar, Union

@@ -4,24 +4,24 @@ import os
 import sys
 
 import pip._vendor
-from pip._vendor import pkg_resources
-from pip._vendor.certifi import where
+from pipenv.patched.notpip._vendor import pkg_resources
+from pipenv.patched.notpip._vendor.certifi import where
 
 from pip import __file__ as pip_location
-from pip._internal.cli import cmdoptions
-from pip._internal.cli.base_command import Command
-from pip._internal.cli.cmdoptions import make_target_python
-from pip._internal.cli.status_codes import SUCCESS
-from pip._internal.utils.logging import indent_log
-from pip._internal.utils.misc import get_pip_version
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.base_command import Command
+from pipenv.patched.notpip._internal.cli.cmdoptions import make_target_python
+from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import get_pip_version
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from optparse import Values
     from types import ModuleType
     from typing import Dict, List, Optional
 
-    from pip._internal.configuration import Configuration
+    from pipenv.patched.notpip._internal.configuration import Configuration
 
 logger = logging.getLogger(__name__)
 

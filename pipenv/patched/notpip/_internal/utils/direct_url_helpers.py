@@ -1,7 +1,7 @@
 import json
 import logging
 
-from pip._internal.models.direct_url import (
+from pipenv.patched.notpip._internal.models.direct_url import (
     DIRECT_URL_METADATA_NAME,
     ArchiveInfo,
     DirectUrl,
@@ -9,15 +9,15 @@ from pip._internal.models.direct_url import (
     DirInfo,
     VcsInfo,
 )
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.vcs import vcs
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.vcs import vcs
 
 if MYPY_CHECK_RUNNING:
     from typing import Optional
 
-    from pip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
-    from pip._internal.models.link import Link
+    from pipenv.patched.notpip._internal.models.link import Link
 
 logger = logging.getLogger(__name__)
 

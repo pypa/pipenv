@@ -54,8 +54,8 @@ try:
 except NameError:
     FileExistsError = OSError
 
-from pip._vendor import six
-from pip._vendor.six.moves import urllib, map, filter
+from pipenv.patched.notpip._vendor import six
+from pipenv.patched.notpip._vendor.six.moves import urllib, map, filter
 
 # capture these to bypass sandboxing
 from os import utime
@@ -77,8 +77,8 @@ except ImportError:
     importlib_machinery = None
 
 from . import py31compat
-from pip._vendor import appdirs
-from pip._vendor import packaging
+from pipenv.patched.notpip._vendor import appdirs
+from pipenv.patched.notpip._vendor import packaging
 __import__('pip._vendor.packaging.version')
 __import__('pip._vendor.packaging.specifiers')
 __import__('pip._vendor.packaging.requirements')

@@ -1,6 +1,6 @@
 import argparse
 
-from pip._vendor.certifi import contents, where
+from pipenv.patched.notpip._vendor.certifi import contents, where
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--contents", action="store_true")

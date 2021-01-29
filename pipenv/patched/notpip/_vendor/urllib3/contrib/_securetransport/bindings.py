@@ -48,7 +48,7 @@ from ctypes import (
 )
 from ctypes.util import find_library
 
-from pip._vendor.urllib3.packages.six import raise_from
+from pipenv.patched.notpip._vendor.urllib3.packages.six import raise_from
 
 if platform.system() != "Darwin":
     raise ImportError("Only macOS is supported")

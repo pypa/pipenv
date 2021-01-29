@@ -2,19 +2,19 @@ import itertools
 import sys
 from signal import SIGINT, default_int_handler, signal
 
-from pip._vendor.progress.bar import Bar, FillingCirclesBar, IncrementalBar
-from pip._vendor.progress.spinner import Spinner
+from pipenv.patched.notpip._vendor.progress.bar import Bar, FillingCirclesBar, IncrementalBar
+from pipenv.patched.notpip._vendor.progress.spinner import Spinner
 
-from pip._internal.utils.compat import WINDOWS
-from pip._internal.utils.logging import get_indentation
-from pip._internal.utils.misc import format_size
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS
+from pipenv.patched.notpip._internal.utils.logging import get_indentation
+from pipenv.patched.notpip._internal.utils.misc import format_size
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Dict, List
 
 try:
-    from pip._vendor import colorama
+    from pipenv.patched.notpip._vendor import colorama
 # Lots of different errors can come from this, including SystemError and
 # ImportError.
 except Exception:

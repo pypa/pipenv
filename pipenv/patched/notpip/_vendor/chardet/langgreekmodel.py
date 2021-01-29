@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from pip._vendor.chardet.sbcharsetprober import SingleByteCharSetModel
+from pipenv.patched.notpip._vendor.chardet.sbcharsetprober import SingleByteCharSetModel
 
 
 # 3: Positive

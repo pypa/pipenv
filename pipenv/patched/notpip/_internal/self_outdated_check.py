@@ -5,22 +5,22 @@ import logging
 import os.path
 import sys
 
-from pip._vendor.packaging import version as packaging_version
-from pip._vendor.six import ensure_binary
+from pipenv.patched.notpip._vendor.packaging import version as packaging_version
+from pipenv.patched.notpip._vendor.six import ensure_binary
 
-from pip._internal.index.collector import LinkCollector
-from pip._internal.index.package_finder import PackageFinder
-from pip._internal.models.selection_prefs import SelectionPreferences
-from pip._internal.utils.filesystem import adjacent_tmp_file, check_path_owner, replace
-from pip._internal.utils.misc import ensure_dir, get_distribution, get_installed_version
-from pip._internal.utils.packaging import get_installer
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.index.collector import LinkCollector
+from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+from pipenv.patched.notpip._internal.models.selection_prefs import SelectionPreferences
+from pipenv.patched.notpip._internal.utils.filesystem import adjacent_tmp_file, check_path_owner, replace
+from pipenv.patched.notpip._internal.utils.misc import ensure_dir, get_distribution, get_installed_version
+from pipenv.patched.notpip._internal.utils.packaging import get_installer
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     import optparse
     from typing import Any, Dict
 
-    from pip._internal.network.session import PipSession
+    from pipenv.patched.notpip._internal.network.session import PipSession
 
 
 SELFCHECK_DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"

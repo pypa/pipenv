@@ -5,21 +5,21 @@ import configparser
 import logging
 import os
 
-from pip._internal.exceptions import BadCommand, InstallationError
-from pip._internal.utils.misc import display_path
-from pip._internal.utils.subprocess import make_command
-from pip._internal.utils.temp_dir import TempDirectory
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.urls import path_to_url
-from pip._internal.vcs.versioncontrol import (
+from pipenv.patched.notpip._internal.exceptions import BadCommand, InstallationError
+from pipenv.patched.notpip._internal.utils.misc import display_path
+from pipenv.patched.notpip._internal.utils.subprocess import make_command
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.urls import path_to_url
+from pipenv.patched.notpip._internal.vcs.versioncontrol import (
     VersionControl,
     find_path_to_setup_from_repo_root,
     vcs,
 )
 
 if MYPY_CHECK_RUNNING:
-    from pip._internal.utils.misc import HiddenText
-    from pip._internal.vcs.versioncontrol import RevOptions
+    from pipenv.patched.notpip._internal.utils.misc import HiddenText
+    from pipenv.patched.notpip._internal.vcs.versioncontrol import RevOptions
 
 
 logger = logging.getLogger(__name__)

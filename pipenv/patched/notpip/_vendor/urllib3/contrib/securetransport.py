@@ -64,7 +64,7 @@ import struct
 import threading
 import weakref
 
-from pip._vendor import six
+from pipenv.patched.notpip._vendor import six
 
 from .. import util
 from ._securetransport.bindings import CoreFoundation, Security, SecurityConst

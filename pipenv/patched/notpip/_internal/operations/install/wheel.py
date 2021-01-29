@@ -16,31 +16,31 @@ from base64 import urlsafe_b64encode
 from itertools import chain, filterfalse, starmap
 from zipfile import ZipFile
 
-from pip._vendor import pkg_resources
-from pip._vendor.distlib.scripts import ScriptMaker
-from pip._vendor.distlib.util import get_export_entry
-from pip._vendor.six import ensure_str, ensure_text, reraise
+from pipenv.patched.notpip._vendor import pkg_resources
+from pipenv.patched.notpip._vendor.distlib.scripts import ScriptMaker
+from pipenv.patched.notpip._vendor.distlib.util import get_export_entry
+from pipenv.patched.notpip._vendor.six import ensure_str, ensure_text, reraise
 
-from pip._internal.exceptions import InstallationError
-from pip._internal.locations import get_major_minor_version
-from pip._internal.models.direct_url import DIRECT_URL_METADATA_NAME, DirectUrl
-from pip._internal.models.scheme import SCHEME_KEYS
-from pip._internal.utils.filesystem import adjacent_tmp_file, replace
-from pip._internal.utils.misc import captured_stdout, ensure_dir, hash_file, partition
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pip._internal.utils.unpacking import (
+from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.locations import get_major_minor_version
+from pipenv.patched.notpip._internal.models.direct_url import DIRECT_URL_METADATA_NAME, DirectUrl
+from pipenv.patched.notpip._internal.models.scheme import SCHEME_KEYS
+from pipenv.patched.notpip._internal.utils.filesystem import adjacent_tmp_file, replace
+from pipenv.patched.notpip._internal.utils.misc import captured_stdout, ensure_dir, hash_file, partition
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.unpacking import (
     current_umask,
     is_within_directory,
     set_extracted_file_to_default_mode_plus_executable,
     zip_item_is_executable,
 )
-from pip._internal.utils.wheel import parse_wheel, pkg_resources_distribution_for_wheel
+from pipenv.patched.notpip._internal.utils.wheel import parse_wheel, pkg_resources_distribution_for_wheel
 
 # Use the custom cast function at runtime to make cast work,
 # and import typing.cast when performing pre-commit and type
 # checks
 if not MYPY_CHECK_RUNNING:
-    from pip._internal.utils.typing import cast
+    from pipenv.patched.notpip._internal.utils.typing import cast
 else:
     from email.message import Message
     from typing import (
@@ -63,9 +63,9 @@ else:
     )
     from zipfile import ZipInfo
 
-    from pip._vendor.pkg_resources import Distribution
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
-    from pip._internal.models.scheme import Scheme
+    from pipenv.patched.notpip._internal.models.scheme import Scheme
 
     RecordPath = NewType('RecordPath', str)
     InstalledCSVRow = Tuple[RecordPath, str, Union[int, str]]

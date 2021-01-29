@@ -1,6 +1,6 @@
-from pip._vendor.resolvelib.providers import AbstractProvider
+from pipenv.patched.notpip._vendor.resolvelib.providers import AbstractProvider
 
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 from .base import Constraint
 

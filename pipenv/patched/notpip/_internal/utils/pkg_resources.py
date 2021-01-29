@@ -1,7 +1,7 @@
-from pip._vendor.pkg_resources import yield_lines
-from pip._vendor.six import ensure_str
+from pipenv.patched.notpip._vendor.pkg_resources import yield_lines
+from pipenv.patched.notpip._vendor.six import ensure_str
 
-from pip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Dict, Iterable, List
