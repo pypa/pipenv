@@ -11,7 +11,7 @@ from sysconfig import get_paths
 
 from pipenv.patched.notpip._vendor.pkg_resources import Requirement, VersionConflict, WorkingSet
 
-from pip import __file__ as pip_location
+from pipenv.patched.notpip import __file__ as pip_location
 from pipenv.patched.notpip._internal.cli.spinners import open_spinner
 from pipenv.patched.notpip._internal.utils.subprocess import call_subprocess
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory, tempdir_kinds

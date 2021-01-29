@@ -3,11 +3,11 @@ import logging
 import os
 import sys
 
-import pip._vendor
+import pipenv.patched.notpip._vendor
 from pipenv.patched.notpip._vendor import pkg_resources
 from pipenv.patched.notpip._vendor.certifi import where
 
-from pip import __file__ as pip_location
+from pipenv.patched.notpip import __file__ as pip_location
 from pipenv.patched.notpip._internal.cli import cmdoptions
 from pipenv.patched.notpip._internal.cli.base_command import Command
 from pipenv.patched.notpip._internal.cli.cmdoptions import make_target_python

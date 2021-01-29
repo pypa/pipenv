@@ -1,4 +1,4 @@
-import pip._internal.utils.inject_securetransport  # noqa
+import pipenv.patched.notpip._internal.utils.inject_securetransport  # noqa
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
