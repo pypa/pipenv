@@ -26,7 +26,7 @@ The problems that Pipenv seeks to solve are multi-faceted:
 -   You no longer need to use `pip` and `virtualenv` separately. They
     work together.
 -   Managing a `requirements.txt` file [can be
-    problematic](https://www.kennethreitz.org/essays/a-better-pip-workflow),
+    problematic](https://kennethreitz.org/essays/2016/02/25/a-better-pip-workflow),
     so Pipenv uses the upcoming `Pipfile` and `Pipfile.lock` instead,
     which is superior for basic use cases.
 -   Hashes are used everywhere, always. Security. Automatically expose
