@@ -50,7 +50,7 @@ def _get_activate_script(cmd, venv):
         command = "."
     # Escape any special characters located within the virtualenv path to allow
     # for proper activation.
-    venv_location = re.sub(r'([ &$])', r"\\\1", str(venv))
+    venv_location = re.sub(r'([ &$()\[\]])', r"\\\1", str(venv))
     # The leading space can make history cleaner in some shells.
     return " {2} {0}/bin/activate{1}".format(venv_location, suffix, command)
 
