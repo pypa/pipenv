@@ -53,6 +53,11 @@ Or, if you\'re using FreeBSD:
 
     # pkg install py36-pipenv
 
+Or, if you\'re using OSX:
+
+    # brew install pipenv
+
+
 When none of the above is an option, it is recommended to use [Pipx](https://pypi.org/p/pipx):
 
     $ pipx install pipenv
