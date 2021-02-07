@@ -1,0 +1,1 @@
+Add ``brew install pipenv`` to the readme for consistency with the sphinx docs.
