@@ -1,0 +1,78 @@
+diff --git a/pipenv/vendor/pythonfinder/compat.py b/pipenv/vendor/pythonfinder/compat.py
+index 6fb4542f..d76c4efc 100644
+--- a/pipenv/vendor/pythonfinder/compat.py
++++ b/pipenv/vendor/pythonfinder/compat.py
+@@ -4,7 +4,7 @@ import sys
+ import six
+ 
+ if sys.version_info[:2] <= (3, 4):
+-    from pathlib2 import Path  # type: ignore  # noqa
++    from pipenv.vendor.pathlib2 import Path  # type: ignore  # noqa
+ else:
+     from pathlib import Path
+ 
+diff --git a/pipenv/vendor/pythonfinder/models/mixins.py b/pipenv/vendor/pythonfinder/models/mixins.py
+index 76327115..aeba0443 100644
+--- a/pipenv/vendor/pythonfinder/models/mixins.py
++++ b/pipenv/vendor/pythonfinder/models/mixins.py
+@@ -5,7 +5,7 @@ import abc
+ import operator
+ from collections import defaultdict
+ 
+-import attr
++from pipenv.vendor import attr
+ import six
+ 
+ from ..compat import fs_str
+diff --git a/pipenv/vendor/pythonfinder/models/path.py b/pipenv/vendor/pythonfinder/models/path.py
+index b855a05d..a8070c91 100644
+--- a/pipenv/vendor/pythonfinder/models/path.py
++++ b/pipenv/vendor/pythonfinder/models/path.py
+@@ -7,7 +7,7 @@ import sys
+ from collections import defaultdict
+ from itertools import chain
+ 
+-import attr
++from pipenv.vendor import attr
+ import six
+ from cached_property import cached_property
+ from ..compat import Path, fs_str
+diff --git a/pipenv/vendor/pythonfinder/models/python.py b/pipenv/vendor/pythonfinder/models/python.py
+index 619e7761..ff249be2 100644
+--- a/pipenv/vendor/pythonfinder/models/python.py
++++ b/pipenv/vendor/pythonfinder/models/python.py
+@@ -7,7 +7,7 @@ import platform
+ import sys
+ from collections import defaultdict
+ 
+-import attr
++from pipenv.vendor import attr
+ import six
+ from packaging.version import Version
+ 
+diff --git a/pipenv/vendor/pythonfinder/models/windows.py b/pipenv/vendor/pythonfinder/models/windows.py
+index a0e69b03..39353cdb 100644
+--- a/pipenv/vendor/pythonfinder/models/windows.py
++++ b/pipenv/vendor/pythonfinder/models/windows.py
+@@ -4,7 +4,7 @@ from __future__ import absolute_import, print_function
+ import operator
+ from collections import defaultdict
+ 
+-import attr
++from pipenv.vendor import attr
+ 
+ from ..environment import MYPY_RUNNING
+ from ..exceptions import InvalidPythonVersion
+diff --git a/pipenv/vendor/pythonfinder/utils.py b/pipenv/vendor/pythonfinder/utils.py
+index 8150545c..ef48e628 100644
+--- a/pipenv/vendor/pythonfinder/utils.py
++++ b/pipenv/vendor/pythonfinder/utils.py
+@@ -10,7 +10,7 @@ from collections import OrderedDict
+ from fnmatch import fnmatch
+ from threading import Timer
+ 
+-import attr
++from pipenv.vendor import attr
+ import six
+ from packaging.version import LegacyVersion, Version
+ 

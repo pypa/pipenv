@@ -83,11 +83,13 @@ class InstallState(object):
         self.packages = []
         self.editables = []
 
+
 class LockOptions(object):
     def __init__(self):
         self.dev_only = False
         self.emit_requirements = False
         self.emit_requirements_header = False
+
 
 pass_state = make_pass_decorator(State, ensure=True)
 
@@ -329,6 +331,7 @@ def emit_requirements_flag(f):
     return option("--requirements", "-r", default=False, is_flag=True, expose_value=False,
                   help="Generate output in requirements.txt format.", callback=callback)(f)
 
+
 def emit_requirements_header_flag(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
@@ -338,6 +341,7 @@ def emit_requirements_header_flag(f):
     return option("--header/--no-header", default=True, is_flag=True, expose_value=False,
                   help="Add header to generated requirements", callback=callback)(f)
 
+
 def dev_only_flag(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
@@ -346,6 +350,7 @@ def dev_only_flag(f):
         return value
     return option("--dev-only", default=False, is_flag=True, expose_value=False,
                   help="Emit development dependencies *only* (overrides --dev)", callback=callback)(f)
+
 
 def code_option(f):
     def callback(ctx, param, value):
@@ -435,6 +440,7 @@ def lock_options(f):
     f = install_base_options(f)
     f = lock_dev_option(f)
     f = emit_requirements_flag(f)
+    f = emit_requirements_header_flag(f)
     f = dev_only_flag(f)
     return f
 

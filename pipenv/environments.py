@@ -81,7 +81,7 @@ PIPENV_IS_CI = bool("CI" in os.environ or "TF_BUILD" in os.environ)
 
 # HACK: Prevent invalid shebangs with Homebrew-installed Python:
 # https://bugs.python.org/issue22490
-_OSX_VENV = os.environ.pop("__PYVENV_LAUNCHER__", None)
+os.environ.pop("__PYVENV_LAUNCHER__", None)
 
 # Load patched pip instead of system pip
 os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
@@ -326,7 +326,7 @@ PIPENV_TEST_INDEX = os.environ.get("PIPENV_TEST_INDEX")
 PIPENV_USE_SYSTEM = False
 PIPENV_VIRTUALENV = None
 if "PIPENV_ACTIVE" not in os.environ and not PIPENV_IGNORE_VIRTUALENVS:
-    PIPENV_VIRTUALENV = os.environ.get("VIRTUAL_ENV") or _OSX_VENV
+    PIPENV_VIRTUALENV = os.environ.get("VIRTUAL_ENV")
     PIPENV_USE_SYSTEM = bool(PIPENV_VIRTUALENV)
 
 # Internal, tells Pipenv to skip case-checking (slow internet connections).
@@ -341,11 +341,7 @@ PIPENV_SHELL = (
 )
 
 # Internal, to tell whether the command line session is interactive.
-try:
-    SESSION_IS_INTERACTIVE = _isatty(sys.stdout.fileno())
-except UnsupportedOperation:
-    SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
-
+SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
 
 # Internal, consolidated verbosity representation as an integer. The default
 # level is 0, increased for wordiness and decreased for terseness.
@@ -371,16 +367,16 @@ def is_quiet(threshold=-1):
     return PIPENV_VERBOSITY <= threshold
 
 
-def _is_using_venv():
+def is_using_venv():
     # type: () -> bool
     """Check for venv-based virtual environment which sets sys.base_prefix"""
-    return _OSX_VENV is not None or sys.prefix != getattr(sys, "base_prefix", sys.prefix)
-
-
-def _is_using_virtualenv():
-    # type: () -> bool
-    """Check for virtualenv-based environment which sets sys.real_prefix"""
-    return getattr(sys, "real_prefix", None) is not None
+    if getattr(sys, 'real_prefix', None) is not None:
+        # virtualenv venvs
+        result = True
+    else:
+        # PEP 405 venvs
+        result = sys.prefix != getattr(sys, 'base_prefix', sys.prefix)
+    return result
 
 
 def is_in_virtualenv():
@@ -392,16 +388,9 @@ def is_in_virtualenv():
     """
 
     pipenv_active = os.environ.get("PIPENV_ACTIVE", False)
-    virtual_env = None
-    use_system = False
+    virtual_env = bool(os.environ.get("VIRTUAL_ENV"))
     ignore_virtualenvs = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS", False))
-
-    if not pipenv_active and not ignore_virtualenvs:
-        virtual_env = any([
-            _is_using_virtualenv(), _is_using_venv(), os.environ.get("VIRTUAL_ENV")
-        ])
-        use_system = bool(virtual_env)
-    return (use_system or virtual_env) and not (pipenv_active or ignore_virtualenvs)
+    return virtual_env and not (pipenv_active or ignore_virtualenvs)
 
 
 PIPENV_SPINNER_FAIL_TEXT = fix_utf8(u"✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")

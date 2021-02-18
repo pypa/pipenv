@@ -26,19 +26,35 @@ from .utils import normalize_path, make_posix
 
 
 if False:
-    from typing import Optional
+    import pip_shims.shims
+    import tomlkit
+    from typing import ContextManager, Dict, Generator, List, Optional, Set, Union
+    from types import ModuleType
+    from .project import TSource, TPipfile, Project
+    from .vendor.packaging.version import Version
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
 # TODO: Unittests for this class
 
 
 class Environment(object):
-    def __init__(self, prefix=None, is_venv=False, base_working_set=None, pipfile=None,
-                 sources=None, project=None):
+    def __init__(
+        self,
+        prefix=None,  # type: Optional[str]
+        python=None,  # type: Optional[str]
+        is_venv=False,  # type: bool
+        base_working_set=None,  # type: pkg_resources.WorkingSet
+        pipfile=None,  # type: Optional[Union[tomlkit.toml_document.TOMLDocument, TPipfile]]
+        sources=None,  # type: Optional[List[TSource]]
+        project=None  # type: Optional[Project]
+    ):
         super(Environment, self).__init__()
         self._modules = {'pkg_resources': pkg_resources, 'pipenv': pipenv}
         self.base_working_set = base_working_set if base_working_set else BASE_WORKING_SET
         prefix = normalize_path(prefix)
+        self._python = None
+        if python is not None:
+            self._python = vistir.compat.Path(python).absolute().as_posix()
         self.is_venv = is_venv or prefix != normalize_path(sys.prefix)
         if not sources:
             sources = []
@@ -58,6 +74,7 @@ class Environment(object):
         self.sys_paths = get_paths()
 
     def safe_import(self, name):
+        # type: (str) -> ModuleType
         """Helper utility for reimporting previously imported modules while inside the env"""
         module = None
         if name not in self._modules:
@@ -77,10 +94,12 @@ class Environment(object):
             except TypeError:
                 del sys.modules[name]
                 sys.modules[name] = self._modules[name]
+                return self._modules[name]
         return module
 
     @classmethod
     def resolve_dist(cls, dist, working_set):
+        # type: (pkg_resources.Distribution, pkg_resources.WorkingSet) -> Set[pkg_resources.Distribution]
         """Given a local distribution and a working set, returns all dependencies from the set.
 
         :param dist: A single distribution to find the dependencies of
@@ -99,33 +118,43 @@ class Environment(object):
         except (KeyError, AttributeError, OSError, IOError):  # The METADATA file can't be found
             return deps
         for req in reqs:
-            dist = working_set.find(req)
+            try:
+                dist = working_set.find(req)
+            except pkg_resources.VersionConflict:
+                # https://github.com/pypa/pipenv/issues/4549
+                # The requirement is already present with incompatible version.
+                continue
             deps |= cls.resolve_dist(dist, working_set)
         return deps
 
     def extend_dists(self, dist):
+        # type: (pkg_resources.Distribution) -> None
         extras = self.resolve_dist(dist, self.base_working_set)
         self.extra_dists.append(dist)
         if extras:
             self.extra_dists.extend(extras)
 
     def add_dist(self, dist_name):
+        # type: (str) -> None
         dist = pkg_resources.get_distribution(pkg_resources.Requirement(dist_name))
         self.extend_dists(dist)
 
     @cached_property
     def python_version(self):
+        # type: () -> str
         with self.activated():
             sysconfig = self.safe_import("sysconfig")
             py_version = sysconfig.get_python_version()
             return py_version
 
     def find_libdir(self):
+        # type: () -> Optional[vistir.compat.Path]
         libdir = self.prefix / "lib"
         return next(iter(list(libdir.iterdir())), None)
 
     @property
     def python_info(self):
+        # type: () -> Dict[str, str]
         include_dir = self.prefix / "include"
         if not os.path.exists(include_dir):
             include_dirs = self.get_include_path()
@@ -142,6 +171,7 @@ class Environment(object):
         return {}
 
     def _replace_parent_version(self, path, replace_version):
+        # type: (str, str) -> str
         if not os.path.exists(path):
             base, leaf = os.path.split(path)
             base, parent = os.path.split(base)
@@ -153,6 +183,7 @@ class Environment(object):
 
     @cached_property
     def base_paths(self):
+        # type: () -> Dict[str, str]
         """
         Returns the context appropriate paths for the environment.
 
@@ -231,6 +262,7 @@ class Environment(object):
 
     @cached_property
     def script_basedir(self):
+        # type: () -> str
         """Path to the environment scripts dir"""
         prefix = make_posix(self.prefix.as_posix())
         install_scheme = 'nt' if (os.name == 'nt') else 'posix_prefix'
@@ -242,14 +274,22 @@ class Environment(object):
 
     @property
     def python(self):
+        # type: () -> str
         """Path to the environment python"""
-        py = vistir.compat.Path(self.script_basedir).joinpath("python").absolute().as_posix()
+        if self._python is not None:
+            return self._python
+        if os.name == "nt" and not self.is_venv:
+            py = vistir.compat.Path(self.prefix).joinpath("python").absolute().as_posix()
+        else:
+            py = vistir.compat.Path(self.script_basedir).joinpath("python").absolute().as_posix()
         if not py:
-            return vistir.compat.Path(sys.executable).as_posix()
+            py = vistir.compat.Path(sys.executable).as_posix()
+        self._python = py
         return py
 
     @cached_property
     def sys_path(self):
+        # type: () -> List[str]
         """
         The system path inside the environment
 
@@ -272,6 +312,7 @@ class Environment(object):
         return path
 
     def build_command(self, python_lib=False, python_inc=False, scripts=False, py_version=False):
+        # type: (bool, bool, bool, bool) -> str
         """Build the text for running a command in the given environment
 
         :param python_lib: Whether to include the python lib dir commands, defaults to False
@@ -313,6 +354,7 @@ class Environment(object):
         return py_command
 
     def get_paths(self):
+        # type: () -> Optional[Dict[str, str]]
         """
         Get the paths for the environment by running a subcommand
 
@@ -343,6 +385,7 @@ class Environment(object):
         return None
 
     def get_lib_paths(self):
+        # type: () -> Dict[str, str]
         """Get the include path for the environment
 
         :return: The python include path for the environment
@@ -390,6 +433,7 @@ class Environment(object):
         return {}
 
     def get_include_path(self):
+        # type: () -> Optional[Dict[str, str]]
         """Get the include path for the environment
 
         :return: The python include path for the environment
@@ -424,6 +468,7 @@ class Environment(object):
 
     @cached_property
     def sys_prefix(self):
+        # type: () -> str
         """
         The prefix run inside the context of the environment
 
@@ -438,6 +483,7 @@ class Environment(object):
 
     @cached_property
     def paths(self):
+        # type: () -> Dict[str, str]
         paths = {}
         with vistir.contextmanagers.temp_environ(), vistir.contextmanagers.temp_path():
             os.environ["PYTHONIOENCODING"] = vistir.compat.fs_str("utf-8")
@@ -451,10 +497,12 @@ class Environment(object):
 
     @property
     def scripts_dir(self):
+        # type: () -> str
         return self.paths["scripts"]
 
     @property
     def libdir(self):
+        # type: () -> str
         purelib = self.paths.get("purelib", None)
         if purelib and os.path.exists(purelib):
             return "purelib", purelib
@@ -462,6 +510,7 @@ class Environment(object):
 
     @property
     def pip_version(self):
+        # type: () -> Version
         """
         Get the pip version in the environment.  Useful for knowing which args we can use
         when installing.
@@ -475,6 +524,7 @@ class Environment(object):
         return parse_version("20.2")
 
     def expand_egg_links(self):
+        # type: () -> None
         """
         Expand paths specified in egg-link files to prevent pip errors during
         reinstall
@@ -497,6 +547,7 @@ class Environment(object):
                 pth.write_text("\n".join(contents))
 
     def get_distributions(self):
+        # type: () -> Generator[pkg_resources.Distribution, None, None]
         """
         Retrives the distributions installed on the library path of the environment
 
@@ -511,6 +562,7 @@ class Environment(object):
             yield dist
 
     def find_egg(self, egg_dist):
+        # type: (pkg_resources.Distribution) -> str
         """Find an egg by name in the given environment"""
         site_packages = self.libdir[1]
         search_filename = "{0}.egg-link".format(egg_dist.project_name)
@@ -525,6 +577,7 @@ class Environment(object):
                 return egg
 
     def locate_dist(self, dist):
+        # type: (pkg_resources.Distribution) -> str
         """Given a distribution, try to find a corresponding egg link first.
 
         If the egg - link doesn 't exist, return the supplied distribution."""
@@ -533,6 +586,7 @@ class Environment(object):
         return location or dist.location
 
     def dist_is_in_project(self, dist):
+        # type: (pkg_resources.Distribution) -> bool
         """Determine whether the supplied distribution is in the environment."""
         from .project import _normalized
         prefixes = [
@@ -546,6 +600,7 @@ class Environment(object):
         return any(location.startswith(prefix) for prefix in prefixes)
 
     def get_installed_packages(self):
+        # type: () -> List[pkg_resources.Distribution]
         """Returns all of the installed packages in a given environment"""
         workingset = self.get_working_set()
         packages = [
@@ -556,6 +611,7 @@ class Environment(object):
 
     @contextlib.contextmanager
     def get_finder(self, pre=False):
+        # type: (bool) -> ContextManager[pip_shims.shims.PackageFinder]
         from .vendor.pip_shims.shims import (
             InstallCommand, get_package_finder
         )
@@ -571,7 +627,8 @@ class Environment(object):
             yield finder
 
     def get_package_info(self, pre=False):
-        from .vendor.pip_shims.shims import pip_version, parse_version, CandidateEvaluator
+        # type: (bool) -> Generator[pkg_resources.Distribution, None, None]
+        from .vendor.pip_shims.shims import pip_version, parse_version
         dependency_links = []
         packages = self.get_installed_packages()
         # This code is borrowed from pip's current implementation
@@ -611,6 +668,7 @@ class Environment(object):
                 yield dist
 
     def get_outdated_packages(self, pre=False):
+        # type: (bool) -> List[pkg_resources.Distribution]
         return [
             pkg for pkg in self.get_package_info(pre=pre)
             if pkg.latest_version._key > pkg.parsed_version._key
@@ -737,6 +795,8 @@ class Environment(object):
                     vcs_type == req.vcs and commit_id == req.commit_hash
                     and direct_url_metadata["url"] == pipfile_part[req.vcs]
                 )
+            elif req.is_vcs or req.is_file_or_url:
+                return False
             elif req.line_instance.specifiers is not None:
                 return req.line_instance.specifiers.contains(
                     match.version, prereleases=True

@@ -1,1 +1,0 @@
-Pipenv will now detect existing ``venv`` and ``virtualenv`` based virtual environments more robustly.

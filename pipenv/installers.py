@@ -1,6 +1,7 @@
 import os
 import operator
 import re
+import six
 from abc import ABCMeta, abstractmethod
 
 
@@ -63,12 +64,15 @@ class InstallerError(RuntimeError):
         self.err = c.err
 
 
+@six.add_metaclass(ABCMeta)
 class Installer(object):
-    __metaclass__ = ABCMeta
 
     def __init__(self):
         self.cmd = self._find_installer()
         super(Installer, self).__init__()
+
+    def __str__(self):
+        return self.__class__.__name__
 
     @abstractmethod
     def _find_installer(self):

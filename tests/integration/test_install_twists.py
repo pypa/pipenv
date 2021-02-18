@@ -360,8 +360,7 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, testsroot):
     with PipenvInstance(chdir=True) as p:
         for pkg_name in pkgs:
             source_path = p._pipfile.get_fixture_path("git/{0}/".format(pkg_name)).as_posix()
-            c = delegator.run("git clone {0} ./{1}".format(source_path, pkg_name))
-            assert c.return_code == 0
+            shutil.copytree(source_path, pkg_name)
 
             pipfile_string += '"{0}" = {{path = "./{0}", editable = true}}\n'.format(pkg_name)
 

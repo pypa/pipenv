@@ -422,7 +422,7 @@ def expand_paths(path, only_python=True):
         isinstance(path, Sequence)
         and not getattr(path.__class__, "__name__", "") == "PathEntry"
     ):
-        for p in unnest(path):
+        for p in path:
             if p is None:
                 continue
             for expanded in itertools.chain.from_iterable(
@@ -437,7 +437,9 @@ def expand_paths(path, only_python=True):
                 ):
                     yield sub_path
     else:
-        if path is not None and path.is_python and path.as_python is not None:
+        if path is not None and (
+            not only_python or (path.is_python and path.as_python is not None)
+        ):
             yield path
 
 

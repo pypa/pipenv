@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+#
+# :copyright: (c) 2020 by Pavlo Dmytrenko.
+# :license: MIT, see LICENSE for more details.
 
 """
 yaspin.yaspin
@@ -9,6 +12,7 @@ A lightweight terminal spinner.
 
 from __future__ import absolute_import
 
+import contextlib
 import functools
 import itertools
 import signal
@@ -24,7 +28,6 @@ from .compat import PY2, basestring, builtin_str, bytes, iteritems, str
 from .constants import COLOR_ATTRS, COLOR_MAP, ENCODING, SPINNER_ATTRS
 from .helpers import to_unicode
 from .termcolor import colored
-
 
 colorama.init()
 
@@ -83,6 +86,7 @@ class Yaspin(object):
         self._spin_thread = None
         self._last_frame = None
         self._stdout_lock = threading.Lock()
+        self._hidden_level = 0
 
         # Signals
 
@@ -265,6 +269,20 @@ class Yaspin(object):
                 # flush the stdout buffer so the current line
                 # can be rewritten to
                 sys.stdout.flush()
+
+    @contextlib.contextmanager
+    def hidden(self):
+        """Hide the spinner within a block, can be nested"""
+        if self._hidden_level == 0:
+            self.hide()
+        self._hidden_level += 1
+
+        try:
+            yield
+        finally:
+            self._hidden_level -= 1
+            if self._hidden_level == 0:
+                self.show()
 
     def show(self):
         """Show the hidden spinner."""
@@ -461,9 +479,6 @@ class Yaspin(object):
 
     @staticmethod
     def _set_spinner(spinner):
-        if not spinner:
-            sp = default_spinner
-
         if hasattr(spinner, "frames") and hasattr(spinner, "interval"):
             if not spinner.frames or not spinner.interval:
                 sp = default_spinner

@@ -18,6 +18,7 @@ from ..utils import (
     RE_MATCHER,
     _filter_none,
     ensure_path,
+    expand_paths,
     get_python_version,
     guess_company,
     is_in_path,
@@ -286,12 +287,10 @@ class PythonFinder(BaseFinder, BasePath):
             ]
         else:
             pythons = [sub_finder(path) for path in self.paths]
-        pythons = [p for p in pythons if p and p.is_python and p.as_python is not None]
+        pythons = expand_paths(pythons, True)
         version_sort = operator.attrgetter("as_python.version_sort")
         paths = [
-            p
-            for p in sorted(list(pythons), key=version_sort, reverse=True)
-            if p is not None
+            p for p in sorted(pythons, key=version_sort, reverse=True) if p is not None
         ]
         return paths
 

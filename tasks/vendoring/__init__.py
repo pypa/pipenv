@@ -6,9 +6,9 @@
 import io
 import itertools
 import json
+import os
 import re
 import shutil
-import sys
 
 # from tempfile import TemporaryDirectory
 import tarfile
@@ -22,8 +22,7 @@ import requests
 
 from urllib3.util import parse_url as urllib3_parse
 
-from pipenv.utils import mkdir_p
-from pipenv.vendor.vistir.compat import NamedTemporaryFile, TemporaryDirectory
+from pipenv.vendor.vistir.compat import TemporaryDirectory
 from pipenv.vendor.vistir.contextmanagers import open_file
 from pipenv.vendor.requirementslib.models.lockfile import Lockfile, merge_items
 import pipenv.vendor.parse as parse
@@ -50,12 +49,12 @@ PY2_DOWNLOAD = ["enum34"]
 HARDCODED_LICENSE_URLS = {
     "pytoml": "https://github.com/avakar/pytoml/raw/master/LICENSE",
     "cursor": "https://raw.githubusercontent.com/GijsTimmers/cursor/master/LICENSE",
-    "delegator.py": "https://raw.githubusercontent.com/kennethreitz/delegator.py/master/LICENSE",
+    "delegator.py": "https://raw.githubusercontent.com/amitt001/delegator.py/master/LICENSE",
     "click-didyoumean": "https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE",
     "click-completion": "https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE",
     "parse": "https://raw.githubusercontent.com/techalchemy/parse/master/LICENSE",
     "semver": "https://raw.githubusercontent.com/k-bx/python-semver/master/LICENSE.txt",
-    "crayons": "https://raw.githubusercontent.com/kennethreitz/crayons/master/LICENSE",
+    "crayons": "https://raw.githubusercontent.com/MasterOdin/crayons/master/LICENSE",
     "pip-tools": "https://raw.githubusercontent.com/jazzband/pip-tools/master/LICENSE",
     "pytoml": "https://github.com/avakar/pytoml/raw/master/LICENSE",
     "webencodings": "https://github.com/SimonSapin/python-webencodings/raw/"
@@ -138,7 +137,9 @@ def clean_vendor(ctx, vendor_dir):
 def detect_vendored_libs(vendor_dir):
     retval = []
     for item in vendor_dir.iterdir():
-        if item.is_dir():
+        if item.name == "__pycache__":
+            continue
+        elif item.is_dir():
             retval.append(item.name)
         elif "LICENSE" in item.name or "COPYING" in item.name:
             continue
@@ -205,14 +206,10 @@ def _recursive_write_to_zip(zf, path, root=None):
 
 @invoke.task
 def update_safety(ctx):
-    ignore_subdeps = ["pip", "pip-egg-info", "bin", "pipenv", "virtualenv", "virtualenv-clone", "setuptools",]
+    ignore_subdeps = ["pip", "pip-egg-info", "bin", "pipenv", "virtualenv", "virtualenv-clone", "setuptools"]
     ignore_files = ["pip-delete-this-directory.txt", "PKG-INFO", "easy_install.py", "clonevirtualenv.py"]
     ignore_patterns = ["*.pyd", "*.so", "**/*.pyc", "*.pyc"]
-    cmd_envvars = {
-        "PIPENV_NO_INHERIT": "true",
-        "PIPENV_IGNORE_VIRTUALENVS": "true",
-        "PIPENV_VENV_IN_PROJECT": "true"
-    }
+
     patched_dir = _get_patched_dir(ctx)
     vendor_dir = _get_vendor_dir(ctx)
     safety_dir = Path(__file__).absolute().parent.joinpath("safety")
@@ -264,7 +261,7 @@ def update_safety(ctx):
         )
         log("downloading deps via pip: {0}".format(pip_command))
         ctx.run(pip_command)
-        safety_build_dir = build_dir / "safety"
+
         yaml_build_dir = build_dir / "pyyaml"
         lib_dir = safety_dir.joinpath("lib")
 
@@ -384,14 +381,15 @@ def install_pyyaml(ctx, vendor_dir):
     if build_dir.exists() and build_dir.is_dir():
         log("dropping pre-existing build dir at {0}".format(build_dir.as_posix()))
         drop_dir(build_dir)
+    build_dir.mkdir()
     with TemporaryDirectory(prefix="pipenv-", suffix="-safety") as download_dir:
         pip_command = "pip download -b {0} --no-binary=:all: --no-clean --no-deps -d {1} pyyaml safety".format(
             build_dir.absolute().as_posix(), str(download_dir.name),
         )
+        temp_env = "TEMP" if os.name == "nt" else "TMPDIR"
         log("downloading deps via pip: {0}".format(pip_command))
-        ctx.run(pip_command)
-    safety_build_dir = build_dir / "safety"
-    yaml_build_dir = build_dir / "pyyaml"
+        ctx.run(pip_command, env={temp_env: str(build_dir)})
+    yaml_build_dir = next(build_dir.glob('pip-download-*/pyyaml_*'))
     yaml_dir = vendor_dir / "yaml"
     yaml_lib_dir_map = {
         "2": {
@@ -493,7 +491,7 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
     log("Running post-install cleanup...")
     post_install_cleanup(ctx, vendor_dir)
     # Detect the vendored packages/modules
-    vendored_libs = detect_vendored_libs(_get_vendor_dir(ctx))
+    vendored_libs = detect_vendored_libs(_get_vendor_dir(ctx)) if not package else [package]
     log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
 
     # Apply pre-patches
@@ -566,7 +564,10 @@ def packages_missing_licenses(
 ):
     if not vendor_dir:
         vendor_dir = _get_vendor_dir(ctx)
-    requirements = vendor_dir.joinpath(requirements_file).read_text().splitlines()
+    if package is not None:
+        requirements = [package]
+    else:
+        requirements = vendor_dir.joinpath(requirements_file).read_text().splitlines()
     new_requirements = []
     LICENSE_EXTS = ("rst", "txt", "APACHE", "BSD", "md")
     LICENSES = [
@@ -574,7 +575,10 @@ def packages_missing_licenses(
         for lic in itertools.product(("LICENSE", "LICENSE-MIT"), LICENSE_EXTS)
     ]
     for i, req in enumerate(requirements):
-        pkg = req.strip().split("=")[0]
+        if req.startswith("git+"):
+            pkg = req.strip().split("#egg=")[1]
+        else:
+            pkg = req.strip().split("=")[0]
         possible_pkgs = [pkg, pkg.replace("-", "_")]
         match_found = False
         if pkg in PY2_DOWNLOAD:
@@ -630,20 +634,13 @@ def download_licenses(
     requirements = packages_missing_licenses(
         ctx, vendor_dir, requirements_file, package=package
     )
-
-    with NamedTemporaryFile(
-        prefix="pipenv", suffix="vendor-reqs", delete=False, mode="w"
-    ) as fh:
-        fh.write("\n".join(requirements))
-        new_requirements_file = fh.name
-    new_requirements_file = Path(new_requirements_file)
     log(requirements)
     tmp_dir = vendor_dir / "__tmp__"
     # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
     cmd = "pip download --no-binary :all: --only-binary requests_download --no-deps"
     enum_cmd = "pip download --no-deps"
     ctx.run("pip install flit")  # needed for the next step
-    for req in requirements_file.read_text().splitlines():
+    for req in requirements:
         if req.startswith("enum34"):
             exe_cmd = "{0} -d {1} {2}".format(enum_cmd, tmp_dir.as_posix(), req)
         else:
@@ -671,7 +668,6 @@ def download_licenses(
             )
     for sdist in tmp_dir.iterdir():
         extract_license(vendor_dir, sdist)
-    new_requirements_file.unlink()
     drop_dir(tmp_dir)
 
 
@@ -827,25 +823,25 @@ def unpin_file(contents):
 
 
 def unpin_and_copy_requirements(ctx, requirement_file, name="requirements.txt"):
-    with TemporaryDirectory() as tempdir:
-        target = Path(tempdir.name).joinpath("requirements.txt")
-        contents = unpin_file(requirement_file.read_text())
-        target.write_text(contents)
-        env = {
-            "PIPENV_IGNORE_VIRTUALENVS": "1",
-            "PIPENV_NOSPIN": "1",
-            "PIPENV_PYTHON": "2.7",
-        }
-        with ctx.cd(tempdir.name):
-            ctx.run("pipenv install -r {0}".format(target.as_posix()), env=env, hide=True)
-            result = ctx.run("pipenv lock -r", env=env, hide=True).stdout.strip()
-            ctx.run("pipenv --rm", env=env, hide=True)
-            result = list(sorted([line.strip() for line in result.splitlines()[1:]]))
-            new_requirements = requirement_file.parent.joinpath(name)
-            requirement_file.rename(
-                requirement_file.parent.joinpath("{}.bak".format(name))
-            )
-            new_requirements.write_text("\n".join(result))
+    tempdir = TemporaryDirectory(dir="D:/Workspace/tempdir")
+    target = Path(tempdir.name).joinpath("requirements.txt")
+    contents = unpin_file(requirement_file.read_text())
+    target.write_text(contents)
+    env = {
+        "PIPENV_IGNORE_VIRTUALENVS": "1",
+        "PIPENV_NOSPIN": "1",
+        "PIPENV_PYTHON": "2.7",
+    }
+    with ctx.cd(tempdir.name):
+        ctx.run("pipenv install -r {0}".format(target.as_posix()), env=env, hide=True)
+        result = ctx.run("pipenv lock -r", env=env, hide=True).stdout.strip()
+        # ctx.run("pipenv --rm", env=env, hide=True)
+        result = list(sorted([line.strip() for line in result.splitlines()[1:]]))
+        new_requirements = requirement_file.parent.joinpath(name)
+        requirement_file.rename(
+            requirement_file.parent.joinpath("{}.bak".format(name))
+        )
+        new_requirements.write_text("\n".join(result))
     return result
 
 

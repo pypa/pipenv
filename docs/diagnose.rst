@@ -58,14 +58,9 @@ distributions, with version name like ``3.6.4`` or similar.
 ------------------------------------------------------------------
 
 Pipenv by default uses the Python it is installed against to create the
-virtualenv. You can set the ``--python`` option, or
-``$PYENV_ROOT/shims/python`` to let it consult pyenv when choosing the
-interpreter. See :ref:`specifying_versions` for more information.
-
-If you want Pipenv to automatically “do the right thing”, you can set the
-environment variable ``PIPENV_PYTHON`` to ``$PYENV_ROOT/shims/python``. This
-will make Pipenv use pyenv’s active Python version to create virtual
-environments by default.
+virtualenv. You can set the ``--python`` option to ``$(pyenv which python)``
+to use your current pyenv interpreter. See :ref:`specifying_versions` for more
+information.
 
 .. _unknown-local-diagnose:
 
@@ -131,7 +126,7 @@ Add this line under ``[supervisord]`` section in ``/etc/supervisor/supervisord.c
     [supervisord]
     environment=LC_ALL='en_US.UTF-8',LANG='en_US.UTF-8'
 
-☤ An exception is raised during ``Locking dependencies…``
+☤ An exception is raised during ``Locking dependencies...``
 ---------------------------------------------------------
 
 Run ``pipenv lock --clear`` and try again. The lock sequence caches results

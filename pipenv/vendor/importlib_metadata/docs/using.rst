@@ -95,7 +95,7 @@ The ``group`` and ``name`` are arbitrary values defined by the package author
 and usually a client will wish to resolve all entry points for a particular
 group.  Read `the setuptools docs
 <https://setuptools.readthedocs.io/en/latest/setuptools.html#dynamic-discovery-of-services-and-plugins>`_
-for more information on entrypoints, their definition, and usage.
+for more information on entry points, their definition, and usage.
 
 
 .. _metadata:
@@ -236,7 +236,7 @@ method::
         """
 
 The ``DistributionFinder.Context`` object provides ``.path`` and ``.name``
-properties indicating the path to search and names to match and may
+properties indicating the path to search and name to match and may
 supply other relevant context.
 
 What this means in practice is that to support finding distribution package

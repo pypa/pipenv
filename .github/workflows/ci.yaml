@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [2.7, 3.6, 3.7, 3.8]
+        python-version: [3.6, 3.7, 3.8]
         os: [MacOS, Ubuntu, Windows]
 
     steps:
@@ -67,7 +67,6 @@ jobs:
       run: |
         git submodule sync
         git submodule update --init --recursive
-        python -m pip install "virtualenv<20"
         python -m pip install -e . --upgrade
         pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
     - name: Run tests

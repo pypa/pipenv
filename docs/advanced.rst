@@ -58,7 +58,6 @@ Alternatively, you can set the ``PIPENV_PYPI_MIRROR`` environment variable.
 ☤ Injecting credentials into Pipfiles via environment variables
 -----------------------------------------------------------------
 
-
 Pipenv will expand environment variables (if defined) in your Pipfile. Quite
 useful if you need to authenticate to a private PyPI::
 
@@ -75,6 +74,17 @@ If your credentials contain a special character, surround the references to the 
 
     [[source]]
     url = "https://$USERNAME:'${PASSWORD}'@mypypi.example.com/simple"
+
+Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+
+On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+
+Environment variables in the URL part of requirement specifiers can also be expanded, where the variable must be in the form of ``${VAR_NAME}``. Neither ``$VAR_NAME`` nor ``%VAR_NAME%`` is acceptable::
+
+    [[package]]
+    requests = {git = "git://${USERNAME}:${PASSWORD}@private.git.com/psf/requests.git", ref = "2.22.0"}
+
+Keep in mind that environment variables are expanded in runtime, leaving the entries in ``Pipfile`` or ``Pipfile.lock`` untouched. This is to avoid the accidental leakage of credentials in the source code.
 
 
 ☤ Specifying Basically Anything
@@ -223,9 +233,9 @@ Example::
     django = "==1.10.1"
 
     $ pipenv check
-    Checking PEP 508 requirements…
+    Checking PEP 508 requirements...
     Passed!
-    Checking installed package safety…
+    Checking installed package safety...
 
     33075: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
     Django before 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3, when settings.DEBUG is True, allow remote attackers to conduct DNS rebinding attacks by leveraging failure to validate the HTTP Host header against settings.ALLOWED_HOSTS.
@@ -299,7 +309,7 @@ Works in progress:
 Pipenv allows you to open any Python module that is installed (including ones in your codebase), with the ``$ pipenv open`` command::
 
     $ pipenv install -e git+https://github.com/kennethreitz/background.git#egg=background
-    Installing -e git+https://github.com/kennethreitz/background.git#egg=background…
+    Installing -e git+https://github.com/kennethreitz/background.git#egg=background...
     ...
     Updated Pipfile.lock!
 
@@ -331,17 +341,17 @@ This is a very fancy feature, and we're very proud of it::
     python_version = "3.6"
 
     $ pipenv install
-    Warning: Python 3.6 was not found on your system…
+    Warning: Python 3.6 was not found on your system...
     Would you like us to install latest CPython 3.6 with pyenv? [Y/n]: y
-    Installing CPython 3.6.2 with pyenv (this may take a few minutes)…
+    Installing CPython 3.6.2 with pyenv (this may take a few minutes)...
     ...
-    Making Python installation global…
-    Creating a virtualenv for this project…
-    Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv…
+    Making Python installation global...
+    Creating a virtualenv for this project...
+    Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv...
     ...
     No package provided, installing all dependencies.
     ...
-    Installing dependencies from Pipfile.lock…
+    Installing dependencies from Pipfile.lock...
     🐍   ❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒ 5/5 — 00:00:03
     To activate this project's virtualenv, run the following:
      $ pipenv shell
@@ -359,7 +369,7 @@ If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv
     HELLO=WORLD⏎
 
     $ pipenv run python
-    Loading .env environment variables…
+    Loading .env environment variables...
     Python 2.7.13 (default, Jul 18 2017, 09:17:00)
     [GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang-802.0.42)] on darwin
     Type "help", "copyright", "credits" or "license" for more information.
@@ -373,7 +383,7 @@ Shell like variable expansion is available in ``.env`` files using `${VARNAME}` 
     CONFIG_PATH=${HOME}/.config/foo
 
     $ pipenv run python
-    Loading .env environment variables…
+    Loading .env environment variables...
     Python 3.7.6 (default, Dec 19 2019, 22:52:49)
     [GCC 9.2.1 20190827 (Red Hat 9.2.1-1)] on linux
     Type "help", "copyright", "credits" or "license" for more information.
@@ -428,30 +438,13 @@ For example:
     $ pipenv run echospam "indeed"
     I am really a very silly example indeed
 
-☤ Support for Environment Variables
------------------------------------
+You can then display the names and commands of your shortcuts by running ``pipenv scripts`` in your terminal.
 
-Pipenv supports the usage of environment variables in place of authentication fragments
-in your Pipfile. These will only be parsed if they are present in the ``[[source]]``
-section. For example:
+::
 
-.. code-block:: toml
-
-    [[source]]
-    url = "https://${PYPI_USERNAME}:${PYPI_PASSWORD}@my_private_repo.example.com/simple"
-    verify_ssl = true
-    name = "pypi"
-
-    [dev-packages]
-
-    [packages]
-    requests = {version="*", index="home"}
-    maya = {version="*", index="pypi"}
-    records = "*"
-
-Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
-
-On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+    $ pipenv scripts
+    command   script
+    echospam  echo I am really a very silly example
 
 .. _configuration-with-environment-variables:
 

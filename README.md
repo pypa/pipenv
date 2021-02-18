@@ -26,7 +26,7 @@ The problems that Pipenv seeks to solve are multi-faceted:
 -   You no longer need to use `pip` and `virtualenv` separately. They
     work together.
 -   Managing a `requirements.txt` file [can be
-    problematic](https://www.kennethreitz.org/essays/a-better-pip-workflow),
+    problematic](https://kennethreitz.org/essays/2016/02/25/a-better-pip-workflow),
     so Pipenv uses the upcoming `Pipfile` and `Pipfile.lock` instead,
     which is superior for basic use cases.
 -   Hashes are used everywhere, always. Security. Automatically expose
@@ -41,25 +41,21 @@ You can quickly play with Pipenv right in your browser:
 Installation
 ------------
 
-If you\'re on MacOS, you can install Pipenv easily with Homebrew:
-
-    $ brew install pipenv
-
-Or, if you\'re using Debian Buster+:
+If you\'re using Debian Buster+:
 
     $ sudo apt install pipenv
 
 Or, if you\'re using Fedora:
 
     $ sudo dnf install pipenv
-    
+
 Or, if you\'re using FreeBSD:
 
     # pkg install py36-pipenv
 
-When none of the above is an option:
+When none of the above is an option, it is recommended to use [Pipx](https://pypi.org/p/pipx):
 
-    $ pip install pipenv
+    $ pipx install pipenv
 
 Otherwise, refer to the [documentation](https://pipenv.pypa.io/en/latest/#install-pipenv-today) for instructions.
 
@@ -195,6 +191,8 @@ Fish is the best shell. You should use it.
       lock       Generates Pipfile.lock.
       open       View a given module in your editor.
       run        Spawns a command installed into the virtualenv.
+      scripts    Displays the shortcuts in the (optional) [scripts] section of 
+                 Pipfile. 
       shell      Spawns a shell within the virtualenv.
       sync       Installs all packages specified in Pipfile.lock.
       uninstall  Un-installs a provided package and removes it from Pipfile.
@@ -295,7 +293,7 @@ Uninstall everything:
 Use the shell:
 
     $ pipenv shell
-    Loading .env environment variables…
+    Loading .env environment variables...
     Launching subshell in virtual environment. Type 'exit' or 'Ctrl+D' to return.
     $ ▯
 

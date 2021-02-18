@@ -12,7 +12,7 @@ import shutil
 import sys
 from functools import partial
 
-from pipenv.vendor import attr
+import attr
 import chardet
 import packaging.specifiers
 import packaging.utils
@@ -25,7 +25,7 @@ from distlib.wheel import Wheel
 from packaging.markers import Marker
 from pip_shims.utils import call_function_with_correct_args
 from six.moves import configparser
-from six.moves.urllib.parse import unquote, urlparse, urlunparse
+from six.moves.urllib.parse import urlparse, urlunparse
 from vistir.compat import FileNotFoundError, Iterable, Mapping, Path, finalize, lru_cache
 from vistir.contextmanagers import cd, temp_path
 from vistir.misc import run
@@ -250,7 +250,7 @@ def get_package_dir_from_setupcfg(parser, base_dir=None):
         if "find:" in pkg_dir:
             _, pkg_dir = pkg_dir.split("find:")
             pkg_dir = pkg_dir.strip()
-        package_dir = os.path.join(package_dir, pkg_dir)
+            package_dir = os.path.join(package_dir, pkg_dir)
     elif os.path.exists(os.path.join(package_dir, "setup.py")):
         setup_py = ast_parse_setup_py(os.path.join(package_dir, "setup.py"))
         if "package_dir" in setup_py:
@@ -465,25 +465,37 @@ class ScandirCloser(object):
             pass
 
 
+def _is_venv_dir(path):
+    # type: (AnyStr) -> bool
+    if os.name == "nt":
+        return os.path.isfile(os.path.join(path, "Scripts/python.exe")) or os.path.isfile(
+            os.path.join(path, "Scripts/activate")
+        )
+    else:
+        return os.path.isfile(os.path.join(path, "bin/python")) or os.path.isfile(
+            os.path.join(path, "bin/activate")
+        )
+
+
 def iter_metadata(path, pkg_name=None, metadata_type="egg-info"):
     # type: (AnyStr, Optional[AnyStr], AnyStr) -> Generator
     if pkg_name is not None:
         pkg_variants = get_name_variants(pkg_name)
-    non_matching_dirs = []
-    with contextlib.closing(ScandirCloser(path)) as path_iterator:
-        for entry in path_iterator:
-            if entry.is_dir():
-                entry_name, ext = os.path.splitext(entry.name)
-                if ext.endswith(metadata_type):
-                    if pkg_name is None or entry_name.lower() in pkg_variants:
-                        yield entry
-                elif not entry.name.endswith(metadata_type):
-                    non_matching_dirs.append(entry)
-        for entry in non_matching_dirs:
-            for dir_entry in iter_metadata(
-                entry.path, pkg_name=pkg_name, metadata_type=metadata_type
-            ):
-                yield dir_entry
+    dirs_to_search = [path]
+    while dirs_to_search:
+        p = dirs_to_search.pop(0)
+        # Skip when the directory is like a venv
+        if _is_venv_dir(p):
+            continue
+        with contextlib.closing(ScandirCloser(p)) as path_iterator:
+            for entry in path_iterator:
+                if entry.is_dir():
+                    entry_name, ext = os.path.splitext(entry.name)
+                    if ext.endswith(metadata_type):
+                        if pkg_name is None or entry_name.lower() in pkg_variants:
+                            yield entry
+                    elif not entry.name.endswith(metadata_type):
+                        dirs_to_search.append(entry.path)
 
 
 def find_egginfo(target, pkg_name=None):
@@ -684,6 +696,11 @@ AST_COMPARATORS = dict(
     )
 )
 
+if getattr(ast, "AnnAssign", None):
+    ASSIGN_NODES = (ast.Assign, ast.AnnAssign)
+else:
+    ASSIGN_NODES = (ast.Assign,)
+
 
 class Analyzer(ast.NodeVisitor):
     def __init__(self):
@@ -707,7 +724,7 @@ class Analyzer(ast.NodeVisitor):
             self.name_types.append(node)
         if isinstance(node, ast.Str):
             self.strings.append(node)
-        if isinstance(node, ast.Assign):
+        if isinstance(node, ASSIGN_NODES):
             self.assignments.update(ast_unparse(node, initial_mapping=True))
         super(Analyzer, self).generic_visit(node)
 
@@ -729,14 +746,16 @@ class Analyzer(ast.NodeVisitor):
             self.binOps_map[binop] = ast_unparse(binop, analyzer=self)
 
     def match_assignment_str(self, match):
-        return next(
-            iter(k for k in self.assignments if getattr(k, "id", "") == match), None
-        )
+        matches = [k for k in self.assignments if getattr(k, "id", "") == match]
+        if matches:
+            return matches[-1]
+        return None
 
     def match_assignment_name(self, match):
-        return next(
-            iter(k for k in self.assignments if getattr(k, "id", "") == match.id), None
-        )
+        matches = [k for k in self.assignments if getattr(k, "id", "") == match.id]
+        if matches:
+            return matches[-1]
+        return None
 
     def generic_unparse(self, item):
         if any(isinstance(item, k) for k in AST_BINOP_MAP.keys()):
@@ -771,7 +790,7 @@ class Analyzer(ast.NodeVisitor):
         if isinstance(item.slice, ast.Index):
             try:
                 unparsed = unparsed[self.unparse(item.slice.value)]
-            except KeyError:
+            except (KeyError, TypeError):
                 # not everything can be looked up before runtime
                 unparsed = item
         return unparsed
@@ -838,7 +857,7 @@ class Analyzer(ast.NodeVisitor):
         if isinstance(item.left, ast.Attribute) or isinstance(item.left, ast.Str):
             import importlib
 
-            left = unparse(item.left)
+            left = self.unparse(item.left)
             if "." in left:
                 name, _, val = left.rpartition(".")
                 left = getattr(importlib.import_module(name), val, left)
@@ -975,7 +994,26 @@ class Analyzer(ast.NodeVisitor):
         keys = list(setup.keys())
         if len(keys) == 1 and keys[0] is None:
             _, setup = setup.popitem()
+        keys = list(setup.keys())
+        for k in keys:
+            # XXX: Remove unresolved functions from the setup dictionary
+            if isinstance(setup[k], dict):
+                if not setup[k]:
+                    continue
+                key = next(iter(setup[k].keys()))
+                val = setup[k][key]
+                if key in function_names and val is None or val == {}:
+                    setup.pop(k)
         return setup
+
+
+def _ensure_hashable(item):
+    try:
+        hash(item)
+    except TypeError:
+        return str(item)
+    else:
+        return item
 
 
 def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # noqa:C901
@@ -989,7 +1027,9 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
         constant = ast.Ellipsis
     unparsed = item
     if isinstance(item, ast.Dict):
-        unparsed = dict(zip(unparse(item.keys), unparse(item.values)))
+        unparsed = dict(
+            zip(map(_ensure_hashable, unparse(item.keys)), unparse(item.values))
+        )
     elif isinstance(item, ast.List):
         unparsed = [unparse(el) for el in item.elts]
     elif isinstance(item, ast.Tuple):
@@ -1002,7 +1042,7 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
             if isinstance(item.slice, ast.Index):
                 try:
                     unparsed = unparsed[unparse(item.slice.value)]
-                except KeyError:
+                except (KeyError, TypeError):
                     # not everything can be looked up before runtime
                     unparsed = item
     elif any(isinstance(item, k) for k in AST_BINOP_MAP.keys()):
@@ -1130,20 +1170,24 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
                         unparsed[func_name].update(unparse(keyword))
     elif isinstance(item, ast.keyword):
         unparsed = {unparse(item.arg): unparse(item.value)}
-    elif isinstance(item, ast.Assign):
+    elif isinstance(item, ASSIGN_NODES):
         # XXX: DO NOT UNPARSE THIS
         # XXX: If we unparse this it becomes impossible to map it back
         # XXX: To the original node in the AST so we can find the
         # XXX: Original reference
+        try:
+            targets = item.targets  # for ast.Assign
+        except AttributeError:  # for ast.AnnAssign
+            targets = (item.target,)
         if not initial_mapping:
-            target = unparse(next(iter(item.targets)), recurse=False)
+            target = unparse(next(iter(targets)), recurse=False)
             val = unparse(item.value, recurse=False)
             if isinstance(target, (tuple, set, list)):
                 unparsed = dict(zip(target, val))
             else:
                 unparsed = {target: val}
         else:
-            unparsed = {next(iter(item.targets)): item}
+            unparsed = {next(iter(targets)): item}
     elif isinstance(item, Mapping):
         unparsed = {}
         for k, v in item.items():
@@ -1205,6 +1249,16 @@ def ast_parse_setup_py(path):
     keys = list(setup.keys())
     if len(keys) == 1 and keys[0] is None:
         _, setup = setup.popitem()
+    keys = list(setup.keys())
+    for k in keys:
+        # XXX: Remove unresolved functions from the setup dictionary
+        if isinstance(setup[k], dict):
+            if not setup[k]:
+                continue
+            key = next(iter(setup[k].keys()))
+            val = setup[k][key]
+            if key in function_names and val is None or val == {}:
+                setup.pop(k)
     return setup
 
 
@@ -1274,9 +1328,9 @@ def run_setup(script_path, egg_base=None):
 
 @attr.s(slots=True, frozen=True)
 class BaseRequirement(object):
-    name = attr.ib(default="", cmp=True)  # type: STRING_TYPE
+    name = attr.ib(default="", eq=True, order=True)  # type: STRING_TYPE
     requirement = attr.ib(
-        default=None, cmp=True
+        default=None, eq=True, order=True
     )  # type: Optional[PkgResourcesRequirement]
 
     def __str__(self):
@@ -1316,8 +1370,8 @@ class BaseRequirement(object):
 
 @attr.s(slots=True, frozen=True)
 class Extra(object):
-    name = attr.ib(default=None, cmp=True)  # type: STRING_TYPE
-    requirements = attr.ib(factory=frozenset, cmp=True, type=frozenset)
+    name = attr.ib(default=None, eq=True, order=True)  # type: STRING_TYPE
+    requirements = attr.ib(factory=frozenset, eq=True, order=True, type=frozenset)
 
     def __str__(self):
         # type: () -> S
@@ -1552,29 +1606,7 @@ class SetupInfo(object):
 
     def build_wheel(self):
         # type: () -> S
-        if not self.pyproject.exists():
-            build_requires = ", ".join(['"{0}"'.format(r) for r in self.build_requires])
-            self.pyproject.write_text(
-                six.text_type(
-                    """
-[build-system]
-requires = [{0}]
-build-backend = "{1}"
-                """.format(
-                        build_requires, self.build_backend
-                    ).strip()
-                )
-            )
-        return build_pep517(
-            self.base_dir,
-            self.extra_kwargs["build_dir"],
-            config_settings=self.pep517_config,
-            dist_type="wheel",
-        )
-
-    # noinspection PyPackageRequirements
-    def build_sdist(self):
-        # type: () -> S
+        need_delete = False
         if not self.pyproject.exists():
             if not self.build_requires:
                 build_requires = '"setuptools", "wheel"'
@@ -1593,12 +1625,49 @@ build-backend = "{1}"
                     ).strip()
                 )
             )
-        return build_pep517(
+            need_delete = True
+        result = build_pep517(
+            self.base_dir,
+            self.extra_kwargs["build_dir"],
+            config_settings=self.pep517_config,
+            dist_type="wheel",
+        )
+        if need_delete:
+            self.pyproject.unlink()
+        return result
+
+    # noinspection PyPackageRequirements
+    def build_sdist(self):
+        # type: () -> S
+        need_delete = False
+        if not self.pyproject.exists():
+            if not self.build_requires:
+                build_requires = '"setuptools", "wheel"'
+            else:
+                build_requires = ", ".join(
+                    ['"{0}"'.format(r) for r in self.build_requires]
+                )
+            self.pyproject.write_text(
+                six.text_type(
+                    """
+[build-system]
+requires = [{0}]
+build-backend = "{1}"
+                """.format(
+                        build_requires, self.build_backend
+                    ).strip()
+                )
+            )
+            need_delete = True
+        result = build_pep517(
             self.base_dir,
             self.extra_kwargs["build_dir"],
             config_settings=self.pep517_config,
             dist_type="sdist",
         )
+        if need_delete:
+            self.pyproject.unlink()
+        return result
 
     def build(self):
         # type: () -> "SetupInfo"
@@ -1826,7 +1895,7 @@ build-backend = "{1}"
             session = cmd._build_session(options)
             finder = cmd._build_package_finder(options, session)
         tempdir_manager = stack.enter_context(pip_shims.shims.global_tempdir_manager())
-        vcs, uri = split_vcs_method_from_uri(unquote(ireq.link.url_without_fragment))
+        vcs, uri = split_vcs_method_from_uri(ireq.link.url_without_fragment)
         parsed = urlparse(uri)
         if "file" in parsed.scheme:
             url_path = parsed.path
@@ -1846,10 +1915,7 @@ build-backend = "{1}"
             ireq.link, "is_vcs", getattr(ireq.link, "is_artifact", False)
         )
         is_vcs = True if vcs else is_artifact_or_vcs
-        if is_file and not is_vcs and path is not None and os.path.isdir(path):
-            target = os.path.join(kwargs["src_dir"], os.path.basename(path))
-            shutil.copytree(path, target)
-            ireq.source_dir = target
+
         if not (ireq.editable and is_file and is_vcs):
             if ireq.is_wheel:
                 only_download = True
@@ -1867,10 +1933,13 @@ build-backend = "{1}"
         if build_location_func is None:
             build_location_func = getattr(ireq, "ensure_build_location", None)
         if not ireq.source_dir:
-            build_kwargs = {"build_dir": kwargs["build_dir"], "autodelete": False}
+            build_kwargs = {
+                "build_dir": kwargs["build_dir"],
+                "autodelete": False,
+                "parallel_builds": True,
+            }
             call_function_with_correct_args(build_location_func, **build_kwargs)
             ireq.ensure_has_source_dir(kwargs["src_dir"])
-            src_dir = ireq.source_dir
             pip_shims.shims.shim_unpack(
                 download_dir=download_dir,
                 ireq=ireq,

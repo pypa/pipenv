@@ -27,7 +27,6 @@ from ..utils import (
     Sequence,
     dedup,
     ensure_path,
-    expand_paths,
     filter_pythons,
     is_in_path,
     normalize_path,
@@ -303,7 +302,7 @@ class SystemPath(object):
             normalized = normalize_path(current_path)
             if normalized != target:
                 new_order.append(normalized)
-        new_order = [p for p in reversed(new_order)]
+        new_order = [ensure_path(p).as_posix() for p in reversed(new_order)]
         return attr.evolve(self, path_order=new_order, paths=new_paths)
 
     def _setup_asdf(self):

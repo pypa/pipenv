@@ -1,0 +1,1 @@
+Fix a bug where ``pep508checker.py`` did not expect double-digit Python minor versions (e.g. "3.10").

@@ -105,11 +105,25 @@ def test_keep_outdated_doesnt_remove_lockfile_entries(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         p._pipfile.add("requests", "==2.18.4")
         p._pipfile.add("colorama", {"version": "*", "markers": "os_name=='FakeOS'"})
-        p.pipenv("install")
+        c = p.pipenv("install")
+        assert c.ok
+        assert "doesn't match your environment, its dependencies won't be resolved." in c.err
         p._pipfile.add("six", "*")
         p.pipenv("lock --keep-outdated")
         assert "colorama" in p.lockfile["default"]
         assert p.lockfile["default"]["colorama"]["markers"] == "os_name == 'FakeOS'"
+
+
+@pytest.mark.lock
+def test_resolve_skip_unmatched_requirements(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        p._pipfile.add("missing-package", {"markers": "os_name=='FakeOS'"})
+        c = p.pipenv("lock")
+        assert c.ok
+        assert (
+            "Could not find a version of missing-package; "
+            "os_name == 'FakeOS' that matches your environment"
+        ) in c.err
 
 
 @pytest.mark.lock
@@ -622,11 +636,11 @@ def test_lock_with_incomplete_source(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [[source]]
-url = "https://test.pypi.org/simple"
+url = "{}"
 
 [packages]
 requests = "*"
-            """)
+            """.format(p.index_url))
         c = p.pipenv('install --skip-lock')
         assert c.return_code == 0
         c = p.pipenv('install')
@@ -697,13 +711,13 @@ def test_lock_after_update_source_name(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         contents = """
 [[source]]
-url = "https://test.pypi.org/simple"
+url = "{}"
 verify_ssl = true
 name = "test"
 
 [packages]
 six = "*"
-        """.strip()
+        """.format(p.index_url).strip()
         with open(p.pipfile_path, 'w') as f:
             f.write(contents)
         c = p.pipenv("lock")
@@ -761,3 +775,15 @@ def test_lock_package_with_wildcard_version(PipenvInstance):
         assert "six" in p.lockfile["default"]
         assert "version" in p.lockfile["default"]["six"]
         assert p.lockfile["default"]["six"]["version"] == "==1.11.0"
+
+
+@pytest.mark.lock
+@pytest.mark.install
+def test_default_lock_overwrite_dev_lock(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv("install 'click==6.7'")
+        assert c.ok
+        c = p.pipenv("install -d flask")
+        assert c.ok
+        assert p.lockfile["default"]["click"]["version"] == "==6.7"
+        assert p.lockfile["develop"]["click"]["version"] == "==6.7"

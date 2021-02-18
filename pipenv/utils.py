@@ -155,7 +155,7 @@ def run_command(cmd, *args, **kwargs):
     return_code = c.return_code
     if environments.is_verbose():
         click_echo("Command output: {0}".format(
-            crayons.blue(decode_for_output(c.out))
+            crayons.cyan(decode_for_output(c.out))
         ), err=True)
     if not c.ok and catch_exceptions:
         raise PipenvCmdError(cmd_string, c.out, c.err, return_code)
@@ -528,9 +528,10 @@ class Resolver(object):
     @classmethod
     def get_deps_from_req(cls, req, resolver=None):
         # type: (Requirement, Optional["Resolver"]) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]
+        from .patched.piptools.exceptions import NoCandidateFound
         from .vendor.requirementslib.models.utils import _requirement_to_str_lowercase_name
         from .vendor.requirementslib.models.requirements import Requirement
-        from requirementslib.utils import is_installable_dir
+        from .vendor.requirementslib.utils import is_installable_dir
         # TODO: this is way too complex, refactor this
         constraints = set()  # type: Set[str]
         locked_deps = dict()  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
@@ -607,13 +608,27 @@ class Resolver(object):
                 req.requirement.marker and not req.requirement.marker.evaluate()
             ):
                 pypi = resolver.repository if resolver else None
-                best_match = pypi.find_best_match(req.ireq) if pypi else None
+                try:
+                    best_match = pypi.find_best_match(req.ireq) if pypi else None
+                except NoCandidateFound:
+                    best_match = None
                 if best_match:
                     hashes = resolver.collect_hashes(best_match) if resolver else []
                     new_req = Requirement.from_ireq(best_match)
                     new_req = new_req.add_hashes(hashes)
                     name, entry = new_req.pipfile_entry
                     locked_deps[pep423_name(name)] = translate_markers(entry)
+                    click_echo(
+                        "{} doesn't match your environment, "
+                        "its dependencies won't be resolved.".format(req.as_line()),
+                        err=True
+                    )
+                else:
+                    click_echo(
+                        "Could not find a version of {} that matches your environment, "
+                        "it will be skipped.".format(req.as_line()),
+                        err=True
+                    )
                 return constraints, locked_deps
             constraints.add(req.constraint_line)
             return constraints, locked_deps
@@ -750,7 +765,7 @@ class Resolver(object):
             self._session = self.pip_command._build_session(self.pip_options)
             # if environments.is_verbose():
             #     click_echo(
-            #         crayons.blue("Using pip: {0}".format(" ".join(self.pip_args))), err=True
+            #         crayons.cyan("Using pip: {0}".format(" ".join(self.pip_args))), err=True
             #     )
         return self._session
 
@@ -1117,8 +1132,8 @@ def create_spinner(text, nospin=None, spinner_name=None):
 
 
 def resolve(cmd, sp):
-    import delegator
     from .cmdparse import Script
+    from .vendor import delegator
     from .vendor.pexpect.exceptions import EOF, TIMEOUT
     from .vendor.vistir.compat import to_native_string
     from .vendor.vistir.misc import echo
@@ -1332,6 +1347,8 @@ def venv_resolve_deps(
             results = c.out.strip()
             if c.ok:
                 sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                if c.out.strip():
+                    click_echo(crayons.yellow("Warning: {0}".format(c.out.strip())), err=True)
             else:
                 sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
                 click_echo("Output: {0}".format(c.out.strip()), err=True)
@@ -1885,7 +1902,6 @@ def get_vcs_deps(
                     # sys.path = [repo.checkout_directory, "", ".", get_python_lib(plat_specific=0)]
                     commit_hash = repo.get_commit_hash()
                     name = requirement.normalized_name
-                    version = requirement._specifiers = "=={0}".format(requirement.req.setup_info.version)
                     lockfile[name] = requirement.pipfile_entry[1]
                     lockfile[name]['ref'] = commit_hash
                     result.append(requirement)
@@ -2233,7 +2249,7 @@ def is_python_command(line):
         raise TypeError("Not a valid command to check: {0!r}".format(line))
 
     from pipenv.vendor.pythonfinder.utils import PYTHON_IMPLEMENTATIONS
-    is_version = re.match(r'[\d\.]+', line)
+    is_version = re.match(r'\d+(\.\d+)*', line)
     if (line.startswith("python") or is_version
             or any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS)):
         return True

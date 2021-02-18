@@ -1,1 +1,0 @@
-Fix a bug that Pipenv rejects to work under the root directory.

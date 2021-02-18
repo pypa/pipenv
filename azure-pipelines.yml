@@ -20,7 +20,6 @@ trigger:
     - '*/vendor.txt'
     - 'CHANGELOG.rst'
     - 'CONTRIBUTING.md'
-    - 'CODE_OF_CONDUCT.md'
     - '*.md'
     - '.gitignore'
     - '.gitattributes'
@@ -43,7 +42,6 @@ pr:
     - '*/vendor.txt'
     - 'CHANGELOG.rst'
     - 'CONTRIBUTING.md'
-    - 'CODE_OF_CONDUCT.md'
     - '*.md'
     - '.gitignore'
     - '.gitattributes'
@@ -83,9 +81,6 @@ jobs:
     vmImage: 'Ubuntu-latest'
   strategy:
     matrix:
-      "2.7":
-        python.version: '2.7'
-        python.architecture: x64
       "3.6":
         python.version: '3.6'
         python.architecture: x64
@@ -108,9 +103,6 @@ jobs:
     vmImage: windows-latest
   strategy:
     matrix:
-      "2.7":
-        python.version: '2.7'
-        python.architecture: x64
       "3.6":
         python.version: '3.6'
         python.architecture: x64
@@ -132,9 +124,6 @@ jobs:
     vmImage: macOS-latest
   strategy:
     matrix:
-      "2.7":
-        python.version: '2.7'
-        python.architecture: x64
       "3.6":
         python.version: '3.6'
         python.architecture: x64

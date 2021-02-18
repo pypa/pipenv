@@ -9,6 +9,7 @@ from click import (
 )
 
 from ..__version__ import __version__
+from .._compat import fix_utf8
 from ..exceptions import PipenvOptionsError
 from ..patched import crayons
 from ..vendor import click_completion, delegator
@@ -125,31 +126,31 @@ def cli(
         return 0
     warn_in_virtualenv()
     if ctx.invoked_subcommand is None:
-        # --where was passed…
+        # --where was passed...
         if where:
             do_where(bare=True)
             return 0
         elif py:
             do_py()
             return 0
-        # --support was passed…
+        # --support was passed...
         elif support:
             from ..help import get_pipenv_diagnostics
 
             get_pipenv_diagnostics()
             return 0
-        # --clear was passed…
+        # --clear was passed...
         elif state.clear:
             do_clear()
             return 0
-        # --venv was passed…
+        # --venv was passed...
         elif venv:
             # There is no virtualenv yet.
             if not project.virtualenv_exists:
                 echo(
                     "{}({}){}".format(
                         crayons.red("No virtualenv has been created for this project"),
-                        crayons.white(project.project_directory, bold=True),
+                        crayons.normal(project.project_directory, bold=True),
                         crayons.red(" yet!")
                     ),
                     err=True,
@@ -158,7 +159,7 @@ def cli(
             else:
                 echo(project.virtualenv_location)
                 return 0
-        # --rm was passed…
+        # --rm was passed...
         elif rm:
             # Abort if --system (or running in a virtualenv).
             from ..environments import PIPENV_USE_SYSTEM
@@ -174,7 +175,7 @@ def cli(
                 loc = project.virtualenv_location
                 echo(
                     crayons.normal(
-                        u"{0} ({1})…".format(
+                        u"{0} ({1})...".format(
                             crayons.normal("Removing virtualenv", bold=True),
                             crayons.green(loc),
                         )
@@ -193,7 +194,7 @@ def cli(
                     err=True,
                 )
                 ctx.abort()
-    # --two / --three was passed…
+    # --two / --three was passed...
     if (state.python or state.three is not None) or state.site_packages:
         ensure_project(
             three=state.three,
@@ -357,7 +358,7 @@ def lock(
             dev_only=dev_only,
             emit_requirements=emit_requirements,
             pypi_mirror=state.pypi_mirror,
-            pre=state.installstate.pre,
+            pre=pre,
         )
     elif state.lockoptions.dev_only:
         raise PipenvOptionsError(
@@ -368,7 +369,7 @@ def lock(
     do_lock(
         ctx=ctx,
         clear=state.clear,
-        pre=state.installstate.pre,
+        pre=pre,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
         write=not state.quiet,
@@ -563,11 +564,11 @@ def update(
     if not packages:
         echo(
             "{0} {1} {2} {3}{4}".format(
-                crayons.white("Running", bold=True),
-                crayons.red("$ pipenv lock", bold=True),
-                crayons.white("then", bold=True),
-                crayons.red("$ pipenv sync", bold=True),
-                crayons.white(".", bold=True),
+                crayons.normal("Running", bold=True),
+                crayons.yellow("$ pipenv lock", bold=True),
+                crayons.normal("then", bold=True),
+                crayons.yellow("$ pipenv sync", bold=True),
+                crayons.normal(".", bold=True),
             )
         )
     else:
@@ -664,6 +665,7 @@ def run_open(state, module, *args, **kwargs):
     short_help="Installs all packages specified in Pipfile.lock.",
     context_settings=CONTEXT_SETTINGS
 )
+@system_option
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @sync_options
 @pass_state
@@ -691,6 +693,7 @@ def sync(
         unused=unused,
         sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
+        system=state.system
     )
     if retcode:
         ctx.abort()
@@ -712,6 +715,30 @@ def clean(ctx, state, dry_run=False, bare=False, user=False):
     from ..core import do_clean
     do_clean(ctx=ctx, three=state.three, python=state.python, dry_run=dry_run,
              system=state.system)
+
+
+@cli.command(
+    short_help="Lists scripts in current environment config.",
+    context_settings=subcommand_context_no_interspersion,
+)
+@common_options
+def scripts():
+    """Lists scripts in current environment config."""
+    from ..core import project
+
+    if not project.pipfile_exists:
+        echo("No Pipfile present at project home.", err=True)
+        sys.exit(1)
+    scripts = project.parsed_pipfile.get('scripts', {})
+    first_column_width = max(len(word) for word in ["Command"] + list(scripts))
+    second_column_width = max(len(word) for word in ["Script"] + list(scripts.values()))
+    lines = ["{0:<{width}}  Script".format("Command", width=first_column_width)]
+    lines.append("{}  {}".format("-" * first_column_width, "-" * second_column_width))
+    lines.extend(
+        "{0:<{width}}  {1}".format(name, script, width=first_column_width)
+        for name, script in scripts.items()
+    )
+    echo("\n".join(fix_utf8(line) for line in lines))
 
 
 if __name__ == "__main__":

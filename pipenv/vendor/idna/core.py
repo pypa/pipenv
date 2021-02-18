@@ -300,6 +300,8 @@ def ulabel(label):
     label = label.lower()
     if label.startswith(_alabel_prefix):
         label = label[len(_alabel_prefix):]
+        if not label:
+            raise IDNAError('Malformed A-label, no Punycode eligible content found')
         if label.decode('ascii')[-1] == '-':
             raise IDNAError('A-label must not end with a hyphen')
     else:

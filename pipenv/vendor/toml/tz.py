@@ -11,6 +11,9 @@ class TomlTz(tzinfo):
         self._hours = int(self._raw_offset[1:3])
         self._minutes = int(self._raw_offset[4:6])
 
+    def __deepcopy__(self, memo):
+        return self.__class__(self._raw_offset)
+
     def tzname(self, dt):
         return "UTC" + self._raw_offset
 

@@ -4,7 +4,7 @@ import unittest
 
 from . import fixtures
 from .. import (
-    Distribution, PackageNotFoundError, __version__, distribution,
+    Distribution, PackageNotFoundError, distribution,
     entry_points, files, metadata, requires, version,
     )
 
@@ -68,7 +68,8 @@ class APITests(
         assert 'Topic :: Software Development :: Libraries' in classifiers
 
     def test_importlib_metadata_version(self):
-        assert re.match(self.version_pattern, __version__)
+        resolved = version('importlib-metadata')
+        assert re.match(self.version_pattern, resolved)
 
     @staticmethod
     def _test_files(files):

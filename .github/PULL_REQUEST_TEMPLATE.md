@@ -22,7 +22,7 @@ How does this pull request fix your problem? Did you consider any alternatives? 
 * [ ] A news fragment in the `news/` directory to describe this fix with the extension `.bugfix`, `.feature`, `.behavior`, `.doc`. `.vendor`. or `.trivial` (this will appear in the release changelog). Use semantic line breaks and name the file after the issue number or the PR #.
 
 <!--
-### If this is a patch to the `vendor` directory…
+### If this is a patch to the `vendor` directory...
 
 Please try to refrain from submitting patches directly to `vendor` or `patched`, but raise your issue to the upstream project instead, and inform Pipenv to upgrade when the upstream project accepts the fix.
 

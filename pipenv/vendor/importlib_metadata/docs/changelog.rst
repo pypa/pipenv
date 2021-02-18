@@ -2,6 +2,38 @@
  importlib_metadata NEWS
 =========================
 
+v2.0.0
+======
+
+* ``importlib_metadata`` no longer presents a
+  ``__version__`` attribute. Consumers wishing to
+  resolve the version of the package should query it
+  directly with
+  ``importlib_metadata.version('importlib-metadata')``.
+  Closes #71.
+
+v1.7.0
+======
+
+* ``PathNotFoundError`` now has a custom ``__str__``
+  mentioning "package metadata" being missing to help
+  guide users to the cause when the package is installed
+  but no metadata is present. Closes #124.
+
+v1.6.1
+======
+
+* Added ``Distribution._local()`` as a provisional
+  demonstration of how to load metadata for a local
+  package. Implicitly requires that
+  `pep517 <https://pypi.org/project/pep517>`_ is
+  installed. Ref #42.
+* Ensure inputs to FastPath are Unicode. Closes #121.
+* Tests now rely on ``importlib.resources.files`` (and
+  backport) instead of the older ``path`` function.
+* Support any iterable from ``find_distributions``.
+  Closes #122.
+
 v1.6.0
 ======
 

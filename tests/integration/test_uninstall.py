@@ -156,7 +156,7 @@ def test_normalize_name_uninstall(PipenvInstance):
 # Pre comment
 [packages]
 Requests = "*"
-python_DateUtil = "*"   # Inline comment
+python_DateUtil = "*"
 """
             f.write(contents)
 
@@ -169,4 +169,30 @@ python_DateUtil = "*"   # Inline comment
         with open(p.pipfile_path) as f:
             contents = f.read()
             assert "# Pre comment" in contents
-            assert "# Inline comment" in contents
+
+
+@pytest.mark.install
+@pytest.mark.uninstall
+def test_uninstall_all_dev_with_shared_dependencies(PipenvInstance):
+    with PipenvInstance() as p:
+        c = p.pipenv("install pytest")
+        assert c.return_code == 0
+
+        c = p.pipenv("install --dev six")
+        assert c.return_code == 0
+
+        c = p.pipenv("uninstall --all-dev")
+        assert c.return_code == 0
+
+        assert "six" in p.lockfile["develop"]
+
+
+@pytest.mark.uninstall
+def test_uninstall_missing_parameters(PipenvInstance):
+    with PipenvInstance() as p:
+        c = p.pipenv("install requests")
+        assert c.return_code == 0
+
+        c = p.pipenv("uninstall")
+        assert c.return_code != 0
+        assert "No package provided!" in c.err

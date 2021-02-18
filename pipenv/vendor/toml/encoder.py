@@ -61,7 +61,7 @@ def dumps(o, encoder=None):
     retval += addtoretval
     outer_objs = [id(o)]
     while sections:
-        section_ids = [id(section) for section in sections]
+        section_ids = [id(section) for section in sections.values()]
         for outer_obj in outer_objs:
             if outer_obj in section_ids:
                 raise ValueError("Circular reference detected")

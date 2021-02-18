@@ -14,16 +14,16 @@ from ._compat import long
 from ._compat import unicode
 from ._utils import escape_string
 
+
 if PY2:
     from pipenv.vendor.backports.enum import Enum
     from pipenv.vendor.backports.functools_lru_cache import lru_cache
 else:
     from enum import Enum
     from functools import lru_cache
-from toml.decoder import InlineTableDict
 
 
-def item(value, _parent=None):
+def item(value, _parent=None, _sort_keys=False):
     from .container import Container
 
     if isinstance(value, Item):
@@ -37,12 +37,11 @@ def item(value, _parent=None):
         return Float(value, Trivia(), str(value))
     elif isinstance(value, dict):
         val = Table(Container(), Trivia(), False)
-        if isinstance(value, InlineTableDict):
-            val = InlineTable(Container(), Trivia())
-        else:
-            val = Table(Container(), Trivia(), False)
-        for k, v in sorted(value.items(), key=lambda i: (isinstance(i[1], dict), i[0])):
-            val[k] = item(v, _parent=val)
+        for k, v in sorted(
+            value.items(),
+            key=lambda i: (isinstance(i[1], dict), i[0] if _sort_keys else 1),
+        ):
+            val[k] = item(v, _parent=val, _sort_keys=_sort_keys)
 
         return val
     elif isinstance(value, list):
@@ -56,13 +55,14 @@ def item(value, _parent=None):
                 table = Table(Container(), Trivia(), True)
 
                 for k, _v in sorted(
-                    v.items(), key=lambda i: (isinstance(i[1], dict), i[0])
+                    v.items(),
+                    key=lambda i: (isinstance(i[1], dict), i[0] if _sort_keys else 1),
                 ):
-                    i = item(_v)
+                    i = item(_v, _sort_keys=_sort_keys)
                     if isinstance(table, InlineTable):
                         i.trivia.trail = ""
 
-                    table[k] = item(i)
+                    table[k] = item(i, _sort_keys=_sort_keys)
 
                 v = table
 
@@ -200,7 +200,9 @@ class Key:
     A key value.
     """
 
-    def __init__(self, k, t=None, sep=None, dotted=False):  # type: (str) -> None
+    def __init__(
+        self, k, t=None, sep=None, dotted=False, original=None
+    ):  # type: (str, Optional[KeyType], Optional[str], bool, Optional[str]) -> None
         if t is None:
             if any(
                 [c not in string.ascii_letters + string.digits + "-" + "_" for c in k]
@@ -215,6 +217,11 @@ class Key:
 
         self.sep = sep
         self.key = k
+        if original is None:
+            original = k
+
+        self._original = original
+
         self._dotted = dotted
 
     @property
@@ -224,8 +231,11 @@ class Key:
     def is_dotted(self):  # type: () -> bool
         return self._dotted
 
+    def is_bare(self):  # type: () -> bool
+        return self.t == KeyType.Bare
+
     def as_string(self):  # type: () -> str
-        return "{}{}{}".format(self.delimiter, self.key, self.delimiter)
+        return "{}{}{}".format(self.delimiter, self._original, self.delimiter)
 
     def __hash__(self):  # type: () -> int
         return hash(self.key)
@@ -289,6 +299,9 @@ class Item(object):
 
     def is_inline_table(self):  # type: () -> bool
         return isinstance(self, InlineTable)
+
+    def is_aot(self):  # type: () -> bool
+        return isinstance(self, AoT)
 
     def _getstate(self, protocol=3):
         return (self._trivia,)
@@ -525,6 +538,12 @@ class Bool(Item):
 
         return other == self._value
 
+    def __hash__(self):
+        return hash(self._value)
+
+    def __repr__(self):
+        return repr(self._value)
+
 
 class DateTime(Item, datetime):
     """
@@ -544,7 +563,7 @@ class DateTime(Item, datetime):
         trivia,
         raw,
         **kwargs
-    ):  # type: (int, int, int, int, int, int, int, ..., Trivia, ...) -> datetime
+    ):  # type: (int, int, int, int, int, int, int, Optional[datetime.tzinfo], Trivia, str, Any) -> datetime
         return datetime.__new__(
             cls,
             year,
@@ -560,7 +579,7 @@ class DateTime(Item, datetime):
 
     def __init__(
         self, year, month, day, hour, minute, second, microsecond, tzinfo, trivia, raw
-    ):  # type: (int, int, int, int, int, int, int, ..., Trivia) -> None
+    ):  # type: (int, int, int, int, int, int, int, Optional[datetime.tzinfo], Trivia, str) -> None
         super(DateTime, self).__init__(trivia)
 
         self._raw = raw
@@ -649,7 +668,7 @@ class Date(Item, date):
     A date literal.
     """
 
-    def __new__(cls, year, month, day, *_):  # type: (int, int, int, ...) -> date
+    def __new__(cls, year, month, day, *_):  # type: (int, int, int, Any) -> date
         return date.__new__(cls, year, month, day)
 
     def __init__(
@@ -705,12 +724,12 @@ class Time(Item, time):
 
     def __new__(
         cls, hour, minute, second, microsecond, tzinfo, *_
-    ):  # type: (int, int, int, int, ...) -> time
+    ):  # type: (int, int, int, int, Optional[datetime.tzinfo], Any) -> time
         return time.__new__(cls, hour, minute, second, microsecond, tzinfo)
 
     def __init__(
         self, hour, minute, second, microsecond, tzinfo, trivia, raw
-    ):  # type: (int, int, int, int, Trivia, str) -> None
+    ):  # type: (int, int, int, int, Optional[datetime.tzinfo], Trivia, str) -> None
         super(Time, self).__init__(trivia)
 
         self._raw = raw
@@ -743,7 +762,9 @@ class Array(Item, list):
     An array literal
     """
 
-    def __init__(self, value, trivia, multiline=False):  # type: (list, Trivia) -> None
+    def __init__(
+        self, value, trivia, multiline=False
+    ):  # type: (list, Trivia, bool) -> None
         super(Array, self).__init__(trivia)
 
         list.__init__(
@@ -760,18 +781,6 @@ class Array(Item, list):
     @property
     def value(self):  # type: () -> list
         return self
-
-    def is_homogeneous(self):  # type: () -> bool
-        if not self:
-            return True
-
-        discriminants = [
-            i.discriminant
-            for i in self._value
-            if not isinstance(i, (Whitespace, Comment))
-        ]
-
-        return len(set(discriminants)) == 1
 
     def multiline(self, multiline):  # type: (bool) -> self
         self._multiline = multiline
@@ -791,7 +800,7 @@ class Array(Item, list):
 
         return s
 
-    def append(self, _item):  # type: () -> None
+    def append(self, _item):  # type: (Any) -> None
         if self._value:
             self._value.append(Whitespace(", "))
 
@@ -799,9 +808,6 @@ class Array(Item, list):
         super(Array, self).append(it.value)
 
         self._value.append(it)
-
-        if not self.is_homogeneous():
-            raise ValueError("Array has mixed types elements")
 
     if not PY2:
 
@@ -868,7 +874,7 @@ class Table(Item, dict):
         is_super_table=False,
         name=None,
         display_name=None,
-    ):  # type: (tomlkit.container.Container, Trivia, bool, ...) -> None
+    ):  # type: (tomlkit.container.Container, Trivia, bool, bool, Optional[str], Optional[str]) -> None
         super(Table, self).__init__(trivia)
 
         self.name = name
@@ -961,8 +967,8 @@ class Table(Item, dict):
     def is_super_table(self):  # type: () -> bool
         return self._is_super_table
 
-    def as_string(self, prefix=None):  # type: () -> str
-        return self._value.as_string(prefix=prefix)
+    def as_string(self):  # type: () -> str
+        return self._value.as_string()
 
     # Helpers
 
@@ -1123,7 +1129,7 @@ class InlineTable(Item, dict):
 
             buf += "{}{}{}{}{}{}".format(
                 v.trivia.indent,
-                k.as_string(),
+                k.as_string() + ("." if k.is_dotted() else ""),
                 k.sep,
                 v.as_string(),
                 v.trivia.comment,
@@ -1249,7 +1255,7 @@ class AoT(Item, list):
 
     def __init__(
         self, body, name=None, parsed=False
-    ):  # type: (List[Table], Optional[str]) -> None
+    ):  # type: (List[Table], Optional[str], bool) -> None
         self.name = name
         self._body = []
         self._parsed = parsed
@@ -1294,7 +1300,7 @@ class AoT(Item, list):
     def as_string(self):  # type: () -> str
         b = ""
         for table in self._body:
-            b += table.as_string(prefix=self.name)
+            b += table.as_string()
 
         return b
 
