@@ -697,7 +697,7 @@ class Resolver(object):
             self._pip_command = self._get_pip_command()
         return self._pip_command
 
-    def prepare_pip_args(self, use_pep517=False, build_isolation=True):
+    def prepare_pip_args(self, use_pep517=False, build_isolation=True, pre=False):
         pip_args = []
         if self.sources:
             pip_args = prepare_pip_source_args(self.sources, pip_args)
@@ -705,16 +705,19 @@ class Resolver(object):
             pip_args.append("--no-use-pep517")
         if build_isolation is False:
             pip_args.append("--no-build-isolation")
+        if pre is True:
+            pip_args.append("--pre")
         pip_args.extend(["--cache-dir", environments.PIPENV_CACHE_DIR])
         return pip_args
 
     @property
     def pip_args(self):
+        pre = self.pre
         use_pep517 = environments.get_from_env("USE_PEP517", prefix="PIP")
         build_isolation = environments.get_from_env("BUILD_ISOLATION", prefix="PIP")
         if self._pip_args is None:
             self._pip_args = self.prepare_pip_args(
-                use_pep517=use_pep517, build_isolation=build_isolation
+                use_pep517=use_pep517, build_isolation=build_isolation, pre=pre
             )
         return self._pip_args
 
