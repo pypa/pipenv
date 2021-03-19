@@ -697,7 +697,7 @@ class Resolver(object):
             self._pip_command = self._get_pip_command()
         return self._pip_command
 
-    def prepare_pip_args(self, use_pep517=False, build_isolation=True, pre=False):
+    def prepare_pip_args(self, use_pep517=False, build_isolation=True):
         pip_args = []
         if self.sources:
             pip_args = prepare_pip_source_args(self.sources, pip_args)
@@ -712,12 +712,11 @@ class Resolver(object):
 
     @property
     def pip_args(self):
-        pre = self.pre
         use_pep517 = environments.get_from_env("USE_PEP517", prefix="PIP")
         build_isolation = environments.get_from_env("BUILD_ISOLATION", prefix="PIP")
         if self._pip_args is None:
             self._pip_args = self.prepare_pip_args(
-                use_pep517=use_pep517, build_isolation=build_isolation, pre=pre
+                use_pep517=use_pep517, build_isolation=build_isolation
             )
         return self._pip_args
 
