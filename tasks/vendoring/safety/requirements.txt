@@ -1,7 +1,7 @@
 pipenv==2018.11.26
 packaging==20.3
 safety==1.8.7
-pyyaml==5.3.1
+pyyaml==5.4
 virtualenv==20.0.18
 requests==2.23.0
 idna==2.9
