@@ -395,7 +395,7 @@ class Project(object):
         #   https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
         #   http://www.tldp.org/LDP/abs/html/special-chars.html#FIELDREF
         #   https://github.com/torvalds/linux/blob/2bfe01ef/include/uapi/linux/binfmts.h#L18
-        return re.sub(r'[ &$`!*@"\\\r\n\t]', "_", name)[0:42]
+        return re.sub(r'[ &$`!*@"()\[\]\\\r\n\t]', "_", name)[0:42]
 
     def _get_virtualenv_hash(self, name):
         # type: (str) -> str
