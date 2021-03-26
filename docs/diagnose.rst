@@ -96,18 +96,6 @@ This may be related to your locale setting. See :ref:`unknown-local-diagnose`
 for a possible solution.
 
 
-☤ ``shell`` does not show the virtualenv’s name in prompt
----------------------------------------------------------
-
-This is intentional. You can do it yourself with either shell plugins, or
-clever ``PS1`` configuration. If you really want it back, use
-
-::
-
-    pipenv shell -c
-
-instead (not available on Windows).
-
 ☤ Pipenv does not respect dependencies in setup.py
 --------------------------------------------------
 
