@@ -3,8 +3,6 @@
 import os
 import sys
 
-from io import UnsupportedOperation
-
 from appdirs import user_cache_dir
 
 from ._compat import fix_utf8
