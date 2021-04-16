@@ -36,7 +36,7 @@ def getpreferredencoding():
     # Borrowed from Invoke
     # (see https://github.com/pyinvoke/invoke/blob/93af29d/invoke/runners.py#L881)
     _encoding = locale.getpreferredencoding(False)
-    if six.PY2 and not sys.platform == "win32":
+    if six.PY2 and sys.platform != "win32":
         _default_encoding = locale.getdefaultlocale()[1]
         if _default_encoding is not None:
             _encoding = _default_encoding

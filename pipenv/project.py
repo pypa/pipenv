@@ -726,7 +726,7 @@ class Project(object):
         if not self.pipfile_exists:
             return True
 
-        if not len(self.read_pipfile()):
+        if not self.read_pipfile():
             return True
 
         return False
