@@ -705,6 +705,8 @@ class Resolver(object):
             pip_args.append("--no-use-pep517")
         if build_isolation is False:
             pip_args.append("--no-build-isolation")
+        if self.pre:
+            pip_args.append("--pre")
         pip_args.extend(["--cache-dir", environments.PIPENV_CACHE_DIR])
         return pip_args
 
