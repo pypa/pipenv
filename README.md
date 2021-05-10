@@ -52,6 +52,10 @@ Or, if you\'re using Fedora:
 Or, if you\'re using FreeBSD:
 
     # pkg install py36-pipenv
+    
+Or, if you\'re using Windows:
+
+    # pip install --user pipenv
 
 When none of the above is an option, it is recommended to use [Pipx](https://pypi.org/p/pipx):
 
