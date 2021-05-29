@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PIPENV" "1" "Nov 15, 2020" "2020.11.15" "pipenv"
+.TH "PIPENV" "1" "May 29, 2021" "2021.5.29" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 .
@@ -65,13 +65,13 @@ Streamline development workflow by loading \fB\&.env\fP files.
 You can quickly play with Pipenv right in your browser:
 \fI\%Try in browser\fP.SH INSTALL PIPENV TODAY!
 .sp
-If you\(aqre on MacOS, you can install Pipenv easily with Homebrew. You can also use Linuxbrew on Linux using the same command:
+If you already have Python and pip, you can easily install Pipenv into your home directory:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-$ brew install pipenv
+$ pip install \-\-user pipenv
 .ft P
 .fi
 .UNINDENT
@@ -89,7 +89,19 @@ $ sudo dnf install pipenv
 .UNINDENT
 .UNINDENT
 .sp
-Otherwise, refer to the installing\-pipenv chapter for instructions.
+It\(aqs possible to install Pipenv with Homebrew on MacOS, or with Linuxbrew on Linux systems. However, \fBthis is now discouraged\fP, because updates to the brewed Python distribution will break Pipenv, and perhaps all virtual environments managed by it. You\(aqll then need to re\-install Pipenv at least. If you want to give it a try despite this warning, use:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ brew install pipenv
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+More detailed installation instructions can be found in the installing\-pipenv chapter.
 .sp
 ✨🍰✨
 .SS Pipenv & Virtual Environments
@@ -434,6 +446,27 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2021.5.29 (2021\-05\-29)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fix a bug where passing \-\-skip\-lock when PIPFILE has no [SOURCE] section throws the error: "tomlkit.exceptions.NonExistentKey: \(aqKey "source" does not exist.\(aq"  \fI\%#4141\fP
+.IP \(bu 2
+Fix bug where environment wouldn\(aqt activate in paths containing & and $ symbols  \fI\%#4538\fP
+.IP \(bu 2
+Fix a bug that \fBimportlib\-metadata\fP from the project\(aqs dependencies conflicts with that from \fBpipenv\fP\(aqs.  \fI\%#4549\fP
+.IP \(bu 2
+Fix a bug where \fBpep508checker.py\fP did not expect double\-digit Python minor versions (e.g. "3.10").  \fI\%#4602\fP
+.IP \(bu 2
+Fix bug where environment wouldn\(aqt activate in paths containing () and [] symbols  \fI\%#4615\fP
+.IP \(bu 2
+Fix bug preventing use of pipenv lock \-\-pre  \fI\%#4642\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Update \fBpackaging\fP from \fB20.4\fP to \fB20.8\fP\&.  \fI\%#4591\fP
+.UNINDENT
 .SS 2020.11.15 (2020\-11\-15)
 .SS Features & Improvements
 .INDENT 0.0
@@ -458,31 +491,60 @@ Fix a bug that the resolver takes wrong section to validate constraints.  \fI\%#
 .SS Vendored Libraries
 .INDENT 0.0
 .IP \(bu 2
-Update vendored dependencies:
-\- \fBcolorama\fP from \fB0.4.3\fP to \fB0.4.4\fP
-\- \fBpython\-dotenv\fP from \fB0.10.3\fP to \fB0.15.0\fP
-\- \fBfirst\fP from \fB2.0.1\fP to \fB2.0.2\fP
-\- \fBiso8601\fP from \fB0.1.12\fP to \fB0.1.13\fP
-\- \fBparse\fP from \fB1.15.0\fP to \fB1.18.0\fP
-\- \fBpipdeptree\fP from \fB0.13.2\fP to \fB1.0.0\fP
-\- \fBrequests\fP from \fB2.23.0\fP to \fB2.25.0\fP
-\- \fBidna\fP from \fB2.9\fP to \fB2.10\fP
-\- \fBurllib3\fP from \fB1.25.9\fP to \fB1.26.1\fP
-\- \fBcertifi\fP from \fB2020.4.5.1\fP to \fB2020.11.8\fP
-\- \fBrequirementslib\fP from \fB1.5.15\fP to \fB1.5.16\fP
-\- \fBattrs\fP from \fB19.3.0\fP to \fB20.3.0\fP
-\- \fBdistlib\fP from \fB0.3.0\fP to \fB0.3.1\fP
-\- \fBpackaging\fP from \fB20.3\fP to \fB20.4\fP
-\- \fBsix\fP from \fB1.14.0\fP to \fB1.15.0\fP
-\- \fBsemver\fP from \fB2.9.0\fP to \fB2.13.0\fP
-\- \fBtoml\fP from \fB0.10.1\fP to \fB0.10.2\fP
-\- \fBcached\-property\fP from \fB1.5.1\fP to \fB1.5.2\fP
-\- \fByaspin\fP from \fB0.14.3\fP to \fB1.2.0\fP
-\- \fBresolvelib\fP from \fB0.3.0\fP to \fB0.5.2\fP
-\- \fBpep517\fP from \fB0.8.2\fP to \fB0.9.1\fP
-\- \fBzipp\fP from \fB0.6.0\fP to \fB1.2.0\fP
-\- \fBimportlib\-metadata\fP from \fB1.6.0\fP to \fB2.0.0\fP
-\- \fBimportlib\-resources\fP from \fB1.5.0\fP to \fB3.3.0\fP  \fI\%#4533\fP
+.INDENT 2.0
+.TP
+.B Update vendored dependencies:
+.INDENT 7.0
+.IP \(bu 2
+\fBcolorama\fP from \fB0.4.3\fP to \fB0.4.4\fP
+.IP \(bu 2
+\fBpython\-dotenv\fP from \fB0.10.3\fP to \fB0.15.0\fP
+.IP \(bu 2
+\fBfirst\fP from \fB2.0.1\fP to \fB2.0.2\fP
+.IP \(bu 2
+\fBiso8601\fP from \fB0.1.12\fP to \fB0.1.13\fP
+.IP \(bu 2
+\fBparse\fP from \fB1.15.0\fP to \fB1.18.0\fP
+.IP \(bu 2
+\fBpipdeptree\fP from \fB0.13.2\fP to \fB1.0.0\fP
+.IP \(bu 2
+\fBrequests\fP from \fB2.23.0\fP to \fB2.25.0\fP
+.IP \(bu 2
+\fBidna\fP from \fB2.9\fP to \fB2.10\fP
+.IP \(bu 2
+\fBurllib3\fP from \fB1.25.9\fP to \fB1.26.1\fP
+.IP \(bu 2
+\fBcertifi\fP from \fB2020.4.5.1\fP to \fB2020.11.8\fP
+.IP \(bu 2
+\fBrequirementslib\fP from \fB1.5.15\fP to \fB1.5.16\fP
+.IP \(bu 2
+\fBattrs\fP from \fB19.3.0\fP to \fB20.3.0\fP
+.IP \(bu 2
+\fBdistlib\fP from \fB0.3.0\fP to \fB0.3.1\fP
+.IP \(bu 2
+\fBpackaging\fP from \fB20.3\fP to \fB20.4\fP
+.IP \(bu 2
+\fBsix\fP from \fB1.14.0\fP to \fB1.15.0\fP
+.IP \(bu 2
+\fBsemver\fP from \fB2.9.0\fP to \fB2.13.0\fP
+.IP \(bu 2
+\fBtoml\fP from \fB0.10.1\fP to \fB0.10.2\fP
+.IP \(bu 2
+\fBcached\-property\fP from \fB1.5.1\fP to \fB1.5.2\fP
+.IP \(bu 2
+\fByaspin\fP from \fB0.14.3\fP to \fB1.2.0\fP
+.IP \(bu 2
+\fBresolvelib\fP from \fB0.3.0\fP to \fB0.5.2\fP
+.IP \(bu 2
+\fBpep517\fP from \fB0.8.2\fP to \fB0.9.1\fP
+.IP \(bu 2
+\fBzipp\fP from \fB0.6.0\fP to \fB1.2.0\fP
+.IP \(bu 2
+\fBimportlib\-metadata\fP from \fB1.6.0\fP to \fB2.0.0\fP
+.IP \(bu 2
+\fBimportlib\-resources\fP from \fB1.5.0\fP to \fB3.3.0\fP  \fI\%#4533\fP
+.UNINDENT
+.UNINDENT
 .UNINDENT
 .SS Improved Documentation
 .INDENT 0.0
@@ -2151,7 +2213,7 @@ The use of \fB~=\fP is preferred over the \fB==\fP identifier as the latter prev
 .sp
 .nf
 .ft C
-$ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using ==2.*)
+$ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using >=2.2, ==2.*)
 .ft P
 .fi
 .UNINDENT
@@ -2390,7 +2452,7 @@ You can install packages with pipenv from git and other version control systems 
 .UNINDENT
 .UNINDENT
 .sp
-The only optional section is the \fB@<branch_or_tag>\fP section.  When using git over SSH, you may use the shorthand vcs and scheme alias \fBgit+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#<package_name>\fP\&. Note that this is translated to \fBgit+ssh://git@<location>\fP when parsed.
+The only optional section is the \fB@<branch_or_tag>\fP section.  When using git over SSH, you may use the shorthand vcs and scheme alias \fBgit+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#egg=<package_name>\fP\&. Note that this is translated to \fBgit+ssh://git@<location>\fP when parsed.
 .sp
 Note that it is \fBstrongly recommended\fP that you install any version\-controlled dependencies in editable mode, using \fBpipenv install \-e\fP, in order to ensure that dependency resolution can be performed with an up to date copy of the repository each time it is performed, and that it includes all known dependencies.
 .sp
@@ -4988,8 +5050,6 @@ unset PIP_FIND_LINKS
 genindex
 .IP \(bu 2
 modindex
-.IP \(bu 2
-search
 .UNINDENT
 .SH AUTHOR
 Python Packaging Authority

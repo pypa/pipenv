@@ -1,3 +1,22 @@
+2021.5.29 (2021-05-29)
+======================
+
+Bug Fixes
+---------
+
+- Fix a bug where passing --skip-lock when PIPFILE has no [SOURCE] section throws the error: "tomlkit.exceptions.NonExistentKey: 'Key "source" does not exist.'"  `#4141 <https://github.com/pypa/pipenv/issues/4141>`_
+- Fix bug where environment wouldn't activate in paths containing & and $ symbols  `#4538 <https://github.com/pypa/pipenv/issues/4538>`_
+- Fix a bug that ``importlib-metadata`` from the project's dependencies conflicts with that from ``pipenv``'s.  `#4549 <https://github.com/pypa/pipenv/issues/4549>`_
+- Fix a bug where ``pep508checker.py`` did not expect double-digit Python minor versions (e.g. "3.10").  `#4602 <https://github.com/pypa/pipenv/issues/4602>`_
+- Fix bug where environment wouldn't activate in paths containing () and [] symbols  `#4615 <https://github.com/pypa/pipenv/issues/4615>`_
+- Fix bug preventing use of pipenv lock --pre  `#4642 <https://github.com/pypa/pipenv/issues/4642>`_
+
+Vendored Libraries
+------------------
+
+- Update ``packaging`` from ``20.4`` to ``20.8``.  `#4591 <https://github.com/pypa/pipenv/issues/4591>`_
+
+
 2020.11.15 (2020-11-15)
 =======================
 
