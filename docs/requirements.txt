@@ -1,27 +1,29 @@
-alabaster==0.7.10
-Babel==2.6.0
-certifi==2018.10.15
-chardet==3.0.4
-click==7.0
-docutils==0.14
-first==2.0.1
-idna==2.7
-imagesize==1.1.0
-Jinja2==2.10
-MarkupSafe==1.1.0
-pbr==5.1.1
--e .
-Pygments==2.3.0
-pythonz-bd==1.11.4
-pytz==2018.5
-requests==2.20.1
-resumable-urlretrieve==0.1.5
-six==1.11.0
-snowballstemmer==1.2.1
-Sphinx==1.6.3
-sphinx-click==1.3.0
-sphinxcontrib-spelling==4.2.1
-sphinxcontrib-websupport==1.1.0
-urllib3==1.24.1
-virtualenv==16.1.0
-virtualenv-clone==0.4.0
+pipenv = 2018.11.26
+packaging = 20.3
+safety = 1.8.7
+pyyaml = 5.4
+virtualenv = 20.0.18
+requests = 2.23.0
+idna = 2.9
+pyparsing = 2.4.7
+appdirs = 1.4.3
+filelock = 3.0.12
+distlib = 0.3.0
+certifi = 2020.4.5.1
+click = 7.1.1
+chardet = 3.0.4
+dparse = 0.5.0
+virtualenv-clone = 0.5.4
+urllib3 = 1.25.9
+six = 1.14.0
+tool = 0.10.0
+singledispatch = 3.4.0.3
+configparser = 4.0.2
+importlib-metadata = 1.6.0
+typing = 3.7.4.1
+pathlib2 = 2.3.5
+importlib-resources = 1.4.0
+zipp = 1.2.0
+contextlib2 = 0.6.0.post1
+enum34 = 1..1.10
+scandir = 1.10.0
