@@ -1,6 +1,6 @@
 # Taken from https://github.com/pypa/pip/blob/ceaf75b9ede9a9c25bcee84fe512fa6774889685/.azure-pipelines/scripts/New-RAMDisk.ps1
 [CmdletBinding()]
-param(
+     (
     [Parameter(Mandatory=$true,
     HelpMessage="Drive letter to use for the RAMDisk")]
     [String]$drive,
@@ -17,18 +17,18 @@ Install-WindowsFeature -Name FS-iSCSITarget-Server
 Write-Output "Starting MSiSCSI"
 Start-Service MSiSCSI
 $retry = 10
-do {
+   {
     $service = Get-Service MSiSCSI
-    if ($service.Status -eq "Running") {
+      ($service.Status -eq "Running") {
         break;
     }
     $retry--
     Start-Sleep -Milliseconds 500
-} until ($retry -eq 0)
+}     ($retry -eq 0)
 
 $service = Get-Service MSiSCSI
-if ($service.Status -ne "Running") {
-    throw "MSiSCSI is not running"
+  ($service.Status -ne "Running") {
+       "MSiSCSI is not running"
 }
 
 Write-Output "Configuring Firewall"
@@ -41,7 +41,7 @@ $ip = (
     Get-NetIPAddress -AddressFamily IPv4 |
     Where-Object {$_.IPAddress -ne "127.0.0.1"}
 )[0].IPAddress
-if (
+ (
     -not (Get-IscsiServerTarget -ComputerName localhost | Where-Object {$_.TargetName -eq "ramdisks"})
 ) {
     New-IscsiServerTarget `
