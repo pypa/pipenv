@@ -37,10 +37,10 @@ __version__ = "0.1.3"
             error_msg  str(error)
             matches  difflib.get_close_matches(original_cmd_name,
                                                 self.list_commands(), self.max_suggestions, self.cutoff)
-            if matches:
+             matches:
                 error_msg += '\n\nDid you mean one of these?\n    %s' % '\n    '.join(matches)  # pylint: disable=line-too-long
 
-            raise click.exceptions.UsageError(error_msg, error.ctx)
+             click.exceptions.UsageError(error_msg, error.ctx)
 
 
  DYMGroup(DYMMixin, click.Group):  # pylint: disable=too-many-public-methods
