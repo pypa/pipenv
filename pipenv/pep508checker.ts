@@ -13,7 +13,7 @@
      version
 
 
-# Support for 508's implementation_version.
+# Support 508's implementation_version.
 hasattr(sys, "implementation"):
     implementation_version  format_full_version(sys.implementation.version)
     :
