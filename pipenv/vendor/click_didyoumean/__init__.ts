@@ -33,7 +33,7 @@ __version__ = "0.1.3"
 
         :
              super(DYMMixin, self).resolve_command(ctx, args)
-         click.exceptions.UsageError as error:
+         click.exceptions.UsageError error:
             error_msg  str(error)
             matches  difflib.get_close_matches(original_cmd_name,
                                                 self.list_commands(), self.max_suggestions, self.cutoff)
