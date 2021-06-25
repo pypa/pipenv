@@ -5,7 +5,7 @@ import os
 import sys
 
 from click import (
-    argument, echo, edit, group, option, pass_context, secho, version_option, Choice
+    argument, echo, edit, group, option, pass_context, secho, types, version_option, Choice
 )
 
 from ..__version__ import __version__
@@ -459,7 +459,8 @@ def run(state, command, args):
 @option(
     "--unused",
     nargs=1,
-    default=False,
+    default="",
+    type=types.STRING,
     help="Given a code path, show potentially unused dependencies.",
 )
 @option(
