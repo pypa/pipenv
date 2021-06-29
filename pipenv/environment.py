@@ -821,7 +821,7 @@ class Environment(object):
         return c
 
     def run_py(self, cmd, cwd=os.curdir):
-        """Run a python command in the enviornment context.
+        """Run a python command in the environment context.
 
         :param cmd: A command to run in the environment - runs with `python -c`
         :type cmd: str or list
