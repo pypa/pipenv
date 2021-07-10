@@ -1285,8 +1285,8 @@ def do_init(
         if (system or allow_global) and not (PIPENV_VIRTUALENV):
             raise exceptions.PipenvOptionsError(
                 "--system",
-                "--system is intended to be used for Pipfile installation, "
-                "not installation of specific packages. Aborting.\n"
+                "--system requires Pipfile.lock, "
+                "Not intended for the installation of specific packages. Aborting.\n"
                 "See also: --deploy flag."
             )
         else:
