@@ -279,6 +279,9 @@ PIPENV_YES = bool(os.environ.get("PIPENV_YES"))
 
 Default is to prompt the user for an answer if the current command line session
 if interactive.
+
+If operating on CI with `pyenv` configured, this flag *must* be set if you wish `pipenv` to automatically 
+install python versions specified in `[requires]` 
 """
 
 PIPENV_SKIP_LOCK = False

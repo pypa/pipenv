@@ -325,6 +325,8 @@ This allows you to easily read the code you're consuming, instead of looking it 
 
 If you have `pyenv <https://github.com/pyenv/pyenv#simple-python-version-management-pyenv>`_ installed and configured, Pipenv will automatically ask you if you want to install a required version of Python if you don't already have it available.
 
+.. note:: If you're operating in a CI environment you should set the `PIPENV_YES` environment variable to enable this functionality.
+
 This is a very fancy feature, and we're very proud of it::
 
     $ cat Pipfile
