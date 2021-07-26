@@ -501,7 +501,7 @@ requests = {git = "https://github.com/psf/requests.git", ref = "master", editabl
         assert c.return_code == 0
         assert 'requests' in p.lockfile['default']
         assert 'idna' in p.lockfile['default']
-        assert 'chardet' in p.lockfile['default']
+        assert 'certifi' in p.lockfile['default']
         c = p.pipenv('install')
         assert c.return_code == 0
 
@@ -557,7 +557,7 @@ requests = {git = "https://github.com/psf/requests.git", editable = true, extras
         assert c.return_code == 0
         assert 'requests' in p.lockfile['default']
         assert 'idna' in p.lockfile['default']
-        assert 'chardet' in p.lockfile['default']
+        assert 'certifi' in p.lockfile['default']
         assert "socks" in p.lockfile["default"]["requests"]["extras"]
         c = p.pipenv('install')
         assert c.return_code == 0
@@ -580,7 +580,7 @@ requests = {git = "https://github.com/psf/requests.git", ref = "master", editabl
         assert c.return_code == 0
         assert 'requests' in p.lockfile['default']
         assert 'idna' in p.lockfile['default']
-        assert 'chardet' in p.lockfile['default']
+        assert 'certifi' in p.lockfile['default']
         c = p.pipenv('install')
         assert c.return_code == 0
 
