@@ -1341,7 +1341,7 @@ def venv_resolve_deps(
             results = c.out.strip()
             if c.ok:
                 sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
-                if c.out.strip():
+                if not environments.is_verbose() and c.out.strip():
                     click_echo(crayons.yellow("Warning: {0}".format(c.out.strip())), err=True)
             else:
                 sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
