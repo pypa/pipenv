@@ -36,7 +36,6 @@ requirementslib==1.5.16
 shellingham==1.3.2
 six==1.15.0
 semver==2.13.0
-toml==0.10.2
 cached-property==1.5.2
 vistir==0.5.2
 pip-shims==0.5.3
@@ -45,7 +44,6 @@ pip-shims==0.5.3
 enum34==1.1.10
 yaspin==1.2.0
 cerberus==1.3.2
-resolvelib==0.5.2
 backports.functools-lru-cache==1.6.1
 pep517==0.9.1
     zipp==1.2.0

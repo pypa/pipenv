@@ -822,7 +822,7 @@ def unpin_file(contents):
 
 
 def unpin_and_copy_requirements(ctx, requirement_file, name="requirements.txt"):
-    tempdir = TemporaryDirectory(dir="D:/Workspace/tempdir")
+    tempdir = TemporaryDirectory()
     target = Path(tempdir.name).joinpath("requirements.txt")
     contents = unpin_file(requirement_file.read_text())
     target.write_text(contents)
@@ -834,7 +834,7 @@ def unpin_and_copy_requirements(ctx, requirement_file, name="requirements.txt"):
     with ctx.cd(tempdir.name):
         ctx.run("pipenv install -r {0}".format(target.as_posix()), env=env, hide=True)
         result = ctx.run("pipenv lock -r", env=env, hide=True).stdout.strip()
-        # ctx.run("pipenv --rm", env=env, hide=True)
+        ctx.run("pipenv --rm", env=env, hide=True)
         result = list(sorted([line.strip() for line in result.splitlines()[1:]]))
         new_requirements = requirement_file.parent.joinpath(name)
         requirement_file.rename(
