@@ -235,9 +235,10 @@ def python_option(f):
         if value is not None:
             state.python = validate_python_path(ctx, param, value)
         return value
-    return option("--python", default=False, nargs=1, callback=callback,
+    return option("--python", default="", nargs=1, callback=callback,
                   help="Specify which version of Python virtualenv should use.",
-                  expose_value=False, allow_from_autoenv=False)(f)
+                  expose_value=False, allow_from_autoenv=False,
+                  type=click.types.STRING)(f)
 
 
 def pypi_mirror_option(f):
@@ -318,8 +319,9 @@ def requirementstxt_option(f):
         if value:
             state.installstate.requirementstxt = value
         return value
-    return option("--requirements", "-r", nargs=1, default=False, expose_value=False,
-                  help="Import a requirements.txt file.", callback=callback)(f)
+    return option("--requirements", "-r", nargs=1, default="", expose_value=False,
+                  help="Import a requirements.txt file.", callback=callback,
+                  type=click.types.STRING)(f)
 
 
 def emit_requirements_flag(f):
@@ -358,9 +360,9 @@ def code_option(f):
         if value:
             state.installstate.code = value
         return value
-    return option("--code", "-c", nargs=1, default=False, help="Install packages "
+    return option("--code", "-c", nargs=1, default="", help="Install packages "
                   "automatically discovered from import statements.", callback=callback,
-                  expose_value=False)(f)
+                  expose_value=False, type=click.types.STRING)(f)
 
 
 def deploy_option(f):
