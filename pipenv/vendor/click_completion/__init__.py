@@ -6,13 +6,7 @@ from __future__ import print_function, absolute_import
 import six
 
 from click import ParamType
-if six.PY3:
-    try:
-        from enum import Enum
-    except ImportError:
-        from pipenv.vendor.backports.enum import Enum
-else:
-    from pipenv.vendor.backports.enum import Enum
+from enum import Enum
 
 from click_completion.core import completion_configuration, get_code, install, shells, resolve_ctx, get_choices, \
     startswith, Shell

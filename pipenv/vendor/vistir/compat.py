@@ -55,7 +55,7 @@ __all__ = [
 if sys.version_info >= (3, 5):  # pragma: no cover
     from pathlib import Path
 else:  # pragma: no cover
-    from pipenv.vendor.pathlib2 import Path
+    from pathlib2 import Path
 
 if sys.version_info >= (3, 4):  # pragma: no cover
     # Only Python 3.4+ is supported
@@ -85,8 +85,8 @@ if sys.version_info >= (3, 4):  # pragma: no cover
 
 else:  # pragma: no cover
     # Only Python 2.7 is supported
-    from pipenv.vendor.backports.functools_lru_cache import lru_cache
-    from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
+    from backports.functools_lru_cache import lru_cache
+    from backports.shutil_get_terminal_size import get_terminal_size
     from .backports.functools import partialmethod  # type: ignore
     from .backports.surrogateescape import register_surrogateescape
     from collections import (
@@ -110,7 +110,7 @@ else:  # pragma: no cover
 
     register_surrogateescape()
     NamedTemporaryFile = _NamedTemporaryFile
-    from pipenv.vendor.backports.weakref import finalize  # type: ignore
+    from backports.weakref import finalize  # type: ignore
 
     try:
         from os.path import samefile

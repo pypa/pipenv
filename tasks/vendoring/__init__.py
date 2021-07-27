@@ -52,7 +52,6 @@ HARDCODED_LICENSE_URLS = {
     "click-didyoumean": "https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE",
     "click-completion": "https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE",
     "parse": "https://raw.githubusercontent.com/techalchemy/parse/master/LICENSE",
-    "semver": "https://raw.githubusercontent.com/k-bx/python-semver/master/LICENSE.txt",
     "crayons": "https://raw.githubusercontent.com/MasterOdin/crayons/master/LICENSE",
     "pip-tools": "https://raw.githubusercontent.com/jazzband/pip-tools/master/LICENSE",
     "pytoml": "https://github.com/avakar/pytoml/raw/master/LICENSE",
@@ -62,7 +61,6 @@ HARDCODED_LICENSE_URLS = {
     "distlib": "https://github.com/vsajip/distlib/raw/master/LICENSE.txt",
     "pythonfinder": "https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt",
     "pyparsing": "https://raw.githubusercontent.com/pyparsing/pyparsing/master/LICENSE",
-    "resolvelib": "https://raw.githubusercontent.com/sarugaku/resolvelib/master/LICENSE",
     "funcsigs": "https://raw.githubusercontent.com/aliles/funcsigs/master/LICENSE",
 }
 
@@ -84,7 +82,6 @@ PATCHED_RENAMES = {"pip": "notpip"}
 LIBRARY_RENAMES = {
     "pip": "pipenv.patched.notpip",
     "functools32": "pipenv.vendor.backports.functools_lru_cache",
-    "enum34": "enum",
 }
 
 
@@ -395,22 +392,14 @@ def install_pyyaml(ctx, vendor_dir):
         ctx.run(pip_command, env={temp_env: str(build_dir)})
     yaml_build_dir = next(build_dir.glob('pip-download-*/pyyaml_*'))
     yaml_dir = vendor_dir / "yaml"
-    yaml_lib_dir_map = {
-        "2": {
-            "current_path": yaml_build_dir / "lib/yaml",
-            "destination": vendor_dir / "yaml2",
-        },
-        "3": {
-            "current_path": yaml_build_dir / "lib3/yaml",
-            "destination": vendor_dir / "yaml3",
-        },
+    path_dict = {
+        "current_path": yaml_build_dir / "lib3/yaml",
+        "destination": vendor_dir / "yaml3",
     }
     if yaml_dir.exists():
         drop_dir(yaml_dir)
-    log("Mapping yaml paths for python 2 and 3...")
-    for py_version, path_dict in yaml_lib_dir_map.items():
-        path_dict["current_path"].rename(path_dict["destination"])
-        path_dict["destination"].joinpath("LICENSE").write_text(yaml_build_dir.joinpath("LICENSE").read_text())
+    path_dict["current_path"].rename(path_dict["destination"])
+    path_dict["destination"].joinpath("LICENSE").write_text(yaml_build_dir.joinpath("LICENSE").read_text())
     drop_dir(build_dir)
 
 
