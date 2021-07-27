@@ -2558,7 +2558,7 @@ def do_check(
     python=False,
     system=False,
     unused=False,
-    db=False,
+    db=None,
     ignore=None,
     output="default",
     key=None,
