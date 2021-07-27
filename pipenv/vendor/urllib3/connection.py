@@ -67,7 +67,7 @@ port_by_scheme = {"http": 80, "https": 443}
 
 # When it comes time to update this value as a part of regular maintenance
 # (ie test_recent_date is failing) update it to ~6 months before the current date.
-RECENT_DATE = datetime.date(2019, 1, 1)
+RECENT_DATE = datetime.date(2020, 7, 1)
 
 _CONTAINS_CONTROL_CHAR_RE = re.compile(r"[^-!#$%&'*+.^_`|~0-9a-zA-Z]")
 
@@ -201,7 +201,7 @@ class HTTPConnection(_HTTPConnection, object):
         self._prepare_conn(conn)
 
     def putrequest(self, method, url, *args, **kwargs):
-        """"""
+        """ """
         # Empty docstring because the indentation of CPython's implementation
         # is broken but we don't want this method in our documentation.
         match = _CONTAINS_CONTROL_CHAR_RE.search(method)
@@ -214,8 +214,8 @@ class HTTPConnection(_HTTPConnection, object):
         return _HTTPConnection.putrequest(self, method, url, *args, **kwargs)
 
     def putheader(self, header, *values):
-        """"""
-        if SKIP_HEADER not in values:
+        """ """
+        if not any(isinstance(v, str) and v == SKIP_HEADER for v in values):
             _HTTPConnection.putheader(self, header, *values)
         elif six.ensure_str(header.lower()) not in SKIPPABLE_HEADERS:
             raise ValueError(
@@ -249,7 +249,7 @@ class HTTPConnection(_HTTPConnection, object):
             self.putheader("User-Agent", _get_default_user_agent())
         for header, value in headers.items():
             self.putheader(header, value)
-        if "transfer-encoding" not in headers:
+        if "transfer-encoding" not in header_keys:
             self.putheader("Transfer-Encoding", "chunked")
         self.endheaders()
 
@@ -490,6 +490,10 @@ class HTTPSConnection(HTTPConnection):
             self.ca_cert_dir,
             self.ca_cert_data,
         )
+        # By default urllib3's SSLContext disables `check_hostname` and uses
+        # a custom check. For proxies we're good with relying on the default
+        # verification.
+        ssl_context.check_hostname = True
 
         # If no cert was provided, use only the default options for server
         # certificate validation

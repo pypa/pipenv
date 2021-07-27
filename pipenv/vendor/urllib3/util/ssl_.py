@@ -44,12 +44,20 @@ _const_compare_digest = getattr(hmac, "compare_digest", _const_compare_digest_ba
 
 try:  # Test for SSL features
     import ssl
-    from ssl import HAS_SNI  # Has SNI?
     from ssl import CERT_REQUIRED, wrap_socket
+except ImportError:
+    pass
 
+try:
+    from ssl import HAS_SNI  # Has SNI?
+except ImportError:
+    pass
+
+try:
     from .ssltransport import SSLTransport
 except ImportError:
     pass
+
 
 try:  # Platform-specific: Python 3.6
     from ssl import PROTOCOL_TLS
@@ -62,6 +70,11 @@ except ImportError:
         PROTOCOL_SSLv23 = PROTOCOL_TLS
     except ImportError:
         PROTOCOL_SSLv23 = PROTOCOL_TLS = 2
+
+try:
+    from ssl import PROTOCOL_TLS_CLIENT
+except ImportError:
+    PROTOCOL_TLS_CLIENT = PROTOCOL_TLS
 
 
 try:
@@ -151,7 +164,7 @@ except ImportError:
                 "urllib3 from configuring SSL appropriately and may cause "
                 "certain SSL connections to fail. You can upgrade to a newer "
                 "version of Python to solve this. For more information, see "
-                "https://urllib3.readthedocs.io/en/latest/advanced-usage.html"
+                "https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html"
                 "#ssl-warnings",
                 InsecurePlatformWarning,
             )
@@ -270,7 +283,11 @@ def create_urllib3_context(
         Constructed SSLContext object with specified options
     :rtype: SSLContext
     """
-    context = SSLContext(ssl_version or PROTOCOL_TLS)
+    # PROTOCOL_TLS is deprecated in Python 3.10
+    if not ssl_version or ssl_version == PROTOCOL_TLS:
+        ssl_version = PROTOCOL_TLS_CLIENT
+
+    context = SSLContext(ssl_version)
 
     context.set_ciphers(ciphers or DEFAULT_CIPHERS)
 
@@ -305,13 +322,25 @@ def create_urllib3_context(
     ) is not None:
         context.post_handshake_auth = True
 
-    context.verify_mode = cert_reqs
-    if (
-        getattr(context, "check_hostname", None) is not None
-    ):  # Platform-specific: Python 3.2
-        # We do our own verification, including fingerprints and alternative
-        # hostnames. So disable it here
-        context.check_hostname = False
+    def disable_check_hostname():
+        if (
+            getattr(context, "check_hostname", None) is not None
+        ):  # Platform-specific: Python 3.2
+            # We do our own verification, including fingerprints and alternative
+            # hostnames. So disable it here
+            context.check_hostname = False
+
+    # The order of the below lines setting verify_mode and check_hostname
+    # matter due to safe-guards SSLContext has to prevent an SSLContext with
+    # check_hostname=True, verify_mode=NONE/OPTIONAL. This is made even more
+    # complex because we don't know whether PROTOCOL_TLS_CLIENT will be used
+    # or not so we don't know the initial state of the freshly created SSLContext.
+    if cert_reqs == ssl.CERT_REQUIRED:
+        context.verify_mode = cert_reqs
+        disable_check_hostname()
+    else:
+        disable_check_hostname()
+        context.verify_mode = cert_reqs
 
     # Enable logging of TLS session keys via defacto standard environment variable
     # 'SSLKEYLOGFILE', if the feature is available (Python 3.8+). Skip empty values.
@@ -393,7 +422,7 @@ def ssl_wrap_socket(
     try:
         if hasattr(context, "set_alpn_protocols"):
             context.set_alpn_protocols(ALPN_PROTOCOLS)
-    except NotImplementedError:
+    except NotImplementedError:  # Defensive: in CI, we always have set_alpn_protocols
         pass
 
     # If we detect server_hostname is an IP address then the SNI
@@ -411,7 +440,7 @@ def ssl_wrap_socket(
             "This may cause the server to present an incorrect TLS "
             "certificate, which can cause validation failures. You can upgrade to "
             "a newer version of Python to solve this. For more information, see "
-            "https://urllib3.readthedocs.io/en/latest/advanced-usage.html"
+            "https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html"
             "#ssl-warnings",
             SNIMissingWarning,
         )

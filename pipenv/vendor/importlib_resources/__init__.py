@@ -1,14 +1,23 @@
 """Read resources contained within a package."""
 
-import sys
-
 from ._common import (
-    as_file, files,
-    )
+    as_file,
+    files,
+    Package,
+    Resource,
+)
 
-# For compatibility. Ref #88.
-# Also requires hook-importlib_resources.py (Ref #101).
-__import__('importlib_resources.trees')
+from ._legacy import (
+    contents,
+    open_binary,
+    read_binary,
+    open_text,
+    read_text,
+    is_resource,
+    path,
+)
+
+from importlib_resources.abc import ResourceReader
 
 
 __all__ = [
@@ -24,30 +33,4 @@ __all__ = [
     'path',
     'read_binary',
     'read_text',
-    ]
-
-
-if sys.version_info >= (3,):
-    from importlib_resources._py3 import (
-        Package,
-        Resource,
-        contents,
-        is_resource,
-        open_binary,
-        open_text,
-        path,
-        read_binary,
-        read_text,
-        )
-    from importlib_resources.abc import ResourceReader
-else:
-    from importlib_resources._py2 import (
-        contents,
-        is_resource,
-        open_binary,
-        open_text,
-        path,
-        read_binary,
-        read_text,
-        )
-    del __all__[:3]
+]

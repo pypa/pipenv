@@ -1,13 +1,14 @@
 import threading
 from contextlib import contextmanager
 import os
-from os.path import dirname, abspath, join as pjoin
+from os.path import abspath, join as pjoin
 import shutil
 from subprocess import check_call, check_output, STDOUT
 import sys
 from tempfile import mkdtemp
 
 from . import compat
+from .in_process import _in_proc_script_path
 
 __all__ = [
     'BackendUnavailable',
@@ -18,16 +19,6 @@ __all__ = [
     'quiet_subprocess_runner',
     'Pep517HookCaller',
 ]
-
-try:
-    import importlib.resources as resources
-
-    def _in_proc_script_path():
-        return resources.path(__package__, '_in_process.py')
-except ImportError:
-    @contextmanager
-    def _in_proc_script_path():
-        yield pjoin(dirname(abspath(__file__)), '_in_process.py')
 
 
 @contextmanager
@@ -216,6 +207,59 @@ class Pep517HookCaller(object):
             'metadata_directory': metadata_directory,
         })
 
+    def get_requires_for_build_editable(self, config_settings=None):
+        """Identify packages required for building an editable wheel
+
+        Returns a list of dependency specifications, e.g.::
+
+            ["wheel >= 0.25", "setuptools"]
+
+        This does not include requirements specified in pyproject.toml.
+        It returns the result of calling the equivalently named hook in a
+        subprocess.
+        """
+        return self._call_hook('get_requires_for_build_editable', {
+            'config_settings': config_settings
+        })
+
+    def prepare_metadata_for_build_editable(
+            self, metadata_directory, config_settings=None,
+            _allow_fallback=True):
+        """Prepare a ``*.dist-info`` folder with metadata for this project.
+
+        Returns the name of the newly created folder.
+
+        If the build backend defines a hook with this name, it will be called
+        in a subprocess. If not, the backend will be asked to build an editable
+        wheel, and the dist-info extracted from that (unless _allow_fallback is
+        False).
+        """
+        return self._call_hook('prepare_metadata_for_build_editable', {
+            'metadata_directory': abspath(metadata_directory),
+            'config_settings': config_settings,
+            '_allow_fallback': _allow_fallback,
+        })
+
+    def build_editable(
+            self, wheel_directory, config_settings=None,
+            metadata_directory=None):
+        """Build an editable wheel from this project.
+
+        Returns the name of the newly created file.
+
+        In general, this will call the 'build_editable' hook in the backend.
+        However, if that was previously called by
+        'prepare_metadata_for_build_editable', and the same metadata_directory
+        is used, the previously built wheel will be copied to wheel_directory.
+        """
+        if metadata_directory is not None:
+            metadata_directory = abspath(metadata_directory)
+        return self._call_hook('build_editable', {
+            'wheel_directory': abspath(wheel_directory),
+            'config_settings': config_settings,
+            'metadata_directory': metadata_directory,
+        })
+
     def get_requires_for_build_sdist(self, config_settings=None):
         """Identify packages required for building a wheel
 
@@ -289,7 +333,7 @@ class Pep517HookCaller(object):
                     message=data.get('backend_error', '')
                 )
             if data.get('hook_missing'):
-                raise HookMissing(hook_name)
+                raise HookMissing(data.get('missing_hook_name') or hook_name)
             return data['return_val']
 
 

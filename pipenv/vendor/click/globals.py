@@ -1,9 +1,25 @@
+import typing
+import typing as t
 from threading import local
+
+if t.TYPE_CHECKING:
+    import typing_extensions as te
+    from .core import Context
 
 _local = local()
 
 
-def get_current_context(silent=False):
+@typing.overload
+def get_current_context(silent: "te.Literal[False]" = False) -> "Context":
+    ...
+
+
+@typing.overload
+def get_current_context(silent: bool = ...) -> t.Optional["Context"]:
+    ...
+
+
+def get_current_context(silent: bool = False) -> t.Optional["Context"]:
     """Returns the current click context.  This can be used as a way to
     access the current context object from anywhere.  This is a more implicit
     alternative to the :func:`pass_context` decorator.  This function is
@@ -19,29 +35,35 @@ def get_current_context(silent=False):
                    :exc:`RuntimeError`.
     """
     try:
-        return _local.stack[-1]
+        return t.cast("Context", _local.stack[-1])
     except (AttributeError, IndexError):
         if not silent:
             raise RuntimeError("There is no active click context.")
 
+    return None
 
-def push_context(ctx):
+
+def push_context(ctx: "Context") -> None:
     """Pushes a new context to the current stack."""
     _local.__dict__.setdefault("stack", []).append(ctx)
 
 
-def pop_context():
+def pop_context() -> None:
     """Removes the top level from the stack."""
     _local.stack.pop()
 
 
-def resolve_color_default(color=None):
-    """"Internal helper to get the default value of the color flag.  If a
+def resolve_color_default(color: t.Optional[bool] = None) -> t.Optional[bool]:
+    """Internal helper to get the default value of the color flag.  If a
     value is passed it's returned unchanged, otherwise it's looked up from
     the current context.
     """
     if color is not None:
         return color
+
     ctx = get_current_context(silent=True)
+
     if ctx is not None:
         return ctx.color
+
+    return None

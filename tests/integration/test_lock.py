@@ -2,7 +2,6 @@
 
 import json
 import os
-import shutil
 import sys
 
 import pytest
@@ -11,7 +10,6 @@ from flaky import flaky
 from vistir.compat import Path
 from vistir.misc import to_text
 from pipenv.utils import temp_environ
-import delegator
 
 
 @pytest.mark.lock

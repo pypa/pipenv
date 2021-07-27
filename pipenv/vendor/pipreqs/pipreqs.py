@@ -348,8 +348,9 @@ def compare_modules(file_, imports):
                specified file.
     """
     modules = parse_requirements(file_)
-    imports = [i["name"] for i in imports]
-    modules = [i["name"] for i in modules]
+
+    imports = [imports[i]["name"] for i in range(len(imports))]
+    modules = [modules[i]["name"] for i in range(len(modules))]
     modules_not_imported = set(modules) - set(imports)
 
     return modules_not_imported

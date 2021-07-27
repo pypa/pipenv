@@ -44,17 +44,17 @@ if MYPY_RUNNING:
 class BasePath(object):
     path = attr.ib(default=None)  # type: Path
     _children = attr.ib(
-        default=attr.Factory(dict), cmp=False
+        default=attr.Factory(dict), order=False
     )  # type: Dict[str, PathEntry]
     only_python = attr.ib(default=False)  # type: bool
     name = attr.ib(type=str)
-    _py_version = attr.ib(default=None, cmp=False)  # type: Optional[PythonVersion]
+    _py_version = attr.ib(default=None, order=False)  # type: Optional[PythonVersion]
     _pythons = attr.ib(
-        default=attr.Factory(defaultdict), cmp=False
+        default=attr.Factory(defaultdict), order=False
     )  # type: DefaultDict[str, PathEntry]
-    _is_dir = attr.ib(default=None, cmp=False)  # type: Optional[bool]
-    _is_executable = attr.ib(default=None, cmp=False)  # type: Optional[bool]
-    _is_python = attr.ib(default=None, cmp=False)  # type: Optional[bool]
+    _is_dir = attr.ib(default=None, order=False)  # type: Optional[bool]
+    _is_executable = attr.ib(default=None, order=False)  # type: Optional[bool]
+    _is_python = attr.ib(default=None, order=False)  # type: Optional[bool]
 
     def __str__(self):
         # type: () -> str

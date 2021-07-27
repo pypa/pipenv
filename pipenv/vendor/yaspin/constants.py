@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-#
-# :copyright: (c) 2020 by Pavlo Dmytrenko.
+# :copyright: (c) 2021 by Pavlo Dmytrenko.
 # :license: MIT, see LICENSE for more details.
 
 """
@@ -49,6 +47,7 @@ SPINNER_ATTRS = [
     "balloon",
     "balloon2",
     "betaWave",
+    "bluePulse",
     "bounce",
     "bouncingBall",
     "bouncingBar",
@@ -74,6 +73,8 @@ SPINNER_ATTRS = [
     "dots9",
     "dqpb",
     "earth",
+    "fingerDance",
+    "fistBump",
     "flip",
     "grenade",
     "growHorizontal",
@@ -84,9 +85,12 @@ SPINNER_ATTRS = [
     "line",
     "line2",
     "material",
+    "mindblown",
     "monkey",
     "moon",
     "noise",
+    "orangeBluePulse",
+    "orangePulse",
     "pipe",
     "point",
     "pong",
@@ -95,10 +99,13 @@ SPINNER_ATTRS = [
     "simpleDots",
     "simpleDotsScrolling",
     "smiley",
+    "soccerHeader",
+    "speaker",
     "squareCorners",
     "squish",
     "star",
     "star2",
+    "timeTravel",
     "toggle",
     "toggle10",
     "toggle11",

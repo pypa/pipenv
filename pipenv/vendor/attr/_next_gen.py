@@ -1,8 +1,6 @@
 """
-This is a Python 3.6 and later-only, keyword-only, and **provisional** API that
-calls `attr.s` with different default values.
-
-Provisional APIs that shall become "import attrs" one glorious day.
+These are Python 3.6+-only and keyword-only APIs that call `attr.s` and
+`attr.ib` with different default values.
 """
 
 from functools import partial
@@ -42,8 +40,8 @@ def define(
     :param Optional[bool] auto_attribs: If set to `True` or `False`, it behaves
        exactly like `attr.s`. If left `None`, `attr.s` will try to guess:
 
-       1. If all attributes are annotated and no `attr.ib` is found, it assumes
-          *auto_attribs=True*.
+       1. If any attributes are annotated and no unannotated `attr.ib`\ s
+          are found, it assumes *auto_attribs=True*.
        2. Otherwise it assumes *auto_attribs=False* and tries to collect
           `attr.ib`\ s.
 

@@ -141,13 +141,13 @@ def _requirement_to_str_lowercase_name(requirement):
     Formats a packaging.requirements.Requirement with a lowercase name.
 
     This is simply a copy of
-    https://github.com/pypa/pipenv/patched/packaging/blob/pipenv/patched/16.8/packaging/requirements.py#L109-L124
+    https://github.com/pypa/pipenv/patched/pipenv/patched/packaging/blob/pipenv/patched/pipenv/patched/16.8/packaging/requirements.py#L109-L124
     modified to lowercase the dependency name.
 
     Previously, we were invoking the original Requirement.__str__ method and
     lowercasing the entire result, which would lowercase the name, *and* other,
     important stuff that should not be lowercased (such as the marker). See
-    this issue for more information: https://github.com/pypa/pipenv/patched/pipenv/issues/2113.
+    this issue for more information: https://github.com/pypa/pipenv/patched/pipenv/patched/pipenv/issues/2113.
     """
     parts = [requirement.name.lower()]
 

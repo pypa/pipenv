@@ -1,22 +1,14 @@
-from __future__ import absolute_import
-
 import abc
+from typing import BinaryIO, Iterable, Text
 
-from ._compat import ABC, FileNotFoundError, runtime_checkable, Protocol
-
-# Use mypy's comment syntax for Python 2 compatibility
-try:
-    from typing import BinaryIO, Iterable, Text
-except ImportError:
-    pass
+from ._compat import runtime_checkable, Protocol
 
 
-class ResourceReader(ABC):
+class ResourceReader(metaclass=abc.ABCMeta):
     """Abstract base class for loaders to provide resource reading support."""
 
     @abc.abstractmethod
-    def open_resource(self, resource):
-        # type: (Text) -> BinaryIO
+    def open_resource(self, resource: Text) -> BinaryIO:
         """Return an opened, file-like object for binary reading.
 
         The 'resource' argument is expected to represent only a file name.
@@ -28,8 +20,7 @@ class ResourceReader(ABC):
         raise FileNotFoundError
 
     @abc.abstractmethod
-    def resource_path(self, resource):
-        # type: (Text) -> Text
+    def resource_path(self, resource: Text) -> Text:
         """Return the file system path to the specified resource.
 
         The 'resource' argument is expected to represent only a file name.
@@ -42,8 +33,7 @@ class ResourceReader(ABC):
         raise FileNotFoundError
 
     @abc.abstractmethod
-    def is_resource(self, path):
-        # type: (Text) -> bool
+    def is_resource(self, path: Text) -> bool:
         """Return True if the named 'path' is a resource.
 
         Files are resources, directories are not.
@@ -51,8 +41,7 @@ class ResourceReader(ABC):
         raise FileNotFoundError
 
     @abc.abstractmethod
-    def contents(self):
-        # type: () -> Iterable[str]
+    def contents(self) -> Iterable[str]:
         """Return an iterable of entries in `package`."""
         raise FileNotFoundError
 
@@ -70,26 +59,28 @@ class Traversable(Protocol):
         Yield Traversable objects in self
         """
 
-    @abc.abstractmethod
     def read_bytes(self):
         """
         Read contents of self as bytes
         """
+        with self.open('rb') as strm:
+            return strm.read()
 
-    @abc.abstractmethod
     def read_text(self, encoding=None):
         """
-        Read contents of self as bytes
+        Read contents of self as text
         """
+        with self.open(encoding=encoding) as strm:
+            return strm.read()
 
     @abc.abstractmethod
-    def is_dir(self):
+    def is_dir(self) -> bool:
         """
         Return True if self is a dir
         """
 
     @abc.abstractmethod
-    def is_file(self):
+    def is_file(self) -> bool:
         """
         Return True if self is a file
         """
@@ -100,11 +91,11 @@ class Traversable(Protocol):
         Return Traversable child in self
         """
 
-    @abc.abstractmethod
     def __truediv__(self, child):
         """
         Return Traversable child in self
         """
+        return self.joinpath(child)
 
     @abc.abstractmethod
     def open(self, mode='r', *args, **kwargs):
@@ -117,14 +108,18 @@ class Traversable(Protocol):
         """
 
     @abc.abstractproperty
-    def name(self):
-        # type: () -> str
+    def name(self) -> str:
         """
         The base name of this object without any parent references.
         """
 
 
 class TraversableResources(ResourceReader):
+    """
+    The required interface for providing traversable
+    resources.
+    """
+
     @abc.abstractmethod
     def files(self):
         """Return a Traversable object for the loaded package."""

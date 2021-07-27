@@ -32,3 +32,11 @@ try:
     FileNotFoundError = FileNotFoundError
 except NameError:
     FileNotFoundError = IOError
+
+
+if sys.version_info < (3, 6):
+    from toml import load as toml_load  # noqa: F401
+    from toml import TomlDecodeError as TOMLDecodeError  # noqa: F401
+else:
+    from tomli import load as toml_load  # noqa: F401
+    from tomli import TOMLDecodeError  # noqa: F401

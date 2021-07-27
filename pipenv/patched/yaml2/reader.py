@@ -137,9 +137,14 @@ class Reader(object):
         self.update(1)
 
     if has_ucs4:
-        NON_PRINTABLE = re.compile(u'[^\x09\x0A\x0D\x20-\x7E\x85\xA0-\uD7FF\uE000-\uFFFD\U00010000-\U0010ffff]')
+        NON_PRINTABLE = u'[^\x09\x0A\x0D\x20-\x7E\x85\xA0-\uD7FF\uE000-\uFFFD\U00010000-\U0010ffff]'
+    elif sys.platform.startswith('java'):
+        # Jython doesn't support lone surrogates https://bugs.jython.org/issue2048 
+        NON_PRINTABLE = u'[^\x09\x0A\x0D\x20-\x7E\x85\xA0-\uD7FF\uE000-\uFFFD]'
     else:
-        NON_PRINTABLE = re.compile(u'[^\x09\x0A\x0D\x20-\x7E\x85\xA0-\uFFFD]|(?:^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]|[\uD800-\uDBFF](?:[^\uDC00-\uDFFF]|$)')
+        # Need to use eval here due to the above Jython issue
+        NON_PRINTABLE = eval(r"u'[^\x09\x0A\x0D\x20-\x7E\x85\xA0-\uFFFD]|(?:^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]|[\uD800-\uDBFF](?:[^\uDC00-\uDFFF]|$)'")
+    NON_PRINTABLE = re.compile(NON_PRINTABLE)
     def check_printable(self, data):
         match = self.NON_PRINTABLE.search(data)
         if match:

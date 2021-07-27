@@ -4,6 +4,10 @@ from __future__ import unicode_literals
 import itertools
 
 from copy import copy
+from typing import Any
+from typing import Optional
+from typing import Tuple
+from typing import Type
 
 from ._compat import PY2
 from ._compat import unicode

@@ -1,3 +1,4 @@
+import io
 import unittest
 
 import importlib_resources as resources
@@ -6,14 +7,12 @@ from . import util
 
 
 class CommonTests(util.CommonTests, unittest.TestCase):
-
     def execute(self, package, path):
         with resources.path(package, path):
             pass
 
 
 class PathTests:
-
     def test_reading(self):
         # Path should be readable.
         # Test also implicitly verifies the returned object is a pathlib.Path
@@ -28,6 +27,26 @@ class PathTests:
 
 class PathDiskTests(PathTests, unittest.TestCase):
     data = data01
+
+    def test_natural_path(self):
+        """
+        Guarantee the internal implementation detail that
+        file-system-backed resources do not get the tempdir
+        treatment.
+        """
+        with resources.path(self.data, 'utf-8.file') as path:
+            assert 'data' in str(path)
+
+
+class PathMemoryTests(PathTests, unittest.TestCase):
+    def setUp(self):
+        file = io.BytesIO(b'Hello, UTF-8 world!\n')
+        self.addCleanup(file.close)
+        self.data = util.create_package(
+            file=file, path=FileNotFoundError("package exists only in memory")
+        )
+        self.data.__spec__.origin = None
+        self.data.__spec__.has_location = False
 
 
 class PathZipTests(PathTests, util.ZipSetup, unittest.TestCase):

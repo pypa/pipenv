@@ -59,10 +59,11 @@ def mapping_hash(schema):
 
 
 def mapping_to_frozenset(mapping):
-    """ Be aware that this treats any sequence type with the equal members as
-        equal. As it is used to identify equality of schemas, this can be
-        considered okay as definitions are semantically equal regardless the
-        container type. """
+    """
+    Be aware that this treats any sequence type with the equal members as equal. As it
+    is used to identify equality of schemas, this can be considered okay as definitions
+    are semantically equal regardless the container type.
+    """
 
     aggregation = {}
 
@@ -102,9 +103,10 @@ class readonly_classproperty(property):
 
 
 def validator_factory(name, bases=None, namespace={}):
-    """ Dynamically create a :class:`~cerberus.Validator` subclass.
-        Docstrings of mixin-classes will be added to the resulting
-        class' one if ``__doc__`` is not in :obj:`namespace`.
+    """
+    Dynamically create a :class:`~cerberus.Validator` subclass.
+    Docstrings of mixin-classes will be added to the resulting class' one if ``__doc__``
+    is not in :obj:`namespace`.
 
     :param name: The name of the new class.
     :type name: :class:`str`

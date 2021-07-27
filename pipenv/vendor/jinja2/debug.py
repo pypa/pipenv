@@ -1,38 +1,38 @@
+import platform
 import sys
+import typing as t
 from types import CodeType
+from types import TracebackType
 
-from . import TemplateSyntaxError
-from ._compat import PYPY
+from .exceptions import TemplateSyntaxError
 from .utils import internal_code
 from .utils import missing
 
+if t.TYPE_CHECKING:
+    from .runtime import Context
 
-def rewrite_traceback_stack(source=None):
+
+def rewrite_traceback_stack(source: t.Optional[str] = None) -> BaseException:
     """Rewrite the current exception to replace any tracebacks from
     within compiled template code with tracebacks that look like they
     came from the template source.
 
     This must be called within an ``except`` block.
 
-    :param exc_info: A :meth:`sys.exc_info` tuple. If not provided,
-        the current ``exc_info`` is used.
     :param source: For ``TemplateSyntaxError``, the original source if
         known.
-    :return: A :meth:`sys.exc_info` tuple that can be re-raised.
+    :return: The original exception with the rewritten traceback.
     """
-    exc_type, exc_value, tb = sys.exc_info()
+    _, exc_value, tb = sys.exc_info()
+    exc_value = t.cast(BaseException, exc_value)
+    tb = t.cast(TracebackType, tb)
 
     if isinstance(exc_value, TemplateSyntaxError) and not exc_value.translated:
         exc_value.translated = True
         exc_value.source = source
-
-        try:
-            # Remove the old traceback on Python 3, otherwise the frames
-            # from the compiler still show up.
-            exc_value.with_traceback(None)
-        except AttributeError:
-            pass
-
+        # Remove the old traceback, otherwise the frames from the
+        # compiler still show up.
+        exc_value.with_traceback(None)
         # Outside of runtime, so the frame isn't executing template
         # code, but it still needs to point at the template.
         tb = fake_traceback(
@@ -70,10 +70,12 @@ def rewrite_traceback_stack(source=None):
     for tb in reversed(stack):
         tb_next = tb_set_next(tb, tb_next)
 
-    return exc_type, exc_value, tb_next
+    return exc_value.with_traceback(tb_next)
 
 
-def fake_traceback(exc_value, tb, filename, lineno):
+def fake_traceback(  # type: ignore
+    exc_value: BaseException, tb: t.Optional[TracebackType], filename: str, lineno: int
+) -> TracebackType:
     """Produce a new traceback object that looks like it came from the
     template source instead of the compiled code. The filename, line
     number, and location name will point to the template, and the local
@@ -113,7 +115,7 @@ def fake_traceback(exc_value, tb, filename, lineno):
             if function == "root":
                 location = "top-level template code"
             elif function.startswith("block_"):
-                location = 'block "%s"' % function[6:]
+                location = f"block {function[6:]!r}"
 
         # Collect arguments for the new code object. CodeType only
         # accepts positional arguments, and arguments were inserted in
@@ -123,7 +125,7 @@ def fake_traceback(exc_value, tb, filename, lineno):
         for attr in (
             "argcount",
             "posonlyargcount",  # Python 3.8
-            "kwonlyargcount",  # Python 3
+            "kwonlyargcount",
             "nlocals",
             "stacksize",
             "flags",
@@ -137,6 +139,7 @@ def fake_traceback(exc_value, tb, filename, lineno):
             "lnotab",
             "freevars",
             "cellvars",
+            "linetable",  # Python 3.10
         ):
             if isinstance(attr, tuple):
                 # Replace with given value.
@@ -145,7 +148,7 @@ def fake_traceback(exc_value, tb, filename, lineno):
 
             try:
                 # Copy original value if it exists.
-                code_args.append(getattr(code, "co_" + attr))
+                code_args.append(getattr(code, "co_" + t.cast(str, attr)))
             except AttributeError:
                 # Some arguments were added later.
                 continue
@@ -161,18 +164,18 @@ def fake_traceback(exc_value, tb, filename, lineno):
     try:
         exec(code, globals, locals)
     except BaseException:
-        return sys.exc_info()[2].tb_next
+        return sys.exc_info()[2].tb_next  # type: ignore
 
 
-def get_template_locals(real_locals):
+def get_template_locals(real_locals: t.Mapping[str, t.Any]) -> t.Dict[str, t.Any]:
     """Based on the runtime locals, get the context that would be
     available at that point in the template.
     """
     # Start with the current template context.
-    ctx = real_locals.get("context")
+    ctx: "t.Optional[Context]" = real_locals.get("context")
 
-    if ctx:
-        data = ctx.get_all().copy()
+    if ctx is not None:
+        data: t.Dict[str, t.Any] = ctx.get_all().copy()
     else:
         data = {}
 
@@ -180,7 +183,7 @@ def get_template_locals(real_locals):
     # rather than pushing a context. Local variables follow the scheme
     # l_depth_name. Find the highest-depth local that has a value for
     # each name.
-    local_overrides = {}
+    local_overrides: t.Dict[str, t.Tuple[int, t.Any]] = {}
 
     for name, value in real_locals.items():
         if not name.startswith("l_") or value is missing:
@@ -188,8 +191,8 @@ def get_template_locals(real_locals):
             continue
 
         try:
-            _, depth, name = name.split("_", 2)
-            depth = int(depth)
+            _, depth_str, name = name.split("_", 2)
+            depth = int(depth_str)
         except ValueError:
             continue
 
@@ -210,31 +213,37 @@ def get_template_locals(real_locals):
 
 if sys.version_info >= (3, 7):
     # tb_next is directly assignable as of Python 3.7
-    def tb_set_next(tb, tb_next):
+    def tb_set_next(
+        tb: TracebackType, tb_next: t.Optional[TracebackType]
+    ) -> TracebackType:
         tb.tb_next = tb_next
         return tb
 
 
-elif PYPY:
+elif platform.python_implementation() == "PyPy":
     # PyPy might have special support, and won't work with ctypes.
     try:
-        import tputil
+        import tputil  # type: ignore
     except ImportError:
         # Without tproxy support, use the original traceback.
-        def tb_set_next(tb, tb_next):
+        def tb_set_next(
+            tb: TracebackType, tb_next: t.Optional[TracebackType]
+        ) -> TracebackType:
             return tb
 
     else:
         # With tproxy support, create a proxy around the traceback that
         # returns the new tb_next.
-        def tb_set_next(tb, tb_next):
-            def controller(op):
+        def tb_set_next(
+            tb: TracebackType, tb_next: t.Optional[TracebackType]
+        ) -> TracebackType:
+            def controller(op):  # type: ignore
                 if op.opname == "__getattribute__" and op.args[0] == "tb_next":
                     return tb_next
 
                 return op.delegate()
 
-            return tputil.make_proxy(controller, obj=tb)
+            return tputil.make_proxy(controller, obj=tb)  # type: ignore
 
 
 else:
@@ -250,7 +259,9 @@ else:
             ("tb_next", ctypes.py_object),
         ]
 
-    def tb_set_next(tb, tb_next):
+    def tb_set_next(
+        tb: TracebackType, tb_next: t.Optional[TracebackType]
+    ) -> TracebackType:
         c_tb = _CTraceback.from_address(id(tb))
 
         # Clear out the old tb_next.

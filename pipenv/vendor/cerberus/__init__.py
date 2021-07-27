@@ -1,10 +1,10 @@
 """
     Extensible validation for Python dictionaries.
 
-    :copyright: 2012-2016 by Nicola Iarocci.
+    :copyright: 2012-2021 by Nicola Iarocci.
     :license: ISC, see LICENSE for more details.
 
-    Full documentation is available at http://python-cerberus.org/
+    Full documentation is available at https://python-cerberus.org/
 
 """
 

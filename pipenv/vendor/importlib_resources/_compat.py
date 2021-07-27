@@ -1,56 +1,20 @@
-from __future__ import absolute_import
-import sys
-
 # flake8: noqa
 
-if sys.version_info > (3,5):
-    from pathlib import Path, PurePath
-else:
-    from pathlib2 import Path, PurePath                         # type: ignore
+import abc
+import sys
+import pathlib
+from contextlib import suppress
 
-
-if sys.version_info > (3,):
-    from contextlib import suppress
-else:
-    from contextlib2 import suppress                         # type: ignore
-
-
-try:
-    from functools import singledispatch
-except ImportError:
-    from singledispatch import singledispatch                   # type: ignore
-
-
-try:
-    from abc import ABC                                         # type: ignore
-except ImportError:
-    from abc import ABCMeta
-
-    class ABC(object):                                          # type: ignore
-        __metaclass__ = ABCMeta
-
-
-try:
-    FileNotFoundError = FileNotFoundError                       # type: ignore
-except NameError:
-    FileNotFoundError = OSError                                 # type: ignore
-
-
-try:
-    NotADirectoryError = NotADirectoryError                       # type: ignore
-except NameError:
-    NotADirectoryError = OSError                                 # type: ignore
-
-
-try:
+if sys.version_info >= (3, 10):
     from zipfile import Path as ZipPath  # type: ignore
-except ImportError:
+else:
     from zipp import Path as ZipPath  # type: ignore
 
 
 try:
     from typing import runtime_checkable  # type: ignore
 except ImportError:
+
     def runtime_checkable(cls):  # type: ignore
         return cls
 
@@ -58,42 +22,27 @@ except ImportError:
 try:
     from typing import Protocol  # type: ignore
 except ImportError:
-    Protocol = ABC  # type: ignore
+    Protocol = abc.ABC  # type: ignore
 
 
-__metaclass__ = type
-
-
-class PackageSpec:
-    def __init__(self, **kwargs):
-        vars(self).update(kwargs)
-
-
-class TraversableResourcesAdapter:
-    def __init__(self, spec):
-        self.spec = spec
-        self.loader = LoaderAdapter(spec)
-
-    def __getattr__(self, name):
-        return getattr(self.spec, name)
-
-
-class LoaderAdapter:
+class TraversableResourcesLoader:
     """
     Adapt loaders to provide TraversableResources and other
     compatibility.
+
+    Used primarily for Python 3.9 and earlier where the native
+    loaders do not yet implement TraversableResources.
     """
+
     def __init__(self, spec):
         self.spec = spec
 
     @property
     def path(self):
-        # Python < 3
         return self.spec.origin
 
     def get_resource_reader(self, name):
-        # Python < 3.9
-        from . import readers
+        from . import readers, _adapters
 
         def _zip_reader(spec):
             with suppress(AttributeError):
@@ -111,29 +60,39 @@ class LoaderAdapter:
             reader = _available_reader(spec)
             return reader if hasattr(reader, 'files') else None
 
+        def _file_reader(spec):
+            try:
+                path = pathlib.Path(self.path)
+            except TypeError:
+                return None
+            if path.exists():
+                return readers.FileReader(self)
+
         return (
             # native reader if it supplies 'files'
-            _native_reader(self.spec) or
+            _native_reader(self.spec)
+            or
             # local ZipReader if a zip module
-            _zip_reader(self.spec) or
+            _zip_reader(self.spec)
+            or
             # local NamespaceReader if a namespace module
-            _namespace_reader(self.spec) or
+            _namespace_reader(self.spec)
+            or
             # local FileReader
-            readers.FileReader(self)
-            )
-
-
-def package_spec(package):
-    """
-    Construct a minimal package spec suitable for
-    matching the interfaces this library relies upon
-    in later Python versions.
-    """
-    spec = getattr(package, '__spec__', None) or \
-        PackageSpec(
-            origin=package.__file__,
-            loader=getattr(package, '__loader__', None),
-            name=package.__name__,
-            submodule_search_locations=getattr(package, '__path__', None),
+            _file_reader(self.spec)
+            # fallback - adapt the spec ResourceReader to TraversableReader
+            or _adapters.CompatibilityFiles(self.spec)
         )
-    return TraversableResourcesAdapter(spec)
+
+
+def wrap_spec(package):
+    """
+    Construct a package spec with traversable compatibility
+    on the spec/loader/reader.
+
+    Supersedes _adapters.wrap_spec to use TraversableResourcesLoader
+    from above for older Python compatibility (<3.10).
+    """
+    from . import _adapters
+
+    return _adapters.SpecLoaderAdapter(package.__spec__, TraversableResourcesLoader)

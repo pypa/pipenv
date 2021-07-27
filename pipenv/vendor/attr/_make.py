@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 import copy
+import inspect
 import linecache
 import sys
 import threading
@@ -16,6 +17,7 @@ from ._compat import (
     isclass,
     iteritems,
     metadata_proxy,
+    new_class,
     ordered_dict,
     set_closure_cell,
 )
@@ -28,6 +30,10 @@ from .exceptions import (
 )
 
 
+if not PY2:
+    import typing
+
+
 # This is used at least twice, so cache it here.
 _obj_setattr = object.__setattr__
 _init_converter_pat = "__attr_converter_%s"
@@ -35,7 +41,12 @@ _init_factory_pat = "__attr_factory_{}"
 _tuple_property_pat = (
     "    {attr_name} = _attrs_property(_attrs_itemgetter({index}))"
 )
-_classvar_prefixes = ("typing.ClassVar", "t.ClassVar", "ClassVar")
+_classvar_prefixes = (
+    "typing.ClassVar",
+    "t.ClassVar",
+    "ClassVar",
+    "typing_extensions.ClassVar",
+)
 # we don't use a double-underscore prefix because that triggers
 # name mangling when trying to create a slot for the field
 # (when slots=True)
@@ -52,6 +63,8 @@ class _Nothing(object):
     Sentinel class to indicate the lack of a value when ``None`` is ambiguous.
 
     ``_Nothing`` is a singleton. There is only ever one of it.
+
+    .. versionchanged:: 21.1.0 ``bool(NOTHING)`` is now False.
     """
 
     _singleton = None
@@ -63,6 +76,12 @@ class _Nothing(object):
 
     def __repr__(self):
         return "NOTHING"
+
+    def __bool__(self):
+        return False
+
+    def __len__(self):
+        return 0  # __bool__ for Python 2
 
 
 NOTHING = _Nothing()
@@ -165,13 +184,25 @@ def attrib(
         as-is, i.e. it will be used directly *instead* of calling ``repr()``
         (the default).
     :type repr: a `bool` or a `callable` to use a custom function.
-    :param bool eq: If ``True`` (default), include this attribute in the
+
+    :param eq: If ``True`` (default), include this attribute in the
         generated ``__eq__`` and ``__ne__`` methods that check two instances
-        for equality.
-    :param bool order: If ``True`` (default), include this attributes in the
+        for equality. To override how the attribute value is compared,
+        pass a ``callable`` that takes a single value and returns the value
+        to be compared.
+    :type eq: a `bool` or a `callable`.
+
+    :param order: If ``True`` (default), include this attributes in the
         generated ``__lt__``, ``__le__``, ``__gt__`` and ``__ge__`` methods.
-    :param bool cmp: Setting to ``True`` is equivalent to setting ``eq=True,
-        order=True``. Deprecated in favor of *eq* and *order*.
+        To override how the attribute value is ordered,
+        pass a ``callable`` that takes a single value and returns the value
+        to be ordered.
+    :type order: a `bool` or a `callable`.
+
+    :param cmp: Setting *cmp* is equivalent to setting *eq* and *order* to the
+        same value. Must not be mixed with *eq* or *order*.
+    :type cmp: a `bool` or a `callable`.
+
     :param Optional[bool] hash: Include this attribute in the generated
         ``__hash__`` method.  If ``None`` (default), mirror *eq*'s value.  This
         is the correct behavior according the Python spec.  Setting this value
@@ -219,14 +250,19 @@ def attrib(
     .. versionadded:: 18.1.0
        ``factory=f`` is syntactic sugar for ``default=attr.Factory(f)``.
     .. versionadded:: 18.2.0 *kw_only*
-    .. versionchanged:: 19.2.0 *convert* keyword argument removed
+    .. versionchanged:: 19.2.0 *convert* keyword argument removed.
     .. versionchanged:: 19.2.0 *repr* also accepts a custom callable.
     .. deprecated:: 19.2.0 *cmp* Removal on or after 2021-06-01.
     .. versionadded:: 19.2.0 *eq* and *order*
     .. versionadded:: 20.1.0 *on_setattr*
     .. versionchanged:: 20.3.0 *kw_only* backported to Python 2
+    .. versionchanged:: 21.1.0
+       *eq*, *order*, and *cmp* also accept a custom callable
+    .. versionchanged:: 21.1.0 *cmp* undeprecated
     """
-    eq, order = _determine_eq_order(cmp, eq, order, True)
+    eq, eq_key, order, order_key = _determine_attrib_eq_order(
+        cmp, eq, order, True
+    )
 
     if hash is not None and hash is not True and hash is not False:
         raise TypeError(
@@ -268,9 +304,41 @@ def attrib(
         type=type,
         kw_only=kw_only,
         eq=eq,
+        eq_key=eq_key,
         order=order,
+        order_key=order_key,
         on_setattr=on_setattr,
     )
+
+
+def _compile_and_eval(script, globs, locs=None, filename=""):
+    """
+    "Exec" the script with the given global (globs) and local (locs) variables.
+    """
+    bytecode = compile(script, filename, "exec")
+    eval(bytecode, globs, locs)
+
+
+def _make_method(name, script, filename, globs=None):
+    """
+    Create the method with the script given and return the method object.
+    """
+    locs = {}
+    if globs is None:
+        globs = {}
+
+    _compile_and_eval(script, globs, locs, filename)
+
+    # In order of debuggers like PDB being able to step through the code,
+    # we add a fake linecache entry.
+    linecache.cache[filename] = (
+        len(script),
+        None,
+        script.splitlines(True),
+        filename,
+    )
+
+    return locs[name]
 
 
 def _make_attr_tuple_class(cls_name, attr_names):
@@ -296,8 +364,7 @@ def _make_attr_tuple_class(cls_name, attr_names):
     else:
         attr_class_template.append("    pass")
     globs = {"_attrs_itemgetter": itemgetter, "_attrs_property": property}
-    eval(compile("\n".join(attr_class_template), "", "exec"), globs)
-
+    _compile_and_eval("\n".join(attr_class_template), globs)
     return globs[attr_class_name]
 
 
@@ -324,7 +391,13 @@ def _is_class_var(annot):
     annotations which would put attrs-based classes at a performance
     disadvantage compared to plain old classes.
     """
-    return str(annot).startswith(_classvar_prefixes)
+    annot = str(annot)
+
+    # Annotation can be quoted.
+    if annot.startswith(("'", '"')) and annot.endswith(("'", '"')):
+        annot = annot[1:-1]
+
+    return annot.startswith(_classvar_prefixes)
 
 
 def _has_own_attribute(cls, attrib_name):
@@ -575,6 +648,7 @@ class _ClassBuilder(object):
         "_cls_dict",
         "_delete_attribs",
         "_frozen",
+        "_has_pre_init",
         "_has_post_init",
         "_is_exc",
         "_on_setattr",
@@ -620,6 +694,7 @@ class _ClassBuilder(object):
         self._frozen = frozen
         self._weakref_slot = weakref_slot
         self._cache_hash = cache_hash
+        self._has_pre_init = bool(getattr(cls, "__attrs_pre_init__", False))
         self._has_post_init = bool(getattr(cls, "__attrs_post_init__", False))
         self._delete_attribs = not bool(these)
         self._is_exc = is_exc
@@ -698,7 +773,6 @@ class _ClassBuilder(object):
         """
         Build and return a new class with a `__slots__` attribute.
         """
-        base_names = self._base_names
         cd = {
             k: v
             for k, v in iteritems(self._cls_dict)
@@ -722,12 +796,21 @@ class _ClassBuilder(object):
                         cd["__setattr__"] = object.__setattr__
                         break
 
-        # Traverse the MRO to check for an existing __weakref__.
+        # Traverse the MRO to collect existing slots
+        # and check for an existing __weakref__.
+        existing_slots = dict()
         weakref_inherited = False
         for base_cls in self._cls.__mro__[1:-1]:
             if base_cls.__dict__.get("__weakref__", None) is not None:
                 weakref_inherited = True
-                break
+            existing_slots.update(
+                {
+                    name: getattr(base_cls, name)
+                    for name in getattr(base_cls, "__slots__", [])
+                }
+            )
+
+        base_names = set(self._base_names)
 
         names = self._attr_names
         if (
@@ -741,6 +824,17 @@ class _ClassBuilder(object):
         # We only add the names of attributes that aren't inherited.
         # Setting __slots__ to inherited attributes wastes memory.
         slot_names = [name for name in names if name not in base_names]
+        # There are slots for attributes from current class
+        # that are defined in parent classes.
+        # As their descriptors may be overriden by a child class,
+        # we collect them here and update the class dict
+        reused_slots = {
+            slot: slot_descriptor
+            for slot, slot_descriptor in iteritems(existing_slots)
+            if slot in slot_names
+        }
+        slot_names = [name for name in slot_names if name not in reused_slots]
+        cd.update(reused_slots)
         if self._cache_hash:
             slot_names.append(_hash_cache_field)
         cd["__slots__"] = tuple(slot_names)
@@ -763,6 +857,10 @@ class _ClassBuilder(object):
                 # Class- and staticmethods hide their functions inside.
                 # These might need to be rewritten as well.
                 closure_cells = getattr(item.__func__, "__closure__", None)
+            elif isinstance(item, property):
+                # Workaround for property `super()` shortcut (PY3-only).
+                # There is no universal way for other descriptors.
+                closure_cells = getattr(item.fget, "__closure__", None)
             else:
                 closure_cells = getattr(item, "__closure__", None)
 
@@ -853,6 +951,7 @@ class _ClassBuilder(object):
             _make_init(
                 self._cls,
                 self._attrs,
+                self._has_pre_init,
                 self._has_post_init,
                 self._frozen,
                 self._slots,
@@ -861,6 +960,27 @@ class _ClassBuilder(object):
                 self._is_exc,
                 self._on_setattr is not None
                 and self._on_setattr is not setters.NO_OP,
+                attrs_init=False,
+            )
+        )
+
+        return self
+
+    def add_attrs_init(self):
+        self._cls_dict["__attrs_init__"] = self._add_method_dunders(
+            _make_init(
+                self._cls,
+                self._attrs,
+                self._has_pre_init,
+                self._has_post_init,
+                self._frozen,
+                self._slots,
+                self._cache_hash,
+                self._base_attr_map,
+                self._is_exc,
+                self._on_setattr is not None
+                and self._on_setattr is not setters.NO_OP,
+                attrs_init=True,
             )
         )
 
@@ -954,7 +1074,7 @@ _CMP_DEPRECATION = (
 )
 
 
-def _determine_eq_order(cmp, eq, order, default_eq):
+def _determine_attrs_eq_order(cmp, eq, order, default_eq):
     """
     Validate the combination of *cmp*, *eq*, and *order*. Derive the effective
     values of eq and order.  If *eq* is None, set it to *default_eq*.
@@ -964,8 +1084,6 @@ def _determine_eq_order(cmp, eq, order, default_eq):
 
     # cmp takes precedence due to bw-compatibility.
     if cmp is not None:
-        warnings.warn(_CMP_DEPRECATION, DeprecationWarning, stacklevel=3)
-
         return cmp, cmp
 
     # If left None, equality is set to the specified default and ordering
@@ -980,6 +1098,47 @@ def _determine_eq_order(cmp, eq, order, default_eq):
         raise ValueError("`order` can only be True if `eq` is True too.")
 
     return eq, order
+
+
+def _determine_attrib_eq_order(cmp, eq, order, default_eq):
+    """
+    Validate the combination of *cmp*, *eq*, and *order*. Derive the effective
+    values of eq and order.  If *eq* is None, set it to *default_eq*.
+    """
+    if cmp is not None and any((eq is not None, order is not None)):
+        raise ValueError("Don't mix `cmp` with `eq' and `order`.")
+
+    def decide_callable_or_boolean(value):
+        """
+        Decide whether a key function is used.
+        """
+        if callable(value):
+            value, key = True, value
+        else:
+            key = None
+        return value, key
+
+    # cmp takes precedence due to bw-compatibility.
+    if cmp is not None:
+        cmp, cmp_key = decide_callable_or_boolean(cmp)
+        return cmp, cmp_key, cmp, cmp_key
+
+    # If left None, equality is set to the specified default and ordering
+    # mirrors equality.
+    if eq is None:
+        eq, eq_key = default_eq, None
+    else:
+        eq, eq_key = decide_callable_or_boolean(eq)
+
+    if order is None:
+        order, order_key = eq, eq_key
+    else:
+        order, order_key = decide_callable_or_boolean(order)
+
+    if eq is False and order is True:
+        raise ValueError("`order` can only be True if `eq` is True too.")
+
+    return eq, eq_key, order, order_key
 
 
 def _determine_whether_to_implement(
@@ -1064,7 +1223,7 @@ def attrs(
         inherited from some base class).
 
         So for example by implementing ``__eq__`` on a class yourself,
-        ``attrs`` will deduce ``eq=False`` and won't create *neither*
+        ``attrs`` will deduce ``eq=False`` and will create *neither*
         ``__eq__`` *nor* ``__ne__`` (but Python classes come with a sensible
         ``__ne__`` by default, so it *should* be enough to only implement
         ``__eq__`` in most cases).
@@ -1097,10 +1256,8 @@ def attrs(
         ``__gt__``, and ``__ge__`` methods that behave like *eq* above and
         allow instances to be ordered. If ``None`` (default) mirror value of
         *eq*.
-    :param Optional[bool] cmp: Setting to ``True`` is equivalent to setting
-        ``eq=True, order=True``. Deprecated in favor of *eq* and *order*, has
-        precedence over them for backward-compatibility though. Must not be
-        mixed with *eq* or *order*.
+    :param Optional[bool] cmp: Setting *cmp* is equivalent to setting *eq*
+        and *order* to the same value. Must not be mixed with *eq* or *order*.
     :param Optional[bool] hash: If ``None`` (default), the ``__hash__`` method
         is generated according how *eq* and *frozen* are set.
 
@@ -1121,9 +1278,16 @@ def attrs(
         behavior <https://github.com/python-attrs/attrs/issues/136>`_ for more
         details.
     :param bool init: Create a ``__init__`` method that initializes the
-        ``attrs`` attributes.  Leading underscores are stripped for the
-        argument name.  If a ``__attrs_post_init__`` method exists on the
-        class, it will be called after the class is fully initialized.
+        ``attrs`` attributes. Leading underscores are stripped for the argument
+        name. If a ``__attrs_pre_init__`` method exists on the class, it will
+        be called before the class is initialized. If a ``__attrs_post_init__``
+        method exists on the class, it will be called after the class is fully
+        initialized.
+
+        If ``init`` is ``False``, an ``__attrs_init__`` method will be
+        injected instead. This allows you to define a custom ``__init__``
+        method that can do pre-init work such as ``super().__init__()``,
+        and then call ``__attrs_init__()`` and ``__attrs_post_init__()``.
     :param bool slots: Create a `slotted class <slotted classes>` that's more
         memory-efficient. Slotted classes are generally superior to the default
         dict classes, but have some gotchas you should know about, so we
@@ -1164,10 +1328,19 @@ def attrs(
         If you assign a value to those attributes (e.g. ``x: int = 42``), that
         value becomes the default value like if it were passed using
         ``attr.ib(default=42)``.  Passing an instance of `Factory` also
-        works as expected.
+        works as expected in most cases (see warning below).
 
         Attributes annotated as `typing.ClassVar`, and attributes that are
         neither annotated nor set to an `attr.ib` are **ignored**.
+
+        .. warning::
+           For features that use the attribute name to create decorators (e.g.
+           `validators <validators>`), you still *must* assign `attr.ib` to
+           them. Otherwise Python will either not find the name or try to use
+           the default value to call e.g. ``validator`` on it.
+
+           These errors can be quite confusing and probably the most common bug
+           report on our bug tracker.
 
         .. _`PEP 526`: https://www.python.org/dev/peps/pep-0526/
     :param bool kw_only: Make all attributes keyword-only (Python 3+)
@@ -1263,13 +1436,17 @@ def attrs(
     .. versionadded:: 20.1.0 *getstate_setstate*
     .. versionadded:: 20.1.0 *on_setattr*
     .. versionadded:: 20.3.0 *field_transformer*
+    .. versionchanged:: 21.1.0
+       ``init=False`` injects ``__attrs_init__``
+    .. versionchanged:: 21.1.0 Support for ``__attrs_pre_init__``
+    .. versionchanged:: 21.1.0 *cmp* undeprecated
     """
     if auto_detect and PY2:
         raise PythonTooOldError(
             "auto_detect only works on Python 3 and later."
         )
 
-    eq_, order_ = _determine_eq_order(cmp, eq, order, None)
+    eq_, order_ = _determine_attrs_eq_order(cmp, eq, order, None)
     hash_ = hash  # work around the lack of nonlocal
 
     if isinstance(on_setattr, (list, tuple)):
@@ -1372,6 +1549,7 @@ def attrs(
         ):
             builder.add_init()
         else:
+            builder.add_attrs_init()
             if cache_hash:
                 raise TypeError(
                     "Invalid value for cache_hash.  To use hash caching,"
@@ -1417,13 +1595,6 @@ else:
         __setattr__.
         """
         return cls.__setattr__ == _frozen_setattrs
-
-
-def _attrs_to_tuple(obj, attrs):
-    """
-    Create a tuple of all values of *obj*'s *attrs*.
-    """
-    return tuple(getattr(obj, a.name) for a in attrs)
 
 
 def _generate_unique_filename(cls, func_name):
@@ -1519,21 +1690,7 @@ def _make_hash(cls, attrs, frozen, cache_hash):
         append_hash_computation_lines("return ", tab)
 
     script = "\n".join(method_lines)
-    globs = {}
-    locs = {}
-    bytecode = compile(script, unique_filename, "exec")
-    eval(bytecode, globs, locs)
-
-    # In order of debuggers like PDB being able to step through the code,
-    # we add a fake linecache entry.
-    linecache.cache[unique_filename] = (
-        len(script),
-        None,
-        script.splitlines(True),
-        unique_filename,
-    )
-
-    return locs["__hash__"]
+    return _make_method("__hash__", script, unique_filename)
 
 
 def _add_hash(cls, attrs):
@@ -1575,34 +1732,44 @@ def _make_eq(cls, attrs):
         "    if other.__class__ is not self.__class__:",
         "        return NotImplemented",
     ]
+
     # We can't just do a big self.x = other.x and... clause due to
     # irregularities like nan == nan is false but (nan,) == (nan,) is true.
+    globs = {}
     if attrs:
         lines.append("    return  (")
         others = ["    ) == ("]
         for a in attrs:
-            lines.append("        self.%s," % (a.name,))
-            others.append("        other.%s," % (a.name,))
+            if a.eq_key:
+                cmp_name = "_%s_key" % (a.name,)
+                # Add the key function to the global namespace
+                # of the evaluated function.
+                globs[cmp_name] = a.eq_key
+                lines.append(
+                    "        %s(self.%s),"
+                    % (
+                        cmp_name,
+                        a.name,
+                    )
+                )
+                others.append(
+                    "        %s(other.%s),"
+                    % (
+                        cmp_name,
+                        a.name,
+                    )
+                )
+            else:
+                lines.append("        self.%s," % (a.name,))
+                others.append("        other.%s," % (a.name,))
 
         lines += others + ["    )"]
     else:
         lines.append("    return True")
 
     script = "\n".join(lines)
-    globs = {}
-    locs = {}
-    bytecode = compile(script, unique_filename, "exec")
-    eval(bytecode, globs, locs)
 
-    # In order of debuggers like PDB being able to step through the code,
-    # we add a fake linecache entry.
-    linecache.cache[unique_filename] = (
-        len(script),
-        None,
-        script.splitlines(True),
-        unique_filename,
-    )
-    return locs["__eq__"]
+    return _make_method("__eq__", script, unique_filename, globs)
 
 
 def _make_order(cls, attrs):
@@ -1615,7 +1782,12 @@ def _make_order(cls, attrs):
         """
         Save us some typing.
         """
-        return _attrs_to_tuple(obj, attrs)
+        return tuple(
+            key(value) if key else value
+            for value, key in (
+                (getattr(obj, a.name), a.order_key) for a in attrs
+            )
+        )
 
     def __lt__(self, other):
         """
@@ -1829,6 +2001,7 @@ def _is_slot_attr(a_name, base_attr_map):
 def _make_init(
     cls,
     attrs,
+    pre_init,
     post_init,
     frozen,
     slots,
@@ -1836,6 +2009,7 @@ def _make_init(
     base_attr_map,
     is_exc,
     has_global_on_setattr,
+    attrs_init,
 ):
     if frozen and has_global_on_setattr:
         raise ValueError("Frozen classes can't use on_setattr.")
@@ -1866,15 +2040,19 @@ def _make_init(
         filtered_attrs,
         frozen,
         slots,
+        pre_init,
         post_init,
         cache_hash,
         base_attr_map,
         is_exc,
         needs_cached_setattr,
         has_global_on_setattr,
+        attrs_init,
     )
-    locs = {}
-    bytecode = compile(script, unique_filename, "exec")
+    if cls.__module__ in sys.modules:
+        # This makes typing.get_type_hints(CLS.__init__) resolve string types.
+        globs.update(sys.modules[cls.__module__].__dict__)
+
     globs.update({"NOTHING": NOTHING, "attr_dict": attr_dict})
 
     if needs_cached_setattr:
@@ -1882,21 +2060,15 @@ def _make_init(
         # setattr hooks.
         globs["_cached_setattr"] = _obj_setattr
 
-    eval(bytecode, globs, locs)
-
-    # In order of debuggers like PDB being able to step through the code,
-    # we add a fake linecache entry.
-    linecache.cache[unique_filename] = (
-        len(script),
-        None,
-        script.splitlines(True),
+    init = _make_method(
+        "__attrs_init__" if attrs_init else "__init__",
+        script,
         unique_filename,
+        globs,
     )
+    init.__annotations__ = annotations
 
-    __init__ = locs["__init__"]
-    __init__.__annotations__ = annotations
-
-    return __init__
+    return init
 
 
 def _setattr(attr_name, value_var, has_on_setattr):
@@ -2005,12 +2177,14 @@ def _attrs_to_init_script(
     attrs,
     frozen,
     slots,
+    pre_init,
     post_init,
     cache_hash,
     base_attr_map,
     is_exc,
     needs_cached_setattr,
     has_global_on_setattr,
+    attrs_init,
 ):
     """
     Return a script of an initializer for *attrs* and a dict of globals.
@@ -2021,6 +2195,9 @@ def _attrs_to_init_script(
     a cached ``object.__setattr__``.
     """
     lines = []
+    if pre_init:
+        lines.append("self.__attrs_pre_init__()")
+
     if needs_cached_setattr:
         lines.append(
             # Circumvent the __setattr__ descriptor to save one lookup per
@@ -2210,8 +2387,24 @@ def _attrs_to_init_script(
             else:
                 lines.append(fmt_setter(attr_name, arg_name, has_on_setattr))
 
-        if a.init is True and a.converter is None and a.type is not None:
-            annotations[arg_name] = a.type
+        if a.init is True:
+            if a.type is not None and a.converter is None:
+                annotations[arg_name] = a.type
+            elif a.converter is not None and not PY2:
+                # Try to get the type from the converter.
+                sig = None
+                try:
+                    sig = inspect.signature(a.converter)
+                except (ValueError, TypeError):  # inspect failed
+                    pass
+                if sig:
+                    sig_params = list(sig.parameters.values())
+                    if (
+                        sig_params
+                        and sig_params[0].annotation
+                        is not inspect.Parameter.empty
+                    ):
+                        annotations[arg_name] = sig_params[0].annotation
 
     if attrs_to_validate:  # we can skip this if there are no validators.
         names_for_globals["_config"] = _config
@@ -2265,10 +2458,12 @@ def _attrs_to_init_script(
             )
     return (
         """\
-def __init__(self, {args}):
+def {init_name}(self, {args}):
     {lines}
 """.format(
-            args=args, lines="\n    ".join(lines) if lines else "pass"
+            init_name=("__attrs_init__" if attrs_init else "__init__"),
+            args=args,
+            lines="\n    ".join(lines) if lines else "pass",
         ),
         names_for_globals,
         annotations,
@@ -2297,6 +2492,7 @@ class Attribute(object):
     .. versionadded:: 20.1.0 *on_setattr*
     .. versionchanged:: 20.2.0 *inherited* is not taken into account for
         equality checks and hashing anymore.
+    .. versionadded:: 21.1.0 *eq_key* and *order_key*
 
     For the full version history of the fields, see `attr.ib`.
     """
@@ -2307,7 +2503,9 @@ class Attribute(object):
         "validator",
         "repr",
         "eq",
+        "eq_key",
         "order",
+        "order_key",
         "hash",
         "init",
         "metadata",
@@ -2333,10 +2531,14 @@ class Attribute(object):
         converter=None,
         kw_only=False,
         eq=None,
+        eq_key=None,
         order=None,
+        order_key=None,
         on_setattr=None,
     ):
-        eq, order = _determine_eq_order(cmp, eq, order, True)
+        eq, eq_key, order, order_key = _determine_attrib_eq_order(
+            cmp, eq_key or eq, order_key or order, True
+        )
 
         # Cache this descriptor here to speed things up later.
         bound_setattr = _obj_setattr.__get__(self, Attribute)
@@ -2348,7 +2550,9 @@ class Attribute(object):
         bound_setattr("validator", validator)
         bound_setattr("repr", repr)
         bound_setattr("eq", eq)
+        bound_setattr("eq_key", eq_key)
         bound_setattr("order", order)
+        bound_setattr("order_key", order_key)
         bound_setattr("hash", hash)
         bound_setattr("init", init)
         bound_setattr("converter", converter)
@@ -2495,7 +2699,9 @@ class _CountingAttr(object):
         "_default",
         "repr",
         "eq",
+        "eq_key",
         "order",
+        "order_key",
         "hash",
         "init",
         "metadata",
@@ -2516,7 +2722,9 @@ class _CountingAttr(object):
             init=True,
             kw_only=False,
             eq=True,
+            eq_key=None,
             order=False,
+            order_key=None,
             inherited=False,
             on_setattr=None,
         )
@@ -2541,7 +2749,9 @@ class _CountingAttr(object):
             init=True,
             kw_only=False,
             eq=True,
+            eq_key=None,
             order=False,
+            order_key=None,
             inherited=False,
             on_setattr=None,
         ),
@@ -2553,7 +2763,7 @@ class _CountingAttr(object):
         default,
         validator,
         repr,
-        cmp,  # XXX: unused, remove along with cmp
+        cmp,
         hash,
         init,
         converter,
@@ -2561,7 +2771,9 @@ class _CountingAttr(object):
         type,
         kw_only,
         eq,
+        eq_key,
         order,
+        order_key,
         on_setattr,
     ):
         _CountingAttr.cls_counter += 1
@@ -2571,7 +2783,9 @@ class _CountingAttr(object):
         self.converter = converter
         self.repr = repr
         self.eq = eq
+        self.eq_key = eq_key
         self.order = order
+        self.order_key = order_key
         self.hash = hash
         self.init = init
         self.metadata = metadata
@@ -2614,7 +2828,6 @@ class _CountingAttr(object):
 _CountingAttr = _add_eq(_add_repr(_CountingAttr))
 
 
-@attrs(slots=True, init=False, hash=True)
 class Factory(object):
     """
     Stores a factory callable.
@@ -2630,8 +2843,7 @@ class Factory(object):
     .. versionadded:: 17.1.0  *takes_self*
     """
 
-    factory = attrib()
-    takes_self = attrib()
+    __slots__ = ("factory", "takes_self")
 
     def __init__(self, factory, takes_self=False):
         """
@@ -2640,6 +2852,38 @@ class Factory(object):
         """
         self.factory = factory
         self.takes_self = takes_self
+
+    def __getstate__(self):
+        """
+        Play nice with pickle.
+        """
+        return tuple(getattr(self, name) for name in self.__slots__)
+
+    def __setstate__(self, state):
+        """
+        Play nice with pickle.
+        """
+        for name, value in zip(self.__slots__, state):
+            setattr(self, name, value)
+
+
+_f = [
+    Attribute(
+        name=name,
+        default=NOTHING,
+        validator=None,
+        repr=True,
+        cmp=None,
+        eq=True,
+        order=False,
+        hash=True,
+        init=True,
+        inherited=False,
+    )
+    for name in Factory.__slots__
+]
+
+Factory = _add_hash(_add_eq(_add_repr(Factory, attrs=_f), attrs=_f), attrs=_f)
 
 
 def make_class(name, attrs, bases=(object,), **attributes_arguments):
@@ -2674,12 +2918,20 @@ def make_class(name, attrs, bases=(object,), **attributes_arguments):
     else:
         raise TypeError("attrs argument must be a dict or a list.")
 
+    pre_init = cls_dict.pop("__attrs_pre_init__", None)
     post_init = cls_dict.pop("__attrs_post_init__", None)
-    type_ = type(
-        name,
-        bases,
-        {} if post_init is None else {"__attrs_post_init__": post_init},
-    )
+    user_init = cls_dict.pop("__init__", None)
+
+    body = {}
+    if pre_init is not None:
+        body["__attrs_pre_init__"] = pre_init
+    if post_init is not None:
+        body["__attrs_post_init__"] = post_init
+    if user_init is not None:
+        body["__init__"] = user_init
+
+    type_ = new_class(name, bases, {}, lambda ns: ns.update(body))
+
     # For pickling to work, the __module__ variable needs to be set to the
     # frame where the class is created.  Bypass this step in environments where
     # sys._getframe is not defined (Jython for example) or sys._getframe is not
@@ -2696,7 +2948,7 @@ def make_class(name, attrs, bases=(object,), **attributes_arguments):
     (
         attributes_arguments["eq"],
         attributes_arguments["order"],
-    ) = _determine_eq_order(
+    ) = _determine_attrs_eq_order(
         cmp,
         attributes_arguments.get("eq"),
         attributes_arguments.get("order"),
@@ -2751,6 +3003,9 @@ def pipe(*converters):
     When called on a value, it runs all wrapped converters, returning the
     *last* value.
 
+    Type annotations will be inferred from the wrapped converters', if
+    they have any.
+
     :param callables converters: Arbitrary number of converters.
 
     .. versionadded:: 20.1.0
@@ -2761,5 +3016,37 @@ def pipe(*converters):
             val = converter(val)
 
         return val
+
+    if not PY2:
+        if not converters:
+            # If the converter list is empty, pipe_converter is the identity.
+            A = typing.TypeVar("A")
+            pipe_converter.__annotations__ = {"val": A, "return": A}
+        else:
+            # Get parameter type.
+            sig = None
+            try:
+                sig = inspect.signature(converters[0])
+            except (ValueError, TypeError):  # inspect failed
+                pass
+            if sig:
+                params = list(sig.parameters.values())
+                if (
+                    params
+                    and params[0].annotation is not inspect.Parameter.empty
+                ):
+                    pipe_converter.__annotations__["val"] = params[
+                        0
+                    ].annotation
+            # Get return type.
+            sig = None
+            try:
+                sig = inspect.signature(converters[-1])
+            except (ValueError, TypeError):  # inspect failed
+                pass
+            if sig and sig.return_annotation is not inspect.Signature().empty:
+                pipe_converter.__annotations__[
+                    "return"
+                ] = sig.return_annotation
 
     return pipe_converter

@@ -1,18 +1,11 @@
 import codecs
 import re
-
-from .compat import IS_TYPE_CHECKING, to_text
-
-if IS_TYPE_CHECKING:
-    from typing import (  # noqa:F401
-        IO, Iterator, Match, NamedTuple, Optional, Pattern, Sequence, Text,
-        Tuple
-    )
+from typing import (IO, Iterator, Match, NamedTuple, Optional,  # noqa:F401
+                    Pattern, Sequence, Tuple)
 
 
-def make_regex(string, extra_flags=0):
-    # type: (str, int) -> Pattern[Text]
-    return re.compile(to_text(string), re.UNICODE | extra_flags)
+def make_regex(string: str, extra_flags: int = 0) -> Pattern[str]:
+    return re.compile(string, re.UNICODE | extra_flags)
 
 
 _newline = make_regex(r"(\r\n|\n|\r)")
@@ -32,67 +25,39 @@ _double_quote_escapes = make_regex(r"\\[\\'\"abfnrtv]")
 _single_quote_escapes = make_regex(r"\\[\\']")
 
 
-try:
-    # this is necessary because we only import these from typing
-    # when we are type checking, and the linter is upset if we
-    # re-import
-    import typing
+Original = NamedTuple(
+    "Original",
+    [
+        ("string", str),
+        ("line", int),
+    ],
+)
 
-    Original = typing.NamedTuple(
-        "Original",
-        [
-            ("string", typing.Text),
-            ("line", int),
-        ],
-    )
-
-    Binding = typing.NamedTuple(
-        "Binding",
-        [
-            ("key", typing.Optional[typing.Text]),
-            ("value", typing.Optional[typing.Text]),
-            ("original", Original),
-            ("error", bool),
-        ],
-    )
-except (ImportError, AttributeError):
-    from collections import namedtuple
-    Original = namedtuple(  # type: ignore
-        "Original",
-        [
-            "string",
-            "line",
-        ],
-    )
-    Binding = namedtuple(  # type: ignore
-        "Binding",
-        [
-            "key",
-            "value",
-            "original",
-            "error",
-        ],
-    )
+Binding = NamedTuple(
+    "Binding",
+    [
+        ("key", Optional[str]),
+        ("value", Optional[str]),
+        ("original", Original),
+        ("error", bool),
+    ],
+)
 
 
 class Position:
-    def __init__(self, chars, line):
-        # type: (int, int) -> None
+    def __init__(self, chars: int, line: int) -> None:
         self.chars = chars
         self.line = line
 
     @classmethod
-    def start(cls):
-        # type: () -> Position
+    def start(cls) -> "Position":
         return cls(chars=0, line=1)
 
-    def set(self, other):
-        # type: (Position) -> None
+    def set(self, other: "Position") -> None:
         self.chars = other.chars
         self.line = other.line
 
-    def advance(self, string):
-        # type: (Text) -> None
+    def advance(self, string: str) -> None:
         self.chars += len(string)
         self.line += len(re.findall(_newline, string))
 
@@ -102,41 +67,34 @@ class Error(Exception):
 
 
 class Reader:
-    def __init__(self, stream):
-        # type: (IO[Text]) -> None
+    def __init__(self, stream: IO[str]) -> None:
         self.string = stream.read()
         self.position = Position.start()
         self.mark = Position.start()
 
-    def has_next(self):
-        # type: () -> bool
+    def has_next(self) -> bool:
         return self.position.chars < len(self.string)
 
-    def set_mark(self):
-        # type: () -> None
+    def set_mark(self) -> None:
         self.mark.set(self.position)
 
-    def get_marked(self):
-        # type: () -> Original
+    def get_marked(self) -> Original:
         return Original(
             string=self.string[self.mark.chars:self.position.chars],
             line=self.mark.line,
         )
 
-    def peek(self, count):
-        # type: (int) -> Text
+    def peek(self, count: int) -> str:
         return self.string[self.position.chars:self.position.chars + count]
 
-    def read(self, count):
-        # type: (int) -> Text
+    def read(self, count: int) -> str:
         result = self.string[self.position.chars:self.position.chars + count]
         if len(result) < count:
             raise Error("read: End of string")
         self.position.advance(result)
         return result
 
-    def read_regex(self, regex):
-        # type: (Pattern[Text]) -> Sequence[Text]
+    def read_regex(self, regex: Pattern[str]) -> Sequence[str]:
         match = regex.match(self.string, self.position.chars)
         if match is None:
             raise Error("read_regex: Pattern not found")
@@ -144,17 +102,14 @@ class Reader:
         return match.groups()
 
 
-def decode_escapes(regex, string):
-    # type: (Pattern[Text], Text) -> Text
-    def decode_match(match):
-        # type: (Match[Text]) -> Text
+def decode_escapes(regex: Pattern[str], string: str) -> str:
+    def decode_match(match: Match[str]) -> str:
         return codecs.decode(match.group(0), 'unicode-escape')  # type: ignore
 
     return regex.sub(decode_match, string)
 
 
-def parse_key(reader):
-    # type: (Reader) -> Optional[Text]
+def parse_key(reader: Reader) -> Optional[str]:
     char = reader.peek(1)
     if char == "#":
         return None
@@ -165,14 +120,12 @@ def parse_key(reader):
     return key
 
 
-def parse_unquoted_value(reader):
-    # type: (Reader) -> Text
+def parse_unquoted_value(reader: Reader) -> str:
     (part,) = reader.read_regex(_unquoted_value)
     return re.sub(r"\s+#.*", "", part).rstrip()
 
 
-def parse_value(reader):
-    # type: (Reader) -> Text
+def parse_value(reader: Reader) -> str:
     char = reader.peek(1)
     if char == u"'":
         (value,) = reader.read_regex(_single_quoted_value)
@@ -186,8 +139,7 @@ def parse_value(reader):
         return parse_unquoted_value(reader)
 
 
-def parse_binding(reader):
-    # type: (Reader) -> Binding
+def parse_binding(reader: Reader) -> Binding:
     reader.set_mark()
     try:
         reader.read_regex(_multiline_whitespace)
@@ -203,7 +155,7 @@ def parse_binding(reader):
         reader.read_regex(_whitespace)
         if reader.peek(1) == "=":
             reader.read_regex(_equal_sign)
-            value = parse_value(reader)  # type: Optional[Text]
+            value = parse_value(reader)  # type: Optional[str]
         else:
             value = None
         reader.read_regex(_comment)
@@ -224,8 +176,7 @@ def parse_binding(reader):
         )
 
 
-def parse_stream(stream):
-    # type: (IO[Text]) -> Iterator[Binding]
+def parse_stream(stream: IO[str]) -> Iterator[Binding]:
     reader = Reader(stream)
     while reader.has_next():
         yield parse_binding(reader)

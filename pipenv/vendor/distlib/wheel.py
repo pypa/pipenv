@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2013-2017 Vinay Sajip.
+# Copyright (C) 2013-2020 Vinay Sajip.
 # Licensed to the Python Software Foundation under a contributor agreement.
 # See LICENSE.txt and CONTRIBUTORS.txt.
 #
@@ -9,7 +9,6 @@ from __future__ import unicode_literals
 import base64
 import codecs
 import datetime
-import distutils.util
 from email import message_from_file
 import hashlib
 import imp
@@ -29,7 +28,8 @@ from .database import InstalledDistribution
 from .metadata import (Metadata, METADATA_FILENAME, WHEEL_METADATA_FILENAME,
                        LEGACY_METADATA_FILENAME)
 from .util import (FileOperator, convert_path, CSVReader, CSVWriter, Cache,
-                   cached_property, get_cache_base, read_exports, tempdir)
+                   cached_property, get_cache_base, read_exports, tempdir,
+                   get_platform)
 from .version import NormalizedVersion, UnsupportedVersionError
 
 logger = logging.getLogger(__name__)
@@ -47,15 +47,18 @@ else:
 
 VER_SUFFIX = sysconfig.get_config_var('py_version_nodot')
 if not VER_SUFFIX:   # pragma: no cover
-    VER_SUFFIX = '%s%s' % sys.version_info[:2]
+    if sys.version_info[1] >= 10:
+        VER_SUFFIX = '%s_%s' % sys.version_info[:2]  # PEP 641 (draft)
+    else:
+        VER_SUFFIX = '%s%s' % sys.version_info[:2]
 PYVER = 'py' + VER_SUFFIX
 IMPVER = IMP_PREFIX + VER_SUFFIX
 
-ARCH = distutils.util.get_platform().replace('-', '_').replace('.', '_')
+ARCH = get_platform().replace('-', '_').replace('.', '_')
 
 ABI = sysconfig.get_config_var('SOABI')
 if ABI and ABI.startswith('cpython-'):
-    ABI = ABI.replace('cpython-', 'cp')
+    ABI = ABI.replace('cpython-', 'cp').split('-')[0]
 else:
     def _derive_abi():
         parts = ['cp', VER_SUFFIX]
@@ -576,6 +579,13 @@ class Wheel(object):
                     if not is_script:
                         with zf.open(arcname) as bf:
                             fileop.copy_stream(bf, outfile)
+                        # Issue #147: permission bits aren't preserved. Using
+                        # zf.extract(zinfo, libdir) should have worked, but didn't,
+                        # see https://www.thetopsites.net/article/53834422.shtml
+                        # So ... manually preserve permission bits as given in zinfo
+                        if os.name == 'posix':
+                            # just set the normal permission bits
+                            os.chmod(outfile, (zinfo.external_attr >> 16) & 0x1FF)
                         outfiles.append(outfile)
                         # Double check the digest of the written file
                         if not dry_run and row[1]:
@@ -938,6 +948,16 @@ class Wheel(object):
                     shutil.copyfile(newpath, pathname)
         return modified
 
+def _get_glibc_version():
+    import platform
+    ver = platform.libc_ver()
+    result = []
+    if ver[0] == 'glibc':
+        for s in ver[1].split('.'):
+            result.append(int(s) if s.isdigit() else 0)
+        result = tuple(result)
+    return result
+
 def compatible_tags():
     """
     Return (pyver, abi, arch) tuples compatible with this Python.
@@ -985,6 +1005,23 @@ def compatible_tags():
     for abi in abis:
         for arch in arches:
             result.append((''.join((IMP_PREFIX, versions[0])), abi, arch))
+            # manylinux
+            if abi != 'none' and sys.platform.startswith('linux'):
+                arch = arch.replace('linux_', '')
+                parts = _get_glibc_version()
+                if len(parts) == 2:
+                    if parts >= (2, 5):
+                        result.append((''.join((IMP_PREFIX, versions[0])), abi,
+                                       'manylinux1_%s' % arch))
+                    if parts >= (2, 12):
+                        result.append((''.join((IMP_PREFIX, versions[0])), abi,
+                                       'manylinux2010_%s' % arch))
+                    if parts >= (2, 17):
+                        result.append((''.join((IMP_PREFIX, versions[0])), abi,
+                                       'manylinux2014_%s' % arch))
+                    result.append((''.join((IMP_PREFIX, versions[0])), abi,
+                                   'manylinux_%s_%s_%s' % (parts[0], parts[1],
+                                                           arch)))
 
     # where no ABI / arch dependency, but IMP_PREFIX dependency
     for i, version in enumerate(versions):
@@ -997,6 +1034,7 @@ def compatible_tags():
         result.append((''.join(('py', version)), 'none', 'any'))
         if i == 0:
             result.append((''.join(('py', version[0])), 'none', 'any'))
+
     return set(result)
 
 

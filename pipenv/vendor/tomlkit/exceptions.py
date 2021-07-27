@@ -1,3 +1,7 @@
+from __future__ import unicode_literals
+
+from typing import Optional
+
 
 class TOMLKitError(Exception):
 

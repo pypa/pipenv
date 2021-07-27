@@ -193,7 +193,7 @@ class SSLTransport:
                 raise
 
     def _ssl_io_loop(self, func, *args):
-        """ Performs an I/O loop between incoming/outgoing and the socket."""
+        """Performs an I/O loop between incoming/outgoing and the socket."""
         should_loop = True
         ret = None
 

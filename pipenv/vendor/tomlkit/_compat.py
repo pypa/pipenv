@@ -155,6 +155,11 @@ if PY36:
 else:
     from collections import OrderedDict
 
+try:
+    from collections.abc import MutableMapping
+except ImportError:
+    from collections import MutableMapping
+
 
 def decode(string, encodings=None):
     if not PY2 and not isinstance(string, bytes):

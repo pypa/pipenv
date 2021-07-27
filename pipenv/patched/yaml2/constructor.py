@@ -38,6 +38,12 @@ class timezone(datetime.tzinfo):
     def dst(self, dt=None):
         return datetime.timedelta(0)
 
+    def __copy__(self):
+        return self.__deepcopy__()
+
+    def __deepcopy__(self, memodict={}):
+        return self.__class__(self.utcoffset())
+
     __repr__ = __str__ = tzname
 
 
@@ -722,18 +728,6 @@ FullConstructor.add_multi_constructor(
     u'tag:yaml.org,2002:python/name:',
     FullConstructor.construct_python_name)
 
-FullConstructor.add_multi_constructor(
-    u'tag:yaml.org,2002:python/module:',
-    FullConstructor.construct_python_module)
-
-FullConstructor.add_multi_constructor(
-    u'tag:yaml.org,2002:python/object:',
-    FullConstructor.construct_python_object)
-
-FullConstructor.add_multi_constructor(
-    u'tag:yaml.org,2002:python/object/new:',
-    FullConstructor.construct_python_object_new)
-
 class UnsafeConstructor(FullConstructor):
 
     def find_python_module(self, name, mark):
@@ -749,6 +743,18 @@ class UnsafeConstructor(FullConstructor):
     def set_python_instance_state(self, instance, state):
         return super(UnsafeConstructor, self).set_python_instance_state(
             instance, state, unsafe=True)
+
+UnsafeConstructor.add_multi_constructor(
+    u'tag:yaml.org,2002:python/module:',
+    UnsafeConstructor.construct_python_module)
+
+UnsafeConstructor.add_multi_constructor(
+    u'tag:yaml.org,2002:python/object:',
+    UnsafeConstructor.construct_python_object)
+
+UnsafeConstructor.add_multi_constructor(
+    u'tag:yaml.org,2002:python/object/new:',
+    UnsafeConstructor.construct_python_object_new)
 
 UnsafeConstructor.add_multi_constructor(
     u'tag:yaml.org,2002:python/object/apply:',
