@@ -5,7 +5,7 @@ import abc
 import operator
 from collections import defaultdict
 
-from pipenv.vendor import attr
+import attr
 import six
 
 from ..compat import fs_str

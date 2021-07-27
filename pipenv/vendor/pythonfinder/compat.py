@@ -4,7 +4,7 @@ import sys
 import six
 
 if sys.version_info[:2] <= (3, 4):
-    from pipenv.vendor.pathlib2 import Path  # type: ignore  # noqa
+    from pathlib2 import Path  # type: ignore  # noqa
 else:
     from pathlib import Path
 

@@ -19,7 +19,7 @@ Update vendored dependencies
 - ``ptyprocess`` from ``0.6.0`` to ``0.7.0``
 - ``python-dateutil`` from ``2.8.1`` to ``2.8.2``
 - ``python-dotenv`` from ``0.15.0 to ``0.19.0``
-- ``pythonfinder`` from ``1.2.5`` to ``1.2.7``
+- ``pythonfinder`` from ``1.2.5`` to ``1.2.8``
 - ``requests`` from ``2.25.0`` to ``2.26.0``
 - ``shellingham`` from ``1.3.2`` to ``1.4.0``
 - ``six`` from ``1.15.0`` to ``1.16.0``

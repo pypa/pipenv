@@ -386,7 +386,7 @@ def test_editable_no_args(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv("install -e")
         assert c.return_code != 0
-        assert "Error: -e option requires an argument" in c.err
+        assert "Error: Option '-e' requires an argument" in c.err
 
 
 @pytest.mark.basic
