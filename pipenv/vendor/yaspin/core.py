@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-#
-# :copyright: (c) 2020 by Pavlo Dmytrenko.
+# :copyright: (c) 2021 by Pavlo Dmytrenko.
 # :license: MIT, see LICENSE for more details.
 
 """
@@ -10,29 +8,28 @@ yaspin.yaspin
 A lightweight terminal spinner.
 """
 
-from __future__ import absolute_import
-
 import contextlib
+import datetime
 import functools
 import itertools
 import signal
 import sys
 import threading
 import time
+from typing import List, Set, Union
 
-import colorama
+from termcolor import colored
+from pipenv.vendor import colorama
 from pipenv.vendor.vistir import cursor
 
-from .base_spinner import default_spinner
-from .compat import PY2, basestring, builtin_str, bytes, iteritems, str
-from .constants import COLOR_ATTRS, COLOR_MAP, ENCODING, SPINNER_ATTRS
+from .base_spinner import Spinner, default_spinner
+from .constants import COLOR_ATTRS, COLOR_MAP, SPINNER_ATTRS
 from .helpers import to_unicode
-from .termcolor import colored
 
 colorama.init()
 
 
-class Yaspin(object):
+class Yaspin:  # pylint: disable=useless-object-inheritance,too-many-instance-attributes
     """Implements a context manager that spawns a thread
     to write spinner frames into a tty (stdout) during
     context execution.
@@ -42,17 +39,8 @@ class Yaspin(object):
     # it sets the sys.stdout.encoding attribute to the terminal's encoding.
     # The print statement's handler will automatically encode unicode
     # arguments into bytes.
-    #
-    # In Py2 when piping or redirecting output, Python does not detect
-    # the desired character set of the output, it sets sys.stdout.encoding
-    # to None, and print will invoke the default "ascii" codec.
-    #
-    # Py3 invokes "UTF-8" codec by default.
-    #
-    # Thats why in Py2, output should be encoded manually with desired
-    # encoding in order to support pipes and redirects.
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         spinner=None,
         text="",
@@ -62,6 +50,7 @@ class Yaspin(object):
         reversal=False,
         side="left",
         sigmap=None,
+        timer=False,
     ):
         # Spinner
         self._spinner = self._set_spinner(spinner)
@@ -76,9 +65,12 @@ class Yaspin(object):
         self._color_func = self._compose_color_func()
 
         # Other
-        self._text = self._set_text(text)
+        self._text = text
         self._side = self._set_side(side)
         self._reversal = reversal
+        self._timer = timer
+        self._start_time = None
+        self._stop_time = None
 
         # Helper flags
         self._stop_spin = None
@@ -104,10 +96,7 @@ class Yaspin(object):
     # Dunders
     #
     def __repr__(self):
-        repr_ = u"<Yaspin frames={0!s}>".format(self._frames)
-        if PY2:
-            return repr_.encode(ENCODING)
-        return repr_
+        return "<Yaspin frames={0!s}>".format(self._frames)
 
     def __enter__(self):
         self.start()
@@ -130,7 +119,7 @@ class Yaspin(object):
     def __getattr__(self, name):
         # CLI spinners
         if name in SPINNER_ATTRS:
-            from .spinners import Spinners
+            from .spinners import Spinners  # pylint: disable=import-outside-toplevel
 
             sp = getattr(Spinners, name)
             self.spinner = sp
@@ -175,7 +164,7 @@ class Yaspin(object):
 
     @text.setter
     def text(self, txt):
-        self._text = self._set_text(txt)
+        self._text = txt
 
     @property
     def color(self):
@@ -223,6 +212,16 @@ class Yaspin(object):
         self._frames = self._set_frames(self._spinner, self._reversal)
         self._cycle = self._set_cycle(self._frames)
 
+    @property
+    def elapsed_time(self):
+        if self._start_time is None:
+            return 0
+
+        if self._stop_time is None:
+            return time.time() - self._start_time
+
+        return self._stop_time - self._start_time
+
     #
     # Public
     #
@@ -233,12 +232,16 @@ class Yaspin(object):
         if sys.stdout.isatty():
             self._hide_cursor()
 
+        self._start_time = time.time()
+        self._stop_time = None  # Reset value to properly calculate subsequent spinner starts (if any)  # pylint: disable=line-too-long
         self._stop_spin = threading.Event()
         self._hide_spin = threading.Event()
         self._spin_thread = threading.Thread(target=self._spin)
         self._spin_thread.start()
 
     def stop(self):
+        self._stop_time = time.time()
+
         if self._dfl_sigmap:
             # Reset registered signal handlers to default ones
             self._reset_signal_handlers()
@@ -305,12 +308,13 @@ class Yaspin(object):
             sys.stdout.write("\r")
             self._clear_line()
 
-            _text = to_unicode(text)
-            if PY2:
-                _text = _text.encode(ENCODING)
+            if isinstance(text, (str, bytes)):
+                _text = to_unicode(text)
+            else:
+                _text = str(text)
 
-            # Ensure output is bytes for Py2 and Unicode for Py3
-            assert isinstance(_text, builtin_str)
+            # Ensure output is Unicode
+            assert isinstance(_text, str)
 
             sys.stdout.write("{0}\n".format(_text))
 
@@ -357,24 +361,22 @@ class Yaspin(object):
                 sys.stdout.flush()
 
             # Wait
-            time.sleep(self._interval)
+            self._stop_spin.wait(self._interval)
 
     def _compose_color_func(self):
-        fn = functools.partial(
+        return functools.partial(
             colored,
             color=self._color,
             on_color=self._on_color,
             attrs=list(self._attrs),
         )
-        return fn
 
     def _compose_out(self, frame, mode=None):
         # Ensure Unicode input
         assert isinstance(frame, str)
         assert isinstance(self._text, str)
 
-        frame = frame.encode(ENCODING) if PY2 else frame
-        text = self._text.encode(ENCODING) if PY2 else self._text
+        text = self._text
 
         # Colors
         if self._color_func is not None:
@@ -384,14 +386,18 @@ class Yaspin(object):
         if self._side == "right":
             frame, text = text, frame
 
+        if self._timer:
+            sec, fsec = divmod(round(100 * self.elapsed_time), 100)
+            text += " ({}.{:02.0f})".format(datetime.timedelta(seconds=sec), fsec)
+
         # Mode
         if not mode:
             out = "\r{0} {1}".format(frame, text)
         else:
             out = "{0} {1}\n".format(frame, text)
 
-        # Ensure output is bytes for Py2 and Unicode for Py3
-        assert isinstance(out, builtin_str)
+        # Ensure output is Unicode
+        assert isinstance(out, str)
 
         return out
 
@@ -408,7 +414,7 @@ class Yaspin(object):
         except AttributeError:
             pass
 
-        for sig, sig_handler in iteritems(self._sigmap):
+        for sig, sig_handler in self._sigmap.items():
             # A handler for a particular signal, once set, remains
             # installed until it is explicitly reset. Store default
             # signal handlers for subsequent reset at cleanup phase.
@@ -428,17 +434,15 @@ class Yaspin(object):
             signal.signal(sig, sig_handler)
 
     def _reset_signal_handlers(self):
-        for sig, sig_handler in iteritems(self._dfl_sigmap):
+        for sig, sig_handler in self._dfl_sigmap.items():
             signal.signal(sig, sig_handler)
 
     #
     # Static
     #
     @staticmethod
-    def _set_color(value):
-        # type: (str) -> str
-        available_values = [k for k, v in iteritems(COLOR_MAP) if v == "color"]
-
+    def _set_color(value: str) -> str:
+        available_values = [k for k, v in COLOR_MAP.items() if v == "color"]
         if value not in available_values:
             raise ValueError(
                 "'{0}': unsupported color value. Use one of the: {1}".format(
@@ -448,32 +452,23 @@ class Yaspin(object):
         return value
 
     @staticmethod
-    def _set_on_color(value):
-        # type: (str) -> str
-        available_values = [
-            k for k, v in iteritems(COLOR_MAP) if v == "on_color"
-        ]
+    def _set_on_color(value: str) -> str:
+        available_values = [k for k, v in COLOR_MAP.items() if v == "on_color"]
         if value not in available_values:
             raise ValueError(
                 "'{0}': unsupported on_color value. "
-                "Use one of the: {1}".format(
-                    value, ", ".join(available_values)
-                )
+                "Use one of the: {1}".format(value, ", ".join(available_values))
             )
         return value
 
     @staticmethod
-    def _set_attrs(attrs):
-        # type: (List[str]) -> Set[str]
-        available_values = [k for k, v in iteritems(COLOR_MAP) if v == "attrs"]
-
+    def _set_attrs(attrs: List[str]) -> Set[str]:
+        available_values = [k for k, v in COLOR_MAP.items() if v == "attrs"]
         for attr in attrs:
             if attr not in available_values:
                 raise ValueError(
                     "'{0}': unsupported attribute value. "
-                    "Use one of the: {1}".format(
-                        attr, ", ".join(available_values)
-                    )
+                    "Use one of the: {1}".format(attr, ", ".join(available_values))
                 )
         return set(attrs)
 
@@ -490,23 +485,20 @@ class Yaspin(object):
         return sp
 
     @staticmethod
-    def _set_side(side):
-        # type: (str) -> str
+    def _set_side(side: str) -> str:
         if side not in ("left", "right"):
             raise ValueError(
-                "'{0}': unsupported side value. "
-                "Use either 'left' or 'right'."
+                "'{0}': unsupported side value. " "Use either 'left' or 'right'."
             )
         return side
 
     @staticmethod
-    def _set_frames(spinner, reversal):
-        # type: (base_spinner.Spinner, bool) -> Union[str, List]
+    def _set_frames(spinner: Spinner, reversal: bool) -> Union[str, List]:
         uframes = None  # unicode frames
         uframes_seq = None  # sequence of unicode frames
 
-        if isinstance(spinner.frames, basestring):
-            uframes = to_unicode(spinner.frames) if PY2 else spinner.frames
+        if isinstance(spinner.frames, str):
+            uframes = spinner.frames
 
         # TODO (pavdmyt): support any type that implements iterable
         if isinstance(spinner.frames, (list, tuple)):
@@ -522,9 +514,7 @@ class Yaspin(object):
             # Empty ``spinner.frames`` is handled by ``Yaspin._set_spinner``.
             # This code is very unlikely to be executed. However, it's still
             # here to be on a safe side.
-            raise ValueError(
-                "{0!r}: no frames found in spinner".format(spinner)
-            )
+            raise ValueError("{0!r}: no frames found in spinner".format(spinner))
 
         # Builtin ``reversed`` returns reverse iterator,
         # which adds unnecessary difficulty for returning
@@ -544,12 +534,6 @@ class Yaspin(object):
         return itertools.cycle(frames)
 
     @staticmethod
-    def _set_text(text):
-        if PY2:
-            return to_unicode(text)
-        return text
-
-    @staticmethod
     def _hide_cursor():
         cursor.hide_cursor()
 
@@ -559,4 +543,4 @@ class Yaspin(object):
 
     @staticmethod
     def _clear_line():
-        sys.stdout.write(chr(27) + "[K")
+        sys.stdout.write("\033[K")

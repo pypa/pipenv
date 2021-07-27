@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-#
-# :copyright: (c) 2020 by Pavlo Dmytrenko.
+# :copyright: (c) 2021 by Pavlo Dmytrenko.
 # :license: MIT, see LICENSE for more details.
 
 """
@@ -32,6 +30,7 @@ def yaspin(*args, **kwargs):
             of the text string.
         sigmap (dict, optional): Maps POSIX signals to their respective
             handlers.
+        timer (bool, optional): Prints a timer showing the elapsed time.
 
     Returns:
         core.Yaspin: instance of the Yaspin class.

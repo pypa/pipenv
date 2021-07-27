@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from IPython.core.magic import Magics, line_magic, magics_class  # type: ignore
 from IPython.core.magic_arguments import (argument, magic_arguments,  # type: ignore
                                           parse_argstring)  # type: ignore

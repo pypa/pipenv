@@ -1,10 +1,10 @@
 diff --git a/pipenv/vendor/pipdeptree.py b/pipenv/vendor/pipdeptree.py
-index 6f6f2a10..cd67538c 100644
+index e15cd8f4..9f692879 100644
 --- a/pipenv/vendor/pipdeptree.py
 +++ b/pipenv/vendor/pipdeptree.py
-@@ -13,13 +13,11 @@ try:
+@@ -21,13 +21,11 @@ try:
  except ImportError:
-     from ordereddict import OrderedDict
+     from collections import Mapping
  
 -try:
 -    from pipenv.patched.notpip._internal.utils.misc import get_installed_distributions

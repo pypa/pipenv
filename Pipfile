@@ -1,13 +1,12 @@
 [dev-packages]
 pipenv = {path = ".", editable = true, extras = ["tests", "dev"]}
-sphinx-click = "*"
+sphinx-click = "<3"
 click = "*"
 pytest_pypi = {path = "./tests/pytest-pypi", editable = true}
 stdeb = {version="*", markers="sys_platform == 'linux'"}
 jedi = "*"
 isort = "*"
 rope = "*"
-passa = {git = "https://github.com/sarugaku/passa.git"}
 sphinxcontrib-spelling = "<4.3.0"
 
 [packages]

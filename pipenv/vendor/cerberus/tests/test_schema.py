@@ -88,7 +88,7 @@ def test_validated_schema_cache():
     v = Validator({'foozifix': {'coerce': int}})
     assert len(v._valid_schemas) == cache_size
 
-    max_cache_size = 161
+    max_cache_size = 163
     assert cache_size <= max_cache_size, (
         "There's an unexpected high amount (%s) of cached valid "
         "definition schemas. Unless you added further tests, "
@@ -172,3 +172,7 @@ def test_anyof_check_with():
     assert validator.schema == {
         'field': {'anyof': [{'check_with': foo}, {'check_with': bar}]}
     }
+
+
+def test_rulename_space_is_normalized():
+    Validator(schema={"field": {"default setter": lambda x: x, "type": "string"}})

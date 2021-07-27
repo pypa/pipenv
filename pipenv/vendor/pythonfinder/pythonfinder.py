@@ -325,7 +325,9 @@ class Finder(object):
         if not isinstance(versions, Iterable):
             versions = [versions]
         # This list has already been mostly sorted on windows, we don't need to reverse it again
-        path_list = sorted(versions, key=version_sort, reverse=True)
+        path_list = sorted(
+            filter(lambda v: v and v.as_python, versions), key=version_sort, reverse=True
+        )
         path_map = {}  # type: Dict[str, PathEntry]
         for path in path_list:
             try:

@@ -28,11 +28,12 @@ def test_contextual_data_preservation():
 def test_docstring_parsing():
     class CustomValidator(cerberus.Validator):
         def _validate_foo(self, argument, field, value):
-            """ {'type': 'zap'} """
+            """{'type': 'zap'}"""
             pass
 
         def _validate_bar(self, value):
-            """ Test the barreness of a value.
+            """
+            Test the barreness of a value.
 
             The rule's arguments are validated against this schema:
                 {'type': 'boolean'}

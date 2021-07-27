@@ -178,7 +178,7 @@ class PtyProcess(object):
     @classmethod
     def spawn(
             cls, argv, cwd=None, env=None, echo=True, preexec_fn=None,
-            dimensions=(24, 80)):
+            dimensions=(24, 80), pass_fds=()):
         '''Start the given command in a child process in a pseudo terminal.
 
         This does all the fork/exec type of stuff for a pty, and returns an
@@ -190,6 +190,10 @@ class PtyProcess(object):
 
         Dimensions of the psuedoterminal used for the subprocess can be
         specified as a tuple (rows, cols), or the default (24, 80) will be used.
+
+        By default, all file descriptors except 0, 1 and 2 are closed. This
+        behavior can be overridden with pass_fds, a list of file descriptors to
+        keep open between the parent and the child.
         '''
         # Note that it is difficult for this method to fail.
         # You cannot detect if the child process cannot start.
@@ -255,12 +259,14 @@ class PtyProcess(object):
 
             # Do not allow child to inherit open file descriptors from parent,
             # with the exception of the exec_err_pipe_write of the pipe
+            # and pass_fds.
             # Impose ceiling on max_fd: AIX bugfix for users with unlimited
             # nofiles where resource.RLIMIT_NOFILE is 2^63-1 and os.closerange()
             # occasionally raises out of range error
             max_fd = min(1048576, resource.getrlimit(resource.RLIMIT_NOFILE)[0])
-            os.closerange(3, exec_err_pipe_write)
-            os.closerange(exec_err_pipe_write+1, max_fd)
+            spass_fds = sorted(set(pass_fds) | {exec_err_pipe_write})
+            for pair in zip([2] + spass_fds, spass_fds + [max_fd]):
+                os.closerange(pair[0]+1, pair[1])
 
             if cwd is not None:
                 os.chdir(cwd)

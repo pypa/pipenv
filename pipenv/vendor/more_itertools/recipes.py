@@ -7,20 +7,27 @@ Some backward-compatible usability improvements have been made.
 .. [1] http://docs.python.org/library/itertools.html#recipes
 
 """
+import warnings
 from collections import deque
 from itertools import (
-    chain, combinations, count, cycle, groupby, islice, repeat, starmap, tee
+    chain,
+    combinations,
+    count,
+    cycle,
+    groupby,
+    islice,
+    repeat,
+    starmap,
+    tee,
+    zip_longest,
 )
 import operator
 from random import randrange, sample, choice
 
-from six import PY2
-from six.moves import filter, filterfalse, map, range, zip, zip_longest
-
 __all__ = [
-    'accumulate',
     'all_equal',
     'consume',
+    'convolve',
     'dotproduct',
     'first_true',
     'flatten',
@@ -30,6 +37,7 @@ __all__ = [
     'nth',
     'nth_combination',
     'padnone',
+    'pad_none',
     'pairwise',
     'partition',
     'powerset',
@@ -49,46 +57,17 @@ __all__ = [
 ]
 
 
-def accumulate(iterable, func=operator.add):
-    """
-    Return an iterator whose items are the accumulated results of a function
-    (specified by the optional *func* argument) that takes two arguments.
-    By default, returns accumulated sums with :func:`operator.add`.
-
-        >>> list(accumulate([1, 2, 3, 4, 5]))  # Running sum
-        [1, 3, 6, 10, 15]
-        >>> list(accumulate([1, 2, 3], func=operator.mul))  # Running product
-        [1, 2, 6]
-        >>> list(accumulate([0, 1, -1, 2, 3, 2], func=max))  # Running maximum
-        [0, 1, 1, 2, 3, 3]
-
-    This function is available in the ``itertools`` module for Python 3.2 and
-    greater.
-
-    """
-    it = iter(iterable)
-    try:
-        total = next(it)
-    except StopIteration:
-        return
-    else:
-        yield total
-
-    for element in it:
-        total = func(total, element)
-        yield total
-
-
 def take(n, iterable):
     """Return first *n* items of the iterable as a list.
 
         >>> take(3, range(10))
         [0, 1, 2]
-        >>> take(5, range(3))
-        [0, 1, 2]
 
-    Effectively a short replacement for ``next`` based iterator consumption
-    when you want more than one item, but less than the whole iterator.
+    If there are fewer than *n* items in the iterable, all of them are
+    returned.
+
+        >>> take(10, range(3))
+        [0, 1, 2]
 
     """
     return list(islice(iterable, n))
@@ -115,9 +94,9 @@ def tabulate(function, start=0):
 def tail(n, iterable):
     """Return an iterator over the last *n* items of *iterable*.
 
-        >>> t = tail(3, 'ABCDEFG')
-        >>> list(t)
-        ['E', 'F', 'G']
+    >>> t = tail(3, 'ABCDEFG')
+    >>> list(t)
+    ['E', 'F', 'G']
 
     """
     return iter(deque(iterable, maxlen=n))
@@ -166,11 +145,11 @@ def consume(iterator, n=None):
 def nth(iterable, n, default=None):
     """Returns the nth item or a default value.
 
-        >>> l = range(10)
-        >>> nth(l, 3)
-        3
-        >>> nth(l, 20, "zebra")
-        'zebra'
+    >>> l = range(10)
+    >>> nth(l, 3)
+    3
+    >>> nth(l, 20, "zebra")
+    'zebra'
 
     """
     return next(islice(iterable, n, None), default)
@@ -193,17 +172,17 @@ def all_equal(iterable):
 def quantify(iterable, pred=bool):
     """Return the how many times the predicate is true.
 
-        >>> quantify([True, False, True])
-        2
+    >>> quantify([True, False, True])
+    2
 
     """
     return sum(map(pred, iterable))
 
 
-def padnone(iterable):
+def pad_none(iterable):
     """Returns the sequence of elements and then returns ``None`` indefinitely.
 
-        >>> take(5, padnone(range(3)))
+        >>> take(5, pad_none(range(3)))
         [0, 1, 2, None, None]
 
     Useful for emulating the behavior of the built-in :func:`map` function.
@@ -214,11 +193,14 @@ def padnone(iterable):
     return chain(iterable, repeat(None))
 
 
+padnone = pad_none
+
+
 def ncycles(iterable, n):
     """Returns the sequence elements *n* times
 
-        >>> list(ncycles(["a", "b"], 3))
-        ['a', 'b', 'a', 'b', 'a', 'b']
+    >>> list(ncycles(["a", "b"], 3))
+    ['a', 'b', 'a', 'b', 'a', 'b']
 
     """
     return chain.from_iterable(repeat(tuple(iterable), n))
@@ -227,8 +209,8 @@ def ncycles(iterable, n):
 def dotproduct(vec1, vec2):
     """Returns the dot product of the two iterables.
 
-        >>> dotproduct([10, 10], [20, 20])
-        400
+    >>> dotproduct([10, 10], [20, 20])
+    400
 
     """
     return sum(map(operator.mul, vec1, vec2))
@@ -273,25 +255,44 @@ def repeatfunc(func, times=None, *args):
     return starmap(func, repeat(args, times))
 
 
-def pairwise(iterable):
+def _pairwise(iterable):
     """Returns an iterator of paired items, overlapping, from the original
 
-        >>> take(4, pairwise(count()))
-        [(0, 1), (1, 2), (2, 3), (3, 4)]
+    >>> take(4, pairwise(count()))
+    [(0, 1), (1, 2), (2, 3), (3, 4)]
+
+    On Python 3.10 and above, this is an alias for :func:`itertools.pairwise`.
 
     """
     a, b = tee(iterable)
     next(b, None)
-    return zip(a, b)
+    yield from zip(a, b)
 
 
-def grouper(n, iterable, fillvalue=None):
+try:
+    from itertools import pairwise as itertools_pairwise
+except ImportError:
+    pairwise = _pairwise
+else:
+
+    def pairwise(iterable):
+        yield from itertools_pairwise(iterable)
+
+    pairwise.__doc__ = _pairwise.__doc__
+
+
+def grouper(iterable, n, fillvalue=None):
     """Collect data into fixed-length chunks or blocks.
 
-        >>> list(grouper(3, 'ABCDEFG', 'x'))
-        [('A', 'B', 'C'), ('D', 'E', 'F'), ('G', 'x', 'x')]
+    >>> list(grouper('ABCDEFG', 3, 'x'))
+    [('A', 'B', 'C'), ('D', 'E', 'F'), ('G', 'x', 'x')]
 
     """
+    if isinstance(iterable, int):
+        warnings.warn(
+            "grouper expects iterable as first parameter", DeprecationWarning
+        )
+        n, iterable = iterable, n
     args = [iter(iterable)] * n
     return zip_longest(fillvalue=fillvalue, *args)
 
@@ -309,10 +310,7 @@ def roundrobin(*iterables):
     """
     # Recipe credited to George Sakkis
     pending = len(iterables)
-    if PY2:
-        nexts = cycle(iter(it).next for it in iterables)
-    else:
-        nexts = cycle(iter(it).__next__ for it in iterables)
+    nexts = cycle(iter(it).__next__ for it in iterables)
     while pending:
         try:
             for next in nexts:
@@ -334,10 +332,23 @@ def partition(pred, iterable):
         >>> list(even_items), list(odd_items)
         ([0, 2, 4, 6, 8], [1, 3, 5, 7, 9])
 
+    If *pred* is None, :func:`bool` is used.
+
+        >>> iterable = [0, 1, False, True, '', ' ']
+        >>> false_items, true_items = partition(None, iterable)
+        >>> list(false_items), list(true_items)
+        ([0, False, ''], [1, True, ' '])
+
     """
-    # partition(is_odd, range(10)) --> 0 2 4 6 8   and  1 3 5 7 9
-    t1, t2 = tee(iterable)
-    return filterfalse(pred, t1), filter(pred, t2)
+    if pred is None:
+        pred = bool
+
+    evaluations = ((pred(x), x) for x in iterable)
+    t1, t2 = tee(evaluations)
+    return (
+        (x for (cond, x) in t1 if not cond),
+        (x for (cond, x) in t2 if cond),
+    )
 
 
 def powerset(iterable):
@@ -375,41 +386,46 @@ def unique_everseen(iterable, key=None):
     Sequences with a mix of hashable and unhashable items can be used.
     The function will be slower (i.e., `O(n^2)`) for unhashable items.
 
+    Remember that ``list`` objects are unhashable - you can use the *key*
+    parameter to transform the list to a tuple (which is hashable) to
+    avoid a slowdown.
+
+        >>> iterable = ([1, 2], [2, 3], [1, 2])
+        >>> list(unique_everseen(iterable))  # Slow
+        [[1, 2], [2, 3]]
+        >>> list(unique_everseen(iterable, key=tuple))  # Faster
+        [[1, 2], [2, 3]]
+
+    Similary, you may want to convert unhashable ``set`` objects with
+    ``key=frozenset``. For ``dict`` objects,
+    ``key=lambda x: frozenset(x.items())`` can be used.
+
     """
     seenset = set()
     seenset_add = seenset.add
     seenlist = []
     seenlist_add = seenlist.append
-    if key is None:
-        for element in iterable:
-            try:
-                if element not in seenset:
-                    seenset_add(element)
-                    yield element
-            except TypeError:
-                if element not in seenlist:
-                    seenlist_add(element)
-                    yield element
-    else:
-        for element in iterable:
-            k = key(element)
-            try:
-                if k not in seenset:
-                    seenset_add(k)
-                    yield element
-            except TypeError:
-                if k not in seenlist:
-                    seenlist_add(k)
-                    yield element
+    use_key = key is not None
+
+    for element in iterable:
+        k = key(element) if use_key else element
+        try:
+            if k not in seenset:
+                seenset_add(k)
+                yield element
+        except TypeError:
+            if k not in seenlist:
+                seenlist_add(k)
+                yield element
 
 
 def unique_justseen(iterable, key=None):
     """Yields elements in order, ignoring serial duplicates
 
-        >>> list(unique_justseen('AAAABBBCCDAABBB'))
-        ['A', 'B', 'C', 'D', 'A', 'B']
-        >>> list(unique_justseen('ABBCcAD', str.lower))
-        ['A', 'B', 'C', 'A', 'D']
+    >>> list(unique_justseen('AAAABBBCCDAABBB'))
+    ['A', 'B', 'C', 'D', 'A', 'B']
+    >>> list(unique_justseen('ABBCcAD', str.lower))
+    ['A', 'B', 'C', 'A', 'D']
 
     """
     return map(next, map(operator.itemgetter(1), groupby(iterable, key)))
@@ -456,7 +472,7 @@ def first_true(iterable, default=None, pred=None):
     return next(filter(pred, iterable), default)
 
 
-def random_product(*args, **kwds):
+def random_product(*args, repeat=1):
     """Draw an item at random from each of the input iterables.
 
         >>> random_product('abc', range(4), 'XYZ')  # doctest:+SKIP
@@ -472,7 +488,7 @@ def random_product(*args, **kwds):
     ``itertools.product(*args, **kwarg)``.
 
     """
-    pools = [tuple(pool) for pool in args] * kwds.get('repeat', 1)
+    pools = [tuple(pool) for pool in args] * repeat
     return tuple(choice(pool) for pool in pools)
 
 
@@ -535,6 +551,12 @@ def nth_combination(iterable, r, index):
     sort position *index* directly, without computing the previous
     subsequences.
 
+        >>> nth_combination(range(5), 3, 5)
+        (0, 3, 4)
+
+    ``ValueError`` will be raised If *r* is negative or greater than the length
+    of *iterable*.
+    ``IndexError`` will be raised if the given *index* is invalid.
     """
     pool = tuple(iterable)
     n = len(pool)
@@ -571,7 +593,28 @@ def prepend(value, iterator):
         >>> list(prepend(value, iterator))
         ['0', '1', '2', '3']
 
-    To prepend multiple values, see :func:`itertools.chain`.
+    To prepend multiple values, see :func:`itertools.chain`
+    or :func:`value_chain`.
 
     """
     return chain([value], iterator)
+
+
+def convolve(signal, kernel):
+    """Convolve the iterable *signal* with the iterable *kernel*.
+
+        >>> signal = (1, 2, 3, 4, 5)
+        >>> kernel = [3, 2, 1]
+        >>> list(convolve(signal, kernel))
+        [3, 8, 14, 20, 26, 14, 5]
+
+    Note: the input arguments are not interchangeable, as the *kernel*
+    is immediately consumed and stored.
+
+    """
+    kernel = tuple(kernel)[::-1]
+    n = len(kernel)
+    window = deque([0], maxlen=n) * n
+    for x in chain(signal, repeat(0, n - 1)):
+        window.append(x)
+        yield sum(map(operator.mul, kernel, window))

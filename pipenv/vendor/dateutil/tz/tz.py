@@ -1596,7 +1596,7 @@ def __get_gettz():
                     name = os.environ["TZ"]
                 except KeyError:
                     pass
-            if name is None or name == ":":
+            if name is None or name in ("", ":"):
                 for filepath in TZFILES:
                     if not os.path.isabs(filepath):
                         filename = filepath

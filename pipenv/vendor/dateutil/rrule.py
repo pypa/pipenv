@@ -5,25 +5,26 @@ the recurrence rules documented in the
 `iCalendar RFC <https://tools.ietf.org/html/rfc5545>`_,
 including support for caching of results.
 """
-import itertools
-import datetime
 import calendar
+import datetime
+import heapq
+import itertools
 import re
 import sys
+from functools import wraps
+# For warning about deprecation of until and count
+from warnings import warn
+
+from six import advance_iterator, integer_types
+
+from six.moves import _thread, range
+
+from ._common import weekday as weekdaybase
 
 try:
     from math import gcd
 except ImportError:
     from fractions import gcd
-
-from six import advance_iterator, integer_types
-from six.moves import _thread, range
-import heapq
-
-from ._common import weekday as weekdaybase
-
-# For warning about deprecation of until and count
-from warnings import warn
 
 __all__ = ["rrule", "rruleset", "rrulestr",
            "YEARLY", "MONTHLY", "WEEKLY", "DAILY",
@@ -81,6 +82,7 @@ def _invalidates_cache(f):
     Decorator for rruleset methods which may invalidate the
     cached length.
     """
+    @wraps(f)
     def inner_func(self, *args, **kwargs):
         rv = f(self, *args, **kwargs)
         self._invalidate_cache()

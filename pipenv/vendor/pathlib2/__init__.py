@@ -20,25 +20,27 @@ from stat import (
     S_ISDIR, S_ISLNK, S_ISREG, S_ISSOCK, S_ISBLK, S_ISCHR, S_ISFIFO)
 
 try:
-    from collections.abc import Sequence
+    from collections.abc import Sequence  # type: ignore
 except ImportError:
     from collections import Sequence
 
 try:
-    from urllib import quote as urlquote_from_bytes
+    from urllib import quote as urlquote_from_bytes  # type: ignore
 except ImportError:
-    from urllib.parse import quote_from_bytes as urlquote_from_bytes
+    from urllib.parse \
+        import quote_from_bytes as urlquote_from_bytes  # type: ignore
 
 
 try:
-    intern = intern
+    intern = intern  # type: ignore
 except NameError:
-    intern = sys.intern
+    intern = sys.intern  # type: ignore
 
 supports_symlinks = True
 if os.name == 'nt':
-    import nt
-    if sys.getwindowsversion()[:2] >= (6, 0) and sys.version_info >= (3, 2):
+    import nt  # type: ignore
+    if sys.getwindowsversion().major >= 6 \
+            and sys.version_info >= (3, 2):  # type: ignore
         from nt import _getfinalpathname
     else:
         supports_symlinks = False
@@ -47,9 +49,9 @@ else:
     nt = None
 
 try:
-    from os import scandir as os_scandir
+    from os import scandir as os_scandir  # type: ignore
 except ImportError:
-    from scandir import scandir as os_scandir
+    from scandir import scandir as os_scandir  # type: ignore
 
 __all__ = [
     "PurePath", "PurePosixPath", "PureWindowsPath",
@@ -76,15 +78,15 @@ def _ignore_error(exception):
 def _py2_fsencode(parts):
     # py2 => minimal unicode support
     assert six.PY2
-    return [part.encode('ascii') if isinstance(part, six.text_type)
-            else part for part in parts]
+    return [part.encode(sys.getfilesystemencoding() or 'ascii')
+            if isinstance(part, six.text_type) else part for part in parts]
 
 
 def _try_except_fileexistserror(try_func, except_func, else_func=None):
     if sys.version_info >= (3, 3):
         try:
             try_func()
-        except FileExistsError as exc:
+        except FileExistsError as exc:  # noqa: F821
             except_func(exc)
         else:
             if else_func is not None:
@@ -106,7 +108,7 @@ def _try_except_filenotfounderror(try_func, except_func):
     if sys.version_info >= (3, 3):
         try:
             try_func()
-        except FileNotFoundError as exc:
+        except FileNotFoundError as exc:  # noqa: F821
             except_func(exc)
     elif os.name != 'nt':
         try:
@@ -139,7 +141,7 @@ def _try_except_permissionerror_iter(try_iter, except_iter):
         try:
             for x in try_iter():
                 yield x
-        except PermissionError as exc:
+        except PermissionError as exc:  # noqa: F821
             for x in except_iter(exc):
                 yield x
     else:
@@ -203,7 +205,7 @@ def _win32_get_unique_path_id(path):
                        None, OPEN_EXISTING, flags, None)
     if hfile == 0xffffffff:
         if sys.version_info >= (3, 3):
-            raise FileNotFoundError(path)
+            raise FileNotFoundError(path)  # noqa: F821
         else:
             exc = OSError("file not found: path")
             exc.errno = ENOENT
@@ -577,19 +579,21 @@ class _Accessor:
     accessing paths on the filesystem."""
 
 
+def _wrap_strfunc(strfunc):
+    @functools.wraps(strfunc)
+    def wrapped(pathobj, *args):
+        return strfunc(str(pathobj), *args)
+    return staticmethod(wrapped)
+
+
+def _wrap_binary_strfunc(strfunc):
+    @functools.wraps(strfunc)
+    def wrapped(pathobjA, pathobjB, *args):
+        return strfunc(str(pathobjA), str(pathobjB), *args)
+    return staticmethod(wrapped)
+
+
 class _NormalAccessor(_Accessor):
-
-    def _wrap_strfunc(strfunc):
-        @functools.wraps(strfunc)
-        def wrapped(pathobj, *args):
-            return strfunc(str(pathobj), *args)
-        return staticmethod(wrapped)
-
-    def _wrap_binary_strfunc(strfunc):
-        @functools.wraps(strfunc)
-        def wrapped(pathobjA, pathobjB, *args):
-            return strfunc(str(pathobjA), str(pathobjB), *args)
-        return staticmethod(wrapped)
 
     stat = _wrap_strfunc(os.stat)
 
@@ -624,6 +628,7 @@ class _NormalAccessor(_Accessor):
         if supports_symlinks:
             symlink = _wrap_binary_strfunc(os.symlink)
         else:
+            @staticmethod
             def symlink(a, b, target_is_directory):
                 raise NotImplementedError(
                     "symlink() not available on this system")
@@ -663,7 +668,7 @@ def _make_selector(pattern_parts):
 
 
 if hasattr(functools, "lru_cache"):
-    _make_selector = functools.lru_cache()(_make_selector)
+    _make_selector = functools.lru_cache()(_make_selector)  # type: ignore
 
 
 class _Selector:
@@ -1077,7 +1082,7 @@ class PurePath(object):
                 or drv or root or len(parts) != 1):
             raise ValueError("Invalid name %r" % (name))
         return self._from_parsed_parts(self._drv, self._root,
-                                       self._parts[:-1] + [name])
+                                       self._parts[:-1] + parts[-1:])
 
     def with_suffix(self, suffix):
         """Return a new path with the file suffix changed.  If the path
@@ -1090,6 +1095,12 @@ class PurePath(object):
             raise ValueError("Invalid suffix %r" % (suffix))
         if suffix and not suffix.startswith('.') or suffix == '.':
             raise ValueError("Invalid suffix %r" % (suffix))
+
+        if (six.PY2 and not isinstance(suffix, str)
+                and isinstance(suffix, six.text_type)):
+            # see _parse_args() above
+            suffix = suffix.encode(sys.getfilesystemencoding() or "ascii")
+
         name = self.name
         if not name:
             raise ValueError("%r has an empty name" % (self,))

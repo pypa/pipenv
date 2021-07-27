@@ -466,7 +466,7 @@ def run(state, command, args):
 @option(
     "--db",
     nargs=1,
-    default=lambda: os.environ.get('PIPENV_SAFETY_DB', False),
+    default=lambda: os.environ.get('PIPENV_SAFETY_DB'),
     help="Path to a local PyUp Safety vulnerabilities database."
          " Default: ENV PIPENV_SAFETY_DB or None.",
 )
@@ -500,7 +500,7 @@ def run(state, command, args):
 def check(
     state,
     unused=False,
-    db=False,
+    db=None,
     style=False,
     ignore=None,
     output="default",

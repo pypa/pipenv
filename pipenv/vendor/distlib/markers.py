@@ -15,9 +15,8 @@ Parser for the environment markers micro-language defined in PEP 508.
 import os
 import sys
 import platform
-import re
 
-from .compat import python_implementation, urlparse, string_types
+from .compat import string_types
 from .util import in_venv, parse_marker
 
 __all__ = ['interpret']

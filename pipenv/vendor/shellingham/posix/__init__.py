@@ -17,26 +17,24 @@ def _get_process_mapping():
         except EnvironmentError:
             continue
         return mapping
-    raise ShellDetectionFailure('compatible proc fs or ps utility is required')
+    raise ShellDetectionFailure("compatible proc fs or ps utility is required")
 
 
 def _iter_process_args(mapping, pid, max_depth):
-    """Iterator to traverse up the tree, yielding each process's argument list.
-    """
+    """Traverse up the tree and yield each process's argument list."""
     for _ in range(max_depth):
         try:
             proc = mapping[pid]
-        except KeyError:    # We've reached the root process. Give up.
+        except KeyError:  # We've reached the root process. Give up.
             break
-        if proc.args:       # Persumably the process should always have a name?
+        if proc.args:  # Persumably the process should always have a name?
             yield proc.args
-        pid = proc.ppid     # Go up one level.
+        pid = proc.ppid  # Go up one level.
 
 
 def _get_login_shell(proc_cmd):
-    """Form shell information from the SHELL environment variable if possible.
-    """
-    login_shell = os.environ.get('SHELL', '')
+    """Form shell information from SHELL environ if possible."""
+    login_shell = os.environ.get("SHELL", "")
     if login_shell:
         proc_cmd = login_shell
     else:
@@ -45,7 +43,7 @@ def _get_login_shell(proc_cmd):
 
 
 _INTERPRETER_SHELL_NAMES = [
-    (re.compile(r'^python(\d+(\.\d+)?)?$'), {'xonsh'}),
+    (re.compile(r"^python(\d+(\.\d+)?)?$"), {"xonsh"}),
 ]
 
 
@@ -70,10 +68,10 @@ def _get_interpreter_shell(proc_name, proc_args):
 
 
 def _get_shell(cmd, *args):
-    if cmd.startswith('-'):     # Login shell! Let's use this.
+    if cmd.startswith("-"):  # Login shell! Let's use this.
         return _get_login_shell(cmd)
     name = os.path.basename(cmd).lower()
-    if name in SHELL_NAMES:     # Command looks like a shell.
+    if name in SHELL_NAMES:  # Command looks like a shell.
         return (name, cmd)
     shell = _get_interpreter_shell(name, args)
     if shell:
@@ -81,9 +79,8 @@ def _get_shell(cmd, *args):
     return None
 
 
-def get_shell(pid=None, max_depth=6):
-    """Get the shell that the supplied pid or os.getpid() is running in.
-    """
+def get_shell(pid=None, max_depth=10):
+    """Get the shell that the supplied pid or os.getpid() is running in."""
     pid = str(pid or os.getpid())
     mapping = _get_process_mapping()
     for proc_args in _iter_process_args(mapping, pid, max_depth):

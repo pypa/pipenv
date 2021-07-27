@@ -1,18 +1,21 @@
-from .compat import IS_TYPE_CHECKING
-from .main import load_dotenv, get_key, set_key, unset_key, find_dotenv, dotenv_values
+from typing import Any, Optional
 
-if IS_TYPE_CHECKING:
-    from typing import Any, Optional
+from .main import (dotenv_values, find_dotenv, get_key, load_dotenv, set_key,
+                   unset_key)
 
 
-def load_ipython_extension(ipython):
-    # type: (Any) -> None
+def load_ipython_extension(ipython: Any) -> None:
     from .ipython import load_ipython_extension
     load_ipython_extension(ipython)
 
 
-def get_cli_string(path=None, action=None, key=None, value=None, quote=None):
-    # type: (Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]) -> str
+def get_cli_string(
+    path: Optional[str] = None,
+    action: Optional[str] = None,
+    key: Optional[str] = None,
+    value: Optional[str] = None,
+    quote: Optional[str] = None,
+):
     """Returns a string suitable for running as a shell script.
 
     Useful for converting a arguments passed to a fabric task

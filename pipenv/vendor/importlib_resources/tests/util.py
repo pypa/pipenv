@@ -3,107 +3,81 @@ import importlib
 import io
 import sys
 import types
-import unittest
+from pathlib import Path, PurePath
 
 from . import data01
 from . import zipdata01
-from .._compat import ABC, Path, PurePath, FileNotFoundError
 from ..abc import ResourceReader
-
-try:
-    from test.support import modules_setup, modules_cleanup
-except ImportError:
-    # Python 2.7.
-    def modules_setup():
-        return sys.modules.copy(),
-
-    def modules_cleanup(oldmodules):
-        # Encoders/decoders are registered permanently within the internal
-        # codec cache. If we destroy the corresponding modules their
-        # globals will be set to None which will trip up the cached functions.
-        encodings = [(k, v) for k, v in sys.modules.items()
-                     if k.startswith('encodings.')]
-        sys.modules.clear()
-        sys.modules.update(encodings)
-        # XXX: This kind of problem can affect more than just encodings. In
-        # particular extension modules (such as _ssl) don't cope with reloading
-        # properly.  Really, test modules should be cleaning out the test
-        # specific modules they know they added (ala test_runpy) rather than
-        # relying on this function (as test_importhooks and test_pkg do
-        # currently).  Implicitly imported *real* modules should be left alone
-        # (see issue 10556).
-        sys.modules.update(oldmodules)
+from ._compat import import_helper
 
 
-try:
-    from importlib.machinery import ModuleSpec
-except ImportError:
-    ModuleSpec = None                               # type: ignore
+from importlib.machinery import ModuleSpec
 
 
-def create_package(file, path, is_package=True, contents=()):
-    class Reader(ResourceReader):
-        def get_resource_reader(self, package):
-            return self
+class Reader(ResourceReader):
+    def __init__(self, **kwargs):
+        vars(self).update(kwargs)
 
-        def open_resource(self, path):
-            self._path = path
-            if isinstance(file, Exception):
-                raise file
-            else:
-                return file
+    def get_resource_reader(self, package):
+        return self
 
-        def resource_path(self, path_):
-            self._path = path_
-            if isinstance(path, Exception):
-                raise path
-            else:
-                return path
+    def open_resource(self, path):
+        self._path = path
+        if isinstance(self.file, Exception):
+            raise self.file
+        return self.file
 
-        def is_resource(self, path_):
-            self._path = path_
-            if isinstance(path, Exception):
-                raise path
-            for entry in contents:
-                parts = entry.split('/')
-                if len(parts) == 1 and parts[0] == path_:
-                    return True
-            return False
+    def resource_path(self, path_):
+        self._path = path_
+        if isinstance(self.path, Exception):
+            raise self.path
+        return self.path
 
-        def contents(self):
-            if isinstance(path, Exception):
-                raise path
-            # There's no yield from in baseball, er, Python 2.
-            for entry in contents:
-                yield entry
+    def is_resource(self, path_):
+        self._path = path_
+        if isinstance(self.path, Exception):
+            raise self.path
 
+        def part(entry):
+            return entry.split('/')
+
+        return any(
+            len(parts) == 1 and parts[0] == path_ for parts in map(part, self._contents)
+        )
+
+    def contents(self):
+        if isinstance(self.path, Exception):
+            raise self.path
+        yield from self._contents
+
+
+def create_package_from_loader(loader, is_package=True):
     name = 'testingpackage'
-    # Unforunately importlib.util.module_from_spec() was not introduced until
-    # Python 3.5.
     module = types.ModuleType(name)
-    if ModuleSpec is None:
-        # Python 2.
-        module.__name__ = name
-        module.__file__ = 'does-not-exist'
-        if is_package:
-            module.__path__ = []
-    else:
-        # Python 3.
-        loader = Reader()
-        spec = ModuleSpec(
-            name, loader,
-            origin='does-not-exist',
-            is_package=is_package)
-        module.__spec__ = spec
-        module.__loader__ = loader
+    spec = ModuleSpec(name, loader, origin='does-not-exist', is_package=is_package)
+    module.__spec__ = spec
+    module.__loader__ = loader
     return module
 
 
-class CommonTests(ABC):
+def create_package(file=None, path=None, is_package=True, contents=()):
+    return create_package_from_loader(
+        Reader(file=file, path=path, _contents=contents),
+        is_package,
+    )
+
+
+class CommonTests(metaclass=abc.ABCMeta):
+    """
+    Tests shared by test_open, test_path, and test_read.
+    """
 
     @abc.abstractmethod
     def execute(self, package, path):
-        raise NotImplementedError
+        """
+        Call the pertinent legacy API function (e.g. open_text, path)
+        on package and path.
+        """
 
     def test_package_name(self):
         # Passing in the package name should succeed.
@@ -118,7 +92,6 @@ class CommonTests(ABC):
         path = 'utf-8.file'
         self.execute(data01, path)
 
-    @unittest.skipIf(sys.version_info < (3, 6), 'requires os.PathLike support')
     def test_pathlib_path(self):
         # Passing in a pathlib.PurePath object for the path should succeed.
         path = PurePath('utf-8.file')
@@ -127,7 +100,7 @@ class CommonTests(ABC):
     def test_absolute_path(self):
         # An absolute path is a ValueError.
         path = Path(__file__)
-        full_path = path.parent/'utf-8.file'
+        full_path = path.parent / 'utf-8.file'
         with self.assertRaises(ValueError):
             self.execute(data01, full_path)
 
@@ -152,24 +125,28 @@ class CommonTests(ABC):
             module = sys.modules['importlib_resources.tests.util']
             self.execute(module, 'utf-8.file')
 
-    @unittest.skipIf(sys.version_info < (3,), 'No ResourceReader in Python 2')
-    def test_resource_opener(self):
+    def test_missing_path(self):
+        # Attempting to open or read or request the path for a
+        # non-existent path should succeed if open_resource
+        # can return a viable data stream.
         bytes_data = io.BytesIO(b'Hello, world!')
         package = create_package(file=bytes_data, path=FileNotFoundError())
         self.execute(package, 'utf-8.file')
         self.assertEqual(package.__loader__._path, 'utf-8.file')
 
-    @unittest.skipIf(sys.version_info < (3,), 'No ResourceReader in Python 2')
-    def test_resource_path(self):
+    def test_extant_path(self):
+        # Attempting to open or read or request the path when the
+        # path does exist should still succeed. Does not assert
+        # anything about the result.
         bytes_data = io.BytesIO(b'Hello, world!')
+        # any path that exists
         path = __file__
         package = create_package(file=bytes_data, path=path)
         self.execute(package, 'utf-8.file')
         self.assertEqual(package.__loader__._path, 'utf-8.file')
 
     def test_useless_loader(self):
-        package = create_package(file=FileNotFoundError(),
-                                 path=FileNotFoundError())
+        package = create_package(file=FileNotFoundError(), path=FileNotFoundError())
         with self.assertRaises(FileNotFoundError):
             self.execute(package, 'utf-8.file')
 
@@ -205,9 +182,9 @@ class ZipSetupBase:
             pass
 
     def setUp(self):
-        modules = modules_setup()
-        self.addCleanup(modules_cleanup, *modules)
+        modules = import_helper.modules_setup()
+        self.addCleanup(import_helper.modules_cleanup, *modules)
 
 
 class ZipSetup(ZipSetupBase):
-    ZIP_MODULE = zipdata01                          # type: ignore
+    ZIP_MODULE = zipdata01  # type: ignore

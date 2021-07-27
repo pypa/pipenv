@@ -169,17 +169,22 @@ def rewrite_file_imports(item, vendored_libs, vendor_dir):
         if k not in vendored_libs:
             vendored_libs.append(k)
     for lib in vendored_libs:
-        to_lib = lib
-        if lib in renames:
-            to_lib = renames[lib]
+        if lib not in renames:
+            continue
+        to_lib = renames[lib]
         text = re.sub(
             r"([\n\s]*)import %s([\n\s\.]+)" % lib, r"\1import %s\2" % to_lib, text,
         )
-        text = re.sub(r"([\n\s]*)from %s([\s\.])+" % lib, r"\1from %s\2" % to_lib, text,)
+        text = re.sub(r"([\n\s]*)from %s([\s\.]+)" % lib, r"\1from %s\2" % to_lib, text,)
         text = re.sub(
-            r"(\n\s*)__import__\('%s([\s'\.])+" % lib,
-            r"\1__import__('%s\2" % to_lib,
+            r"(\n\s*)__import__\((['\"])%s([\s'\.])+" % lib,
+            r"\1__import__(\2%s\3" % to_lib,
             text,
+        )
+        text = re.sub(
+            r"(\n\s*)importlib.import_module\((['\"])%s([\s'\"\.]+)" % lib,
+            r"\1importlib.import_module(\2%s\3" % to_lib,
+            text
         )
     item.write_text(text, encoding="utf-8")
 
@@ -552,9 +557,9 @@ def rewrite_all_imports(ctx):
     log("Rewriting all imports related to vendored libs")
     for item in vendor_dir.iterdir():
         if item.is_dir():
-            rewrite_imports(item, vendored_libs)
+            rewrite_imports(item, vendored_libs, vendor_dir)
         elif item.name not in FILE_WHITE_LIST:
-            rewrite_file_imports(item, vendored_libs)
+            rewrite_file_imports(item, vendored_libs, vendor_dir)
 
 
 @invoke.task
@@ -822,19 +827,19 @@ def unpin_file(contents):
 
 
 def unpin_and_copy_requirements(ctx, requirement_file, name="requirements.txt"):
-    tempdir = TemporaryDirectory(dir="D:/Workspace/tempdir")
+    tempdir = TemporaryDirectory()
     target = Path(tempdir.name).joinpath("requirements.txt")
     contents = unpin_file(requirement_file.read_text())
     target.write_text(contents)
     env = {
         "PIPENV_IGNORE_VIRTUALENVS": "1",
         "PIPENV_NOSPIN": "1",
-        "PIPENV_PYTHON": "2.7",
+        "PIPENV_PYTHON": "3.6",
     }
     with ctx.cd(tempdir.name):
         ctx.run("pipenv install -r {0}".format(target.as_posix()), env=env, hide=True)
         result = ctx.run("pipenv lock -r", env=env, hide=True).stdout.strip()
-        # ctx.run("pipenv --rm", env=env, hide=True)
+        ctx.run("pipenv --rm", env=env, hide=True)
         result = list(sorted([line.strip() for line in result.splitlines()[1:]]))
         new_requirements = requirement_file.parent.joinpath(name)
         requirement_file.rename(
@@ -855,25 +860,32 @@ def unpin_and_update_vendored(ctx, vendor=True, patched=False):
 
 
 @invoke.task(name=TASK_NAME)
-def main(ctx, package=None):
+def main(ctx, package=None, type=None):
     vendor_dir = _get_vendor_dir(ctx)
     patched_dir = _get_patched_dir(ctx)
-    log("Using vendor dir: %s" % vendor_dir)
+    if type == "vendor":
+        target_dirs = [vendor_dir]
+    elif type == "patched":
+        target_dirs = [patched_dir]
+    else:
+        target_dirs = [vendor_dir, patched_dir]
     if package:
+        log("Using vendor dir: %s" % vendor_dir)
         vendor(ctx, vendor_dir, package=package)
         download_licenses(ctx, vendor_dir, package=package)
         log("Vendored %s" % package)
         return
-    clean_vendor(ctx, vendor_dir)
-    clean_vendor(ctx, patched_dir)
-    vendor(ctx, vendor_dir)
-    install_pyyaml(ctx, patched_dir)
-    vendor(ctx, patched_dir, rewrite=True)
-    download_all_licenses(ctx, include_pip=True)
-    # from .vendor_passa import vendor_passa
-    # log("Vendoring passa...")
-    # vendor_passa(ctx)
-    # update_safety(ctx)
+    for package_dir in target_dirs:
+        clean_vendor(ctx, package_dir)
+        if package_dir == patched_dir:
+            install_pyyaml(ctx, patched_dir)
+            vendor(ctx, patched_dir, rewrite=True)
+        else:
+            vendor(ctx, package_dir)
+        req_txt = "vendor.txt" if package_dir == vendor_dir else "patched.txt"
+        download_licenses(ctx, package_dir, req_txt)
+        if package_dir == patched_dir:
+            update_pip_deps(ctx)
     log("Revendoring complete")
 
 

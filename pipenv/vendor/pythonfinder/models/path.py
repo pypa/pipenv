@@ -7,7 +7,7 @@ import sys
 from collections import defaultdict
 from itertools import chain
 
-from pipenv.vendor import attr
+import attr
 import six
 from cached_property import cached_property
 from ..compat import Path, fs_str
@@ -222,11 +222,12 @@ class SystemPath(object):
                     path=p.absolute(), is_root=True, only_python=self.only_python
                 )
                 for p in path_instances
+                if p.exists()
             }
         )
         new_instance = attr.evolve(
             new_instance,
-            path_order=[p.as_posix() for p in path_instances],
+            path_order=[p.as_posix() for p in path_instances if p.exists()],
             paths=path_entries,
         )
         if os.name == "nt" and "windows" not in self.finders:
@@ -429,7 +430,7 @@ class SystemPath(object):
         _path = self.paths.get(path)
         if not _path:
             _path = self.paths.get(path.as_posix())
-        if not _path and path.as_posix() in self.path_order:
+        if not _path and path.as_posix() in self.path_order and path.exists():
             _path = PathEntry.create(
                 path=path.absolute(), is_root=True, only_python=self.only_python
             )
@@ -662,13 +663,13 @@ class SystemPath(object):
             paths = [path] + paths
         paths = [p for p in paths if not any(is_in_path(p, shim) for shim in SHIM_PATHS)]
         _path_objects = [ensure_path(p.strip('"')) for p in paths]
-        paths = [p.as_posix() for p in _path_objects]
         path_entries.update(
             {
                 p.as_posix(): PathEntry.create(
                     path=p.absolute(), is_root=True, only_python=only_python
                 )
                 for p in _path_objects
+                if p.exists()
             }
         )
         instance = cls(
@@ -685,7 +686,7 @@ class SystemPath(object):
 
 @attr.s(slots=True)
 class PathEntry(BasePath):
-    is_root = attr.ib(default=True, type=bool, cmp=False)
+    is_root = attr.ib(default=True, type=bool, order=False)
 
     def __lt__(self, other):
         # type: (BasePath) -> bool
@@ -739,7 +740,10 @@ class PathEntry(BasePath):
                     except (InvalidPythonVersion, ValueError):
                         continue
                 else:
-                    entry = PathEntry.create(path=child, **pass_args)  # type: ignore
+                    try:
+                        entry = PathEntry.create(path=child, **pass_args)  # type: ignore
+                    except (InvalidPythonVersion, ValueError):
+                        continue
                 yield (child.as_posix(), entry)
         return
 

@@ -67,7 +67,7 @@ ISO8601_REGEX = re.compile(
     re.VERBOSE
 )
 
-class ParseError(Exception):
+class ParseError(ValueError):
     """Raised when there is a problem parsing a date string"""
 
 if sys.version_info >= (3, 2, 0):

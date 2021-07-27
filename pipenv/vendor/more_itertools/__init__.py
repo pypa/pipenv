@@ -1,2 +1,4 @@
-from more_itertools.more import *  # noqa
-from more_itertools.recipes import *  # noqa
+from .more import *  # noqa
+from .recipes import *  # noqa
+
+__version__ = '8.8.0'

@@ -1,18 +1,9 @@
-# -*- coding: utf-8 -*-
-"""
-markupsafe._native
-~~~~~~~~~~~~~~~~~~
+import typing as t
 
-Native Python implementation used when the C module is not compiled.
-
-:copyright: 2010 Pallets
-:license: BSD-3-Clause
-"""
 from . import Markup
-from ._compat import text_type
 
 
-def escape(s):
+def escape(s: t.Any) -> Markup:
     """Replace the characters ``&``, ``<``, ``>``, ``'``, and ``"`` in
     the string with HTML-safe sequences. Use this if you need to display
     text that might contain such characters in HTML.
@@ -25,8 +16,9 @@ def escape(s):
     """
     if hasattr(s, "__html__"):
         return Markup(s.__html__())
+
     return Markup(
-        text_type(s)
+        str(s)
         .replace("&", "&amp;")
         .replace(">", "&gt;")
         .replace("<", "&lt;")
@@ -35,7 +27,7 @@ def escape(s):
     )
 
 
-def escape_silent(s):
+def escape_silent(s: t.Optional[t.Any]) -> Markup:
     """Like :func:`escape` but treats ``None`` as the empty string.
     Useful with optional values, as otherwise you get the string
     ``'None'`` when the value is ``None``.
@@ -47,23 +39,37 @@ def escape_silent(s):
     """
     if s is None:
         return Markup()
+
     return escape(s)
 
 
-def soft_unicode(s):
+def soft_str(s: t.Any) -> str:
     """Convert an object to a string if it isn't already. This preserves
     a :class:`Markup` string rather than converting it back to a basic
     string, so it will still be marked as safe and won't be escaped
     again.
 
-    >>> value = escape('<User 1>')
+    >>> value = escape("<User 1>")
     >>> value
     Markup('&lt;User 1&gt;')
     >>> escape(str(value))
     Markup('&amp;lt;User 1&amp;gt;')
-    >>> escape(soft_unicode(value))
+    >>> escape(soft_str(value))
     Markup('&lt;User 1&gt;')
     """
-    if not isinstance(s, text_type):
-        s = text_type(s)
+    if not isinstance(s, str):
+        return str(s)
+
     return s
+
+
+def soft_unicode(s: t.Any) -> str:
+    import warnings
+
+    warnings.warn(
+        "'soft_unicode' has been renamed to 'soft_str'. The old name"
+        " will be removed in MarkupSafe 2.1.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return soft_str(s)

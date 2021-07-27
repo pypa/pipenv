@@ -6,8 +6,8 @@ import sys
 import locale
 import errno
 
-from pipenv.vendor.pexpect.popen_spawn import PopenSpawn
-from pipenv.vendor import pexpect
+from pexpect.popen_spawn import PopenSpawn
+import pexpect
 pexpect.EOF.__module__ = "pexpect.exceptions"
 
 # Include `unicode` in STR_TYPES for Python 2.X

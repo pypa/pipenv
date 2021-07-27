@@ -78,11 +78,15 @@ Some simple parse() format string examples:
 
     >>> parse("Bring me a {}", "Bring me a shrubbery")
     <Result ('shrubbery',) {}>
-    >>> r = parse("The {} who say {}", "The knights who say Ni!")
+    >>> r = parse("The {} who {} {}", "The knights who say Ni!")
     >>> print(r)
-    <Result ('knights', 'Ni!') {}>
+    <Result ('knights', 'say', 'Ni!') {}>
     >>> print(r.fixed)
-    ('knights', 'Ni!')
+    ('knights', 'say', 'Ni!')
+    >>> print(r[0])
+    knights
+    >>> print(r[1:])
+    ('say', 'Ni!')
     >>> r = parse("Bring out the holy {item}", "Bring out the holy hand grenade")
     >>> print(r)
     <Result () {'item': 'hand grenade'}>
@@ -93,8 +97,11 @@ Some simple parse() format string examples:
     >>> 'item' in r
     True
 
-Note that `in` only works if you have named fields. Dotted names and indexes
-are possible though the application must make additional sense of the result:
+Note that `in` only works if you have named fields.
+
+Dotted names and indexes are possible with some limits. Only word identifiers
+are supported (ie. no numeric indexes) and the application must make additional
+sense of the result:
 
 .. code-block:: pycon
 
@@ -377,6 +384,9 @@ the pattern, the actual match represents the shortest successful match for
 
 ----
 
+- 1.19.0 Added slice access to fixed results (thanks @jonathangjertsen).
+  Also corrected matching of *full string* vs. *full line* (thanks @giladreti)
+  Fix issue with using digit field numbering and types
 - 1.18.0 Correct bug in int parsing introduced in 1.16.0 (thanks @maxxk)
 - 1.17.0 Make left- and center-aligned search consume up to next space
 - 1.16.0 Make compiled parse objects pickleable (thanks @martinResearch)
@@ -453,13 +463,13 @@ the pattern, the actual match represents the shortest successful match for
   and removed the restriction on mixing fixed-position and named fields
 - 1.0.0 initial release
 
-This code is copyright 2012-2020 Richard Jones <richard@python.org>
+This code is copyright 2012-2021 Richard Jones <richard@python.org>
 See the end of the source file for the license of use.
 '''
 
 from __future__ import absolute_import
 
-__version__ = '1.18.0'
+__version__ = '1.19.0'
 
 # yes, I now have two problems
 import re
@@ -551,7 +561,7 @@ class int_convert:
                 elif string[number_start + 1] in 'xX':
                     base = 16
 
-        chars = int_convert.CHARS[: base]
+        chars = int_convert.CHARS[:base]
         string = re.sub('[^%s]' % chars, '', string.lower())
         return sign * int(string, base)
 
@@ -848,7 +858,7 @@ class Parser(object):
     @property
     def _match_re(self):
         if self.__match_re is None:
-            expression = r'^%s$' % self._expression
+            expression = r'\A%s\Z' % self._expression
             try:
                 self.__match_re = re.compile(expression, self._re_flags)
             except AssertionError:
@@ -1027,11 +1037,17 @@ class Parser(object):
         # now figure whether this is an anonymous or named field, and whether
         # there's any format specification
         format = ''
-        if field and field[0].isalpha():
-            if ':' in field:
-                name, format = field.split(':')
-            else:
-                name = field
+
+        if ':' in field:
+            name, format = field.split(':')
+        else:
+            name = field
+
+        # This *should* be more flexible, but parsing complicated structures
+        # out of the string is hard (and not necessarily useful) ... and I'm
+        # being lazy. So for now `identifier` is "anything starting with a
+        # letter" and digit args don't get attribute or element stuff.
+        if name and name[0].isalpha():
             if name in self._name_to_group_map:
                 if self._name_types[name] != format:
                     raise RepeatedNameError(
@@ -1051,8 +1067,6 @@ class Parser(object):
         else:
             self._fixed_fields.append(self._group_index)
             wrap = r'(%s)'
-            if ':' in field:
-                format = field[1:]
             group = self._group_index
 
         # simplest case: no type specifier ({} or {name})
@@ -1260,6 +1274,7 @@ class Result(object):
     """The result of a parse() or search().
 
     Fixed results may be looked up using `result[index]`.
+    Slices of fixed results may also be looked up.
 
     Named results may be looked up using `result['name']`.
 
@@ -1272,7 +1287,7 @@ class Result(object):
         self.spans = spans
 
     def __getitem__(self, item):
-        if isinstance(item, int):
+        if isinstance(item, (int, slice)):
             return self.fixed[item]
         return self.named[item]
 

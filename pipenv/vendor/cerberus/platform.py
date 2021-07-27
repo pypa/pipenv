@@ -2,6 +2,9 @@
 
 import sys
 
+if sys.flags.optimize == 2:
+    raise RuntimeError("Cerberus can't be run with Python's optimization level 2.")
+
 
 PYTHON_VERSION = float(sys.version_info[0]) + float(sys.version_info[1]) / 10
 

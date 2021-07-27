@@ -111,7 +111,7 @@ class AppEngineManager(RequestMethods):
         warnings.warn(
             "urllib3 is using URLFetch on Google App Engine sandbox instead "
             "of sockets. To use sockets directly instead of URLFetch see "
-            "https://urllib3.readthedocs.io/en/latest/reference/urllib3.contrib.html.",
+            "https://urllib3.readthedocs.io/en/1.26.x/reference/urllib3.contrib.html.",
             AppEnginePlatformWarning,
         )
 

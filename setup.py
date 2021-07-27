@@ -26,10 +26,7 @@ required = [
     "certifi",
     "setuptools>=36.2.1",
     "virtualenv-clone>=0.2.5",
-    "virtualenv",
-    'enum34; python_version<"3"',
-    # LEAVE THIS HERE!!! we have vendored dependencies that require it
-    'typing; python_version<"3.5"'
+    "virtualenv"
 ]
 extras = {
     "dev": [

@@ -697,12 +697,13 @@ class Environment(object):
         return d
 
     def get_package_requirements(self, pkg=None):
-        from .vendor.pipdeptree import flatten, sorted_tree, build_dist_index, construct_tree
+        from .vendor.pipdeptree import flatten, PackageDAG
+
         packages = self.get_installed_packages()
         if pkg:
             packages = [p for p in packages if p.key == pkg]
-        dist_index = build_dist_index(packages)
-        tree = sorted_tree(construct_tree(dist_index))
+
+        tree = PackageDAG.from_pkgs(packages).sort()
         branch_keys = set(r.key for r in flatten(tree.values()))
         if pkg is not None:
             nodes = [p for p in tree.keys() if p.key == pkg]

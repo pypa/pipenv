@@ -1,7 +1,6 @@
 # This file is dual licensed under the terms of the Apache License, Version
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
-from __future__ import absolute_import, division, print_function
 
 __all__ = [
     "__title__",
@@ -18,7 +17,7 @@ __title__ = "packaging"
 __summary__ = "Core utilities for Python packages"
 __uri__ = "https://github.com/pypa/packaging"
 
-__version__ = "20.8"
+__version__ = "21.0"
 
 __author__ = "Donald Stufft and individual contributors"
 __email__ = "donald@stufft.io"
