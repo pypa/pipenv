@@ -1615,7 +1615,7 @@ def system_which(command, mult=False):
     })
     result = None
     try:
-        c = subprocess_run([_which, command])
+        c = subprocess_run(f"{_which} {command}", shell=True)
         try:
             # Which Not found...
             if c.returncode == 127:
@@ -1634,7 +1634,7 @@ def system_which(command, mult=False):
             result = fallback_which(command, allow_global=True)
     else:
         if not result:
-            result = next(iter([c.out, c.err]), "").split("\n")
+            result = next(iter([c.stdout, c.stderr]), "").split("\n")
             result = next(iter(result)) if not mult else result
             return result
         if not result:
