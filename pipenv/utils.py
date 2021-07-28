@@ -2272,15 +2272,15 @@ def subprocess_run(
     if env is not None:
         env = dict(os.environ, **env)
         other_kwargs['env'] = env
+    if capture_output:
+        other_kwargs['stdout'] = subprocess.PIPE
+        other_kwargs['stderr'] = subprocess.PIPE
     if block:
         return subprocess.run(
-            args, universal_newlines=text, capture_output=capture_output,
+            args, universal_newlines=text,
             encoding=encoding, **other_kwargs
         )
     else:
-        if capture_output:
-            other_kwargs['stdout'] = subprocess.PIPE
-            other_kwargs['stderr'] = subprocess.PIPE
         return subprocess.Popen(
             args, universal_newlines=text,
             encoding=encoding, **other_kwargs

@@ -659,11 +659,11 @@ def do_where(virtualenv=False, bare=True):
 def _cleanup_procs(procs, failed_deps_queue, retry=True):
     while not procs.empty():
         c = procs.get()
-        c.wait()
-        failed = False
-        if c.returncode != 0:
-            failed = True
-        out, err = c.communicate()
+        try:
+            out, err = c.communicate()
+        except AttributeError:
+            out, err = c.stdout, c.stderr
+        failed = c.returncode != 0
         if "Ignoring" in out:
             click.echo(crayons.yellow(out.strip()))
         elif environments.is_verbose():
@@ -766,12 +766,13 @@ def batch_install(deps_list, procs, failed_deps_queue,
             if failed and not dep.is_vcs:
                 use_pep517 = getattr(dep, "use_pep517", False)
 
+            is_blocking = any([dep.editable, dep.is_vcs, blocking])
             c = pip_install(
                 dep,
                 ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
                 allow_global=allow_global,
                 no_deps=not install_deps,
-                block=any([dep.editable, dep.is_vcs, blocking]),
+                block=is_blocking,
                 index=dep.index,
                 requirements_dir=requirements_dir,
                 pypi_mirror=pypi_mirror,
@@ -782,7 +783,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
             c.dep = dep
             # if dep.is_vcs or dep.editable:
             is_sequential = sequential_deps and dep.name in sequential_dep_names
-            if is_sequential:
+            if is_sequential and not is_blocking:
                 c.wait()
 
             procs.put(c)
