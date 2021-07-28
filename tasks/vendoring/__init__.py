@@ -2,9 +2,7 @@
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
 """"Vendoring script, python 3.5 needed"""
 
-import io
 import itertools
-import json
 import os
 import re
 import shutil
@@ -23,7 +21,6 @@ from urllib3.util import parse_url as urllib3_parse
 
 from pipenv.vendor.vistir.compat import TemporaryDirectory
 from pipenv.vendor.vistir.contextmanagers import open_file
-from pipenv.vendor.requirementslib.models.lockfile import Lockfile, merge_items
 import pipenv.vendor.parse as parse
 
 
@@ -202,124 +199,6 @@ def _recursive_write_to_zip(zf, path, root=None):
         return
     for c in path.iterdir():
         _recursive_write_to_zip(zf, c, root)
-
-
-@invoke.task
-def update_safety(ctx):
-    ignore_subdeps = ["pip", "pip-egg-info", "bin", "pipenv", "virtualenv", "virtualenv-clone", "setuptools"]
-    ignore_files = ["pip-delete-this-directory.txt", "PKG-INFO", "easy_install.py", "clonevirtualenv.py"]
-    ignore_patterns = ["*.pyd", "*.so", "**/*.pyc", "*.pyc"]
-
-    patched_dir = _get_patched_dir(ctx)
-    vendor_dir = _get_vendor_dir(ctx)
-    safety_dir = Path(__file__).absolute().parent.joinpath("safety")
-    log("Using vendor dir: %s" % patched_dir)
-    log("Downloading safety package files...")
-    build_dir = patched_dir / "build"
-    root = _get_git_root(ctx)
-    with TemporaryDirectory(prefix="pipenv-", suffix="-safety") as download_dir:
-        log("generating lockfile...")
-        packages = "\n".join(["safety", "requests[security]"])
-        env = {"PIPENV_PACKAGES": packages}
-        resolve_cmd = "python {}".format(root.joinpath("pipenv/resolver.py").as_posix())
-        py27_resolve_cmd = "python2.7 {}".format(root.joinpath("pipenv/resolver.py").as_posix())
-        _, _, resolved = ctx.run(resolve_cmd, hide=True, env=env).stdout.partition("RESULTS:")
-        _, _, resolved_py2 = ctx.run(py27_resolve_cmd, hide=True, env=env).stdout.partition("RESULTS:")
-        resolved = json.loads(resolved.strip())
-        resolved_py2 = json.loads(resolved_py2.strip())
-        pkg_dict, pkg_dict_py2 = {}, {}
-        for pkg in resolved:
-            name = pkg.pop("name")
-            pkg["version"] = "=={}".format(pkg["version"])
-            pkg_dict[name] = pkg
-        for pkg in resolved_py2:
-            name = pkg.pop("name")
-            pkg["version"] = "=={}".format(pkg["version"])
-            pkg_dict_py2[name] = pkg
-        merged = merge_items([pkg_dict, pkg_dict_py2])
-        lf = Lockfile.create(safety_dir.as_posix())
-        lf["default"] = merged
-        lf.write()
-        # envvars_no_deps = {"PIP_NO_DEPS": "true"}.update(cmd_envvars)
-        # ctx.run("python -m pipenv run pip install safety", env=envvars_no_deps)
-        # ctx.run("python -m pipenv run pip uninstall -y pipenv", env=cmd_envvars)
-        # ctx.run("python -m pipenv install safety", env=cmd_envvars)
-        # ctx.run("python -m pipenv run pip uninstall -y pipenv", env=cmd_envvars)
-        # ctx.run("python2.7 -m pip install --upgrade --upgrade-strategy=eager -e {}".format(root.as_posix()))
-        # ctx.run("python2.7 -m pipenv install safety", env=cmd_envvars)
-        # requirements_txt = ctx.run("python2.7 -m pipenv lock -r", env=cmd_envvars, quiet=True).out
-        requirements = [
-            r.as_line(include_hashes=False, include_markers=False)
-            for r in lf.requirements
-        ]
-        safety_dir.joinpath("requirements.txt").write_text("\n".join(requirements))
-        if build_dir.exists() and build_dir.is_dir():
-            log(f"dropping pre-existing build dir at {build_dir.as_posix()}")
-            drop_dir(build_dir)
-        pip_command = "pip download -b {} --no-binary=:all: --no-clean --no-deps -d {} pyyaml safety".format(
-            build_dir.absolute().as_posix(), str(download_dir.name),
-        )
-        log(f"downloading deps via pip: {pip_command}")
-        ctx.run(pip_command)
-
-        yaml_build_dir = build_dir / "pyyaml"
-        lib_dir = safety_dir.joinpath("lib")
-
-        with ctx.cd(str(safety_dir)):
-            lib_dir.mkdir(exist_ok=True)
-            install_cmd = "python2.7 -m pip install --ignore-requires-python -t {} -r {}".format(lib_dir.as_posix(), safety_dir.joinpath("requirements.txt").as_posix())
-            log(f"installing dependencies: {install_cmd}")
-            ctx.run(install_cmd)
-            safety_dir = safety_dir.absolute()
-            yaml_dir = lib_dir / "yaml"
-            yaml_lib_dir_map = {
-                "2": {
-                    "current_path": yaml_build_dir / "lib/yaml",
-                    "destination": lib_dir / "yaml2",
-                },
-                "3": {
-                    "current_path": yaml_build_dir / "lib3/yaml",
-                    "destination": lib_dir / "yaml3",
-                },
-            }
-            if yaml_dir.exists():
-                drop_dir(yaml_dir)
-            log("Mapping yaml paths for python 2 and 3...")
-            for py_version, path_dict in yaml_lib_dir_map.items():
-                path_dict["current_path"].rename(path_dict["destination"])
-            log("Ensuring certificates are available...")
-            requests_dir = lib_dir / "requests"
-            cacert = vendor_dir / "certifi" / "cacert.pem"
-            if not cacert.exists():
-                from pipenv.vendor import requests
-                cacert = Path(requests.certs.where())
-            target_cert = requests_dir / "cacert.pem"
-            target_cert.write_bytes(cacert.read_bytes())
-            log("dropping ignored files...")
-            for pattern in ignore_patterns:
-                for path in lib_dir.rglob(pattern):
-                    log(f"removing {path!s}")
-                    path.unlink()
-            for dep in ignore_subdeps:
-                if lib_dir.joinpath(dep).exists():
-                    log(f"cleaning up {dep}")
-                    drop_dir(lib_dir.joinpath(dep))
-                for path in itertools.chain.from_iterable((
-                    lib_dir.rglob(f"{dep}*.egg-info"),
-                    lib_dir.rglob(f"{dep}*.dist-info")
-                )):
-                    log(f"cleaning up {path}")
-                    drop_dir(path)
-            for fn in ignore_files:
-                for path in lib_dir.rglob(fn):
-                    log(f"cleaning up {path}")
-                    path.unlink()
-        zip_name = f"{str(patched_dir)}/safety.zip"
-        log("writing zipfile...")
-        with zipfile.ZipFile(zip_name, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
-            _recursive_write_to_zip(zf, safety_dir)
-        drop_dir(build_dir)
-        drop_dir(lib_dir)
 
 
 def rename_if_needed(ctx, vendor_dir, item):
