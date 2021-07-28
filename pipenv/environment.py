@@ -13,11 +13,11 @@ import pkg_resources
 
 import pipenv
 
-from .vendor.cached_property import cached_property
-from .vendor.packaging.utils import canonicalize_name
-from .vendor import vistir
+from pipenv.vendor.cached_property import cached_property
+from pipenv.vendor.packaging.utils import canonicalize_name
+from pipenv.vendor import vistir
 
-from .utils import normalize_path, make_posix
+from pipenv.utils import normalize_path, make_posix
 
 
 if False:
@@ -25,8 +25,8 @@ if False:
     import tomlkit
     from typing import ContextManager, Dict, Generator, List, Optional, Set, Union
     from types import ModuleType
-    from .project import TSource, TPipfile, Project
-    from .vendor.packaging.version import Version
+    from pipenv.project import TSource, TPipfile, Project
+    from pipenv.vendor.packaging.version import Version
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
 # TODO: Unittests for this class

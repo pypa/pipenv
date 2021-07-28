@@ -6,10 +6,10 @@ import signal
 import subprocess
 import sys
 
-from .environments import PIPENV_EMULATOR, PIPENV_SHELL, PIPENV_SHELL_EXPLICIT
-from .vendor import shellingham
-from .vendor.vistir.compat import Path, get_terminal_size
-from .vendor.vistir.contextmanagers import temp_environ
+from pipenv.environments import PIPENV_EMULATOR, PIPENV_SHELL, PIPENV_SHELL_EXPLICIT
+from pipenv.vendor import shellingham
+from pipenv.vendor.vistir.compat import Path, get_terminal_size
+from pipenv.vendor.vistir.contextmanagers import temp_environ
 
 
 ShellDetectionFailure = shellingham.ShellDetectionFailure

@@ -1,17 +1,17 @@
 import os
-from pipenv.utils import subprocess_run
 import sys
 
 from click import (
     argument, echo, edit, group, option, pass_context, secho, types, version_option, Choice
 )
 
-from ..__version__ import __version__
-from .._compat import fix_utf8
-from ..exceptions import PipenvOptionsError
-from ..patched import crayons
-from ..vendor import click_completion
-from .options import (
+from pipenv.__version__ import __version__
+from pipenv._compat import fix_utf8
+from pipenv.exceptions import PipenvOptionsError
+from pipenv.patched import crayons
+from pipenv.vendor import click_completion
+from pipenv.utils import subprocess_run
+from pipenv.cli.options import (
     CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
     general_options, install_options, lock_options, pass_state,
     pypi_mirror_option, python_option, site_packages_option, skip_lock_option,

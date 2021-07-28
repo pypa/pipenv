@@ -4,9 +4,9 @@ import sys
 
 import pipenv
 
-from .core import project
-from .pep508checker import lookup
-from .vendor import pythonfinder
+from pipenv.core import project
+from pipenv.pep508checker import lookup
+from pipenv.vendor import pythonfinder
 
 
 def print_utf(line):

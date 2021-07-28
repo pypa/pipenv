@@ -5,14 +5,14 @@ import sys
 from collections import namedtuple
 from traceback import format_tb
 
-from . import environments
-from ._compat import decode_for_output
-from .patched import crayons
-from .vendor.click.exceptions import (
+from pipenv import environments
+from pipenv._compat import decode_for_output
+from pipenv.patched import crayons
+from pipenv.vendor.click.exceptions import (
     ClickException, FileError, UsageError
 )
-from .vendor.vistir.misc import echo as click_echo
-import vistir
+from pipenv.vendor.vistir.misc import echo as click_echo
+from pipenv.vendor import vistir
 
 ANSI_REMOVAL_RE = re.compile(r"\033\[((?:\d|;)*)([a-zA-Z])", re.MULTILINE)
 STRING_TYPES = ((str,), crayons.ColoredString)

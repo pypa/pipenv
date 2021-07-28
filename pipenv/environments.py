@@ -3,8 +3,8 @@ import sys
 
 from appdirs import user_cache_dir
 
-from ._compat import fix_utf8
-from .vendor.vistir.misc import _isatty, fs_str
+from pipenv._compat import fix_utf8
+from pipenv.vendor.vistir.misc import _isatty, fs_str
 
 
 # HACK: avoid resolver.py uses the wrong byte code files.

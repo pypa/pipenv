@@ -7,7 +7,7 @@ import os
 import sys
 import warnings
 
-from .__version__ import __version__    # noqa
+from pipenv.__version__ import __version__    # noqa
 
 
 PIPENV_ROOT = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))

@@ -21,20 +21,20 @@ import crayons
 import parse
 import tomlkit
 
-from . import environments
-from ._compat import DEFAULT_ENCODING
-from .exceptions import PipenvCmdError, PipenvUsageError, RequirementError, ResolutionFailure
-from .pep508checker import lookup
-from .vendor.packaging.markers import Marker
-from .vendor.urllib3 import util as urllib3_util
-from .vendor.vistir.compat import Mapping, ResourceWarning, Sequence, Set, lru_cache
-from .vendor.vistir.misc import fs_str, run
+from pipenv import environments
+from pipenv._compat import DEFAULT_ENCODING
+from pipenv.exceptions import PipenvCmdError, PipenvUsageError, RequirementError, ResolutionFailure
+from pipenv.pep508checker import lookup
+from pipenv.vendor.packaging.markers import Marker
+from pipenv.vendor.urllib3 import util as urllib3_util
+from pipenv.vendor.vistir.compat import Mapping, ResourceWarning, Sequence, Set, lru_cache
+from pipenv.vendor.vistir.misc import fs_str, run
 
 if environments.MYPY_RUNNING:
     from typing import Tuple, Dict, Any, List, Union, Optional, Text
-    from .vendor.requirementslib.models.requirements import Requirement, Line
-    from .vendor.requirementslib.models.pipfile import Pipfile
-    from .project import Project, TSource
+    from pipenv.vendor.requirementslib.models.requirements import Requirement, Line
+    from pipenv.vendor.requirementslib.models.pipfile import Pipfile
+    from pipenv.project import Project, TSource
 
 
 logging.basicConfig(level=logging.ERROR)
