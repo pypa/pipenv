@@ -47,7 +47,7 @@ steps:
       git submodule sync
       git submodule update --init --recursive
       pipenv run pytest -ra -n 4 -v --junit-xml=junit/test-results.xml tests/
-    failOnStderr: false
+    failOnStderr:       ,
     displayName: Run integration tests
     env:
       TEMP: 'R:\'
