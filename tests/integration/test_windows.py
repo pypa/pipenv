@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function
 import os
 
 import pytest
@@ -50,7 +48,7 @@ def test_local_path_windows(PipenvInstance):
     except OSError:
         whl = whl.absolute()
     with PipenvInstance(chdir=True) as p:
-        c = p.pipenv('install "{0}"'.format(whl))
+        c = p.pipenv(f'install "{whl}"')
         assert c.return_code == 0
 
 
@@ -66,7 +64,7 @@ def test_local_path_windows_forward_slash(PipenvInstance):
     except OSError:
         whl = whl.absolute()
     with PipenvInstance(chdir=True) as p:
-        c = p.pipenv('install "{0}"'.format(whl.as_posix()))
+        c = p.pipenv(f'install "{whl.as_posix()}"')
         assert c.return_code == 0
 
 
@@ -75,7 +73,7 @@ def test_pipenv_clean_windows(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv('install requests')
         assert c.return_code == 0
-        c = p.pipenv('run pip install -i {} click'.format(p.index_url))
+        c = p.pipenv(f'run pip install -i {p.index_url} click')
         assert c.return_code == 0
 
         c = p.pipenv('clean --dry-run')

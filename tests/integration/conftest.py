@@ -1,6 +1,3 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function
-
 import errno
 import json
 import logging
@@ -49,11 +46,11 @@ def check_internet():
             try_internet(url)
         except KeyboardInterrupt:
             warnings.warn(
-                "Skipped connecting to internet: {0}".format(url), RuntimeWarning
+                f"Skipped connecting to internet: {url}", RuntimeWarning
             )
         except Exception:
             warnings.warn(
-                "Failed connecting to internet: {0}".format(url), RuntimeWarning
+                f"Failed connecting to internet: {url}", RuntimeWarning
             )
         else:
             has_internet = True
@@ -223,7 +220,7 @@ WE_HAVE_INTERNET = check_internet()
 WE_HAVE_GITHUB_SSH_KEYS = False
 
 
-class _Pipfile(object):
+class _Pipfile:
     def __init__(self, path):
         self.path = path
         if self.path.exists():
@@ -234,7 +231,7 @@ class _Pipfile(object):
         self.document["requires"] = self.document.get("requires", tomlkit.table())
         self.document["packages"] = self.document.get("packages", tomlkit.table())
         self.document["dev_packages"] = self.document.get("dev_packages", tomlkit.table())
-        super(_Pipfile, self).__init__()
+        super().__init__()
 
     def install(self, package, value, dev=False):
         section = "packages" if not dev else "dev_packages"
@@ -292,15 +289,15 @@ class _Pipfile(object):
         fixture_pypi = os.getenv("ARTIFACT_PYPI_URL")
         if fixture_pypi:
             if pkg and not filename:
-                url = "{0}/artifacts/{1}".format(fixture_pypi, pkg)
+                url = f"{fixture_pypi}/artifacts/{pkg}"
             else:
-                url = "{0}/artifacts/{1}/{2}".format(fixture_pypi, pkg, filename)
+                url = f"{fixture_pypi}/artifacts/{pkg}/{filename}"
             return url
         if pkg and not filename:
             return cls.get_fixture_path(file_path).as_uri()
 
 
-class _PipenvInstance(object):
+class _PipenvInstance:
     """An instance of a Pipenv Project..."""
     def __init__(
         self, pypi=None, pipfile=True, chdir=False, path=None, home_dir=None,
@@ -351,7 +348,7 @@ class _PipenvInstance(object):
         self.chdir = chdir
 
         if self.pypi and "PIPENV_PYPI_URL" not in os.environ:
-            os.environ['PIPENV_PYPI_URL'] = fs_str('{0}'.format(self.pypi))
+            os.environ['PIPENV_PYPI_URL'] = fs_str(f'{self.pypi}')
             # os.environ['PIPENV_PYPI_URL'] = fs_str('{0}'.format(self.pypi.url))
             # os.environ['PIPENV_TEST_INDEX'] = fs_str('{0}/simple'.format(self.pypi.url))
 
@@ -389,7 +386,7 @@ class _PipenvInstance(object):
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
             c = delegator.run(
-                'pipenv {0}'.format(cmd), block=block,
+                f'pipenv {cmd}', block=block,
                 cwd=os.path.abspath(self.path), env=os.environ.copy()
             )
             if 'PIPENV_CACHE_DIR' in os.environ:
@@ -400,7 +397,7 @@ class _PipenvInstance(object):
 
         # Pretty output for failing tests.
         if block:
-            print('$ pipenv {0}'.format(cmd))
+            print(f'$ pipenv {cmd}')
             print(c.out)
             print(c.err, file=sys.stderr)
             if c.return_code != 0:
@@ -412,13 +409,13 @@ class _PipenvInstance(object):
     @property
     def pipfile(self):
         p_path = os.sep.join([self.path, 'Pipfile'])
-        with open(p_path, 'r') as f:
+        with open(p_path) as f:
             return toml.loads(f.read())
 
     @property
     def lockfile(self):
         p_path = self.lockfile_path
-        with open(p_path, 'r') as f:
+        with open(p_path) as f:
             return json.loads(f.read())
 
     @property
@@ -433,7 +430,7 @@ def _rmtree_func(path, ignore_errors=True, onerror=None):
         onerror = handle_remove_readonly
     try:
         shutil_rmtree(directory, ignore_errors=ignore_errors, onerror=onerror)
-    except (IOError, OSError, FileNotFoundError, PermissionError) as exc:
+    except (OSError, FileNotFoundError, PermissionError) as exc:
         # Ignore removal failures where the file doesn't exist
         if exc.errno != errno.ENOENT:
             raise
@@ -459,7 +456,7 @@ def PipenvInstance(pip_src_dir, monkeypatch, pypi):
         m.setenv("PIPENV_NOSPIN", fs_str("1"))
         m.setenv("CI", fs_str("1"))
         m.setenv('PIPENV_DONT_USE_PYENV', fs_str('1'))
-        m.setenv("PIPENV_TEST_INDEX", "{0}/simple".format(pypi.url))
+        m.setenv("PIPENV_TEST_INDEX", f"{pypi.url}/simple")
         m.setenv("PIPENV_PYPI_INDEX", "simple")
         m.setenv("ARTIFACT_PYPI_URL", pypi.url)
         m.setenv("PIPENV_PYPI_URL", pypi.url)
@@ -479,7 +476,7 @@ def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir, pypi):
         m.setenv("PIPENV_NOSPIN", fs_str("1"))
         m.setenv("CI", fs_str("1"))
         m.setenv('PIPENV_DONT_USE_PYENV', fs_str('1'))
-        m.setenv("PIPENV_TEST_INDEX", "{0}/simple".format(pypi.url))
+        m.setenv("PIPENV_TEST_INDEX", f"{pypi.url}/simple")
         m.setenv("ARTIFACT_PYPI_URL", pypi.url)
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
@@ -494,7 +491,7 @@ def testsroot():
     return TESTS_ROOT
 
 
-class VirtualEnv(object):
+class VirtualEnv:
     def __init__(self, name="venv", base_dir=None):
         if base_dir is None:
             base_dir = Path(_create_tracked_dir())

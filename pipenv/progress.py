@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 clint.textui.progress
 ~~~~~~~~~~~~~~~~~
@@ -7,7 +6,6 @@ This module provides the progressbar functionality.
 
 """
 
-from __future__ import absolute_import
 
 import os
 import sys
@@ -37,7 +35,7 @@ else:
         BAR_EMPTY_CHAR = str(crayons.black("▉"))
 
 if (sys.version_info[0] >= 3) and (os.name != "nt"):
-    BAR_TEMPLATE = u"  %s%s%s %i/%i — {0}\r".format(crayons.black("%s"))
+    BAR_TEMPLATE = "  %s%s%s %i/%i — {}\r".format(crayons.black("%s"))
 else:
     if os.name == "nt":
         BAR_TEMPLATE = "  %s%s%s %i/%i - %s\r"
@@ -51,7 +49,7 @@ ETA_INTERVAL = 1
 ETA_SMA_WINDOW = 9
 
 
-class Bar(object):
+class Bar:
     def __enter__(self):
         return self
 

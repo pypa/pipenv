@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function
 import os
 import shutil
 
@@ -63,7 +61,7 @@ def test_mirror_uninstall(PipenvInstance):
         )
         assert "pypi.org" not in mirror_url
 
-        c = p.pipenv("install Django==1.11.13 --pypi-mirror {0}".format(mirror_url))
+        c = p.pipenv(f"install Django==1.11.13 --pypi-mirror {mirror_url}")
         assert c.return_code == 0
         assert "django" in p.pipfile["packages"]
         assert "django" in p.lockfile["default"]
@@ -77,7 +75,7 @@ def test_mirror_uninstall(PipenvInstance):
         c = p.pipenv("run python -m django --version")
         assert c.return_code == 0
 
-        c = p.pipenv("uninstall Django --pypi-mirror {0}".format(mirror_url))
+        c = p.pipenv(f"uninstall Django --pypi-mirror {mirror_url}")
         assert c.return_code == 0
         assert "django" not in p.pipfile["dev-packages"]
         assert "django" not in p.lockfile["develop"]
@@ -103,7 +101,7 @@ def test_uninstall_all_local_files(PipenvInstance, testsroot):
     with PipenvInstance(chdir=True) as p:
         shutil.copy(source_path, os.path.join(p.path, file_name))
         os.mkdir(os.path.join(p.path, "tablib"))
-        c = p.pipenv("install {}".format(file_name))
+        c = p.pipenv(f"install {file_name}")
         assert c.return_code == 0
         c = p.pipenv("uninstall --all")
         assert c.return_code == 0

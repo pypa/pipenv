@@ -23,7 +23,7 @@ with open(os.path.join(ROOT, 'src', PACKAGE_NAME.replace("-", "_"), '__init__.py
             VERSION = ast.literal_eval(line[len('__version__ = '):].strip())
             break
 if VERSION is None:
-    raise EnvironmentError('failed to read version')
+    raise OSError('failed to read version')
 
 
 # Put everything in setup.cfg, except those that don't actually work?

@@ -1,5 +1,3 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function
 import io
 import os
 import tarfile
@@ -84,7 +82,7 @@ six = {{version = "*", index = "pypi"}}
 
 @pytest.mark.install
 @pytest.mark.project
-@pytest.mark.parametrize('newlines', [u'\n', u'\r\n'])
+@pytest.mark.parametrize('newlines', ['\n', '\r\n'])
 def test_maintain_file_line_endings(PipenvInstance, newlines):
     with PipenvInstance(chdir=True) as p:
         # Initial pipfile + lockfile generation
@@ -93,15 +91,15 @@ def test_maintain_file_line_endings(PipenvInstance, newlines):
 
         # Rewrite each file with parameterized newlines
         for fn in [p.pipfile_path, p.lockfile_path]:
-            with io.open(fn) as f:
+            with open(fn) as f:
                 contents = f.read()
                 written_newlines = f.newlines
 
-            assert written_newlines == u'\n', '{0!r} != {1!r} for {2}'.format(
-                written_newlines, u'\n', fn,
+            assert written_newlines == '\n', '{!r} != {!r} for {}'.format(
+                written_newlines, '\n', fn,
             )
             # message because of  https://github.com/pytest-dev/pytest/issues/3443
-            with io.open(fn, 'w', newline=newlines) as f:
+            with open(fn, 'w', newline=newlines) as f:
                 f.write(contents)
 
         # Run pipenv install to programatically rewrite
@@ -110,10 +108,10 @@ def test_maintain_file_line_endings(PipenvInstance, newlines):
 
         # Make sure we kept the right newlines
         for fn in [p.pipfile_path, p.lockfile_path]:
-            with io.open(fn) as f:
+            with open(fn) as f:
                 f.read()    # Consumes the content to detect newlines.
                 actual_newlines = f.newlines
-            assert actual_newlines == newlines, '{0!r} != {1!r} for {2}'.format(
+            assert actual_newlines == newlines, '{!r} != {!r} for {}'.format(
                 actual_newlines, newlines, fn,
             )
             # message because of  https://github.com/pytest-dev/pytest/issues/3443
@@ -161,7 +159,7 @@ def test_include_editable_packages(PipenvInstance, testsroot, pathlib_tmpdir):
     with PipenvInstance(chdir=True) as p:
         with tarfile.open(source_path, "r:gz") as tarinfo:
             tarinfo.extractall(path=str(pathlib_tmpdir))
-        c = p.pipenv('install -e {0}'.format(package.as_posix()))
+        c = p.pipenv(f'install -e {package.as_posix()}')
         assert c.return_code == 0
         project = Project()
         assert "tablib" in [
@@ -185,14 +183,14 @@ def test_run_in_virtualenv_with_global_context(PipenvInstance, virtualenv):
             project.virtualenv_location, virtualenv.as_posix()
         )
         c = delegator_run(
-            "pipenv run pip install -i {} click".format(p.index_url),
+            f"pipenv run pip install -i {p.index_url} click",
             cwd=os.path.abspath(p.path),
             env=os.environ.copy()
         )
         assert c.return_code == 0, (c.out, c.err)
         assert "Courtesy Notice" in c.err, (c.out, c.err)
         c = delegator_run(
-            "pipenv install -i {} six".format(p.index_url),
+            f"pipenv install -i {p.index_url} six",
             cwd=os.path.abspath(p.path), env=os.environ.copy()
         )
         assert c.return_code == 0, (c.out, c.err)
@@ -243,4 +241,3 @@ pytest = "*"
             f.write(contents)
         c = p.pipenv('install --skip-lock')
         assert c.return_code == 0
-

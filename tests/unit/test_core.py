@@ -1,6 +1,6 @@
 import os
 
-import mock
+from unittest import mock
 import pytest
 
 from pipenv._compat import TemporaryDirectory
@@ -29,7 +29,7 @@ def test_load_dot_env_from_environment_variable_location(monkeypatch, capsys):
         dotenv_path = os.path.join(tempdir.name, 'test.env')
         key, val = 'SOME_KEY', 'some_value'
         with open(dotenv_path, 'w') as f:
-            f.write('{}={}'.format(key, val))
+            f.write(f'{key}={val}')
 
         m.setenv("PIPENV_DOTENV_LOCATION", str(dotenv_path))
         m.setattr("pipenv.environments.PIPENV_DOTENV_LOCATION", str(dotenv_path))
@@ -47,7 +47,7 @@ def test_doesnt_load_dot_env_if_disabled(monkeypatch, capsys):
         dotenv_path = os.path.join(tempdir.name, 'test.env')
         key, val = 'SOME_KEY', 'some_value'
         with open(dotenv_path, 'w') as f:
-            f.write('{}={}'.format(key, val))
+            f.write(f'{key}={val}')
 
         m.setenv("PIPENV_DOTENV_LOCATION", str(dotenv_path))
         m.setattr("pipenv.environments.PIPENV_DOTENV_LOCATION", str(dotenv_path))

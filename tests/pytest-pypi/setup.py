@@ -24,7 +24,7 @@ class UploadCommand(Command):
     @staticmethod
     def status(s):
         """Prints things in bold."""
-        print('\033[1m{0}\033[0m'.format(s))
+        print(f'\033[1m{s}\033[0m')
 
     def initialize_options(self):
         pass
@@ -40,13 +40,13 @@ class UploadCommand(Command):
             pass
 
         self.status('Building Source and Wheel (universal) distribution...')
-        os.system('{0} setup.py sdist bdist_wheel --universal'.format(sys.executable))
+        os.system(f'{sys.executable} setup.py sdist bdist_wheel --universal')
 
         self.status('Uploading the package to PyPI via Twine...')
         os.system('twine upload dist/*')
 
         self.status('Pushing git tags...')
-        os.system('git tag v{0}'.format(__version__))
+        os.system(f'git tag v{__version__}')
         os.system('git push --tags')
 
         sys.exit()

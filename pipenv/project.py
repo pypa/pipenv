@@ -9,8 +9,8 @@ import operator
 import os
 import re
 import sys
+import urllib.parse
 
-import six
 import toml
 import tomlkit
 import vistir
@@ -89,13 +89,13 @@ class _LockFileEncoder(json.JSONEncoder):
 
     def encode(self, obj):
         content = super(_LockFileEncoder, self).encode(obj)
-        if not isinstance(content, six.text_type):
+        if not isinstance(content, str):
             content = content.decode("utf-8")
         return content
 
 
 def preferred_newlines(f):
-    if isinstance(f.newlines, six.text_type):
+    if isinstance(f.newlines, str):
         return f.newlines
     return DEFAULT_NEWLINES
 
@@ -568,7 +568,7 @@ class Project(object):
         _pipfile_cache.clear()
 
     def _parse_pipfile(self, contents):
-        # type: () -> Union[tomlkit.toml_document.TOMLDocument, TPipfile]
+        # type: (str) -> Union[tomlkit.toml_document.TOMLDocument, TPipfile]
         try:
             return tomlkit.parse(contents)
         except Exception:
@@ -614,7 +614,7 @@ class Project(object):
             return False
 
     def build_script(self, name, extra_args=None):
-        # type: (str, Optional[List[str]])
+        # type: (str, Optional[List[str]]) -> Script
         try:
             script = Script.parse(self.parsed_pipfile["scripts"][name])
         except KeyError:
@@ -1011,7 +1011,7 @@ class Project(object):
         self.write_toml(p)
 
     def src_name_from_url(self, index_url):
-        name, _, tld_guess = six.moves.urllib.parse.urlsplit(index_url).netloc.rpartition(
+        name, _, tld_guess = urllib.parse.urlsplit(index_url).netloc.rpartition(
             "."
         )
         src_name = name.replace(".", "")

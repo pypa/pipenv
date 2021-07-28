@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import print_function
-
 import contextlib
 import errno
 import logging
@@ -14,11 +11,10 @@ import sys
 import warnings
 from contextlib import contextmanager
 from distutils.spawn import find_executable
+from urllib.parse import urlparse
 
-import six
 import toml
 from click import echo as click_echo
-from six.moves.urllib.parse import urlparse
 
 import crayons
 import parse
@@ -137,7 +133,7 @@ def run_command(cmd, *args, **kwargs):
     from ._compat import decode_for_output
     from .cmdparse import Script
     catch_exceptions = kwargs.pop("catch_exceptions", True)
-    if isinstance(cmd, (six.string_types, list, tuple)):
+    if isinstance(cmd, ((str,), list, tuple)):
         cmd = Script.parse(cmd)
     if not isinstance(cmd, Script):
         raise TypeError("Command input must be a string, list or tuple")
@@ -147,14 +143,14 @@ def run_command(cmd, *args, **kwargs):
     try:
         cmd_string = cmd.cmdify()
     except TypeError:
-        click_echo("Error turning command into string: {0}".format(cmd), err=True)
+        click_echo(f"Error turning command into string: {cmd}", err=True)
         sys.exit(1)
     if environments.is_verbose():
-        click_echo("Running command: $ {0}".format(cmd_string, err=True))
+        click_echo(f"Running command: $ {cmd_string}")
     c = delegator.run(cmd_string, *args, **kwargs)
     return_code = c.return_code
     if environments.is_verbose():
-        click_echo("Command output: {0}".format(
+        click_echo("Command output: {}".format(
             crayons.cyan(decode_for_output(c.out))
         ), err=True)
     if not c.ok and catch_exceptions:
@@ -223,10 +219,10 @@ def escape_grouped_arguments(s):
 
 def clean_pkg_version(version):
     """Uses pip to prepare a package version string, from our internal version."""
-    return six.u(pep440_version(str(version).replace("==", "")))
+    return pep440_version(str(version).replace("==", ""))
 
 
-class HackedPythonVersion(object):
+class HackedPythonVersion:
     """A Beautiful hack, which allows us to tell pip which version of Python we're using."""
 
     def __init__(self, python_version, python_path):
@@ -260,9 +256,9 @@ def prepare_pip_source_args(sources, pip_args=None):
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
             url_parts = urllib3_util.parse_url(package_url)
-            url_port = ":{0}".format(url_parts.port) if url_parts.port else ""
+            url_port = f":{url_parts.port}" if url_parts.port else ""
             pip_args.extend(
-                ["--trusted-host", "{0}{1}".format(url_parts.host, url_port)]
+                ["--trusted-host", f"{url_parts.host}{url_port}"]
             )
         # Add additional sources as extra indexes.
         if len(sources) > 1:
@@ -274,9 +270,9 @@ def prepare_pip_source_args(sources, pip_args=None):
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
                     url_parts = urllib3_util.parse_url(url)
-                    url_port = ":{0}".format(url_parts.port) if url_parts.port else ""
+                    url_port = f":{url_parts.port}" if url_parts.port else ""
                     pip_args.extend(
-                        ["--trusted-host", "{0}{1}".format(url_parts.host, url_port)]
+                        ["--trusted-host", f"{url_parts.host}{url_port}"]
                     )
     return pip_args
 
@@ -314,7 +310,7 @@ def get_source_list(
     if index:
         sources.append(get_project_index(index))
     if extra_indexes:
-        if isinstance(extra_indexes, six.string_types):
+        if isinstance(extra_indexes, str):
             extra_indexes = [extra_indexes]
         for source in extra_indexes:
             extra_src = get_project_index(source)
@@ -375,7 +371,7 @@ def get_pipenv_sitedir():
     return None
 
 
-class Resolver(object):
+class Resolver:
     def __init__(
         self, constraints, req_dir, project, sources, index_lookup=None,
         markers_lookup=None, skipped=None, clear=False, pre=False
@@ -495,13 +491,13 @@ class Resolver(object):
         except ValueError:
             direct_url = DIRECT_URL_RE.match(line)
             if direct_url:
-                line = "{0}#egg={1}".format(line, direct_url.groupdict()["name"])
+                line = "{}#egg={}".format(line, direct_url.groupdict()["name"])
                 try:
                     req = Requirement.from_line(line)
                 except ValueError:
-                    raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
+                    raise ResolutionFailure(f"Failed to resolve requirement from line: {line!s}")
             else:
-                raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
+                raise ResolutionFailure(f"Failed to resolve requirement from line: {line!s}")
         if url:
             try:
                 index_lookup[req.normalized_name] = project.get_source(
@@ -680,8 +676,8 @@ class Resolver(object):
         index_lookup, markers_lookup = {}, {}
         deps = set()
         if dev:
-            deps.update(set([req.as_line() for req in pipfile.dev_packages]))
-        deps.update(set([req.as_line() for req in pipfile.packages]))
+            deps.update({req.as_line() for req in pipfile.dev_packages})
+        deps.update({req.as_line() for req in pipfile.packages})
         constraints, skipped, index_lookup, markers_lookup = cls.get_metadata(
             list(deps), index_lookup, markers_lookup, project, project.sources,
             req_dir=req_dir, pre=pre, clear=clear
@@ -737,9 +733,9 @@ class Resolver(object):
         if self.sources:
             requirementstxt_sources = " ".join(args_to_add) if args_to_add else ""
             requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
-            constraints_file.write(u"{0}\n".format(requirementstxt_sources))
+            constraints_file.write(f"{requirementstxt_sources}\n")
         constraints = self.initial_constraints
-        constraints_file.write(u"\n".join([c for c in constraints]))
+        constraints_file.write("\n".join([c for c in constraints]))
         constraints_file.close()
         return constraints_file.name
 
@@ -820,7 +816,7 @@ class Resolver(object):
         from pipenv.patched.piptools.cache import CorruptCacheError
         from .exceptions import CacheError, ResolutionFailure
         with temp_environ():
-            os.environ["PIP_NO_USE_PEP517"] = str("")
+            os.environ["PIP_NO_USE_PEP517"] = ""
             try:
                 results = self.resolver.resolve(max_rounds=environments.PIPENV_MAX_ROUNDS)
             except CorruptCacheError as e:
@@ -876,7 +872,7 @@ class Resolver(object):
             if not checksum:
                 continue
             if not checksum.startswith("sha256:"):
-                checksum = "sha256:{0}".format(checksum)
+                checksum = f"sha256:{checksum}"
             cleaned_checksums.append(checksum)
         return cleaned_checksums
 
@@ -895,7 +891,7 @@ class Resolver(object):
             "python.org" in source["url"] or "pypi.org" in source["url"]
             for source in self.sources
         ):
-            pkg_url = "https://pypi.org/pypi/{0}/json".format(ireq.name)
+            pkg_url = f"https://pypi.org/pypi/{ireq.name}/json"
             session = _get_requests_session()
             try:
                 # Grab the hashes from the new warehouse API.
@@ -916,7 +912,7 @@ class Resolver(object):
             except (ValueError, KeyError, ConnectionError):
                 if environments.is_verbose():
                     click_echo(
-                        "{0}: Error generating hash for {1}".format(
+                        "{}: Error generating hash for {}".format(
                             crayons.red("Warning", bold=True), ireq.name
                         ), err=True
                     )
@@ -1056,7 +1052,7 @@ def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=No
     name, pf_entry = req.pipfile_entry
     name = pep423_name(req.name)
     entry = {}
-    if isinstance(pf_entry, six.string_types):
+    if isinstance(pf_entry, str):
         entry["version"] = pf_entry.lstrip("=")
     else:
         entry.update(pf_entry)
@@ -1150,7 +1146,7 @@ def resolve(cmd, sp):
     while True:
         result = None
         try:
-            result = c.expect(u"\n", timeout=environments.PIPENV_INSTALL_TIMEOUT)
+            result = c.expect("\n", timeout=environments.PIPENV_INSTALL_TIMEOUT)
         except TIMEOUT:
             pass
         except EOF:
@@ -1160,7 +1156,7 @@ def resolve(cmd, sp):
             break
         if result:
             _out = c.subprocess.before
-            _out = decode_output("{0}".format(_out))
+            _out = decode_output(f"{_out}")
             out += _out
             # sp.text = to_native_string("{0}".format(_out[:100]))
             if environments.is_verbose():
@@ -1342,13 +1338,13 @@ def venv_resolve_deps(
             if c.ok:
                 sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                 if not environments.is_verbose() and c.out.strip():
-                    click_echo(crayons.yellow("Warning: {0}".format(c.out.strip())), err=True)
+                    click_echo(crayons.yellow(f"Warning: {c.out.strip()}"), err=True)
             else:
                 sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
-                click_echo("Output: {0}".format(c.out.strip()), err=True)
-                click_echo("Error: {0}".format(c.err.strip()), err=True)
+                click_echo(f"Output: {c.out.strip()}", err=True)
+                click_echo(f"Error: {c.err.strip()}", err=True)
     try:
-        with open(target_file.name, "r") as fh:
+        with open(target_file.name) as fh:
             results = json.load(fh)
     except (IndexError, JSONDecodeError):
         click_echo(c.out.strip(), err=True)
@@ -1432,13 +1428,13 @@ def resolve_deps(
 
 
 def is_star(val):
-    return isinstance(val, six.string_types) and val == "*"
+    return isinstance(val, str) and val == "*"
 
 
 def is_pinned(val):
     if isinstance(val, Mapping):
         val = val.get("version")
-    return isinstance(val, six.string_types) and val.startswith("==")
+    return isinstance(val, str) and val.startswith("==")
 
 
 def convert_deps_to_pip(deps, project=None, r=True, include_index=True):
@@ -1477,7 +1473,7 @@ def mkdir_p(newdir):
         pass
     elif os.path.isfile(newdir):
         raise OSError(
-            "a file with the same name as the desired dir, '{0}', already exists.".format(
+            "a file with the same name as the desired dir, '{}', already exists.".format(
                 newdir
             )
         )
@@ -1530,7 +1526,7 @@ def is_installable_file(path):
         key for key in path.keys() if key in ["file", "path"]
     ):
         path = urlparse(path["file"]).path if "file" in path else path["path"]
-    if not isinstance(path, six.string_types) or path == "*":
+    if not isinstance(path, str) or path == "*":
         return False
 
     # If the string starts with a valid specifier operator, test if it is a valid
@@ -1548,7 +1544,7 @@ def is_installable_file(path):
         return False
 
     lookup_path = Path(path)
-    absolute_path = "{0}".format(lookup_path.absolute())
+    absolute_path = f"{lookup_path.absolute()}"
     if lookup_path.is_dir() and is_installable_dir(absolute_path):
         return True
 
@@ -1595,11 +1591,11 @@ def proper_case(package_name):
     """Properly case project name from pypi.org."""
     # Hit the simple API.
     r = _get_requests_session().get(
-        "https://pypi.org/pypi/{0}/json".format(package_name), timeout=0.3, stream=True
+        f"https://pypi.org/pypi/{package_name}/json", timeout=0.3, stream=True
     )
     if not r.ok:
-        raise IOError(
-            "Unable to find package {0} in PyPI repository.".format(package_name)
+        raise OSError(
+            f"Unable to find package {package_name} in PyPI repository."
         )
 
     r = parse.parse("https://pypi.org/pypi/{name}/json", r.url)
@@ -1646,7 +1642,7 @@ def normalize_path(path):
 
 
 def get_url_name(url):
-    if not isinstance(url, six.string_types):
+    if not isinstance(url, str):
         return
     return urllib3_util.parse_url(url).host
 
@@ -1656,10 +1652,10 @@ def get_canonical_names(packages):
     from .vendor.packaging.utils import canonicalize_name
 
     if not isinstance(packages, Sequence):
-        if not isinstance(packages, six.string_types):
+        if not isinstance(packages, str):
             return packages
         packages = [packages]
-    return set([canonicalize_name(pkg) for pkg in packages if pkg])
+    return {canonicalize_name(pkg) for pkg in packages if pkg}
 
 
 def walk_up(bottom):
@@ -1686,8 +1682,7 @@ def walk_up(bottom):
     if new_path == bottom:
         return
 
-    for x in walk_up(new_path):
-        yield x
+    yield from walk_up(new_path)
 
 
 def find_requirements(max_depth=3):
@@ -1733,7 +1728,7 @@ def load_path(python):
     import json
     python = Path(python).as_posix()
     json_dump_commmand = '"import json, sys; print(json.dumps(sys.path));"'
-    c = delegator.run('"{0}" -c {1}'.format(python, json_dump_commmand))
+    c = delegator.run(f'"{python}" -c {json_dump_commmand}')
     if c.return_code == 0:
         return json.loads(c.out.strip())
     else:
@@ -1768,7 +1763,7 @@ def download_file(url, filename):
     """Downloads file from url to a path with filename"""
     r = _get_requests_session().get(url, stream=True)
     if not r.ok:
-        raise IOError("Unable to download file")
+        raise OSError("Unable to download file")
 
     with open(filename, "wb") as f:
         f.write(r.content)
@@ -1783,13 +1778,13 @@ def normalize_drive(path):
 
     See: <https://github.com/pypa/pipenv/issues/1218>
     """
-    if os.name != "nt" or not isinstance(path, six.string_types):
+    if os.name != "nt" or not isinstance(path, str):
         return path
 
     drive, tail = os.path.splitdrive(path)
     # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
     if drive.islower() and len(drive) == 2 and drive[1] == ":":
-        return "{}{}".format(drive.upper(), tail)
+        return f"{drive.upper()}{tail}"
 
     return path
 
@@ -1806,7 +1801,7 @@ def is_readonly_path(fn):
 
 
 def set_write_bit(fn):
-    if isinstance(fn, six.string_types) and not os.path.exists(fn):
+    if isinstance(fn, str) and not os.path.exists(fn):
         return
     os.chmod(fn, stat.S_IWRITE | stat.S_IWUSR | stat.S_IRUSR)
     return
@@ -1834,7 +1829,7 @@ def handle_remove_readonly(func, path, exc):
         set_write_bit(path)
         try:
             func(path)
-        except (OSError, IOError) as e:
+        except OSError as e:
             if e.errno in [errno.EACCES, errno.EPERM]:
                 warnings.warn(default_warning_message.format(path), ResourceWarning)
                 return
@@ -1848,14 +1843,14 @@ def handle_remove_readonly(func, path, exc):
 
 def escape_cmd(cmd):
     if any(special_char in cmd for special_char in ["<", ">", "&", ".", "^", "|", "?"]):
-        cmd = '\"{0}\"'.format(cmd)
+        cmd = f'\"{cmd}\"'
     return cmd
 
 
 def safe_expandvars(value):
     """Call os.path.expandvars if value is a string, otherwise do nothing.
     """
-    if isinstance(value, six.string_types):
+    if isinstance(value, str):
         return os.path.expandvars(value)
     return value
 
@@ -1932,13 +1927,13 @@ def translate_markers(pipfile_entry):
             if 'extra' not in marker:
                 marker_set.add(marker)
     for m in pipfile_markers:
-        entry = "{0}".format(pipfile_entry[m])
+        entry = f"{pipfile_entry[m]}"
         if m != "markers":
-            marker_set.add(str(Marker("{0} {1}".format(m, entry))))
+            marker_set.add(str(Marker(f"{m} {entry}")))
             new_pipfile.pop(m)
     if marker_set:
         new_pipfile["markers"] = str(Marker(" or ".join(
-            "{0}".format(s) if " and " in s else s
+            f"{s}" if " and " in s else s
             for s in sorted(dedup(marker_set))
         ))).replace('"', "'")
     return new_pipfile
@@ -1951,9 +1946,9 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     # We use this to determine if there are any markers on top level packages
     # So we can make sure those win out during resolution if the packages reoccur
     if "version" in dep and dep["version"] and not dep.get("editable", False):
-        version = "{0}".format(dep["version"])
+        version = "{}".format(dep["version"])
         if not version.startswith("=="):
-            version = "=={0}".format(version)
+            version = f"=={version}"
         lockfile["version"] = version
     if is_vcs(dep):
         ref = dep.get("ref", None)
@@ -2139,10 +2134,10 @@ def is_url_equal(url, other_url):
                  "https://mydomain.com/some?some_query")
     False
     """
-    if not isinstance(url, six.string_types):
-        raise TypeError("Expected string for url, received {0!r}".format(url))
-    if not isinstance(other_url, six.string_types):
-        raise TypeError("Expected string for url, received {0!r}".format(other_url))
+    if not isinstance(url, str):
+        raise TypeError(f"Expected string for url, received {url!r}")
+    if not isinstance(other_url, str):
+        raise TypeError(f"Expected string for url, received {other_url!r}")
     parsed_url = urllib3_util.parse_url(url)
     parsed_other_url = urllib3_util.parse_url(other_url)
     unparsed = parsed_url._replace(auth=None, query=None, fragment=None).url
@@ -2167,14 +2162,14 @@ def make_posix(path):
     >>> make_posix("c:\\users\\user\\venvs\\some_venv")
     "c:/users/user/venvs/some_venv"
     """
-    if not isinstance(path, six.string_types):
-        raise TypeError("Expected a string for path, received {0!r}...".format(path))
+    if not isinstance(path, str):
+        raise TypeError(f"Expected a string for path, received {path!r}...")
     starts_with_sep = path.startswith(os.path.sep)
     separated = normalize_path(path).split(os.path.sep)
     if isinstance(separated, (list, tuple)):
         path = posixpath.join(*separated)
         if starts_with_sep:
-            path = "/{0}".format(path)
+            path = f"/{path}"
     return path
 
 
@@ -2198,9 +2193,9 @@ def find_python(finder, line=None):
     :rtype: str
     """
 
-    if line and not isinstance(line, six.string_types):
+    if line and not isinstance(line, str):
         raise TypeError(
-            "Invalid python search type: expected string, received {0!r}".format(line)
+            f"Invalid python search type: expected string, received {line!r}"
         )
     if line and os.path.isabs(line):
         if os.name == "nt":
@@ -2218,11 +2213,11 @@ def find_python(finder, line=None):
     if not result:
         result = finder.which(line)
     if not result and not line.startswith("python"):
-        line = "python{0}".format(line)
+        line = f"python{line}"
         result = find_python(finder, line)
 
     if result:
-        if not isinstance(result, six.string_types):
+        if not isinstance(result, str):
             return result.path.as_posix()
         return result
     return
@@ -2239,8 +2234,8 @@ def is_python_command(line):
     :rtype: bool
     """
 
-    if not isinstance(line, six.string_types):
-        raise TypeError("Not a valid command to check: {0!r}".format(line))
+    if not isinstance(line, str):
+        raise TypeError(f"Not a valid command to check: {line!r}")
 
     from pipenv.vendor.pythonfinder.utils import PYTHON_IMPLEMENTATIONS
     is_version = re.match(r'\d+(\.\d+)*', line)

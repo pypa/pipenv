@@ -11,12 +11,12 @@ from pipenv.utils import temp_environ
     list(itertools.product(("ENABLE_SOMETHING",), ("FAKEPREFIX", None), (True, False))),
 )
 def test_get_from_env(arg, prefix, use_negation):
-    negated_arg = "NO_{0}".format(arg)
+    negated_arg = f"NO_{arg}"
     positive_var = arg
     negative_var = negated_arg
     if prefix:
-        negative_var = "{0}_{1}".format(prefix, negative_var)
-        positive_var = "{0}_{1}".format(prefix, positive_var)
+        negative_var = f"{prefix}_{negative_var}"
+        positive_var = f"{prefix}_{positive_var}"
     # set the positive first
     for var_to_set, opposite_var in ((arg, negated_arg), (negated_arg, arg)):
         os.environ.pop(var_to_set, None)
