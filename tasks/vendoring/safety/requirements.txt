@@ -14,7 +14,7 @@ click==7.1.1
 chardet==3.0.4
 dparse==0.5.0
 virtualenv-clone==0.5.4
-urllib3==1.25.9
+urllib3==1.26.5
 six==1.14.0
 toml==0.10.0
 singledispatch==3.4.0.3
