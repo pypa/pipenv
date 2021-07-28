@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-
 import os
 import sys
 
@@ -81,7 +78,7 @@ def cli(
             shell = shells.detect_info()[0]
         except shells.ShellDetectionFailure:
             echo(
-                "Fail to detect shell. Please provide the {0} environment "
+                "Fail to detect shell. Please provide the {} environment "
                 "variable.".format(crayons.normal("PIPENV_SHELL", bold=True)),
                 err=True,
             )
@@ -115,9 +112,9 @@ def cli(
         from .. import environments
         for key in environments.__dict__:
             if key.startswith("PIPENV"):
-                echo("  - {0}".format(crayons.normal(key, bold=True)))
+                echo(f"  - {crayons.normal(key, bold=True)}")
         echo(
-            "\nYou can learn more at:\n   {0}".format(
+            "\nYou can learn more at:\n   {}".format(
                 crayons.green(
                     "https://pipenv.pypa.io/en/latest/advanced/#configuration-with-environment-variables"
                 )
@@ -175,7 +172,7 @@ def cli(
                 loc = project.virtualenv_location
                 echo(
                     crayons.normal(
-                        u"{0} ({1})...".format(
+                        "{} ({})...".format(
                             crayons.normal("Removing virtualenv", bold=True),
                             crayons.green(loc),
                         )
@@ -413,7 +410,7 @@ def shell(
         venv_name = os.environ.get("VIRTUAL_ENV", "UNKNOWN_VIRTUAL_ENVIRONMENT")
         if not anyway:
             echo(
-                "{0} {1} {2}\nNo action taken to avoid nested environments.".format(
+                "{} {} {}\nNo action taken to avoid nested environments.".format(
                     crayons.normal("Shell for"),
                     crayons.green(venv_name, bold=True),
                     crayons.normal("already activated.", bold=True),
@@ -530,9 +527,9 @@ def check(
 @cli.command(short_help="Runs lock, then sync.", context_settings=CONTEXT_SETTINGS)
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option(
-    "--outdated", is_flag=True, default=False, help=u"List out-of-date dependencies."
+    "--outdated", is_flag=True, default=False, help="List out-of-date dependencies."
 )
-@option("--dry-run", is_flag=True, default=None, help=u"List out-of-date dependencies.")
+@option("--dry-run", is_flag=True, default=None, help="List out-of-date dependencies.")
 @install_options
 @pass_state
 @pass_context
@@ -564,7 +561,7 @@ def update(
     editable = [p for p in state.installstate.editables if p]
     if not packages:
         echo(
-            "{0} {1} {2} {3}{4}".format(
+            "{} {} {} {}{}".format(
                 crayons.normal("Running", bold=True),
                 crayons.yellow("$ pipenv lock", bold=True),
                 crayons.normal("then", bold=True),
@@ -576,7 +573,7 @@ def update(
         for package in packages + editable:
             if package not in project.all_packages:
                 echo(
-                    "{0}: {1} was not found in your Pipfile! Aborting."
+                    "{}: {} was not found in your Pipfile! Aborting."
                     "".format(
                         crayons.red("Warning", bold=True),
                         crayons.green(package, bold=True),
@@ -608,7 +605,7 @@ def update(
 
 
 @cli.command(
-    short_help=u"Displays currently-installed dependency graph information.",
+    short_help="Displays currently-installed dependency graph information.",
     context_settings=CONTEXT_SETTINGS
 )
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
@@ -656,7 +653,7 @@ def run_open(state, module, *args, **kwargs):
         p = os.path.dirname(c.out.strip().rstrip("cdo"))
     else:
         p = c.out.strip().rstrip("cdo")
-    echo(crayons.normal("Opening {0!r} in your EDITOR.".format(p), bold=True))
+    echo(crayons.normal(f"Opening {p!r} in your EDITOR.", bold=True))
     inline_activate_virtual_environment()
     edit(filename=p)
     return 0

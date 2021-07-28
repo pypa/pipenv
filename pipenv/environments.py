@@ -1,5 +1,3 @@
-# -*- coding=utf-8 -*-
-
 import os
 import sys
 
@@ -30,7 +28,7 @@ def env_to_bool(val):
         return False
     if val.lower() in _true_values:
         return True
-    raise ValueError("Value is not a valid boolean-like: {0}".format(val))
+    raise ValueError(f"Value is not a valid boolean-like: {val}")
 
 
 def _is_env_truthy(name):
@@ -55,11 +53,11 @@ def get_from_env(arg, prefix="PIPENV", check_for_negation=True):
     :return: The value from the environment if available
     :rtype: Optional[Union[str, bool]]
     """
-    negative_lookup = "NO_{0}".format(arg)
+    negative_lookup = f"NO_{arg}"
     positive_lookup = arg
     if prefix:
-        positive_lookup = "{0}_{1}".format(prefix, arg)
-        negative_lookup = "{0}_{1}".format(prefix, negative_lookup)
+        positive_lookup = f"{prefix}_{arg}"
+        negative_lookup = f"{prefix}_{negative_lookup}"
     if positive_lookup in os.environ:
         value = os.environ[positive_lookup]
         try:
@@ -391,9 +389,9 @@ def is_in_virtualenv():
     return virtual_env and not (pipenv_active or ignore_virtualenvs)
 
 
-PIPENV_SPINNER_FAIL_TEXT = fix_utf8(u"✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
+PIPENV_SPINNER_FAIL_TEXT = fix_utf8("✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
 
-PIPENV_SPINNER_OK_TEXT = fix_utf8(u"✔ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
+PIPENV_SPINNER_OK_TEXT = fix_utf8("✔ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
 
 
 def is_type_checking():

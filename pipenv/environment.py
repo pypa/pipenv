@@ -1,9 +1,5 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function
-
 import contextlib
 import importlib
-import io
 import json
 import operator
 import os
@@ -14,7 +10,6 @@ from sysconfig import get_paths, get_python_version
 
 import itertools
 import pkg_resources
-import six
 
 import pipenv
 
@@ -37,7 +32,7 @@ BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
 # TODO: Unittests for this class
 
 
-class Environment(object):
+class Environment:
     def __init__(
         self,
         prefix=None,  # type: Optional[str]
@@ -48,7 +43,7 @@ class Environment(object):
         sources=None,  # type: Optional[List[TSource]]
         project=None  # type: Optional[Project]
     ):
-        super(Environment, self).__init__()
+        super().__init__()
         self._modules = {'pkg_resources': pkg_resources, 'pipenv': pipenv}
         self.base_working_set = base_working_set if base_working_set else BASE_WORKING_SET
         prefix = normalize_path(prefix)
@@ -89,8 +84,8 @@ class Environment(object):
             module = importlib.import_module(name)
         if name in sys.modules:
             try:
-                six.moves.reload_module(module)
-                six.moves.reload_module(sys.modules[name])
+                importlib.reload(module)
+                importlib.reload(sys.modules[name])
             except TypeError:
                 del sys.modules[name]
                 sys.modules[name] = self._modules[name]
@@ -115,7 +110,7 @@ class Environment(object):
         try:
             reqs = dist.requires()
         # KeyError = limited metadata can be found
-        except (KeyError, AttributeError, OSError, IOError):  # The METADATA file can't be found
+        except (KeyError, AttributeError, OSError):  # The METADATA file can't be found
             return deps
         for req in reqs:
             try:
@@ -336,20 +331,20 @@ class Environment(object):
         sysconfig_line = "sysconfig.get_path('{0}')"
         if python_lib:
             for key, var, val in (("pure", "lib", "0"), ("plat", "lib", "1")):
-                dist_prefix = "{0}lib".format(key)
+                dist_prefix = f"{key}lib"
                 # XXX: We need to get 'stdlib' or 'platstdlib'
-                sys_prefix = "{0}stdlib".format("" if key == "pure" else key)
-                pylib_lines.append("u'%s': u'{{0}}'.format(%s)" % (dist_prefix, distutils_line.format(var, val)))
-                pylib_lines.append("u'%s': u'{{0}}'.format(%s)" % (sys_prefix, sysconfig_line.format(sys_prefix)))
+                sys_prefix = "{}stdlib".format("" if key == "pure" else key)
+                pylib_lines.append(f"u'{dist_prefix}': u'{{{{0}}}}'.format({distutils_line.format(var, val)})")
+                pylib_lines.append(f"u'{sys_prefix}': u'{{{{0}}}}'.format({sysconfig_line.format(sys_prefix)})")
         if python_inc:
             for key, var, val in (("include", "inc", "0"), ("platinclude", "inc", "1")):
-                pylib_lines.append("u'%s': u'{{0}}'.format(%s)" % (key, distutils_line.format(var, val)))
+                pylib_lines.append(f"u'{key}': u'{{{{0}}}}'.format({distutils_line.format(var, val)})")
         lines = pylib_lines + pyinc_lines
         if scripts:
             lines.append("u'scripts': u'{{0}}'.format(%s)" % sysconfig_line.format("scripts"))
         if py_version:
             lines.append("u'py_version_short': u'{{0}}'.format(distutils.sysconfig.get_python_version()),")
-        lines_as_str = u",".join(lines)
+        lines_as_str = ",".join(lines)
         py_command = py_command % lines_as_str
         return py_command
 
@@ -371,7 +366,7 @@ class Environment(object):
         )
         if c.returncode == 0:
             paths = {}
-            with io.open(tmpfile_path, "r", encoding="utf-8") as fh:
+            with open(tmpfile_path, "r", encoding="utf-8") as fh:
                 paths = json.load(fh)
             if "purelib" in paths:
                 paths["libdir"] = paths["purelib"] = make_posix(paths["purelib"])
@@ -380,8 +375,8 @@ class Environment(object):
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            vistir.misc.echo("Failed to load paths: {0}".format(c.err), fg="yellow")
-            vistir.misc.echo("Output: {0}".format(c.out), fg="yellow")
+            vistir.misc.echo(f"Failed to load paths: {c.err}", fg="yellow")
+            vistir.misc.echo(f"Output: {c.out}", fg="yellow")
         return None
 
     def get_lib_paths(self):
@@ -402,7 +397,7 @@ class Environment(object):
         paths = None
         if c.returncode == 0:
             paths = {}
-            with io.open(tmpfile_path, "r", encoding="utf-8") as fh:
+            with open(tmpfile_path, "r", encoding="utf-8") as fh:
                 paths = json.load(fh)
             if "purelib" in paths:
                 paths["libdir"] = paths["purelib"] = make_posix(paths["purelib"])
@@ -411,8 +406,8 @@ class Environment(object):
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            vistir.misc.echo("Failed to load paths: {0}".format(c.err), fg="yellow")
-            vistir.misc.echo("Output: {0}".format(c.out), fg="yellow")
+            vistir.misc.echo(f"Failed to load paths: {c.err}", fg="yellow")
+            vistir.misc.echo(f"Output: {c.out}", fg="yellow")
         if not paths:
             if not self.prefix.joinpath("lib").exists():
                 return {}
@@ -455,15 +450,15 @@ class Environment(object):
         )
         if c.returncode == 0:
             paths = []
-            with io.open(tmpfile_path, "r", encoding="utf-8") as fh:
+            with open(tmpfile_path, "r", encoding="utf-8") as fh:
                 paths = json.load(fh)
             for key in ("include", "platinclude"):
                 if key in paths:
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            vistir.misc.echo("Failed to load paths: {0}".format(c.err), fg="yellow")
-            vistir.misc.echo("Output: {0}".format(c.out), fg="yellow")
+            vistir.misc.echo(f"Failed to load paths: {c.err}", fg="yellow")
+            vistir.misc.echo(f"Output: {c.out}", fg="yellow")
         return None
 
     @cached_property
@@ -558,14 +553,13 @@ class Environment(object):
         pkg_resources = self.safe_import("pkg_resources")
         libdirs = self.base_paths["libdirs"].split(os.pathsep)
         dists = (pkg_resources.find_distributions(libdir) for libdir in libdirs)
-        for dist in itertools.chain.from_iterable(dists):
-            yield dist
+        yield from itertools.chain.from_iterable(dists)
 
     def find_egg(self, egg_dist):
         # type: (pkg_resources.Distribution) -> str
         """Find an egg by name in the given environment"""
         site_packages = self.libdir[1]
-        search_filename = "{0}.egg-link".format(egg_dist.project_name)
+        search_filename = f"{egg_dist.project_name}.egg-link"
         try:
             user_site = site.getusersitepackages()
         except AttributeError:
@@ -704,12 +698,12 @@ class Environment(object):
             packages = [p for p in packages if p.key == pkg]
 
         tree = PackageDAG.from_pkgs(packages).sort()
-        branch_keys = set(r.key for r in flatten(tree.values()))
+        branch_keys = {r.key for r in flatten(tree.values())}
         if pkg is not None:
             nodes = [p for p in tree.keys() if p.key == pkg]
         else:
             nodes = [p for p in tree.keys() if p.key not in branch_keys]
-        key_tree = dict((k.key, v) for k, v in tree.items())
+        key_tree = {k.key: v for k, v in tree.items()}
 
         return [self._get_requirements_for_package(p, key_tree) for p in nodes]
 
@@ -751,9 +745,9 @@ class Environment(object):
         for k in list(rdeps.keys()):
             entry = rdeps[k]
             if entry.get("parents"):
-                rdeps[k]["parents"] = set([
+                rdeps[k]["parents"] = {
                    p for p, version in chunked(2, unnest(entry["parents"]))
-                ])
+                }
         return rdeps
 
     def get_working_set(self):
@@ -832,8 +826,8 @@ class Environment(object):
         """
 
         c = None
-        if isinstance(cmd, six.string_types):
-            script = vistir.cmdparse.Script.parse("{0} -c {1}".format(self.python, cmd))
+        if isinstance(cmd, str):
+            script = vistir.cmdparse.Script.parse(f"{self.python} -c {cmd}")
         else:
             script = vistir.cmdparse.Script.parse([self.python, "-c"] + list(cmd))
         with self.activated():
@@ -845,8 +839,8 @@ class Environment(object):
         if self.is_venv:
             activate_this = os.path.join(self.scripts_dir, "activate_this.py")
             if not os.path.isfile(activate_this):
-                raise OSError("No such file: {0!s}".format(activate_this))
-            with open(activate_this, "r") as f:
+                raise OSError(f"No such file: {activate_this!s}")
+            with open(activate_this) as f:
                 code = compile(f.read(), activate_this, "exec")
                 exec(code, dict(__file__=activate_this))
 
@@ -919,7 +913,7 @@ class Environment(object):
             finally:
                 sys.path = original_path
                 sys.prefix = original_prefix
-                six.moves.reload_module(pkg_resources)
+                importlib.reload(pkg_resources)
 
     @cached_property
     def finders(self):
@@ -950,11 +944,11 @@ class Environment(object):
         install_args = [
             self.environment.python, "-u", "-c", SETUPTOOLS_SHIM % setup_path,
             install_arg, "--single-version-externally-managed", "--no-deps",
-            "--prefix={0}".format(self.base_paths["prefix"]), "--no-warn-script-location"
+            "--prefix={}".format(self.base_paths["prefix"]), "--no-warn-script-location"
         ]
         for key in install_keys:
             install_args.append(
-                "--install-{0}={1}".format(key, self.base_paths[key])
+                f"--install-{key}={self.base_paths[key]}"
             )
         return install_args
 
@@ -1030,7 +1024,7 @@ class Environment(object):
                 return
 
 
-class PatchedUninstaller(object):
+class PatchedUninstaller:
     def _permitted(self, path):
         return True
 

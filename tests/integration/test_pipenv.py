@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function
 """Misc. tests that don't fit anywhere.
 
 XXX: Try our best to reduce tests in this file.
@@ -65,7 +63,7 @@ def test_update_locks(PipenvInstance):
         c = p.pipenv('install jdcal==1.3')
         assert c.return_code == 0
         assert p.lockfile['default']['jdcal']['version'] == '==1.3'
-        with open(p.pipfile_path, 'r') as fh:
+        with open(p.pipfile_path) as fh:
             pipfile_contents = fh.read()
         assert '==1.3' in pipfile_contents
         pipfile_contents = pipfile_contents.replace('==1.3', '*')

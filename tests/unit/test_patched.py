@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import pytest
 
 from notpip._internal.index.package_finder import PackageFinder

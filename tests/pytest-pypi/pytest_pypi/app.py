@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function
 import collections
 import contextlib
 import io
@@ -42,11 +40,11 @@ def get_pypi_package_names():
     return pypi_packages
 
 
-class Package(object):
+class Package:
     """Package represents a collection of releases from one or more directories"""
 
     def __init__(self, name):
-        super(Package, self).__init__()
+        super().__init__()
         self.name = name
         self.releases = {}
         self._package_dirs = set()
@@ -58,7 +56,7 @@ class Package(object):
                 with open(os.path.join(path, 'api.json')) as f:
                     return json.load(f)
             except FileNotFoundError:
-                r = session.get('https://pypi.org/pypi/{0}/json'.format(self.name))
+                r = session.get(f'https://pypi.org/pypi/{self.name}/json')
                 response = r.json()
                 releases = response["releases"]
                 files = {
@@ -75,12 +73,12 @@ class Package(object):
                     else:
                         del releases[release]
                 response["releases"] = releases
-                with io.open(os.path.join(path, "api.json"), "w") as fh:
+                with open(os.path.join(path, "api.json"), "w") as fh:
                     json.dump(response, fh, indent=4)
                 return response
 
     def __repr__(self):
-        return "<Package name={0!r} releases={1!r}".format(self.name, len(self.releases))
+        return f"<Package name={self.name!r} releases={len(self.releases)!r}"
 
     def add_release(self, path_to_binary):
         path_to_binary = os.path.abspath(path_to_binary)
@@ -100,17 +98,17 @@ class Package(object):
         self._package_dirs.add(ReleaseTuple(path, requires_python, hash_value))
 
 
-class Artifact(object):
+class Artifact:
     """Represents an artifact for download"""
 
     def __init__(self, name):
-        super(Artifact, self).__init__()
+        super().__init__()
         self.name = name
         self.files = {}
         self._artifact_dirs = set()
 
     def __repr__(self):
-        return "<Artifact name={0!r} files={1!r}".format(self.name, len(self.files))
+        return f"<Artifact name={self.name!r} files={len(self.files)!r}"
 
     def add_file(self, path):
         path = os.path.abspath(path)
@@ -122,7 +120,7 @@ class Artifact(object):
 def prepare_fixtures(path):
     path = os.path.abspath(path)
     if not (os.path.exists(path) and os.path.isdir(path)):
-        raise ValueError("{} is not a directory!".format(path))
+        raise ValueError(f"{path} is not a directory!")
     for root, dirs, files in os.walk(path):
         package_name, _, _ = os.path.relpath(root, start=path).partition(os.path.sep)
         if package_name not in ARTIFACTS:
@@ -144,7 +142,7 @@ def prepare_packages(path):
     """Add packages in path to the registry."""
     path = os.path.abspath(path)
     if not (os.path.exists(path) and os.path.isdir(path)):
-        raise ValueError("{} is not a directory!".format(path))
+        raise ValueError(f"{path} is not a directory!")
     for root, dirs, files in os.walk(path):
         if all([setup_file in list(files) for setup_file in ("setup.py", "setup.cfg")]):
             continue
@@ -185,7 +183,7 @@ def simple_package(package):
         return render_template('package.html', package=packages[package])
     else:
         try:
-            r = requests.get("https://pypi.org/simple/{0}".format(package))
+            r = requests.get(f"https://pypi.org/simple/{package}")
             r.raise_for_status()
         except Exception:
             abort(404)

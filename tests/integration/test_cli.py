@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function
 """Tests to ensure `pipenv --option` works.
 """
 
@@ -120,22 +118,22 @@ def test_pipenv_graph_reverse(PipenvInstance):
         ]
 
         for dep_name, dep_constraint in requests_dependency:
-            pat = r'^[ -]*{}==[\d.]+'.format(dep_name)
+            pat = fr'^[ -]*{dep_name}==[\d.]+'
             dep_match = re.search(pat, output, flags=re.MULTILINE)
-            assert dep_match is not None, '{} not found in {}'.format(pat, output)
+            assert dep_match is not None, f'{pat} not found in {output}'
 
             # openpyxl should be indented
             if dep_name == 'openpyxl':
                 openpyxl_dep = re.search(r'^openpyxl', output, flags=re.MULTILINE)
-                assert openpyxl_dep is None, 'openpyxl should not appear at begining of lines in {}'.format(output)
+                assert openpyxl_dep is None, f'openpyxl should not appear at begining of lines in {output}'
 
                 assert '  - openpyxl==2.5.4 [requires: et-xmlfile]' in output
             else:
-                dep_match = re.search(r'^[ -]*{}==[\d.]+$'.format(dep_name), output, flags=re.MULTILINE)
-                assert dep_match is not None, '{} not found at beginning of line in {}'.format(dep_name, output)
+                dep_match = re.search(fr'^[ -]*{dep_name}==[\d.]+$', output, flags=re.MULTILINE)
+                assert dep_match is not None, f'{dep_name} not found at beginning of line in {output}'
 
-            dep_requests_match = re.search(r'^ +- tablib==0.13.0 \[requires: {}\]$'.format(dep_constraint), output, flags=re.MULTILINE)
-            assert dep_requests_match is not None, 'constraint {} not found in {}'.format(dep_constraint, output)
+            dep_requests_match = re.search(fr'^ +- tablib==0.13.0 \[requires: {dep_constraint}\]$', output, flags=re.MULTILINE)
+            assert dep_requests_match is not None, f'constraint {dep_constraint} not found in {output}'
             assert dep_requests_match.start() > dep_match.start()
 
 
@@ -164,11 +162,11 @@ def test_pipenv_clean_pip_no_warnings(PipenvInstance):
             f.write('from setuptools import setup; setup(name="empty")')
         c = p.pipenv('install -e .')
         assert c.return_code == 0
-        c = p.pipenv('run pip install -i {} pytz'.format(p.index_url))
+        c = p.pipenv(f'run pip install -i {p.index_url} pytz')
         assert c.return_code == 0
         c = p.pipenv('clean')
         assert c.return_code == 0
-        assert c.out, "{0} -- STDERR: {1}".format(c.out, c.err)
+        assert c.out, f"{c.out} -- STDERR: {c.err}"
 
 
 @pytest.mark.cli
@@ -178,7 +176,7 @@ def test_pipenv_clean_pip_warnings(PipenvInstance):
             f.write('from setuptools import setup; setup(name="empty")')
         # create a fake git repo to trigger a pip freeze warning
         os.mkdir('.git')
-        c = p.pipenv("run pip install -i {} -e .".format(p.index_url))
+        c = p.pipenv(f"run pip install -i {p.index_url} -e .")
         assert c.return_code == 0
         c = p.pipenv('clean')
         assert c.return_code == 0

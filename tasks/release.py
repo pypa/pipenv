@@ -1,4 +1,3 @@
-# -*- coding=utf-8 -*-
 import datetime
 import os
 import pathlib
@@ -107,11 +106,11 @@ def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, 
         if pre:
             log("generating towncrier draft...")
             ctx.run("towncrier --draft > CHANGELOG.draft.rst")
-            ctx.run("git add {0}".format(get_version_file(ctx).as_posix()))
+            ctx.run(f"git add {get_version_file(ctx).as_posix()}")
         else:
             ctx.run("towncrier")
             ctx.run(
-                "git add CHANGELOG.rst news/ {0}".format(get_version_file(ctx).as_posix())
+                f"git add CHANGELOG.rst news/ {get_version_file(ctx).as_posix()}"
             )
             log("removing changelog draft if present")
             draft_changelog = pathlib.Path("CHANGELOG.draft.rst")
@@ -283,12 +282,12 @@ def date_offset(dt, month_offset=0, day_offset=0, truncate=False):
         "month": dt.month + month_offset,
         "year": dt.year + year_offset,
     }
-    log("Getting updated date from date: {0} using month offset: {1} and year offset {2}".format(
+    log("Getting updated date from date: {} using month offset: {} and year offset {}".format(
         dt, new_month, replace_args["year"]
     ))
     if day_offset:
         dt = dt + datetime.timedelta(days=day_offset)
-        log("updated date using day offset: {0} => {1}".format(day_offset, dt))
+        log(f"updated date using day offset: {day_offset} => {dt}")
     if truncate:
         log("Truncating...")
         replace_args["day"] = 1
@@ -317,7 +316,7 @@ def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=Fals
         day_offset=day_offset,
         truncate=trunc_month
     )
-    log("target_day: {0}".format(target_day))
+    log(f"target_day: {target_day}")
     target_timetuple = target_day.timetuple()[:3]
     new_version = current_version.replace(release=target_timetuple)
     if pre and dev:
@@ -338,7 +337,7 @@ def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=Fals
             new_version = new_version.replace(dev=None)
         if new_version.pre_tag:
             if new_version.pre_tag != tag:
-                log("Swapping prerelease tag: {0} for {1}".format(new_version.pre_tag, tag))
+                log(f"Swapping prerelease tag: {new_version.pre_tag} for {tag}")
                 new_version = new_version.replace(pre_tag=tag, pre=tag_version)
         else:
             new_version = new_version.replace(pre_tag=tag, pre=tag_version)
@@ -359,7 +358,7 @@ def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=Fals
             file_contents.replace(version, str(new_version.normalize()))
         )
         if commit:
-            ctx.run("git add {0}".format(version_file.as_posix()))
+            ctx.run(f"git add {version_file.as_posix()}")
             log("Committing...")
             ctx.run('git commit -s -m "Bumped version."')
     return str(new_version)

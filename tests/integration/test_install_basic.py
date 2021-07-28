@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function
 import os
 
 import pytest
@@ -55,7 +53,7 @@ def test_mirror_install(PipenvInstance):
         assert "pypi.org" not in mirror_url
         # This should sufficiently demonstrate the mirror functionality
         # since pypi.org is the default when PIPENV_TEST_INDEX is unset.
-        c = p.pipenv("install requests --pypi-mirror {0}".format(mirror_url))
+        c = p.pipenv(f"install requests --pypi-mirror {mirror_url}")
         assert c.return_code == 0
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
@@ -91,8 +89,8 @@ def test_complex_lock(PipenvInstance):
         c = p.pipenv("install apscheduler")
         assert c.return_code == 0
         assert "apscheduler" in p.pipfile["packages"]
-        assert "funcsigs" in p.lockfile[u"default"]
-        assert "futures" in p.lockfile[u"default"]
+        assert "funcsigs" in p.lockfile["default"]
+        assert "futures" in p.lockfile["default"]
 
 
 @flaky
@@ -286,7 +284,7 @@ def test_requirements_to_pipfile(PipenvInstance, pypi):
 
         # Write a requirements file
         with open("requirements.txt", "w") as f:
-            f.write("-i {}\nrequests[socks]==2.19.1\n".format(pypi.url))
+            f.write(f"-i {pypi.url}\nrequests[socks]==2.19.1\n")
 
         c = p.pipenv("install")
         assert c.return_code == 0
@@ -430,7 +428,7 @@ def test_system_and_deploy_work(PipenvInstance):
         c = p.pipenv("--rm")
         assert c.return_code == 0
         Path(p.pipfile_path).write_text(
-            u"""
+            """
 [packages]
 tablib = "*"
         """.strip()

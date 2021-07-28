@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import absolute_import, print_function
 import json
 import logging
 import os
@@ -20,12 +17,12 @@ def find_site_path(pkg, site_dir=None):
         base_name = dist.project_name if dist.project_name else dist.key
         name = None
         if "top_level.txt" in dist.metadata_listdir(""):
-            name = next(iter([l.strip() for l in dist.get_metadata_lines("top_level.txt") if l is not None]), None)
+            name = next(iter([line.strip() for line in dist.get_metadata_lines("top_level.txt") if line is not None]), None)
         if name is None:
             name = pkg_resources.safe_name(base_name).replace("-", "_")
         if not any(pkg == _ for _ in [base_name, name]):
             continue
-        path_options = [name, "{0}.py".format(name)]
+        path_options = [name, f"{name}.py"]
         path_options = [os.path.join(root, p) for p in path_options if p is not None]
         path = next(iter(p for p in path_options if os.path.exists(p)), None)
         if path is not None:
@@ -92,11 +89,11 @@ def handle_parsed_args(parsed):
     return parsed
 
 
-class Entry(object):
+class Entry:
     """A resolved entry from a resolver run"""
 
     def __init__(self, name, entry_dict, project, resolver, reverse_deps=None, dev=False):
-        super(Entry, self).__init__()
+        super().__init__()
         from pipenv.vendor.requirementslib.models.utils import tomlkit_value_to_python
         self.name = name
         if isinstance(entry_dict, dict):
@@ -173,7 +170,7 @@ class Entry(object):
         markers = set()
         keys_in_dict = [k for k in marker_keys if k in entry_dict]
         markers = {
-            normalize_marker_str("{k} {v}".format(k=k, v=entry_dict.pop(k)))
+            normalize_marker_str(f"{k} {entry_dict.pop(k)}")
             for k in keys_in_dict
         }
         if "markers" in entry_dict:
@@ -216,18 +213,17 @@ class Entry(object):
         from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
         if not marker:
             return None
-        from pipenv.vendor import six
         from pipenv.vendor.vistir.compat import Mapping
         marker_str = None
         if isinstance(marker, Mapping):
             marker_dict, _ = Entry.get_markers_from_dict(marker)
             if marker_dict:
-                marker_str = "{0}".format(marker_dict.popitem()[1])
+                marker_str = f"{marker_dict.popitem()[1]}"
         elif isinstance(marker, (list, set, tuple)):
             marker_str = " and ".join([normalize_marker_str(m) for m in marker if m])
-        elif isinstance(marker, six.string_types):
-            marker_str = "{0}".format(normalize_marker_str(marker))
-        if isinstance(marker_str, six.string_types):
+        elif isinstance(marker, str):
+            marker_str = f"{normalize_marker_str(marker)}"
+        if isinstance(marker_str, str):
             return marker_str
         return None
 
@@ -317,9 +313,9 @@ class Entry(object):
         if not any(specifier.startswith(k) for k in Specifier._operators.keys()):
             if specifier.strip().lower() in ["any", "<any>", "*"]:
                 return "*"
-            specifier = "=={0}".format(specifier)
+            specifier = f"=={specifier}"
         elif specifier.startswith("==") and specifier.count("=") > 3:
-            specifier = "=={0}".format(specifier.lstrip("="))
+            specifier = "=={}".format(specifier.lstrip("="))
         return specifier
 
     @staticmethod
@@ -448,7 +444,7 @@ class Entry(object):
                 self.can_use_updated = False
             satisfied_by_value = getattr(constraint, "satisfied_by", None)
             if satisfied_by_value:
-                satisfied_by = "{0}".format(
+                satisfied_by = "{}".format(
                     self.clean_specifier(str(satisfied_by_value.version))
                 )
                 satisfied_by_versions.add(satisfied_by)
@@ -525,9 +521,9 @@ class Entry(object):
                 str(pinned_version), prereleases=True
             ):
                 if is_verbose():
-                    print("Tried constraint: {0!r}".format(constraint), file=sys.stderr)
+                    print(f"Tried constraint: {constraint!r}", file=sys.stderr)
                 msg = (
-                    "Cannot resolve conflicting version {0}{1} while {2}{3} is "
+                    "Cannot resolve conflicting version {}{} while {}{} is "
                     "locked.".format(
                         self.name, constraint.req.specifier,
                         self.name, self.updated_specifier
@@ -543,8 +539,8 @@ class Entry(object):
             if not parent.validate_specifiers():
                 from pipenv.exceptions import DependencyConflict
                 msg = (
-                    "Cannot resolve conflicting versions: (Root: {0}) {1}{2} (Pipfile) "
-                    "Incompatible with {3}{4} (resolved)\n".format(
+                    "Cannot resolve conflicting versions: (Root: {}) {}{} (Pipfile) "
+                    "Incompatible with {}{} (resolved)\n".format(
                         self.name, parent.pipfile_name,
                         parent.pipfile_entry.requirement.specifiers, parent.name,
                         parent.updated_specifiers
@@ -565,7 +561,7 @@ class Entry(object):
                 except AttributeError:
                     result = getattr(entry, key)
             except AttributeError:
-                result = super(Entry, self).__getattribute__(key)
+                result = super().__getattribute__(key)
             return result
         if any(key.startswith(v) for v in old_version):
             lockfile_entry = Entry.__getattribute__(self, "lockfile_entry")
@@ -576,9 +572,9 @@ class Entry(object):
                 except AttributeError:
                     result = getattr(lockfile_entry, key)
             except AttributeError:
-                result = super(Entry, self).__getattribute__(key)
+                result = super().__getattribute__(key)
             return result
-        return super(Entry, self).__getattribute__(key)
+        return super().__getattribute__(key)
 
 
 def clean_results(results, resolver, project, dev=False):
@@ -751,9 +747,9 @@ def main():
     warnings.simplefilter("ignore", category=ResourceWarning)
     replace_with_text_stream("stdout")
     replace_with_text_stream("stderr")
-    os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = str("1")
-    os.environ["PYTHONIOENCODING"] = str("utf-8")
-    os.environ["PYTHONUNBUFFERED"] = str("1")
+    os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+    os.environ["PYTHONUNBUFFERED"] = "1"
     parsed = handle_parsed_args(parsed)
     _main(parsed.pre, parsed.clear, parsed.verbose, parsed.system, parsed.write,
           parsed.requirements_dir, parsed.packages, parse_only=parsed.parse_only,

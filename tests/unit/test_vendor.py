@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # We need to import the patched packages directly from sys.path, so the
 # identity checks can pass.
 import pipenv  # noqa
@@ -82,6 +81,6 @@ def test_token_date(dt, content):
 
 
 def test_dump_nonascii_string():
-    content = u'name = "Stažené"\n'
+    content = 'name = "Stažené"\n'
     toml_content = tomlkit.dumps(tomlkit.loads(content))
     assert toml_content == content

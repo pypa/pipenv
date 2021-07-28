@@ -77,7 +77,7 @@ class SecureWSGIServer(WSGIServer):
         # Thanks, WSGIRequestHandler!!
 
 
-class Server(object):
+class Server:
     """
     HTTP server running a WSGI application in its own thread.
     """
@@ -119,7 +119,7 @@ class Server(object):
 
     @property
     def url(self):
-        return '{0}://{1}:{2}'.format(self.protocol, self.host, self.port)
+        return f'{self.protocol}://{self.host}:{self.port}'
 
     def join(self, url, allow_fragments=True):
         return urljoin(self.url, url, allow_fragments=allow_fragments)
@@ -130,5 +130,5 @@ class SecureServer(Server):
 
     def __init__(self, host='127.0.0.1', port=0, application=None, **kwargs):
         kwargs['server_class'] = SecureWSGIServer
-        super(SecureServer, self).__init__(host, port, application, **kwargs)
+        super().__init__(host, port, application, **kwargs)
         self.protocol = 'https'

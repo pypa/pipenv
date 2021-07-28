@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import json
 import os
 import sys
@@ -389,13 +387,13 @@ six = {version = "*", index = "testpypi"}
 fake-package = "*"
             """.strip()
             f.write(contents)
-        c = p.pipenv('install --pypi-mirror {0}'.format(mirror_url))
+        c = p.pipenv(f'install --pypi-mirror {mirror_url}')
         assert c.return_code == 0
-        c = p.pipenv('lock -r --pypi-mirror {0}'.format(mirror_url))
+        c = p.pipenv(f'lock -r --pypi-mirror {mirror_url}')
         assert c.return_code == 0
-        assert '-i {0}'.format(mirror_url) in c.out.strip()
+        assert f'-i {mirror_url}' in c.out.strip()
         assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
-        assert '--extra-index-url {}'.format(mirror_url) not in c.out.strip()
+        assert f'--extra-index-url {mirror_url}' not in c.out.strip()
 
 
 @pytest.mark.lock
@@ -650,7 +648,7 @@ requests = "*"
 @pytest.mark.install
 def test_lock_no_warnings(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
-        os.environ["PYTHONWARNINGS"] = str("once")
+        os.environ["PYTHONWARNINGS"] = "once"
         c = p.pipenv("install six")
         assert c.return_code == 0
         c = p.pipenv('run python -c "import warnings; warnings.warn(\\"This is a warning\\", DeprecationWarning); print(\\"hello\\")"')
@@ -675,7 +673,7 @@ def test_lock_missing_cache_entries_gets_all_hashes(PipenvInstance, tmpdir):
             p._pipfile.add("pathlib2", "*")
             assert "pathlib2" in p.pipfile["packages"]
             c = p.pipenv("install")
-            assert c.return_code == 0, (c.err, ("\n".join(["{0}: {1}\n".format(k, v) for k, v in os.environ.items()])))
+            assert c.return_code == 0, (c.err, ("\n".join([f"{k}: {v}\n" for k, v in os.environ.items()])))
             c = p.pipenv("lock --clear")
             assert c.return_code == 0, c.err
             assert "pathlib2" in p.lockfile["default"]
@@ -692,7 +690,7 @@ def test_vcs_lock_respects_top_level_pins(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         p._pipfile.add("requests", {
-            "editable": True, "git": "{0}".format(requests_uri),
+            "editable": True, "git": f"{requests_uri}",
             "ref": "v2.18.4"
         })
         p._pipfile.add("urllib3", "==1.21.1")

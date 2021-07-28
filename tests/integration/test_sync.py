@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function
 import json
 import os
 
@@ -38,9 +36,9 @@ verify_ssl = true
 [packages]
 six = "*"
             """.strip())
-        c = p.pipenv('lock --pypi-mirror {0}'.format(mirror_url))
+        c = p.pipenv(f'lock --pypi-mirror {mirror_url}')
         assert c.return_code == 0
-        c = p.pipenv('sync --pypi-mirror {0}'.format(mirror_url))
+        c = p.pipenv(f'sync --pypi-mirror {mirror_url}')
         assert c.return_code == 0
 
 
@@ -112,4 +110,4 @@ requests = "*"
 
         c = p.pipenv('sync --sequential --verbose')
         for package in p.lockfile['default']:
-            assert 'Successfully installed {}'.format(package) in c.out
+            assert f'Successfully installed {package}' in c.out

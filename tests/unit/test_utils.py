@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 
 import pytest
@@ -130,10 +129,10 @@ def test_convert_deps_to_pip_one_way(deps, expected):
     assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected.lower()]
 
 
-@pytest.mark.skipif(isinstance(u"", str), reason="don't need to test if unicode is str")
+@pytest.mark.skipif(isinstance("", str), reason="don't need to test if unicode is str")
 @pytest.mark.utils
 def test_convert_deps_to_pip_unicode():
-    deps = {u"django": u"==1.10"}
+    deps = {"django": "==1.10"}
     deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
     assert deps[0] == "django==1.10"
 

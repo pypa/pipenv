@@ -52,7 +52,7 @@ def _get_activate_script(cmd, venv):
     # for proper activation.
     venv_location = re.sub(r'([ &$()\[\]])', r"\\\1", str(venv))
     # The leading space can make history cleaner in some shells.
-    return " {2} {0}/bin/activate{1}".format(venv_location, suffix, command)
+    return f" {command} {venv_location}/bin/activate{suffix}"
 
 
 def _handover(cmd, args):
@@ -63,7 +63,7 @@ def _handover(cmd, args):
         sys.exit(subprocess.call(args, shell=True, universal_newlines=True))
 
 
-class Shell(object):
+class Shell:
     def __init__(self, cmd):
         self.cmd = cmd
         self.args = []
@@ -77,7 +77,7 @@ class Shell(object):
     @contextlib.contextmanager
     def inject_path(self, venv):
         with temp_environ():
-            os.environ["PATH"] = "{0}{1}{2}".format(
+            os.environ["PATH"] = "{}{}{}".format(
                 os.pathsep.join(str(p.parent) for p in _iter_python(venv)),
                 os.pathsep,
                 os.environ["PATH"],
@@ -90,9 +90,9 @@ class Shell(object):
         name = os.path.basename(venv)
         os.environ["VIRTUAL_ENV"] = str(venv)
         if "PROMPT" in os.environ:
-            os.environ["PROMPT"] = "({0}) {1}".format(name, os.environ["PROMPT"])
+            os.environ["PROMPT"] = "({}) {}".format(name, os.environ["PROMPT"])
         if "PS1" in os.environ:
-            os.environ["PS1"] = "({0}) {1}".format(name, os.environ["PS1"])
+            os.environ["PS1"] = "({}) {}".format(name, os.environ["PS1"])
         with self.inject_path(venv):
             os.chdir(cwd)
             _handover(self.cmd, self.args + list(args))
@@ -147,10 +147,10 @@ class Bash(Shell):
         bashrc_path = Path.home().joinpath(".bashrc")
         with NamedTemporaryFile("w+") as rcfile:
             if bashrc_path.is_file():
-                base_rc_src = 'source "{0}"\n'.format(bashrc_path.as_posix())
+                base_rc_src = f'source "{bashrc_path.as_posix()}"\n'
                 rcfile.write(base_rc_src)
 
-            export_path = 'export PATH="{0}:$PATH"\n'.format(":".join(
+            export_path = 'export PATH="{}:$PATH"\n'.format(":".join(
                 self._format_path(python)
                 for python in _iter_python(venv)
             ))
@@ -162,18 +162,18 @@ class Bash(Shell):
 
 class MsysBash(Bash):
     def _format_path(self, python):
-        s = super(MsysBash, self)._format_path(python)
+        s = super()._format_path(python)
         if not python.drive:
             return s
         # Convert "C:/something" to "/c/something".
-        return '/{drive}{path}'.format(drive=s[0].lower(), path=s[2:])
+        return f'/{s[0].lower()}{s[2:]}'
 
 
 class CmderEmulatedShell(Shell):
     def fork(self, venv, cwd, args):
         if cwd:
             os.environ["CMDER_START"] = cwd
-        super(CmderEmulatedShell, self).fork(venv, cwd, args)
+        super().fork(venv, cwd, args)
 
 
 class CmderCommandPrompt(CmderEmulatedShell):
@@ -181,7 +181,7 @@ class CmderCommandPrompt(CmderEmulatedShell):
         rc = os.path.expandvars("%CMDER_ROOT%\\vendor\\init.bat")
         if os.path.exists(rc):
             self.args.extend(["/k", rc])
-        super(CmderCommandPrompt, self).fork(venv, cwd, args)
+        super().fork(venv, cwd, args)
 
 
 class CmderPowershell(Shell):
@@ -196,10 +196,10 @@ class CmderPowershell(Shell):
                     "-NoProfile",
                     "-NoExit",
                     "-Command",
-                    "Invoke-Expression '. ''{0}'''".format(rc),
+                    f"Invoke-Expression '. ''{rc}'''",
                 ]
             )
-        super(CmderPowershell, self).fork(venv, cwd, args)
+        super().fork(venv, cwd, args)
 
 
 # Two dimensional dict. First is the shell type, second is the emulator type.

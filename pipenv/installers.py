@@ -1,7 +1,6 @@
 import os
 import operator
 import re
-import six
 from abc import ABCMeta, abstractmethod
 
 
@@ -11,7 +10,7 @@ from .utils import find_windows_executable
 
 
 @attr.s
-class Version(object):
+class Version:
 
     major = attr.ib()
     minor = attr.ib()
@@ -29,7 +28,7 @@ class Version(object):
         """
         match = re.match(r'^(\d+)\.(\d+)(?:\.(\d+))?$', name)
         if not match:
-            raise ValueError('invalid version name {0!r}'.format(name))
+            raise ValueError(f'invalid version name {name!r}')
         major = int(match.group(1))
         minor = int(match.group(2))
         patch = match.group(3)
@@ -59,17 +58,16 @@ class InstallerNotFound(RuntimeError):
 
 class InstallerError(RuntimeError):
     def __init__(self, desc, c):
-        super(InstallerError, self).__init__(desc)
+        super().__init__(desc)
         self.out = c.out
         self.err = c.err
 
 
-@six.add_metaclass(ABCMeta)
-class Installer(object):
+class Installer(metaclass=ABCMeta):
 
     def __init__(self):
         self.cmd = self._find_installer()
-        super(Installer, self).__init__()
+        super().__init__()
 
     def __str__(self):
         return self.__class__.__name__
@@ -109,7 +107,7 @@ class Installer(object):
             # Check for explicitly set install locations (e.g. PYENV_ROOT, ASDF_DIR).
             os.path.join(os.path.expanduser(os.getenv(env_var, '/dev/null')), 'bin', name),
             # Check the pyenv/asdf-recommended from-source install locations
-            os.path.join(os.path.expanduser('~/.{}'.format(name)), 'bin', name),
+            os.path.join(os.path.expanduser(f'~/.{name}'), 'bin', name),
         ):
             if candidate is not None and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
                 return candidate
@@ -119,12 +117,12 @@ class Installer(object):
         timeout = kwargs.pop('timeout', delegator.TIMEOUT)
         if kwargs:
             k = list(kwargs.keys())[0]
-            raise TypeError('unexpected keyword argument {0!r}'.format(k))
+            raise TypeError(f'unexpected keyword argument {k!r}')
         args = (self.cmd,) + tuple(args)
         c = delegator.run(args, block=False, timeout=timeout)
         c.block()
         if c.return_code != 0:
-            raise InstallerError('failed to run {0}'.format(args), c)
+            raise InstallerError(f'failed to run {args}', c)
         return c
 
     @abstractmethod
@@ -149,7 +147,7 @@ class Installer(object):
             ), key=operator.attrgetter('cmpkey'))
         except ValueError:
             raise ValueError(
-                'no installable version found for {0!r}'.format(name),
+                f'no installable version found for {name!r}',
             )
         return best_match
 

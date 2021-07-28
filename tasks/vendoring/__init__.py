@@ -1,11 +1,8 @@
-# -*- coding=utf-8 -*-
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
 """"Vendoring script, python 3.5 needed"""
 
-import io
 import itertools
-import json
 import os
 import re
 import shutil
@@ -24,7 +21,6 @@ from urllib3.util import parse_url as urllib3_parse
 
 from pipenv.vendor.vistir.compat import TemporaryDirectory
 from pipenv.vendor.vistir.contextmanagers import open_file
-from pipenv.vendor.requirementslib.models.lockfile import Lockfile, merge_items
 import pipenv.vendor.parse as parse
 
 
@@ -102,7 +98,7 @@ def remove_all(paths):
 
 
 def log(msg):
-    print("[vendoring.%s] %s" % (TASK_NAME, msg))
+    print(f"[vendoring.{TASK_NAME}] {msg}")
 
 
 def _get_git_root(ctx):
@@ -205,131 +201,13 @@ def _recursive_write_to_zip(zf, path, root=None):
         _recursive_write_to_zip(zf, c, root)
 
 
-@invoke.task
-def update_safety(ctx):
-    ignore_subdeps = ["pip", "pip-egg-info", "bin", "pipenv", "virtualenv", "virtualenv-clone", "setuptools"]
-    ignore_files = ["pip-delete-this-directory.txt", "PKG-INFO", "easy_install.py", "clonevirtualenv.py"]
-    ignore_patterns = ["*.pyd", "*.so", "**/*.pyc", "*.pyc"]
-
-    patched_dir = _get_patched_dir(ctx)
-    vendor_dir = _get_vendor_dir(ctx)
-    safety_dir = Path(__file__).absolute().parent.joinpath("safety")
-    log("Using vendor dir: %s" % patched_dir)
-    log("Downloading safety package files...")
-    build_dir = patched_dir / "build"
-    root = _get_git_root(ctx)
-    with TemporaryDirectory(prefix="pipenv-", suffix="-safety") as download_dir:
-        log("generating lockfile...")
-        packages = "\n".join(["safety", "requests[security]"])
-        env = {"PIPENV_PACKAGES": packages}
-        resolve_cmd = "python {0}".format(root.joinpath("pipenv/resolver.py").as_posix())
-        py27_resolve_cmd = "python2.7 {0}".format(root.joinpath("pipenv/resolver.py").as_posix())
-        _, _, resolved = ctx.run(resolve_cmd, hide=True, env=env).stdout.partition("RESULTS:")
-        _, _, resolved_py2 = ctx.run(py27_resolve_cmd, hide=True, env=env).stdout.partition("RESULTS:")
-        resolved = json.loads(resolved.strip())
-        resolved_py2 = json.loads(resolved_py2.strip())
-        pkg_dict, pkg_dict_py2 = {}, {}
-        for pkg in resolved:
-            name = pkg.pop("name")
-            pkg["version"] = "=={0}".format(pkg["version"])
-            pkg_dict[name] = pkg
-        for pkg in resolved_py2:
-            name = pkg.pop("name")
-            pkg["version"] = "=={0}".format(pkg["version"])
-            pkg_dict_py2[name] = pkg
-        merged = merge_items([pkg_dict, pkg_dict_py2])
-        lf = Lockfile.create(safety_dir.as_posix())
-        lf["default"] = merged
-        lf.write()
-        # envvars_no_deps = {"PIP_NO_DEPS": "true"}.update(cmd_envvars)
-        # ctx.run("python -m pipenv run pip install safety", env=envvars_no_deps)
-        # ctx.run("python -m pipenv run pip uninstall -y pipenv", env=cmd_envvars)
-        # ctx.run("python -m pipenv install safety", env=cmd_envvars)
-        # ctx.run("python -m pipenv run pip uninstall -y pipenv", env=cmd_envvars)
-        # ctx.run("python2.7 -m pip install --upgrade --upgrade-strategy=eager -e {}".format(root.as_posix()))
-        # ctx.run("python2.7 -m pipenv install safety", env=cmd_envvars)
-        # requirements_txt = ctx.run("python2.7 -m pipenv lock -r", env=cmd_envvars, quiet=True).out
-        requirements = [
-            r.as_line(include_hashes=False, include_markers=False)
-            for r in lf.requirements
-        ]
-        safety_dir.joinpath("requirements.txt").write_text("\n".join(requirements))
-        if build_dir.exists() and build_dir.is_dir():
-            log("dropping pre-existing build dir at {0}".format(build_dir.as_posix()))
-            drop_dir(build_dir)
-        pip_command = "pip download -b {0} --no-binary=:all: --no-clean --no-deps -d {1} pyyaml safety".format(
-            build_dir.absolute().as_posix(), str(download_dir.name),
-        )
-        log("downloading deps via pip: {0}".format(pip_command))
-        ctx.run(pip_command)
-
-        yaml_build_dir = build_dir / "pyyaml"
-        lib_dir = safety_dir.joinpath("lib")
-
-        with ctx.cd(str(safety_dir)):
-            lib_dir.mkdir(exist_ok=True)
-            install_cmd = "python2.7 -m pip install --ignore-requires-python -t {0} -r {1}".format(lib_dir.as_posix(), safety_dir.joinpath("requirements.txt").as_posix())
-            log("installing dependencies: {0}".format(install_cmd))
-            ctx.run(install_cmd)
-            safety_dir = safety_dir.absolute()
-            yaml_dir = lib_dir / "yaml"
-            yaml_lib_dir_map = {
-                "2": {
-                    "current_path": yaml_build_dir / "lib/yaml",
-                    "destination": lib_dir / "yaml2",
-                },
-                "3": {
-                    "current_path": yaml_build_dir / "lib3/yaml",
-                    "destination": lib_dir / "yaml3",
-                },
-            }
-            if yaml_dir.exists():
-                drop_dir(yaml_dir)
-            log("Mapping yaml paths for python 2 and 3...")
-            for py_version, path_dict in yaml_lib_dir_map.items():
-                path_dict["current_path"].rename(path_dict["destination"])
-            log("Ensuring certificates are available...")
-            requests_dir = lib_dir / "requests"
-            cacert = vendor_dir / "certifi" / "cacert.pem"
-            if not cacert.exists():
-                from pipenv.vendor import requests
-                cacert = Path(requests.certs.where())
-            target_cert = requests_dir / "cacert.pem"
-            target_cert.write_bytes(cacert.read_bytes())
-            log("dropping ignored files...")
-            for pattern in ignore_patterns:
-                for path in lib_dir.rglob(pattern):
-                    log("removing {0!s}".format(path))
-                    path.unlink()
-            for dep in ignore_subdeps:
-                if lib_dir.joinpath(dep).exists():
-                    log("cleaning up {0}".format(dep))
-                    drop_dir(lib_dir.joinpath(dep))
-                for path in itertools.chain.from_iterable((
-                    lib_dir.rglob("{0}*.egg-info".format(dep)),
-                    lib_dir.rglob("{0}*.dist-info".format(dep))
-                )):
-                    log("cleaning up {0}".format(path))
-                    drop_dir(path)
-            for fn in ignore_files:
-                for path in lib_dir.rglob(fn):
-                    log("cleaning up {0}".format(path))
-                    path.unlink()
-        zip_name = "{0}/safety.zip".format(str(patched_dir))
-        log("writing zipfile...")
-        with zipfile.ZipFile(zip_name, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
-            _recursive_write_to_zip(zf, safety_dir)
-        drop_dir(build_dir)
-        drop_dir(lib_dir)
-
-
 def rename_if_needed(ctx, vendor_dir, item):
     rename_dict = LIBRARY_RENAMES if vendor_dir.name != "patched" else PATCHED_RENAMES
     new_path = None
     if item.name in rename_dict or item.name in LIBRARY_DIRNAMES:
         new_name = rename_dict.get(item.name, LIBRARY_DIRNAMES.get(item.name))
         new_path = item.parent / new_name
-        log("Renaming %s => %s" % (item.name, new_path))
+        log(f"Renaming {item.name} => {new_path}")
         # handle existing directories
         try:
             item.rename(str(new_path))
@@ -346,7 +224,7 @@ def write_backport_imports(ctx, vendor_dir):
     backport_libs = detect_vendored_libs(backport_dir)
     init_py_lines = backport_init.read_text().splitlines()
     for lib in backport_libs:
-        lib_line = "from . import {0}".format(lib)
+        lib_line = f"from . import {lib}"
         if lib_line not in init_py_lines:
             log("Adding backport %s to __init__.py exports" % lib)
             init_py_lines.append(lib_line)
@@ -366,29 +244,29 @@ def _ensure_package_in_requirements(ctx, requirements_file, package):
                 if m.lower() == package or (
                     specifiers and m[: min(specifiers)].lower() == package
                 ):
-                    matched_req = "{0}".format(m)
+                    matched_req = f"{m}"
                     requirement = matched_req
                     log("Matched req: %r" % matched_req)
         if not matched_req:
-            req_file_lines.append("{0}".format(package))
+            req_file_lines.append(f"{package}")
             log("Writing requirements file: %s" % requirements_file)
             requirements_file.write_text("\n".join(req_file_lines))
-            requirement = "{0}".format(package)
+            requirement = f"{package}"
     return requirement
 
 
 def install_pyyaml(ctx, vendor_dir):
     build_dir = vendor_dir / "build"
     if build_dir.exists() and build_dir.is_dir():
-        log("dropping pre-existing build dir at {0}".format(build_dir.as_posix()))
+        log(f"dropping pre-existing build dir at {build_dir.as_posix()}")
         drop_dir(build_dir)
     build_dir.mkdir()
     with TemporaryDirectory(prefix="pipenv-", suffix="-safety") as download_dir:
-        pip_command = "pip download -b {0} --no-binary=:all: --no-clean --no-deps -d {1} pyyaml safety".format(
+        pip_command = "pip download -b {} --no-binary=:all: --no-clean --no-deps -d {} pyyaml safety".format(
             build_dir.absolute().as_posix(), str(download_dir.name),
         )
         temp_env = "TEMP" if os.name == "nt" else "TMPDIR"
-        log("downloading deps via pip: {0}".format(pip_command))
+        log(f"downloading deps via pip: {pip_command}")
         ctx.run(pip_command, env={temp_env: str(build_dir)})
     yaml_build_dir = next(build_dir.glob('pip-download-*/pyyaml_*'))
     yaml_dir = vendor_dir / "yaml"
@@ -404,8 +282,8 @@ def install_pyyaml(ctx, vendor_dir):
 
 
 def install(ctx, vendor_dir, package=None):
-    requirements_file = vendor_dir / "{0}.txt".format(vendor_dir.name)
-    requirement = "-r {0}".format(requirements_file.as_posix())
+    requirements_file = vendor_dir / f"{vendor_dir.name}.txt"
+    requirement = f"-r {requirements_file.as_posix()}"
     log("Using requirements file: %s" % requirement)
     if package:
         requirement = _ensure_package_in_requirements(ctx, requirements_file, package)
@@ -413,7 +291,7 @@ def install(ctx, vendor_dir, package=None):
     # are added to vendor.txt, this includes all dependencies recursively up
     # the chain.
     ctx.run(
-        "pip install -t {0} --no-compile --no-deps --upgrade {1}".format(
+        "pip install -t {} --no-compile --no-deps --upgrade {}".format(
             vendor_dir.as_posix(), requirement,
         )
     )
@@ -427,20 +305,20 @@ def install(ctx, vendor_dir, package=None):
             vendor_dir.joinpath(pkg).joinpath("LICENSE").write_text(
                 license_file.read_text()
             )
-        elif vendor_dir.joinpath("{0}.py".format(pkg)).exists():
-            vendor_dir.joinpath("{0}.LICENSE".format(pkg)).write_text(
+        elif vendor_dir.joinpath(f"{pkg}.py").exists():
+            vendor_dir.joinpath(f"{pkg}.LICENSE").write_text(
                 license_file.read_text()
             )
         else:
             pkg = pkg.replace("-", "?").replace("_", "?")
             matched_path = next(
-                iter(pth for pth in vendor_dir.glob("{0}*".format(pkg))), None
+                iter(pth for pth in vendor_dir.glob(f"{pkg}*")), None
             )
             if matched_path is not None:
                 if matched_path.is_dir():
                     target = vendor_dir.joinpath(matched_path).joinpath("LICENSE")
                 else:
-                    target = vendor_dir.joinpath("{0}.LICENSE".format(matched_path))
+                    target = vendor_dir.joinpath(f"{matched_path}.LICENSE")
                 target.write_text(
                     license_file.read_text()
                 )
@@ -529,7 +407,7 @@ def redo_imports(ctx, library, vendor_dir=None):
     log("Using vendor dir: %s" % vendor_dir)
     vendored_libs = detect_vendored_libs(vendor_dir)
     item = vendor_dir / library
-    library_name = vendor_dir / "{0}.py".format(library)
+    library_name = vendor_dir / f"{library}.py"
     log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
     log("Rewriting imports for %s..." % item)
     if item.is_dir():
@@ -581,7 +459,7 @@ def packages_missing_licenses(
             possible_pkgs.append(LIBRARY_DIRNAMES[pkg])
         for pkgpath in possible_pkgs:
             pkgpath = vendor_dir.joinpath(pkgpath)
-            py_path = pkgpath.parent / "{0}.py".format(pkgpath.stem)
+            py_path = pkgpath.parent / f"{pkgpath.stem}.py"
             if pkgpath.exists() and pkgpath.is_dir():
                 for license_path in LICENSES:
                     license_path = pkgpath.joinpath(license_path)
@@ -591,7 +469,7 @@ def packages_missing_licenses(
                         break
             elif pkgpath.exists() or py_path.exists():
                 for license_path in LICENSES:
-                    license_name = "{0}.{1}".format(pkgpath.stem, license_path)
+                    license_name = f"{pkgpath.stem}.{license_path}"
                     license_path = pkgpath.parent / license_name
                     if license_path.exists():
                         match_found = True
@@ -635,16 +513,16 @@ def download_licenses(
     ctx.run("pip install flit")  # needed for the next step
     for req in requirements:
         if req.startswith("enum34"):
-            exe_cmd = "{0} -d {1} {2}".format(enum_cmd, tmp_dir.as_posix(), req)
+            exe_cmd = f"{enum_cmd} -d {tmp_dir.as_posix()} {req}"
         else:
-            exe_cmd = "{0} --no-build-isolation -d {1} {2}".format(
+            exe_cmd = "{} --no-build-isolation -d {} {}".format(
                 cmd, tmp_dir.as_posix(), req
             )
         try:
             ctx.run(exe_cmd)
         except invoke.exceptions.UnexpectedExit as e:
             if "Disabling PEP 517 processing is invalid" not in e.result.stderr:
-                log("WARNING: Failed to download license for {0}".format(req))
+                log(f"WARNING: Failed to download license for {req}")
                 continue
             parse_target = (
                 "Disabling PEP 517 processing is invalid: project specifies a build "
@@ -655,9 +533,9 @@ def download_licenses(
             if backend is not None:
                 if "." in backend:
                     backend, _, _ = backend.partition(".")
-                ctx.run("pip install {0}".format(backend))
+                ctx.run(f"pip install {backend}")
             ctx.run(
-                "{0} --no-build-isolation -d {1} {2}".format(cmd, tmp_dir.as_posix(), req)
+                f"{cmd} --no-build-isolation -d {tmp_dir.as_posix()} {req}"
             )
     for sdist in tmp_dir.iterdir():
         extract_license(vendor_dir, sdist)
@@ -667,7 +545,7 @@ def download_licenses(
 def extract_license(vendor_dir, sdist):
     if sdist.stem.endswith(".tar"):
         ext = sdist.suffix[1:]
-        with tarfile.open(sdist, mode="r:{}".format(ext)) as tar:
+        with tarfile.open(sdist, mode=f"r:{ext}") as tar:
             found = find_and_extract_license(vendor_dir, tar, tar.getmembers())
     elif sdist.suffix in (".zip", ".whl"):
         with zipfile.ZipFile(sdist) as zip:
@@ -676,7 +554,7 @@ def extract_license(vendor_dir, sdist):
         raise NotImplementedError("new sdist type!")
 
     if not found:
-        log("License not found in {}, will download".format(sdist.name))
+        log(f"License not found in {sdist.name}, will download")
         license_fallback(vendor_dir, sdist.name)
 
 
@@ -690,7 +568,7 @@ def find_and_extract_license(vendor_dir, tar, members):
         if "LICENSE" in name or "COPYING" in name:
             if "/test" in name:
                 # some testing licenses in hml5lib and distlib
-                log("Ignoring {}".format(name))
+                log(f"Ignoring {name}")
                 continue
             found = True
             extract_license_member(vendor_dir, tar, member, name)
@@ -701,13 +579,13 @@ def license_fallback(vendor_dir, sdist_name):
     """Hardcoded license URLs. Check when updating if those are still needed"""
     libname = libname_from_dir(sdist_name)
     if libname not in HARDCODED_LICENSE_URLS:
-        raise ValueError("No hardcoded URL for {} license".format(libname))
+        raise ValueError(f"No hardcoded URL for {libname} license")
 
     url = HARDCODED_LICENSE_URLS[libname]
     _, _, name = url.rpartition("/")
     dest = license_destination(vendor_dir, libname, name)
     r = requests.get(url, allow_redirects=True)
-    log("Downloading {}".format(url))
+    log(f"Downloading {url}")
     r.raise_for_status()
     dest.write_bytes(r.content)
 
@@ -738,7 +616,7 @@ def license_destination(vendor_dir, libname, filename):
         override = vendor_dir / LIBRARY_DIRNAMES[libname]
         if not override.exists() and override.parent.exists():
             # for flattened subdeps, specifically backports/weakref.py
-            return (vendor_dir / override.parent) / "{0}.{1}".format(
+            return (vendor_dir / override.parent) / "{}.{}".format(
                 override.name, filename
             )
         license_path = Path(LIBRARY_DIRNAMES[libname]) / filename
@@ -746,7 +624,7 @@ def license_destination(vendor_dir, libname, filename):
             return vendor_dir / LICENSE_RENAMES[license_path.as_posix()]
         return vendor_dir / LIBRARY_DIRNAMES[libname] / filename
     # fallback to libname.LICENSE (used for nondirs)
-    return vendor_dir / "{}.{}".format(libname, filename)
+    return vendor_dir / f"{libname}.{filename}"
 
 
 def extract_license_member(vendor_dir, tar, member, name):
@@ -754,7 +632,7 @@ def extract_license_member(vendor_dir, tar, member, name):
     dirname = list(mpath.parents)[-2].name  # -1 is .
     libname = libname_from_dir(dirname)
     dest = license_destination(vendor_dir, libname, mpath.name)
-    log("Extracting {} into {}".format(name, dest))
+    log(f"Extracting {name} into {dest}")
     try:
         fileobj = tar.extractfile(member)
         dest.write_bytes(fileobj.read())
@@ -770,9 +648,9 @@ def generate_patch(ctx, package_path, patch_description, base="HEAD"):
             "example usage: generate-patch patched/piptools some-description"
         )
     if patch_description:
-        patch_fn = "{0}-{1}.patch".format(pkg.parts[1], patch_description)
+        patch_fn = f"{pkg.parts[1]}-{patch_description}.patch"
     else:
-        patch_fn = "{0}.patch".format(pkg.parts[1])
+        patch_fn = f"{pkg.parts[1]}.patch"
     command = "git diff {base} -p {root} > {out}".format(
         base=base,
         root=Path("pipenv").joinpath(pkg),
@@ -826,13 +704,13 @@ def unpin_and_copy_requirements(ctx, requirement_file, name="requirements.txt"):
         "PIPENV_PYTHON": "3.6",
     }
     with ctx.cd(tempdir.name):
-        ctx.run("pipenv install -r {0}".format(target.as_posix()), env=env, hide=True)
+        ctx.run(f"pipenv install -r {target.as_posix()}", env=env, hide=True)
         result = ctx.run("pipenv lock -r", env=env, hide=True).stdout.strip()
         ctx.run("pipenv --rm", env=env, hide=True)
-        result = list(sorted([line.strip() for line in result.splitlines()[1:]]))
+        result = list(sorted(line.strip() for line in result.splitlines()[1:]))
         new_requirements = requirement_file.parent.joinpath(name)
         requirement_file.rename(
-            requirement_file.parent.joinpath("{}.bak".format(name))
+            requirement_file.parent.joinpath(f"{name}.bak")
         )
         new_requirements.write_text("\n".join(result))
     return result
@@ -886,8 +764,8 @@ def install_yaml(ctx):
 
 @invoke.task
 def vendor_artifact(ctx, package, version=None):
-    simple = requests.get("https://pypi.org/simple/{0}/".format(package))
-    pkg_str = "{0}-{1}".format(package, version)
+    simple = requests.get(f"https://pypi.org/simple/{package}/")
+    pkg_str = f"{package}-{version}"
     soup = bs4.BeautifulSoup(simple.content)
     links = [
         a.attrs["href"] for a in soup.find_all("a") if a.getText().startswith(pkg_str)
@@ -898,6 +776,6 @@ def vendor_artifact(ctx, package, version=None):
             dest_dir.mkdir()
         _, _, dest_path = urllib3_parse(link).path.rpartition("/")
         dest_file = dest_dir / dest_path
-        with io.open(dest_file.as_posix(), "wb") as target_handle:
+        with open(dest_file.as_posix(), "wb") as target_handle:
             with open_file(link) as fp:
                 shutil.copyfileobj(fp, target_handle)

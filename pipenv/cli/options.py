@@ -1,6 +1,3 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import
-
 import os
 
 import click.types
@@ -51,7 +48,7 @@ class PipenvGroup(DYMMixin, Group):
         )
 
 
-class State(object):
+class State:
     def __init__(self):
         self.index = None
         self.extra_index_urls = []
@@ -68,7 +65,7 @@ class State(object):
         self.lockoptions = LockOptions()
 
 
-class InstallState(object):
+class InstallState:
     def __init__(self):
         self.dev = False
         self.pre = False
@@ -84,7 +81,7 @@ class InstallState(object):
         self.editables = []
 
 
-class LockOptions(object):
+class LockOptions:
     def __init__(self):
         self.dev_only = False
         self.emit_requirements = False
@@ -110,7 +107,7 @@ def extra_index_option(f):
         state.extra_index_urls.extend(list(value))
         return value
     return option("--extra-index-url", multiple=True, expose_value=False,
-                  help=u"URLs to the extra PyPI compatible indexes to query for package look-ups.",
+                  help="URLs to the extra PyPI compatible indexes to query for package look-ups.",
                   callback=callback, envvar="PIP_EXTRA_INDEX_URL")(f)
 
 
@@ -142,7 +139,7 @@ def skip_lock_option(f):
         state.installstate.skip_lock = value
         return value
     return option("--skip-lock", is_flag=True, default=False, expose_value=False,
-                  help=u"Skip locking mechanisms and use the Pipfile instead during operation.",
+                  help="Skip locking mechanisms and use the Pipfile instead during operation.",
                   envvar="PIPENV_SKIP_LOCK", callback=callback, type=click.types.BOOL,
                   show_envvar=True)(f)
 
@@ -153,7 +150,7 @@ def keep_outdated_option(f):
         state.installstate.keep_outdated = value
         return value
     return option("--keep-outdated", is_flag=True, default=False, expose_value=False,
-                  help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
+                  help="Keep out-dated dependencies from being updated in Pipfile.lock.",
                   callback=callback, type=click.types.BOOL, show_envvar=True)(f)
 
 
@@ -204,7 +201,7 @@ def pre_option(f):
         state = ctx.ensure_object(State)
         state.installstate.pre = value
         return value
-    return option("--pre", is_flag=True, default=False, help=u"Allow pre-releases.",
+    return option("--pre", is_flag=True, default=False, help="Allow pre-releases.",
                   callback=callback, type=click.types.BOOL, expose_value=False)(f)
 
 
@@ -371,7 +368,7 @@ def deploy_option(f):
         state.installstate.deploy = value
         return value
     return option("--deploy", is_flag=True, default=False, type=click.types.BOOL,
-                  help=u"Abort if the Pipfile.lock is out-of-date, or Python version is"
+                  help="Abort if the Pipfile.lock is out-of-date, or Python version is"
                   " wrong.", callback=callback, expose_value=False)(f)
 
 

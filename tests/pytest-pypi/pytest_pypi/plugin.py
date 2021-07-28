@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 import pytest
 from .app import app as pypi_app
 from . import serve, certs

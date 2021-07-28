@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function
 import os
 import shutil
 import sys
@@ -54,8 +52,8 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         assert "six" in p.lockfile["default"]
         c = p.pipenv("uninstall --all")
         assert c.return_code == 0
-        print("Current directory: {0}".format(os.getcwd()), file=sys.stderr)
-        c = p.pipenv("install {0}".format(line))
+        print(f"Current directory: {os.getcwd()}", file=sys.stderr)
+        c = p.pipenv(f"install {line}")
         assert c.return_code == 0
         assert "testpipenv" in p.pipfile["packages"]
         assert p.pipfile["packages"]["testpipenv"]["path"] == "."
@@ -67,7 +65,7 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
 @pytest.mark.install
 @pytest.mark.needs_internet
 @flaky
-class TestDirectDependencies(object):
+class TestDirectDependencies:
     """Ensure dependency_links are parsed and installed.
 
     This is needed for private repo dependencies.
@@ -126,7 +124,7 @@ setup(
 def test_e_dot(PipenvInstance, pip_src_dir):
     with PipenvInstance() as p:
         path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        c = p.pipenv("install -e '{0}' --dev".format(path))
+        c = p.pipenv(f"install -e '{path}' --dev")
 
         assert c.return_code == 0
 
@@ -239,7 +237,7 @@ def test_local_package(PipenvInstance, pip_src_dir, testsroot):
 
         with tarfile.open(copy_to, "r:gz") as tgz:
             tgz.extractall(path=p.path)
-        c = p.pipenv("install -e {0}".format(package))
+        c = p.pipenv(f"install -e {package}")
         assert c.return_code == 0
         assert all(
             pkg in p.lockfile["default"]
@@ -259,7 +257,7 @@ def test_local_zipfiles(PipenvInstance, testsroot):
         # This tests for a bug when installing a zipfile in the current dir
         shutil.copy(source_path, os.path.join(p.path, file_name))
 
-        c = p.pipenv("install {}".format(file_name))
+        c = p.pipenv(f"install {file_name}")
         assert c.return_code == 0
         key = [k for k in p.pipfile["packages"].keys()][0]
         dep = p.pipfile["packages"][key]
@@ -286,7 +284,7 @@ def test_relative_paths(PipenvInstance, testsroot):
         mkdir_p(artifact_path)
         shutil.copy(source_path, os.path.join(artifact_path, file_name))
         # Test installing a relative path in a subdirectory
-        c = p.pipenv("install {}/{}".format(artifact_dir, file_name))
+        c = p.pipenv(f"install {artifact_dir}/{file_name}")
         assert c.return_code == 0
         key = next(k for k in p.pipfile["packages"].keys())
         dep = p.pipfile["packages"][key]
@@ -306,7 +304,7 @@ def test_install_local_file_collision(PipenvInstance):
         fake_file = os.path.join(p.path, target_package)
         with open(fake_file, "w") as f:
             f.write("")
-        c = p.pipenv("install {}".format(target_package))
+        c = p.pipenv(f"install {target_package}")
         assert c.return_code == 0
         assert target_package in p.pipfile["packages"]
         assert p.pipfile["packages"][target_package] == "*"
@@ -359,7 +357,7 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, testsroot):
 
     with PipenvInstance(chdir=True) as p:
         for pkg_name in pkgs:
-            source_path = p._pipfile.get_fixture_path("git/{0}/".format(pkg_name)).as_posix()
+            source_path = p._pipfile.get_fixture_path(f"git/{pkg_name}/").as_posix()
             shutil.copytree(source_path, pkg_name)
 
             pipfile_string += '"{0}" = {{path = "./{0}", editable = true}}\n'.format(pkg_name)

@@ -84,9 +84,9 @@ var Konami = function (callback) {
             },
             touchendHandler: function () {
                 konami.iphone.input.push(konami.iphone.check_direction());
-                
+
                 if (konami.iphone.input.length > konami.iphone.keys.length) konami.iphone.input.shift();
-                
+
                 if (konami.iphone.input.length === konami.iphone.keys.length) {
                     var match = true;
                     for (var i = 0; i < konami.iphone.keys.length; i++) {
