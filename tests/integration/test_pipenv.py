@@ -38,12 +38,12 @@ pytest = "==4.6.9"
             """.strip()
             f.write(contents)
         c = p.pipenv('install --verbose')
-        if c.return_code != 0:
+        if c.returncode != 0:
             assert c.stderr == '' or c.stderr is None
             assert c.stdout == ''
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -52,7 +52,7 @@ requests = "==2.19.1"
             f.write(contents)
 
         c = p.pipenv('install --deploy')
-        assert c.return_code > 0
+        assert c.returncode > 0
 
 
 @pytest.mark.update
@@ -60,7 +60,7 @@ requests = "==2.19.1"
 def test_update_locks(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv('install jdcal==1.3')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert p.lockfile['default']['jdcal']['version'] == '==1.3'
         with open(p.pipfile_path) as fh:
             pipfile_contents = fh.read()
@@ -69,10 +69,10 @@ def test_update_locks(PipenvInstance):
         with open(p.pipfile_path, 'w') as fh:
             fh.write(pipfile_contents)
         c = p.pipenv('update jdcal')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert p.lockfile['default']['jdcal']['version'] == '==1.4'
         c = p.pipenv('run pip freeze')
-        assert c.return_code == 0
+        assert c.returncode == 0
         lines = c.stdout.splitlines()
         assert 'jdcal==1.4' in [l.strip() for l in lines]
 
@@ -94,9 +94,9 @@ def test_directory_with_leading_dash(raw_venv, PipenvInstance):
             if "PIPENV_VENV_IN_PROJECT" in os.environ:
                 del os.environ['PIPENV_VENV_IN_PROJECT']
             c = p.pipenv('run pip freeze')
-            assert c.return_code == 0
+            assert c.returncode == 0
             c = p.pipenv('--venv')
-            assert c.return_code == 0
+            assert c.returncode == 0
             venv_path = c.stdout.strip()
             assert os.path.isdir(venv_path)
             # Manually clean up environment, since PipenvInstance assumes that

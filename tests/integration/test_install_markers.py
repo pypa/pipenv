@@ -23,12 +23,12 @@ fake_package = {version = "*", markers="os_name=='splashwear'"}
             f.write(contents)
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'Ignoring' in c.stdout
         assert 'markers' in p.lockfile['default']['fake-package'], p.lockfile["default"]
 
         c = p.pipenv('run python -c "import fake_package;"')
-        assert c.return_code == 1
+        assert c.returncode == 1
 
 
 @flaky
@@ -46,7 +46,7 @@ depends-on-marked-package = "*"
             f.write(contents)
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         # depends-on-marked-package has an install_requires of
         # 'pytz; platform_python_implementation=="CPython"'
@@ -71,13 +71,13 @@ fake-package = {version = "*", os_name = "== 'splashwear'"}
             f.write(contents)
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         assert 'Ignoring' in c.stdout
         assert 'markers' in p.lockfile['default']['fake-package']
 
         c = p.pipenv('run python -c "import fake_package;"')
-        assert c.return_code == 1
+        assert c.returncode == 1
 
 
 @flaky
@@ -95,7 +95,7 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
             f.write(contents)
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "markers" in p.lockfile['default']['funcsigs'], p.lockfile['default']['funcsigs']
         assert p.lockfile['default']['funcsigs']['markers'] == "os_name == 'splashwear'", p.lockfile['default']['funcsigs']
 
@@ -120,7 +120,7 @@ funcsigs = "*"
             f.write(contents)
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         assert p.lockfile['default']['funcsigs'].get('markers', '') == ''
 
@@ -140,9 +140,9 @@ def test_resolver_unique_markers(PipenvInstance):
     """
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv('install vcrpy==2.0.1')
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'yarl' in p.lockfile['default']
         yarl = p.lockfile['default']['yarl']
         assert 'markers' in yarl
@@ -177,14 +177,14 @@ six = "*"
             assert project.get_lockfile_hash() is None
 
             c = p.pipenv('install')
-            assert c.return_code == 0
+            assert c.returncode == 0
             lock_hash = project.get_lockfile_hash()
             assert lock_hash is not None
             assert lock_hash == project.calculate_pipfile_hash()
 
             # sanity check on pytest
             assert 'PYPI_USERNAME' not in str(pipfile.load(p.pipfile_path))
-            assert c.return_code == 0
+            assert c.returncode == 0
             assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
 
             os.environ['PYPI_PASSWORD'] = 'pass2'

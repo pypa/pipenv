@@ -14,7 +14,7 @@ def test_env(PipenvInstance):
             f.write('HELLO=WORLD')
 
         c = p.pipenv('run python -c "import os; print(os.environ[\'HELLO\'])"')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'WORLD' in c.stdout
 
 
@@ -34,15 +34,15 @@ multicommand = "bash -c \"cd docs && make html\""
             else:
                 f.write('scriptwithenv = "echo $HELLO"\n')
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv('run printfoo')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert c.stdout == 'foo\n'
         assert c.stderr == ''
 
         c = p.pipenv('run notfoundscript')
-        assert c.return_code == 1
+        assert c.returncode == 1
         assert c.stdout == ''
         if os.name != 'nt':     # TODO: Implement this message for Windows.
             assert 'Error' in c.stderr

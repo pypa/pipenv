@@ -45,12 +45,12 @@ def test_pipenv_py(PipenvInstance):
 def test_pipenv_site_packages(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv('--python python --site-packages')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'Making site-packages available' in c.stderr
 
         # no-global-site-packages.txt under stdlib dir should not exist.
         c = p.pipenv('run python -c "import sysconfig; print(sysconfig.get_path(\'stdlib\'))"')
-        assert c.return_code == 0
+        assert c.returncode == 0
         stdlib_path = c.stdout.strip()
         assert not os.path.isfile(os.path.join(stdlib_path, 'no-global-site-packages.txt'))
 
@@ -105,7 +105,7 @@ def test_pipenv_graph_reverse(PipenvInstance):
         output = c.stdout
 
         c = p.pipenv('graph --reverse --json')
-        assert c.return_code == 1
+        assert c.returncode == 1
         assert 'Warning: Using both --reverse and --json together is not supported.' in c.stderr
 
         requests_dependency = [
@@ -144,14 +144,14 @@ def test_pipenv_check(PipenvInstance):
     with PipenvInstance() as p:
         p.pipenv('install requests==1.0.0')
         c = p.pipenv('check')
-        assert c.return_code != 0
+        assert c.returncode != 0
         assert 'requests' in c.stdout
         c = p.pipenv('uninstall requests')
         assert c.returncode == 0
         c = p.pipenv('install six')
         assert c.returncode == 0
         c = p.pipenv('check --ignore 35015')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'Ignoring' in c.stderr
 
 
@@ -161,11 +161,11 @@ def test_pipenv_clean_pip_no_warnings(PipenvInstance):
         with open('setup.py', 'w') as f:
             f.write('from setuptools import setup; setup(name="empty")')
         c = p.pipenv('install -e .')
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv(f'run pip install -i {p.index_url} pytz')
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv('clean')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert c.stdout, f"{c.stdout} -- STDERR: {c.stderr}"
 
 
@@ -177,9 +177,9 @@ def test_pipenv_clean_pip_warnings(PipenvInstance):
         # create a fake git repo to trigger a pip freeze warning
         os.mkdir('.git')
         c = p.pipenv(f"run pip install -i {p.index_url} -e .")
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv('clean')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert c.stderr
 
 
@@ -219,7 +219,7 @@ def test_help(PipenvInstance):
 def test_man(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv('--man')
-        assert c.return_code == 0, c.stderr
+        assert c.returncode == 0, c.stderr
 
 
 @pytest.mark.cli
@@ -236,7 +236,7 @@ def test_install_parse_error(PipenvInstance):
             """.strip()
             f.write(contents)
         c = p.pipenv('install requests u/\\/p@r\\$34b13+pkg')
-        assert c.return_code != 0
+        assert c.returncode != 0
         assert 'u/\\/p@r$34b13+pkg' not in p.pipfile['packages']
 
 
@@ -267,7 +267,7 @@ import flask
 def test_pipenv_clear(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv('--clear')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'Clearing caches' in c.stdout
 
 
@@ -275,7 +275,7 @@ def test_pipenv_clear(PipenvInstance):
 def test_pipenv_three(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv('--three')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'Successfully created virtual environment' in c.stderr
 
 
@@ -289,4 +289,4 @@ sqlalchemy = "<=1.2.3"
             """.strip()
             f.write(contents)
         c = p.pipenv('update --pre --outdated')
-        assert c.return_code == 0
+        assert c.returncode == 0

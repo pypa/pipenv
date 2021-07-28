@@ -14,7 +14,7 @@ def test_venv_in_project(PipenvInstance):
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
         with PipenvInstance() as p:
             c = p.pipenv('install requests')
-            assert c.return_code == 0
+            assert c.returncode == 0
             assert normalize_drive(p.path) in p.pipenv('--venv').out
 
 
@@ -24,7 +24,7 @@ def test_venv_at_project_root(PipenvInstance):
         with PipenvInstance(chdir=True) as p:
             os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
             c = p.pipenv('install')
-            assert c.return_code == 0
+            assert c.returncode == 0
             assert normalize_drive(p.path) in p.pipenv('--venv').out
             del os.environ['PIPENV_VENV_IN_PROJECT']
             os.mkdir('subdir')
@@ -38,7 +38,7 @@ def test_reuse_previous_venv(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         os.mkdir('.venv')
         c = p.pipenv('install requests')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert normalize_drive(p.path) in p.pipenv('--venv').out
 
 
@@ -61,10 +61,10 @@ def test_venv_file(venv_name, PipenvInstance):
                 del os.environ['PIPENV_VENV_IN_PROJECT']
 
             c = p.pipenv('install')
-            assert c.return_code == 0
+            assert c.returncode == 0
 
             c = p.pipenv('--venv')
-            assert c.return_code == 0
+            assert c.returncode == 0
             venv_loc = Path(c.stdout.strip()).absolute()
             assert venv_loc.exists()
             assert venv_loc.joinpath('.project').exists()
@@ -93,9 +93,9 @@ def test_venv_file_with_path(PipenvInstance):
                 f.write(venv_path.name)
 
             c = p.pipenv('install')
-            assert c.return_code == 0
+            assert c.returncode == 0
             c = p.pipenv('--venv')
-            assert c.return_code == 0
+            assert c.returncode == 0
             venv_loc = Path(c.stdout.strip())
 
             assert venv_loc.joinpath('.project').exists()

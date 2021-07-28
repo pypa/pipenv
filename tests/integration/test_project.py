@@ -59,7 +59,7 @@ six = {{version = "*", index = "pypi"}}
         if lock_first:
             # force source to be cached
             c = p.pipenv('lock')
-            assert c.return_code == 0
+            assert c.returncode == 0
         project = Project()
         sources = [
             ['pypi', 'https://pypi.org/simple'],
@@ -85,7 +85,7 @@ def test_maintain_file_line_endings(PipenvInstance, newlines):
     with PipenvInstance(chdir=True) as p:
         # Initial pipfile + lockfile generation
         c = p.pipenv('install pytz')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         # Rewrite each file with parameterized newlines
         for fn in [p.pipfile_path, p.lockfile_path]:
@@ -102,7 +102,7 @@ def test_maintain_file_line_endings(PipenvInstance, newlines):
 
         # Run pipenv install to programatically rewrite
         c = p.pipenv('install chardet')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         # Make sure we kept the right newlines
         for fn in [p.pipfile_path, p.lockfile_path]:
@@ -145,7 +145,7 @@ six = {{version = "*", index = "pypi"}}
             """.format(os.environ['PIPENV_TEST_INDEX']).strip()
             f.write(contents)
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.install
@@ -158,7 +158,7 @@ def test_include_editable_packages(PipenvInstance, testsroot, pathlib_tmpdir):
         with tarfile.open(source_path, "r:gz") as tarinfo:
             tarinfo.extractall(path=str(pathlib_tmpdir))
         c = p.pipenv(f'install -e {package.as_posix()}')
-        assert c.return_code == 0
+        assert c.returncode == 0
         project = Project()
         assert "tablib" in [
             package.project_name
@@ -211,20 +211,20 @@ def test_run_in_virtualenv_with_global_context(PipenvInstance, virtualenv):
 def test_run_in_virtualenv(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv('run pip freeze')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'Creating a virtualenv' in c.stderr
         project = Project()
         c = p.pipenv("run pip install click")
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv("install six")
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv('run python -c "import click;print(click.__file__)"')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert normalize_path(c.stdout.strip()).startswith(
             normalize_path(str(project.virtualenv_location))
         )
         c = p.pipenv("clean --dry-run")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "click" in c.stdout
 
 @pytest.mark.project
@@ -238,4 +238,4 @@ pytest = "*"
             """.format(os.environ['PIPENV_TEST_INDEX']).strip()
             f.write(contents)
         c = p.pipenv('install --skip-lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
