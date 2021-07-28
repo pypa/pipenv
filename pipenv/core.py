@@ -8,32 +8,30 @@ import warnings
 
 import click
 
-import delegator
 import dotenv
 import pipfile
 import vistir
 
 from click_completion import init as init_completion
 
-from . import environments, exceptions, pep508checker, progress
-from ._compat import decode_for_output, fix_utf8
-from .cmdparse import Script
-from .environments import (
+from pipenv import environments, exceptions, pep508checker, progress
+from pipenv._compat import decode_for_output, fix_utf8
+from pipenv.environments import (
     PIP_EXISTS_ACTION, PIPENV_CACHE_DIR, PIPENV_COLORBLIND,
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_DONT_USE_PYENV, PIPENV_DONT_USE_ASDF,
     PIPENV_HIDE_EMOJIS, PIPENV_MAX_SUBPROCESS, PIPENV_PYUP_API_KEY,
     PIPENV_RESOLVE_VCS, PIPENV_SHELL_FANCY, PIPENV_SKIP_VALIDATION, PIPENV_YES,
     SESSION_IS_INTERACTIVE, is_type_checking
 )
-from .patched import crayons
-from .project import Project
-from .utils import (
+from pipenv.patched import crayons
+from pipenv.project import Project
+from pipenv.utils import (
     convert_deps_to_pip, create_spinner, download_file,
     escape_grouped_arguments, find_python, find_windows_executable,
     get_canonical_names, get_source_list, interrupt_handled_subprocess,
     is_pinned, is_python_command, is_required_version, is_star, is_valid_url,
     parse_indexes, pep423_name, prepare_pip_source_args, proper_case,
-    python_version, run_command, venv_resolve_deps
+    python_version, run_command, subprocess_run, venv_resolve_deps
 )
 
 
@@ -454,7 +452,7 @@ def ensure_python(three=None, python=None):
                         else:
                             sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                             # Print the results, in a beautiful blue...
-                            click.echo(crayons.cyan(c.out), err=True)
+                            click.echo(crayons.cyan(c.stdout), err=True)
                             # Clear the pythonfinder caches
                             from .vendor.pythonfinder import Finder
                             finder = Finder(system=False, global_search=True)
@@ -661,21 +659,21 @@ def do_where(virtualenv=False, bare=True):
 def _cleanup_procs(procs, failed_deps_queue, retry=True):
     while not procs.empty():
         c = procs.get()
-        if not c.blocking:
-            c.block()
+        c.wait()
         failed = False
-        if c.return_code != 0:
+        if c.returncode != 0:
             failed = True
-        if "Ignoring" in c.out:
-            click.echo(crayons.yellow(c.out.strip()))
+        out, err = c.communicate()
+        if "Ignoring" in out:
+            click.echo(crayons.yellow(out.strip()))
         elif environments.is_verbose():
-            click.echo(crayons.cyan(c.out.strip() or c.err.strip()))
+            click.echo(crayons.cyan(out.strip() or err.strip()))
         # The Installation failed...
         if failed:
             # If there is a mismatch in installed locations or the install fails
             # due to wrongful disabling of pep517, we should allow for
             # additional passes at installation
-            if "does not match installed location" in c.err:
+            if "does not match installed location" in err:
                 project.environment.expand_egg_links()
                 click.echo("{}".format(
                     crayons.yellow(
@@ -686,14 +684,14 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
                 ))
                 dep = c.dep.copy()
                 dep.use_pep517 = True
-            elif "Disabling PEP 517 processing is invalid" in c.err:
+            elif "Disabling PEP 517 processing is invalid" in err:
                 dep = c.dep.copy()
                 dep.use_pep517 = True
             elif not retry:
                 # The Installation failed...
-                # We echo both c.out and c.err because pip returns error details on out.
-                err = c.err.strip().splitlines() if c.err else []
-                out = c.out.strip().splitlines() if c.out else []
+                # We echo both c.stdout and c.stderr because pip returns error details on out.
+                err = err.strip().splitlines() if err else []
+                out = out.strip().splitlines() if out else []
                 err_lines = [line for message in [out, err] for line in message]
                 # Return the subprocess' return code.
                 raise exceptions.InstallError(c.dep.name, extra=err_lines)
@@ -785,7 +783,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
             # if dep.is_vcs or dep.editable:
             is_sequential = sequential_deps and dep.name in sequential_dep_names
             if is_sequential:
-                c.block()
+                c.wait()
 
             procs.put(c)
             if procs.full() or procs.qsize() == len(deps_list) or is_sequential:
@@ -1022,12 +1020,13 @@ def get_downloads_info(names_map, section):
         # Get the version info from the filenames.
         version = parse_download_fname(fname, name)
         # Get the hash of each file.
-        cmd = '{} hash "{}"'.format(
+        cmd = [
             escape_grouped_arguments(which_pip()),
+            "hash",
             os.sep.join([project.download_location, fname]),
-        )
-        c = delegator.run(cmd)
-        hash = c.out.split("--hash=")[1].strip()
+        ]
+        c = subprocess_run(cmd)
+        hash = c.stdout.split("--hash=")[1].strip()
         # Verify we're adding the correct version from Pipfile
         # and not one from a dependency.
         specified_version = p[section].get(name, "")
@@ -1177,17 +1176,18 @@ def do_purge(bare=False, downloads=False, allow_global=False):
             fix_utf8(f"Found {len(to_remove)} installed package(s), purging...")
         )
 
-    command = "{} uninstall {} -y".format(
+    command = [
         escape_grouped_arguments(which_pip(allow_global=allow_global)),
+        "uninstall", "-y",
         " ".join(to_remove),
-    )
+    ]
     if environments.is_verbose():
-        click.echo(f"$ {command}")
-    c = delegator.run(command)
-    if c.return_code != 0:
-        raise exceptions.UninstallError(installed, command, c.out + c.err, c.return_code)
+        click.echo(f"$ {' '.join(command)}")
+    c = subprocess_run(command)
+    if c.returncode != 0:
+        raise exceptions.UninstallError(installed, ' '.join(command), c.stdout + c.stderr, c.returncode)
     if not bare:
-        click.echo(crayons.cyan(c.out))
+        click.echo(crayons.cyan(c.stdout))
         click.echo(crayons.green("Environment now purged and fresh!"))
     return installed
 
@@ -1485,7 +1485,7 @@ def pip_install(
                 err=True,
             )
 
-    pip_command = [which_pip(allow_global=allow_global), "install"]
+    pip_command = [which("python", allow_global=allow_global), "-m", "pip", "install"]
     pip_args = get_pip_args(
         pre=pre, verbose=environments.is_verbose(), upgrade=True,
         selective_upgrade=selective_upgrade, no_use_pep517=not use_pep517,
@@ -1498,7 +1498,7 @@ def pip_install(
         pip_command.extend(line)
     pip_command.extend(prepare_pip_source_args(sources))
     if environments.is_verbose():
-        click.echo(f"$ {pip_command}", err=True)
+        click.echo(f"$ {' '.join(pip_command)}", err=True)
     cache_dir = vistir.compat.Path(PIPENV_CACHE_DIR)
     DEFAULT_EXISTS_ACTION = "w"
     if selective_upgrade:
@@ -1519,10 +1519,7 @@ def pip_install(
         pip_config.update(
             {"PIP_SRC": vistir.misc.fs_str(src_dir)}
         )
-    cmd = Script.parse(pip_command)
-    pip_command = cmd.cmdify()
-    c = None
-    c = delegator.run(pip_command, block=block, env=pip_config)
+    c = subprocess_run(pip_command, block=block, env=pip_config)
     c.env = pip_config
     return c
 
@@ -1537,14 +1534,15 @@ def pip_download(package_name):
         ),
     }
     for source in project.sources:
-        cmd = '{} download "{}" -i {} -d {}'.format(
+        cmd = [
             escape_grouped_arguments(which_pip()),
+            "download",
             package_name,
-            source["url"],
-            project.download_location,
-        )
-        c = delegator.run(cmd, env=pip_config)
-        if c.return_code == 0:
+            "-i", source["url"],
+            "-d", project.download_location,
+        ]
+        c = subprocess_run(cmd, env=pip_config)
+        if c.returncode == 0:
             break
 
     return c
@@ -1616,10 +1614,10 @@ def system_which(command, mult=False):
     })
     result = None
     try:
-        c = delegator.run(f"{_which} {command}")
+        c = subprocess_run([_which, command])
         try:
             # Which Not found...
-            if c.return_code == 127:
+            if c.returncode == 127:
                 click.echo(
                     "{}: the {} system utility is required for Pipenv to find Python installations properly."
                     "\n  Please install it.".format(
@@ -1627,7 +1625,7 @@ def system_which(command, mult=False):
                     ),
                     err=True,
                 )
-            assert c.return_code == 0
+            assert c.returncode == 0
         except AssertionError:
             result = fallback_which(command, allow_global=True)
     except TypeError:
@@ -2116,19 +2114,19 @@ def do_install(
                         extra_indexes=extra_index_url,
                         pypi_mirror=pypi_mirror,
                     )
-                    if not c.ok:
+                    if c.returncode:
                         sp.write_err(
                             "{} An error occurred while installing {}!".format(
                                 crayons.red("Error: ", bold=True), crayons.green(pkg_line)
                             ),
                         )
                         sp.write_err(
-                            vistir.compat.fs_str(f"Error text: {c.out}")
+                            vistir.compat.fs_str(f"Error text: {c.stdout}")
                         )
-                        sp.write_err(crayons.cyan(vistir.compat.fs_str(format_pip_error(c.err))))
+                        sp.write_err(crayons.cyan(vistir.compat.fs_str(format_pip_error(c.stderr))))
                         if environments.is_verbose():
-                            sp.write_err(crayons.cyan(vistir.compat.fs_str(format_pip_output(c.out))))
-                        if "setup.py egg_info" in c.err:
+                            sp.write_err(crayons.cyan(vistir.compat.fs_str(format_pip_output(c.stdout))))
+                        if "setup.py egg_info" in c.stderr:
                             sp.write_err(vistir.compat.fs_str(
                                 "This is likely caused by a bug in {}. "
                                 "Report this to its maintainers.".format(
@@ -2301,8 +2299,8 @@ def do_uninstall(
                     pip_path = which_pip(allow_global=system)
                 cmd = [pip_path, "uninstall", package_name, "-y"]
                 c = run_command(cmd)
-                click.echo(crayons.cyan(c.out))
-                if c.return_code != 0:
+                click.echo(crayons.cyan(c.stdout))
+                if c.returncode != 0:
                     failure = True
         if not failure and pipfile_remove:
             in_packages = project.get_package_name_in_pipfile(package_name, dev=False)
@@ -2611,14 +2609,14 @@ def do_check(
     # Run the PEP 508 checker in the virtualenv.
     cmd = _cmd + [vistir.compat.Path(pep508checker_path).as_posix()]
     c = run_command(cmd)
-    if c.return_code is not None:
+    if c.returncode is not None:
         try:
-            results = simplejson.loads(c.out.strip())
+            results = simplejson.loads(c.stdout.strip())
         except JSONDecodeError:
             click.echo("{}\n{}\n{}".format(
                 crayons.white(decode_for_output("Failed parsing pep508 results: "), bold=True),
-                c.out.strip(),
-                c.err.strip()
+                c.stdout.strip(),
+                c.stderr.strip()
             ))
             sys.exit(1)
     # Load the pipfile.
@@ -2681,11 +2679,11 @@ def do_check(
     c = run_command(cmd, catch_exceptions=False)
     if output == "default":
         try:
-            results = simplejson.loads(c.out)
+            results = simplejson.loads(c.stdout)
         except (ValueError, JSONDecodeError):
-            raise exceptions.JSONParseError(c.out, c.err)
+            raise exceptions.JSONParseError(c.stdout, c.stderr)
         except Exception:
-            raise exceptions.PipenvCmdError(c.cmd, c.out, c.err, c.return_code)
+            raise exceptions.PipenvCmdError(' '.join(c.args), c.stdout, c.stderr, c.returncode)
         for (package, resolved, installed, description, vuln) in results:
             click.echo(
                 "{}: {} {} resolved ({} installed)!".format(
@@ -2697,14 +2695,14 @@ def do_check(
             )
             click.echo(f"{description}")
             click.echo()
-        if c.ok:
+        if c.returncode == 0:
             click.echo(crayons.green("All good!"))
             sys.exit(0)
         else:
             sys.exit(1)
     else:
-        click.echo(c.out)
-        sys.exit(c.return_code)
+        click.echo(c.stdout)
+        sys.exit(c.returncode)
 
 
 def do_graph(bare=False, json=False, json_tree=False, reverse=False):
@@ -2786,9 +2784,9 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
         if json:
             data = []
             try:
-                parsed = simplejson.loads(c.out.strip())
+                parsed = simplejson.loads(c.stdout.strip())
             except JSONDecodeError:
-                raise exceptions.JSONParseError(c.out, c.err)
+                raise exceptions.JSONParseError(c.stdout, c.stderr)
             else:
                 for d in parsed:
                     if d["package"]["key"] not in BAD_PACKAGES:
@@ -2809,15 +2807,15 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
                     return obj
 
             try:
-                parsed = simplejson.loads(c.out.strip())
+                parsed = simplejson.loads(c.stdout.strip())
             except JSONDecodeError:
-                raise exceptions.JSONParseError(c.out, c.err)
+                raise exceptions.JSONParseError(c.stdout, c.stderr)
             else:
                 data = traverse(parsed)
                 click.echo(simplejson.dumps(data, indent=4))
                 sys.exit(0)
         else:
-            for line in c.out.strip().split("\n"):
+            for line in c.stdout.strip().split("\n"):
                 # Ignore bad packages as top level.
                 # TODO: This should probably be a "==" in + line.partition
                 if line.split("==")[0] in BAD_PACKAGES and not reverse:
@@ -2830,17 +2828,17 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
                 else:
                     click.echo(crayons.normal(line, bold=False))
     else:
-        click.echo(c.out)
-    if c.return_code != 0:
+        click.echo(c.stdout)
+    if c.returncode != 0:
         click.echo(
             "{} {}".format(
                 crayons.red("ERROR: ", bold=True),
-                crayons.white(f"{c.err}"),
+                crayons.white(f"{c.stderr}"),
             ),
             err=True,
         )
     # Return its return code.
-    sys.exit(c.return_code)
+    sys.exit(c.returncode)
 
 
 def do_sync(
@@ -2928,6 +2926,6 @@ def do_clean(
             # Uninstall the package.
             cmd = [which_pip(), "uninstall", apparent_bad_package, "-y"]
             c = run_command(cmd)
-            if c.return_code != 0:
+            if c.returncode != 0:
                 failure = True
     sys.exit(int(failure))

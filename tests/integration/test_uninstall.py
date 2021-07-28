@@ -105,7 +105,7 @@ def test_uninstall_all_local_files(PipenvInstance, testsroot):
         assert c.return_code == 0
         c = p.pipenv("uninstall --all")
         assert c.return_code == 0
-        assert "tablib" in c.out
+        assert "tablib" in c.stdout
         # Uninstall --all is not supposed to remove things from the pipfile
         # Note that it didn't before, but that instead local filenames showed as hashes
         assert "tablib" in p.pipfile["packages"]
@@ -193,4 +193,4 @@ def test_uninstall_missing_parameters(PipenvInstance):
 
         c = p.pipenv("uninstall")
         assert c.return_code != 0
-        assert "No package provided!" in c.err
+        assert "No package provided!" in c.stderr

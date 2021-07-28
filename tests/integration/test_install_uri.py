@@ -5,9 +5,8 @@ import pytest
 
 from flaky import flaky
 
-import delegator
-
 from pipenv._compat import Path
+from pipenv.utils import subprocess_run
 
 
 @flaky
@@ -127,10 +126,10 @@ def test_local_vcs_urls_work(PipenvInstance, tmpdir):
     six_dir = tmpdir.join("six")
     six_path = Path(six_dir.strpath)
     with PipenvInstance(chdir=True) as p:
-        c = delegator.run(
-            "git clone https://github.com/benjaminp/six.git {0}".format(six_dir.strpath)
+        c = subprocess_run(
+            ["git", "clone", "https://github.com/benjaminp/six.git", six_dir.strpath]
         )
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv("install git+{0}#egg=six".format(six_path.as_uri()))
         assert c.return_code == 0
@@ -216,9 +215,9 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         # six_path = os.path.join(p.path, "six")
         six_path = p._pipfile.get_fixture_path("git/six/").as_posix()
-        c = delegator.run("git clone {0} ./six".format(six_path))
-        assert c.return_code == 0
-        c = p.pipenv("install -e ./six".format(six_path))
+        c = subprocess_run(["git", "clone", six_path, "./six"])
+        assert c.returncode == 0
+        c = p.pipenv("install -e ./six")
         assert c.return_code == 0
         six_key = list(p.pipfile["packages"].keys())[0]
         # we don't need the rest of the test anymore, this just works on its own

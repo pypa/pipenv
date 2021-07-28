@@ -8,7 +8,6 @@ from flaky import flaky
 
 from pipenv._compat import Path
 from pipenv.utils import mkdir_p, temp_environ
-from pipenv.vendor import delegator
 
 
 @pytest.mark.extras
@@ -369,7 +368,7 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, testsroot):
         assert c.return_code == 0
 
         c = p.pipenv('run python -c "import requests, flask, six, jinja2"')
-        assert c.return_code == 0, c.err
+        assert c.return_code == 0, c.stderr
 
 
 @pytest.mark.outdated
@@ -380,8 +379,8 @@ def test_outdated_should_compare_postreleases_without_failing(PipenvInstance):
         assert c.return_code == 0
         c = p.pipenv("update --outdated")
         assert c.return_code == 0
-        assert "Skipped Update" in c.err
+        assert "Skipped Update" in c.stderr
         p._pipfile.update("ibm-db-sa-py3", "*")
         c = p.pipenv("update --outdated")
         assert c.return_code != 0
-        assert "out-of-date" in c.out
+        assert "out-of-date" in c.stdout

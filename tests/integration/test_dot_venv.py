@@ -65,7 +65,7 @@ def test_venv_file(venv_name, PipenvInstance):
 
             c = p.pipenv('--venv')
             assert c.return_code == 0
-            venv_loc = Path(c.out.strip()).absolute()
+            venv_loc = Path(c.stdout.strip()).absolute()
             assert venv_loc.exists()
             assert venv_loc.joinpath('.project').exists()
             venv_path = normalize_drive(venv_loc.as_posix())
@@ -96,7 +96,7 @@ def test_venv_file_with_path(PipenvInstance):
             assert c.return_code == 0
             c = p.pipenv('--venv')
             assert c.return_code == 0
-            venv_loc = Path(c.out.strip())
+            venv_loc = Path(c.stdout.strip())
 
             assert venv_loc.joinpath('.project').exists()
             assert venv_loc == Path(venv_path.name)

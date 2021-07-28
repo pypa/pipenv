@@ -20,7 +20,7 @@ def test_case_changes_windows(PipenvInstance):
         # Canonical venv location.
         c = p.pipenv('--venv')
         assert c.return_code == 0
-        virtualenv_location = c.out.strip()
+        virtualenv_location = c.stdout.strip()
 
         # Dance around to change the casing of the project directory.
         target = p.path.upper()
@@ -33,7 +33,7 @@ def test_case_changes_windows(PipenvInstance):
         # Ensure the incorrectly-cased project can find the correct venv.
         c = p.pipenv('--venv')
         assert c.return_code == 0
-        assert c.out.strip().lower() == virtualenv_location.lower()
+        assert c.stdout.strip().lower() == virtualenv_location.lower()
 
 
 @pytest.mark.files
@@ -78,4 +78,4 @@ def test_pipenv_clean_windows(PipenvInstance):
 
         c = p.pipenv('clean --dry-run')
         assert c.return_code == 0
-        assert 'click' in c.out.strip()
+        assert 'click' in c.stdout.strip()

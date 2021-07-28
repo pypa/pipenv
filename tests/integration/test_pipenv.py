@@ -8,8 +8,7 @@ import os
 import pytest
 
 from pipenv.project import Project
-from pipenv.utils import temp_environ
-from pipenv.vendor import delegator
+from pipenv.utils import subprocess_run, temp_environ
 
 
 @pytest.mark.code
@@ -40,8 +39,8 @@ pytest = "==4.6.9"
             f.write(contents)
         c = p.pipenv('install --verbose')
         if c.return_code != 0:
-            assert c.err == '' or c.err is None
-            assert c.out == ''
+            assert c.stderr == '' or c.stderr is None
+            assert c.stdout == ''
         assert c.return_code == 0
         c = p.pipenv('lock')
         assert c.return_code == 0
@@ -74,7 +73,7 @@ def test_update_locks(PipenvInstance):
         assert p.lockfile['default']['jdcal']['version'] == '==1.4'
         c = p.pipenv('run pip freeze')
         assert c.return_code == 0
-        lines = c.out.splitlines()
+        lines = c.stdout.splitlines()
         assert 'jdcal==1.4' in [l.strip() for l in lines]
 
 
@@ -82,8 +81,8 @@ def test_update_locks(PipenvInstance):
 @pytest.mark.proper_names
 def test_proper_names_unamanged_virtualenv(PipenvInstance):
     with PipenvInstance(chdir=True):
-        c = delegator.run('python -m virtualenv .venv')
-        assert c.return_code == 0
+        c = subprocess_run(['python', '-m', 'virtualenv', '.venv'])
+        assert c.returncode == 0
         project = Project()
         assert project.proper_names == []
 
@@ -98,7 +97,7 @@ def test_directory_with_leading_dash(raw_venv, PipenvInstance):
             assert c.return_code == 0
             c = p.pipenv('--venv')
             assert c.return_code == 0
-            venv_path = c.out.strip()
+            venv_path = c.stdout.strip()
             assert os.path.isdir(venv_path)
             # Manually clean up environment, since PipenvInstance assumes that
             # the virutalenv is in the project directory.

@@ -9,7 +9,6 @@ click-completion==0.5.2
 click-didyoumean==0.0.3
 click==8.0.1
 colorama==0.4.4
-delegator.py==0.1.1
 distlib==0.3.2
 docopt==0.6.2
 dparse==0.5.1

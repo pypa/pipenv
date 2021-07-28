@@ -24,7 +24,7 @@ fake_package = {version = "*", markers="os_name=='splashwear'"}
 
         c = p.pipenv('install')
         assert c.return_code == 0
-        assert 'Ignoring' in c.out
+        assert 'Ignoring' in c.stdout
         assert 'markers' in p.lockfile['default']['fake-package'], p.lockfile["default"]
 
         c = p.pipenv('run python -c "import fake_package;"')
@@ -73,7 +73,7 @@ fake-package = {version = "*", os_name = "== 'splashwear'"}
         c = p.pipenv('install')
         assert c.return_code == 0
 
-        assert 'Ignoring' in c.out
+        assert 'Ignoring' in c.stdout
         assert 'markers' in p.lockfile['default']['fake-package']
 
         c = p.pipenv('run python -c "import fake_package;"')

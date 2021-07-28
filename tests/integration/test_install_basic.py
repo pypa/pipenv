@@ -5,8 +5,7 @@ import pytest
 from flaky import flaky
 
 from pipenv._compat import Path, TemporaryDirectory
-from pipenv.utils import temp_environ
-from pipenv.vendor import delegator
+from pipenv.utils import subprocess_run, temp_environ
 
 
 @pytest.mark.setup
@@ -288,9 +287,9 @@ def test_requirements_to_pipfile(PipenvInstance, pypi):
 
         c = p.pipenv("install")
         assert c.return_code == 0
-        print(c.out)
-        print(c.err)
-        print(delegator.run("ls -l").out)
+        print(c.stdout)
+        print(c.stderr)
+        print(subprocess_run(["ls", "-l"]).stdout)
 
         # assert stuff in pipfile
         assert "requests" in p.pipfile["packages"]
@@ -327,7 +326,7 @@ fake_package = "<0.12"
             """.strip()
             f.write(contents)
         c = p.pipenv("install")
-        assert c.ok
+        assert c.returncode == 0
         assert "fake_package" in p.pipfile["packages"]
         assert "fake-package" in p.lockfile["default"]
         assert "six" in p.pipfile["packages"]
@@ -384,7 +383,7 @@ def test_editable_no_args(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv("install -e")
         assert c.return_code != 0
-        assert "Error: Option '-e' requires an argument" in c.err
+        assert "Error: Option '-e' requires an argument" in c.stderr
 
 
 @pytest.mark.basic
@@ -405,7 +404,7 @@ def test_install_venv_project_directory(PipenvInstance):
             assert c.return_code == 0
 
             venv_loc = None
-            for line in c.err.splitlines():
+            for line in c.stderr.splitlines():
                 if line.startswith("Virtualenv location:"):
                     venv_loc = Path(line.split(":", 1)[-1].strip())
             assert venv_loc is not None
@@ -421,8 +420,8 @@ def test_system_and_deploy_work(PipenvInstance):
         assert c.return_code == 0
         c = p.pipenv("--rm")
         assert c.return_code == 0
-        c = delegator.run("virtualenv .venv")
-        assert c.return_code == 0
+        c = subprocess_run(["virtualenv", ".venv"])
+        assert c.returncode == 0
         c = p.pipenv("install --system --deploy")
         assert c.return_code == 0
         c = p.pipenv("--rm")
@@ -456,7 +455,7 @@ def test_install_creates_pipfile(PipenvInstance):
 def test_install_non_exist_dep(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install dateutil")
-        assert not c.ok
+        assert c.returncode
         assert "dateutil" not in p.pipfile["packages"]
 
 
@@ -465,7 +464,7 @@ def test_install_non_exist_dep(PipenvInstance):
 def test_install_package_with_dots(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install backports.html")
-        assert c.ok
+        assert c.returncode == 0
         assert "backports.html" in p.pipfile["packages"]
 
 

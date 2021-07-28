@@ -15,7 +15,7 @@ def test_env(PipenvInstance):
 
         c = p.pipenv('run python -c "import os; print(os.environ[\'HELLO\'])"')
         assert c.return_code == 0
-        assert 'WORLD' in c.out
+        assert 'WORLD' in c.stdout
 
 
 @pytest.mark.run
@@ -38,15 +38,15 @@ multicommand = "bash -c \"cd docs && make html\""
 
         c = p.pipenv('run printfoo')
         assert c.return_code == 0
-        assert c.out == 'foo\n'
-        assert c.err == ''
+        assert c.stdout == 'foo\n'
+        assert c.stderr == ''
 
         c = p.pipenv('run notfoundscript')
         assert c.return_code == 1
-        assert c.out == ''
+        assert c.stdout == ''
         if os.name != 'nt':     # TODO: Implement this message for Windows.
-            assert 'Error' in c.err
-            assert 'randomthingtotally (from notfoundscript)' in c.err
+            assert 'Error' in c.stderr
+            assert 'randomthingtotally (from notfoundscript)' in c.stderr
 
         project = Project()
 
@@ -61,6 +61,6 @@ multicommand = "bash -c \"cd docs && make html\""
         with temp_environ():
             os.environ['HELLO'] = 'WORLD'
             c = p.pipenv("run scriptwithenv")
-            assert c.ok
+            assert c.returncode == 0
             if os.name != "nt":  # This doesn't work on CI windows.
-                assert c.out.strip() == "WORLD"
+                assert c.stdout.strip() == "WORLD"

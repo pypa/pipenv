@@ -1,3 +1,4 @@
+import subprocess
 import contextlib
 import errno
 import logging
@@ -21,6 +22,7 @@ import parse
 import tomlkit
 
 from . import environments
+from ._compat import DEFAULT_ENCODING
 from .exceptions import PipenvCmdError, PipenvUsageError, RequirementError, ResolutionFailure
 from .pep508checker import lookup
 from .vendor.packaging.markers import Marker
@@ -129,7 +131,6 @@ def run_command(cmd, *args, **kwargs):
     :raises: exceptions.PipenvCmdError
     """
 
-    from pipenv.vendor import delegator
     from ._compat import decode_for_output
     from .cmdparse import Script
     catch_exceptions = kwargs.pop("catch_exceptions", True)
@@ -140,21 +141,16 @@ def run_command(cmd, *args, **kwargs):
     if "env" not in kwargs:
         kwargs["env"] = os.environ.copy()
     kwargs["env"]["PYTHONIOENCODING"] = "UTF-8"
-    try:
-        cmd_string = cmd.cmdify()
-    except TypeError:
-        click_echo(f"Error turning command into string: {cmd}", err=True)
-        sys.exit(1)
+    command = [cmd.command, *cmd.args]
     if environments.is_verbose():
-        click_echo(f"Running command: $ {cmd_string}")
-    c = delegator.run(cmd_string, *args, **kwargs)
-    return_code = c.return_code
+        click_echo(f"Running command: $ {cmd.cmdify()}")
+    c = subprocess_run(command, *args, **kwargs)
     if environments.is_verbose():
         click_echo("Command output: {}".format(
-            crayons.cyan(decode_for_output(c.out))
+            crayons.cyan(decode_for_output(c.stdout))
         ), err=True)
-    if not c.ok and catch_exceptions:
-        raise PipenvCmdError(cmd_string, c.out, c.err, return_code)
+    if c.returncode and catch_exceptions:
+        raise PipenvCmdError(cmd.cmdify(), c.stdout, c.stderr, c.returncode)
     return c
 
 
@@ -1131,50 +1127,30 @@ def create_spinner(text, nospin=None, spinner_name=None):
 
 def resolve(cmd, sp):
     from .cmdparse import Script
-    from .vendor import delegator
-    from .vendor.pexpect.exceptions import EOF, TIMEOUT
-    from .vendor.vistir.compat import to_native_string
     from .vendor.vistir.misc import echo
-    EOF.__module__ = "pexpect.exceptions"
     from ._compat import decode_output
-    c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
-    if environments.is_verbose():
-        c.subprocess.logfile = sys.stderr
-    _out = decode_output("")
-    result = None
-    out = to_native_string("")
-    while True:
-        result = None
-        try:
-            result = c.expect("\n", timeout=environments.PIPENV_INSTALL_TIMEOUT)
-        except TIMEOUT:
-            pass
-        except EOF:
-            break
-        except KeyboardInterrupt:
-            c.kill()
-            break
-        if result:
-            _out = c.subprocess.before
-            _out = decode_output(f"{_out}")
-            out += _out
-            # sp.text = to_native_string("{0}".format(_out[:100]))
-            if environments.is_verbose():
-                sp.hide_and_write(out.splitlines()[-1].rstrip())
-        else:
-            break
-    c.block()
-    if c.return_code != 0:
+    c = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())
+    err = ""
+    for line in iter(c.stderr.readline, ""):
+        line = decode_output(line)
+        err += line
+        if environments.is_verbose() and line.rstrip():
+            sp.hide_and_write(line.rstrip())
+
+    c.wait()
+    returncode = c.poll()
+    out = c.stdout.read()
+    if returncode != 0:
         sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
             "Locking Failed!"
         ))
-        echo(c.out.strip(), err=True)
+        echo(out.strip(), err=True)
         if not environments.is_verbose():
-            echo(out, err=True)
-        sys.exit(c.return_code)
+            echo(err, err=True)
+        sys.exit(returncode)
     if environments.is_verbose():
-        echo(c.err.strip(), err=True)
-    return c
+        echo(out.strip(), err=True)
+    return subprocess.CompletedProcess(c.args, returncode, out, err)
 
 
 def get_locked_dep(dep, pipfile_section, prefer_pipfile=True):
@@ -1334,21 +1310,21 @@ def venv_resolve_deps(
             os.environ["PIPENV_PACKAGES"] = str("\n".join(constraints))
             sp.write(decode_for_output("Resolving dependencies..."))
             c = resolve(cmd, sp)
-            results = c.out.strip()
-            if c.ok:
+            results = c.stdout.strip()
+            if c.returncode == 0:
                 sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
-                if not environments.is_verbose() and c.out.strip():
-                    click_echo(crayons.yellow(f"Warning: {c.out.strip()}"), err=True)
+                if not environments.is_verbose() and c.stdout.strip():
+                    click_echo(crayons.yellow(f"Warning: {c.stdout.strip()}"), err=True)
             else:
                 sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
-                click_echo(f"Output: {c.out.strip()}", err=True)
-                click_echo(f"Error: {c.err.strip()}", err=True)
+                click_echo(f"Output: {c.stdout.strip()}", err=True)
+                click_echo(f"Error: {c.stderr.strip()}", err=True)
     try:
         with open(target_file.name) as fh:
             results = json.load(fh)
     except (IndexError, JSONDecodeError):
-        click_echo(c.out.strip(), err=True)
-        click_echo(c.err.strip(), err=True)
+        click_echo(c.stdout.strip(), err=True)
+        click_echo(c.stderr.strip(), err=True)
         if os.path.exists(target_file.name):
             os.unlink(target_file.name)
         raise RuntimeError("There was a problem with locking.")
@@ -1723,14 +1699,13 @@ def temp_path():
 
 
 def load_path(python):
-    from ._compat import Path
-    import delegator
+    from pathlib import Path
     import json
     python = Path(python).as_posix()
     json_dump_commmand = '"import json, sys; print(json.dumps(sys.path));"'
-    c = delegator.run(f'"{python}" -c {json_dump_commmand}')
-    if c.return_code == 0:
-        return json.loads(c.out.strip())
+    c = subprocess_run([python, "-c", json_dump_commmand])
+    if c.returncode == 0:
+        return json.loads(c.stdout.strip())
     else:
         return []
 
@@ -2248,35 +2223,6 @@ def is_python_command(line):
     return False
 
 
-# def make_marker_from_specifier(spec):
-#     # type: (str) -> Optional[Marker]
-#     """Given a python version specifier, create a marker
-
-#     :param spec: A specifier
-#     :type spec: str
-#     :return: A new marker
-#     :rtype: Optional[:class:`packaging.marker.Marker`]
-#     """
-#     from .vendor.packaging.markers import Marker
-#     from .vendor.packaging.specifiers import SpecifierSet, Specifier
-#     from .vendor.requirementslib.models.markers import cleanup_pyspecs, format_pyversion
-#     if not any(spec.startswith(k) for k in Specifier._operators.keys()):
-#         if spec.strip().lower() in ["any", "<any>", "*"]:
-#             return None
-#         spec = "=={0}".format(spec)
-#     elif spec.startswith("==") and spec.count("=") > 3:
-#         spec = "=={0}".format(spec.lstrip("="))
-#     if not spec:
-#         return None
-#     marker_segments = []
-#     print(spec)
-#     for marker_segment in cleanup_pyspecs(spec):
-#         print(marker_segment)
-#         marker_segments.append(format_pyversion(marker_segment))
-#     marker_str = " and ".join(marker_segments)
-#     return Marker(marker_str)
-
-
 @contextlib.contextmanager
 def interrupt_handled_subprocess(
     cmd, verbose=False, return_object=True, write_to_stdout=False, combine_stderr=True,
@@ -2312,3 +2258,30 @@ def interrupt_handled_subprocess(
             os.kill(obj.pid, signal.SIGINT)
         obj.wait()
         raise
+
+
+def subprocess_run(
+    args, *, block=True, text=True, capture_output=True,
+    encoding=DEFAULT_ENCODING, env=None, **other_kwargs
+):
+    """A backward compatible version of subprocess.run().
+
+    It outputs text with default encoding, and store all outputs in the returned object instead of
+    printing onto stdout.
+    """
+    if env is not None:
+        env = dict(os.environ, **env)
+        other_kwargs['env'] = env
+    if block:
+        return subprocess.run(
+            args, universal_newlines=text, capture_output=capture_output,
+            encoding=encoding, **other_kwargs
+        )
+    else:
+        if capture_output:
+            other_kwargs['stdout'] = subprocess.PIPE
+            other_kwargs['stderr'] = subprocess.PIPE
+        return subprocess.Popen(
+            args, universal_newlines=text,
+            encoding=encoding, **other_kwargs
+        )

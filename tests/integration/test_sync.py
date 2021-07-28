@@ -17,7 +17,7 @@ def test_sync_error_without_lockfile(PipenvInstance):
 
         c = p.pipenv('sync')
         assert c.return_code != 0
-        assert 'Pipfile.lock not found!' in c.err
+        assert 'Pipfile.lock not found!' in c.stderr
 
 
 @pytest.mark.sync
@@ -110,4 +110,4 @@ requests = "*"
 
         c = p.pipenv('sync --sequential --verbose')
         for package in p.lockfile['default']:
-            assert f'Successfully installed {package}' in c.out
+            assert f'Successfully installed {package}' in c.stdout

@@ -1,4 +1,5 @@
 import os
+from pipenv.utils import subprocess_run
 import sys
 
 from click import (
@@ -9,7 +10,7 @@ from ..__version__ import __version__
 from .._compat import fix_utf8
 from ..exceptions import PipenvOptionsError
 from ..patched import crayons
-from ..vendor import click_completion, delegator
+from ..vendor import click_completion
 from .options import (
     CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
     general_options, install_options, lock_options, pass_state,
@@ -641,18 +642,16 @@ def run_open(state, module, *args, **kwargs):
         three=state.three, python=state.python,
         validate=False, pypi_mirror=state.pypi_mirror,
     )
-    c = delegator.run(
-        '{0} -c "import {1}; print({1}.__file__);"'.format(which("python"), module)
+    c = subprocess_run(
+        which("python"), "-c", "import {0}; print({0}.__file__)".format(module)
     )
-    try:
-        assert c.return_code == 0
-    except AssertionError:
+    if c.returncode:
         echo(crayons.red("Module not found!"))
         sys.exit(1)
-    if "__init__.py" in c.out:
-        p = os.path.dirname(c.out.strip().rstrip("cdo"))
+    if "__init__.py" in c.stdout:
+        p = os.path.dirname(c.stdout.strip().rstrip("cdo"))
     else:
-        p = c.out.strip().rstrip("cdo")
+        p = c.stdout.strip().rstrip("cdo")
     echo(crayons.normal(f"Opening {p!r} in your EDITOR.", bold=True))
     inline_activate_virtual_environment()
     edit(filename=p)
