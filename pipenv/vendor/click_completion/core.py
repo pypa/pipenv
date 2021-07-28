@@ -10,14 +10,7 @@ import subprocess
 
 import click
 from click import Option, Argument, MultiCommand, echo
-import six
-if six.PY3:
-    try:
-        from enum import Enum
-    except ImportError:
-        from pipenv.vendor.backports.enum import Enum
-else:
-    from pipenv.vendor.backports.enum import Enum
+from enum import Enum
 
 from click_completion.lib import resolve_ctx, split_args, single_quote, double_quote, get_auto_shell
 

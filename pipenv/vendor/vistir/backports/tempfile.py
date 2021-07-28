@@ -12,7 +12,7 @@ import six
 try:
     from weakref import finalize
 except ImportError:
-    from pipenv.vendor.backports.weakref import finalize
+    from backports.weakref import finalize
 
 
 def fs_encode(path):
