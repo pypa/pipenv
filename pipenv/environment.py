@@ -17,7 +17,7 @@ from pipenv.vendor.cached_property import cached_property
 from pipenv.vendor.packaging.utils import canonicalize_name
 from pipenv.vendor import vistir
 
-from pipenv.utils import normalize_path, make_posix
+from pipenv.utils import normalize_path, make_posix, subprocess_run
 
 
 if False:
@@ -361,9 +361,7 @@ class Environment:
         tmpfile_path = make_posix(tmpfile.name)
         py_command = self.build_command(python_lib=True, python_inc=True, scripts=True, py_version=True)
         command = [self.python, "-c", py_command.format(tmpfile_path)]
-        c = vistir.misc.run(
-            command, return_object=True, block=True, nospin=True, write_to_stdout=False
-        )
+        c = subprocess_run(command)
         if c.returncode == 0:
             paths = {}
             with open(tmpfile_path, "r", encoding="utf-8") as fh:
@@ -375,8 +373,8 @@ class Environment:
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            vistir.misc.echo(f"Failed to load paths: {c.err}", fg="yellow")
-            vistir.misc.echo(f"Output: {c.out}", fg="yellow")
+            vistir.misc.echo(f"Failed to load paths: {c.stderr}", fg="yellow")
+            vistir.misc.echo(f"Output: {c.stdout}", fg="yellow")
         return None
 
     def get_lib_paths(self):
@@ -391,9 +389,7 @@ class Environment:
         tmpfile_path = make_posix(tmpfile.name)
         py_command = self.build_command(python_lib=True)
         command = [self.python, "-c", py_command.format(tmpfile_path)]
-        c = vistir.misc.run(
-            command, return_object=True, block=True, nospin=True, write_to_stdout=False
-        )
+        c = subprocess_run(command)
         paths = None
         if c.returncode == 0:
             paths = {}
@@ -406,8 +402,8 @@ class Environment:
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            vistir.misc.echo(f"Failed to load paths: {c.err}", fg="yellow")
-            vistir.misc.echo(f"Output: {c.out}", fg="yellow")
+            vistir.misc.echo(f"Failed to load paths: {c.stderr}", fg="yellow")
+            vistir.misc.echo(f"Output: {c.stdout}", fg="yellow")
         if not paths:
             if not self.prefix.joinpath("lib").exists():
                 return {}
@@ -445,9 +441,7 @@ class Environment:
             "fh = io.open('{0}', 'w'); fh.write(value); fh.close()"
         )
         command = [self.python, "-c", py_command.format(tmpfile_path)]
-        c = vistir.misc.run(
-            command, return_object=True, block=True, nospin=True, write_to_stdout=False
-        )
+        c = subprocess_run(command)
         if c.returncode == 0:
             paths = []
             with open(tmpfile_path, "r", encoding="utf-8") as fh:
@@ -457,8 +451,8 @@ class Environment:
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            vistir.misc.echo(f"Failed to load paths: {c.err}", fg="yellow")
-            vistir.misc.echo(f"Output: {c.out}", fg="yellow")
+            vistir.misc.echo(f"Failed to load paths: {c.stderr}", fg="yellow")
+            vistir.misc.echo(f"Output: {c.stdout}", fg="yellow")
         return None
 
     @cached_property
@@ -472,8 +466,8 @@ class Environment:
         """
 
         command = [self.python, "-c", "import sys; print(sys.prefix)"]
-        c = vistir.misc.run(command, return_object=True, block=True, nospin=True, write_to_stdout=False)
-        sys_prefix = vistir.compat.Path(vistir.misc.to_text(c.out).strip()).as_posix()
+        c = subprocess_run(command)
+        sys_prefix = vistir.compat.Path(c.stdout.strip()).as_posix()
         return sys_prefix
 
     @cached_property

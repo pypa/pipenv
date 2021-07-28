@@ -85,14 +85,14 @@ def test_pipenv_graph(PipenvInstance):
         c = p.pipenv('install tablib')
         assert c.returncode == 0
         graph = p.pipenv("graph")
-        assert graph.ok
-        assert "tablib" in graph.out
+        assert graph.returncode == 0
+        assert "tablib" in graph.stdout
         graph_json = p.pipenv("graph --json")
-        assert graph_json.ok
-        assert "tablib" in graph_json.out
+        assert graph_json.returncode == 0
+        assert "tablib" in graph_json.stdout
         graph_json_tree = p.pipenv("graph --json-tree")
-        assert graph_json_tree.ok
-        assert "tablib" in graph_json_tree.out
+        assert graph_json_tree.returncode == 0
+        assert "tablib" in graph_json_tree.stdout
 
 
 @pytest.mark.cli
@@ -186,13 +186,13 @@ def test_pipenv_clean_pip_warnings(PipenvInstance):
 @pytest.mark.cli
 def test_venv_envs(PipenvInstance):
     with PipenvInstance() as p:
-        assert p.pipenv('--envs').out
+        assert p.pipenv('--envs').stdout
 
 
 @pytest.mark.cli
 def test_bare_output(PipenvInstance):
     with PipenvInstance() as p:
-        assert p.pipenv('').out
+        assert p.pipenv('').stdout
 
 
 @pytest.mark.cli
@@ -212,7 +212,7 @@ pyver = "which python"
 @pytest.mark.cli
 def test_help(PipenvInstance):
     with PipenvInstance() as p:
-        assert p.pipenv('--help').out
+        assert p.pipenv('--help').stdout
 
 
 @pytest.mark.cli

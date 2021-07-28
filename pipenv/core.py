@@ -7,7 +7,6 @@ import time
 import warnings
 
 import click
-
 import dotenv
 import pipfile
 import vistir
@@ -18,7 +17,7 @@ from pipenv import environments, exceptions, pep508checker, progress
 from pipenv._compat import decode_for_output, fix_utf8
 from pipenv.environments import (
     PIP_EXISTS_ACTION, PIPENV_CACHE_DIR, PIPENV_COLORBLIND,
-    PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_DONT_USE_PYENV, PIPENV_DONT_USE_ASDF,
+    PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_DONT_USE_ASDF, PIPENV_DONT_USE_PYENV,
     PIPENV_HIDE_EMOJIS, PIPENV_MAX_SUBPROCESS, PIPENV_PYUP_API_KEY,
     PIPENV_RESOLVE_VCS, PIPENV_SHELL_FANCY, PIPENV_SKIP_VALIDATION, PIPENV_YES,
     SESSION_IS_INTERACTIVE, is_type_checking
@@ -28,15 +27,16 @@ from pipenv.project import Project
 from pipenv.utils import (
     convert_deps_to_pip, create_spinner, download_file,
     escape_grouped_arguments, find_python, find_windows_executable,
-    get_canonical_names, get_source_list, interrupt_handled_subprocess,
-    is_pinned, is_python_command, is_required_version, is_star, is_valid_url,
-    parse_indexes, pep423_name, prepare_pip_source_args, proper_case,
-    python_version, run_command, subprocess_run, venv_resolve_deps
+    get_canonical_names, get_source_list, is_pinned, is_python_command,
+    is_required_version, is_star, is_valid_url, parse_indexes, pep423_name,
+    prepare_pip_source_args, proper_case, python_version, run_command,
+    subprocess_run, venv_resolve_deps
 )
 
 
 if is_type_checking():
     from typing import Dict, List, Optional, Union
+
     from pipenv.vendor.requirementslib.models.requirements import Requirement
     TSourceDict = Dict[str, Union[str, bool]]
 
@@ -394,7 +394,7 @@ def ensure_python(three=None, python=None):
             err=True,
         )
         # check for python installers
-        from .installers import Pyenv, Asdf, InstallerError, InstallerNotFound
+        from .installers import Asdf, InstallerError, InstallerNotFound, Pyenv
 
         # prefer pyenv if both pyenv and asdf are installed as it's
         # dedicated to python installs so probably the preferred
@@ -713,7 +713,9 @@ def batch_install(deps_list, procs, failed_deps_queue,
                   requirements_dir, no_deps=True, ignore_hashes=False,
                   allow_global=False, blocking=False, pypi_mirror=None,
                   retry=True, sequential_deps=None):
-    from .vendor.requirementslib.models.utils import strip_extras_markers_from_requirement
+    from .vendor.requirementslib.models.utils import (
+        strip_extras_markers_from_requirement
+    )
     if sequential_deps is None:
         sequential_deps = []
     failed = (not retry)
@@ -766,7 +768,8 @@ def batch_install(deps_list, procs, failed_deps_queue,
             if failed and not dep.is_vcs:
                 use_pep517 = getattr(dep, "use_pep517", False)
 
-            is_blocking = any([dep.editable, dep.is_vcs, blocking])
+            is_sequential = sequential_deps and dep.name in sequential_dep_names
+            is_blocking = any([dep.editable, dep.is_vcs, blocking, is_sequential])
             c = pip_install(
                 dep,
                 ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
@@ -781,10 +784,6 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 use_pep517=use_pep517,
             )
             c.dep = dep
-            # if dep.is_vcs or dep.editable:
-            is_sequential = sequential_deps and dep.name in sequential_dep_names
-            if is_sequential and not is_blocking:
-                c.wait()
 
             procs.put(c)
             if procs.full() or procs.qsize() == len(deps_list) or is_sequential:
@@ -963,13 +962,13 @@ def do_create_virtualenv(python=None, site_packages=None, pypi_mirror=None):
     # Actually create the virtualenv.
     error = None
     with create_spinner("Creating virtual environment...") as sp:
-        with interrupt_handled_subprocess(cmd, combine_stderr=False, env=pip_config) as c:
-            click.echo(crayons.cyan(f"{c.out}"), err=True)
-            if c.returncode != 0:
-                error = c.err if environments.is_verbose() else exceptions.prettify_exc(c.err)
-                sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed creating virtual environment"))
-            else:
-                sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Successfully created virtual environment!"))
+        c = subprocess_run(cmd, env=pip_config)
+        click.echo(crayons.cyan(f"{c.stdout}"), err=True)
+        if c.returncode != 0:
+            error = c.stderr if environments.is_verbose() else exceptions.prettify_exc(c.stderr)
+            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed creating virtual environment"))
+        else:
+            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Successfully created virtual environment!"))
     if error is not None:
         raise exceptions.VirtualenvCreationException(
             extra=crayons.red(f"{error}")
@@ -1022,7 +1021,7 @@ def get_downloads_info(names_map, section):
         version = parse_download_fname(fname, name)
         # Get the hash of each file.
         cmd = [
-            escape_grouped_arguments(which_pip()),
+            which_pip(),
             "hash",
             os.sep.join([project.download_location, fname]),
         ]
@@ -1178,10 +1177,9 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         )
 
     command = [
-        escape_grouped_arguments(which_pip(allow_global=allow_global)),
+        which_pip(allow_global=allow_global),
         "uninstall", "-y",
-        " ".join(to_remove),
-    ]
+    ] + list(to_remove)
     if environments.is_verbose():
         click.echo(f"$ {' '.join(command)}")
     c = subprocess_run(command)
@@ -1210,7 +1208,8 @@ def do_init(
 ):
     """Executes the init functionality."""
     from .environments import (
-        PIPENV_VIRTUALENV, PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_PYTHON, PIPENV_USE_SYSTEM
+        PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_PYTHON, PIPENV_USE_SYSTEM,
+        PIPENV_VIRTUALENV
     )
     python = None
     if PIPENV_PYTHON is not None:
@@ -1536,7 +1535,7 @@ def pip_download(package_name):
     }
     for source in project.sources:
         cmd = [
-            escape_grouped_arguments(which_pip()),
+            which_pip(),
             "download",
             package_name,
             "-i", source["url"],
@@ -1795,11 +1794,12 @@ def do_py(system=False):
 
 def do_outdated(pypi_mirror=None, pre=False, clear=False):
     # TODO: Allow --skip-lock here?
+    from collections import namedtuple
+
+    from .vendor.packaging.utils import canonicalize_name
     from .vendor.requirementslib.models.requirements import Requirement
     from .vendor.requirementslib.models.utils import get_version
-    from .vendor.packaging.utils import canonicalize_name
     from .vendor.vistir.compat import Mapping
-    from collections import namedtuple
 
     packages = {}
     package_info = namedtuple("PackageInfo", ["name", "installed", "available"])
@@ -1892,7 +1892,7 @@ def do_install(
     selective_upgrade=False,
     site_packages=None,
 ):
-    from .environments import PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
+    from .environments import PIPENV_USE_SYSTEM, PIPENV_VIRTUALENV
     from .vendor.pip_shims.shims import PipError
 
     requirements_directory = vistir.path.create_tracked_tempdir(
@@ -2211,8 +2211,8 @@ def do_uninstall(
     ctx=None
 ):
     from .environments import PIPENV_USE_SYSTEM
-    from .vendor.requirementslib.models.requirements import Requirement
     from .vendor.packaging.utils import canonicalize_name
+    from .vendor.requirementslib.models.requirements import Requirement
 
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
@@ -2559,8 +2559,8 @@ def do_check(
     args=None,
     pypi_mirror=None
 ):
-    from pipenv.vendor.vistir.compat import JSONDecodeError
     from pipenv.vendor.first import first
+    from pipenv.vendor.vistir.compat import JSONDecodeError
 
     if not system:
         # Ensure that virtualenv is available.
@@ -2707,8 +2707,8 @@ def do_check(
 
 
 def do_graph(bare=False, json=False, json_tree=False, reverse=False):
-    from pipenv.vendor.vistir.compat import JSONDecodeError
     from pipenv.vendor import pipdeptree
+    from pipenv.vendor.vistir.compat import JSONDecodeError
     pipdeptree_path = pipdeptree.__file__.rstrip("cdo")
     try:
         python_path = which("python")
@@ -2778,7 +2778,9 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
             err=True,
         )
         sys.exit(1)
-    cmd_args = [python_path, pipdeptree_path, flag, "-l"]
+    cmd_args = [python_path, pipdeptree_path, "-l"]
+    if flag:
+        cmd_args.append(flag)
     c = run_command(cmd_args)
     # Run dep-tree.
     if not bare:

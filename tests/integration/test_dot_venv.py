@@ -15,7 +15,7 @@ def test_venv_in_project(PipenvInstance):
         with PipenvInstance() as p:
             c = p.pipenv('install requests')
             assert c.returncode == 0
-            assert normalize_drive(p.path) in p.pipenv('--venv').out
+            assert normalize_drive(p.path) in p.pipenv('--venv').stdout
 
 
 @pytest.mark.dotvenv
@@ -25,12 +25,12 @@ def test_venv_at_project_root(PipenvInstance):
             os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
             c = p.pipenv('install')
             assert c.returncode == 0
-            assert normalize_drive(p.path) in p.pipenv('--venv').out
+            assert normalize_drive(p.path) in p.pipenv('--venv').stdout
             del os.environ['PIPENV_VENV_IN_PROJECT']
             os.mkdir('subdir')
             os.chdir('subdir')
             # should still detect installed
-            assert normalize_drive(p.path) in p.pipenv('--venv').out
+            assert normalize_drive(p.path) in p.pipenv('--venv').stdout
 
 
 @pytest.mark.dotvenv
@@ -39,7 +39,7 @@ def test_reuse_previous_venv(PipenvInstance):
         os.mkdir('.venv')
         c = p.pipenv('install requests')
         assert c.returncode == 0
-        assert normalize_drive(p.path) in p.pipenv('--venv').out
+        assert normalize_drive(p.path) in p.pipenv('--venv').stdout
 
 
 @pytest.mark.dotvenv

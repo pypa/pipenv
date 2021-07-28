@@ -48,13 +48,13 @@ flask = "==0.12.2"
         c = p.pipenv('lock -r')
         d = p.pipenv('lock -r -d')
         assert c.returncode == 0
-        assert d.return_code == 0
+        assert d.returncode == 0
 
         for req in req_list:
             assert req in c.stdout
 
         for req in dev_req_list:
-            assert req in d.out
+            assert req in d.stdout
 
 
 @pytest.mark.lock
