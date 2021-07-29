@@ -350,7 +350,8 @@ class Project(object):
     def get_environment(self, allow_global=False):
         # type: (bool) -> Environment
         is_venv = is_in_virtualenv() or is_using_venv()
-        if allow_global and not is_venv:
+        use_system = os.getenv('PIPENV_USE_SYSTEM') == '1'
+        if use_system or allow_global and not is_venv:
             prefix = sys.prefix
             python = sys.executable
         else:

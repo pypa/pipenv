@@ -25,12 +25,11 @@ from pipenv.environments import (
 from pipenv.patched import crayons
 from pipenv.project import Project
 from pipenv.utils import (
-    convert_deps_to_pip, create_spinner, download_file,
-    escape_grouped_arguments, find_python, find_windows_executable,
-    get_canonical_names, get_source_list, is_pinned, is_python_command,
-    is_required_version, is_star, is_valid_url, parse_indexes, pep423_name,
-    prepare_pip_source_args, proper_case, python_version, run_command,
-    subprocess_run, venv_resolve_deps
+    convert_deps_to_pip, create_spinner, download_file, find_python,
+    find_windows_executable, get_canonical_names, get_source_list, is_pinned,
+    is_python_command, is_required_version, is_star, is_valid_url,
+    parse_indexes, pep423_name, prepare_pip_source_args, proper_case,
+    python_version, run_command, subprocess_run, venv_resolve_deps
 )
 
 
