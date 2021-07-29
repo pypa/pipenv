@@ -5,12 +5,13 @@ from click import (
     argument, echo, edit, group, option, pass_context, secho, types, version_option, Choice
 )
 
-from ..__version__ import __version__
-from .._compat import fix_utf8
-from ..exceptions import PipenvOptionsError
-from ..patched import crayons
-from ..vendor import click_completion, delegator
-from .options import (
+from pipenv.__version__ import __version__
+from pipenv._compat import fix_utf8
+from pipenv.exceptions import PipenvOptionsError
+from pipenv.patched import crayons
+from pipenv.vendor import click_completion
+from pipenv.utils import subprocess_run
+from pipenv.cli.options import (
     CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
     general_options, install_options, lock_options, pass_state,
     pypi_mirror_option, python_option, site_packages_option, skip_lock_option,
@@ -641,18 +642,16 @@ def run_open(state, module, *args, **kwargs):
         three=state.three, python=state.python,
         validate=False, pypi_mirror=state.pypi_mirror,
     )
-    c = delegator.run(
-        '{0} -c "import {1}; print({1}.__file__);"'.format(which("python"), module)
+    c = subprocess_run(
+        which("python"), "-c", "import {0}; print({0}.__file__)".format(module)
     )
-    try:
-        assert c.return_code == 0
-    except AssertionError:
+    if c.returncode:
         echo(crayons.red("Module not found!"))
         sys.exit(1)
-    if "__init__.py" in c.out:
-        p = os.path.dirname(c.out.strip().rstrip("cdo"))
+    if "__init__.py" in c.stdout:
+        p = os.path.dirname(c.stdout.strip().rstrip("cdo"))
     else:
-        p = c.out.strip().rstrip("cdo")
+        p = c.stdout.strip().rstrip("cdo")
     echo(crayons.normal(f"Opening {p!r} in your EDITOR.", bold=True))
     inline_activate_virtual_environment()
     edit(filename=p)

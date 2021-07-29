@@ -2,6 +2,7 @@ import errno
 import json
 import logging
 import os
+from pipenv.utils import subprocess_run
 import shutil
 import sys
 import warnings
@@ -13,7 +14,7 @@ import requests
 
 from pipenv._compat import Path
 from pipenv.exceptions import VirtualenvActivationException
-from pipenv.vendor import delegator, toml, tomlkit
+from pipenv.vendor import toml, tomlkit
 from pipenv.vendor.vistir.compat import (
     FileNotFoundError, PermissionError, ResourceWarning, TemporaryDirectory,
     fs_encode, fs_str
@@ -66,8 +67,8 @@ def check_github_ssh():
         # GitHub does not provide shell access.' if ssh keys are available and
         # registered with GitHub. Otherwise, the command will fail with
         # return_code=255 and say 'Permission denied (publickey).'
-        c = delegator.run('ssh -o StrictHostKeyChecking=no -o CheckHostIP=no -T git@github.com', timeout=30)
-        res = True if c.return_code == 1 else False
+        c = subprocess_run('ssh -o StrictHostKeyChecking=no -o CheckHostIP=no -T git@github.com', timeout=30, shell=True)
+        res = True if c.returncode == 1 else False
     except KeyboardInterrupt:
         warnings.warn(
             "KeyboardInterrupt while checking GitHub ssh access", RuntimeWarning
@@ -87,11 +88,8 @@ def check_github_ssh():
 
 
 def check_for_mercurial():
-    c = delegator.run("hg --help")
-    if c.return_code != 0:
-        return False
-    else:
-        return True
+    c = subprocess_run("hg --help", shell=True)
+    return c.returncode == 0
 
 
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -385,8 +383,8 @@ class _PipenvInstance:
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
-            c = delegator.run(
-                f'pipenv {cmd}', block=block,
+            c = subprocess_run(
+                f'pipenv {cmd}', block=block, shell=True,
                 cwd=os.path.abspath(self.path), env=os.environ.copy()
             )
             if 'PIPENV_CACHE_DIR' in os.environ:
@@ -398,9 +396,9 @@ class _PipenvInstance:
         # Pretty output for failing tests.
         if block:
             print(f'$ pipenv {cmd}')
-            print(c.out)
-            print(c.err, file=sys.stderr)
-            if c.return_code != 0:
+            print(c.stdout)
+            print(c.stderr, file=sys.stderr)
+            if c.returncode != 0:
                 print("Command failed...")
 
         # Where the action happens.

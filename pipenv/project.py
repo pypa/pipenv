@@ -18,17 +18,17 @@ import vistir
 import pipfile
 import pipfile.api
 
-from .vendor.cached_property import cached_property
+from pipenv.vendor.cached_property import cached_property
 
-from .cmdparse import Script
-from .environment import Environment
-from .environments import (
+from pipenv.cmdparse import Script
+from pipenv.environment import Environment
+from pipenv.environments import (
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_IGNORE_VIRTUALENVS, PIPENV_MAX_DEPTH,
     PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_VENV_IN_PROJECT,
     PIPENV_USE_SYSTEM, is_in_virtualenv, is_type_checking, is_using_venv
 )
-from .vendor.requirementslib.models.utils import get_default_pyproject_backend
-from .utils import (
+from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
+from pipenv.utils import (
     cleanup_toml, convert_toml_outline_tables, find_requirements,
     get_canonical_names, get_url_name, get_workon_home, is_editable,
     is_installable_file, is_star, is_valid_url, is_virtual_environment,
@@ -350,7 +350,8 @@ class Project(object):
     def get_environment(self, allow_global=False):
         # type: (bool) -> Environment
         is_venv = is_in_virtualenv() or is_using_venv()
-        if allow_global and not is_venv:
+        use_system = os.getenv('PIPENV_USE_SYSTEM') == '1'
+        if use_system or allow_global and not is_venv:
             prefix = sys.prefix
             python = sys.executable
         else:

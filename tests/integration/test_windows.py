@@ -15,12 +15,12 @@ def test_case_changes_windows(PipenvInstance):
     """
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv('install pytz')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         # Canonical venv location.
         c = p.pipenv('--venv')
-        assert c.return_code == 0
-        virtualenv_location = c.out.strip()
+        assert c.returncode == 0
+        virtualenv_location = c.stdout.strip()
 
         # Dance around to change the casing of the project directory.
         target = p.path.upper()
@@ -32,8 +32,8 @@ def test_case_changes_windows(PipenvInstance):
 
         # Ensure the incorrectly-cased project can find the correct venv.
         c = p.pipenv('--venv')
-        assert c.return_code == 0
-        assert c.out.strip().lower() == virtualenv_location.lower()
+        assert c.returncode == 0
+        assert c.stdout.strip().lower() == virtualenv_location.lower()
 
 
 @pytest.mark.files
@@ -49,7 +49,7 @@ def test_local_path_windows(PipenvInstance):
         whl = whl.absolute()
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv(f'install "{whl}"')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.local
@@ -65,17 +65,17 @@ def test_local_path_windows_forward_slash(PipenvInstance):
         whl = whl.absolute()
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv(f'install "{whl.as_posix()}"')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.cli
 def test_pipenv_clean_windows(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv('install requests')
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv(f'run pip install -i {p.index_url} click')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv('clean --dry-run')
-        assert c.return_code == 0
-        assert 'click' in c.out.strip()
+        assert c.returncode == 0
+        assert 'click' in c.stdout.strip()

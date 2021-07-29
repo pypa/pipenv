@@ -43,10 +43,11 @@ steps:
     parameters:
       python_version: ${{ parameters.python_version }}
 
-  - script: |
+  - powershell: |
       git submodule sync
       git submodule update --init --recursive
-      pipenv run pytest -ra -n 4 -v --junit-xml=junit/test-results.xml tests/
+      $venv = (pipenv --venv)[0]
+      & $venv/Scripts/pytest.exe -ra -n 4 -v --junit-xml=junit/test-results.xml tests/
     failOnStderr: false
     displayName: Run integration tests
     env:

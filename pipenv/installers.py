@@ -4,9 +4,9 @@ import re
 from abc import ABCMeta, abstractmethod
 
 
-from .environments import PIPENV_INSTALL_TIMEOUT
-from .vendor import attr, delegator
-from .utils import find_windows_executable
+from pipenv.environments import PIPENV_INSTALL_TIMEOUT
+from pipenv.vendor import attr
+from pipenv.utils import find_windows_executable, subprocess_run
 
 
 @attr.s
@@ -59,8 +59,8 @@ class InstallerNotFound(RuntimeError):
 class InstallerError(RuntimeError):
     def __init__(self, desc, c):
         super().__init__(desc)
-        self.out = c.out
-        self.err = c.err
+        self.out = c.stdout
+        self.err = c.stderr
 
 
 class Installer(metaclass=ABCMeta):
@@ -114,14 +114,13 @@ class Installer(metaclass=ABCMeta):
         raise InstallerNotFound()
 
     def _run(self, *args, **kwargs):
-        timeout = kwargs.pop('timeout', delegator.TIMEOUT)
+        timeout = kwargs.pop('timeout', 30)
         if kwargs:
             k = list(kwargs.keys())[0]
             raise TypeError(f'unexpected keyword argument {k!r}')
         args = (self.cmd,) + tuple(args)
-        c = delegator.run(args, block=False, timeout=timeout)
-        c.block()
-        if c.return_code != 0:
+        c = subprocess_run(args, timeout=timeout)
+        if c.returncode != 0:
             raise InstallerError(f'failed to run {args}', c)
         return c
 
@@ -201,7 +200,7 @@ class Asdf(Installer):
     def iter_installable_versions(self):
         """Iterate through CPython versions available for asdf to install.
         """
-        for name in self._run('list-all', 'python').out.splitlines():
+        for name in self._run('list-all', 'python').stdout.splitlines():
             try:
                 version = Version.parse(name.strip())
             except ValueError:

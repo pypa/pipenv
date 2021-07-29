@@ -8,7 +8,6 @@ from flaky import flaky
 
 from pipenv._compat import Path
 from pipenv.utils import mkdir_p, temp_environ
-from pipenv.vendor import delegator
 
 
 @pytest.mark.extras
@@ -46,15 +45,15 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
             """.strip())
         # project.write_toml({"packages": pipfile, "dev-packages": {}})
         c = p.pipenv("install")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "testpipenv" in p.lockfile["default"]
         assert p.lockfile["default"]["testpipenv"]["extras"] == ["dev"]
         assert "six" in p.lockfile["default"]
         c = p.pipenv("uninstall --all")
-        assert c.return_code == 0
+        assert c.returncode == 0
         print(f"Current directory: {os.getcwd()}", file=sys.stderr)
         c = p.pipenv(f"install {line}")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "testpipenv" in p.pipfile["packages"]
         assert p.pipfile["packages"]["testpipenv"]["path"] == "."
         assert p.pipfile["packages"]["testpipenv"]["extras"] == ["dev"]
@@ -93,7 +92,7 @@ setup(
     def helper_dependency_links_install_test(pipenv_instance, deplink):
         TestDirectDependencies.helper_dependency_links_install_make_setup(pipenv_instance, deplink)
         c = pipenv_instance.pipenv("install -v -e .")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "test-private-dependency" in pipenv_instance.lockfile["default"]
 
     def test_https_dependency_links_install(self, PipenvInstance):
@@ -126,7 +125,7 @@ def test_e_dot(PipenvInstance, pip_src_dir):
         path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         c = p.pipenv(f"install -e '{path}' --dev")
 
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         key = [k for k in p.pipfile["dev-packages"].keys()][0]
         assert "path" in p.pipfile["dev-packages"][key]
@@ -150,14 +149,14 @@ urllib3 = "*"
                 f.write(contents)
 
             c = p.pipenv("install")
-            assert c.return_code == 0
+            assert c.returncode == 0
 
             assert "pytz" in p.lockfile["default"]
             assert "six" in p.lockfile["default"]
             assert "urllib3" in p.lockfile["default"]
 
             c = p.pipenv('run python -c "import six; import pytz; import urllib3;"')
-            assert c.return_code == 0
+            assert c.returncode == 0
 
 
 @pytest.mark.install
@@ -176,14 +175,14 @@ pytz = "*"
             f.write(contents)
 
         c = p.pipenv("install --sequential")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         assert "six" in p.lockfile["default"]
         assert "pytz" in p.lockfile["default"]
         assert "urllib3" in p.lockfile["default"]
 
         c = p.pipenv('run python -c "import six; import urllib3; import pytz;"')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.run
@@ -199,17 +198,17 @@ Requests = "==2.14.0"   # Inline comment
             f.write(contents)
 
         c = p.pipenv("install")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv("install requests")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "requests" not in p.pipfile["packages"]
         assert p.pipfile["packages"]["Requests"] == "==2.14.0"
         c = p.pipenv("install requests==2.18.4")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert p.pipfile["packages"]["Requests"] == "==2.18.4"
         c = p.pipenv("install python_DateUtil")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "python-dateutil" in p.pipfile["packages"]
         with open(p.pipfile_path) as f:
             contents = f.read()
@@ -238,7 +237,7 @@ def test_local_package(PipenvInstance, pip_src_dir, testsroot):
         with tarfile.open(copy_to, "r:gz") as tgz:
             tgz.extractall(path=p.path)
         c = p.pipenv(f"install -e {package}")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert all(
             pkg in p.lockfile["default"]
             for pkg in ["urllib3", "idna", "certifi", "chardet"]
@@ -258,12 +257,12 @@ def test_local_zipfiles(PipenvInstance, testsroot):
         shutil.copy(source_path, os.path.join(p.path, file_name))
 
         c = p.pipenv(f"install {file_name}")
-        assert c.return_code == 0
+        assert c.returncode == 0
         key = [k for k in p.pipfile["packages"].keys()][0]
         dep = p.pipfile["packages"][key]
 
         assert "file" in dep or "path" in dep
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         # This now gets resolved to its name correctly
         dep = p.lockfile["default"]["requests"]
@@ -285,13 +284,13 @@ def test_relative_paths(PipenvInstance, testsroot):
         shutil.copy(source_path, os.path.join(artifact_path, file_name))
         # Test installing a relative path in a subdirectory
         c = p.pipenv(f"install {artifact_dir}/{file_name}")
-        assert c.return_code == 0
+        assert c.returncode == 0
         key = next(k for k in p.pipfile["packages"].keys())
         dep = p.pipfile["packages"][key]
 
         assert "path" in dep
         assert Path(".", artifact_dir, file_name) == Path(dep["path"])
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.install
@@ -305,7 +304,7 @@ def test_install_local_file_collision(PipenvInstance):
         with open(fake_file, "w") as f:
             f.write("")
         c = p.pipenv(f"install {target_package}")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert target_package in p.pipfile["packages"]
         assert p.pipfile["packages"][target_package] == "*"
         assert target_package in p.lockfile["default"]
@@ -331,7 +330,7 @@ six = {{path = "./artifacts/{}"}}
             )
             f.write(contents.strip())
         c = p.pipenv("install")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "six" in p.lockfile["default"]
 
 
@@ -366,10 +365,10 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, testsroot):
             f.write(pipfile_string.strip())
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv('run python -c "import requests, flask, six, jinja2"')
-        assert c.return_code == 0, c.err
+        assert c.returncode == 0, c.stderr
 
 
 @pytest.mark.outdated
@@ -377,11 +376,11 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, testsroot):
 def test_outdated_should_compare_postreleases_without_failing(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install ibm-db-sa-py3==0.3.0")
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv("update --outdated")
-        assert c.return_code == 0
-        assert "Skipped Update" in c.err
+        assert c.returncode == 0
+        assert "Skipped Update" in c.stderr
         p._pipfile.update("ibm-db-sa-py3", "*")
         c = p.pipenv("update --outdated")
-        assert c.return_code != 0
-        assert "out-of-date" in c.out
+        assert c.returncode != 0
+        assert "out-of-date" in c.stdout

@@ -8,7 +8,7 @@ import warnings
 
 import vistir
 
-from .vendor.vistir.compat import (
+from pipenv.vendor.vistir.compat import (
     NamedTemporaryFile, Path, ResourceWarning, TemporaryDirectory
 )
 

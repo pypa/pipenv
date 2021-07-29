@@ -22,7 +22,7 @@ def test_lock_handle_eggs(PipenvInstance):
 RandomWords = "*"
             """)
         c = p.pipenv('lock --verbose')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'randomwords' in p.lockfile['default']
         assert p.lockfile['default']['randomwords']['version'] == '==0.2.1'
 
@@ -47,14 +47,14 @@ flask = "==0.12.2"
 
         c = p.pipenv('lock -r')
         d = p.pipenv('lock -r -d')
-        assert c.return_code == 0
-        assert d.return_code == 0
+        assert c.returncode == 0
+        assert d.returncode == 0
 
         for req in req_list:
-            assert req in c.out
+            assert req in c.stdout
 
         for req in dev_req_list:
-            assert req in d.out
+            assert req in d.stdout
 
 
 @pytest.mark.lock
@@ -71,7 +71,7 @@ PyTest = "==3.1.0"
             f.write(contents)
 
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         lock = p.lockfile
         assert 'requests' in lock['default']
         assert lock['default']['requests']['version'] == "==2.14.0"
@@ -87,7 +87,7 @@ PyTest = "*"
             f.write(updated_contents)
 
         c = p.pipenv('lock --keep-outdated')
-        assert c.return_code == 0
+        assert c.returncode == 0
         lock = p.lockfile
         assert 'requests' in lock['default']
         assert lock['default']['requests']['version'] == "==2.18.4"
@@ -102,8 +102,8 @@ def test_keep_outdated_doesnt_remove_lockfile_entries(PipenvInstance):
         p._pipfile.add("requests", "==2.18.4")
         p._pipfile.add("colorama", {"version": "*", "markers": "os_name=='FakeOS'"})
         c = p.pipenv("install")
-        assert c.ok
-        assert "doesn't match your environment, its dependencies won't be resolved." in c.err
+        assert c.returncode == 0
+        assert "doesn't match your environment, its dependencies won't be resolved." in c.stderr
         p._pipfile.add("six", "*")
         p.pipenv("lock --keep-outdated")
         assert "colorama" in p.lockfile["default"]
@@ -115,11 +115,11 @@ def test_resolve_skip_unmatched_requirements(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         p._pipfile.add("missing-package", {"markers": "os_name=='FakeOS'"})
         c = p.pipenv("lock")
-        assert c.ok
+        assert c.returncode == 0
         assert (
             "Could not find a version of missing-package; "
             "os_name == 'FakeOS' that matches your environment"
-        ) in c.err
+        ) in c.stderr
 
 
 @pytest.mark.lock
@@ -128,10 +128,10 @@ def test_keep_outdated_doesnt_upgrade_pipfile_pins(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         p._pipfile.add("urllib3", "==1.21.1")
         c = p.pipenv("install")
-        assert c.ok
+        assert c.returncode == 0
         p._pipfile.add("requests", "==2.18.4")
         c = p.pipenv("lock --keep-outdated")
-        assert c.ok
+        assert c.returncode == 0
         assert "requests" in p.lockfile["default"]
         assert "urllib3" in p.lockfile["default"]
         assert p.lockfile["default"]["requests"]["version"] == "==2.18.4"
@@ -142,7 +142,7 @@ def test_keep_outdated_doesnt_upgrade_pipfile_pins(PipenvInstance):
 def test_keep_outdated_keeps_markers_not_removed(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install six click")
-        assert c.ok
+        assert c.returncode == 0
         lockfile = Path(p.lockfile_path)
         lockfile_content = lockfile.read_text()
         lockfile_json = json.loads(lockfile_content)
@@ -150,7 +150,7 @@ def test_keep_outdated_keeps_markers_not_removed(PipenvInstance):
         lockfile_json["default"]["six"]["markers"] = "python_version >= '2.7'"
         lockfile.write_text(to_text(json.dumps(lockfile_json)))
         c = p.pipenv("lock --keep-outdated")
-        assert c.ok
+        assert c.returncode == 0
         assert p.lockfile["default"]["six"].get("markers", "") == "python_version >= '2.7'"
 
 
@@ -160,17 +160,17 @@ def test_keep_outdated_doesnt_update_satisfied_constraints(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         p._pipfile.add("requests", "==2.18.4")
         c = p.pipenv("install")
-        assert c.ok
+        assert c.returncode == 0
         p._pipfile.add("requests", "*")
         assert p.pipfile["packages"]["requests"] == "*"
         c = p.pipenv("lock --keep-outdated")
-        assert c.ok
+        assert c.returncode == 0
         assert "requests" in p.lockfile["default"]
         assert "urllib3" in p.lockfile["default"]
         # ensure this didn't update requests
         assert p.lockfile["default"]["requests"]["version"] == "==2.18.4"
         c = p.pipenv("lock")
-        assert c.ok
+        assert c.returncode == 0
         assert p.lockfile["default"]["requests"]["version"] != "==2.18.4"
 
 
@@ -192,16 +192,16 @@ requests = {git = "https://github.com/psf/requests.git"}
             f.write(contents)
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
         lock = p.lockfile
         assert 'requests' in lock['develop']
         assert 'click' in lock['default']
 
         c = p.pipenv('run pip install -e git+https://github.com/dateutil/dateutil#egg=python_dateutil')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         lock = p.lockfile
         assert 'requests' in lock['develop']
         assert 'click' in lock['default']
@@ -225,7 +225,7 @@ allow_prereleases = true
             f.write(contents)
 
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert p.lockfile['default']['sqlalchemy']['version'] == '==1.2.0b3'
 
 
@@ -245,10 +245,10 @@ maya = "*"
             f.write(contents)
 
         c = p.pipenv('lock --verbose')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.lock
@@ -263,14 +263,14 @@ requests = {version = "*", extras = ["socks"]}
             f.write(contents)
 
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "requests" in p.lockfile["default"]
         assert "pysocks" in p.lockfile["default"]
         assert "markers" not in p.lockfile["default"]['pysocks']
 
         c = p.pipenv('lock -r')
-        assert c.return_code == 0
-        assert "extra == 'socks'" not in c.out.strip()
+        assert c.returncode == 0
+        assert "extra == 'socks'" not in c.stdout.strip()
 
 
 @pytest.mark.lock
@@ -291,9 +291,9 @@ records = {extras = ["pandas"], version = "==0.5.2"}
             f.write(contents)
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'tablib' in p.lockfile['default']
         assert 'pandas' in p.lockfile['default']
 
@@ -322,7 +322,7 @@ requests = "*"
             """.strip()
             f.write(contents)
         c = p.pipenv('install --skip-lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.lock
@@ -351,11 +351,11 @@ requests = "*"
             """.strip()
             f.write(contents)
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv('lock -r')
-        assert c.return_code == 0
-        assert '-i https://pypi.org/simple' in c.out.strip()
-        assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
+        assert c.returncode == 0
+        assert '-i https://pypi.org/simple' in c.stdout.strip()
+        assert '--extra-index-url https://test.pypi.org/simple' in c.stdout.strip()
 
 
 @pytest.mark.lock
@@ -388,12 +388,12 @@ fake-package = "*"
             """.strip()
             f.write(contents)
         c = p.pipenv(f'install --pypi-mirror {mirror_url}')
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv(f'lock -r --pypi-mirror {mirror_url}')
-        assert c.return_code == 0
-        assert f'-i {mirror_url}' in c.out.strip()
-        assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
-        assert f'--extra-index-url {mirror_url}' not in c.out.strip()
+        assert c.returncode == 0
+        assert f'-i {mirror_url}' in c.stdout.strip()
+        assert '--extra-index-url https://test.pypi.org/simple' in c.stdout.strip()
+        assert f'--extra-index-url {mirror_url}' not in c.stdout.strip()
 
 
 @pytest.mark.lock
@@ -415,12 +415,12 @@ def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInst
     """
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv('run pip install "setuptools<=40.2"')
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
-        assert c.return_code == 0
-        assert c.out.strip() == "40.2.0"
+        assert c.returncode == 0
+        assert c.stdout.strip() == "40.2.0"
         c = p.pipenv("install legacy-backend-package")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]
 
 
@@ -438,12 +438,12 @@ def test_outdated_setuptools_with_pep517_cython_import_in_setuppy(PipenvInstance
     """
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv('run pip install "setuptools<=40.2"')
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
-        assert c.return_code == 0
-        assert c.out.strip() == "40.2.0"
+        assert c.returncode == 0
+        assert c.stdout.strip() == "40.2.0"
         c = p.pipenv("install cython-import-package")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]
 
 
@@ -465,7 +465,7 @@ requests = "==2.14.0"
         with temp_environ():
             os.environ['MY_ENV_VAR'] = 'simple'
             c = p.pipenv('lock')
-            assert c.return_code == 0
+            assert c.returncode == 0
             assert 'requests' in p.lockfile['default']
 
         with open(p.pipfile_path, 'w') as f:
@@ -479,7 +479,7 @@ requests = "==2.14.0"
             f.write(contents)
 
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'requests' in p.lockfile['default']
 
 
@@ -494,12 +494,12 @@ def test_lock_editable_vcs_without_install(PipenvInstance):
 requests = {git = "https://github.com/psf/requests.git", ref = "master", editable = true}
             """.strip())
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'requests' in p.lockfile['default']
         assert 'idna' in p.lockfile['default']
         assert 'certifi' in p.lockfile['default']
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.vcs
@@ -513,11 +513,11 @@ def test_lock_editable_vcs_with_ref_in_git(PipenvInstance):
 requests = {git = "https://github.com/psf/requests.git@883caaf", editable = true}
             """.strip())
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert p.lockfile['default']['requests']['git'] == 'https://github.com/psf/requests.git'
         assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.vcs
@@ -531,11 +531,11 @@ def test_lock_editable_vcs_with_ref(PipenvInstance):
 requests = {git = "https://github.com/psf/requests.git", ref = "883caaf", editable = true}
             """.strip())
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert p.lockfile['default']['requests']['git'] == 'https://github.com/psf/requests.git'
         assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.vcs
@@ -550,13 +550,13 @@ def test_lock_editable_vcs_with_extras_without_install(PipenvInstance):
 requests = {git = "https://github.com/psf/requests.git", editable = true, extras = ["socks"]}
             """.strip())
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'requests' in p.lockfile['default']
         assert 'idna' in p.lockfile['default']
         assert 'certifi' in p.lockfile['default']
         assert "socks" in p.lockfile["default"]["requests"]["extras"]
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "requests" in p.lockfile["default"]
         # For backward compatibility we want to make sure not to include the 'version' key
         assert "version" not in p.lockfile["default"]["requests"]
@@ -573,12 +573,12 @@ def test_lock_editable_vcs_with_markers_without_install(PipenvInstance):
 requests = {git = "https://github.com/psf/requests.git", ref = "master", editable = true, markers = "python_version >= '2.6'"}
             """.strip())
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'requests' in p.lockfile['default']
         assert 'idna' in p.lockfile['default']
         assert 'certifi' in p.lockfile['default']
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.lock
@@ -591,10 +591,10 @@ def test_lock_respecting_python_version(PipenvInstance):
 django = "*"
             """.strip())
         c = p.pipenv('install ')
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv('run python --version')
-        assert c.return_code == 0
-        py_version = c.err.splitlines()[-1].strip().split()[-1]
+        assert c.returncode == 0
+        py_version = c.stderr.splitlines()[-1].strip().split()[-1]
         django_version = '==2.0.6' if py_version.startswith('3') else '==1.11.13'
         assert py_version == '2.7.14'
         assert p.lockfile['default']['django']['version'] == django_version
@@ -607,8 +607,8 @@ def test_lockfile_corrupted(PipenvInstance):
         with open(p.lockfile_path, 'w') as f:
             f.write('{corrupted}')
         c = p.pipenv('install')
-        assert c.return_code == 0
-        assert 'Pipfile.lock is corrupted' in c.err
+        assert c.returncode == 0
+        assert 'Pipfile.lock is corrupted' in c.stderr
         assert p.lockfile['_meta']
 
 
@@ -619,8 +619,8 @@ def test_lockfile_with_empty_dict(PipenvInstance):
         with open(p.lockfile_path, 'w') as f:
             f.write('{}')
         c = p.pipenv('install')
-        assert c.return_code == 0
-        assert 'Pipfile.lock is corrupted' in c.err
+        assert c.returncode == 0
+        assert 'Pipfile.lock is corrupted' in c.stderr
         assert p.lockfile['_meta']
 
 
@@ -638,9 +638,9 @@ url = "{}"
 requests = "*"
             """.format(p.index_url))
         c = p.pipenv('install --skip-lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert p.lockfile['_meta']['sources']
 
 
@@ -650,12 +650,12 @@ def test_lock_no_warnings(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         os.environ["PYTHONWARNINGS"] = "once"
         c = p.pipenv("install six")
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv('run python -c "import warnings; warnings.warn(\\"This is a warning\\", DeprecationWarning); print(\\"hello\\")"')
-        assert c.return_code == 0
-        assert "Warning" in c.err
-        assert "Warning" not in c.out
-        assert "hello" in c.out
+        assert c.returncode == 0
+        assert "Warning" in c.stderr
+        assert "Warning" not in c.stdout
+        assert "hello" in c.stdout
 
 
 @pytest.mark.lock
@@ -673,9 +673,9 @@ def test_lock_missing_cache_entries_gets_all_hashes(PipenvInstance, tmpdir):
             p._pipfile.add("pathlib2", "*")
             assert "pathlib2" in p.pipfile["packages"]
             c = p.pipenv("install")
-            assert c.return_code == 0, (c.err, ("\n".join([f"{k}: {v}\n" for k, v in os.environ.items()])))
+            assert c.returncode == 0, (c.stderr, ("\n".join([f"{k}: {v}\n" for k, v in os.environ.items()])))
             c = p.pipenv("lock --clear")
-            assert c.return_code == 0, c.err
+            assert c.returncode == 0, c.stderr
             assert "pathlib2" in p.lockfile["default"]
             assert "scandir" in p.lockfile["default"]
             assert isinstance(p.lockfile["default"]["scandir"]["hashes"], list)
@@ -695,7 +695,7 @@ def test_vcs_lock_respects_top_level_pins(PipenvInstance):
         })
         p._pipfile.add("urllib3", "==1.21.1")
         c = p.pipenv("install")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "requests" in p.lockfile["default"]
         assert "git" in p.lockfile["default"]["requests"]
         assert "urllib3" in p.lockfile["default"]
@@ -717,12 +717,12 @@ six = "*"
         with open(p.pipfile_path, 'w') as f:
             f.write(contents)
         c = p.pipenv("lock")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert p.lockfile["default"]["six"]["index"] == "test"
         with open(p.pipfile_path, 'w') as f:
             f.write(contents.replace('name = "test"', 'name = "custom"'))
         c = p.pipenv("lock --clear")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "index" in p.lockfile["default"]["six"]
         assert p.lockfile["default"]["six"]["index"] == "custom", Path(p.lockfile_path).read_text()
 
@@ -736,7 +736,7 @@ def test_lock_nested_direct_url(PipenvInstance):
     """
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install test_package")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]
         assert "colorama" in p.lockfile["default"]
         assert "six" in p.lockfile["default"]
@@ -752,7 +752,7 @@ def test_lock_nested_vcs_direct_url(PipenvInstance):
             "subdirectory": "parent_folder/pep508-package"
         })
         c = p.pipenv("install")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "git" in p.lockfile["default"]["pep508-package"]
         assert "sibling-package" in p.lockfile["default"]
         assert "git" in p.lockfile["default"]["sibling-package"]
@@ -765,7 +765,7 @@ def test_lock_nested_vcs_direct_url(PipenvInstance):
 def test_lock_package_with_wildcard_version(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install 'six==1.11.*'")
-        assert c.ok
+        assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
         assert p.pipfile["packages"]["six"] == "==1.11.*"
         assert "six" in p.lockfile["default"]
@@ -778,8 +778,8 @@ def test_lock_package_with_wildcard_version(PipenvInstance):
 def test_default_lock_overwrite_dev_lock(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install 'click==6.7'")
-        assert c.ok
+        assert c.returncode == 0
         c = p.pipenv("install -d flask")
-        assert c.ok
+        assert c.returncode == 0
         assert p.lockfile["default"]["click"]["version"] == "==6.7"
         assert p.lockfile["develop"]["click"]["version"] == "==6.7"

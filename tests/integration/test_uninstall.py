@@ -15,40 +15,40 @@ def test_uninstall_requests(PipenvInstance):
     # caused by devendoring
     with PipenvInstance() as p:
         c = p.pipenv("install requests")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "requests" in p.pipfile["packages"]
 
         c = p.pipenv("run python -m requests.help")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv("uninstall requests")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "requests" not in p.pipfile["dev-packages"]
 
         c = p.pipenv("run python -m requests.help")
-        assert c.return_code > 0
+        assert c.returncode > 0
 
 
 @pytest.mark.uninstall
 def test_uninstall_django(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv("install Django==1.11.13")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "django" in p.pipfile["packages"]
         assert "django" in p.lockfile["default"]
         assert "pytz" in p.lockfile["default"]
 
         c = p.pipenv("run python -m django --version")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv("uninstall Django")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "django" not in p.pipfile["dev-packages"]
         assert "django" not in p.lockfile["develop"]
         assert p.lockfile["develop"] == {}
 
         c = p.pipenv("run python -m django --version")
-        assert c.return_code > 0
+        assert c.returncode > 0
 
 
 @pytest.mark.install
@@ -62,7 +62,7 @@ def test_mirror_uninstall(PipenvInstance):
         assert "pypi.org" not in mirror_url
 
         c = p.pipenv(f"install Django==1.11.13 --pypi-mirror {mirror_url}")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "django" in p.pipfile["packages"]
         assert "django" in p.lockfile["default"]
         assert "pytz" in p.lockfile["default"]
@@ -73,10 +73,10 @@ def test_mirror_uninstall(PipenvInstance):
         assert "https://pypi.org/simple" == p.lockfile["_meta"]["sources"][0]["url"]
 
         c = p.pipenv("run python -m django --version")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv(f"uninstall Django --pypi-mirror {mirror_url}")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "django" not in p.pipfile["dev-packages"]
         assert "django" not in p.lockfile["develop"]
         assert p.lockfile["develop"] == {}
@@ -87,7 +87,7 @@ def test_mirror_uninstall(PipenvInstance):
         assert "https://pypi.org/simple" == p.lockfile["_meta"]["sources"][0]["url"]
 
         c = p.pipenv("run python -m django --version")
-        assert c.return_code > 0
+        assert c.returncode > 0
 
 
 @pytest.mark.files
@@ -102,10 +102,10 @@ def test_uninstall_all_local_files(PipenvInstance, testsroot):
         shutil.copy(source_path, os.path.join(p.path, file_name))
         os.mkdir(os.path.join(p.path, "tablib"))
         c = p.pipenv(f"install {file_name}")
-        assert c.return_code == 0
+        assert c.returncode == 0
         c = p.pipenv("uninstall --all")
-        assert c.return_code == 0
-        assert "tablib" in c.out
+        assert c.returncode == 0
+        assert "tablib" in c.stdout
         # Uninstall --all is not supposed to remove things from the pipfile
         # Note that it didn't before, but that instead local filenames showed as hashes
         assert "tablib" in p.pipfile["packages"]
@@ -116,10 +116,10 @@ def test_uninstall_all_local_files(PipenvInstance, testsroot):
 def test_uninstall_all_dev(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv("install --dev Django==1.11.13 six")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv("install tablib")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         assert "tablib" in p.pipfile["packages"]
         assert "django" in p.pipfile["dev-packages"]
@@ -129,10 +129,10 @@ def test_uninstall_all_dev(PipenvInstance):
         assert "six" in p.lockfile["develop"]
 
         c = p.pipenv('run python -c "import django"')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv("uninstall --all-dev")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert p.pipfile["dev-packages"] == {}
         assert "django" not in p.lockfile["develop"]
         assert "six" not in p.lockfile["develop"]
@@ -140,10 +140,10 @@ def test_uninstall_all_dev(PipenvInstance):
         assert "tablib" in p.lockfile["default"]
 
         c = p.pipenv('run python -c "import django"')
-        assert c.return_code > 0
+        assert c.returncode > 0
 
         c = p.pipenv('run python -c "import tablib"')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.uninstall
@@ -159,7 +159,7 @@ python_DateUtil = "*"
             f.write(contents)
 
         c = p.pipenv("install")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv("uninstall python_dateutil")
         assert "Requests" in p.pipfile["packages"]
@@ -174,13 +174,13 @@ python_DateUtil = "*"
 def test_uninstall_all_dev_with_shared_dependencies(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv("install pytest")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv("install --dev six")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv("uninstall --all-dev")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         assert "six" in p.lockfile["develop"]
 
@@ -189,8 +189,8 @@ def test_uninstall_all_dev_with_shared_dependencies(PipenvInstance):
 def test_uninstall_missing_parameters(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv("install requests")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv("uninstall")
-        assert c.return_code != 0
-        assert "No package provided!" in c.err
+        assert c.returncode != 0
+        assert "No package provided!" in c.stderr

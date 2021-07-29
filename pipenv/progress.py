@@ -13,7 +13,7 @@ import time
 
 import crayons
 
-from .environments import PIPENV_COLORBLIND, PIPENV_HIDE_EMOJIS
+from pipenv.environments import PIPENV_COLORBLIND, PIPENV_HIDE_EMOJIS
 
 
 STREAM = sys.stderr

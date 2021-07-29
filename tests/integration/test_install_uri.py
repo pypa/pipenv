@@ -5,9 +5,8 @@ import pytest
 
 from flaky import flaky
 
-import delegator
-
 from pipenv._compat import Path
+from pipenv.utils import subprocess_run
 
 
 @flaky
@@ -17,10 +16,10 @@ from pipenv._compat import Path
 def test_basic_vcs_install(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install git+https://github.com/benjaminp/six.git@1.11.0#egg=six")
-        assert c.return_code == 0
+        assert c.returncode == 0
         # edge case where normal package starts with VCS name shouldn't be flagged as vcs
         c = p.pipenv("install gitdb2")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert all(package in p.pipfile["packages"] for package in ["six", "gitdb2"])
         assert "git" in p.pipfile["packages"]["six"]
         assert p.lockfile["default"]["six"] == {
@@ -37,7 +36,7 @@ def test_basic_vcs_install(PipenvInstance):
 def test_git_vcs_install(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install git+git://github.com/benjaminp/six.git@1.11.0#egg=six")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
         assert "git" in p.pipfile["packages"]["six"]
         assert p.lockfile["default"]["six"] == {
@@ -55,7 +54,7 @@ def test_git_vcs_install_with_env_var(PipenvInstance):
         p._pipfile.add("six", {"git": "git://${GIT_HOST}/benjaminp/six.git", "ref": "1.11.0"})
         os.environ["GIT_HOST"] = "github.com"
         c = p.pipenv("install")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
         assert "git" in p.pipfile["packages"]["six"]
         assert p.lockfile["default"]["six"] == {
@@ -72,7 +71,7 @@ def test_git_vcs_install_with_env_var(PipenvInstance):
 def test_ssh_vcs_install(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install git+ssh://git@github.com/benjaminp/six.git@1.11.0#egg=six")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
         assert "git" in p.pipfile["packages"]["six"]
         assert p.lockfile["default"]["six"] == {
@@ -92,7 +91,7 @@ def test_urls_work(PipenvInstance):
         c = p.pipenv(
             "install {0}".format(path)
         )
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         dep = list(p.pipfile["packages"].values())[0]
         assert "file" in dep, p.pipfile
@@ -115,7 +114,7 @@ def test_file_urls_work(PipenvInstance, pip_src_dir):
             whl = whl.absolute()
         wheel_url = whl.as_uri()
         c = p.pipenv('install "{0}"'.format(wheel_url))
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
         assert "file" in p.pipfile["packages"]["six"]
 
@@ -127,13 +126,13 @@ def test_local_vcs_urls_work(PipenvInstance, tmpdir):
     six_dir = tmpdir.join("six")
     six_path = Path(six_dir.strpath)
     with PipenvInstance(chdir=True) as p:
-        c = delegator.run(
-            "git clone https://github.com/benjaminp/six.git {0}".format(six_dir.strpath)
+        c = subprocess_run(
+            ["git", "clone", "https://github.com/benjaminp/six.git", six_dir.strpath]
         )
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv("install git+{0}#egg=six".format(six_path.as_uri()))
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
 
 
@@ -147,7 +146,7 @@ def test_editable_vcs_install(PipenvInstance_NoPyPI):
         c = p.pipenv(
             "install -e git+https://github.com/kennethreitz/requests.git#egg=requests"
         )
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "requests" in p.pipfile["packages"]
         assert "git" in p.pipfile["packages"]["requests"]
         assert "editable" in p.pipfile["packages"]["requests"]
@@ -169,7 +168,7 @@ def test_install_editable_git_tag(PipenvInstance_NoPyPI):
         c = p.pipenv(
             "install -e git+https://github.com/benjaminp/six.git@1.11.0#egg=six"
         )
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
         assert "six" in p.lockfile["default"]
         assert "git" in p.lockfile["default"]["six"]
@@ -205,7 +204,7 @@ six = "*"
             """.strip()
             f.write(contents)
         c = p.pipenv("install pipenv-test-private-package --index testpypi")
-        assert c.return_code == 0
+        assert c.returncode == 0
 
 
 @pytest.mark.vcs
@@ -216,10 +215,10 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         # six_path = os.path.join(p.path, "six")
         six_path = p._pipfile.get_fixture_path("git/six/").as_posix()
-        c = delegator.run("git clone {0} ./six".format(six_path))
-        assert c.return_code == 0
-        c = p.pipenv("install -e ./six".format(six_path))
-        assert c.return_code == 0
+        c = subprocess_run(["git", "clone", six_path, "./six"])
+        assert c.returncode == 0
+        c = p.pipenv("install -e ./six")
+        assert c.returncode == 0
         six_key = list(p.pipfile["packages"].keys())[0]
         # we don't need the rest of the test anymore, this just works on its own
         assert six_key == "six"
@@ -234,7 +233,7 @@ def test_get_vcs_refs(PipenvInstance_NoPyPI):
         c = p.pipenv(
             "install -e git+https://github.com/benjaminp/six.git@1.9.0#egg=six"
         )
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
         assert "six" in p.lockfile["default"]
         assert (
@@ -245,7 +244,7 @@ def test_get_vcs_refs(PipenvInstance_NoPyPI):
         new_content = pipfile.read_text().replace(u"1.9.0", u"1.11.0")
         pipfile.write_text(new_content)
         c = p.pipenv("lock")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert (
             p.lockfile["default"]["six"]["ref"]
             == "15e31431af97e5e64b80af0a3f598d382bcdd49a"
@@ -280,7 +279,7 @@ Jinja2 = {{ref = "2.11.0", git = "{0}"}}
             """.format(jinja2_uri).strip()
             )
         c = p.pipenv("install")
-        assert c.return_code == 0
+        assert c.returncode == 0
         installed_packages = ["Flask", "Jinja2"]
         assert all([k in p.pipfile["packages"] for k in installed_packages])
         assert all([k.lower() in p.lockfile["default"] for k in installed_packages])
@@ -302,6 +301,6 @@ def test_vcs_can_use_markers(PipenvInstance):
         p._pipfile.install("six", {"git": "{0}".format(path.as_uri()), "markers": "sys_platform == 'linux'"})
         assert "six" in p.pipfile["packages"]
         c = p.pipenv("install")
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "six" in p.lockfile["default"]
         assert "git" in p.lockfile["default"]["six"]
