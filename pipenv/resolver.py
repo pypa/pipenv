@@ -688,7 +688,8 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
             req_dir=requirements_dir
         )
 
-    from pipenv.core import project
+    from pipenv.project import Project
+    project = Project()
     sources = (
         replace_pypi_sources(project.pipfile_sources, pypi_mirror_source)
         if pypi_mirror_source

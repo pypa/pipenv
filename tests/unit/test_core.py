@@ -20,7 +20,7 @@ def test_suppress_nested_venv_warning(capsys):
 
 
 @pytest.mark.core
-def test_load_dot_env_from_environment_variable_location(monkeypatch, capsys):
+def test_load_dot_env_from_environment_variable_location(monkeypatch, capsys, project):
     with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
         if os.name == "nt":
             import click
@@ -33,12 +33,12 @@ def test_load_dot_env_from_environment_variable_location(monkeypatch, capsys):
 
         m.setenv("PIPENV_DOTENV_LOCATION", str(dotenv_path))
         m.setattr("pipenv.environments.PIPENV_DOTENV_LOCATION", str(dotenv_path))
-        load_dot_env()
+        load_dot_env(project)
         assert os.environ[key] == val
 
 
 @pytest.mark.core
-def test_doesnt_load_dot_env_if_disabled(monkeypatch, capsys):
+def test_doesnt_load_dot_env_if_disabled(monkeypatch, capsys, project):
     with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
         if os.name == "nt":
             import click
@@ -52,15 +52,15 @@ def test_doesnt_load_dot_env_if_disabled(monkeypatch, capsys):
         m.setenv("PIPENV_DOTENV_LOCATION", str(dotenv_path))
         m.setattr("pipenv.environments.PIPENV_DOTENV_LOCATION", str(dotenv_path))
         m.setattr("pipenv.environments.PIPENV_DONT_LOAD_ENV", True)
-        load_dot_env()
+        load_dot_env(project)
         assert key not in os.environ
         m.setattr("pipenv.environments.PIPENV_DONT_LOAD_ENV", False)
-        load_dot_env()
+        load_dot_env(project)
         assert key in os.environ
 
 
 @pytest.mark.core
-def test_load_dot_env_warns_if_file_doesnt_exist(monkeypatch, capsys):
+def test_load_dot_env_warns_if_file_doesnt_exist(monkeypatch, capsys, project):
     with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
         if os.name == "nt":
             import click
@@ -69,6 +69,6 @@ def test_load_dot_env_warns_if_file_doesnt_exist(monkeypatch, capsys):
         dotenv_path = os.path.join(tempdir.name, 'does-not-exist.env')
         m.setenv("PIPENV_DOTENV_LOCATION", str(dotenv_path))
         m.setattr("pipenv.environments.PIPENV_DOTENV_LOCATION", str(dotenv_path))
-        load_dot_env()
+        load_dot_env(project)
         output, err = capsys.readouterr()
         assert 'Warning' in err

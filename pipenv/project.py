@@ -11,34 +11,37 @@ import re
 import sys
 import urllib.parse
 
+import pipfile
+import pipfile.api
 import toml
 import tomlkit
 import vistir
 
-import pipfile
-import pipfile.api
-
-from pipenv.vendor.cached_property import cached_property
-
 from pipenv.cmdparse import Script
+from pipenv.core import system_which
 from pipenv.environment import Environment
 from pipenv.environments import (
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_IGNORE_VIRTUALENVS, PIPENV_MAX_DEPTH,
-    PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_VENV_IN_PROJECT,
-    PIPENV_USE_SYSTEM, is_in_virtualenv, is_type_checking, is_using_venv
+    PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_USE_SYSTEM,
+    PIPENV_VENV_IN_PROJECT, is_in_virtualenv, is_type_checking, is_using_venv
 )
-from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 from pipenv.utils import (
     cleanup_toml, convert_toml_outline_tables, find_requirements,
-    get_canonical_names, get_url_name, get_workon_home, is_editable,
-    is_installable_file, is_star, is_valid_url, is_virtual_environment,
-    looks_like_dir, normalize_drive, pep423_name, proper_case, python_version,
-    safe_expandvars, get_pipenv_dist
+    find_windows_executable, get_canonical_names, get_pipenv_dist, get_url_name,
+    get_workon_home, is_editable, is_installable_file, is_star, is_valid_url,
+    is_virtual_environment, looks_like_dir, normalize_drive, pep423_name,
+    proper_case, python_version, safe_expandvars
+)
+from pipenv.vendor.cached_property import cached_property
+from pipenv.vendor.requirementslib.models.utils import (
+    get_default_pyproject_backend
 )
 
+
 if is_type_checking():
-    import pkg_resources
     from typing import Dict, List, Optional, Set, Text, Tuple, Union
+
+    import pkg_resources
     TSource = Dict[Text, Union[Text, bool]]
     TPackageEntry = Dict[str, Union[bool, str, List[str]]]
     TPackage = Dict[str, TPackageEntry]
@@ -134,13 +137,12 @@ class SourceNotFound(KeyError):
     pass
 
 
-class Project(object):
+class Project:
     """docstring for Project"""
 
     _lockfile_encoder = _LockFileEncoder()
 
-    def __init__(self, which=None, python_version=None, chdir=True):
-        super(Project, self).__init__()
+    def __init__(self, python_version=None, chdir=True):
         self._name = None
         self._virtualenv_location = None
         self._download_location = None
@@ -151,7 +153,6 @@ class Project(object):
         self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
         self._environment = None
-        self._which = which
         self._build_system = {
             "requires": ["setuptools", "wheel"]
         }
@@ -652,7 +653,8 @@ class Project(object):
 
     @property
     def _pipfile(self):
-        from .vendor.requirementslib.models.pipfile import Pipfile as ReqLibPipfile
+        from .vendor.requirementslib.models.pipfile import \
+            Pipfile as ReqLibPipfile
         pf = ReqLibPipfile.load(self.pipfile_location)
         return pf
 
@@ -735,6 +737,7 @@ class Project(object):
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
         from .vendor.pip_shims.shims import InstallCommand
+
         # Inherit the pip's index configuration of install command.
         command = InstallCommand()
         indexes = command.cmd_opts.get_option("--extra-index-url").default
@@ -780,7 +783,8 @@ class Project(object):
         return source
 
     def get_or_create_lockfile(self, from_pipfile=False):
-        from pipenv.vendor.requirementslib.models.lockfile import Lockfile as Req_Lockfile
+        from pipenv.vendor.requirementslib.models.lockfile import \
+            Lockfile as Req_Lockfile
         lockfile = None
         if from_pipfile and self.pipfile_exists:
             lockfile_dict = {
@@ -1141,3 +1145,29 @@ class Project(object):
             if as_path:
                 result = str(result.path)
         return result
+
+    def _which(self, command, location=None, allow_global=False):
+        if not allow_global and location is None:
+            if self.virtualenv_exists:
+                location = self.virtualenv_location
+            else:
+                location = os.environ.get("VIRTUAL_ENV", None)
+        if not (location and os.path.exists(location)) and not allow_global:
+            raise RuntimeError("location not created nor specified")
+
+        version_str = "python{}".format(".".join([str(v) for v in sys.version_info[:2]]))
+        is_python = command in ("python", os.path.basename(sys.executable), version_str)
+        if not allow_global:
+            if os.name == "nt":
+                p = find_windows_executable(os.path.join(location, "Scripts"), command)
+            else:
+                p = os.path.join(location, "bin", command)
+        else:
+            if is_python:
+                p = sys.executable
+        if not os.path.exists(p):
+            if is_python:
+                p = sys.executable or system_which("python")
+            else:
+                p = system_which(command)
+        return p

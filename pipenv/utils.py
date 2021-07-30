@@ -273,11 +273,9 @@ def prepare_pip_source_args(sources, pip_args=None):
     return pip_args
 
 
-def get_project_index(index=None, trusted_hosts=None, project=None):
+def get_project_index(project, index=None, trusted_hosts=None):
     # type: (Optional[Union[str, TSource]], Optional[List[str]], Optional[Project]) -> TSource
     from .project import SourceNotFound
-    if not project:
-        from .core import project
     if trusted_hosts is None:
         trusted_hosts = []
     if isinstance(index, Mapping):
@@ -293,23 +291,21 @@ def get_project_index(index=None, trusted_hosts=None, project=None):
 
 
 def get_source_list(
+    project,  # type: Project
     index=None,  # type: Optional[Union[str, TSource]]
     extra_indexes=None,  # type: Optional[List[str]]
     trusted_hosts=None,  # type: Optional[List[str]]
     pypi_mirror=None,  # type: Optional[str]
-    project=None,  # type: Optional[Project]
 ):
     # type: (...) -> List[TSource]
     sources = []  # type: List[TSource]
-    if not project:
-        from .core import project
     if index:
-        sources.append(get_project_index(index))
+        sources.append(get_project_index(project, index))
     if extra_indexes:
         if isinstance(extra_indexes, str):
             extra_indexes = [extra_indexes]
         for source in extra_indexes:
-            extra_src = get_project_index(source)
+            extra_src = get_project_index(project, source)
             if not sources or extra_src["url"] != sources[0]["url"]:
                 sources.append(extra_src)
         else:
@@ -326,10 +322,8 @@ def get_source_list(
     return sources
 
 
-def get_indexes_from_requirement(req, project=None, index=None, extra_indexes=None, trusted_hosts=None, pypi_mirror=None):
-    # type: (Requirement, Optional[Project], Optional[Text], Optional[List[Text]], Optional[List[Text]], Optional[Text]) -> Tuple[TSource, List[TSource], List[Text]]
-    if not project:
-        from .core import project
+def get_indexes_from_requirement(req, project, ndex=None, extra_indexes=None, trusted_hosts=None, pypi_mirror=None):
+    # type: (Requirement, Project, Optional[Text], Optional[List[Text]], Optional[List[Text]], Optional[Text]) -> Tuple[TSource, List[TSource], List[Text]]
     index_sources = []  # type: List[TSource]
     if not trusted_hosts:
         trusted_hosts = []  # type: List[Text]
@@ -630,9 +624,9 @@ class Resolver:
     def create(
         cls,
         deps,  # type: List[str]
+        project,  # type: Project
         index_lookup=None,  # type: Dict[str, str]
         markers_lookup=None,  # type: Dict[str, str]
-        project=None,  # type: Project
         sources=None,  # type: List[str]
         req_dir=None,  # type: str
         clear=False,  # type: bool
@@ -646,9 +640,6 @@ class Resolver:
             index_lookup = {}
         if markers_lookup is None:
             markers_lookup = {}
-        if project is None:
-            from pipenv.core import project
-            project = project
         if sources is None:
             sources = project.sources
         constraints, skipped, index_lookup, markers_lookup = cls.get_metadata(
@@ -661,11 +652,9 @@ class Resolver:
         )
 
     @classmethod
-    def from_pipfile(cls, project=None, pipfile=None, dev=False, pre=False, clear=False):
+    def from_pipfile(cls, project, pipfile=None, dev=False, pre=False, clear=False):
         # type: (Optional[Project], Optional[Pipfile], bool, bool, bool) -> "Resolver"
         from pipenv.vendor.vistir.path import create_tracked_tempdir
-        if not project:
-            from pipenv.core import project
         if not pipfile:
             pipfile = project._pipfile
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
@@ -1097,7 +1086,7 @@ def actually_resolve_deps(
 
     with warnings.catch_warnings(record=True) as warning_list:
         resolver = Resolver.create(
-            deps, index_lookup, markers_lookup, project, sources, req_dir, clear, pre
+            deps, project, index_lookup, markers_lookup, sources, req_dir, clear, pre
         )
         resolver.resolve()
         hashes = resolver.resolve_hashes()

@@ -3,9 +3,12 @@ import os
 import click.types
 
 from click import (
-    BadParameter, BadArgumentUsage, Group, Option, argument, echo, make_pass_decorator, option
+    BadArgumentUsage, BadParameter, Group, Option, argument, echo,
+    make_pass_decorator, option
 )
 from click_didyoumean import DYMMixin
+
+from pipenv.project import Project
 
 from .. import environments
 from ..utils import is_valid_url
@@ -89,6 +92,7 @@ class LockOptions:
 
 
 pass_state = make_pass_decorator(State, ensure=True)
+pass_project = make_pass_decorator(Project, ensure=True)
 
 
 def index_option(f):

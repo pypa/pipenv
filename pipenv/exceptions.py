@@ -258,17 +258,6 @@ class SystemUsageError(PipenvOptionsError):
         super().__init__(option_name, message=message, ctx=ctx, extra=extra, **kwargs)
 
 
-class PipfileException(PipenvFileError):
-    def __init__(self, hint=None, **kwargs):
-        from .core import project
-
-        if not hint:
-            hint = "{} {}".format(crayons.red("ERROR (PACKAGE NOT INSTALLED):"), hint)
-        filename = project.pipfile_location
-        extra = kwargs.pop("extra", [])
-        PipenvFileError.__init__(self, filename, hint, extra=extra, **kwargs)
-
-
 class SetupException(PipenvException):
     def __init__(self, message=None, **kwargs):
         PipenvException.__init__(self, message, **kwargs)
