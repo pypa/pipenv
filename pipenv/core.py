@@ -465,7 +465,7 @@ def ensure_virtualenv(project, three=None, python=None, site_packages=None, pypi
                 )
                 sys.exit(1)
             do_create_virtualenv(
-                python=python, site_packages=site_packages, pypi_mirror=pypi_mirror
+                project, python=python, site_packages=site_packages, pypi_mirror=pypi_mirror
             )
         except KeyboardInterrupt:
             # If interrupted, cleanup the virtualenv.
