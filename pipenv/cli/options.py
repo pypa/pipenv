@@ -64,6 +64,7 @@ class State:
         self.site_packages = None
         self.clear = False
         self.system = False
+        self.project = Project()
         self.installstate = InstallState()
         self.lockoptions = LockOptions()
 
@@ -92,7 +93,6 @@ class LockOptions:
 
 
 pass_state = make_pass_decorator(State, ensure=True)
-pass_project = make_pass_decorator(Project, ensure=True)
 
 
 def index_option(f):
