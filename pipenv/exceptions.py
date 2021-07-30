@@ -39,7 +39,7 @@ KNOWN_EXCEPTIONS = [
 
 
 def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
-    if environments.is_verbose() or not issubclass(exc_type, ClickException):
+    if environments.Setting().is_verbose() or not issubclass(exc_type, ClickException):
         hook(exc_type, exception, traceback)
     else:
         tb = format_tb(traceback, limit=-6)

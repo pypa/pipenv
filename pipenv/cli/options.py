@@ -9,9 +9,7 @@ from click import (
 from click_didyoumean import DYMMixin
 
 from pipenv.project import Project
-
-from .. import environments
-from ..utils import is_valid_url
+from pipenv.utils import is_valid_url
 
 
 CONTEXT_SETTINGS = {
@@ -245,11 +243,12 @@ def python_option(f):
 def pypi_mirror_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
+        value = value or state.project.s.PIPENV_PYPI_MIRROR
         if value is not None:
             state.pypi_mirror = validate_pypi_mirror(ctx, param, value)
         return value
-    return option("--pypi-mirror", default=environments.PIPENV_PYPI_MIRROR, nargs=1,
-                  callback=callback, help="Specify a PyPI mirror.", expose_value=False)(f)
+    return option("--pypi-mirror", nargs=1, callback=callback,
+                  help="Specify a PyPI mirror.", expose_value=False)(f)
 
 
 def verbose_option(f):
@@ -387,7 +386,7 @@ def setup_verbosity(ctx, param, value):
     elif value == -1:
         for logger in loggers:
             logging.getLogger(logger).setLevel(logging.CRITICAL)
-    environments.PIPENV_VERBOSITY = value
+    ctx.ensure_object(State).project.s.PIPENV_VERBOSITY = value
 
 
 def validate_python_path(ctx, param, value):

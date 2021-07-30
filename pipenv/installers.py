@@ -3,8 +3,6 @@ import operator
 import re
 from abc import ABCMeta, abstractmethod
 
-
-from pipenv.environments import PIPENV_INSTALL_TIMEOUT
 from pipenv.vendor import attr
 from pipenv.utils import find_windows_executable, subprocess_run
 
@@ -65,9 +63,9 @@ class InstallerError(RuntimeError):
 
 class Installer(metaclass=ABCMeta):
 
-    def __init__(self):
+    def __init__(self, project):
         self.cmd = self._find_installer()
-        super().__init__()
+        self.project = project
 
     def __str__(self):
         return self.__class__.__name__
@@ -187,7 +185,7 @@ class Pyenv(Installer):
         """
         c = self._run(
             'install', '-s', str(version),
-            timeout=PIPENV_INSTALL_TIMEOUT,
+            timeout=self.project.s.PIPENV_INSTALL_TIMEOUT,
         )
         return c
 
@@ -216,6 +214,6 @@ class Asdf(Installer):
         """
         c = self._run(
             'install', 'python', str(version),
-            timeout=PIPENV_INSTALL_TIMEOUT,
+            timeout=self.project.s.PIPENV_INSTALL_TIMEOUT,
         )
         return c

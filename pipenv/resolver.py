@@ -510,7 +510,6 @@ class Entry:
         :raises: :exc:`pipenv.exceptions.DependencyConflict` if the constraints dont exist
         """
         from pipenv.exceptions import DependencyConflict
-        from pipenv.environments import is_verbose
 
         constraints = self.get_constraints()
         pinned_version = self.updated_version
@@ -520,7 +519,7 @@ class Entry:
             if pinned_version and not constraint.req.specifier.contains(
                 str(pinned_version), prereleases=True
             ):
-                if is_verbose():
+                if self.project.s.is_verbose():
                     print(f"Tried constraint: {constraint!r}", file=sys.stderr)
                 msg = (
                     "Cannot resolve conflicting version {}{} while {}{} is "

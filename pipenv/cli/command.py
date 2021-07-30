@@ -76,7 +76,7 @@ def cli(
         from .. import shells
 
         try:
-            shell = shells.detect_info()[0]
+            shell = shells.detect_info(state.project)[0]
         except shells.ShellDetectionFailure:
             echo(
                 "Fail to detect shell. Please provide the {} environment "
@@ -103,8 +103,7 @@ def cli(
             return 1
     if envs:
         echo("The following environment variables can be set, to do various things:\n")
-        from .. import environments
-        for key in environments.__dict__:
+        for key in state.project.__dict__:
             if key.startswith("PIPENV"):
                 echo(f"  - {crayons.normal(key, bold=True)}")
         echo(
@@ -115,7 +114,7 @@ def cli(
             )
         )
         return 0
-    warn_in_virtualenv()
+    warn_in_virtualenv(state.project)
     if ctx.invoked_subcommand is None:
         # --where was passed...
         if where:
@@ -153,8 +152,7 @@ def cli(
         # --rm was passed...
         elif rm:
             # Abort if --system (or running in a virtualenv).
-            from ..environments import PIPENV_USE_SYSTEM
-            if PIPENV_USE_SYSTEM:
+            if state.project.s.PIPENV_USE_SYSTEM:
                 echo(
                     crayons.red(
                         "You are attempting to remove a virtualenv that "
@@ -172,7 +170,7 @@ def cli(
                         )
                     )
                 )
-                with create_spinner(text="Running..."):
+                with create_spinner(text="Running...", setting=state.project.s):
                     # Remove the virtualenv.
                     cleanup_virtualenv(state.project, bare=True)
                 return 0

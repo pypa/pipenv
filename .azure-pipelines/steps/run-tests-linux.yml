@@ -21,10 +21,11 @@ steps:
     # Fix Git SSL errors
     echo "Using pipenv python version: $(PIPENV_DEFAULT_PYTHON_VERSION)"
     git submodule sync && git submodule update --init --recursive
-    pipenv run pytest -n 4 -v --junitxml=junit/test-results.xml tests
+    pipenv run pytest -v -n auto --junitxml=junit/test-results.xml tests
   displayName: Run integration tests
   env:
     PYTHONWARNINGS: ignore:DEPRECATION
     PIPENV_NOSPIN: '1'
+    CI: 1
     PIPENV_DEFAULT_PYTHON_VERSION: ${{ parameters.python_version }}
     GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
