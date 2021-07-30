@@ -803,7 +803,7 @@ def do_install_dependencies(
     deps_list = list(lockfile.get_requirements(dev=dev, only=dev_only))
     if emit_requirements:
         index_args = prepare_pip_source_args(
-            get_source_list(project, pypi_mirror=pypi_mirror, project=project)
+            get_source_list(project, pypi_mirror=pypi_mirror)
         )
         index_args = " ".join(index_args).replace(" -", "\n-")
         deps = [
