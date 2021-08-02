@@ -1,4 +1,5 @@
 import errno
+import functools
 import json
 import logging
 import os
@@ -449,7 +450,7 @@ def pip_src_dir(request, vistir_tmpdir):
 
 
 @pytest.fixture()
-def PipenvInstance(pip_src_dir, monkeypatch, pypi):
+def PipenvInstance(pip_src_dir, monkeypatch, pypi, tmp_path):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
@@ -463,7 +464,7 @@ def PipenvInstance(pip_src_dir, monkeypatch, pypi):
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         try:
-            yield _PipenvInstance
+            yield functools.partial(_PipenvInstance, path=tmp_path, pypi=pypi)
         finally:
             os.umask(original_umask)
 

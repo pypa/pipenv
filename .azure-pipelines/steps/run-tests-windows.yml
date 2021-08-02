@@ -47,7 +47,7 @@ steps:
       git submodule sync
       git submodule update --init --recursive
       $venv = (pipenv --venv)[0]
-      & $venv/Scripts/pytest.exe -ra -n auto -v --junit-xml=junit/test-results.xml tests/
+      & $venv/Scripts/pytest.exe -ra -n auto -v --durations=10 --junit-xml=junit/test-results.xml tests/
     failOnStderr: false
     displayName: Run integration tests
     env:
