@@ -898,7 +898,6 @@ class Environment:
             finally:
                 sys.path = original_path
                 sys.prefix = original_prefix
-                importlib.reload(pkg_resources)
 
     @cached_property
     def finders(self):
