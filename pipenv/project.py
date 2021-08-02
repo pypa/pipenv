@@ -319,7 +319,7 @@ class Project:
     def get_environment(self, allow_global=False):
         # type: (bool) -> Environment
         is_venv = is_in_virtualenv()
-        if allow_global or is_venv:
+        if allow_global and not is_venv:
             prefix = sys.prefix
             python = sys.executable
         else:

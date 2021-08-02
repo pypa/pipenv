@@ -8,7 +8,7 @@ import pytest
 
 from flaky import flaky
 
-from pipenv.utils import normalize_drive
+from pipenv.utils import normalize_drive, subprocess_run
 
 
 @pytest.mark.cli
@@ -217,8 +217,8 @@ def test_help(PipenvInstance):
 
 @pytest.mark.cli
 def test_man(PipenvInstance):
-    with PipenvInstance() as p:
-        c = p.pipenv('--man')
+    with PipenvInstance():
+        c = subprocess_run(["pipenv", "--man"])
         assert c.returncode == 0, c.stderr
 
 

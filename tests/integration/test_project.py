@@ -1,11 +1,13 @@
 import os
 import tarfile
 
+from pathlib import Path
+
 import pytest
 
 from pipenv.patched import pipfile
 from pipenv.project import Project
-from pipenv.utils import subprocess_run, temp_environ
+from pipenv.utils import temp_environ
 from pipenv.vendor.vistir.path import is_in_path, normalize_path
 
 
@@ -170,38 +172,26 @@ def test_include_editable_packages(PipenvInstance, testsroot, pathlib_tmpdir):
 @pytest.mark.virtualenv
 def test_run_in_virtualenv_with_global_context(PipenvInstance, virtualenv):
     with PipenvInstance(chdir=True, venv_root=virtualenv.as_posix(), ignore_virtualenvs=False, venv_in_project=False) as p:
-        c = subprocess_run(
-            ["pipenv", "run", "pip", "freeze"], cwd=os.path.abspath(p.path),
-            env=os.environ.copy()
-        )
+        c = p.pipenv("run pip freeze")
         assert c.returncode == 0, (c.stdout, c.stderr)
         assert 'Creating a virtualenv' not in c.stderr, c.stderr
         project = Project()
-        assert project.virtualenv_location == virtualenv.as_posix(), (
-            project.virtualenv_location, virtualenv.as_posix()
+        assert Path(project.virtualenv_location).resolve() == Path(virtualenv), (
+            project.virtualenv_location, str(virtualenv)
         )
-        c = subprocess_run(
-            ["pipenv", "run", "pip", "install", "-i", p.index_url, "click"],
-            cwd=os.path.abspath(p.path),
-            env=os.environ.copy()
-        )
+
+        c = p.pipenv(f"run pip install -i {p.index_url} click")
         assert c.returncode == 0, (c.stdout, c.stderr)
         assert "Courtesy Notice" in c.stderr, (c.stdout, c.stderr)
-        c = subprocess_run(
-            ["pipenv", "install", "-i", p.index_url, "six"],
-            cwd=os.path.abspath(p.path), env=os.environ.copy()
-        )
+
+        c = p.pipenv("install six")
         assert c.returncode == 0, (c.stdout, c.stderr)
-        c = subprocess_run(
-            ['pipenv', 'run', 'python', '-c', 'import click;print(click.__file__)'],
-            cwd=os.path.abspath(p.path), env=os.environ.copy()
-        )
+
+        c = p.pipenv("run python -c 'import click;print(click.__file__)'")
         assert c.returncode == 0, (c.stdout, c.stderr)
         assert is_in_path(c.stdout.strip(), str(virtualenv)), (c.stdout.strip(), str(virtualenv))
-        c = subprocess_run(
-            ["pipenv", "clean", "--dry-run"], cwd=os.path.abspath(p.path),
-            env=os.environ.copy()
-        )
+
+        c = p.pipenv("clean --dry-run")
         assert c.returncode == 0, (c.stdout, c.stderr)
         assert "click" in c.stdout, c.stdout
 
@@ -227,6 +217,7 @@ def test_run_in_virtualenv(PipenvInstance):
         assert c.returncode == 0
         assert "click" in c.stdout
 
+
 @pytest.mark.project
 @pytest.mark.sources
 def test_no_sources_in_pipfile(PipenvInstance):
@@ -235,7 +226,7 @@ def test_no_sources_in_pipfile(PipenvInstance):
             contents = """
 [packages]
 pytest = "*"
-            """.format(os.environ['PIPENV_TEST_INDEX']).strip()
+            """.strip()
             f.write(contents)
         c = p.pipenv('install --skip-lock')
         assert c.returncode == 0

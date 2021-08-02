@@ -1,11 +1,6 @@
 import os
 import sys
 
-from click import (
-    Choice, argument, echo, edit, group, option, pass_context, secho, types,
-    version_option
-)
-
 from pipenv.__version__ import __version__
 from pipenv._compat import fix_utf8
 from pipenv.cli.options import (
@@ -18,6 +13,10 @@ from pipenv.exceptions import PipenvOptionsError
 from pipenv.patched import crayons
 from pipenv.utils import subprocess_run
 from pipenv.vendor import click_completion
+from pipenv.vendor.click import (
+    Choice, argument, echo, edit, group, option, pass_context, secho, types,
+    version_option
+)
 
 
 # Enable shell completion.
@@ -626,9 +625,7 @@ def run_open(state, module, *args, **kwargs):
 
         EDITOR=atom pipenv open requests
     """
-    from ..core import (
-        ensure_project, inline_activate_virtual_environment
-    )
+    from ..core import ensure_project, inline_activate_virtual_environment
 
     # Ensure that virtualenv is available.
     ensure_project(

@@ -3,17 +3,16 @@ import os
 import pytest
 
 from pipenv.project import Project
-from pipenv.utils import temp_environ
+from pipenv.utils import subprocess_run, temp_environ
 
 
 @pytest.mark.run
 @pytest.mark.dotenv
 def test_env(PipenvInstance):
     with PipenvInstance(pipfile=False, chdir=True) as p:
-        with open('.env', 'w') as f:
-            f.write('HELLO=WORLD')
-
-        c = p.pipenv('run python -c "import os; print(os.environ[\'HELLO\'])"')
+        with open(os.path.join(p.path, ".env"), "w") as f:
+            f.write("HELLO=WORLD")
+        c = subprocess_run(['pipenv', 'run', 'python', '-c', "import os; print(os.environ['HELLO'])"], env=p.env)
         assert c.returncode == 0
         assert 'WORLD' in c.stdout
 
@@ -35,18 +34,16 @@ multicommand = "bash -c \"cd docs && make html\""
                 f.write('scriptwithenv = "echo $HELLO"\n')
         c = p.pipenv('install')
         assert c.returncode == 0
-
         c = p.pipenv('run printfoo')
         assert c.returncode == 0
-        assert c.stdout == 'foo\n'
-        assert c.stderr == ''
+        assert c.stdout.splitlines()[0] == 'foo'
+        assert not c.stderr.strip()
 
         c = p.pipenv('run notfoundscript')
-        assert c.returncode == 1
+        assert c.returncode != 0
         assert c.stdout == ''
         if os.name != 'nt':     # TODO: Implement this message for Windows.
-            assert 'Error' in c.stderr
-            assert 'randomthingtotally (from notfoundscript)' in c.stderr
+            assert 'not found' in c.stderr
 
         project = Project()
 

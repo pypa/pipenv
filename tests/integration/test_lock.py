@@ -646,16 +646,11 @@ requests = "*"
 
 @pytest.mark.lock
 @pytest.mark.install
-def test_lock_no_warnings(PipenvInstance):
+def test_lock_no_warnings(PipenvInstance, recwarn):
     with PipenvInstance(chdir=True) as p:
-        os.environ["PYTHONWARNINGS"] = "once"
         c = p.pipenv("install six")
         assert c.returncode == 0
-        c = p.pipenv('run python -c "import warnings; warnings.warn(\\"This is a warning\\", DeprecationWarning); print(\\"hello\\")"')
-        assert c.returncode == 0
-        assert "Warning" in c.stderr
-        assert "Warning" not in c.stdout
-        assert "hello" in c.stdout
+        assert len(recwarn) == 0
 
 
 @pytest.mark.lock

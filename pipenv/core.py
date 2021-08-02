@@ -1,6 +1,7 @@
 import json as simplejson
 import logging
 import os
+from posixpath import expandvars
 import sys
 import time
 import warnings
@@ -83,7 +84,7 @@ def do_clear(project):
         # Other processes may be writing into this directory simultaneously.
         vistir.path.rmtree(
             locations.USER_CACHE_DIR,
-            ignore_errors=project.s.PIPENV_IS_CI,
+            ignore_errors=environments.PIPENV_IS_CI,
             onerror=vistir.path.handle_remove_readonly
         )
     except OSError as e:
@@ -2387,6 +2388,7 @@ def _launch_windows_subprocess(script, path):
     command = system_which(script.command, path=path)
 
     options = {"universal_newlines": True}
+    script.cmd_args[1:] = [expandvars(arg) for arg in script.args]
 
     # Command not found, maybe this is a shell built-in?
     if not command:

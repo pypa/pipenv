@@ -193,4 +193,4 @@ def test_uninstall_missing_parameters(PipenvInstance):
 
         c = p.pipenv("uninstall")
         assert c.returncode != 0
-        assert "No package provided!" in str(c.exception)
+        assert "No package provided!" in c.stderr

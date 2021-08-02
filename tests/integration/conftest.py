@@ -149,10 +149,7 @@ def pathlib_tmpdir(request, tmpdir):
 
 
 def _create_tracked_dir():
-    tmp_location = os.environ.get("TEMP", os.environ.get("TMP"))
     temp_args = {"prefix": "pipenv-", "suffix": "-test"}
-    if tmp_location is not None:
-        temp_args["dir"] = tmp_location
     temp_path = create_tracked_tempdir(**temp_args)
     return temp_path
 
@@ -305,12 +302,13 @@ class _Pipfile:
 class _PipenvInstance:
     """An instance of a Pipenv Project..."""
     def __init__(
-        self, pypi=None, pipfile=True, chdir=True, path=None, home_dir=None,
+        self, pypi=None, pipfile=True, chdir=True, path=None, capfd=None,
         venv_root=None, ignore_virtualenvs=True, venv_in_project=True, name=None
     ):
         self.index_url = os.getenv("PIPENV_TEST_INDEX")
         self.pypi = None
         self.env = {}
+        self.capfd = capfd
         if pypi:
             self.pypi = pypi.url
         elif self.index_url is not None:
@@ -392,9 +390,15 @@ class _PipenvInstance:
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             cmd_args = shlex.split(cmd)
             env = {**self.env, **{'PIPENV_CACHE_DIR': tempdir.name}}
+            self.capfd.readouterr()
             r = cli_runner.invoke(cli, cmd_args, env=env)
             r.returncode = r.exit_code
         # Pretty output for failing tests.
+        out, err = self.capfd.readouterr()
+        if out:
+            r.stdout_bytes = r.stdout_bytes + out
+        if err:
+            r.stderr_bytes = r.stderr_bytes + err
         if block:
             print(f'$ pipenv {cmd}')
             print(r.stdout)
@@ -450,7 +454,7 @@ def pip_src_dir(request, vistir_tmpdir):
 
 
 @pytest.fixture()
-def PipenvInstance(pip_src_dir, monkeypatch, pypi, tmp_path):
+def PipenvInstance(pip_src_dir, monkeypatch, pypi, capfdbinary):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
@@ -464,13 +468,13 @@ def PipenvInstance(pip_src_dir, monkeypatch, pypi, tmp_path):
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         try:
-            yield functools.partial(_PipenvInstance, path=tmp_path, pypi=pypi)
+            yield functools.partial(_PipenvInstance, capfd=capfdbinary)
         finally:
             os.umask(original_umask)
 
 
 @pytest.fixture()
-def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir, pypi):
+def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir, pypi, capfdbinary):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
@@ -482,7 +486,7 @@ def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir, pypi):
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         try:
-            yield _PipenvInstance
+            yield functools.partial(_PipenvInstance, capfd=capfdbinary)
         finally:
             os.umask(original_umask)
 
@@ -498,7 +502,7 @@ class VirtualEnv:
             base_dir = Path(_create_tracked_dir())
         self.base_dir = base_dir
         self.name = name
-        self.path = base_dir / name
+        self.path = (base_dir / name).resolve()
 
     def __enter__(self):
         self._old_environ = os.environ.copy()
@@ -529,17 +533,14 @@ class VirtualEnv:
                 code = compile(f.read(), str(activate_this), "exec")
                 exec(code, dict(__file__=str(activate_this)))
             os.environ["VIRTUAL_ENV"] = str(self.path)
-            try:
-                return self.path.absolute().resolve()
-            except OSError:
-                return self.path.absolute()
+            return self.path
         else:
             raise VirtualenvActivationException("Can't find the activate_this.py script.")
 
 
 @pytest.fixture()
 def virtualenv(vistir_tmpdir):
-    with temp_environ(), VirtualEnv(base_dir=vistir_tmpdir) as venv:
+    with VirtualEnv(base_dir=vistir_tmpdir) as venv:
         yield venv
 
 
