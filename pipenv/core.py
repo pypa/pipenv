@@ -1562,40 +1562,25 @@ def which_pip(project, allow_global=False):
     return pip
 
 
-def system_which(command, mult=False):
+def system_which(command, path=None):
     """Emulates the system's which. Returns None if not found."""
-    _which = "where" if os.name == "nt" else "which -a"
-    os.environ.update({
-        vistir.compat.fs_str(k): vistir.compat.fs_str(val)
-        for k, val in os.environ.items()
-    })
-    result = None
-    try:
-        c = subprocess_run(f"{_which} {command}", shell=True)
-        try:
-            # Which Not found...
-            if c.returncode == 127:
-                click.echo(
-                    "{}: the {} system utility is required for Pipenv to find Python installations properly."
-                    "\n  Please install it.".format(
-                        crayons.red("Warning", bold=True), crayons.yellow(_which)
-                    ),
-                    err=True,
-                )
-            assert c.returncode == 0
-        except AssertionError:
-            result = fallback_which(command, allow_global=True)
-    except TypeError:
-        if not result:
-            result = fallback_which(command, allow_global=True)
-    else:
-        if not result:
-            result = next(iter([c.stdout, c.stderr]), "").split("\n")
-            result = next(iter(result)) if not mult else result
-            return result
-        if not result:
-            result = fallback_which(command, allow_global=True)
-    result = [result] if mult else result
+    import shutil
+
+    result = shutil.which(command, path=path)
+    if result is None:
+        _which = "where" if os.name == "nt" else "which -a"
+        env = {'PATH': path} if path else None
+        c = subprocess_run(f"{_which} {command}", shell=True, env=env)
+        if c.returncode == 127:
+            click.echo(
+                "{}: the {} system utility is required for Pipenv to find Python installations properly."
+                "\n  Please install it.".format(
+                    crayons.red("Warning", bold=True), crayons.yellow(_which)
+                ),
+                err=True,
+            )
+        if c.returncode == 0:
+            result = next(iter(c.stdout.splitlines()), None)
     return result
 
 
@@ -2397,10 +2382,10 @@ def inline_activate_virtual_environment(project):
         os.environ["VIRTUAL_ENV"] = vistir.misc.fs_str(root)
 
 
-def _launch_windows_subprocess(script):
+def _launch_windows_subprocess(script, path):
     import subprocess
+    command = system_which(script.command, path=path)
 
-    command = system_which(script.command)
     options = {"universal_newlines": True}
 
     # Command not found, maybe this is a shell built-in?
@@ -2420,14 +2405,14 @@ def _launch_windows_subprocess(script):
     return subprocess.Popen(script.cmdify(), shell=True, **options)
 
 
-def do_run_nt(project, script):
-    p = _launch_windows_subprocess(script)
+def do_run_nt(project, script, path):
+    p = _launch_windows_subprocess(script, path)
     p.communicate()
     sys.exit(p.returncode)
 
 
-def do_run_posix(project, script, command):
-    command_path = system_which(script.command)
+def do_run_posix(project, script, command, path):
+    command_path = system_which(script.command, path=path)
     if not command_path:
         if project.has_script(command):
             click.echo(
@@ -2473,8 +2458,12 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
 
     previous_pip_shims_module = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
-    # Activate virtualenv under the current interpreter's environment
-    inline_activate_virtual_environment(project)
+    path = os.getenv('PATH', '')
+    if project.virtualenv_location:
+        new_path = os.path.join(project.virtualenv_location, 'Scripts' if os.name == 'nt' else 'bin')
+        paths = path.split(os.pathsep)
+        paths.insert(0, new_path)
+        path = os.pathsep.join(paths)
 
     # Set an environment variable, so we know we're in the environment.
     # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
@@ -2493,7 +2482,7 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
     except ScriptEmptyError:
         click.echo("Can't run script {0!r}-it's empty?", err=True)
     run_args = [project, script]
-    run_kwargs = {}
+    run_kwargs = {'path': path}
     if os.name == "nt" or environments.PIPENV_IS_CI:
         run_fn = do_run_nt
     else:
