@@ -1,5 +1,6 @@
 import contextlib
 import importlib
+import itertools
 import json
 import operator
 import os
@@ -8,24 +9,27 @@ import sys
 
 from sysconfig import get_paths, get_python_version
 
-import itertools
 import pkg_resources
 
 import pipenv
 
+from pipenv.environments import is_type_checking
+from pipenv.utils import make_posix, normalize_path, subprocess_run
+from pipenv.vendor import vistir
 from pipenv.vendor.cached_property import cached_property
 from pipenv.vendor.packaging.utils import canonicalize_name
-from pipenv.vendor import vistir
-
-from pipenv.utils import normalize_path, make_posix, subprocess_run
 
 
-if False:
+if is_type_checking():
+    from types import ModuleType
+    from typing import (
+        ContextManager, Dict, Generator, List, Optional, Set, Union
+    )
+
     import pip_shims.shims
     import tomlkit
-    from typing import ContextManager, Dict, Generator, List, Optional, Set, Union
-    from types import ModuleType
-    from pipenv.project import TSource, TPipfile, Project
+
+    from pipenv.project import Project, TPipfile, TSource
     from pipenv.vendor.packaging.version import Version
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
@@ -82,14 +86,6 @@ class Environment:
             if dist:
                 dist.activate()
             module = importlib.import_module(name)
-        if name in sys.modules:
-            try:
-                importlib.reload(module)
-                importlib.reload(sys.modules[name])
-            except TypeError:
-                del sys.modules[name]
-                sys.modules[name] = self._modules[name]
-                return self._modules[name]
         return module
 
     @classmethod
@@ -544,7 +540,6 @@ class Environment:
         :rtype: iterator
         """
 
-        pkg_resources = self.safe_import("pkg_resources")
         libdirs = self.base_paths["libdirs"].split(os.pathsep)
         dists = (pkg_resources.find_distributions(libdir) for libdir in libdirs)
         yield from itertools.chain.from_iterable(dists)
@@ -576,7 +571,7 @@ class Environment:
     def dist_is_in_project(self, dist):
         # type: (pkg_resources.Distribution) -> bool
         """Determine whether the supplied distribution is in the environment."""
-        from .project import _normalized
+        from .environments import normalize_pipfile_path as _normalized
         prefixes = [
             _normalized(prefix) for prefix in self.base_paths["libdirs"].split(os.pathsep)
             if _normalized(prefix).startswith(_normalized(self.prefix.as_posix()))
@@ -600,15 +595,12 @@ class Environment:
     @contextlib.contextmanager
     def get_finder(self, pre=False):
         # type: (bool) -> ContextManager[pip_shims.shims.PackageFinder]
-        from .vendor.pip_shims.shims import (
-            InstallCommand, get_package_finder
-        )
-        from .environments import PIPENV_CACHE_DIR
+        from .vendor.pip_shims.shims import InstallCommand, get_package_finder
 
         pip_command = InstallCommand()
         pip_args = self._modules["pipenv"].utils.prepare_pip_source_args(self.sources)
         pip_options, _ = pip_command.parser.parse_args(pip_args)
-        pip_options.cache_dir = PIPENV_CACHE_DIR
+        pip_options.cache_dir = self.project.s.PIPENV_CACHE_DIR
         pip_options.pre = self.pipfile.get("pre", pre)
         with pip_command._build_session(pip_options) as session:
             finder = get_package_finder(install_cmd=pip_command, options=pip_options, session=session)
@@ -616,7 +608,7 @@ class Environment:
 
     def get_package_info(self, pre=False):
         # type: (bool) -> Generator[pkg_resources.Distribution, None, None]
-        from .vendor.pip_shims.shims import pip_version, parse_version
+        from .vendor.pip_shims.shims import parse_version, pip_version
         dependency_links = []
         packages = self.get_installed_packages()
         # This code is borrowed from pip's current implementation
@@ -685,7 +677,7 @@ class Environment:
         return d
 
     def get_package_requirements(self, pkg=None):
-        from .vendor.pipdeptree import flatten, PackageDAG
+        from .vendor.pipdeptree import PackageDAG, flatten
 
         packages = self.get_installed_packages()
         if pkg:
@@ -716,7 +708,7 @@ class Environment:
         yield new_node
 
     def reverse_dependencies(self):
-        from vistir.misc import unnest, chunked
+        from vistir.misc import chunked, unnest
         rdeps = {}
         for req in self.get_package_requirements():
             for d in self.reverse_dependency(req):
@@ -877,12 +869,11 @@ class Environment:
             ])
             os.environ["PYTHONIOENCODING"] = vistir.compat.fs_str("utf-8")
             os.environ["PYTHONDONTWRITEBYTECODE"] = vistir.compat.fs_str("1")
-            from .environments import PIPENV_USE_SYSTEM
             if self.is_venv:
                 os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
                 os.environ["VIRTUAL_ENV"] = vistir.compat.fs_str(prefix)
             else:
-                if not PIPENV_USE_SYSTEM and not os.environ.get("VIRTUAL_ENV"):
+                if not self.project.s.PIPENV_USE_SYSTEM and not os.environ.get("VIRTUAL_ENV"):
                     os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
                     os.environ.pop("PYTHONHOME", None)
             sys.path = self.sys_path
@@ -907,7 +898,6 @@ class Environment:
             finally:
                 sys.path = original_path
                 sys.prefix = original_prefix
-                importlib.reload(pkg_resources)
 
     @cached_property
     def finders(self):

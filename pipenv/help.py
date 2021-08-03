@@ -4,7 +4,6 @@ import sys
 
 import pipenv
 
-from pipenv.core import project
 from pipenv.pep508checker import lookup
 from pipenv.vendor import pythonfinder
 
@@ -16,7 +15,7 @@ def print_utf(line):
         print(line.encode("utf-8"))
 
 
-def get_pipenv_diagnostics():
+def get_pipenv_diagnostics(project):
     print("<details><summary>$ pipenv --support</summary>")
     print("")
     print(f"Pipenv version: `{pipenv.__version__!r}`")
@@ -82,4 +81,5 @@ def get_pipenv_diagnostics():
 
 
 if __name__ == "__main__":
-    get_pipenv_diagnostics()
+    from pipenv.project import Project
+    get_pipenv_diagnostics(Project())

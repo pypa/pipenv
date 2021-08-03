@@ -6,7 +6,6 @@ import signal
 import subprocess
 import sys
 
-from pipenv.environments import PIPENV_EMULATOR, PIPENV_SHELL, PIPENV_SHELL_EXPLICIT
 from pipenv.vendor import shellingham
 from pipenv.vendor.vistir.compat import Path, get_terminal_size
 from pipenv.vendor.vistir.contextmanagers import temp_environ
@@ -19,14 +18,14 @@ def _build_info(value):
     return (os.path.splitext(os.path.basename(value))[0], value)
 
 
-def detect_info():
-    if PIPENV_SHELL_EXPLICIT:
-        return _build_info(PIPENV_SHELL_EXPLICIT)
+def detect_info(project):
+    if project.s.PIPENV_SHELL_EXPLICIT:
+        return _build_info(project.s.PIPENV_SHELL_EXPLICIT)
     try:
         return shellingham.detect_shell()
     except (shellingham.ShellDetectionFailure, TypeError):
-        if PIPENV_SHELL:
-            return _build_info(PIPENV_SHELL)
+        if project.s.PIPENV_SHELL:
+            return _build_info(project.s.PIPENV_SHELL)
     raise ShellDetectionFailure
 
 
@@ -232,9 +231,9 @@ def _detect_emulator():
     return ",".join(keys)
 
 
-def choose_shell():
-    emulator = PIPENV_EMULATOR.lower() or _detect_emulator()
-    type_, command = detect_info()
+def choose_shell(project):
+    emulator = project.PIPENV_EMULATOR.lower() or _detect_emulator()
+    type_, command = project.detect_info()
     shell_types = SHELL_LOOKUP[type_]
     for key in emulator.split(","):
         key = key.strip().lower()

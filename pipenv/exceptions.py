@@ -39,7 +39,7 @@ KNOWN_EXCEPTIONS = [
 
 
 def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
-    if environments.is_verbose() or not issubclass(exc_type, ClickException):
+    if environments.Setting().is_verbose() or not issubclass(exc_type, ClickException):
         hook(exc_type, exception, traceback)
     else:
         tb = format_tb(traceback, limit=-6)
@@ -256,17 +256,6 @@ class SystemUsageError(PipenvOptionsError):
                 crayons.cyan("See also: {}".format(crayons.normal("--deploy flag.")))
             )
         super().__init__(option_name, message=message, ctx=ctx, extra=extra, **kwargs)
-
-
-class PipfileException(PipenvFileError):
-    def __init__(self, hint=None, **kwargs):
-        from .core import project
-
-        if not hint:
-            hint = "{} {}".format(crayons.red("ERROR (PACKAGE NOT INSTALLED):"), hint)
-        filename = project.pipfile_location
-        extra = kwargs.pop("extra", [])
-        PipenvFileError.__init__(self, filename, hint, extra=extra, **kwargs)
 
 
 class SetupException(PipenvException):

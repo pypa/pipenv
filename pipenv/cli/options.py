@@ -1,14 +1,13 @@
 import os
 
-import click.types
-
-from click import (
-    BadParameter, BadArgumentUsage, Group, Option, argument, echo, make_pass_decorator, option
+from pipenv.project import Project
+from pipenv.utils import is_valid_url
+from pipenv.vendor.click import (
+    BadArgumentUsage, BadParameter, Group, Option, argument, echo,
+    make_pass_decorator, option
 )
-from click_didyoumean import DYMMixin
-
-from .. import environments
-from ..utils import is_valid_url
+from pipenv.vendor.click import types as click_types
+from pipenv.vendor.click_didyoumean import DYMMixin
 
 
 CONTEXT_SETTINGS = {
@@ -61,6 +60,7 @@ class State:
         self.site_packages = None
         self.clear = False
         self.system = False
+        self.project = Project()
         self.installstate = InstallState()
         self.lockoptions = LockOptions()
 
@@ -117,7 +117,7 @@ def editable_option(f):
         state.installstate.editables.extend(value)
         return value
     return option('-e', '--editable', expose_value=False, multiple=True,
-                  callback=callback, type=click.types.STRING, help=(
+                  callback=callback, type=click_types.STRING, help=(
                       "An editable Python package URL or path, often to a VCS "
                       "repository."
                   ))(f)
@@ -130,7 +130,7 @@ def sequential_option(f):
         return value
     return option("--sequential", is_flag=True, default=False, expose_value=False,
                   help="Install dependencies one-at-a-time, instead of concurrently.",
-                  callback=callback, type=click.types.BOOL, show_envvar=True)(f)
+                  callback=callback, type=click_types.BOOL, show_envvar=True)(f)
 
 
 def skip_lock_option(f):
@@ -140,7 +140,7 @@ def skip_lock_option(f):
         return value
     return option("--skip-lock", is_flag=True, default=False, expose_value=False,
                   help="Skip locking mechanisms and use the Pipfile instead during operation.",
-                  envvar="PIPENV_SKIP_LOCK", callback=callback, type=click.types.BOOL,
+                  envvar="PIPENV_SKIP_LOCK", callback=callback, type=click_types.BOOL,
                   show_envvar=True)(f)
 
 
@@ -151,7 +151,7 @@ def keep_outdated_option(f):
         return value
     return option("--keep-outdated", is_flag=True, default=False, expose_value=False,
                   help="Keep out-dated dependencies from being updated in Pipfile.lock.",
-                  callback=callback, type=click.types.BOOL, show_envvar=True)(f)
+                  callback=callback, type=click_types.BOOL, show_envvar=True)(f)
 
 
 def selective_upgrade_option(f):
@@ -159,7 +159,7 @@ def selective_upgrade_option(f):
         state = ctx.ensure_object(State)
         state.installstate.selective_upgrade = value
         return value
-    return option("--selective-upgrade", is_flag=True, default=False, type=click.types.BOOL,
+    return option("--selective-upgrade", is_flag=True, default=False, type=click_types.BOOL,
                   help="Update specified packages.", callback=callback,
                   expose_value=False)(f)
 
@@ -171,7 +171,7 @@ def ignore_pipfile_option(f):
         return value
     return option("--ignore-pipfile", is_flag=True, default=False, expose_value=False,
                   help="Ignore Pipfile when installing, using the Pipfile.lock.",
-                  callback=callback, type=click.types.BOOL, show_envvar=True)(f)
+                  callback=callback, type=click_types.BOOL, show_envvar=True)(f)
 
 
 def _dev_option(f, help_text):
@@ -179,7 +179,7 @@ def _dev_option(f, help_text):
         state = ctx.ensure_object(State)
         state.installstate.dev = value
         return value
-    return option("--dev", "-d", is_flag=True, default=False, type=click.types.BOOL,
+    return option("--dev", "-d", is_flag=True, default=False, type=click_types.BOOL,
                   help=help_text, callback=callback,
                   expose_value=False, show_envvar=True)(f)
 
@@ -202,7 +202,7 @@ def pre_option(f):
         state.installstate.pre = value
         return value
     return option("--pre", is_flag=True, default=False, help="Allow pre-releases.",
-                  callback=callback, type=click.types.BOOL, expose_value=False)(f)
+                  callback=callback, type=click_types.BOOL, expose_value=False)(f)
 
 
 def package_arg(f):
@@ -211,7 +211,7 @@ def package_arg(f):
         state.installstate.packages.extend(value)
         return value
     return argument('packages', nargs=-1, callback=callback, expose_value=False,
-                    type=click.types.STRING)(f)
+                    type=click_types.STRING)(f)
 
 
 def three_option(f):
@@ -235,17 +235,18 @@ def python_option(f):
     return option("--python", default="", nargs=1, callback=callback,
                   help="Specify which version of Python virtualenv should use.",
                   expose_value=False, allow_from_autoenv=False,
-                  type=click.types.STRING)(f)
+                  type=click_types.STRING)(f)
 
 
 def pypi_mirror_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
+        value = value or state.project.s.PIPENV_PYPI_MIRROR
         if value is not None:
             state.pypi_mirror = validate_pypi_mirror(ctx, param, value)
         return value
-    return option("--pypi-mirror", default=environments.PIPENV_PYPI_MIRROR, nargs=1,
-                  callback=callback, help="Specify a PyPI mirror.", expose_value=False)(f)
+    return option("--pypi-mirror", nargs=1, callback=callback,
+                  help="Specify a PyPI mirror.", expose_value=False)(f)
 
 
 def verbose_option(f):
@@ -260,7 +261,7 @@ def verbose_option(f):
             state.verbose = True
             setup_verbosity(ctx, param, 1)
     return option("--verbose", "-v", is_flag=True, expose_value=False,
-                  callback=callback, help="Verbose mode.", type=click.types.BOOL)(f)
+                  callback=callback, help="Verbose mode.", type=click_types.BOOL)(f)
 
 
 def quiet_option(f):
@@ -275,7 +276,7 @@ def quiet_option(f):
             state.quiet = True
             setup_verbosity(ctx, param, -1)
     return option("--quiet", "-q", is_flag=True, expose_value=False,
-                  callback=callback, help="Quiet mode.", type=click.types.BOOL)(f)
+                  callback=callback, help="Quiet mode.", type=click_types.BOOL)(f)
 
 
 def site_packages_option(f):
@@ -294,7 +295,7 @@ def clear_option(f):
         state = ctx.ensure_object(State)
         state.clear = value
         return value
-    return option("--clear", is_flag=True, callback=callback, type=click.types.BOOL,
+    return option("--clear", is_flag=True, callback=callback, type=click_types.BOOL,
                   help="Clears caches (pipenv, pip, and pip-tools).",
                   expose_value=False, show_envvar=True)(f)
 
@@ -306,7 +307,7 @@ def system_option(f):
             state.system = value
         return value
     return option("--system", is_flag=True, default=False, help="System pip management.",
-                  callback=callback, type=click.types.BOOL, expose_value=False,
+                  callback=callback, type=click_types.BOOL, expose_value=False,
                   show_envvar=True)(f)
 
 
@@ -318,7 +319,7 @@ def requirementstxt_option(f):
         return value
     return option("--requirements", "-r", nargs=1, default="", expose_value=False,
                   help="Import a requirements.txt file.", callback=callback,
-                  type=click.types.STRING)(f)
+                  type=click_types.STRING)(f)
 
 
 def emit_requirements_flag(f):
@@ -359,7 +360,7 @@ def code_option(f):
         return value
     return option("--code", "-c", nargs=1, default="", help="Install packages "
                   "automatically discovered from import statements.", callback=callback,
-                  expose_value=False, type=click.types.STRING)(f)
+                  expose_value=False, type=click_types.STRING)(f)
 
 
 def deploy_option(f):
@@ -367,7 +368,7 @@ def deploy_option(f):
         state = ctx.ensure_object(State)
         state.installstate.deploy = value
         return value
-    return option("--deploy", is_flag=True, default=False, type=click.types.BOOL,
+    return option("--deploy", is_flag=True, default=False, type=click_types.BOOL,
                   help="Abort if the Pipfile.lock is out-of-date, or Python version is"
                   " wrong.", callback=callback, expose_value=False)(f)
 
@@ -383,7 +384,7 @@ def setup_verbosity(ctx, param, value):
     elif value == -1:
         for logger in loggers:
             logging.getLogger(logger).setLevel(logging.CRITICAL)
-    environments.PIPENV_VERBOSITY = value
+    ctx.ensure_object(State).project.s.PIPENV_VERBOSITY = value
 
 
 def validate_python_path(ctx, param, value):
@@ -400,7 +401,7 @@ def validate_python_path(ctx, param, value):
 
 def validate_bool_or_none(ctx, param, value):
     if value is not None:
-        return click.types.BOOL(value)
+        return click_types.BOOL(value)
     return False
 
 

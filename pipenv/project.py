@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import base64
 import fnmatch
-import glob
 import hashlib
 import io
 import json
@@ -11,34 +10,33 @@ import re
 import sys
 import urllib.parse
 
+import pipfile
+import pipfile.api
 import toml
 import tomlkit
 import vistir
 
-import pipfile
-import pipfile.api
-
-from pipenv.vendor.cached_property import cached_property
-
 from pipenv.cmdparse import Script
+from pipenv.core import system_which
 from pipenv.environment import Environment
-from pipenv.environments import (
-    PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_IGNORE_VIRTUALENVS, PIPENV_MAX_DEPTH,
-    PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_VENV_IN_PROJECT,
-    PIPENV_USE_SYSTEM, is_in_virtualenv, is_type_checking, is_using_venv
-)
-from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
+from pipenv.environments import Setting, is_type_checking, is_in_virtualenv, normalize_pipfile_path
 from pipenv.utils import (
     cleanup_toml, convert_toml_outline_tables, find_requirements,
-    get_canonical_names, get_url_name, get_workon_home, is_editable,
-    is_installable_file, is_star, is_valid_url, is_virtual_environment,
-    looks_like_dir, normalize_drive, pep423_name, proper_case, python_version,
-    safe_expandvars, get_pipenv_dist
+    find_windows_executable, get_canonical_names, get_pipenv_dist, get_url_name,
+    get_workon_home, is_editable, is_installable_file, is_star, is_valid_url,
+    is_virtual_environment, looks_like_dir, pep423_name,
+    proper_case, python_version, safe_expandvars
+)
+from pipenv.vendor.cached_property import cached_property
+from pipenv.vendor.requirementslib.models.utils import (
+    get_default_pyproject_backend
 )
 
+
 if is_type_checking():
-    import pkg_resources
     from typing import Dict, List, Optional, Set, Text, Tuple, Union
+
+    import pkg_resources
     TSource = Dict[Text, Union[Text, bool]]
     TPackageEntry = Dict[str, Union[bool, str, List[str]]]
     TPackage = Dict[str, TPackageEntry]
@@ -47,24 +45,7 @@ if is_type_checking():
     TPipfile = Dict[str, Union[TPackage, TScripts, TPipenv, List[TSource]]]
 
 
-def _normalized(p):
-    if p is None:
-        return None
-    loc = vistir.compat.Path(p)
-    try:
-        loc = loc.resolve()
-    except OSError:
-        loc = loc.absolute()
-    # Recase the path properly on Windows. From https://stackoverflow.com/a/35229734/5043728
-    if os.name == 'nt':
-        matches = glob.glob(re.sub(r'([^:/\\])(?=[/\\]|$)', r'[\1]', str(loc)))
-        path_str = matches and matches[0] or str(loc)
-    else:
-        path_str = str(loc)
-    return normalize_drive(os.path.abspath(path_str))
-
-
-DEFAULT_NEWLINES = u"\n"
+DEFAULT_NEWLINES = "\n"
 
 
 class _LockFileEncoder(json.JSONEncoder):
@@ -100,47 +81,21 @@ def preferred_newlines(f):
     return DEFAULT_NEWLINES
 
 
-if PIPENV_PIPFILE:
-    if not os.path.isfile(PIPENV_PIPFILE):
-        raise RuntimeError("Given PIPENV_PIPFILE is not found!")
-
-    else:
-        PIPENV_PIPFILE = _normalized(PIPENV_PIPFILE)
-        # Overwrite environment variable so that subprocesses can get the correct path.
-        # See https://github.com/pypa/pipenv/issues/3584
-        os.environ['PIPENV_PIPFILE'] = PIPENV_PIPFILE
 # (path, file contents) => TOMLFile
 # keeps track of pipfiles that we've seen so we do not need to re-parse 'em
 _pipfile_cache = {}
-
-
-if PIPENV_TEST_INDEX:
-    DEFAULT_SOURCE = {
-        u"url": PIPENV_TEST_INDEX,
-        u"verify_ssl": True,
-        u"name": u"custom",
-    }
-else:
-    DEFAULT_SOURCE = {
-        u"url": u"https://pypi.org/simple",
-        u"verify_ssl": True,
-        u"name": u"pypi",
-    }
-
-pipfile.api.DEFAULT_SOURCE = DEFAULT_SOURCE
 
 
 class SourceNotFound(KeyError):
     pass
 
 
-class Project(object):
+class Project:
     """docstring for Project"""
 
     _lockfile_encoder = _LockFileEncoder()
 
-    def __init__(self, which=None, python_version=None, chdir=True):
-        super(Project, self).__init__()
+    def __init__(self, python_version=None, chdir=True):
         self._name = None
         self._virtualenv_location = None
         self._download_location = None
@@ -151,11 +106,25 @@ class Project(object):
         self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
         self._environment = None
-        self._which = which
         self._build_system = {
             "requires": ["setuptools", "wheel"]
         }
         self.python_version = python_version
+        self.s = Setting()
+        if self.s.PIPENV_TEST_INDEX:
+            self.default_source = {
+                u"url": self.s.PIPENV_TEST_INDEX,
+                u"verify_ssl": True,
+                u"name": u"custom",
+            }
+        else:
+            self.default_source = {
+                u"url": u"https://pypi.org/simple",
+                u"verify_ssl": True,
+                u"name": u"pypi",
+            }
+        pipfile.api.DEFAULT_SOURCE = self.default_source
+
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
             try:
@@ -260,7 +229,7 @@ class Project(object):
 
     def is_venv_in_project(self):
         # type: () -> bool
-        return PIPENV_VENV_IN_PROJECT or (
+        return self.s.PIPENV_VENV_IN_PROJECT or (
             self.project_directory
             and os.path.isdir(os.path.join(self.project_directory, ".venv"))
         )
@@ -349,15 +318,14 @@ class Project(object):
 
     def get_environment(self, allow_global=False):
         # type: (bool) -> Environment
-        is_venv = is_in_virtualenv() or is_using_venv()
-        use_system = os.getenv('PIPENV_USE_SYSTEM') == '1'
-        if use_system or allow_global and not is_venv:
+        is_venv = is_in_virtualenv()
+        if allow_global and not is_venv:
             prefix = sys.prefix
             python = sys.executable
         else:
             prefix = self.virtualenv_location
             python = None
-        sources = self.sources if self.sources else [DEFAULT_SOURCE]
+        sources = self.sources if self.sources else [self.default_source]
         environment = Environment(
             prefix=prefix, python=python, is_venv=is_venv, sources=sources,
             pipfile=self.parsed_pipfile, project=self
@@ -373,7 +341,7 @@ class Project(object):
     def environment(self):
         # type: () -> Environment
         if not self._environment:
-            allow_global = os.environ.get("PIPENV_USE_SYSTEM", PIPENV_USE_SYSTEM)
+            allow_global = self.s.PIPENV_USE_SYSTEM
             self._environment = self.get_environment(allow_global=allow_global)
         return self._environment
 
@@ -445,11 +413,11 @@ class Project(object):
         # type: () -> str
         sanitized, encoded_hash = self._get_virtualenv_hash(self.name)
         suffix = ""
-        if PIPENV_PYTHON:
-            if os.path.isabs(PIPENV_PYTHON):
-                suffix = "-{0}".format(os.path.basename(PIPENV_PYTHON))
+        if self.s.PIPENV_PYTHON:
+            if os.path.isabs(self.s.PIPENV_PYTHON):
+                suffix = "-{0}".format(os.path.basename(self.s.PIPENV_PYTHON))
             else:
-                suffix = "-{0}".format(PIPENV_PYTHON)
+                suffix = "-{0}".format(self.s.PIPENV_PYTHON)
 
         # If the pipfile was located at '/home/user/MY_PROJECT/Pipfile',
         # the name of its virtualenv will be 'my-project-wyUfYPqE'
@@ -462,7 +430,7 @@ class Project(object):
         virtualenv_env = os.getenv("VIRTUAL_ENV")
         if (
             "PIPENV_ACTIVE" not in os.environ
-            and not PIPENV_IGNORE_VIRTUALENVS and virtualenv_env
+            and not self.s.PIPENV_IGNORE_VIRTUALENVS and virtualenv_env
         ):
             return virtualenv_env
 
@@ -516,15 +484,15 @@ class Project(object):
     @property
     def pipfile_location(self):
         # type: () -> str
-        if PIPENV_PIPFILE:
-            return PIPENV_PIPFILE
+        if self.s.PIPENV_PIPFILE:
+            return self.s.PIPENV_PIPFILE
 
         if self._pipfile_location is None:
             try:
-                loc = pipfile.Pipfile.find(max_depth=PIPENV_MAX_DEPTH)
+                loc = pipfile.Pipfile.find(max_depth=self.s.PIPENV_MAX_DEPTH)
             except RuntimeError:
                 loc = "Pipfile"
-            self._pipfile_location = _normalized(loc)
+            self._pipfile_location = normalize_pipfile_path(loc)
         return self._pipfile_location
 
     @property
@@ -532,7 +500,7 @@ class Project(object):
         # type: () -> Optional[str]
         if self._requirements_location is None:
             try:
-                loc = find_requirements(max_depth=PIPENV_MAX_DEPTH)
+                loc = find_requirements(max_depth=self.s.PIPENV_MAX_DEPTH)
             except RuntimeError:
                 loc = None
             self._requirements_location = loc
@@ -652,7 +620,8 @@ class Project(object):
 
     @property
     def _pipfile(self):
-        from .vendor.requirementslib.models.pipfile import Pipfile as ReqLibPipfile
+        from .vendor.requirementslib.models.pipfile import \
+            Pipfile as ReqLibPipfile
         pf = ReqLibPipfile.load(self.pipfile_location)
         return pf
 
@@ -735,10 +704,11 @@ class Project(object):
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
         from .vendor.pip_shims.shims import InstallCommand
+
         # Inherit the pip's index configuration of install command.
         command = InstallCommand()
         indexes = command.cmd_opts.get_option("--extra-index-url").default
-        sources = [DEFAULT_SOURCE]
+        sources = [self.default_source]
         for i, index in enumerate(indexes):
             if not index:
                 continue
@@ -762,7 +732,7 @@ class Project(object):
                 required_python = self.which("python", self.virtualenv_location)
             else:
                 required_python = self.which("python")
-        version = python_version(required_python) or PIPENV_DEFAULT_PYTHON_VERSION
+        version = python_version(required_python) or self.s.PIPENV_DEFAULT_PYTHON_VERSION
         if version and len(version.split(".")) > 2:
             data[u"requires"] = {"python_version": ".".join(version.split(".")[:2])}
         self.write_toml(data)
@@ -780,7 +750,8 @@ class Project(object):
         return source
 
     def get_or_create_lockfile(self, from_pipfile=False):
-        from pipenv.vendor.requirementslib.models.lockfile import Lockfile as Req_Lockfile
+        from pipenv.vendor.requirementslib.models.lockfile import \
+            Lockfile as Req_Lockfile
         lockfile = None
         if from_pipfile and self.pipfile_exists:
             lockfile_dict = {
@@ -886,7 +857,7 @@ class Project(object):
     @property
     def pipfile_sources(self):
         if self.pipfile_is_empty or "source" not in self.parsed_pipfile:
-            return [DEFAULT_SOURCE]
+            return [self.default_source]
         # We need to make copies of the source info so we don't
         # accidentally modify the cache. See #2100 where values are
         # written after the os.path.expandvars() call.
@@ -1141,3 +1112,29 @@ class Project(object):
             if as_path:
                 result = str(result.path)
         return result
+
+    def _which(self, command, location=None, allow_global=False):
+        if not allow_global and location is None:
+            if self.virtualenv_exists:
+                location = self.virtualenv_location
+            else:
+                location = os.environ.get("VIRTUAL_ENV", None)
+        if not (location and os.path.exists(location)) and not allow_global:
+            raise RuntimeError("location not created nor specified")
+
+        version_str = "python{}".format(".".join([str(v) for v in sys.version_info[:2]]))
+        is_python = command in ("python", os.path.basename(sys.executable), version_str)
+        if not allow_global:
+            if os.name == "nt":
+                p = find_windows_executable(os.path.join(location, "Scripts"), command)
+            else:
+                p = os.path.join(location, "bin", command)
+        else:
+            if is_python:
+                p = sys.executable
+        if not os.path.exists(p):
+            if is_python:
+                p = sys.executable or system_which("python")
+            else:
+                p = system_which(command)
+        return p
