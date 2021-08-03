@@ -1,43 +1,41 @@
 """Orchestrator for building wheels from InstallRequirements.
 """
 
-# The following comment should be removed at some point in the future.
-# mypy: strict-optional=False
-
 import logging
 import os.path
 import re
 import shutil
+from typing import Any, Callable, Iterable, List, Optional, Tuple
 
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name, canonicalize_version
+from pipenv.patched.notpip._vendor.packaging.version import InvalidVersion, Version
+
+from pipenv.patched.notpip._internal.cache import WheelCache
+from pipenv.patched.notpip._internal.exceptions import InvalidWheelFilename, UnsupportedWheel
+from pipenv.patched.notpip._internal.metadata import get_wheel_distribution
 from pipenv.patched.notpip._internal.models.link import Link
+from pipenv.patched.notpip._internal.models.wheel import Wheel
 from pipenv.patched.notpip._internal.operations.build.wheel import build_wheel_pep517
 from pipenv.patched.notpip._internal.operations.build.wheel_legacy import build_wheel_legacy
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import ensure_dir, hash_file, is_wheel_installed
 from pipenv.patched.notpip._internal.utils.setuptools_build import make_setuptools_clean_args
 from pipenv.patched.notpip._internal.utils.subprocess import call_subprocess
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 from pipenv.patched.notpip._internal.utils.urls import path_to_url
 from pipenv.patched.notpip._internal.vcs import vcs
 
-if MYPY_CHECK_RUNNING:
-    from typing import (
-        Any, Callable, Iterable, List, Optional, Pattern, Tuple,
-    )
-
-    from pipenv.patched.notpip._internal.cache import WheelCache
-    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
-
-    BinaryAllowedPredicate = Callable[[InstallRequirement], bool]
-    BuildResult = Tuple[List[InstallRequirement], List[InstallRequirement]]
-
 logger = logging.getLogger(__name__)
 
+_egg_info_re = re.compile(r'([a-z0-9_.]+)-([a-z0-9_.!+-]+)', re.IGNORECASE)
 
-def _contains_egg_info(
-        s, _egg_info_re=re.compile(r'([a-z0-9_.]+)-([a-z0-9_.!+-]+)', re.I)):
-    # type: (str, Pattern[str]) -> bool
+BinaryAllowedPredicate = Callable[[InstallRequirement], bool]
+BuildResult = Tuple[List[InstallRequirement], List[InstallRequirement]]
+
+
+def _contains_egg_info(s):
+    # type: (str) -> bool
     """Determine whether the string looks like an egg_info.
 
     :param s: The string to parse. E.g. foo-2.1
@@ -69,17 +67,24 @@ def _should_build(
     # From this point, this concerns the pip install command only
     # (need_wheel=False).
 
-    if not req.use_pep517 and not is_wheel_installed():
-        # we don't build legacy requirements if wheel is not installed
-        return False
-
     if req.editable or not req.source_dir:
         return False
+
+    if req.use_pep517:
+        return True
 
     if not check_binary_allowed(req):
         logger.info(
             "Skipping wheel build for %s, due to binaries "
             "being disabled for it.", req.name,
+        )
+        return False
+
+    if not is_wheel_installed():
+        # we don't build legacy requirements if wheel is not installed
+        logger.info(
+            "Using legacy 'setup.py install' for %s, "
+            "since package 'wheel' is not installed.", req.name,
         )
         return False
 
@@ -114,11 +119,8 @@ def _should_cache(
     wheel cache, assuming the wheel cache is available, and _should_build()
     has determined a wheel needs to be built.
     """
-    if not should_build_for_install_command(
-        req, check_binary_allowed=_always_true
-    ):
-        # never cache if pip install would not have built
-        # (editable mode, etc)
+    if req.editable or not req.source_dir:
+        # never cache editable requirements
         return False
 
     if req.link and req.link.is_vcs:
@@ -132,6 +134,7 @@ def _should_cache(
             return True
         return False
 
+    assert req.link
     base, ext = req.link.splitext()
     if _contains_egg_info(base):
         return True
@@ -149,6 +152,7 @@ def _get_cache_dir(
     wheel need to be stored.
     """
     cache_available = bool(wheel_cache.cache_dir)
+    assert req.link
     if cache_available and _should_cache(req):
         cache_dir = wheel_cache.get_path_for_link(req.link)
     else:
@@ -161,9 +165,42 @@ def _always_true(_):
     return True
 
 
+def _verify_one(req, wheel_path):
+    # type: (InstallRequirement, str) -> None
+    canonical_name = canonicalize_name(req.name or "")
+    w = Wheel(os.path.basename(wheel_path))
+    if canonicalize_name(w.name) != canonical_name:
+        raise InvalidWheelFilename(
+            "Wheel has unexpected file name: expected {!r}, "
+            "got {!r}".format(canonical_name, w.name),
+        )
+    dist = get_wheel_distribution(wheel_path, canonical_name)
+    dist_verstr = str(dist.version)
+    if canonicalize_version(dist_verstr) != canonicalize_version(w.version):
+        raise InvalidWheelFilename(
+            "Wheel has unexpected file name: expected {!r}, "
+            "got {!r}".format(dist_verstr, w.version),
+        )
+    metadata_version_value = dist.metadata_version
+    if metadata_version_value is None:
+        raise UnsupportedWheel("Missing Metadata-Version")
+    try:
+        metadata_version = Version(metadata_version_value)
+    except InvalidVersion:
+        msg = f"Invalid Metadata-Version: {metadata_version_value}"
+        raise UnsupportedWheel(msg)
+    if (metadata_version >= Version("1.2")
+            and not isinstance(dist.version, Version)):
+        raise UnsupportedWheel(
+            "Metadata 1.2 mandates PEP 440 version, "
+            "but {!r} is not".format(dist_verstr)
+        )
+
+
 def _build_one(
     req,  # type: InstallRequirement
     output_dir,  # type: str
+    verify,  # type: bool
     build_options,  # type: List[str]
     global_options,  # type: List[str]
 ):
@@ -183,9 +220,16 @@ def _build_one(
 
     # Install build deps into temporary directory (PEP 518)
     with req.build_env:
-        return _build_one_inside_env(
+        wheel_path = _build_one_inside_env(
             req, output_dir, build_options, global_options
         )
+    if wheel_path and verify:
+        try:
+            _verify_one(req, wheel_path)
+        except (InvalidWheelFilename, UnsupportedWheel) as e:
+            logger.warning("Built wheel for %s is invalid: %s", req.name, e)
+            return None
+    return wheel_path
 
 
 def _build_one_inside_env(
@@ -196,12 +240,22 @@ def _build_one_inside_env(
 ):
     # type: (...) -> Optional[str]
     with TempDirectory(kind="wheel") as temp_dir:
+        assert req.name
         if req.use_pep517:
+            assert req.metadata_directory
+            assert req.pep517_backend
+            if global_options:
+                logger.warning(
+                    'Ignoring --global-option when building %s using PEP 517', req.name
+                )
+            if build_options:
+                logger.warning(
+                    'Ignoring --build-option when building %s using PEP 517', req.name
+                )
             wheel_path = build_wheel_pep517(
                 name=req.name,
                 backend=req.pep517_backend,
                 metadata_directory=req.metadata_directory,
-                build_options=build_options,
                 tempd=temp_dir.path,
             )
         else:
@@ -256,6 +310,7 @@ def _clean_one_legacy(req, global_options):
 def build(
     requirements,  # type: Iterable[InstallRequirement]
     wheel_cache,  # type: WheelCache
+    verify,  # type: bool
     build_options,  # type: List[str]
     global_options,  # type: List[str]
 ):
@@ -271,7 +326,7 @@ def build(
     # Build the wheels.
     logger.info(
         'Building wheels for collected packages: %s',
-        ', '.join(req.name for req in requirements),
+        ', '.join(req.name for req in requirements),  # type: ignore
     )
 
     with indent_log():
@@ -279,7 +334,7 @@ def build(
         for req in requirements:
             cache_dir = _get_cache_dir(req, wheel_cache)
             wheel_file = _build_one(
-                req, cache_dir, build_options, global_options
+                req, cache_dir, verify, build_options, global_options
             )
             if wheel_file:
                 # Update the link for this.
@@ -294,12 +349,12 @@ def build(
     if build_successes:
         logger.info(
             'Successfully built %s',
-            ' '.join([req.name for req in build_successes]),
+            ' '.join([req.name for req in build_successes]),  # type: ignore
         )
     if build_failures:
         logger.info(
             'Failed to build %s',
-            ' '.join([req.name for req in build_failures]),
+            ' '.join([req.name for req in build_failures]),  # type: ignore
         )
     # Return a list of requirements that failed to build
     return build_successes, build_failures

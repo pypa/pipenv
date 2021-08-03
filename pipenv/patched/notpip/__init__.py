@@ -1,14 +1,9 @@
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from typing import List, Optional
 
-if MYPY_CHECK_RUNNING:
-    from typing import List, Optional
-
-
-__version__ = "20.0.2"
+__version__ = "21.2.2"
 
 
-def main(args=None):
-    # type: (Optional[List[str]]) -> int
+def main(args: Optional[List[str]] = None) -> int:
     """This is an internal API only meant for use by pip's own console scripts.
 
     For additional details, see https://github.com/pypa/pip/issues/7498.

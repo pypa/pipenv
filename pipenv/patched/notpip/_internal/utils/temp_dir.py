@@ -1,26 +1,25 @@
-from __future__ import absolute_import
-
 import errno
 import itertools
 import logging
 import os.path
 import tempfile
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
+from typing import Any, Dict, Iterator, Optional, TypeVar, Union
 
-from pipenv.patched.notpip._vendor.contextlib2 import ExitStack
-import warnings
-
-from pipenv.patched.notpip._internal.utils.misc import rmtree
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.vendor.vistir.compat import finalize, ResourceWarning
-
-if MYPY_CHECK_RUNNING:
-    from typing import Any, Dict, Iterator, Optional, TypeVar
-
-    _T = TypeVar('_T', bound='TempDirectory')
-
+from pipenv.patched.notpip._internal.utils.misc import enum, rmtree
 
 logger = logging.getLogger(__name__)
+
+_T = TypeVar("_T", bound="TempDirectory")
+
+
+# Kinds of temporary directories. Only needed for ones that are
+# globally-managed.
+tempdir_kinds = enum(
+    BUILD_ENV="build-env",
+    EPHEM_WHEEL_CACHE="ephem-wheel-cache",
+    REQ_BUILD="req-build",
+)
 
 
 _tempdir_manager = None  # type: Optional[ExitStack]
@@ -38,9 +37,8 @@ def global_tempdir_manager():
             _tempdir_manager = old_tempdir_manager
 
 
-class TempDirectoryTypeRegistry(object):
-    """Manages temp directory behavior
-    """
+class TempDirectoryTypeRegistry:
+    """Manages temp directory behavior"""
 
     def __init__(self):
         # type: () -> None
@@ -79,7 +77,14 @@ def tempdir_registry():
         _tempdir_registry = old_tempdir_registry
 
 
-class TempDirectory(object):
+class _Default:
+    pass
+
+
+_default = _Default()
+
+
+class TempDirectory:
     """Helper class that owns and cleans up a temporary directory.
 
     This class can be used as a context manager or as an OO representation of a
@@ -102,18 +107,25 @@ class TempDirectory(object):
 
     def __init__(
         self,
-        path=None,    # type: Optional[str]
-        delete=None,  # type: Optional[bool]
+        path=None,  # type: Optional[str]
+        delete=_default,  # type: Union[bool, None, _Default]
         kind="temp",  # type: str
         globally_managed=False,  # type: bool
     ):
-        super(TempDirectory, self).__init__()
+        super().__init__()
 
-        # If we were given an explicit directory, resolve delete option now.
-        # Otherwise we wait until cleanup and see what tempdir_registry says.
-        if path is not None and delete is None:
-            delete = False
+        if delete is _default:
+            if path is not None:
+                # If we were given an explicit directory, resolve delete option
+                # now.
+                delete = False
+            else:
+                # Otherwise, we wait until cleanup and see what
+                # tempdir_registry says.
+                delete = None
 
+        # The only time we specify path is in for editables where it
+        # is the value of the --src option.
         if path is None:
             path = self._create(kind)
 
@@ -121,36 +133,20 @@ class TempDirectory(object):
         self._deleted = False
         self.delete = delete
         self.kind = kind
-        self._finalizer = None
-        if self._path:
-            self._register_finalizer()
 
         if globally_managed:
             assert _tempdir_manager is not None
             _tempdir_manager.enter_context(self)
 
-    def _register_finalizer(self):
-        if self.delete and self._path:
-            self._finalizer = finalize(
-                self,
-                self._cleanup,
-                self._path,
-                warn_message = None
-            )
-        else:
-            self._finalizer = None
-
     @property
     def path(self):
         # type: () -> str
-        assert not self._deleted, (
-            "Attempted to access deleted path: {}".format(self._path)
-        )
+        assert not self._deleted, f"Attempted to access deleted path: {self._path}"
         return self._path
 
     def __repr__(self):
         # type: () -> str
-        return "<{} {!r}>".format(self.__class__.__name__, self.path)
+        return f"<{self.__class__.__name__} {self.path!r}>"
 
     def __enter__(self):
         # type: (_T) -> _T
@@ -170,41 +166,22 @@ class TempDirectory(object):
 
     def _create(self, kind):
         # type: (str) -> str
-        """Create a temporary directory and store its path in self.path
-        """
+        """Create a temporary directory and store its path in self.path"""
         # We realpath here because some systems have their default tmpdir
         # symlinked to another directory.  This tends to confuse build
         # scripts, so we canonicalize the path by traversing potential
         # symlinks here.
-        path = os.path.realpath(
-            tempfile.mkdtemp(prefix="pip-{}-".format(kind))
-        )
-        logger.debug("Created temporary directory: {}".format(path))
+        path = os.path.realpath(tempfile.mkdtemp(prefix=f"pip-{kind}-"))
+        logger.debug("Created temporary directory: %s", path)
         return path
-
-    @classmethod
-    def _cleanup(cls, name, warn_message=None):
-        if not os.path.exists(name):
-            return
-        try:
-            rmtree(name)
-        except OSError:
-            pass
-        else:
-            if warn_message:
-                warnings.warn(warn_message, ResourceWarning)
 
     def cleanup(self):
         # type: () -> None
-        """Remove the temporary directory created and reset state
-        """
-        if getattr(self._finalizer, "detach", None) and self._finalizer.detach():
-            if os.path.exists(self._path):
-                self._deleted = True
-                try:
-                    rmtree(self._path)
-                except OSError:
-                    pass
+        """Remove the temporary directory created and reset state"""
+        self._deleted = True
+        if not os.path.exists(self._path):
+            return
+        rmtree(self._path)
 
 
 class AdjacentTempDirectory(TempDirectory):
@@ -221,6 +198,7 @@ class AdjacentTempDirectory(TempDirectory):
             (when used as a contextmanager)
 
     """
+
     # The characters that may be used to name the temp directory
     # We always prepend a ~ and then rotate through these until
     # a usable name is found.
@@ -230,8 +208,8 @@ class AdjacentTempDirectory(TempDirectory):
 
     def __init__(self, original, delete=None):
         # type: (str, Optional[bool]) -> None
-        self.original = original.rstrip('/\\')
-        super(AdjacentTempDirectory, self).__init__(delete=delete)
+        self.original = original.rstrip("/\\")
+        super().__init__(delete=delete)
 
     @classmethod
     def _generate_names(cls, name):
@@ -245,16 +223,18 @@ class AdjacentTempDirectory(TempDirectory):
         """
         for i in range(1, len(name)):
             for candidate in itertools.combinations_with_replacement(
-                    cls.LEADING_CHARS, i - 1):
-                new_name = '~' + ''.join(candidate) + name[i:]
+                cls.LEADING_CHARS, i - 1
+            ):
+                new_name = "~" + "".join(candidate) + name[i:]
                 if new_name != name:
                     yield new_name
 
         # If we make it this far, we will have to make a longer name
         for i in range(len(cls.LEADING_CHARS)):
             for candidate in itertools.combinations_with_replacement(
-                    cls.LEADING_CHARS, i):
-                new_name = '~' + ''.join(candidate) + name
+                cls.LEADING_CHARS, i
+            ):
+                new_name = "~" + "".join(candidate) + name
                 if new_name != name:
                     yield new_name
 
@@ -274,9 +254,7 @@ class AdjacentTempDirectory(TempDirectory):
                 break
         else:
             # Final fallback on the default behavior.
-            path = os.path.realpath(
-                tempfile.mkdtemp(prefix="pip-{}-".format(kind))
-            )
+            path = os.path.realpath(tempfile.mkdtemp(prefix=f"pip-{kind}-"))
 
-        logger.debug("Created temporary directory: {}".format(path))
+        logger.debug("Created temporary directory: %s", path)
         return path

@@ -2,13 +2,27 @@ import collections
 import os
 import sys
 import tempfile
-from subprocess import check_call  # nosec
+from subprocess import run  # nosec
+from typing import (
+    Deque,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    ValuesView,
+)
 
-from ._compat import DEV_PKGS
-from ._compat import stdlib_pkgs
+import click
+from pipenv.patched.notpip._internal.commands.freeze import DEV_PKGS
+from pipenv.patched.notpip._internal.req import InstallRequirement
+from pipenv.patched.notpip._internal.utils.compat import stdlib_pkgs
+from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
 
-from . import click
 from .exceptions import IncompatibleRequirements
+from .logging import log
 from .utils import (
     flat_map,
     format_requirement,
@@ -18,14 +32,20 @@ from .utils import (
     key_from_req,
 )
 
-PACKAGES_TO_IGNORE = (
-    ["-markerlib", "pip", "pip-tools", "pip-review", "pkg-resources"]
-    + list(stdlib_pkgs)
-    + list(DEV_PKGS)
-)
+PACKAGES_TO_IGNORE = [
+    "-markerlib",
+    "pip",
+    "pip-tools",
+    "pip-review",
+    "pkg-resources",
+    *stdlib_pkgs,
+    *DEV_PKGS,
+]
 
 
-def dependency_tree(installed_keys, root_key):
+def dependency_tree(
+    installed_keys: Mapping[str, Requirement], root_key: str
+) -> Set[str]:
     """
     Calculate the dependency tree for the package `root_key` and return
     a collection of all its dependencies.  Uses a DFS traversal algorithm.
@@ -35,7 +55,7 @@ def dependency_tree(installed_keys, root_key):
     `root_key` should be the key to return the dependency tree for.
     """
     dependencies = set()
-    queue = collections.deque()
+    queue: Deque[Requirement] = collections.deque()
 
     if root_key in installed_keys:
         dep = installed_keys[root_key]
@@ -60,7 +80,7 @@ def dependency_tree(installed_keys, root_key):
     return dependencies
 
 
-def get_dists_to_ignore(installed):
+def get_dists_to_ignore(installed: Iterable[Requirement]) -> List[str]:
     """
     Returns a collection of package names to ignore when performing pip-sync,
     based on the currently installed environment.  For example, when pip-tools
@@ -75,8 +95,10 @@ def get_dists_to_ignore(installed):
     )
 
 
-def merge(requirements, ignore_conflicts):
-    by_key = {}
+def merge(
+    requirements: Iterable[InstallRequirement], ignore_conflicts: bool
+) -> ValuesView[InstallRequirement]:
+    by_key: Dict[str, InstallRequirement] = {}
 
     for ireq in requirements:
         # Limitation: URL requirements are merged by precise string match, so
@@ -98,7 +120,7 @@ def merge(requirements, ignore_conflicts):
     return by_key.values()
 
 
-def diff_key_from_ireq(ireq):
+def diff_key_from_ireq(ireq: InstallRequirement) -> str:
     """
     Calculate a key for comparing a compiled requirement with installed modules.
     For URL requirements, only provide a useful key if the url includes
@@ -118,7 +140,10 @@ def diff_key_from_ireq(ireq):
     return key_from_ireq(ireq)
 
 
-def diff(compiled_requirements, installed_dists):
+def diff(
+    compiled_requirements: Iterable[InstallRequirement],
+    installed_dists: Iterable[Requirement],
+) -> Tuple[Set[InstallRequirement], Set[str]]:
     """
     Calculate which packages should be installed or uninstalled, given a set
     of compiled requirements and a list of currently installed modules.
@@ -148,23 +173,26 @@ def diff(compiled_requirements, installed_dists):
 
 
 def sync(
-    to_install,
-    to_uninstall,
-    verbose=False,
-    dry_run=False,
-    install_flags=None,
-    ask=False,
-):
+    to_install: Iterable[InstallRequirement],
+    to_uninstall: Iterable[InstallRequirement],
+    dry_run: bool = False,
+    install_flags: Optional[List[str]] = None,
+    ask: bool = False,
+    python_executable: Optional[str] = None,
+) -> int:
     """
     Install and uninstalls the given sets of modules.
     """
+    exit_code = 0
+
+    python_executable = python_executable or sys.executable
+
     if not to_uninstall and not to_install:
-        if verbose:
-            click.echo("Everything up-to-date")
-        return 0
+        log.info("Everything up-to-date", err=False)
+        return exit_code
 
     pip_flags = []
-    if not verbose:
+    if log.verbosity < 0:
         pip_flags += ["-q"]
 
     if ask:
@@ -173,23 +201,33 @@ def sync(
     if dry_run:
         if to_uninstall:
             click.echo("Would uninstall:")
-            for pkg in to_uninstall:
-                click.echo("  {}".format(pkg))
+            for pkg in sorted(to_uninstall):
+                click.echo(f"  {pkg}")
 
         if to_install:
             click.echo("Would install:")
-            for ireq in to_install:
-                click.echo("  {}".format(format_requirement(ireq)))
+            for ireq in sorted(to_install, key=key_from_ireq):
+                click.echo(f"  {format_requirement(ireq)}")
+
+        exit_code = 1
 
     if ask and click.confirm("Would you like to proceed with these changes?"):
         dry_run = False
+        exit_code = 0
 
     if not dry_run:
         if to_uninstall:
-            check_call(  # nosec
-                [sys.executable, "-m", "pip", "uninstall", "-y"]
-                + pip_flags
-                + sorted(to_uninstall)
+            run(  # nosec
+                [
+                    python_executable,
+                    "-m",
+                    "pip",
+                    "uninstall",
+                    "-y",
+                    *pip_flags,
+                    *sorted(to_uninstall),
+                ],
+                check=True,
             )
 
         if to_install:
@@ -207,12 +245,20 @@ def sync(
             tmp_req_file.close()
 
             try:
-                check_call(  # nosec
-                    [sys.executable, "-m", "pip", "install", "-r", tmp_req_file.name]
-                    + pip_flags
-                    + install_flags
+                run(  # nosec
+                    [
+                        python_executable,
+                        "-m",
+                        "pip",
+                        "install",
+                        "-r",
+                        tmp_req_file.name,
+                        *pip_flags,
+                        *install_flags,
+                    ],
+                    check=True,
                 )
             finally:
                 os.unlink(tmp_req_file.name)
 
-    return 0
+    return exit_code

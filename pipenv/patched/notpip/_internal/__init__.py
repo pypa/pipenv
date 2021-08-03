@@ -1,13 +1,14 @@
-#!/usr/bin/env python
+from typing import List, Optional
+
 import pipenv.patched.notpip._internal.utils.inject_securetransport  # noqa
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils import _log
 
-if MYPY_CHECK_RUNNING:
-    from typing import Optional, List
+# init_logging() must be called before any call to logging.getLogger()
+# which happens at import of most modules.
+_log.init_logging()
 
 
-def main(args=None):
-    # type: (Optional[List[str]]) -> int
+def main(args: (Optional[List[str]]) = None) -> int:
     """This is preserved for old console scripts that may still be referencing
     it.
 

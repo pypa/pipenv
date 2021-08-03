@@ -6,36 +6,30 @@ The intention is to rewrite current usages gradually, keeping the tests pass,
 and eventually drop this after all usages are changed.
 """
 
-from __future__ import absolute_import
-
 import os
+from typing import List
 
 from pipenv.patched.notpip._vendor import appdirs as _appdirs
 
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
-if MYPY_CHECK_RUNNING:
-    from typing import List
-
-
-def user_cache_dir(appname):
-    # type: (str) -> str
+def user_cache_dir(appname: str) -> str:
     return _appdirs.user_cache_dir(appname, appauthor=False)
 
 
-def user_config_dir(appname, roaming=True):
-    # type: (str, bool) -> str
-    return _appdirs.user_config_dir(appname, appauthor=False, roaming=roaming)
+def user_config_dir(appname: str, roaming: bool = True) -> str:
+    path = _appdirs.user_config_dir(appname, appauthor=False, roaming=roaming)
+    if _appdirs.system == "darwin" and not os.path.isdir(path):
+        path = os.path.expanduser("~/.config/")
+        if appname:
+            path = os.path.join(path, appname)
+    return path
 
 
-def user_data_dir(appname, roaming=False):
-    # type: (str, bool) -> str
-    return _appdirs.user_data_dir(appname, appauthor=False, roaming=roaming)
-
-
-def site_config_dirs(appname):
-    # type: (str) -> List[str]
+# for the discussion regarding site_config_dir locations
+# see <https://github.com/pypa/pip/issues/1733>
+def site_config_dirs(appname: str) -> List[str]:
     dirval = _appdirs.site_config_dir(appname, appauthor=False, multipath=True)
     if _appdirs.system not in ["win32", "darwin"]:
-        return dirval.split(os.pathsep)
+        # always look in /etc directly as well
+        return dirval.split(os.pathsep) + ["/etc"]
     return [dirval]

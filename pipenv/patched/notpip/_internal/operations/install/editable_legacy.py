@@ -1,17 +1,12 @@
 """Legacy editable installation process, i.e. `setup.py develop`.
 """
 import logging
+from typing import List, Optional, Sequence
 
+from pipenv.patched.notpip._internal.build_env import BuildEnvironment
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.setuptools_build import make_setuptools_develop_args
 from pipenv.patched.notpip._internal.utils.subprocess import call_subprocess
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-
-if MYPY_CHECK_RUNNING:
-    from typing import List, Optional, Sequence
-
-    from pipenv.patched.notpip._internal.build_env import BuildEnvironment
-
 
 logger = logging.getLogger(__name__)
 

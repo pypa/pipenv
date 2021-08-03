@@ -1,14 +1,11 @@
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
-
-from __future__ import absolute_import
-
 import hashlib
 import logging
 import sys
+from optparse import Values
+from typing import List
 
 from pipenv.patched.notpip._internal.cli.base_command import Command
-from pipenv.patched.notpip._internal.cli.status_codes import ERROR
+from pipenv.patched.notpip._internal.cli.status_codes import ERROR, SUCCESS
 from pipenv.patched.notpip._internal.utils.hashes import FAVORITE_HASH, STRONG_HASHES
 from pipenv.patched.notpip._internal.utils.misc import read_chunks, write_output
 
@@ -26,19 +23,18 @@ class HashCommand(Command):
     usage = '%prog [options] <file> ...'
     ignore_require_venv = True
 
-    def __init__(self, *args, **kw):
-        super(HashCommand, self).__init__(*args, **kw)
+    def add_options(self) -> None:
         self.cmd_opts.add_option(
             '-a', '--algorithm',
             dest='algorithm',
             choices=STRONG_HASHES,
             action='store',
             default=FAVORITE_HASH,
-            help='The hash algorithm to use: one of %s' %
-                 ', '.join(STRONG_HASHES))
+            help='The hash algorithm to use: one of {}'.format(
+                 ', '.join(STRONG_HASHES)))
         self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options, args):
+    def run(self, options: Values, args: List[str]) -> int:
         if not args:
             self.parser.print_usage(sys.stderr)
             return ERROR
@@ -47,9 +43,10 @@ class HashCommand(Command):
         for path in args:
             write_output('%s:\n--hash=%s:%s',
                          path, algorithm, _hash_of_file(path, algorithm))
+        return SUCCESS
 
 
-def _hash_of_file(path, algorithm):
+def _hash_of_file(path: str, algorithm: str) -> str:
     """Return the hash digest of a file."""
     with open(path, 'rb') as archive:
         hash = hashlib.new(algorithm)

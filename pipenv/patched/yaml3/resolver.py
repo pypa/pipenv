@@ -146,8 +146,8 @@ class BaseResolver:
                 resolvers = self.yaml_implicit_resolvers.get('', [])
             else:
                 resolvers = self.yaml_implicit_resolvers.get(value[0], [])
-            wildcard_resolvers = self.yaml_implicit_resolvers.get(None, [])
-            for tag, regexp in resolvers + wildcard_resolvers:
+            resolvers += self.yaml_implicit_resolvers.get(None, [])
+            for tag, regexp in resolvers:
                 if regexp.match(value):
                     return tag
             implicit = implicit[1]

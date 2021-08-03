@@ -1,21 +1,14 @@
-from __future__ import absolute_import
-
 import logging
-import sys
+from email.message import Message
 from email.parser import FeedParser
+from typing import Optional, Tuple
 
 from pipenv.patched.notpip._vendor import pkg_resources
 from pipenv.patched.notpip._vendor.packaging import specifiers, version
+from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
 from pipenv.patched.notpip._internal.exceptions import NoneMetadataError
 from pipenv.patched.notpip._internal.utils.misc import display_path
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-
-if MYPY_CHECK_RUNNING:
-    from typing import Optional, Tuple
-    from email.message import Message
-    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
-
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +31,7 @@ def check_requires_python(requires_python, version_info):
         return True
     requires_python_specifier = specifiers.SpecifierSet(requires_python)
 
-    python_version = version.parse('{0}.{1}.{2}'.format(*sys.version_info[:3]))
+    python_version = version.parse(".".join(map(str, version_info)))
     return python_version in requires_python_specifier
 
 
@@ -48,16 +41,17 @@ def get_metadata(dist):
     :raises NoneMetadataError: if the distribution reports `has_metadata()`
         True but `get_metadata()` returns None.
     """
-    metadata_name = 'METADATA'
-    if (isinstance(dist, pkg_resources.DistInfoDistribution) and
-            dist.has_metadata(metadata_name)):
+    metadata_name = "METADATA"
+    if isinstance(dist, pkg_resources.DistInfoDistribution) and dist.has_metadata(
+        metadata_name
+    ):
         metadata = dist.get_metadata(metadata_name)
-    elif dist.has_metadata('PKG-INFO'):
-        metadata_name = 'PKG-INFO'
+    elif dist.has_metadata("PKG-INFO"):
+        metadata_name = "PKG-INFO"
         metadata = dist.get_metadata(metadata_name)
     else:
         logger.warning("No metadata found in %s", display_path(dist.location))
-        metadata = ''
+        metadata = ""
 
     if metadata is None:
         raise NoneMetadataError(dist, metadata_name)
@@ -76,7 +70,7 @@ def get_requires_python(dist):
     if not present.
     """
     pkg_info_dict = get_metadata(dist)
-    requires_python = pkg_info_dict.get('Requires-Python')
+    requires_python = pkg_info_dict.get("Requires-Python")
 
     if requires_python is not None:
         # Convert to a str to satisfy the type checker, since requires_python
@@ -88,8 +82,8 @@ def get_requires_python(dist):
 
 def get_installer(dist):
     # type: (Distribution) -> str
-    if dist.has_metadata('INSTALLER'):
-        for line in dist.get_metadata_lines('INSTALLER'):
+    if dist.has_metadata("INSTALLER"):
+        for line in dist.get_metadata_lines("INSTALLER"):
             if line.strip():
                 return line.strip()
-    return ''
+    return ""

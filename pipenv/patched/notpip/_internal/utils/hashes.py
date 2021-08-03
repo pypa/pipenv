@@ -1,50 +1,65 @@
-from __future__ import absolute_import
-
 import hashlib
+from typing import TYPE_CHECKING, BinaryIO, Dict, Iterator, List
 
-from pipenv.patched.notpip._vendor.six import iteritems, iterkeys, itervalues
-
-from pipenv.patched.notpip._internal.exceptions import (
-    HashMismatch,
-    HashMissing,
-    InstallationError,
-)
+from pipenv.patched.notpip._internal.exceptions import HashMismatch, HashMissing, InstallationError
 from pipenv.patched.notpip._internal.utils.misc import read_chunks
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
-if MYPY_CHECK_RUNNING:
-    from typing import (
-        Dict, List, BinaryIO, NoReturn, Iterator
-    )
-    from pipenv.patched.notpip._vendor.six import PY3
-    if PY3:
-        from hashlib import _Hash
-    else:
-        from hashlib import _hash as _Hash
+if TYPE_CHECKING:
+    from hashlib import _Hash
+
+    # NoReturn introduced in 3.6.2; imported only for type checking to maintain
+    # pip compatibility with older patch versions of Python 3.6
+    from typing import NoReturn
 
 
 # The recommended hash algo of the moment. Change this whenever the state of
 # the art changes; it won't hurt backward compatibility.
-FAVORITE_HASH = 'sha256'
+FAVORITE_HASH = "sha256"
 
 
 # Names of hashlib algorithms allowed by the --hash option and ``pip hash``
 # Currently, those are the ones at least as collision-resistant as sha256.
-STRONG_HASHES = ['sha256', 'sha384', 'sha512']
+STRONG_HASHES = ["sha256", "sha384", "sha512"]
 
 
-class Hashes(object):
+class Hashes:
     """A wrapper that builds multiple hashes at once and checks them against
     known-good values
 
     """
+
     def __init__(self, hashes=None):
         # type: (Dict[str, List[str]]) -> None
         """
         :param hashes: A dict of algorithm names pointing to lists of allowed
             hex digests
         """
-        self._allowed = {} if hashes is None else hashes
+        allowed = {}
+        if hashes is not None:
+            for alg, keys in hashes.items():
+                # Make sure values are always sorted (to ease equality checks)
+                allowed[alg] = sorted(keys)
+        self._allowed = allowed
+
+    def __and__(self, other):
+        # type: (Hashes) -> Hashes
+        if not isinstance(other, Hashes):
+            return NotImplemented
+
+        # If either of the Hashes object is entirely empty (i.e. no hash
+        # specified at all), all hashes from the other object are allowed.
+        if not other:
+            return self
+        if not self:
+            return other
+
+        # Otherwise only hashes that present in both objects are allowed.
+        new = {}
+        for alg, values in other._allowed.items():
+            if alg not in self._allowed:
+                continue
+            new[alg] = [v for v in values if v in self._allowed[alg]]
+        return Hashes(new)
 
     @property
     def digest_count(self):
@@ -53,7 +68,7 @@ class Hashes(object):
 
     def is_hash_allowed(
         self,
-        hash_name,   # type: str
+        hash_name,  # type: str
         hex_digest,  # type: str
     ):
         # type: (...) -> bool
@@ -69,17 +84,17 @@ class Hashes(object):
 
         """
         gots = {}
-        for hash_name in iterkeys(self._allowed):
+        for hash_name in self._allowed.keys():
             try:
                 gots[hash_name] = hashlib.new(hash_name)
             except (ValueError, TypeError):
-                raise InstallationError('Unknown hash name: %s' % hash_name)
+                raise InstallationError(f"Unknown hash name: {hash_name}")
 
         for chunk in chunks:
-            for hash in itervalues(gots):
+            for hash in gots.values():
                 hash.update(chunk)
 
-        for hash_name, got in iteritems(gots):
+        for hash_name, got in gots.items():
             if got.hexdigest() in self._allowed[hash_name]:
                 return
         self._raise(gots)
@@ -99,7 +114,7 @@ class Hashes(object):
 
     def check_against_path(self, path):
         # type: (str) -> None
-        with open(path, 'rb') as file:
+        with open(path, "rb") as file:
             return self.check_against_file(file)
 
     def __nonzero__(self):
@@ -111,6 +126,24 @@ class Hashes(object):
         # type: () -> bool
         return self.__nonzero__()
 
+    def __eq__(self, other):
+        # type: (object) -> bool
+        if not isinstance(other, Hashes):
+            return NotImplemented
+        return self._allowed == other._allowed
+
+    def __hash__(self):
+        # type: () -> int
+        return hash(
+            ",".join(
+                sorted(
+                    ":".join((alg, digest))
+                    for alg, digest_list in self._allowed.items()
+                    for digest in digest_list
+                )
+            )
+        )
+
 
 class MissingHashes(Hashes):
     """A workalike for Hashes used when we're missing a hash for a requirement
@@ -119,12 +152,13 @@ class MissingHashes(Hashes):
     exception showing it to the user.
 
     """
+
     def __init__(self):
         # type: () -> None
         """Don't offer the ``hashes`` kwarg."""
         # Pass our favorite hash in to generate a "gotten hash". With the
         # empty list, it will never match, so an error will always raise.
-        super(MissingHashes, self).__init__(hashes={FAVORITE_HASH: []})
+        super().__init__(hashes={FAVORITE_HASH: []})
 
     def _raise(self, gots):
         # type: (Dict[str, _Hash]) -> NoReturn

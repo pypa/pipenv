@@ -49,7 +49,7 @@ _OS_RELEASE_BASENAME = 'os-release'
 #:
 #: * Value: Normalized value.
 NORMALIZED_OS_ID = {
-    'ol': 'oracle',  # Oracle Enterprise Linux
+    'ol': 'oracle',  # Oracle Linux
 }
 
 #: Translation table for normalizing the "Distributor ID" attribute returned by
@@ -60,9 +60,11 @@ NORMALIZED_OS_ID = {
 #:
 #: * Value: Normalized value.
 NORMALIZED_LSB_ID = {
-    'enterpriseenterprise': 'oracle',  # Oracle Enterprise Linux
+    'enterpriseenterpriseas': 'oracle',  # Oracle Enterprise Linux 4
+    'enterpriseenterpriseserver': 'oracle',  # Oracle Linux 5
     'redhatenterpriseworkstation': 'rhel',  # RHEL 6, 7 Workstation
     'redhatenterpriseserver': 'rhel',  # RHEL 6, 7 Server
+    'redhatenterprisecomputenode': 'rhel',  # RHEL 6 ComputeNode
 }
 
 #: Translation table for normalizing the distro ID derived from the file name
@@ -90,7 +92,8 @@ _DISTRO_RELEASE_IGNORE_BASENAMES = (
     'lsb-release',
     'oem-release',
     _OS_RELEASE_BASENAME,
-    'system-release'
+    'system-release',
+    'plesk-release',
 )
 
 
@@ -163,6 +166,7 @@ def id():
     "openbsd"       OpenBSD
     "netbsd"        NetBSD
     "freebsd"       FreeBSD
+    "midnightbsd"   MidnightBSD
     ==============  =========================================
 
     If you have a need to get distros for reliable IDs added into this set,
@@ -609,7 +613,7 @@ class LinuxDistribution(object):
           distro release file can be found, the data source for the distro
           release file will be empty.
 
-        * ``include_name`` (bool): Controls whether uname command output is
+        * ``include_uname`` (bool): Controls whether uname command output is
           included as a data source. If the uname command is not available in
           the program execution path the data source for the uname command will
           be empty.
@@ -757,7 +761,7 @@ class LinuxDistribution(object):
                     version = v
                     break
         if pretty and version and self.codename():
-            version = u'{0} ({1})'.format(version, self.codename())
+            version = '{0} ({1})'.format(version, self.codename())
         return version
 
     def version_parts(self, best=False):
@@ -967,8 +971,6 @@ class LinuxDistribution(object):
             # * commands or their arguments (not allowed in os-release)
             if '=' in token:
                 k, v = token.split('=', 1)
-                if isinstance(v, bytes):
-                    v = v.decode('utf-8')
                 props[k.lower()] = v
             else:
                 # Ignore any tokens that are not variable assignments
@@ -1012,7 +1014,7 @@ class LinuxDistribution(object):
                 stdout = subprocess.check_output(cmd, stderr=devnull)
             except OSError:  # Command not found
                 return {}
-        content = stdout.decode(sys.getfilesystemencoding()).splitlines()
+        content = self._to_str(stdout).splitlines()
         return self._parse_lsb_release_content(content)
 
     @staticmethod
@@ -1047,7 +1049,7 @@ class LinuxDistribution(object):
                 stdout = subprocess.check_output(cmd, stderr=devnull)
             except OSError:
                 return {}
-        content = stdout.decode(sys.getfilesystemencoding()).splitlines()
+        content = self._to_str(stdout).splitlines()
         return self._parse_uname_content(content)
 
     @staticmethod
@@ -1066,6 +1068,20 @@ class LinuxDistribution(object):
             props['name'] = name
             props['release'] = version
         return props
+
+    @staticmethod
+    def _to_str(text):
+        encoding = sys.getfilesystemencoding()
+        encoding = 'utf-8' if encoding == 'ascii' else encoding
+
+        if sys.version_info[0] >= 3:
+            if isinstance(text, bytes):
+                return text.decode(encoding)
+        else:
+            if isinstance(text, unicode):  # noqa
+                return text.encode(encoding)
+
+        return text
 
     @cached_property
     def _distro_release_info(self):
@@ -1169,8 +1185,6 @@ class LinuxDistribution(object):
         Returns:
             A dictionary containing all information items.
         """
-        if isinstance(line, bytes):
-            line = line.decode('utf-8')
         matches = _DISTRO_RELEASE_CONTENT_REVERSED_PATTERN.match(
             line.strip()[::-1])
         distro_info = {}
