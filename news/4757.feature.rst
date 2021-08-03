@@ -1,0 +1,1 @@
+Avoid sharing states but create project objects on demand. So that most integration test cases are able to switch to a in-process execution method.
