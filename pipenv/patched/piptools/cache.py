@@ -4,8 +4,8 @@ import platform
 import sys
 from typing import Dict, Iterable, List, Optional, Set, Tuple, cast
 
-from pipenv.patched.notpip._internal.req import InstallRequirement
-from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
+from pip._internal.req import InstallRequirement
+from pip._vendor.packaging.requirements import Requirement
 
 from .exceptions import PipToolsError
 from .utils import as_tuple, key_from_req, lookup_table_from_tuples

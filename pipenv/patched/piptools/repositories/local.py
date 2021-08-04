@@ -2,11 +2,11 @@ import optparse
 from contextlib import contextmanager
 from typing import Iterator, Mapping, Optional, Set, cast
 
-from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
-from pipenv.patched.notpip._internal.models.candidate import InstallationCandidate
-from pipenv.patched.notpip._internal.req import InstallRequirement
-from pipenv.patched.notpip._internal.utils.hashes import FAVORITE_HASH
-from pipenv.patched.notpip._vendor.requests import Session
+from pip._internal.index.package_finder import PackageFinder
+from pip._internal.models.candidate import InstallationCandidate
+from pip._internal.req import InstallRequirement
+from pip._internal.utils.hashes import FAVORITE_HASH
+from pip._vendor.requests import Session
 
 from piptools.utils import as_tuple, key_from_ireq, make_install_requirement
 

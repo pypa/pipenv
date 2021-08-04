@@ -7,10 +7,10 @@ from typing import IO, Any, BinaryIO, List, Optional, Tuple, Union, cast
 import click
 from click.utils import LazyFile, safecall
 from pep517 import meta
-from pipenv.patched.notpip._internal.commands import create_command
-from pipenv.patched.notpip._internal.req import InstallRequirement
-from pipenv.patched.notpip._internal.req.constructors import install_req_from_line
-from pipenv.patched.notpip._internal.utils.misc import redact_auth_from_url
+from pip._internal.commands import create_command
+from pip._internal.req import InstallRequirement
+from pip._internal.req.constructors import install_req_from_line
+from pip._internal.utils.misc import redact_auth_from_url
 
 from .._compat import IS_CLICK_VER_8_PLUS, parse_requirements
 from ..cache import DependencyCache
@@ -39,7 +39,7 @@ version_option_kwargs = {"package_name": "pip-tools"} if IS_CLICK_VER_8_PLUS els
 
 def _get_default_option(option_name: str) -> Any:
     """
-    Get default value of the pip's option (including option from pipenv.patched.notpip.conf)
+    Get default value of the pip's option (including option from pip.conf)
     by a given option name.
     """
     install_command = create_command("install")

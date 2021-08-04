@@ -16,10 +16,10 @@ from typing import (
 )
 
 import click
-from pipenv.patched.notpip._internal.commands.freeze import DEV_PKGS
-from pipenv.patched.notpip._internal.req import InstallRequirement
-from pipenv.patched.notpip._internal.utils.compat import stdlib_pkgs
-from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
+from pip._internal.commands.freeze import DEV_PKGS
+from pip._internal.req import InstallRequirement
+from pip._internal.utils.compat import stdlib_pkgs
+from pip._vendor.packaging.requirements import Requirement
 
 from .exceptions import IncompatibleRequirements
 from .logging import log

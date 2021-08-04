@@ -1,9 +1,9 @@
 from typing import Iterable
 
-from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
-from pipenv.patched.notpip._internal.models.candidate import InstallationCandidate
-from pipenv.patched.notpip._internal.req import InstallRequirement
-from pipenv.patched.notpip._internal.utils.misc import redact_auth_from_url
+from pip._internal.index.package_finder import PackageFinder
+from pip._internal.models.candidate import InstallationCandidate
+from pip._internal.req import InstallRequirement
+from pip._internal.utils.misc import redact_auth_from_url
 
 
 class PipToolsError(Exception):
