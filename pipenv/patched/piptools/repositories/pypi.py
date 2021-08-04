@@ -18,26 +18,26 @@ from typing import (
 )
 
 from click import progressbar
-from pip._internal.cache import WheelCache
-from pip._internal.cli.progress_bars import BAR_TYPES
-from pip._internal.commands import create_command
-from pip._internal.commands.install import InstallCommand
-from pip._internal.index.package_finder import PackageFinder
-from pip._internal.models.candidate import InstallationCandidate
-from pip._internal.models.index import PackageIndex
-from pip._internal.models.link import Link
-from pip._internal.models.wheel import Wheel
-from pip._internal.network.session import PipSession
-from pip._internal.req import InstallRequirement, RequirementSet
-from pip._internal.req.req_tracker import get_requirement_tracker
-from pip._internal.utils.hashes import FAVORITE_HASH
-from pip._internal.utils.logging import indent_log, setup_logging
-from pip._internal.utils.misc import normalize_path
-from pip._internal.utils.temp_dir import TempDirectory, global_tempdir_manager
-from pip._internal.utils.urls import path_to_url, url_to_path
-from pip._vendor.packaging.tags import Tag
-from pip._vendor.packaging.version import _BaseVersion
-from pip._vendor.requests import RequestException, Session
+from pipenv.patched.notpip._internal.cache import WheelCache
+from pipenv.patched.notpip._internal.cli.progress_bars import BAR_TYPES
+from pipenv.patched.notpip._internal.commands import create_command
+from pipenv.patched.notpip._internal.commands.install import InstallCommand
+from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+from pipenv.patched.notpip._internal.models.candidate import InstallationCandidate
+from pipenv.patched.notpip._internal.models.index import PackageIndex
+from pipenv.patched.notpip._internal.models.link import Link
+from pipenv.patched.notpip._internal.models.wheel import Wheel
+from pipenv.patched.notpip._internal.network.session import PipSession
+from pipenv.patched.notpip._internal.req import InstallRequirement, RequirementSet
+from pipenv.patched.notpip._internal.req.req_tracker import get_requirement_tracker
+from pipenv.patched.notpip._internal.utils.hashes import FAVORITE_HASH
+from pipenv.patched.notpip._internal.utils.logging import indent_log, setup_logging
+from pipenv.patched.notpip._internal.utils.misc import normalize_path
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory, global_tempdir_manager
+from pipenv.patched.notpip._internal.utils.urls import path_to_url, url_to_path
+from pipenv.patched.notpip._vendor.packaging.tags import Tag
+from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion
+from pipenv.patched.notpip._vendor.requests import RequestException, Session
 
 from .._compat import contextlib
 from ..exceptions import NoCandidateFound

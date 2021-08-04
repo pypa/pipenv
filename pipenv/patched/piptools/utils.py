@@ -18,14 +18,14 @@ from typing import (
 
 import click
 from click.utils import LazyFile
-from pip._internal.req import InstallRequirement
-from pip._internal.req.constructors import install_req_from_line
-from pip._internal.utils.misc import redact_auth_from_url
-from pip._internal.vcs import is_url
-from pip._vendor.packaging.markers import Marker
-from pip._vendor.packaging.specifiers import SpecifierSet
-from pip._vendor.packaging.version import Version
-from pip._vendor.pkg_resources import get_distribution
+from pipenv.patched.notpip._internal.req import InstallRequirement
+from pipenv.patched.notpip._internal.req.constructors import install_req_from_line
+from pipenv.patched.notpip._internal.utils.misc import redact_auth_from_url
+from pipenv.patched.notpip._internal.vcs import is_url
+from pipenv.patched.notpip._vendor.packaging.markers import Marker
+from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.notpip._vendor.packaging.version import Version
+from pipenv.patched.notpip._vendor.pkg_resources import get_distribution
 
 from piptools.subprocess_utils import run_python_snippet
 

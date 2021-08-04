@@ -4,8 +4,16 @@ import codecs
 import json
 import hashlib
 import platform
+import six
 import sys
 import os
+
+
+DEFAULT_SOURCE = {
+    u'url': u'https://pypi.org/simple',
+    u'verify_ssl': True,
+    u'name': u'pypi',
+}
 
 
 def format_full_version(info):
@@ -26,7 +34,7 @@ def walk_up(bottom):
     # get files in current dir
     try:
         names = os.listdir(bottom)
-    except Exception as e:
+    except Exception:
         return
 
     dirs, nondirs = [], []
@@ -62,14 +70,33 @@ class PipfileParser(object):
     def __repr__(self):
         return '<PipfileParser path={0!r}'.format(self.filename)
 
-    def parse(self):
+    def inject_environment_variables(self, d):
+        """
+        Recursively injects environment variables into TOML values
+        """
+
+        if not d:
+            return d
+        if isinstance(d, six.string_types):
+            return os.path.expandvars(d)
+        for k, v in d.items():
+            if isinstance(v, six.string_types):
+                d[k] = os.path.expandvars(v)
+            elif isinstance(v, dict):
+                d[k] = self.inject_environment_variables(v)
+            elif isinstance(v, list):
+                d[k] = [self.inject_environment_variables(e) for e in v]
+
+        return d
+
+    def parse(self, inject_env=True):
         # Open the Pipfile.
         with open(self.filename) as f:
             content = f.read()
 
         # Load the default configuration.
         default_config = {
-            u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}],
+            u'source': [DEFAULT_SOURCE],
             u'packages': {},
             u'requires': {},
             u'dev-packages': {}
@@ -78,8 +105,16 @@ class PipfileParser(object):
         config = {}
         config.update(default_config)
 
-        # Load the Pipfile's configuration.
-        config.update(toml.loads(content))
+        # Deserialize the TOML, and parse for Environment Variables
+        parsed = toml.loads(content)
+
+        if inject_env:
+            injected_toml = self.inject_environment_variables(parsed)
+
+            # Load the Pipfile's configuration.
+            config.update(injected_toml)
+        else:
+            config.update(parsed)
 
         # Structure the data for output.
         data = {
@@ -119,11 +154,11 @@ class Pipfile(object):
         raise RuntimeError('No Pipfile found!')
 
     @classmethod
-    def load(klass, filename):
+    def load(klass, filename, inject_env=True):
         """Load a Pipfile from a given filename."""
         p = PipfileParser(filename=filename)
         pipfile = klass(filename=filename)
-        pipfile.data = p.parse()
+        pipfile.data = p.parse(inject_env=inject_env)
         return pipfile
 
     @property
@@ -142,7 +177,7 @@ class Pipfile(object):
         """Returns a JSON representation of the Pipfile."""
         data = self.data
         data['_meta']['hash'] = {"sha256": self.hash}
-        # return _json.dumps(data)
+        data['_meta']['pipfile-spec'] = 6
         return json.dumps(data, indent=4, separators=(',', ': '))
 
     def assert_requirements(self):
@@ -184,7 +219,7 @@ class Pipfile(object):
                     raise AssertionError('Specifier {!r} does not match {!r}.'.format(marker, specifier))
 
 
-def load(pipfile_path=None):
+def load(pipfile_path=None, inject_env=True):
     """Loads a pipfile from a given path.
     If none is provided, one will try to be found.
     """
@@ -192,4 +227,4 @@ def load(pipfile_path=None):
     if pipfile_path is None:
         pipfile_path = Pipfile.find()
 
-    return Pipfile.load(filename=pipfile_path)
+    return Pipfile.load(filename=pipfile_path, inject_env=inject_env)

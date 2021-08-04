@@ -3,10 +3,10 @@ from abc import ABCMeta, abstractmethod
 from contextlib import contextmanager
 from typing import Iterator, Optional, Set
 
-from pip._internal.index.package_finder import PackageFinder
-from pip._internal.models.index import PyPI
-from pip._internal.network.session import PipSession
-from pip._internal.req import InstallRequirement
+from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+from pipenv.patched.notpip._internal.models.index import PyPI
+from pipenv.patched.notpip._internal.network.session import PipSession
+from pipenv.patched.notpip._internal.req import InstallRequirement
 
 
 class BaseRepository(metaclass=ABCMeta):

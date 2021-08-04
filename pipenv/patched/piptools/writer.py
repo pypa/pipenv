@@ -6,9 +6,9 @@ from typing import BinaryIO, Dict, Iterable, Iterator, List, Optional, Set, Tupl
 
 from click import unstyle
 from click.core import Context
-from pip._internal.models.format_control import FormatControl
-from pip._internal.req.req_install import InstallRequirement
-from pip._vendor.packaging.markers import Marker
+from pipenv.patched.notpip._internal.models.format_control import FormatControl
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._vendor.packaging.markers import Marker
 
 from .logging import log
 from .utils import (

@@ -4,9 +4,9 @@ from itertools import chain, count, groupby
 from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 import click
-from pip._internal.req import InstallRequirement
-from pip._internal.req.constructors import install_req_from_line
-from pip._internal.req.req_tracker import update_env_context_manager
+from pipenv.patched.notpip._internal.req import InstallRequirement
+from pipenv.patched.notpip._internal.req.constructors import install_req_from_line
+from pipenv.patched.notpip._internal.req.req_tracker import update_env_context_manager
 
 from piptools.cache import DependencyCache
 from piptools.repositories.base import BaseRepository
