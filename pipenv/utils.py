@@ -5,6 +5,7 @@ import os
 import posixpath
 import re
 import shlex
+import hashlib
 import shutil
 import signal
 import stat
@@ -32,9 +33,11 @@ from pipenv.pep508checker import lookup
 from pipenv.vendor.packaging.markers import Marker
 from pipenv.vendor.urllib3 import util as urllib3_util
 from pipenv.vendor.vistir.compat import (
-    Mapping, ResourceWarning, Sequence, Set, lru_cache
+    Mapping, ResourceWarning, Sequence, Set, TemporaryDirectory, lru_cache
 )
 from pipenv.vendor.vistir.misc import fs_str, run
+from pipenv.vendor.vistir.contextmanagers import open_file
+from pipenv.vendor.pip_shims import shims
 
 
 if environments.MYPY_RUNNING:
@@ -369,15 +372,42 @@ def get_pipenv_sitedir():
     return None
 
 
+class HashCache(shims.SafeFileCache):
+
+    """Caches hashes of PyPI artifacts so we do not need to re-download them.
+
+    Hashes are only cached when the URL appears to contain a hash in it and the
+    cache key includes the hash value returned from the server). This ought to
+    avoid issues where the location on the server changes.
+    """
+    def __init__(self, directory, session):
+        self.session = session
+        if not os.path.isdir(directory):
+            os.makedirs(directory, exist_ok=True)
+        super(HashCache, self).__init__(directory=directory)
+
+    def get_hash(self, link):
+        # If there is no link hash (i.e., md5, sha256, etc.), we don't want
+        # to store it.
+        hash_value = self.get(link.url)
+        if not hash_value:
+            hash_value = self._get_file_hash(link).encode()
+            self.set(link.url, hash_value)
+        return hash_value.decode("utf8")
+
+    def _get_file_hash(self, link):
+        h = hashlib.new(shims.FAVORITE_HASH)
+        with open_file(link.url, self.session) as fp:
+            for chunk in iter(lambda: fp.read(8096), b""):
+                h.update(chunk)
+        return ":".join([h.name, h.hexdigest()])
+
+
 class Resolver:
     def __init__(
         self, constraints, req_dir, project, sources, index_lookup=None,
         markers_lookup=None, skipped=None, clear=False, pre=False
     ):
-        from pipenv.patched.piptools import logging as piptools_logging
-        if project.s.is_verbose():
-            logging.log.verbose = True
-            piptools_logging.log.verbosity = project.s.PIPENV_VERBOSITY
         self.initial_constraints = constraints
         self.req_dir = req_dir
         self.project = project
@@ -396,12 +426,13 @@ class Resolver:
         self._constraints = None
         self._parsed_constraints = None
         self._resolver = None
-        self._repository = None
+        self._finder = None
         self._session = None
         self._constraint_file = None
         self._pip_options = None
         self._pip_command = None
         self._retry_attempts = 0
+        self._hash_cache = HashCache(os.path.join(project.s.PIPENV_CACHE_DIR, "hashes"), self.session)
 
     def __repr__(self):
         return (
@@ -412,8 +443,7 @@ class Resolver:
     @staticmethod
     @lru_cache()
     def _get_pip_command():
-        from .vendor.pip_shims.shims import InstallCommand
-        return InstallCommand()
+        return shims.InstallCommand()
 
     @classmethod
     def get_metadata(
@@ -522,7 +552,6 @@ class Resolver:
     @classmethod
     def get_deps_from_req(cls, req, resolver=None, resolve_vcs=True):
         # type: (Requirement, Optional["Resolver"], bool) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]
-        from .patched.piptools.exceptions import NoCandidateFound
         from .vendor.requirementslib.models.requirements import Requirement
         from .vendor.requirementslib.models.utils import (
             _requirement_to_str_lowercase_name
@@ -604,11 +633,8 @@ class Resolver:
             if req and req.requirement and (
                 req.requirement.marker and not req.requirement.marker.evaluate()
             ):
-                pypi = resolver.repository if resolver else None
-                try:
-                    best_match = pypi.find_best_match(req.ireq) if pypi else None
-                except NoCandidateFound:
-                    best_match = None
+                pypi = resolver.finder if resolver else None
+                best_match = pypi.find_best_candidate(req.ireq).best_candidate if pypi else None
                 if best_match:
                     hashes = resolver.collect_hashes(best_match) if resolver else []
                     new_req = Requirement.from_ireq(best_match)
@@ -750,6 +776,7 @@ class Resolver:
             pip_options.no_input = True
             pip_options.progress_bar = "off"
             pip_options.ignore_requires_python = True
+            pip_options.pre = self.pre or self.project.settings.get("allow_prereleases", False)
             self._pip_options = pip_options
         return self._pip_options
 
@@ -760,21 +787,21 @@ class Resolver:
         return self._session
 
     @property
-    def repository(self):
-        if self._repository is None:
-            from pipenv.patched.piptools.repositories.pypi import PyPIRepository
-            self._repository = PyPIRepository(
-                self.pip_args, use_json=False, session=self.session,
-                build_isolation=self.pip_options.build_isolation
+    def finder(self):
+
+        if self._finder is None:
+            self._finder = shims.get_package_finder(
+                install_cmd=self.pip_command,
+                options=self.pip_options,
+                session=self.session
             )
-        return self._repository
+        return self._finder
 
     @property
     def constraints(self):
         if self._constraints is None:
-            from pip_shims.shims import parse_requirements
-            self._constraints = parse_requirements(
-                self.constraint_file, finder=self.repository.finder, session=self.session,
+            self._constraints = shims.parse_requirements(
+                self.constraint_file, finder=self.finder, session=self.session,
                 options=self.pip_options
             )
         return self._constraints
@@ -785,61 +812,55 @@ class Resolver:
             self._parsed_constraints = [c for c in self.constraints]
         return self._parsed_constraints
 
-    def get_resolver(self, clear=False, pre=False):
-        from pipenv.patched.piptools.cache import DependencyCache
-        from pipenv.patched.piptools.resolver import \
-            Resolver as PiptoolsResolver
-        self._resolver = PiptoolsResolver(
-            constraints=self.parsed_constraints, repository=self.repository,
-            cache=DependencyCache(self.project.s.PIPENV_CACHE_DIR), clear_caches=clear,
-            # TODO: allow users to toggle the 'allow unsafe' flag to resolve setuptools?
-            prereleases=pre, allow_unsafe=False
-        )
+    @contextlib.contextmanager
+    def get_resolver(self, clear=False):
+        from pipenv.vendor.pip_shims.shims import WheelCache, get_requirement_tracker
 
-    @property
-    def resolver(self):
-        if self._resolver is None:
-            self.get_resolver(clear=self.clear, pre=self.pre)
-        return self._resolver
+        pip_options = self.pip_options
+
+        with (
+            get_requirement_tracker() as req_tracker,
+            TemporaryDirectory(suffix="-build", prefix="pipenv-") as directory
+        ):
+            finder = self.finder
+            wheel_cache = WheelCache(pip_options.cache_dir, pip_options.format_control)
+
+            preparer = self.pip_command.make_requirement_preparer(
+                temp_build_dir=directory,
+                options=pip_options,
+                req_tracker=req_tracker,
+                session=self.session,
+                finder=finder,
+                use_user_site=False,
+            )
+            resolver = self.pip_command.make_resolver(
+                preparer=preparer,
+                finder=finder,
+                options=pip_options,
+                wheel_cache=wheel_cache,
+                use_user_site=False,
+                ignore_installed=pip_options.ignore_installed,
+                ignore_requires_python=pip_options.ignore_requires_python,
+                force_reinstall=pip_options.force_reinstall,
+                upgrade_strategy="to-satisfy-only",
+                use_pep517=pip_options.use_pep517,
+            )
+            yield resolver
 
     def resolve(self):
-        from pipenv.patched.piptools.cache import CorruptCacheError
-        from pipenv.patched.piptools.exceptions import NoCandidateFound
-        from pipenv.vendor.pip_shims.shims import DistributionNotFound
-        from pipenv.vendor.requests.exceptions import HTTPError
+        from pipenv.vendor.pip_shims.shims import InstallationError
+        from pipenv.exceptions import ResolutionFailure
 
-        from .exceptions import CacheError, ResolutionFailure
-        with temp_environ():
+        with temp_environ(), self.get_resolver() as resolver:
             os.environ["PIP_NO_USE_PEP517"] = ""
             try:
-                results = self.resolver.resolve(max_rounds=self.project.s.PIPENV_MAX_ROUNDS)
-            except CorruptCacheError as e:
-                if environments.PIPENV_IS_CI or self.clear:
-                    if self._retry_attempts < 3:
-                        self.get_resolver(clear=True, pre=self.pre)
-                        self._retry_attempts += 1
-                        self.resolve()
-                else:
-                    raise CacheError(e.path)
-            except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
+                results = resolver.resolve(self.parsed_constraints, check_supported_wheels=False)
+            except InstallationError as e:
                 raise ResolutionFailure(message=str(e))
             else:
-                self.results = results
-                self.resolved_tree.update(results)
+                self.results = set(results.values())
+                self.resolved_tree.update(self.results)
         return self.resolved_tree
-
-    @lru_cache(maxsize=1024)
-    def fetch_candidate(self, ireq):
-        candidates = self.repository.find_all_candidates(ireq.name)
-        matched_version = next(iter(sorted(
-            ireq.specifier.filter((c.version for c in candidates), True), reverse=True)
-        ), None)
-        if matched_version:
-            matched_candidate = next(iter(
-                c for c in candidates if c.version == matched_version
-            ))
-            return matched_candidate
-        return None
 
     def resolve_constraints(self):
         from .vendor.requirementslib.models.markers import marker_from_specifier
@@ -849,135 +870,97 @@ class Resolver:
                 self.markers[result.name] = result.markers
             else:
                 candidate = self.fetch_candidate(result)
-                requires_python = getattr(candidate, "requires_python", None)
-                if requires_python:
-                    marker = marker_from_specifier(candidate.requires_python)
-                    self.markers[result.name] = marker
-                    result.markers = marker
-                    if result.req:
-                        result.req.marker = marker
+                if candidate:
+                    requires_python = candidate.link.requires_python
+                    if requires_python:
+                        marker = marker_from_specifier(requires_python)
+                        self.markers[result.name] = marker
+                        result.markers = marker
+                        if result.req:
+                            result.req.marker = marker
             new_tree.add(result)
         self.resolved_tree = new_tree
 
     @classmethod
-    def prepend_hash_types(cls, checksums):
-        cleaned_checksums = []
+    def prepend_hash_types(cls, checksums, hash_type):
+        cleaned_checksums = set()
         for checksum in checksums:
             if not checksum:
                 continue
-            if not checksum.startswith("sha256:"):
-                checksum = f"sha256:{checksum}"
-            cleaned_checksums.append(checksum)
+            if not checksum.startswith(f"{hash_type}:"):
+                checksum = f"{hash_type}:{checksum}"
+            cleaned_checksums.add(checksum)
         return cleaned_checksums
 
+    def _get_hashes_from_pypi(self, ireq):
+
+        pkg_url = f"https://pypi.org/pypi/{ireq.name}/json"
+        session = _get_requests_session(self.project.s.PIPENV_MAX_RETRIES)
+        try:
+            collected_hashes = set()
+            # Grab the hashes from the new warehouse API.
+            r = session.get(pkg_url, timeout=10)
+            api_releases = r.json()["releases"]
+            cleaned_releases = {}
+            for api_version, api_info in api_releases.items():
+                api_version = clean_pkg_version(api_version)
+                cleaned_releases[api_version] = api_info
+            version = ""
+            if ireq.specifier:
+                spec = next(iter(s for s in ireq.specifier), None)
+                if spec:
+                    version = spec.version
+            for release in cleaned_releases[version]:
+                collected_hashes.add(release["digests"][shims.FAVORITE_HASH])
+            return self.prepend_hash_types(collected_hashes, shims.FAVORITE_HASH)
+        except (ValueError, KeyError, ConnectionError):
+            if self.project.s.is_verbose():
+                click_echo(
+                    "{}: Error generating hash for {}".format(
+                        crayons.red("Warning", bold=True), ireq.name
+                    ), err=True
+                )
+            return None
+
     def collect_hashes(self, ireq):
-        from .vendor.requests import ConnectionError
-        collected_hashes = []
-        if ireq in self.hashes:
-            collected_hashes += list(self.hashes.get(ireq, []))
-        if self._should_include_hash(ireq):
-            try:
-                hash_map = self.get_hash(ireq)
-                collected_hashes += list(hash_map)
-            except (ValueError, KeyError, IndexError, ConnectionError):
-                pass
-        elif any(
+        if ireq.link:
+            link = ireq.link
+            if link.is_vcs or (link.is_file and link.is_existing_dir()):
+                return set()
+            if ireq.original_link:
+                return {self._get_hash_from_link(ireq.original_link)}
+
+        if not is_pinned_requirement(ireq):
+            return set()
+
+        if any(
             "python.org" in source["url"] or "pypi.org" in source["url"]
             for source in self.sources
         ):
-            pkg_url = f"https://pypi.org/pypi/{ireq.name}/json"
-            session = _get_requests_session(self.project.s.PIPENV_MAX_RETRIES)
-            try:
-                # Grab the hashes from the new warehouse API.
-                r = session.get(pkg_url, timeout=10)
-                api_releases = r.json()["releases"]
-                cleaned_releases = {}
-                for api_version, api_info in api_releases.items():
-                    api_version = clean_pkg_version(api_version)
-                    cleaned_releases[api_version] = api_info
-                version = ""
-                if ireq.specifier:
-                    spec = next(iter(s for s in list(ireq.specifier._specs)), None)
-                    if spec:
-                        version = spec.version
-                for release in cleaned_releases[version]:
-                    collected_hashes.append(release["digests"]["sha256"])
-                collected_hashes = self.prepend_hash_types(collected_hashes)
-            except (ValueError, KeyError, ConnectionError):
-                if self.project.s.is_verbose():
-                    click_echo(
-                        "{}: Error generating hash for {}".format(
-                            crayons.red("Warning", bold=True), ireq.name
-                        ), err=True
-                    )
-        return collected_hashes
+            hashes = self._get_hashes_from_pypi(ireq)
+            if hashes:
+                return hashes
 
-    @staticmethod
-    def _should_include_hash(ireq):
-        from pipenv.vendor.vistir.compat import Path, to_native_string
-        from pipenv.vendor.vistir.path import url_to_path
-
-        # We can only hash artifacts.
-        try:
-            if not ireq.link.is_artifact:
-                return False
-        except AttributeError:
-            return False
-
-        # But we don't want normal pypi artifcats since the normal resolver
-        # handles those
-        if is_pypi_url(ireq.link.url):
-            return False
-
-        # We also don't want to try to hash directories as this will fail
-        # as these are editable deps and are not hashable.
-        if (
-            ireq.link.scheme == "file"
-            and Path(to_native_string(url_to_path(ireq.link.url))).is_dir()
-        ):
-            return False
-        return True
-
-    def get_hash(self, ireq, ireq_hashes=None):
-        """
-        Retrieve hashes for a specific ``InstallRequirement`` instance.
-
-        :param ireq: An ``InstallRequirement`` to retrieve hashes for
-        :type ireq: :class:`~pip_shims.InstallRequirement`
-        :return: A set of hashes.
-        :rtype: Set
-        """
-
-        # We _ALWAYS MUST PRIORITIZE_ the inclusion of hashes from local sources
-        # PLEASE *DO NOT MODIFY THIS* TO CHECK WHETHER AN IREQ ALREADY HAS A HASH
-        # RESOLVED. The resolver will pull hashes from PyPI and only from PyPI.
-        # The entire purpose of this approach is to include missing hashes.
-        # This fixes a race condition in resolution for missing dependency caches
-        # see pypa/pipenv#3289
-        if not self._should_include_hash(ireq):
-            return add_to_set(set(), ireq_hashes)
-        elif self._should_include_hash(ireq) and (
-            not ireq_hashes or ireq.link.scheme == "file"
-        ):
-            if not ireq_hashes:
-                ireq_hashes = set()
-            new_hashes = self.resolver.repository._hash_cache.get_hash(ireq.link)
-            ireq_hashes = add_to_set(ireq_hashes, new_hashes)
-        else:
-            ireq_hashes = set(ireq_hashes)
-        # The _ONLY CASE_ where we flat out set the value is if it isn't present
-        # It's a set, so otherwise we *always* need to do a union update
-        if ireq not in self.hashes:
-            return ireq_hashes
-        else:
-            return self.hashes[ireq] | ireq_hashes
+        applicable_candidates = self.finder.find_best_candidate(
+            ireq.name, ireq.specifier
+        ).applicable_candidates
+        return {
+            self._get_hash_from_link(candidate.link)
+            for candidate in applicable_candidates
+        }
 
     def resolve_hashes(self):
         if self.results is not None:
-            resolved_hashes = self.resolver.resolve_hashes(self.results)
-            for ireq, ireq_hashes in resolved_hashes.items():
-                self.hashes[ireq] = self.get_hash(ireq, ireq_hashes=ireq_hashes)
-            return self.hashes
+            for ireq in self.results:
+                self.hashes[ireq] = self.collect_hashes(ireq)
+        return self.hashes
+
+    def _get_hash_from_link(self, link):
+
+        if link.hash and link.hash_name == shims.FAVORITE_HASH:
+            return f"{link.hash_name}:{link.hash}"
+
+        return self._hash_cache.get(link)
 
     def _clean_skipped_result(self, req, value):
         ref = None
@@ -991,10 +974,9 @@ class Resolver:
         ref = ref if ref is not None else entry.get("ref")
         if ref:
             entry["ref"] = ref
-        if self._should_include_hash(ireq):
-            collected_hashes = self.collect_hashes(ireq)
-            if collected_hashes:
-                entry["hashes"] = sorted(set(collected_hashes))
+        collected_hashes = self.collect_hashes(ireq)
+        if collected_hashes:
+            entry["hashes"] = sorted(set(collected_hashes))
         return req.name, entry
 
     def clean_results(self):
@@ -1008,15 +990,10 @@ class Resolver:
                 continue
             elif req.normalized_name in self.skipped.keys():
                 continue
-            collected_hashes = self.collect_hashes(ireq)
+            collected_hashes = self.hashes.get(ireq, set())
             req = req.add_hashes(collected_hashes)
-            if not collected_hashes and self._should_include_hash(ireq):
-                discovered_hashes = self.hashes.get(ireq, set()) | self.get_hash(ireq)
-                if discovered_hashes:
-                    req = req.add_hashes(discovered_hashes)
-                self.hashes[ireq] = collected_hashes = discovered_hashes
             if collected_hashes:
-                collected_hashes = sorted(set(collected_hashes))
+                collected_hashes = sorted(collected_hashes)
             name, entry = format_requirement_for_lockfile(
                 req, self.markers_lookup, self.index_lookup, collected_hashes
             )
@@ -1415,6 +1392,20 @@ def is_pinned(val):
     return isinstance(val, str) and val.startswith("==")
 
 
+def is_pinned_requirement(ireq):
+    """
+    Returns whether an InstallRequirement is a "pinned" requirement.
+    """
+    if ireq.editable:
+        return False
+
+    if ireq.req is None or len(ireq.specifier) != 1:
+        return False
+
+    spec = next(iter(ireq.specifier))
+    return spec.operator in {"==", "==="} and not spec.version.endswith(".*")
+
+
 def convert_deps_to_pip(deps, project=None, r=True, include_index=True):
     """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
     from .vendor.requirementslib.models.requirements import Requirement
@@ -1549,10 +1540,8 @@ def is_file(package):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    from .vendor.pip_shims.shims import parse_version
-
     # Use pip built-in version parser.
-    return str(parse_version(version))
+    return str(shims.parse_version(version))
 
 
 def pep423_name(name):

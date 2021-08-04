@@ -1,5 +1,4 @@
 crayons==0.1.2
 pip==21.2.2
-pip-tools==6.2.0
 pipfile==0.0.2
 safety==1.10.3

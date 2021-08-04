@@ -674,8 +674,8 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
     )
 
     def resolve(packages, pre, project, sources, clear, system, requirements_dir=None):
-        from pipenv.patched.piptools import logging as piptools_logging
-        piptools_logging.log.verbosity = 1 if verbose else 0
+        if verbose:
+            os.environ["PIP_RESOLVER_DEBUG"] = ""
         return resolve_deps(
             packages,
             which,

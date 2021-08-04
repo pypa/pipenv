@@ -377,7 +377,7 @@ def setup_verbosity(ctx, param, value):
     if not value:
         return
     import logging
-    loggers = ("pip", "piptools")
+    loggers = ("pip",)
     if value == 1:
         for logger in loggers:
             logging.getLogger(logger).setLevel(logging.INFO)
