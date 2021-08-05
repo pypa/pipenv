@@ -825,11 +825,7 @@ class Resolver:
 
         pip_options = self.pip_options
 
-        with (
-            get_requirement_tracker() as req_tracker,
-            global_tempdir_manager(),
-            TemporaryDirectory(suffix="-build", prefix="pipenv-") as directory
-        ):
+        with global_tempdir_manager(), get_requirement_tracker() as req_tracker, TemporaryDirectory(suffix="-build", prefix="pipenv-") as directory:
             finder = self.finder
             wheel_cache = WheelCache(pip_options.cache_dir, pip_options.format_control)
             directory.path = directory.name
