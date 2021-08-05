@@ -2490,7 +2490,7 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
         run_fn = do_run_nt
     else:
         run_fn = do_run_posix
-        run_kwargs = {"command": command}
+        run_kwargs.update({"command": command})
     try:
         run_fn(*run_args, **run_kwargs)
     finally:

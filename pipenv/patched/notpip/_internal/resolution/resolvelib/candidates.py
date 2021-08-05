@@ -254,7 +254,7 @@ class _InstallRequirementBackedCandidate(Candidate):
 
     def get_install_requirement(self) -> Optional[InstallRequirement]:
         ireq = self._ireq
-        if self._version and ireq.req:
+        if self._version and ireq.req and not ireq.req.url:
             ireq.req.specifier = SpecifierSet(f"=={self._version}")
         return ireq
 

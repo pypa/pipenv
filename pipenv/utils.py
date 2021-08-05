@@ -823,7 +823,10 @@ class Resolver:
 
         if self._constraints is None:
             self._constraints = [
-                install_req_from_parsed_requirement(c, isolated=False, use_pep517=False, user_supplied=True)
+                install_req_from_parsed_requirement(
+                    c, isolated=self.pip_options.build_isolation,
+                    use_pep517=self.pip_options.use_pep517, user_supplied=True
+                )
                 for c in self.parsed_constraints
             ]
         return self._constraints
@@ -835,7 +838,7 @@ class Resolver:
         )
 
         with global_tempdir_manager(), get_requirement_tracker() as req_tracker, TemporaryDirectory(suffix="-build", prefix="pipenv-") as directory:
-            os.environ["PIP_NO_USE_PIP517"] = "1"
+            os.environ["PIP_USE_PEP517"] = "false"
             pip_options = self.pip_options
             finder = self.finder
             wheel_cache = WheelCache(pip_options.cache_dir, pip_options.format_control)
