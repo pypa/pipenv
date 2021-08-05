@@ -634,11 +634,6 @@ class Resolver:
                     )
             # if not req.is_vcs:
             locked_deps.update({name: entry})
-            if req.is_vcs and req.editable:
-                constraints.add(req.constraint_line)
-            if req.is_file_or_url and req.req.is_local and req.editable and (
-                    req.req.setup_path is not None and os.path.exists(req.req.setup_path)):
-                constraints.add(req.constraint_line)
         else:
             # if the dependency isn't installable, don't add it to constraints
             # and instead add it directly to the lock
