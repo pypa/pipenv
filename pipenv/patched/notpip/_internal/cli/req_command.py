@@ -305,7 +305,7 @@ class RequirementCommand(IndexGroupCommand):
         if resolver_variant == "2020-resolver":
             import pipenv.patched.notpip._internal.resolution.resolvelib.resolver
 
-            return pip._internal.resolution.resolvelib.resolver.Resolver(
+            return pipenv.patched.notpip._internal.resolution.resolvelib.resolver.Resolver(
                 preparer=preparer,
                 finder=finder,
                 wheel_cache=wheel_cache,
@@ -320,7 +320,7 @@ class RequirementCommand(IndexGroupCommand):
             )
         import pipenv.patched.notpip._internal.resolution.legacy.resolver
 
-        return pip._internal.resolution.legacy.resolver.Resolver(
+        return pipenv.patched.notpip._internal.resolution.legacy.resolver.Resolver(
             preparer=preparer,
             finder=finder,
             wheel_cache=wheel_cache,

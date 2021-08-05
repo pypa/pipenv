@@ -798,33 +798,41 @@ class Resolver:
         return self._finder
 
     @property
-    def constraints(self):
-        if self._constraints is None:
-            self._constraints = shims.parse_requirements(
+    def parsed_constraints(self):
+        if self._parsed_constraints is None:
+            self._parsed_constraints = shims.parse_requirements(
                 self.constraint_file, finder=self.finder, session=self.session,
                 options=self.pip_options
             )
-        return self._constraints
+        return self._parsed_constraints
 
     @property
-    def parsed_constraints(self):
-        if self._parsed_constraints is None:
-            self._parsed_constraints = [c for c in self.constraints]
-        return self._parsed_constraints
+    def constraints(self):
+        from pipenv.patched.notpip._internal.req.constructors import install_req_from_parsed_requirement
+
+        if self._constraints is None:
+            self._constraints = [
+                install_req_from_parsed_requirement(c, isolated=False, use_pep517=False, user_supplied=True)
+                for c in self.parsed_constraints
+            ]
+        return self._constraints
 
     @contextlib.contextmanager
     def get_resolver(self, clear=False):
-        from pipenv.vendor.pip_shims.shims import WheelCache, get_requirement_tracker
+        from pipenv.vendor.pip_shims.shims import (
+            WheelCache, get_requirement_tracker, global_tempdir_manager
+        )
 
         pip_options = self.pip_options
 
         with (
             get_requirement_tracker() as req_tracker,
+            global_tempdir_manager(),
             TemporaryDirectory(suffix="-build", prefix="pipenv-") as directory
         ):
             finder = self.finder
             wheel_cache = WheelCache(pip_options.cache_dir, pip_options.format_control)
-
+            directory.path = directory.name
             preparer = self.pip_command.make_requirement_preparer(
                 temp_build_dir=directory,
                 options=pip_options,
@@ -839,7 +847,7 @@ class Resolver:
                 options=pip_options,
                 wheel_cache=wheel_cache,
                 use_user_site=False,
-                ignore_installed=pip_options.ignore_installed,
+                ignore_installed=True,
                 ignore_requires_python=pip_options.ignore_requires_python,
                 force_reinstall=pip_options.force_reinstall,
                 upgrade_strategy="to-satisfy-only",
@@ -852,13 +860,12 @@ class Resolver:
         from pipenv.exceptions import ResolutionFailure
 
         with temp_environ(), self.get_resolver() as resolver:
-            os.environ["PIP_NO_USE_PEP517"] = ""
             try:
-                results = resolver.resolve(self.parsed_constraints, check_supported_wheels=False)
+                results = resolver.resolve(self.constraints, check_supported_wheels=False)
             except InstallationError as e:
                 raise ResolutionFailure(message=str(e))
             else:
-                self.results = set(results.values())
+                self.results = set(results.all_requirements)
                 self.resolved_tree.update(self.results)
         return self.resolved_tree
 
@@ -869,7 +876,7 @@ class Resolver:
             if result.markers:
                 self.markers[result.name] = result.markers
             else:
-                candidate = self.fetch_candidate(result)
+                candidate = self.finder.find_best_candidate(result.name, result.specifier).best_candidate
                 if candidate:
                     requires_python = candidate.link.requires_python
                     if requires_python:

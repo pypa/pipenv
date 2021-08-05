@@ -253,7 +253,10 @@ class _InstallRequirementBackedCandidate(Candidate):
         yield self._get_requires_python_dependency()
 
     def get_install_requirement(self) -> Optional[InstallRequirement]:
-        return self._ireq
+        ireq = self._ireq
+        if self._version and ireq.req:
+            ireq.req.specifier = SpecifierSet(f"=={self._version}")
+        return ireq
 
 
 class LinkCandidate(_InstallRequirementBackedCandidate):
