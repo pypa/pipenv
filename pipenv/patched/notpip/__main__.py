@@ -26,6 +26,7 @@ if __name__ == "__main__":
     warnings.filterwarnings(
         "ignore", category=DeprecationWarning, module=".*packaging\\.version"
     )
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
     from pipenv.patched.notpip._internal.cli.main import main as _main
 
     sys.exit(_main())

@@ -452,7 +452,7 @@ class Resolver:
         from pipenv.vendor.pip_shims import shims
 
         if not self._hash_cache:
-            self._hash_cache = type("HashCache", (HashCacheMixin, shims.SafeFileHash), {})(
+            self._hash_cache = type("HashCache", (HashCacheMixin, shims.SafeFileCache), {})(
                 os.path.join(self.project.s.PIPENV_CACHE_DIR, "hashes"), self.session
             )
         return self._hash_cache
@@ -646,7 +646,8 @@ class Resolver:
                 req.requirement.marker and not req.requirement.marker.evaluate()
             ):
                 pypi = resolver.finder if resolver else None
-                best_match = pypi.find_best_candidate(req.ireq).best_candidate if pypi else None
+                name, specifier = req.ireq.name, req.ireq.specifier
+                best_match = pypi.find_best_candidate(name, specifier).best_candidate if pypi else None
                 if best_match:
                     hashes = resolver.collect_hashes(best_match) if resolver else []
                     new_req = Requirement.from_ireq(best_match)
@@ -837,9 +838,9 @@ class Resolver:
             WheelCache, get_requirement_tracker, global_tempdir_manager
         )
 
-        pip_options = self.pip_options
-
         with global_tempdir_manager(), get_requirement_tracker() as req_tracker, TemporaryDirectory(suffix="-build", prefix="pipenv-") as directory:
+            os.environ["PIP_NO_USE_PIP517"] = "1"
+            pip_options = self.pip_options
             finder = self.finder
             wheel_cache = WheelCache(pip_options.cache_dir, pip_options.format_control)
             directory.path = directory.name
@@ -1130,8 +1131,10 @@ def resolve(cmd, sp, project):
     err = ""
     for line in iter(c.stderr.readline, ""):
         line = decode_output(line)
+        if not line.rstrip():
+            continue
         err += line
-        if is_verbose and line.rstrip():
+        if is_verbose:
             sp.hide_and_write(line.rstrip())
 
     c.wait()
