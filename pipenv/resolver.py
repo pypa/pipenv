@@ -77,6 +77,8 @@ def which(*args, **kwargs):
 
 
 def handle_parsed_args(parsed):
+    if "PIPENV_VERBOSITY" in os.environ:
+        parsed.verbose = int(os.getenv("PIPENV_VERBOSITY"))
     if parsed.debug:
         parsed.verbose = max(parsed.verbose, 2)
     if parsed.verbose > 1:

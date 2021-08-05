@@ -2264,16 +2264,18 @@ def interrupt_handled_subprocess(
 
 def subprocess_run(
     args, *, block=True, text=True, capture_output=True,
-    encoding=DEFAULT_ENCODING, env=None, **other_kwargs
+    encoding="utf-8", env=None, **other_kwargs
 ):
     """A backward compatible version of subprocess.run().
 
     It outputs text with default encoding, and store all outputs in the returned object instead of
     printing onto stdout.
     """
-    if env is not None:
-        env = dict(os.environ, **env)
-        other_kwargs['env'] = env
+    _env = os.environ.copy()
+    _env["PYTHONIOENCODING"] = encoding
+    if env:
+        _env.update(env)
+    other_kwargs["env"] = _env
     if capture_output:
         other_kwargs['stdout'] = subprocess.PIPE
         other_kwargs['stderr'] = subprocess.PIPE

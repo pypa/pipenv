@@ -762,10 +762,11 @@ def shim_unpack(
             unpack_kwargs["only_download"] = only_download
         if session is not None and "session" in required_args:
             unpack_kwargs["session"] = session
-        if "downloader" in required_args and downloader_provider is not None:
+        if downloader_provider is not None and any(arg in required_args for arg in ("download", "downloader")):
             assert session is not None
             assert progress_bar is not None
-            unpack_kwargs["downloader"] = downloader_provider(session, progress_bar)
+            arg = {"download", "downloader"}.intersection(required_args).pop()
+            unpack_kwargs[arg] = downloader_provider(session, progress_bar)
         return unpack_fn(**unpack_kwargs)  # type: ignore
 
 
