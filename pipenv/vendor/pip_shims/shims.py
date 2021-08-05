@@ -50,6 +50,7 @@ class _shims(types.ModuleType):
 
     def __init__(self):
         self.pip = import_pip()
+        print(f"==== PIP SHIM: {self.pip} ====")
         self._locations = ShimmedPathCollection.get_registry()
         self._locations["get_package_finder"] = get_package_finder
         self.pip_version = str(lookup_current_pip_version())
