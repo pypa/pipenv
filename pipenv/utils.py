@@ -646,11 +646,12 @@ class Resolver:
                 req.requirement.marker and not req.requirement.marker.evaluate()
             ):
                 pypi = resolver.finder if resolver else None
-                name, specifier = req.ireq.name, req.ireq.specifier
-                best_match = pypi.find_best_candidate(name, specifier).best_candidate if pypi else None
+                ireq = req.ireq
+                best_match = pypi.find_best_candidate(ireq.name, ireq.specifier).best_candidate if pypi else None
                 if best_match:
-                    hashes = resolver.collect_hashes(best_match) if resolver else []
-                    new_req = Requirement.from_ireq(best_match)
+                    ireq.req.specifier = ireq.specifier.__class__(f"=={best_match.version}")
+                    hashes = resolver.collect_hashes(ireq) if resolver else []
+                    new_req = Requirement.from_ireq(ireq)
                     new_req = new_req.add_hashes(hashes)
                     name, entry = new_req.pipfile_entry
                     locked_deps[pep423_name(name)] = translate_markers(entry)
@@ -980,7 +981,7 @@ class Resolver:
         if link.hash and link.hash_name == shims.FAVORITE_HASH:
             return f"{link.hash_name}:{link.hash}"
 
-        return self.hash_cache.get(link)
+        return self.hash_cache.get_hash(link)
 
     def _clean_skipped_result(self, req, value):
         ref = None
