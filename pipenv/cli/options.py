@@ -296,7 +296,7 @@ def clear_option(f):
         state.clear = value
         return value
     return option("--clear", is_flag=True, callback=callback, type=click_types.BOOL,
-                  help="Clears caches (pipenv, pip, and pip-tools).",
+                  help="Clears caches (pipenv, pip).",
                   expose_value=False, show_envvar=True)(f)
 
 
