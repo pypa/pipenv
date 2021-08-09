@@ -17,11 +17,11 @@ from pipenv import environments, exceptions, pep508checker, progress
 from pipenv._compat import decode_for_output, fix_utf8
 from pipenv.patched import crayons
 from pipenv.utils import (
-    convert_deps_to_pip, create_spinner, download_file, find_python,
-    get_canonical_names, get_source_list, is_pinned, is_python_command,
-    is_required_version, is_star, is_valid_url, parse_indexes, pep423_name,
-    prepare_pip_source_args, proper_case, python_version, run_command,
-    subprocess_run, venv_resolve_deps
+    cmd_list_to_shell, convert_deps_to_pip, create_spinner, download_file,
+    find_python, get_canonical_names, get_source_list, is_pinned,
+    is_python_command, is_required_version, is_star, is_valid_url,
+    parse_indexes, pep423_name, prepare_pip_source_args, proper_case,
+    python_version, run_command, subprocess_run, venv_resolve_deps
 )
 
 
@@ -1135,10 +1135,10 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
         "uninstall", "-y",
     ] + list(to_remove)
     if project.s.is_verbose():
-        click.echo(f"$ {' '.join(command)}")
+        click.echo(f"$ {cmd_list_to_shell(command)}")
     c = subprocess_run(command)
     if c.returncode != 0:
-        raise exceptions.UninstallError(installed, ' '.join(command), c.stdout + c.stderr, c.returncode)
+        raise exceptions.UninstallError(installed, cmd_list_to_shell(command), c.stdout + c.stderr, c.returncode)
     if not bare:
         click.echo(crayons.cyan(c.stdout))
         click.echo(crayons.green("Environment now purged and fresh!"))
@@ -1456,7 +1456,7 @@ def pip_install(
         pip_command.extend(line)
     pip_command.extend(prepare_pip_source_args(sources))
     if project.s.is_verbose():
-        click.echo(f"$ {' '.join(pip_command)}", err=True)
+        click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
     cache_dir = vistir.compat.Path(project.s.PIPENV_CACHE_DIR)
     DEFAULT_EXISTS_ACTION = "w"
     if selective_upgrade:
@@ -2478,7 +2478,7 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
 
     try:
         script = project.build_script(command, args)
-        cmd_string = ' '.join([script.command] + script.args)
+        cmd_string = cmd_list_to_shell([script.command] + script.args)
         if project.s.is_verbose():
             click.echo(crayons.normal(f"$ {cmd_string}"), err=True)
     except ScriptEmptyError:
@@ -2640,7 +2640,7 @@ def do_check(
         except (ValueError, JSONDecodeError):
             raise exceptions.JSONParseError(c.stdout, c.stderr)
         except Exception:
-            raise exceptions.PipenvCmdError(' '.join(c.args), c.stdout, c.stderr, c.returncode)
+            raise exceptions.PipenvCmdError(cmd_list_to_shell(c.args), c.stdout, c.stderr, c.returncode)
         for (package, resolved, installed, description, vuln) in results:
             click.echo(
                 "{}: {} {} resolved ({} installed)!".format(

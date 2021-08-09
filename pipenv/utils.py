@@ -4,6 +4,7 @@ import logging
 import os
 import posixpath
 import re
+import shlex
 import shutil
 import signal
 import stat
@@ -2290,3 +2291,8 @@ def subprocess_run(
             args, universal_newlines=text,
             encoding=encoding, **other_kwargs
         )
+
+
+def cmd_list_to_shell(args):
+    """Convert a list of arguments to a quoted shell command."""
+    return " ".join(shlex.quote(str(token)) for token in args)
