@@ -1,0 +1,1 @@
+Shell-quote ``pip`` commands when logging.
