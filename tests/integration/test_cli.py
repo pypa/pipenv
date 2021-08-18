@@ -125,7 +125,7 @@ def test_pipenv_graph_reverse(PipenvInstance):
             # openpyxl should be indented
             if dep_name == 'openpyxl':
                 openpyxl_dep = re.search(r'^openpyxl', output, flags=re.MULTILINE)
-                assert openpyxl_dep is None, f'openpyxl should not appear at begining of lines in {output}'
+                assert openpyxl_dep is None, f'openpyxl should not appear at beginning of lines in {output}'
 
                 assert '  - openpyxl==2.5.4 [requires: et-xmlfile]' in output
             else:
