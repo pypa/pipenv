@@ -1,18 +1,17 @@
-import errno
-import functools
-import json
-import logging
-import os
-import shlex
-import shutil
-import traceback
-import sys
-import warnings
+ errno
+ functools
+ json
+ logging
+ os
+ shlex
+ traceback
+ sys
+ warnings
 
-from shutil import rmtree as _rmtree
+ shutil  rmtree  _rmtree
 
-import pytest
-import requests
+ pytest
+ requests
 
 from click.testing import CliRunner
 from pytest_pypi.app import prepare_fixtures
