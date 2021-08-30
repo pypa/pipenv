@@ -434,7 +434,6 @@ def ensure_virtualenv(project, three=None, python=None, site_packages=None, pypi
         sys.exit(1)
 
     if not project.virtualenv_exists:
-        print("hello1")
         try:
             # Ensure environment variables are set properly.
             ensure_environment()
@@ -479,18 +478,6 @@ def ensure_virtualenv(project, three=None, python=None, site_packages=None, pypi
                 crayons.normal(fix_utf8("Using existing virtualenv..."), bold=True), err=True
                 )
                 abort()
-
-        # Commented this part of the code because it was cleaning up the existing virtual enviroment and recursively calling the same funtion and creating a new virtual if vitual enviroment exists
-        # Remove the virtualenv.
-        # cleanup_virtualenv(project, bare=True)
-        # Call this function again.
-        #ensure_virtualenv(
-        #   project,
-        #   three=three,
-        #   python=python,
-        #   site_packages=site_packages,
-        #   pypi_mirror=pypi_mirror,
-        #)
 
 
 def ensure_project(
