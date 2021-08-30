@@ -434,6 +434,7 @@ def ensure_virtualenv(project, three=None, python=None, site_packages=None, pypi
         sys.exit(1)
 
     if not project.virtualenv_exists:
+        print("hello1")
         try:
             # Ensure environment variables are set properly.
             ensure_environment()
@@ -470,7 +471,7 @@ def ensure_virtualenv(project, three=None, python=None, site_packages=None, pypi
         # If VIRTUAL_ENV is set, there is a possibility that we are
         # going to remove the active virtualenv that the user cares
         # about, so confirm first.
-        if project.virtualenv_exists:
+        if "VIRTUAL_ENV" in os.environ:
             if not (
                 project.s.PIPENV_YES or click.confirm("Using existing virtualenv?", default=True)
             ):
@@ -516,8 +517,8 @@ def ensure_project(
     # Automatically use an activated virtualenv.
     # checks if virtual Enviroment exists if it exists then it makes the system variable true
     if project.virtualenv_exists:
-        click.echo(crayons.red("Virtualenv already exists! Using existing virtualenv..."), err=True)
-        system = True
+       click.echo(crayons.red("Virtualenv already exists! Using existing virtualenv..."), err=True)
+       system = True
     if not project.pipfile_exists and deploy:
         raise exceptions.PipfileNotFound
     # Skip virtualenv creation when --system was used.
