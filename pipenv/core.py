@@ -516,7 +516,8 @@ def ensure_project(
     # Automatically use an activated virtualenv.
     # checks if virtual Enviroment exists if it exists then it makes the system variable true
     if project.virtualenv_exists:
-       system = True
+        click.echo(crayons.red("Virtualenv already exists! Using existing virtualenv..."), err=True)
+        system = True
     if not project.pipfile_exists and deploy:
         raise exceptions.PipfileNotFound
     # Skip virtualenv creation when --system was used.
