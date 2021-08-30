@@ -470,24 +470,26 @@ def ensure_virtualenv(project, three=None, python=None, site_packages=None, pypi
         # If VIRTUAL_ENV is set, there is a possibility that we are
         # going to remove the active virtualenv that the user cares
         # about, so confirm first.
-        if "VIRTUAL_ENV" in os.environ:
+        if project.virtualenv_exists:
             if not (
-                project.s.PIPENV_YES or click.confirm("Remove existing virtualenv?", default=True)
+                project.s.PIPENV_YES or click.confirm("Using existing virtualenv?", default=True)
             ):
+                click.echo(
+                crayons.normal(fix_utf8("Using existing virtualenv..."), bold=True), err=True
+                )
                 abort()
-        click.echo(
-            crayons.normal(fix_utf8("Removing existing virtualenv..."), bold=True), err=True
-        )
+
+        # Commented this part of the code because it was cleaning up the existing virtual enviroment and recursively calling the same funtion and creating a new virtual if vitual enviroment exists
         # Remove the virtualenv.
-        cleanup_virtualenv(project, bare=True)
+        # cleanup_virtualenv(project, bare=True)
         # Call this function again.
-        ensure_virtualenv(
-            project,
-            three=three,
-            python=python,
-            site_packages=site_packages,
-            pypi_mirror=pypi_mirror,
-        )
+        #ensure_virtualenv(
+        #   project,
+        #   three=three,
+        #   python=python,
+        #   site_packages=site_packages,
+        #   pypi_mirror=pypi_mirror,
+        #)
 
 
 def ensure_project(
@@ -507,12 +509,14 @@ def ensure_project(
 
     # Clear the caches, if appropriate.
     if clear:
+        print("here")
         print("clearing")
         sys.exit(1)
 
     # Automatically use an activated virtualenv.
-    if project.s.PIPENV_USE_SYSTEM:
-        system = True
+    # checks if virtual Enviroment exists if it exists then it makes the system variable true
+    if project.virtualenv_exists:
+       system = False
     if not project.pipfile_exists and deploy:
         raise exceptions.PipfileNotFound
     # Skip virtualenv creation when --system was used.
