@@ -2825,8 +2825,10 @@ def do_sync(
         three=three,
         python=python,
         validate=False,
+        system=system,
         deploy=deploy,
         pypi_mirror=pypi_mirror,
+        clear=clear,
     )
 
     # Install everything.
