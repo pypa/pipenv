@@ -151,6 +151,8 @@ class BuildEnv(pep517.envbuild.BuildEnvironment):
 
 class HookCaller(pep517.wrappers.Pep517HookCaller):
     def __init__(self, source_dir, build_backend, backend_path=None):
+        super(pep517.wrappers.Pep517HookCaller, self).__init__(
+            source_dir, build_backend, backend_path=backend_path)
         self.source_dir = os.path.abspath(source_dir)
         self.build_backend = build_backend
         self._subprocess_runner = pep517_subprocess_runner
