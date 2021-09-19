@@ -43,23 +43,23 @@ Installation
 
 If you\'re using Debian Buster+:
 
-    $ sudo apt install pipenv
+    sudo apt install pipenv
 
 Or, if you\'re using Fedora:
 
-    $ sudo dnf install pipenv
+    sudo dnf install pipenv
 
 Or, if you\'re using FreeBSD:
 
-    # pkg install py36-pipenv
+    pkg install py36-pipenv
 
 Or, if you\'re using Windows:
 
-    # pip install --user pipenv
+    pip install --user pipenv
 
 When none of the above is an option, it is recommended to use [Pipx](https://pypi.org/p/pipx):
 
-    $ pipx install pipenv
+    pipx install pipenv
 
 Otherwise, refer to the [documentation](https://pipenv.pypa.io/en/latest/#install-pipenv-today) for instructions.
 
