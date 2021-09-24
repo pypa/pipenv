@@ -92,6 +92,8 @@ Once you have ``pipx`` ready on your system, continue to install Pipenv::
 
     $ pipx install pipenv
 
+.. _Pipx: https://pypa.github.io/pipx/
+
 
 ☤ Pragmatic Installation of Pipenv
 ----------------------------------
