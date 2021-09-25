@@ -228,12 +228,19 @@ def _detect_emulator():
         keys.append("cmder")
     if os.environ.get("MSYSTEM"):
         keys.append("msys")
+    # VS Code internal terminal support
+    if os.environ.get("TERM_PROGRAM") == "vscode":
+        keys.append("vscode") 
     return ",".join(keys)
 
 
 def choose_shell(project):
-    emulator = project.PIPENV_EMULATOR.lower() or _detect_emulator()
-    type_, command = project.detect_info()
+    emulator = "none"
+    try:
+        emulator = _detect_emulator() or project.PIPENV_EMULATOR.lower()
+    except AttributeError as error:
+        print("Uh oh! Error: ", error)
+    type_, command = detect_info(project)
     shell_types = SHELL_LOOKUP[type_]
     for key in emulator.split(","):
         key = key.strip().lower()

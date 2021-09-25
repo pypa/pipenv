@@ -2282,10 +2282,16 @@ def subprocess_run(
         other_kwargs['stdout'] = subprocess.PIPE
         other_kwargs['stderr'] = subprocess.PIPE
     if block:
-        return subprocess.run(
-            args, universal_newlines=text,
-            encoding=encoding, **other_kwargs
-        )
+        if os.name == "nt":
+            return subprocess.run(
+                args, universal_newlines=text,
+                encoding=encoding, shell=True, **other_kwargs
+            )
+        else: 
+            return subprocess.run(
+                args, universal_newlines=text,
+                encoding=encoding, **other_kwargs
+            )
     else:
         return subprocess.Popen(
             args, universal_newlines=text,

@@ -169,7 +169,7 @@ class Pyenv(Installer):
     def iter_installable_versions(self):
         """Iterate through CPython versions available for Pipenv to install.
         """
-        for name in self._run('install', '--list').out.splitlines():
+        for name in self._run('install', '--list').stdout.splitlines():
             try:
                 version = Version.parse(name.strip())
             except ValueError:
