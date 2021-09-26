@@ -323,7 +323,7 @@ class Setting:
 
         Default is to lock dependencies and update ``Pipfile.lock`` on each run.
         
-        Usage: export PIPENV_SKIP_LOCK=true OR export PIPENV_SKIP_LOCK=1 to skip automatic locking
+        Usage: `export PIPENV_SKIP_LOCK=true` OR `export PIPENV_SKIP_LOCK=1` to skip automatic locking
 
         NOTE: This only affects the ``install`` and ``uninstall`` commands.
         """
