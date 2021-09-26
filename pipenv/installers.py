@@ -117,7 +117,10 @@ class Installer(metaclass=ABCMeta):
             k = list(kwargs.keys())[0]
             raise TypeError(f'unexpected keyword argument {k!r}')
         args = (self.cmd,) + tuple(args)
-        c = subprocess_run(args, timeout=timeout)
+        if os.name == 'nt':
+            c = subprocess_run(args, timeout=timeout, shell=True)
+        else: 
+            c = subprocess_run(args, timeout=timeout)
         if c.returncode != 0:
             raise InstallerError(f'failed to run {args}', c)
         return c
