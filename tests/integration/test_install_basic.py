@@ -289,7 +289,8 @@ def test_requirements_to_pipfile(PipenvInstance, pypi):
         assert c.returncode == 0
         print(c.stdout)
         print(c.stderr)
-        print(subprocess_run(["ls", "-l"]).stdout)
+        if os.name != 'nt':
+            print(subprocess_run(["ls", "-l"]).stdout)
 
         # assert stuff in pipfile
         assert "requests" in p.pipfile["packages"]
