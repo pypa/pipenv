@@ -406,7 +406,7 @@ def test_install_venv_project_directory(PipenvInstance):
 
             venv_loc = None
             for line in c.stderr.splitlines():
-                if line.startswith("Virtualenv location:"):
+                if "Virtualenv location:" in line[:24]:
                     venv_loc = Path(line.split(":", 1)[-1].strip())
             assert venv_loc is not None
             assert venv_loc.joinpath(".project").exists()
