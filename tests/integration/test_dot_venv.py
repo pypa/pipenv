@@ -77,6 +77,36 @@ def test_venv_file(venv_name, PipenvInstance):
 
 
 @pytest.mark.dotvenv
+def test_empty_venv_file(PipenvInstance):
+    """Tests virtualenv creation when a empty .venv file exists at the project root
+    """
+    with PipenvInstance(chdir=True) as p:
+        file_path = os.path.join(p.path, '.venv')
+        with open(file_path, 'w') as f:
+            pass
+
+        with temp_environ(), TemporaryDirectory(
+            prefix='pipenv-', suffix='temp_workon_home'
+        ) as workon_home:
+            os.environ['WORKON_HOME'] = workon_home.name
+            if 'PIPENV_VENV_IN_PROJECT' in os.environ:
+                del os.environ['PIPENV_VENV_IN_PROJECT']
+
+            c = p.pipenv('install')
+            assert c.returncode == 0
+
+            c = p.pipenv('--venv')
+            assert c.returncode == 0
+            venv_loc = Path(c.stdout.strip()).absolute()
+            assert venv_loc.exists()
+            assert venv_loc.joinpath('.project').exists()
+            from pathlib import PurePosixPath
+            venv_path = normalize_drive(venv_loc.as_posix())
+            venv_path_parent = str(PurePosixPath(venv_path).parent)
+            assert venv_path_parent == Path(workon_home.name).absolute().as_posix()
+
+
+@pytest.mark.dotvenv
 def test_venv_file_with_path(PipenvInstance):
     """Tests virtualenv creation when a .venv file exists at the project root
     and contains an absolute path.
