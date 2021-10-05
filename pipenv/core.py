@@ -1717,7 +1717,7 @@ def ensure_lockfile(project, keep_outdated=False, pypi_mirror=None):
         do_lock(project, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
 
 
-def do_py(project, system=False):
+def do_py(project, ctx=None, system=False):
     if not project.virtualenv_exists:
         click.echo(
             "{}({}){}".format(
@@ -1727,7 +1727,7 @@ def do_py(project, system=False):
             ),
             err=True,
         )
-        return
+        ctx.abort()
 
     try:
         click.echo(project._which("python", allow_global=system))
