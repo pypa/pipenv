@@ -1,0 +1,1 @@
+Remove the old issue template, since we have replaced it.
