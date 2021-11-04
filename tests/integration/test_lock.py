@@ -494,7 +494,7 @@ def test_lock_editable_vcs_without_install(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "%s", ref = "master", editable = true}
+requests = {git = "%s", editable = true}
             """.strip() % requests_uri)
         c = p.pipenv('lock')
         assert c.returncode == 0
@@ -518,25 +518,7 @@ requests = {git = "%s@883caaf", editable = true}
             """.strip() % requests_uri)
         c = p.pipenv('lock')
         assert c.returncode == 0
-        assert p.lockfile['default']['requests']['git'] == 'https://github.com/psf/requests.git'
-        assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
-        c = p.pipenv('install')
-        assert c.returncode == 0
-
-
-@pytest.mark.vcs
-@pytest.mark.lock
-@pytest.mark.needs_internet
-def test_lock_editable_vcs_with_ref(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
-            f.write("""
-[packages]
-requests = {git = "https://github.com/psf/requests.git", ref = "883caaf", editable = true}
-            """.strip())
-        c = p.pipenv('lock')
-        assert c.returncode == 0
-        assert p.lockfile['default']['requests']['git'] == 'https://github.com/psf/requests.git'
+        assert p.lockfile['default']['requests']['git'] == requests_uri
         assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
         c = p.pipenv('install')
         assert c.returncode == 0
@@ -576,7 +558,7 @@ def test_lock_editable_vcs_with_markers_without_install(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "%s", ref = "master", editable = true, markers = "python_version >= '2.6'"}
+requests = {git = "%s", editable = true, markers = "python_version >= '2.6'"}
             """.strip() % requests_uri)
         c = p.pipenv('lock')
         assert c.returncode == 0
