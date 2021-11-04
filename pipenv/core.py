@@ -2642,7 +2642,7 @@ def do_check(
             raise exceptions.JSONParseError(c.stdout, c.stderr)
         except Exception:
             raise exceptions.PipenvCmdError(cmd_list_to_shell(c.args), c.stdout, c.stderr, c.returncode)
-        for (package, resolved, installed, description, vuln) in results:
+        for (package, resolved, installed, description, vuln, *_) in results:
             click.echo(
                 "{}: {} {} resolved ({} installed)!".format(
                     crayons.normal(vuln, bold=True),
