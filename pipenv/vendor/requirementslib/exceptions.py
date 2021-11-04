@@ -5,20 +5,6 @@ import errno
 import os
 import sys
 
-import six
-from vistir.compat import FileNotFoundError
-
-if six.PY2:
-
-    class FileExistsError(OSError):
-        def __init__(self, *args, **kwargs):
-            self.errno = errno.EEXIST
-            super(FileExistsError, self).__init__(*args, **kwargs)
-
-
-else:
-    from six.moves.builtins import FileExistsError
-
 
 class RequirementError(Exception):
     pass
@@ -44,7 +30,7 @@ class FileCorruptException(OSError):
         if not backup_path and args:
             args = reversed(args)
             backup_path = args.pop()
-            if not isinstance(backup_path, six.string_types) or not os.path.exists(
+            if not isinstance(backup_path, str) or not os.path.exists(
                 os.path.abspath(os.path.dirname(backup_path))
             ):
                 args.append(backup_path)

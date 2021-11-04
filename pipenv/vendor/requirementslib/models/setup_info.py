@@ -3,30 +3,29 @@ from __future__ import absolute_import, print_function
 
 import ast
 import atexit
+import configparser
 import contextlib
 import importlib
-import io
 import operator
 import os
 import shutil
 import sys
-from functools import partial
+from collections.abc import Iterable, Mapping
+from functools import lru_cache, partial
+from pathlib import Path
+from urllib.parse import urlparse, urlunparse
+from weakref import finalize
 
 import attr
-import chardet
 import packaging.specifiers
 import packaging.utils
 import packaging.version
 import pep517.envbuild
 import pep517.wrappers
-import six
-from appdirs import user_cache_dir
 from distlib.wheel import Wheel
 from packaging.markers import Marker
 from pip_shims.utils import call_function_with_correct_args
-from six.moves import configparser
-from six.moves.urllib.parse import urlparse, urlunparse
-from vistir.compat import FileNotFoundError, Iterable, Mapping, Path, finalize, lru_cache
+from platformdirs import user_cache_dir
 from vistir.contextmanagers import cd, temp_path
 from vistir.misc import run
 from vistir.path import create_tracked_tempdir, ensure_mkdir_p, mkdir_p, rmtree
@@ -38,58 +37,45 @@ from .utils import (
     get_name_variants,
     get_pyproject,
     init_requirement,
-    read_source,
     split_vcs_method_from_uri,
     strip_extras_markers_from_requirement,
 )
 
 try:
     import pkg_resources.extern.packaging.requirements as pkg_resources_requirements
-except ImportError:
+except ModuleNotFoundError:
     pkg_resources_requirements = None
 
 try:
-    from setuptools.dist import distutils, Distribution
+    from setuptools.dist import Distribution, distutils
 except ImportError:
     import distutils
     from distutils.core import Distribution
 
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
-
-try:
-    from os import scandir
-except ImportError:
-    from scandir import scandir
-
+from contextlib import ExitStack
+from os import scandir
 
 if MYPY_RUNNING:
     from typing import (
         Any,
-        Callable,
+        AnyStr,
         Dict,
-        List,
         Generator,
+        List,
         Optional,
-        Union,
+        Sequence,
+        Set,
+        Text,
         Tuple,
         TypeVar,
-        Text,
-        Set,
-        AnyStr,
-        Sequence,
+        Union,
     )
+
     import requests
-    from pip_shims.shims import InstallRequirement, PackageFinder
-    from pkg_resources import (
-        PathMetadata,
-        DistInfoDistribution,
-        EggInfoDistribution,
-        Requirement as PkgResourcesRequirement,
-    )
     from packaging.requirements import Requirement as PackagingRequirement
+    from pip_shims.shims import InstallRequirement, PackageFinder
+    from pkg_resources import DistInfoDistribution, EggInfoDistribution, PathMetadata
+    from pkg_resources import Requirement as PkgResourcesRequirement
 
     TRequirement = TypeVar("TRequirement")
     RequirementType = TypeVar(
@@ -151,6 +137,7 @@ class BuildEnv(pep517.envbuild.BuildEnvironment):
 
 class HookCaller(pep517.wrappers.Pep517HookCaller):
     def __init__(self, source_dir, build_backend, backend_path=None):
+        super().__init__(source_dir, build_backend, backend_path=backend_path)
         self.source_dir = os.path.abspath(source_dir)
         self.build_backend = build_backend
         self._subprocess_runner = pep517_subprocess_runner
@@ -159,43 +146,6 @@ class HookCaller(pep517.wrappers.Pep517HookCaller):
                 pep517.wrappers.norm_and_check(self.source_dir, p) for p in backend_path
             ]
         self.backend_path = backend_path
-
-
-def parse_special_directives(setup_entry, package_dir=None):
-    # type: (S, Optional[STRING_TYPE]) -> S
-    rv = setup_entry
-    if not package_dir:
-        package_dir = os.getcwd()
-    if setup_entry.startswith("file:"):
-        _, path = setup_entry.split("file:")
-        path = path.strip()
-        if os.path.exists(path):
-            rv = read_source(path)
-    elif setup_entry.startswith("attr:"):
-        _, resource = setup_entry.split("attr:")
-        resource = resource.strip()
-        with temp_path():
-            sys.path.insert(0, package_dir)
-            if "." in resource:
-                resource, _, attribute = resource.rpartition(".")
-            package, _, path = resource.partition(".")
-            base_path = os.path.join(package_dir, package)
-            if path:
-                path = os.path.join(base_path, os.path.join(*path.split(".")))
-            else:
-                path = base_path
-            if not os.path.exists(path) and os.path.exists("{0}.py".format(path)):
-                path = "{0}.py".format(path)
-            elif os.path.isdir(path):
-                path = os.path.join(path, "__init__.py")
-            rv = ast_parse_attribute_from_file(path, attribute)
-            if rv:
-                return str(rv)
-            module = importlib.import_module(resource)
-            rv = getattr(module, attribute)
-            if not isinstance(rv, six.string_types):
-                rv = str(rv)
-    return rv
 
 
 def make_base_requirements(reqs):
@@ -210,9 +160,356 @@ def make_base_requirements(reqs):
             req, pkg_resources_requirements.Requirement
         ):
             requirements.add(BaseRequirement.from_req(req))
-        elif req and isinstance(req, six.string_types) and not req.startswith("#"):
+        elif req and isinstance(req, str) and not req.startswith("#"):
             requirements.add(BaseRequirement.from_string(req))
     return requirements
+
+
+def suppress_unparsable(func, *args, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except Unparsable:
+        return None
+
+
+class Unparsable(ValueError):
+    """Not able to parse from setup.py."""
+
+
+class SetupReader:
+    """Class that reads a setup.py file without executing it."""
+
+    @classmethod
+    def read_setup_py(cls, file: Path, raising: bool = True) -> "Dict[str, Any]":
+
+        with file.open(encoding="utf-8") as f:
+            content = f.read()
+
+        body = ast.parse(content).body
+
+        setup_call, body = cls._find_setup_call(body)
+        if not setup_call:
+            return {}
+
+        if raising:
+
+            def caller(func, *args, **kwargs):
+                return func(*args, **kwargs)
+
+        else:
+            caller = suppress_unparsable
+
+        return {
+            "name": caller(cls._find_single_string, setup_call, body, "name"),
+            "version": caller(cls._find_single_string, setup_call, body, "version"),
+            "install_requires": caller(cls._find_install_requires, setup_call, body),
+            "extras_require": caller(cls._find_extras_require, setup_call, body),
+            "python_requires": caller(
+                cls._find_single_string, setup_call, body, "python_requires"
+            ),
+        }
+
+    @staticmethod
+    def read_setup_cfg(file: Path) -> "Dict[str, Any]":
+        parser = configparser.ConfigParser()
+
+        parser.read(str(file))
+
+        name = None
+        version = None
+        if parser.has_option("metadata", "name"):
+            name = parser.get("metadata", "name")
+
+        if parser.has_option("metadata", "version"):
+            version = parser.get("metadata", "version")
+
+        install_requires = []
+        extras_require: "Dict[str, List[str]]" = {}
+        python_requires = None
+        if parser.has_section("options"):
+            if parser.has_option("options", "install_requires"):
+                for dep in parser.get("options", "install_requires").split("\n"):
+                    dep = dep.strip()
+                    if not dep:
+                        continue
+
+                    install_requires.append(dep)
+
+            if parser.has_option("options", "python_requires"):
+                python_requires = parser.get("options", "python_requires")
+
+        if parser.has_section("options.extras_require"):
+            for group in parser.options("options.extras_require"):
+                extras_require[group] = []
+                deps = parser.get("options.extras_require", group)
+                for dep in deps.split("\n"):
+                    dep = dep.strip()
+                    if not dep:
+                        continue
+
+                    extras_require[group].append(dep)
+
+        return {
+            "name": name,
+            "version": version,
+            "install_requires": install_requires,
+            "extras_require": extras_require,
+            "python_requires": python_requires,
+        }
+
+    @classmethod
+    def _find_setup_call(
+        cls, elements: "List[Any]"
+    ) -> "Tuple[Optional[ast.Call], Optional[List[Any]]]":
+        funcdefs = []
+        for i, element in enumerate(elements):
+            if isinstance(element, ast.If) and i == len(elements) - 1:
+                # Checking if the last element is an if statement
+                # and if it is 'if __name__ == "__main__"' which
+                # could contain the call to setup()
+                test = element.test
+                if not isinstance(test, ast.Compare):
+                    continue
+
+                left = test.left
+                if not isinstance(left, ast.Name):
+                    continue
+
+                if left.id != "__name__":
+                    continue
+
+                setup_call, body = cls._find_sub_setup_call([element])
+                if not setup_call:
+                    continue
+
+                return setup_call, body + elements
+            if not isinstance(element, ast.Expr):
+                if isinstance(element, ast.FunctionDef):
+                    funcdefs.append(element)
+
+                continue
+
+            value = element.value
+            if not isinstance(value, ast.Call):
+                continue
+
+            func = value.func
+            if not (isinstance(func, ast.Name) and func.id == "setup") and not (
+                isinstance(func, ast.Attribute)
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "setuptools"
+                and func.attr == "setup"
+            ):
+                continue
+
+            return value, elements
+
+        # Nothing, we inspect the function definitions
+        return cls._find_sub_setup_call(funcdefs)
+
+    @classmethod
+    def _find_sub_setup_call(
+        cls, elements: "List[Any]"
+    ) -> "Tuple[Optional[ast.Call], Optional[List[Any]]]":
+        for element in elements:
+            if not isinstance(element, (ast.FunctionDef, ast.If)):
+                continue
+
+            setup_call = cls._find_setup_call(element.body)
+            if setup_call != (None, None):
+                setup_call, body = setup_call
+
+                body = elements + body
+
+                return setup_call, body
+
+        return None, None
+
+    @classmethod
+    def _find_install_requires(cls, call: ast.Call, body: "Iterable[Any]") -> "List[str]":
+        value = cls._find_in_call(call, "install_requires")
+        if value is None:
+            # Trying to find in kwargs
+            kwargs = cls._find_call_kwargs(call)
+
+            if kwargs is None:
+                return []
+
+            if not isinstance(kwargs, ast.Name):
+                raise Unparsable()
+
+            variable = cls._find_variable_in_body(body, kwargs.id)
+            if not isinstance(variable, (ast.Dict, ast.Call)):
+                raise Unparsable()
+
+            if isinstance(variable, ast.Call):
+                if not isinstance(variable.func, ast.Name):
+                    raise Unparsable()
+
+                if variable.func.id != "dict":
+                    raise Unparsable()
+
+                value = cls._find_in_call(variable, "install_requires")
+            else:
+                value = cls._find_in_dict(variable, "install_requires")
+
+        if value is None:
+            return []
+
+        if isinstance(value, ast.List):
+            return [el.s for el in value.elts]
+        elif isinstance(value, ast.Name):
+            variable = cls._find_variable_in_body(body, value.id)
+
+            if variable is not None and isinstance(variable, ast.List):
+                return [el.s for el in variable.elts]
+
+        raise Unparsable()
+
+    @classmethod
+    def _find_extras_require(
+        cls, call: ast.Call, body: "Iterable[Any]"
+    ) -> "Dict[str, List[str]]":
+        extras_require: "Dict[str, List[str]]" = {}
+        value = cls._find_in_call(call, "extras_require")
+        if value is None:
+            # Trying to find in kwargs
+            kwargs = cls._find_call_kwargs(call)
+
+            if kwargs is None:
+                return extras_require
+
+            if not isinstance(kwargs, ast.Name):
+                raise Unparsable()
+
+            variable = cls._find_variable_in_body(body, kwargs.id)
+            if not isinstance(variable, (ast.Dict, ast.Call)):
+                raise Unparsable()
+
+            if isinstance(variable, ast.Call):
+                if not isinstance(variable.func, ast.Name):
+                    raise Unparsable()
+
+                if variable.func.id != "dict":
+                    raise Unparsable()
+
+                value = cls._find_in_call(variable, "extras_require")
+            else:
+                value = cls._find_in_dict(variable, "extras_require")
+
+        if value is None:
+            return extras_require
+
+        if isinstance(value, ast.Dict):
+            for key, val in zip(value.keys, value.values):
+                if isinstance(val, ast.Name):
+                    val = cls._find_variable_in_body(body, val.id)
+
+                if isinstance(val, ast.List):
+                    extras_require[key.s] = [e.s for e in val.elts]
+                else:
+                    raise Unparsable()
+        elif isinstance(value, ast.Name):
+            variable = cls._find_variable_in_body(body, value.id)
+
+            if variable is None or not isinstance(variable, ast.Dict):
+                raise Unparsable()
+
+            for key, val in zip(variable.keys, variable.values):
+                if isinstance(val, ast.Name):
+                    val = cls._find_variable_in_body(body, val.id)
+
+                if isinstance(val, ast.List):
+                    extras_require[key.s] = [e.s for e in val.elts]
+                else:
+                    raise Unparsable()
+        else:
+            raise Unparsable()
+
+        return extras_require
+
+    @classmethod
+    def _find_single_string(
+        cls, call: ast.Call, body: "List[Any]", name: str
+    ) -> "Optional[str]":
+        value = cls._find_in_call(call, name)
+        if value is None:
+            # Trying to find in kwargs
+            kwargs = cls._find_call_kwargs(call)
+            if kwargs is None:
+                return None
+
+            if not isinstance(kwargs, ast.Name):
+                raise Unparsable()
+
+            variable = cls._find_variable_in_body(body, kwargs.id)
+            if not isinstance(variable, (ast.Dict, ast.Call)):
+                raise Unparsable()
+
+            if isinstance(variable, ast.Call):
+                if not isinstance(variable.func, ast.Name):
+                    raise Unparsable()
+
+                if variable.func.id != "dict":
+                    raise Unparsable()
+
+                value = cls._find_in_call(variable, name)
+            else:
+                value = cls._find_in_dict(variable, name)
+
+        if value is None:
+            return None
+
+        if isinstance(value, ast.Str):
+            return value.s
+        elif isinstance(value, ast.Name):
+            variable = cls._find_variable_in_body(body, value.id)
+
+            if variable is not None and isinstance(variable, ast.Str):
+                return variable.s
+
+        raise Unparsable()
+
+    @staticmethod
+    def _find_in_call(call: ast.Call, name: str) -> "Optional[Any]":
+        for keyword in call.keywords:
+            if keyword.arg == name:
+                return keyword.value
+        return None
+
+    @staticmethod
+    def _find_call_kwargs(call: ast.Call) -> "Optional[Any]":
+        kwargs = None
+        for keyword in call.keywords:
+            if keyword.arg is None:
+                kwargs = keyword.value
+
+        return kwargs
+
+    @staticmethod
+    def _find_variable_in_body(body: "Iterable[Any]", name: str) -> "Optional[Any]":
+        for elem in body:
+
+            if not isinstance(elem, (ast.Assign, ast.AnnAssign)):
+                continue
+
+            if getattr(elem, "target", None) and elem.target.id == name:
+                return elem.value
+
+            for target in elem.targets:
+                if not isinstance(target, ast.Name):
+                    continue
+
+                if target.id == name:
+                    return elem.value
+        return None
+
+    @staticmethod
+    def _find_in_dict(dict_: ast.Dict, name: str) -> "Optional[Any]":
+        for key, val in zip(dict_.keys, dict_.values):
+            if isinstance(key, ast.Str) and key.s == name:
+                return val
+        return None
 
 
 def setuptools_parse_setup_cfg(path):
@@ -221,121 +518,26 @@ def setuptools_parse_setup_cfg(path):
     parsed = read_configuration(path)
     results = parsed.get("metadata", {})
     results.update(parsed.get("options", {}))
-    results["install_requires"] = make_base_requirements(
-        results.get("install_requires", [])
-    )
-    extras = {}
-    for extras_section, extras_reqs in results.get("extras_require", {}).items():
-        new_reqs = tuple(make_base_requirements(extras_reqs))
-        if new_reqs:
-            extras[extras_section] = new_reqs
-    results["extras_require"] = extras
-    results["setup_requires"] = make_base_requirements(results.get("setup_requires", []))
+    if "install_requires" in results:
+        results["install_requires"] = make_base_requirements(
+            results.get("install_requires", [])
+        )
+    if "extras_require" in results:
+        extras = {}
+        for extras_section, extras_reqs in results.get("extras_require", {}).items():
+            new_reqs = tuple(make_base_requirements(extras_reqs))
+            if new_reqs:
+                extras[extras_section] = new_reqs
+        results["extras_require"] = extras
+    if "setup_requires" in results:
+        results["setup_requires"] = make_base_requirements(
+            results.get("setup_requires", [])
+        )
     return results
 
 
-def get_package_dir_from_setupcfg(parser, base_dir=None):
-    # type: (configparser.ConfigParser, STRING_TYPE) -> Text
-    if base_dir is not None:
-        package_dir = base_dir
-    else:
-        package_dir = os.getcwd()
-    if parser.has_option("options.packages.find", "where"):
-        pkg_dir = parser.get("options.packages.find", "where")
-        if isinstance(pkg_dir, Mapping):
-            pkg_dir = pkg_dir.get("where")
-        package_dir = os.path.join(package_dir, pkg_dir)
-    elif parser.has_option("options", "packages"):
-        pkg_dir = parser.get("options", "packages")
-        if "find:" in pkg_dir:
-            _, pkg_dir = pkg_dir.split("find:")
-            pkg_dir = pkg_dir.strip()
-            package_dir = os.path.join(package_dir, pkg_dir)
-    elif os.path.exists(os.path.join(package_dir, "setup.py")):
-        setup_py = ast_parse_setup_py(os.path.join(package_dir, "setup.py"))
-        if "package_dir" in setup_py:
-            package_lookup = setup_py["package_dir"]
-            if not isinstance(package_lookup, Mapping):
-                package_dir = package_lookup
-            package_dir = package_lookup.get(
-                next(iter(list(package_lookup.keys()))), package_dir
-            )
-    if not os.path.isabs(package_dir):
-        if not base_dir:
-            package_dir = os.path.join(os.path.getcwd(), package_dir)
-        else:
-            package_dir = os.path.join(base_dir, package_dir)
-    return package_dir
-
-
-def get_name_and_version_from_setupcfg(parser, package_dir):
-    # type: (configparser.ConfigParser, STRING_TYPE) -> Tuple[Optional[S], Optional[S]]
-    name, version = None, None
-    if parser.has_option("metadata", "name"):
-        name = parse_special_directives(parser.get("metadata", "name"), package_dir)
-    if parser.has_option("metadata", "version"):
-        version = parse_special_directives(parser.get("metadata", "version"), package_dir)
-    return name, version
-
-
-def get_extras_from_setupcfg(parser):
-    # type: (configparser.ConfigParser) -> Dict[STRING_TYPE, Tuple[BaseRequirement, ...]]
-    extras = {}  # type: Dict[STRING_TYPE, Tuple[BaseRequirement, ...]]
-    if "options.extras_require" not in parser.sections():
-        return extras
-    extras_require_section = parser.options("options.extras_require")
-    for section in extras_require_section:
-        if section in ["options", "metadata"]:
-            continue
-        section_contents = parser.get("options.extras_require", section)
-        section_list = section_contents.split("\n")
-        section_extras = tuple(make_base_requirements(section_list))
-        if section_extras:
-            extras[section] = section_extras
-    return extras
-
-
-def parse_setup_cfg(
-    setup_cfg_contents,  # type: S
-    base_dir,  # type: S
-):
-    # type: (...) -> Dict[S, Union[S, None, Set[BaseRequirement], List[S], Dict[STRING_TYPE, Tuple[BaseRequirement]]]]
-    default_opts = {
-        "metadata": {"name": "", "version": ""},
-        "options": {
-            "install_requires": "",
-            "python_requires": "",
-            "build_requires": "",
-            "setup_requires": "",
-            "extras": "",
-            "packages.find": {"where": "."},
-        },
-    }
-    parser = configparser.ConfigParser(default_opts)
-    if six.PY2:
-        buff = io.BytesIO(setup_cfg_contents)
-        parser.readfp(buff)
-    else:
-        parser.read_string(setup_cfg_contents)
-    results = {}
-    package_dir = get_package_dir_from_setupcfg(parser, base_dir=base_dir)
-    name, version = get_name_and_version_from_setupcfg(parser, package_dir)
-    results["name"] = name
-    results["version"] = version
-    install_requires = set()  # type: Set[BaseRequirement]
-    if parser.has_option("options", "install_requires"):
-        install_requires = make_base_requirements(
-            parser.get("options", "install_requires").split("\n")
-        )
-    results["install_requires"] = install_requires
-    if parser.has_option("options", "python_requires"):
-        results["python_requires"] = parse_special_directives(
-            parser.get("options", "python_requires"), package_dir
-        )
-    if parser.has_option("options", "build_requires"):
-        results["build_requires"] = parser.get("options", "build_requires")
-    results["extras_require"] = get_extras_from_setupcfg(parser)
-    return results
+def parse_setup_cfg(path: str) -> "Dict[str, Any]":
+    return SetupReader.read_setup_cfg(Path(path))
 
 
 @contextlib.contextmanager
@@ -405,11 +607,23 @@ def ensure_reqs(reqs):
     for req in reqs:
         if not req:
             continue
-        if isinstance(req, six.string_types):
+        if isinstance(req, str):
             req = pkg_resources.Requirement.parse("{0}".format(str(req)))
         # req = strip_extras_markers_from_requirement(req)
         new_reqs.append(req)
     return new_reqs
+
+
+def any_valid_values(data: "Dict[str, Any]", fields: "Iterable[str]") -> bool:
+    def is_valid(value: "Any") -> bool:
+        if isinstance(value, (list, tuple)):
+            return all(map(is_valid, value))
+        elif isinstance(value, dict):
+            return all(map(is_valid, value.values()))
+        return isinstance(value, str)
+
+    fields = [field for field in fields if field in data]
+    return fields and all(is_valid(data[field]) for field in fields)
 
 
 def _prepare_wheel_building_kwargs(
@@ -587,7 +801,7 @@ def get_extra_name_from_marker(marker):
 
 def get_metadata_from_wheel(wheel_path):
     # type: (S) -> Dict[Any, Any]
-    if not isinstance(wheel_path, six.string_types):
+    if not isinstance(wheel_path, str):
         raise TypeError("Expected string instance, received {0!r}".format(wheel_path))
     try:
         dist = Wheel(wheel_path)
@@ -662,604 +876,8 @@ def get_metadata_from_dist(dist):
     }
 
 
-AST_BINOP_MAP = dict(
-    (
-        (ast.Add, operator.add),
-        (ast.Sub, operator.sub),
-        (ast.Mult, operator.mul),
-        (ast.Div, operator.floordiv),
-        (ast.Mod, operator.mod),
-        (ast.Pow, operator.pow),
-        (ast.LShift, operator.lshift),
-        (ast.RShift, operator.rshift),
-        (ast.BitAnd, operator.and_),
-        (ast.BitOr, operator.or_),
-        (ast.BitXor, operator.xor),
-    )
-)
-
-
-AST_COMPARATORS = dict(
-    (
-        (ast.Lt, operator.lt),
-        (ast.LtE, operator.le),
-        (ast.Eq, operator.eq),
-        (ast.Gt, operator.gt),
-        (ast.GtE, operator.ge),
-        (ast.NotEq, operator.ne),
-        (ast.Is, operator.is_),
-        (ast.IsNot, operator.is_not),
-        (ast.And, operator.and_),
-        (ast.Or, operator.or_),
-        (ast.Not, operator.not_),
-        (ast.In, lambda a, b: operator.contains(b, a)),
-    )
-)
-
-if getattr(ast, "AnnAssign", None):
-    ASSIGN_NODES = (ast.Assign, ast.AnnAssign)
-else:
-    ASSIGN_NODES = (ast.Assign,)
-
-
-class Analyzer(ast.NodeVisitor):
-    def __init__(self):
-        self.name_types = []
-        self.function_map = {}  # type: Dict[Any, Any]
-        self.function_names = {}
-        self.resolved_function_names = {}
-        self.functions = []
-        self.strings = []
-        self.assignments = {}
-        self.binOps = []
-        self.binOps_map = {}
-        self.recurse = True
-        super(Analyzer, self).__init__()
-
-    def generic_visit(self, node):
-        if isinstance(node, ast.Call):
-            self.functions.append(node)
-            self.function_map.update(ast_unparse(node, initial_mapping=True))
-        if isinstance(node, ast.Name):
-            self.name_types.append(node)
-        if isinstance(node, ast.Str):
-            self.strings.append(node)
-        if isinstance(node, ASSIGN_NODES):
-            self.assignments.update(ast_unparse(node, initial_mapping=True))
-        super(Analyzer, self).generic_visit(node)
-
-    @contextlib.contextmanager
-    def no_recurse(self):
-        original_recurse_val = self.recurse
-        try:
-            self.recurse = False
-            yield
-        finally:
-            self.recurse = original_recurse_val
-
-    def visit_BinOp(self, node):
-        node = ast_unparse(node, initial_mapping=True)
-        self.binOps.append(node)
-
-    def unmap_binops(self):
-        for binop in self.binOps:
-            self.binOps_map[binop] = ast_unparse(binop, analyzer=self)
-
-    def match_assignment_str(self, match):
-        matches = [k for k in self.assignments if getattr(k, "id", "") == match]
-        if matches:
-            return matches[-1]
-        return None
-
-    def match_assignment_name(self, match):
-        matches = [k for k in self.assignments if getattr(k, "id", "") == match.id]
-        if matches:
-            return matches[-1]
-        return None
-
-    def generic_unparse(self, item):
-        if any(isinstance(item, k) for k in AST_BINOP_MAP.keys()):
-            return AST_BINOP_MAP[type(item)]
-        elif any(isinstance(item, k) for k in AST_COMPARATORS.keys()):
-            return AST_COMPARATORS[type(item)]
-        return item
-
-    def unparse(self, item):
-        unparser = getattr(
-            self, "unparse_{0}".format(item.__class__.__name__), self.generic_unparse
-        )
-        return unparser(item)
-
-    def unparse_Dict(self, item):
-        # unparsed = dict(zip(unparse(item.keys), unparse(item.values)))
-        return dict(
-            (self.unparse(k), self.unparse(v)) for k, v in zip(item.keys, item.values)
-        )
-
-    def unparse_List(self, item):
-        return [self.unparse(el) for el in item.elts]
-
-    def unparse_Tuple(self, item):
-        return tuple([self.unparse(el) for el in item.elts])
-
-    def unparse_Str(self, item):
-        return item.s
-
-    def unparse_Subscript(self, item):
-        unparsed = self.unparse(item.value)
-        if isinstance(item.slice, ast.Index):
-            try:
-                unparsed = unparsed[self.unparse(item.slice.value)]
-            except (KeyError, TypeError):
-                # not everything can be looked up before runtime
-                unparsed = item
-        return unparsed
-
-    def unparse_Num(self, item):
-        return item.n
-
-    def unparse_BinOp(self, item):
-        if item in self.binOps_map:
-            unparsed = self.binOps_map[item]
-        else:
-            right_item = self.unparse(item.right)
-            left_item = self.unparse(item.left)
-            op = getattr(item, "op", None)
-            op_func = self.unparse(op) if op is not None else op
-            try:
-                unparsed = op_func(left_item, right_item)
-            except Exception:
-                unparsed = (left_item, op_func, right_item)
-        return unparsed
-
-    def unparse_Name(self, item):
-        unparsed = item.id
-        if not self.recurse:
-            return unparsed
-        if item in self.assignments and self.recurse:
-            items = self.unparse(self.assignments[item])
-            unparsed = items.get(item.id, item.id)
-        else:
-            assignment = self.match_assignment_name(item)
-            if assignment is not None:
-                items = self.unparse(self.assignments[assignment])
-                unparsed = items.get(item.id, item.id)
-        return unparsed
-
-    def unparse_NameConstant(self, item):
-        return item.value
-
-    def unparse_Constant(self, item):
-        return item.value
-
-    def unparse_Ellipsis(self, item):
-        return item.value
-
-    def unparse_Attribute(self, item):
-        attr_name = getattr(item, "value", None)
-        attr_attr = getattr(item, "attr", None)
-        name = None
-        name = self.unparse(attr_name) if attr_name is not None else attr_attr
-        if attr_name and not self.recurse:
-            name = attr_name
-        elif name and attr_attr:
-            if isinstance(name, six.string_types):
-                unparsed = ".".join([item for item in (name, attr_attr) if item])
-            else:
-                unparsed = item
-        elif attr_attr and not name:
-            unparsed = attr_attr
-        else:
-            unparsed = name if not unparsed else unparsed
-        return unparsed
-
-    def unparse_Compare(self, item):
-        if isinstance(item.left, ast.Attribute) or isinstance(item.left, ast.Str):
-            import importlib
-
-            left = self.unparse(item.left)
-            if "." in left:
-                name, _, val = left.rpartition(".")
-                left = getattr(importlib.import_module(name), val, left)
-            comparators = []
-            for comparator in item.comparators:
-                right = self.unparse(comparator)
-                if isinstance(comparator, ast.Attribute) and "." in right:
-                    name, _, val = right.rpartition(".")
-                    right = getattr(importlib.import_module(name), val, right)
-                comparators.append(right)
-            unparsed = (left, self.unparse(item.ops), comparators)
-        else:
-            unparsed = item
-        return unparsed
-
-    def unparse_IfExp(self, item):
-        ops, truth_vals = [], []
-        if isinstance(item.test, ast.Compare):
-            left, ops, right = self.unparse(item.test)
-        else:
-            result = self.unparse(item.test)
-            if isinstance(result, dict):
-                k, v = result.popitem()
-                if not v:
-                    truth_vals = [False]
-        for i, op in enumerate(ops):
-            if i == 0:
-                truth_vals.append(op(left, right[i]))
-            else:
-                truth_vals.append(op(right[i - 1], right[i]))
-        if all(truth_vals):
-            unparsed = self.unparse(item.body)
-        else:
-            unparsed = self.unparse(item.orelse)
-        return unparsed
-
-    def unparse_Call(self, item):
-        unparsed = {}
-        if isinstance(item.func, (ast.Name, ast.Attribute)):
-            func_name = self.unparse(item.func)
-        else:
-            try:
-                func_name = self.unparse(item.func)
-            except Exception:
-                func_name = None
-        if not func_name:
-            return {}
-        if isinstance(func_name, dict):
-            unparsed.update(func_name)
-            func_name = next(iter(func_name.keys()))
-        else:
-            unparsed[func_name] = {}
-        for key in ("kwargs", "keywords"):
-            val = getattr(item, key, [])
-            if val is None:
-                continue
-            for keyword in self.unparse(val):
-                unparsed[func_name].update(self.unparse(keyword))
-        return unparsed
-
-    def unparse_keyword(self, item):
-        return {self.unparse(item.arg): self.unparse(item.value)}
-
-    def unparse_Assign(self, item):
-        # XXX: DO NOT UNPARSE THIS
-        # XXX: If we unparse this it becomes impossible to map it back
-        # XXX: To the original node in the AST so we can find the
-        # XXX: Original reference
-        with self.no_recurse():
-            target = self.unparse(next(iter(item.targets)))
-            val = self.unparse(item.value)
-        if isinstance(target, (tuple, set, list)):
-            unparsed = dict(zip(target, val))
-        else:
-            unparsed = {target: val}
-        return unparsed
-
-    def unparse_Mapping(self, item):
-        unparsed = {}
-        for k, v in item.items():
-            try:
-                unparsed[self.unparse(k)] = self.unparse(v)
-            except TypeError:
-                unparsed[k] = self.unparse(v)
-        return unparsed
-
-    def unparse_list(self, item):
-        return type(item)([self.unparse(el) for el in item])
-
-    def unparse_tuple(self, item):
-        return self.unparse_list(item)
-
-    def unparse_str(self, item):
-        return item
-
-    def parse_function_names(self, should_retry=True, function_map=None):
-        if function_map is None:
-            function_map = {}
-        retries = []
-        for k, v in function_map.items():
-            fn_name = ""
-            if k in self.function_names:
-                fn_name = self.function_names[k]
-            elif isinstance(k, ast.Name):
-                fn_name = k.id
-            elif isinstance(k, ast.Attribute):
-                try:
-                    fn = ast_unparse(k, analyzer=self)
-                except Exception:
-                    if should_retry:
-                        retries.append((k, v))
-                    continue
-                else:
-                    if isinstance(fn, six.string_types):
-                        _, _, fn_name = fn.rpartition(".")
-            if fn_name:
-                self.resolved_function_names[fn_name] = ast_unparse(v, analyzer=self)
-        return retries
-
-    def parse_functions(self):
-        retries = self.parse_function_names(function_map=self.function_map)
-        if retries:
-            failures = self.parse_function_names(
-                should_retry=False, function_map=dict(retries)
-            )
-        return self.resolved_function_names
-
-    def parse_setup_function(self):
-        setup = {}  # type: Dict[Any, Any]
-        self.unmap_binops()
-        function_names = self.parse_functions()
-        if "setup" in function_names:
-            setup = self.unparse(function_names["setup"])
-        keys = list(setup.keys())
-        if len(keys) == 1 and keys[0] is None:
-            _, setup = setup.popitem()
-        keys = list(setup.keys())
-        for k in keys:
-            # XXX: Remove unresolved functions from the setup dictionary
-            if isinstance(setup[k], dict):
-                if not setup[k]:
-                    continue
-                key = next(iter(setup[k].keys()))
-                val = setup[k][key]
-                if key in function_names and val is None or val == {}:
-                    setup.pop(k)
-        return setup
-
-
-def _ensure_hashable(item):
-    try:
-        hash(item)
-    except TypeError:
-        return str(item)
-    else:
-        return item
-
-
-def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # noqa:C901
-    # type: (Any, bool, Optional[Analyzer], bool) -> Union[List[Any], Dict[Any, Any], Tuple[Any, ...], STRING_TYPE]
-    unparse = partial(
-        ast_unparse, initial_mapping=initial_mapping, analyzer=analyzer, recurse=recurse
-    )
-    if getattr(ast, "Constant", None):
-        constant = (ast.Constant, ast.Ellipsis)
-    else:
-        constant = ast.Ellipsis
-    unparsed = item
-    if isinstance(item, ast.Dict):
-        unparsed = dict(
-            zip(map(_ensure_hashable, unparse(item.keys)), unparse(item.values))
-        )
-    elif isinstance(item, ast.List):
-        unparsed = [unparse(el) for el in item.elts]
-    elif isinstance(item, ast.Tuple):
-        unparsed = tuple([unparse(el) for el in item.elts])
-    elif isinstance(item, ast.Str):
-        unparsed = item.s
-    elif isinstance(item, ast.Subscript):
-        unparsed = unparse(item.value)
-        if not initial_mapping:
-            if isinstance(item.slice, ast.Index):
-                try:
-                    unparsed = unparsed[unparse(item.slice.value)]
-                except (KeyError, TypeError):
-                    # not everything can be looked up before runtime
-                    unparsed = item
-    elif any(isinstance(item, k) for k in AST_BINOP_MAP.keys()):
-        unparsed = AST_BINOP_MAP[type(item)]
-    elif isinstance(item, ast.Num):
-        unparsed = item.n
-    elif isinstance(item, ast.BinOp):
-        if analyzer and item in analyzer.binOps_map:
-            unparsed = analyzer.binOps_map[item]
-        else:
-            right_item = unparse(item.right)
-            left_item = unparse(item.left)
-            op = getattr(item, "op", None)
-            op_func = unparse(op) if op is not None else op
-            if not initial_mapping:
-                try:
-                    unparsed = op_func(left_item, right_item)
-                except Exception:
-                    unparsed = (left_item, op_func, right_item)
-            else:
-                item.left = left_item
-                item.right = right_item
-                item.op = op_func
-                unparsed = item
-    elif isinstance(item, ast.Name):
-        if not initial_mapping:
-            unparsed = item.id
-            if analyzer and recurse:
-                if item in analyzer.assignments:
-                    items = unparse(analyzer.assignments[item])
-                    unparsed = items.get(item.id, item.id)
-                else:
-                    assignment = analyzer.match_assignment_name(item)
-                    if assignment is not None:
-                        items = unparse(analyzer.assignments[assignment])
-                        unparsed = items.get(item.id, item.id)
-        else:
-            unparsed = item
-    elif six.PY3 and isinstance(item, ast.NameConstant):
-        unparsed = item.value
-    elif any(isinstance(item, k) for k in AST_COMPARATORS.keys()):
-        unparsed = AST_COMPARATORS[type(item)]
-    elif isinstance(item, constant):
-        unparsed = item.value
-    elif isinstance(item, ast.Compare):
-        if isinstance(item.left, ast.Attribute) or isinstance(item.left, ast.Str):
-            import importlib
-
-            left = unparse(item.left)
-            if "." in left:
-                name, _, val = left.rpartition(".")
-                left = getattr(importlib.import_module(name), val, left)
-            comparators = []
-            for comparator in item.comparators:
-                right = unparse(comparator)
-                if isinstance(comparator, ast.Attribute) and "." in right:
-                    name, _, val = right.rpartition(".")
-                    right = getattr(importlib.import_module(name), val, right)
-                comparators.append(right)
-            unparsed = (left, unparse(item.ops), comparators)
-    elif isinstance(item, ast.IfExp):
-        if initial_mapping:
-            unparsed = item
-        else:
-            ops, truth_vals = [], []
-            if isinstance(item.test, ast.Compare):
-                left, ops, right = unparse(item.test)
-            else:
-                result = ast_unparse(item.test)
-                if isinstance(result, dict):
-                    k, v = result.popitem()
-                    if not v:
-                        truth_vals = [False]
-            for i, op in enumerate(ops):
-                if i == 0:
-                    truth_vals.append(op(left, right[i]))
-                else:
-                    truth_vals.append(op(right[i - 1], right[i]))
-            if all(truth_vals):
-                unparsed = unparse(item.body)
-            else:
-                unparsed = unparse(item.orelse)
-    elif isinstance(item, ast.Attribute):
-        attr_name = getattr(item, "value", None)
-        attr_attr = getattr(item, "attr", None)
-        name = None
-        if initial_mapping:
-            unparsed = item
-        elif attr_name and not recurse:
-            name = attr_name
-        else:
-            name = unparse(attr_name) if attr_name is not None else attr_attr
-        if name and attr_attr:
-            if not initial_mapping and isinstance(name, six.string_types):
-                unparsed = ".".join([item for item in (name, attr_attr) if item])
-            else:
-                unparsed = item
-        elif attr_attr and not name and not initial_mapping:
-            unparsed = attr_attr
-        else:
-            unparsed = name if not unparsed else unparsed
-    elif isinstance(item, ast.Call):
-        unparsed = {}
-        if isinstance(item.func, (ast.Name, ast.Attribute)):
-            func_name = unparse(item.func)
-        else:
-            try:
-                func_name = unparse(item.func)
-            except Exception:
-                func_name = None
-        if func_name and not isinstance(func_name, dict):
-            unparsed[func_name] = {}
-        if isinstance(func_name, dict):
-            unparsed.update(func_name)
-            func_name = next(iter(func_name.keys()))
-        if func_name:
-            for key in ("kwargs", "keywords"):
-                val = getattr(item, key, [])
-                if val is None:
-                    continue
-                if isinstance(val, ast.Name):
-                    unparsed[func_name] = val
-                else:
-                    for keyword in unparse(val):
-                        unparsed[func_name].update(unparse(keyword))
-    elif isinstance(item, ast.keyword):
-        unparsed = {unparse(item.arg): unparse(item.value)}
-    elif isinstance(item, ASSIGN_NODES):
-        # XXX: DO NOT UNPARSE THIS
-        # XXX: If we unparse this it becomes impossible to map it back
-        # XXX: To the original node in the AST so we can find the
-        # XXX: Original reference
-        try:
-            targets = item.targets  # for ast.Assign
-        except AttributeError:  # for ast.AnnAssign
-            targets = (item.target,)
-        if not initial_mapping:
-            target = unparse(next(iter(targets)), recurse=False)
-            val = unparse(item.value, recurse=False)
-            if isinstance(target, (tuple, set, list)):
-                unparsed = dict(zip(target, val))
-            else:
-                unparsed = {target: val}
-        else:
-            unparsed = {next(iter(targets)): item}
-    elif isinstance(item, Mapping):
-        unparsed = {}
-        for k, v in item.items():
-            try:
-                unparsed[unparse(k)] = unparse(v)
-            except TypeError:
-                unparsed[k] = unparse(v)
-    elif isinstance(item, (list, tuple)):
-        unparsed = type(item)([unparse(el) for el in item])
-    elif isinstance(item, six.string_types):
-        unparsed = item
-    return unparsed
-
-
-def ast_parse_attribute_from_file(path, attribute):
-    # type: (S) -> Any
-    analyzer = ast_parse_file(path)
-    target_value = None
-    for k, v in analyzer.assignments.items():
-        name = ""
-        if isinstance(k, ast.Name):
-            name = k.id
-        elif isinstance(k, ast.Attribute):
-            fn = ast_unparse(k)
-            if isinstance(fn, six.string_types):
-                _, _, name = fn.rpartition(".")
-        if name == attribute:
-            target_value = ast_unparse(v, analyzer=analyzer)
-            break
-    if isinstance(target_value, Mapping) and attribute in target_value:
-        return target_value[attribute]
-    return target_value
-
-
-def ast_parse_file(path):
-    # type: (S) -> Analyzer
-    try:
-        tree = ast.parse(read_source(path))
-    except SyntaxError:
-        # The source may be encoded strangely, e.g. azure-storage
-        # which has a setup.py encoded with utf-8-sig
-        with open(path, "rb") as fh:
-            contents = fh.read()
-        encoding = chardet.detect(contents)["encoding"]
-        tree = ast.parse(contents.decode(encoding))
-    ast_analyzer = Analyzer()
-    ast_analyzer.visit(tree)
-    return ast_analyzer
-
-
-def ast_parse_setup_py(path):
-    # type: (S) -> Dict[Any, Any]
-    ast_analyzer = ast_parse_file(path)
-    setup = {}  # type: Dict[Any, Any]
-    ast_analyzer.unmap_binops()
-    function_names = ast_analyzer.parse_functions()
-    if "setup" in function_names:
-        setup = ast_unparse(function_names["setup"], analyzer=ast_analyzer)
-    keys = list(setup.keys())
-    if len(keys) == 1 and keys[0] is None:
-        _, setup = setup.popitem()
-    keys = list(setup.keys())
-    for k in keys:
-        # XXX: Remove unresolved functions from the setup dictionary
-        if isinstance(setup[k], dict):
-            if not setup[k]:
-                continue
-            key = next(iter(setup[k].keys()))
-            val = setup[k][key]
-            if key in function_names and val is None or val == {}:
-                setup.pop(k)
-    return setup
+def ast_parse_setup_py(path: str, raising: bool = True) -> "Dict[str, Any]":
+    return SetupReader.read_setup_py(Path(path), raising)
 
 
 def run_setup(script_path, egg_base=None):
@@ -1287,26 +905,16 @@ def run_setup(script_path, egg_base=None):
         script_name = os.path.basename(script_path)
         g = {"__file__": script_name, "__name__": "__main__"}
         sys.path.insert(0, target_cwd)
-        local_dict = {}
-        if sys.version_info < (3, 5):
-            save_argv = sys.argv
-        else:
-            save_argv = sys.argv.copy()
+
+        save_argv = sys.argv.copy()
         try:
             global _setup_distribution, _setup_stop_after
             _setup_stop_after = "run"
             sys.argv[0] = script_name
             sys.argv[1:] = args
             with open(script_name, "rb") as f:
-                contents = f.read()
-                if six.PY3:
-                    contents.replace(br"\r\n", br"\n")
-                else:
-                    contents.replace(r"\r\n", r"\n")
-                if sys.version_info < (3, 5):
-                    exec(contents, g, local_dict)
-                else:
-                    exec(contents, g)
+                contents = f.read().replace(br"\r\n", br"\n")
+                exec(contents, g)
         # We couldn't import everything needed to run setup
         except Exception:
             python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
@@ -1479,7 +1087,7 @@ class SetupInfo(object):
 
     def update_from_dict(self, metadata):
         name = metadata.get("name", self.name)
-        if isinstance(name, six.string_types):
+        if isinstance(name, str):
             self.name = self.name if self.name else name
         version = metadata.get("version", None)
         if version:
@@ -1511,14 +1119,14 @@ class SetupInfo(object):
         self.python_requires = metadata.get("python_requires", self.python_requires)
         extras_require = metadata.get("extras_require", {})
         extras_tuples = []
-        for section in set(list(extras_require.keys())) - set(list(self.extras.keys())):
+        if self._extras_requirements is None:
+            self._extras_requirements = ()
+        for section in set(extras_require) - {v[0] for v in self._extras_requirements}:
             extras = extras_require[section]
             extras_set = make_base_requirements(extras)
             if self.ireq and self.ireq.extras and section in self.ireq.extras:
                 requirements |= extras_set
             extras_tuples.append((section, tuple(extras_set)))
-        if self._extras_requirements is None:
-            self._extras_requirements = ()
         self._extras_requirements += tuple(extras_tuples)
         build_backend = metadata.get("build_backend", "setuptools.build_meta:__legacy__")
         if not self.build_backend:
@@ -1539,14 +1147,10 @@ class SetupInfo(object):
     def parse_setup_cfg(self):
         # type: () -> Dict[STRING_TYPE, Any]
         if self.setup_cfg is not None and self.setup_cfg.exists():
-            contents = self.setup_cfg.read_text()
-            base_dir = self.setup_cfg.absolute().parent.as_posix()
             try:
                 parsed = setuptools_parse_setup_cfg(self.setup_cfg.as_posix())
             except Exception:
-                if six.PY2:
-                    contents = self.setup_cfg.read_bytes()
-                parsed = parse_setup_cfg(contents, base_dir)
+                parsed = parse_setup_cfg(self.setup_cfg.as_posix())
             if not parsed:
                 return {}
             return parsed
@@ -1615,7 +1219,7 @@ class SetupInfo(object):
                     ['"{0}"'.format(r) for r in self.build_requires]
                 )
             self.pyproject.write_text(
-                six.text_type(
+                str(
                     """
 [build-system]
 requires = [{0}]
@@ -1648,7 +1252,7 @@ build-backend = "{1}"
                     ['"{0}"'.format(r) for r in self.build_requires]
                 )
             self.pyproject.write_text(
-                six.text_type(
+                str(
                     """
 [build-system]
 requires = [{0}]
@@ -1771,7 +1375,12 @@ build-backend = "{1}"
                 _metadata += (k, v)
         self.metadata = _metadata
         cleaned = metadata.copy()
-        cleaned.update({"install_requires": metadata.get("requires", [])})
+        cleaned.update(
+            {
+                "install_requires": metadata.get("requires", []),
+                "extras_require": metadata.get("extras", {}),
+            }
+        )
         if cleaned:
             self.update_from_dict(cleaned.copy())
         else:
@@ -1785,7 +1394,6 @@ build-backend = "{1}"
         :return: The current instance
         :rtype: `SetupInfo`
         """
-
         if self.pyproject and self.pyproject.exists():
             result = get_pyproject(self.pyproject.parent)
             if result is not None:
@@ -1806,32 +1414,36 @@ build-backend = "{1}"
         # type: () -> Dict[S, Any]
         parse_setupcfg = False
         parse_setuppy = False
+        self.run_pyproject()
         if self.setup_cfg and self.setup_cfg.exists():
             parse_setupcfg = True
         if self.setup_py and self.setup_py.exists():
             parse_setuppy = True
-        if parse_setuppy or parse_setupcfg:
-            with cd(self.base_dir):
-                if parse_setuppy:
-                    self.update_from_dict(self.parse_setup_py())
-                if parse_setupcfg:
-                    self.update_from_dict(self.parse_setup_cfg())
-            if self.name is not None and any(
-                [
-                    self.requires,
-                    self.setup_requires,
-                    self._extras_requirements,
-                    self.build_backend,
-                ]
-            ):
+        if (
+            self.build_backend.startswith("setuptools")
+            and parse_setuppy
+            or parse_setupcfg
+        ):
+            parsed = {}
+            try:
+                with cd(self.base_dir):
+                    if parse_setuppy:
+                        parsed.update(self.parse_setup_py())
+                    if parse_setupcfg:
+                        parsed.update(self.parse_setup_cfg())
+            except Unparsable:
+                pass
+            else:
+                self.update_from_dict(parsed)
                 return self.as_dict()
+
         return self.get_info()
 
     def get_info(self):
         # type: () -> Dict[S, Any]
-        with cd(self.base_dir):
-            self.run_pyproject()
-            self.build()
+        if self.metadata is None:
+            with cd(self.base_dir):
+                self.build()
 
         if self.setup_py and self.setup_py.exists() and self.metadata is None:
             if not self.requires or not self.name:
@@ -1893,8 +1505,7 @@ build-backend = "{1}"
             cmd = pip_shims.shims.InstallCommand()
             options, _ = cmd.parser.parse_args([])
             session = cmd._build_session(options)
-            finder = cmd._build_package_finder(options, session)
-        tempdir_manager = stack.enter_context(pip_shims.shims.global_tempdir_manager())
+        stack.enter_context(pip_shims.shims.global_tempdir_manager())
         vcs, uri = split_vcs_method_from_uri(ireq.link.url_without_fragment)
         parsed = urlparse(uri)
         if "file" in parsed.scheme:

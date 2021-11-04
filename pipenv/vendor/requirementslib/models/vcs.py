@@ -7,7 +7,6 @@ import sys
 
 import attr
 import pip_shims
-import six
 
 from ..environment import MYPY_RUNNING
 from .url import URI
@@ -124,13 +123,11 @@ class VCSRepository(object):
             # set the default to not write stdout, the first option sets this value
             new_defaults = [False] + list(run_command_defaults)[1:]
             new_defaults = tuple(new_defaults)
-        if six.PY3:
-            try:
-                pip_vcs.VersionControl.run_command.__defaults__ = new_defaults
-            except AttributeError:
-                pip_vcs.VersionControl.run_command.__func__.__defaults__ = new_defaults
-        else:
+        try:
+            pip_vcs.VersionControl.run_command.__defaults__ = new_defaults
+        except AttributeError:
             pip_vcs.VersionControl.run_command.__func__.__defaults__ = new_defaults
+
         sys.modules[target_module] = pip_vcs
         cls.DEFAULT_RUN_ARGS = new_defaults
         return new_defaults

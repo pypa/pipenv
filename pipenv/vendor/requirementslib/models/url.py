@@ -1,11 +1,13 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
 
+from urllib.parse import quote
+from urllib.parse import unquote as url_unquote
+from urllib.parse import unquote_plus
+
 import attr
 import pip_shims.shims
 from orderedmultidict import omdict
-from six.moves.urllib.parse import quote, unquote_plus, unquote as url_unquote
-from urllib3 import util as urllib3_util
 from urllib3.util import parse_url as urllib3_parse
 from urllib3.util.url import Url
 
@@ -14,9 +16,9 @@ from ..utils import is_installable_file
 from .utils import extras_to_string, parse_extras
 
 if MYPY_RUNNING:
-    from typing import Dict, List, Optional, Text, Tuple, TypeVar, Union
+    from typing import Dict, Optional, Text, Tuple, TypeVar, Union
+
     from pip_shims.shims import Link
-    from vistir.compat import Path
 
     _T = TypeVar("_T")
     STRING_TYPE = Union[bytes, str, Text]

@@ -4,11 +4,11 @@ from __future__ import absolute_import, print_function
 import copy
 import itertools
 import os
+from json import JSONDecodeError
+from pathlib import Path
 
 import attr
 import plette.lockfiles
-import six
-from vistir.compat import FileNotFoundError, JSONDecodeError, Path
 
 from ..exceptions import LockfileCorruptException, MissingParameter, PipfileNotFound
 from ..utils import is_editable, is_vcs, merge_items
@@ -16,11 +16,11 @@ from .project import ProjectFile
 from .requirements import Requirement
 from .utils import optional_instance_of
 
-DEFAULT_NEWLINES = six.text_type("\n")
+DEFAULT_NEWLINES = "\n"
 
 
 def preferred_newlines(f):
-    if isinstance(f.newlines, six.text_type):
+    if isinstance(f.newlines, str):
         return f.newlines
     return DEFAULT_NEWLINES
 
@@ -36,7 +36,7 @@ class Lockfile(object):
     _dev_requirements = attr.ib(default=attr.Factory(list), type=list)
     projectfile = attr.ib(validator=is_projectfile, type=ProjectFile)
     _lockfile = attr.ib(validator=is_lockfile, type=plette.lockfiles.Lockfile)
-    newlines = attr.ib(default=DEFAULT_NEWLINES, type=six.text_type)
+    newlines = attr.ib(default=DEFAULT_NEWLINES, type=str)
 
     @path.default
     def _get_path(self):
@@ -118,7 +118,8 @@ class Lockfile(object):
 
     @classmethod
     def read_projectfile(cls, path):
-        """Read the specified project file and provide an interface for writing/updating.
+        """Read the specified project file and provide an interface for
+        writing/updating.
 
         :param str path: Path to the target file.
         :return: A project file with the model and location for interaction
@@ -261,7 +262,8 @@ class Lockfile(object):
         return self._lockfile.default
 
     def get_requirements(self, dev=True, only=False):
-        """Produces a generator which generates requirements from the desired section.
+        """Produces a generator which generates requirements from the desired
+        section.
 
         :param bool dev: Indicates whether to use dev requirements, defaults to False
         :return: Requirements from the relevant the relevant pipfile
@@ -297,7 +299,7 @@ class Lockfile(object):
         self.projectfile.write()
 
     def as_requirements(self, include_hashes=False, dev=False):
-        """Returns a list of requirements in pip-style format"""
+        """Returns a list of requirements in pip-style format."""
         lines = []
         section = self.dev_requirements if dev else self.requirements
         for req in section:
