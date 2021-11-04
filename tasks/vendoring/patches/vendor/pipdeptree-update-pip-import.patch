@@ -13,7 +13,7 @@ index e15cd8f4..9f692879 100644
 -    from pipenv.patched.notpip import get_installed_distributions, FrozenRequirement
 +pardir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 +sys.path.append(pardir)
-+from pipenv.vendor.pip_shims import get_installed_distributions, FrozenRequirement
++from pipenv.vendor.pip_shims.shims import get_installed_distributions, FrozenRequirement
  
 -from pipenv.patched.notpip._vendor import pkg_resources
 +import pkg_resources
