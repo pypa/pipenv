@@ -584,7 +584,7 @@ def license_fallback(vendor_dir, sdist_name):
     url = HARDCODED_LICENSE_URLS[libname]
     _, _, name = url.rpartition("/")
     dest = license_destination(vendor_dir, libname, name)
-    r = requests.get(url, allow_redirects=True)
+    r = requests.get(url, allow_redirects=True, verify=False)
     log(f"Downloading {url}")
     r.raise_for_status()
     dest.write_bytes(r.content)
@@ -664,12 +664,8 @@ def generate_patch(ctx, package_path, patch_description, base="HEAD"):
 @invoke.task()
 def update_pip_deps(ctx):
     patched_dir = _get_patched_dir(ctx)
-    base_vendor_dir = _get_vendor_dir(ctx)
-    base_vendor_file = base_vendor_dir / "vendor_pip.txt"
     pip_dir = patched_dir / "notpip"
     vendor_dir = pip_dir / "_vendor"
-    vendor_file = vendor_dir / "vendor.txt"
-    vendor_file.write_bytes(base_vendor_file.read_bytes())
     download_licenses(ctx, vendor_dir)
 
 

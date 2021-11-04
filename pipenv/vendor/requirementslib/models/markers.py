@@ -2,25 +2,22 @@
 import itertools
 import operator
 import re
+from collections.abc import Mapping, Set
+from functools import lru_cache, reduce
 
 import attr
 import distlib.markers
 import packaging.version
-import six
 from packaging.markers import InvalidMarker, Marker
 from packaging.specifiers import Specifier, SpecifierSet
-from vistir.compat import Mapping, Set, lru_cache
 from vistir.misc import dedup
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
 from .utils import filter_none, validate_markers
 
-from six.moves import reduce  # isort:skip
-
-
 if MYPY_RUNNING:
-    from typing import Optional, List, Type, Any, Tuple, Union, AnyStr, Text, Iterator
+    from typing import Any, AnyStr, Iterator, List, Optional, Text, Tuple, Type, Union
 
     STRING_TYPE = Union[str, bytes, Text]
 
@@ -130,7 +127,7 @@ def _tuplize_version(version):
 @lru_cache(maxsize=1024)
 def _format_version(version):
     # type: (Tuple[int, ...]) -> STRING_TYPE
-    if not isinstance(version, six.string_types):
+    if not isinstance(version, str):
         return ".".join(str(i) for i in version)
     return version
 
@@ -212,7 +209,8 @@ def _group_by_op(specs):
 # TODO: rename this to something meaningful
 def normalize_specifier_set(specs):
     # type: (Union[str, SpecifierSet]) -> Optional[Set[Specifier]]
-    """Given a specifier set, a string, or an iterable, normalize the specifiers
+    """Given a specifier set, a string, or an iterable, normalize the
+    specifiers.
 
     .. note:: This function exists largely to deal with ``pyzmq`` which handles
         the ``requires_python`` specifier incorrectly, using ``3.7*`` rather than
@@ -228,7 +226,7 @@ def normalize_specifier_set(specs):
     if isinstance(specs, set):
         return specs
     # when we aren't dealing with a string at all, we can normalize this as usual
-    elif not isinstance(specs, six.string_types):
+    elif not isinstance(specs, str):
         return {_format_pyspec(spec) for spec in specs}
     spec_list = []
     for spec in specs.split(","):
@@ -368,10 +366,11 @@ def _strip_pyversion(elements):
 def _strip_marker_elem(elem_name, elements):
     """Remove the supplied element from the marker.
 
-    This is not a comprehensive implementation, but relies on an important
-    characteristic of metadata generation: The element's operand is always
-    associated with an "and" operator. This means that we can simply remove the
-    operand and the "and" operator associated with it.
+    This is not a comprehensive implementation, but relies on an
+    important characteristic of metadata generation: The element's
+    operand is always associated with an "and" operator. This means that
+    we can simply remove the operand and the "and" operator associated
+    with it.
     """
 
     extra_indexes = []
@@ -425,8 +424,8 @@ def get_without_extra(marker):
 def get_without_pyversion(marker):
     """Built a new marker without the `python_version` part.
 
-    This could return `None` if the `python_version` section is the only section in the
-    marker.
+    This could return `None` if the `python_version` section is the only
+    section in the marker.
     """
 
     return _get_stripped_marker(marker, _strip_pyversion)
@@ -444,7 +443,7 @@ def _markers_collect_extras(markers, collection):
 def _markers_collect_pyversions(markers, collection):
     local_collection = []
     marker_format_str = "{0}"
-    for i, el in enumerate(reversed(markers)):
+    for el in reversed(markers):
         if isinstance(el, tuple) and el[0].value == "python_version":
             new_marker = str(gen_marker(el))
             local_collection.append(marker_format_str.format(new_marker))
@@ -490,8 +489,7 @@ def get_contained_extras(marker):
 
 @lru_cache(maxsize=1024)
 def get_contained_pyversions(marker):
-    """Collect all `python_version` operands from a marker.
-    """
+    """Collect all `python_version` operands from a marker."""
 
     collection = []
     if not marker:
@@ -522,8 +520,7 @@ def get_contained_pyversions(marker):
 
 @lru_cache(maxsize=128)
 def contains_extra(marker):
-    """Check whehter a marker contains an "extra == ..." operand.
-    """
+    """Check whehter a marker contains an "extra == ..." operand."""
     if not marker:
         return False
     marker = _ensure_marker(marker)
@@ -532,8 +529,7 @@ def contains_extra(marker):
 
 @lru_cache(maxsize=128)
 def contains_pyversion(marker):
-    """Check whether a marker contains a python_version operand.
-    """
+    """Check whether a marker contains a python_version operand."""
 
     if not marker:
         return False
@@ -543,8 +539,8 @@ def contains_pyversion(marker):
 
 def _split_specifierset_str(specset_str, prefix="=="):
     # type: (str, str) -> Set[Specifier]
-    """
-    Take a specifierset string and split it into a list to join for specifier sets
+    """Take a specifierset string and split it into a list to join for
+    specifier sets.
 
     :param str specset_str: A string containing python versions, often comma separated
     :param str prefix: A prefix to use when generating the specifier set
@@ -564,8 +560,7 @@ def _split_specifierset_str(specset_str, prefix="=="):
 
 
 def _get_specifiers_from_markers(marker_item):
-    """
-    Given a marker item, get specifiers from the version marker
+    """Given a marker item, get specifiers from the version marker.
 
     :param :class:`~packaging.markers.Marker` marker_sequence: A marker describing a version constraint
     :return: A set of specifiers corresponding to the marker constraint

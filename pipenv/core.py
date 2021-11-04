@@ -144,8 +144,9 @@ def cleanup_virtualenv(project, bare=True):
 
 
 def import_requirements(project, r=None, dev=False):
-    from .patched.notpip._vendor import requests as pip_requests
-    from .vendor.pip_shims.shims import parse_requirements
+    from pipenv.patched.notpip._vendor import requests as pip_requests
+    from pipenv.patched.notpip._internal.req.constructors import install_req_from_parsed_requirement
+    from pipenv.vendor.pip_shims.shims import parse_requirements
 
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
@@ -166,7 +167,7 @@ def import_requirements(project, r=None, dev=False):
         trusted_hosts.extend(_trusted_hosts)
     indexes = sorted(set(indexes))
     trusted_hosts = sorted(set(trusted_hosts))
-    reqs = [f for f in parse_requirements(r, session=pip_requests)]
+    reqs = [install_req_from_parsed_requirement(f) for f in parse_requirements(r, session=pip_requests)]
     for package in reqs:
         if package.name not in BAD_PACKAGES:
             if package.link is not None:
@@ -2489,7 +2490,7 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
         run_fn = do_run_nt
     else:
         run_fn = do_run_posix
-        run_kwargs = {"command": command}
+        run_kwargs.update({"command": command})
     try:
         run_fn(*run_args, **run_kwargs)
     finally:
@@ -2641,7 +2642,7 @@ def do_check(
             raise exceptions.JSONParseError(c.stdout, c.stderr)
         except Exception:
             raise exceptions.PipenvCmdError(cmd_list_to_shell(c.args), c.stdout, c.stderr, c.returncode)
-        for (package, resolved, installed, description, vuln) in results:
+        for (package, resolved, installed, description, vuln, *_) in results:
             click.echo(
                 "{}: {} {} resolved ({} installed)!".format(
                     crayons.normal(vuln, bold=True),

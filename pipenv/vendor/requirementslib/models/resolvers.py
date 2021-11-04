@@ -2,7 +2,6 @@
 from contextlib import contextmanager
 
 import attr
-import six
 from pip_shims.shims import Wheel
 
 from .cache import HashCache
@@ -62,8 +61,8 @@ class DependencyResolver(object):
         return list(self.pinned_deps.values())
 
     def add_abstract_dep(self, dep):
-        """Add an abstract dependency by either creating a new entry or
-        merging with an old one.
+        """Add an abstract dependency by either creating a new entry or merging
+        with an old one.
 
         :param dep: An abstract dependency to add
         :type dep: :class:`~requirementslib.models.dependency.AbstractDependency`
@@ -85,10 +84,12 @@ class DependencyResolver(object):
             self.dep_dict[dep.name] = dep
 
     def pin_deps(self):
-        """Pins the current abstract dependencies and adds them to the history dict.
+        """Pins the current abstract dependencies and adds them to the history
+        dict.
 
-        Adds any new dependencies to the abstract dependencies already present by
-        merging them together to form new, compatible abstract dependencies.
+        Adds any new dependencies to the abstract dependencies already
+        present by merging them together to form new, compatible
+        abstract dependencies.
         """
 
         for name in list(self.dep_dict.keys()):
@@ -122,7 +123,8 @@ class DependencyResolver(object):
                     break
 
     def resolve(self, root_nodes, max_rounds=20):
-        """Resolves dependencies using a backtracking resolver and multiple endpoints.
+        """Resolves dependencies using a backtracking resolver and multiple
+        endpoints.
 
         Note: this resolver caches aggressively.
         Runs for *max_rounds* or until any two pinning rounds yield the same outcome.
@@ -141,11 +143,11 @@ class DependencyResolver(object):
 
         # Coerce input into AbstractDependency instances.
         # We accept str, Requirement, and AbstractDependency as input.
-        from .dependencies import AbstractDependency
         from ..utils import log
+        from .dependencies import AbstractDependency
 
         for dep in root_nodes:
-            if isinstance(dep, six.string_types):
+            if isinstance(dep, str):
                 dep = AbstractDependency.from_string(dep)
             elif not isinstance(dep, AbstractDependency):
                 dep = AbstractDependency.from_requirement(dep)
@@ -227,11 +229,11 @@ class DependencyResolver(object):
 
     @contextmanager
     def allow_all_wheels(self):
-        """
-        Monkey patches pip.Wheel to allow wheels from all platforms and Python versions.
+        """Monkey patches pip.Wheel to allow wheels from all platforms and
+        Python versions.
 
-        This also saves the candidate cache and set a new one, or else the results from the
-        previous non-patched calls will interfere.
+        This also saves the candidate cache and set a new one, or else
+        the results from the previous non-patched calls will interfere.
         """
 
         def _wheel_supported(self, tags=None):

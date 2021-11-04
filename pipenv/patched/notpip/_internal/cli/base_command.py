@@ -1,25 +1,20 @@
 """Base Command class, and related routines"""
 
-from __future__ import absolute_import, print_function
-
 import logging
 import logging.config
 import optparse
 import os
-import platform
 import sys
 import traceback
+from optparse import Values
+from typing import Any, List, Optional, Tuple
 
 from pipenv.patched.notpip._internal.cli import cmdoptions
 from pipenv.patched.notpip._internal.cli.command_context import CommandContextMixIn
-from pipenv.patched.notpip._internal.cli.parser import (
-    ConfigOptionParser,
-    UpdatingDefaultsHelpFormatter,
-)
+from pipenv.patched.notpip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
 from pipenv.patched.notpip._internal.cli.status_codes import (
     ERROR,
     PREVIOUS_BUILD_DIR_ERROR,
-    SUCCESS,
     UNKNOWN_ERROR,
     VIRTUALENV_NOT_FOUND,
 )
@@ -27,6 +22,7 @@ from pipenv.patched.notpip._internal.exceptions import (
     BadCommand,
     CommandError,
     InstallationError,
+    NetworkConnectionError,
     PreviousBuildDirError,
     UninstallationError,
 )
@@ -34,42 +30,38 @@ from pipenv.patched.notpip._internal.utils.deprecation import deprecated
 from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
 from pipenv.patched.notpip._internal.utils.logging import BrokenStdoutLoggingError, setup_logging
 from pipenv.patched.notpip._internal.utils.misc import get_prog, normalize_path
-from pipenv.patched.notpip._internal.utils.temp_dir import global_tempdir_manager
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectoryTypeRegistry as TempDirRegistry
+from pipenv.patched.notpip._internal.utils.temp_dir import global_tempdir_manager, tempdir_registry
 from pipenv.patched.notpip._internal.utils.virtualenv import running_under_virtualenv
 
-if MYPY_CHECK_RUNNING:
-    from typing import List, Tuple, Any
-    from optparse import Values
-
-__all__ = ['Command']
+__all__ = ["Command"]
 
 logger = logging.getLogger(__name__)
 
 
 class Command(CommandContextMixIn):
-    usage = None  # type: str
-    ignore_require_venv = False  # type: bool
+    usage: str = ""
+    ignore_require_venv: bool = False
 
-    def __init__(self, name, summary, isolated=False):
-        # type: (str, str, bool) -> None
-        super(Command, self).__init__()
-        parser_kw = {
-            'usage': self.usage,
-            'prog': '%s %s' % (get_prog(), name),
-            'formatter': UpdatingDefaultsHelpFormatter(),
-            'add_help_option': False,
-            'name': name,
-            'description': self.__doc__,
-            'isolated': isolated,
-        }
+    def __init__(self, name: str, summary: str, isolated: bool = False) -> None:
+        super().__init__()
 
         self.name = name
         self.summary = summary
-        self.parser = ConfigOptionParser(**parser_kw)
+        self.parser = ConfigOptionParser(
+            usage=self.usage,
+            prog=f"{get_prog()} {name}",
+            formatter=UpdatingDefaultsHelpFormatter(),
+            add_help_option=False,
+            name=name,
+            description=self.__doc__,
+            isolated=isolated,
+        )
+
+        self.tempdir_registry: Optional[TempDirRegistry] = None
 
         # Commands should add options to this option group
-        optgroup_name = '%s Options' % self.name.capitalize()
+        optgroup_name = f"{self.name.capitalize()} Options"
         self.cmd_opts = optparse.OptionGroup(self.parser, optgroup_name)
 
         # Add the general options
@@ -79,35 +71,39 @@ class Command(CommandContextMixIn):
         )
         self.parser.add_option_group(gen_opts)
 
-    def handle_pip_version_check(self, options):
-        # type: (Values) -> None
+        self.add_options()
+
+    def add_options(self) -> None:
+        pass
+
+    def handle_pip_version_check(self, options: Values) -> None:
         """
         This is a no-op so that commands by default do not do the pip version
         check.
         """
         # Make sure we do the pip version check if the index_group options
         # are present.
-        assert not hasattr(options, 'no_index')
+        assert not hasattr(options, "no_index")
 
-    def run(self, options, args):
-        # type: (Values, List[Any]) -> Any
+    def run(self, options: Values, args: List[Any]) -> int:
         raise NotImplementedError
 
-    def parse_args(self, args):
-        # type: (List[str]) -> Tuple[Any, Any]
+    def parse_args(self, args: List[str]) -> Tuple[Any, Any]:
         # factored out for testability
         return self.parser.parse_args(args)
 
-    def main(self, args):
-        # type: (List[str]) -> int
+    def main(self, args: List[str]) -> int:
         try:
             with self.main_context():
                 return self._main(args)
         finally:
             logging.shutdown()
 
-    def _main(self, args):
-        # type: (List[str]) -> int
+    def _main(self, args: List[str]) -> int:
+        # We must initialize this before the tempdir manager, otherwise the
+        # configuration would not be accessible by the time we clean up the
+        # tempdir manager.
+        self.tempdir_registry = self.enter_context(tempdir_registry())
         # Intentionally set as early as possible so globally-managed temporary
         # directories are available to the rest of the code.
         self.enter_context(global_tempdir_manager())
@@ -123,50 +119,20 @@ class Command(CommandContextMixIn):
             user_log_file=options.log,
         )
 
-        if (
-            sys.version_info[:2] == (2, 7) and
-            not options.no_python_version_warning
-        ):
-            message = (
-                "A future version of pip will drop support for Python 2.7. "
-                "More details about Python 2 support in pip, can be found at "
-                "https://pip.pypa.io/en/latest/development/release-process/#python-2-support"  # noqa
-            )
-            if platform.python_implementation() == "CPython":
-                message = (
-                    "Python 2.7 reached the end of its life on January "
-                    "1st, 2020. Please upgrade your Python as Python 2.7 "
-                    "is no longer maintained. "
-                ) + message
-            deprecated(message, replacement=None, gone_in=None)
-
-        if options.skip_requirements_regex:
-            deprecated(
-                "--skip-requirements-regex is unsupported and will be removed",
-                replacement=(
-                    "manage requirements/constraints files explicitly, "
-                    "possibly generating them from metadata"
-                ),
-                gone_in="20.1",
-                issue=7297,
-            )
-
         # TODO: Try to get these passing down from the command?
         #       without resorting to os.environ to hold these.
         #       This also affects isolated builds and it should.
 
         if options.no_input:
-            os.environ['PIP_NO_INPUT'] = '1'
+            os.environ["PIP_NO_INPUT"] = "1"
 
         if options.exists_action:
-            os.environ['PIP_EXISTS_ACTION'] = ' '.join(options.exists_action)
+            os.environ["PIP_EXISTS_ACTION"] = " ".join(options.exists_action)
 
         if options.require_venv and not self.ignore_require_venv:
             # If a venv is required check if it can really be found
             if not running_under_virtualenv():
-                logger.critical(
-                    'Could not find an activated virtualenv (required).'
-                )
+                logger.critical("Could not find an activated virtualenv (required).")
                 sys.exit(VIRTUALENV_NOT_FOUND)
 
         if options.cache_dir:
@@ -176,51 +142,73 @@ class Command(CommandContextMixIn):
                     "The directory '%s' or its parent directory is not owned "
                     "or is not writable by the current user. The cache "
                     "has been disabled. Check the permissions and owner of "
-                    "that directory. If executing pip with sudo, you may want "
-                    "sudo's -H flag.",
+                    "that directory. If executing pip with sudo, you should "
+                    "use sudo's -H flag.",
                     options.cache_dir,
                 )
                 options.cache_dir = None
 
+        if getattr(options, "build_dir", None):
+            deprecated(
+                reason=(
+                    "The -b/--build/--build-dir/--build-directory "
+                    "option is deprecated and has no effect anymore."
+                ),
+                replacement=(
+                    "use the TMPDIR/TEMP/TMP environment variable, "
+                    "possibly combined with --no-clean"
+                ),
+                gone_in="21.3",
+                issue=8333,
+            )
+
+        if "2020-resolver" in options.features_enabled:
+            logger.warning(
+                "--use-feature=2020-resolver no longer has any effect, "
+                "since it is now the default dependency resolver in pip. "
+                "This will become an error in pip 21.0."
+            )
+
         try:
             status = self.run(options, args)
-            # FIXME: all commands should return an exit status
-            # and when it is done, isinstance is not needed anymore
-            if isinstance(status, int):
-                return status
+            assert isinstance(status, int)
+            return status
         except PreviousBuildDirError as exc:
             logger.critical(str(exc))
-            logger.debug('Exception information:', exc_info=True)
+            logger.debug("Exception information:", exc_info=True)
 
             return PREVIOUS_BUILD_DIR_ERROR
-        except (InstallationError, UninstallationError, BadCommand) as exc:
+        except (
+            InstallationError,
+            UninstallationError,
+            BadCommand,
+            NetworkConnectionError,
+        ) as exc:
             logger.critical(str(exc))
-            logger.debug('Exception information:', exc_info=True)
+            logger.debug("Exception information:", exc_info=True)
 
             return ERROR
         except CommandError as exc:
-            logger.critical('%s', exc)
-            logger.debug('Exception information:', exc_info=True)
+            logger.critical("%s", exc)
+            logger.debug("Exception information:", exc_info=True)
 
             return ERROR
         except BrokenStdoutLoggingError:
             # Bypass our logger and write any remaining messages to stderr
             # because stdout no longer works.
-            print('ERROR: Pipe to stdout was broken', file=sys.stderr)
+            print("ERROR: Pipe to stdout was broken", file=sys.stderr)
             if level_number <= logging.DEBUG:
                 traceback.print_exc(file=sys.stderr)
 
             return ERROR
         except KeyboardInterrupt:
-            logger.critical('Operation cancelled by user')
-            logger.debug('Exception information:', exc_info=True)
+            logger.critical("Operation cancelled by user")
+            logger.debug("Exception information:", exc_info=True)
 
             return ERROR
         except BaseException:
-            logger.critical('Exception:', exc_info=True)
+            logger.critical("Exception:", exc_info=True)
 
             return UNKNOWN_ERROR
         finally:
             self.handle_pip_version_check(options)
-
-        return SUCCESS

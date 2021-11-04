@@ -1,0 +1,50 @@
+diff --git a/pipenv/patched/notpip/_internal/cli/req_command.py b/pipenv/patched/notpip/_internal/cli/req_command.py
+index cb2c8e86..17c2209f 100644
+--- a/pipenv/patched/notpip/_internal/cli/req_command.py
++++ b/pipenv/patched/notpip/_internal/cli/req_command.py
+@@ -305,7 +305,7 @@ class RequirementCommand(IndexGroupCommand):
+         if resolver_variant == "2020-resolver":
+             import pipenv.patched.notpip._internal.resolution.resolvelib.resolver
+ 
+-            return pip._internal.resolution.resolvelib.resolver.Resolver(
++            return pipenv.patched.notpip._internal.resolution.resolvelib.resolver.Resolver(
+                 preparer=preparer,
+                 finder=finder,
+                 wheel_cache=wheel_cache,
+@@ -320,7 +320,7 @@ class RequirementCommand(IndexGroupCommand):
+             )
+         import pipenv.patched.notpip._internal.resolution.legacy.resolver
+ 
+-        return pip._internal.resolution.legacy.resolver.Resolver(
++        return pipenv.patched.notpip._internal.resolution.legacy.resolver.Resolver(
+             preparer=preparer,
+             finder=finder,
+             wheel_cache=wheel_cache,
+diff --git a/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py b/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
+index 0ba06c52..3136651b 100644
+--- a/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
++++ b/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
+@@ -253,7 +253,10 @@ class _InstallRequirementBackedCandidate(Candidate):
+         yield self._get_requires_python_dependency()
+ 
+     def get_install_requirement(self) -> Optional[InstallRequirement]:
+-        return self._ireq
++        ireq = self._ireq
++        if self._version and ireq.req and not ireq.req.url:
++            ireq.req.specifier = SpecifierSet(f"=={self._version}")
++        return ireq
+ 
+ 
+ class LinkCandidate(_InstallRequirementBackedCandidate):
+diff --git a/pipenv/patched/notpip/__main__.py b/pipenv/patched/notpip/__main__.py
+index 204a8ca2..546caab1 100644
+--- a/pipenv/patched/notpip/__main__.py
++++ b/pipenv/patched/notpip/__main__.py
+@@ -26,6 +26,7 @@ if __name__ == "__main__":
+     warnings.filterwarnings(
+         "ignore", category=DeprecationWarning, module=".*packaging\\.version"
+     )
++    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+     from pipenv.patched.notpip._internal.cli.main import main as _main
+
+     sys.exit(_main())

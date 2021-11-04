@@ -142,7 +142,8 @@ def test_pipenv_graph_reverse(PipenvInstance):
 @flaky
 def test_pipenv_check(PipenvInstance):
     with PipenvInstance() as p:
-        p.pipenv('install requests==1.0.0')
+        c = p.pipenv('install requests==1.0.0')
+        assert c.returncode == 0
         c = p.pipenv('check')
         assert c.returncode != 0
         assert 'requests' in c.stdout

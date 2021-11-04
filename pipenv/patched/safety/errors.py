@@ -8,3 +8,7 @@ class DatabaseFileNotFoundError(DatabaseFetchError):
 
 class InvalidKeyError(DatabaseFetchError):
     pass
+
+
+class TooManyRequestsError(DatabaseFetchError):
+    pass

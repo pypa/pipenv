@@ -1,31 +1,18 @@
-# The following comment should be removed at some point in the future.
-# mypy: strict-optional=False
-
-from __future__ import absolute_import
-
 import logging
 import os
+import shlex
 import subprocess
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 
-from pipenv.patched.notpip._vendor.six.moves import shlex_quote
+from pipenv.patched.notpip._internal.cli.spinners import SpinnerInterface, open_spinner
+from pipenv.patched.notpip._internal.exceptions import InstallationSubprocessError
+from pipenv.patched.notpip._internal.utils.logging import VERBOSE, subprocess_logger
+from pipenv.patched.notpip._internal.utils.misc import HiddenText
 
-from pipenv.patched.notpip._internal.exceptions import InstallationError
-from pipenv.patched.notpip._internal.utils.compat import console_to_str, str_to_display
-from pipenv.patched.notpip._internal.utils.logging import subprocess_logger
-from pipenv.patched.notpip._internal.utils.misc import HiddenText, path_to_display
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from pipenv.patched.notpip._internal.utils.ui import open_spinner
-
-if MYPY_CHECK_RUNNING:
-    from typing import (
-        Any, Callable, Iterable, List, Mapping, Optional, Text, Union,
-    )
-    from pipenv.patched.notpip._internal.utils.ui import SpinnerInterface
-
-    CommandArgs = List[Union[str, HiddenText]]
+CommandArgs = List[Union[str, HiddenText]]
 
 
-LOG_DIVIDER = '----------------------------------------'
+LOG_DIVIDER = "----------------------------------------"
 
 
 def make_command(*args):
@@ -56,9 +43,9 @@ def format_command_args(args):
     # this can trigger a UnicodeDecodeError in Python 2 if the argument
     # has type unicode and includes a non-ascii character.  (The type
     # checker doesn't ensure the annotations are correct in all cases.)
-    return ' '.join(
-        shlex_quote(str(arg)) if isinstance(arg, HiddenText)
-        else shlex_quote(arg) for arg in args
+    return " ".join(
+        shlex.quote(str(arg)) if isinstance(arg, HiddenText) else shlex.quote(arg)
+        for arg in args
     )
 
 
@@ -67,18 +54,16 @@ def reveal_command_args(args):
     """
     Return the arguments in their raw, unredacted form.
     """
-    return [
-        arg.secret if isinstance(arg, HiddenText) else arg for arg in args
-    ]
+    return [arg.secret if isinstance(arg, HiddenText) else arg for arg in args]
 
 
 def make_subprocess_output_error(
-    cmd_args,     # type: Union[List[str], CommandArgs]
-    cwd,          # type: Optional[str]
-    lines,        # type: List[Text]
+    cmd_args,  # type: Union[List[str], CommandArgs]
+    cwd,  # type: Optional[str]
+    lines,  # type: List[str]
     exit_status,  # type: int
 ):
-    # type: (...) -> Text
+    # type: (...) -> str
     """
     Create and return the error message to use to log a subprocess error
     with command output.
@@ -86,27 +71,21 @@ def make_subprocess_output_error(
     :param lines: A list of lines, each ending with a newline.
     """
     command = format_command_args(cmd_args)
-    # Convert `command` and `cwd` to text (unicode in Python 2) so we can use
-    # them as arguments in the unicode format string below. This avoids
-    # "UnicodeDecodeError: 'ascii' codec can't decode byte ..." in Python 2
-    # if either contains a non-ascii character.
-    command_display = str_to_display(command, desc='command bytes')
-    cwd_display = path_to_display(cwd)
 
     # We know the joined output value ends in a newline.
-    output = ''.join(lines)
+    output = "".join(lines)
     msg = (
         # Use a unicode string to avoid "UnicodeEncodeError: 'ascii'
         # codec can't encode character ..." in Python 2 when a format
         # argument (e.g. `output`) has a non-ascii character.
-        u'Command errored out with exit status {exit_status}:\n'
-        ' command: {command_display}\n'
-        '     cwd: {cwd_display}\n'
-        'Complete output ({line_count} lines):\n{output}{divider}'
+        "Command errored out with exit status {exit_status}:\n"
+        " command: {command_display}\n"
+        "     cwd: {cwd_display}\n"
+        "Complete output ({line_count} lines):\n{output}{divider}"
     ).format(
         exit_status=exit_status,
-        command_display=command_display,
-        cwd_display=cwd_display,
+        command_display=command,
+        cwd_display=cwd,
         line_count=len(lines),
         output=output,
         divider=LOG_DIVIDER,
@@ -118,15 +97,16 @@ def call_subprocess(
     cmd,  # type: Union[List[str], CommandArgs]
     show_stdout=False,  # type: bool
     cwd=None,  # type: Optional[str]
-    on_returncode='raise',  # type: str
+    on_returncode="raise",  # type: str
     extra_ok_returncodes=None,  # type: Optional[Iterable[int]]
     command_desc=None,  # type: Optional[str]
     extra_environ=None,  # type: Optional[Mapping[str, Any]]
     unset_environ=None,  # type: Optional[Iterable[str]]
     spinner=None,  # type: Optional[SpinnerInterface]
-    log_failed_cmd=True  # type: Optional[bool]
+    log_failed_cmd=True,  # type: Optional[bool]
+    stdout_only=False,  # type: Optional[bool]
 ):
-    # type: (...) -> Text
+    # type: (...) -> str
     """
     Args:
       show_stdout: if true, use INFO to log the subprocess's stderr and
@@ -136,6 +116,9 @@ def call_subprocess(
       unset_environ: an iterable of environment variable names to unset
         prior to calling subprocess.Popen().
       log_failed_cmd: if false, failed commands are not logged, only raised.
+      stdout_only: if true, return only stdout, else return both. When true,
+        logging of both stdout and stderr occurs when the subprocess has
+        terminated, else logging occurs as subprocess output is produced.
     """
     if extra_ok_returncodes is None:
         extra_ok_returncodes = []
@@ -161,10 +144,10 @@ def call_subprocess(
         log_subprocess = subprocess_logger.info
         used_level = logging.INFO
     else:
-        # Then log the subprocess output using DEBUG.  This also ensures
+        # Then log the subprocess output using VERBOSE.  This also ensures
         # it will be logged to the log file (aka user_log), if enabled.
-        log_subprocess = subprocess_logger.debug
-        used_level = logging.DEBUG
+        log_subprocess = subprocess_logger.verbose
+        used_level = VERBOSE
 
     # Whether the subprocess will be visible in the console.
     showing_subprocess = subprocess_logger.getEffectiveLevel() <= used_level
@@ -186,45 +169,68 @@ def call_subprocess(
         proc = subprocess.Popen(
             # Convert HiddenText objects to the underlying str.
             reveal_command_args(cmd),
-            stderr=subprocess.STDOUT, stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE, cwd=cwd, env=env,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT if not stdout_only else subprocess.PIPE,
+            cwd=cwd,
+            env=env,
+            errors="backslashreplace",
         )
-        proc.stdin.close()
     except Exception as exc:
         if log_failed_cmd:
             subprocess_logger.critical(
-                "Error %s while executing command %s", exc, command_desc,
+                "Error %s while executing command %s",
+                exc,
+                command_desc,
             )
         raise
     all_output = []
-    while True:
-        # The "line" value is a unicode string in Python 2.
-        line = console_to_str(proc.stdout.readline())
-        if not line:
-            break
-        line = line.rstrip()
-        all_output.append(line + '\n')
+    if not stdout_only:
+        assert proc.stdout
+        assert proc.stdin
+        proc.stdin.close()
+        # In this mode, stdout and stderr are in the same pipe.
+        while True:
+            line = proc.stdout.readline()  # type: str
+            if not line:
+                break
+            line = line.rstrip()
+            all_output.append(line + "\n")
 
-        # Show the line immediately.
-        log_subprocess(line)
-        # Update the spinner.
-        if use_spinner:
-            spinner.spin()
-    try:
-        proc.wait()
-    finally:
-        if proc.stdout:
-            proc.stdout.close()
-    proc_had_error = (
-        proc.returncode and proc.returncode not in extra_ok_returncodes
-    )
+            # Show the line immediately.
+            log_subprocess(line)
+            # Update the spinner.
+            if use_spinner:
+                assert spinner
+                spinner.spin()
+        try:
+            proc.wait()
+        finally:
+            if proc.stdout:
+                proc.stdout.close()
+        output = "".join(all_output)
+    else:
+        # In this mode, stdout and stderr are in different pipes.
+        # We must use communicate() which is the only safe way to read both.
+        out, err = proc.communicate()
+        # log line by line to preserve pip log indenting
+        for out_line in out.splitlines():
+            log_subprocess(out_line)
+        all_output.append(out)
+        for err_line in err.splitlines():
+            log_subprocess(err_line)
+        all_output.append(err)
+        output = out
+
+    proc_had_error = proc.returncode and proc.returncode not in extra_ok_returncodes
     if use_spinner:
+        assert spinner
         if proc_had_error:
             spinner.finish("error")
         else:
             spinner.finish("done")
     if proc_had_error:
-        if on_returncode == 'raise':
+        if on_returncode == "raise":
             if not showing_subprocess and log_failed_cmd:
                 # Then the subprocess streams haven't been logged to the
                 # console yet.
@@ -235,22 +241,19 @@ def call_subprocess(
                     exit_status=proc.returncode,
                 )
                 subprocess_logger.error(msg)
-            exc_msg = (
-                'Command errored out with exit status {}: {} '
-                'Check the logs for full command output.'
-            ).format(proc.returncode, command_desc)
-            raise InstallationError(exc_msg)
-        elif on_returncode == 'warn':
+            raise InstallationSubprocessError(proc.returncode, command_desc)
+        elif on_returncode == "warn":
             subprocess_logger.warning(
                 'Command "%s" had error code %s in %s',
-                command_desc, proc.returncode, cwd,
+                command_desc,
+                proc.returncode,
+                cwd,
             )
-        elif on_returncode == 'ignore':
+        elif on_returncode == "ignore":
             pass
         else:
-            raise ValueError('Invalid value: on_returncode=%s' %
-                             repr(on_returncode))
-    return ''.join(all_output)
+            raise ValueError(f"Invalid value: on_returncode={on_returncode!r}")
+    return output
 
 
 def runner_with_spinner_message(message):
@@ -264,7 +267,7 @@ def runner_with_spinner_message(message):
     def runner(
         cmd,  # type: List[str]
         cwd=None,  # type: Optional[str]
-        extra_environ=None  # type: Optional[Mapping[str, Any]]
+        extra_environ=None,  # type: Optional[Mapping[str, Any]]
     ):
         # type: (...) -> None
         with open_spinner(message) as spinner:

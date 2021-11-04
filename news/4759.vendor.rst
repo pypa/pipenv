@@ -1,0 +1,6 @@
+Switch the dependency resolver from ``pip-tools`` to `pip`.
+
+Update vendor libraries:
+- Update ``requirementslib`` from ``1.5.16`` to ``1.6.1``
+- Update ``pip-shims`` from ``0.5.6`` to ``0.6.0``
+- New vendor ``platformdirs 2.4.0``

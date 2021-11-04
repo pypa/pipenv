@@ -11,7 +11,7 @@ import sys
 # python-3.5) otherwise only do DNS matching.  This allows
 # backports.ssl_match_hostname to continue to be used in Python 2.7.
 try:
-    from pipenv.patched.notpip._vendor import ipaddress
+    import ipaddress
 except ImportError:
     ipaddress = None
 

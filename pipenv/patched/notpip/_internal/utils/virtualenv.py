@@ -1,15 +1,9 @@
-from __future__ import absolute_import
-
 import logging
 import os
 import re
 import site
 import sys
-
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-
-if MYPY_CHECK_RUNNING:
-    from typing import List, Optional
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 _INCLUDE_SYSTEM_SITE_PACKAGES_REGEX = re.compile(
@@ -33,13 +27,12 @@ def _running_under_regular_virtualenv():
     This handles virtual environments created with pypa's virtualenv.
     """
     # pypa/virtualenv case
-    return hasattr(sys, 'real_prefix')
+    return hasattr(sys, "real_prefix")
 
 
 def running_under_virtualenv():
     # type: () -> bool
-    """Return True if we're running inside a virtualenv, False otherwise.
-    """
+    """Return True if we're running inside a virtualenv, False otherwise."""
     return _running_under_venv() or _running_under_regular_virtualenv()
 
 
@@ -49,11 +42,13 @@ def _get_pyvenv_cfg_lines():
 
     Returns None, if it could not read/access the file.
     """
-    pyvenv_cfg_file = os.path.join(sys.prefix, 'pyvenv.cfg')
+    pyvenv_cfg_file = os.path.join(sys.prefix, "pyvenv.cfg")
     try:
-        with open(pyvenv_cfg_file) as f:
+        # Although PEP 405 does not specify, the built-in venv module always
+        # writes with UTF-8. (pypa/pip#8717)
+        with open(pyvenv_cfg_file, encoding="utf-8") as f:
             return f.read().splitlines()  # avoids trailing newlines
-    except IOError:
+    except OSError:
         return None
 
 
@@ -82,7 +77,7 @@ def _no_global_under_venv():
 
     for line in cfg_lines:
         match = _INCLUDE_SYSTEM_SITE_PACKAGES_REGEX.match(line)
-        if match is not None and match.group('value') == 'false':
+        if match is not None and match.group("value") == "false":
             return True
     return False
 
@@ -96,20 +91,21 @@ def _no_global_under_regular_virtualenv():
     """
     site_mod_dir = os.path.dirname(os.path.abspath(site.__file__))
     no_global_site_packages_file = os.path.join(
-        site_mod_dir, 'no-global-site-packages.txt',
+        site_mod_dir,
+        "no-global-site-packages.txt",
     )
     return os.path.exists(no_global_site_packages_file)
 
 
 def virtualenv_no_global():
     # type: () -> bool
-    """Returns a boolean, whether running in venv with no system site-packages.
-    """
+    """Returns a boolean, whether running in venv with no system site-packages."""
+    # PEP 405 compliance needs to be checked first since virtualenv >=20 would
+    # return True for both checks, but is only able to use the PEP 405 config.
+    if _running_under_venv():
+        return _no_global_under_venv()
 
     if _running_under_regular_virtualenv():
         return _no_global_under_regular_virtualenv()
-
-    if _running_under_venv():
-        return _no_global_under_venv()
 
     return False

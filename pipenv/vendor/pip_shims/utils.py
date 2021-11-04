@@ -8,20 +8,12 @@ import contextlib
 import copy
 import inspect
 import sys
+from collections.abc import Callable
 from functools import wraps
 
 import packaging.version
-import six
 
 from .environment import MYPY_RUNNING
-
-# format: off
-six.add_move(
-    six.MovedAttribute("Callable", "collections", "collections.abc")
-)  # type: ignore  # noqa
-from six.moves import Callable  # type: ignore  # isort:skip  # noqa
-
-# format: on
 
 if MYPY_RUNNING:
     from types import ModuleType
@@ -109,7 +101,7 @@ def memoize(obj):
 def _parse(version):
     # type: (str) -> Tuple[int, ...]
     if isinstance(version, STRING_TYPES):
-        return tuple((int(i) for i in version.split(".")))
+        return tuple(int(i) for i in version.split("."))
     return version
 
 
@@ -117,7 +109,7 @@ def _parse(version):
 def parse_version(version):
     # type: (str) -> packaging.version._BaseVersion
     if not isinstance(version, STRING_TYPES):
-        raise TypeError("Can only derive versions from string, got {0!r}".format(version))
+        raise TypeError("Can only derive versions from string, got {!r}".format(version))
     return packaging.version.parse(version)
 
 
@@ -196,12 +188,8 @@ def set_default_kwargs(basecls, method, *args, **default_kwargs):
             prepended_defaults = prepended_defaults + (default_kwargs[arg],)
     if not prepended_defaults:
         return basecls
-    if six.PY2 and inspect.ismethod(target_method):
-        new_defaults = prepended_defaults + target_func.__defaults__
-        target_method.__func__.__defaults__ = new_defaults
-    else:
-        new_defaults = prepended_defaults + target_method.__defaults__
-        target_method.__defaults__ = new_defaults
+    new_defaults = prepended_defaults + target_method.__defaults__
+    target_method.__defaults__ = new_defaults
     setattr(basecls, method, target_method)
     return basecls
 
@@ -227,7 +215,7 @@ def ensure_function(parent, funcname, func):
     if parent_is_module:
         module = parent.__name__
     elif parent_is_class:
-        qualname = "{0}.{1}".format(parent.__name__, qualname)
+        qualname = "{}.{}".format(parent.__name__, qualname)
         module = getattr(parent, "__module__", None)
     else:
         module = getattr(parent, "__module__", None)

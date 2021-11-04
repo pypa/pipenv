@@ -127,8 +127,6 @@ funcsigs = "*"
 @flaky
 @pytest.mark.markers
 @pytest.mark.complex
-@pytest.mark.py3_only
-@pytest.mark.skip("test is flaky on CI")
 def test_resolver_unique_markers(PipenvInstance):
     """vcrpy has a dependency on `yarl` which comes with a marker
     of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
@@ -139,8 +137,6 @@ def test_resolver_unique_markers(PipenvInstance):
     """
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv('install vcrpy==2.0.1')
-        assert c.returncode == 0
-        c = p.pipenv('lock')
         assert c.returncode == 0
         assert 'yarl' in p.lockfile['default']
         yarl = p.lockfile['default']['yarl']

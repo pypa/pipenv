@@ -25,7 +25,8 @@ warnings.filterwarnings("ignore", category=DependencyWarning)
 warnings.filterwarnings("ignore", category=ResourceWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
-
+# Load patched pip instead of system pip
+os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
 os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = fs_str("1")
 
 # Hack to make things work better.

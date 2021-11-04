@@ -5,6 +5,8 @@ import contextlib
 import copy
 import functools
 import os
+from contextlib import ExitStack
+from json import JSONDecodeError
 
 import attr
 import packaging.markers
@@ -12,7 +14,7 @@ import packaging.version
 import pip_shims.shims
 import requests
 from packaging.utils import canonicalize_name
-from vistir.compat import JSONDecodeError, fs_str
+from vistir.compat import fs_str
 from vistir.contextmanagers import cd, temp_environ
 from vistir.path import create_tracked_tempdir
 
@@ -32,32 +34,28 @@ from .utils import (
     version_from_ireq,
 )
 
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
-
 if MYPY_RUNNING:
     from typing import (
         Any,
         Dict,
-        List,
         Generator,
+        List,
         Optional,
-        Union,
+        Set,
+        Text,
         Tuple,
         TypeVar,
-        Text,
-        Set,
+        Union,
     )
-    from pip_shims.shims import (
-        InstallRequirement,
-        InstallationCandidate,
-        PackageFinder,
-        Command,
-    )
-    from packaging.requirements import Requirement as PackagingRequirement
+
     from packaging.markers import Marker
+    from packaging.requirements import Requirement as PackagingRequirement
+    from pip_shims.shims import (
+        Command,
+        InstallationCandidate,
+        InstallRequirement,
+        PackageFinder,
+    )
 
     TRequirement = TypeVar("TRequirement")
     RequirementType = TypeVar(
@@ -88,8 +86,8 @@ def _get_filtered_versions(ireq, versions, prereleases):
 
 def find_all_matches(finder, ireq, pre=False):
     # type: (PackageFinder, InstallRequirement, bool) -> List[InstallationCandidate]
-    """Find all matching dependencies using the supplied finder and the
-    given ireq.
+    """Find all matching dependencies using the supplied finder and the given
+    ireq.
 
     :param finder: A package finder for discovering matching candidates.
     :type finder: :class:`~pip._internal.index.PackageFinder`
@@ -130,7 +128,8 @@ class AbstractDependency(object):
 
     @property
     def version_set(self):
-        """Return the set of versions for the candidates in this abstract dependency.
+        """Return the set of versions for the candidates in this abstract
+        dependency.
 
         :return: A set of matching versions
         :rtype: set(str)
@@ -141,8 +140,8 @@ class AbstractDependency(object):
         return set(packaging.version.parse(version_from_ireq(c)) for c in self.candidates)
 
     def compatible_versions(self, other):
-        """Find compatible version numbers between this abstract
-        dependency and another one.
+        """Find compatible version numbers between this abstract dependency and
+        another one.
 
         :param other: An abstract dependency to compare with.
         :type other: :class:`~requirementslib.models.dependency.AbstractDependency`
@@ -230,8 +229,9 @@ class AbstractDependency(object):
 
     @classmethod
     def from_requirement(cls, requirement, parent=None):
-        """Creates a new :class:`~requirementslib.models.dependency.AbstractDependency`
-        from a :class:`~requirementslib.models.requirements.Requirement` object.
+        """Creates a new
+        :class:`~requirementslib.models.dependency.AbstractDependency` from a
+        :class:`~requirementslib.models.requirements.Requirement` object.
 
         This class is used to find all candidates matching a given set of specifiers
         and a given requirement.
@@ -358,7 +358,8 @@ def get_dependencies(ireq, sources=None, parent=None):
 
 def get_dependencies_from_wheel_cache(ireq):
     # type: (pip_shims.shims.InstallRequirement) -> Optional[Set[pip_shims.shims.InstallRequirement]]
-    """Retrieves dependencies for the given install requirement from the wheel cache.
+    """Retrieves dependencies for the given install requirement from the wheel
+    cache.
 
     :param ireq: A single InstallRequirement
     :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
@@ -384,7 +385,8 @@ def _marker_contains_extra(ireq):
 
 
 def get_dependencies_from_json(ireq):
-    """Retrieves dependencies for the given install requirement from the json api.
+    """Retrieves dependencies for the given install requirement from the json
+    api.
 
     :param ireq: A single InstallRequirement
     :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
@@ -433,7 +435,8 @@ def get_dependencies_from_json(ireq):
 
 
 def get_dependencies_from_cache(ireq):
-    """Retrieves dependencies for the given install requirement from the dependency cache.
+    """Retrieves dependencies for the given install requirement from the
+    dependency cache.
 
     :param ireq: A single InstallRequirement
     :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
@@ -474,7 +477,8 @@ def is_python(section):
 
 
 def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache=None):
-    """Retrieves dependencies for the given install requirement from the pip resolver.
+    """Retrieves dependencies for the given install requirement from the pip
+    resolver.
 
     :param dep: A single InstallRequirement
     :type dep: :class:`~pip._internal.req.req_install.InstallRequirement`
@@ -506,8 +510,8 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
     return requirements
 
 
-def get_pip_options(args=[], sources=None, pip_command=None):
-    """Build a pip command from a list of sources
+def get_pip_options(args=None, sources=None, pip_command=None):
+    """Build a pip command from a list of sources.
 
     :param args: positional arguments passed through to the pip parser
     :param sources: A list of pipfile-formatted sources, defaults to None
@@ -523,7 +527,7 @@ def get_pip_options(args=[], sources=None, pip_command=None):
     if not sources:
         sources = [{"url": "https://pypi.org/simple", "name": "pypi", "verify_ssl": True}]
     _ensure_dir(CACHE_DIR)
-    pip_args = args
+    pip_args = args or []
     pip_args = prepare_pip_source_args(sources, pip_args)
     pip_options, _ = pip_command.parser.parse_args(pip_args)
     pip_options.cache_dir = CACHE_DIR
@@ -532,7 +536,7 @@ def get_pip_options(args=[], sources=None, pip_command=None):
 
 def get_finder(sources=None, pip_command=None, pip_options=None):
     # type: (List[Dict[S, Union[S, bool]]], Optional[Command], Any) -> PackageFinder
-    """Get a package finder for looking up candidates to install
+    """Get a package finder for looking up candidates to install.
 
     :param sources: A list of pipfile-formatted sources, defaults to None
     :param sources: list[dict], optional
@@ -567,7 +571,8 @@ def start_resolver(finder=None, session=None, wheel_cache=None):
     :param :class:`~requests.Session` session: A session instance
     :param :class:`~pip._internal.cache.WheelCache` wheel_cache: A pip WheelCache instance
     :return: A 3-tuple of finder, preparer, resolver
-    :rtype: (:class:`~pip._internal.operations.prepare.RequirementPreparer`, :class:`~pip._internal.resolve.Resolver`)
+    :rtype: (:class:`~pip._internal.operations.prepare.RequirementPreparer`,
+             :class:`~pip._internal.resolve.Resolver`)
     """
 
     pip_command = get_pip_command()
