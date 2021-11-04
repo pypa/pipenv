@@ -181,14 +181,16 @@ def test_complex_lock_with_vcs_deps(local_tempdir, PipenvInstance, pip_src_dir):
     # This uses the real PyPI since we need Internet to access the Git
     # dependency anyway.
     with PipenvInstance() as p, local_tempdir:
+        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
+        dateutil_uri = p._pipfile.get_fixture_path("git/dateutil").as_uri()
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
 click = "==6.7"
 
 [dev-packages]
-requests = {git = "https://github.com/psf/requests.git"}
-            """.strip()
+requests = {git = "%s"}
+            """.strip() % requests_uri
             f.write(contents)
 
         c = p.pipenv('install')
@@ -197,7 +199,7 @@ requests = {git = "https://github.com/psf/requests.git"}
         assert 'requests' in lock['develop']
         assert 'click' in lock['default']
 
-        c = p.pipenv('run pip install -e git+https://github.com/dateutil/dateutil#egg=python_dateutil')
+        c = p.pipenv(f'run pip install -e git+{dateutil_uri}#egg=python_dateutil')
         assert c.returncode == 0
 
         c = p.pipenv('lock')
@@ -488,11 +490,12 @@ requests = "==2.14.0"
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_without_install(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
+        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/psf/requests.git", ref = "master", editable = true}
-            """.strip())
+requests = {git = "%s", ref = "master", editable = true}
+            """.strip() % requests_uri)
         c = p.pipenv('lock')
         assert c.returncode == 0
         assert 'requests' in p.lockfile['default']
@@ -507,11 +510,12 @@ requests = {git = "https://github.com/psf/requests.git", ref = "master", editabl
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_ref_in_git(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
+        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/psf/requests.git@883caaf", editable = true}
-            """.strip())
+requests = {git = "%s@883caaf", editable = true}
+            """.strip() % requests_uri)
         c = p.pipenv('lock')
         assert c.returncode == 0
         assert p.lockfile['default']['requests']['git'] == 'https://github.com/psf/requests.git'
@@ -544,11 +548,12 @@ requests = {git = "https://github.com/psf/requests.git", ref = "883caaf", editab
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_extras_without_install(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
+        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/psf/requests.git", editable = true, extras = ["socks"]}
-            """.strip())
+requests = {git = "%s", editable = true, extras = ["socks"]}
+            """.strip() % requests_uri)
         c = p.pipenv('lock')
         assert c.returncode == 0
         assert 'requests' in p.lockfile['default']
@@ -567,11 +572,12 @@ requests = {git = "https://github.com/psf/requests.git", editable = true, extras
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_markers_without_install(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
+        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
-requests = {git = "https://github.com/psf/requests.git", ref = "master", editable = true, markers = "python_version >= '2.6'"}
-            """.strip())
+requests = {git = "%s", ref = "master", editable = true, markers = "python_version >= '2.6'"}
+            """.strip() % requests_uri)
         c = p.pipenv('lock')
         assert c.returncode == 0
         assert 'requests' in p.lockfile['default']
