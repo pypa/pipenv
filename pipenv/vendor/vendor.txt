@@ -29,6 +29,7 @@ pexpect==4.8.0
 pip-shims==0.6.0
 pipdeptree==2.0.0
 pipreqs==0.4.10
+platformdirs==2.4.0
 plette[validation]==0.2.3
 ptyprocess==0.7.0
 pyparsing==2.4.7
