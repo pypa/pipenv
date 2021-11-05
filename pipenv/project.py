@@ -270,6 +270,10 @@ class Project:
         with io.open(dot_venv) as f:
             name = f.read().strip()
 
+        # If .venv file is empty, set location based on config.
+        if not name:
+            return str(get_workon_home().joinpath(self.virtualenv_name))
+
         # If content looks like a path, use it as a relative path.
         # Otherwise use directory named after content in WORKON_HOME.
         if looks_like_dir(name):
