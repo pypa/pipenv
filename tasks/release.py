@@ -3,12 +3,11 @@ import os
 import pathlib
 import re
 import sys
+import subprocess
 
 import invoke
 
 from parver import Version
-from towncrier._builder import find_fragments, render_fragments, split_fragments
-from towncrier._settings import load_config
 
 from pipenv.__version__ import __version__
 from pipenv.vendor.vistir.contextmanagers import temp_environ
@@ -52,22 +51,7 @@ def get_build_dir(ctx):
 def _render_log():
     """Totally tap into Towncrier internals to get an in-memory result.
     """
-    config = load_config(ROOT)
-    definitions = config["types"]
-    fragments, fragment_filenames = find_fragments(
-        pathlib.Path(config["directory"]).absolute(),
-        config["sections"],
-        None,
-        definitions,
-    )
-    rendered = render_fragments(
-        pathlib.Path(config["template"]).read_text(encoding="utf-8"),
-        config["issue_format"],
-        split_fragments(fragments, definitions),
-        definitions,
-        config["underlines"][1:],
-        False,  # Don't add newlines to wrapped text.
-    )
+    rendered = subprocess.check_output(["towncrier", "--draft"]).decode("utf-8")
     return rendered
 
 

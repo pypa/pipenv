@@ -1,1 +1,0 @@
-Drop the dependencies for Python 2.7 compatibility purpose.

@@ -32,7 +32,7 @@ extras = {
         "towncrier",
         "bs4",
         "twine",
-        "sphinx<2",
+        "sphinx",
         "flake8>=3.3.0,<4.0",
         "black;python_version>='3.6'",
         "parver",

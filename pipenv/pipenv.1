@@ -1,8 +1,5 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PIPENV" "1" "May 29, 2021" "2021.5.29" "pipenv"
-.SH NAME
-pipenv \- pipenv Documentation
 .
 .nr rst2man-indent-level 0
 .
@@ -30,6 +27,9 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
+.TH "PIPENV" "1" "Nov 05, 2021" "2021.11.5" "pipenv"
+.SH NAME
+pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
 .sp
 .ce
@@ -196,11 +196,7 @@ it\(aqs a higher\-level tool that simplifies dependency management for common us
 cases.
 .SS ☤ Isolated Installation of Pipenv with Pipx
 .sp
-
-.nf
-\(gaPipx\(ga_
-.fi
- is a tool to help you install and run end\-user applications written in Python. It installs applications
+\fI\%Pipx\fP is a tool to help you install and run end\-user applications written in Python. It installs applications
 into an isolated and clean environment on their own. To install pipx, just run:
 .INDENT 0.0
 .INDENT 3.5
@@ -446,6 +442,69 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2021.11.5 (2021\-11\-05)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+Avoid sharing states but create project objects on demand. So that most integration test cases are able to switch to a in\-process execution method.  \fI\%#4757\fP
+.IP \(bu 2
+Shell\-quote \fBpip\fP commands when logging.  \fI\%#4760\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Ignore empty .venv in rood dir and create project name base virtual environment  \fI\%#4790\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Update vendored dependencies
+\- \fBattrs\fP from \fB20.3.0\fP to \fB21.2.0\fP
+\- \fBcerberus\fP from \fB1.3.2\fP to \fB1.3.4\fP
+\- \fBcertifi\fP from \fB2020.11.8\fP to \fB2021.5.30\fP
+\- \fBchardet\fP from \fB3.0.4\fP to \fB4.0.0\fP
+\- \fBclick\fP from \fB7.1.2\fP to \fB8.0.1\fP
+\- \fBdistlib\fP from \fB0.3.1\fP to \fB0.3.2\fP
+\- \fBidna\fP from \fB2.10\fP to \fB3.2\fP
+\- \fBimportlib\-metadata\fP from \fB2.0.0\fP to \fB4.6.1\fP
+\- \fBimportlib\-resources\fP from \fB3.3.0\fP to \fB5.2.0\fP
+\- \fBjinja2\fP from \fB2.11.2\fP to \fB3.0.1\fP
+\- \fBmarkupsafe\fP from \fB1.1.1\fP to \fB2.0.1\fP
+\- \fBmore\-itertools\fP from \fB5.0.0\fP to \fB8.8.0\fP
+\- \fBpackaging\fP from \fB20.8\fP to \fB21.0\fP
+\- \fBpep517\fP from \fB0.9.1\fP to \fB0.11.0\fP
+\- \fBpipdeptree\fP from \fB1.0.0\fP to \fB2.0.0\fP
+\- \fBptyprocess\fP from \fB0.6.0\fP to \fB0.7.0\fP
+\- \fBpython\-dateutil\fP from \fB2.8.1\fP to \fB2.8.2\fP
+\- \fBpython\-dotenv\fP from \fB0.15.0\fP to \fB0.19.0\fP
+\- \fBpythonfinder\fP from \fB1.2.5\fP to \fB1.2.8\fP
+\- \fBrequests\fP from \fB2.25.0\fP to \fB2.26.0\fP
+\- \fBshellingham\fP from \fB1.3.2\fP to \fB1.4.0\fP
+\- \fBsix\fP from \fB1.15.0\fP to \fB1.16.0\fP
+\- \fBtomlkit\fP from \fB0.7.0\fP to \fB0.7.2\fP
+\- \fBurllib3\fP from \fB1.26.1\fP to \fB1.26.6\fP
+\- \fBzipp\fP from \fB1.2.0\fP to \fB3.5.0\fP
+.sp
+Add new vendored dependencies
+\- \fBcharset\-normalizer 2.0.3\fP
+\- \fBtermcolor 1.1.0\fP
+\- \fBtomli 1.1.0\fP
+\- \fBwheel 0.36.2\fP  \fI\%#4747\fP
+.IP \(bu 2
+Drop the dependencies for Python 2.7 compatibility purpose.  \fI\%#4751\fP
+.IP \(bu 2
+Switch the dependency resolver from \fBpip\-tools\fP to \fIpip\fP\&.
+.sp
+Update vendor libraries:
+\- Update \fBrequirementslib\fP from \fB1.5.16\fP to \fB1.6.1\fP
+\- Update \fBpip\-shims\fP from \fB0.5.6\fP to \fB0.6.0\fP
+\- New vendor \fBplatformdirs 2.4.0\fP  \fI\%#4759\fP
+.UNINDENT
+.SS Improved Documentation
+.INDENT 0.0
+.IP \(bu 2
+remove prefixes on install commands for easy copy/pasting  \fI\%#4792\fP
+.UNINDENT
 .SS 2021.5.29 (2021\-05\-29)
 .SS Bug Fixes
 .INDENT 0.0
@@ -2496,8 +2555,8 @@ production environments for reproducible builds.
 .INDENT 0.0
 .INDENT 3.5
 If you\(aqd like a \fBrequirements.txt\fP output of the lockfile, run \fB$ pipenv lock \-r\fP\&.
-This will include all hashes, however (which is great!). To get a \fBrequirements.txt\fP
-without hashes, use \fB$ pipenv run pip freeze\fP\&.
+This will not include hashes, however. To get a \fBrequirements.txt\fP
+you can also use \fB$ pipenv run pip freeze\fP\&.
 .UNINDENT
 .UNINDENT
 .SS Advanced Usage of Pipenv
@@ -3164,13 +3223,6 @@ variables. To activate them, simply create the variable in your shell and pipenv
 will detect it.
 .INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_CACHE_DIR = \(aq/Users/fming/Library/Caches/pipenv\(aq
-Location for Pipenv to store it\(aqs package cache.
-.sp
-Default is to use appdir\(aqs user cache directory.
-.UNINDENT
-.INDENT 0.0
-.TP
 .B pipenv.environments.PIPENV_COLORBLIND = False
 If set, disable terminal colors.
 .sp
@@ -3179,208 +3231,10 @@ to show colors.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_DEFAULT_PYTHON_VERSION = None
-Use this Python version when creating new virtual environments by default.
-.sp
-This can be set to a version string, e.g. \fB3.6\fP, or a path. Default is to use
-whatever Python Pipenv is installed under (i.e. \fBsys.executable\fP). Command
-line flags (e.g. \fB\-\-python\fP, \fB\-\-three\fP, and \fB\-\-two\fP) are prioritized over
-this configuration.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_DONT_LOAD_ENV = False
-If set, Pipenv does not load the \fB\&.env\fP file.
-.sp
-Default is to load \fB\&.env\fP for \fBrun\fP and \fBshell\fP commands.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_DONT_USE_ASDF = False
-If set, Pipenv does not attempt to install Python with asdf.
-.sp
-Default is to install Python automatically via asdf when needed, if possible.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_DONT_USE_PYENV = False
-If set, Pipenv does not attempt to install Python with pyenv.
-.sp
-Default is to install Python automatically via pyenv when needed, if possible.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_DOTENV_LOCATION = None
-If set, Pipenv loads the \fB\&.env\fP file at the specified location.
-.sp
-Default is to load \fB\&.env\fP from the project root, if found.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_EMULATOR = \(aq\(aq
-If set, the terminal emulator\(aqs name for \fBpipenv shell\fP to use.
-.sp
-Default is to detect emulators automatically. This should be set if your
-emulator, e.g. Cmder, cannot be detected correctly.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_HIDE_EMOJIS = False
+.B pipenv.environments.PIPENV_HIDE_EMOJIS = True
 Disable emojis in output.
 .sp
 Default is to show emojis. This is automatically set on Windows.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_IGNORE_VIRTUALENVS = False
-If set, Pipenv will always assign a virtual environment for this project.
-.sp
-By default, Pipenv tries to detect whether it is run inside a virtual
-environment, and reuses it if possible. This is usually the desired behavior,
-and enables the user to use any user\-built environments with Pipenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_INSTALL_TIMEOUT = 900
-Max number of seconds to wait for package installation.
-.sp
-Defaults to 900 (15 minutes), a very long arbitrary time.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_MAX_DEPTH = 4
-Maximum number of directories to recursively search for a Pipfile.
-.sp
-Default is 3. See also \fBPIPENV_NO_INHERIT\fP\&.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_MAX_RETRIES = 0
-Specify how many retries Pipenv should attempt for network requests.
-.sp
-Default is 0. Automatically set to 1 on CI environments for robust testing.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_MAX_ROUNDS = 16
-Tells Pipenv how many rounds of resolving to do for Pip\-Tools.
-.sp
-Default is 16, an arbitrary number that works most of the time.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_MAX_SUBPROCESS = 8
-How many subprocesses should Pipenv use when installing.
-.sp
-Default is 16, an arbitrary number that seems to work.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_NOSPIN = False
-If set, disable terminal spinner.
-.sp
-This can make the logs cleaner. Automatically set on Windows, and in CI
-environments.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_NO_INHERIT = False
-Tell Pipenv not to inherit parent directories.
-.sp
-This is useful for deployment to avoid using the wrong current directory.
-Overwrites \fBPIPENV_MAX_DEPTH\fP\&.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_PIPFILE = None
-If set, this specifies a custom Pipfile location.
-.sp
-When running pipenv from a location other than the same directory where the
-Pipfile is located, instruct pipenv to find the Pipfile in the location
-specified by this environment variable.
-.sp
-Default is to find Pipfile automatically in the current and parent directories.
-See also \fBPIPENV_MAX_DEPTH\fP\&.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_PYPI_MIRROR = \(aqhttps://mirrors.tencent.com/pypi/simple\(aq
-If set, tells pipenv to override PyPI index urls with a mirror.
-.sp
-Default is to not mirror PyPI, i.e. use the real one, pypi.org. The
-\fB\-\-pypi\-mirror\fP command line flag overwrites this.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_RESOLVE_VCS = True
-Tells Pipenv whether to resolve all VCS dependencies in full.
-.sp
-As of Pipenv 2018.11.26, only editable VCS dependencies were resolved in full.
-To retain this behavior and avoid handling any conflicts that arise from the new
-approach, you may set this to \(aq0\(aq, \(aqoff\(aq, or \(aqfalse\(aq.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_SHELL = \(aq/bin/zsh\(aq
-An absolute path to the preferred shell for \fBpipenv shell\fP\&.
-.sp
-Default is to detect automatically what shell is currently in use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_SHELL_FANCY = False
-If set, always use fancy mode when invoking \fBpipenv shell\fP\&.
-.sp
-Default is to use the compatibility shell if possible.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_SKIP_LOCK = False
-If set, Pipenv won\(aqt lock dependencies automatically.
-.sp
-This might be desirable if a project has large number of dependencies,
-because locking is an inherently slow operation.
-.sp
-Default is to lock dependencies and update \fBPipfile.lock\fP on each run.
-.sp
-NOTE: This only affects the \fBinstall\fP and \fBuninstall\fP commands.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_SPINNER = \(aqdots\(aq
-Sets the default spinner type.
-.sp
-Spinners are identical to the \fBnode.js\fP spinners and can be found at
-\fI\%https://github.com/sindresorhus/cli\-spinners\fP
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_TIMEOUT = 120
-Max number of seconds Pipenv will wait for virtualenv creation to complete.
-.sp
-Default is 120 seconds, an arbitrary number that seems to work.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_VENV_IN_PROJECT = False
-If set, creates \fB\&.venv\fP in your project directory.
-.sp
-Default is to create new virtual environments in a global location.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_YES = False
-If set, Pipenv automatically assumes "yes" at all prompts.
-.sp
-Default is to prompt the user for an answer if the current command line session
-if interactive.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIP_EXISTS_ACTION = \(aqw\(aq
-Specifies the value for pip\(aqs \-\-exists\-action option
-.sp
-Defaults to \fB(w)ipe\fP
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -3673,925 +3527,6 @@ You can force Pipenv to use a different cache location by setting the environmen
 .sp
 By default, Pipenv will initialize a project using whatever version of python the python3 is. Besides starting a project with the \fB\-\-three\fP or \fB\-\-two\fP flags, you can also use \fBPIPENV_DEFAULT_PYTHON_VERSION\fP to specify what version to use when starting a project when \fB\-\-three\fP or \fB\-\-two\fP aren\(aqt used.
 .SS Pipenv CLI Reference
-.SS pipenv
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv [OPTIONS] COMMAND [ARGS]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-where
-Output project home information.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-venv
-Output virtualenv information.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-py
-Output Python interpreter information.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-envs
-Output Environment Variable options.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-rm
-Remove the virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-completion
-Output completion (to be executed by the shell).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-man
-Display manpage.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-support
-Output diagnostic information for use in GitHub issues.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-site\-packages, \-\-no\-site\-packages
-Enable site\-packages for the virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-version
-Show the version and exit.
-.UNINDENT
-.SS check
-.sp
-Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv check [OPTIONS] [ARGS]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-unused <unused>
-Given a code path, show potentially unused dependencies.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-db <db>
-Path to a local PyUp Safety vulnerabilities database. Default: ENV PIPENV_SAFETY_DB or None.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-i, \-\-ignore <ignore>
-Ignore specified vulnerability during PyUp Safety checks.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-output <output>
-Translates to \-\-json, \-\-full\-report or \-\-bare from PyUp Safety check
-.INDENT 7.0
-.TP
-.B Options
-default|json|full\-report|bare
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-key <key>
-Safety API key from PyUp.io for scanning dependencies against a live vulnerabilities database. Leave blank for scanning against a database that only updates once a month.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-quiet
-Quiet standard output, except vulnerability report.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-system
-System pip management.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B ARGS
-Optional argument(s)
-.UNINDENT
-.SS clean
-.sp
-Uninstalls all packages not specified in Pipfile.lock.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv clean [OPTIONS]
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-dry\-run
-Just output unneeded packages.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.SS graph
-.sp
-Displays currently\-installed dependency graph information.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv graph [OPTIONS]
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-json
-Output JSON.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-json\-tree
-Output JSON in nested tree.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-reverse
-Reversed dependency graph.
-.UNINDENT
-.SS install
-.sp
-Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv install [OPTIONS] [PACKAGES]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-system
-System pip management.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-c, \-\-code <code>
-Install packages automatically discovered from import statements.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-deploy
-Abort if the Pipfile.lock is out\-of\-date, or Python version is wrong.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-site\-packages, \-\-no\-site\-packages
-Enable site\-packages for the virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-skip\-lock
-Skip locking mechanisms and use the Pipfile instead during operation.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-e, \-\-editable <editable>
-An editable Python package URL or path, often to a VCS repository.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-ignore\-pipfile
-Ignore Pipfile when installing, using the Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-selective\-upgrade
-Update specified packages.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-r, \-\-requirements <requirements>
-Import a requirements.txt file.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-extra\-index\-url <extra_index_url>
-URLs to the extra PyPI compatible indexes to query for package look\-ups.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-i, \-\-index <index>
-Target PyPI\-compatible package index url.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-sequential
-Install dependencies one\-at\-a\-time, instead of concurrently.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Install both develop and default packages
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-keep\-outdated
-Keep out\-dated dependencies from being updated in Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pre
-Allow pre\-releases.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B PACKAGES
-Optional argument(s)
-.UNINDENT
-Environment variables.INDENT 0.0
-.TP
-.B PIPENV_SKIP_LOCK
-.INDENT 7.0
-.INDENT 3.5
-Provide a default for \fI\%\-\-skip\-lock\fP
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B PIP_EXTRA_INDEX_URL
-.INDENT 7.0
-.INDENT 3.5
-Provide a default for \fI\%\-\-extra\-index\-url\fP
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B PIP_INDEX_URL
-.INDENT 7.0
-.INDENT 3.5
-Provide a default for \fI\%\-i\fP
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.SS lock
-.sp
-Generates Pipfile.lock.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv lock [OPTIONS]
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-dev\-only
-Emit development dependencies \fIonly\fP (overrides \-\-dev)
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-header, \-\-no\-header
-Add header to generated requirements
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-r, \-\-requirements
-Generate output in requirements.txt format.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Generate both develop and default requirements
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-keep\-outdated
-Keep out\-dated dependencies from being updated in Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pre
-Allow pre\-releases.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-.SS open
-.sp
-View a given module in your editor.
-.sp
-This uses the EDITOR environment variable. You can temporarily override it,
-for example:
-.INDENT 0.0
-.INDENT 3.5
-EDITOR=atom pipenv open requests
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv open [OPTIONS] MODULE
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B MODULE
-Required argument
-.UNINDENT
-.SS run
-.sp
-Spawns a command installed into the virtualenv.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv run [OPTIONS] COMMAND [ARGS]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B COMMAND
-Required argument
-.UNINDENT
-.INDENT 0.0
-.TP
-.B ARGS
-Optional argument(s)
-.UNINDENT
-.SS scripts
-.sp
-Lists scripts in current environment config.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv scripts [OPTIONS]
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-.SS shell
-.sp
-Spawns a shell within the virtualenv.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv shell [OPTIONS] [SHELL_ARGS]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-fancy
-Run in shell in fancy mode. Make sure the shell have no path manipulating scripts. Run $pipenv shell for issues with compatibility mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-anyway
-Always spawn a sub\-shell, even if one is already spawned.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B SHELL_ARGS
-Optional argument(s)
-.UNINDENT
-.SS sync
-.sp
-Installs all packages specified in Pipfile.lock.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv sync [OPTIONS]
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-system
-System pip management.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-sequential
-Install dependencies one\-at\-a\-time, instead of concurrently.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Install both develop and default packages
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-keep\-outdated
-Keep out\-dated dependencies from being updated in Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pre
-Allow pre\-releases.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-.SS uninstall
-.sp
-Uninstalls a provided package and removes it from Pipfile.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv uninstall [OPTIONS] [PACKAGES]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-all\-dev
-Uninstall all package from [dev\-packages].
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-all
-Purge all package(s) from virtualenv. Does not edit Pipfile.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-e, \-\-editable <editable>
-An editable Python package URL or path, often to a VCS repository.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-skip\-lock
-Skip locking mechanisms and use the Pipfile instead during operation.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Deprecated (as it has no effect). May be removed in a future release.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-keep\-outdated
-Keep out\-dated dependencies from being updated in Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pre
-Allow pre\-releases.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B PACKAGES
-Optional argument(s)
-.UNINDENT
-Environment variables.INDENT 0.0
-.TP
-.B PIPENV_SKIP_LOCK
-.INDENT 7.0
-.INDENT 3.5
-Provide a default for \fI\%\-\-skip\-lock\fP
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.SS update
-.sp
-Runs lock, then sync.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv update [OPTIONS] [PACKAGES]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-outdated
-List out\-of\-date dependencies.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-dry\-run
-List out\-of\-date dependencies.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-e, \-\-editable <editable>
-An editable Python package URL or path, often to a VCS repository.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-ignore\-pipfile
-Ignore Pipfile when installing, using the Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-selective\-upgrade
-Update specified packages.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-r, \-\-requirements <requirements>
-Import a requirements.txt file.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-extra\-index\-url <extra_index_url>
-URLs to the extra PyPI compatible indexes to query for package look\-ups.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-i, \-\-index <index>
-Target PyPI\-compatible package index url.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-sequential
-Install dependencies one\-at\-a\-time, instead of concurrently.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Install both develop and default packages
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-keep\-outdated
-Keep out\-dated dependencies from being updated in Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pre
-Allow pre\-releases.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B PACKAGES
-Optional argument(s)
-.UNINDENT
-Environment variables.INDENT 0.0
-.TP
-.B PIP_EXTRA_INDEX_URL
-.INDENT 7.0
-.INDENT 3.5
-Provide a default for \fI\%\-\-extra\-index\-url\fP
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B PIP_INDEX_URL
-.INDENT 7.0
-.INDENT 3.5
-Provide a default for \fI\%\-i\fP
-.UNINDENT
-.UNINDENT
-.UNINDENT
 .SS Frequently Encountered Pipenv Problems
 .sp
 Pipenv is constantly being improved by volunteers, but is still a very young
@@ -4708,22 +3643,6 @@ language/locale and encoding you use.
 .sp
 This may be related to your locale setting. See \fI\%☤ ValueError: unknown locale: UTF\-8\fP
 for a possible solution.
-.SS ☤ \fBshell\fP does not show the virtualenv’s name in prompt
-.sp
-This is intentional. You can do it yourself with either shell plugins, or
-clever \fBPS1\fP configuration. If you really want it back, use
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv shell \-c
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-instead (not available on Windows).
 .SS ☤ Pipenv does not respect dependencies in setup.py
 .sp
 No, it does not, intentionally. Pipfile and setup.py serve different purposes,
