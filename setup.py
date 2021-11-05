@@ -38,7 +38,7 @@ extras = {
         "parver",
         "invoke",
     ],
-    "tests": ["pytest<5.0", "pytest-timeout", "pytest-xdist<2.0", "flaky", "mock"],
+    "tests": ["pytest>=5.0", "pytest-timeout", "pytest-xdist", "flaky", "mock"],
 }
 
 

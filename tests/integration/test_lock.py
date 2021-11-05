@@ -401,6 +401,7 @@ fake-package = "*"
 @pytest.mark.lock
 @pytest.mark.install
 @pytest.mark.skip_windows
+@pytest.mark.skipif(sys.version_info >= (3, 9), reason="old setuptools doesn't work")
 @pytest.mark.needs_internet
 def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInstance):
     """
@@ -429,6 +430,7 @@ def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInst
 @pytest.mark.lock
 @pytest.mark.install
 @pytest.mark.skip_windows
+@pytest.mark.skipif(sys.version_info >= (3, 9), reason="old setuptools doesn't work")
 @pytest.mark.needs_internet
 def test_outdated_setuptools_with_pep517_cython_import_in_setuppy(PipenvInstance):
     """

@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.7, 3.8, 3.9, '3.10']
         os: [MacOS, Ubuntu, Windows]
 
     steps:
@@ -80,4 +80,4 @@ jobs:
         PYTHONIOENCODING: 'utf-8'
         GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
       run: |
-        pipenv run pytest -ra -n auto tests
+        pipenv run pytest -ra -n auto --fulltrace tests

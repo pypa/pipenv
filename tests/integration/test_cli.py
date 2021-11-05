@@ -142,12 +142,12 @@ def test_pipenv_graph_reverse(PipenvInstance):
 @flaky
 def test_pipenv_check(PipenvInstance):
     with PipenvInstance() as p:
-        c = p.pipenv('install requests==1.0.0')
+        c = p.pipenv('install pyyaml')
         assert c.returncode == 0
         c = p.pipenv('check')
         assert c.returncode != 0
-        assert 'requests' in c.stdout
-        c = p.pipenv('uninstall requests')
+        assert 'pyyaml' in c.stdout
+        c = p.pipenv('uninstall pyyaml')
         assert c.returncode == 0
         c = p.pipenv('install six')
         assert c.returncode == 0
