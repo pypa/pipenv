@@ -32,7 +32,7 @@ def test_uninstall_requests(PipenvInstance):
 @pytest.mark.uninstall
 def test_uninstall_django(PipenvInstance):
     with PipenvInstance() as p:
-        c = p.pipenv("install Django==1.11.13")
+        c = p.pipenv("install Django")
         assert c.returncode == 0
         assert "django" in p.pipfile["packages"]
         assert "django" in p.lockfile["default"]
@@ -61,7 +61,7 @@ def test_mirror_uninstall(PipenvInstance):
         )
         assert "pypi.org" not in mirror_url
 
-        c = p.pipenv(f"install Django==1.11.13 --pypi-mirror {mirror_url}")
+        c = p.pipenv(f"install Django --pypi-mirror {mirror_url}")
         assert c.returncode == 0
         assert "django" in p.pipfile["packages"]
         assert "django" in p.lockfile["default"]
