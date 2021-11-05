@@ -1,3 +1,14 @@
+2021.11.5.post0 (2021-11-05)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix a regression that ``pipenv shell`` fails to start a subshell.  `#4828 <https://github.com/pypa/pipenv/issues/4828>`_
+- Fix a regression that ``pip_shims`` object isn't imported correctly.  `#4829 <https://github.com/pypa/pipenv/issues/4829>`_
+
+
 2021.11.5 (2021-11-05)
 ======================
 

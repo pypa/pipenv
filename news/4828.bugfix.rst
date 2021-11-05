@@ -1,1 +1,0 @@
-Fix a regression that ``pipenv shell`` fails to start a subshell.

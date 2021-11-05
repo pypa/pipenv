@@ -1,1 +1,0 @@
-Fix a regression that ``pip_shims`` object isn't imported correctly.
