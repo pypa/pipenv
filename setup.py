@@ -139,7 +139,7 @@ setup(
             "w64.exe",
         ],
     },
-    python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*",
+    python_requires=">=3.6",
     zip_safe=True,
     setup_requires=[],
     install_requires=required,
