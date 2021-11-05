@@ -2306,7 +2306,7 @@ def do_shell(project, three=None, python=False, fancy=False, shell_args=None, py
 
     from .shells import choose_shell
 
-    shell = choose_shell()
+    shell = choose_shell(project)
     click.echo(fix_utf8("Launching subshell in virtual environment..."), err=True)
 
     fork_args = (
