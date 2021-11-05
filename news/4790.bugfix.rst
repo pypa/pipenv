@@ -1,0 +1,1 @@
+Ignore empty .venv in rood dir and create project name base virtual environment
