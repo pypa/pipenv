@@ -3,81 +3,107 @@ name: CI
 on:
   push:
     paths-ignore:
-    - 'docs/**'
-    - 'news/**'
-    - 'examples/**'
-    - 'peeps/**'
-    - '*.ini'
-    - '*.md'
-    - '**/*.txt'
-    - '*.rst'
-    - '.gitignore'
-    - '.gitmodules'
-    - '.gitattributes'
-    - '.editorconfig'
+      - "docs/**"
+      - "news/**"
+      - "examples/**"
+      - "peeps/**"
+      - "*.ini"
+      - "*.md"
+      - "**/*.txt"
+      - "*.rst"
+      - ".gitignore"
+      - ".gitmodules"
+      - ".gitattributes"
+      - ".editorconfig"
     branches:
-    - master
+      - master
   pull_request:
     paths-ignore:
-    - 'docs/**'
-    - 'news/**'
-    - 'examples/**'
-    - 'peeps/**'
-    - '*.ini'
-    - '*.md'
-    - '**/*.txt'
-    - '*.rst'
-    - '.gitignore'
-    - '.gitmodules'
-    - '.gitattributes'
-    - '.editorconfig'
+      - "docs/**"
+      - "news/**"
+      - "examples/**"
+      - "peeps/**"
+      - "*.ini"
+      - "*.md"
+      - "**/*.txt"
+      - "*.rst"
+      - ".gitignore"
+      - ".gitmodules"
+      - ".gitattributes"
+      - ".editorconfig"
 
 jobs:
-  build:
+  tests:
     name: ${{matrix.os}} / ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9, '3.10']
+        python-version: [3.7, 3.8, 3.9, "3.10"]
         os: [MacOS, Ubuntu, Windows]
 
     steps:
-    - uses: actions/checkout@v1
+      - uses: actions/checkout@v1
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Get python path
-      id: python-path
-      run: |
-        echo ::set-output name=path::$(python -c "import sys; print(sys.executable)")
+      - name: Get python path
+        id: python-path
+        run: |
+          echo ::set-output name=path::$(python -c "import sys; print(sys.executable)")
 
-    - name: Install latest pip, setuptools, wheel
-      run: |
-        python -m pip install --upgrade pip setuptools wheel --upgrade-strategy=eager
-    - name: Install dependencies
-      env:
-        PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
-        PYTHONWARNINGS: ignore:DEPRECATION
-        PYTHONIOENCODING: 'utf-8'
-        GIT_ASK_YESNO: 'false'
-      run: |
-        git submodule sync
-        git submodule update --init --recursive
-        python -m pip install -e . --upgrade
-        pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
-    - name: Run tests
-      env:
-        PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
-        PYTHONWARNINGS: ignore:DEPRECATION
-        PIPENV_NOSPIN: '1'
-        CI: '1'
-        GIT_ASK_YESNO: 'false'
-        PYPI_VENDOR_DIR: './tests/pypi/'
-        PYTHONIOENCODING: 'utf-8'
-        GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
-      run: |
-        pipenv run pytest -ra -n auto --fulltrace tests
+      - name: Install latest pip, setuptools, wheel
+        run: |
+          python -m pip install --upgrade pip setuptools wheel --upgrade-strategy=eager
+      - name: Install dependencies
+        env:
+          PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
+          PYTHONWARNINGS: ignore:DEPRECATION
+          PYTHONIOENCODING: "utf-8"
+          GIT_ASK_YESNO: "false"
+        run: |
+          git submodule sync
+          git submodule update --init --recursive
+          python -m pip install -e . --upgrade
+          pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
+      - name: Run tests
+        env:
+          PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
+          PYTHONWARNINGS: ignore:DEPRECATION
+          PIPENV_NOSPIN: "1"
+          CI: "1"
+          GIT_ASK_YESNO: "false"
+          PYPI_VENDOR_DIR: "./tests/pypi/"
+          PYTHONIOENCODING: "utf-8"
+          GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
+        run: |
+          pipenv run pytest -ra -n auto --fulltrace tests
+
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - run: pip install -U build twine
+      - run: |
+          python -m build
+          twine check dist/*
+
+  vendor:
+    name: Vendoring
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - run: |
+          python -m pip install --upgrade wheel invoke parver bs4 vistir towncrier
+          python -m invoke vendoring.update
+
