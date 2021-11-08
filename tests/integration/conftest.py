@@ -113,18 +113,10 @@ def pytest_runtest_setup(item):
         pytest.skip('requires github ssh')
     if item.get_closest_marker('needs_hg') is not None and not WE_HAVE_HG:
         pytest.skip('requires mercurial')
-    if item.get_closest_marker('skip_py27_win') is not None and (
-        sys.version_info[:2] <= (2, 7) and os.name == "nt"
-    ):
-        pytest.skip('must use python > 2.7 on windows')
     if item.get_closest_marker('skip_py38') is not None and (
         sys.version_info[:2] == (3, 8)
     ):
         pytest.skip('test not applicable on python 3.8')
-    if item.get_closest_marker('py3_only') is not None and (
-        sys.version_info < (3, 0)
-    ):
-        pytest.skip('test only runs on python 3')
     if item.get_closest_marker('skip_osx') is not None and sys.platform == 'darwin':
         pytest.skip('test does not apply on OSX')
     if item.get_closest_marker('lte_py36') is not None and (
