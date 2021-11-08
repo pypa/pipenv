@@ -2836,6 +2836,9 @@ def do_sync(
     requirements_dir = vistir.path.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
     )
+    if system:
+        project.s.PIPENV_USE_SYSTEM = True
+        os.environ["PIPENV_USE_SYSTEM"] = "1"
     do_init(
         project,
         dev=dev,
