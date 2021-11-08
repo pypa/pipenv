@@ -92,6 +92,8 @@ class WindowsFinder(BaseFinder):
                 path = ensure_path(install_path.__getattr__(""))
             except AttributeError:
                 continue
+            if not path.exists():
+                continue
             try:
                 py_version = PythonVersion.from_windows_launcher(
                     version_object, name=name, company=company
