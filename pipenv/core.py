@@ -96,7 +96,7 @@ def do_clear(project):
         raise
 
 
-def load_dot_env(project):
+def load_dot_env(project, as_dict=False):
     """Loads .env file into sys.environ."""
     if not project.s.PIPENV_DONT_LOAD_ENV:
         # If the project doesn't exist yet, check current directory for a .env file
@@ -121,8 +121,11 @@ def load_dot_env(project):
                     ),
                     err=True,
                 )
-        dotenv.load_dotenv(dotenv_file, override=True)
-        project.s.initialize()
+        if as_dict:
+            return dotenv.dotenv_values(dotenv_file)
+        else:
+            dotenv.load_dotenv(dotenv_file, override=True)
+            project.s.initialize()
 
 
 def cleanup_virtualenv(project, bare=True):
@@ -2384,11 +2387,13 @@ def inline_activate_virtual_environment(project):
         os.environ["VIRTUAL_ENV"] = vistir.misc.fs_str(root)
 
 
-def _launch_windows_subprocess(script, path):
+def _launch_windows_subprocess(script, env):
     import subprocess
+
+    path = env.get("PATH", "")
     command = system_which(script.command, path=path)
 
-    options = {"universal_newlines": True}
+    options = {"universal_newlines": True, "env": env}
     script.cmd_args[1:] = [expandvars(arg) for arg in script.args]
 
     # Command not found, maybe this is a shell built-in?
@@ -2408,13 +2413,14 @@ def _launch_windows_subprocess(script, path):
     return subprocess.Popen(script.cmdify(), shell=True, **options)
 
 
-def do_run_nt(project, script, path):
-    p = _launch_windows_subprocess(script, path)
+def do_run_nt(project, script, env):
+    p = _launch_windows_subprocess(script, env)
     p.communicate()
     sys.exit(p.returncode)
 
 
-def do_run_posix(project, script, command, path):
+def do_run_posix(project, script, command, env):
+    path = env.get("PATH")
     command_path = system_which(script.command, path=path)
     if not command_path:
         if project.has_script(command):
@@ -2440,8 +2446,10 @@ def do_run_posix(project, script, command, path):
                 err=True,
             )
         sys.exit(1)
-    os.execl(
-        command_path, command_path, *(os.path.expandvars(arg) for arg in script.args)
+    os.execve(
+        command_path,
+        [command_path, *(os.path.expandvars(arg) for arg in script.args)],
+        env
     )
 
 
@@ -2457,25 +2465,25 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
         project, three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
     )
 
-    load_dot_env(project)
+    env = os.environ.copy()
+    env.update(load_dot_env(project, as_dict=True))
+    env.pop("PIP_SHIMS_BASE_MODULE", None)
 
-    previous_pip_shims_module = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-
-    path = os.getenv('PATH', '')
+    path = env.get('PATH', '')
     if project.virtualenv_location:
         new_path = os.path.join(project.virtualenv_location, 'Scripts' if os.name == 'nt' else 'bin')
         paths = path.split(os.pathsep)
         paths.insert(0, new_path)
         path = os.pathsep.join(paths)
+        env["VIRTUAL_ENV"] = project.virtualenv_location
+    env["PATH"] = path
 
     # Set an environment variable, so we know we're in the environment.
     # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
     # such as in inline_activate_virtual_environment
     # otherwise its value will be changed
-    previous_pipenv_active_value = os.environ.get("PIPENV_ACTIVE")
-    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
-
-    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
+    env["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+    env.pop("PIP_SHIMS_BASE_MODULE", None)
 
     try:
         script = project.build_script(command, args)
@@ -2485,20 +2493,13 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
     except ScriptEmptyError:
         click.echo("Can't run script {0!r}-it's empty?", err=True)
     run_args = [project, script]
-    run_kwargs = {'path': path}
+    run_kwargs = {'env': env}
     if os.name == "nt" or environments.PIPENV_IS_CI:
         run_fn = do_run_nt
     else:
         run_fn = do_run_posix
         run_kwargs.update({"command": command})
-    try:
-        run_fn(*run_args, **run_kwargs)
-    finally:
-        os.environ.pop("PIPENV_ACTIVE", None)
-        if previous_pipenv_active_value is not None:
-            os.environ["PIPENV_ACTIVE"] = previous_pipenv_active_value
-        if previous_pip_shims_module is not None:
-            os.environ["PIP_SHIMS_BASE_MODULE"] = previous_pip_shims_module
+    run_fn(*run_args, **run_kwargs)
 
 
 def do_check(
