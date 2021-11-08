@@ -61,3 +61,24 @@ multicommand = "bash -c \"cd docs && make html\""
             assert c.returncode == 0
             if os.name != "nt":  # This doesn't work on CI windows.
                 assert c.stdout.strip() == "WORLD"
+
+
+@pytest.mark.run
+@pytest.mark.skip_windows
+def test_run_with_usr_env_shebang(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        p.pipenv('install')
+        script_path = os.path.join(p.path, "test_script")
+        with open(script_path, "w") as f:
+            f.write(
+                "#!/usr/bin/env python\n"
+                "import sys, os\n\n"
+                "print(sys.prefix)\n"
+                "print(os.getenv('VIRTUAL_ENV'))\n"
+            )
+        os.chmod(script_path, 0o700)
+        c = p.pipenv("run ./test_script")
+        assert c.returncode == 0
+        project = Project()
+        lines = [line.strip() for line in c.stdout.splitlines()]
+        assert all(line == project.virtualenv_location for line in lines)

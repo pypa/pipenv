@@ -372,7 +372,6 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, testsroot):
 
 
 @pytest.mark.outdated
-@pytest.mark.py3_only
 def test_outdated_should_compare_postreleases_without_failing(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv("install ibm-db-sa-py3==0.3.0")
