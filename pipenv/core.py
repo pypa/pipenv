@@ -2410,7 +2410,7 @@ def _launch_windows_subprocess(script, env):
             raise
 
     # Try shell mode to use Windows's file association for file launch.
-    return subprocess.run(script.cmdify(), shell=True, **options)
+    return subprocess.Popen(script.cmdify(), shell=True, **options)
 
 
 def do_run_nt(project, script, env):
