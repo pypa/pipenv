@@ -15,6 +15,7 @@ import warnings
 
 from contextlib import contextmanager
 from distutils.spawn import find_executable
+from pathlib import Path
 from urllib.parse import urlparse
 
 import crayons
@@ -1508,7 +1509,6 @@ def is_editable(pipfile_entry):
 
 def is_installable_file(path):
     """Determine if a path can potentially be installed"""
-    from ._compat import Path
     from .patched.notpip._internal.utils.packaging import specifiers
     from .vendor.pip_shims.shims import is_archive_file, is_installable_dir
 
@@ -1620,7 +1620,6 @@ def find_windows_executable(bin_path, exe_name):
 
 
 def path_to_url(path):
-    from ._compat import Path
 
     return Path(normalize_drive(os.path.abspath(path))).as_uri()
 
@@ -1989,8 +1988,6 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
 
 
 def get_workon_home():
-    from ._compat import Path
-
     workon_home = os.environ.get("WORKON_HOME")
     if not workon_home:
         if os.name == "nt":
@@ -2044,7 +2041,6 @@ def locked_repository(requirement):
 @contextmanager
 def chdir(path):
     """Context manager to change working directories."""
-    from ._compat import Path
     if not path:
         return
     prev_cwd = Path.cwd().as_posix()

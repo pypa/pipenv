@@ -6,6 +6,7 @@ import io
 import json
 import operator
 import os
+from pathlib import Path
 import re
 import sys
 import urllib.parse
@@ -64,7 +65,7 @@ class _LockFileEncoder(json.JSONEncoder):
         )
 
     def default(self, obj):
-        if isinstance(obj, vistir.compat.Path):
+        if isinstance(obj, Path):
             obj = obj.as_posix()
         return super(_LockFileEncoder, self).default(obj)
 
@@ -277,7 +278,7 @@ class Project:
         # If content looks like a path, use it as a relative path.
         # Otherwise use directory named after content in WORKON_HOME.
         if looks_like_dir(name):
-            path = vistir.compat.Path(self.project_directory, name)
+            path = Path(self.project_directory, name)
             return path.absolute().as_posix()
         return str(get_workon_home().joinpath(name))
 
@@ -467,7 +468,7 @@ class Project:
     def proper_names_db_path(self):
         # type: () -> str
         if self._proper_names_db_path is None:
-            self._proper_names_db_path = vistir.compat.Path(
+            self._proper_names_db_path = Path(
                 self.virtualenv_location, "pipenv-proper-names.txt"
             )
         self._proper_names_db_path.touch()  # Ensure the file exists.
@@ -832,8 +833,8 @@ class Project:
             formatted_data = tomlkit.dumps(document).rstrip()
 
         if (
-            vistir.compat.Path(path).absolute()
-            == vistir.compat.Path(self.pipfile_location).absolute()
+            Path(path).absolute()
+            == Path(self.pipfile_location).absolute()
         ):
             newlines = self._pipfile_newlines
         else:

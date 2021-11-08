@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function
+
 import os
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
 
-from pipenv._compat import Path, TemporaryDirectory
 from pipenv.utils import normalize_drive, temp_environ
 
 
@@ -56,7 +58,7 @@ def test_venv_file(venv_name, PipenvInstance):
         with temp_environ(), TemporaryDirectory(
             prefix='pipenv-', suffix='temp_workon_home'
         ) as workon_home:
-            os.environ['WORKON_HOME'] = workon_home.name
+            os.environ['WORKON_HOME'] = workon_home
             if 'PIPENV_VENV_IN_PROJECT' in os.environ:
                 del os.environ['PIPENV_VENV_IN_PROJECT']
 
@@ -72,7 +74,7 @@ def test_venv_file(venv_name, PipenvInstance):
             if os.path.sep in venv_name:
                 venv_expected_path = Path(p.path).joinpath(venv_name).absolute().as_posix()
             else:
-                venv_expected_path = Path(workon_home.name).joinpath(venv_name).absolute().as_posix()
+                venv_expected_path = Path(workon_home).joinpath(venv_name).absolute().as_posix()
             assert venv_path == normalize_drive(venv_expected_path)
 
 
@@ -82,13 +84,13 @@ def test_empty_venv_file(PipenvInstance):
     """
     with PipenvInstance(chdir=True) as p:
         file_path = os.path.join(p.path, '.venv')
-        with open(file_path, 'w') as f:
+        with open(file_path, 'w'):
             pass
 
         with temp_environ(), TemporaryDirectory(
             prefix='pipenv-', suffix='temp_workon_home'
         ) as workon_home:
-            os.environ['WORKON_HOME'] = workon_home.name
+            os.environ['WORKON_HOME'] = workon_home
             if 'PIPENV_VENV_IN_PROJECT' in os.environ:
                 del os.environ['PIPENV_VENV_IN_PROJECT']
 
@@ -103,7 +105,7 @@ def test_empty_venv_file(PipenvInstance):
             from pathlib import PurePosixPath
             venv_path = normalize_drive(venv_loc.as_posix())
             venv_path_parent = str(PurePosixPath(venv_path).parent)
-            assert venv_path_parent == Path(workon_home.name).absolute().as_posix()
+            assert venv_path_parent == Path(workon_home).absolute().as_posix()
 
 
 @pytest.mark.dotvenv
@@ -120,7 +122,7 @@ def test_venv_file_with_path(PipenvInstance):
 
             file_path = os.path.join(p.path, '.venv')
             with open(file_path, 'w') as f:
-                f.write(venv_path.name)
+                f.write(venv_path)
 
             c = p.pipenv('install')
             assert c.returncode == 0
@@ -129,4 +131,4 @@ def test_venv_file_with_path(PipenvInstance):
             venv_loc = Path(c.stdout.strip())
 
             assert venv_loc.joinpath('.project').exists()
-            assert venv_loc == Path(venv_path.name)
+            assert venv_loc == Path(venv_path)

@@ -141,7 +141,7 @@ class Bash(Shell):
     # https://github.com/berdario/pew/issues/58#issuecomment-102182346
     @contextlib.contextmanager
     def inject_path(self, venv):
-        from ._compat import NamedTemporaryFile
+        from tempfile import NamedTemporaryFile
 
         bashrc_path = Path.home().joinpath(".bashrc")
         with NamedTemporaryFile("w+") as rcfile:

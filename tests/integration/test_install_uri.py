@@ -1,11 +1,12 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
-import os
-import pytest
 
+import os
+from pathlib import Path
+
+import pytest
 from flaky import flaky
 
-from pipenv._compat import Path
 from pipenv.utils import subprocess_run
 
 

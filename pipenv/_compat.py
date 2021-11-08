@@ -6,17 +6,12 @@ operating systems, etc.
 import sys
 import warnings
 
-import vistir
-
-from pipenv.vendor.vistir.compat import (
-    NamedTemporaryFile, Path, ResourceWarning, TemporaryDirectory
-)
+from pipenv.vendor import vistir
 
 warnings.filterwarnings("ignore", category=ResourceWarning)
 
 
 __all__ = [
-    "NamedTemporaryFile", "Path", "ResourceWarning", "TemporaryDirectory",
     "getpreferredencoding", "DEFAULT_ENCODING", "canonical_encoding_name",
     "force_encoding", "UNICODE_TO_ASCII_TRANSLATION_MAP", "decode_output", "fix_utf8"
 ]
