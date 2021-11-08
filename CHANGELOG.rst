@@ -71,7 +71,7 @@ Improved Documentation
 ----------------------
 
 - remove prefixes on install commands for easy copy/pasting  `#4792 <https://github.com/pypa/pipenv/issues/4792>`_
-- Officially drop support for Python 2.7 and Python 3.6.  `#4261 <https://github.com/pypa/pipenv/issues/4261>`_
+- Officially drop support for Python 2.7 and Python 3.5.  `#4261 <https://github.com/pypa/pipenv/issues/4261>`_
 
 
 2021.5.29 (2021-05-29)
