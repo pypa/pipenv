@@ -1,3 +1,78 @@
+2021.11.5.post0 (2021-11-05)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix a regression that ``pipenv shell`` fails to start a subshell.  `#4828 <https://github.com/pypa/pipenv/issues/4828>`_
+- Fix a regression that ``pip_shims`` object isn't imported correctly.  `#4829 <https://github.com/pypa/pipenv/issues/4829>`_
+
+
+2021.11.5 (2021-11-05)
+======================
+
+
+Features & Improvements
+-----------------------
+
+- Avoid sharing states but create project objects on demand. So that most integration test cases are able to switch to a in-process execution method.  `#4757 <https://github.com/pypa/pipenv/issues/4757>`_
+- Shell-quote ``pip`` commands when logging.  `#4760 <https://github.com/pypa/pipenv/issues/4760>`_
+
+Bug Fixes
+---------
+
+- Ignore empty .venv in rood dir and create project name base virtual environment  `#4790 <https://github.com/pypa/pipenv/issues/4790>`_
+
+Vendored Libraries
+------------------
+
+- Update vendored dependencies
+  - ``attrs`` from ``20.3.0`` to ``21.2.0``
+  - ``cerberus`` from ``1.3.2`` to ``1.3.4``
+  - ``certifi`` from ``2020.11.8`` to ``2021.5.30``
+  - ``chardet`` from ``3.0.4`` to ``4.0.0``
+  - ``click`` from ``7.1.2`` to ``8.0.1``
+  - ``distlib`` from ``0.3.1`` to ``0.3.2``
+  - ``idna`` from ``2.10`` to ``3.2``
+  - ``importlib-metadata`` from ``2.0.0`` to ``4.6.1``
+  - ``importlib-resources`` from ``3.3.0`` to ``5.2.0``
+  - ``jinja2`` from ``2.11.2`` to ``3.0.1``
+  - ``markupsafe`` from ``1.1.1`` to ``2.0.1``
+  - ``more-itertools`` from ``5.0.0`` to ``8.8.0``
+  - ``packaging`` from ``20.8`` to ``21.0``
+  - ``pep517`` from ``0.9.1`` to ``0.11.0``
+  - ``pipdeptree`` from ``1.0.0`` to ``2.0.0``
+  - ``ptyprocess`` from ``0.6.0`` to ``0.7.0``
+  - ``python-dateutil`` from ``2.8.1`` to ``2.8.2``
+  - ``python-dotenv`` from ``0.15.0`` to ``0.19.0``
+  - ``pythonfinder`` from ``1.2.5`` to ``1.2.8``
+  - ``requests`` from ``2.25.0`` to ``2.26.0``
+  - ``shellingham`` from ``1.3.2`` to ``1.4.0``
+  - ``six`` from ``1.15.0`` to ``1.16.0``
+  - ``tomlkit`` from ``0.7.0`` to ``0.7.2``
+  - ``urllib3`` from ``1.26.1`` to ``1.26.6``
+  - ``zipp`` from ``1.2.0`` to ``3.5.0``
+
+  Add new vendored dependencies
+  - ``charset-normalizer 2.0.3``
+  - ``termcolor 1.1.0``
+  - ``tomli 1.1.0``
+  - ``wheel 0.36.2``  `#4747 <https://github.com/pypa/pipenv/issues/4747>`_
+- Drop the dependencies for Python 2.7 compatibility purpose.  `#4751 <https://github.com/pypa/pipenv/issues/4751>`_
+- Switch the dependency resolver from ``pip-tools`` to `pip`.
+
+  Update vendor libraries:
+  - Update ``requirementslib`` from ``1.5.16`` to ``1.6.1``
+  - Update ``pip-shims`` from ``0.5.6`` to ``0.6.0``
+  - New vendor ``platformdirs 2.4.0``  `#4759 <https://github.com/pypa/pipenv/issues/4759>`_
+
+Improved Documentation
+----------------------
+
+- remove prefixes on install commands for easy copy/pasting  `#4792 <https://github.com/pypa/pipenv/issues/4792>`_
+
+
 2021.5.29 (2021-05-29)
 ======================
 

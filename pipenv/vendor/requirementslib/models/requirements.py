@@ -8,10 +8,13 @@ import os
 import sys
 from contextlib import contextmanager
 from distutils.sysconfig import get_python_lib
+from functools import lru_cache
+from pathlib import Path
+from urllib import parse as urllib_parse
+from urllib.parse import unquote
 
 import attr
 import pip_shims
-import six
 from cached_property import cached_property
 from packaging.markers import Marker
 from packaging.requirements import Requirement as PackagingRequirement
@@ -22,9 +25,6 @@ from packaging.specifiers import (
     SpecifierSet,
 )
 from packaging.utils import canonicalize_name
-from six.moves.urllib import parse as urllib_parse
-from six.moves.urllib.parse import unquote
-from vistir.compat import FileNotFoundError, Path, lru_cache
 from vistir.contextmanagers import temp_path
 from vistir.misc import dedup
 from vistir.path import (
@@ -47,9 +47,7 @@ from ..utils import (
     is_vcs,
     strip_ssh_from_git_uri,
 )
-from .markers import (
-    normalize_marker_str,
-)
+from .markers import normalize_marker_str
 from .setup_info import (
     SetupInfo,
     _prepare_wheel_building_kwargs,
@@ -87,34 +85,36 @@ from .utils import (
 
 if MYPY_RUNNING:
     from typing import (
-        Optional,
-        TypeVar,
-        List,
-        Dict,
-        Union,
         Any,
-        Tuple,
+        AnyStr,
+        Dict,
+        FrozenSet,
+        Generator,
+        List,
+        Optional,
         Sequence,
         Set,
-        AnyStr,
         Text,
-        Generator,
-        FrozenSet,
+        Tuple,
+        TypeVar,
+        Union,
     )
+
     from pip_shims.shims import (
-        Link,
-        InstallRequirement,
-        PackageFinder,
         InstallationCandidate,
+        InstallRequirement,
+        Link,
+        PackageFinder,
     )
 
     RequirementType = TypeVar(
         "RequirementType", covariant=True, bound=PackagingRequirement
     )
     F = TypeVar("F", "FileRequirement", "VCSRequirement", covariant=True)
-    from six.moves.urllib.parse import SplitResult
-    from .vcs import VCSRepository
+    from urllib.parse import SplitResult
+
     from .dependencies import AbstractDependency
+    from .vcs import VCSRepository
 
     NON_STRING_ITERABLE = Union[List, Set, Tuple]
     STRING_TYPE = Union[str, bytes, Text]
@@ -446,7 +446,7 @@ class Line(object):
     def specifiers(self, specifiers):
         # type: (Union[Text, str, SpecifierSet]) -> None
         if not isinstance(specifiers, SpecifierSet):
-            if isinstance(specifiers, six.string_types):
+            if isinstance(specifiers, str):
                 specifiers = SpecifierSet(specifiers)
             else:
                 raise TypeError("Must pass a string or a SpecifierSet")
@@ -887,7 +887,7 @@ class Line(object):
         # type: () -> Dict[Any, Any]
         if self.is_local and self.path and is_installable_dir(self.path):
             if self.setup_py:
-                return ast_parse_setup_py(self.setup_py)
+                return ast_parse_setup_py(self.setup_py, raising=False)
         return {}
 
     @vcsrepo.setter
@@ -1004,7 +1004,7 @@ class Line(object):
             parsed_setup_py = self.parsed_setup_py
             if parsed_setup_py:
                 name = parsed_setup_py.get("name", "")
-                if name and isinstance(name, six.string_types):
+                if name and isinstance(name, str):
                     return name
         return None
 
@@ -1374,7 +1374,7 @@ class NamedRequirement(object):
         creation_args["version"] = version  # type: ignore
         req = init_requirement("{0}{1}".format(name, version))
         if req and extras and req.extras and isinstance(req.extras, tuple):
-            if isinstance(extras, six.string_types):
+            if isinstance(extras, str):
                 req.extras = (extras) + tuple(["{0}".format(xtra) for xtra in req.extras])
             elif isinstance(extras, (tuple, list)):
                 req.extras += tuple(extras)
@@ -1648,7 +1648,7 @@ class FileRequirement(object):
         elif (
             getattr(self, "req", None)
             and self.req is not None
-            and getattr(self.req, "url")
+            and getattr(self.req, "url", None)
         ):
             return self.req.url
         elif self.link is not None:
@@ -1713,7 +1713,7 @@ class FileRequirement(object):
             elif (
                 getattr(self, "req", None)
                 and self.req is not None
-                and (getattr(self.req, "url") and self.req.url is not None)
+                and (getattr(self.req, "url", None) and self.req.url is not None)
             ):
                 uri = self.req.url
             if uri and is_file_url(uri):
@@ -1765,7 +1765,7 @@ class FileRequirement(object):
         uri = pipfile.get("uri")
         fil = pipfile.get("file")
         path = pipfile.get("path")
-        if path and isinstance(path, six.string_types):
+        if path and isinstance(path, str):
             if isinstance(path, Path) and not path.is_absolute():
                 path = get_converted_relative_path(path.as_posix())
             elif not os.path.isabs(path):
@@ -1790,7 +1790,7 @@ class FileRequirement(object):
         if not uri:
             uri = pip_shims.shims.path_to_url(path)
         link_info = None  # type: Optional[LinkInfo]
-        if uri and isinstance(uri, six.string_types):
+        if uri and isinstance(uri, str):
             link_info = cls.get_link_from_line(uri)
         else:
             raise ValueError(
@@ -1826,7 +1826,7 @@ class FileRequirement(object):
             else:
                 if link:
                     line = link.url
-                elif uri and isinstance(uri, six.string_types):
+                elif uri and isinstance(uri, str):
                     line = uri
                 else:
                     raise ValueError(
@@ -2259,7 +2259,7 @@ class VCSRequirement(FileRequirement):
             if key in VCS_LIST and key in pipfile_keys:
                 creation_args["vcs"] = key
                 target = pipfile[key]
-                if isinstance(target, six.string_types):
+                if isinstance(target, str):
                     drive, path = os.path.splitdrive(target)
                     if (
                         not drive
@@ -2305,9 +2305,7 @@ class VCSRequirement(FileRequirement):
             self._parsed_line.is_direct_url and self._parsed_line.line_with_prefix
         ):
             return self._parsed_line.line_with_prefix
-        elif getattr(self, "_base_line", None) and (
-            isinstance(self._base_line, six.string_types)
-        ):
+        elif getattr(self, "_base_line", None) and (isinstance(self._base_line, str)):
             base = self._base_line
         else:
             base = getattr(self, "link", self.get_link()).url
@@ -2439,7 +2437,7 @@ class Requirement(object):
         new_hashes = set()  # type: Set[STRING_TYPE]
         if self.hashes is not None:
             new_hashes |= set(self.hashes)
-        if isinstance(hashes, six.string_types):
+        if isinstance(hashes, str):
             new_hashes.add(hashes)
         else:
             new_hashes |= set(hashes)
@@ -2462,7 +2460,7 @@ class Requirement(object):
     def hashes_as_pip(self):
         # type: () -> STRING_TYPE
         hashes = self.get_hashes_as_pip()
-        assert isinstance(hashes, six.string_types)
+        assert isinstance(hashes, str)
         return hashes
 
     @property
@@ -2972,8 +2970,8 @@ class Requirement(object):
 
         from .dependencies import (
             AbstractDependency,
-            get_dependencies,
             get_abstract_dependencies,
+            get_dependencies,
         )
 
         if not self.abstract_dep:
@@ -3003,7 +3001,7 @@ class Requirement(object):
         :rtype: list[ :class:`~pip._internal.index.InstallationCandidate` ]
         """
 
-        from .dependencies import get_finder, find_all_matches
+        from .dependencies import find_all_matches, get_finder
 
         if not finder:
             _, finder = get_finder(sources=sources)

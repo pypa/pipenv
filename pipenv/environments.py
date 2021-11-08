@@ -97,8 +97,6 @@ def normalize_pipfile_path(p):
 # HACK: Prevent invalid shebangs with Homebrew-installed Python:
 # https://bugs.python.org/issue22490
 os.environ.pop("__PYVENV_LAUNCHER__", None)
-# Load patched pip instead of system pip
-os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
 # Internal, to tell whether the command line session is interactive.
 SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
 PIPENV_IS_CI = bool("CI" in os.environ or "TF_BUILD" in os.environ)

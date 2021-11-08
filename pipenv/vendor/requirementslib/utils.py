@@ -4,37 +4,20 @@ from __future__ import absolute_import, print_function
 import logging
 import os
 import sys
+from collections.abc import ItemsView, Mapping, Sequence, Set
+from pathlib import Path
+from urllib.parse import urlparse, urlsplit, urlunparse
 
 import pip_shims.shims
-import six
-import six.moves
 import tomlkit
 import vistir
-from six.moves.urllib.parse import urlparse, urlsplit, urlunparse
-from vistir.compat import Path, fs_decode
+from vistir.compat import fs_decode
 from vistir.path import ensure_mkdir_p, is_valid_url
 
 from .environment import MYPY_RUNNING
 
-# fmt: off
-six.add_move(  # type: ignore
-    six.MovedAttribute("Mapping", "collections", "collections.abc")  # type: ignore
-)  # noqa  # isort:skip
-six.add_move(  # type: ignore
-    six.MovedAttribute("Sequence", "collections", "collections.abc")  # type: ignore
-)  # noqa  # isort:skip
-six.add_move(  # type: ignore
-    six.MovedAttribute("Set", "collections", "collections.abc")  # type: ignore
-)  # noqa  # isort:skip
-six.add_move(  # type: ignore
-    six.MovedAttribute("ItemsView", "collections", "collections.abc")  # type: ignore
-)  # noqa
-from six.moves import ItemsView, Mapping, Sequence, Set  # type: ignore  # noqa  # isort:skip
-# fmt: on
-
-
 if MYPY_RUNNING:
-    from typing import Dict, Any, Optional, Union, Tuple, List, Iterable, Text, TypeVar
+    from typing import Any, Dict, Iterable, List, Optional, Text, Tuple, TypeVar, Union
 
     STRING_TYPE = Union[bytes, str, Text]
     S = TypeVar("S", bytes, str, Text)
@@ -104,8 +87,8 @@ def is_installable_dir(path):
 
 def strip_ssh_from_git_uri(uri):
     # type: (S) -> S
-    """Return git+ssh:// formatted URI to git+git@ format"""
-    if isinstance(uri, six.string_types):
+    """Return git+ssh:// formatted URI to git+git@ format."""
+    if isinstance(uri, str):
         if "git+ssh://" in uri:
             parsed = urlparse(uri)
             # split the path on the first separating / so we can put the first segment
@@ -121,8 +104,8 @@ def strip_ssh_from_git_uri(uri):
 
 def add_ssh_scheme_to_git_uri(uri):
     # type: (S) -> S
-    """Cleans VCS uris from pipenv.patched.notpip format"""
-    if isinstance(uri, six.string_types):
+    """Cleans VCS uris from pipenv.patched.notpip format."""
+    if isinstance(uri, str):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
             uri = uri.replace("git+", "git+ssh://", 1)
@@ -140,7 +123,7 @@ def is_vcs(pipfile_entry):
     if isinstance(pipfile_entry, Mapping):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
 
-    elif isinstance(pipfile_entry, six.string_types):
+    elif isinstance(pipfile_entry, str):
         if not is_valid_url(pipfile_entry) and pipfile_entry.startswith("git+"):
             pipfile_entry = add_ssh_scheme_to_git_uri(pipfile_entry)
 
@@ -153,21 +136,21 @@ def is_editable(pipfile_entry):
     # type: (PipfileType) -> bool
     if isinstance(pipfile_entry, Mapping):
         return pipfile_entry.get("editable", False) is True
-    if isinstance(pipfile_entry, six.string_types):
+    if isinstance(pipfile_entry, str):
         return pipfile_entry.startswith("-e ")
     return False
 
 
 def is_star(val):
     # type: (PipfileType) -> bool
-    return (isinstance(val, six.string_types) and val == "*") or (
+    return (isinstance(val, str) and val == "*") or (
         isinstance(val, Mapping) and val.get("version", "") == "*"
     )
 
 
 def convert_entry_to_path(path):
     # type: (Dict[S, Union[S, bool, Tuple[S], List[S]]]) -> S
-    """Convert a pipfile entry to a string"""
+    """Convert a pipfile entry to a string."""
 
     if not isinstance(path, Mapping):
         raise TypeError("expecting a mapping, received {0!r}".format(path))
@@ -187,7 +170,7 @@ def convert_entry_to_path(path):
 
 def is_installable_file(path):
     # type: (PipfileType) -> bool
-    """Determine if a path can potentially be installed"""
+    """Determine if a path can potentially be installed."""
     from packaging import specifiers
 
     if isinstance(path, Mapping):
@@ -211,7 +194,7 @@ def is_installable_file(path):
         or (len(parsed.scheme) == 1 and os.name == "nt")
     )
     if parsed.scheme and parsed.scheme == "file":
-        path = vistir.compat.fs_decode(vistir.path.url_to_path(path))
+        path = fs_decode(vistir.path.url_to_path(path))
     normalized_path = vistir.path.normalize_path(path)
     if is_local and not os.path.exists(normalized_path):
         return False
@@ -230,8 +213,9 @@ def is_installable_file(path):
 
 
 def get_dist_metadata(dist):
-    import pkg_resources
     from email.parser import FeedParser
+
+    import pkg_resources
 
     if isinstance(dist, pkg_resources.DistInfoDistribution) and dist.has_metadata(
         "METADATA"
@@ -343,10 +327,8 @@ _REMAP_EXIT = object()
 
 
 class PathAccessError(KeyError, IndexError, TypeError):
-    """An amalgamation of KeyError, IndexError, and TypeError,
-    representing what can occur when looking up a path in a nested
-    object.
-    """
+    """An amalgamation of KeyError, IndexError, and TypeError, representing
+    what can occur when looking up a path in a nested object."""
 
     def __init__(self, exc, seg, path):
         self.exc = exc
@@ -368,6 +350,7 @@ class PathAccessError(KeyError, IndexError, TypeError):
 def get_path(root, path, default=_UNSET):
     """Retrieve a value from a nested object via a tuple representing the
     lookup path.
+
     >>> root = {'a': {'b': {'c': [[1], [2], [3]]}}}
     >>> get_path(root, ('a', 'b', 'c', 2, 0))
     3
@@ -391,7 +374,7 @@ def get_path(root, path, default=_UNSET):
        default: The value to be returned should any
           ``PathAccessError`` exceptions be raised.
     """
-    if isinstance(path, six.string_types):
+    if isinstance(path, str):
         path = path.split(".")
     cur = root
     try:
@@ -426,8 +409,12 @@ _orig_default_visit = default_visit
 
 # Modified from https://github.com/mahmoud/boltons/blob/master/boltons/iterutils.py
 def dict_path_enter(path, key, value):
-    if isinstance(value, six.string_types):
+    if isinstance(value, str):
         return value, False
+    elif isinstance(value, (tomlkit.items.Table, tomlkit.items.InlineTable)):
+        return value.__class__(
+            tomlkit.container.Container(), value.trivia, False
+        ), ItemsView(value)
     elif isinstance(value, (Mapping, dict)):
         return value.__class__(), ItemsView(value)
     elif isinstance(value, tomlkit.items.Array):
@@ -479,16 +466,16 @@ def dict_path_exit(path, key, old_parent, new_parent, new_items):
 def remap(
     root, visit=default_visit, enter=dict_path_enter, exit=dict_path_exit, **kwargs
 ):
-    """The remap ("recursive map") function is used to traverse and
-    transform nested structures. Lists, tuples, sets, and dictionaries
-    are just a few of the data structures nested into heterogenous
-    tree-like structures that are so common in programming.
-    Unfortunately, Python's built-in ways to manipulate collections
-    are almost all flat. List comprehensions may be fast and succinct,
-    but they do not recurse, making it tedious to apply quick changes
-    or complex transforms to real-world data.
-    remap goes where list comprehensions cannot.
-    Here's an example of removing all Nones from some data:
+    """The remap ("recursive map") function is used to traverse and transform
+    nested structures. Lists, tuples, sets, and dictionaries are just a few of
+    the data structures nested into heterogenous tree-like structures that are
+    so common in programming. Unfortunately, Python's built-in ways to
+    manipulate collections are almost all flat. List comprehensions may be fast
+    and succinct, but they do not recurse, making it tedious to apply quick
+    changes or complex transforms to real-world data. remap goes where list
+    comprehensions cannot. Here's an example of removing all Nones from some
+    data:
+
     >>> from pprint import pprint
     >>> reviews = {'Star Trek': {'TNG': 10, 'DS9': 8.5, 'ENT': None},
     ...            'Babylon 5': 6, 'Dr. Who': None}
@@ -644,7 +631,7 @@ def merge_items(target_list, sourced=False):
 
         try:
             cur_val = get_path(ret, path + (key,))
-        except KeyError as ke:
+        except KeyError:
             pass
         else:
             new_parent = cur_val

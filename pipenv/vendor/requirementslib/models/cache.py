@@ -6,18 +6,15 @@ import copy
 import hashlib
 import json
 import os
+import pathlib
 import sys
 
 import vistir
-
-from appdirs import user_cache_dir
-from pip_shims.shims import FAVORITE_HASH, SafeFileCache
 from packaging.requirements import Requirement
+from pip_shims.shims import FAVORITE_HASH, SafeFileCache
+from platformdirs import user_cache_dir
 
-from .utils import as_tuple, key_from_req, lookup_table, get_pinned_version
-
-from ..exceptions import FileExistsError
-
+from .utils import as_tuple, get_pinned_version, key_from_req, lookup_table
 
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
 
@@ -29,64 +26,64 @@ class CorruptCacheError(Exception):
 
     def __str__(self):
         lines = [
-            'The dependency cache seems to have been corrupted.',
-            'Inspect, or delete, the following file:',
-            '  {}'.format(self.path),
+            "The dependency cache seems to have been corrupted.",
+            "Inspect, or delete, the following file:",
+            "  {}".format(self.path),
         ]
         return os.linesep.join(lines)
 
 
 def read_cache_file(cache_file_path):
-    with open(cache_file_path, 'r') as cache_file:
+    with open(cache_file_path, "r") as cache_file:
         try:
             doc = json.load(cache_file)
         except ValueError:
             raise CorruptCacheError(cache_file_path)
 
         # Check version and load the contents
-        assert doc['__format__'] == 1, 'Unknown cache file format'
-        return doc['dependencies']
+        assert doc["__format__"] == 1, "Unknown cache file format"
+        return doc["dependencies"]
 
 
 class DependencyCache(object):
-    """
-    Creates a new persistent dependency cache for the current Python version.
-    The cache file is written to the appropriate user cache dir for the
-    current platform, i.e.
+    """Creates a new persistent dependency cache for the current Python
+    version. The cache file is written to the appropriate user cache dir for
+    the current platform, i.e.
 
         ~/.cache/pip-tools/depcache-pyX.Y.json
 
     Where X.Y indicates the Python version.
     """
+
     def __init__(self, cache_dir=None):
         if cache_dir is None:
             cache_dir = CACHE_DIR
-        if not vistir.compat.Path(CACHE_DIR).absolute().is_dir():
+        if not pathlib.Path(CACHE_DIR).absolute().is_dir():
             try:
                 vistir.path.mkdir_p(os.path.abspath(cache_dir))
-            except (FileExistsError, OSError):
+            except OSError:
                 pass
 
-        py_version = '.'.join(str(digit) for digit in sys.version_info[:2])
-        cache_filename = 'depcache-py{}.json'.format(py_version)
+        py_version = ".".join(str(digit) for digit in sys.version_info[:2])
+        cache_filename = "depcache-py{}.json".format(py_version)
 
         self._cache_file = os.path.join(cache_dir, cache_filename)
         self._cache = None
 
     @property
     def cache(self):
-        """
-        The dictionary that is the actual in-memory cache.  This property
-        lazily loads the cache from disk.
+        """The dictionary that is the actual in-memory cache.
+
+        This property lazily loads the cache from disk.
         """
         if self._cache is None:
             self.read_cache()
         return self._cache
 
     def as_cache_key(self, ireq):
-        """
-        Given a requirement, return its cache key. This behavior is a little weird in order to allow backwards
-        compatibility with cache files. For a requirement without extras, this will return, for example:
+        """Given a requirement, return its cache key. This behavior is a little
+        weird in order to allow backwards compatibility with cache files. For a
+        requirement without extras, this will return, for example:
 
         ("ipython", "2.1.0")
 
@@ -112,10 +109,10 @@ class DependencyCache(object):
     def write_cache(self):
         """Writes the cache to disk as JSON."""
         doc = {
-            '__format__': 1,
-            'dependencies': self._cache,
+            "__format__": 1,
+            "dependencies": self._cache,
         }
-        with open(self._cache_file, 'w') as f:
+        with open(self._cache_file, "w") as f:
             json.dump(doc, f, sort_keys=True)
 
     def clear(self):
@@ -149,20 +146,20 @@ class DependencyCache(object):
         return self.cache.get(pkgname, {}).get(pkgversion_and_extras, default)
 
     def reverse_dependencies(self, ireqs):
-        """
-        Returns a lookup table of reverse dependencies for all the given ireqs.
+        """Returns a lookup table of reverse dependencies for all the given
+        ireqs.
 
         Since this is all static, it only works if the dependency cache
-        contains the complete data, otherwise you end up with a partial view.
-        This is typically no problem if you use this function after the entire
-        dependency tree is resolved.
+        contains the complete data, otherwise you end up with a partial
+        view. This is typically no problem if you use this function
+        after the entire dependency tree is resolved.
         """
         ireqs_as_cache_values = [self.as_cache_key(ireq) for ireq in ireqs]
         return self._reverse_dependencies(ireqs_as_cache_values)
 
     def _reverse_dependencies(self, cache_keys):
-        """
-        Returns a lookup table of reverse dependencies for all the given cache keys.
+        """Returns a lookup table of reverse dependencies for all the given
+        cache keys.
 
         Example input:
 
@@ -177,35 +174,39 @@ class DependencyCache(object):
              'flake8': [],
              'mccabe': ['flake8'],
              'pyflakes': ['flake8']}
-
         """
         # First, collect all the dependencies into a sequence of (parent, child) tuples, like [('flake8', 'pep8'),
         # ('flake8', 'mccabe'), ...]
-        return lookup_table((key_from_req(Requirement(dep_name)), name)
-                            for name, version_and_extras in cache_keys
-                            for dep_name in self.cache[name][version_and_extras])
+        return lookup_table(
+            (key_from_req(Requirement(dep_name)), name)
+            for name, version_and_extras in cache_keys
+            for dep_name in self.cache[name][version_and_extras]
+        )
 
 
 class HashCache(SafeFileCache):
     """Caches hashes of PyPI artifacts so we do not need to re-download them.
 
-    Hashes are only cached when the URL appears to contain a hash in it and the
-    cache key includes the hash value returned from the server). This ought to
-    avoid ssues where the location on the server changes.
+    Hashes are only cached when the URL appears to contain a hash in it
+    and the cache key includes the hash value returned from the server).
+    This ought to avoid ssues where the location on the server changes.
     """
+
     def __init__(self, *args, **kwargs):
         session = kwargs.pop("session", None)
         if not session:
             import requests
+
             session = requests.session()
             atexit.register(session.close)
-        cache_dir = kwargs.pop('cache_dir', CACHE_DIR)
+        cache_dir = kwargs.pop("cache_dir", CACHE_DIR)
         self.session = session
-        kwargs.setdefault('directory', os.path.join(cache_dir, 'hash-cache'))
+        kwargs.setdefault("directory", os.path.join(cache_dir, "hash-cache"))
         super(HashCache, self).__init__(*args, **kwargs)
 
     def get_hash(self, location):
         from pip_shims import VcsSupport
+
         # if there is no location hash (i.e., md5 / sha256 / etc) we on't want to store it
         hash_value = None
         vcs = VcsSupport()
@@ -216,13 +217,17 @@ class HashCache(SafeFileCache):
         can_hash = new_location.hash
         if can_hash:
             # hash url WITH fragment
-            hash_value = self._get_file_hash(new_location.url) if not new_location.url.startswith("ssh") else None
+            hash_value = (
+                self._get_file_hash(new_location.url)
+                if not new_location.url.startswith("ssh")
+                else None
+            )
         if not hash_value:
             hash_value = self._get_file_hash(new_location)
-            hash_value = hash_value.encode('utf8')
+            hash_value = hash_value.encode("utf8")
         if can_hash:
             self.set(new_location.url, hash_value)
-        return hash_value.decode('utf8')
+        return hash_value.decode("utf8")
 
     def _get_file_hash(self, location):
         h = hashlib.new(FAVORITE_HASH)
@@ -242,6 +247,7 @@ class _JSONCache(object):
 
     Where X.Y indicates the Python version.
     """
+
     filename_format = None
 
     def __init__(self, cache_dir=CACHE_DIR):
@@ -287,21 +293,19 @@ class _JSONCache(object):
         return name, "{}{}".format(version, extras_string)
 
     def read_cache(self):
-        """Reads the cached contents into memory.
-        """
+        """Reads the cached contents into memory."""
         if os.path.exists(self._cache_file):
             self._cache = read_cache_file(self._cache_file)
         else:
             self._cache = {}
 
     def write_cache(self):
-        """Writes the cache to disk as JSON.
-        """
+        """Writes the cache to disk as JSON."""
         doc = {
-            '__format__': 1,
-            'dependencies': self._cache,
+            "__format__": 1,
+            "dependencies": self._cache,
         }
-        with open(self._cache_file, 'w') as f:
+        with open(self._cache_file, "w") as f:
             json.dump(doc, f, sort_keys=True)
 
     def clear(self):
@@ -336,6 +340,6 @@ class _JSONCache(object):
 
 
 class RequiresPythonCache(_JSONCache):
-    """Cache a candidate's Requires-Python information.
-    """
+    """Cache a candidate's Requires-Python information."""
+
     filename_format = "pyreqcache-py{python_version}.json"

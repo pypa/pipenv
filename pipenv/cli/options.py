@@ -296,7 +296,7 @@ def clear_option(f):
         state.clear = value
         return value
     return option("--clear", is_flag=True, callback=callback, type=click_types.BOOL,
-                  help="Clears caches (pipenv, pip, and pip-tools).",
+                  help="Clears caches (pipenv, pip).",
                   expose_value=False, show_envvar=True)(f)
 
 
@@ -377,7 +377,7 @@ def setup_verbosity(ctx, param, value):
     if not value:
         return
     import logging
-    loggers = ("pip", "piptools")
+    loggers = ("pip",)
     if value == 1:
         for logger in loggers:
             logging.getLogger(logger).setLevel(logging.INFO)

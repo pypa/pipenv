@@ -12,8 +12,7 @@ import operator
 import sys
 import types
 import weakref
-
-import six
+from collections.abc import Mapping, Sequence
 
 from . import compat
 from .environment import BASE_IMPORT_PATH, MYPY_RUNNING, get_pip_version
@@ -35,18 +34,6 @@ from .utils import (
     split_package,
     suppress_setattr,
 )
-
-# format: off
-six.add_move(
-    six.MovedAttribute("Sequence", "collections", "collections.abc")
-)  # type: ignore  # noqa
-six.add_move(
-    six.MovedAttribute("Mapping", "collections", "collections.abc")
-)  # type: ignore  # noqa
-from six.moves import Sequence, Mapping  # type: ignore  # noqa  # isort:skip
-
-# format: on
-
 
 if MYPY_RUNNING:
     import packaging.version
@@ -393,7 +380,7 @@ class ShimmedPath(object):
                     item_value = make_method(item_value)(item_name)
                 elif "cls" not in callable_args and creating_classmethods:
                     item_value = make_classmethod(item_value)(item_name)
-            elif isinstance(item_value, six.string_types):
+            elif isinstance(item_value, str):
                 module_path, name = split_package(item_value)
                 module = cls._import_module(module_path)
                 item_value = getattr(module, name, None)
@@ -442,8 +429,6 @@ class ShimmedPath(object):
         if not methods and not classmethods:
             return provided
         classname = provided.__name__
-        if six.PY2:
-            classname = classname.encode(sys.getdefaultencoding())
         type_ = type(classname, (provided,), {})
 
         if classmethods:
@@ -640,7 +625,7 @@ class ShimmedPathCollection(object):
         self.pre_shim_functions = []  # type: List[Callable]
         self.aliases = []  # type: List[List[str]]
         if paths is not None:
-            if isinstance(paths, six.string_types):
+            if isinstance(paths, str):
                 self.create_path(paths, version_start=lookup_current_pip_version())
             else:
                 self.paths.update(set(paths))
@@ -819,7 +804,7 @@ get_installed_distributions = ShimmedPathCollection(
     "get_installed_distributions", ImportTypes.FUNCTION
 )
 get_installed_distributions.create_path(
-    "utils.misc.get_installed_distributions", "10", "9999"
+    "utils.misc.get_installed_distributions", "10", "21.2.999"
 )
 get_installed_distributions.create_path("utils.get_installed_distributions", "7", "9.0.3")
 

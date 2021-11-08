@@ -1,11 +1,9 @@
+from typing import Optional
+
+from pipenv.patched.notpip._vendor.pkg_resources import Distribution
+
 from pipenv.patched.notpip._internal.distributions.base import AbstractDistribution
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-
-if MYPY_CHECK_RUNNING:
-    from typing import Optional
-
-    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
-    from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
 
 
 class InstalledDistribution(AbstractDistribution):
@@ -15,10 +13,10 @@ class InstalledDistribution(AbstractDistribution):
     been computed.
     """
 
-    def get_pkg_resources_distribution(self):
-        # type: () -> Optional[Distribution]
+    def get_pkg_resources_distribution(self) -> Optional[Distribution]:
         return self.req.satisfied_by
 
-    def prepare_distribution_metadata(self, finder, build_isolation):
-        # type: (PackageFinder, bool) -> None
+    def prepare_distribution_metadata(
+        self, finder: PackageFinder, build_isolation: bool
+    ) -> None:
         pass

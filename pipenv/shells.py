@@ -232,8 +232,8 @@ def _detect_emulator():
 
 
 def choose_shell(project):
-    emulator = project.PIPENV_EMULATOR.lower() or _detect_emulator()
-    type_, command = project.detect_info()
+    emulator = project.s.PIPENV_EMULATOR.lower() or _detect_emulator()
+    type_, command = detect_info(project)
     shell_types = SHELL_LOOKUP[type_]
     for key in emulator.split(","):
         key = key.strip().lower()

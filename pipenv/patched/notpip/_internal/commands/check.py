@@ -1,9 +1,9 @@
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
-
 import logging
+from optparse import Values
+from typing import Any, List
 
 from pipenv.patched.notpip._internal.cli.base_command import Command
+from pipenv.patched.notpip._internal.cli.status_codes import ERROR, SUCCESS
 from pipenv.patched.notpip._internal.operations.check import (
     check_package_set,
     create_package_set_from_installed,
@@ -19,7 +19,8 @@ class CheckCommand(Command):
     usage = """
       %prog [options]"""
 
-    def run(self, options, args):
+    def run(self, options: Values, args: List[Any]) -> int:
+
         package_set, parsing_probs = create_package_set_from_installed()
         missing, conflicting = check_package_set(package_set)
 
@@ -40,6 +41,7 @@ class CheckCommand(Command):
                 )
 
         if missing or conflicting or parsing_probs:
-            return 1
+            return ERROR
         else:
             write_output("No broken requirements found.")
+            return SUCCESS

@@ -256,29 +256,25 @@ def _ensure_package_in_requirements(ctx, requirements_file, package):
 
 
 def install_pyyaml(ctx, vendor_dir):
-    build_dir = vendor_dir / "build"
-    if build_dir.exists() and build_dir.is_dir():
-        log(f"dropping pre-existing build dir at {build_dir.as_posix()}")
-        drop_dir(build_dir)
-    build_dir.mkdir()
-    with TemporaryDirectory(prefix="pipenv-", suffix="-safety") as download_dir:
-        pip_command = "pip download -b {} --no-binary=:all: --no-clean --no-deps -d {} pyyaml safety".format(
-            build_dir.absolute().as_posix(), str(download_dir.name),
+    with TemporaryDirectory(prefix="pipenv-", suffix="-yaml") as download_dir:
+        pip_command = "pip download --no-binary=:all: --no-clean --no-deps -d {} pyyaml".format(
+            download_dir.name
         )
-        temp_env = "TEMP" if os.name == "nt" else "TMPDIR"
         log(f"downloading deps via pip: {pip_command}")
-        ctx.run(pip_command, env={temp_env: str(build_dir)})
-    yaml_build_dir = next(build_dir.glob('pip-download-*/pyyaml_*'))
-    yaml_dir = vendor_dir / "yaml"
-    path_dict = {
-        "current_path": yaml_build_dir / "lib3/yaml",
-        "destination": vendor_dir / "yaml3",
-    }
-    if yaml_dir.exists():
-        drop_dir(yaml_dir)
-    path_dict["current_path"].rename(path_dict["destination"])
-    path_dict["destination"].joinpath("LICENSE").write_text(yaml_build_dir.joinpath("LICENSE").read_text())
-    drop_dir(build_dir)
+        ctx.run(pip_command)
+        downloaded = next(Path(download_dir.name).glob("*.tar.gz"))
+        with tarfile.open(downloaded, mode="r:gz") as tf:
+            tf.extractall(download_dir.name)
+        extracted = next((p for p in downloaded.parent.iterdir() if p != downloaded))
+        yaml_dir = vendor_dir / "yaml"
+        path_dict = {
+            "current_path": extracted / "lib/yaml",
+            "destination": vendor_dir / "yaml3",
+        }
+        if yaml_dir.exists():
+            drop_dir(yaml_dir)
+        path_dict["current_path"].rename(path_dict["destination"])
+        path_dict["destination"].joinpath("LICENSE").write_text(extracted.joinpath("LICENSE").read_text())
 
 
 def install(ctx, vendor_dir, package=None):
@@ -584,7 +580,7 @@ def license_fallback(vendor_dir, sdist_name):
     url = HARDCODED_LICENSE_URLS[libname]
     _, _, name = url.rpartition("/")
     dest = license_destination(vendor_dir, libname, name)
-    r = requests.get(url, allow_redirects=True)
+    r = requests.get(url, allow_redirects=True, verify=False)
     log(f"Downloading {url}")
     r.raise_for_status()
     dest.write_bytes(r.content)
@@ -664,12 +660,8 @@ def generate_patch(ctx, package_path, patch_description, base="HEAD"):
 @invoke.task()
 def update_pip_deps(ctx):
     patched_dir = _get_patched_dir(ctx)
-    base_vendor_dir = _get_vendor_dir(ctx)
-    base_vendor_file = base_vendor_dir / "vendor_pip.txt"
     pip_dir = patched_dir / "notpip"
     vendor_dir = pip_dir / "_vendor"
-    vendor_file = vendor_dir / "vendor.txt"
-    vendor_file.write_bytes(base_vendor_file.read_bytes())
     download_licenses(ctx, vendor_dir)
 
 

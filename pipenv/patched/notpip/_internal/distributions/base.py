@@ -1,19 +1,13 @@
 import abc
+from typing import Optional
 
-from pipenv.patched.notpip._vendor.six import add_metaclass
+from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-
-if MYPY_CHECK_RUNNING:
-    from typing import Optional
-
-    from pipenv.patched.notpip._vendor.pkg_resources import Distribution
-    from pipenv.patched.notpip._internal.req import InstallRequirement
-    from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+from pipenv.patched.notpip._internal.req import InstallRequirement
 
 
-@add_metaclass(abc.ABCMeta)
-class AbstractDistribution(object):
+class AbstractDistribution(metaclass=abc.ABCMeta):
     """A base class for handling installable artifacts.
 
     The requirements for anything installable are as follows:
@@ -29,17 +23,16 @@ class AbstractDistribution(object):
        above metadata.
     """
 
-    def __init__(self, req):
-        # type: (InstallRequirement) -> None
-        super(AbstractDistribution, self).__init__()
+    def __init__(self, req: InstallRequirement) -> None:
+        super().__init__()
         self.req = req
 
     @abc.abstractmethod
-    def get_pkg_resources_distribution(self):
-        # type: () -> Optional[Distribution]
+    def get_pkg_resources_distribution(self) -> Optional[Distribution]:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def prepare_distribution_metadata(self, finder, build_isolation):
-        # type: (PackageFinder, bool) -> None
+    def prepare_distribution_metadata(
+        self, finder: PackageFinder, build_isolation: bool
+    ) -> None:
         raise NotImplementedError()

@@ -1,15 +1,12 @@
-# The following comment should be removed at some point in the future.
-# mypy: disallow-untyped-defs=False
-
-from __future__ import absolute_import
-
 import logging
 import os
+from optparse import Values
+from typing import List
 
 from pipenv.patched.notpip._internal.cli import cmdoptions
 from pipenv.patched.notpip._internal.cli.cmdoptions import make_target_python
-from pipenv.patched.notpip._internal.cli.req_command import RequirementCommand
-from pipenv.patched.notpip._internal.req import RequirementSet
+from pipenv.patched.notpip._internal.cli.req_command import RequirementCommand, with_cleanup
+from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
 from pipenv.patched.notpip._internal.req.req_tracker import get_requirement_tracker
 from pipenv.patched.notpip._internal.utils.misc import ensure_dir, normalize_path, write_output
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
@@ -37,29 +34,25 @@ class DownloadCommand(RequirementCommand):
       %prog [options] <local project path> ...
       %prog [options] <archive url/path> ..."""
 
-    def __init__(self, *args, **kw):
-        super(DownloadCommand, self).__init__(*args, **kw)
+    def add_options(self) -> None:
+        self.cmd_opts.add_option(cmdoptions.constraints())
+        self.cmd_opts.add_option(cmdoptions.requirements())
+        self.cmd_opts.add_option(cmdoptions.build_dir())
+        self.cmd_opts.add_option(cmdoptions.no_deps())
+        self.cmd_opts.add_option(cmdoptions.global_options())
+        self.cmd_opts.add_option(cmdoptions.no_binary())
+        self.cmd_opts.add_option(cmdoptions.only_binary())
+        self.cmd_opts.add_option(cmdoptions.prefer_binary())
+        self.cmd_opts.add_option(cmdoptions.src())
+        self.cmd_opts.add_option(cmdoptions.pre())
+        self.cmd_opts.add_option(cmdoptions.require_hashes())
+        self.cmd_opts.add_option(cmdoptions.progress_bar())
+        self.cmd_opts.add_option(cmdoptions.no_build_isolation())
+        self.cmd_opts.add_option(cmdoptions.use_pep517())
+        self.cmd_opts.add_option(cmdoptions.no_use_pep517())
+        self.cmd_opts.add_option(cmdoptions.ignore_requires_python())
 
-        cmd_opts = self.cmd_opts
-
-        cmd_opts.add_option(cmdoptions.constraints())
-        cmd_opts.add_option(cmdoptions.requirements())
-        cmd_opts.add_option(cmdoptions.build_dir())
-        cmd_opts.add_option(cmdoptions.no_deps())
-        cmd_opts.add_option(cmdoptions.global_options())
-        cmd_opts.add_option(cmdoptions.no_binary())
-        cmd_opts.add_option(cmdoptions.only_binary())
-        cmd_opts.add_option(cmdoptions.prefer_binary())
-        cmd_opts.add_option(cmdoptions.src())
-        cmd_opts.add_option(cmdoptions.pre())
-        cmd_opts.add_option(cmdoptions.no_clean())
-        cmd_opts.add_option(cmdoptions.require_hashes())
-        cmd_opts.add_option(cmdoptions.progress_bar())
-        cmd_opts.add_option(cmdoptions.no_build_isolation())
-        cmd_opts.add_option(cmdoptions.use_pep517())
-        cmd_opts.add_option(cmdoptions.no_use_pep517())
-
-        cmd_opts.add_option(
+        self.cmd_opts.add_option(
             '-d', '--dest', '--destination-dir', '--destination-directory',
             dest='download_dir',
             metavar='dir',
@@ -67,7 +60,7 @@ class DownloadCommand(RequirementCommand):
             help=("Download packages into <dir>."),
         )
 
-        cmdoptions.add_target_python_options(cmd_opts)
+        cmdoptions.add_target_python_options(self.cmd_opts)
 
         index_opts = cmdoptions.make_option_group(
             cmdoptions.index_group,
@@ -75,9 +68,11 @@ class DownloadCommand(RequirementCommand):
         )
 
         self.parser.insert_option_group(0, index_opts)
-        self.parser.insert_option_group(0, cmd_opts)
+        self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options, args):
+    @with_cleanup
+    def run(self, options: Values, args: List[str]) -> int:
+
         options.ignore_installed = True
         # editable doesn't really make sense for `pip download`, but the bowels
         # of the RequirementSet code require that property.
@@ -86,7 +81,6 @@ class DownloadCommand(RequirementCommand):
         cmdoptions.check_dist_restriction(options)
 
         options.download_dir = normalize_path(options.download_dir)
-
         ensure_dir(options.download_dir)
 
         session = self.get_default_session(options)
@@ -96,52 +90,50 @@ class DownloadCommand(RequirementCommand):
             options=options,
             session=session,
             target_python=target_python,
+            ignore_requires_python=options.ignore_requires_python,
         )
-        build_delete = (not (options.no_clean or options.build_dir))
 
-        with get_requirement_tracker() as req_tracker, TempDirectory(
-            options.build_dir, delete=build_delete, kind="download"
-        ) as directory:
+        req_tracker = self.enter_context(get_requirement_tracker())
 
-            requirement_set = RequirementSet()
-            self.populate_requirement_set(
-                requirement_set,
-                args,
-                options,
-                finder,
-                session,
-                None
-            )
+        directory = TempDirectory(
+            delete=not options.no_clean,
+            kind="download",
+            globally_managed=True,
+        )
 
-            preparer = self.make_requirement_preparer(
-                temp_build_dir=directory,
-                options=options,
-                req_tracker=req_tracker,
-                session=session,
-                finder=finder,
-                download_dir=options.download_dir,
-                use_user_site=False,
-            )
+        reqs = self.get_requirements(args, options, finder, session)
 
-            resolver = self.make_resolver(
-                preparer=preparer,
-                finder=finder,
-                options=options,
-                py_version_info=options.python_version,
-            )
+        preparer = self.make_requirement_preparer(
+            temp_build_dir=directory,
+            options=options,
+            req_tracker=req_tracker,
+            session=session,
+            finder=finder,
+            download_dir=options.download_dir,
+            use_user_site=False,
+        )
 
-            self.trace_basic_info(finder)
+        resolver = self.make_resolver(
+            preparer=preparer,
+            finder=finder,
+            options=options,
+            ignore_requires_python=options.ignore_requires_python,
+            py_version_info=options.python_version,
+        )
 
-            resolver.resolve(requirement_set)
+        self.trace_basic_info(finder)
 
-            downloaded = ' '.join([
-                req.name for req in requirement_set.successfully_downloaded
-            ])
-            if downloaded:
-                write_output('Successfully downloaded %s', downloaded)
+        requirement_set = resolver.resolve(
+            reqs, check_supported_wheels=True
+        )
 
-            # Clean up
-            if not options.no_clean:
-                requirement_set.cleanup_files()
+        downloaded: List[str] = []
+        for req in requirement_set.requirements.values():
+            if req.satisfied_by is None:
+                assert req.name is not None
+                preparer.save_linked_requirement(req)
+                downloaded.append(req.name)
+        if downloaded:
+            write_output('Successfully downloaded %s', ' '.join(downloaded))
 
-        return requirement_set
+        return SUCCESS

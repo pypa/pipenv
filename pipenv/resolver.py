@@ -77,12 +77,20 @@ def which(*args, **kwargs):
 
 
 def handle_parsed_args(parsed):
+    if "PIPENV_VERBOSITY" in os.environ:
+        parsed.verbose = int(os.getenv("PIPENV_VERBOSITY"))
     if parsed.debug:
         parsed.verbose = max(parsed.verbose, 2)
     if parsed.verbose > 1:
         logging.getLogger("notpip").setLevel(logging.DEBUG)
     elif parsed.verbose > 0:
         logging.getLogger("notpip").setLevel(logging.INFO)
+        logger = logging.getLogger(
+            "pipenv.patched.notpip._internal.resolution.resolvelib.reporter"
+        )
+        logger.addHandler(logging.StreamHandler())
+        logger.setLevel(logging.INFO)
+        os.environ["PIP_RESOLVER_DEBUG"] = ""
     os.environ["PIPENV_VERBOSITY"] = str(parsed.verbose)
     if "PIPENV_PACKAGES" in os.environ:
         parsed.packages += os.environ.get("PIPENV_PACKAGES", "").strip().split("\n")
@@ -674,8 +682,6 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
     )
 
     def resolve(packages, pre, project, sources, clear, system, requirements_dir=None):
-        from pipenv.patched.piptools import logging as piptools_logging
-        piptools_logging.log.verbosity = 1 if verbose else 0
         return resolve_deps(
             packages,
             which,
@@ -737,9 +743,9 @@ def _main(pre, clear, verbose, system, write, requirements_dir, packages, parse_
         resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages, dev)
 
 
-def main():
+def main(argv=None):
     parser = get_parser()
-    parsed, remaining = parser.parse_known_args()
+    parsed, remaining = parser.parse_known_args(argv)
     _patch_path(pipenv_site=parsed.pipenv_site)
     import warnings
     from pipenv.vendor.vistir.compat import ResourceWarning

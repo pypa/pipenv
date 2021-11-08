@@ -96,18 +96,6 @@ This may be related to your locale setting. See :ref:`unknown-local-diagnose`
 for a possible solution.
 
 
-☤ ``shell`` does not show the virtualenv’s name in prompt
----------------------------------------------------------
-
-This is intentional. You can do it yourself with either shell plugins, or
-clever ``PS1`` configuration. If you really want it back, use
-
-::
-
-    pipenv shell -c
-
-instead (not available on Windows).
-
 ☤ Pipenv does not respect dependencies in setup.py
 --------------------------------------------------
 
@@ -127,7 +115,7 @@ Add this line under ``[supervisord]`` section in ``/etc/supervisor/supervisord.c
     environment=LC_ALL='en_US.UTF-8',LANG='en_US.UTF-8'
 
 ☤ An exception is raised during ``Locking dependencies...``
----------------------------------------------------------
+-----------------------------------------------------------
 
 Run ``pipenv lock --clear`` and try again. The lock sequence caches results
 to speed up subsequent runs. The cache may contain faulty results if a bug

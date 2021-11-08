@@ -5,13 +5,12 @@ from __future__ import absolute_import, print_function, unicode_literals
 import copy
 import itertools
 import os
-import sys
+from pathlib import Path
 
 import attr
 import plette.models.base
 import plette.pipfiles
 import tomlkit
-from vistir.compat import FileNotFoundError, Path
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
@@ -21,7 +20,7 @@ from .requirements import Requirement
 from .utils import get_url_name, optional_instance_of, tomlkit_value_to_python
 
 if MYPY_RUNNING:
-    from typing import Union, Any, Dict, Iterable, Mapping, List, Text
+    from typing import Any, Dict, Iterable, List, Mapping, Text, Union
 
     package_type = Dict[Text, Dict[Text, Union[List[Text], Text]]]
     source_type = Dict[Text, Union[Text, bool]]
@@ -68,8 +67,8 @@ class PipfileLoader(plette.pipfiles.Pipfile):
     @classmethod
     def ensure_package_sections(cls, data):
         # type: (tomlkit.toml_document.TOMLDocument[Text, Any]) -> tomlkit.toml_document.TOMLDocument[Text, Any]
-        """
-        Ensure that all pipfile package sections are present in the given toml document
+        """Ensure that all pipfile package sections are present in the given
+        toml document.
 
         :param :class:`~tomlkit.toml_document.TOMLDocument` data: The toml document to
             ensure package sections are present on
@@ -256,7 +255,8 @@ class Pipfile(object):
     @classmethod
     def read_projectfile(cls, path):
         # type: (Text) -> ProjectFile
-        """Read the specified project file and provide an interface for writing/updating.
+        """Read the specified project file and provide an interface for
+        writing/updating.
 
         :param Text path: Path to the target file.
         :return: A project file with the model and location for interaction
@@ -268,8 +268,7 @@ class Pipfile(object):
     @classmethod
     def load_projectfile(cls, path, create=False):
         # type: (Text, bool) -> ProjectFile
-        """
-        Given a path, load or create the necessary pipfile.
+        """Given a path, load or create the necessary pipfile.
 
         :param Text path: Path to the project root or pipfile
         :param bool create: Whether to create the pipfile if not found, defaults to True
@@ -294,8 +293,7 @@ class Pipfile(object):
     @classmethod
     def load(cls, path, create=False):
         # type: (Text, bool) -> Pipfile
-        """
-        Given a path, load or create the necessary pipfile.
+        """Given a path, load or create the necessary pipfile.
 
         :param Text path: Path to the project root or pipfile
         :param bool create: Whether to create the pipfile if not found, defaults to True
@@ -378,7 +376,6 @@ class Pipfile(object):
     @property
     def build_backend(self):
         # type: () -> Text
-        pyproject = self.path.parent.joinpath("pyproject.toml")
         if not self.build_system:
             self._read_pyproject()
         return self.build_system.get("build-backend", None)

@@ -25,7 +25,7 @@ import sys
 
 from . import shims
 
-__version__ = "0.5.3"
+__version__ = "0.6.0"
 
 
 if "pip_shims" in sys.modules:
@@ -33,11 +33,13 @@ if "pip_shims" in sys.modules:
     # weakref'd away
     if __name__ != "pip_shims":
         del sys.modules["pip_shims"]
+
+
 if __name__ in sys.modules:
     old_module = sys.modules[__name__]
 
 
-module = sys.modules[__name__] = sys.modules["pip_shims"] = shims._new()
+module = sys.modules["pip_shims"] = sys.modules[__name__] = shims._new()
 module.shims = shims
 module.__dict__.update(
     {

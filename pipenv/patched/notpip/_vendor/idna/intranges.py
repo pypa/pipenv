@@ -6,8 +6,10 @@ in the original list?" in time O(log(# runs)).
 """
 
 import bisect
+from typing import List, Tuple
 
 def intranges_from_list(list_):
+    # type: (List[int]) -> Tuple[int, ...]
     """Represent a list of integers as a sequence of ranges:
     ((start_0, end_0), (start_1, end_1), ...), such that the original
     integers are exactly those x such that start_i <= x < end_i for some i.
@@ -29,13 +31,16 @@ def intranges_from_list(list_):
     return tuple(ranges)
 
 def _encode_range(start, end):
+    # type: (int, int) -> int
     return (start << 32) | end
 
 def _decode_range(r):
+    # type: (int) -> Tuple[int, int]
     return (r >> 32), (r & ((1 << 32) - 1))
 
 
 def intranges_contain(int_, ranges):
+    # type: (int, Tuple[int, ...]) -> bool
     """Determine if `int_` falls into one of the ranges in `ranges`."""
     tuple_ = _encode_range(int_, 0)
     pos = bisect.bisect_left(ranges, tuple_)

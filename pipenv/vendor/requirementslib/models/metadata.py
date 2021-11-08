@@ -8,6 +8,8 @@ import operator
 import os
 import zipfile
 from collections import defaultdict
+from functools import reduce
+from typing import Sequence
 
 import attr
 import dateutil.parser
@@ -15,7 +17,6 @@ import distlib.metadata
 import distlib.wheel
 import packaging.version
 import requests
-import six
 import vistir
 from packaging.markers import Marker
 from packaging.requirements import Requirement as PackagingRequirement
@@ -34,12 +35,6 @@ from .markers import (
 )
 from .requirements import Requirement
 from .utils import filter_dict, get_pinned_version, is_pinned_requirement
-
-# fmt: off
-from six.moves import Sequence  # type: ignore  # isort:skip
-from six.moves import reduce  # type: ignore # isort:skip
-# fmt: on # isort:skip
-
 
 ch = logging.StreamHandler()
 formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
@@ -64,7 +59,9 @@ if MYPY_RUNNING:
         TypeVar,
         Union,
     )
+
     from attr import Attribute  # noqa
+
     from .setup_info import SetupInfo
 
     TAttrsClass = TypeVar("TAttrsClass")
@@ -318,7 +315,9 @@ class Dependency(object):
         return cls(
             name=req.name,
             specifier=req.specifier,
-            extras=tuple(sorted(set(req.extras))) if req.extras is not None else req.extras,
+            extras=tuple(sorted(set(req.extras)))
+            if req.extras is not None
+            else req.extras,
             requirement=req,
             from_extras=from_extras,
             python_version=python_version,
@@ -364,7 +363,9 @@ class Dependency(object):
         return cls(
             name=info.name,
             specifier=req.specifier,
-            extras=tuple(sorted(set(req.extras))) if req.extras is not None else req.extras,
+            extras=tuple(sorted(set(req.extras)))
+            if req.extras is not None
+            else req.extras,
             requirement=req,
             from_extras=None,
             python_version=SpecifierSet(requires_python_str),
@@ -625,15 +626,15 @@ class ReleaseUrl(object):
         # type: (TReleaseUrlDict, Optional[str]) -> "ReleaseUrl"
         valid_digest_keys = set("{0}_digest".format(k) for k in VALID_ALGORITHMS.keys())
         digest_keys = set(release_dict.keys()) & valid_digest_keys
-        creation_kwargs = {}  # type: Dict[str, Union[bool, int, str, Digest, TDigestDict]]
-        creation_kwargs = {
-            k: v for k, v in release_dict.items() if k not in digest_keys
-        }
+        creation_kwargs = (
+            {}
+        )  # type: Dict[str, Union[bool, int, str, Digest, TDigestDict]]
+        creation_kwargs = {k: v for k, v in release_dict.items() if k not in digest_keys}
         if name is not None:
             creation_kwargs["name"] = name
         for k in digest_keys:
             digest = release_dict[k]
-            if not isinstance(digest, six.string_types):
+            if not isinstance(digest, str):
                 raise TypeError("Digests must be strings, got {!r}".format(digest))
             creation_kwargs[k] = Digest.create(k.replace("_digest", ""), digest)
         release_url = cls(**filter_dict(creation_kwargs))  # type: ignore
@@ -827,7 +828,8 @@ def get_releases_from_package(releases, name=None):
 @attr.s(frozen=True)
 class ReleaseCollection(object):
     releases = attr.ib(
-        factory=list, converter=instance_check_converter(list, get_releases_from_package),  # type: ignore
+        factory=list,
+        converter=instance_check_converter(list, get_releases_from_package),  # type: ignore
     )  # type: List[Release]
 
     def __iter__(self):
@@ -894,7 +896,7 @@ def convert_releases_to_collection(releases, name=None):
 
 def split_keywords(value):
     # type: (Union[str, List]) -> List[str]
-    if value and isinstance(value, six.string_types):
+    if value and isinstance(value, str):
         return value.split(",")
     elif isinstance(value, list):
         return value
@@ -1027,7 +1029,9 @@ class Package(object):
 
     @urls.default
     def _get_urls_collection(self):
-        return functools.partial(convert_release_urls_to_collection, urls=[], name=self.name)
+        return functools.partial(
+            convert_release_urls_to_collection, urls=[], name=self.name
+        )
 
     @property
     def name(self):
@@ -1173,7 +1177,9 @@ class Package(object):
             try:
                 version = next(iter(specset.filter((r.version for r in sorted_releases))))
             except StopIteration:
-                logger.info("No version of {0} matches specifier: {1}".format(sub_dep, specset))
+                logger.info(
+                    "No version of {0} matches specifier: {1}".format(sub_dep, specset)
+                )
                 logger.info(
                     "Available versions: {0}".format(
                         " ".join([r.version for r in sorted_releases])

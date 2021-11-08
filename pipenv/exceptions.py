@@ -363,13 +363,11 @@ class ResolutionFailure(PipenvException):
         extra = (
             "{}: Your dependencies could not be resolved. You likely have a "
             "mismatch in your sub-dependencies.\n  "
-            "First try clearing your dependency cache with {}, then try the original command again.\n "
-            "Alternatively, you can use {} to bypass this mechanism, then run "
+            "You can use {} to bypass this mechanism, then run "
             "{} to inspect the situation.\n  "
             "Hint: try {} if it is a pre-release dependency."
             "".format(
                 crayons.red("Warning", bold=True),
-                crayons.yellow("$ pipenv lock --clear"),
                 crayons.yellow("$ pipenv install --skip-lock"),
                 crayons.yellow("$ pipenv graph"),
                 crayons.yellow("$ pipenv lock --pre"),

@@ -120,7 +120,7 @@ def cli(
             do_where(state.project, bare=True)
             return 0
         elif py:
-            do_py(state.project)
+            do_py(state.project, ctx=ctx)
             return 0
         # --support was passed...
         elif support:

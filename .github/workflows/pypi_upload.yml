@@ -28,10 +28,10 @@ jobs:
         draft: false
         prerelease: false
 
-    - name: Set up Python 3.7
+    - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
-        python-version: 3.7
+        python-version: 3.9
 
     - name: Install dependencies
       run: |
@@ -39,7 +39,7 @@ jobs:
         python -m pip install .
         python -m pipenv install --dev
       env:
-        PIPENV_DEFAULT_PYTHON_VERSION: "3.7"
+        PIPENV_DEFAULT_PYTHON_VERSION: "3.9"
 
     - name: Build wheels
       run: |
@@ -65,4 +65,4 @@ jobs:
     - name: Push changes
       uses: ad-m/github-push-action@master
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        github_token: ${{ secrets.REPO_TOKEN }}
