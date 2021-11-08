@@ -1,8 +1,8 @@
 import os
+from tempfile import TemporaryDirectory
 
 import pytest
 
-from pipenv._compat import TemporaryDirectory
 from pipenv.core import load_dot_env, warn_in_virtualenv
 from pipenv.utils import temp_environ
 
@@ -25,7 +25,7 @@ def test_load_dot_env_from_environment_variable_location(monkeypatch, capsys, pr
             import click
             is_console = False
             m.setattr(click._winconsole, "_is_console", lambda x: is_console)
-        dotenv_path = os.path.join(tempdir.name, 'test.env')
+        dotenv_path = os.path.join(tempdir, 'test.env')
         key, val = 'SOME_KEY', 'some_value'
         with open(dotenv_path, 'w') as f:
             f.write(f'{key}={val}')
@@ -42,7 +42,7 @@ def test_doesnt_load_dot_env_if_disabled(monkeypatch, capsys, project):
             import click
             is_console = False
             m.setattr(click._winconsole, "_is_console", lambda x: is_console)
-        dotenv_path = os.path.join(tempdir.name, 'test.env')
+        dotenv_path = os.path.join(tempdir, 'test.env')
         key, val = 'SOME_KEY', 'some_value'
         with open(dotenv_path, 'w') as f:
             f.write(f'{key}={val}')
@@ -63,7 +63,7 @@ def test_load_dot_env_warns_if_file_doesnt_exist(monkeypatch, capsys, project):
             import click
             is_console = False
             m.setattr(click._winconsole, "_is_console", lambda x: is_console)
-        dotenv_path = os.path.join(tempdir.name, 'does-not-exist.env')
+        dotenv_path = os.path.join(tempdir, 'does-not-exist.env')
         project.s.PIPENV_DOTENV_LOCATION = str(dotenv_path)
         load_dot_env(project)
         output, err = capsys.readouterr()

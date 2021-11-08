@@ -8,25 +8,21 @@ import shutil
 import traceback
 import sys
 import warnings
-
+from pathlib import Path
 from shutil import rmtree as _rmtree
+from tempfile import TemporaryDirectory
 
 import pytest
 import requests
-
 from click.testing import CliRunner
 from pytest_pypi.app import prepare_fixtures
 from pytest_pypi.app import prepare_packages as prepare_pypi_packages
 
-from pipenv._compat import Path
 from pipenv.cli import cli
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.utils import subprocess_run
 from pipenv.vendor import toml, tomlkit
-from pipenv.vendor.vistir.compat import (
-    FileNotFoundError, PermissionError, ResourceWarning, TemporaryDirectory,
-    fs_encode, fs_str
-)
+from pipenv.vendor.vistir.compat import fs_encode, fs_str
 from pipenv.vendor.vistir.contextmanagers import temp_environ
 from pipenv.vendor.vistir.misc import run
 from pipenv.vendor.vistir.path import (
@@ -165,7 +161,7 @@ def local_tempdir(request):
 
     request.addfinalizer(finalize)
     with TemporaryDirectory(dir=new_temp.as_posix()) as temp_dir:
-        yield Path(temp_dir.name)
+        yield Path(temp_dir)
 
 
 @pytest.fixture(name='create_tmpdir')
@@ -381,7 +377,7 @@ class _PipenvInstance:
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             cmd_args = shlex.split(cmd)
-            env = {**self.env, **{'PIPENV_CACHE_DIR': tempdir.name}}
+            env = {**self.env, **{'PIPENV_CACHE_DIR': tempdir}}
             self.capfd.readouterr()
             r = cli_runner.invoke(cli, cmd_args, env=env)
             r.returncode = r.exit_code

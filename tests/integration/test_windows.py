@@ -1,8 +1,7 @@
 import os
+from pathlib import Path
 
 import pytest
-
-from pipenv._compat import Path
 
 
 # This module is run only on Windows.

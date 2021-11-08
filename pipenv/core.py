@@ -1,6 +1,7 @@
 import json as simplejson
 import logging
 import os
+from pathlib import Path
 from posixpath import expandvars
 import sys
 import time
@@ -896,7 +897,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
     )
 
     cmd = [
-        vistir.compat.Path(sys.executable).absolute().as_posix(),
+        Path(sys.executable).absolute().as_posix(),
         "-m",
         "virtualenv",
         f"--prompt=({project.name}) ",
@@ -1461,7 +1462,7 @@ def pip_install(
     pip_command.extend(prepare_pip_source_args(sources))
     if project.s.is_verbose():
         click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
-    cache_dir = vistir.compat.Path(project.s.PIPENV_CACHE_DIR)
+    cache_dir = Path(project.s.PIPENV_CACHE_DIR)
     DEFAULT_EXISTS_ACTION = "w"
     if selective_upgrade:
         DEFAULT_EXISTS_ACTION = "i"
@@ -1487,7 +1488,7 @@ def pip_install(
 
 
 def pip_download(project, package_name):
-    cache_dir = vistir.compat.Path(project.s.PIPENV_CACHE_DIR)
+    cache_dir = Path(project.s.PIPENV_CACHE_DIR)
     pip_config = {
         "PIP_CACHE_DIR": vistir.misc.fs_str(cache_dir.as_posix()),
         "PIP_WHEEL_DIR": vistir.misc.fs_str(cache_dir.joinpath("wheels").as_posix()),
@@ -2564,9 +2565,9 @@ def do_check(
     if not python:
         click.echo(crayons.red("The Python interpreter can't be found."), err=True)
         sys.exit(1)
-    _cmd = [vistir.compat.Path(python).as_posix()]
+    _cmd = [Path(python).as_posix()]
     # Run the PEP 508 checker in the virtualenv.
-    cmd = _cmd + [vistir.compat.Path(pep508checker_path).as_posix()]
+    cmd = _cmd + [Path(pep508checker_path).as_posix()]
     c = run_command(cmd, is_verbose=project.s.is_verbose())
     if c.returncode is not None:
         try:
@@ -2684,8 +2685,8 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
         pass
     else:
         if not os.name == 'nt':    # bugfix #4388
-            python_path = vistir.compat.Path(python_path).as_posix()
-            pipdeptree_path = vistir.compat.Path(pipdeptree_path).as_posix()
+            python_path = Path(python_path).as_posix()
+            pipdeptree_path = Path(pipdeptree_path).as_posix()
 
     if reverse and json:
         click.echo(

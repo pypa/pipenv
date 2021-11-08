@@ -1,12 +1,11 @@
 import os
 import shutil
 import sys
+from pathlib import Path
 
 import pytest
-
 from flaky import flaky
 
-from pipenv._compat import Path
 from pipenv.utils import mkdir_p, temp_environ
 
 

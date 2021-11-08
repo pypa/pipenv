@@ -19,7 +19,7 @@ import requests
 
 from urllib3.util import parse_url as urllib3_parse
 
-from pipenv.vendor.vistir.compat import TemporaryDirectory
+from tempfile import TemporaryDirectory
 from pipenv.vendor.vistir.contextmanagers import open_file
 import pipenv.vendor.parse as parse
 
@@ -258,13 +258,13 @@ def _ensure_package_in_requirements(ctx, requirements_file, package):
 def install_pyyaml(ctx, vendor_dir):
     with TemporaryDirectory(prefix="pipenv-", suffix="-yaml") as download_dir:
         pip_command = "pip download --no-binary=:all: --no-clean --no-deps -d {} pyyaml".format(
-            download_dir.name
+            download_dir
         )
         log(f"downloading deps via pip: {pip_command}")
         ctx.run(pip_command)
-        downloaded = next(Path(download_dir.name).glob("*.tar.gz"))
+        downloaded = next(Path(download_dir).glob("*.tar.gz"))
         with tarfile.open(downloaded, mode="r:gz") as tf:
-            tf.extractall(download_dir.name)
+            tf.extractall(download_dir)
         extracted = next((p for p in downloaded.parent.iterdir() if p != downloaded))
         yaml_dir = vendor_dir / "yaml"
         path_dict = {
