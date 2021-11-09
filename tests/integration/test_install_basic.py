@@ -1,10 +1,12 @@
 import os
 
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 import pytest
 
 from flaky import flaky
 
-from pipenv._compat import Path, TemporaryDirectory
 from pipenv.utils import subprocess_run, temp_environ
 
 
@@ -396,7 +398,7 @@ def test_install_venv_project_directory(PipenvInstance):
         with temp_environ(), TemporaryDirectory(
             prefix="pipenv-", suffix="temp_workon_home"
         ) as workon_home:
-            os.environ["WORKON_HOME"] = workon_home.name
+            os.environ["WORKON_HOME"] = workon_home
             if "PIPENV_VENV_IN_PROJECT" in os.environ:
                 del os.environ["PIPENV_VENV_IN_PROJECT"]
 

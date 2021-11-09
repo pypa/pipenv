@@ -19,7 +19,7 @@ sys.path.insert(0, PIPENV_VENDOR)
 sys.path.insert(0, PIPENV_PATCHED)
 
 from pipenv.vendor.urllib3.exceptions import DependencyWarning
-from pipenv.vendor.vistir.compat import ResourceWarning, fs_str
+from pipenv.vendor.vistir.compat import fs_str
 
 warnings.filterwarnings("ignore", category=DependencyWarning)
 warnings.filterwarnings("ignore", category=ResourceWarning)

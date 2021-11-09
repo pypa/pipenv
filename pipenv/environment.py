@@ -6,7 +6,7 @@ import operator
 import os
 import site
 import sys
-
+from pathlib import Path
 from sysconfig import get_paths, get_python_version
 
 import pkg_resources
@@ -53,7 +53,7 @@ class Environment:
         prefix = normalize_path(prefix)
         self._python = None
         if python is not None:
-            self._python = vistir.compat.Path(python).absolute().as_posix()
+            self._python = Path(python).absolute().as_posix()
         self.is_venv = is_venv or prefix != normalize_path(sys.prefix)
         if not sources:
             sources = []
@@ -66,7 +66,7 @@ class Environment:
         self.pipfile = pipfile
         self.extra_dists = []
         prefix = prefix if prefix else sys.prefix
-        self.prefix = vistir.compat.Path(prefix)
+        self.prefix = Path(prefix)
         self._base_paths = {}
         if self.is_venv:
             self._base_paths = self.get_paths()
@@ -139,7 +139,7 @@ class Environment:
             return py_version
 
     def find_libdir(self):
-        # type: () -> Optional[vistir.compat.Path]
+        # type: () -> Optional[Path]
         libdir = self.prefix / "lib"
         return next(iter(list(libdir.iterdir())), None)
 
@@ -153,7 +153,7 @@ class Environment:
                 include_path = include_dirs.get("include", include_dirs.get("platinclude"))
                 if not include_path:
                     return {}
-                include_dir = vistir.compat.Path(include_path)
+                include_dir = Path(include_path)
         python_path = next(iter(list(include_dir.iterdir())), None)
         if python_path and python_path.name.startswith("python"):
             python_version = python_path.name.replace("python", "")
@@ -270,11 +270,11 @@ class Environment:
         if self._python is not None:
             return self._python
         if os.name == "nt" and not self.is_venv:
-            py = vistir.compat.Path(self.prefix).joinpath("python").absolute().as_posix()
+            py = Path(self.prefix).joinpath("python").absolute().as_posix()
         else:
-            py = vistir.compat.Path(self.script_basedir).joinpath("python").absolute().as_posix()
+            py = Path(self.script_basedir).joinpath("python").absolute().as_posix()
         if not py:
-            py = vistir.compat.Path(sys.executable).as_posix()
+            py = Path(sys.executable).as_posix()
         self._python = py
         return py
 
@@ -289,7 +289,7 @@ class Environment:
         """
 
         from .vendor.vistir.compat import JSONDecodeError
-        current_executable = vistir.compat.Path(sys.executable).as_posix()
+        current_executable = Path(sys.executable).as_posix()
         if not self.python or self.python == current_executable:
             return sys.path
         elif any([sys.prefix == self.prefix, not self.is_venv]):
@@ -463,7 +463,7 @@ class Environment:
 
         command = [self.python, "-c", "import sys; print(sys.prefix)"]
         c = subprocess_run(command)
-        sys_prefix = vistir.compat.Path(c.stdout.strip()).as_posix()
+        sys_prefix = Path(c.stdout.strip()).as_posix()
         return sys_prefix
 
     @cached_property
@@ -515,7 +515,7 @@ class Environment:
         reinstall
         """
         prefixes = [
-            vistir.compat.Path(prefix)
+            Path(prefix)
             for prefix in self.base_paths["libdirs"].split(os.pathsep)
             if vistir.path.is_in_path(prefix, self.prefix.as_posix())
         ]
@@ -856,7 +856,7 @@ class Environment:
             extra_dists = []
         original_path = sys.path
         original_prefix = sys.prefix
-        parent_path = vistir.compat.Path(__file__).absolute().parent
+        parent_path = Path(__file__).absolute().parent
         vendor_dir = parent_path.joinpath("vendor").as_posix()
         patched_dir = parent_path.joinpath("patched").as_posix()
         parent_path = parent_path.as_posix()
