@@ -35,6 +35,8 @@ try:
         del sys.modules["concurrency"]
 except Exception:
     pass
+if "urllib3" in sys.modules:
+    del sys.modules["urllib3"]
 
 from pipenv.vendor.vistir.misc import get_text_stream
 

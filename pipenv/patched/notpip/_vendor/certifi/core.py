@@ -47,7 +47,7 @@ try:
             # We also have to hold onto the actual context manager, because
             # it will do the cleanup whenever it gets garbage collected, so
             # we will also store that at the global level as well.
-            _CACERT_CTX = get_path("pip._vendor.certifi", "cacert.pem")
+            _CACERT_CTX = get_path("pipenv.patched.notpip._vendor.certifi", "cacert.pem")
             _CACERT_PATH = str(_CACERT_CTX.__enter__())
 
         return _CACERT_PATH

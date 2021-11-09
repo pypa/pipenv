@@ -1,3 +1,15 @@
+diff --git a/pipenv/patched/notpip/__main__.py b/pipenv/patched/notpip/__main__.py
+index 204a8ca2..546caab1 100644
+--- a/pipenv/patched/notpip/__main__.py
++++ b/pipenv/patched/notpip/__main__.py
+@@ -26,6 +26,7 @@ if __name__ == "__main__":
+     warnings.filterwarnings(
+         "ignore", category=DeprecationWarning, module=".*packaging\\.version"
+     )
++    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+     from pipenv.patched.notpip._internal.cli.main import main as _main
+ 
+     sys.exit(_main())
 diff --git a/pipenv/patched/notpip/_internal/cli/req_command.py b/pipenv/patched/notpip/_internal/cli/req_command.py
 index cb2c8e86..17c2209f 100644
 --- a/pipenv/patched/notpip/_internal/cli/req_command.py
@@ -21,7 +33,7 @@ index cb2c8e86..17c2209f 100644
              finder=finder,
              wheel_cache=wheel_cache,
 diff --git a/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py b/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
-index 0ba06c52..3136651b 100644
+index 0ba06c52..6fdb59b7 100644
 --- a/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
 +++ b/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
 @@ -253,7 +253,10 @@ class _InstallRequirementBackedCandidate(Candidate):
@@ -36,15 +48,16 @@ index 0ba06c52..3136651b 100644
  
  
  class LinkCandidate(_InstallRequirementBackedCandidate):
-diff --git a/pipenv/patched/notpip/__main__.py b/pipenv/patched/notpip/__main__.py
-index 204a8ca2..546caab1 100644
---- a/pipenv/patched/notpip/__main__.py
-+++ b/pipenv/patched/notpip/__main__.py
-@@ -26,6 +26,7 @@ if __name__ == "__main__":
-     warnings.filterwarnings(
-         "ignore", category=DeprecationWarning, module=".*packaging\\.version"
-     )
-+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
-     from pipenv.patched.notpip._internal.cli.main import main as _main
-
-     sys.exit(_main())
+diff --git a/pipenv/patched/notpip/_vendor/certifi/core.py b/pipenv/patched/notpip/_vendor/certifi/core.py
+index b8140cf1..5b06ce3f 100644
+--- a/pipenv/patched/notpip/_vendor/certifi/core.py
++++ b/pipenv/patched/notpip/_vendor/certifi/core.py
+@@ -47,7 +47,7 @@ try:
+             # We also have to hold onto the actual context manager, because
+             # it will do the cleanup whenever it gets garbage collected, so
+             # we will also store that at the global level as well.
+-            _CACERT_CTX = get_path("pip._vendor.certifi", "cacert.pem")
++            _CACERT_CTX = get_path("pipenv.patched.notpip._vendor.certifi", "cacert.pem")
+             _CACERT_PATH = str(_CACERT_CTX.__enter__())
+ 
+         return _CACERT_PATH
