@@ -510,11 +510,6 @@ def ensure_project(
 ):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
-    # Clear the caches, if appropriate.
-    if clear:
-        print("clearing")
-        sys.exit(1)
-
     # Automatically use an activated virtualenv.
     if project.s.PIPENV_USE_SYSTEM:
         system = True
