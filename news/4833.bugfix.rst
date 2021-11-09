@@ -1,0 +1,1 @@
+Fix a bug that certifi can't be loaded within ``notpip``'s vendor library. This makes several objects of ``pip`` fail to be imported.

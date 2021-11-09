@@ -1,0 +1,1 @@
+Fix a bug that ``3.10.0`` can be found be python finder.
