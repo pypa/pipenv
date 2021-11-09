@@ -12,15 +12,11 @@ from pipenv.cli.options import (
 from pipenv.exceptions import PipenvOptionsError
 from pipenv.patched import crayons
 from pipenv.utils import subprocess_run
-from pipenv.vendor import click_completion
 from pipenv.vendor.click import (
     Choice, argument, echo, edit, group, option, pass_context, secho, types,
     version_option
 )
 
-
-# Enable shell completion.
-click_completion.init()
 
 subcommand_context = CONTEXT_SETTINGS.copy()
 subcommand_context.update({
@@ -38,12 +34,6 @@ subcommand_context_no_interspersion["allow_interspersed_args"] = False
 @option("--envs", is_flag=True, default=False, help="Output Environment Variable options.")
 @option("--rm", is_flag=True, default=False, help="Remove the virtualenv.")
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
-@option(
-    "--completion",
-    is_flag=True,
-    default=False,
-    help="Output completion (to be executed by the shell).",
-)
 @option("--man", is_flag=True, default=False, help="Display manpage.")
 @option(
     "--support",
@@ -63,29 +53,12 @@ def cli(
     envs=False,
     rm=False,
     bare=False,
-    completion=False,
     man=False,
     support=None,
     help=False,
     site_packages=None,
     **kwargs
 ):
-    # Handle this ASAP to make shell startup fast.
-    if completion:
-        from .. import shells
-
-        try:
-            shell = shells.detect_info(state.project)[0]
-        except shells.ShellDetectionFailure:
-            echo(
-                "Fail to detect shell. Please provide the {} environment "
-                "variable.".format(crayons.normal("PIPENV_SHELL", bold=True)),
-                err=True,
-            )
-            ctx.abort()
-        print(click_completion.get_code(shell=shell, prog_name="pipenv"))
-        return 0
-
     from ..core import (
         cleanup_virtualenv, do_clear, do_py, do_where, ensure_project,
         format_help, system_which, warn_in_virtualenv
