@@ -357,7 +357,6 @@ class Setting:
         self.PIPENV_VIRTUALENV = None
         if "PIPENV_ACTIVE" not in os.environ and not self.PIPENV_IGNORE_VIRTUALENVS:
             self.PIPENV_VIRTUALENV = os.environ.get("VIRTUAL_ENV")
-            self.PIPENV_USE_SYSTEM = bool(self.PIPENV_VIRTUALENV)
 
         # Internal, tells Pipenv to skip case-checking (slow internet connections).
         # This is currently always set to True for performance reasons.
