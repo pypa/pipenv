@@ -41,6 +41,8 @@ You can quickly play with Pipenv right in your browser:
 Installation
 ------------
 
+**Pipenv can be installed with Python 3.6 and above.**
+
 If you\'re using Debian Buster+:
 
     sudo apt install pipenv
@@ -217,8 +219,6 @@ Locate the Python interpreter:
     /Users/kennethreitz/.local/share/virtualenvs/test-Skyy4vre/bin/python
 
 Install packages:
-
-Pipenv can be installed with Python 3.6 and above:
 
     $ pipenv install
     Creating a virtualenv for this project...
