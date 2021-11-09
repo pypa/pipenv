@@ -1,1 +1,0 @@
-Update ``pythonfinder`` from ``1.2.8`` to ``1.2.9``.

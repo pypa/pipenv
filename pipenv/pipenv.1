@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Nov 05, 2021" "2021.11.5" "pipenv"
+.TH "PIPENV" "1" "Nov 09, 2021" "2021.11.9.post0" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -442,6 +442,34 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2021.11.9.post0 (2021\-11\-09)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+Replace \fBclick\-completion\fP with \fBclick\fP\(aqs own completion implementation.  \fI\%#4786\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fix a bug that \fBpipenv run\fP doesn\(aqt set environment variables correctly.  \fI\%#4831\fP
+.IP \(bu 2
+Fix a bug that certifi can\(aqt be loaded within \fBnotpip\fP\(aqs vendor library. This makes several objects of \fBpip\fP fail to be imported.  \fI\%#4833\fP
+.IP \(bu 2
+Fix a bug that \fB3.10.0\fP can be found be python finder.  \fI\%#4837\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Update \fBpythonfinder\fP from \fB1.2.8\fP to \fB1.2.9\fP\&.  \fI\%#4837\fP
+.UNINDENT
+.SS 2021.11.5.post0 (2021\-11\-05)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fix a regression that \fBpipenv shell\fP fails to start a subshell.  \fI\%#4828\fP
+.IP \(bu 2
+Fix a regression that \fBpip_shims\fP object isn\(aqt imported correctly.  \fI\%#4829\fP
+.UNINDENT
 .SS 2021.11.5 (2021\-11\-05)
 .SS Features & Improvements
 .INDENT 0.0
@@ -504,6 +532,8 @@ Update vendor libraries:
 .INDENT 0.0
 .IP \(bu 2
 remove prefixes on install commands for easy copy/pasting  \fI\%#4792\fP
+.IP \(bu 2
+Officially drop support for Python 2.7 and Python 3.5.  \fI\%#4261\fP
 .UNINDENT
 .SS 2021.5.29 (2021\-05\-29)
 .SS Bug Fixes
@@ -3231,7 +3261,7 @@ to show colors.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_HIDE_EMOJIS = True
+.B pipenv.environments.PIPENV_HIDE_EMOJIS = False
 Disable emojis in output.
 .sp
 Default is to show emojis. This is automatically set on Windows.
@@ -3434,19 +3464,31 @@ To enable completion in fish, add this to your configuration:
 .sp
 .nf
 .ft C
-eval (pipenv \-\-completion)
+eval (env _PIPENV_COMPLETE=fish_source pipenv)
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
 .sp
-Alternatively, with bash or zsh, add this to your configuration:
+Alternatively, with zsh, add this to your configuration:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-eval "$(pipenv \-\-completion)"
+eval "$(_PIPENV_COMPLETE=zsh_source pipenv)"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Alternatively, with bash, add this to your configuration:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+eval "$(_PIPENV_COMPLETE=bash_source pipenv)"
 .ft P
 .fi
 .UNINDENT

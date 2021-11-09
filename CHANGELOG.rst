@@ -1,3 +1,25 @@
+2021.11.9.post0 (2021-11-09)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Replace ``click-completion`` with ``click``'s own completion implementation.  `#4786 <https://github.com/pypa/pipenv/issues/4786>`_
+
+Bug Fixes
+---------
+
+- Fix a bug that ``pipenv run`` doesn't set environment variables correctly.  `#4831 <https://github.com/pypa/pipenv/issues/4831>`_
+- Fix a bug that certifi can't be loaded within ``notpip``'s vendor library. This makes several objects of ``pip`` fail to be imported.  `#4833 <https://github.com/pypa/pipenv/issues/4833>`_
+- Fix a bug that ``3.10.0`` can be found be python finder.  `#4837 <https://github.com/pypa/pipenv/issues/4837>`_
+
+Vendored Libraries
+------------------
+
+- Update ``pythonfinder`` from ``1.2.8`` to ``1.2.9``.  `#4837 <https://github.com/pypa/pipenv/issues/4837>`_
+
+
 2021.11.5.post0 (2021-11-05)
 ============================
 
