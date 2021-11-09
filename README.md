@@ -218,6 +218,8 @@ Locate the Python interpreter:
 
 Install packages:
 
+Pipenv can be installed with Python 3.6 and above:
+
     $ pipenv install
     Creating a virtualenv for this project...
     ...
