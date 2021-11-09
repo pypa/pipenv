@@ -1,0 +1,1 @@
+Return an empty dict when ``PIPENV_DONT_LOAD_ENV`` is set.

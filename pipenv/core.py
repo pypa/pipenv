@@ -2459,7 +2459,7 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
     )
 
     env = os.environ.copy()
-    env.update(load_dot_env(project, as_dict=True))
+    env.update(load_dot_env(project, as_dict=True) or {})
     env.pop("PIP_SHIMS_BASE_MODULE", None)
 
     path = env.get('PATH', '')
