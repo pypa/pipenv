@@ -568,11 +568,15 @@ A 3rd party plugin, `tox-pipenv`_ is also available to use Pipenv natively with 
 
 To enable completion in fish, add this to your configuration::
 
-    eval (pipenv --completion)
+    eval (env _PIPENV_COMPLETE=fish_source pipenv)
 
-Alternatively, with bash or zsh, add this to your configuration::
+Alternatively, with zsh, add this to your configuration::
 
-    eval "$(pipenv --completion)"
+    eval "$(_PIPENV_COMPLETE=zsh_source pipenv)"
+
+Alternatively, with bash, add this to your configuration::
+
+    eval "$(_PIPENV_COMPLETE=bash_source pipenv)"
 
 Magic shell completions are now enabled!
 

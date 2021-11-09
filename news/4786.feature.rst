@@ -1,0 +1,1 @@
+Replace ``click-completion`` with ``click``'s own completion implementation.

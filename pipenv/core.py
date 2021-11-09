@@ -12,8 +12,6 @@ import dotenv
 import pipfile
 import vistir
 
-from click_completion import init as init_completion
-
 from pipenv import environments, exceptions, pep508checker, progress
 from pipenv._compat import decode_for_output, fix_utf8
 from pipenv.patched import crayons
@@ -66,8 +64,7 @@ else:
     INSTALL_LABEL = "   "
     INSTALL_LABEL2 = "   "
     STARTING_LABEL = "   "
-# Enable shell completion.
-init_completion()
+
 # Disable colors, for the color blind and others who do not prefer colors.
 if environments.PIPENV_COLORBLIND:
     crayons.disable()
