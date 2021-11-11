@@ -70,10 +70,7 @@ Luckily - pipenv will hash your Pipfile *before* expanding environment
 variables (and, helpfully, will substitute the environment variables again when
 you install from the lock file - so no need to commit any secrets! Woo!)
 
-If your credentials contain a special character, surround the references to the environment variables with quotation marks. For example, if your password contain a double quotation mark, surround the password variable with single quotation marks. Otherwise, you may get a ``ValueError, "No closing quotation"`` error while installing dependencies. ::
-
-    [[source]]
-    url = "https://$USERNAME:'${PASSWORD}'@mypypi.example.com/simple"
+If your credentials contain special characters, make sure they are URL-encoded as specified in `rfc3986 <https://datatracker.ietf.org/doc/html/rfc3986>`_.
 
 Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
 
