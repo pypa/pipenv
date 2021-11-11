@@ -7,7 +7,7 @@ import string
 import urllib.parse
 from typing import List, Optional as TOptional, Set
 
-from pyparsing import (  # noqa
+from pipenv.vendor.pyparsing import (  # noqa
     Combine,
     Literal as L,
     Optional,

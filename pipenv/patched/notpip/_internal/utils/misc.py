@@ -794,7 +794,7 @@ def is_wheel_installed():
     Return whether the wheel package is installed.
     """
     try:
-        import wheel  # noqa: F401
+        import pipenv.vendor.wheel as wheel  # noqa: F401
     except ImportError:
         return False
 

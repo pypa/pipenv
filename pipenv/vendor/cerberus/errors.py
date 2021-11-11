@@ -8,8 +8,8 @@ from copy import copy, deepcopy
 from functools import wraps
 from pprint import pformat
 
-from cerberus.platform import PYTHON_VERSION, MutableMapping
-from cerberus.utils import compare_paths_lt, quote_string
+from pipenv.vendor.cerberus.platform import PYTHON_VERSION, MutableMapping
+from pipenv.vendor.cerberus.utils import compare_paths_lt, quote_string
 
 
 ErrorDefinition = namedtuple('ErrorDefinition', 'code, rule')

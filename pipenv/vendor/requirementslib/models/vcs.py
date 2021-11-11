@@ -5,8 +5,8 @@ import importlib
 import os
 import sys
 
-import attr
-import pip_shims
+import pipenv.vendor.attr as attr
+import pipenv.vendor.pip_shims as pip_shims
 
 from ..environment import MYPY_RUNNING
 from .url import URI
@@ -41,7 +41,7 @@ class VCSRepository(object):
             default_run_args = self.monkeypatch_pip()
         else:
             default_run_args = self.DEFAULT_RUN_ARGS
-        from pip_shims.shims import VcsSupport
+        from pipenv.vendor.pip_shims.shims import VcsSupport
 
         VCS_SUPPORT = VcsSupport()
         backend = VCS_SUPPORT.get_backend(self.vcs_type)
@@ -111,7 +111,7 @@ class VCSRepository(object):
     @classmethod
     def monkeypatch_pip(cls):
         # type: () -> Tuple[Any, ...]
-        from pip_shims.compat import get_allowed_args
+        from pipenv.vendor.pip_shims.compat import get_allowed_args
 
         target_module = pip_shims.shims.VcsSupport.__module__
         pip_vcs = importlib.import_module(target_module)

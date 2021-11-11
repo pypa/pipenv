@@ -20,7 +20,7 @@ import tempfile
 import warnings
 import zipfile
 from collections import OrderedDict
-from urllib3.util import make_headers
+from pipenv.vendor.urllib3.util import make_headers
 
 from .__version__ import __version__
 from . import certs

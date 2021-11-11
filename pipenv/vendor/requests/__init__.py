@@ -40,17 +40,17 @@ is at <https://requests.readthedocs.io>.
 :license: Apache 2.0, see LICENSE for more details.
 """
 
-import urllib3
+import pipenv.vendor.urllib3 as urllib3
 import warnings
 from .exceptions import RequestsDependencyWarning
 
 try:
-    from charset_normalizer import __version__ as charset_normalizer_version
+    from pipenv.vendor.charset_normalizer import __version__ as charset_normalizer_version
 except ImportError:
     charset_normalizer_version = None
 
 try:
-    from chardet import __version__ as chardet_version
+    from pipenv.vendor.chardet import __version__ as chardet_version
 except ImportError:
     chardet_version = None
 
@@ -113,7 +113,7 @@ try:
         ssl = None
 
     if not getattr(ssl, "HAS_SNI", False):
-        from urllib3.contrib import pyopenssl
+        from pipenv.vendor.urllib3.contrib import pyopenssl
         pyopenssl.inject_into_urllib3()
 
         # Check cryptography version
@@ -123,7 +123,7 @@ except ImportError:
     pass
 
 # urllib3's DependencyWarnings should be silenced.
-from urllib3.exceptions import DependencyWarning
+from pipenv.vendor.urllib3.exceptions import DependencyWarning
 warnings.simplefilter('ignore', DependencyWarning)
 
 from .__version__ import __title__, __description__, __url__, __version__

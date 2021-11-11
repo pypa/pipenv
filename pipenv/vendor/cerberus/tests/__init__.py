@@ -4,8 +4,8 @@ import re
 
 import pytest
 
-from cerberus import errors, Validator, SchemaError, DocumentError
-from cerberus.tests.conftest import sample_schema
+from pipenv.vendor.cerberus import errors, Validator, SchemaError, DocumentError
+from pipenv.vendor.cerberus.tests.conftest import sample_schema
 
 
 def assert_exception(exception, document={}, schema=None, validator=None, msg=None):

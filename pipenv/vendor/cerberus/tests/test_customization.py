@@ -2,9 +2,9 @@
 
 from pytest import mark
 
-import cerberus
-from cerberus.tests import assert_fail, assert_success
-from cerberus.tests.conftest import sample_schema
+import pipenv.vendor.cerberus as cerberus
+from pipenv.vendor.cerberus.tests import assert_fail, assert_success
+from pipenv.vendor.cerberus.tests.conftest import sample_schema
 
 
 def test_contextual_data_preservation():

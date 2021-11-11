@@ -387,7 +387,7 @@ def get_allowed_args(fn_or_class):
     try:
         signature = inspect.signature(fn_or_class)
     except AttributeError:
-        import funcsigs
+        import pipenv.vendor.funcsigs as funcsigs
 
         signature = funcsigs.signature(fn_or_class)
     args = []

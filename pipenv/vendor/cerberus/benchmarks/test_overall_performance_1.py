@@ -16,8 +16,8 @@ from typing import Callable, List
 
 from pytest import mark
 
-from cerberus import rules_set_registry, schema_registry, TypeDefinition, Validator
-from cerberus.benchmarks import DOCUMENTS_PATH
+from pipenv.vendor.cerberus import rules_set_registry, schema_registry, TypeDefinition, Validator
+from pipenv.vendor.cerberus.benchmarks import DOCUMENTS_PATH
 
 
 rules_set_registry.add("path_rules", {"coerce": Path, "type": "path"})

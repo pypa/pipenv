@@ -10,9 +10,9 @@ from collections import OrderedDict
 from fnmatch import fnmatch
 from threading import Timer
 
-import attr
-import six
-from packaging.version import LegacyVersion, Version
+import pipenv.vendor.attr as attr
+import pipenv.vendor.six as six
+from pipenv.vendor.packaging.version import LegacyVersion, Version
 
 from .compat import Path, lru_cache, TimeoutError  # noqa
 from .environment import MYPY_RUNNING, PYENV_ROOT, SUBPROCESS_TIMEOUT
@@ -25,13 +25,13 @@ six.add_move(
     six.MovedAttribute("Sequence", "collections", "collections.abc")
 )  # type: ignore  # noqa
 # fmt: off
-from six.moves import Iterable  # type: ignore  # noqa  # isort:skip
-from six.moves import Sequence  # type: ignore  # noqa  # isort:skip
+from pipenv.vendor.six.moves import Iterable  # type: ignore  # noqa  # isort:skip
+from pipenv.vendor.six.moves import Sequence  # type: ignore  # noqa  # isort:skip
 # fmt: on
 
 if MYPY_RUNNING:
     from typing import Any, Union, List, Callable, Set, Tuple, Dict, Optional, Iterator
-    from attr.validators import _OptionalValidator  # type: ignore
+    from pipenv.vendor.attr.validators import _OptionalValidator  # type: ignore
     from .models.path import PathEntry
 
 
@@ -120,7 +120,7 @@ def get_python_version(path):
 @lru_cache(maxsize=1024)
 def parse_python_version(version_str):
     # type: (str) -> Dict[str, Union[str, int, Version]]
-    from packaging.version import parse as parse_version
+    from pipenv.vendor.packaging.version import parse as parse_version
 
     is_debug = False
     if version_str.endswith("-debug"):

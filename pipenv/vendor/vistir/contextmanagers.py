@@ -7,7 +7,7 @@ import stat
 import sys
 from contextlib import closing, contextmanager
 
-import six
+import pipenv.vendor.six as six
 
 from .compat import IS_TYPE_CHECKING, NamedTemporaryFile, Path
 from .path import is_file_url, is_valid_url, path_to_url, url_to_path
@@ -28,9 +28,9 @@ if IS_TYPE_CHECKING:
         TypeVar,
     )
     from types import ModuleType
-    from requests import Session
-    from six.moves.http_client import HTTPResponse as Urllib_HTTPResponse
-    from urllib3.response import HTTPResponse as Urllib3_HTTPResponse
+    from pipenv.vendor.requests import Session
+    from pipenv.vendor.six.moves.http_client import HTTPResponse as Urllib_HTTPResponse
+    from pipenv.vendor.urllib3.response import HTTPResponse as Urllib3_HTTPResponse
     from .spin import VistirSpinner, DummySpinner
 
     TSpinner = Union[VistirSpinner, DummySpinner]
@@ -176,7 +176,7 @@ def spinner(
 
     has_yaspin = None
     try:
-        import yaspin
+        import pipenv.vendor.yaspin as yaspin
     except ImportError:
         has_yaspin = False
         if not nospin:
@@ -340,7 +340,7 @@ def open_file(
         headers = {"Accept-Encoding": "identity"}
         if not session:
             try:
-                from requests import Session  # noqa
+                from pipenv.vendor.requests import Session  # noqa
             except ImportError:
                 session = None
             else:

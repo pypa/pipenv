@@ -1,5 +1,5 @@
 import unittest
-import importlib_resources as resources
+import pipenv.vendor.importlib_resources as resources
 
 from . import data01
 from . import util

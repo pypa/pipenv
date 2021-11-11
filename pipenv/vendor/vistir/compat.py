@@ -8,7 +8,7 @@ import sys
 import warnings
 from tempfile import mkdtemp
 
-import six
+import pipenv.vendor.six as six
 
 from .backports.tempfile import NamedTemporaryFile as _NamedTemporaryFile
 

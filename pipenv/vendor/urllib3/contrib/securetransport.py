@@ -64,7 +64,7 @@ import struct
 import threading
 import weakref
 
-import six
+import pipenv.vendor.six as six
 
 from .. import util
 from ..util.ssl_ import PROTOCOL_TLS_CLIENT

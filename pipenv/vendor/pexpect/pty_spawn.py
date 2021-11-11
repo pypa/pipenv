@@ -7,8 +7,8 @@ import errno
 import signal
 from contextlib import contextmanager
 
-import ptyprocess
-from ptyprocess.ptyprocess import use_native_pty_fork
+import pipenv.vendor.ptyprocess as ptyprocess
+from pipenv.vendor.ptyprocess.ptyprocess import use_native_pty_fork
 
 from .exceptions import ExceptionPexpect, EOF, TIMEOUT
 from .spawnbase import SpawnBase
@@ -767,7 +767,7 @@ class spawn(SpawnBase):
         window size to change when the parent's window size changes then do
         something like the following example::
 
-            import pexpect, struct, fcntl, termios, signal, sys
+            import pipenv.vendor.pexpect as pexpect, struct, fcntl, termios, signal, sys
             def sigwinch_passthrough (sig, data):
                 s = struct.pack("HHHH", 0, 0, 0, 0)
                 a = struct.unpack('hhhh', fcntl.ioctl(sys.stdout.fileno(),

@@ -11,18 +11,18 @@ from functools import lru_cache
 from itertools import chain, groupby
 from pathlib import Path
 
-import tomlkit
-from attr import validators
-from packaging.markers import InvalidMarker, Marker, Op, Value, Variable
-from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
-from packaging.version import parse as parse_version
-from plette.models import Package, PackageCollection
-from tomlkit.container import Container
-from tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
-from urllib3 import util as urllib3_util
-from urllib3.util import parse_url as urllib3_parse
-from vistir.misc import dedup
-from vistir.path import is_valid_url
+import pipenv.vendor.tomlkit as tomlkit
+from pipenv.vendor.attr import validators
+from pipenv.vendor.packaging.markers import InvalidMarker, Marker, Op, Value, Variable
+from pipenv.vendor.packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
+from pipenv.vendor.packaging.version import parse as parse_version
+from pipenv.vendor.plette.models import Package, PackageCollection
+from pipenv.vendor.tomlkit.container import Container
+from pipenv.vendor.tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
+from pipenv.vendor.urllib3 import util as urllib3_util
+from pipenv.vendor.urllib3.util import parse_url as urllib3_parse
+from pipenv.vendor.vistir.misc import dedup
+from pipenv.vendor.vistir.path import is_valid_url
 
 from ..environment import MYPY_RUNNING
 from ..utils import SCHEME_LIST, VCS_LIST, is_star
@@ -44,15 +44,15 @@ if MYPY_RUNNING:
         Union,
     )
 
-    from attr import _ValidatorType  # noqa
-    from packaging.markers import Marker as PkgResourcesMarker
-    from packaging.markers import Op as PkgResourcesOp
-    from packaging.markers import Value as PkgResourcesValue
-    from packaging.markers import Variable as PkgResourcesVariable
-    from packaging.requirements import Requirement as PackagingRequirement
-    from pip_shims.shims import Link
+    from pipenv.vendor.attr import _ValidatorType  # noqa
+    from pipenv.vendor.packaging.markers import Marker as PkgResourcesMarker
+    from pipenv.vendor.packaging.markers import Op as PkgResourcesOp
+    from pipenv.vendor.packaging.markers import Value as PkgResourcesValue
+    from pipenv.vendor.packaging.markers import Variable as PkgResourcesVariable
+    from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.vendor.pip_shims.shims import Link
     from pkg_resources import Requirement as PkgResourcesRequirement
-    from urllib3.util.url import Url
+    from pipenv.vendor.urllib3.util.url import Url
 
     _T = TypeVar("_T")
     TMarker = Union[Marker, PkgResourcesMarker]
@@ -115,7 +115,7 @@ def create_link(link):
 
     if not isinstance(link, str):
         raise TypeError("must provide a string to instantiate a new link")
-    from pip_shims.shims import Link  # noqa: F811
+    from pipenv.vendor.pip_shims.shims import Link  # noqa: F811
 
     return Link(link)
 
@@ -870,7 +870,7 @@ def make_install_requirement(
     """
 
     # If no extras are specified, the extras string is blank
-    from pip_shims.shims import install_req_from_line
+    from pipenv.vendor.pip_shims.shims import install_req_from_line
 
     extras_string = ""
     requirement_string = "{0}".format(name)
@@ -912,7 +912,7 @@ def clean_requires_python(candidates):
     `requires_python` attributes."""
     all_candidates = []
     sys_version = ".".join(map(str, sys.version_info[:3]))
-    from packaging.version import parse as parse_version
+    from pipenv.vendor.packaging.version import parse as parse_version
 
     py_version = parse_version(os.environ.get("PIP_PYTHON_VERSION", sys_version))
     for c in candidates:
@@ -936,7 +936,7 @@ def clean_requires_python(candidates):
 
 
 def fix_requires_python_marker(requires_python):
-    from packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
 
     marker_str = ""
     if any(requires_python.startswith(op) for op in Specifier._operators.keys()):
@@ -986,7 +986,7 @@ def get_name_variants(pkg):
 
     if not isinstance(pkg, str):
         raise TypeError("must provide a string to derive package names")
-    from packaging.utils import canonicalize_name
+    from pipenv.vendor.packaging.utils import canonicalize_name
     from pkg_resources import safe_name
 
     pkg = pkg.lower()

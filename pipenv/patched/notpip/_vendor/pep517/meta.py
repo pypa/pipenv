@@ -9,12 +9,12 @@ import functools
 try:
     import importlib.metadata as imp_meta
 except ImportError:
-    import importlib_metadata as imp_meta
+    import pipenv.vendor.importlib_metadata as imp_meta
 
 try:
     from zipfile import Path
 except ImportError:
-    from zipp import Path
+    from pipenv.vendor.zipp import Path
 
 from .envbuild import BuildEnvironment
 from .wrappers import Pep517HookCaller, quiet_subprocess_runner

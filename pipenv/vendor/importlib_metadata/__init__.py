@@ -3,7 +3,7 @@ import re
 import abc
 import csv
 import sys
-import zipp
+import pipenv.vendor.zipp as zipp
 import email
 import pathlib
 import operator
@@ -570,7 +570,7 @@ class Distribution:
 
     @classmethod
     def _local(cls, root='.'):
-        from pep517 import build, meta
+        from pipenv.vendor.pep517 import build, meta
 
         system = build.compat_system(root)
         builder = functools.partial(

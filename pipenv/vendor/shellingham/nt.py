@@ -14,7 +14,7 @@ from ctypes.wintypes import (
     ULONG,
 )
 
-from shellingham._core import SHELL_NAMES
+from pipenv.vendor.shellingham._core import SHELL_NAMES
 
 
 INVALID_HANDLE_VALUE = HANDLE(-1).value

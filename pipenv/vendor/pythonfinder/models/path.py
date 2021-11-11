@@ -7,9 +7,9 @@ import sys
 from collections import defaultdict
 from itertools import chain
 
-import attr
-import six
-from cached_property import cached_property
+import pipenv.vendor.attr as attr
+import pipenv.vendor.six as six
+from pipenv.vendor.cached_property import cached_property
 from ..compat import Path, fs_str
 
 from ..environment import (

@@ -10,8 +10,8 @@ Attempting to import this module on a non-Windows platform will raise an
 import datetime
 import struct
 
-from six.moves import winreg
-from six import text_type
+from pipenv.vendor.six.moves import winreg
+from pipenv.vendor.six import text_type
 
 try:
     import ctypes

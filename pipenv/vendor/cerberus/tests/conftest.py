@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import pytest
 
-from cerberus import Validator
+from pipenv.vendor.cerberus import Validator
 
 
 @pytest.fixture

@@ -5,8 +5,8 @@ import abc
 import operator
 from collections import defaultdict
 
-import attr
-import six
+import pipenv.vendor.attr as attr
+import pipenv.vendor.six as six
 
 from ..compat import fs_str
 from ..environment import MYPY_RUNNING

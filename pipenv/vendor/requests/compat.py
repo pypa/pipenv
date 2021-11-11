@@ -9,9 +9,9 @@ Python 3.
 """
 
 try:
-    import chardet
+    import pipenv.vendor.chardet as chardet
 except ImportError:
-    import charset_normalizer as chardet
+    import pipenv.vendor.charset_normalizer as chardet
 
 import sys
 

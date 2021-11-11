@@ -7,7 +7,7 @@ import os
 import sys
 from tempfile import _bin_openflags, _mkstemp_inner, gettempdir
 
-import six
+import pipenv.vendor.six as six
 
 try:
     from weakref import finalize

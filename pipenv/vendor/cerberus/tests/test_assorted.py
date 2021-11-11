@@ -5,11 +5,11 @@ from pkg_resources import Distribution, DistributionNotFound
 
 from pytest import mark
 
-from cerberus import TypeDefinition, Validator
-from cerberus.tests import assert_fail, assert_success
-from cerberus.utils import validator_factory
-from cerberus.validator import BareValidator
-from cerberus.platform import PYTHON_VERSION
+from pipenv.vendor.cerberus import TypeDefinition, Validator
+from pipenv.vendor.cerberus.tests import assert_fail, assert_success
+from pipenv.vendor.cerberus.utils import validator_factory
+from pipenv.vendor.cerberus.validator import BareValidator
+from pipenv.vendor.cerberus.platform import PYTHON_VERSION
 
 
 if PYTHON_VERSION > 3 and PYTHON_VERSION < 3.4:

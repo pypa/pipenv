@@ -11,7 +11,7 @@ import re
 import sys
 import types
 
-from packaging import specifiers
+from pipenv.vendor.packaging import specifiers
 
 from .environment import MYPY_RUNNING
 from .utils import (
@@ -48,7 +48,7 @@ if MYPY_RUNNING:
         Union,
     )
 
-    from requests import Session
+    from pipenv.vendor.requests import Session
 
     from .utils import TShim, TShimmedFunc, TShimmedPath
 

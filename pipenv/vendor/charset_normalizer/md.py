@@ -1,8 +1,8 @@
 from functools import lru_cache
 from typing import Optional, List
 
-from charset_normalizer.constant import UNICODE_SECONDARY_RANGE_KEYWORD
-from charset_normalizer.utils import is_punctuation, is_symbol, unicode_range, is_accentuated, is_latin, \
+from pipenv.vendor.charset_normalizer.constant import UNICODE_SECONDARY_RANGE_KEYWORD
+from pipenv.vendor.charset_normalizer.utils import is_punctuation, is_symbol, unicode_range, is_accentuated, is_latin, \
     remove_accent, is_separator, is_cjk
 
 

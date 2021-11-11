@@ -21,31 +21,31 @@ def run(command, timeout=30, withexitstatus=False, events=None,
     The run() function can often be used instead of creating a spawn instance.
     For example, the following code uses spawn::
 
-        from pexpect import *
+        from pipenv.vendor.pexpect import *
         child = spawn('scp foo user@example.com:.')
         child.expect('(?i)password')
         child.sendline(mypassword)
 
     The previous code can be replace with the following::
 
-        from pexpect import *
+        from pipenv.vendor.pexpect import *
         run('scp foo user@example.com:.', events={'(?i)password': mypassword})
 
     **Examples**
 
     Start the apache daemon on the local machine::
 
-        from pexpect import *
+        from pipenv.vendor.pexpect import *
         run("/usr/local/apache/bin/apachectl start")
 
     Check in a file using SVN::
 
-        from pexpect import *
+        from pipenv.vendor.pexpect import *
         run("svn ci -m 'automatic commit' my_file.py")
 
     Run a command and capture exit status::
 
-        from pexpect import *
+        from pipenv.vendor.pexpect import *
         (command_output, exitstatus) = run('ls -l /bin', withexitstatus=1)
 
     The following will run SSH and execute 'ls -l' on the remote machine. The
@@ -57,7 +57,7 @@ def run(command, timeout=30, withexitstatus=False, events=None,
     This will start mencoder to rip a video from DVD. This will also display
     progress ticks every 5 seconds as it runs. For example::
 
-        from pexpect import *
+        from pipenv.vendor.pexpect import *
         def print_ticks(d):
             print d['event_count'],
         run("mencoder dvd://1 -o video.avi -oac copy -ovc copy",

@@ -1,9 +1,9 @@
 import io
 import unittest
 
-import importlib_resources as resources
+import pipenv.vendor.importlib_resources as resources
 
-from importlib_resources._adapters import (
+from pipenv.vendor.importlib_resources._adapters import (
     CompatibilityFiles,
     wrap_spec,
 )

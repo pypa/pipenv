@@ -1,5 +1,5 @@
-from charset_normalizer.api import from_bytes
-from charset_normalizer.constant import CHARDET_CORRESPONDENCE
+from pipenv.vendor.charset_normalizer.api import from_bytes
+from pipenv.vendor.charset_normalizer.constant import CHARDET_CORRESPONDENCE
 from typing import Dict, Optional, Union
 
 

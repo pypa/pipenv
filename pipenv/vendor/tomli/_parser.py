@@ -12,7 +12,7 @@ from typing import (
     Tuple,
 )
 
-from tomli._re import (
+from pipenv.vendor.tomli._re import (
     RE_DATETIME,
     RE_LOCALTIME,
     RE_NUMBER,

@@ -13,21 +13,21 @@ from pathlib import Path
 from urllib import parse as urllib_parse
 from urllib.parse import unquote
 
-import attr
-import pip_shims
-from cached_property import cached_property
-from packaging.markers import Marker
-from packaging.requirements import Requirement as PackagingRequirement
-from packaging.specifiers import (
+import pipenv.vendor.attr as attr
+import pipenv.vendor.pip_shims as pip_shims
+from pipenv.vendor.cached_property import cached_property
+from pipenv.vendor.packaging.markers import Marker
+from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
+from pipenv.vendor.packaging.specifiers import (
     InvalidSpecifier,
     LegacySpecifier,
     Specifier,
     SpecifierSet,
 )
-from packaging.utils import canonicalize_name
-from vistir.contextmanagers import temp_path
-from vistir.misc import dedup
-from vistir.path import (
+from pipenv.vendor.packaging.utils import canonicalize_name
+from pipenv.vendor.vistir.contextmanagers import temp_path
+from pipenv.vendor.vistir.misc import dedup
+from pipenv.vendor.vistir.path import (
     create_tracked_tempdir,
     get_converted_relative_path,
     is_file_url,
@@ -100,7 +100,7 @@ if MYPY_RUNNING:
         Union,
     )
 
-    from pip_shims.shims import (
+    from pipenv.vendor.pip_shims.shims import (
         InstallationCandidate,
         InstallRequirement,
         Link,
@@ -940,7 +940,7 @@ class Line(object):
         # type: () -> Optional[STRING_TYPE]
         if not self.is_wheel:
             pass
-        from pip_shims.shims import Wheel
+        from pipenv.vendor.pip_shims.shims import Wheel
 
         _wheel = Wheel(self.link.filename)
         name = _wheel.name

@@ -8,15 +8,15 @@ import os
 from contextlib import ExitStack
 from json import JSONDecodeError
 
-import attr
+import pipenv.vendor.attr as attr
 import packaging.markers
 import packaging.version
 import pip_shims.shims
-import requests
-from packaging.utils import canonicalize_name
-from vistir.compat import fs_str
-from vistir.contextmanagers import cd, temp_environ
-from vistir.path import create_tracked_tempdir
+import pipenv.vendor.requests as requests
+from pipenv.vendor.packaging.utils import canonicalize_name
+from pipenv.vendor.vistir.compat import fs_str
+from pipenv.vendor.vistir.contextmanagers import cd, temp_environ
+from pipenv.vendor.vistir.path import create_tracked_tempdir
 
 from ..environment import MYPY_RUNNING
 from ..utils import _ensure_dir, prepare_pip_source_args
@@ -48,9 +48,9 @@ if MYPY_RUNNING:
         Union,
     )
 
-    from packaging.markers import Marker
-    from packaging.requirements import Requirement as PackagingRequirement
-    from pip_shims.shims import (
+    from pipenv.vendor.packaging.markers import Marker
+    from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.vendor.pip_shims.shims import (
         Command,
         InstallationCandidate,
         InstallRequirement,

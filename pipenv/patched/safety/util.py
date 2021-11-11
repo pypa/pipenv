@@ -1,7 +1,7 @@
-from dparse.parser import setuptools_parse_requirements_backport as _parse_requirements
+from pipenv.vendor.dparse.parser import setuptools_parse_requirements_backport as _parse_requirements
 from collections import namedtuple
-from packaging.version import parse as parse_version
-import click
+from pipenv.vendor.packaging.version import parse as parse_version
+import pipenv.vendor.click as click
 import sys
 import json
 import os

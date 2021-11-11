@@ -8,7 +8,7 @@
 __all__ = ['Environment', 'findall', 'find', 'findone']
 
 from itertools import count
-from pythonfinder._vendor.pep514tools._registry import open_source, REGISTRY_SOURCE_LM, REGISTRY_SOURCE_LM_WOW6432, REGISTRY_SOURCE_CU
+from pipenv.vendor.pythonfinder._vendor.pep514tools._registry import open_source, REGISTRY_SOURCE_LM, REGISTRY_SOURCE_LM_WOW6432, REGISTRY_SOURCE_CU
 import re
 import sys
 

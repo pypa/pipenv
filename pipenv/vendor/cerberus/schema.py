@@ -2,8 +2,8 @@ from __future__ import absolute_import
 
 from warnings import warn
 
-from cerberus import errors
-from cerberus.platform import (
+from pipenv.vendor.cerberus import errors
+from pipenv.vendor.cerberus.platform import (
     _str_type,
     Callable,
     Hashable,
@@ -11,7 +11,7 @@ from cerberus.platform import (
     MutableMapping,
     Sequence,
 )
-from cerberus.utils import (
+from pipenv.vendor.cerberus.utils import (
     get_Validator_class,
     validator_factory,
     mapping_hash,

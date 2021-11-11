@@ -2,7 +2,7 @@ import asyncio
 import errno
 import signal
 
-from pexpect import EOF
+from pipenv.vendor.pexpect import EOF
 
 @asyncio.coroutine
 def expect_async(expecter, timeout=None):

@@ -5,7 +5,7 @@ These are Python 3.6+-only and keyword-only APIs that call `attr.s` and
 
 from functools import partial
 
-from attr.exceptions import UnannotatedAttributeError
+from pipenv.vendor.attr.exceptions import UnannotatedAttributeError
 
 from . import setters
 from ._make import NOTHING, _frozen_setattrs, attrib, attrs

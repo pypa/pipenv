@@ -5,12 +5,12 @@ import re
 from collections.abc import Mapping, Set
 from functools import lru_cache, reduce
 
-import attr
+import pipenv.vendor.attr as attr
 import distlib.markers
 import packaging.version
-from packaging.markers import InvalidMarker, Marker
-from packaging.specifiers import Specifier, SpecifierSet
-from vistir.misc import dedup
+from pipenv.vendor.packaging.markers import InvalidMarker, Marker
+from pipenv.vendor.packaging.specifiers import Specifier, SpecifierSet
+from pipenv.vendor.vistir.misc import dedup
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError

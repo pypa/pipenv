@@ -11,22 +11,22 @@ and maintain connections.
 import os.path
 import socket
 
-from urllib3.poolmanager import PoolManager, proxy_from_url
-from urllib3.response import HTTPResponse
-from urllib3.util import parse_url
-from urllib3.util import Timeout as TimeoutSauce
-from urllib3.util.retry import Retry
-from urllib3.exceptions import ClosedPoolError
-from urllib3.exceptions import ConnectTimeoutError
-from urllib3.exceptions import HTTPError as _HTTPError
-from urllib3.exceptions import MaxRetryError
-from urllib3.exceptions import NewConnectionError
-from urllib3.exceptions import ProxyError as _ProxyError
-from urllib3.exceptions import ProtocolError
-from urllib3.exceptions import ReadTimeoutError
-from urllib3.exceptions import SSLError as _SSLError
-from urllib3.exceptions import ResponseError
-from urllib3.exceptions import LocationValueError
+from pipenv.vendor.urllib3.poolmanager import PoolManager, proxy_from_url
+from pipenv.vendor.urllib3.response import HTTPResponse
+from pipenv.vendor.urllib3.util import parse_url
+from pipenv.vendor.urllib3.util import Timeout as TimeoutSauce
+from pipenv.vendor.urllib3.util.retry import Retry
+from pipenv.vendor.urllib3.exceptions import ClosedPoolError
+from pipenv.vendor.urllib3.exceptions import ConnectTimeoutError
+from pipenv.vendor.urllib3.exceptions import HTTPError as _HTTPError
+from pipenv.vendor.urllib3.exceptions import MaxRetryError
+from pipenv.vendor.urllib3.exceptions import NewConnectionError
+from pipenv.vendor.urllib3.exceptions import ProxyError as _ProxyError
+from pipenv.vendor.urllib3.exceptions import ProtocolError
+from pipenv.vendor.urllib3.exceptions import ReadTimeoutError
+from pipenv.vendor.urllib3.exceptions import SSLError as _SSLError
+from pipenv.vendor.urllib3.exceptions import ResponseError
+from pipenv.vendor.urllib3.exceptions import LocationValueError
 
 from .models import Response
 from .compat import urlparse, basestring
@@ -41,7 +41,7 @@ from .exceptions import (ConnectionError, ConnectTimeout, ReadTimeout, SSLError,
 from .auth import _basic_auth_str
 
 try:
-    from urllib3.contrib.socks import SOCKSProxyManager
+    from pipenv.vendor.urllib3.contrib.socks import SOCKSProxyManager
 except ImportError:
     def SOCKSProxyManager(*args, **kwargs):
         raise InvalidSchema("Missing dependencies for SOCKS support.")

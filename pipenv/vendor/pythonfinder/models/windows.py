@@ -4,7 +4,7 @@ from __future__ import absolute_import, print_function
 import operator
 from collections import defaultdict
 
-import attr
+import pipenv.vendor.attr as attr
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import InvalidPythonVersion
@@ -78,7 +78,7 @@ class WindowsFinder(BaseFinder):
     def get_versions(self):
         # type: () -> DefaultDict[Tuple, PathEntry]
         versions = defaultdict(PathEntry)  # type: DefaultDict[Tuple, PathEntry]
-        from pythonfinder._vendor.pep514tools import environment as pep514env
+        from pipenv.vendor.pythonfinder._vendor.pep514tools import environment as pep514env
 
         env_versions = pep514env.findall()
         path = None

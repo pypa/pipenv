@@ -4,7 +4,7 @@ from subprocess import Popen
 from typing import Any, Dict, List
 
 try:
-    import click
+    import pipenv.vendor.click as click
 except ImportError:
     sys.stderr.write('It seems python-dotenv is not installed with cli option. \n'
                      'Run pip install "python-dotenv[cli]" to fix this.')

@@ -1,4 +1,4 @@
-from cerberus.utils import compare_paths_lt
+from pipenv.vendor.cerberus.utils import compare_paths_lt
 
 
 def test_compare_paths():

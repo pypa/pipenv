@@ -7,10 +7,10 @@ import itertools
 import os
 from pathlib import Path
 
-import attr
+import pipenv.vendor.attr as attr
 import plette.models.base
 import plette.pipfiles
-import tomlkit
+import pipenv.vendor.tomlkit as tomlkit
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError

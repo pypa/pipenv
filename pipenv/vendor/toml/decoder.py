@@ -4,7 +4,7 @@ from os import linesep
 import re
 import sys
 
-from toml.tz import TomlTz
+from pipenv.vendor.toml.tz import TomlTz
 
 if sys.version_info < (3,):
     _range = xrange  # noqa: F821

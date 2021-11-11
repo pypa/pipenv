@@ -16,8 +16,8 @@ from functools import partial
 from itertools import islice, tee
 from weakref import WeakKeyDictionary
 
-import six
-from six.moves.queue import Empty, Queue
+import pipenv.vendor.six as six
+from pipenv.vendor.six.moves.queue import Empty, Queue
 
 from .cmdparse import Script
 from .compat import (
@@ -1100,7 +1100,7 @@ def _isatty(stream):
 _wrap_for_color = None
 
 try:
-    import colorama
+    import pipenv.vendor.colorama as colorama
 except ImportError:
     colorama = None
 

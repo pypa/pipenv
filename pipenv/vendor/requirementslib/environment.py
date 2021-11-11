@@ -3,7 +3,7 @@ from __future__ import absolute_import, print_function
 
 import os
 
-from platformdirs import user_cache_dir
+from pipenv.vendor.platformdirs import user_cache_dir
 
 
 def is_type_checking():

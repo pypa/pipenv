@@ -15,7 +15,7 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
-from funcsigs.version import __version__
+from pipenv.vendor.funcsigs.version import __version__
 
 __all__ = ['BoundArguments', 'Parameter', 'Signature', 'signature']
 

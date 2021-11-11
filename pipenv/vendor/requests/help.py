@@ -6,23 +6,23 @@ import platform
 import sys
 import ssl
 
-import idna
-import urllib3
+import pipenv.vendor.idna as idna
+import pipenv.vendor.urllib3 as urllib3
 
 from . import __version__ as requests_version
 
 try:
-    import charset_normalizer
+    import pipenv.vendor.charset_normalizer as charset_normalizer
 except ImportError:
     charset_normalizer = None
 
 try:
-    import chardet
+    import pipenv.vendor.chardet as chardet
 except ImportError:
     chardet = None
 
 try:
-    from urllib3.contrib import pyopenssl
+    from pipenv.vendor.urllib3.contrib import pyopenssl
 except ImportError:
     pyopenssl = None
     OpenSSL = None

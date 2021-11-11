@@ -5,8 +5,8 @@ import importlib
 import operator
 import os
 
-import six
-from click import secho
+import pipenv.vendor.six as six
+from pipenv.vendor.click import secho
 
 from . import environment
 from .compat import lru_cache

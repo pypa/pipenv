@@ -1,4 +1,4 @@
-from platformdirs import PlatformDirs, __version__
+from pipenv.vendor.platformdirs import PlatformDirs, __version__
 
 PROPS = (
     "user_data_dir",

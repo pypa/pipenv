@@ -373,7 +373,7 @@ def version_option(
                 from importlib import metadata  # type: ignore
             except ImportError:
                 # Python < 3.8
-                import importlib_metadata as metadata  # type: ignore
+                import pipenv.vendor.importlib_metadata as metadata  # type: ignore
 
             try:
                 version = metadata.version(package_name)  # type: ignore
