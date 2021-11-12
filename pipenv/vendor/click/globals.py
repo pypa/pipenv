@@ -36,9 +36,9 @@ def get_current_context(silent: bool = False) -> t.Optional["Context"]:
     """
     try:
         return t.cast("Context", _local.stack[-1])
-    except (AttributeError, IndexError):
+    except (AttributeError, IndexError) as e:
         if not silent:
-            raise RuntimeError("There is no active click context.")
+            raise RuntimeError("There is no active click context.") from e
 
     return None
 

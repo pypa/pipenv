@@ -154,7 +154,7 @@ class LazyFile:
         except OSError as e:  # noqa: E402
             from .exceptions import FileError
 
-            raise FileError(self.name, hint=e.strerror)
+            raise FileError(self.name, hint=e.strerror) from e
         self._f = rv
         return rv
 

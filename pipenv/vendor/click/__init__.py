@@ -72,4 +72,4 @@ from .utils import get_os_args as get_os_args
 from .utils import get_text_stream as get_text_stream
 from .utils import open_file as open_file
 
-__version__ = "8.0.1"
+__version__ = "8.0.3"
