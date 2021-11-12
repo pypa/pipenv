@@ -300,7 +300,7 @@ class OptionParser:
         """Adds a new option named `dest` to the parser.  The destination
         is not inferred (unlike with optparse) and needs to be explicitly
         provided.  Action can be any of ``store``, ``store_const``,
-        ``append``, ``appnd_const`` or ``count``.
+        ``append``, ``append_const`` or ``count``.
 
         The `obj` can be used to identify the option in the order list
         that is returned from the parser.

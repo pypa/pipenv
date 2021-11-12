@@ -46,17 +46,6 @@ F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 V = t.TypeVar("V")
 
 
-def _fast_exit(code: int) -> "te.NoReturn":
-    """Low-level exit that skips Python's cleanup but speeds up exit by
-    about 10ms for things like shell completion.
-
-    :param code: Exit code.
-    """
-    sys.stdout.flush()
-    sys.stderr.flush()
-    os._exit(code)
-
-
 def _complete_visible_commands(
     ctx: "Context", incomplete: str
 ) -> t.Iterator[t.Tuple[str, "Command"]]:
@@ -750,7 +739,9 @@ class Context:
 
             for param in other_cmd.params:
                 if param.name not in kwargs and param.expose_value:
-                    kwargs[param.name] = param.get_default(ctx)  # type: ignore
+                    kwargs[param.name] = param.type_cast_value(  # type: ignore
+                        ctx, param.get_default(ctx)
+                    )
 
             # Track all kwargs as params, so that forward() will pass
             # them on in subsequent calls.
@@ -1072,7 +1063,7 @@ class BaseCommand:
                     ctx.exit()
             except (EOFError, KeyboardInterrupt):
                 echo(file=sys.stderr)
-                raise Abort()
+                raise Abort() from None
             except ClickException as e:
                 if not standalone_mode:
                     raise
@@ -1130,7 +1121,7 @@ class BaseCommand:
         from .shell_completion import shell_complete
 
         rv = shell_complete(self, ctx_args, prog_name, complete_var, instruction)
-        _fast_exit(rv)
+        sys.exit(rv)
 
     def __call__(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         """Alias for :meth:`main`."""
@@ -2197,11 +2188,14 @@ class Parameter:
         self, ctx: Context, call: bool = True
     ) -> t.Optional[t.Union[t.Any, t.Callable[[], t.Any]]]:
         """Get the default for the parameter. Tries
-        :meth:`Context.lookup_value` first, then the local default.
+        :meth:`Context.lookup_default` first, then the local default.
 
         :param ctx: Current context.
         :param call: If the default is a callable, call it. Disable to
             return the callable instead.
+
+        .. versionchanged:: 8.0.2
+            Type casting is no longer performed when getting a default.
 
         .. versionchanged:: 8.0.1
             Type casting can fail in resilient parsing mode. Invalid
@@ -2218,20 +2212,10 @@ class Parameter:
         if value is None:
             value = self.default
 
-        if callable(value):
-            if not call:
-                # Don't type cast the callable.
-                return value
-
+        if call and callable(value):
             value = value()
 
-        try:
-            return self.type_cast_value(ctx, value)
-        except BadParameter:
-            if ctx.resilient_parsing:
-                return value
-
-            raise
+        return value
 
     def add_to_parser(self, parser: OptionParser, ctx: Context) -> None:
         raise NotImplementedError()
@@ -2316,8 +2300,7 @@ class Parameter:
         return False
 
     def process_value(self, ctx: Context, value: t.Any) -> t.Any:
-        if value is not None:
-            value = self.type_cast_value(ctx, value)
+        value = self.type_cast_value(ctx, value)
 
         if self.required and self.value_is_missing(value):
             raise MissingParameter(ctx=ctx, param=self)
@@ -2461,7 +2444,7 @@ class Option(Parameter):
     def __init__(
         self,
         param_decls: t.Optional[t.Sequence[str]] = None,
-        show_default: bool = False,
+        show_default: t.Union[bool, str] = False,
         prompt: t.Union[bool, str] = False,
         confirmation_prompt: t.Union[bool, str] = False,
         prompt_required: bool = True,
@@ -2528,7 +2511,7 @@ class Option(Parameter):
             self.type = types.convert_type(None, flag_value)
 
         self.is_flag: bool = is_flag
-        self.is_bool_flag = isinstance(self.type, types.BoolParamType)
+        self.is_bool_flag = is_flag and isinstance(self.type, types.BoolParamType)
         self.flag_value: t.Any = flag_value
 
         # Counting
@@ -2590,7 +2573,7 @@ class Option(Parameter):
         for decl in decls:
             if decl.isidentifier():
                 if name is not None:
-                    raise TypeError("Name defined twice")
+                    raise TypeError(f"Name '{name}' defined twice")
                 name = decl
             else:
                 split_char = ";" if decl[:1] == "/" else "/"
@@ -2748,9 +2731,14 @@ class Option(Parameter):
             else:
                 default_string = str(default_value)
 
-            extra.append(_("default: {default}").format(default=default_string))
+            if default_string:
+                extra.append(_("default: {default}").format(default=default_string))
 
-        if isinstance(self.type, types._NumberRangeBase):
+        if (
+            isinstance(self.type, types._NumberRangeBase)
+            # skip count with default range type
+            and not (self.count and self.type.min == 0 and self.type.max is None)
+        ):
             range_str = self.type._describe_range()
 
             if range_str:
@@ -2760,7 +2748,7 @@ class Option(Parameter):
             extra.append(_("required"))
 
         if extra:
-            extra_str = ";".join(extra)
+            extra_str = "; ".join(extra)
             help = f"{help}  [{extra_str}]" if help else f"[{extra_str}]"
 
         return ("; " if any_prefix_is_slash else " / ").join(rv), help
@@ -2866,6 +2854,14 @@ class Option(Parameter):
             else:
                 value = self.flag_value
                 source = ParameterSource.COMMANDLINE
+
+        elif (
+            self.multiple
+            and value is not None
+            and any(v is _flag_needs_value for v in value)
+        ):
+            value = [self.flag_value if v is _flag_needs_value else v for v in value]
+            source = ParameterSource.COMMANDLINE
 
         # The value wasn't set, or used the param's default, prompt if
         # prompting is enabled.

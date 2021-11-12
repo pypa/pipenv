@@ -1,0 +1,1 @@
+Update ``click`` from ``8.0.1`` to ``8.0.3``, to fix a problem with bash completion.

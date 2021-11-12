@@ -6,7 +6,7 @@ certifi==2021.5.30
 chardet==4.0.0
 charset-normalizer==2.0.3
 click-didyoumean==0.0.3
-click==8.0.1
+click==8.0.3
 colorama==0.4.4
 distlib==0.3.2
 docopt==0.6.2

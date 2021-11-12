@@ -302,8 +302,10 @@ class BashComplete(ShellComplete):
     def _check_version(self) -> None:
         import subprocess
 
-        output = subprocess.run(["bash", "--version"], stdout=subprocess.PIPE)
-        match = re.search(r"version (\d)\.(\d)\.\d", output.stdout.decode())
+        output = subprocess.run(
+            ["bash", "-c", "echo ${BASH_VERSION}"], stdout=subprocess.PIPE
+        )
+        match = re.search(r"^(\d+)\.(\d+)\.\d+", output.stdout.decode())
 
         if match is not None:
             major, minor = match.groups()
@@ -448,7 +450,12 @@ def _is_incomplete_argument(ctx: Context, param: Parameter) -> bool:
 
 def _start_of_option(value: str) -> bool:
     """Check if the value looks like the start of an option."""
-    return not value[0].isalnum() if value else False
+    if not value:
+        return False
+
+    c = value[0]
+    # Allow "/" since that starts a path.
+    return not c.isalnum() and c != "/"
 
 
 def _is_incomplete_option(args: t.List[str], param: Parameter) -> bool:

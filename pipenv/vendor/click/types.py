@@ -836,11 +836,11 @@ class Path(ParamType):
 
         if not is_dash:
             if self.resolve_path:
-                # realpath on Windows Python < 3.8 doesn't resolve symlinks
-                if os.path.islink(rv):
-                    rv = os.readlink(rv)
+                # os.path.realpath doesn't resolve symlinks on Windows
+                # until Python 3.8. Use pathlib for now.
+                import pathlib
 
-                rv = os.path.realpath(rv)
+                rv = os.fsdecode(pathlib.Path(rv).resolve())
 
             try:
                 st = os.stat(rv)
@@ -871,7 +871,7 @@ class Path(ParamType):
                     param,
                     ctx,
                 )
-            if self.writable and not os.access(value, os.W_OK):
+            if self.writable and not os.access(rv, os.W_OK):
                 self.fail(
                     _("{name} {filename!r} is not writable.").format(
                         name=self.name.title(), filename=os.fsdecode(value)
@@ -879,7 +879,7 @@ class Path(ParamType):
                     param,
                     ctx,
                 )
-            if self.readable and not os.access(value, os.R_OK):
+            if self.readable and not os.access(rv, os.R_OK):
                 self.fail(
                     _("{name} {filename!r} is not readable.").format(
                         name=self.name.title(), filename=os.fsdecode(value)
