@@ -59,12 +59,12 @@ def get_module_from_module_name(module_name: str) -> ModuleType:
         module_name = 'pkg_resources'
 
     __import__(
-        f'pip._vendor.{module_name}',
+        f'pipenv.patched.notpip._vendor.{module_name}',
         globals(),
         locals(),
         level=0
     )
-    return getattr(pip._vendor, module_name)
+    return getattr(pipenv.patched.notpip._vendor, module_name)
 
 
 def get_vendor_version_from_module(module_name: str) -> Optional[str]:
@@ -194,8 +194,8 @@ class DebugCommand(Command):
         show_value("'cert' config value", ca_bundle_info(self.parser.config))
         show_value("REQUESTS_CA_BUNDLE", os.environ.get('REQUESTS_CA_BUNDLE'))
         show_value("CURL_CA_BUNDLE", os.environ.get('CURL_CA_BUNDLE'))
-        show_value("pip._vendor.certifi.where()", where())
-        show_value("pip._vendor.DEBUNDLED", pip._vendor.DEBUNDLED)
+        show_value("pipenv.patched.notpip._vendor.certifi.where()", where())
+        show_value("pipenv.patched.notpip._vendor.DEBUNDLED", pipenv.patched.notpip._vendor.DEBUNDLED)
 
         show_vendor_versions()
 

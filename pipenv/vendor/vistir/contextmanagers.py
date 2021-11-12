@@ -311,7 +311,7 @@ def open_file(
     """
     Open local or remote file for reading.
 
-    :param pip._internal.index.Link link: A link object from resolving dependencies with
+    :param pipenv.patched.notpip._internal.index.Link link: A link object from resolving dependencies with
         pip, or else a URL.
     :param Optional[Session] session: A :class:`~requests.Session` instance
     :param bool stream: Whether to stream the content if remote, default True

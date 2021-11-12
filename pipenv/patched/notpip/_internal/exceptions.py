@@ -32,7 +32,7 @@ class UninstallationError(PipError):
 class NoneMetadataError(PipError):
     """
     Raised when accessing "METADATA" or "PKG-INFO" metadata for a
-    pip._vendor.pkg_resources.Distribution object and
+    pipenv.patched.notpip._vendor.pkg_resources.Distribution object and
     `dist.has_metadata('METADATA')` returns True but
     `dist.get_metadata('METADATA')` returns None (and similarly for
     "PKG-INFO").

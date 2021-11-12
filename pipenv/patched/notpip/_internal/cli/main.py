@@ -59,7 +59,7 @@ def main(args: Optional[List[str]] = None) -> int:
         sys.exit(1)
 
     # Needed for locale.getpreferredencoding(False) to work
-    # in pip._internal.utils.encoding.auto_decode
+    # in pipenv.patched.notpip._internal.utils.encoding.auto_decode
     try:
         locale.setlocale(locale.LC_ALL, "")
     except locale.Error as e:

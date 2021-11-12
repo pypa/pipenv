@@ -80,6 +80,11 @@ LIBRARY_RENAMES = {
     "functools32": "pipenv.vendor.backports.functools_lru_cache",
 }
 
+GLOBAL_REPLACEMENT = [
+    (r"\bpip\._vendor", r"pipenv.patched.notpip._vendor"),
+    (r"\bpip\._internal", r"pipenv.patched.notpip._internal"),
+]
+
 
 LICENSE_RENAMES = {"pythonfinder/LICENSE": "pythonfinder/pep514tools.LICENSE"}
 
@@ -189,6 +194,8 @@ def rewrite_file_imports(item, vendored_libs):
         )
         text = re.sub(r"^(?m)(\s*)from %s([\s\.]+)" % lib, r"\1from %s\2" % to_lib, text)
         text = re.sub(r"^(?m)(\s*)import %s(\s*[,\n#])" % lib, r"\1import %s as %s\2" % (to_lib, lib), text)
+    for pattern, sub in GLOBAL_REPLACEMENT:
+        text = re.sub(pattern, sub, text)
     item.write_text(text, encoding="utf-8")
 
 

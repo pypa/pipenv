@@ -32,7 +32,7 @@ def init_logging() -> None:
     """Register our VerboseLogger and VERBOSE log level.
 
     Should be called before any calls to getLogger(),
-    i.e. in pip._internal.__init__
+    i.e. in pipenv.patched.notpip._internal.__init__
     """
     logging.setLoggerClass(VerboseLogger)
     logging.addLevelName(VERBOSE, "VERBOSE")
