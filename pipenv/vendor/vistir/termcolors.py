@@ -4,8 +4,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 import re
 
-import colorama
-import six
+import pipenv.vendor.colorama as colorama
+import pipenv.vendor.six as six
 
 from .compat import to_native_string
 

@@ -12,7 +12,7 @@ CommandInfo = namedtuple('CommandInfo', 'module_path, class_name, summary')
 
 # The ordering matters for help display.
 #    Also, even though the module path starts with the same
-# "pip._internal.commands" prefix in each case, we include the full path
+# "pipenv.patched.notpip._internal.commands" prefix in each case, we include the full path
 # because it makes testing easier (specifically when modifying commands_dict
 # in test setup / teardown by adding info for a FakeCommand class defined
 # in a test-related module).

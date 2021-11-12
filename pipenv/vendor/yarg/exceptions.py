@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 
-from requests.exceptions import HTTPError as RHTTPError
+from pipenv.vendor.requests.exceptions import HTTPError as RHTTPError
 
 
 class YargException(Exception):

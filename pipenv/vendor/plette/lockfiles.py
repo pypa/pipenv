@@ -8,7 +8,7 @@ try:
 except ImportError:
     import collections as collections_abc
 
-import six
+import pipenv.vendor.six as six
 
 from .models import DataView, Meta, PackageCollection
 

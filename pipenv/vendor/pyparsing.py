@@ -41,7 +41,7 @@ Here is a program to parse "Hello, World!" (or any greeting of the form
 (the :class:`'+'<ParserElement.__add__>` operators create :class:`And` expressions,
 and the strings are auto-converted to :class:`Literal` expressions)::
 
-    from pyparsing import Word, alphas
+    from pipenv.vendor.pyparsing import Word, alphas
 
     # define grammar of a greeting
     greet = Word(alphas) + "," + Word(alphas) + "!"
@@ -1887,7 +1887,7 @@ class ParserElement(object):
 
            Example::
 
-               import pyparsing
+               import pipenv.vendor.pyparsing as pyparsing
                pyparsing.ParserElement.enablePackrat()
         """
         if not ParserElement._packratEnabled:

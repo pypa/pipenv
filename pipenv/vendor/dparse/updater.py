@@ -3,7 +3,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import re
 import json
 import tempfile
-import toml
+import pipenv.vendor.toml as toml
 import os
 
 

@@ -35,8 +35,8 @@ except NameError:
 
 
 if sys.version_info < (3, 6):
-    from toml import load as toml_load  # noqa: F401
-    from toml import TomlDecodeError as TOMLDecodeError  # noqa: F401
+    from pipenv.vendor.toml import load as toml_load  # noqa: F401
+    from pipenv.vendor.toml import TomlDecodeError as TOMLDecodeError  # noqa: F401
 else:
     from pipenv.patched.notpip._vendor.tomli import load as toml_load  # noqa: F401
     from pipenv.patched.notpip._vendor.tomli import TOMLDecodeError  # noqa: F401

@@ -64,7 +64,7 @@ from ctypes.wintypes import HANDLE, LPCWSTR, LPWSTR
 from itertools import count
 
 import msvcrt
-from six import PY2, text_type
+from pipenv.vendor.six import PY2, text_type
 
 from .compat import IS_TYPE_CHECKING
 from .misc import StreamWrapper, run, to_text

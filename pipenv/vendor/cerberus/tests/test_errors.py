@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from cerberus import Validator, errors
-from cerberus.tests import assert_fail
+from pipenv.vendor.cerberus import Validator, errors
+from pipenv.vendor.cerberus.tests import assert_fail
 
 
 ValidationError = errors.ValidationError

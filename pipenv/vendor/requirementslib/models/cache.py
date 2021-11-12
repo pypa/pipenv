@@ -9,10 +9,10 @@ import os
 import pathlib
 import sys
 
-import vistir
-from packaging.requirements import Requirement
-from pip_shims.shims import FAVORITE_HASH, SafeFileCache
-from platformdirs import user_cache_dir
+import pipenv.vendor.vistir as vistir
+from pipenv.vendor.packaging.requirements import Requirement
+from pipenv.vendor.pip_shims.shims import FAVORITE_HASH, SafeFileCache
+from pipenv.vendor.platformdirs import user_cache_dir
 
 from .utils import as_tuple, get_pinned_version, key_from_req, lookup_table
 
@@ -195,7 +195,7 @@ class HashCache(SafeFileCache):
     def __init__(self, *args, **kwargs):
         session = kwargs.pop("session", None)
         if not session:
-            import requests
+            import pipenv.vendor.requests as requests
 
             session = requests.session()
             atexit.register(session.close)
@@ -205,7 +205,7 @@ class HashCache(SafeFileCache):
         super(HashCache, self).__init__(*args, **kwargs)
 
     def get_hash(self, location):
-        from pip_shims import VcsSupport
+        from pipenv.vendor.pip_shims import VcsSupport
 
         # if there is no location hash (i.e., md5 / sha256 / etc) we on't want to store it
         hash_value = None

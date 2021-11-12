@@ -4,9 +4,9 @@ import re
 
 import pytest
 
-from cerberus import Validator, errors, SchemaError
-from cerberus.schema import UnvalidatedSchema
-from cerberus.tests import assert_schema_error
+from pipenv.vendor.cerberus import Validator, errors, SchemaError
+from pipenv.vendor.cerberus.schema import UnvalidatedSchema
+from pipenv.vendor.cerberus.tests import assert_schema_error
 
 
 def test_empty_schema():

@@ -6,7 +6,7 @@ import json
 from subprocess import check_call, check_output
 from tarfile import TarFile
 
-from dateutil.zoneinfo import METADATA_FN, ZONEFILENAME
+from pipenv.vendor.dateutil.zoneinfo import METADATA_FN, ZONEFILENAME
 
 
 def rebuild(filename, tag=None, format="gz", zonegroups=[], metadata=None):

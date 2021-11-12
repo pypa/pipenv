@@ -13,9 +13,9 @@ import time
 import unicodedata
 import warnings
 
-import six
-from six.moves import urllib_parse
-from six.moves.urllib import request as urllib_request
+import pipenv.vendor.six as six
+from pipenv.vendor.six.moves import urllib_parse
+from pipenv.vendor.six.moves.urllib import request as urllib_request
 
 from .backports.tempfile import _TemporaryFileWrapper
 from .compat import (

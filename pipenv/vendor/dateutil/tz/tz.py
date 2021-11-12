@@ -16,9 +16,9 @@ import bisect
 import weakref
 from collections import OrderedDict
 
-import six
-from six import string_types
-from six.moves import _thread
+import pipenv.vendor.six as six
+from pipenv.vendor.six import string_types
+from pipenv.vendor.six.moves import _thread
 from ._common import tzname_in_python2, _tzinfo
 from ._common import tzrangebase, enfold
 from ._common import _validate_fromutc_inputs
@@ -420,7 +420,7 @@ class tzfile(_tzinfo):
 
     .. testsetup:: tzfile
 
-        from dateutil.tz import gettz
+        from pipenv.vendor.dateutil.tz import gettz
         from datetime import datetime
 
     .. doctest:: tzfile
@@ -928,7 +928,7 @@ class tzrange(tzrangebase):
 
     .. testsetup:: tzrange
 
-        from dateutil.tz import tzrange, tzstr
+        from pipenv.vendor.dateutil.tz import tzrange, tzstr
 
     .. doctest:: tzrange
 
@@ -951,7 +951,7 @@ class tzrange(tzrangebase):
                  start=None, end=None):
 
         global relativedelta
-        from dateutil import relativedelta
+        from pipenv.vendor.dateutil import relativedelta
 
         self._std_abbr = stdabbr
         self._dst_abbr = dstabbr
@@ -1078,7 +1078,7 @@ class tzstr(tzrange):
     """
     def __init__(self, s, posix_offset=False):
         global parser
-        from dateutil.parser import _parser as parser
+        from pipenv.vendor.dateutil.parser import _parser as parser
 
         self._s = s
 
@@ -1109,7 +1109,7 @@ class tzstr(tzrange):
         self.hasdst = bool(self._start_delta)
 
     def _delta(self, x, isend=0):
-        from dateutil import relativedelta
+        from pipenv.vendor.dateutil import relativedelta
         kwargs = {}
         if x.month is not None:
             kwargs["month"] = x.month
@@ -1263,7 +1263,7 @@ class tzical(object):
     """
     def __init__(self, fileobj):
         global rrule
-        from dateutil import rrule
+        from pipenv.vendor.dateutil import rrule
 
         if isinstance(fileobj, string_types):
             self._s = fileobj
@@ -1651,7 +1651,7 @@ def __get_gettz():
                                 tz = None
 
                         if not tz:
-                            from dateutil.zoneinfo import get_zonefile_instance
+                            from pipenv.vendor.dateutil.zoneinfo import get_zonefile_instance
                             tz = get_zonefile_instance().get(name)
 
                         if not tz:

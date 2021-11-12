@@ -25,7 +25,7 @@
 from datetime import datetime
 import xml.etree.ElementTree
 
-import requests
+import pipenv.vendor.requests as requests
 
 from .exceptions import HTTPError
 

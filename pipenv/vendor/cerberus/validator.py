@@ -16,8 +16,8 @@ from datetime import date, datetime
 import re
 from warnings import warn
 
-from cerberus import errors
-from cerberus.platform import (
+from pipenv.vendor.cerberus import errors
+from pipenv.vendor.cerberus.platform import (
     _int_types,
     _str_type,
     Container,
@@ -27,13 +27,13 @@ from cerberus.platform import (
     Sequence,
     Sized,
 )
-from cerberus.schema import (
+from pipenv.vendor.cerberus.schema import (
     schema_registry,
     rules_set_registry,
     DefinitionSchema,
     SchemaError,
 )
-from cerberus.utils import drop_item_from_tuple, readonly_classproperty, TypeDefinition
+from pipenv.vendor.cerberus.utils import drop_item_from_tuple, readonly_classproperty, TypeDefinition
 
 toy_error_handler = errors.ToyErrorHandler()
 

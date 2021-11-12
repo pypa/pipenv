@@ -16,19 +16,19 @@ from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 from weakref import finalize
 
-import attr
+import pipenv.vendor.attr as attr
 import packaging.specifiers
 import packaging.utils
 import packaging.version
 import pep517.envbuild
 import pep517.wrappers
-from distlib.wheel import Wheel
-from packaging.markers import Marker
-from pip_shims.utils import call_function_with_correct_args
-from platformdirs import user_cache_dir
-from vistir.contextmanagers import cd, temp_path
-from vistir.misc import run
-from vistir.path import create_tracked_tempdir, ensure_mkdir_p, mkdir_p, rmtree
+from pipenv.vendor.distlib.wheel import Wheel
+from pipenv.vendor.packaging.markers import Marker
+from pipenv.vendor.pip_shims.utils import call_function_with_correct_args
+from pipenv.vendor.platformdirs import user_cache_dir
+from pipenv.vendor.vistir.contextmanagers import cd, temp_path
+from pipenv.vendor.vistir.misc import run
+from pipenv.vendor.vistir.path import create_tracked_tempdir, ensure_mkdir_p, mkdir_p, rmtree
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
@@ -71,9 +71,9 @@ if MYPY_RUNNING:
         Union,
     )
 
-    import requests
-    from packaging.requirements import Requirement as PackagingRequirement
-    from pip_shims.shims import InstallRequirement, PackageFinder
+    import pipenv.vendor.requests as requests
+    from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.vendor.pip_shims.shims import InstallRequirement, PackageFinder
     from pkg_resources import DistInfoDistribution, EggInfoDistribution, PathMetadata
     from pkg_resources import Requirement as PkgResourcesRequirement
 

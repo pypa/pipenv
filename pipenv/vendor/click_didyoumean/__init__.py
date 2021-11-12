@@ -5,7 +5,7 @@
     a group with a git-like *did-you-mean* feature.
 """
 
-import click
+import pipenv.vendor.click as click
 import difflib
 
 __version__ = "0.0.3"

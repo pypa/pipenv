@@ -12,10 +12,10 @@ from configparser import SafeConfigParser, NoOptionError
 from .regex import URL_REGEX, HASH_REGEX
 
 from .dependencies import DependencyFile, Dependency
-from packaging.requirements import Requirement as PackagingRequirement, InvalidRequirement
+from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement, InvalidRequirement
 from . import filetypes
-import toml
-from packaging.specifiers import SpecifierSet
+import pipenv.vendor.toml as toml
+from pipenv.vendor.packaging.specifiers import SpecifierSet
 import json
 
 

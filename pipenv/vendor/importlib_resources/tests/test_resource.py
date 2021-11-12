@@ -1,6 +1,6 @@
 import sys
 import unittest
-import importlib_resources as resources
+import pipenv.vendor.importlib_resources as resources
 import uuid
 import pathlib
 

@@ -7,7 +7,7 @@ import os
 from json import JSONDecodeError
 from pathlib import Path
 
-import attr
+import pipenv.vendor.attr as attr
 import plette.lockfiles
 
 from ..exceptions import LockfileCorruptException, MissingParameter, PipfileNotFound

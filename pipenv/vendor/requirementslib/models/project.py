@@ -6,12 +6,12 @@ import collections
 import io
 import os
 
-import attr
+import pipenv.vendor.attr as attr
 import packaging.markers
 import packaging.utils
-import plette
+import pipenv.vendor.plette as plette
 import plette.models
-import tomlkit
+import pipenv.vendor.tomlkit as tomlkit
 
 SectionDifference = collections.namedtuple("SectionDifference", ["inthis", "inthat"])
 FileDifference = collections.namedtuple("FileDifference", ["default", "develop"])
@@ -138,7 +138,7 @@ class Project(object):
         )
 
     def add_line_to_pipfile(self, line, develop):
-        from requirementslib import Requirement
+        from pipenv.vendor.requirementslib import Requirement
 
         requirement = Requirement.from_line(line)
         section = self._get_pipfile_section(develop=develop)

@@ -12,7 +12,7 @@ from _multibytecodec import MultibyteIncrementalDecoder  # type: ignore
 from encodings.aliases import aliases
 from functools import lru_cache
 
-from charset_normalizer.constant import UNICODE_RANGES_COMBINED, UNICODE_SECONDARY_RANGE_KEYWORD, \
+from pipenv.vendor.charset_normalizer.constant import UNICODE_RANGES_COMBINED, UNICODE_SECONDARY_RANGE_KEYWORD, \
     RE_POSSIBLE_ENCODING_INDICATION, ENCODING_MARKS, UTF8_MAXIMAL_ALLOCATION, IANA_SUPPORTED_SIMILAR
 
 

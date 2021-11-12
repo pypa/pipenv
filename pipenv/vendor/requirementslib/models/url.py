@@ -5,11 +5,11 @@ from urllib.parse import quote
 from urllib.parse import unquote as url_unquote
 from urllib.parse import unquote_plus
 
-import attr
+import pipenv.vendor.attr as attr
 import pip_shims.shims
-from orderedmultidict import omdict
-from urllib3.util import parse_url as urllib3_parse
-from urllib3.util.url import Url
+from pipenv.vendor.orderedmultidict import omdict
+from pipenv.vendor.urllib3.util import parse_url as urllib3_parse
+from pipenv.vendor.urllib3.util.url import Url
 
 from ..environment import MYPY_RUNNING
 from ..utils import is_installable_file
@@ -18,7 +18,7 @@ from .utils import extras_to_string, parse_extras
 if MYPY_RUNNING:
     from typing import Dict, Optional, Text, Tuple, TypeVar, Union
 
-    from pip_shims.shims import Link
+    from pipenv.vendor.pip_shims.shims import Link
 
     _T = TypeVar("_T")
     STRING_TYPE = Union[bytes, str, Text]

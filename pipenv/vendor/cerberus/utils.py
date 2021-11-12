@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from collections import namedtuple
 
-from cerberus.platform import _int_types, _str_type, Mapping, Sequence, Set
+from pipenv.vendor.cerberus.platform import _int_types, _str_type, Mapping, Sequence, Set
 
 
 TypeDefinition = namedtuple('TypeDefinition', 'name,included_types,excluded_types')
@@ -50,7 +50,7 @@ def drop_item_from_tuple(t, i):
 def get_Validator_class():
     global Validator
     if 'Validator' not in globals():
-        from cerberus.validator import Validator
+        from pipenv.vendor.cerberus.validator import Validator
     return Validator
 
 

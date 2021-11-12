@@ -1,7 +1,7 @@
 # -*- coding=utf-8 -*-
 import sys
 
-import six
+import pipenv.vendor.six as six
 
 if sys.version_info[:2] <= (3, 4):
     from pathlib2 import Path  # type: ignore  # noqa

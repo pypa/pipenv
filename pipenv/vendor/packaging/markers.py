@@ -8,7 +8,7 @@ import platform
 import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from pyparsing import (  # noqa: N817
+from pipenv.vendor.pyparsing import (  # noqa: N817
     Forward,
     Group,
     Literal as L,

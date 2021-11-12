@@ -42,12 +42,12 @@ import logging
 import codecs
 import ast
 import traceback
-from docopt import docopt
-import requests
-from yarg import json2package
-from yarg.exceptions import HTTPError
+from pipenv.vendor.docopt import docopt
+import pipenv.vendor.requests as requests
+from pipenv.vendor.yarg import json2package
+from pipenv.vendor.yarg.exceptions import HTTPError
 
-from pipreqs import __version__
+from pipenv.vendor.pipreqs import __version__
 
 REGEXP = [
     re.compile(r'^import (.+)$'),

@@ -5,7 +5,7 @@ import itertools
 import re
 import shlex
 
-import six
+import pipenv.vendor.six as six
 
 __all__ = ["ScriptEmptyError", "Script"]
 

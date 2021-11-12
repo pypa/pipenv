@@ -6,7 +6,7 @@ from tarfile import TarFile
 from pkgutil import get_data
 from io import BytesIO
 
-from dateutil.tz import tzfile as _tzfile
+from pipenv.vendor.dateutil.tz import tzfile as _tzfile
 
 __all__ = ["get_zonefile_instance", "gettz", "gettz_db_metadata"]
 

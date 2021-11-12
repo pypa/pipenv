@@ -11,17 +11,17 @@ from collections import defaultdict
 from functools import reduce
 from typing import Sequence
 
-import attr
+import pipenv.vendor.attr as attr
 import dateutil.parser
 import distlib.metadata
 import distlib.wheel
 import packaging.version
-import requests
-import vistir
-from packaging.markers import Marker
-from packaging.requirements import Requirement as PackagingRequirement
-from packaging.specifiers import Specifier, SpecifierSet
-from packaging.tags import Tag
+import pipenv.vendor.requests as requests
+import pipenv.vendor.vistir as vistir
+from pipenv.vendor.packaging.markers import Marker
+from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
+from pipenv.vendor.packaging.specifiers import Specifier, SpecifierSet
+from pipenv.vendor.packaging.tags import Tag
 
 from ..environment import MYPY_RUNNING
 from .markers import (
@@ -60,7 +60,7 @@ if MYPY_RUNNING:
         Union,
     )
 
-    from attr import Attribute  # noqa
+    from pipenv.vendor.attr import Attribute  # noqa
 
     from .setup_info import SetupInfo
 

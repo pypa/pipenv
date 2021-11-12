@@ -4,8 +4,8 @@ import os.path
 import re
 import sys
 
-from wheel.cli import WheelError
-from wheel.wheelfile import WheelFile
+from pipenv.vendor.wheel.cli import WheelError
+from pipenv.vendor.wheel.wheelfile import WheelFile
 
 DIST_INFO_RE = re.compile(r"^(?P<namever>(?P<name>.+?)-(?P<ver>\d.*?))\.dist-info$")
 BUILD_NUM_RE = re.compile(br'Build: (\d\w*)$')

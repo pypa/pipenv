@@ -9,10 +9,10 @@ from pathlib import Path
 from urllib.parse import urlparse, urlsplit, urlunparse
 
 import pip_shims.shims
-import tomlkit
-import vistir
-from vistir.compat import fs_decode
-from vistir.path import ensure_mkdir_p, is_valid_url
+import pipenv.vendor.tomlkit as tomlkit
+import pipenv.vendor.vistir as vistir
+from pipenv.vendor.vistir.compat import fs_decode
+from pipenv.vendor.vistir.path import ensure_mkdir_p, is_valid_url
 
 from .environment import MYPY_RUNNING
 
@@ -104,7 +104,7 @@ def strip_ssh_from_git_uri(uri):
 
 def add_ssh_scheme_to_git_uri(uri):
     # type: (S) -> S
-    """Cleans VCS uris from pipenv.patched.notpip format."""
+    """Cleans VCS uris from pip format."""
     if isinstance(uri, str):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
@@ -171,7 +171,7 @@ def convert_entry_to_path(path):
 def is_installable_file(path):
     # type: (PipfileType) -> bool
     """Determine if a path can potentially be installed."""
-    from packaging import specifiers
+    from pipenv.vendor.packaging import specifiers
 
     if isinstance(path, Mapping):
         path = convert_entry_to_path(path)

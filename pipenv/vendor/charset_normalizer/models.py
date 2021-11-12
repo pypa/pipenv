@@ -6,9 +6,9 @@ from typing import Optional, List, Tuple, Set
 from collections import Counter
 from re import sub, compile as re_compile
 
-from charset_normalizer.constant import TOO_BIG_SEQUENCE
-from charset_normalizer.md import mess_ratio
-from charset_normalizer.utils import iana_name, is_multi_byte_encoding, unicode_range
+from pipenv.vendor.charset_normalizer.constant import TOO_BIG_SEQUENCE
+from pipenv.vendor.charset_normalizer.md import mess_ratio
+from pipenv.vendor.charset_normalizer.utils import iana_name, is_multi_byte_encoding, unicode_range
 
 
 class CharsetMatch:
@@ -153,7 +153,7 @@ class CharsetMatch:
                 return "English"
 
             # doing it there to avoid circular import
-            from charset_normalizer.cd import mb_encoding_languages, encoding_languages
+            from pipenv.vendor.charset_normalizer.cd import mb_encoding_languages, encoding_languages
 
             languages = mb_encoding_languages(self.encoding) if is_multi_byte_encoding(self.encoding) else encoding_languages(self.encoding)
 

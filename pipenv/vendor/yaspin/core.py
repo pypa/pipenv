@@ -18,7 +18,7 @@ import threading
 import time
 from typing import List, Set, Union
 
-from termcolor import colored
+from pipenv.vendor.termcolor import colored
 from pipenv.vendor import colorama
 from pipenv.vendor.vistir import cursor
 

@@ -3,10 +3,10 @@ from functools import lru_cache
 from typing import List, Set, Optional, Tuple, Dict
 import importlib
 
-from charset_normalizer.models import CoherenceMatches
-from charset_normalizer.utils import unicode_range, is_unicode_range_secondary, is_multi_byte_encoding
-from charset_normalizer.md import is_suspiciously_successive_range
-from charset_normalizer.assets import FREQUENCIES
+from pipenv.vendor.charset_normalizer.models import CoherenceMatches
+from pipenv.vendor.charset_normalizer.utils import unicode_range, is_unicode_range_secondary, is_multi_byte_encoding
+from pipenv.vendor.charset_normalizer.md import is_suspiciously_successive_range
+from pipenv.vendor.charset_normalizer.assets import FREQUENCIES
 from collections import Counter
 
 

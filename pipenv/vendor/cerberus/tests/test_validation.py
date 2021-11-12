@@ -9,8 +9,8 @@ from string import ascii_lowercase
 
 from pytest import mark
 
-from cerberus import errors, Validator
-from cerberus.tests import (
+from pipenv.vendor.cerberus import errors, Validator
+from pipenv.vendor.cerberus.tests import (
     assert_bad_type,
     assert_document_error,
     assert_fail,
@@ -18,7 +18,7 @@ from cerberus.tests import (
     assert_not_has_error,
     assert_success,
 )
-from cerberus.tests.conftest import sample_schema
+from pipenv.vendor.cerberus.tests.conftest import sample_schema
 
 
 def test_empty_document():

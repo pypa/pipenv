@@ -3,9 +3,9 @@ import sys
 from os.path import abspath
 from json import dumps
 
-from charset_normalizer import from_fp
-from charset_normalizer.models import CliDetectionResult
-from charset_normalizer.version import __version__
+from pipenv.vendor.charset_normalizer import from_fp
+from pipenv.vendor.charset_normalizer.models import CliDetectionResult
+from pipenv.vendor.charset_normalizer.version import __version__
 
 from platform import python_version
 

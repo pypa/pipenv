@@ -11,7 +11,7 @@ import sys
 from collections.abc import Callable
 from functools import wraps
 
-import packaging.version
+from pipenv.vendor.packaging import version as pkg_version
 
 from .environment import MYPY_RUNNING
 
@@ -107,10 +107,10 @@ def _parse(version):
 
 @memoize
 def parse_version(version):
-    # type: (str) -> packaging.version._BaseVersion
+    # type: (str) -> pkg_version._BaseVersion
     if not isinstance(version, STRING_TYPES):
         raise TypeError("Can only derive versions from string, got {!r}".format(version))
-    return packaging.version.parse(version)
+    return pkg_version.parse(version)
 
 
 @memoize
@@ -387,7 +387,7 @@ def get_allowed_args(fn_or_class):
     try:
         signature = inspect.signature(fn_or_class)
     except AttributeError:
-        import funcsigs
+        import pipenv.vendor.funcsigs as funcsigs
 
         signature = funcsigs.signature(fn_or_class)
     args = []

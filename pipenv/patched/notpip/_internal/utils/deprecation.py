@@ -35,7 +35,7 @@ def _showwarning(
     elif issubclass(category, PipDeprecationWarning):
         # We use a specially named logger which will handle all of the
         # deprecation messages for pip.
-        logger = logging.getLogger("pip._internal.deprecations")
+        logger = logging.getLogger("pipenv.patched.notpip._internal.deprecations")
         logger.warning(message)
     else:
         _original_showwarning(message, category, filename, lineno, file, line)

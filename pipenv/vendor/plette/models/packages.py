@@ -1,4 +1,4 @@
-import six
+import pipenv.vendor.six as six
 
 from .base import DataView
 

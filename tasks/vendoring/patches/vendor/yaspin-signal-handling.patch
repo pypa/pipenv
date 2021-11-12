@@ -5,7 +5,7 @@ index 76dc2439..d8a0716c 100644
 @@ -19,11 +19,15 @@ import time
  from typing import List, Set, Union
  
- from termcolor import colored
+ from pipenv.vendor.termcolor import colored
 +from pipenv.vendor import colorama
 +from pipenv.vendor.vistir import cursor
  

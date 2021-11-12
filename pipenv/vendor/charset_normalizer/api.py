@@ -6,15 +6,15 @@ try:
 except ImportError:
     PathLike = Union[str, 'os.PathLike[str]']  # type: ignore
 
-from charset_normalizer.constant import TOO_SMALL_SEQUENCE, TOO_BIG_SEQUENCE, IANA_SUPPORTED
-from charset_normalizer.md import mess_ratio
-from charset_normalizer.models import CharsetMatches, CharsetMatch
+from pipenv.vendor.charset_normalizer.constant import TOO_SMALL_SEQUENCE, TOO_BIG_SEQUENCE, IANA_SUPPORTED
+from pipenv.vendor.charset_normalizer.md import mess_ratio
+from pipenv.vendor.charset_normalizer.models import CharsetMatches, CharsetMatch
 from warnings import warn
 import logging
 
-from charset_normalizer.utils import any_specified_encoding, is_multi_byte_encoding, identify_sig_or_bom, \
+from pipenv.vendor.charset_normalizer.utils import any_specified_encoding, is_multi_byte_encoding, identify_sig_or_bom, \
     should_strip_sig_or_bom, is_cp_similar, iana_name
-from charset_normalizer.cd import coherence_ratio, encoding_languages, mb_encoding_languages, merge_coherence_ratios
+from pipenv.vendor.charset_normalizer.cd import coherence_ratio, encoding_languages, mb_encoding_languages, merge_coherence_ratios
 
 logger = logging.getLogger("charset_normalizer")
 logger.setLevel(logging.DEBUG)

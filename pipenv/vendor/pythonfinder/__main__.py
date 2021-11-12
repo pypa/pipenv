@@ -6,7 +6,7 @@ from __future__ import absolute_import
 import os
 import sys
 
-from pythonfinder.cli import cli
+from pipenv.vendor.pythonfinder.cli import cli
 
 
 PYTHONFINDER_MAIN = os.path.dirname(os.path.abspath(__file__))

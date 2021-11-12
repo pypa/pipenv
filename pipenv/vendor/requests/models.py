@@ -15,10 +15,10 @@ import sys
 # such as in Embedded Python. See https://github.com/psf/requests/issues/3578.
 import encodings.idna
 
-from urllib3.fields import RequestField
-from urllib3.filepost import encode_multipart_formdata
-from urllib3.util import parse_url
-from urllib3.exceptions import (
+from pipenv.vendor.urllib3.fields import RequestField
+from pipenv.vendor.urllib3.filepost import encode_multipart_formdata
+from pipenv.vendor.urllib3.util import parse_url
+from pipenv.vendor.urllib3.exceptions import (
     DecodeError, ReadTimeoutError, ProtocolError, LocationParseError)
 
 from io import UnsupportedOperation
@@ -347,7 +347,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
 
     @staticmethod
     def _get_idna_encoded_host(host):
-        import idna
+        import pipenv.vendor.idna as idna
 
         try:
             host = idna.encode(host, uts46=True).decode('utf-8')

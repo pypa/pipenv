@@ -15,8 +15,8 @@ from __future__ import absolute_import
 import sys
 from itertools import chain
 
-import six
-from six.moves import map, zip_longest
+import pipenv.vendor.six as six
+from pipenv.vendor.six.moves import map, zip_longest
 
 from .itemlist import itemlist
 

@@ -949,7 +949,7 @@ class BaseCommand:
 
         .. versionadded:: 8.0
         """
-        from click.shell_completion import CompletionItem
+        from pipenv.vendor.click.shell_completion import CompletionItem
 
         results: t.List["CompletionItem"] = []
 
@@ -1412,7 +1412,7 @@ class Command(BaseCommand):
 
         .. versionadded:: 8.0
         """
-        from click.shell_completion import CompletionItem
+        from pipenv.vendor.click.shell_completion import CompletionItem
 
         results: t.List["CompletionItem"] = []
 
@@ -1748,7 +1748,7 @@ class MultiCommand(Command):
 
         .. versionadded:: 8.0
         """
-        from click.shell_completion import CompletionItem
+        from pipenv.vendor.click.shell_completion import CompletionItem
 
         results = [
             CompletionItem(name, help=command.get_short_help_str())
@@ -2072,7 +2072,7 @@ class Parameter:
             def shell_complete(
                 ctx: Context, param: "Parameter", incomplete: str
             ) -> t.List["CompletionItem"]:
-                from click.shell_completion import CompletionItem
+                from pipenv.vendor.click.shell_completion import CompletionItem
 
                 out = []
 
@@ -2401,7 +2401,7 @@ class Parameter:
             results = self._custom_shell_complete(ctx, self, incomplete)
 
             if results and isinstance(results[0], str):
-                from click.shell_completion import CompletionItem
+                from pipenv.vendor.click.shell_completion import CompletionItem
 
                 results = [CompletionItem(c) for c in results]
 

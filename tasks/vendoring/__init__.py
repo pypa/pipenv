@@ -80,6 +80,11 @@ LIBRARY_RENAMES = {
     "functools32": "pipenv.vendor.backports.functools_lru_cache",
 }
 
+GLOBAL_REPLACEMENT = [
+    (r"\bpip\._vendor", r"pipenv.patched.notpip._vendor"),
+    (r"\bpip\._internal", r"pipenv.patched.notpip._internal"),
+]
+
 
 LICENSE_RENAMES = {"pythonfinder/LICENSE": "pythonfinder/pep514tools.LICENSE"}
 
@@ -126,6 +131,31 @@ def clean_vendor(ctx, vendor_dir):
             log("Skipping %s" % item)
 
 
+def detect_all_vendored_libs(ctx):
+    types = ("patched", "vendor")
+    retval = {}
+
+    for type_ in types:
+        vendor_dir = _get_vendor_dir(ctx) if type_ == "vendor" else _get_patched_dir(ctx)
+
+        for item in vendor_dir.iterdir():
+            name = None
+            if item.name == "__pycache__":
+                continue
+            elif item.is_dir():
+                name = item.name
+            elif "LICENSE" in item.name or "COPYING" in item.name:
+                continue
+            elif item.name.endswith(".pyi"):
+                continue
+            elif item.name not in FILE_WHITE_LIST:
+                name = item.name[:-3]
+            if name is not None and name not in LIBRARY_RENAMES:
+                retval[name] = f"pipenv.{type_}.{name}"
+    retval.update(LIBRARY_RENAMES)
+    return retval
+
+
 def detect_vendored_libs(vendor_dir):
     retval = []
     for item in vendor_dir.iterdir():
@@ -142,43 +172,30 @@ def detect_vendored_libs(vendor_dir):
     return retval
 
 
-def rewrite_imports(package_dir, vendored_libs, vendor_dir):
+def rewrite_imports(package_dir, vendored_libs):
     for item in package_dir.iterdir():
         if item.is_dir():
-            rewrite_imports(item, vendored_libs, vendor_dir)
+            rewrite_imports(item, vendored_libs)
         elif item.name.endswith(".py"):
-            rewrite_file_imports(item, vendored_libs, vendor_dir)
+            rewrite_file_imports(item, vendored_libs)
 
 
-def rewrite_file_imports(item, vendored_libs, vendor_dir):
+def rewrite_file_imports(item, vendored_libs):
     """Rewrite 'import xxx' and 'from xxx import' for vendored_libs"""
     # log('Reading file: %s' % item)
     try:
         text = item.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         text = item.read_text(encoding="cp1252")
-    renames = LIBRARY_RENAMES
-    for k in LIBRARY_RENAMES.keys():
-        if k not in vendored_libs:
-            vendored_libs.append(k)
-    for lib in vendored_libs:
-        if lib not in renames:
-            continue
-        to_lib = renames[lib]
+
+    for lib, to_lib in vendored_libs.items():
         text = re.sub(
-            r"([\n\s]*)import %s([\n\s\.]+)" % lib, r"\1import %s\2" % to_lib, text,
+            r"^(?m)(\s*)import %s((?:\.\S*)?\s+as)" % lib, r"\1import %s\2" % to_lib, text,
         )
-        text = re.sub(r"([\n\s]*)from %s([\s\.]+)" % lib, r"\1from %s\2" % to_lib, text,)
-        text = re.sub(
-            r"(\n\s*)__import__\((['\"])%s([\s'\.])+" % lib,
-            r"\1__import__(\2%s\3" % to_lib,
-            text,
-        )
-        text = re.sub(
-            r"(\n\s*)importlib.import_module\((['\"])%s([\s'\"\.]+)" % lib,
-            r"\1importlib.import_module(\2%s\3" % to_lib,
-            text
-        )
+        text = re.sub(r"^(?m)(\s*)from %s([\s\.]+)" % lib, r"\1from %s\2" % to_lib, text)
+        text = re.sub(r"^(?m)(\s*)import %s(\s*[,\n#])" % lib, r"\1import %s as %s\2" % (to_lib, lib), text)
+    for pattern, sub in GLOBAL_REPLACEMENT:
+        text = re.sub(pattern, sub, text)
     item.write_text(text, encoding="utf-8")
 
 
@@ -358,7 +375,7 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
     log("Running post-install cleanup...")
     post_install_cleanup(ctx, vendor_dir)
     # Detect the vendored packages/modules
-    vendored_libs = detect_vendored_libs(_get_vendor_dir(ctx)) if not package else [package]
+    vendored_libs = detect_all_vendored_libs(ctx)
     log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
 
     # Apply pre-patches
@@ -377,11 +394,11 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
         if item.is_dir():
             if rewrite and not package or (package and item.name.lower() in package):
                 log("Rewriting imports for %s..." % item)
-                rewrite_imports(item, vendored_libs, vendor_dir)
+                rewrite_imports(item, vendored_libs)
             rename_if_needed(ctx, vendor_dir, item)
         elif item.name not in FILE_WHITE_LIST:
             if rewrite and not package or (package and item.stem.lower() in package):
-                rewrite_file_imports(item, vendored_libs, vendor_dir)
+                rewrite_file_imports(item, vendored_libs)
     write_backport_imports(ctx, vendor_dir)
     if not package:
         apply_patches(ctx, patched=is_patched, pre=False)
@@ -401,28 +418,30 @@ def redo_imports(ctx, library, vendor_dir=None):
     else:
         vendor_dir = Path(vendor_dir).absolute()
     log("Using vendor dir: %s" % vendor_dir)
-    vendored_libs = detect_vendored_libs(vendor_dir)
+    vendored_libs = detect_all_vendored_libs(ctx)
     item = vendor_dir / library
     library_name = vendor_dir / f"{library}.py"
     log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
     log("Rewriting imports for %s..." % item)
     if item.is_dir():
-        rewrite_imports(item, vendored_libs, vendor_dir)
+        rewrite_imports(item, vendored_libs)
     else:
-        rewrite_file_imports(library_name, vendored_libs, vendor_dir)
+        rewrite_file_imports(library_name, vendored_libs)
+
 
 @invoke.task
 def rewrite_all_imports(ctx):
     vendor_dir = _get_vendor_dir(ctx)
+    patched_dir = _get_patched_dir(ctx)
     log("Using vendor dir: %s" % vendor_dir)
-    vendored_libs = detect_vendored_libs(vendor_dir)
+    vendored_libs = detect_all_vendored_libs(ctx)
     log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
     log("Rewriting all imports related to vendored libs")
-    for item in vendor_dir.iterdir():
+    for item in itertools.chain(patched_dir.iterdir(), vendor_dir.iterdir()):
         if item.is_dir():
-            rewrite_imports(item, vendored_libs, vendor_dir)
+            rewrite_imports(item, vendored_libs)
         elif item.name not in FILE_WHITE_LIST:
-            rewrite_file_imports(item, vendored_libs, vendor_dir)
+            rewrite_file_imports(item, vendored_libs)
 
 
 @invoke.task

@@ -1,4 +1,4 @@
-from six import PY2
+from pipenv.vendor.six import PY2
 
 from functools import wraps
 

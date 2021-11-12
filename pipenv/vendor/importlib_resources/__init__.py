@@ -17,7 +17,7 @@ from ._legacy import (
     path,
 )
 
-from importlib_resources.abc import ResourceReader
+from pipenv.vendor.importlib_resources.abc import ResourceReader
 
 
 __all__ = [

@@ -1,7 +1,7 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function, unicode_literals
 
-import click
+import pipenv.vendor.click as click
 
 from . import __version__
 from .pythonfinder import Finder

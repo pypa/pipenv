@@ -5,8 +5,8 @@ from tempfile import NamedTemporaryFile
 
 from pytest import mark
 
-from cerberus import Validator, errors
-from cerberus.tests import (
+from pipenv.vendor.cerberus import Validator, errors
+from pipenv.vendor.cerberus.tests import (
     assert_fail,
     assert_has_error,
     assert_normalized,

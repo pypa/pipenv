@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import sys
-import click
-from safety import __version__
-from safety import safety
-from safety.formatter import report, license_report
+import pipenv.vendor.click as click
+from pipenv.patched.safety import __version__
+from pipenv.patched.safety import safety
+from pipenv.patched.safety.formatter import report, license_report
 import itertools
-from safety.util import read_requirements, read_vulnerabilities, get_proxy_dict, get_packages_licenses
-from safety.errors import DatabaseFetchError, DatabaseFileNotFoundError, InvalidKeyError, TooManyRequestsError
+from pipenv.patched.safety.util import read_requirements, read_vulnerabilities, get_proxy_dict, get_packages_licenses
+from pipenv.patched.safety.errors import DatabaseFetchError, DatabaseFileNotFoundError, InvalidKeyError, TooManyRequestsError
 
 try:
     from json.decoder import JSONDecodeError

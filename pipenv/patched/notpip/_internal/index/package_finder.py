@@ -891,7 +891,7 @@ class PackageFinder:
 
         def _format_versions(cand_iter: Iterable[InstallationCandidate]) -> str:
             # This repeated parse_version and str() conversion is needed to
-            # handle different vendoring sources from pipenv.patched.notpip and pkg_resources.
+            # handle different vendoring sources from pip and pkg_resources.
             # If we stop using the pkg_resources provided specifier and start
             # using our own, we can drop the cast to str().
             return ", ".join(sorted(

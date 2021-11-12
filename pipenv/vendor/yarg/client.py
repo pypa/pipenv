@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 
-import requests
+import pipenv.vendor.requests as requests
 
 from .exceptions import HTTPError
 from .package import json2package

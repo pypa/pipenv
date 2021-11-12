@@ -5,9 +5,9 @@ from typing import Counter as CounterType
 
 from pytest import mark
 
-from cerberus import Validator
-from cerberus.benchmarks.schemas.overalll_schema_2 import product_schema
-from cerberus.benchmarks import DOCUMENTS_PATH
+from pipenv.vendor.cerberus import Validator
+from pipenv.vendor.cerberus.benchmarks.schemas.overalll_schema_2 import product_schema
+from pipenv.vendor.cerberus.benchmarks import DOCUMENTS_PATH
 
 
 def init_validator():
