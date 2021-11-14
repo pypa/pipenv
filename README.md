@@ -123,20 +123,25 @@ activate a virtualenv, run `$ pipenv shell`).
 
 ### Shell Completion
 
-For example, with fish, put this in your
-`~/.config/fish/completions/pipenv.fish`:
+☤ Shell Completion
+------------------
 
-    eval (pipenv --completion)
+To enable completion in fish, add this to your configuration `~/.config/fish/completions/pipenv.fish`:
 
-Alternatively, with bash, put this in your `.bashrc` or `.bash_profile`:
+    eval (env _PIPENV_COMPLETE=fish_source pipenv)
 
-    eval "$(pipenv --completion)"
-
-Magic shell completions are now enabled! There is also a [fish
-plugin](https://github.com/fisherman/pipenv), which will automatically
+There is also a [fish plugin](https://github.com/fisherman/pipenv), which will automatically
 activate your subshells for you!
 
-Fish is the best shell. You should use it.
+Alternatively, with zsh, add this to your configuration `~/.zshrc`:
+
+    eval "$(_PIPENV_COMPLETE=zsh_source pipenv)"
+
+Alternatively, with bash, add this to your configuration `~/.bashrc` or `~/.bash_profile`:
+
+    eval "$(_PIPENV_COMPLETE=bash_source pipenv)"
+
+Magic shell completions are now enabled!
 
 ☤ Usage
 -------
@@ -151,7 +156,6 @@ Fish is the best shell. You should use it.
       --envs           Output Environment Variable options.
       --rm             Remove the virtualenv.
       --bare           Minimal output.
-      --completion     Output completion (to be eval'd).
       --man            Display manpage.
       --three / --two  Use Python 3/2 when creating virtualenv.
       --python TEXT    Specify which version of Python virtualenv should use.
