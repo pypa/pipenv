@@ -123,9 +123,6 @@ activate a virtualenv, run `$ pipenv shell`).
 
 ### Shell Completion
 
-☤ Shell Completion
-------------------
-
 To enable completion in fish, add this to your configuration `~/.config/fish/completions/pipenv.fish`:
 
     eval (env _PIPENV_COMPLETE=fish_source pipenv)
