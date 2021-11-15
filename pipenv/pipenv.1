@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Nov 09, 2021" "2021.11.9" "pipenv"
+.TH "PIPENV" "1" "Nov 15, 2021" "2021.11.15" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -442,6 +442,28 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2021.11.15 (2021\-11\-15)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Return an empty dict when \fBPIPENV_DONT_LOAD_ENV\fP is set.  \fI\%#4851\fP
+.IP \(bu 2
+Don\(aqt use \fBsys.executable\fP when inside an activated venv.  \fI\%#4852\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Drop the vendored \fBjinja2\fP dependency as it is not needed any more.  \fI\%#4858\fP
+.IP \(bu 2
+Update \fBclick\fP from \fB8.0.1\fP to \fB8.0.3\fP, to fix a problem with bash completion.  \fI\%#4860\fP
+.IP \(bu 2
+Drop unused vendor \fBchardet\fP\&.  \fI\%#4862\fP
+.UNINDENT
+.SS Improved Documentation
+.INDENT 0.0
+.IP \(bu 2
+Fix the documentation to reflect the fact that special characters must be percent\-encoded in the URL.  \fI\%#4856\fP
+.UNINDENT
 .SS 2021.11.9 (2021\-11\-09)
 .SS Features & Improvements
 .INDENT 0.0
@@ -2677,18 +2699,7 @@ Luckily \- pipenv will hash your Pipfile \fIbefore\fP expanding environment
 variables (and, helpfully, will substitute the environment variables again when
 you install from the lock file \- so no need to commit any secrets! Woo!)
 .sp
-If your credentials contain a special character, surround the references to the environment variables with quotation marks. For example, if your password contain a double quotation mark, surround the password variable with single quotation marks. Otherwise, you may get a \fBValueError, "No closing quotation"\fP error while installing dependencies.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-[[source]]
-url = "https://$USERNAME:\(aq${PASSWORD}\(aq@mypypi.example.com/simple"
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
+If your credentials contain special characters, make sure they are URL\-encoded as specified in \fI\%rfc3986\fP\&.
 .sp
 Environment variables may be specified as \fB${MY_ENVAR}\fP or \fB$MY_ENVAR\fP\&.
 .sp

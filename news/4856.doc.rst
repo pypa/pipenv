@@ -1,1 +1,0 @@
-Fix the documentation to reflect the fact that special characters must be percent-encoded in the URL.

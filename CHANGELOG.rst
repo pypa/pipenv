@@ -1,3 +1,26 @@
+2021.11.15 (2021-11-15)
+=======================
+
+
+Bug Fixes
+---------
+
+- Return an empty dict when ``PIPENV_DONT_LOAD_ENV`` is set.  `#4851 <https://github.com/pypa/pipenv/issues/4851>`_
+- Don't use ``sys.executable`` when inside an activated venv.  `#4852 <https://github.com/pypa/pipenv/issues/4852>`_
+
+Vendored Libraries
+------------------
+
+- Drop the vendored ``jinja2`` dependency as it is not needed any more.  `#4858 <https://github.com/pypa/pipenv/issues/4858>`_
+- Update ``click`` from ``8.0.1`` to ``8.0.3``, to fix a problem with bash completion.  `#4860 <https://github.com/pypa/pipenv/issues/4860>`_
+- Drop unused vendor ``chardet``.  `#4862 <https://github.com/pypa/pipenv/issues/4862>`_
+
+Improved Documentation
+----------------------
+
+- Fix the documentation to reflect the fact that special characters must be percent-encoded in the URL.  `#4856 <https://github.com/pypa/pipenv/issues/4856>`_
+
+
 2021.11.9 (2021-11-09)
 ======================
 

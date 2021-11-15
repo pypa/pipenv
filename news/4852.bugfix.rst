@@ -1,1 +1,0 @@
-Don't use ``sys.executable`` when inside an activated venv.
