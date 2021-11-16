@@ -1,0 +1,1 @@
+Fix a bug of deleting a virtualenv that is not managed by Pipenv.

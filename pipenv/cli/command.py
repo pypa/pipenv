@@ -1,6 +1,7 @@
 import os
 import sys
 
+from pipenv import environments
 from pipenv.__version__ import __version__
 from pipenv._compat import fix_utf8
 from pipenv.cli.options import (
@@ -124,7 +125,7 @@ def cli(
         # --rm was passed...
         elif rm:
             # Abort if --system (or running in a virtualenv).
-            if state.project.s.PIPENV_USE_SYSTEM:
+            if state.project.s.PIPENV_USE_SYSTEM or environments.is_in_virtualenv():
                 echo(
                     crayons.red(
                         "You are attempting to remove a virtualenv that "
