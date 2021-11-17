@@ -4,9 +4,7 @@ sphinx-click = "<3"
 click = "*"
 pytest_pypi = {path = "./tests/pytest-pypi", editable = true}
 stdeb = {version="*", markers="sys_platform == 'linux'"}
-jedi = "*"
-isort = "*"
-rope = "*"
+dataclasses = {version="*", markers="python_version < '3.7'"}
 sphinxcontrib-spelling = "<4.3.0"
 
 [packages]
