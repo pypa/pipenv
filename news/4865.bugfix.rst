@@ -1,0 +1,1 @@
+Update ``charset-normalizer`` from ``2.0.3`` to ``2.0.7``, this fixes an import error on Python 3.6.
