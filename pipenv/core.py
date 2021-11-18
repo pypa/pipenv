@@ -2039,8 +2039,6 @@ def do_install(
                     sp.write_err(vistir.compat.fs_str("{}: {}".format(crayons.red("WARNING"), e)))
                     sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
                     sys.exit(1)
-                if index_url:
-                    pkg_requirement.index = index_url
                 no_deps = False
                 sp.text = "Installing..."
                 try:
@@ -2110,6 +2108,13 @@ def do_install(
                     )
                 ))
                 # Add the package to the Pipfile.
+                indexes = list(filter(None, [index_url, extra_index_url]))
+                for index in indexes:
+                    index_name = project.add_index_to_pipfile(
+                        index, verify_ssl=index.startswith("https:")
+                    )
+                    if index_url and not extra_index_url:
+                        pkg_requirement.index = index_name
                 try:
                     project.add_package_to_pipfile(pkg_requirement, dev)
                 except ValueError:

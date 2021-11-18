@@ -208,6 +208,33 @@ six = "*"
         assert c.returncode == 0
 
 
+@pytest.mark.urls
+@pytest.mark.index
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_install_specifying_index_url(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+six = "*"
+
+[dev-packages]
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install pipenv-test-private-package --index https://test.pypi.org/simple")
+        assert c.returncode == 0
+        pipfile = p.pipfile
+        assert pipfile["source"][1]["url"] == "https://test.pypi.org/simple"
+        assert pipfile["source"][1]["name"] == "testpypi"
+        assert pipfile["packages"]["pipenv-test-private-package"]["index"] == "testpypi"
+
+
 @pytest.mark.vcs
 @pytest.mark.urls
 @pytest.mark.install
