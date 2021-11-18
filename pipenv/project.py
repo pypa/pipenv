@@ -1006,19 +1006,20 @@ class Project:
         # Read and append Pipfile.
         p = self.parsed_pipfile
         try:
-            self.get_source(url=index)
+            source = self.get_source(url=index)
         except SourceNotFound:
             source = {"url": index, "verify_ssl": verify_ssl}
         else:
-            return
+            return source["name"]
         source["name"] = self.src_name_from_url(index)
         # Add the package to the group.
         if "source" not in p:
-            p["source"] = [source]
+            p["source"] = [tomlkit.item(source)]
         else:
-            p["source"].append(source)
+            p["source"].append(tomlkit.item(source))
         # Write Pipfile.
         self.write_toml(p)
+        return source["name"]
 
     def recase_pipfile(self):
         if self.ensure_proper_casing():
