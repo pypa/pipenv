@@ -1005,12 +1005,17 @@ class Project:
         """Adds a given index to the Pipfile."""
         # Read and append Pipfile.
         p = self.parsed_pipfile
+        source = None
         try:
             source = self.get_source(url=index)
         except SourceNotFound:
-            source = {"url": index, "verify_ssl": verify_ssl}
-        else:
+            try:
+                source = self.get_source(name=index)
+            except SourceNotFound:
+                pass
+        if source is not None:
             return source["name"]
+        source = {"url": index, "verify_ssl": verify_ssl}
         source["name"] = self.src_name_from_url(index)
         # Add the package to the group.
         if "source" not in p:
