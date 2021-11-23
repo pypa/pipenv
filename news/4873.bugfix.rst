@@ -1,1 +1,0 @@
-Fix a bug that source is not added to ``Pipfile`` when index url is given with ``pipenv install``.

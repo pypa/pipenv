@@ -1,3 +1,15 @@
+2021.11.23 (2021-11-23)
+=======================
+
+
+Bug Fixes
+---------
+
+- Update ``charset-normalizer`` from ``2.0.3`` to ``2.0.7``, this fixes an import error on Python 3.6.  `#4865 <https://github.com/pypa/pipenv/issues/4865>`_
+- Fix a bug of deleting a virtualenv that is not managed by Pipenv.  `#4867 <https://github.com/pypa/pipenv/issues/4867>`_
+- Fix a bug that source is not added to ``Pipfile`` when index url is given with ``pipenv install``.  `#4873 <https://github.com/pypa/pipenv/issues/4873>`_
+
+
 2021.11.15 (2021-11-15)
 =======================
 

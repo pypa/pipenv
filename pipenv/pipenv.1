@@ -1,5 +1,8 @@
 .\" Man page generated from reStructuredText.
 .
+.TH "PIPENV" "1" "Nov 23, 2021" "2021.11.23" "pipenv"
+.SH NAME
+pipenv \- pipenv Documentation
 .
 .nr rst2man-indent-level 0
 .
@@ -27,9 +30,6 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Nov 15, 2021" "2021.11.15" "pipenv"
-.SH NAME
-pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
 .sp
 .ce
@@ -442,6 +442,16 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2021.11.23 (2021\-11\-23)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Update \fBcharset\-normalizer\fP from \fB2.0.3\fP to \fB2.0.7\fP, this fixes an import error on Python 3.6.  \fI\%#4865\fP
+.IP \(bu 2
+Fix a bug of deleting a virtualenv that is not managed by Pipenv.  \fI\%#4867\fP
+.IP \(bu 2
+Fix a bug that source is not added to \fBPipfile\fP when index url is given with \fBpipenv install\fP\&.  \fI\%#4873\fP
+.UNINDENT
 .SS 2021.11.15 (2021\-11\-15)
 .SS Bug Fixes
 .INDENT 0.0
@@ -3335,7 +3345,7 @@ bool
 .UNINDENT
 .INDENT 0.0
 .TP
-.B pipenv.environments.is_using_venv()
+.B pipenv.environments.is_using_venv() -> bool
 Check for venv\-based virtual environment which sets sys.base_prefix
 .UNINDENT
 .sp
