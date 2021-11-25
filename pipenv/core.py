@@ -2108,7 +2108,7 @@ def do_install(
                     )
                 ))
                 # Add the package to the Pipfile.
-                indexes = list(filter(None, [index_url, extra_index_url]))
+                indexes = list(filter(None, [index_url, *extra_index_url]))
                 for index in indexes:
                     index_name = project.add_index_to_pipfile(
                         index, verify_ssl=index.startswith("https:")
