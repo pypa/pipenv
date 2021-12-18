@@ -700,5 +700,26 @@ def scripts(state):
     echo("\n".join(fix_utf8(line) for line in lines))
 
 
+@cli.command(
+    short_help="Verify the hash in Pipfile.lock is up-to-date.",
+    context_settings=CONTEXT_SETTINGS,
+)
+@pass_state
+def verify(state):
+    """Verify the hash in Pipfile.lock is up-to-date."""
+    if not state.project.pipfile_exists:
+        echo("No Pipfile present at project home.", err=True)
+        sys.exit(1)
+    if state.project.get_lockfile_hash() != state.project.calculate_pipfile_hash():
+        echo(
+            'Pipfile.lock is out-of-date. Run {} to update.'.format(
+                crayons.yellow("$ pipenv lock", bold=True)
+            ),
+            err=True
+        )
+        sys.exit(1)
+    sys.exit(0)
+
+
 if __name__ == "__main__":
     cli()
