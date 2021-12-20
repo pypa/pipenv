@@ -718,6 +718,7 @@ def verify(state):
             err=True
         )
         sys.exit(1)
+    echo(crayons.green('Pipfile.lock is up-to-date.'))
     sys.exit(0)
 
 

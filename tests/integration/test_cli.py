@@ -315,6 +315,7 @@ def test_pipenv_verify_locked_passing(PipenvInstance):
         p.pipenv('lock')
         c = p.pipenv('verify')
         assert c.returncode == 0
+        assert 'Pipfile.lock is up-to-date.' in c.stdout
 
 
 @pytest.mark.cli
