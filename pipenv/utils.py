@@ -2051,7 +2051,7 @@ def looks_like_dir(path):
 def parse_indexes(line, strict=False):
     from argparse import ArgumentParser
     line = line.split("#")[0].strip()
-    parser = ArgumentParser("indexes", exit_on_error=False)
+    parser = ArgumentParser("indexes")
     parser.add_argument("-i", "--index-url", dest="index")
     parser.add_argument("--extra-index-url", dest="extra_index")
     parser.add_argument("--trusted-host", dest="trusted_host")
