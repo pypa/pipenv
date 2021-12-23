@@ -521,10 +521,7 @@ class Resolver:
         if project is None:
             from .project import Project
             project = Project()
-        url = None
-        indexes, trusted_hosts, remainder = parse_indexes(line)
-        if indexes:
-            url = indexes[0]
+        index, extra_index, trust_host, remainder = parse_indexes(line)
         line = " ".join(remainder)
         req = None  # type: Requirement
         try:
@@ -539,10 +536,10 @@ class Resolver:
                     raise ResolutionFailure(f"Failed to resolve requirement from line: {line!s}")
             else:
                 raise ResolutionFailure(f"Failed to resolve requirement from line: {line!s}")
-        if url:
+        if index:
             try:
                 index_lookup[req.normalized_name] = project.get_source(
-                    url=url, refresh=True).get("name")
+                    url=index, refresh=True).get("name")
             except TypeError:
                 pass
         try:
@@ -555,12 +552,6 @@ class Resolver:
         if req.markers:
             markers_lookup[req.normalized_name] = req.markers.replace('"', "'")
         return req, index_lookup, markers_lookup
-
-    @classmethod
-    def get_deps_from_line(cls, line):
-        # type: (str) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]
-        req, _, _ = cls.parse_line(line)
-        return cls.get_deps_from_req(req)
 
     @classmethod
     def get_deps_from_req(cls, req, resolver=None, resolve_vcs=True):
@@ -725,7 +716,7 @@ class Resolver:
             self._pip_command = self._get_pip_command()
         return self._pip_command
 
-    def prepare_pip_args(self, use_pep517=False, build_isolation=True):
+    def prepare_pip_args(self, use_pep517=None, build_isolation=True):
         pip_args = []
         if self.sources:
             pip_args = prepare_pip_source_args(self.sources, pip_args)
@@ -839,7 +830,6 @@ class Resolver:
         )
 
         with global_tempdir_manager(), get_requirement_tracker() as req_tracker, TemporaryDirectory(suffix="-build", prefix="pipenv-") as directory:
-            os.environ["PIP_USE_PEP517"] = "false"
             pip_options = self.pip_options
             finder = self.finder
             wheel_cache = WheelCache(pip_options.cache_dir, pip_options.format_control)
@@ -2058,24 +2048,22 @@ def looks_like_dir(path):
     return any(sep in path for sep in seps)
 
 
-def parse_indexes(line):
+def parse_indexes(line, strict=False):
     from argparse import ArgumentParser
-    parser = ArgumentParser("indexes")
-    parser.add_argument(
-        "--index", "-i", "--index-url",
-        metavar="index_url", action="store", nargs="?",
-    )
-    parser.add_argument(
-        "--extra-index-url", "--extra-index",
-        metavar="extra_indexes", action="append",
-    )
-    parser.add_argument("--trusted-host", metavar="trusted_hosts", action="append")
+    line = line.split("#")[0].strip()
+    parser = ArgumentParser("indexes", exit_on_error=False)
+    parser.add_argument("-i", "--index-url", dest="index")
+    parser.add_argument("--extra-index-url", dest="extra_index")
+    parser.add_argument("--trusted-host", dest="trusted_host")
     args, remainder = parser.parse_known_args(line.split())
-    index = [] if not args.index else [args.index]
-    extra_indexes = [] if not args.extra_index_url else args.extra_index_url
-    indexes = index + extra_indexes
-    trusted_hosts = args.trusted_host if args.trusted_host else []
-    return indexes, trusted_hosts, remainder
+    index = args.index
+    extra_index = args.extra_index
+    trusted_host = args.trusted_host
+    if strict and sum(
+        bool(arg) for arg in (index, extra_index, trusted_host, remainder)
+    ) > 1:
+        raise ValueError("Index arguments must be on their own lines.")
+    return index, extra_index, trusted_host, remainder
 
 
 @contextmanager

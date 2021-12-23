@@ -137,6 +137,29 @@ def test_convert_deps_to_pip_unicode():
     assert deps[0] == "django==1.10"
 
 
+@pytest.mark.parametrize("line,result", [
+    ("-i https://example.com/simple/", ("https://example.com/simple/", None, None, [])),
+    ("--extra-index-url=https://example.com/simple/", (None, "https://example.com/simple/", None, [])),
+    ("--trusted-host=example.com", (None, None, "example.com", [])),
+    ("# -i https://example.com/simple/", (None, None, None, [])),
+    ("requests", (None, None, None, ["requests"]))
+])
+@pytest.mark.utils
+def test_parse_indexes(line, result):
+    assert pipenv.utils.parse_indexes(line) == result
+
+
+@pytest.mark.parametrize("line", [
+    "-i https://example.com/simple/ --extra-index-url=https://extra.com/simple/",
+    "--extra-index-url https://example.com/simple/ --trusted-host=example.com",
+    "requests -i https://example.com/simple/",
+])
+@pytest.mark.utils
+def test_parse_indexes_individual_lines(line):
+    with pytest.raises(ValueError):
+        pipenv.utils.parse_indexes(line, strict=True)
+
+
 class TestUtils:
     """Test utility functions in pipenv"""
 

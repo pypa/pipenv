@@ -649,7 +649,7 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
     from pipenv.utils import parse_indexes
     parsed_packages = []
     for package in packages:
-        indexes, trusted_hosts, line = parse_indexes(package)
+        *_, line = parse_indexes(package)
         line = " ".join(line)
         pf = dict()
         req = Requirement.from_line(line)
