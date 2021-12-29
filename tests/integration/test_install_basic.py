@@ -285,18 +285,23 @@ def test_requirements_to_pipfile(PipenvInstance, pypi):
 
         # Write a requirements file
         with open("requirements.txt", "w") as f:
-            f.write(f"-i {pypi.url}\nrequests[socks]==2.19.1\n")
+            f.write(
+                f"-i {pypi.url}\n"
+                "# -i https://private.pypi.org/simple\n"
+                "requests[socks]==2.19.1\n"
+            )
 
         c = p.pipenv("install")
         assert c.returncode == 0
         print(c.stdout)
         print(c.stderr)
-        print(subprocess_run(["ls", "-l"]).stdout)
-
         # assert stuff in pipfile
         assert "requests" in p.pipfile["packages"]
         assert "extras" in p.pipfile["packages"]["requests"]
-
+        assert not any(
+            source['url'] == 'https://private.pypi.org/simple'
+            for source in p.pipfile['source']
+        )
         # assert stuff in lockfile
         assert "requests" in p.lockfile["default"]
         assert "chardet" in p.lockfile["default"]

@@ -163,9 +163,13 @@ def import_requirements(project, r=None, dev=False):
     trusted_hosts = []
     # Find and add extra indexes.
     for line in contents.split("\n"):
-        line_indexes, _trusted_hosts, _ = parse_indexes(line.strip())
-        indexes.extend(line_indexes)
-        trusted_hosts.extend(_trusted_hosts)
+        index, extra_index, trusted_host, _ = parse_indexes(line.strip(), strict=True)
+        if index:
+            indexes = [index]
+        if extra_index:
+            indexes.append(extra_index)
+        if trusted_host:
+            trusted_hosts.append(trusted_host)
     indexes = sorted(set(indexes))
     trusted_hosts = sorted(set(trusted_hosts))
     reqs = [install_req_from_parsed_requirement(f) for f in parse_requirements(r, session=pip_requests)]
