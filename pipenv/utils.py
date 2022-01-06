@@ -2053,7 +2053,7 @@ def parse_indexes(line, strict=False):
 
     comment_re = re.compile(r"(?:^|\s+)#.*$")
     line = comment_re.sub("", line)
-    parser = ArgumentParser("indexes")
+    parser = ArgumentParser("indexes", allow_abbrev=False)
     parser.add_argument("-i", "--index-url", dest="index")
     parser.add_argument("--extra-index-url", dest="extra_index")
     parser.add_argument("--trusted-host", dest="trusted_host")
