@@ -428,6 +428,7 @@ class Resolver:
         self._parsed_constraints = None
         self._resolver = None
         self._finder = None
+        self._ignore_compatibility_finder = None
         self._session = None
         self._constraint_file = None
         self._pip_options = None
@@ -799,6 +800,22 @@ class Resolver:
         return self._finder
 
     @property
+    def ignore_compatibility_finder(self):
+        from pipenv.vendor.pip_shims import shims
+        if self._ignore_compatibility_finder is None:
+            ignore_compatibility_finder = shims.get_package_finder(
+                install_cmd=self.pip_command,
+                options=self.pip_options,
+                session=self.session,
+            )
+            # It would be nice if `shims.get_package_finder` took an
+            # `ignore_compatibility` parameter, but that's some vendorered code
+            # we'd rather avoid touching.
+            ignore_compatibility_finder._ignore_compatibility = True
+            self._ignore_compatibility_finder = ignore_compatibility_finder
+        return self._ignore_compatibility_finder
+
+    @property
     def parsed_constraints(self):
         from pipenv.vendor.pip_shims import shims
 
@@ -950,7 +967,7 @@ class Resolver:
             if hashes:
                 return hashes
 
-        applicable_candidates = self.finder.find_best_candidate(
+        applicable_candidates = self.ignore_compatibility_finder.find_best_candidate(
             ireq.name, ireq.specifier
         ).iter_applicable()
         return {
