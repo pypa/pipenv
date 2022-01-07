@@ -29,7 +29,7 @@ General Guidelines
 Pipenv has one very important rule governing all forms of contribution,
 including reporting bugs or requesting features. This golden rule is
 \"[be cordial or be on your
-way](https://www.kennethreitz.org/essays/be-cordial-or-be-on-your-way)\".
+way](https://kennethreitz.org/essays/2013/01/27/be-cordial-or-be-on-your-way)\".
 
 **All contributions are welcome**, as long as everyone involved is
 treated with respect.
@@ -87,7 +87,7 @@ When contributing code, you\'ll want to follow this checklist:
 6.  Make your change.
 7.  Run the entire test suite again, confirming that all tests pass
     *including the ones you just added*.
-8.  Send a GitHub Pull Request to the main repository\'s `master`
+8.  Send a GitHub Pull Request to the main repository\'s `main`
     branch. GitHub Pull Requests are the expected method of code
     collaboration on this project.
 
@@ -115,13 +115,9 @@ details.
 
 ### Testing
 
-Tests are written in `pytest` style and can be run very simply:
+Tests are written in `pytest` style.
 
-``` {.sh}
-pytest
-```
-
-This will run all Pipenv tests, which can take awhile. To run a subset
+Running all tests can take awhile. To run a subset
 of the tests, the standard pytest filters are available, such as:
 
 -   provide a directory or file: `pytest tests/unit` or
@@ -218,11 +214,11 @@ following things when filing bug reports:
 Run the tests
 -------------
 
-Three ways of running the tests are as follows:
+Two ways of running the tests are as follows:
 
-1.  `make test` (which uses `docker`)
-2.  `./run-tests.sh` or `run-tests.bat`
-3.  Using pipenv:
+1.  `./run-tests.sh` or `run-tests.bat`
+  - NOTE: `./run-tests.sh` is not working right now due to [this issue](https://github.com/pypa/pip/issues/7953#issuecomment-611928262).
+2.  Using pipenv:
 
 ``` {.console}
 $ git clone https://github.com/pypa/pipenv.git
@@ -232,7 +228,7 @@ $ pipenv install --dev
 $ pipenv run pytest
 ```
 
-For the last two, it is important that your environment is setup
+To run tests, it is important that your environment is setup
 correctly, and this may take some work, for example, on a specific Mac
 installation, the following steps may be needed:
 

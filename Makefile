@@ -23,8 +23,6 @@ piptools-checkout-dir = $(get_checkout_dir)/patch-piptools
 
 format:
 	black pipenv/*.py
-test:
-	docker-compose up
 
 .PHONY: install
 install:
