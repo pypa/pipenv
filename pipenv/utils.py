@@ -1643,6 +1643,30 @@ def get_url_name(url):
     return urllib3_util.parse_url(url).host
 
 
+def get_host_and_port(url):
+    """Get the host, or the host:port pair if port is explicitly included, for the given URL.
+
+    Examples:
+    >>> get_host_and_port('example.com')
+    'example.com'
+    >>> get_host_and_port('example.com:443')
+    'example.com:443'
+    >>> get_host_and_port('http://example.com')
+    'example.com'
+    >>> get_host_and_port('https://example.com/')
+    'example.com'
+    >>> get_host_and_port('https://example.com:8081')
+    'example.com:8081'
+    >>> get_host_and_port('ssh://example.com')
+    'example.com'
+
+    :param url: the URL string to parse
+    :return: a string with the host:port pair if the URL includes port number explicitly; otherwise, returns host only
+    """
+    url = urllib3_util.parse_url(url)
+    return '{}:{}'.format(url.host, url.port) if url.port else url.host
+
+
 def get_canonical_names(packages):
     """Canonicalize a list of packages and return a set of canonical names"""
     from .vendor.packaging.utils import canonicalize_name

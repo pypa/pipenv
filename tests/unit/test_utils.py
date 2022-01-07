@@ -142,7 +142,7 @@ def test_convert_deps_to_pip_unicode():
     ("--extra-index-url=https://example.com/simple/", (None, "https://example.com/simple/", None, [])),
     ("--trusted-host=example.com", (None, None, "example.com", [])),
     ("# -i https://example.com/simple/", (None, None, None, [])),
-    ("requests", (None, None, None, ["requests"]))
+    ("requests # -i https://example.com/simple/", (None, None, None, ["requests"])),
 ])
 @pytest.mark.utils
 def test_parse_indexes(line, result):

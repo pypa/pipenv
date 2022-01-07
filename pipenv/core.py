@@ -17,7 +17,7 @@ from pipenv._compat import decode_for_output, fix_utf8
 from pipenv.patched import crayons
 from pipenv.utils import (
     cmd_list_to_shell, convert_deps_to_pip, create_spinner, download_file,
-    find_python, get_canonical_names, get_source_list, is_pinned,
+    find_python, get_canonical_names, get_host_and_port, get_source_list, is_pinned,
     is_python_command, is_required_version, is_star, is_valid_url,
     parse_indexes, pep423_name, prepare_pip_source_args, proper_case,
     python_version, run_command, subprocess_run, venv_resolve_deps
@@ -169,7 +169,7 @@ def import_requirements(project, r=None, dev=False):
         if extra_index:
             indexes.append(extra_index)
         if trusted_host:
-            trusted_hosts.append(trusted_host)
+            trusted_hosts.append(get_host_and_port(trusted_host))
     indexes = sorted(set(indexes))
     trusted_hosts = sorted(set(trusted_hosts))
     reqs = [install_req_from_parsed_requirement(f) for f in parse_requirements(r, session=pip_requests)]
@@ -185,8 +185,13 @@ def import_requirements(project, r=None, dev=False):
             else:
                 project.add_package_to_pipfile(str(package.req), dev=dev)
     for index in indexes:
-        trusted = index in trusted_hosts
-        project.add_index_to_pipfile(index, verify_ssl=trusted)
+        # don't require HTTPS for trusted hosts (see: https://pip.pypa.io/en/stable/cli/pip/#cmdoption-trusted-host)
+        host_and_port = get_host_and_port(index)
+        require_valid_https = not any((v in trusted_hosts for v in (
+            host_and_port,
+            host_and_port.partition(':')[0],  # also check if hostname without port is in trusted_hosts
+        )))
+        project.add_index_to_pipfile(index, verify_ssl=require_valid_https)
     project.recase_pipfile()
 
 
