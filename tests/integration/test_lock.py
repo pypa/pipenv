@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import pytest_pypi.app
 from flaky import flaky
 from vistir.misc import to_text
 from pipenv.utils import temp_environ
@@ -55,6 +56,41 @@ flask = "==0.12.2"
 
         for req in dev_req_list:
             assert req in d.stdout
+
+
+@pytest.mark.lock
+def test_lock_includes_hashes_for_all_platforms(PipenvInstance):
+    """ Locking should include hashes for *all* platforms, not just the
+    platform we're running lock on. """
+
+    releases = pytest_pypi.app.packages['yarl'].releases
+    def get_hash(release_name):
+        # Convert a specific filename to a hash like what would show up in a Pipfile.lock.
+        # For example:
+        # 'yarl-1.3.0-cp35-cp35m-manylinux1_x86_64.whl' -> 'sha256:3890ab952d508523ef4881457c4099056546593fa05e93da84c7250516e632eb'
+        return f"sha256:{releases[release_name].hash}"
+
+    with PipenvInstance() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+yarl = "==1.3.0"
+            """.strip()
+            f.write(contents)
+
+        c = p.pipenv('lock')
+        assert c.returncode == 0
+
+        lock = p.lockfile
+        assert 'yarl' in lock['default']
+        assert set(lock['default']['yarl']['hashes']) == {
+            get_hash('yarl-1.3.0-cp35-cp35m-manylinux1_x86_64.whl'),
+            get_hash('yarl-1.3.0-cp35-cp35m-win_amd64.whl'),
+            get_hash('yarl-1.3.0-cp36-cp36m-manylinux1_x86_64.whl'),
+            get_hash('yarl-1.3.0-cp36-cp36m-win_amd64.whl'),
+            get_hash('yarl-1.3.0-cp37-cp37m-win_amd64.whl'),
+            get_hash('yarl-1.3.0.tar.gz'),
+        }
 
 
 @pytest.mark.lock
