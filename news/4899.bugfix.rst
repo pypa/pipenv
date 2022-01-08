@@ -1,1 +1,0 @@
-Fix the index parsing to reject illegal requirements.txt.

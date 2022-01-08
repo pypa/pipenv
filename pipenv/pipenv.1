@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PIPENV" "1" "Nov 23, 2021" "2021.11.23" "pipenv"
+.TH "PIPENV" "1" "Jan 08, 2022" "2022.1.8" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 .
@@ -442,6 +442,18 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.1.8 (2022\-01\-08)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Remove the extra parentheses around the venv prompt.  \fI\%#4877\fP
+.IP \(bu 2
+Fix a bug of installation fails when extra index url is given.  \fI\%#4881\fP
+.IP \(bu 2
+Fix regression where lockfiles would only include the hashes for releases for the platform generating the lockfile  \fI\%#4885\fP
+.IP \(bu 2
+Fix the index parsing to reject illegal requirements.txt.  \fI\%#4899\fP
+.UNINDENT
 .SS 2021.11.23 (2021\-11\-23)
 .SS Bug Fixes
 .INDENT 0.0
@@ -2059,7 +2071,7 @@ Otherwise, whatever virtualenv defaults to will be the default.
 .IP \(bu 2
 \fBrun\fP will run a given command from the virtualenv, with any arguments forwarded (e.g. \fB$ pipenv run python\fP or \fB$ pipenv run pip freeze\fP).
 .IP \(bu 2
-\fBcheck\fP checks for security vulnerabilities and asserts that PEP 508 requirements are being met by the current environment.
+\fBcheck\fP checks for security vulnerabilities and asserts that \fI\%PEP 508\fP requirements are being met by the current environment.
 .UNINDENT
 .SH FURTHER DOCUMENTATION GUIDES
 .SS Basic Usage of Pipenv

@@ -1,1 +1,0 @@
-Fix regression where lockfiles would only include the hashes for releases for the platform generating the lockfile

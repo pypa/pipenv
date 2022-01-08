@@ -1,3 +1,16 @@
+2022.1.8 (2022-01-08)
+=====================
+
+
+Bug Fixes
+---------
+
+- Remove the extra parentheses around the venv prompt.  `#4877 <https://github.com/pypa/pipenv/issues/4877>`_
+- Fix a bug of installation fails when extra index url is given.  `#4881 <https://github.com/pypa/pipenv/issues/4881>`_
+- Fix regression where lockfiles would only include the hashes for releases for the platform generating the lockfile  `#4885 <https://github.com/pypa/pipenv/issues/4885>`_
+- Fix the index parsing to reject illegal requirements.txt.  `#4899 <https://github.com/pypa/pipenv/issues/4899>`_
+
+
 2021.11.23 (2021-11-23)
 =======================
 

@@ -1,1 +1,0 @@
-Fix a bug of installation fails when extra index url is given.
