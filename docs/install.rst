@@ -177,6 +177,13 @@ tutorial) and run::
     $ cd myproject
     $ pipenv install requests
 
+.. Note::
+
+   Pipenv is designed to be used by non-privileged OS users. It is not meant
+   to install or handle packages for the whole OS. Running Pipenv as ``root``
+   or with ``sudo`` (or ``Admin`` on Windows) is highly discouraged and might
+   lead to unintend breakage of your OS.
+
 Pipenv will install the excellent `Requests`_ library and create a ``Pipfile``
 for you in your project's directory. The ``Pipfile`` is used to track which
 dependencies your project needs in case you need to re-install them, such as

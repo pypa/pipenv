@@ -411,3 +411,24 @@ production environments for reproducible builds.
     If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv lock -r``.
     This will not include hashes, however. To get a ``requirements.txt``
     you can also use ``$ pipenv run pip freeze``.
+
+
+☤ Pipenv and Docker Conatiners
+------------------------------
+
+In general, you should not need to install pipenv inside docker container to manage
+the dependencies of your software. Instead you can generate a ``requirements.txt`` as described
+above and use it inside your container, to install the dependencies, e.g.:
+
+  $ pipenv lock -r > requirements.txt
+
+The in your ``Dockerfile``::
+
+   FROM docker.io/python3
+
+   ...
+
+   ADD requirements.txt /usr/src/
+   RUN pip3 install -r /usr/src/requirements.txt
+
+   ...
