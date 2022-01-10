@@ -2525,7 +2525,6 @@ def do_check(
     args=None,
     pypi_mirror=None
 ):
-    from pipenv.vendor.first import first
     from pipenv.vendor.vistir.compat import JSONDecodeError
 
     if not system:
@@ -2569,7 +2568,8 @@ def do_check(
     if not system:
         python = project._which("python")
     else:
-        python = first(system_which(p) for p in ("python", "python3", "python2"))
+        interpreters = [system_which(p) for p in ("python", "python3", "python2")]
+        python = interpreters[0] if interpreters else None
     if not python:
         click.echo(crayons.red("The Python interpreter can't be found."), err=True)
         sys.exit(1)
