@@ -177,36 +177,44 @@ tutorial) and run::
     $ cd myproject
     $ pipenv install requests
 
+.. Note::
+
+   Pipenv is designed to be used by non-privileged OS users. It is not meant
+   to install or handle packages for the whole OS. Running Pipenv as ``root``
+   or with ``sudo`` (or ``Admin`` on Windows) is highly discouraged and might
+   lead to unintend breakage of your OS.
+
 Pipenv will install the excellent `Requests`_ library and create a ``Pipfile``
 for you in your project's directory. The ``Pipfile`` is used to track which
 dependencies your project needs in case you need to re-install them, such as
 when you share your project with others. You should get output similar to this
 (although the exact paths shown will vary)::
 
-    Creating a Pipfile for this project...
-    Creating a virtualenv for this project...
-    Using base prefix '/usr/local/Cellar/python3/3.6.2/Frameworks/Python.framework/Versions/3.6'
-    New python executable in ~/.local/share/virtualenvs/tmp-agwWamBd/bin/python3.6
-    Also creating executable in ~/.local/share/virtualenvs/tmp-agwWamBd/bin/python
-    Installing setuptools, pip, wheel...done.
+     pipenv install requests
+     Creating a virtualenv for this project...
+     Pipfile: /home/user/myproject/Pipfile
+     sing /home/user/.local/share/virtualenvs/pipenv-Cv0J3wbi/bin/python3.9 (3.9.9) to create virtualenv...
+      Creating virtual environment...created virtual environment CPython3.9.9.final.0-64 in 1142ms
+      creator CPython3Posix(dest=/home/user/.local/share/virtualenvs/myproject-R3jRVewK, clear=False, no_vcs_ignore=False, global=False)
+      seeder FromAppData(download=False, pip=bundle, setuptools=bundle, wheel=bundle, via=copy, app_data_dir=/home/user/.local/share/virtualenv)
+        added seed packages: pip==21.3.1, setuptools==60.2.0, wheel==0.37.1
+      activators BashActivator,CShellActivator,FishActivator,NushellActivator,PowerShellActivator,PythonActivator
 
-    Virtualenv location: ~/.local/share/virtualenvs/tmp-agwWamBd
-    Installing requests...
-    Collecting requests
-      Using cached requests-2.18.4-py2.py3-none-any.whl
-    Collecting idna<2.7,>=2.5 (from requests)
-      Using cached idna-2.6-py2.py3-none-any.whl
-    Collecting urllib3<1.23,>=1.21.1 (from requests)
-      Using cached urllib3-1.22-py2.py3-none-any.whl
-    Collecting chardet<3.1.0,>=3.0.2 (from requests)
-      Using cached chardet-3.0.4-py2.py3-none-any.whl
-    Collecting certifi>=2017.4.17 (from requests)
-      Using cached certifi-2017.7.27.1-py2.py3-none-any.whl
-    Installing collected packages: idna, urllib3, chardet, certifi, requests
-    Successfully installed certifi-2017.7.27.1 chardet-3.0.4 idna-2.6 requests-2.18.4 urllib3-1.22
-
-    Adding requests to Pipfile's [packages]...
-    P.S. You have excellent taste! ✨ 🍰 ✨
+     ✔ Successfully created virtual environment!
+     Virtualenv location: /home/user/.local/share/virtualenvs/pms-R3jRVewK
+     Creating a Pipfile for this project...
+     Installing requests...
+     Adding requests to Pipfile's [packages]...
+     Installation Succeeded
+     Pipfile.lock not found, creating...
+     Locking [dev-packages] dependencies...
+     Locking [packages] dependencies...
+     Building requirements...
+     Resolving dependencies...
+     ✔ Success!
+     Updated Pipfile.lock (fe5a22)!
+     Installing dependencies from Pipfile.lock (fe5a22)...
+     🐍   ▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉ 0/0 — 00:00:00
 
 .. _Requests: https://python-requests.org
 
