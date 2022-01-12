@@ -8,13 +8,7 @@ contributing to the Pipenv project is *very* generous of you.
 
 This document lays out guidelines and advice for contributing to this project.
 If you're thinking of contributing, please start by reading this document and
-getting a feel for how contributing to this project works. If you have any
-questions, feel free to reach out to either `Dan Ryan`_, `Tzu-ping Chung`_,
-or `Nate Prewitt`_, the primary maintainers.
-
-.. _Dan Ryan: https://github.com/techalchemy
-.. _Tzu-ping Chung: https://github.com/uranusjr
-.. _Nate Prewitt: https://github.com/nateprewitt
+getting a feel for how contributing to this project works. 
 
 The guide is split into sections based on the type of contribution you're
 thinking of making, with a section that covers general guidelines for all
@@ -31,13 +25,10 @@ Be Cordial
 
 Pipenv has one very important rule governing all forms of contribution,
 including reporting bugs or requesting features. This golden rule is
-"`be cordial or be on your way`_".
+"be cordial or be on your way".
 
 **All contributions are welcome**, as long as
 everyone involved is treated with respect.
-
-.. _be cordial or be on your way: https://www.kennethreitz.org/essays/be-cordial-or-be-on-your-way
-
 
 .. _early-feedback:
 
@@ -75,10 +66,8 @@ answered promptly and accurately.
 
 .. _Stack Overflow: https://stackoverflow.com/
 
-
 Code Contributions
 ------------------
-
 
 Steps for Submitting Code
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -104,22 +93,14 @@ The following sub-sections go into more detail on some of the points above.
 
 .. _development philosophy: https://pipenv.pypa.io/en/latest/dev/philosophy/
 
-
 .. _dev-setup:
 
 Development Setup
 ~~~~~~~~~~~~~~~~~
 
-To get your development environment setup, run:
+See `CONTRIBUTING.md`_ in the code repository.
 
-.. code-block:: sh
-
-  pip install -e .
-  pipenv install --dev
-
-
-This will install the repository version of Pipenv and then install the development
-dependencies. Once that has completed, you can start developing.
+.. _CONTRIBUTING.md: https://raw.githubusercontent.com/pypa/pipenv/main/CONTRIBUTING.md
 
 The repository version of Pipenv must be installed over other global versions to
 resolve conflicts with the ``pipenv`` folder being implicitly added to ``sys.path``.
@@ -171,7 +152,6 @@ a ``.tar.gz`` or universal wheel is not available, add wheels for all available
 architectures and platforms.
 
 
-
 Documentation Contributions
 ---------------------------
 
@@ -189,7 +169,6 @@ When presenting Python code, use single-quoted strings (``'hello'`` instead of
 
 .. _reStructuredText: http://docutils.sourceforge.net/rst.html
 .. _Sphinx: http://sphinx-doc.org/index.html
-
 
 .. _bug-reports:
 
@@ -243,9 +222,8 @@ Run the tests
 
 Three ways of running the tests are as follows:
 
-1. ``make test`` (which uses ``docker``)
-2. ``./run-tests.sh`` or ``run-tests.bat``
-3. Using pipenv:
+1. ``./run-tests.sh`` or ``run-tests.bat``
+2. Manually, which repeat the steps of the scripts above: 
 
 .. code-block:: console
 
@@ -255,7 +233,24 @@ Three ways of running the tests are as follows:
     $ pipenv install --dev
     $ pipenv run pytest
 
-For the last two, it is important that your environment is setup correctly, and
+The second options assumes you already have ``pipenv`` on your system.
+
+Preferably, you should be running your tests in a linux container
+(or FreeBSD Jail or even VM). This will guarantee that you don't break
+stuff, and that the tests run in a pristine environment.
+
+Consider doing, something like:
+
+```
+$ docker run --rm -v $(pwd):/usr/src -it python:3.7 bash
+# inside the container
+# adduser --disabled-password debian
+# su debian && cd /usr/src/
+# bash run-tests.sh
+```
+
+
+It is important that your environment is setup correctly, and
 this may take some work, for example, on a specific Mac installation, the following
 steps may be needed::
 
