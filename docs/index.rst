@@ -130,7 +130,6 @@ Contribution Guides
 .. toctree::
    :maxdepth: 2
 
-   dev/philosophy
    dev/contributing
 
 Indices and tables
