@@ -222,10 +222,10 @@ Two ways of running the tests are as follows:
 
 1. ``./run-tests.sh`` or ``run-tests.bat``
 
-Note that, you override the default Python pipenv will use with
+Note that, you override the default Python Pipenv will use with
 PIPENV_PYTHON and the Python binary name with PYTHON in case it
 is not called ``python`` on your system or in case you have many.
-Here is an example how you can override both varialbes (you can
+Here is an example how you can override both variables (you can
 override just one too)::
 
    $  PYTHON=python3.8 PIPENV_PYTHON=python3.9 run-tests.sh
@@ -233,6 +233,13 @@ override just one too)::
 You can also do::
 
    $ PYTHON=/opt/python/python3.10/python3 run-tests.sh
+
+If you need to change how pytest is invoked, see how to run the
+test suite manually. The ``run-tests.sh`` script does the same
+steps the Github CI workflow does, and as such it is recommended
+you run it before you open a PR. Taking this second approach,
+will allow you, for example, to run a single test case, or
+``fail fast`` if you need it.
 
 2. Manually, which repeat the steps of the scripts above: 
 
@@ -242,12 +249,12 @@ You can also do::
     $ cd pipenv
     $ git submodule sync && git submodule update --init --recursive
     $ pipenv install --dev
-    $ pipenv run pytest
+    $ pipenv run pytest [--any optional arguments to pytest]
 
 The second options assumes you already have ``pipenv`` on your system.
 And simply repeats all the steps in the script above.
 
-Preferably, you should be running your tests in a linux container
+Preferably, you should be running your tests in a Linux container
 (or FreeBSD Jail or even VM). This will guarantee that you don't break
 stuff, and that the tests run in a pristine environment.
 
@@ -260,7 +267,6 @@ $ docker run --rm -v $(pwd):/usr/src -it python:3.7 bash
 # su debian && cd /usr/src/
 # bash run-tests.sh
 ```
-
 
 It is important that your environment is setup correctly, and
 this may take some work, for example, on a specific Mac installation, the following
