@@ -23,9 +23,11 @@ Be Cordial
 
     **Be cordial or be on your way**. *—Kenneth Reitz*
 
+.. _be cordial or be on your way: https://kennethreitz.org/essays/2013/01/27/be-cordial-or-be-on-your-way
+
 Pipenv has one very important rule governing all forms of contribution,
 including reporting bugs or requesting features. This golden rule is
-"be cordial or be on your way".
+"`be cordial or be on your way`_"
 
 **All contributions are welcome**, as long as
 everyone involved is treated with respect.
@@ -97,10 +99,6 @@ The following sub-sections go into more detail on some of the points above.
 
 Development Setup
 ~~~~~~~~~~~~~~~~~
-
-See `CONTRIBUTING.md`_ in the code repository.
-
-.. _CONTRIBUTING.md: https://raw.githubusercontent.com/pypa/pipenv/main/CONTRIBUTING.md
 
 The repository version of Pipenv must be installed over other global versions to
 resolve conflicts with the ``pipenv`` folder being implicitly added to ``sys.path``.
