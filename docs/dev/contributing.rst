@@ -218,9 +218,22 @@ be aware of the following things when filing bug reports:
 Run the tests
 -------------
 
-Three ways of running the tests are as follows:
+Two ways of running the tests are as follows:
 
 1. ``./run-tests.sh`` or ``run-tests.bat``
+
+Note that, you override the default Python pipenv will use with
+PIPENV_PYTHON and the Python binary name with PYTHON in case it
+is not called ``python`` on your system or in case you have many.
+Here is an example how you can override both varialbes (you can
+override just one too)::
+
+   $  PYTHON=python3.8 PIPENV_PYTHON=python3.9 run-tests.sh
+
+You can also do::
+
+   $ PYTHON=/opt/python/python3.10/python3 run-tests.sh
+
 2. Manually, which repeat the steps of the scripts above: 
 
 .. code-block:: console
@@ -232,6 +245,7 @@ Three ways of running the tests are as follows:
     $ pipenv run pytest
 
 The second options assumes you already have ``pipenv`` on your system.
+And simply repeats all the steps in the script above.
 
 Preferably, you should be running your tests in a linux container
 (or FreeBSD Jail or even VM). This will guarantee that you don't break
