@@ -468,7 +468,7 @@ doing a multi stage build for your application::
 
   USER coolio
 
-  CMD ["/venv/bin/python", "-m", "run.py"]
+  CMD ["./venv/bin/python", "-m", "run.py"]
 
 .. Note::
 
