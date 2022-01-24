@@ -1203,7 +1203,6 @@ def do_init(
                     )
                 )
                 raise exceptions.DeployException
-                sys.exit(1)
             elif (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
                 click.echo(
                     crayons.yellow(fix_utf8(
