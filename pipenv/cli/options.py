@@ -48,7 +48,7 @@ class PipenvGroup(DYMMixin, Group):
 
     def main(self, *args, **kwargs):
         """
-        to add the windows_expand_args option to avoid exceptions on Windows
+        to specify the windows_expand_args option to avoid exceptions on Windows
         see: https://github.com/pallets/click/issues/1901
         """
         return super().main(*args, **kwargs, windows_expand_args=False)
