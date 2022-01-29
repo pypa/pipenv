@@ -291,3 +291,9 @@ sqlalchemy = "<=1.2.3"
             f.write(contents)
         c = p.pipenv('update --pre --outdated')
         assert c.returncode == 0
+
+@pytest.mark.cli
+def test_pipenv_run_with_special_chars(PipenvInstance):
+    with PipenvInstance():
+        c = subprocess_run(["pipenv", "run", "echo", "[3-1]"])
+        assert c.returncode == 0, c.stderr
