@@ -80,7 +80,6 @@ def test_pipenv_clean_windows(PipenvInstance):
         assert c.returncode == 0
         assert 'click' in c.stdout.strip()
 
-
 @pytest.mark.cli
 def test_pipenv_run_with_special_chars_windows(PipenvInstance):
     with PipenvInstance():
