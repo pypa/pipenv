@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from pipenv.utils import subprocess_run
 
 # This module is run only on Windows.
 pytestmark = pytest.mark.skipif(os.name != 'nt', reason="only relevant on windows")
@@ -78,3 +79,10 @@ def test_pipenv_clean_windows(PipenvInstance):
         c = p.pipenv('clean --dry-run')
         assert c.returncode == 0
         assert 'click' in c.stdout.strip()
+
+
+@pytest.mark.cli
+def test_pipenv_run_with_special_chars_windows(PipenvInstance):
+    with PipenvInstance():
+        c = subprocess_run(["pipenv", "run", "echo", "[3-1]"])
+        assert c.returncode == 0, c.stderr
