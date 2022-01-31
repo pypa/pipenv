@@ -46,6 +46,12 @@ class PipenvGroup(DYMMixin, Group):
             help="Show this message and exit.",
         )
 
+    def main(self, *args, **kwargs):
+        """
+        to specify the windows_expand_args option to avoid exceptions on Windows
+        see: https://github.com/pallets/click/issues/1901
+        """
+        return super().main(*args, **kwargs, windows_expand_args=False)
 
 class State:
     def __init__(self):
