@@ -506,7 +506,7 @@ def ensure_project(
     three=None,
     python=None,
     validate=True,
-    in_system=False,
+    system=False,
     warn=True,
     site_packages=None,
     deploy=False,
@@ -518,11 +518,13 @@ def ensure_project(
 
     # Automatically use an activated virtualenv.
     if project.s.PIPENV_USE_SYSTEM or project.virtualenv_exists:
-        in_system = True
+        system_or_exists = True
+    else:
+        system_or_exists = system # default to False
     if not project.pipfile_exists and deploy:
         raise exceptions.PipfileNotFound
     # Skip virtualenv creation when --system was used.
-    if not in_system:
+    if not system_or_exists:
         ensure_virtualenv(
             project,
             three=three,
@@ -563,7 +565,7 @@ def ensure_project(
                         raise exceptions.DeployException
     # Ensure the Pipfile exists.
     ensure_pipfile(
-        project, validate=validate, skip_requirements=skip_requirements, system=in_system
+        project, validate=validate, skip_requirements=skip_requirements, system=system_or_exists
     )
 
 
@@ -1862,7 +1864,7 @@ def do_install(
         project,
         three=three,
         python=python,
-        in_system=system,
+        system=system,
         warn=True,
         deploy=deploy,
         skip_requirements=skip_requirements,
@@ -2835,7 +2837,7 @@ def do_sync(
         three=three,
         python=python,
         validate=False,
-        in_system=system,
+        system=system,
         deploy=deploy,
         pypi_mirror=pypi_mirror,
         clear=clear,
