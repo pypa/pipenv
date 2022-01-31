@@ -483,11 +483,11 @@ def ensure_virtualenv(project, three=None, python=None, site_packages=None, pypi
         # about, so confirm first.
         if "VIRTUAL_ENV" in os.environ:
             if not (
-                project.s.PIPENV_YES or click.confirm("Remove existing virtualenv?", default=True)
+                project.s.PIPENV_YES or click.confirm("Use existing virtualenv?", default=True)
             ):
                 abort()
         click.echo(
-            crayons.normal(fix_utf8("Removing existing virtualenv..."), bold=True), err=True
+            crayons.normal(fix_utf8("Using existing virtualenv..."), bold=True), err=True
         )
         # Remove the virtualenv.
         cleanup_virtualenv(project, bare=True)
@@ -517,12 +517,14 @@ def ensure_project(
     """Ensures both Pipfile and virtualenv exist for the project."""
 
     # Automatically use an activated virtualenv.
-    if project.s.PIPENV_USE_SYSTEM:
-        system = True
+    if project.s.PIPENV_USE_SYSTEM or project.virtualenv_exists:
+        system_or_exists = True
+    else:
+        system_or_exists = system # default to False
     if not project.pipfile_exists and deploy:
         raise exceptions.PipfileNotFound
     # Skip virtualenv creation when --system was used.
-    if not system:
+    if not system_or_exists:
         ensure_virtualenv(
             project,
             three=three,
@@ -563,7 +565,7 @@ def ensure_project(
                         raise exceptions.DeployException
     # Ensure the Pipfile exists.
     ensure_pipfile(
-        project, validate=validate, skip_requirements=skip_requirements, system=system
+        project, validate=validate, skip_requirements=skip_requirements, system=system_or_exists
     )
 
 
