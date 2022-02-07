@@ -1,0 +1,1 @@
+Python versions on Windows can now be installed automatically through pyenv-win
