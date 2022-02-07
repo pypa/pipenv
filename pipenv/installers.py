@@ -191,11 +191,11 @@ class Pyenv(Installer):
         A ValueError is raised if the given version does not have a match in
         pyenv. A InstallerError is raised if the pyenv command fails.
         """
-        c = self._run(
-            'install', '-s', str(version),
-            timeout=self.project.s.PIPENV_INSTALL_TIMEOUT,
-        )
-        return c
+        args = ['install', '-s', str(version)]
+        if Pyenv.WIN:
+            # pyenv-win skips installed versions by default and does not support -s
+            del args[1]
+        return self._run(*args, timeout=self.project.s.PIPENV_INSTALL_TIMEOUT)
 
 
 class Asdf(Installer):
