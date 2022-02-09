@@ -413,7 +413,7 @@ production environments for reproducible builds.
     you can also use ``$ pipenv run pip freeze``.
 
 
-☤ Pipenv and Docker Conatiners
+☤ Pipenv and Docker Containers
 ------------------------------
 
 In general, you should not have Pipenv inside a linux container image, since
