@@ -99,7 +99,7 @@ def normalize_pipfile_path(p):
 os.environ.pop("__PYVENV_LAUNCHER__", None)
 # Internal, to tell whether the command line session is interactive.
 SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
-PIPENV_IS_CI = bool("CI" in os.environ or "TF_BUILD" in os.environ)
+PIPENV_IS_CI = env_to_bool(os.environ.get('CI') or os.environ.get('TF_BUILD') or False)
 PIPENV_COLORBLIND = bool(os.environ.get("PIPENV_COLORBLIND"))
 """If set, disable terminal colors.
 
