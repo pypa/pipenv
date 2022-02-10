@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function
 import os
 
 import pytest
@@ -24,12 +22,12 @@ fake_package = {version = "*", markers="os_name=='splashwear'"}
             f.write(contents)
 
         c = p.pipenv('install')
-        assert c.return_code == 0
-        assert 'Ignoring' in c.out
+        assert c.returncode == 0
+        assert 'Ignoring' in c.stdout
         assert 'markers' in p.lockfile['default']['fake-package'], p.lockfile["default"]
 
         c = p.pipenv('run python -c "import fake_package;"')
-        assert c.return_code == 1
+        assert c.returncode == 1
 
 
 @flaky
@@ -47,7 +45,7 @@ depends-on-marked-package = "*"
             f.write(contents)
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         # depends-on-marked-package has an install_requires of
         # 'pytz; platform_python_implementation=="CPython"'
@@ -58,8 +56,8 @@ depends-on-marked-package = "*"
 
 
 @flaky
-@pytest.mark.run
 @pytest.mark.alt
+@pytest.mark.markers
 @pytest.mark.install
 def test_specific_package_environment_markers(PipenvInstance):
 
@@ -72,13 +70,13 @@ fake-package = {version = "*", os_name = "== 'splashwear'"}
             f.write(contents)
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
-        assert 'Ignoring' in c.out
+        assert 'Ignoring' in c.stdout
         assert 'markers' in p.lockfile['default']['fake-package']
 
         c = p.pipenv('run python -c "import fake_package;"')
-        assert c.return_code == 1
+        assert c.returncode == 1
 
 
 @flaky
@@ -96,7 +94,7 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
             f.write(contents)
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert "markers" in p.lockfile['default']['funcsigs'], p.lockfile['default']['funcsigs']
         assert p.lockfile['default']['funcsigs']['markers'] == "os_name == 'splashwear'", p.lockfile['default']['funcsigs']
 
@@ -121,16 +119,14 @@ funcsigs = "*"
             f.write(contents)
 
         c = p.pipenv('install')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         assert p.lockfile['default']['funcsigs'].get('markers', '') == ''
 
 
 @flaky
-@pytest.mark.lock
+@pytest.mark.markers
 @pytest.mark.complex
-@pytest.mark.py3_only
-@pytest.mark.lte_py36
 def test_resolver_unique_markers(PipenvInstance):
     """vcrpy has a dependency on `yarl` which comes with a marker
     of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
@@ -141,18 +137,21 @@ def test_resolver_unique_markers(PipenvInstance):
     """
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv('install vcrpy==2.0.1')
-        assert c.return_code == 0
-        c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert 'yarl' in p.lockfile['default']
         yarl = p.lockfile['default']['yarl']
         assert 'markers' in yarl
         # Two possible marker sets are ok here
-        assert yarl['markers'] in ["python_version in '3.4, 3.5, 3.6'", "python_version >= '3.4'"]
+        assert yarl['markers'] in [
+            "python_version in '3.4, 3.5, 3.6'",
+            "python_version >= '3.4'",
+            "python_version >= '3.5'",  # yarl 1.3.0 requires python 3.5.3
+        ]
 
 
 @flaky
 @pytest.mark.project
+@pytest.mark.needs_internet
 def test_environment_variable_value_does_not_change_hash(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with temp_environ():
@@ -173,14 +172,14 @@ six = "*"
             assert project.get_lockfile_hash() is None
 
             c = p.pipenv('install')
-            assert c.return_code == 0
+            assert c.returncode == 0
             lock_hash = project.get_lockfile_hash()
             assert lock_hash is not None
             assert lock_hash == project.calculate_pipfile_hash()
 
             # sanity check on pytest
             assert 'PYPI_USERNAME' not in str(pipfile.load(p.pipfile_path))
-            assert c.return_code == 0
+            assert c.returncode == 0
             assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
 
             os.environ['PYPI_PASSWORD'] = 'pass2'

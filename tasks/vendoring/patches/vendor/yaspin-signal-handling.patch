@@ -1,28 +1,24 @@
 diff --git a/pipenv/vendor/yaspin/core.py b/pipenv/vendor/yaspin/core.py
-index d01fb98e..06b8b621 100644
+index 76dc2439..d8a0716c 100644
 --- a/pipenv/vendor/yaspin/core.py
 +++ b/pipenv/vendor/yaspin/core.py
-@@ -16,6 +16,9 @@ import sys
- import threading
- import time
+@@ -19,11 +19,15 @@ import time
+ from typing import List, Set, Union
  
-+import colorama
+ from pipenv.vendor.termcolor import colored
++from pipenv.vendor import colorama
 +from pipenv.vendor.vistir import cursor
-+
- from .base_spinner import default_spinner
- from .compat import PY2, basestring, builtin_str, bytes, iteritems, str
- from .constants import COLOR_ATTRS, COLOR_MAP, ENCODING, SPINNER_ATTRS
-@@ -23,6 +26,9 @@ from .helpers import to_unicode
- from .termcolor import colored
  
+ from .base_spinner import Spinner, default_spinner
+ from .constants import COLOR_ATTRS, COLOR_MAP, SPINNER_ATTRS
+ from .helpers import to_unicode
  
 +colorama.init()
 +
-+
- class Yaspin(object):
+ 
+ class Yaspin:  # pylint: disable=useless-object-inheritance,too-many-instance-attributes
      """Implements a context manager that spawns a thread
-     to write spinner frames into a tty (stdout) during
-@@ -369,11 +375,14 @@ class Yaspin(object):
+@@ -401,11 +405,14 @@ class Yaspin:  # pylint: disable=useless-object-inheritance,too-many-instance-at
          # SIGKILL cannot be caught or ignored, and the receiving
          # process cannot perform any clean-up upon receiving this
          # signal.
@@ -40,9 +36,9 @@ index d01fb98e..06b8b621 100644
 +        except AttributeError:
 +            pass
  
-         for sig, sig_handler in iteritems(self._sigmap):
+         for sig, sig_handler in self._sigmap.items():
              # A handler for a particular signal, once set, remains
-@@ -521,14 +530,12 @@ class Yaspin(object):
+@@ -528,13 +535,11 @@ class Yaspin:  # pylint: disable=useless-object-inheritance,too-many-instance-at
  
      @staticmethod
      def _hide_cursor():
@@ -58,5 +54,3 @@ index d01fb98e..06b8b621 100644
  
      @staticmethod
      def _clear_line():
--        sys.stdout.write("\033[K")
-+        sys.stdout.write(chr(27) + "[K")

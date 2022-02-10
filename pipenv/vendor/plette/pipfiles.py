@@ -3,8 +3,8 @@ from __future__ import unicode_literals
 import hashlib
 import json
 
-import six
-import tomlkit
+import pipenv.vendor.six as six
+import pipenv.vendor.tomlkit as tomlkit
 
 from .models import (
     DataView, Hash, Requires,

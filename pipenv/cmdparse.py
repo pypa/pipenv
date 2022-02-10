@@ -2,8 +2,6 @@ import itertools
 import re
 import shlex
 
-import six
-
 
 class ScriptEmptyError(ValueError):
     pass
@@ -28,7 +26,7 @@ class Script(object):
 
     @classmethod
     def parse(cls, value):
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             value = shlex.split(value)
         if not value:
             raise ScriptEmptyError(value)
@@ -44,6 +42,10 @@ class Script(object):
     @property
     def args(self):
         return self._parts[1:]
+
+    @property
+    def cmd_args(self):
+        return self._parts
 
     def extend(self, extra_args):
         self._parts.extend(extra_args)

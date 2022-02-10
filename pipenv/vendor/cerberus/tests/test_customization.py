@@ -2,9 +2,9 @@
 
 from pytest import mark
 
-import cerberus
-from cerberus.tests import assert_fail, assert_success
-from cerberus.tests.conftest import sample_schema
+import pipenv.vendor.cerberus as cerberus
+from pipenv.vendor.cerberus.tests import assert_fail, assert_success
+from pipenv.vendor.cerberus.tests.conftest import sample_schema
 
 
 def test_contextual_data_preservation():
@@ -28,11 +28,12 @@ def test_contextual_data_preservation():
 def test_docstring_parsing():
     class CustomValidator(cerberus.Validator):
         def _validate_foo(self, argument, field, value):
-            """ {'type': 'zap'} """
+            """{'type': 'zap'}"""
             pass
 
         def _validate_bar(self, value):
-            """ Test the barreness of a value.
+            """
+            Test the barreness of a value.
 
             The rule's arguments are validated against this schema:
                 {'type': 'boolean'}

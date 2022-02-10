@@ -8,7 +8,7 @@
 __all__ = ['Environment', 'findall', 'find', 'findone']
 
 from itertools import count
-from pythonfinder._vendor.pep514tools._registry import open_source, REGISTRY_SOURCE_LM, REGISTRY_SOURCE_LM_WOW6432, REGISTRY_SOURCE_CU
+from pipenv.vendor.pythonfinder._vendor.pep514tools._registry import open_source, REGISTRY_SOURCE_LM, REGISTRY_SOURCE_LM_WOW6432, REGISTRY_SOURCE_CU
 import re
 import sys
 
@@ -16,7 +16,7 @@ import sys
 _PYTHONCORE_COMPATIBILITY_TAGS = {
     '2.0', '2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7',
     '3.0', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7',
-    '3.8'
+    '3.8', '3.9'
 }
 
 _IS_64BIT_OS = None

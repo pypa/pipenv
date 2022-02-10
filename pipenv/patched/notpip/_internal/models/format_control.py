@@ -1,17 +1,21 @@
+from typing import FrozenSet, Optional, Set
+
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-
-if MYPY_CHECK_RUNNING:
-    from typing import Optional, Set, FrozenSet  # noqa: F401
+from pipenv.patched.notpip._internal.exceptions import CommandError
 
 
-class FormatControl(object):
+class FormatControl:
     """Helper for managing formats from which a package can be installed.
     """
 
-    def __init__(self, no_binary=None, only_binary=None):
-        # type: (Optional[Set], Optional[Set]) -> None
+    __slots__ = ["no_binary", "only_binary"]
+
+    def __init__(
+        self,
+        no_binary: Optional[Set[str]] = None,
+        only_binary: Optional[Set[str]] = None
+    ) -> None:
         if no_binary is None:
             no_binary = set()
         if only_binary is None:
@@ -20,13 +24,19 @@ class FormatControl(object):
         self.no_binary = no_binary
         self.only_binary = only_binary
 
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
+        if self.__slots__ != other.__slots__:
+            return False
 
-    def __repr__(self):
+        return all(
+            getattr(self, k) == getattr(other, k)
+            for k in self.__slots__
+        )
+
+    def __repr__(self) -> str:
         return "{}({}, {})".format(
             self.__class__.__name__,
             self.no_binary,
@@ -34,8 +44,11 @@ class FormatControl(object):
         )
 
     @staticmethod
-    def handle_mutual_excludes(value, target, other):
-        # type: (str, Optional[Set], Optional[Set]) -> None
+    def handle_mutual_excludes(value: str, target: Set[str], other: Set[str]) -> None:
+        if value.startswith('-'):
+            raise CommandError(
+                "--no-binary / --only-binary option requires 1 argument."
+            )
         new = value.split(',')
         while ':all:' in new:
             other.clear()
@@ -53,8 +66,7 @@ class FormatControl(object):
             other.discard(name)
             target.add(name)
 
-    def get_allowed_formats(self, canonical_name):
-        # type: (str) -> FrozenSet
+    def get_allowed_formats(self, canonical_name: str) -> FrozenSet[str]:
         result = {"binary", "source"}
         if canonical_name in self.only_binary:
             result.discard('source')
@@ -66,8 +78,7 @@ class FormatControl(object):
             result.discard('binary')
         return frozenset(result)
 
-    def disallow_binaries(self):
-        # type: () -> None
+    def disallow_binaries(self) -> None:
         self.handle_mutual_excludes(
             ':all:', self.no_binary, self.only_binary,
         )

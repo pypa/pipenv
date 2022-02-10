@@ -6,4 +6,4 @@ Pipenv will be governed by a board of maintainers (trusted collaborators to the 
 
 The BDFL retains his title, however, revokes himself of his powers.
 
-PEEP approval will be determined by available members of the board of maintainers, in private or public channels. 
+PEEP approval will be determined by available members of the board of maintainers, in private or public channels.

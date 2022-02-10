@@ -6,14 +6,12 @@ import collections
 import io
 import os
 
-import attr
+import pipenv.vendor.attr as attr
 import packaging.markers
 import packaging.utils
-import plette
+import pipenv.vendor.plette as plette
 import plette.models
-import six
-import tomlkit
-from vistir.compat import FileNotFoundError
+import pipenv.vendor.tomlkit as tomlkit
 
 SectionDifference = collections.namedtuple("SectionDifference", ["inthis", "inthat"])
 FileDifference = collections.namedtuple("FileDifference", ["default", "develop"])
@@ -39,15 +37,14 @@ DEFAULT_NEWLINES = "\n"
 
 
 def preferred_newlines(f):
-    if isinstance(f.newlines, six.text_type):
+    if isinstance(f.newlines, str):
         return f.newlines
     return DEFAULT_NEWLINES
 
 
 @attr.s
 class ProjectFile(object):
-    """A file in the Pipfile project.
-    """
+    """A file in the Pipfile project."""
 
     location = attr.ib()
     line_ending = attr.ib()
@@ -74,7 +71,7 @@ class ProjectFile(object):
             self.model.dump(f)
 
     def dumps(self):
-        strio = six.StringIO()
+        strio = io.StringIO()
         self.model.dump(strio)
         return strio.getvalue()
 
@@ -141,7 +138,7 @@ class Project(object):
         )
 
     def add_line_to_pipfile(self, line, develop):
-        from requirementslib import Requirement
+        from pipenv.vendor.requirementslib import Requirement
 
         requirement = Requirement.from_line(line)
         section = self._get_pipfile_section(develop=develop)

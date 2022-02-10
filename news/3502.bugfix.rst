@@ -1,1 +1,0 @@
-Fix bug causing ``[SSL: CERTIFICATE_VERIFY_FAILED]`` when Pipfile ``[[source]]`` has verify_ssl=false and url with custom port.

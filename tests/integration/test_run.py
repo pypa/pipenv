@@ -1,23 +1,20 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function
 import os
 
 import pytest
 
 from pipenv.project import Project
-from pipenv.utils import temp_environ
+from pipenv.utils import subprocess_run, temp_environ
 
 
 @pytest.mark.run
 @pytest.mark.dotenv
 def test_env(PipenvInstance):
     with PipenvInstance(pipfile=False, chdir=True) as p:
-        with open('.env', 'w') as f:
-            f.write('HELLO=WORLD')
-
-        c = p.pipenv('run python -c "import os; print(os.environ[\'HELLO\'])"')
-        assert c.return_code == 0
-        assert 'WORLD' in c.out
+        with open(os.path.join(p.path, ".env"), "w") as f:
+            f.write("HELLO=WORLD")
+        c = subprocess_run(['pipenv', 'run', 'python', '-c', "import os; print(os.environ['HELLO'])"], env=p.env)
+        assert c.returncode == 0
+        assert 'WORLD' in c.stdout
 
 
 @pytest.mark.run
@@ -36,19 +33,17 @@ multicommand = "bash -c \"cd docs && make html\""
             else:
                 f.write('scriptwithenv = "echo $HELLO"\n')
         c = p.pipenv('install')
-        assert c.return_code == 0
-
+        assert c.returncode == 0
         c = p.pipenv('run printfoo')
-        assert c.return_code == 0
-        assert c.out == 'foo\n'
-        assert c.err == ''
+        assert c.returncode == 0
+        assert c.stdout.splitlines()[0] == 'foo'
+        assert not c.stderr.strip()
 
         c = p.pipenv('run notfoundscript')
-        assert c.return_code == 1
-        assert c.out == ''
+        assert c.returncode != 0
+        assert c.stdout == ''
         if os.name != 'nt':     # TODO: Implement this message for Windows.
-            assert 'Error' in c.err
-            assert 'randomthingtotally (from notfoundscript)' in c.err
+            assert 'not found' in c.stderr
 
         project = Project()
 
@@ -63,6 +58,27 @@ multicommand = "bash -c \"cd docs && make html\""
         with temp_environ():
             os.environ['HELLO'] = 'WORLD'
             c = p.pipenv("run scriptwithenv")
-            assert c.ok
+            assert c.returncode == 0
             if os.name != "nt":  # This doesn't work on CI windows.
-                assert c.out.strip() == "WORLD"
+                assert c.stdout.strip() == "WORLD"
+
+
+@pytest.mark.run
+@pytest.mark.skip_windows
+def test_run_with_usr_env_shebang(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        p.pipenv('install')
+        script_path = os.path.join(p.path, "test_script")
+        with open(script_path, "w") as f:
+            f.write(
+                "#!/usr/bin/env python\n"
+                "import sys, os\n\n"
+                "print(sys.prefix)\n"
+                "print(os.getenv('VIRTUAL_ENV'))\n"
+            )
+        os.chmod(script_path, 0o700)
+        c = p.pipenv("run ./test_script")
+        assert c.returncode == 0
+        project = Project()
+        lines = [line.strip() for line in c.stdout.splitlines()]
+        assert all(line == project.virtualenv_location for line in lines)

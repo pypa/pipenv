@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function
 import json
 import os
 
@@ -8,6 +6,7 @@ import pytest
 from pipenv.utils import temp_environ
 
 
+@pytest.mark.lock
 @pytest.mark.sync
 def test_sync_error_without_lockfile(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
@@ -17,8 +16,8 @@ def test_sync_error_without_lockfile(PipenvInstance):
             """.strip())
 
         c = p.pipenv('sync')
-        assert c.return_code != 0
-        assert 'Pipfile.lock not found!' in c.err
+        assert c.returncode != 0
+        assert 'Pipfile.lock not found!' in c.stderr
 
 
 @pytest.mark.sync
@@ -37,10 +36,10 @@ verify_ssl = true
 [packages]
 six = "*"
             """.strip())
-        c = p.pipenv('lock --pypi-mirror {0}'.format(mirror_url))
-        assert c.return_code == 0
-        c = p.pipenv('sync --pypi-mirror {0}'.format(mirror_url))
-        assert c.return_code == 0
+        c = p.pipenv(f'lock --pypi-mirror {mirror_url}')
+        assert c.returncode == 0
+        c = p.pipenv(f'sync --pypi-mirror {mirror_url}')
+        assert c.returncode == 0
 
 
 @pytest.mark.sync
@@ -56,7 +55,7 @@ def test_sync_should_not_lock(PipenvInstance):
 
         # Perform initial lock.
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
         lockfile_content = p.lockfile
         assert lockfile_content
 
@@ -67,7 +66,7 @@ def test_sync_should_not_lock(PipenvInstance):
 six = "*"
             """.strip())
         c = p.pipenv('sync')
-        assert c.return_code == 0
+        assert c.returncode == 0
         assert lockfile_content == p.lockfile
 
 
@@ -83,7 +82,7 @@ requests = "*"
             f.write(contents)
 
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         # Force hash mismatch when installing `requests`
         lock = p.lockfile
@@ -92,7 +91,7 @@ requests = "*"
             json.dump(lock, f)
 
         c = p.pipenv('sync --sequential')
-        assert c.return_code != 0
+        assert c.returncode != 0
 
 
 @pytest.mark.sync
@@ -107,8 +106,8 @@ requests = "*"
             f.write(contents)
 
         c = p.pipenv('lock')
-        assert c.return_code == 0
+        assert c.returncode == 0
 
         c = p.pipenv('sync --sequential --verbose')
         for package in p.lockfile['default']:
-            assert 'Successfully installed {}'.format(package) in c.out
+            assert f'Successfully installed {package}' in c.stdout

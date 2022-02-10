@@ -7,55 +7,52 @@ import re
 import string
 import sys
 from collections import defaultdict
+from functools import lru_cache
 from itertools import chain, groupby
-from operator import attrgetter
+from pathlib import Path
 
-import six
-import tomlkit
-from attr import validators
-from first import first
-from packaging.markers import InvalidMarker, Marker, Op, Value, Variable
-from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
-from packaging.version import parse as parse_version
-from plette.models import Package, PackageCollection
-from six.moves.urllib import parse as urllib_parse
-from tomlkit.container import Container
-from tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
-from urllib3 import util as urllib3_util
-from vistir.compat import lru_cache
-from vistir.misc import dedup
-from vistir.path import is_valid_url
+import pipenv.vendor.tomlkit as tomlkit
+from pipenv.vendor.attr import validators
+from pipenv.vendor.packaging.markers import InvalidMarker, Marker, Op, Value, Variable
+from pipenv.vendor.packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
+from pipenv.vendor.packaging.version import parse as parse_version
+from pipenv.vendor.plette.models import Package, PackageCollection
+from pipenv.vendor.tomlkit.container import Container
+from pipenv.vendor.tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
+from pipenv.vendor.urllib3 import util as urllib3_util
+from pipenv.vendor.urllib3.util import parse_url as urllib3_parse
+from pipenv.vendor.vistir.misc import dedup
+from pipenv.vendor.vistir.path import is_valid_url
 
 from ..environment import MYPY_RUNNING
 from ..utils import SCHEME_LIST, VCS_LIST, is_star
 
 if MYPY_RUNNING:
+    from typing import Iterable  # noqa
     from typing import (
-        Union,
-        Optional,
-        List,
-        Set,
         Any,
-        TypeVar,
-        Tuple,
-        Sequence,
-        Dict,
-        Text,
         AnyStr,
+        Dict,
+        List,
         Match,
-        Iterable,  # noqa
+        Optional,
+        Sequence,
+        Set,
+        Text,
+        Tuple,
+        TypeVar,
+        Union,
     )
-    from attr import _ValidatorType  # noqa
-    from packaging.requirements import Requirement as PackagingRequirement
+
+    from pipenv.vendor.attr import _ValidatorType  # noqa
+    from pipenv.vendor.packaging.markers import Marker as PkgResourcesMarker
+    from pipenv.vendor.packaging.markers import Op as PkgResourcesOp
+    from pipenv.vendor.packaging.markers import Value as PkgResourcesValue
+    from pipenv.vendor.packaging.markers import Variable as PkgResourcesVariable
+    from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.vendor.pip_shims.shims import Link
     from pkg_resources import Requirement as PkgResourcesRequirement
-    from pkg_resources.extern.packaging.markers import (
-        Op as PkgResourcesOp,
-        Variable as PkgResourcesVariable,
-        Value as PkgResourcesValue,
-        Marker as PkgResourcesMarker,
-    )
-    from pip_shims.shims import Link
-    from vistir.compat import Path
+    from pipenv.vendor.urllib3.util.url import Url
 
     _T = TypeVar("_T")
     TMarker = Union[Marker, PkgResourcesMarker]
@@ -103,6 +100,11 @@ def filter_none(k, v):
     return False
 
 
+def filter_dict(dict_):
+    # type: (Dict[AnyStr, Any]) -> Dict[AnyStr, Any]
+    return {k: v for k, v in dict_.items() if filter_none(k, v)}
+
+
 def optional_instance_of(cls):
     # type: (Any) -> _ValidatorType[Optional[_T]]
     return validators.optional(validators.instance_of(cls))
@@ -111,9 +113,9 @@ def optional_instance_of(cls):
 def create_link(link):
     # type: (AnyStr) -> Link
 
-    if not isinstance(link, six.string_types):
+    if not isinstance(link, str):
         raise TypeError("must provide a string to instantiate a new link")
-    from pip_shims.shims import Link
+    from pipenv.vendor.pip_shims.shims import Link  # noqa: F811
 
     return Link(link)
 
@@ -174,14 +176,13 @@ def tomlkit_dict_to_python(toml_dict):
 
 def get_url_name(url):
     # type: (AnyStr) -> AnyStr
-    """
-    Given a url, derive an appropriate name to use in a pipfile.
+    """Given a url, derive an appropriate name to use in a pipfile.
 
     :param str url: A url to derive a string from
     :returns: The name of the corresponding pipfile entry
     :rtype: Text
     """
-    if not isinstance(url, six.string_types):
+    if not isinstance(url, str):
         raise TypeError("Expected a string, got {0!r}".format(url))
     return urllib3_util.parse_url(url).host
 
@@ -189,7 +190,7 @@ def get_url_name(url):
 def init_requirement(name):
     # type: (AnyStr) -> TRequirement
 
-    if not isinstance(name, six.string_types):
+    if not isinstance(name, str):
         raise TypeError("must supply a name to generate a requirement")
     from pkg_resources import Requirement
 
@@ -203,13 +204,13 @@ def init_requirement(name):
 
 def extras_to_string(extras):
     # type: (Iterable[S]) -> S
-    """Turn a list of extras into a string
+    """Turn a list of extras into a string.
 
     :param List[str]] extras: a list of extras to format
     :return: A string of extras
     :rtype: str
     """
-    if isinstance(extras, six.string_types):
+    if isinstance(extras, str):
         if extras.startswith("["):
             return extras
         else:
@@ -221,7 +222,7 @@ def extras_to_string(extras):
 
 def parse_extras(extras_str):
     # type: (AnyStr) -> List[AnyStr]
-    """Turn a string of extras into a parsed extras list
+    """Turn a string of extras into a parsed extras list.
 
     :param str extras_str: An extras string
     :return: A sorted list of extras
@@ -236,7 +237,7 @@ def parse_extras(extras_str):
 
 def specs_to_string(specs):
     # type: (List[Union[STRING_TYPE, Specifier]]) -> AnyStr
-    """Turn a list of specifier tuples into a string
+    """Turn a list of specifier tuples into a string.
 
     :param List[Union[Specifier, str]] specs: a list of specifiers to format
     :return: A string of specifiers
@@ -244,7 +245,7 @@ def specs_to_string(specs):
     """
 
     if specs:
-        if isinstance(specs, six.string_types):
+        if isinstance(specs, str):
             return specs
         try:
             extras = ",".join(["".join(spec) for spec in specs])
@@ -282,9 +283,31 @@ def build_vcs_uri(
     return uri
 
 
+def _get_parsed_url(url):
+    # type: (S) -> Url
+    """This is a stand-in function for `urllib3.util.parse_url`
+
+    The orignal function doesn't handle special characters very well, this simply splits
+    out the authentication section, creates the parsed url, then puts the authentication
+    section back in, bypassing validation.
+
+    :return: The new, parsed URL object
+    :rtype: :class:`~urllib3.util.url.Url`
+    """
+
+    try:
+        parsed = urllib3_parse(url)
+    except ValueError:
+        scheme, _, url = url.partition("://")
+        auth, _, url = url.rpartition("@")
+        url = "{scheme}://{url}".format(scheme=scheme, url=url)
+        parsed = urllib3_parse(url)._replace(auth=auth)
+    return parsed
+
+
 def convert_direct_url_to_url(direct_url):
     # type: (AnyStr) -> AnyStr
-    """Converts direct URLs to standard, link-style URLs
+    """Converts direct URLs to standard, link-style URLs.
 
     Given a direct url as defined by *PEP 508*, convert to a :class:`~pip_shims.shims.Link`
     compatible URL by moving the name and extras into an **egg_fragment**.
@@ -325,8 +348,7 @@ def convert_direct_url_to_url(direct_url):
 
 def convert_url_to_direct_url(url, name=None):
     # type: (AnyStr, Optional[AnyStr]) -> AnyStr
-    """
-    Converts normal link-style URLs to direct urls.
+    """Converts normal link-style URLs to direct urls.
 
     Given a :class:`~pip_shims.shims.Link` compatible URL, convert to a direct url as
     defined by *PEP 508* by extracting the name and extras from the **egg_fragment**.
@@ -339,7 +361,7 @@ def convert_url_to_direct_url(url, name=None):
     :raises ValueError: Raised when the URL can't be parsed or a name can't be found.
     :raises TypeError: When a non-string input is provided.
     """
-    if not isinstance(url, six.string_types):
+    if not isinstance(url, str):
         raise TypeError(
             "Expected a string to convert to a direct url, got {0!r}".format(url)
         )
@@ -383,15 +405,14 @@ def get_version(pipfile_entry):
             return ""
         return pipfile_entry.get("version", "").strip().lstrip("(").rstrip(")")
 
-    if isinstance(pipfile_entry, six.string_types):
+    if isinstance(pipfile_entry, str):
         return pipfile_entry.strip().lstrip("(").rstrip(")")
     return ""
 
 
 def strip_extras_markers_from_requirement(req):
     # type: (TRequirement) -> TRequirement
-    """
-    Strips extras markers from requirement instances.
+    """Strips extras markers from requirement instances.
 
     Given a :class:`~packaging.requirements.Requirement` instance with markers defining
     *extra == 'name'*, strip out the extras from the markers and return the cleaned
@@ -458,9 +479,8 @@ def get_default_pyproject_backend():
 
 def get_pyproject(path):
     # type: (Union[STRING_TYPE, Path]) -> Optional[Tuple[List[STRING_TYPE], STRING_TYPE]]
-    """
-    Given a base path, look for the corresponding ``pyproject.toml`` file and return its
-    build_requires and build_backend.
+    """Given a base path, look for the corresponding ``pyproject.toml`` file
+    and return its build_requires and build_backend.
 
     :param AnyStr path: The root path of the project, should be a directory (will be truncated)
     :return: A 2 tuple of build requirements and the build backend
@@ -468,7 +488,6 @@ def get_pyproject(path):
     """
     if not path:
         return
-    from vistir.compat import Path
 
     if not isinstance(path, Path):
         path = Path(path)
@@ -483,7 +502,7 @@ def get_pyproject(path):
         backend = get_default_pyproject_backend()
     else:
         pyproject_data = {}
-        with io.open(pp_toml.as_posix(), encoding="utf-8") as fh:
+        with open(pp_toml.as_posix(), encoding="utf-8") as fh:
             pyproject_data = tomlkit.loads(fh.read())
         build_system = pyproject_data.get("build-system", None)
         if build_system is None:
@@ -503,7 +522,7 @@ def get_pyproject(path):
 
 def split_markers_from_line(line):
     # type: (AnyStr) -> Tuple[AnyStr, Optional[AnyStr]]
-    """Split markers from a dependency"""
+    """Split markers from a dependency."""
     quote_chars = ["'", '"']
     line_quote = next(
         iter(quote for quote in quote_chars if line.startswith(quote)), None
@@ -525,8 +544,9 @@ def split_vcs_method_from_uri(uri):
     # type: (AnyStr) -> Tuple[Optional[STRING_TYPE], STRING_TYPE]
     """Split a vcs+uri formatted uri into (vcs, uri)"""
     vcs_start = "{0}+"
-    vcs = None  # type: Optional[STRING_TYPE]
-    vcs = first([vcs for vcs in VCS_LIST if uri.startswith(vcs_start.format(vcs))])
+    vcs = next(
+        iter([vcs for vcs in VCS_LIST if uri.startswith(vcs_start.format(vcs))]), None
+    )
     if vcs:
         vcs, uri = uri.split("+", 1)
     return vcs, uri
@@ -534,23 +554,23 @@ def split_vcs_method_from_uri(uri):
 
 def split_ref_from_uri(uri):
     # type: (AnyStr) -> Tuple[AnyStr, Optional[AnyStr]]
-    """
-    Given a path or URI, check for a ref and split it from the path if it is present,
-    returning a tuple of the original input and the ref or None.
+    """Given a path or URI, check for a ref and split it from the path if it is
+    present, returning a tuple of the original input and the ref or None.
 
     :param AnyStr uri: The path or URI to split
     :returns: A 2-tuple of the path or URI and the ref
     :rtype: Tuple[AnyStr, Optional[AnyStr]]
     """
-    if not isinstance(uri, six.string_types):
+    if not isinstance(uri, str):
         raise TypeError("Expected a string, received {0!r}".format(uri))
-    parsed = urllib_parse.urlparse(uri)
-    path = parsed.path
+    parsed = _get_parsed_url(uri)
+    path = parsed.path if parsed.path else ""
+    scheme = parsed.scheme if parsed.scheme else ""
     ref = None
-    if parsed.scheme != "file" and "@" in path:
+    if scheme != "file" and "@" in path:
         path, _, ref = path.rpartition("@")
     parsed = parsed._replace(path=path)
-    return (urllib_parse.urlunparse(parsed), ref)
+    return (parsed.url, ref)
 
 
 def validate_vcs(instance, attr_, value):
@@ -694,7 +714,7 @@ def get_pinned_version(ireq):
     except AttributeError:
         raise TypeError("Expected InstallRequirement, not {}".format(type(ireq).__name__))
 
-    if ireq.editable:
+    if getattr(ireq, "editable", False):
         raise ValueError("InstallRequirement is editable")
     if not specifier:
         raise ValueError("InstallRequirement has no version specification")
@@ -709,8 +729,7 @@ def get_pinned_version(ireq):
 
 
 def is_pinned_requirement(ireq):
-    """
-    Returns whether an InstallRequirement is a "pinned" requirement.
+    """Returns whether an InstallRequirement is a "pinned" requirement.
 
     An InstallRequirement is considered pinned if:
 
@@ -734,38 +753,32 @@ def is_pinned_requirement(ireq):
 
 
 def as_tuple(ireq):
-    """
-    Pulls out the (name: str, version:str, extras:(str)) tuple from the pinned InstallRequirement.
-    """
+    """Pulls out the (name: str, version:str, extras:(str)) tuple from the
+    pinned InstallRequirement."""
 
     if not is_pinned_requirement(ireq):
         raise TypeError("Expected a pinned InstallRequirement, got {}".format(ireq))
 
     name = key_from_req(ireq.req)
-    version = first(ireq.specifier._specs)._spec[1]
+    version = next(iter(ireq.specifier._specs))._spec[1]
     extras = tuple(sorted(ireq.extras))
     return name, version, extras
 
 
 def full_groupby(iterable, key=None):
-    """
-    Like groupby(), but sorts the input on the group key first.
-    """
+    """Like groupby(), but sorts the input on the group key first."""
 
     return groupby(sorted(iterable, key=key), key=key)
 
 
 def flat_map(fn, collection):
-    """
-    Map a function over a collection and flatten the result by one-level
-    """
+    """Map a function over a collection and flatten the result by one-level."""
 
     return chain.from_iterable(map(fn, collection))
 
 
 def lookup_table(values, key=None, keyval=None, unique=False, use_lists=False):
-    """
-    Builds a dict-based lookup table (index) elegantly.
+    """Builds a dict-based lookup table (index) elegantly.
 
     Supports building normal and unique lookup tables.  For example:
 
@@ -826,7 +839,7 @@ def lookup_table(values, key=None, keyval=None, unique=False, use_lists=False):
 
 
 def name_from_req(req):
-    """Get the name of the requirement"""
+    """Get the name of the requirement."""
     if hasattr(req, "project_name"):
         # from pkg_resources, such as installed dists for pip-sync
         return req.project_name
@@ -838,8 +851,7 @@ def name_from_req(req):
 def make_install_requirement(
     name, version=None, extras=None, markers=None, constraint=False
 ):
-    """
-    Generates an :class:`~pip._internal.req.req_install.InstallRequirement`.
+    """Generates an :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`.
 
     Create an InstallRequirement from the supplied metadata.
 
@@ -854,11 +866,11 @@ def make_install_requirement(
     :param constraint: Whether to flag the requirement as a constraint, defaults to False.
     :param constraint: bool, optional
     :return: A generated InstallRequirement
-    :rtype: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :rtype: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
     """
 
     # If no extras are specified, the extras string is blank
-    from pip_shims.shims import install_req_from_line
+    from pipenv.vendor.pip_shims.shims import install_req_from_line
 
     extras_string = ""
     requirement_string = "{0}".format(name)
@@ -874,27 +886,37 @@ def make_install_requirement(
 
 
 def version_from_ireq(ireq):
-    """version_from_ireq Extract the version from a supplied :class:`~pip._internal.req.req_install.InstallRequirement`
+    """version_from_ireq Extract the version from a supplied
+    :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
 
     :param ireq: An InstallRequirement
-    :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
     :return: The version of the InstallRequirement.
     :rtype: str
     """
 
-    return first(ireq.specifier._specs).version
+    return next(iter(ireq.specifier._specs)).version
+
+
+def _get_requires_python(candidate):
+    # type: (Any) -> str
+    requires_python = getattr(candidate, "requires_python", None)
+    if requires_python is not None:
+        link = getattr(candidate, "location", getattr(candidate, "link", None))
+        requires_python = getattr(link, "requires_python", None)
+    return requires_python
 
 
 def clean_requires_python(candidates):
-    """Get a cleaned list of all the candidates with valid specifiers in the `requires_python` attributes."""
+    """Get a cleaned list of all the candidates with valid specifiers in the
+    `requires_python` attributes."""
     all_candidates = []
     sys_version = ".".join(map(str, sys.version_info[:3]))
-    from packaging.version import parse as parse_version
+    from pipenv.vendor.packaging.version import parse as parse_version
 
     py_version = parse_version(os.environ.get("PIP_PYTHON_VERSION", sys_version))
     for c in candidates:
-        from_location = attrgetter("location.requires_python")
-        requires_python = getattr(c, "requires_python", from_location(c))
+        requires_python = _get_requires_python(c)
         if requires_python:
             # Old specifications had people setting this to single digits
             # which is effectively the same as '>=digit,<digit+1'
@@ -914,7 +936,7 @@ def clean_requires_python(candidates):
 
 
 def fix_requires_python_marker(requires_python):
-    from packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
 
     marker_str = ""
     if any(requires_python.startswith(op) for op in Specifier._operators.keys()):
@@ -948,25 +970,24 @@ def normalize_name(pkg):
     :rtype: AnyStr
     """
 
-    assert isinstance(pkg, six.string_types)
+    assert isinstance(pkg, str)
     return pkg.replace("_", "-").lower()
 
 
 def get_name_variants(pkg):
     # type: (STRING_TYPE) -> Set[STRING_TYPE]
-    """
-    Given a packager name, get the variants of its name for both the canonicalized
-    and "safe" forms.
+    """Given a packager name, get the variants of its name for both the
+    canonicalized and "safe" forms.
 
     :param AnyStr pkg: The package to lookup
     :returns: A list of names.
     :rtype: Set
     """
 
-    if not isinstance(pkg, six.string_types):
+    if not isinstance(pkg, str):
         raise TypeError("must provide a string to derive package names")
+    from pipenv.vendor.packaging.utils import canonicalize_name
     from pkg_resources import safe_name
-    from packaging.utils import canonicalize_name
 
     pkg = pkg.lower()
     names = {safe_name(pkg), canonicalize_name(pkg), pkg.replace("-", "_")}
@@ -975,20 +996,33 @@ def get_name_variants(pkg):
 
 def read_source(path, encoding="utf-8"):
     # type: (S, S) -> S
-    """
-    Read a source file and get the contents with proper encoding for Python 2/3.
+    """Read a source file and get the contents with proper encoding for Python
+    2/3.
 
     :param AnyStr path: the file path
     :param AnyStr encoding: the encoding that defaults to UTF-8
     :returns: The contents of the source file
     :rtype: AnyStr
     """
-    if six.PY3:
-        with open(path, "r", encoding=encoding) as fp:
-            return fp.read()
-    else:
-        with open(path, "r") as fp:
-            return fp.read()
+    with open(path, "r", encoding=encoding) as fp:
+        return fp.read()
+
+
+def expand_env_variables(line):
+    # type: (AnyStr) -> AnyStr
+    """Expand the env vars in a line following pip's standard.
+    https://pip.pypa.io/en/stable/reference/pip_install/#id10.
+
+    Matches environment variable-style values in '${MY_VARIABLE_1}' with
+    the variable name consisting of only uppercase letters, digits or
+    the '_'
+    """
+
+    def replace_with_env(match):
+        value = os.getenv(match.group(1))
+        return value if value else match.group()
+
+    return re.sub(r"\$\{([A-Z0-9_]+)\}", replace_with_env, line)
 
 
 SETUPTOOLS_SHIM = (

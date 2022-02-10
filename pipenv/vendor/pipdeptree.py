@@ -1,58 +1,39 @@
 from __future__ import print_function
 import os
+import inspect
 import sys
+import subprocess
 from itertools import chain
-from collections import defaultdict
+from collections import defaultdict, deque
 import argparse
 from operator import attrgetter
 import json
 from importlib import import_module
+import tempfile
 
 try:
     from collections import OrderedDict
 except ImportError:
     from ordereddict import OrderedDict
 
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
+
 pardir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(pardir)
-from pipenv.vendor.pip_shims import get_installed_distributions, FrozenRequirement
+from pipenv.vendor.pip_shims.shims import get_installed_distributions, FrozenRequirement
 
 import pkg_resources
 # inline:
 # from graphviz import backend, Digraph
 
 
-__version__ = '0.13.2'
+__version__ = '2.0.0'
 
 
 flatten = chain.from_iterable
-
-
-def build_dist_index(pkgs):
-    """Build an index pkgs by their key as a dict.
-
-    :param list pkgs: list of pkg_resources.Distribution instances
-    :returns: index of the pkgs by the pkg key
-    :rtype: dict
-
-    """
-    return dict((p.key, DistPackage(p)) for p in pkgs)
-
-
-def construct_tree(index):
-    """Construct tree representation of the pkgs from the index.
-
-    The keys of the dict representing the tree will be objects of type
-    DistPackage and the values will be list of ReqPackage objects.
-
-    :param dict index: dist index ie. index of pkgs by their keys
-    :returns: tree of pkgs and their dependencies
-    :rtype: dict
-
-    """
-    return dict((p, [ReqPackage(r, index.get(r.key))
-                     for r in p.requires()])
-                for p in index.values())
 
 
 def sorted_tree(tree):
@@ -72,44 +53,6 @@ def sorted_tree(tree):
                               key=lambda kv: kv[0].key))
 
 
-def find_tree_root(tree, key):
-    """Find a root in a tree by it's key
-
-    :param dict tree: the pkg dependency tree obtained by calling
-                     `construct_tree` function
-    :param str key: key of the root node to find
-    :returns: a root node if found else None
-    :rtype: mixed
-
-    """
-    result = [p for p in tree.keys() if p.key == key]
-    assert len(result) in [0, 1]
-    return None if len(result) == 0 else result[0]
-
-
-def reverse_tree(tree):
-    """Reverse the dependency tree.
-
-    ie. the keys of the resulting dict are objects of type
-    ReqPackage and the values are lists of DistPackage objects.
-
-    :param dict tree: the pkg dependency tree obtained by calling
-                      `construct_tree` function
-    :returns: reversed tree
-    :rtype: dict
-
-    """
-    rtree = defaultdict(list)
-    child_keys = set(c.key for c in flatten(tree.values()))
-    for k, vs in tree.items():
-        for v in vs:
-            node = find_tree_root(rtree, v.key) or v
-            rtree[node].append(k.as_required_by(v))
-        if k.key not in child_keys:
-            rtree[k.as_requirement()] = []
-    return rtree
-
-
 def guess_version(pkg_key, default='?'):
     """Guess the version of a pkg when pip doesn't provide it
 
@@ -124,7 +67,11 @@ def guess_version(pkg_key, default='?'):
     except ImportError:
         return default
     else:
-        return getattr(m, '__version__', default)
+        v = getattr(m, '__version__', default)
+        if inspect.ismodule(v):
+            return getattr(v, '__version__', default)
+        else:
+            return v
 
 
 def frozen_req_from_dist(dist):
@@ -208,16 +155,21 @@ class DistPackage(Package):
         """Return a ReqPackage representation of this DistPackage"""
         return ReqPackage(self._obj.as_requirement(), dist=self)
 
-    def as_required_by(self, req):
+    def as_parent_of(self, req):
         """Return a DistPackage instance associated to a requirement
 
-        This association is necessary for displaying the tree in
-        reverse.
+        This association is necessary for reversing the PackageDAG.
+
+        If `req` is None, and the `req` attribute of the current
+        instance is also None, then the same instance will be
+        returned.
 
         :param ReqPackage req: the requirement to associate with
         :returns: DistPackage instance
 
         """
+        if req is None and self.req is None:
+            return self
         return self.__class__(self._obj, req)
 
     def as_dict(self):
@@ -250,6 +202,10 @@ class ReqPackage(Package):
         if not self.dist:
             return guess_version(self.key, self.UNKNOWN_VERSION)
         return self.dist.version
+
+    @property
+    def is_missing(self):
+        return self.installed_version == self.UNKNOWN_VERSION
 
     def is_conflicting(self):
         """If installed version conflicts with required version"""
@@ -285,42 +241,258 @@ class ReqPackage(Package):
                 'required_version': self.version_spec}
 
 
-def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=None):
-    """Convert tree to string representation
+class PackageDAG(Mapping):
+    """Representation of Package dependencies as directed acyclic graph
+    using a dict (Mapping) as the underlying datastructure.
+
+    The nodes and their relationships (edges) are internally
+    stored using a map as follows,
+
+    {a: [b, c],
+     b: [d],
+     c: [d, e],
+     d: [e],
+     e: [],
+     f: [b],
+     g: [e, f]}
+
+    Here, node `a` has 2 children nodes `b` and `c`. Consider edge
+    direction from `a` -> `b` and `a` -> `c` respectively.
+
+    A node is expected to be an instance of a subclass of
+    `Package`. The keys are must be of class `DistPackage` and each
+    item in values must be of class `ReqPackage`. (See also
+    ReversedPackageDAG where the key and value types are
+    interchanged).
+
+    """
+
+    @classmethod
+    def from_pkgs(cls, pkgs):
+        pkgs = [DistPackage(p) for p in pkgs]
+        idx = {p.key: p for p in pkgs}
+        m = {p: [ReqPackage(r, idx.get(r.key))
+                 for r in p.requires()]
+             for p in pkgs}
+        return cls(m)
+
+    def __init__(self, m):
+        """Initialize the PackageDAG object
+
+        :param dict m: dict of node objects (refer class docstring)
+        :returns: None
+        :rtype: NoneType
+
+        """
+        self._obj = m
+        self._index = {p.key: p for p in list(self._obj)}
+
+    def get_node_as_parent(self, node_key):
+        """Get the node from the keys of the dict representing the DAG.
+
+        This method is useful if the dict representing the DAG
+        contains different kind of objects in keys and values. Use
+        this method to lookup a node obj as a parent (from the keys of
+        the dict) given a node key.
+
+        :param node_key: identifier corresponding to key attr of node obj
+        :returns: node obj (as present in the keys of the dict)
+        :rtype: Object
+
+        """
+        try:
+            return self._index[node_key]
+        except KeyError:
+            return None
+
+    def get_children(self, node_key):
+        """Get child nodes for a node by it's key
+
+        :param str node_key: key of the node to get children of
+        :returns: list of child nodes
+        :rtype: ReqPackage[]
+
+        """
+        node = self.get_node_as_parent(node_key)
+        return self._obj[node] if node else []
+
+    def filter(self, include, exclude):
+        """Filters nodes in a graph by given parameters
+
+        If a node is included, then all it's children are also
+        included.
+
+        :param set include: set of node keys to include (or None)
+        :param set exclude: set of node keys to exclude (or None)
+        :returns: filtered version of the graph
+        :rtype: PackageDAG
+
+        """
+        # If neither of the filters are specified, short circuit
+        if include is None and exclude is None:
+            return self
+
+        # Note: In following comparisons, we use lower cased values so
+        # that user may specify `key` or `project_name`. As per the
+        # documentation, `key` is simply
+        # `project_name.lower()`. Refer:
+        # https://setuptools.readthedocs.io/en/latest/pkg_resources.html#distribution-objects
+        if include:
+            include = set([s.lower() for s in include])
+        if exclude:
+            exclude = set([s.lower() for s in exclude])
+        else:
+            exclude = set([])
+
+        # Check for mutual exclusion of show_only and exclude sets
+        # after normalizing the values to lowercase
+        if include and exclude:
+            assert not (include & exclude)
+
+        # Traverse the graph in a depth first manner and filter the
+        # nodes according to `show_only` and `exclude` sets
+        stack = deque()
+        m = {}
+        seen = set([])
+        for node in self._obj.keys():
+            if node.key in exclude:
+                continue
+            if include is None or node.key in include:
+                stack.append(node)
+            while True:
+                if len(stack) > 0:
+                    n = stack.pop()
+                    cldn = [c for c in self._obj[n]
+                            if c.key not in exclude]
+                    m[n] = cldn
+                    seen.add(n.key)
+                    for c in cldn:
+                        if c.key not in seen:
+                            cld_node = self.get_node_as_parent(c.key)
+                            if cld_node:
+                                stack.append(cld_node)
+                            else:
+                                # It means there's no root node
+                                # corresponding to the child node
+                                # ie. a dependency is missing
+                                continue
+                else:
+                    break
+
+        return self.__class__(m)
+
+    def reverse(self):
+        """Reverse the DAG, or turn it upside-down
+
+        In other words, the directions of edges of the nodes in the
+        DAG will be reversed.
+
+        Note that this function purely works on the nodes in the
+        graph. This implies that to perform a combination of filtering
+        and reversing, the order in which `filter` and `reverse`
+        methods should be applied is important. For eg. if reverse is
+        called on a filtered graph, then only the filtered nodes and
+        it's children will be considered when reversing. On the other
+        hand, if filter is called on reversed DAG, then the definition
+        of "child" nodes is as per the reversed DAG.
+
+        :returns: DAG in the reversed form
+        :rtype: ReversedPackageDAG
+
+        """
+        m = defaultdict(list)
+        child_keys = set(r.key for r in flatten(self._obj.values()))
+        for k, vs in self._obj.items():
+            for v in vs:
+                # if v is already added to the dict, then ensure that
+                # we are using the same object. This check is required
+                # as we're using array mutation
+                try:
+                    node = [p for p in m.keys() if p.key == v.key][0]
+                except IndexError:
+                    node = v
+                m[node].append(k.as_parent_of(v))
+            if k.key not in child_keys:
+                m[k.as_requirement()] = []
+        return ReversedPackageDAG(dict(m))
+
+    def sort(self):
+        """Return sorted tree in which the underlying _obj dict is an
+        OrderedDict, sorted alphabetically by the keys
+
+        :returns: Instance of same class with OrderedDict
+
+        """
+        return self.__class__(sorted_tree(self._obj))
+
+    # Methods required by the abstract base class Mapping
+    def __getitem__(self, *args):
+        return self._obj.get(*args)
+
+    def __iter__(self):
+        return self._obj.__iter__()
+
+    def __len__(self):
+        return len(self._obj)
+
+
+class ReversedPackageDAG(PackageDAG):
+    """Representation of Package dependencies in the reverse
+    order.
+
+    Similar to it's super class `PackageDAG`, the underlying
+    datastructure is a dict, but here the keys are expected to be of
+    type `ReqPackage` and each item in the values of type
+    `DistPackage`.
+
+    Typically, this object will be obtained by calling
+    `PackageDAG.reverse`.
+
+    """
+
+    def reverse(self):
+        """Reverse the already reversed DAG to get the PackageDAG again
+
+        :returns: reverse of the reversed DAG
+        :rtype: PackageDAG
+
+        """
+        m = defaultdict(list)
+        child_keys = set(r.key for r in flatten(self._obj.values()))
+        for k, vs in self._obj.items():
+            for v in vs:
+                try:
+                    node = [p for p in m.keys() if p.key == v.key][0]
+                except IndexError:
+                    node = v.as_parent_of(None)
+                m[node].append(k)
+            if k.key not in child_keys:
+                m[k.dist] = []
+        return PackageDAG(dict(m))
+
+
+def render_text(tree, list_all=True, frozen=False):
+    """Print tree as text on console
 
     :param dict tree: the package tree
     :param bool list_all: whether to list all the pgks at the root
                           level or only those that are the
                           sub-dependencies
-    :param set show_only: set of select packages to be shown in the
-                          output. This is optional arg, default: None.
     :param bool frozen: whether or not show the names of the pkgs in
                         the output that's favourable to pip --freeze
-    :param set exclude: set of select packages to be excluded from the
-                          output. This is optional arg, default: None.
-    :returns: string representation of the tree
-    :rtype: str
+    :returns: None
 
     """
-    tree = sorted_tree(tree)
-    branch_keys = set(r.key for r in flatten(tree.values()))
+    tree = tree.sort()
     nodes = tree.keys()
+    branch_keys = set(r.key for r in flatten(tree.values()))
     use_bullets = not frozen
 
-    key_tree = dict((k.key, v) for k, v in tree.items())
-    get_children = lambda n: key_tree.get(n.key, [])
-
-    if show_only:
-        nodes = [p for p in nodes
-                 if p.key in show_only or p.project_name in show_only]
-    elif not list_all:
+    if not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
 
     def aux(node, parent=None, indent=0, chain=None):
-        if exclude and (node.key in exclude or node.project_name in exclude):
-            return []
-        if chain is None:
-            chain = [node.project_name]
+        chain = chain or []
         node_str = node.render(parent, frozen)
         if parent:
             prefix = ' '*indent + ('- ' if use_bullets else '')
@@ -328,13 +500,13 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False, exclude=None)
         result = [node_str]
         children = [aux(c, node, indent=indent+2,
                         chain=chain+[c.project_name])
-                    for c in get_children(node)
+                    for c in tree.get_children(node.key)
                     if c.project_name not in chain]
         result += list(flatten(children))
         return result
 
     lines = flatten([aux(p) for p in nodes])
-    return '\n'.join(lines)
+    print('\n'.join(lines))
 
 
 def render_json(tree, indent):
@@ -372,11 +544,9 @@ def render_json_tree(tree, indent):
     :rtype: str
 
     """
-    tree = sorted_tree(tree)
+    tree = tree.sort()
     branch_keys = set(r.key for r in flatten(tree.values()))
     nodes = [p for p in tree.keys() if p.key not in branch_keys]
-    key_tree = dict((k.key, v) for k, v in tree.items())
-    get_children = lambda n: key_tree.get(n.key, [])
 
     def aux(node, parent=None, chain=None):
         if chain is None:
@@ -390,7 +560,7 @@ def render_json_tree(tree, indent):
 
         d['dependencies'] = [
             aux(c, parent=node, chain=chain+[c.project_name])
-            for c in get_children(node)
+            for c in tree.get_children(node.key)
             if c.project_name not in chain
         ]
 
@@ -399,7 +569,7 @@ def render_json_tree(tree, indent):
     return json.dumps([aux(p) for p in nodes], indent=indent)
 
 
-def dump_graphviz(tree, output_format='dot'):
+def dump_graphviz(tree, output_format='dot', is_reverse=False):
     """Output dependency graph as one of the supported GraphViz output formats.
 
     :param dict tree: dependency graph
@@ -423,15 +593,30 @@ def dump_graphviz(tree, output_format='dot'):
         sys.exit(1)
 
     graph = Digraph(format=output_format)
-    for package, deps in tree.items():
-        project_name = package.project_name
-        label = '{0}\n{1}'.format(project_name, package.version)
-        graph.node(project_name, label=label)
-        for dep in deps:
-            label = dep.version_spec
-            if not label:
-                label = 'any'
-            graph.edge(project_name, dep.project_name, label=label)
+
+    if not is_reverse:
+        for pkg, deps in tree.items():
+            pkg_label = '{0}\\n{1}'.format(pkg.project_name, pkg.version)
+            graph.node(pkg.key, label=pkg_label)
+            for dep in deps:
+                edge_label = dep.version_spec or 'any'
+                if dep.is_missing:
+                    dep_label = '{0}\\n(missing)'.format(dep.project_name)
+                    graph.node(dep.key, label=dep_label, style='dashed')
+                    graph.edge(pkg.key, dep.key, style='dashed')
+                else:
+                    graph.edge(pkg.key, dep.key, label=edge_label)
+    else:
+        for dep, parents in tree.items():
+            dep_label = '{0}\\n{1}'.format(dep.project_name,
+                                          dep.installed_version)
+            graph.node(dep.key, label=dep_label)
+            for parent in parents:
+                # req reference of the dep associated with this
+                # particular parent package
+                req_ref = parent.req
+                edge_label = req_ref.version_spec or 'any'
+                graph.edge(dep.key, parent.key, label=edge_label)
 
     # Allow output of dot format, even if GraphViz isn't installed.
     if output_format == 'dot':
@@ -476,23 +661,51 @@ def conflicting_deps(tree):
     return conflicting
 
 
+def render_conflicts_text(conflicts):
+    if conflicts:
+        print('Warning!!! Possibly conflicting dependencies found:',
+              file=sys.stderr)
+        # Enforce alphabetical order when listing conflicts
+        pkgs = sorted(conflicts.keys(), key=attrgetter('key'))
+        for p in pkgs:
+            pkg = p.render_as_root(False)
+            print('* {}'.format(pkg), file=sys.stderr)
+            for req in conflicts[p]:
+                req_str = req.render_as_branch(False)
+                print(' - {}'.format(req_str), file=sys.stderr)
+
+
 def cyclic_deps(tree):
     """Return cyclic dependencies as list of tuples
 
-    :param list pkgs: pkg_resources.Distribution instances
-    :param dict pkg_index: mapping of pkgs with their respective keys
+    :param PackageDAG pkgs: package tree/dag
     :returns: list of tuples representing cyclic dependencies
-    :rtype: generator
+    :rtype: list
 
     """
-    key_tree = dict((k.key, v) for k, v in tree.items())
-    get_children = lambda n: key_tree.get(n.key, [])
+    index = {p.key: set([r.key for r in rs]) for p, rs in tree.items()}
     cyclic = []
     for p, rs in tree.items():
-        for req in rs:
-            if p.key in map(attrgetter('key'), get_children(req)):
-                cyclic.append((p, req, p))
+        for r in rs:
+            if p.key in index.get(r.key, []):
+                p_as_dep_of_r = [x for x
+                                 in tree.get(tree.get_node_as_parent(r.key))
+                                 if x.key == p.key][0]
+                cyclic.append((p, r, p_as_dep_of_r))
     return cyclic
+
+
+def render_cycles_text(cycles):
+    if cycles:
+        print('Warning!! Cyclic dependencies found:', file=sys.stderr)
+        # List in alphabetical order of the dependency that's cycling
+        # (2nd item in the tuple)
+        cycles = sorted(cycles, key=lambda xs: xs[1].key)
+        for a, b, c in cycles:
+            print('* {0} => {1} => {2}'.format(a.project_name,
+                                               b.project_name,
+                                               c.project_name),
+                  file=sys.stderr)
 
 
 def get_parser():
@@ -503,6 +716,9 @@ def get_parser():
                         version='{0}'.format(__version__))
     parser.add_argument('-f', '--freeze', action='store_true',
                         help='Print names so as to write freeze files')
+    parser.add_argument('--python', default=sys.executable,
+                        help='Python to use to look for packages in it (default: where'
+                             ' installed)')
     parser.add_argument('-a', '--all', action='store_true',
                         help='list all deps at top level')
     parser.add_argument('-l', '--local-only',
@@ -567,66 +783,92 @@ def _get_args():
     return parser.parse_args()
 
 
+def handle_non_host_target(args):
+    of_python = os.path.abspath(args.python)
+    # if target is not current python re-invoke it under the actual host
+    if of_python != os.path.abspath(sys.executable):
+        # there's no way to guarantee that graphviz is available, so refuse
+        if args.output_format:
+            print("graphviz functionality is not supported when querying"
+                  " non-host python", file=sys.stderr)
+            raise SystemExit(1)
+        argv = sys.argv[1:]  # remove current python executable
+        for py_at, value in enumerate(argv):
+            if value == "--python":
+                del argv[py_at]
+                del argv[py_at]
+            elif value.startswith("--python"):
+                del argv[py_at]
+        # feed the file as argument, instead of file
+        # to avoid adding the file path to sys.path, that can affect result
+        file_path = inspect.getsourcefile(sys.modules[__name__])
+        with open(file_path, 'rt') as file_handler:
+            content = file_handler.read()
+        cmd = [of_python, "-c", content]
+        cmd.extend(argv)
+        # invoke from an empty folder to avoid cwd altering sys.path
+        cwd = tempfile.mkdtemp()
+        try:
+            return subprocess.call(cmd, cwd=cwd)
+        finally:
+            os.removedirs(cwd)
+    return None
+
+
 def main():
     args = _get_args()
+    result = handle_non_host_target(args)
+    if result is not None:
+        return result
     pkgs = get_installed_distributions(local_only=args.local_only,
                                        user_only=args.user_only)
 
-    dist_index = build_dist_index(pkgs)
-    tree = construct_tree(dist_index)
+    tree = PackageDAG.from_pkgs(pkgs)
 
-    if args.json:
-        print(render_json(tree, indent=4))
-        return 0
-    elif args.json_tree:
-        print(render_json_tree(tree, indent=4))
-        return 0
-    elif args.output_format:
-        output = dump_graphviz(tree, output_format=args.output_format)
-        print_graphviz(output)
-        return 0
+    is_text_output = not any([args.json, args.json_tree, args.output_format])
 
     return_code = 0
 
-    # show warnings about possibly conflicting deps if found and
-    # warnings are enabled
-    if args.warn != 'silence':
-        conflicting = conflicting_deps(tree)
-        if conflicting:
-            print('Warning!!! Possibly conflicting dependencies found:',
-                  file=sys.stderr)
-            for p, reqs in conflicting.items():
-                pkg = p.render_as_root(False)
-                print('* {}'.format(pkg), file=sys.stderr)
-                for req in reqs:
-                    req_str = req.render_as_branch(False)
-                    print(' - {}'.format(req_str), file=sys.stderr)
+    # Before any reversing or filtering, show warnings to console
+    # about possibly conflicting or cyclic deps if found and warnings
+    # are enabled (ie. only if output is to be printed to console)
+    if is_text_output and args.warn != 'silence':
+        conflicts = conflicting_deps(tree)
+        if conflicts:
+            render_conflicts_text(conflicts)
             print('-'*72, file=sys.stderr)
 
-        cyclic = cyclic_deps(tree)
-        if cyclic:
-            print('Warning!! Cyclic dependencies found:', file=sys.stderr)
-            for a, b, c in cyclic:
-                print('* {0} => {1} => {2}'.format(a.project_name,
-                                                   b.project_name,
-                                                   c.project_name),
-                      file=sys.stderr)
+        cycles = cyclic_deps(tree)
+        if cycles:
+            render_cycles_text(cycles)
             print('-'*72, file=sys.stderr)
 
-        if args.warn == 'fail' and (conflicting or cyclic):
+        if args.warn == 'fail' and (conflicts or cycles):
             return_code = 1
+
+    # Reverse the tree (if applicable) before filtering, thus ensuring
+    # that the filter will be applied on ReverseTree
+    if args.reverse:
+        tree = tree.reverse()
 
     show_only = set(args.packages.split(',')) if args.packages else None
     exclude = set(args.exclude.split(',')) if args.exclude else None
 
-    if show_only and exclude and (show_only & exclude):
-        print('Conflicting packages found in --packages and --exclude lists.', file=sys.stderr)
-        sys.exit(1)
+    if show_only is not None or exclude is not None:
+        tree = tree.filter(show_only, exclude)
 
-    tree = render_tree(tree if not args.reverse else reverse_tree(tree),
-                       list_all=args.all, show_only=show_only,
-                       frozen=args.freeze, exclude=exclude)
-    print(tree)
+    if args.json:
+        print(render_json(tree, indent=4))
+    elif args.json_tree:
+        print(render_json_tree(tree, indent=4))
+    elif args.output_format:
+        output = dump_graphviz(tree,
+                               output_format=args.output_format,
+                               is_reverse=args.reverse)
+        print_graphviz(output)
+    else:
+        render_text(tree, args.all, args.freeze)
+
     return return_code
 
 

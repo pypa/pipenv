@@ -1,4 +1,3 @@
-# -*- coding=utf-8 -*-
 # |~~\'    |~~
 # |__/||~~\|--|/~\\  /
 # |   ||__/|__|   |\/
@@ -8,7 +7,7 @@ import os
 import sys
 import warnings
 
-from .__version__ import __version__    # noqa
+from pipenv.__version__ import __version__    # noqa
 
 
 PIPENV_ROOT = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
@@ -20,13 +19,14 @@ sys.path.insert(0, PIPENV_VENDOR)
 sys.path.insert(0, PIPENV_PATCHED)
 
 from pipenv.vendor.urllib3.exceptions import DependencyWarning
-from pipenv.vendor.vistir.compat import ResourceWarning, fs_str
+from pipenv.vendor.vistir.compat import fs_str
 
 warnings.filterwarnings("ignore", category=DependencyWarning)
 warnings.filterwarnings("ignore", category=ResourceWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
-
+# Load patched pip instead of system pip
+os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
 os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = fs_str("1")
 
 # Hack to make things work better.
@@ -35,6 +35,8 @@ try:
         del sys.modules["concurrency"]
 except Exception:
     pass
+if "urllib3" in sys.modules:
+    del sys.modules["urllib3"]
 
 from pipenv.vendor.vistir.misc import get_text_stream
 

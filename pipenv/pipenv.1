@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PIPENV" "1" "Jul 14, 2019" "2018.11.27.dev0" "pipenv"
+.TH "PIPENV" "1" "Jan 08, 2022" "2022.1.8" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 .
@@ -30,7 +30,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-\fI\%\fP\fI\%\fP\fI\%\fP\fI\%\fP
+\fI\%\fP\fI\%\fP\fI\%\fP
 .sp
 .ce
 ----
@@ -65,13 +65,13 @@ Streamline development workflow by loading \fB\&.env\fP files.
 You can quickly play with Pipenv right in your browser:
 \fI\%Try in browser\fP.SH INSTALL PIPENV TODAY!
 .sp
-If you\(aqre on MacOS, you can install Pipenv easily with Homebrew. You can also use Linuxbrew on Linux using the same command:
+If you already have Python and pip, you can easily install Pipenv into your home directory:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-$ brew install pipenv
+$ pip install \-\-user pipenv
 .ft P
 .fi
 .UNINDENT
@@ -89,7 +89,19 @@ $ sudo dnf install pipenv
 .UNINDENT
 .UNINDENT
 .sp
-Otherwise, refer to the installing\-pipenv chapter for instructions.
+It\(aqs possible to install Pipenv with Homebrew on MacOS, or with Linuxbrew on Linux systems. However, \fBthis is now discouraged\fP, because updates to the brewed Python distribution will break Pipenv, and perhaps all virtual environments managed by it. You\(aqll then need to re\-install Pipenv at least. If you want to give it a try despite this warning, use:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ brew install pipenv
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+More detailed installation instructions can be found in the installing\-pipenv chapter.
 .sp
 ✨🍰✨
 .SS Pipenv & Virtual Environments
@@ -178,44 +190,39 @@ Homebrew/Linuxbrew installer takes care of pip for you.
 .SS ☤ Installing Pipenv
 .sp
 Pipenv is a dependency manager for Python projects. If you\(aqre familiar
-with Node.js\(aq \fI\%npm\fP or Ruby\(aqs \fI\%bundler\fP, it is similar in spirit to those
+with Node.js\(aqs \fI\%npm\fP or Ruby\(aqs \fI\%bundler\fP, it is similar in spirit to those
 tools. While pip can install Python packages, Pipenv is recommended as
 it\(aqs a higher\-level tool that simplifies dependency management for common use
 cases.
-.SS ☤ Homebrew Installation of Pipenv
+.SS ☤ Isolated Installation of Pipenv with Pipx
 .sp
-\fI\%Homebrew\fP is a popular open\-source package management system for macOS. For Linux users, \fI\%Linuxbrew\fP  is a Linux port of that.
-.sp
-Installing pipenv via Homebrew or Linuxbrew will keep pipenv and all of its dependencies in
-an isolated virtual environment so it doesn\(aqt interfere with the rest of your
-Python installation.
-.sp
-Once you have installed Homebrew or Linuxbrew simply run:
+\fI\%Pipx\fP is a tool to help you install and run end\-user applications written in Python. It installs applications
+into an isolated and clean environment on their own. To install pipx, just run:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-$ brew install pipenv
+$ pip install \-\-user pipx
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
 .sp
-To upgrade pipenv at any time:
+Once you have \fBpipx\fP ready on your system, continue to install Pipenv:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-$ brew upgrade pipenv
+$ pipx install pipenv
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
 .SS ☤ Pragmatic Installation of Pipenv
 .sp
-If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user environment, pip \fI\%user installs\fP allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
+If you have a working installation of pip, and maintain certain "tool\-chain" type Python modules as global utilities in your user environment, pip \fI\%user installs\fP allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
 .sp
 To install:
 .INDENT 0.0
@@ -278,6 +285,45 @@ If you don\(aqt even have pip installed, you can use this crude installation met
 $ curl https://raw.githubusercontent.com/pypa/pipenv/master/get\-pipenv.py | python
 .ft P
 .fi
+.UNINDENT
+.UNINDENT
+.SS ☤ Homebrew Installation of Pipenv(Discouraged)
+.sp
+\fI\%Homebrew\fP is a popular open\-source package management system for macOS. For Linux users, \fI\%Linuxbrew\fP  is a Linux port of that.
+.sp
+Installing pipenv via Homebrew or Linuxbrew will keep pipenv and all of its dependencies in
+an isolated virtual environment so it doesn\(aqt interfere with the rest of your
+Python installation.
+.sp
+Once you have installed Homebrew or Linuxbrew simply run:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ brew install pipenv
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+To upgrade pipenv at any time:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ brew upgrade pipenv
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Homebrew installation is discouraged because each time the Homebrew Python is upgraded, which Pipenv depends on,
+users have to re\-install Pipenv, and perhaps all virtual environments managed by it.
 .UNINDENT
 .UNINDENT
 .SS ☤ Installing packages for your project
@@ -396,6 +442,813 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.1.8 (2022\-01\-08)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Remove the extra parentheses around the venv prompt.  \fI\%#4877\fP
+.IP \(bu 2
+Fix a bug of installation fails when extra index url is given.  \fI\%#4881\fP
+.IP \(bu 2
+Fix regression where lockfiles would only include the hashes for releases for the platform generating the lockfile  \fI\%#4885\fP
+.IP \(bu 2
+Fix the index parsing to reject illegal requirements.txt.  \fI\%#4899\fP
+.UNINDENT
+.SS 2021.11.23 (2021\-11\-23)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Update \fBcharset\-normalizer\fP from \fB2.0.3\fP to \fB2.0.7\fP, this fixes an import error on Python 3.6.  \fI\%#4865\fP
+.IP \(bu 2
+Fix a bug of deleting a virtualenv that is not managed by Pipenv.  \fI\%#4867\fP
+.IP \(bu 2
+Fix a bug that source is not added to \fBPipfile\fP when index url is given with \fBpipenv install\fP\&.  \fI\%#4873\fP
+.UNINDENT
+.SS 2021.11.15 (2021\-11\-15)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Return an empty dict when \fBPIPENV_DONT_LOAD_ENV\fP is set.  \fI\%#4851\fP
+.IP \(bu 2
+Don\(aqt use \fBsys.executable\fP when inside an activated venv.  \fI\%#4852\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Drop the vendored \fBjinja2\fP dependency as it is not needed any more.  \fI\%#4858\fP
+.IP \(bu 2
+Update \fBclick\fP from \fB8.0.1\fP to \fB8.0.3\fP, to fix a problem with bash completion.  \fI\%#4860\fP
+.IP \(bu 2
+Drop unused vendor \fBchardet\fP\&.  \fI\%#4862\fP
+.UNINDENT
+.SS Improved Documentation
+.INDENT 0.0
+.IP \(bu 2
+Fix the documentation to reflect the fact that special characters must be percent\-encoded in the URL.  \fI\%#4856\fP
+.UNINDENT
+.SS 2021.11.9 (2021\-11\-09)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+Replace \fBclick\-completion\fP with \fBclick\fP\(aqs own completion implementation.  \fI\%#4786\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fix a bug that \fBpipenv run\fP doesn\(aqt set environment variables correctly.  \fI\%#4831\fP
+.IP \(bu 2
+Fix a bug that certifi can\(aqt be loaded within \fBnotpip\fP\(aqs vendor library. This makes several objects of \fBpip\fP fail to be imported.  \fI\%#4833\fP
+.IP \(bu 2
+Fix a bug that \fB3.10.0\fP can be found be python finder.  \fI\%#4837\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Update \fBpythonfinder\fP from \fB1.2.8\fP to \fB1.2.9\fP\&.  \fI\%#4837\fP
+.UNINDENT
+.SS 2021.11.5.post0 (2021\-11\-05)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fix a regression that \fBpipenv shell\fP fails to start a subshell.  \fI\%#4828\fP
+.IP \(bu 2
+Fix a regression that \fBpip_shims\fP object isn\(aqt imported correctly.  \fI\%#4829\fP
+.UNINDENT
+.SS 2021.11.5 (2021\-11\-05)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+Avoid sharing states but create project objects on demand. So that most integration test cases are able to switch to a in\-process execution method.  \fI\%#4757\fP
+.IP \(bu 2
+Shell\-quote \fBpip\fP commands when logging.  \fI\%#4760\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Ignore empty .venv in rood dir and create project name base virtual environment  \fI\%#4790\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Update vendored dependencies
+\- \fBattrs\fP from \fB20.3.0\fP to \fB21.2.0\fP
+\- \fBcerberus\fP from \fB1.3.2\fP to \fB1.3.4\fP
+\- \fBcertifi\fP from \fB2020.11.8\fP to \fB2021.5.30\fP
+\- \fBchardet\fP from \fB3.0.4\fP to \fB4.0.0\fP
+\- \fBclick\fP from \fB7.1.2\fP to \fB8.0.1\fP
+\- \fBdistlib\fP from \fB0.3.1\fP to \fB0.3.2\fP
+\- \fBidna\fP from \fB2.10\fP to \fB3.2\fP
+\- \fBimportlib\-metadata\fP from \fB2.0.0\fP to \fB4.6.1\fP
+\- \fBimportlib\-resources\fP from \fB3.3.0\fP to \fB5.2.0\fP
+\- \fBjinja2\fP from \fB2.11.2\fP to \fB3.0.1\fP
+\- \fBmarkupsafe\fP from \fB1.1.1\fP to \fB2.0.1\fP
+\- \fBmore\-itertools\fP from \fB5.0.0\fP to \fB8.8.0\fP
+\- \fBpackaging\fP from \fB20.8\fP to \fB21.0\fP
+\- \fBpep517\fP from \fB0.9.1\fP to \fB0.11.0\fP
+\- \fBpipdeptree\fP from \fB1.0.0\fP to \fB2.0.0\fP
+\- \fBptyprocess\fP from \fB0.6.0\fP to \fB0.7.0\fP
+\- \fBpython\-dateutil\fP from \fB2.8.1\fP to \fB2.8.2\fP
+\- \fBpython\-dotenv\fP from \fB0.15.0\fP to \fB0.19.0\fP
+\- \fBpythonfinder\fP from \fB1.2.5\fP to \fB1.2.8\fP
+\- \fBrequests\fP from \fB2.25.0\fP to \fB2.26.0\fP
+\- \fBshellingham\fP from \fB1.3.2\fP to \fB1.4.0\fP
+\- \fBsix\fP from \fB1.15.0\fP to \fB1.16.0\fP
+\- \fBtomlkit\fP from \fB0.7.0\fP to \fB0.7.2\fP
+\- \fBurllib3\fP from \fB1.26.1\fP to \fB1.26.6\fP
+\- \fBzipp\fP from \fB1.2.0\fP to \fB3.5.0\fP
+.sp
+Add new vendored dependencies
+\- \fBcharset\-normalizer 2.0.3\fP
+\- \fBtermcolor 1.1.0\fP
+\- \fBtomli 1.1.0\fP
+\- \fBwheel 0.36.2\fP  \fI\%#4747\fP
+.IP \(bu 2
+Drop the dependencies for Python 2.7 compatibility purpose.  \fI\%#4751\fP
+.IP \(bu 2
+Switch the dependency resolver from \fBpip\-tools\fP to \fIpip\fP\&.
+.sp
+Update vendor libraries:
+\- Update \fBrequirementslib\fP from \fB1.5.16\fP to \fB1.6.1\fP
+\- Update \fBpip\-shims\fP from \fB0.5.6\fP to \fB0.6.0\fP
+\- New vendor \fBplatformdirs 2.4.0\fP  \fI\%#4759\fP
+.UNINDENT
+.SS Improved Documentation
+.INDENT 0.0
+.IP \(bu 2
+remove prefixes on install commands for easy copy/pasting  \fI\%#4792\fP
+.IP \(bu 2
+Officially drop support for Python 2.7 and Python 3.5.  \fI\%#4261\fP
+.UNINDENT
+.SS 2021.5.29 (2021\-05\-29)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fix a bug where passing \-\-skip\-lock when PIPFILE has no [SOURCE] section throws the error: "tomlkit.exceptions.NonExistentKey: \(aqKey "source" does not exist.\(aq"  \fI\%#4141\fP
+.IP \(bu 2
+Fix bug where environment wouldn\(aqt activate in paths containing & and $ symbols  \fI\%#4538\fP
+.IP \(bu 2
+Fix a bug that \fBimportlib\-metadata\fP from the project\(aqs dependencies conflicts with that from \fBpipenv\fP\(aqs.  \fI\%#4549\fP
+.IP \(bu 2
+Fix a bug where \fBpep508checker.py\fP did not expect double\-digit Python minor versions (e.g. "3.10").  \fI\%#4602\fP
+.IP \(bu 2
+Fix bug where environment wouldn\(aqt activate in paths containing () and [] symbols  \fI\%#4615\fP
+.IP \(bu 2
+Fix bug preventing use of pipenv lock \-\-pre  \fI\%#4642\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Update \fBpackaging\fP from \fB20.4\fP to \fB20.8\fP\&.  \fI\%#4591\fP
+.UNINDENT
+.SS 2020.11.15 (2020\-11\-15)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+Support expanding environment variables in requirement URLs.  \fI\%#3516\fP
+.IP \(bu 2
+Show warning message when a dependency is skipped in locking due to the mismatch of its markers.  \fI\%#4346\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fix a bug that executable scripts with leading backslash can\(aqt be executed via \fBpipenv run\fP\&.  \fI\%#4368\fP
+.IP \(bu 2
+Fix a bug that VCS dependencies always satisfy even if the ref has changed.  \fI\%#4387\fP
+.IP \(bu 2
+Restrict the acceptable hash type to SHA256 only.  \fI\%#4517\fP
+.IP \(bu 2
+Fix the output of \fBpipenv scripts\fP under Windows platform.  \fI\%#4523\fP
+.IP \(bu 2
+Fix a bug that the resolver takes wrong section to validate constraints.  \fI\%#4527\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B Update vendored dependencies:
+.INDENT 7.0
+.IP \(bu 2
+\fBcolorama\fP from \fB0.4.3\fP to \fB0.4.4\fP
+.IP \(bu 2
+\fBpython\-dotenv\fP from \fB0.10.3\fP to \fB0.15.0\fP
+.IP \(bu 2
+\fBfirst\fP from \fB2.0.1\fP to \fB2.0.2\fP
+.IP \(bu 2
+\fBiso8601\fP from \fB0.1.12\fP to \fB0.1.13\fP
+.IP \(bu 2
+\fBparse\fP from \fB1.15.0\fP to \fB1.18.0\fP
+.IP \(bu 2
+\fBpipdeptree\fP from \fB0.13.2\fP to \fB1.0.0\fP
+.IP \(bu 2
+\fBrequests\fP from \fB2.23.0\fP to \fB2.25.0\fP
+.IP \(bu 2
+\fBidna\fP from \fB2.9\fP to \fB2.10\fP
+.IP \(bu 2
+\fBurllib3\fP from \fB1.25.9\fP to \fB1.26.1\fP
+.IP \(bu 2
+\fBcertifi\fP from \fB2020.4.5.1\fP to \fB2020.11.8\fP
+.IP \(bu 2
+\fBrequirementslib\fP from \fB1.5.15\fP to \fB1.5.16\fP
+.IP \(bu 2
+\fBattrs\fP from \fB19.3.0\fP to \fB20.3.0\fP
+.IP \(bu 2
+\fBdistlib\fP from \fB0.3.0\fP to \fB0.3.1\fP
+.IP \(bu 2
+\fBpackaging\fP from \fB20.3\fP to \fB20.4\fP
+.IP \(bu 2
+\fBsix\fP from \fB1.14.0\fP to \fB1.15.0\fP
+.IP \(bu 2
+\fBsemver\fP from \fB2.9.0\fP to \fB2.13.0\fP
+.IP \(bu 2
+\fBtoml\fP from \fB0.10.1\fP to \fB0.10.2\fP
+.IP \(bu 2
+\fBcached\-property\fP from \fB1.5.1\fP to \fB1.5.2\fP
+.IP \(bu 2
+\fByaspin\fP from \fB0.14.3\fP to \fB1.2.0\fP
+.IP \(bu 2
+\fBresolvelib\fP from \fB0.3.0\fP to \fB0.5.2\fP
+.IP \(bu 2
+\fBpep517\fP from \fB0.8.2\fP to \fB0.9.1\fP
+.IP \(bu 2
+\fBzipp\fP from \fB0.6.0\fP to \fB1.2.0\fP
+.IP \(bu 2
+\fBimportlib\-metadata\fP from \fB1.6.0\fP to \fB2.0.0\fP
+.IP \(bu 2
+\fBimportlib\-resources\fP from \fB1.5.0\fP to \fB3.3.0\fP  \fI\%#4533\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Improved Documentation
+.INDENT 0.0
+.IP \(bu 2
+Fix suggested pyenv setup to avoid using shimmed interpreter  \fI\%#4534\fP
+.UNINDENT
+.SS 2020.11.4 (2020\-11\-04)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+Add a new command \fBpipenv scripts\fP to display shortcuts from Pipfile.  \fI\%#3686\fP
+.IP \(bu 2
+Retrieve package file hash from URL to accelerate the locking process.  \fI\%#3827\fP
+.IP \(bu 2
+Add the missing \fB\-\-system\fP option to \fBpipenv sync\fP\&.  \fI\%#4441\fP
+.IP \(bu 2
+Add a new option pair \fB\-\-header/\-\-no\-header\fP to \fBpipenv lock\fP command,
+which adds a header to the generated requirements.txt  \fI\%#4443\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fix a bug that percent encoded characters will be unquoted incorrectly in the file URL.  \fI\%#4089\fP
+.IP \(bu 2
+Fix a bug where setting PIPENV_PYTHON to file path breaks environment name  \fI\%#4225\fP
+.IP \(bu 2
+Fix a bug that paths are not normalized before comparison.  \fI\%#4330\fP
+.IP \(bu 2
+Handle Python major and minor versions correctly in Pipfile creation.  \fI\%#4379\fP
+.IP \(bu 2
+Fix a bug that non\-wheel file requirements can be resolved successfully.  \fI\%#4386\fP
+.IP \(bu 2
+Fix a bug that \fBpexept.exceptions.TIMEOUT\fP is not caught correctly because of the wrong import path.  \fI\%#4424\fP
+.IP \(bu 2
+Fix a bug that compound TOML table is not parsed correctly.  \fI\%#4433\fP
+.IP \(bu 2
+Fix a bug that invalid Python paths from Windows registry break \fBpipenv install\fP\&.  \fI\%#4436\fP
+.IP \(bu 2
+Fix a bug that function calls in \fBsetup.py\fP can\(aqt be parsed rightly.  \fI\%#4446\fP
+.IP \(bu 2
+Fix a bug that dist\-info inside \fBvenv\fP directory will be mistaken as the editable package\(aqs metadata.  \fI\%#4480\fP
+.IP \(bu 2
+Make the order of hashes in resolution result stable.  \fI\%#4513\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Update \fBtomlkit\fP from \fB0.5.11\fP to \fB0.7.0\fP\&.  \fI\%#4433\fP
+.IP \(bu 2
+Update \fBrequirementslib\fP from \fB1.5.13\fP to \fB1.5.14\fP\&.  \fI\%#4480\fP
+.UNINDENT
+.SS Improved Documentation
+.INDENT 0.0
+.IP \(bu 2
+Discourage homebrew installation in installation guides.  \fI\%#4013\fP
+.UNINDENT
+.SS 2020.8.13 (2020\-08\-13)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fixed behaviour of \fBpipenv uninstall \-\-all\-dev\fP\&.
+From now on it does not uninstall regular packages.  \fI\%#3722\fP
+.IP \(bu 2
+Fix a bug that incorrect Python path will be used when \fB\-\-system\fP flag is on.  \fI\%#4315\fP
+.IP \(bu 2
+Fix falsely flagging a Homebrew installed Python as a virtual environment  \fI\%#4316\fP
+.IP \(bu 2
+Fix a bug that \fBpipenv uninstall\fP throws an exception that does not exist.  \fI\%#4321\fP
+.IP \(bu 2
+Fix a bug that Pipenv can\(aqt locate the correct file of special directives in \fBsetup.cfg\fP of an editable package.  \fI\%#4335\fP
+.IP \(bu 2
+Fix a bug that \fBsetup.py\fP can\(aqt be parsed correctly when the assignment is type\-annotated.  \fI\%#4342\fP
+.IP \(bu 2
+Fix a bug that \fBpipenv graph\fP throws an exception that PipenvCmdError(cmd_string, c.out, c.err, return_code).  \fI\%#4388\fP
+.IP \(bu 2
+Do not copy the whole directory tree of local file package.  \fI\%#4403\fP
+.IP \(bu 2
+Correctly detect whether Pipenv in run under an activated virtualenv.  \fI\%#4412\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Update \fBrequirementslib\fP to \fB1.5.12\fP\&.  \fI\%#4385\fP
+.IP \(bu 2
+.INDENT 2.0
+.IP \(bu 2
+Update \fBrequirements\fP to \fB1.5.13\fP\&.
+.IP \(bu 2
+Update \fBpip\-shims\fP to \fB0.5.3\fP\&.  \fI\%#4421\fP
+.UNINDENT
+.UNINDENT
+.SS 2020.6.2 (2020\-06\-02)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+Pipenv will now detect existing \fBvenv\fP and \fBvirtualenv\fP based virtual environments more robustly.  \fI\%#4276\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+\fB+\fP signs in URL authentication fragments will no longer be incorrectly replaced with space ( \(ga\(ga \(ga\(ga ) characters.  \fI\%#4271\fP
+.IP \(bu 2
+Fixed a regression which caused Pipenv to fail when running under \fB/\fP\&.  \fI\%#4273\fP
+.IP \(bu 2
+\fBsetup.py\fP files with \fBversion\fP variables read from \fBos.environ\fP are now able to be parsed successfully.  \fI\%#4274\fP
+.IP \(bu 2
+Fixed a bug which caused Pipenv to fail to install packages in a virtual environment if those packages were already present in the system global environment.  \fI\%#4276\fP
+.IP \(bu 2
+Fix a bug that caused non\-specific versions to be pinned in \fBPipfile.lock\fP\&.  \fI\%#4278\fP
+.IP \(bu 2
+Corrected a missing exception import and invalid function call invocations in \fBpipenv.cli.command\fP\&.  \fI\%#4286\fP
+.IP \(bu 2
+Fixed an issue with resolving packages with names defined by function calls in \fBsetup.py\fP\&.  \fI\%#4292\fP
+.IP \(bu 2
+Fixed a regression with installing the current directory, or \fB\&.\fP, inside a \fBvenv\fP based virtual environment.  \fI\%#4295\fP
+.IP \(bu 2
+Fixed a bug with the discovery of python paths on Windows which could prevent installation of environments during \fBpipenv install\fP\&.  \fI\%#4296\fP
+.IP \(bu 2
+Fixed an issue in the \fBrequirementslib\fP AST parser which prevented parsing of \fBsetup.py\fP files for dependency metadata.  \fI\%#4298\fP
+.IP \(bu 2
+Fix a bug where Pipenv doesn\(aqt realize the session is interactive  \fI\%#4305\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Updated requirementslib to version \fB1.5.11\fP\&.  \fI\%#4292\fP
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B Updated vendored dependencies:
+.INDENT 7.0
+.IP \(bu 2
+\fBpythonfinder\fP: \fB1.2.2\fP => \fB1.2.4\fP
+.IP \(bu 2
+\fBrequirementslib\fP: \fB1.5.9\fP => \fB1.5.10\fP  \fI\%#4302\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS 2020.5.28 (2020\-05\-28)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+\fBpipenv install\fP and \fBpipenv sync\fP will no longer attempt to install satisfied dependencies during installation.  \fI\%#3057\fP,
+\fI\%#3506\fP
+.IP \(bu 2
+Added support for resolution of direct\-url dependencies in \fBsetup.py\fP files to respect \fBPEP\-508\fP style URL dependencies.  \fI\%#3148\fP
+.IP \(bu 2
+Added full support for resolution of all dependency types including direct URLs, zip archives, tarballs, etc.
+.INDENT 2.0
+.IP \(bu 2
+Improved error handling and formatting.
+.IP \(bu 2
+Introduced improved cross platform stream wrappers for better \fBstdout\fP and \fBstderr\fP consistency.  \fI\%#3298\fP
+.UNINDENT
+.IP \(bu 2
+For consistency with other commands and the \fB\-\-dev\fP option
+description, \fBpipenv lock \-\-requirements \-\-dev\fP now emits
+both default and development dependencies.
+The new \fB\-\-dev\-only\fP option requests the previous
+behaviour (e.g. to generate a \fBdev\-requirements.txt\fP file).  \fI\%#3316\fP
+.IP \(bu 2
+Pipenv will now successfully recursively lock VCS sub\-dependencies.  \fI\%#3328\fP
+.IP \(bu 2
+Added support for \fB\-\-verbose\fP output to \fBpipenv run\fP\&.  \fI\%#3348\fP
+.IP \(bu 2
+Pipenv will now discover and resolve the intrinsic dependencies of \fBall\fP VCS dependencies, whether they are editable or not, to prevent resolution conflicts.  \fI\%#3368\fP
+.IP \(bu 2
+Added a new environment variable, \fBPIPENV_RESOLVE_VCS\fP, to toggle dependency resolution off for non\-editable VCS, file, and URL based dependencies.  \fI\%#3577\fP
+.IP \(bu 2
+Added the ability for Windows users to enable emojis by setting \fBPIPENV_HIDE_EMOJIS=0\fP\&.  \fI\%#3595\fP
+.IP \(bu 2
+Allow overriding PIPENV_INSTALL_TIMEOUT environment variable (in seconds).  \fI\%#3652\fP
+.IP \(bu 2
+Allow overriding PIP_EXISTS_ACTION evironment variable (value is passed to pip install).
+Possible values here: \fI\%https://pip.pypa.io/en/stable/reference/pip/#exists\-action\-option\fP
+Useful when you need to \fIPIP_EXISTS_ACTION=i\fP (ignore existing packages) \- great for CI environments, where you need really fast setup.  \fI\%#3738\fP
+.IP \(bu 2
+Pipenv will no longer forcibly override \fBPIP_NO_DEPS\fP on all vcs and file dependencies as resolution happens on these in a pre\-lock step.  \fI\%#3763\fP
+.IP \(bu 2
+Improved verbose logging output during \fBpipenv lock\fP will now stream output to the console while maintaining a spinner.  \fI\%#3810\fP
+.IP \(bu 2
+Added support for automatic python installs via \fBasdf\fP and associated \fBPIPENV_DONT_USE_ASDF\fP environment variable.  \fI\%#4018\fP
+.IP \(bu 2
+Pyenv/asdf can now be used whether or not they are available on PATH. Setting PYENV_ROOT/ASDF_DIR in a Pipenv\(aqs .env allows Pipenv to install an interpreter without any shell customizations, so long as pyenv/asdf is installed.  \fI\%#4245\fP
+.IP \(bu 2
+Added \fB\-\-key\fP command line parameter for including personal PyUp.io API tokens when running \fBpipenv check\fP\&.  \fI\%#4257\fP
+.UNINDENT
+.SS Behavior Changes
+.INDENT 0.0
+.IP \(bu 2
+Make conservative checks of known exceptions when subprocess returns output, so user won\(aqt see the whole traceback \- just the error.  \fI\%#2553\fP
+.IP \(bu 2
+Do not touch Pipfile early and rely on it so that one can do \fBpipenv sync\fP without a Pipfile.  \fI\%#3386\fP
+.IP \(bu 2
+Re\-enable \fB\-\-help\fP option for \fBpipenv run\fP command.  \fI\%#3844\fP
+.IP \(bu 2
+Make sure \fBpipenv lock \-r \-\-pypi\-mirror {MIRROR_URL}\fP will respect the pypi\-mirror in requirements output.  \fI\%#4199\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Raise \fIPipenvUsageError\fP when [[source]] does not contain url field.  \fI\%#2373\fP
+.IP \(bu 2
+Fixed a bug which caused editable package resolution to sometimes fail with an unhelpful setuptools\-related error message.  \fI\%#2722\fP
+.IP \(bu 2
+Fixed an issue which caused errors due to reliance on the system utilities \fBwhich\fP and \fBwhere\fP which may not always exist on some systems.
+\- Fixed a bug which caused periodic failures in python discovery when executables named \fBpython\fP were not present on the target \fB$PATH\fP\&.  \fI\%#2783\fP
+.IP \(bu 2
+Dependency resolution now writes hashes for local and remote files to the lockfile.  \fI\%#3053\fP
+.IP \(bu 2
+Fixed a bug which prevented \fBpipenv graph\fP from correctly showing all dependencies when running from within \fBpipenv shell\fP\&.  \fI\%#3071\fP
+.IP \(bu 2
+Fixed resolution of direct\-url dependencies in \fBsetup.py\fP files to respect \fBPEP\-508\fP style URL dependencies.  \fI\%#3148\fP
+.IP \(bu 2
+Fixed a bug which caused failures in warning reporting when running pipenv inside a virtualenv under some circumstances.
+.INDENT 2.0
+.IP \(bu 2
+Fixed a bug with package discovery when running \fBpipenv clean\fP\&.  \fI\%#3298\fP
+.UNINDENT
+.IP \(bu 2
+Quote command arguments with carets (\fB^\fP) on Windows to work around unintended shell escapes.  \fI\%#3307\fP
+.IP \(bu 2
+Handle alternate names for UTF\-8 encoding.  \fI\%#3313\fP
+.IP \(bu 2
+Abort pipenv before adding the non\-exist package to Pipfile.  \fI\%#3318\fP
+.IP \(bu 2
+Don\(aqt normalize the package name user passes in.  \fI\%#3324\fP
+.IP \(bu 2
+Fix a bug where custom virtualenv can not be activated with pipenv shell  \fI\%#3339\fP
+.IP \(bu 2
+Fix a bug that \fB\-\-site\-packages\fP flag is not recognized.  \fI\%#3351\fP
+.IP \(bu 2
+Fix a bug where pipenv \-\-clear is not working  \fI\%#3353\fP
+.IP \(bu 2
+Fix unhashable type error during \fB$ pipenv install \-\-selective\-upgrade\fP  \fI\%#3384\fP
+.IP \(bu 2
+Dependencies with direct \fBPEP508\fP compliant VCS URLs specified in their \fBinstall_requires\fP will now be successfully locked during the resolution process.  \fI\%#3396\fP
+.IP \(bu 2
+Fixed a keyerror which could occur when locking VCS dependencies in some cases.  \fI\%#3404\fP
+.IP \(bu 2
+Fixed a bug that \fBValidationError\fP is thrown when some fields are missing in source section.  \fI\%#3427\fP
+.IP \(bu 2
+Updated the index names in lock file when source name in Pipfile is changed.  \fI\%#3449\fP
+.IP \(bu 2
+Fixed an issue which caused \fBpipenv install \-\-help\fP to show duplicate entries for \fB\-\-pre\fP\&.  \fI\%#3479\fP
+.IP \(bu 2
+Fix bug causing \fB[SSL: CERTIFICATE_VERIFY_FAILED]\fP when Pipfile \fB[[source]]\fP has verify_ssl=false and url with custom port.  \fI\%#3502\fP
+.IP \(bu 2
+Fix \fBsync \-\-sequential\fP ignoring \fBpip install\fP errors and logs.  \fI\%#3537\fP
+.IP \(bu 2
+Fix the issue that lock file can\(aqt be created when \fBPIPENV_PIPFILE\fP is not under working directory.  \fI\%#3584\fP
+.IP \(bu 2
+Pipenv will no longer inadvertently set \fBeditable=True\fP on all vcs dependencies.  \fI\%#3647\fP
+.IP \(bu 2
+The \fB\-\-keep\-outdated\fP argument to \fBpipenv install\fP and \fBpipenv lock\fP will now drop specifier constraints when encountering editable dependencies.
+\- In addition, \fB\-\-keep\-outdated\fP will retain specifiers that would otherwise be dropped from any entries that have not been updated.  \fI\%#3656\fP
+.IP \(bu 2
+Fixed a bug which sometimes caused pipenv to fail to respect the \fB\-\-site\-packages\fP flag when passed with \fBpipenv install\fP\&.  \fI\%#3718\fP
+.IP \(bu 2
+Normalize the package names to lowercase when comparing used and in\-Pipfile packages.  \fI\%#3745\fP
+.IP \(bu 2
+\fBpipenv update \-\-outdated\fP will now correctly handle comparisons between pre/post\-releases and normal releases.  \fI\%#3766\fP
+.IP \(bu 2
+Fixed a \fBKeyError\fP which could occur when pinning outdated VCS dependencies via \fBpipenv lock \-\-keep\-outdated\fP\&.  \fI\%#3768\fP
+.IP \(bu 2
+Resolved an issue which caused resolution to fail when encountering poorly formatted \fBpython_version\fP markers in \fBsetup.py\fP and \fBsetup.cfg\fP files.  \fI\%#3786\fP
+.IP \(bu 2
+Fix a bug that installation errors are displayed as a list.  \fI\%#3794\fP
+.IP \(bu 2
+Update \fBpythonfinder\fP to fix a problem that \fBpython.exe\fP will be mistakenly chosen for
+virtualenv creation under WSL.  \fI\%#3807\fP
+.IP \(bu 2
+Fixed several bugs which could prevent editable VCS dependencies from being installed into target environments, even when reporting successful installation.  \fI\%#3809\fP
+.IP \(bu 2
+\fBpipenv check \-\-system\fP should find the correct Python interpreter when \fBpython\fP does not exist on the system.  \fI\%#3819\fP
+.IP \(bu 2
+Resolve the symlinks when the path is absolute.  \fI\%#3842\fP
+.IP \(bu 2
+Pass \fB\-\-pre\fP and \fB\-\-clear\fP options to \fBpipenv update \-\-outdated\fP\&.  \fI\%#3879\fP
+.IP \(bu 2
+Fixed a bug which prevented resolution of direct URL dependencies which have PEP508 style direct url VCS sub\-dependencies with subdirectories.  \fI\%#3976\fP
+.IP \(bu 2
+Honor PIPENV_SPINNER environment variable  \fI\%#4045\fP
+.IP \(bu 2
+Fixed an issue with \fBpipenv check\fP failing due to an invalid API key from \fBpyup.io\fP\&.  \fI\%#4188\fP
+.IP \(bu 2
+Fixed a bug which caused versions from VCS dependencies to be included in \fBPipfile.lock\fP inadvertently.  \fI\%#4217\fP
+.IP \(bu 2
+Fixed a bug which caused pipenv to search non\-existent virtual environments for \fBpip\fP when installing using \fB\-\-system\fP\&.  \fI\%#4220\fP
+.IP \(bu 2
+\fBRequires\-Python\fP values specifying constraint versions of python starting from \fB1.x\fP will now be parsed successfully.  \fI\%#4226\fP
+.IP \(bu 2
+Fix a bug of \fBpipenv update \-\-outdated\fP that can\(aqt print output correctly.  \fI\%#4229\fP
+.IP \(bu 2
+Fixed a bug which caused pipenv to prefer source distributions over wheels from \fBPyPI\fP during the dependency resolution phase.
+Fixed an issue which prevented proper build isolation using \fBpep517\fP based builders during dependency resolution.  \fI\%#4231\fP
+.IP \(bu 2
+Don\(aqt fallback to system Python when no matching Python version is found.  \fI\%#4232\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Updated vendored dependencies:
+.INDENT 2.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fBattrs\fP: \fB18.2.0\fP => \fB19.1.0\fP
+.IP \(bu 2
+\fBcertifi\fP: \fB2018.10.15\fP => \fB2019.3.9\fP
+.IP \(bu 2
+\fBcached_property\fP: \fB1.4.3\fP => \fB1.5.1\fP
+.IP \(bu 2
+\fBcerberus\fP: \fB1.2.0\fP => \fB1.3.1\fP
+.IP \(bu 2
+\fBclick\-completion\fP: \fB0.5.0\fP => \fB0.5.1\fP
+.IP \(bu 2
+\fBcolorama\fP: \fB0.3.9\fP => \fB0.4.1\fP
+.IP \(bu 2
+\fBdistlib\fP: \fB0.2.8\fP => \fB0.2.9\fP
+.IP \(bu 2
+\fBidna\fP: \fB2.7\fP => \fB2.8\fP
+.IP \(bu 2
+\fBjinja2\fP: \fB2.10.0\fP => \fB2.10.1\fP
+.IP \(bu 2
+\fBmarkupsafe\fP: \fB1.0\fP => \fB1.1.1\fP
+.IP \(bu 2
+\fBorderedmultidict\fP: \fB(new)\fP => \fB1.0\fP
+.IP \(bu 2
+\fBpackaging\fP: \fB18.0\fP => \fB19.0\fP
+.IP \(bu 2
+\fBparse\fP: \fB1.9.0\fP => \fB1.12.0\fP
+.IP \(bu 2
+\fBpathlib2\fP: \fB2.3.2\fP => \fB2.3.3\fP
+.IP \(bu 2
+\fBpep517\fP: \fB(new)\fP => \fB0.5.0\fP
+.IP \(bu 2
+\fBpexpect\fP: \fB4.6.0\fP => \fB4.7.0\fP
+.IP \(bu 2
+\fBpipdeptree\fP: \fB0.13.0\fP => \fB0.13.2\fP
+.IP \(bu 2
+\fBpyparsing\fP: \fB2.2.2\fP => \fB2.3.1\fP
+.IP \(bu 2
+\fBpython\-dotenv\fP: \fB0.9.1\fP => \fB0.10.2\fP
+.IP \(bu 2
+\fBpythonfinder\fP: \fB1.1.10\fP => \fB1.2.1\fP
+.IP \(bu 2
+\fBpytoml\fP: \fB(new)\fP => \fB0.1.20\fP
+.IP \(bu 2
+\fBrequests\fP: \fB2.20.1\fP => \fB2.21.0\fP
+.IP \(bu 2
+\fBrequirementslib\fP: \fB1.3.3\fP => \fB1.5.0\fP
+.IP \(bu 2
+\fBscandir\fP: \fB1.9.0\fP => \fB1.10.0\fP
+.IP \(bu 2
+\fBshellingham\fP: \fB1.2.7\fP => \fB1.3.1\fP
+.IP \(bu 2
+\fBsix\fP: \fB1.11.0\fP => \fB1.12.0\fP
+.IP \(bu 2
+\fBtomlkit\fP: \fB0.5.2\fP => \fB0.5.3\fP
+.IP \(bu 2
+\fBurllib3\fP: \fB1.24\fP => \fB1.25.2\fP
+.IP \(bu 2
+\fBvistir\fP: \fB0.3.0\fP => \fB0.4.1\fP
+.IP \(bu 2
+\fByaspin\fP: \fB0.14.0\fP => \fB0.14.3\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 2.0
+.IP \(bu 2
+Removed vendored dependency \fBcursor\fP\&.  \fI\%#3298\fP
+.UNINDENT
+.IP \(bu 2
+Updated \fBpip_shims\fP to support \fB\-\-outdated\fP with new pip versions.  \fI\%#3766\fP
+.IP \(bu 2
+Update vendored dependencies and invocations
+.INDENT 2.0
+.IP \(bu 2
+Update vendored and patched dependencies
+\- Update patches on \fBpiptools\fP, \fBpip\fP, \fBpip\-shims\fP, 
+.nf
+\(ga\(ga
+.fi
+tomlkit\(ga
+.IP \(bu 2
+Fix invocations of dependencies
+\- Fix custom 
+.nf
+\(ga\(ga
+.fi
+InstallCommand\(ga instantiation
+\- Update 
+.nf
+\(ga\(ga
+.fi
+PackageFinder\(ga usage
+\- Fix 
+.nf
+\(ga\(ga
+.fi
+Bool\(ga stringify attempts from 
+.nf
+\(ga\(ga
+.fi
+tomlkit\(ga
+.UNINDENT
+.INDENT 2.0
+.TP
+.B Updated vendored dependencies:
+.INDENT 7.0
+.IP \(bu 2
+\fBattrs\fP: \fB\(ga18.2.0\fP => \fB\(ga19.1.0\fP
+.IP \(bu 2
+\fBcertifi\fP: \fB\(ga2018.10.15\fP => \fB\(ga2019.3.9\fP
+.IP \(bu 2
+\fBcached_property\fP: \fB\(ga1.4.3\fP => \fB\(ga1.5.1\fP
+.IP \(bu 2
+\fBcerberus\fP: \fB\(ga1.2.0\fP => \fB\(ga1.3.1\fP
+.IP \(bu 2
+\fBclick\fP: \fB\(ga7.0.0\fP => \fB\(ga7.1.1\fP
+.IP \(bu 2
+\fBclick\-completion\fP: \fB\(ga0.5.0\fP => \fB\(ga0.5.1\fP
+.IP \(bu 2
+\fBcolorama\fP: \fB\(ga0.3.9\fP => \fB\(ga0.4.3\fP
+.IP \(bu 2
+\fBcontextlib2\fP: \fB\(ga(new)\fP => \fB\(ga0.6.0.post1\fP
+.IP \(bu 2
+\fBdistlib\fP: \fB\(ga0.2.8\fP => \fB\(ga0.2.9\fP
+.IP \(bu 2
+\fBfuncsigs\fP: \fB\(ga(new)\fP => \fB\(ga1.0.2\fP
+.IP \(bu 2
+\fBimportlib_metadata\fP \fB\(ga1.3.0\fP => \fB\(ga1.5.1\fP
+.IP \(bu 2
+\fBimportlib\-resources\fP:  \fB\(ga(new)\fP => \fB\(ga1.4.0\fP
+.IP \(bu 2
+\fBidna\fP: \fB\(ga2.7\fP => \fB\(ga2.9\fP
+.IP \(bu 2
+\fBjinja2\fP: \fB\(ga2.10.0\fP => \fB\(ga2.11.1\fP
+.IP \(bu 2
+\fBmarkupsafe\fP: \fB\(ga1.0\fP => \fB\(ga1.1.1\fP
+.IP \(bu 2
+\fBmore\-itertools\fP: \fB\(ga(new)\fP => \fB\(ga5.0.0\fP
+.IP \(bu 2
+\fBorderedmultidict\fP: \fB\(ga(new)\fP => \fB\(ga1.0\fP
+.IP \(bu 2
+\fBpackaging\fP: \fB\(ga18.0\fP => \fB\(ga19.0\fP
+.IP \(bu 2
+\fBparse\fP: \fB\(ga1.9.0\fP => \fB\(ga1.15.0\fP
+.IP \(bu 2
+\fBpathlib2\fP: \fB\(ga2.3.2\fP => \fB\(ga2.3.3\fP
+.IP \(bu 2
+\fBpep517\fP: \fB\(ga(new)\fP => \fB\(ga0.5.0\fP
+.IP \(bu 2
+\fBpexpect\fP: \fB\(ga4.6.0\fP => \fB\(ga4.8.0\fP
+.IP \(bu 2
+\fBpip\-shims\fP: \fB\(ga0.2.0\fP => \fB\(ga0.5.1\fP
+.IP \(bu 2
+\fBpipdeptree\fP: \fB\(ga0.13.0\fP => \fB\(ga0.13.2\fP
+.IP \(bu 2
+\fBpyparsing\fP: \fB\(ga2.2.2\fP => \fB\(ga2.4.6\fP
+.IP \(bu 2
+\fBpython\-dotenv\fP: \fB\(ga0.9.1\fP => \fB\(ga0.10.2\fP
+.IP \(bu 2
+\fBpythonfinder\fP: \fB\(ga1.1.10\fP => \fB\(ga1.2.2\fP
+.IP \(bu 2
+\fBpytoml\fP: \fB\(ga(new)\fP => \fB\(ga0.1.20\fP
+.IP \(bu 2
+\fBrequests\fP: \fB\(ga2.20.1\fP => \fB\(ga2.23.0\fP
+.IP \(bu 2
+\fBrequirementslib\fP: \fB\(ga1.3.3\fP => \fB\(ga1.5.4\fP
+.IP \(bu 2
+\fBscandir\fP: \fB\(ga1.9.0\fP => \fB\(ga1.10.0\fP
+.IP \(bu 2
+\fBshellingham\fP: \fB\(ga1.2.7\fP => \fB\(ga1.3.2\fP
+.IP \(bu 2
+\fBsix\fP: \fB\(ga1.11.0\fP => \fB\(ga1.14.0\fP
+.IP \(bu 2
+\fBtomlkit\fP: \fB\(ga0.5.2\fP => \fB\(ga0.5.11\fP
+.IP \(bu 2
+\fBurllib3\fP: \fB\(ga1.24\fP => \fB\(ga1.25.8\fP
+.IP \(bu 2
+\fBvistir\fP: \fB\(ga0.3.0\fP => \fB\(ga0.5.0\fP
+.IP \(bu 2
+\fByaspin\fP: \fB\(ga0.14.0\fP => \fB\(ga0.14.3\fP
+.IP \(bu 2
+\fBzipp\fP: \fB\(ga0.6.0\fP
+.UNINDENT
+.UNINDENT
+.INDENT 2.0
+.IP \(bu 2
+Removed vendored dependency \fBcursor\fP\&.  \fI\%#4169\fP
+.UNINDENT
+.IP \(bu 2
+Add and update vendored dependencies to accommodate \fBsafety\fP vendoring:
+\- \fBsafety\fP \fB(none)\fP => \fB1.8.7\fP
+\- \fBdparse\fP \fB(none)\fP => \fB0.5.0\fP
+\- \fBpyyaml\fP \fB(none)\fP => \fB5.3.1\fP
+\- \fBurllib3\fP \fB1.25.8\fP => \fB1.25.9\fP
+\- \fBcertifi\fP \fB2019.11.28\fP => \fB2020.4.5.1\fP
+\- \fBpyparsing\fP \fB2.4.6\fP => \fB2.4.7\fP
+\- \fBresolvelib\fP \fB0.2.2\fP => \fB0.3.0\fP
+\- \fBimportlib\-metadata\fP \fB1.5.1\fP => \fB1.6.0\fP
+\- \fBpip\-shims\fP \fB0.5.1\fP => \fB0.5.2\fP
+\- \fBrequirementslib\fP \fB1.5.5\fP => \fB1.5.6\fP  \fI\%#4188\fP
+.IP \(bu 2
+Updated vendored \fBpip\fP => \fB20.0.2\fP and \fBpip\-tools\fP => \fB5.0.0\fP\&.  \fI\%#4215\fP
+.IP \(bu 2
+Updated vendored dependencies to latest versions for security and bug fixes:
+.INDENT 2.0
+.IP \(bu 2
+\fBrequirementslib\fP \fB1.5.8\fP => \fB1.5.9\fP
+.IP \(bu 2
+\fBvistir\fP \fB0.5.0\fP => \fB0.5.1\fP
+.IP \(bu 2
+\fBjinja2\fP \fB2.11.1\fP => \fB2.11.2\fP
+.IP \(bu 2
+\fBclick\fP \fB7.1.1\fP => \fB7.1.2\fP
+.IP \(bu 2
+\fBdateutil\fP \fB(none)\fP => \fB2.8.1\fP
+.IP \(bu 2
+\fBbackports.functools_lru_cache\fP \fB1.5.0\fP => \fB1.6.1\fP
+.IP \(bu 2
+\fBenum34\fP \fB1.1.6\fP => \fB1.1.10\fP
+.IP \(bu 2
+\fBtoml\fP \fB0.10.0\fP => \fB0.10.1\fP
+.IP \(bu 2
+\fBimportlib_resources\fP \fB1.4.0\fP => \fB1.5.0\fP  \fI\%#4226\fP
+.UNINDENT
+.IP \(bu 2
+Changed attrs import path in vendored dependencies to always import from \fBpipenv.vendor\fP\&.  \fI\%#4267\fP
+.UNINDENT
+.SS Improved Documentation
+.INDENT 0.0
+.IP \(bu 2
+Added documenation about variable expansion in \fBPipfile\fP entries.  \fI\%#2317\fP
+.IP \(bu 2
+Consolidate all contributing docs in the rst file  \fI\%#3120\fP
+.IP \(bu 2
+Update the out\-dated manual page.  \fI\%#3246\fP
+.IP \(bu 2
+Move CLI docs to its own page.  \fI\%#3346\fP
+.IP \(bu 2
+Replace (non\-existant) video on docs index.rst with equivalent gif.  \fI\%#3499\fP
+.IP \(bu 2
+Clarify wording in Basic Usage example on using double quotes to escape shell redirection  \fI\%#3522\fP
+.IP \(bu 2
+Ensure docs show navigation on small\-screen devices  \fI\%#3527\fP
+.IP \(bu 2
+Added a link to the TOML Spec under General Recommendations & Version Control to clarify how Pipfiles should be written.  \fI\%#3629\fP
+.IP \(bu 2
+Updated the documentation with the new \fBpytest\fP entrypoint.  \fI\%#3759\fP
+.IP \(bu 2
+Fix link to GIF in README.md demonstrating Pipenv\(aqs usage, and add descriptive alt text.  \fI\%#3911\fP
+.IP \(bu 2
+Added a line describing potential issues in fancy extension.  \fI\%#3912\fP
+.IP \(bu 2
+Documental description of how Pipfile works and association with Pipenv.  \fI\%#3913\fP
+.IP \(bu 2
+Clarify the proper value of \fBpython_version\fP and \fBpython_full_version\fP\&.  \fI\%#3914\fP
+.IP \(bu 2
+Write description for \-\-deploy extension and few extensions differences.  \fI\%#3915\fP
+.IP \(bu 2
+More documentation for \fB\&.env\fP files  \fI\%#4100\fP
+.IP \(bu 2
+Updated documentation to point to working links.  \fI\%#4137\fP
+.IP \(bu 2
+Replace docs.pipenv.org with pipenv.pypa.io  \fI\%#4167\fP
+.IP \(bu 2
+Added functionality to check spelling in documentation and cleaned up existing typographical issues.  \fI\%#4209\fP
+.UNINDENT
 .SS 2018.11.26 (2018\-11\-26)
 .SS Bug Fixes
 .INDENT 0.0
@@ -412,21 +1265,21 @@ Fixed an issue which prevented the parsing of named extras sections from certain
 .IP \(bu 2
 Correctly detect the virtualenv location inside an activated virtualenv.  \fI\%#3231\fP
 .IP \(bu 2
-Fixed a bug which caused spinner frames to be written to stdout during locking operations which could cause redirection pipes to fail.  \fI\%#3239\fP
+Fixed a bug which caused spinner frames to be written to standard output during locking operations which could cause redirection pipes to fail.  \fI\%#3239\fP
 .IP \(bu 2
-Fixed a bug that editable pacakges can\(aqt be uninstalled correctly.  \fI\%#3240\fP
+Fixed a bug that editable packages can\(aqt be uninstalled correctly.  \fI\%#3240\fP
 .IP \(bu 2
 Corrected an issue with installation timeouts which caused dependency resolution to fail for longer duration resolution steps.  \fI\%#3244\fP
 .IP \(bu 2
 Adding normal pep 508 compatible markers is now fully functional when using VCS dependencies.  \fI\%#3249\fP
 .IP \(bu 2
-Updated \fBrequirementslib\fP and \fBpythonfinder\fP for multiple bugfixes.  \fI\%#3254\fP
+Updated \fBrequirementslib\fP and \fBpythonfinder\fP for multiple bug fixes.  \fI\%#3254\fP
 .IP \(bu 2
 Pipenv will now ignore hashes when installing with \fB\-\-skip\-lock\fP\&.  \fI\%#3255\fP
 .IP \(bu 2
 Fixed an issue where pipenv could crash when multiple pipenv processes attempted to create the same directory.  \fI\%#3257\fP
 .IP \(bu 2
-Fixed an issue which sometimes prevented successful creation of project pipfiles.  \fI\%#3260\fP
+Fixed an issue which sometimes prevented successful creation of a project Pipfile.  \fI\%#3260\fP
 .IP \(bu 2
 \fBpipenv install\fP will now unset the \fBPYTHONHOME\fP environment variable when not combined with \fB\-\-system\fP\&.  \fI\%#3261\fP
 .IP \(bu 2
@@ -466,10 +1319,10 @@ Added persistent settings for all CLI flags via \fBPIPENV_{FLAG_NAME}\fP environ
 .IP \(bu 2
 Added improved messaging about available but skipped updates due to dependency conflicts when running \fBpipenv update \-\-outdated\fP\&.  \fI\%#2411\fP
 .IP \(bu 2
-Added environment variable \fIPIPENV_PYUP_API_KEY\fP to add ability
-to override the bundled pyup.io API key.  \fI\%#2825\fP
+Added environment variable \fBPIPENV_PYUP_API_KEY\fP to add ability
+to override the bundled PyUP.io API key.  \fI\%#2825\fP
 .IP \(bu 2
-Added additional output to \fBpipenv update \-\-outdated\fP to indicate that the operation succeded and all packages were already up to date.  \fI\%#2828\fP
+Added additional output to \fBpipenv update \-\-outdated\fP to indicate that the operation succeeded and all packages were already up to date.  \fI\%#2828\fP
 .IP \(bu 2
 Updated \fBcrayons\fP patch to enable colors on native powershell but swap native blue for magenta.  \fI\%#3020\fP
 .IP \(bu 2
@@ -486,7 +1339,7 @@ Improved runtime performance of no\-op commands such as \fBpipenv \-\-venv\fP by
 .IP \(bu 2
 Do not show error but success for running \fBpipenv uninstall \-\-all\fP in a fresh virtual environment.  \fI\%#3170\fP
 .IP \(bu 2
-Improved asynchronous installation and error handling via queued subprocess paralleization.  \fI\%#3217\fP
+Improved asynchronous installation and error handling via queued subprocess parallelization.  \fI\%#3217\fP
 .UNINDENT
 .SS Bug Fixes
 .INDENT 0.0
@@ -497,7 +1350,7 @@ Non\-ascii characters will now be handled correctly when parsed by pipenv\(aqs \
 .IP \(bu 2
 Updated \fBpipenv uninstall\fP to respect the \fB\-\-skip\-lock\fP argument.  \fI\%#2848\fP
 .IP \(bu 2
-Fixed a bug which caused uninstallation to sometimes fail to successfullly remove packages from \fBPipfiles\fP with comments on preceding or following lines.  \fI\%#2885\fP,
+Fixed a bug which caused uninstallation to sometimes fail to successfully remove packages from \fBPipfiles\fP with comments on preceding or following lines.  \fI\%#2885\fP,
 \fI\%#3099\fP
 .IP \(bu 2
 Pipenv will no longer fail when encountering python versions on Windows that have been uninstalled.  \fI\%#2983\fP
@@ -535,7 +1388,7 @@ Updated \fBpythonfinder\fP to correct an issue with unnesting of nested paths wh
 .IP \(bu 2
 Added additional logic for ignoring and replacing non\-ascii characters when formatting console output on non\-UTF\-8 systems.  \fI\%#3131\fP
 .IP \(bu 2
-Fix virtual environment discovery when \fIPIPENV_VENV_IN_PROJECT\fP is set, but the in\-project \fI\&.venv\fP is a file.  \fI\%#3134\fP
+Fix virtual environment discovery when \fBPIPENV_VENV_IN_PROJECT\fP is set, but the in\-project \fI\&.venv\fP is a file.  \fI\%#3134\fP
 .IP \(bu 2
 Hashes for remote and local non\-PyPI artifacts will now be included in \fBPipfile.lock\fP during resolution.  \fI\%#3145\fP
 .IP \(bu 2
@@ -652,7 +1505,7 @@ Upgraded \fBpythonfinder => 1.1.1\fP and \fBvistir => 0.1.7\fP\&.  \fI\%#3007\fP
 Added environment variables \fIPIPENV_VERBOSE\fP and \fIPIPENV_QUIET\fP to control
 output verbosity without needing to pass options.  \fI\%#2527\fP
 .IP \(bu 2
-Updated test\-pypi addon to better support json\-api access (forward compatibility).
+Updated test\-PyPI add\-on to better support json\-API access (forward compatibility).
 Improved testing process for new contributors.  \fI\%#2568\fP
 .IP \(bu 2
 Greatly enhanced python discovery functionality:
@@ -689,11 +1542,11 @@ Fallback to shell mode if \fIrun\fP fails with Windows error 193 to handle non\-
 .SS Bug Fixes
 .INDENT 0.0
 .IP \(bu 2
-Fixed a bug which prevented installation of editable requirements using \fBssh://\fP style urls  \fI\%#1393\fP
+Fixed a bug which prevented installation of editable requirements using \fBssh://\fP style URLs  \fI\%#1393\fP
 .IP \(bu 2
 VCS Refs for locked local editable dependencies will now update appropriately to the latest hash when running \fBpipenv update\fP\&.  \fI\%#1690\fP
 .IP \(bu 2
-\fB\&.tar.gz\fP and \fB\&.zip\fP artifacts will now have dependencies installed even when they are missing from the lockfile.  \fI\%#2173\fP
+\fB\&.tar.gz\fP and \fB\&.zip\fP artifacts will now have dependencies installed even when they are missing from the Lockfile.  \fI\%#2173\fP
 .IP \(bu 2
 The command line parser will now handle multiple \fB\-e/\-\-editable\fP dependencies properly via click\(aqs option parser to help mitigate future parsing issues.  \fI\%#2279\fP
 .IP \(bu 2
@@ -717,12 +1570,12 @@ Fixed non\-deterministic resolution issues related to changes to the internal pa
 .IP \(bu 2
 Fix subshell invocation on Windows for Python 2.  \fI\%#2515\fP
 .IP \(bu 2
-Fixed a bug which sometimes caused pipenv to throw a \fBTypeError\fP or to run into encoding issues when writing lockfiles on python 2.  \fI\%#2561\fP
+Fixed a bug which sometimes caused pipenv to throw a \fBTypeError\fP or to run into encoding issues when writing a Lockfile on python 2.  \fI\%#2561\fP
 .IP \(bu 2
 Improve quoting logic for \fBpipenv run\fP so it works better with Windows
 built\-in commands.  \fI\%#2563\fP
 .IP \(bu 2
-Fixed a bug related to parsing vcs requirements with both extras and subdirectory fragments.
+Fixed a bug related to parsing VCS requirements with both extras and subdirectory fragments.
 Corrected an issue in the \fBrequirementslib\fP parser which led to some markers being discarded rather than evaluated.  \fI\%#2564\fP
 .IP \(bu 2
 Fixed multiple issues with finding the correct system python locations.  \fI\%#2582\fP
@@ -751,7 +1604,7 @@ Fixed virtualenv creation failure when a .venv file is present in the project ro
 .IP \(bu 2
 Fixed a bug which could cause the \fB\-e/\-\-editable\fP argument on a dependency to be accidentally parsed as a dependency itself.  \fI\%#2714\fP
 .IP \(bu 2
-Correctly pass \fIverbose\fP and \fIdebug\fP flags to the resolver subprocess so it generates appropriate output. This also resolves a bug introduced by the fix to #2527.  \fI\%#2732\fP
+Correctly pass \fBverbose\fP and \fBdebug\fP flags to the resolver subprocess so it generates appropriate output. This also resolves a bug introduced by the fix to #2527.  \fI\%#2732\fP
 .IP \(bu 2
 All markers are now included in \fBpipenv lock \-\-requirements\fP output.  \fI\%#2748\fP
 .IP \(bu 2
@@ -764,7 +1617,7 @@ Fixed a bug in the dependency resolver which caused regular issues when handling
 .B Updated vendored dependencies:
 .INDENT 7.0
 .IP \(bu 2
-\fBpip\-tools\fP (updated and patched to latest w/ \fBpip 18.0\fP compatibilty)
+\fBpip\-tools\fP (updated and patched to latest w/ \fBpip 18.0\fP compatibility)
 .IP \(bu 2
 \fBpip 10.0.1 => 18.0\fP
 .IP \(bu 2
@@ -844,7 +1697,7 @@ Update vendored libraries:
 .B Updated vendored dependencies:
 .INDENT 7.0
 .IP \(bu 2
-\fBpip\-tools\fP (updated and patched to latest w/ \fBpip 18.0\fP compatibilty)
+\fBpip\-tools\fP (updated and patched to latest w/ \fBpip 18.0\fP compatibility)
 .IP \(bu 2
 \fBpip 10.0.1 => 18.0\fP
 .IP \(bu 2
@@ -889,7 +1742,7 @@ Update vendored libraries:
 .IP \(bu 2
 Simplified the test configuration process.  \fI\%#2568\fP
 .IP \(bu 2
-Updated documentation to use working fortune cookie addon.  \fI\%#2644\fP
+Updated documentation to use working fortune cookie add\-on.  \fI\%#2644\fP
 .IP \(bu 2
 Added additional information about troubleshooting \fBpipenv shell\fP by using the the \fB$PIPENV_SHELL\fP environment variable.  \fI\%#2671\fP
 .IP \(bu 2
@@ -900,7 +1753,7 @@ Added simple example to README.md for installing from git.  \fI\%#2685\fP
 Stopped recommending \fI\-\-system\fP for Docker contexts.  \fI\%#2762\fP
 .IP \(bu 2
 Fixed the example url for doing "pipenv install \-e
-some\-repo\-url#egg=something", it was missing the "egg=" in the fragment
+some\-repository\-url#egg=something", it was missing the "egg=" in the fragment
 identifier.  \fI\%#2792\fP
 .IP \(bu 2
 Fixed link to the "be cordial" essay in the contribution documentation.  \fI\%#2793\fP
@@ -915,36 +1768,36 @@ Replace reference to uservoice with PEEP\-000  \fI\%#2909\fP
 .IP \(bu 2
 All calls to \fBpipenv shell\fP are now implemented from the ground up using \fI\%shellingham\fP, a custom library which was purpose built to handle edge cases and shell detection.  \fI\%#2371\fP
 .IP \(bu 2
-Added support for python 3.7 via a few small compatibility / bugfixes.  \fI\%#2427\fP,
+Added support for python 3.7 via a few small compatibility / bug fixes.  \fI\%#2427\fP,
 \fI\%#2434\fP,
 \fI\%#2436\fP
 .IP \(bu 2
 Added new flag \fBpipenv \-\-support\fP to replace the diagnostic command \fBpython \-m pipenv.help\fP\&.  \fI\%#2477\fP,
 \fI\%#2478\fP
 .IP \(bu 2
-Improved import times and CLI runtimes with minor tweaks.  \fI\%#2485\fP
+Improved import times and CLI run times with minor tweaks.  \fI\%#2485\fP
 .UNINDENT
 .SS Bug Fixes
 .INDENT 0.0
 .IP \(bu 2
-Fixed an ongoing bug which sometimes resolved incompatible versions into lockfiles.  \fI\%#1901\fP
+Fixed an ongoing bug which sometimes resolved incompatible versions into the project Lockfile.  \fI\%#1901\fP
 .IP \(bu 2
 Fixed a bug which caused errors when creating virtualenvs which contained leading dash characters.  \fI\%#2415\fP
 .IP \(bu 2
-Fixed a logic error which caused \fB\-\-deploy \-\-system\fP to overwrite editable vcs packages in the pipfile before installing, which caused any installation to fail by default.  \fI\%#2417\fP
+Fixed a logic error which caused \fB\-\-deploy \-\-system\fP to overwrite editable vcs packages in the Pipfile before installing, which caused any installation to fail by default.  \fI\%#2417\fP
 .IP \(bu 2
 Updated requirementslib to fix an issue with properly quoting markers in VCS requirements.  \fI\%#2419\fP
 .IP \(bu 2
 Installed new vendored jinja2 templates for \fBclick\-completion\fP which were causing template errors for users with completion enabled.  \fI\%#2422\fP
 .IP \(bu 2
-Added support for python 3.7 via a few small compatibility / bugfixes.  \fI\%#2427\fP
+Added support for python 3.7 via a few small compatibility / bug fixes.  \fI\%#2427\fP
 .IP \(bu 2
 Fixed an issue reading package names from \fBsetup.py\fP files in projects which imported utilities such as \fBversioneer\fP\&.  \fI\%#2433\fP
 .IP \(bu 2
 Pipenv will now ensure that its internal package names registry files are written with unicode strings.  \fI\%#2450\fP
 .IP \(bu 2
 Fixed a bug causing requirements input as relative paths to be output as absolute paths or URIs.
-Fixed a bug affecting normalization of \fBgit+git@host\fP uris.  \fI\%#2453\fP
+Fixed a bug affecting normalization of \fBgit+git@host\fP URLs.  \fI\%#2453\fP
 .IP \(bu 2
 Pipenv will now always use \fBpathlib2\fP for \fBPath\fP based filesystem interactions by default on \fBpython<3.5\fP\&.  \fI\%#2454\fP
 .IP \(bu 2
@@ -1001,7 +1854,7 @@ Added nested JSON output to the \fBpipenv graph\fP command.  \fI\%#2199\fP
 Dropped vendored pip 9 and vendored, patched, and migrated to pip 10. Updated
 patched piptools version.  \fI\%#2255\fP
 .IP \(bu 2
-PyPI mirror URLs can now be set to override instances of PyPI urls by passing
+PyPI mirror URLs can now be set to override instances of PyPI URLs by passing
 the \fB\-\-pypi\-mirror\fP argument from the command line or setting the
 \fBPIPENV_PYPI_MIRROR\fP environment variable.  \fI\%#2281\fP
 .IP \(bu 2
@@ -1033,8 +1886,8 @@ specific CVEs.  \fI\%#2408\fP
 .INDENT 0.0
 .IP \(bu 2
 Pipenv will now parse & capitalize \fBplatform_python_implementation\fP markers
-.. warning:: This could cause an issue if you have an out of date \fBPipfile\fP
-which lowercases the comparison value (e.g. \fBcpython\fP instead of
+\&.. warning:: This could cause an issue if you have an out of date \fBPipfile\fP
+which lower\-cases the comparison value (e.g. \fBcpython\fP instead of
 \fBCPython\fP).  \fI\%#2123\fP
 .IP \(bu 2
 Pipenv will now only search for \fBrequirements.txt\fP files when creating new
@@ -1081,7 +1934,7 @@ locked have been fixed.  \fI\%#2267\fP
 .IP \(bu 2
 Fixed a bug causing pipenv graph to fail to display sometimes.  \fI\%#2268\fP
 .IP \(bu 2
-Updated \fBrequirementslib\fP to fix a bug in pipfile parsing affecting
+Updated \fBrequirementslib\fP to fix a bug in Pipfile parsing affecting
 relative path conversions.  \fI\%#2269\fP
 .IP \(bu 2
 Windows executable discovery now leverages \fBos.pathext\fP\&.  \fI\%#2298\fP
@@ -1096,10 +1949,10 @@ VCS dependencies are now manually obtained only if they do not match the
 requested ref.  \fI\%#2304\fP
 .IP \(bu 2
 Added error handling functionality to properly cope with single\-digit
-\fBRequires\-Python\fP metatdata with no specifiers.  \fI\%#2377\fP
+\fBRequires\-Python\fP metadata with no specifiers.  \fI\%#2377\fP
 .IP \(bu 2
 \fBpipenv update\fP will now always run the resolver and lock before ensuring
-your dependencies are in sync with your lockfile.  \fI\%#2379\fP
+dependencies are in sync with project Lockfile.  \fI\%#2379\fP
 .IP \(bu 2
 Resolved a bug in our patched resolvers which could cause nondeterministic
 resolution failures in certain conditions. Running \fBpipenv install\fP with no
@@ -1129,7 +1982,7 @@ custom certificate settings.  \fI\%#2193\fP
 Dropped vendored pip 9 and vendored, patched, and migrated to pip 10. Updated
 patched piptools version.  \fI\%#2255\fP
 .IP \(bu 2
-Updated \fBrequirementslib\fP to fix a bug in pipfile parsing affecting
+Updated \fBrequirementslib\fP to fix a bug in Pipfile parsing affecting
 relative path conversions.  \fI\%#2269\fP
 .IP \(bu 2
 Added custom shell detection library \fBshellingham\fP, a port of our changes
@@ -1190,7 +2043,7 @@ Automatically generates a \fBPipfile\fP, if one doesn\(aqt exist.
 .IP \(bu 2
 Automatically creates a virtualenv in a standard location.
 .IP \(bu 2
-Automatically adds/removes packages to a \fBPipfile\fP when they are un/installed.
+Automatically adds/removes packages to a \fBPipfile\fP when they are installed or uninstalled.
 .IP \(bu 2
 Automatically loads \fB\&.env\fP files, if they exist.
 .UNINDENT
@@ -1218,7 +2071,7 @@ Otherwise, whatever virtualenv defaults to will be the default.
 .IP \(bu 2
 \fBrun\fP will run a given command from the virtualenv, with any arguments forwarded (e.g. \fB$ pipenv run python\fP or \fB$ pipenv run pip freeze\fP).
 .IP \(bu 2
-\fBcheck\fP checks for security vulnerabilities and asserts that PEP 508 requirements are being met by the current environment.
+\fBcheck\fP checks for security vulnerabilities and asserts that \fI\%PEP 508\fP requirements are being met by the current environment.
 .UNINDENT
 .SH FURTHER DOCUMENTATION GUIDES
 .SS Basic Usage of Pipenv
@@ -1226,6 +2079,12 @@ Otherwise, whatever virtualenv defaults to will be the default.
 .sp
 This document covers some of Pipenv\(aqs more basic features.
 .SS ☤ Example Pipfile & Pipfile.lock
+.sp
+Pipfiles contain information for the dependencies of the project, and supersedes
+the requirements.txt file used in most Python projects. You should add a Pipfile in the
+Git repository letting users who clone the repository know the only thing required would be
+installing Pipenv in the machine and typing \fBpipenv install\fP\&. Pipenv is a reference
+implementation for using Pipfile.
 .sp
 Here is a simple example of a \fBPipfile\fP and the resulting \fBPipfile.lock\fP\&.
 .SS Example Pipfile
@@ -1348,7 +2207,7 @@ Generally, keep both \fBPipfile\fP and \fBPipfile.lock\fP in version control.
 .IP \(bu 2
 Do not keep \fBPipfile.lock\fP in version control if multiple versions of Python are being targeted.
 .IP \(bu 2
-Specify your target Python version in your \fIPipfile\fP\(aqs \fB[requires]\fP section. Ideally, you should only have one target Python version, as this is a deployment tool.
+Specify your target Python version in your \fIPipfile\fP\(aqs \fB[requires]\fP section. Ideally, you should only have one target Python version, as this is a deployment tool. \fBpython_version\fP should be in the format \fBX.Y\fP (or \fBX\fP) and \fBpython_full_version\fP should be in \fBX.Y.Z\fP format.
 .IP \(bu 2
 \fBpipenv install\fP is fully compatible with \fBpip install\fP syntax, for which the full documentation can be found \fI\%here\fP\&.
 .IP \(bu 2
@@ -1446,7 +2305,7 @@ For example, to install requests you can use:
 .sp
 .nf
 .ft C
-$ pipenv install requests~=1.2   # equivalent to requests~=1.2.0
+$ pipenv install requests~=1.2
 .ft P
 .fi
 .UNINDENT
@@ -1487,7 +2346,7 @@ The use of \fB~=\fP is preferred over the \fB==\fP identifier as the latter prev
 .sp
 .nf
 .ft C
-$ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using ==2.*)
+$ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using >=2.2, ==2.*)
 .ft P
 .fi
 .UNINDENT
@@ -1657,6 +2516,8 @@ is unique.
 .IP \(bu 2
 \fB\-\-system\fP — Use the system \fBpip\fP command rather than the one from your virtualenv.
 .IP \(bu 2
+\fB\-\-deploy\fP — Make sure the packages are properly locked in Pipfile.lock, and abort if the lock file is out\-of\-date.
+.IP \(bu 2
 \fB\-\-ignore\-pipfile\fP — Ignore the \fBPipfile\fP and install from the \fBPipfile.lock\fP\&.
 .IP \(bu 2
 \fB\-\-skip\-lock\fP — Ignore the \fBPipfile.lock\fP and install from the \fBPipfile\fP\&. In addition, do not write out a \fBPipfile.lock\fP reflecting changes to the \fBPipfile\fP\&.
@@ -1724,7 +2585,7 @@ You can install packages with pipenv from git and other version control systems 
 .UNINDENT
 .UNINDENT
 .sp
-The only optional section is the \fB@<branch_or_tag>\fP section.  When using git over SSH, you may use the shorthand vcs and scheme alias \fBgit+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#<package_name>\fP\&. Note that this is translated to \fBgit+ssh://git@<location>\fP when parsed.
+The only optional section is the \fB@<branch_or_tag>\fP section.  When using git over SSH, you may use the shorthand vcs and scheme alias \fBgit+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#egg=<package_name>\fP\&. Note that this is translated to \fBgit+ssh://git@<location>\fP when parsed.
 .sp
 Note that it is \fBstrongly recommended\fP that you install any version\-controlled dependencies in editable mode, using \fBpipenv install \-e\fP, in order to ensure that dependency resolution can be performed with an up to date copy of the repository each time it is performed, and that it includes all known dependencies.
 .sp
@@ -1768,8 +2629,8 @@ production environments for reproducible builds.
 .INDENT 0.0
 .INDENT 3.5
 If you\(aqd like a \fBrequirements.txt\fP output of the lockfile, run \fB$ pipenv lock \-r\fP\&.
-This will include all hashes, however (which is great!). To get a \fBrequirements.txt\fP
-without hashes, use \fB$ pipenv run pip freeze\fP\&.
+This will not include hashes, however. To get a \fBrequirements.txt\fP
+you can also use \fB$ pipenv run pip freeze\fP\&.
 .UNINDENT
 .UNINDENT
 .SS Advanced Usage of Pipenv
@@ -1794,7 +2655,7 @@ If you\(aqd like a specific package to be installed with a specific package inde
 .nf
 .ft C
 [[source]]
-url = "https://pypi.python.org/simple"
+url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
@@ -1817,7 +2678,7 @@ records = "*"
 Very fancy.
 .SS ☤ Using a PyPI Mirror
 .sp
-If you\(aqd like to override the default PyPI index urls with the url for a PyPI mirror, you can use the following:
+If you would like to override the default PyPI index URLs with the URL for a PyPI mirror, you can use the following:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1860,18 +2721,26 @@ Luckily \- pipenv will hash your Pipfile \fIbefore\fP expanding environment
 variables (and, helpfully, will substitute the environment variables again when
 you install from the lock file \- so no need to commit any secrets! Woo!)
 .sp
-If your credentials contain a special character, surround the references to the environment variables with quotation marks. For example, if your password contain a double quotation mark, surround the password variable with single quotation marks. Otherwise, you may get a \fBValueError, "No closing quotation"\fP error while installing dependencies.
+If your credentials contain special characters, make sure they are URL\-encoded as specified in \fI\%rfc3986\fP\&.
+.sp
+Environment variables may be specified as \fB${MY_ENVAR}\fP or \fB$MY_ENVAR\fP\&.
+.sp
+On Windows, \fB%MY_ENVAR%\fP is supported in addition to \fB${MY_ENVAR}\fP or \fB$MY_ENVAR\fP\&.
+.sp
+Environment variables in the URL part of requirement specifiers can also be expanded, where the variable must be in the form of \fB${VAR_NAME}\fP\&. Neither \fB$VAR_NAME\fP nor \fB%VAR_NAME%\fP is acceptable:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-[[source]]
-url = "https://$USERNAME:\(aq${PASSWORD}\(aq@mypypi.example.com/simple"
+[[package]]
+requests = {git = "git://${USERNAME}:${PASSWORD}@private.git.com/psf/requests.git", ref = "2.22.0"}
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
+.sp
+Keep in mind that environment variables are expanded in runtime, leaving the entries in \fBPipfile\fP or \fBPipfile.lock\fP untouched. This is to avoid the accidental leakage of credentials in the source code.
 .SS ☤ Specifying Basically Anything
 .sp
 If you\(aqd like to specify that a specific package only be installed on certain systems,
@@ -1994,7 +2863,9 @@ $ pipenv \-\-python=/path/to/python \-\-site\-packages
 .UNINDENT
 .SS ☤ Generating a \fBrequirements.txt\fP
 .sp
-You can convert a \fBPipfile\fP and \fBPipfile.lock\fP into a \fBrequirements.txt\fP file very easily, and get all the benefits of extras and other goodies we have included.
+You can convert a \fBPipfile\fP and \fBPipfile.lock\fP into a \fBrequirements.txt\fP
+file very easily, and get all the benefits of extras and other goodies we have
+included.
 .sp
 Let\(aqs take this \fBPipfile\fP:
 .INDENT 0.0
@@ -2008,12 +2879,15 @@ verify_ssl = true
 
 [packages]
 requests = {version="*"}
+
+[dev\-packages]
+pytest = {version="*"}
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
 .sp
-And generate a \fBrequirements.txt\fP out of it:
+And generate a set of requirements out of it with only the default dependencies:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -2030,30 +2904,19 @@ urllib3==1.22
 .UNINDENT
 .UNINDENT
 .sp
-If you wish to generate a \fBrequirements.txt\fP with only the development requirements you can do that too!  Let\(aqs take the following \fBPipfile\fP:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-[[source]]
-url = "https://pypi.python.org/simple"
-verify_ssl = true
-
-[dev\-packages]
-pytest = {version="*"}
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-And generate a \fBrequirements.txt\fP out of it:
+As with other commands, passing \fB\-\-dev\fP will include both the default and
+development dependencies:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
 $ pipenv lock \-r \-\-dev
+chardet==3.0.4
+requests==2.18.4
+certifi==2017.7.27.1
+idna==2.6
+urllib3==1.22
 py==1.4.34
 pytest==3.2.3
 .ft P
@@ -2061,7 +2924,44 @@ pytest==3.2.3
 .UNINDENT
 .UNINDENT
 .sp
-Very fancy.
+Finally, if you wish to generate a requirements file with only the
+development requirements you can do that too, using the \fB\-\-dev\-only\fP
+flag:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pipenv lock \-r \-\-dev\-only
+py==1.4.34
+pytest==3.2.3
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The locked requirements are written to stdout, with shell output redirection
+used to write them to a file:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pipenv lock \-r > requirements.txt
+$ pipenv lock \-r \-\-dev\-only > dev\-requirements.txt
+$ cat requirements.txt
+chardet==3.0.4
+requests==2.18.4
+certifi==2017.7.27.1
+idna==2.6
+urllib3==1.22
+$ cat dev\-requirements.txt
+py==1.4.34
+pytest==3.2.3
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
 .SS ☤ Detection of Security Vulnerabilities
 .sp
 Pipenv includes the \fI\%safety\fP package, and will use it to scan your dependency graph
@@ -2078,9 +2978,9 @@ $ cat Pipfile
 django = "==1.10.1"
 
 $ pipenv check
-Checking PEP 508 requirements…
+Checking PEP 508 requirements...
 Passed!
-Checking installed package safety…
+Checking installed package safety...
 
 33075: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
 Django before 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3, when settings.DEBUG is True, allow remote attackers to conduct DNS rebinding attacks by leveraging failure to validate the HTTP Host header against settings.ALLOWED_HOSTS.
@@ -2121,16 +3021,15 @@ hardened for production use and should be used only as a development aid.
 \fBNOTE:\fP
 .INDENT 0.0
 .INDENT 3.5
-In order to enable this functionality while maintaining its permissive
-copyright license, \fIpipenv\fP embeds an API client key for the backend
-Safety API operated by pyup.io rather than including a full copy of the
-CC\-BY\-NC\-SA licensed Safety\-DB database. This embedded client key is
-shared across all \fIpipenv check\fP users, and hence will be subject to
-API access throttling based on overall usage rather than individual
-client usage.
+Each month, \fIPyUp.io\fP updates the \fBsafety\fP database of
+insecure Python packages and \fI\%makes it available to the
+community for free\fP\&. Pipenv
+makes an API call to retrieve those results and use them
+each time you run \fBpipenv check\fP to show you vulnerable
+dependencies.
 .sp
-You can also use your own safety API key by setting the
-environment variable \fBPIPENV_PYUP_API_KEY\fP\&.
+For more up\-to\-date vulnerability data, you may also use your own safety
+API key by setting the environment variable \fBPIPENV_PYUP_API_KEY\fP\&.
 .UNINDENT
 .UNINDENT
 .SS ☤ Community Integrations
@@ -2170,7 +3069,7 @@ Pipenv allows you to open any Python module that is installed (including ones in
 .nf
 .ft C
 $ pipenv install \-e git+https://github.com/kennethreitz/background.git#egg=background
-Installing \-e git+https://github.com/kennethreitz/background.git#egg=background…
+Installing \-e git+https://github.com/kennethreitz/background.git#egg=background...
 \&...
 Updated Pipfile.lock!
 
@@ -2213,17 +3112,17 @@ requests = "*"
 python_version = "3.6"
 
 $ pipenv install
-Warning: Python 3.6 was not found on your system…
+Warning: Python 3.6 was not found on your system...
 Would you like us to install latest CPython 3.6 with pyenv? [Y/n]: y
-Installing CPython 3.6.2 with pyenv (this may take a few minutes)…
+Installing CPython 3.6.2 with pyenv (this may take a few minutes)...
 \&...
-Making Python installation global…
-Creating a virtualenv for this project…
-Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv…
+Making Python installation global...
+Creating a virtualenv for this project...
+Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv...
 \&...
 No package provided, installing all dependencies.
 \&...
-Installing dependencies from Pipfile.lock…
+Installing dependencies from Pipfile.lock...
 🐍   ❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒ 5/5 — 00:00:03
 To activate this project\(aqs virtualenv, run the following:
  $ pipenv shell
@@ -2247,13 +3146,35 @@ $ cat .env
 HELLO=WORLD⏎
 
 $ pipenv run python
-Loading .env environment variables…
+Loading .env environment variables...
 Python 2.7.13 (default, Jul 18 2017, 09:17:00)
 [GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang\-802.0.42)] on darwin
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import os
 >>> os.environ[\(aqHELLO\(aq]
 \(aqWORLD\(aq
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Shell like variable expansion is available in \fB\&.env\fP files using \fI${VARNAME}\fP syntax.:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ cat .env
+CONFIG_PATH=${HOME}/.config/foo
+
+$ pipenv run python
+Loading .env environment variables...
+Python 3.7.6 (default, Dec 19 2019, 22:52:49)
+[GCC 9.2.1 20190827 (Red Hat 9.2.1\-1)] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import os
+>>> os.environ[\(aqCONFIG_PATH\(aq]
+\(aq/home/kennethreitz/.config/foo\(aq
 .ft P
 .fi
 .UNINDENT
@@ -2285,6 +3206,8 @@ $ PIPENV_DONT_LOAD_ENV=1 pipenv shell
 .fi
 .UNINDENT
 .UNINDENT
+.sp
+See \fI\%theskumar/python\-dotenv\fP for more information on \fB\&.env\fP files.
 .SS ☤ Custom Script Shortcuts
 .sp
 Pipenv supports creating custom shortcuts in the (optional) \fB[scripts]\fP section of your Pipfile.
@@ -2325,53 +3248,42 @@ For example:
 .sp
 .nf
 .ft C
+[scripts]
+echospam = "echo I am really a very silly example"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
 $ pipenv run echospam "indeed"
 I am really a very silly example indeed
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
-.SS ☤ Support for Environment Variables
 .sp
-Pipenv supports the usage of environment variables in place of authentication fragments
-in your Pipfile. These will only be parsed if they are present in the \fB[[source]]\fP
-section. For example:
+You can then display the names and commands of your shortcuts by running \fBpipenv scripts\fP in your terminal.
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-[[source]]
-url = "https://${PYPI_USERNAME}:${PYPI_PASSWORD}@my_private_repo.example.com/simple"
-verify_ssl = true
-name = "pypi"
-
-[dev\-packages]
-
-[packages]
-requests = {version="*", index="home"}
-maya = {version="*", index="pypi"}
-records = "*"
+$ pipenv scripts
+command   script
+echospam  echo I am really a very silly example
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
-.sp
-Environment variables may be specified as \fB${MY_ENVAR}\fP or \fB$MY_ENVAR\fP\&.
-.sp
-On Windows, \fB%MY_ENVAR%\fP is supported in addition to \fB${MY_ENVAR}\fP or \fB$MY_ENVAR\fP\&.
 .SS ☤ Configuration With Environment Variables
 .sp
 Pipenv comes with a handful of options that can be enabled via shell environment
 variables. To activate them, simply create the variable in your shell and pipenv
 will detect it.
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_CACHE_DIR = \(aq/Users/fming/Library/Caches/pipenv\(aq
-Location for Pipenv to store it\(aqs package cache.
-.sp
-Default is to use appdir\(aqs user cache directory.
-.UNINDENT
 .INDENT 0.0
 .TP
 .B pipenv.environments.PIPENV_COLORBLIND = False
@@ -2382,45 +3294,6 @@ to show colors.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_DEFAULT_PYTHON_VERSION = None
-Use this Python version when creating new virtual environments by default.
-.sp
-This can be set to a version string, e.g. \fB3.6\fP, or a path. Default is to use
-whatever Python Pipenv is installed under (i.e. \fBsys.executable\fP). Command
-line flags (e.g. \fB\-\-python\fP, \fB\-\-three\fP, and \fB\-\-two\fP) are prioritized over
-this configuration.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_DONT_LOAD_ENV = False
-If set, Pipenv does not load the \fB\&.env\fP file.
-.sp
-Default is to load \fB\&.env\fP for \fBrun\fP and \fBshell\fP commands.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_DONT_USE_PYENV = False
-If set, Pipenv does not attempt to install Python with pyenv.
-.sp
-Default is to install Python automatically via pyenv when needed, if possible.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_DOTENV_LOCATION = None
-If set, Pipenv loads the \fB\&.env\fP file at the specified location.
-.sp
-Default is to load \fB\&.env\fP from the project root, if found.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_EMULATOR = \(aq\(aq
-If set, the terminal emulator\(aqs name for \fBpipenv shell\fP to use.
-.sp
-Default is to detect emulators automatically. This should be set if your
-emulator, e.g. Cmder, cannot be detected correctly.
-.UNINDENT
-.INDENT 0.0
-.TP
 .B pipenv.environments.PIPENV_HIDE_EMOJIS = False
 Disable emojis in output.
 .sp
@@ -2428,155 +3301,46 @@ Default is to show emojis. This is automatically set on Windows.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_IGNORE_VIRTUALENVS = False
-If set, Pipenv will always assign a virtual environment for this project.
-.sp
-By default, Pipenv tries to detect whether it is run inside a virtual
-environment, and reuses it if possible. This is usually the desired behavior,
-and enables the user to use any user\-built environments with Pipenv.
+.B pipenv.environments.env_to_bool(val)
+Convert \fBval\fP to boolean, returning True if truthy or False if falsey
+.INDENT 7.0
+.TP
+.B Parameters
+\fBval\fP (\fIAny\fP) \-\- The value to convert
+.TP
+.B Returns
+False if Falsey, True if truthy
+.TP
+.B Return type
+bool
+.UNINDENT
 .UNINDENT
 .INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_INSTALL_TIMEOUT = 900
-Max number of seconds to wait for package installation.
+.B pipenv.environments.get_from_env(arg, prefix=\(aqPIPENV\(aq, check_for_negation=True)
+Check the environment for a variable, returning its truthy or stringified value
 .sp
-Defaults to 900 (15 minutes), a very long arbitrary time.
-.UNINDENT
-.INDENT 0.0
+For example, setting \fBPIPENV_NO_RESOLVE_VCS=1\fP would mean that
+\fBget_from_env("RESOLVE_VCS", prefix="PIPENV")\fP would return \fBFalse\fP\&.
+.INDENT 7.0
 .TP
-.B pipenv.environments.PIPENV_MAX_DEPTH = 4
-Maximum number of directories to recursively search for a Pipfile.
-.sp
-Default is 3. See also \fBPIPENV_NO_INHERIT\fP\&.
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBarg\fP (\fIstr\fP) \-\- The name of the variable to look for
+.IP \(bu 2
+\fBprefix\fP (\fIstr\fP) \-\- The prefix to attach to the variable, defaults to "PIPENV"
+.IP \(bu 2
+\fBcheck_for_negation\fP (\fIbool\fP) \-\- Whether to check for \fB<PREFIX>_NO_<arg>\fP, defaults
+to True
 .UNINDENT
-.INDENT 0.0
 .TP
-.B pipenv.environments.PIPENV_MAX_RETRIES = 0
-Specify how many retries Pipenv should attempt for network requests.
-.sp
-Default is 0. Automatically set to 1 on CI environments for robust testing.
+.B Returns
+The value from the environment if available
+.TP
+.B Return type
+Optional[Union[str, bool]]
 .UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_MAX_ROUNDS = 16
-Tells Pipenv how many rounds of resolving to do for Pip\-Tools.
-.sp
-Default is 16, an arbitrary number that works most of the time.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_MAX_SUBPROCESS = 8
-How many subprocesses should Pipenv use when installing.
-.sp
-Default is 16, an arbitrary number that seems to work.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_NOSPIN = False
-If set, disable terminal spinner.
-.sp
-This can make the logs cleaner. Automatically set on Windows, and in CI
-environments.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_NO_INHERIT = False
-Tell Pipenv not to inherit parent directories.
-.sp
-This is useful for deployment to avoid using the wrong current directory.
-Overwrites \fBPIPENV_MAX_DEPTH\fP\&.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_PIPFILE = None
-If set, this specifies a custom Pipfile location.
-.sp
-When running pipenv from a location other than the same directory where the
-Pipfile is located, instruct pipenv to find the Pipfile in the location
-specified by this environment variable.
-.sp
-Default is to find Pipfile automatically in the current and parent directories.
-See also \fBPIPENV_MAX_DEPTH\fP\&.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_PYPI_MIRROR = \(aqhttps://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple\(aq
-If set, tells pipenv to override PyPI index urls with a mirror.
-.sp
-Default is to not mirror PyPI, i.e. use the real one, pypi.org. The
-\fB\-\-pypi\-mirror\fP command line flag overwrites this.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_RESOLVE_VCS = False
-Tells Pipenv whether to resolve all VCS dependencies in full.
-.sp
-As of Pipenv 2018.11.26, only editable VCS dependencies were resolved in full.
-To retain this behavior and avoid handling any conflicts that arise from the new
-approach, you may set this to \(aq0\(aq, \(aqoff\(aq, or \(aqfalse\(aq.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_SHELL = \(aq/bin/zsh\(aq
-An absolute path to the preferred shell for \fBpipenv shell\fP\&.
-.sp
-Default is to detect automatically what shell is currently in use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_SHELL_FANCY = False
-If set, always use fancy mode when invoking \fBpipenv shell\fP\&.
-.sp
-Default is to use the compatibility shell if possible.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_SKIP_LOCK = False
-If set, Pipenv won\(aqt lock dependencies automatically.
-.sp
-This might be desirable if a project has large number of dependencies,
-because locking is an inherently slow operation.
-.sp
-Default is to lock dependencies and update \fBPipfile.lock\fP on each run.
-.sp
-NOTE: This only affects the \fBinstall\fP and \fBuninstall\fP commands.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_SPINNER = \(aqdots\(aq
-Sets the default spinner type.
-.sp
-Spinners are identitcal to the node.js spinners and can be found at
-\fI\%https://github.com/sindresorhus/cli\-spinners\fP
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_TIMEOUT = 120
-Max number of seconds Pipenv will wait for virtualenv creation to complete.
-.sp
-Default is 120 seconds, an arbitrary number that seems to work.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_VENV_IN_PROJECT = False
-If set, creates \fB\&.venv\fP in your project directory.
-.sp
-Default is to create new virtual environments in a global location.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIPENV_YES = False
-If set, Pipenv automatically assumes "yes" at all prompts.
-.sp
-Default is to prompt the user for an answer if the current command line session
-if interactive.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pipenv.environments.PIP_EXISTS_ACTION = \(aqw\(aq
-Specifies the value for pip\(aqs \-\-exists\-action option
-.sp
-Defaullts to (w)ipe
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -2590,6 +3354,11 @@ True or false depending on whether we are in a regular virtualenv or not
 .B Return type
 bool
 .UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B pipenv.environments.is_using_venv() -> bool
+Check for venv\-based virtual environment which sets sys.base_prefix
 .UNINDENT
 .sp
 If you\(aqd like to set these environment variables on a per\-project basis, I recommend utilizing the fantastic \fI\%direnv\fP project, in order to do so.
@@ -2628,7 +3397,7 @@ In addition, you can also have Pipenv stick the virtualenv in \fBproject/.venv\f
 .sp
 Pipenv is being used in projects like \fI\%Requests\fP for declaring development dependencies and running the test suite.
 .sp
-We\(aqve currently tested deployments with both \fI\%Travis\-CI\fP and \fI\%tox\fP with success.
+We have currently tested deployments with both \fI\%Travis\-CI\fP and \fI\%tox\fP with success.
 .SS Travis CI
 .sp
 An example Travis CI setup can be found in \fI\%Requests\fP\&. The project uses a Makefile to
@@ -2722,25 +3491,37 @@ probably a good idea in any case.
 A 3rd party plugin, \fI\%tox\-pipenv\fP is also available to use Pipenv natively with tox.
 .SS ☤ Shell Completion
 .sp
-To enable completion in fish, add this to your config:
+To enable completion in fish, add this to your configuration:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-eval (pipenv \-\-completion)
+eval (env _PIPENV_COMPLETE=fish_source pipenv)
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
 .sp
-Alternatively, with bash or zsh, add this to your config:
+Alternatively, with zsh, add this to your configuration:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-eval "$(pipenv \-\-completion)"
+eval "$(_PIPENV_COMPLETE=zsh_source pipenv)"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Alternatively, with bash, add this to your configuration:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+eval "$(_PIPENV_COMPLETE=bash_source pipenv)"
 .ft P
 .fi
 .UNINDENT
@@ -2785,9 +3566,9 @@ $ PIP_IGNORE_INSTALLED=1 pipenv install \-\-dev
 .sp
 There is a subtle but very important distinction to be made between \fBapplications\fP and \fBlibraries\fP\&. This is a very common source of confusion in the Python community.
 .sp
-Libraries provide reusable functionality to other libraries and applications (let\(aqs use the umbrella term \fBprojects\fP here). They are required to work alongside other libraries, all with their own set of subdependencies. They define \fBabstract dependencies\fP\&. To avoid version conflicts in subdependencies of different libraries within a project, libraries should never ever pin dependency versions. Although they may specify lower or (less frequently) upper bounds, if they rely on some specific feature/fix/bug. Library dependencies are specified via \fBinstall_requires\fP in \fBsetup.py\fP\&.
+Libraries provide reusable functionality to other libraries and applications (let\(aqs use the umbrella term \fBprojects\fP here). They are required to work alongside other libraries, all with their own set of sub\-dependencies. They define \fBabstract dependencies\fP\&. To avoid version conflicts in sub\-dependencies of different libraries within a project, libraries should never ever pin dependency versions. Although they may specify lower or (less frequently) upper bounds, if they rely on some specific feature/fix/bug. Library dependencies are specified via \fBinstall_requires\fP in \fBsetup.py\fP\&.
 .sp
-Libraries are ultimately meant to be used in some \fBapplication\fP\&. Applications are different in that they usually are not depended on by other projects. They are meant to be deployed into some specific environment and only then should the exact versions of all their dependencies and subdependencies be made concrete. To make this process easier is currently the main goal of Pipenv.
+Libraries are ultimately meant to be used in some \fBapplication\fP\&. Applications are different in that they usually are not depended on by other projects. They are meant to be deployed into some specific environment and only then should the exact versions of all their dependencies and sub\-dependencies be made concrete. To make this process easier is currently the main goal of Pipenv.
 .sp
 To summarize:
 .INDENT 0.0
@@ -2820,6 +3601,7 @@ You can force Pipenv to use a different cache location by setting the environmen
 .SS ☤ Changing Default Python Versions
 .sp
 By default, Pipenv will initialize a project using whatever version of python the python3 is. Besides starting a project with the \fB\-\-three\fP or \fB\-\-two\fP flags, you can also use \fBPIPENV_DEFAULT_PYTHON_VERSION\fP to specify what version to use when starting a project when \fB\-\-three\fP or \fB\-\-two\fP aren\(aqt used.
+.SS Pipenv CLI Reference
 .SS Frequently Encountered Pipenv Problems
 .sp
 Pipenv is constantly being improved by volunteers, but is still a very young
@@ -2863,7 +3645,7 @@ usually one of the following locations:
 \fB~/.cache/pipenv\fP (other operating systems)
 .UNINDENT
 .sp
-Pipenv does not install prereleases (i.e. a version with an alpha/beta/etc.
+Pipenv does not install pre\-releases (i.e. a version with an alpha/beta/etc.
 suffix, such as \fI1.0b1\fP) by default. You will need to pass the \fB\-\-pre\fP flag
 in your command, or set
 .INDENT 0.0
@@ -2892,14 +3674,9 @@ distributions, with version name like \fB3.6.4\fP or similar.
 .SS ☤ Pipenv does not respect pyenv’s global and local Python versions
 .sp
 Pipenv by default uses the Python it is installed against to create the
-virtualenv. You can set the \fB\-\-python\fP option, or
-\fB$PYENV_ROOT/shims/python\fP to let it consult pyenv when choosing the
-interpreter. See specifying_versions for more information.
-.sp
-If you want Pipenv to automatically “do the right thing”, you can set the
-environment variable \fBPIPENV_PYTHON\fP to \fB$PYENV_ROOT/shims/python\fP\&. This
-will make Pipenv use pyenv’s active Python version to create virtual
-environments by default.
+virtualenv. You can set the \fB\-\-python\fP option to \fB$(pyenv which python)\fP
+to use your current pyenv interpreter. See specifying_versions for more
+information.
 .SS ☤ ValueError: unknown locale: UTF\-8
 .sp
 macOS has a bug in its locale detection that prevents us from detecting your
@@ -2941,22 +3718,6 @@ language/locale and encoding you use.
 .sp
 This may be related to your locale setting. See \fI\%☤ ValueError: unknown locale: UTF\-8\fP
 for a possible solution.
-.SS ☤ \fBshell\fP does not show the virtualenv’s name in prompt
-.sp
-This is intentional. You can do it yourself with either shell plugins, or
-clever \fBPS1\fP configuration. If you really want it back, use
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv shell \-c
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-instead (not available on Windows).
 .SS ☤ Pipenv does not respect dependencies in setup.py
 .sp
 No, it does not, intentionally. Pipfile and setup.py serve different purposes,
@@ -2965,7 +3726,7 @@ for more information.
 .SS ☤ Using \fBpipenv run\fP in Supervisor program
 .sp
 When you configure a supervisor program\(aqs \fBcommand\fP with \fBpipenv run ...\fP, you
-need to set locale enviroment variables properly to make it work.
+need to set locale environment variables properly to make it work.
 .sp
 Add this line under \fB[supervisord]\fP section in \fB/etc/supervisor/supervisord.conf\fP:
 .INDENT 0.0
@@ -2979,7 +3740,7 @@ environment=LC_ALL=\(aqen_US.UTF\-8\(aq,LANG=\(aqen_US.UTF\-8\(aq
 .fi
 .UNINDENT
 .UNINDENT
-.SS ☤ An exception is raised during \fBLocking dependencies…\fP
+.SS ☤ An exception is raised during \fBLocking dependencies...\fP
 .sp
 Run \fBpipenv lock \-\-clear\fP and try again. The lock sequence caches results
 to speed up subsequent runs. The cache may contain faulty results if a bug
@@ -2990,12 +3751,17 @@ the cache, and therefore removes the bad results.
 .sp
 Pipenv is an open but opinionated tool, created by an open but opinionated developer.
 .SS Management Style
+.INDENT 0.0
+.INDENT 3.5
+\fBTo be updated (as of March 2020)\fP\&.
+.UNINDENT
+.UNINDENT
 .sp
 \fI\%Kenneth Reitz\fP is the BDFL. He has final say in any decision related to the Pipenv project. Kenneth is responsible for the direction and form of the library, as well as its presentation. In addition to making decisions based on technical merit, he is responsible for making decisions based on the development philosophy of Pipenv.
 .sp
 \fI\%Dan Ryan\fP, \fI\%Tzu\-ping Chung\fP, and \fI\%Nate Prewitt\fP are the core contributors.
 They are responsible for triaging bug reports, reviewing pull requests and ensuring that Kenneth is kept up to speed with developments around the library.
-The day\-to\-day managing of the project is done by the core contributors. They are responsible for making judgements about whether or not a feature request is
+The day\-to\-day managing of the project is done by the core contributors. They are responsible for making judgments about whether or not a feature request is
 likely to be accepted by Kenneth.
 .SS Values
 .INDENT 0.0
@@ -3108,10 +3874,10 @@ pipenv install \-\-dev
 .UNINDENT
 .UNINDENT
 .sp
-This will install the repo version of Pipenv and then install the development
+This will install the repository version of Pipenv and then install the development
 dependencies. Once that has completed, you can start developing.
 .sp
-The repo version of Pipenv must be installed over other global versions to
+The repository version of Pipenv must be installed over other global versions to
 resolve conflicts with the \fBpipenv\fP folder being implicitly added to \fBsys.path\fP\&.
 See \fI\%pypa/pipenv#2557\fP for more details.
 .SS Testing
@@ -3142,7 +3908,7 @@ provide a test marker: \fBpytest \-m lock\fP
 .UNINDENT
 .SS Code Review
 .sp
-Contributions will not be merged until they\(aqve been code reviewed. You should
+Contributions will not be merged until they have been code reviewed. You should
 implement any code review feedback unless you strongly object to it. In the
 event that you object to the code review feedback, you should make your case
 clearly and calmly. If, after doing so, the feedback is judged to still apply,
@@ -3179,7 +3945,7 @@ Avoid raising duplicate issues. \fIPlease\fP use the GitHub issue search feature
 to check whether your bug report or feature request has been mentioned in
 the past. Duplicate bug reports and feature requests are a huge maintenance
 burden on the limited resources of the project. If it is clear from your
-report that you would have struggled to find the original, that\(aqs ok, but
+report that you would have struggled to find the original, that\(aqs okay, but
 if searching for a selection of words in your issue title would have found
 the duplicate then the issue will likely be closed extremely abruptly.
 .IP 2. 3
@@ -3273,854 +4039,15 @@ unset PIP_FIND_LINKS
 .fi
 .UNINDENT
 .UNINDENT
-.SH ☤ PIPENV USAGE
-.SS pipenv
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv [OPTIONS] COMMAND [ARGS]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-where
-Output project home information.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-venv
-Output virtualenv information.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-py
-Output Python interpreter information.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-envs
-Output Environment Variable options.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-rm
-Remove the virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-completion
-Output completion (to be eval\(aqd).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-man
-Display manpage.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-support
-Output diagnostic information for use in GitHub issues.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-site\-packages
-Enable site\-packages for the virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-version
-Show the version and exit.
-.UNINDENT
-.SS check
-.sp
-Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv check [OPTIONS] [ARGS]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-unused <unused>
-Given a code path, show potentially unused dependencies.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-i, \-\-ignore <ignore>
-Ignore specified vulnerability during safety checks.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-system
-System pip management.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B ARGS
-Optional argument(s)
-.UNINDENT
-.SS clean
-.sp
-Uninstalls all packages not specified in Pipfile.lock.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv clean [OPTIONS]
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-dry\-run
-Just output unneeded packages.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.SS graph
-.sp
-Displays currently\-installed dependency graph information.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv graph [OPTIONS]
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-json
-Output JSON.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-json\-tree
-Output JSON in nested tree.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-reverse
-Reversed dependency graph.
-.UNINDENT
-.SS install
-.sp
-Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv install [OPTIONS] [PACKAGES]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-system
-System pip management.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-c, \-\-code <code>
-Install packages automatically discovered from import statements.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-deploy
-Abort if the Pipfile.lock is out\-of\-date, or Python version is wrong.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-skip\-lock
-Skip locking mechanisms and use the Pipfile instead during operation.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-e, \-\-editable <editable>
-An editable python package URL or path, often to a VCS repo.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-ignore\-pipfile
-Ignore Pipfile when installing, using the Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-selective\-upgrade
-Update specified packages.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-r, \-\-requirements <requirements>
-Import a requirements.txt file.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-extra\-index\-url <extra_index_url>
-URLs to the extra PyPI compatible indexes to query for package lookups.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-i, \-\-index <index>
-Target PyPI\-compatible package index url.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-sequential
-Install dependencies one\-at\-a\-time, instead of concurrently.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-keep\-outdated
-Keep out\-dated dependencies from being updated in Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pre
-Allow pre\-releases.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Install both develop and default packages.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B PACKAGES
-Optional argument(s)
-.UNINDENT
-Environment variables.INDENT 0.0
-.TP
-.B PIPENV_SKIP_LOCK
-.INDENT 7.0
-.INDENT 3.5
-Provide a default for \fI\%\-\-skip\-lock\fP
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B PIP_EXTRA_INDEX_URL
-.INDENT 7.0
-.INDENT 3.5
-Provide a default for \fI\%\-\-extra\-index\-url\fP
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B PIP_INDEX_URL
-.INDENT 7.0
-.INDENT 3.5
-Provide a default for \fI\%\-i\fP
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.SS lock
-.sp
-Generates Pipfile.lock.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv lock [OPTIONS]
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-r, \-\-requirements
-Generate output in requirements.txt format.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-keep\-outdated
-Keep out\-dated dependencies from being updated in Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pre
-Allow pre\-releases.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Install both develop and default packages.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-.SS open
-.sp
-View a given module in your editor.
-.sp
-This uses the EDITOR environment variable. You can temporarily override it,
-for example:
-.INDENT 0.0
-.INDENT 3.5
-EDITOR=atom pipenv open requests
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv open [OPTIONS] MODULE
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B MODULE
-Required argument
-.UNINDENT
-.SS run
-.sp
-Spawns a command installed into the virtualenv.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv run [OPTIONS] COMMAND [ARGS]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B COMMAND
-Required argument
-.UNINDENT
-.INDENT 0.0
-.TP
-.B ARGS
-Optional argument(s)
-.UNINDENT
-.SS shell
-.sp
-Spawns a shell within the virtualenv.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv shell [OPTIONS] [SHELL_ARGS]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-fancy
-Run in shell in fancy mode (for elegantly configured shells).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-anyway
-Always spawn a subshell, even if one is already spawned.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B SHELL_ARGS
-Optional argument(s)
-.UNINDENT
-.SS sync
-.sp
-Installs all packages specified in Pipfile.lock.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv sync [OPTIONS]
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-sequential
-Install dependencies one\-at\-a\-time, instead of concurrently.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-keep\-outdated
-Keep out\-dated dependencies from being updated in Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pre
-Allow pre\-releases.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Install both develop and default packages.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-.SS uninstall
-.sp
-Un\-installs a provided package and removes it from Pipfile.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv uninstall [OPTIONS] [PACKAGES]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-all\-dev
-Un\-install all package from [dev\-packages].
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-all
-Purge all package(s) from virtualenv. Does not edit Pipfile.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-e, \-\-editable <editable>
-An editable python package URL or path, often to a VCS repo.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-skip\-lock
-Skip locking mechanisms and use the Pipfile instead during operation.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-keep\-outdated
-Keep out\-dated dependencies from being updated in Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pre
-Allow pre\-releases.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Install both develop and default packages.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B PACKAGES
-Optional argument(s)
-.UNINDENT
-Environment variables.INDENT 0.0
-.TP
-.B PIPENV_SKIP_LOCK
-.INDENT 7.0
-.INDENT 3.5
-Provide a default for \fI\%\-\-skip\-lock\fP
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.SS update
-.sp
-Runs lock, then sync.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv update [OPTIONS] [PACKAGES]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-outdated
-List out\-of\-date dependencies.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-dry\-run
-List out\-of\-date dependencies.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-e, \-\-editable <editable>
-An editable python package URL or path, often to a VCS repo.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-ignore\-pipfile
-Ignore Pipfile when installing, using the Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-selective\-upgrade
-Update specified packages.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-r, \-\-requirements <requirements>
-Import a requirements.txt file.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-extra\-index\-url <extra_index_url>
-URLs to the extra PyPI compatible indexes to query for package lookups.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-i, \-\-index <index>
-Target PyPI\-compatible package index url.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-sequential
-Install dependencies one\-at\-a\-time, instead of concurrently.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-keep\-outdated
-Keep out\-dated dependencies from being updated in Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pre
-Allow pre\-releases.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Install both develop and default packages.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clears caches (pipenv, pip, and pip\-tools).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pypi\-mirror <pypi_mirror>
-Specify a PyPI mirror.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B PACKAGES
-Optional argument(s)
-.UNINDENT
-Environment variables.INDENT 0.0
-.TP
-.B PIP_EXTRA_INDEX_URL
-.INDENT 7.0
-.INDENT 3.5
-Provide a default for \fI\%\-\-extra\-index\-url\fP
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B PIP_INDEX_URL
-.INDENT 7.0
-.INDENT 3.5
-Provide a default for \fI\%\-i\fP
-.UNINDENT
-.UNINDENT
-.UNINDENT
 .INDENT 0.0
 .IP \(bu 2
 genindex
 .IP \(bu 2
 modindex
-.IP \(bu 2
-search
 .UNINDENT
 .SH AUTHOR
-Kenneth Reitz
+Python Packaging Authority
 .SH COPYRIGHT
-2017. A project founded by <a href="http://kennethreitz.com/pages/open-projects.html">Kenneth Reitz</a>
+2020. A project founded by <a href="http://kennethreitz.com/pages/open-projects.html">Kenneth Reitz</a>
 .\" Generated by docutils manpage writer.
 .

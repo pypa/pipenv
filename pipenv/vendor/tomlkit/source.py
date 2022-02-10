@@ -4,12 +4,16 @@ from __future__ import unicode_literals
 import itertools
 
 from copy import copy
+from typing import Any
+from typing import Optional
+from typing import Tuple
+from typing import Type
 
 from ._compat import PY2
 from ._compat import unicode
-from .exceptions import UnexpectedEofError
-from .exceptions import UnexpectedCharError
 from .exceptions import ParseError
+from .exceptions import UnexpectedCharError
+from .exceptions import UnexpectedEofError
 from .toml_char import TOMLChar
 
 
@@ -114,7 +118,7 @@ class Source(unicode):
         """
         return self[self._marker : self._idx]
 
-    def inc(self, exception=None):  # type: (Optional[ParseError.__class__]) -> bool
+    def inc(self, exception=None):  # type: (Optional[Type[ParseError]]) -> bool
         """
         Increments the parser if the end of the input has not been reached.
         Returns whether or not it was able to advance.
@@ -170,7 +174,7 @@ class Source(unicode):
 
     def parse_error(
         self, exception=ParseError, *args
-    ):  # type: (ParseError.__class__, ...) -> ParseError
+    ):  # type: (Type[ParseError], Any) -> ParseError
         """
         Creates a generic "parse error" at the current position.
         """

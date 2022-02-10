@@ -1,47 +1,47 @@
 """
 A module that implements tooling to enable easy warnings about deprecations.
 """
-from __future__ import absolute_import
 
 import logging
 import warnings
+from typing import Any, Optional, TextIO, Type, Union
 
 from pipenv.patched.notpip._vendor.packaging.version import parse
 
 from pipenv.patched.notpip import __version__ as current_version
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
-if MYPY_CHECK_RUNNING:
-    from typing import Any, Optional  # noqa: F401
+DEPRECATION_MSG_PREFIX = "DEPRECATION: "
 
 
 class PipDeprecationWarning(Warning):
     pass
 
 
-_original_showwarning = None  # type: Any
+_original_showwarning: Any = None
 
 
 # Warnings <-> Logging Integration
-def _showwarning(message, category, filename, lineno, file=None, line=None):
+def _showwarning(
+    message: Union[Warning, str],
+    category: Type[Warning],
+    filename: str,
+    lineno: int,
+    file: Optional[TextIO] = None,
+    line: Optional[str] = None,
+) -> None:
     if file is not None:
         if _original_showwarning is not None:
-            _original_showwarning(
-                message, category, filename, lineno, file, line,
-            )
+            _original_showwarning(message, category, filename, lineno, file, line)
     elif issubclass(category, PipDeprecationWarning):
         # We use a specially named logger which will handle all of the
         # deprecation messages for pip.
-        logger = logging.getLogger("pip._internal.deprecations")
+        logger = logging.getLogger("pipenv.patched.notpip._internal.deprecations")
         logger.warning(message)
     else:
-        _original_showwarning(
-            message, category, filename, lineno, file, line,
-        )
+        _original_showwarning(message, category, filename, lineno, file, line)
 
 
-def install_warning_logger():
-    # type: () -> None
+def install_warning_logger() -> None:
     # Enable our Deprecation Warnings
     warnings.simplefilter("default", PipDeprecationWarning, append=True)
 
@@ -52,8 +52,12 @@ def install_warning_logger():
         warnings.showwarning = _showwarning
 
 
-def deprecated(reason, replacement, gone_in, issue=None):
-    # type: (str, Optional[str], Optional[str], Optional[int]) -> None
+def deprecated(
+    reason: str,
+    replacement: Optional[str],
+    gone_in: Optional[str],
+    issue: Optional[int] = None,
+) -> None:
     """Helper to deprecate existing functionality.
 
     reason:
@@ -75,16 +79,26 @@ def deprecated(reason, replacement, gone_in, issue=None):
     """
 
     # Construct a nice message.
-    # This is purposely eagerly formatted as we want it to appear as if someone
-    # typed this entire message out.
-    message = "DEPRECATION: " + reason
-    if replacement is not None:
-        message += " A possible replacement is {}.".format(replacement)
-    if issue is not None:
-        url = "https://github.com/pypa/pip/issues/" + str(issue)
-        message += " You can find discussion regarding this at {}.".format(url)
+    #   This is eagerly formatted as we want it to get logged as if someone
+    #   typed this entire message out.
+    sentences = [
+        (reason, DEPRECATION_MSG_PREFIX + "{}"),
+        (gone_in, "pip {} will remove support for this functionality."),
+        (replacement, "A possible replacement is {}."),
+        (
+            issue,
+            (
+                "You can find discussion regarding this at "
+                "https://github.com/pypa/pip/issues/{}."
+            ),
+        ),
+    ]
+    message = " ".join(
+        template.format(val) for val, template in sentences if val is not None
+    )
 
     # Raise as an error if it has to be removed.
     if gone_in is not None and parse(current_version) >= parse(gone_in):
         raise PipDeprecationWarning(message)
+
     warnings.warn(message, category=PipDeprecationWarning, stacklevel=2)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import codecs
 import os
 import sys
@@ -26,23 +25,20 @@ required = [
     "certifi",
     "setuptools>=36.2.1",
     "virtualenv-clone>=0.2.5",
-    "virtualenv",
-    'enum34; python_version<"3"',
-    # LEAVE THIS HERE!!! we have vendored dependencies that require it
-    'typing; python_version<"3.5"'
+    "virtualenv"
 ]
 extras = {
     "dev": [
         "towncrier",
         "bs4",
         "twine",
-        "sphinx<2",
+        "sphinx",
         "flake8>=3.3.0,<4.0",
         "black;python_version>='3.6'",
         "parver",
         "invoke",
     ],
-    "tests": ["pytest<5.0", "pytest-tap", "pytest-xdist", "flaky", "mock"],
+    "tests": ["pytest>=5.0", "pytest-timeout", "pytest-xdist", "flaky", "mock"],
 }
 
 
@@ -56,7 +52,7 @@ class DebCommand(Command):
     @staticmethod
     def status(s):
         """Prints things in bold."""
-        print("\033[1m{0}\033[0m".format(s))
+        print(f"\033[1m{s}\033[0m")
 
     def initialize_options(self):
         pass
@@ -66,16 +62,16 @@ class DebCommand(Command):
 
     def run(self):
         try:
-            self.status("Removing previous builds…")
+            self.status("Removing previous builds...")
             rmtree(os.path.join(here, "deb_dist"))
         except FileNotFoundError:
             pass
-        self.status(u"Creating debian mainfest…")
+        self.status("Creating debian mainfest...")
         os.system(
             "python setup.py --command-packages=stdeb.command sdist_dsc -z artful --package3=pipenv --depends3=python3-virtualenv-clone"
         )
-        self.status(u"Building .deb…")
-        os.chdir("deb_dist/pipenv-{0}".format(about["__version__"]))
+        self.status("Building .deb...")
+        os.chdir("deb_dist/pipenv-{}".format(about["__version__"]))
         os.system("dpkg-buildpackage -rfakeroot -uc -us")
 
 
@@ -88,7 +84,7 @@ class UploadCommand(Command):
     @staticmethod
     def status(s):
         """Prints things in bold."""
-        print("\033[1m{0}\033[0m".format(s))
+        print(f"\033[1m{s}\033[0m")
 
     def initialize_options(self):
         pass
@@ -98,16 +94,16 @@ class UploadCommand(Command):
 
     def run(self):
         try:
-            self.status("Removing previous builds…")
+            self.status("Removing previous builds...")
             rmtree(os.path.join(here, "dist"))
         except FileNotFoundError:
             pass
-        self.status("Building Source distribution…")
-        os.system("{0} setup.py sdist bdist_wheel".format(sys.executable))
-        self.status("Uploading the package to PyPI via Twine…")
+        self.status("Building Source distribution...")
+        os.system(f"{sys.executable} setup.py sdist bdist_wheel")
+        self.status("Uploading the package to PyPI via Twine...")
         os.system("twine upload dist/*")
-        self.status("Pushing git tags…")
-        os.system("git tag v{0}".format(about["__version__"]))
+        self.status("Pushing git tags...")
+        os.system("git tag v{}".format(about["__version__"]))
         os.system("git push --tags")
         sys.exit()
 
@@ -132,7 +128,6 @@ setup(
         "": ["LICENSE", "NOTICES"],
         "pipenv.vendor.requests": ["*.pem"],
         "pipenv.vendor.certifi": ["*.pem"],
-        "pipenv.vendor.click_completion": ["*.j2"],
         "pipenv.patched.notpip._vendor.certifi": ["*.pem"],
         "pipenv.patched.notpip._vendor.requests": ["*.pem"],
         "pipenv.patched.notpip._vendor.distlib._backport": ["sysconfig.cfg"],
@@ -143,7 +138,8 @@ setup(
             "w64.exe",
         ],
     },
-    python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*",
+    python_requires=">=3.6",
+    zip_safe=True,
     setup_requires=[],
     install_requires=required,
     extras_require=extras,
@@ -152,12 +148,12 @@ setup(
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: Implementation :: PyPy",
     ],

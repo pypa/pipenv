@@ -9,7 +9,7 @@ Source: misc/python/surrogateescape.py in https://bitbucket.org/haypo/misc
 import codecs
 import sys
 
-import six
+import pipenv.vendor.six as six
 
 FS_ERRORS = "surrogateescape"
 
@@ -35,7 +35,7 @@ if six.PY3:
     _unichr = chr
     bytes_chr = lambda code: bytes((code,))
 else:
-    _unichr = unichr
+    _unichr = unichr  # type: ignore
     bytes_chr = chr
 
 

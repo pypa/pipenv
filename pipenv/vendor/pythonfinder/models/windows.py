@@ -4,7 +4,7 @@ from __future__ import absolute_import, print_function
 import operator
 from collections import defaultdict
 
-import attr
+import pipenv.vendor.attr as attr
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import InvalidPythonVersion
@@ -42,7 +42,10 @@ class WindowsFinder(BaseFinder):
         )
         pythons = [py for py in self.version_list if version_matcher(py)]
         version_sort = operator.attrgetter("version_sort")
-        return [c.comes_from for c in sorted(pythons, key=version_sort, reverse=True)]
+        return [
+            c.comes_from for c in sorted(pythons, key=version_sort, reverse=True)
+            if c.comes_from
+        ]
 
     def find_python_version(
         self,
@@ -75,7 +78,7 @@ class WindowsFinder(BaseFinder):
     def get_versions(self):
         # type: () -> DefaultDict[Tuple, PathEntry]
         versions = defaultdict(PathEntry)  # type: DefaultDict[Tuple, PathEntry]
-        from pythonfinder._vendor.pep514tools import environment as pep514env
+        from pipenv.vendor.pythonfinder._vendor.pep514tools import environment as pep514env
 
         env_versions = pep514env.findall()
         path = None
@@ -89,11 +92,13 @@ class WindowsFinder(BaseFinder):
                 path = ensure_path(install_path.__getattr__(""))
             except AttributeError:
                 continue
+            if not path.exists():
+                continue
             try:
                 py_version = PythonVersion.from_windows_launcher(
                     version_object, name=name, company=company
                 )
-            except InvalidPythonVersion:
+            except (InvalidPythonVersion, AttributeError):
                 continue
             if py_version is None:
                 continue

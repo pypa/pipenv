@@ -1,10 +1,8 @@
 # -*- coding=utf-8 -*-
 from contextlib import contextmanager
 
-import attr
-import six
-
-from pip_shims.shims import Wheel
+import pipenv.vendor.attr as attr
+from pipenv.vendor.pip_shims.shims import Wheel
 
 from .cache import HashCache
 from .utils import format_requirement, is_pinned_requirement, version_from_ireq
@@ -40,15 +38,16 @@ class DependencyResolver(object):
     def create(cls, finder=None, allow_prereleases=False, get_all_hashes=True):
         if not finder:
             from .dependencies import get_finder
+
             finder_args = []
             if allow_prereleases:
-                finder_args.append('--pre')
+                finder_args.append("--pre")
             finder = get_finder(*finder_args)
         creation_kwargs = {
-            'allow_prereleases': allow_prereleases,
-            'include_incompatible_hashes': get_all_hashes,
-            'finder': finder,
-            'hash_cache': HashCache(),
+            "allow_prereleases": allow_prereleases,
+            "include_incompatible_hashes": get_all_hashes,
+            "finder": finder,
+            "hash_cache": HashCache(),
         }
         resolver = cls(**creation_kwargs)
         return resolver
@@ -62,8 +61,8 @@ class DependencyResolver(object):
         return list(self.pinned_deps.values())
 
     def add_abstract_dep(self, dep):
-        """Add an abstract dependency by either creating a new entry or
-        merging with an old one.
+        """Add an abstract dependency by either creating a new entry or merging
+        with an old one.
 
         :param dep: An abstract dependency to add
         :type dep: :class:`~requirementslib.models.dependency.AbstractDependency`
@@ -75,9 +74,9 @@ class DependencyResolver(object):
             compatible_versions = self.dep_dict[dep.name].compatible_versions(dep)
             if compatible_versions:
                 self.candidate_dict[dep.name] = compatible_versions
-                self.dep_dict[dep.name] = self.dep_dict[
-                    dep.name
-                ].compatible_abstract_dep(dep)
+                self.dep_dict[dep.name] = self.dep_dict[dep.name].compatible_abstract_dep(
+                    dep
+                )
             else:
                 raise ResolutionError
         else:
@@ -85,10 +84,12 @@ class DependencyResolver(object):
             self.dep_dict[dep.name] = dep
 
     def pin_deps(self):
-        """Pins the current abstract dependencies and adds them to the history dict.
+        """Pins the current abstract dependencies and adds them to the history
+        dict.
 
-        Adds any new dependencies to the abstract dependencies already present by
-        merging them together to form new, compatible abstract dependencies.
+        Adds any new dependencies to the abstract dependencies already
+        present by merging them together to form new, compatible
+        abstract dependencies.
         """
 
         for name in list(self.dep_dict.keys()):
@@ -103,8 +104,10 @@ class DependencyResolver(object):
                     old_version = version_from_ireq(self.pinned_deps[name])
                     if not pin.editable:
                         new_version = version_from_ireq(pin)
-                        if (new_version != old_version and
-                                new_version not in self.candidate_dict[name]):
+                        if (
+                            new_version != old_version
+                            and new_version not in self.candidate_dict[name]
+                        ):
                             continue
                 pin.parent = abs_dep.parent
                 pin_subdeps = self.dep_dict[name].get_deps(pin)
@@ -120,7 +123,8 @@ class DependencyResolver(object):
                     break
 
     def resolve(self, root_nodes, max_rounds=20):
-        """Resolves dependencies using a backtracking resolver and multiple endpoints.
+        """Resolves dependencies using a backtracking resolver and multiple
+        endpoints.
 
         Note: this resolver caches aggressively.
         Runs for *max_rounds* or until any two pinning rounds yield the same outcome.
@@ -139,10 +143,11 @@ class DependencyResolver(object):
 
         # Coerce input into AbstractDependency instances.
         # We accept str, Requirement, and AbstractDependency as input.
-        from .dependencies import AbstractDependency
         from ..utils import log
+        from .dependencies import AbstractDependency
+
         for dep in root_nodes:
-            if isinstance(dep, six.string_types):
+            if isinstance(dep, str):
                 dep = AbstractDependency.from_string(dep)
             elif not isinstance(dep, AbstractDependency):
                 dep = AbstractDependency.from_requirement(dep)
@@ -185,43 +190,52 @@ class DependencyResolver(object):
     def get_hashes_for_one(self, ireq):
         if not self.finder:
             from .dependencies import get_finder
+
             finder_args = []
             if self.allow_prereleases:
-                finder_args.append('--pre')
+                finder_args.append("--pre")
             self.finder = get_finder(*finder_args)
 
         if ireq.editable:
             return set()
 
-        from pip_shims import VcsSupport
+        from pipenv.vendor.pip_shims import VcsSupport
+
         vcs = VcsSupport()
-        if ireq.link and ireq.link.scheme in vcs.all_schemes and 'ssh' in ireq.link.scheme:
+        if (
+            ireq.link
+            and ireq.link.scheme in vcs.all_schemes
+            and "ssh" in ireq.link.scheme
+        ):
             return set()
 
         if not is_pinned_requirement(ireq):
-            raise TypeError(
-                "Expected pinned requirement, got {}".format(ireq))
+            raise TypeError("Expected pinned requirement, got {}".format(ireq))
 
         matching_candidates = set()
         with self.allow_all_wheels():
             from .dependencies import find_all_matches
-            matching_candidates = (
-                find_all_matches(self.finder, ireq, pre=self.allow_prereleases)
+
+            matching_candidates = find_all_matches(
+                self.finder, ireq, pre=self.allow_prereleases
             )
 
         return {
-            self.hash_cache.get_hash(candidate.location)
+            self.hash_cache.get_hash(
+                getattr(candidate, "location", getattr(candidate, "link", None))
+            )
             for candidate in matching_candidates
         }
 
     @contextmanager
     def allow_all_wheels(self):
-        """
-        Monkey patches pip.Wheel to allow wheels from all platforms and Python versions.
+        """Monkey patches pip.Wheel to allow wheels from all platforms and
+        Python versions.
 
-        This also saves the candidate cache and set a new one, or else the results from the
-        previous non-patched calls will interfere.
+        This also saves the candidate cache and set a new one, or else
+        the results from the previous non-patched calls will interfere.
         """
+
         def _wheel_supported(self, tags=None):
             # Ignore current platform. Support everything.
             return True

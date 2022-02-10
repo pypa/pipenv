@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import absolute_import, print_function
 import json
 import logging
 import os
@@ -12,7 +9,7 @@ os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 def find_site_path(pkg, site_dir=None):
     import pkg_resources
-    if site_dir is not None:
+    if site_dir is None:
         site_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     working_set = pkg_resources.WorkingSet([site_dir] + sys.path[:])
     for dist in working_set:
@@ -20,12 +17,12 @@ def find_site_path(pkg, site_dir=None):
         base_name = dist.project_name if dist.project_name else dist.key
         name = None
         if "top_level.txt" in dist.metadata_listdir(""):
-            name = next(iter([l.strip() for l in dist.get_metadata_lines("top_level.txt") if l is not None]), None)
+            name = next(iter([line.strip() for line in dist.get_metadata_lines("top_level.txt") if line is not None]), None)
         if name is None:
             name = pkg_resources.safe_name(base_name).replace("-", "_")
         if not any(pkg == _ for _ in [base_name, name]):
             continue
-        path_options = [name, "{0}.py".format(name)]
+        path_options = [name, f"{name}.py"]
         path_options = [os.path.join(root, p) for p in path_options if p is not None]
         path = next(iter(p for p in path_options if os.path.exists(p)), None)
         if path is not None:
@@ -80,23 +77,31 @@ def which(*args, **kwargs):
 
 
 def handle_parsed_args(parsed):
+    if "PIPENV_VERBOSITY" in os.environ:
+        parsed.verbose = int(os.getenv("PIPENV_VERBOSITY"))
     if parsed.debug:
         parsed.verbose = max(parsed.verbose, 2)
     if parsed.verbose > 1:
         logging.getLogger("notpip").setLevel(logging.DEBUG)
     elif parsed.verbose > 0:
         logging.getLogger("notpip").setLevel(logging.INFO)
+        logger = logging.getLogger(
+            "pipenv.patched.notpip._internal.resolution.resolvelib.reporter"
+        )
+        logger.addHandler(logging.StreamHandler())
+        logger.setLevel(logging.INFO)
+        os.environ["PIP_RESOLVER_DEBUG"] = ""
     os.environ["PIPENV_VERBOSITY"] = str(parsed.verbose)
     if "PIPENV_PACKAGES" in os.environ:
         parsed.packages += os.environ.get("PIPENV_PACKAGES", "").strip().split("\n")
     return parsed
 
 
-class Entry(object):
+class Entry:
     """A resolved entry from a resolver run"""
 
     def __init__(self, name, entry_dict, project, resolver, reverse_deps=None, dev=False):
-        super(Entry, self).__init__()
+        super().__init__()
         from pipenv.vendor.requirementslib.models.utils import tomlkit_value_to_python
         self.name = name
         if isinstance(entry_dict, dict):
@@ -173,7 +178,7 @@ class Entry(object):
         markers = set()
         keys_in_dict = [k for k in marker_keys if k in entry_dict]
         markers = {
-            normalize_marker_str("{k} {v}".format(k=k, v=entry_dict.pop(k)))
+            normalize_marker_str(f"{k} {entry_dict.pop(k)}")
             for k in keys_in_dict
         }
         if "markers" in entry_dict:
@@ -216,18 +221,17 @@ class Entry(object):
         from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
         if not marker:
             return None
-        from pipenv.vendor import six
         from pipenv.vendor.vistir.compat import Mapping
         marker_str = None
         if isinstance(marker, Mapping):
             marker_dict, _ = Entry.get_markers_from_dict(marker)
             if marker_dict:
-                marker_str = "{0}".format(marker_dict.popitem()[1])
+                marker_str = f"{marker_dict.popitem()[1]}"
         elif isinstance(marker, (list, set, tuple)):
             marker_str = " and ".join([normalize_marker_str(m) for m in marker if m])
-        elif isinstance(marker, six.string_types):
-            marker_str = "{0}".format(normalize_marker_str(marker))
-        if isinstance(marker_str, six.string_types):
+        elif isinstance(marker, str):
+            marker_str = f"{normalize_marker_str(marker)}"
+        if isinstance(marker_str, str):
             return marker_str
         return None
 
@@ -250,7 +254,7 @@ class Entry(object):
         entry_hashes = set(self.entry.hashes)
         locked_hashes = set(self.lockfile_entry.hashes)
         if entry_hashes != locked_hashes and not self.is_updated:
-            self.entry_dict["hashes"] = list(entry_hashes | locked_hashes)
+            self.entry_dict["hashes"] = sorted(entry_hashes | locked_hashes)
         self.entry_dict["name"] = self.name
         if "version" in self.entry_dict:
             self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
@@ -317,9 +321,9 @@ class Entry(object):
         if not any(specifier.startswith(k) for k in Specifier._operators.keys()):
             if specifier.strip().lower() in ["any", "<any>", "*"]:
                 return "*"
-            specifier = "=={0}".format(specifier)
+            specifier = f"=={specifier}"
         elif specifier.startswith("==") and specifier.count("=") > 3:
-            specifier = "=={0}".format(specifier.lstrip("="))
+            specifier = "=={}".format(specifier.lstrip("="))
         return specifier
 
     @staticmethod
@@ -448,7 +452,7 @@ class Entry(object):
                 self.can_use_updated = False
             satisfied_by_value = getattr(constraint, "satisfied_by", None)
             if satisfied_by_value:
-                satisfied_by = "{0}".format(
+                satisfied_by = "{}".format(
                     self.clean_specifier(str(satisfied_by_value.version))
                 )
                 satisfied_by_versions.add(satisfied_by)
@@ -504,55 +508,6 @@ class Entry(object):
         """
         if self.is_in_pipfile:
             return self.pipfile_entry.as_ireq()
-        return self.constraint_from_parent_conflicts()
-
-    def constraint_from_parent_conflicts(self):
-        """
-        Given a resolved entry with multiple parent dependencies with different
-        constraints, searches for the resolution that satisfies all of the parent
-        constraints.
-
-        :return: A new **InstallRequirement** satisfying all parent constraints
-        :raises: :exc:`~pipenv.exceptions.DependencyConflict` if resolution is impossible
-        """
-        # ensure that we satisfy the parent dependencies of this dep
-        parent_dependencies = set()
-        has_mismatch = False
-        can_use_original = True
-        for p in self.parent_deps:
-            # updated dependencies should be satisfied since they were resolved already
-            if p.is_updated:
-                continue
-            # parents with no requirements can't conflict
-            if not p.requirements:
-                continue
-            entry_ref = p.get_dependency(self.name)
-            required = entry_ref.get("required_version", "*")
-            required = self.clean_specifier(required)
-            parent_requires = self.make_requirement(self.name, required)
-            parent_dependencies.add("{0} => {1} ({2})".format(p.name, self.name, required))
-            # use pre=True here or else prereleases dont satisfy constraints
-            if parent_requires.requirement.specifier and (
-                not parent_requires.requirement.specifier.contains(self.original_version, prereleases=True)
-            ):
-                can_use_original = False
-            if parent_requires.requirement.specifier and (
-                not parent_requires.requirement.specifier.contains(self.updated_version, prereleases=True)
-            ):
-                if not self.entry.editable and self.updated_version != self.original_version:
-                    has_mismatch = True
-        if has_mismatch and not can_use_original:
-            from pipenv.exceptions import DependencyConflict
-            msg = (
-                "Cannot resolve {0} ({1}) due to conflicting parent dependencies: "
-                "\n\t{2}".format(
-                    self.name, self.updated_version, "\n\t".join(parent_dependencies)
-                )
-            )
-            raise DependencyConflict(msg)
-        elif can_use_original:
-            return self.lockfile_entry.as_ireq()
-        return self.entry.as_ireq()
 
     def validate_constraints(self):
         """
@@ -562,19 +517,23 @@ class Entry(object):
         :return: True if the constraints are satisfied by the resolution provided
         :raises: :exc:`pipenv.exceptions.DependencyConflict` if the constraints dont exist
         """
+        from pipenv.exceptions import DependencyConflict
+
         constraints = self.get_constraints()
+        pinned_version = self.updated_version
         for constraint in constraints:
-            try:
-                constraint.check_if_exists(False)
-            except Exception:
-                from pipenv.exceptions import DependencyConflict
-                from pipenv.environments import is_verbose
-                if is_verbose():
-                    print("Tried constraint: {0!r}".format(constraint), file=sys.stderr)
+            if not constraint.req:
+                continue
+            if pinned_version and not constraint.req.specifier.contains(
+                str(pinned_version), prereleases=True
+            ):
+                if self.project.s.is_verbose():
+                    print(f"Tried constraint: {constraint!r}", file=sys.stderr)
                 msg = (
-                    "Cannot resolve conflicting version {0}{1} while {2}{3} is "
+                    "Cannot resolve conflicting version {}{} while {}{} is "
                     "locked.".format(
-                        self.name, self.updated_specifier, self.old_name, self.old_specifiers
+                        self.name, constraint.req.specifier,
+                        self.name, self.updated_specifier
                     )
                 )
                 raise DependencyConflict(msg)
@@ -587,8 +546,8 @@ class Entry(object):
             if not parent.validate_specifiers():
                 from pipenv.exceptions import DependencyConflict
                 msg = (
-                    "Cannot resolve conflicting versions: (Root: {0}) {1}{2} (Pipfile) "
-                    "Incompatible with {3}{4} (resolved)\n".format(
+                    "Cannot resolve conflicting versions: (Root: {}) {}{} (Pipfile) "
+                    "Incompatible with {}{} (resolved)\n".format(
                         self.name, parent.pipfile_name,
                         parent.pipfile_entry.requirement.specifiers, parent.name,
                         parent.updated_specifiers
@@ -609,7 +568,7 @@ class Entry(object):
                 except AttributeError:
                     result = getattr(entry, key)
             except AttributeError:
-                result = super(Entry, self).__getattribute__(key)
+                result = super().__getattribute__(key)
             return result
         if any(key.startswith(v) for v in old_version):
             lockfile_entry = Entry.__getattribute__(self, "lockfile_entry")
@@ -620,9 +579,9 @@ class Entry(object):
                 except AttributeError:
                     result = getattr(lockfile_entry, key)
             except AttributeError:
-                result = super(Entry, self).__getattribute__(key)
+                result = super().__getattribute__(key)
             return result
-        return super(Entry, self).__getattribute__(key)
+        return super().__getattribute__(key)
 
 
 def clean_results(results, resolver, project, dev=False):
@@ -690,7 +649,7 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
     from pipenv.utils import parse_indexes
     parsed_packages = []
     for package in packages:
-        indexes, trusted_hosts, line = parse_indexes(package)
+        *_, line = parse_indexes(package)
         line = " ".join(line)
         pf = dict()
         req = Requirement.from_line(line)
@@ -714,7 +673,7 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
         print(json.dumps([]))
 
 
-def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages):
+def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages, dev):
     from pipenv.utils import create_mirror_source, resolve_deps, replace_pypi_sources
     pypi_mirror_source = (
         create_mirror_source(os.environ["PIPENV_PYPI_MIRROR"])
@@ -723,8 +682,6 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
     )
 
     def resolve(packages, pre, project, sources, clear, system, requirements_dir=None):
-        from pipenv.patched.piptools import logging as piptools_logging
-        piptools_logging.log.verbosity = 1 if verbose else 0
         return resolve_deps(
             packages,
             which,
@@ -736,7 +693,8 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
             req_dir=requirements_dir
         )
 
-    from pipenv.core import project
+    from pipenv.project import Project
+    project = Project()
     sources = (
         replace_pypi_sources(project.pipfile_sources, pypi_mirror_source)
         if pypi_mirror_source
@@ -753,9 +711,9 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
         requirements_dir=requirements_dir,
     )
     if keep_outdated:
-        results = clean_outdated(results, resolver, project)
+        results = clean_outdated(results, resolver, project, dev)
     else:
-        results = clean_results(results, resolver, project)
+        results = clean_results(results, resolver, project, dev)
     if write:
         with open(write, "w") as fh:
             if not results:
@@ -770,8 +728,8 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
             print(json.dumps([]))
 
 
-def _main(pre, clear, verbose, system, write, requirements_dir, packages, parse_only=False):
-    os.environ["PIP_PYTHON_VERSION"] = ".".join([str(s) for s in sys.version_info[:3]])
+def _main(pre, clear, verbose, system, write, requirements_dir, packages, parse_only=False, dev=False):
+    os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = ".".join([str(s) for s in sys.version_info[:3]])
     os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
     if parse_only:
         parse_packages(
@@ -782,12 +740,12 @@ def _main(pre, clear, verbose, system, write, requirements_dir, packages, parse_
             requirements_dir=requirements_dir,
         )
     else:
-        resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages)
+        resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages, dev)
 
 
-def main():
+def main(argv=None):
     parser = get_parser()
-    parsed, remaining = parser.parse_known_args()
+    parsed, remaining = parser.parse_known_args(argv)
     _patch_path(pipenv_site=parsed.pipenv_site)
     import warnings
     from pipenv.vendor.vistir.compat import ResourceWarning
@@ -795,12 +753,13 @@ def main():
     warnings.simplefilter("ignore", category=ResourceWarning)
     replace_with_text_stream("stdout")
     replace_with_text_stream("stderr")
-    os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = str("1")
-    os.environ["PYTHONIOENCODING"] = str("utf-8")
-    os.environ["PYTHONUNBUFFERED"] = str("1")
+    os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+    os.environ["PYTHONUNBUFFERED"] = "1"
     parsed = handle_parsed_args(parsed)
     _main(parsed.pre, parsed.clear, parsed.verbose, parsed.system, parsed.write,
-          parsed.requirements_dir, parsed.packages, parse_only=parsed.parse_only)
+          parsed.requirements_dir, parsed.packages, parse_only=parsed.parse_only,
+          dev=parsed.dev)
 
 
 if __name__ == "__main__":

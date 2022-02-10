@@ -1,2 +1,0 @@
-Update ``pythonfinder`` to fix a problem that ``python.exe`` will be mistakenly chosen for
-virtualenv creation under WSL.

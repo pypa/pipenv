@@ -3,6 +3,7 @@ import string
 from ._compat import PY2
 from ._compat import unicode
 
+
 if PY2:
     from pipenv.vendor.backports.functools_lru_cache import lru_cache
 else:

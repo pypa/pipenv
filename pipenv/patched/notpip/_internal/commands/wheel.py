@@ -1,19 +1,19 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-
 import logging
 import os
+import shutil
+from optparse import Values
+from typing import List
 
 from pipenv.patched.notpip._internal.cache import WheelCache
 from pipenv.patched.notpip._internal.cli import cmdoptions
-from pipenv.patched.notpip._internal.cli.base_command import RequirementCommand
-from pipenv.patched.notpip._internal.exceptions import CommandError, PreviousBuildDirError
-from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
-from pipenv.patched.notpip._internal.req import RequirementSet
-from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker
-from pipenv.patched.notpip._internal.resolve import Resolver
+from pipenv.patched.notpip._internal.cli.req_command import RequirementCommand, with_cleanup
+from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.notpip._internal.exceptions import CommandError
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._internal.req.req_tracker import get_requirement_tracker
+from pipenv.patched.notpip._internal.utils.misc import ensure_dir, normalize_path
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
-from pipenv.patched.notpip._internal.wheel import WheelBuilder
+from pipenv.patched.notpip._internal.wheel_builder import build, should_build_for_wheel_command
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,6 @@ class WheelCommand(RequirementCommand):
 
     """
 
-    name = 'wheel'
     usage = """
       %prog [options] <requirement specifier> ...
       %prog [options] -r <requirements file> ...
@@ -41,14 +40,9 @@ class WheelCommand(RequirementCommand):
       %prog [options] [-e] <local project path> ...
       %prog [options] <archive url/path> ..."""
 
-    summary = 'Build wheels from your requirements.'
+    def add_options(self) -> None:
 
-    def __init__(self, *args, **kw):
-        super(WheelCommand, self).__init__(*args, **kw)
-
-        cmd_opts = self.cmd_opts
-
-        cmd_opts.add_option(
+        self.cmd_opts.add_option(
             '-w', '--wheel-dir',
             dest='wheel_dir',
             metavar='dir',
@@ -56,37 +50,33 @@ class WheelCommand(RequirementCommand):
             help=("Build wheels into <dir>, where the default is the "
                   "current working directory."),
         )
-        cmd_opts.add_option(cmdoptions.no_binary())
-        cmd_opts.add_option(cmdoptions.only_binary())
-        cmd_opts.add_option(cmdoptions.prefer_binary())
-        cmd_opts.add_option(
-            '--build-option',
-            dest='build_options',
-            metavar='options',
-            action='append',
-            help="Extra arguments to be supplied to 'setup.py bdist_wheel'.",
+        self.cmd_opts.add_option(cmdoptions.no_binary())
+        self.cmd_opts.add_option(cmdoptions.only_binary())
+        self.cmd_opts.add_option(cmdoptions.prefer_binary())
+        self.cmd_opts.add_option(cmdoptions.no_build_isolation())
+        self.cmd_opts.add_option(cmdoptions.use_pep517())
+        self.cmd_opts.add_option(cmdoptions.no_use_pep517())
+        self.cmd_opts.add_option(cmdoptions.constraints())
+        self.cmd_opts.add_option(cmdoptions.editable())
+        self.cmd_opts.add_option(cmdoptions.requirements())
+        self.cmd_opts.add_option(cmdoptions.src())
+        self.cmd_opts.add_option(cmdoptions.ignore_requires_python())
+        self.cmd_opts.add_option(cmdoptions.no_deps())
+        self.cmd_opts.add_option(cmdoptions.build_dir())
+        self.cmd_opts.add_option(cmdoptions.progress_bar())
+
+        self.cmd_opts.add_option(
+            '--no-verify',
+            dest='no_verify',
+            action='store_true',
+            default=False,
+            help="Don't verify if built wheel is valid.",
         )
-        cmd_opts.add_option(cmdoptions.no_build_isolation())
-        cmd_opts.add_option(cmdoptions.use_pep517())
-        cmd_opts.add_option(cmdoptions.no_use_pep517())
-        cmd_opts.add_option(cmdoptions.constraints())
-        cmd_opts.add_option(cmdoptions.editable())
-        cmd_opts.add_option(cmdoptions.requirements())
-        cmd_opts.add_option(cmdoptions.src())
-        cmd_opts.add_option(cmdoptions.ignore_requires_python())
-        cmd_opts.add_option(cmdoptions.no_deps())
-        cmd_opts.add_option(cmdoptions.build_dir())
-        cmd_opts.add_option(cmdoptions.progress_bar())
 
-        cmd_opts.add_option(
-            '--global-option',
-            dest='global_options',
-            action='append',
-            metavar='options',
-            help="Extra global options to be supplied to the setup.py "
-            "call before the 'bdist_wheel' command.")
+        self.cmd_opts.add_option(cmdoptions.build_options())
+        self.cmd_opts.add_option(cmdoptions.global_options())
 
-        cmd_opts.add_option(
+        self.cmd_opts.add_option(
             '--pre',
             action='store_true',
             default=False,
@@ -94,8 +84,7 @@ class WheelCommand(RequirementCommand):
                   "pip only finds stable versions."),
         )
 
-        cmd_opts.add_option(cmdoptions.no_clean())
-        cmd_opts.add_option(cmdoptions.require_hashes())
+        self.cmd_opts.add_option(cmdoptions.require_hashes())
 
         index_opts = cmdoptions.make_option_group(
             cmdoptions.index_group,
@@ -103,84 +92,85 @@ class WheelCommand(RequirementCommand):
         )
 
         self.parser.insert_option_group(0, index_opts)
-        self.parser.insert_option_group(0, cmd_opts)
+        self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options, args):
+    @with_cleanup
+    def run(self, options: Values, args: List[str]) -> int:
         cmdoptions.check_install_build_global(options)
 
-        index_urls = [options.index_url] + options.extra_index_urls
-        if options.no_index:
-            logger.debug('Ignoring indexes: %s', ','.join(index_urls))
-            index_urls = []
+        session = self.get_default_session(options)
 
-        if options.build_dir:
-            options.build_dir = os.path.abspath(options.build_dir)
+        finder = self._build_package_finder(options, session)
+        wheel_cache = WheelCache(options.cache_dir, options.format_control)
 
-        options.src_dir = os.path.abspath(options.src_dir)
+        options.wheel_dir = normalize_path(options.wheel_dir)
+        ensure_dir(options.wheel_dir)
 
-        with self._build_session(options) as session:
-            finder = self._build_package_finder(options, session)
-            build_delete = (not (options.no_clean or options.build_dir))
-            wheel_cache = WheelCache(options.cache_dir, options.format_control)
+        req_tracker = self.enter_context(get_requirement_tracker())
 
-            with RequirementTracker() as req_tracker, TempDirectory(
-                options.build_dir, delete=build_delete, kind="wheel"
-            ) as directory:
+        directory = TempDirectory(
+            delete=not options.no_clean,
+            kind="wheel",
+            globally_managed=True,
+        )
 
-                requirement_set = RequirementSet(
-                    require_hashes=options.require_hashes,
+        reqs = self.get_requirements(args, options, finder, session)
+
+        preparer = self.make_requirement_preparer(
+            temp_build_dir=directory,
+            options=options,
+            req_tracker=req_tracker,
+            session=session,
+            finder=finder,
+            download_dir=options.wheel_dir,
+            use_user_site=False,
+        )
+
+        resolver = self.make_resolver(
+            preparer=preparer,
+            finder=finder,
+            options=options,
+            wheel_cache=wheel_cache,
+            ignore_requires_python=options.ignore_requires_python,
+            use_pep517=options.use_pep517,
+        )
+
+        self.trace_basic_info(finder)
+
+        requirement_set = resolver.resolve(
+            reqs, check_supported_wheels=True
+        )
+
+        reqs_to_build: List[InstallRequirement] = []
+        for req in requirement_set.requirements.values():
+            if req.is_wheel:
+                preparer.save_linked_requirement(req)
+            elif should_build_for_wheel_command(req):
+                reqs_to_build.append(req)
+
+        # build wheels
+        build_successes, build_failures = build(
+            reqs_to_build,
+            wheel_cache=wheel_cache,
+            verify=(not options.no_verify),
+            build_options=options.build_options or [],
+            global_options=options.global_options or [],
+        )
+        for req in build_successes:
+            assert req.link and req.link.is_wheel
+            assert req.local_file_path
+            # copy from cache to target directory
+            try:
+                shutil.copy(req.local_file_path, options.wheel_dir)
+            except OSError as e:
+                logger.warning(
+                    "Building wheel for %s failed: %s",
+                    req.name, e,
                 )
+                build_failures.append(req)
+        if len(build_failures) != 0:
+            raise CommandError(
+                "Failed to build one or more wheels"
+            )
 
-                try:
-                    self.populate_requirement_set(
-                        requirement_set, args, options, finder, session,
-                        self.name, wheel_cache
-                    )
-
-                    preparer = RequirementPreparer(
-                        build_dir=directory.path,
-                        src_dir=options.src_dir,
-                        download_dir=None,
-                        wheel_download_dir=options.wheel_dir,
-                        progress_bar=options.progress_bar,
-                        build_isolation=options.build_isolation,
-                        req_tracker=req_tracker,
-                    )
-
-                    resolver = Resolver(
-                        preparer=preparer,
-                        finder=finder,
-                        session=session,
-                        wheel_cache=wheel_cache,
-                        use_user_site=False,
-                        upgrade_strategy="to-satisfy-only",
-                        force_reinstall=False,
-                        ignore_dependencies=options.ignore_dependencies,
-                        ignore_requires_python=options.ignore_requires_python,
-                        ignore_installed=True,
-                        isolated=options.isolated_mode,
-                        use_pep517=options.use_pep517
-                    )
-                    resolver.resolve(requirement_set)
-
-                    # build wheels
-                    wb = WheelBuilder(
-                        finder, preparer, wheel_cache,
-                        build_options=options.build_options or [],
-                        global_options=options.global_options or [],
-                        no_clean=options.no_clean,
-                    )
-                    build_failures = wb.build(
-                        requirement_set.requirements.values(), session=session,
-                    )
-                    if len(build_failures) != 0:
-                        raise CommandError(
-                            "Failed to build one or more wheels"
-                        )
-                except PreviousBuildDirError:
-                    options.no_clean = True
-                    raise
-                finally:
-                    if not options.no_clean:
-                        requirement_set.cleanup_files()
-                        wheel_cache.cleanup()
+        return SUCCESS

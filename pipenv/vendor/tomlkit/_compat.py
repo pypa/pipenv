@@ -1,6 +1,7 @@
 import re
 import sys
 
+
 try:
     from datetime import timezone
 except ImportError:
@@ -67,12 +68,12 @@ except ImportError:
             if self._name is None:
                 return "%s.%s(%r)" % (
                     self.__class__.__module__,
-                    self.__class__.__qualname__,
+                    self.__class__.__name__,
                     self._offset,
                 )
             return "%s.%s(%r, %r)" % (
                 self.__class__.__module__,
-                self.__class__.__qualname__,
+                self.__class__.__name__,
                 self._offset,
                 self._name,
             )
@@ -137,6 +138,7 @@ except ImportError:
 
 PY2 = sys.version_info[0] == 2
 PY36 = sys.version_info >= (3, 6)
+PY38 = sys.version_info >= (3, 8)
 
 if PY2:
     unicode = unicode
@@ -146,6 +148,17 @@ else:
     unicode = str
     chr = chr
     long = int
+
+
+if PY36:
+    OrderedDict = dict
+else:
+    from collections import OrderedDict
+
+try:
+    from collections.abc import MutableMapping
+except ImportError:
+    from collections import MutableMapping
 
 
 def decode(string, encodings=None):

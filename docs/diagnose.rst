@@ -29,7 +29,7 @@ usually one of the following locations:
 * ``%LOCALAPPDATA%\pipenv\pipenv\Cache`` (Windows)
 * ``~/.cache/pipenv`` (other operating systems)
 
-Pipenv does not install prereleases (i.e. a version with an alpha/beta/etc.
+Pipenv does not install pre-releases (i.e. a version with an alpha/beta/etc.
 suffix, such as *1.0b1*) by default. You will need to pass the ``--pre`` flag
 in your command, or set
 
@@ -58,14 +58,9 @@ distributions, with version name like ``3.6.4`` or similar.
 ------------------------------------------------------------------
 
 Pipenv by default uses the Python it is installed against to create the
-virtualenv. You can set the ``--python`` option, or
-``$PYENV_ROOT/shims/python`` to let it consult pyenv when choosing the
-interpreter. See :ref:`specifying_versions` for more information.
-
-If you want Pipenv to automatically “do the right thing”, you can set the
-environment variable ``PIPENV_PYTHON`` to ``$PYENV_ROOT/shims/python``. This
-will make Pipenv use pyenv’s active Python version to create virtual
-environments by default.
+virtualenv. You can set the ``--python`` option to ``$(pyenv which python)``
+to use your current pyenv interpreter. See :ref:`specifying_versions` for more
+information.
 
 .. _unknown-local-diagnose:
 
@@ -101,18 +96,6 @@ This may be related to your locale setting. See :ref:`unknown-local-diagnose`
 for a possible solution.
 
 
-☤ ``shell`` does not show the virtualenv’s name in prompt
----------------------------------------------------------
-
-This is intentional. You can do it yourself with either shell plugins, or
-clever ``PS1`` configuration. If you really want it back, use
-
-::
-
-    pipenv shell -c
-
-instead (not available on Windows).
-
 ☤ Pipenv does not respect dependencies in setup.py
 --------------------------------------------------
 
@@ -124,15 +107,15 @@ for more information.
 ---------------------------------------------
 
 When you configure a supervisor program's ``command`` with ``pipenv run ...``, you
-need to set locale enviroment variables properly to make it work.
+need to set locale environment variables properly to make it work.
 
 Add this line under ``[supervisord]`` section in ``/etc/supervisor/supervisord.conf``::
 
     [supervisord]
     environment=LC_ALL='en_US.UTF-8',LANG='en_US.UTF-8'
 
-☤ An exception is raised during ``Locking dependencies…``
----------------------------------------------------------
+☤ An exception is raised during ``Locking dependencies...``
+-----------------------------------------------------------
 
 Run ``pipenv lock --clear`` and try again. The lock sequence caches results
 to speed up subsequent runs. The cache may contain faulty results if a bug

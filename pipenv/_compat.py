@@ -1,4 +1,3 @@
-# -*- coding=utf-8 -*-
 """A compatibility module for pipenv's backports and manipulations.
 
 Exposes a standard API that enables compatibility across python versions,
@@ -7,26 +6,13 @@ operating systems, etc.
 import sys
 import warnings
 
-import six
-import vistir
-
-from .vendor.vistir.compat import (
-    NamedTemporaryFile, Path, ResourceWarning, TemporaryDirectory
-)
-
-
-# Backport required for earlier versions of Python.
-if sys.version_info < (3, 3):
-    from .vendor.backports.shutil_get_terminal_size import get_terminal_size
-else:
-    from shutil import get_terminal_size
+from pipenv.vendor import vistir
 
 warnings.filterwarnings("ignore", category=ResourceWarning)
 
 
 __all__ = [
-    "NamedTemporaryFile", "Path", "ResourceWarning", "TemporaryDirectory",
-    "get_terminal_size", "getpreferredencoding", "DEFAULT_ENCODING", "canonical_encoding_name",
+    "getpreferredencoding", "DEFAULT_ENCODING", "canonical_encoding_name",
     "force_encoding", "UNICODE_TO_ASCII_TRANSLATION_MAP", "decode_output", "fix_utf8"
 ]
 
@@ -35,12 +21,7 @@ def getpreferredencoding():
     import locale
     # Borrowed from Invoke
     # (see https://github.com/pyinvoke/invoke/blob/93af29d/invoke/runners.py#L881)
-    _encoding = locale.getpreferredencoding(False)
-    if six.PY2 and not sys.platform == "win32":
-        _default_encoding = locale.getdefaultlocale()[1]
-        if _default_encoding is not None:
-            _encoding = _default_encoding
-    return _encoding
+    return locale.getpreferredencoding(False)
 
 
 DEFAULT_ENCODING = getpreferredencoding()
@@ -69,7 +50,7 @@ def force_encoding():
             return DEFAULT_ENCODING, DEFAULT_ENCODING
     stdout_encoding = canonical_encoding_name(sys.stdout.encoding)
     stderr_encoding = canonical_encoding_name(sys.stderr.encoding)
-    if sys.platform == "win32" and sys.version_info >= (3, 1):
+    if sys.platform == "win32":
         return DEFAULT_ENCODING, DEFAULT_ENCODING
     if stdout_encoding != "utf-8" or stderr_encoding != "utf-8":
 
@@ -110,10 +91,10 @@ OUT_ENCODING, ERR_ENCODING = force_encoding()
 
 
 UNICODE_TO_ASCII_TRANSLATION_MAP = {
-    8230: u"...",
-    8211: u"-",
-    10004: u"OK",
-    10008: u"x",
+    8230: "...",
+    8211: "-",
+    10004: "OK",
+    10008: "x",
 }
 
 
@@ -124,26 +105,21 @@ def decode_for_output(output, target=sys.stdout):
 
 
 def decode_output(output):
-    if not isinstance(output, six.string_types):
+    if not isinstance(output, str):
         return output
     try:
         output = output.encode(DEFAULT_ENCODING)
     except (AttributeError, UnicodeDecodeError, UnicodeEncodeError):
-        if six.PY2:
-            output = unicode.translate(vistir.misc.to_text(output),  # noqa
-                                       UNICODE_TO_ASCII_TRANSLATION_MAP)
-        else:
-            output = output.translate(UNICODE_TO_ASCII_TRANSLATION_MAP)
+        output = output.translate(UNICODE_TO_ASCII_TRANSLATION_MAP)
         output = output.encode(DEFAULT_ENCODING, "replace")
     return vistir.misc.to_text(output, encoding=DEFAULT_ENCODING, errors="replace")
 
 
 def fix_utf8(text):
-    if not isinstance(text, six.string_types):
+    if not isinstance(text, str):
         return text
     try:
         text = decode_output(text)
     except UnicodeDecodeError:
-        if six.PY2:
-            text = unicode.translate(vistir.misc.to_text(text), UNICODE_TO_ASCII_TRANSLATION_MAP)   # noqa
+        pass
     return text

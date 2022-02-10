@@ -1,68 +1,67 @@
 # This file is dual licensed under the terms of the Apache License, Version
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
-from __future__ import absolute_import, division, print_function
 
 
-class Infinity(object):
-    def __repr__(self):
+class InfinityType:
+    def __repr__(self) -> str:
         return "Infinity"
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(repr(self))
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         return False
 
-    def __le__(self, other):
+    def __le__(self, other: object) -> bool:
         return False
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         return isinstance(other, self.__class__)
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         return not isinstance(other, self.__class__)
 
-    def __gt__(self, other):
+    def __gt__(self, other: object) -> bool:
         return True
 
-    def __ge__(self, other):
+    def __ge__(self, other: object) -> bool:
         return True
 
-    def __neg__(self):
+    def __neg__(self: object) -> "NegativeInfinityType":
         return NegativeInfinity
 
 
-Infinity = Infinity()
+Infinity = InfinityType()
 
 
-class NegativeInfinity(object):
-    def __repr__(self):
+class NegativeInfinityType:
+    def __repr__(self) -> str:
         return "-Infinity"
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(repr(self))
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         return True
 
-    def __le__(self, other):
+    def __le__(self, other: object) -> bool:
         return True
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         return isinstance(other, self.__class__)
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         return not isinstance(other, self.__class__)
 
-    def __gt__(self, other):
+    def __gt__(self, other: object) -> bool:
         return False
 
-    def __ge__(self, other):
+    def __ge__(self, other: object) -> bool:
         return False
 
-    def __neg__(self):
+    def __neg__(self: object) -> InfinityType:
         return Infinity
 
 
-NegativeInfinity = NegativeInfinity()
+NegativeInfinity = NegativeInfinityType()

@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function
+import collections
 import contextlib
 import io
 import json
@@ -8,11 +7,14 @@ import os
 from tarfile import is_tarfile
 from zipfile import is_zipfile
 
+import distlib.wheel
 import requests
 from six.moves import xmlrpc_client
 
 from flask import Flask, redirect, abort, render_template, send_file, jsonify
 
+
+ReleaseTuple = collections.namedtuple("ReleaseTuple", ["path", "requires_python", "hash"])
 
 app = Flask(__name__)
 session = requests.Session()
@@ -38,28 +40,28 @@ def get_pypi_package_names():
     return pypi_packages
 
 
-class Package(object):
+class Package:
     """Package represents a collection of releases from one or more directories"""
 
     def __init__(self, name):
-        super(Package, self).__init__()
+        super().__init__()
         self.name = name
         self.releases = {}
         self._package_dirs = set()
 
     @property
     def json(self):
-        for path in self._package_dirs:
+        for path, _ in self._package_dirs:
             try:
                 with open(os.path.join(path, 'api.json')) as f:
                     return json.load(f)
             except FileNotFoundError:
-                r = session.get('https://pypi.org/pypi/{0}/json'.format(self.name))
+                r = session.get(f'https://pypi.org/pypi/{self.name}/json')
                 response = r.json()
                 releases = response["releases"]
                 files = {
                     pkg for pkg_dir in self._package_dirs
-                    for pkg in os.listdir(pkg_dir)
+                    for pkg in os.listdir(pkg_dir.path)
                 }
                 for release in list(releases.keys()):
                     values = (
@@ -71,31 +73,42 @@ class Package(object):
                     else:
                         del releases[release]
                 response["releases"] = releases
-                with io.open(os.path.join(path, "api.json"), "w") as fh:
+                with open(os.path.join(path, "api.json"), "w") as fh:
                     json.dump(response, fh, indent=4)
                 return response
 
     def __repr__(self):
-        return "<Package name={0!r} releases={1!r}".format(self.name, len(self.releases))
+        return f"<Package name={self.name!r} releases={len(self.releases)!r}"
 
     def add_release(self, path_to_binary):
         path_to_binary = os.path.abspath(path_to_binary)
         path, release = os.path.split(path_to_binary)
-        self.releases[release] = path_to_binary
-        self._package_dirs.add(path)
+        requires_python = ""
+        hash_value = ""
+        if path_to_binary.endswith(".whl"):
+            pkg = distlib.wheel.Wheel(path_to_binary)
+            md_dict = pkg.metadata.todict()
+            requires_python = md_dict.get("requires_python", "")
+            if requires_python.count(".") > 1:
+                requires_python, _, _ = requires_python.rpartition(".")
+        if os.path.isfile(path_to_binary + ".sha256"):
+            with open(path_to_binary + ".sha256") as f:
+                hash_value = f.read().strip()
+        self.releases[release] = ReleaseTuple(path_to_binary, requires_python, hash_value)
+        self._package_dirs.add(ReleaseTuple(path, requires_python, hash_value))
 
 
-class Artifact(object):
+class Artifact:
     """Represents an artifact for download"""
 
     def __init__(self, name):
-        super(Artifact, self).__init__()
+        super().__init__()
         self.name = name
         self.files = {}
         self._artifact_dirs = set()
 
     def __repr__(self):
-        return "<Artifact name={0!r} files={1!r}".format(self.name, len(self.files))
+        return f"<Artifact name={self.name!r} files={len(self.files)!r}"
 
     def add_file(self, path):
         path = os.path.abspath(path)
@@ -107,7 +120,7 @@ class Artifact(object):
 def prepare_fixtures(path):
     path = os.path.abspath(path)
     if not (os.path.exists(path) and os.path.isdir(path)):
-        raise ValueError("{} is not a directory!".format(path))
+        raise ValueError(f"{path} is not a directory!")
     for root, dirs, files in os.walk(path):
         package_name, _, _ = os.path.relpath(root, start=path).partition(os.path.sep)
         if package_name not in ARTIFACTS:
@@ -129,7 +142,7 @@ def prepare_packages(path):
     """Add packages in path to the registry."""
     path = os.path.abspath(path)
     if not (os.path.exists(path) and os.path.isdir(path)):
-        raise ValueError("{} is not a directory!".format(path))
+        raise ValueError(f"{path} is not a directory!")
     for root, dirs, files in os.walk(path):
         if all([setup_file in list(files) for setup_file in ("setup.py", "setup.cfg")]):
             continue
@@ -144,9 +157,9 @@ def prepare_packages(path):
                     packages[package_name] = Package(package_name)
 
                 packages[package_name].add_release(os.path.join(root, file))
-    remaining = get_pypi_package_names() - set(list(packages.keys()))
-    for pypi_pkg in remaining:
-        packages[pypi_pkg] = Package(pypi_pkg)
+    # remaining = get_pypi_package_names() - set(list(packages.keys()))
+    # for pypi_pkg in remaining:
+    #     packages[pypi_pkg] = Package(pypi_pkg)
 
 
 @app.route('/')
@@ -170,7 +183,7 @@ def simple_package(package):
         return render_template('package.html', package=packages[package])
     else:
         try:
-            r = requests.get("https://pypi.org/simple/{0}".format(package))
+            r = requests.get(f"https://pypi.org/simple/{package}")
             r.raise_for_status()
         except Exception:
             abort(404)
@@ -194,7 +207,7 @@ def serve_package(package, release):
         package = packages[package]
 
         if release in package.releases:
-            return send_file(package.releases[release])
+            return send_file(package.releases[release].path)
 
     abort(404)
 

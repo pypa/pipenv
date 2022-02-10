@@ -10,10 +10,11 @@ This document covers some of Pipenv's more basic features.
 ☤ Example Pipfile & Pipfile.lock
 --------------------------------
 
-Pipfiles contain information for the dependencies of the project, and supercede
-the requirements.txt present in Python projects. You should add Pipfile to your
-Git repository, and let users who clone the repository know that they need only
-install Pipenv, and type ``pipenv install``. Pipenv is a reference
+Pipfiles contain information for the dependencies of the project, and supersedes
+the requirements.txt file used in most Python projects. You should add a Pipfile in the
+Git repository letting users who clone the repository know the only thing required would be
+installing Pipenv in the machine and typing ``pipenv install``. Pipenv is a reference
+
 implementation for using Pipfile.
 
 .. _example_files:
@@ -131,7 +132,7 @@ Example Pipfile.lock
 
 - Generally, keep both ``Pipfile`` and ``Pipfile.lock`` in version control.
 - Do not keep ``Pipfile.lock`` in version control if multiple versions of Python are being targeted.
-- Specify your target Python version in your `Pipfile`'s ``[requires]`` section. Ideally, you should only have one target Python version, as this is a deployment tool. ``python_version`` should be in the format ``X.Y`` and ``python_full_version`` should be in ``X.Y.Z`` format.
+- Specify your target Python version in your `Pipfile`'s ``[requires]`` section. Ideally, you should only have one target Python version, as this is a deployment tool. ``python_version`` should be in the format ``X.Y`` (or ``X``) and ``python_full_version`` should be in ``X.Y.Z`` format.
 - ``pipenv install`` is fully compatible with ``pip install`` syntax, for which the full documentation can be found `here <https://pip.pypa.io/en/stable/user_guide/#installing-packages>`_.
 - Note that the ``Pipfile`` uses the `TOML Spec <https://github.com/toml-lang/toml#user-content-spec>`_.
 
@@ -216,7 +217,7 @@ To make inclusive or exclusive version comparisons you can use: ::
 
 The use of ``~=`` is preferred over the ``==`` identifier as the latter prevents pipenv from updating the packages:  ::
 
-    $ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using ==2.*)
+    $ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using >=2.2, ==2.*)
 
 To avoid installing a specific version you can use the ``!=`` identifier.
 
@@ -371,7 +372,7 @@ You can install packages with pipenv from git and other version control systems 
 
     <vcs_type>+<scheme>://<location>/<user_or_organization>/<repository>@<branch_or_tag>#egg=<package_name>
 
-The only optional section is the ``@<branch_or_tag>`` section.  When using git over SSH, you may use the shorthand vcs and scheme alias ``git+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#<package_name>``. Note that this is translated to ``git+ssh://git@<location>`` when parsed.
+The only optional section is the ``@<branch_or_tag>`` section.  When using git over SSH, you may use the shorthand vcs and scheme alias ``git+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#egg=<package_name>``. Note that this is translated to ``git+ssh://git@<location>`` when parsed.
 
 Note that it is **strongly recommended** that you install any version-controlled dependencies in editable mode, using ``pipenv install -e``, in order to ensure that dependency resolution can be performed with an up to date copy of the repository each time it is performed, and that it includes all known dependencies.
 
@@ -409,5 +410,118 @@ production environments for reproducible builds.
 .. note::
 
     If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv lock -r``.
-    This will include all hashes, however (which is great!). To get a ``requirements.txt``
-    without hashes, use ``$ pipenv run pip freeze``.
+    This will not include hashes, however. To get a ``requirements.txt``
+    you can also use ``$ pipenv run pip freeze``.
+
+
+☤ Pipenv and Docker Containers
+------------------------------
+
+In general, you should not have Pipenv inside a linux container image, since
+it is a build tool. If you want to use it to build, and install the run time
+dependencies for your application, you can use a multi stage build for creating
+a virtual environment with your dependencies. In this approach,
+Pipenv in installed in the base layer, it is then used to create the virtual
+environment. In a later stage, in a ``runtime`` layer the virtual environment
+is copied from the base layer, the layer containing pipenv and other build
+dependencies is discarded.
+This results in a smaller image, which can still run your application.
+Here is an example ``Dockerfile``, which you can use as a starting point for
+doing a multi stage build for your application::
+
+  FROM docker.io/python:3.9 AS builder
+
+  RUN pip install --user pipenv
+
+  # Tell pipenv to create venv in the current directory
+  ENV PIPENV_VENV_IN_PROJECT=1
+
+  # Pipefile contains requests
+  ADD Pipfile.lock Pipfile /usr/src/ 
+
+  WORKDIR /usr/src
+
+  # NOTE: If you install binary packages required for a python module, you need
+  # to install them again in the runtime. For example, if you need to install pycurl
+  # you need to have pycurl build dependencies libcurl4-gnutls-dev and libcurl3-gnutls
+  # In the runtime container you need only libcurl3-gnutls
+
+  # RUN apt install -y libcurl3-gnutls libcurl4-gnutls-dev
+
+  RUN /root/.local/bin/pipenv sync 
+
+  RUN /usr/src/.venv/bin/python -c "import requests; print(requests.__version__)"
+
+  FROM docker.io/python:3.9 AS runtime
+
+  RUN mkdir -v /usr/src/venv 
+
+  COPY --from=builder /usr/src/.venv/ /usr/src/venv/
+
+  RUN /usr/src/venv/bin/python -c "import requests; print(requests.__version__)"
+
+  # HERE GOES ANY CODE YOU NEED TO ADD TO CREATE YOUR APPLICATION'S IMAGE
+  # For example
+  # RUN apt install -y libcurl3-gnutls
+  # RUN adduser --uid 123123 coolio
+
+  WORKDIR /usr/src/
+
+  USER coolio
+
+  CMD ["./venv/bin/python", "-m", "run.py"]
+
+.. Note::
+
+   Pipenv is not meant to run as root. However, in the multi stage build above
+   it is done never the less. A calculated risk, since the intermediatiary image
+   is discarded.
+   The runtime image later shows that you should create a user and user it to
+   run your applicaion.
+   **Once again, you should not run pipenv as root (or Admin on Windows) normally.
+   This could lead to breakage of your Python installation, or even your complete
+   OS.**
+
+When you build an image with this example (assuming requests is found in Pipefile), you
+will see that ``requests`` is installed in the ``runtime`` image::
+
+  $ sudo docker build --no-cache -t oz/123:0.1 .
+  Sending build context to Docker daemon  1.122MB
+  Step 1/12 : FROM docker.io/python:3.9 AS builder
+   ---> 81f391f1a7d7
+  Step 2/12 : RUN pip install --user pipenv
+   ---> Running in b83ed3c28448
+   ... trimmed ...
+   ---> 848743eb8c65
+  Step 4/12 : ENV PIPENV_VENV_IN_PROJECT=1
+   ---> Running in 814e6f5fec5b
+  Removing intermediate container 814e6f5fec5b
+   ---> 20167b4a13e1
+  Step 5/12 : ADD Pipfile.lock Pipfile /usr/src/
+   ---> c7632cb3d5bd
+  Step 6/12 : WORKDIR /usr/src
+   ---> Running in 1d75c6cfce10
+  Removing intermediate container 1d75c6cfce10
+   ---> 2dcae54cc2e5
+  Step 7/12 : RUN /root/.local/bin/pipenv sync
+   ---> Running in 1a00b326b1ee
+  Creating a virtualenv for this project...
+  ... trimmed ...
+  ✔ Successfully created virtual environment!
+  Virtualenv location: /usr/src/.venv
+  Installing dependencies from Pipfile.lock (fe5a22)...
+  ... trimmed ...
+  Step 8/12 : RUN /usr/src/.venv/bin/python -c "import requests; print(requests.__version__)"
+   ---> Running in 3a66e3ce4a11
+  2.27.1
+  Removing intermediate container 3a66e3ce4a11
+   ---> 1db657d0ac17
+  Step 9/12 : FROM docker.io/python:3.9 AS runtime
+  ... trimmed ...
+  Step 12/12 : RUN /usr/src/venv/bin/python -c "import requests; print(requests.__version__)"
+   ---> Running in fa39ba4080c5
+  2.27.1
+  Removing intermediate container fa39ba4080c5
+   ---> 2b1c90fd414e
+  Successfully built 2b1c90fd414e
+  Successfully tagged oz/123:0.1

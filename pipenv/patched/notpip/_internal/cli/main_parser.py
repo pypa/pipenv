@@ -3,48 +3,30 @@
 
 import os
 import sys
+from typing import List, Tuple
 
-from pipenv.patched.notpip import __version__
 from pipenv.patched.notpip._internal.cli import cmdoptions
-from pipenv.patched.notpip._internal.cli.parser import (
-    ConfigOptionParser, UpdatingDefaultsHelpFormatter,
-)
-from pipenv.patched.notpip._internal.commands import (
-    commands_dict, get_similar_commands, get_summaries,
-)
+from pipenv.patched.notpip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
+from pipenv.patched.notpip._internal.commands import commands_dict, get_similar_commands
 from pipenv.patched.notpip._internal.exceptions import CommandError
-from pipenv.patched.notpip._internal.utils.misc import get_prog
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-
-if MYPY_CHECK_RUNNING:
-    from typing import Tuple, List  # noqa: F401
-
+from pipenv.patched.notpip._internal.utils.misc import get_pip_version, get_prog
 
 __all__ = ["create_main_parser", "parse_command"]
 
 
-def create_main_parser():
-    # type: () -> ConfigOptionParser
-    """Creates and returns the main parser for pip's CLI
-    """
+def create_main_parser() -> ConfigOptionParser:
+    """Creates and returns the main parser for pip's CLI"""
 
-    parser_kw = {
-        'usage': '\n%prog <command> [options]',
-        'add_help_option': False,
-        'formatter': UpdatingDefaultsHelpFormatter(),
-        'name': 'global',
-        'prog': get_prog(),
-    }
-
-    parser = ConfigOptionParser(**parser_kw)
+    parser = ConfigOptionParser(
+        usage="\n%prog <command> [options]",
+        add_help_option=False,
+        formatter=UpdatingDefaultsHelpFormatter(),
+        name="global",
+        prog=get_prog(),
+    )
     parser.disable_interspersed_args()
 
-    pip_pkg_dir = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), "..", "..",
-    ))
-    parser.version = 'pip %s from %s (python %s)' % (
-        __version__, pip_pkg_dir, sys.version[:3],
-    )
+    parser.version = get_pip_version()
 
     # add the general options
     gen_opts = cmdoptions.make_option_group(cmdoptions.general_group, parser)
@@ -54,15 +36,16 @@ def create_main_parser():
     parser.main = True  # type: ignore
 
     # create command listing for description
-    command_summaries = get_summaries()
-    description = [''] + ['%-27s %s' % (i, j) for i, j in command_summaries]
-    parser.description = '\n'.join(description)
+    description = [""] + [
+        f"{name:27} {command_info.summary}"
+        for name, command_info in commands_dict.items()
+    ]
+    parser.description = "\n".join(description)
 
     return parser
 
 
-def parse_command(args):
-    # type: (List[str]) -> Tuple[str, List[str]]
+def parse_command(args: List[str]) -> Tuple[str, List[str]]:
     parser = create_main_parser()
 
     # Note: parser calls disable_interspersed_args(), so the result of this
@@ -76,12 +59,12 @@ def parse_command(args):
 
     # --version
     if general_options.version:
-        sys.stdout.write(parser.version)  # type: ignore
+        sys.stdout.write(parser.version)
         sys.stdout.write(os.linesep)
         sys.exit()
 
     # pip || pip help -> print_help()
-    if not args_else or (args_else[0] == 'help' and len(args_else) == 1):
+    if not args_else or (args_else[0] == "help" and len(args_else) == 1):
         parser.print_help()
         sys.exit()
 
@@ -91,11 +74,11 @@ def parse_command(args):
     if cmd_name not in commands_dict:
         guess = get_similar_commands(cmd_name)
 
-        msg = ['unknown command "%s"' % cmd_name]
+        msg = [f'unknown command "{cmd_name}"']
         if guess:
-            msg.append('maybe you meant "%s"' % guess)
+            msg.append(f'maybe you meant "{guess}"')
 
-        raise CommandError(' - '.join(msg))
+        raise CommandError(" - ".join(msg))
 
     # all the args without the subcommand
     cmd_args = args[:]

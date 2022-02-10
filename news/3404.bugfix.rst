@@ -1,1 +1,0 @@
-Fixed a keyerror which could occur when locking VCS dependencies in some cases.

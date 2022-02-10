@@ -2,16 +2,13 @@ import asyncio
 import errno
 import signal
 
-from pexpect import EOF
+from pipenv.vendor.pexpect import EOF
 
 @asyncio.coroutine
 def expect_async(expecter, timeout=None):
     # First process data that was previously read - if it maches, we don't need
     # async stuff.
-    previously_read = expecter.spawn.buffer
-    expecter.spawn._buffer = expecter.spawn.buffer_type()
-    expecter.spawn._before = expecter.spawn.buffer_type()
-    idx = expecter.new_data(previously_read)
+    idx = expecter.existing_data()
     if idx is not None:
         return idx
     if not expecter.spawn.async_pw_transport:
@@ -74,6 +71,7 @@ class PatternWaiter(asyncio.Protocol):
         spawn._log(s, 'read')
 
         if self.fut.done():
+            spawn._before.write(s)
             spawn._buffer.write(s)
             return
 

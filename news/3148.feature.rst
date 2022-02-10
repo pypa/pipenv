@@ -1,1 +1,0 @@
-Added support for resolution of direct-url dependencies in ``setup.py`` files to respect ``PEP-508`` style URL dependencies.

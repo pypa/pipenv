@@ -1,16 +1,14 @@
-from __future__ import absolute_import
-
 import logging
 import os
+from optparse import Values
+from typing import List
 
 from pipenv.patched.notpip._internal.cli import cmdoptions
-from pipenv.patched.notpip._internal.cli.base_command import RequirementCommand
-from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
-from pipenv.patched.notpip._internal.req import RequirementSet
-from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker
-from pipenv.patched.notpip._internal.resolve import Resolver
-from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
-from pipenv.patched.notpip._internal.utils.misc import ensure_dir, normalize_path
+from pipenv.patched.notpip._internal.cli.cmdoptions import make_target_python
+from pipenv.patched.notpip._internal.cli.req_command import RequirementCommand, with_cleanup
+from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.notpip._internal.req.req_tracker import get_requirement_tracker
+from pipenv.patched.notpip._internal.utils.misc import ensure_dir, normalize_path, write_output
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 
 logger = logging.getLogger(__name__)
@@ -28,7 +26,6 @@ class DownloadCommand(RequirementCommand):
     pip also supports downloading from "requirements files", which provide
     an easy way to specify a whole environment to be downloaded.
     """
-    name = 'download'
 
     usage = """
       %prog [options] <requirement specifier> [package-index-options] ...
@@ -37,31 +34,25 @@ class DownloadCommand(RequirementCommand):
       %prog [options] <local project path> ...
       %prog [options] <archive url/path> ..."""
 
-    summary = 'Download packages.'
+    def add_options(self) -> None:
+        self.cmd_opts.add_option(cmdoptions.constraints())
+        self.cmd_opts.add_option(cmdoptions.requirements())
+        self.cmd_opts.add_option(cmdoptions.build_dir())
+        self.cmd_opts.add_option(cmdoptions.no_deps())
+        self.cmd_opts.add_option(cmdoptions.global_options())
+        self.cmd_opts.add_option(cmdoptions.no_binary())
+        self.cmd_opts.add_option(cmdoptions.only_binary())
+        self.cmd_opts.add_option(cmdoptions.prefer_binary())
+        self.cmd_opts.add_option(cmdoptions.src())
+        self.cmd_opts.add_option(cmdoptions.pre())
+        self.cmd_opts.add_option(cmdoptions.require_hashes())
+        self.cmd_opts.add_option(cmdoptions.progress_bar())
+        self.cmd_opts.add_option(cmdoptions.no_build_isolation())
+        self.cmd_opts.add_option(cmdoptions.use_pep517())
+        self.cmd_opts.add_option(cmdoptions.no_use_pep517())
+        self.cmd_opts.add_option(cmdoptions.ignore_requires_python())
 
-    def __init__(self, *args, **kw):
-        super(DownloadCommand, self).__init__(*args, **kw)
-
-        cmd_opts = self.cmd_opts
-
-        cmd_opts.add_option(cmdoptions.constraints())
-        cmd_opts.add_option(cmdoptions.requirements())
-        cmd_opts.add_option(cmdoptions.build_dir())
-        cmd_opts.add_option(cmdoptions.no_deps())
-        cmd_opts.add_option(cmdoptions.global_options())
-        cmd_opts.add_option(cmdoptions.no_binary())
-        cmd_opts.add_option(cmdoptions.only_binary())
-        cmd_opts.add_option(cmdoptions.prefer_binary())
-        cmd_opts.add_option(cmdoptions.src())
-        cmd_opts.add_option(cmdoptions.pre())
-        cmd_opts.add_option(cmdoptions.no_clean())
-        cmd_opts.add_option(cmdoptions.require_hashes())
-        cmd_opts.add_option(cmdoptions.progress_bar())
-        cmd_opts.add_option(cmdoptions.no_build_isolation())
-        cmd_opts.add_option(cmdoptions.use_pep517())
-        cmd_opts.add_option(cmdoptions.no_use_pep517())
-
-        cmd_opts.add_option(
+        self.cmd_opts.add_option(
             '-d', '--dest', '--destination-dir', '--destination-directory',
             dest='download_dir',
             metavar='dir',
@@ -69,10 +60,7 @@ class DownloadCommand(RequirementCommand):
             help=("Download packages into <dir>."),
         )
 
-        cmd_opts.add_option(cmdoptions.platform())
-        cmd_opts.add_option(cmdoptions.python_version())
-        cmd_opts.add_option(cmdoptions.implementation())
-        cmd_opts.add_option(cmdoptions.abi())
+        cmdoptions.add_target_python_options(self.cmd_opts)
 
         index_opts = cmdoptions.make_option_group(
             cmdoptions.index_group,
@@ -80,97 +68,72 @@ class DownloadCommand(RequirementCommand):
         )
 
         self.parser.insert_option_group(0, index_opts)
-        self.parser.insert_option_group(0, cmd_opts)
+        self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options, args):
+    @with_cleanup
+    def run(self, options: Values, args: List[str]) -> int:
+
         options.ignore_installed = True
         # editable doesn't really make sense for `pip download`, but the bowels
         # of the RequirementSet code require that property.
         options.editables = []
 
-        if options.python_version:
-            python_versions = [options.python_version]
-        else:
-            python_versions = None
-
         cmdoptions.check_dist_restriction(options)
 
-        options.src_dir = os.path.abspath(options.src_dir)
         options.download_dir = normalize_path(options.download_dir)
-
         ensure_dir(options.download_dir)
 
-        with self._build_session(options) as session:
-            finder = self._build_package_finder(
-                options=options,
-                session=session,
-                platform=options.platform,
-                python_versions=python_versions,
-                abi=options.abi,
-                implementation=options.implementation,
-            )
-            build_delete = (not (options.no_clean or options.build_dir))
-            if options.cache_dir and not check_path_owner(options.cache_dir):
-                logger.warning(
-                    "The directory '%s' or its parent directory is not owned "
-                    "by the current user and caching wheels has been "
-                    "disabled. check the permissions and owner of that "
-                    "directory. If executing pip with sudo, you may want "
-                    "sudo's -H flag.",
-                    options.cache_dir,
-                )
-                options.cache_dir = None
+        session = self.get_default_session(options)
 
-            with RequirementTracker() as req_tracker, TempDirectory(
-                options.build_dir, delete=build_delete, kind="download"
-            ) as directory:
+        target_python = make_target_python(options)
+        finder = self._build_package_finder(
+            options=options,
+            session=session,
+            target_python=target_python,
+            ignore_requires_python=options.ignore_requires_python,
+        )
 
-                requirement_set = RequirementSet(
-                    require_hashes=options.require_hashes,
-                )
-                self.populate_requirement_set(
-                    requirement_set,
-                    args,
-                    options,
-                    finder,
-                    session,
-                    self.name,
-                    None
-                )
+        req_tracker = self.enter_context(get_requirement_tracker())
 
-                preparer = RequirementPreparer(
-                    build_dir=directory.path,
-                    src_dir=options.src_dir,
-                    download_dir=options.download_dir,
-                    wheel_download_dir=None,
-                    progress_bar=options.progress_bar,
-                    build_isolation=options.build_isolation,
-                    req_tracker=req_tracker,
-                )
+        directory = TempDirectory(
+            delete=not options.no_clean,
+            kind="download",
+            globally_managed=True,
+        )
 
-                resolver = Resolver(
-                    preparer=preparer,
-                    finder=finder,
-                    session=session,
-                    wheel_cache=None,
-                    use_user_site=False,
-                    upgrade_strategy="to-satisfy-only",
-                    force_reinstall=False,
-                    ignore_dependencies=options.ignore_dependencies,
-                    ignore_requires_python=False,
-                    ignore_installed=True,
-                    isolated=options.isolated_mode,
-                )
-                resolver.resolve(requirement_set)
+        reqs = self.get_requirements(args, options, finder, session)
 
-                downloaded = ' '.join([
-                    req.name for req in requirement_set.successfully_downloaded
-                ])
-                if downloaded:
-                    logger.info('Successfully downloaded %s', downloaded)
+        preparer = self.make_requirement_preparer(
+            temp_build_dir=directory,
+            options=options,
+            req_tracker=req_tracker,
+            session=session,
+            finder=finder,
+            download_dir=options.download_dir,
+            use_user_site=False,
+        )
 
-                # Clean up
-                if not options.no_clean:
-                    requirement_set.cleanup_files()
+        resolver = self.make_resolver(
+            preparer=preparer,
+            finder=finder,
+            options=options,
+            ignore_requires_python=options.ignore_requires_python,
+            py_version_info=options.python_version,
+        )
 
-        return requirement_set
+        self.trace_basic_info(finder)
+
+        requirement_set = resolver.resolve(
+            reqs, check_supported_wheels=True
+        )
+
+        downloaded: List[str] = []
+        for req in requirement_set.requirements.values():
+            if req.satisfied_by is None:
+                assert req.name is not None
+                preparer.save_linked_requirement(req)
+                downloaded.append(req.name)
+        if downloaded:
+            write_output('Successfully downloaded %s', ' '.join(downloaded))
+
+        return SUCCESS

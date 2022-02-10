@@ -1,14 +1,15 @@
-from __future__ import absolute_import
-
+import csv
 import logging
-import os
-from email.parser import FeedParser  # type: ignore
+import pathlib
+from optparse import Values
+from typing import Iterator, List, NamedTuple, Optional, Tuple
 
-from pipenv.patched.notpip._vendor import pkg_resources
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
 from pipenv.patched.notpip._internal.cli.base_command import Command
 from pipenv.patched.notpip._internal.cli.status_codes import ERROR, SUCCESS
+from pipenv.patched.notpip._internal.metadata import BaseDistribution, get_default_environment
+from pipenv.patched.notpip._internal.utils.misc import write_output
 
 logger = logging.getLogger(__name__)
 
@@ -19,14 +20,12 @@ class ShowCommand(Command):
 
     The output is in RFC-compliant mail header format.
     """
-    name = 'show'
+
     usage = """
       %prog [options] <package> ..."""
-    summary = 'Show information about installed packages.'
     ignore_require_venv = True
 
-    def __init__(self, *args, **kw):
-        super(ShowCommand, self).__init__(*args, **kw)
+    def add_options(self) -> None:
         self.cmd_opts.add_option(
             '-f', '--files',
             dest='files',
@@ -36,7 +35,7 @@ class ShowCommand(Command):
 
         self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options, args):
+    def run(self, options: Values, args: List[str]) -> int:
         if not args:
             logger.warning('ERROR: Please provide a package name or names.')
             return ERROR
@@ -49,120 +48,187 @@ class ShowCommand(Command):
         return SUCCESS
 
 
-def search_packages_info(query):
+class _PackageInfo(NamedTuple):
+    name: str
+    version: str
+    location: str
+    requires: List[str]
+    required_by: List[str]
+    installer: str
+    metadata_version: str
+    classifiers: List[str]
+    summary: str
+    homepage: str
+    author: str
+    author_email: str
+    license: str
+    entry_points: List[str]
+    files: Optional[List[str]]
+
+
+def _covert_legacy_entry(entry: Tuple[str, ...], info: Tuple[str, ...]) -> str:
+    """Convert a legacy installed-files.txt path into modern RECORD path.
+
+    The legacy format stores paths relative to the info directory, while the
+    modern format stores paths relative to the package root, e.g. the
+    site-packages directory.
+
+    :param entry: Path parts of the installed-files.txt entry.
+    :param info: Path parts of the egg-info directory relative to package root.
+    :returns: The converted entry.
+
+    For best compatibility with symlinks, this does not use ``abspath()`` or
+    ``Path.resolve()``, but tries to work with path parts:
+
+    1. While ``entry`` starts with ``..``, remove the equal amounts of parts
+       from ``info``; if ``info`` is empty, start appending ``..`` instead.
+    2. Join the two directly.
+    """
+    while entry and entry[0] == "..":
+        if not info or info[-1] == "..":
+            info += ("..",)
+        else:
+            info = info[:-1]
+        entry = entry[1:]
+    return str(pathlib.Path(*info, *entry))
+
+
+def search_packages_info(query: List[str]) -> Iterator[_PackageInfo]:
     """
     Gather details from installed distributions. Print distribution name,
     version, location, and installed files. Installed files requires a
     pip generated 'installed-files.txt' in the distributions '.egg-info'
     directory.
     """
-    installed = {}
-    for p in pkg_resources.working_set:
-        installed[canonicalize_name(p.project_name)] = p
+    env = get_default_environment()
 
+    installed = {
+        dist.canonical_name: dist
+        for dist in env.iter_distributions()
+    }
     query_names = [canonicalize_name(name) for name in query]
+    missing = sorted(
+        [name for name, pkg in zip(query, query_names) if pkg not in installed]
+    )
+    if missing:
+        logger.warning('Package(s) not found: %s', ', '.join(missing))
 
-    for dist in [installed[pkg] for pkg in query_names if pkg in installed]:
-        package = {
-            'name': dist.project_name,
-            'version': dist.version,
-            'location': dist.location,
-            'requires': [dep.project_name for dep in dist.requires()],
-        }
-        file_list = None
-        metadata = None
-        if isinstance(dist, pkg_resources.DistInfoDistribution):
-            # RECORDs should be part of .dist-info metadatas
-            if dist.has_metadata('RECORD'):
-                lines = dist.get_metadata_lines('RECORD')
-                paths = [l.split(',')[0] for l in lines]
-                paths = [os.path.join(dist.location, p) for p in paths]
-                file_list = [os.path.relpath(p, dist.location) for p in paths]
+    def _get_requiring_packages(current_dist: BaseDistribution) -> List[str]:
+        return [
+            dist.metadata["Name"] or "UNKNOWN"
+            for dist in installed.values()
+            if current_dist.canonical_name in {
+                canonicalize_name(d.name) for d in dist.iter_dependencies()
+            }
+        ]
 
-            if dist.has_metadata('METADATA'):
-                metadata = dist.get_metadata('METADATA')
+    def _files_from_record(dist: BaseDistribution) -> Optional[Iterator[str]]:
+        try:
+            text = dist.read_text('RECORD')
+        except FileNotFoundError:
+            return None
+        # This extra Path-str cast normalizes entries.
+        return (str(pathlib.Path(row[0])) for row in csv.reader(text.splitlines()))
+
+    def _files_from_legacy(dist: BaseDistribution) -> Optional[Iterator[str]]:
+        try:
+            text = dist.read_text('installed-files.txt')
+        except FileNotFoundError:
+            return None
+        paths = (p for p in text.splitlines(keepends=False) if p)
+        root = dist.location
+        info = dist.info_directory
+        if root is None or info is None:
+            return paths
+        try:
+            info_rel = pathlib.Path(info).relative_to(root)
+        except ValueError:  # info is not relative to root.
+            return paths
+        if not info_rel.parts:  # info *is* root.
+            return paths
+        return (
+            _covert_legacy_entry(pathlib.Path(p).parts, info_rel.parts)
+            for p in paths
+        )
+
+    for query_name in query_names:
+        try:
+            dist = installed[query_name]
+        except KeyError:
+            continue
+
+        try:
+            entry_points_text = dist.read_text('entry_points.txt')
+            entry_points = entry_points_text.splitlines(keepends=False)
+        except FileNotFoundError:
+            entry_points = []
+
+        files_iter = _files_from_record(dist) or _files_from_legacy(dist)
+        if files_iter is None:
+            files: Optional[List[str]] = None
         else:
-            # Otherwise use pip's log for .egg-info's
-            if dist.has_metadata('installed-files.txt'):
-                paths = dist.get_metadata_lines('installed-files.txt')
-                paths = [os.path.join(dist.egg_info, p) for p in paths]
-                file_list = [os.path.relpath(p, dist.location) for p in paths]
+            files = sorted(files_iter)
 
-            if dist.has_metadata('PKG-INFO'):
-                metadata = dist.get_metadata('PKG-INFO')
+        metadata = dist.metadata
 
-        if dist.has_metadata('entry_points.txt'):
-            entry_points = dist.get_metadata_lines('entry_points.txt')
-            package['entry_points'] = entry_points
-
-        if dist.has_metadata('INSTALLER'):
-            for line in dist.get_metadata_lines('INSTALLER'):
-                if line.strip():
-                    package['installer'] = line.strip()
-                    break
-
-        # @todo: Should pkg_resources.Distribution have a
-        # `get_pkg_info` method?
-        feed_parser = FeedParser()
-        feed_parser.feed(metadata)
-        pkg_info_dict = feed_parser.close()
-        for key in ('metadata-version', 'summary',
-                    'home-page', 'author', 'author-email', 'license'):
-            package[key] = pkg_info_dict.get(key)
-
-        # It looks like FeedParser cannot deal with repeated headers
-        classifiers = []
-        for line in metadata.splitlines():
-            if line.startswith('Classifier: '):
-                classifiers.append(line[len('Classifier: '):])
-        package['classifiers'] = classifiers
-
-        if file_list:
-            package['files'] = sorted(file_list)
-        yield package
+        yield _PackageInfo(
+            name=dist.raw_name,
+            version=str(dist.version),
+            location=dist.location or "",
+            requires=[req.name for req in dist.iter_dependencies()],
+            required_by=_get_requiring_packages(dist),
+            installer=dist.installer,
+            metadata_version=dist.metadata_version or "",
+            classifiers=metadata.get_all("Classifier", []),
+            summary=metadata.get("Summary", ""),
+            homepage=metadata.get("Home-page", ""),
+            author=metadata.get("Author", ""),
+            author_email=metadata.get("Author-email", ""),
+            license=metadata.get("License", ""),
+            entry_points=entry_points,
+            files=files,
+        )
 
 
-def print_results(distributions, list_files=False, verbose=False):
+def print_results(
+    distributions: Iterator[_PackageInfo],
+    list_files: bool,
+    verbose: bool,
+) -> bool:
     """
-    Print the informations from installed distributions found.
+    Print the information from installed distributions found.
     """
     results_printed = False
     for i, dist in enumerate(distributions):
         results_printed = True
         if i > 0:
-            logger.info("---")
+            write_output("---")
 
-        name = dist.get('name', '')
-        required_by = [
-            pkg.project_name for pkg in pkg_resources.working_set
-            if name in [required.name for required in pkg.requires()]
-        ]
-
-        logger.info("Name: %s", name)
-        logger.info("Version: %s", dist.get('version', ''))
-        logger.info("Summary: %s", dist.get('summary', ''))
-        logger.info("Home-page: %s", dist.get('home-page', ''))
-        logger.info("Author: %s", dist.get('author', ''))
-        logger.info("Author-email: %s", dist.get('author-email', ''))
-        logger.info("License: %s", dist.get('license', ''))
-        logger.info("Location: %s", dist.get('location', ''))
-        logger.info("Requires: %s", ', '.join(dist.get('requires', [])))
-        logger.info("Required-by: %s", ', '.join(required_by))
+        write_output("Name: %s", dist.name)
+        write_output("Version: %s", dist.version)
+        write_output("Summary: %s", dist.summary)
+        write_output("Home-page: %s", dist.homepage)
+        write_output("Author: %s", dist.author)
+        write_output("Author-email: %s", dist.author_email)
+        write_output("License: %s", dist.license)
+        write_output("Location: %s", dist.location)
+        write_output("Requires: %s", ', '.join(dist.requires))
+        write_output("Required-by: %s", ', '.join(dist.required_by))
 
         if verbose:
-            logger.info("Metadata-Version: %s",
-                        dist.get('metadata-version', ''))
-            logger.info("Installer: %s", dist.get('installer', ''))
-            logger.info("Classifiers:")
-            for classifier in dist.get('classifiers', []):
-                logger.info("  %s", classifier)
-            logger.info("Entry-points:")
-            for entry in dist.get('entry_points', []):
-                logger.info("  %s", entry.strip())
+            write_output("Metadata-Version: %s", dist.metadata_version)
+            write_output("Installer: %s", dist.installer)
+            write_output("Classifiers:")
+            for classifier in dist.classifiers:
+                write_output("  %s", classifier)
+            write_output("Entry-points:")
+            for entry in dist.entry_points:
+                write_output("  %s", entry.strip())
         if list_files:
-            logger.info("Files:")
-            for line in dist.get('files', []):
-                logger.info("  %s", line.strip())
-            if "files" not in dist:
-                logger.info("Cannot locate installed-files.txt")
+            write_output("Files:")
+            if dist.files is None:
+                write_output("Cannot locate RECORD or installed-files.txt")
+            else:
+                for line in dist.files:
+                    write_output("  %s", line.strip())
     return results_printed

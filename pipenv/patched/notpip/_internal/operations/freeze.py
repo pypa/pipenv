@@ -1,74 +1,62 @@
-from __future__ import absolute_import
-
 import collections
 import logging
 import os
-import re
+from typing import (
+    Container,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Union,
+)
 
-from pipenv.patched.notpip._vendor import six
+from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError
+from pipenv.patched.notpip._vendor.packaging.version import Version
 
 from pipenv.patched.notpip._internal.exceptions import BadCommand, InstallationError
+from pipenv.patched.notpip._internal.metadata import BaseDistribution, get_environment
 from pipenv.patched.notpip._internal.req.constructors import (
-    install_req_from_editable, install_req_from_line,
+    install_req_from_editable,
+    install_req_from_line,
 )
 from pipenv.patched.notpip._internal.req.req_file import COMMENT_RE
-from pipenv.patched.notpip._internal.utils.misc import (
-    dist_is_editable, get_installed_distributions,
-)
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-
-if MYPY_CHECK_RUNNING:
-    from typing import (  # noqa: F401
-        Iterator, Optional, List, Container, Set, Dict, Tuple, Iterable, Union
-    )
-    from pipenv.patched.notpip._internal.cache import WheelCache  # noqa: F401
-    from pipenv.patched.notpip._vendor.pkg_resources import (  # noqa: F401
-        Distribution, Requirement
-    )
-
-    RequirementInfo = Tuple[Optional[Union[str, Requirement]], bool, List[str]]
-
+from pipenv.patched.notpip._internal.utils.direct_url_helpers import direct_url_as_pep440_direct_reference
 
 logger = logging.getLogger(__name__)
 
 
+class _EditableInfo(NamedTuple):
+    requirement: Optional[str]
+    editable: bool
+    comments: List[str]
+
+
 def freeze(
     requirement=None,  # type: Optional[List[str]]
-    find_links=None,  # type: Optional[List[str]]
-    local_only=None,  # type: Optional[bool]
-    user_only=None,  # type: Optional[bool]
-    skip_regex=None,  # type: Optional[str]
+    local_only=False,  # type: bool
+    user_only=False,  # type: bool
+    paths=None,  # type: Optional[List[str]]
     isolated=False,  # type: bool
-    wheel_cache=None,  # type: Optional[WheelCache]
     exclude_editable=False,  # type: bool
     skip=()  # type: Container[str]
 ):
     # type: (...) -> Iterator[str]
-    find_links = find_links or []
-    skip_match = None
-
-    if skip_regex:
-        skip_match = re.compile(skip_regex).search
-
-    for link in find_links:
-        yield '-f %s' % link
     installations = {}  # type: Dict[str, FrozenRequirement]
-    for dist in get_installed_distributions(local_only=local_only,
-                                            skip=(),
-                                            user_only=user_only):
-        try:
-            req = FrozenRequirement.from_dist(dist)
-        except RequirementParseError:
-            logger.warning(
-                "Could not parse requirement: %s",
-                dist.project_name
-            )
-            continue
+
+    dists = get_environment(paths).iter_installed_distributions(
+        local_only=local_only,
+        skip=(),
+        user_only=user_only,
+    )
+    for dist in dists:
+        req = FrozenRequirement.from_dist(dist)
         if exclude_editable and req.editable:
             continue
-        installations[req.name] = req
+        installations[req.canonical_name] = req
 
     if requirement:
         # the options that don't get turned into an InstallRequirement
@@ -84,16 +72,15 @@ def freeze(
                 for line in req_file:
                     if (not line.strip() or
                             line.strip().startswith('#') or
-                            (skip_match and skip_match(line)) or
                             line.startswith((
                                 '-r', '--requirement',
-                                '-Z', '--always-unzip',
                                 '-f', '--find-links',
                                 '-i', '--index-url',
                                 '--pre',
                                 '--trusted-host',
                                 '--process-dependency-links',
-                                '--extra-index-url'))):
+                                '--extra-index-url',
+                                '--use-feature'))):
                         line = line.rstrip()
                         if line not in emitted_options:
                             emitted_options.add(line)
@@ -108,13 +95,11 @@ def freeze(
                         line_req = install_req_from_editable(
                             line,
                             isolated=isolated,
-                            wheel_cache=wheel_cache,
                         )
                     else:
                         line_req = install_req_from_line(
                             COMMENT_RE.sub('', line).strip(),
                             isolated=isolated,
-                            wheel_cache=wheel_cache,
                         )
 
                     if not line_req.name:
@@ -127,26 +112,31 @@ def freeze(
                             "  (add #egg=PackageName to the URL to avoid"
                             " this warning)"
                         )
-                    elif line_req.name not in installations:
-                        # either it's not installed, or it is installed
-                        # but has been processed already
-                        if not req_files[line_req.name]:
-                            logger.warning(
-                                "Requirement file [%s] contains %s, but "
-                                "package %r is not installed",
-                                req_file_path,
-                                COMMENT_RE.sub('', line).strip(), line_req.name
-                            )
-                        else:
-                            req_files[line_req.name].append(req_file_path)
                     else:
-                        yield str(installations[line_req.name]).rstrip()
-                        del installations[line_req.name]
-                        req_files[line_req.name].append(req_file_path)
+                        line_req_canonical_name = canonicalize_name(
+                            line_req.name)
+                        if line_req_canonical_name not in installations:
+                            # either it's not installed, or it is installed
+                            # but has been processed already
+                            if not req_files[line_req.name]:
+                                logger.warning(
+                                    "Requirement file [%s] contains %s, but "
+                                    "package %r is not installed",
+                                    req_file_path,
+                                    COMMENT_RE.sub('', line).strip(),
+                                    line_req.name
+                                )
+                            else:
+                                req_files[line_req.name].append(req_file_path)
+                        else:
+                            yield str(installations[
+                                line_req_canonical_name]).rstrip()
+                            del installations[line_req_canonical_name]
+                            req_files[line_req.name].append(req_file_path)
 
         # Warn about requirements that were included multiple times (in a
         # single requirements file or in different requirements files).
-        for name, files in six.iteritems(req_files):
+        for name, files in req_files.items():
             if len(files) > 1:
                 logger.warning("Requirement %s included multiple times [%s]",
                                name, ', '.join(sorted(set(files))))
@@ -157,54 +147,81 @@ def freeze(
         )
     for installation in sorted(
             installations.values(), key=lambda x: x.name.lower()):
-        if canonicalize_name(installation.name) not in skip:
+        if installation.canonical_name not in skip:
             yield str(installation).rstrip()
 
 
-def get_requirement_info(dist):
-    # type: (Distribution) -> RequirementInfo
+def _format_as_name_version(dist: BaseDistribution) -> str:
+    if isinstance(dist.version, Version):
+        return f"{dist.raw_name}=={dist.version}"
+    return f"{dist.raw_name}==={dist.version}"
+
+
+def _get_editable_info(dist: BaseDistribution) -> _EditableInfo:
     """
     Compute and return values (req, editable, comments) for use in
     FrozenRequirement.from_dist().
     """
-    if not dist_is_editable(dist):
-        return (None, False, [])
+    if not dist.editable:
+        return _EditableInfo(requirement=None, editable=False, comments=[])
+    if dist.location is None:
+        display = _format_as_name_version(dist)
+        logger.warning("Editable requirement not found on disk: %s", display)
+        return _EditableInfo(
+            requirement=None,
+            editable=True,
+            comments=[f"# Editable install not found ({display})"],
+        )
 
     location = os.path.normcase(os.path.abspath(dist.location))
 
-    from pipenv.patched.notpip._internal.vcs import vcs, RemoteNotFoundError
-    vc_type = vcs.get_backend_type(location)
+    from pipenv.patched.notpip._internal.vcs import RemoteNotFoundError, RemoteNotValidError, vcs
 
-    if not vc_type:
-        req = dist.as_requirement()
+    vcs_backend = vcs.get_backend_for_dir(location)
+
+    if vcs_backend is None:
+        display = _format_as_name_version(dist)
         logger.debug(
-            'No VCS found for editable requirement {!r} in: {!r}', req,
+            'No VCS found for editable requirement "%s" in: %r', display,
             location,
         )
-        comments = [
-            '# Editable install with no version control ({})'.format(req)
-        ]
-        return (location, True, comments)
+        return _EditableInfo(
+            requirement=location,
+            editable=True,
+            comments=[f'# Editable install with no version control ({display})'],
+        )
+
+    vcs_name = type(vcs_backend).__name__
 
     try:
-        req = vc_type.get_src_requirement(location, dist.project_name)
+        req = vcs_backend.get_src_requirement(location, dist.raw_name)
     except RemoteNotFoundError:
-        req = dist.as_requirement()
-        comments = [
-            '# Editable {} install with no remote ({})'.format(
-                vc_type.__name__, req,
-            )
-        ]
-        return (location, True, comments)
+        display = _format_as_name_version(dist)
+        return _EditableInfo(
+            requirement=location,
+            editable=True,
+            comments=[f'# Editable {vcs_name} install with no remote ({display})'],
+        )
+    except RemoteNotValidError as ex:
+        display = _format_as_name_version(dist)
+        return _EditableInfo(
+            requirement=location,
+            editable=True,
+            comments=[
+                f"# Editable {vcs_name} install ({display}) with either a deleted "
+                f"local remote or invalid URI:",
+                f"# '{ex.url}'",
+            ],
+        )
 
     except BadCommand:
         logger.warning(
             'cannot determine version of editable source in %s '
             '(%s command not found in path)',
             location,
-            vc_type.name,
+            vcs_backend.name,
         )
-        return (None, True, [])
+        return _EditableInfo(requirement=None, editable=True, comments=[])
 
     except InstallationError as exc:
         logger.warning(
@@ -212,36 +229,49 @@ def get_requirement_info(dist):
             "falling back to uneditable format", exc
         )
     else:
-        if req is not None:
-            return (req, True, [])
+        return _EditableInfo(requirement=req, editable=True, comments=[])
 
-    logger.warning(
-        'Could not determine repository location of %s', location
+    logger.warning('Could not determine repository location of %s', location)
+
+    return _EditableInfo(
+        requirement=None,
+        editable=False,
+        comments=['## !! Could not determine repository location'],
     )
-    comments = ['## !! Could not determine repository location']
-
-    return (None, False, comments)
 
 
-class FrozenRequirement(object):
+class FrozenRequirement:
     def __init__(self, name, req, editable, comments=()):
         # type: (str, Union[str, Requirement], bool, Iterable[str]) -> None
         self.name = name
+        self.canonical_name = canonicalize_name(name)
         self.req = req
         self.editable = editable
         self.comments = comments
 
     @classmethod
-    def from_dist(cls, dist):
-        # type: (Distribution) -> FrozenRequirement
-        req, editable, comments = get_requirement_info(dist)
+    def from_dist(cls, dist: BaseDistribution) -> "FrozenRequirement":
+        # TODO `get_requirement_info` is taking care of editable requirements.
+        # TODO This should be refactored when we will add detection of
+        #      editable that provide .dist-info metadata.
+        req, editable, comments = _get_editable_info(dist)
+        if req is None and not editable:
+            # if PEP 610 metadata is present, attempt to use it
+            direct_url = dist.direct_url
+            if direct_url:
+                req = direct_url_as_pep440_direct_reference(
+                    direct_url, dist.raw_name
+                )
+                comments = []
         if req is None:
-            req = dist.as_requirement()
+            # name==version requirement
+            req = _format_as_name_version(dist)
 
-        return cls(dist.project_name, req, editable, comments=comments)
+        return cls(dist.raw_name, req, editable, comments=comments)
 
     def __str__(self):
+        # type: () -> str
         req = self.req
         if self.editable:
-            req = '-e %s' % req
+            req = f'-e {req}'
         return '\n'.join(list(self.comments) + [str(req)]) + '\n'

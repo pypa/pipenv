@@ -39,31 +39,16 @@ _DEFAULT_MANIFEST = '''
 # check if Python is called on the first line with this expression
 FIRST_LINE_RE = re.compile(b'^#!.*pythonw?[0-9.]*([ \t].*)?$')
 SCRIPT_TEMPLATE = r'''# -*- coding: utf-8 -*-
+import re
+import sys
+from %(module)s import %(import_name)s
 if __name__ == '__main__':
-    import sys, re
-
-    def _resolve(module, func):
-        __import__(module)
-        mod = sys.modules[module]
-        parts = func.split('.')
-        result = getattr(mod, parts.pop(0))
-        for p in parts:
-            result = getattr(result, p)
-        return result
-
-    try:
-        sys.argv[0] = re.sub(r'(-script\.pyw?|\.exe)?$', '', sys.argv[0])
-
-        func = _resolve('%(module)s', '%(func)s')
-        rc = func() # None interpreted as 0
-    except Exception as e:  # only supporting Python >= 2.6
-        sys.stderr.write('%%s\n' %% e)
-        rc = 1
-    sys.exit(rc)
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(%(func)s())
 '''
 
 
-def _enquote_executable(executable):
+def enquote_executable(executable):
     if ' ' in executable:
         # make sure we quote only the executable in case of env
         # for example /usr/bin/env "/dir with spaces/bin/jython"
@@ -78,6 +63,8 @@ def _enquote_executable(executable):
                 executable = '"%s"' % executable
     return executable
 
+# Keep the old name around (for now), as there is at least one project using it!
+_enquote_executable = enquote_executable
 
 class ScriptMaker(object):
     """
@@ -103,6 +90,7 @@ class ScriptMaker(object):
 
         self._is_nt = os.name == 'nt' or (
             os.name == 'java' and os._name == 'nt')
+        self.version_info = sys.version_info
 
     def _get_alternate_executable(self, executable, options):
         if options.get('gui', False) and self._is_nt:  # pragma: no cover
@@ -187,12 +175,20 @@ class ScriptMaker(object):
 
         if sys.platform.startswith('java'):  # pragma: no cover
             executable = self._fix_jython_executable(executable)
-        # Normalise case for Windows
-        executable = os.path.normcase(executable)
+
+        # Normalise case for Windows - COMMENTED OUT
+        # executable = os.path.normcase(executable)
+        # N.B. The normalising operation above has been commented out: See
+        # issue #124. Although paths in Windows are generally case-insensitive,
+        # they aren't always. For example, a path containing a ẞ (which is a
+        # LATIN CAPITAL LETTER SHARP S - U+1E9E) is normcased to ß (which is a
+        # LATIN SMALL LETTER SHARP S' - U+00DF). The two are not considered by
+        # Windows as equivalent in path names.
+
         # If the user didn't specify an executable, it may be necessary to
         # cater for executable paths with spaces (not uncommon on Windows)
         if enquote:
-            executable = _enquote_executable(executable)
+            executable = enquote_executable(executable)
         # Issue #51: don't use fsencode, since we later try to
         # check that the shebang is decodable using utf-8.
         executable = executable.encode('utf-8')
@@ -225,6 +221,7 @@ class ScriptMaker(object):
 
     def _get_script_text(self, entry):
         return self.script_template % dict(module=entry.prefix,
+                                           import_name=entry.suffix.split('.')[0],
                                            func=entry.suffix)
 
     manifest = _DEFAULT_MANIFEST
@@ -285,6 +282,19 @@ class ScriptMaker(object):
                     self._fileop.set_executable_mode([outname])
             filenames.append(outname)
 
+    variant_separator = '-'
+
+    def get_script_filenames(self, name):
+        result = set()
+        if '' in self.variants:
+            result.add(name)
+        if 'X' in self.variants:
+            result.add('%s%s' % (name, self.version_info[0]))
+        if 'X.Y' in self.variants:
+            result.add('%s%s%s.%s' % (name, self.variant_separator,
+                                      self.version_info[0], self.version_info[1]))
+        return result
+
     def _make_script(self, entry, filenames, options=None):
         post_interp = b''
         if options:
@@ -294,14 +304,7 @@ class ScriptMaker(object):
                 post_interp = args.encode('utf-8')
         shebang = self._get_shebang('utf-8', post_interp, options=options)
         script = self._get_script_text(entry).encode('utf-8')
-        name = entry.name
-        scriptnames = set()
-        if '' in self.variants:
-            scriptnames.add(name)
-        if 'X' in self.variants:
-            scriptnames.add('%s%s' % (name, sys.version[0]))
-        if 'X.Y' in self.variants:
-            scriptnames.add('%s-%s' % (name, sys.version[:3]))
+        scriptnames = self.get_script_filenames(entry.name)
         if options and options.get('gui', False):
             ext = 'pyw'
         else:
@@ -328,8 +331,7 @@ class ScriptMaker(object):
         else:
             first_line = f.readline()
             if not first_line:  # pragma: no cover
-                logger.warning('%s: %s is an empty file (skipping)',
-                               self.get_command_name(),  script)
+                logger.warning('%s is an empty file (skipping)', script)
                 return
 
             match = FIRST_LINE_RE.match(first_line.replace(b'\r\n', b'\n'))
@@ -381,8 +383,12 @@ class ScriptMaker(object):
             # Issue 31: don't hardcode an absolute package name, but
             # determine it relative to the current package
             distlib_package = __name__.rsplit('.', 1)[0]
-            result = finder(distlib_package).find(name).bytes
-            return result
+            resource = finder(distlib_package).find(name)
+            if not resource:
+                msg = ('Unable to find resource %s in package %s' % (name,
+                       distlib_package))
+                raise ValueError(msg)
+            return resource.bytes
 
     # Public API follows
 

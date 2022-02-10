@@ -1,10 +1,10 @@
-import toml
+import pipenv.vendor.toml as toml
 
 import codecs
 import json
 import hashlib
 import platform
-import six
+import pipenv.vendor.six as six
 import sys
 import os
 

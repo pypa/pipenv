@@ -710,6 +710,9 @@ class VersionScheme(object):
         """
         Used for processing some metadata fields
         """
+        # See issue #140. Be tolerant of a single trailing comma.
+        if s.endswith(','):
+            s = s[:-1]
         return self.is_valid_matcher('dummy_name (%s)' % s)
 
     def suggest(self, s):

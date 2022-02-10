@@ -3,7 +3,7 @@ Pipenv: Python Development Workflow for Humans
 
 [![image](https://img.shields.io/pypi/v/pipenv.svg)](https://python.org/pypi/pipenv)
 [![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv)
-[![Azure Pipelines Build Status](https://dev.azure.com/pypa/pipenv/_apis/build/status/Pipenv%20CI?branchName=master)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=16&branchName=master)
+[![CI](https://github.com/pypa/pipenv/actions/workflows/ci.yaml/badge.svg)](https://github.com/pypa/pipenv/actions/workflows/ci.yaml)
 [![image](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://python.org/pypi/pipenv)
 
 ------------------------------------------------------------------------
@@ -24,7 +24,7 @@ The problems that Pipenv seeks to solve are multi-faceted:
 -   You no longer need to use `pip` and `virtualenv` separately. They
     work together.
 -   Managing a `requirements.txt` file [can be
-    problematic](https://www.kennethreitz.org/essays/a-better-pip-workflow),
+    problematic](https://kennethreitz.org/essays/2016/02/25/a-better-pip-workflow),
     so Pipenv uses the upcoming `Pipfile` and `Pipfile.lock` instead,
     which is superior for basic use cases.
 -   Hashes are used everywhere, always. Security. Automatically expose
@@ -39,21 +39,27 @@ You can quickly play with Pipenv right in your browser:
 Installation
 ------------
 
-If you\'re on MacOS, you can install Pipenv easily with Homebrew:
+**Pipenv can be installed with Python 3.6 and above.**
 
-    $ brew install pipenv
+If you\'re using Debian Buster+:
 
-Or, if you\'re using Debian Buster+:
-
-    $ sudo apt install pipenv
+    sudo apt install pipenv
 
 Or, if you\'re using Fedora:
 
-    $ sudo dnf install pipenv
-    
+    sudo dnf install pipenv
+
 Or, if you\'re using FreeBSD:
 
-    # pkg install py36-pipenv
+    pkg install py36-pipenv
+
+Or, if you\'re using Windows:
+
+    pip install --user pipenv
+
+When none of the above is an option, it is recommended to use [Pipx](https://pypi.org/p/pipx):
+
+    pipx install pipenv
 
 Otherwise, refer to the [documentation](https://pipenv.pypa.io/en/latest/#install-pipenv-today) for instructions.
 
@@ -117,20 +123,22 @@ activate a virtualenv, run `$ pipenv shell`).
 
 ### Shell Completion
 
-For example, with fish, put this in your
-`~/.config/fish/completions/pipenv.fish`:
+To enable completion in fish, add this to your configuration `~/.config/fish/completions/pipenv.fish`:
 
-    eval (pipenv --completion)
+    eval (env _PIPENV_COMPLETE=fish_source pipenv)
 
-Alternatively, with bash, put this in your `.bashrc` or `.bash_profile`:
-
-    eval "$(pipenv --completion)"
-
-Magic shell completions are now enabled! There is also a [fish
-plugin](https://github.com/fisherman/pipenv), which will automatically
+There is also a [fish plugin](https://github.com/fisherman/pipenv), which will automatically
 activate your subshells for you!
 
-Fish is the best shell. You should use it.
+Alternatively, with zsh, add this to your configuration `~/.zshrc`:
+
+    eval "$(_PIPENV_COMPLETE=zsh_source pipenv)"
+
+Alternatively, with bash, add this to your configuration `~/.bashrc` or `~/.bash_profile`:
+
+    eval "$(_PIPENV_COMPLETE=bash_source pipenv)"
+
+Magic shell completions are now enabled!
 
 ☤ Usage
 -------
@@ -145,7 +153,6 @@ Fish is the best shell. You should use it.
       --envs           Output Environment Variable options.
       --rm             Remove the virtualenv.
       --bare           Minimal output.
-      --completion     Output completion (to be eval'd).
       --man            Display manpage.
       --three / --two  Use Python 3/2 when creating virtualenv.
       --python TEXT    Specify which version of Python virtualenv should use.
@@ -189,6 +196,8 @@ Fish is the best shell. You should use it.
       lock       Generates Pipfile.lock.
       open       View a given module in your editor.
       run        Spawns a command installed into the virtualenv.
+      scripts    Displays the shortcuts in the (optional) [scripts] section of
+                 Pipfile.
       shell      Spawns a shell within the virtualenv.
       sync       Installs all packages specified in Pipfile.lock.
       uninstall  Un-installs a provided package and removes it from Pipfile.
@@ -289,7 +298,7 @@ Uninstall everything:
 Use the shell:
 
     $ pipenv shell
-    Loading .env environment variables…
+    Loading .env environment variables...
     Launching subshell in virtual environment. Type 'exit' or 'Ctrl+D' to return.
     $ ▯
 

@@ -1,1 +1,0 @@
-Don't normalize the package name user passes in.

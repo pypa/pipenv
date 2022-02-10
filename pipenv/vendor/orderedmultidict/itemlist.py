@@ -8,10 +8,11 @@
 # grunseid@gmail.com
 #
 # License: Build Amazing Things (Unlicense)
+#
 
 from __future__ import absolute_import
 
-from six.moves import zip_longest
+from pipenv.vendor.six.moves import zip_longest
 
 _absent = object()  # Marker that means no parameter was provided.
 

@@ -4,13 +4,15 @@ import re
 
 import pytest
 
-from cerberus import errors, Validator, SchemaError, DocumentError
-from cerberus.tests.conftest import sample_schema
+from pipenv.vendor.cerberus import errors, Validator, SchemaError, DocumentError
+from pipenv.vendor.cerberus.tests.conftest import sample_schema
 
 
 def assert_exception(exception, document={}, schema=None, validator=None, msg=None):
-    """ Tests whether a specific exception is raised. Optionally also tests
-        whether the exception message is as expected. """
+    """
+    Tests whether a specific exception is raised. Optionally also tests whether the
+    exception message is as expected.
+    """
     if validator is None:
         validator = Validator()
     if msg is None:
@@ -22,14 +24,12 @@ def assert_exception(exception, document={}, schema=None, validator=None, msg=No
 
 
 def assert_schema_error(*args):
-    """ Tests whether a validation raises an exception due to a malformed
-        schema. """
+    """Tests whether a validation raises an exception due to a malformed schema."""
     assert_exception(SchemaError, *args)
 
 
 def assert_document_error(*args):
-    """ Tests whether a validation raises an exception due to a malformed
-        document. """
+    """Tests whether a validation raises an exception due to a malformed document."""
     assert_exception(DocumentError, *args)
 
 
@@ -42,7 +42,7 @@ def assert_fail(
     errors=None,
     child_errors=None,
 ):
-    """ Tests whether a validation fails. """
+    """Tests whether a validation fails."""
     if validator is None:
         validator = Validator(sample_schema)
     result = validator(document, schema, update)
@@ -72,7 +72,7 @@ def assert_fail(
 
 
 def assert_success(document, schema=None, validator=None, update=False):
-    """ Tests whether a validation succeeds. """
+    """Tests whether a validation succeeds."""
     if validator is None:
         validator = Validator(sample_schema)
     result = validator(document, schema, update)

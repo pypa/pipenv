@@ -1,6 +1,7 @@
-from dparse.parser import setuptools_parse_requirements_backport as _parse_requirements
+from pipenv.vendor.dparse.parser import setuptools_parse_requirements_backport as _parse_requirements
 from collections import namedtuple
-import click
+from pipenv.vendor.packaging.version import parse as parse_version
+import pipenv.vendor.click as click
 import sys
 import json
 import os
@@ -21,6 +22,8 @@ def parse_line(line):
     if line.startswith('-e') or line.startswith('http://') or line.startswith('https://'):
         if "#egg=" in line:
             line = line.split("#egg=")[-1]
+    if ' --hash' in line:
+        line = line.split(" --hash")[0]
     return _parse_requirements(line)
 
 
@@ -52,7 +55,14 @@ def read_requirements(fh, resolve=False):
             # if this is a tempfile, skip
             if is_temp_file:
                 continue
-            filename = line.strip("-r ").strip("--requirement").strip()
+
+            # strip away the recursive flag
+            prefixes = ["-r", "--requirement"]
+            filename = line.strip()
+            for prefix in prefixes:
+                if filename.startswith(prefix):
+                    filename = filename[len(prefix):].strip()
+
             # if there is a comment, remove it
             if " #" in filename:
                 filename = filename.split(" #")[0].strip()
@@ -96,3 +106,66 @@ def read_requirements(fh, resolve=False):
                     )
             except ValueError:
                 continue
+
+
+def get_proxy_dict(proxyprotocol, proxyhost, proxyport):
+    proxy_dictionary = {}
+    if proxyhost is not None:
+        if proxyprotocol in ["http", "https"]:
+            proxy_dictionary = {proxyprotocol: "{0}://{1}:{2}".format(proxyprotocol, proxyhost, str(proxyport))}
+        else:
+            click.secho("Proxy Protocol should be http or https only.", fg="red")
+            sys.exit(-1)
+    return proxy_dictionary
+
+
+def get_license_name_by_id(license_id, db):
+    licenses = db.get('licenses', [])
+    for name, id in licenses.items():
+        if id == license_id:
+            return name
+    return None
+
+def get_packages_licenses(packages, licenses_db):
+    """Get the licenses for the specified packages based on their version. 
+
+    :param packages: packages list
+    :param licenses_db: the licenses db in the raw form.
+    :return: list of objects with the packages and their respectives licenses.
+    """
+    packages_licenses_db = licenses_db.get('packages', {})
+    filtered_packages_licenses = []
+
+    for pkg in packages:
+        # Ignore recursive files not resolved
+        if isinstance(pkg, RequirementFile):
+            continue
+        # normalize the package name
+        pkg_name = pkg.key.replace("_", "-").lower()
+        # packages may have different licenses depending their version.
+        pkg_licenses = packages_licenses_db.get(pkg_name, [])
+        version_requested = parse_version(pkg.version)
+        license_id = None
+        license_name = None
+        for pkg_version in pkg_licenses:
+            license_start_version = parse_version(pkg_version['start_version'])
+            # Stops and return the previous stored license when a new
+            # license starts on a version above the requested one.
+            if version_requested >= license_start_version:
+                license_id = pkg_version['license_id']
+            else:
+                # We found the license for the version requested
+                break
+
+        if license_id:
+            license_name = get_license_name_by_id(license_id, licenses_db)
+        if not license_id or not license_name:
+            license_name = "N/A"
+
+        filtered_packages_licenses.append({
+            "package": pkg_name,
+            "version": pkg.version,
+            "license": license_name
+        })
+
+    return filtered_packages_licenses

@@ -69,8 +69,8 @@ class FileCache(BaseCache):
             raise ValueError("Cannot use use_dir_lock and lock_class together")
 
         try:
-            from pipenv.patched.notpip._vendor.lockfile import LockFile
-            from pipenv.patched.notpip._vendor.lockfile.mkdirlockfile import MkdirLockFile
+            from lockfile import LockFile
+            from lockfile.mkdirlockfile import MkdirLockFile
         except ImportError:
             notice = dedent(
                 """

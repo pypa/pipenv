@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import absolute_import
-
-from .__version__ import __version__  # noqa
+# :copyright: (c) 2021 by Pavlo Dmytrenko.
+# :license: MIT, see LICENSE for more details.
 from .api import kbi_safe_yaspin, yaspin
 from .base_spinner import Spinner
 

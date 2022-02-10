@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from cerberus import Validator, errors
-from cerberus.tests import assert_fail
+from pipenv.vendor.cerberus import Validator, errors
+from pipenv.vendor.cerberus.tests import assert_fail
 
 
 ValidationError = errors.ValidationError
@@ -101,6 +101,16 @@ def test_error_tree_from_anyof(validator):
 
 
 def test_nested_error_paths(validator):
+    # interpreters of the same version on some platforms showed different sort results
+    # over various runs:
+    def assert_has_all_errors(errors, *ref_errs):
+        for ref_err in ref_errs:
+            for error in errors:
+                if error == ref_err:
+                    break
+            else:
+                raise AssertionError
+
     schema = {
         'a_dict': {
             'keysrules': {'type': 'integer'},
@@ -114,27 +124,27 @@ def test_nested_error_paths(validator):
     }
     assert_fail(document, schema, validator=validator)
 
-    _det = validator.document_error_tree
-    _set = validator.schema_error_tree
+    det = validator.document_error_tree
+    set = validator.schema_error_tree
 
-    assert len(_det.errors) == 0
-    assert len(_set.errors) == 0
+    assert len(det.errors) == 0
+    assert len(set.errors) == 0
 
-    assert len(_det['a_dict'].errors) == 2
-    assert len(_set['a_dict'].errors) == 0
+    assert len(det['a_dict'].errors) == 2
+    assert len(set['a_dict'].errors) == 0
 
-    assert _det['a_dict'][0] is None
-    assert len(_det['a_dict']['one'].errors) == 1
-    assert len(_det['a_dict'][2].errors) == 1
-    assert len(_det['a_dict']['three'].errors) == 2
+    assert det['a_dict'][0] is None
+    assert len(det['a_dict']['one'].errors) == 1
+    assert len(det['a_dict'][2].errors) == 1
+    assert len(det['a_dict']['three'].errors) == 2
 
-    assert len(_set['a_dict']['keysrules'].errors) == 1
-    assert len(_set['a_dict']['valuesrules'].errors) == 1
+    assert len(set['a_dict']['keysrules'].errors) == 1
+    assert len(set['a_dict']['valuesrules'].errors) == 1
 
-    assert len(_set['a_dict']['keysrules']['type'].errors) == 2
-    assert len(_set['a_dict']['valuesrules']['regex'].errors) == 2
+    assert len(set['a_dict']['keysrules']['type'].errors) == 2
+    assert len(set['a_dict']['valuesrules']['regex'].errors) == 2
 
-    _ref_err = ValidationError(
+    ref_err1 = ValidationError(
         ('a_dict', 'one'),
         ('a_dict', 'keysrules', 'type'),
         errors.BAD_TYPE.code,
@@ -143,10 +153,8 @@ def test_nested_error_paths(validator):
         'one',
         (),
     )
-    assert _det['a_dict']['one'].errors[0] == _ref_err
-    assert _set['a_dict']['keysrules']['type'].errors[0] == _ref_err
 
-    _ref_err = ValidationError(
+    ref_err2 = ValidationError(
         ('a_dict', 2),
         ('a_dict', 'valuesrules', 'regex'),
         errors.REGEX_MISMATCH.code,
@@ -155,10 +163,8 @@ def test_nested_error_paths(validator):
         'aBc',
         (),
     )
-    assert _det['a_dict'][2].errors[0] == _ref_err
-    assert _set['a_dict']['valuesrules']['regex'].errors[0] == _ref_err
 
-    _ref_err = ValidationError(
+    ref_err3 = ValidationError(
         ('a_dict', 'three'),
         ('a_dict', 'keysrules', 'type'),
         errors.BAD_TYPE.code,
@@ -167,10 +173,7 @@ def test_nested_error_paths(validator):
         'three',
         (),
     )
-    assert _det['a_dict']['three'].errors[0] == _ref_err
-    assert _set['a_dict']['keysrules']['type'].errors[1] == _ref_err
-
-    _ref_err = ValidationError(
+    ref_err4 = ValidationError(
         ('a_dict', 'three'),
         ('a_dict', 'valuesrules', 'regex'),
         errors.REGEX_MISMATCH.code,
@@ -179,20 +182,25 @@ def test_nested_error_paths(validator):
         'abC',
         (),
     )
-    assert _det['a_dict']['three'].errors[1] == _ref_err
-    assert _set['a_dict']['valuesrules']['regex'].errors[1] == _ref_err
+    assert det['a_dict'][2].errors[0] == ref_err2
+    assert det['a_dict']['one'].errors[0] == ref_err1
+    assert_has_all_errors(det['a_dict']['three'].errors, ref_err3, ref_err4)
+    assert_has_all_errors(set['a_dict']['keysrules']['type'].errors, ref_err1, ref_err3)
+    assert_has_all_errors(
+        set['a_dict']['valuesrules']['regex'].errors, ref_err2, ref_err4
+    )
 
-    assert len(_det['a_list'].errors) == 1
-    assert len(_det['a_list'][0].errors) == 1
-    assert _det['a_list'][1] is None
-    assert len(_det['a_list'][2].errors) == 3
-    assert len(_set['a_list'].errors) == 0
-    assert len(_set['a_list']['schema'].errors) == 1
-    assert len(_set['a_list']['schema']['type'].errors) == 1
-    assert len(_set['a_list']['schema']['oneof'][0]['regex'].errors) == 1
-    assert len(_set['a_list']['schema']['oneof'][1]['regex'].errors) == 1
+    assert len(det['a_list'].errors) == 1
+    assert len(det['a_list'][0].errors) == 1
+    assert det['a_list'][1] is None
+    assert len(det['a_list'][2].errors) == 3
+    assert len(set['a_list'].errors) == 0
+    assert len(set['a_list']['schema'].errors) == 1
+    assert len(set['a_list']['schema']['type'].errors) == 1
+    assert len(set['a_list']['schema']['oneof'][0]['regex'].errors) == 1
+    assert len(set['a_list']['schema']['oneof'][1]['regex'].errors) == 1
 
-    _ref_err = ValidationError(
+    ref_err5 = ValidationError(
         ('a_list', 0),
         ('a_list', 'schema', 'type'),
         errors.BAD_TYPE.code,
@@ -201,10 +209,7 @@ def test_nested_error_paths(validator):
         0,
         (),
     )
-    assert _det['a_list'][0].errors[0] == _ref_err
-    assert _set['a_list']['schema']['type'].errors[0] == _ref_err
-
-    _ref_err = ValidationError(
+    ref_err6 = ValidationError(
         ('a_list', 2),
         ('a_list', 'schema', 'oneof'),
         errors.ONEOF.code,
@@ -213,10 +218,7 @@ def test_nested_error_paths(validator):
         'abC',
         (),
     )
-    assert _det['a_list'][2].errors[0] == _ref_err
-    assert _set['a_list']['schema']['oneof'].errors[0] == _ref_err
-
-    _ref_err = ValidationError(
+    ref_err7 = ValidationError(
         ('a_list', 2),
         ('a_list', 'schema', 'oneof', 0, 'regex'),
         errors.REGEX_MISMATCH.code,
@@ -225,10 +227,7 @@ def test_nested_error_paths(validator):
         'abC',
         (),
     )
-    assert _det['a_list'][2].errors[1] == _ref_err
-    assert _set['a_list']['schema']['oneof'][0]['regex'].errors[0] == _ref_err
-
-    _ref_err = ValidationError(
+    ref_err8 = ValidationError(
         ('a_list', 2),
         ('a_list', 'schema', 'oneof', 1, 'regex'),
         errors.REGEX_MISMATCH.code,
@@ -237,8 +236,38 @@ def test_nested_error_paths(validator):
         'abC',
         (),
     )
-    assert _det['a_list'][2].errors[2] == _ref_err
-    assert _set['a_list']['schema']['oneof'][1]['regex'].errors[0] == _ref_err
+
+    assert det['a_list'][0].errors[0] == ref_err5
+    assert_has_all_errors(det['a_list'][2].errors, ref_err6, ref_err7, ref_err8)
+    assert set['a_list']['schema']['oneof'].errors[0] == ref_err6
+    assert set['a_list']['schema']['oneof'][0]['regex'].errors[0] == ref_err7
+    assert set['a_list']['schema']['oneof'][1]['regex'].errors[0] == ref_err8
+    assert set['a_list']['schema']['type'].errors[0] == ref_err5
+
+
+def test_path_resolution_for_registry_references():
+    class CustomValidator(Validator):
+        def _normalize_coerce_custom(self, value):
+            raise Exception("Failed coerce")
+
+    validator = CustomValidator()
+    validator.schema_registry.add(
+        "schema1", {"child": {"type": "boolean", "coerce": "custom"}}
+    )
+    validator.schema = {"parent": {"schema": "schema1"}}
+    validator.validate({"parent": {"child": "["}})
+
+    expected = {
+        'parent': [
+            {
+                'child': [
+                    "must be of boolean type",
+                    "field 'child' cannot be coerced: Failed coerce",
+                ]
+            }
+        ]
+    }
+    assert validator.errors == expected
 
 
 def test_queries():
@@ -321,3 +350,16 @@ def test_basic_error_of_errors(validator):
             },
         ]
     }
+
+
+def test_wrong_amount_of_items(validator):
+    # https://github.com/pyeve/cerberus/issues/505
+    validator.schema = {
+        'test_list': {
+            'type': 'list',
+            'required': True,
+            'items': [{'type': 'string'}, {'type': 'string'}],
+        }
+    }
+    validator({'test_list': ['test']})
+    assert validator.errors == {'test_list': ["length of list should be 2, it is 1"]}

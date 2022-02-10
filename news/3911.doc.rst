@@ -1,1 +1,0 @@
-Fix link to GIF in README.md demonstrating Pipenv's usage, and add descriptive alt text.

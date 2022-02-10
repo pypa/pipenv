@@ -34,7 +34,7 @@ class CacheController(object):
     def __init__(
         self, cache=None, cache_etags=True, serializer=None, status_codes=None
     ):
-        self.cache = cache or DictCache()
+        self.cache = DictCache() if cache is None else cache
         self.cache_etags = cache_etags
         self.serializer = serializer or Serializer()
         self.cacheable_status_codes = status_codes or (200, 203, 300, 301)
@@ -291,6 +291,15 @@ class CacheController(object):
             logger.debug('Purging existing cache entry to honor "no-store"')
             self.cache.delete(cache_url)
         if no_store:
+            return
+
+        # https://tools.ietf.org/html/rfc7234#section-4.1:
+        # A Vary header field-value of "*" always fails to match.
+        # Storing such a response leads to a deserialization warning
+        # during cache lookup and is not allowed to ever be served,
+        # so storing it can be avoided.
+        if "*" in response_headers.get("vary", ""):
+            logger.debug('Response header has "Vary: *"')
             return
 
         # If we've been given an etag, then keep the response

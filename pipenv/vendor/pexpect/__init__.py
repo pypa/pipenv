@@ -75,7 +75,7 @@ if sys.platform != 'win32':
     from .pty_spawn import spawn, spawnu
     from .run import run, runu
 
-__version__ = '4.7.0'
+__version__ = '4.8.0'
 __revision__ = ''
 __all__ = ['ExceptionPexpect', 'EOF', 'TIMEOUT', 'spawn', 'spawnu', 'run', 'runu',
            'which', 'split_command_line', '__version__', '__revision__']

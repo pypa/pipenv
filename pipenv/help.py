@@ -1,13 +1,11 @@
-# coding: utf-8
 import os
 import pprint
 import sys
 
 import pipenv
 
-from .core import project
-from .pep508checker import lookup
-from .vendor import pythonfinder
+from pipenv.pep508checker import lookup
+from pipenv.vendor import pythonfinder
 
 
 def print_utf(line):
@@ -17,14 +15,14 @@ def print_utf(line):
         print(line.encode("utf-8"))
 
 
-def get_pipenv_diagnostics():
+def get_pipenv_diagnostics(project):
     print("<details><summary>$ pipenv --support</summary>")
     print("")
-    print("Pipenv version: `{0!r}`".format(pipenv.__version__))
+    print(f"Pipenv version: `{pipenv.__version__!r}`")
     print("")
-    print("Pipenv location: `{0!r}`".format(os.path.dirname(pipenv.__file__)))
+    print(f"Pipenv location: `{os.path.dirname(pipenv.__file__)!r}`")
     print("")
-    print("Python location: `{0!r}`".format(sys.executable))
+    print(f"Python location: `{sys.executable!r}`")
     print("")
     print("Python installations found:")
     print("")
@@ -32,7 +30,7 @@ def get_pipenv_diagnostics():
     finder = pythonfinder.Finder(system=False, global_search=True)
     python_paths = finder.find_all_python_versions()
     for python in python_paths:
-        print("  - `{}`: `{}`".format(python.py_version.version, python.path))
+        print(f"  - `{python.py_version.version}`: `{python.path}`")
 
     print("")
     print("PEP 508 Information:")
@@ -44,43 +42,44 @@ def get_pipenv_diagnostics():
     print("System environment variables:")
     print("")
     for key in os.environ:
-        print("  - `{0}`".format(key))
+        print(f"  - `{key}`")
     print("")
-    print_utf(u"Pipenv–specific environment variables:")
+    print_utf("Pipenv–specific environment variables:")
     print("")
     for key in os.environ:
         if key.startswith("PIPENV"):
-            print(" - `{0}`: `{1}`".format(key, os.environ[key]))
+            print(f" - `{key}`: `{os.environ[key]}`")
     print("")
-    print_utf(u"Debug–specific environment variables:")
+    print_utf("Debug–specific environment variables:")
     print("")
     for key in ("PATH", "SHELL", "EDITOR", "LANG", "PWD", "VIRTUAL_ENV"):
         if key in os.environ:
-            print("  - `{0}`: `{1}`".format(key, os.environ[key]))
+            print(f"  - `{key}`: `{os.environ[key]}`")
     print("")
     print("")
     print("---------------------------")
     print("")
     if project.pipfile_exists:
-        print_utf(u"Contents of `Pipfile` ({0!r}):".format(project.pipfile_location))
+        print_utf(f"Contents of `Pipfile` ({project.pipfile_location!r}):")
         print("")
         print("```toml")
-        with open(project.pipfile_location, "r") as f:
+        with open(project.pipfile_location) as f:
             print(f.read())
         print("```")
         print("")
     if project.lockfile_exists:
         print("")
         print_utf(
-            u"Contents of `Pipfile.lock` ({0!r}):".format(project.lockfile_location)
+            f"Contents of `Pipfile.lock` ({project.lockfile_location!r}):"
         )
         print("")
         print("```json")
-        with open(project.lockfile_location, "r") as f:
+        with open(project.lockfile_location) as f:
             print(f.read())
         print("```")
     print("</details>")
 
 
 if __name__ == "__main__":
-    get_pipenv_diagnostics()
+    from pipenv.project import Project
+    get_pipenv_diagnostics(Project())

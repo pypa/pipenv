@@ -9,8 +9,8 @@ from string import ascii_lowercase
 
 from pytest import mark
 
-from cerberus import errors, Validator
-from cerberus.tests import (
+from pipenv.vendor.cerberus import errors, Validator
+from pipenv.vendor.cerberus.tests import (
     assert_bad_type,
     assert_document_error,
     assert_fail,
@@ -18,7 +18,7 @@ from cerberus.tests import (
     assert_not_has_error,
     assert_success,
 )
-from cerberus.tests.conftest import sample_schema
+from pipenv.vendor.cerberus.tests.conftest import sample_schema
 
 
 def test_empty_document():
@@ -479,7 +479,7 @@ def test_array_unallowed():
             (field, 'allowed'),
             errors.UNALLOWED_VALUES,
             ['agent', 'client', 'vendor'],
-            ['profit'],
+            (('profit',),),
         ),
     )
 
@@ -594,6 +594,11 @@ def test_regex(validator):
             r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$',
         ),
     )
+
+
+def test_regex_with_flag():
+    assert_success({"item": "hOly grAil"}, {"item": {"regex": "(?i)holy grail"}})
+    assert_fail({"item": "hOly grAil"}, {"item": {"regex": "holy grail"}})
 
 
 def test_a_list_of_dicts():
@@ -742,7 +747,7 @@ def test_custom_datatype():
 def test_custom_datatype_rule():
     class MyValidator(Validator):
         def _validate_min_number(self, min_number, field, value):
-            """ {'type': 'number'} """
+            """{'type': 'number'}"""
             if value < min_number:
                 self._error(field, 'Below the min')
 
@@ -769,7 +774,7 @@ def test_custom_datatype_rule():
 def test_custom_validator():
     class MyValidator(Validator):
         def _validate_isodd(self, isodd, field, value):
-            """ {'type': 'boolean'} """
+            """{'type': 'boolean'}"""
             if isodd and not bool(value & 1):
                 self._error(field, 'Not an odd number')
 
@@ -1114,15 +1119,15 @@ def test_options_passed_to_nested_validators(validator):
 
 
 def test_self_root_document():
-    """ Make sure self.root_document is always the root document.
-    See:
+    """
+    Make sure self.root_document is always the root document. See:
     * https://github.com/pyeve/cerberus/pull/42
     * https://github.com/pyeve/eve/issues/295
     """
 
     class MyValidator(Validator):
         def _validate_root_doc(self, root_doc, field, value):
-            """ {'type': 'boolean'} """
+            """{'type': 'boolean'}"""
             if 'sub' not in self.root_document or len(self.root_document['sub']) != 2:
                 self._error(field, 'self.context is not the root doc!')
 
@@ -1251,8 +1256,10 @@ def test_unicode_allowed():
 
 @mark.skipif(sys.version_info[0] < 3, reason='requires python 3.x')
 def test_unicode_allowed_py3():
-    """ All strings are unicode in Python 3.x. Input doc and schema
-    have equal strings and validation yield success."""
+    """
+    All strings are unicode in Python 3.x. Input doc and schema have equal strings and
+    validation yield success.
+    """
 
     # issue 280
     doc = {'letters': u'♄εℓł☺'}
@@ -1262,9 +1269,11 @@ def test_unicode_allowed_py3():
 
 @mark.skipif(sys.version_info[0] > 2, reason='requires python 2.x')
 def test_unicode_allowed_py2():
-    """ Python 2.x encodes value of allowed using default encoding if
-    the string includes characters outside ASCII range. Produced string
-    does not match input which is an unicode string."""
+    """
+    Python 2.x encodes value of allowed using default encoding if the string includes
+    characters outside ASCII range. Produced string does not match input which is an
+    unicode string.
+    """
 
     # issue 280
     doc = {'letters': u'♄εℓł☺'}
@@ -1646,7 +1655,7 @@ def test_dependencies_on_boolean_field_with_value_in_list():
 def test_document_path():
     class DocumentPathTester(Validator):
         def _validate_trail(self, constraint, field, value):
-            """ {'type': 'boolean'} """
+            """{'type': 'boolean'}"""
             test_doc = self.root_document
             for crumb in self.document_path:
                 test_doc = test_doc[crumb]
@@ -1946,3 +1955,21 @@ def test_require_all_and_exclude():
     assert_success({'foo': 'value'}, schema, validator)
     assert_success({'bar': 'value'}, schema, validator)
     assert_fail({'foo': 'value', 'bar': 'value'}, schema, validator)
+
+
+def test_allowed_when_passing_list_of_dicts():
+    # https://github.com/pyeve/cerberus/issues/524
+    doc = {'letters': [{'some': 'dict'}]}
+    schema = {'letters': {'type': 'list', 'allowed': ['a', 'b', 'c']}}
+
+    assert_fail(
+        doc,
+        schema,
+        error=(
+            'letters',
+            ('letters', 'allowed'),
+            errors.UNALLOWED_VALUES,
+            ['a', 'b', 'c'],
+            (({'some': 'dict'},),),
+        ),
+    )

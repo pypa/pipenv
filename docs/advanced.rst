@@ -41,7 +41,7 @@ Very fancy.
 ☤ Using a PyPI Mirror
 ----------------------------
 
-If you'd like to override the default PyPI index urls with the url for a PyPI mirror, you can use the following::
+If you would like to override the default PyPI index URLs with the URL for a PyPI mirror, you can use the following::
 
     $ pipenv install --pypi-mirror <mirror_url>
 
@@ -58,7 +58,6 @@ Alternatively, you can set the ``PIPENV_PYPI_MIRROR`` environment variable.
 ☤ Injecting credentials into Pipfiles via environment variables
 -----------------------------------------------------------------
 
-
 Pipenv will expand environment variables (if defined) in your Pipfile. Quite
 useful if you need to authenticate to a private PyPI::
 
@@ -71,10 +70,18 @@ Luckily - pipenv will hash your Pipfile *before* expanding environment
 variables (and, helpfully, will substitute the environment variables again when
 you install from the lock file - so no need to commit any secrets! Woo!)
 
-If your credentials contain a special character, surround the references to the environment variables with quotation marks. For example, if your password contain a double quotation mark, surround the password variable with single quotation marks. Otherwise, you may get a ``ValueError, "No closing quotation"`` error while installing dependencies. ::
+If your credentials contain special characters, make sure they are URL-encoded as specified in `rfc3986 <https://datatracker.ietf.org/doc/html/rfc3986>`_.
 
-    [[source]]
-    url = "https://$USERNAME:'${PASSWORD}'@mypypi.example.com/simple"
+Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+
+On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+
+Environment variables in the URL part of requirement specifiers can also be expanded, where the variable must be in the form of ``${VAR_NAME}``. Neither ``$VAR_NAME`` nor ``%VAR_NAME%`` is acceptable::
+
+    [[package]]
+    requests = {git = "git://${USERNAME}:${PASSWORD}@private.git.com/psf/requests.git", ref = "2.22.0"}
+
+Keep in mind that environment variables are expanded in runtime, leaving the entries in ``Pipfile`` or ``Pipfile.lock`` untouched. This is to avoid the accidental leakage of credentials in the source code.
 
 
 ☤ Specifying Basically Anything
@@ -126,6 +133,12 @@ Or you can install packages exactly as specified in ``Pipfile.lock`` using the `
 
     ``pipenv install --ignore-pipfile`` is nearly equivalent to ``pipenv sync``, but ``pipenv sync`` will *never* attempt to re-lock your dependencies as it is considered an atomic operation.  ``pipenv install`` by default does attempt to re-lock unless using the ``--deploy`` flag.
 
+You may only wish to verify your ``Pipfile.lock`` is up-to-date with dependencies specified in the ``Pipfile``, without installing::
+
+    $ pipenv verify
+
+The command will perform a verification, and return an exit code ``1`` when dependency locking is needed. This may be useful for cases when the ``Pipfile.lock`` file is subject to version control, so this command can be used within your CI/CD pipelines.
+
 Deploying System Dependencies
 /////////////////////////////
 
@@ -149,7 +162,9 @@ Anaconda uses Conda to manage packages. To reuse Conda–installed Python packag
 ☤ Generating a ``requirements.txt``
 -----------------------------------
 
-You can convert a ``Pipfile`` and ``Pipfile.lock`` into a ``requirements.txt`` file very easily, and get all the benefits of extras and other goodies we have included.
+You can convert a ``Pipfile`` and ``Pipfile.lock`` into a ``requirements.txt``
+file very easily, and get all the benefits of extras and other goodies we have
+included.
 
 Let's take this ``Pipfile``::
 
@@ -160,7 +175,10 @@ Let's take this ``Pipfile``::
     [packages]
     requests = {version="*"}
 
-And generate a ``requirements.txt`` out of it::
+    [dev-packages]
+    pytest = {version="*"}
+
+And generate a set of requirements out of it with only the default dependencies::
 
     $ pipenv lock -r
     chardet==3.0.4
@@ -169,22 +187,41 @@ And generate a ``requirements.txt`` out of it::
     idna==2.6
     urllib3==1.22
 
-If you wish to generate a ``requirements.txt`` with only the development requirements you can do that too!  Let's take the following ``Pipfile``::
-
-    [[source]]
-    url = "https://pypi.python.org/simple"
-    verify_ssl = true
-
-    [dev-packages]
-    pytest = {version="*"}
-
-And generate a ``requirements.txt`` out of it::
+As with other commands, passing ``--dev`` will include both the default and
+development dependencies::
 
     $ pipenv lock -r --dev
+    chardet==3.0.4
+    requests==2.18.4
+    certifi==2017.7.27.1
+    idna==2.6
+    urllib3==1.22
     py==1.4.34
     pytest==3.2.3
 
-Very fancy.
+Finally, if you wish to generate a requirements file with only the
+development requirements you can do that too, using the ``--dev-only``
+flag::
+
+    $ pipenv lock -r --dev-only
+    py==1.4.34
+    pytest==3.2.3
+
+The locked requirements are written to stdout, with shell output redirection
+used to write them to a file::
+
+    $ pipenv lock -r > requirements.txt
+    $ pipenv lock -r --dev-only > dev-requirements.txt
+    $ cat requirements.txt
+    chardet==3.0.4
+    requests==2.18.4
+    certifi==2017.7.27.1
+    idna==2.6
+    urllib3==1.22
+    $ cat dev-requirements.txt
+    py==1.4.34
+    pytest==3.2.3
+
 
 ☤ Detection of Security Vulnerabilities
 ---------------------------------------
@@ -199,9 +236,9 @@ Example::
     django = "==1.10.1"
 
     $ pipenv check
-    Checking PEP 508 requirements…
+    Checking PEP 508 requirements...
     Passed!
-    Checking installed package safety…
+    Checking installed package safety...
 
     33075: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
     Django before 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3, when settings.DEBUG is True, allow remote attackers to conduct DNS rebinding attacks by leveraging failure to validate the HTTP Host header against settings.ALLOWED_HOSTS.
@@ -237,16 +274,15 @@ Example::
 
 .. note::
 
-   In order to enable this functionality while maintaining its permissive
-   copyright license, `pipenv` embeds an API client key for the backend
-   Safety API operated by pyup.io rather than including a full copy of the
-   CC-BY-NC-SA licensed Safety-DB database. This embedded client key is
-   shared across all `pipenv check` users, and hence will be subject to
-   API access throttling based on overall usage rather than individual
-   client usage.
+   Each month, `PyUp.io` updates the ``safety`` database of
+   insecure Python packages and `makes it available to the
+   community for free <https://pyup.io/safety/>`__. Pipenv
+   makes an API call to retrieve those results and use them
+   each time you run ``pipenv check`` to show you vulnerable
+   dependencies.
 
-   You can also use your own safety API key by setting the
-   environment variable ``PIPENV_PYUP_API_KEY``.
+   For more up-to-date vulnerability data, you may also use your own safety
+   API key by setting the environment variable ``PIPENV_PYUP_API_KEY``.
 
 
 ☤ Community Integrations
@@ -276,7 +312,7 @@ Works in progress:
 Pipenv allows you to open any Python module that is installed (including ones in your codebase), with the ``$ pipenv open`` command::
 
     $ pipenv install -e git+https://github.com/kennethreitz/background.git#egg=background
-    Installing -e git+https://github.com/kennethreitz/background.git#egg=background…
+    Installing -e git+https://github.com/kennethreitz/background.git#egg=background...
     ...
     Updated Pipfile.lock!
 
@@ -308,17 +344,17 @@ This is a very fancy feature, and we're very proud of it::
     python_version = "3.6"
 
     $ pipenv install
-    Warning: Python 3.6 was not found on your system…
+    Warning: Python 3.6 was not found on your system...
     Would you like us to install latest CPython 3.6 with pyenv? [Y/n]: y
-    Installing CPython 3.6.2 with pyenv (this may take a few minutes)…
+    Installing CPython 3.6.2 with pyenv (this may take a few minutes)...
     ...
-    Making Python installation global…
-    Creating a virtualenv for this project…
-    Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv…
+    Making Python installation global...
+    Creating a virtualenv for this project...
+    Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv...
     ...
     No package provided, installing all dependencies.
     ...
-    Installing dependencies from Pipfile.lock…
+    Installing dependencies from Pipfile.lock...
     🐍   ❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒ 5/5 — 00:00:03
     To activate this project's virtualenv, run the following:
      $ pipenv shell
@@ -336,13 +372,28 @@ If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv
     HELLO=WORLD⏎
 
     $ pipenv run python
-    Loading .env environment variables…
+    Loading .env environment variables...
     Python 2.7.13 (default, Jul 18 2017, 09:17:00)
     [GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang-802.0.42)] on darwin
     Type "help", "copyright", "credits" or "license" for more information.
     >>> import os
     >>> os.environ['HELLO']
     'WORLD'
+
+Shell like variable expansion is available in ``.env`` files using `${VARNAME}` syntax.::
+
+    $ cat .env
+    CONFIG_PATH=${HOME}/.config/foo
+
+    $ pipenv run python
+    Loading .env environment variables...
+    Python 3.7.6 (default, Dec 19 2019, 22:52:49)
+    [GCC 9.2.1 20190827 (Red Hat 9.2.1-1)] on linux
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> import os
+    >>> os.environ['CONFIG_PATH']
+    '/home/kennethreitz/.config/foo'
+
 
 This is very useful for keeping production credentials out of your codebase.
 We do not recommend committing ``.env`` files into source control!
@@ -354,6 +405,8 @@ If your ``.env`` file is located in a different path or has a different name you
 To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV`` environment variable::
 
     $ PIPENV_DONT_LOAD_ENV=1 pipenv shell
+
+See `theskumar/python-dotenv <https://github.com/theskumar/python-dotenv>`_ for more information on ``.env`` files.
 
 ☤ Custom Script Shortcuts
 -------------------------
@@ -388,30 +441,13 @@ For example:
     $ pipenv run echospam "indeed"
     I am really a very silly example indeed
 
-☤ Support for Environment Variables
------------------------------------
+You can then display the names and commands of your shortcuts by running ``pipenv scripts`` in your terminal.
 
-Pipenv supports the usage of environment variables in place of authentication fragments
-in your Pipfile. These will only be parsed if they are present in the ``[[source]]``
-section. For example:
+::
 
-.. code-block:: toml
-
-    [[source]]
-    url = "https://${PYPI_USERNAME}:${PYPI_PASSWORD}@my_private_repo.example.com/simple"
-    verify_ssl = true
-    name = "pypi"
-
-    [dev-packages]
-
-    [packages]
-    requests = {version="*", index="home"}
-    maya = {version="*", index="pypi"}
-    records = "*"
-
-Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
-
-On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+    $ pipenv scripts
+    command   script
+    echospam  echo I am really a very silly example
 
 .. _configuration-with-environment-variables:
 
@@ -451,7 +487,7 @@ In addition, you can also have Pipenv stick the virtualenv in ``project/.venv`` 
 
 Pipenv is being used in projects like `Requests`_ for declaring development dependencies and running the test suite.
 
-We've currently tested deployments with both `Travis-CI`_ and `tox`_ with success.
+We have currently tested deployments with both `Travis-CI`_ and `tox`_ with success.
 
 Travis CI
 /////////
@@ -533,13 +569,17 @@ A 3rd party plugin, `tox-pipenv`_ is also available to use Pipenv natively with 
 ☤ Shell Completion
 ------------------
 
-To enable completion in fish, add this to your config::
+To enable completion in fish, add this to your configuration::
 
-    eval (pipenv --completion)
+    eval (env _PIPENV_COMPLETE=fish_source pipenv)
 
-Alternatively, with bash or zsh, add this to your config::
+Alternatively, with zsh, add this to your configuration::
 
-    eval "$(pipenv --completion)"
+    eval "$(_PIPENV_COMPLETE=zsh_source pipenv)"
+
+Alternatively, with bash, add this to your configuration::
+
+    eval "$(_PIPENV_COMPLETE=bash_source pipenv)"
 
 Magic shell completions are now enabled!
 
@@ -571,9 +611,9 @@ at all, use the `PIP_IGNORE_INSTALLED` setting::
 
 There is a subtle but very important distinction to be made between **applications** and **libraries**. This is a very common source of confusion in the Python community.
 
-Libraries provide reusable functionality to other libraries and applications (let's use the umbrella term **projects** here). They are required to work alongside other libraries, all with their own set of subdependencies. They define **abstract dependencies**. To avoid version conflicts in subdependencies of different libraries within a project, libraries should never ever pin dependency versions. Although they may specify lower or (less frequently) upper bounds, if they rely on some specific feature/fix/bug. Library dependencies are specified via ``install_requires`` in ``setup.py``.
+Libraries provide reusable functionality to other libraries and applications (let's use the umbrella term **projects** here). They are required to work alongside other libraries, all with their own set of sub-dependencies. They define **abstract dependencies**. To avoid version conflicts in sub-dependencies of different libraries within a project, libraries should never ever pin dependency versions. Although they may specify lower or (less frequently) upper bounds, if they rely on some specific feature/fix/bug. Library dependencies are specified via ``install_requires`` in ``setup.py``.
 
-Libraries are ultimately meant to be used in some **application**. Applications are different in that they usually are not depended on by other projects. They are meant to be deployed into some specific environment and only then should the exact versions of all their dependencies and subdependencies be made concrete. To make this process easier is currently the main goal of Pipenv.
+Libraries are ultimately meant to be used in some **application**. Applications are different in that they usually are not depended on by other projects. They are meant to be deployed into some specific environment and only then should the exact versions of all their dependencies and sub-dependencies be made concrete. To make this process easier is currently the main goal of Pipenv.
 
 To summarize:
 

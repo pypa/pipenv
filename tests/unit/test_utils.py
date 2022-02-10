@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 
 import pytest
@@ -51,11 +50,11 @@ DEP_PIP_PAIRS = [
         # Extras in url
         {
             "discord.py": {
-                "file": "https://github.com/Rapptz/discord.py/archive/rewrite.zip",
+                "file": "https://github.com/Rapptz/discord.py/archive/async.zip",
                 "extras": ["voice"],
             }
         },
-        "https://github.com/Rapptz/discord.py/archive/rewrite.zip#egg=discord.py[voice]",
+        "https://github.com/Rapptz/discord.py/archive/async.zip#egg=discord.py[voice]",
     ),
     (
         {
@@ -78,6 +77,7 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
 
 @pytest.mark.utils
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
+@pytest.mark.needs_internet
 def test_convert_deps_to_pip(monkeypatch, deps, expected):
     with monkeypatch.context() as m:
         import pip_shims
@@ -129,12 +129,35 @@ def test_convert_deps_to_pip_one_way(deps, expected):
     assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected.lower()]
 
 
-@pytest.mark.skipif(isinstance(u"", str), reason="don't need to test if unicode is str")
+@pytest.mark.skipif(isinstance("", str), reason="don't need to test if unicode is str")
 @pytest.mark.utils
 def test_convert_deps_to_pip_unicode():
-    deps = {u"django": u"==1.10"}
+    deps = {"django": "==1.10"}
     deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
     assert deps[0] == "django==1.10"
+
+
+@pytest.mark.parametrize("line,result", [
+    ("-i https://example.com/simple/", ("https://example.com/simple/", None, None, [])),
+    ("--extra-index-url=https://example.com/simple/", (None, "https://example.com/simple/", None, [])),
+    ("--trusted-host=example.com", (None, None, "example.com", [])),
+    ("# -i https://example.com/simple/", (None, None, None, [])),
+    ("requests # -i https://example.com/simple/", (None, None, None, ["requests"])),
+])
+@pytest.mark.utils
+def test_parse_indexes(line, result):
+    assert pipenv.utils.parse_indexes(line) == result
+
+
+@pytest.mark.parametrize("line", [
+    "-i https://example.com/simple/ --extra-index-url=https://extra.com/simple/",
+    "--extra-index-url https://example.com/simple/ --trusted-host=example.com",
+    "requests -i https://example.com/simple/",
+])
+@pytest.mark.utils
+def test_parse_indexes_individual_lines(line):
+    with pytest.raises(ValueError):
+        pipenv.utils.parse_indexes(line, strict=True)
 
 
 class TestUtils:
@@ -223,6 +246,7 @@ class TestUtils:
         assert pipenv.utils.is_valid_url(not_url) is False
 
     @pytest.mark.utils
+    @pytest.mark.needs_internet
     def test_download_file(self):
         url = "https://github.com/pypa/pipenv/blob/master/README.md"
         output = "test_download.md"
@@ -425,6 +449,7 @@ twine = "*"
             == expected_args
         )
 
+    @pytest.mark.utils
     def test_invalid_prepare_pip_source_args(self):
         sources = [{}]
         with pytest.raises(PipenvUsageError):

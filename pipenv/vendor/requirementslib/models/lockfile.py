@@ -2,27 +2,25 @@
 from __future__ import absolute_import, print_function
 
 import copy
-import os
-
-import attr
 import itertools
+import os
+from json import JSONDecodeError
+from pathlib import Path
+
+import pipenv.vendor.attr as attr
 import plette.lockfiles
-import six
 
-from vistir.compat import Path, FileNotFoundError, JSONDecodeError
-
+from ..exceptions import LockfileCorruptException, MissingParameter, PipfileNotFound
+from ..utils import is_editable, is_vcs, merge_items
 from .project import ProjectFile
 from .requirements import Requirement
-
 from .utils import optional_instance_of
-from ..exceptions import LockfileCorruptException, PipfileNotFound, MissingParameter
-from ..utils import is_vcs, is_editable, merge_items
 
-DEFAULT_NEWLINES = u"\n"
+DEFAULT_NEWLINES = "\n"
 
 
 def preferred_newlines(f):
-    if isinstance(f.newlines, six.text_type):
+    if isinstance(f.newlines, str):
         return f.newlines
     return DEFAULT_NEWLINES
 
@@ -38,11 +36,11 @@ class Lockfile(object):
     _dev_requirements = attr.ib(default=attr.Factory(list), type=list)
     projectfile = attr.ib(validator=is_projectfile, type=ProjectFile)
     _lockfile = attr.ib(validator=is_lockfile, type=plette.lockfiles.Lockfile)
-    newlines = attr.ib(default=DEFAULT_NEWLINES, type=six.text_type)
+    newlines = attr.ib(default=DEFAULT_NEWLINES, type=str)
 
     @path.default
     def _get_path(self):
-        return Path(os.curdir).absolute()
+        return Path(os.curdir).joinpath("Pipfile.lock").absolute()
 
     @projectfile.default
     def _get_projectfile(self):
@@ -50,7 +48,7 @@ class Lockfile(object):
 
     @_lockfile.default
     def _get_lockfile(self):
-        return self.projectfile.lockfile
+        return self.projectfile.model
 
     @property
     def lockfile(self):
@@ -120,23 +118,21 @@ class Lockfile(object):
 
     @classmethod
     def read_projectfile(cls, path):
-        """Read the specified project file and provide an interface for writing/updating.
+        """Read the specified project file and provide an interface for
+        writing/updating.
 
         :param str path: Path to the target file.
         :return: A project file with the model and location for interaction
         :rtype: :class:`~requirementslib.models.project.ProjectFile`
         """
 
-        pf = ProjectFile.read(
-            path,
-            plette.lockfiles.Lockfile,
-            invalid_ok=True
-        )
+        pf = ProjectFile.read(path, plette.lockfiles.Lockfile, invalid_ok=True)
         return pf
 
     @classmethod
     def lockfile_from_pipfile(cls, pipfile_path):
         from .pipfile import Pipfile
+
         if os.path.isfile(pipfile_path):
             if not os.path.isabs(pipfile_path):
                 pipfile_path = os.path.abspath(pipfile_path)
@@ -164,7 +160,9 @@ class Lockfile(object):
         if not project_path.exists():
             raise OSError("Project does not exist: %s" % project_path.as_posix())
         elif not lockfile_path.exists() and not create:
-            raise FileNotFoundError("Lockfile does not exist: %s" % lockfile_path.as_posix())
+            raise FileNotFoundError(
+                "Lockfile does not exist: %s" % lockfile_path.as_posix()
+            )
         projectfile = cls.read_projectfile(lockfile_path.as_posix())
         if not lockfile_path.exists():
             if not data:
@@ -207,10 +205,14 @@ class Lockfile(object):
             lockfile.update(data)
         else:
             lockfile = plette.lockfiles.Lockfile(data)
-        projectfile = ProjectFile(line_ending=DEFAULT_NEWLINES, location=lockfile_path, model=lockfile)
+        projectfile = ProjectFile(
+            line_ending=DEFAULT_NEWLINES, location=lockfile_path, model=lockfile
+        )
         return cls(
-            projectfile=projectfile, lockfile=lockfile,
-            newlines=projectfile.line_ending, path=Path(projectfile.location)
+            projectfile=projectfile,
+            lockfile=lockfile,
+            newlines=projectfile.line_ending,
+            path=Path(projectfile.location),
         )
 
     @classmethod
@@ -243,7 +245,7 @@ class Lockfile(object):
             "projectfile": projectfile,
             "lockfile": projectfile.model,
             "newlines": projectfile.line_ending,
-            "path": lockfile_path
+            "path": lockfile_path,
         }
         return cls(**creation_args)
 
@@ -260,7 +262,8 @@ class Lockfile(object):
         return self._lockfile.default
 
     def get_requirements(self, dev=True, only=False):
-        """Produces a generator which generates requirements from the desired section.
+        """Produces a generator which generates requirements from the desired
+        section.
 
         :param bool dev: Indicates whether to use dev requirements, defaults to False
         :return: Requirements from the relevant the relevant pipfile
@@ -296,13 +299,11 @@ class Lockfile(object):
         self.projectfile.write()
 
     def as_requirements(self, include_hashes=False, dev=False):
-        """Returns a list of requirements in pip-style format"""
+        """Returns a list of requirements in pip-style format."""
         lines = []
         section = self.dev_requirements if dev else self.requirements
         for req in section:
-            kwargs = {
-                "include_hashes": include_hashes,
-            }
+            kwargs = {"include_hashes": include_hashes}
             if req.editable:
                 kwargs["include_markers"] = False
             r = req.as_line(**kwargs)

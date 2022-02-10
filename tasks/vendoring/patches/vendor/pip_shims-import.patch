@@ -1,0 +1,63 @@
+diff --git a/pipenv/vendor/pip_shims/__init__.py b/pipenv/vendor/pip_shims/__init__.py
+index c66a075a..febea8df 100644
+--- a/pipenv/vendor/pip_shims/__init__.py
++++ b/pipenv/vendor/pip_shims/__init__.py
+@@ -31,10 +31,15 @@ __version__ = "0.6.0"
+ if "pip_shims" in sys.modules:
+     # mainly to keep a reference to the old module on hand so it doesn't get
+     # weakref'd away
+-    old_module = sys.modules["pip_shims"]
++    if __name__ != "pip_shims":
++        del sys.modules["pip_shims"]
+ 
+ 
+-module = sys.modules["pip_shims"] = shims._new()
++if __name__ in sys.modules:
++    old_module = sys.modules[__name__]
++
++
++module = sys.modules["pip_shims"] = sys.modules[__name__] = shims._new()
+ module.shims = shims
+ module.__dict__.update(
+     {
+diff --git a/pipenv/vendor/pip_shims/utils.py b/pipenv/vendor/pip_shims/utils.py
+index 2a31a4df..d3b5e708 100644
+--- a/pipenv/vendor/pip_shims/utils.py
++++ b/pipenv/vendor/pip_shims/utils.py
+@@ -11,7 +11,7 @@ import sys
+ from collections.abc import Callable
+ from functools import wraps
+ 
+-import packaging.version
++from pipenv.vendor.packaging import version as pkg_version
+ 
+ from .environment import MYPY_RUNNING
+ 
+@@ -107,10 +107,10 @@ def _parse(version):
+ 
+ @memoize
+ def parse_version(version):
+-    # type: (str) -> packaging.version._BaseVersion
++    # type: (str) -> pkg_version._BaseVersion
+     if not isinstance(version, STRING_TYPES):
+         raise TypeError("Can only derive versions from string, got {!r}".format(version))
+-    return packaging.version.parse(version)
++    return pkg_version.parse(version)
+ 
+ 
+ @memoize
+@@ -130,10 +130,10 @@ def split_package(module, subimport=None):
+     :Example:
+ 
+     >>> from pip_shims.utils import split_package
+-    >>> split_package("pipenv.patched.notpip._internal.req.req_install", subimport="InstallRequirement")
+-    ("pipenv.patched.notpip._internal.req.req_install", "InstallRequirement")
+-    >>> split_package("pipenv.patched.notpip._internal.cli.base_command")
+-    ("pipenv.patched.notpip._internal.cli", "base_command")
++    >>> split_package("pip._internal.req.req_install", subimport="InstallRequirement")
++    ("pip._internal.req.req_install", "InstallRequirement")
++    >>> split_package("pip._internal.cli.base_command")
++    ("pip._internal.cli", "base_command")
+     """
+     package = None
+     if subimport:

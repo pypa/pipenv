@@ -1,1 +1,0 @@
-Added a new environment variable, ``PIPENV_RESOLVE_VCS``, to toggle dependency resolution off for non-editable VCS, file, and URL based dependencies.

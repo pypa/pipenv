@@ -1,1 +1,0 @@
-Fixed a bug which caused editable package resolution to sometimes fail with an unhelpful setuptools-related error message.

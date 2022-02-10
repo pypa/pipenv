@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # pipenv documentation build configuration file, created by
 # sphinx-quickstart on Mon Jan 30 13:28:36 2017.
@@ -17,7 +16,6 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
-
 
 # Path hackery to get current version number.
 here = os.path.abspath(os.path.dirname(__file__))
@@ -56,9 +54,9 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'pipenv'
-copyright = u'2020. A project founded by <a href="http://kennethreitz.com/pages/open-projects.html">Kenneth Reitz</a>'
-author = u'Python Packaging Authority'
+project = 'pipenv'
+copyright = '2020. A project founded by <a href="http://kennethreitz.com/pages/open-projects.html">Kenneth Reitz</a>'
+author = 'Python Packaging Authority'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -86,7 +84,6 @@ pygments_style = 'sphinx'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
-
 
 # -- Options for HTML output ----------------------------------------------
 
@@ -155,8 +152,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'pipenv.tex', u'pipenv Documentation',
-     u'Kenneth Reitz', 'manual'),
+    (master_doc, 'pipenv.tex', 'pipenv Documentation',
+     'Kenneth Reitz', 'manual'),
 ]
 
 
@@ -165,7 +162,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'pipenv', u'pipenv Documentation',
+    (master_doc, 'pipenv', 'pipenv Documentation',
      [author], 1)
 ]
 
@@ -176,7 +173,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'pipenv', u'pipenv Documentation',
+    (master_doc, 'pipenv', 'pipenv Documentation',
      author, 'pipenv', 'One line description of project.',
      'Miscellaneous'),
 ]

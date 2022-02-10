@@ -7,7 +7,7 @@ What is the thing you want to fix? Is it associated with an issue on GitHub? Ple
 
 Always consider opening an issue first to describe your problem, so we can discuss what is the best way to amend it.  Note that if you do not describe the goal of this change or link to a related issue, the maintainers may close the PR without further review.
 
-If your pull request makes a non-insignificant change to Pipenv, such as the user interface or intended functionality, please file a PEEP. 
+If your pull request makes a non-insignificant change to Pipenv, such as the user interface or intended functionality, please file a PEEP.
 
     https://github.com/pypa/pipenv/blob/master/peeps/PEEP-000.md
 
@@ -22,7 +22,7 @@ How does this pull request fix your problem? Did you consider any alternatives? 
 * [ ] A news fragment in the `news/` directory to describe this fix with the extension `.bugfix`, `.feature`, `.behavior`, `.doc`. `.vendor`. or `.trivial` (this will appear in the release changelog). Use semantic line breaks and name the file after the issue number or the PR #.
 
 <!--
-### If this is a patch to the `vendor` directory…
+### If this is a patch to the `vendor` directory...
 
 Please try to refrain from submitting patches directly to `vendor` or `patched`, but raise your issue to the upstream project instead, and inform Pipenv to upgrade when the upstream project accepts the fix.
 

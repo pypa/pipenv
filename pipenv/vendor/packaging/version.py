@@ -1,24 +1,45 @@
 # This file is dual licensed under the terms of the Apache License, Version
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
-from __future__ import absolute_import, division, print_function
 
 import collections
 import itertools
 import re
+import warnings
+from typing import Callable, Iterator, List, Optional, SupportsInt, Tuple, Union
 
-from ._structures import Infinity
-
+from ._structures import Infinity, InfinityType, NegativeInfinity, NegativeInfinityType
 
 __all__ = ["parse", "Version", "LegacyVersion", "InvalidVersion", "VERSION_PATTERN"]
 
+InfiniteTypes = Union[InfinityType, NegativeInfinityType]
+PrePostDevType = Union[InfiniteTypes, Tuple[str, int]]
+SubLocalType = Union[InfiniteTypes, int, str]
+LocalType = Union[
+    NegativeInfinityType,
+    Tuple[
+        Union[
+            SubLocalType,
+            Tuple[SubLocalType, str],
+            Tuple[NegativeInfinityType, SubLocalType],
+        ],
+        ...,
+    ],
+]
+CmpKey = Tuple[
+    int, Tuple[int, ...], PrePostDevType, PrePostDevType, PrePostDevType, LocalType
+]
+LegacyCmpKey = Tuple[int, Tuple[str, ...]]
+VersionComparisonMethod = Callable[
+    [Union[CmpKey, LegacyCmpKey], Union[CmpKey, LegacyCmpKey]], bool
+]
 
 _Version = collections.namedtuple(
     "_Version", ["epoch", "release", "dev", "pre", "post", "local"]
 )
 
 
-def parse(version):
+def parse(version: str) -> Union["LegacyVersion", "Version"]:
     """
     Parse the given version string and return either a :class:`Version` object
     or a :class:`LegacyVersion` object depending on if the given version is
@@ -36,88 +57,111 @@ class InvalidVersion(ValueError):
     """
 
 
-class _BaseVersion(object):
-    def __hash__(self):
+class _BaseVersion:
+    _key: Union[CmpKey, LegacyCmpKey]
+
+    def __hash__(self) -> int:
         return hash(self._key)
 
-    def __lt__(self, other):
-        return self._compare(other, lambda s, o: s < o)
-
-    def __le__(self, other):
-        return self._compare(other, lambda s, o: s <= o)
-
-    def __eq__(self, other):
-        return self._compare(other, lambda s, o: s == o)
-
-    def __ge__(self, other):
-        return self._compare(other, lambda s, o: s >= o)
-
-    def __gt__(self, other):
-        return self._compare(other, lambda s, o: s > o)
-
-    def __ne__(self, other):
-        return self._compare(other, lambda s, o: s != o)
-
-    def _compare(self, other, method):
+    # Please keep the duplicated `isinstance` check
+    # in the six comparisons hereunder
+    # unless you find a way to avoid adding overhead function calls.
+    def __lt__(self, other: "_BaseVersion") -> bool:
         if not isinstance(other, _BaseVersion):
             return NotImplemented
 
-        return method(self._key, other._key)
+        return self._key < other._key
+
+    def __le__(self, other: "_BaseVersion") -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+
+        return self._key <= other._key
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+
+        return self._key == other._key
+
+    def __ge__(self, other: "_BaseVersion") -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+
+        return self._key >= other._key
+
+    def __gt__(self, other: "_BaseVersion") -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+
+        return self._key > other._key
+
+    def __ne__(self, other: object) -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+
+        return self._key != other._key
 
 
 class LegacyVersion(_BaseVersion):
-    def __init__(self, version):
+    def __init__(self, version: str) -> None:
         self._version = str(version)
         self._key = _legacy_cmpkey(self._version)
 
-    def __str__(self):
+        warnings.warn(
+            "Creating a LegacyVersion has been deprecated and will be "
+            "removed in the next major release",
+            DeprecationWarning,
+        )
+
+    def __str__(self) -> str:
         return self._version
 
-    def __repr__(self):
-        return "<LegacyVersion({0})>".format(repr(str(self)))
+    def __repr__(self) -> str:
+        return f"<LegacyVersion('{self}')>"
 
     @property
-    def public(self):
+    def public(self) -> str:
         return self._version
 
     @property
-    def base_version(self):
+    def base_version(self) -> str:
         return self._version
 
     @property
-    def epoch(self):
+    def epoch(self) -> int:
         return -1
 
     @property
-    def release(self):
+    def release(self) -> None:
         return None
 
     @property
-    def pre(self):
+    def pre(self) -> None:
         return None
 
     @property
-    def post(self):
+    def post(self) -> None:
         return None
 
     @property
-    def dev(self):
+    def dev(self) -> None:
         return None
 
     @property
-    def local(self):
+    def local(self) -> None:
         return None
 
     @property
-    def is_prerelease(self):
+    def is_prerelease(self) -> bool:
         return False
 
     @property
-    def is_postrelease(self):
+    def is_postrelease(self) -> bool:
         return False
 
     @property
-    def is_devrelease(self):
+    def is_devrelease(self) -> bool:
         return False
 
 
@@ -132,7 +176,7 @@ _legacy_version_replacement_map = {
 }
 
 
-def _parse_version_parts(s):
+def _parse_version_parts(s: str) -> Iterator[str]:
     for part in _legacy_version_component_re.split(s):
         part = _legacy_version_replacement_map.get(part, part)
 
@@ -149,7 +193,8 @@ def _parse_version_parts(s):
     yield "*final"
 
 
-def _legacy_cmpkey(version):
+def _legacy_cmpkey(version: str) -> LegacyCmpKey:
+
     # We hardcode an epoch of -1 here. A PEP 440 version can only have a epoch
     # greater than or equal to 0. This will effectively put the LegacyVersion,
     # which uses the defacto standard originally implemented by setuptools,
@@ -158,7 +203,7 @@ def _legacy_cmpkey(version):
 
     # This scheme is taken from pkg_resources.parse_version setuptools prior to
     # it's adoption of the packaging library.
-    parts = []
+    parts: List[str] = []
     for part in _parse_version_parts(version.lower()):
         if part.startswith("*"):
             # remove "-" before a prerelease tag
@@ -171,9 +216,8 @@ def _legacy_cmpkey(version):
                 parts.pop()
 
         parts.append(part)
-    parts = tuple(parts)
 
-    return epoch, parts
+    return epoch, tuple(parts)
 
 
 # Deliberately not anchored to the start and end of the string, to make it
@@ -214,11 +258,12 @@ class Version(_BaseVersion):
 
     _regex = re.compile(r"^\s*" + VERSION_PATTERN + r"\s*$", re.VERBOSE | re.IGNORECASE)
 
-    def __init__(self, version):
+    def __init__(self, version: str) -> None:
+
         # Validate the version and parse it into pieces
         match = self._regex.search(version)
         if not match:
-            raise InvalidVersion("Invalid version: '{0}'".format(version))
+            raise InvalidVersion(f"Invalid version: '{version}'")
 
         # Store the parsed out pieces of the version
         self._version = _Version(
@@ -242,15 +287,15 @@ class Version(_BaseVersion):
             self._version.local,
         )
 
-    def __repr__(self):
-        return "<Version({0})>".format(repr(str(self)))
+    def __repr__(self) -> str:
+        return f"<Version('{self}')>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         parts = []
 
         # Epoch
         if self.epoch != 0:
-            parts.append("{0}!".format(self.epoch))
+            parts.append(f"{self.epoch}!")
 
         # Release segment
         parts.append(".".join(str(x) for x in self.release))
@@ -261,56 +306,59 @@ class Version(_BaseVersion):
 
         # Post-release
         if self.post is not None:
-            parts.append(".post{0}".format(self.post))
+            parts.append(f".post{self.post}")
 
         # Development release
         if self.dev is not None:
-            parts.append(".dev{0}".format(self.dev))
+            parts.append(f".dev{self.dev}")
 
         # Local version segment
         if self.local is not None:
-            parts.append("+{0}".format(self.local))
+            parts.append(f"+{self.local}")
 
         return "".join(parts)
 
     @property
-    def epoch(self):
-        return self._version.epoch
+    def epoch(self) -> int:
+        _epoch: int = self._version.epoch
+        return _epoch
 
     @property
-    def release(self):
-        return self._version.release
+    def release(self) -> Tuple[int, ...]:
+        _release: Tuple[int, ...] = self._version.release
+        return _release
 
     @property
-    def pre(self):
-        return self._version.pre
+    def pre(self) -> Optional[Tuple[str, int]]:
+        _pre: Optional[Tuple[str, int]] = self._version.pre
+        return _pre
 
     @property
-    def post(self):
+    def post(self) -> Optional[int]:
         return self._version.post[1] if self._version.post else None
 
     @property
-    def dev(self):
+    def dev(self) -> Optional[int]:
         return self._version.dev[1] if self._version.dev else None
 
     @property
-    def local(self):
+    def local(self) -> Optional[str]:
         if self._version.local:
             return ".".join(str(x) for x in self._version.local)
         else:
             return None
 
     @property
-    def public(self):
+    def public(self) -> str:
         return str(self).split("+", 1)[0]
 
     @property
-    def base_version(self):
+    def base_version(self) -> str:
         parts = []
 
         # Epoch
         if self.epoch != 0:
-            parts.append("{0}!".format(self.epoch))
+            parts.append(f"{self.epoch}!")
 
         # Release segment
         parts.append(".".join(str(x) for x in self.release))
@@ -318,19 +366,34 @@ class Version(_BaseVersion):
         return "".join(parts)
 
     @property
-    def is_prerelease(self):
+    def is_prerelease(self) -> bool:
         return self.dev is not None or self.pre is not None
 
     @property
-    def is_postrelease(self):
+    def is_postrelease(self) -> bool:
         return self.post is not None
 
     @property
-    def is_devrelease(self):
+    def is_devrelease(self) -> bool:
         return self.dev is not None
 
+    @property
+    def major(self) -> int:
+        return self.release[0] if len(self.release) >= 1 else 0
 
-def _parse_letter_version(letter, number):
+    @property
+    def minor(self) -> int:
+        return self.release[1] if len(self.release) >= 2 else 0
+
+    @property
+    def micro(self) -> int:
+        return self.release[2] if len(self.release) >= 3 else 0
+
+
+def _parse_letter_version(
+    letter: str, number: Union[str, bytes, SupportsInt]
+) -> Optional[Tuple[str, int]]:
+
     if letter:
         # We consider there to be an implicit 0 in a pre-release if there is
         # not a numeral associated with it.
@@ -360,11 +423,13 @@ def _parse_letter_version(letter, number):
 
         return letter, int(number)
 
+    return None
+
 
 _local_version_separators = re.compile(r"[\._-]")
 
 
-def _parse_local_version(local):
+def _parse_local_version(local: str) -> Optional[LocalType]:
     """
     Takes a string like abc.1.twelve and turns it into ("abc", 1, "twelve").
     """
@@ -373,15 +438,24 @@ def _parse_local_version(local):
             part.lower() if not part.isdigit() else int(part)
             for part in _local_version_separators.split(local)
         )
+    return None
 
 
-def _cmpkey(epoch, release, pre, post, dev, local):
+def _cmpkey(
+    epoch: int,
+    release: Tuple[int, ...],
+    pre: Optional[Tuple[str, int]],
+    post: Optional[Tuple[str, int]],
+    dev: Optional[Tuple[str, int]],
+    local: Optional[Tuple[SubLocalType]],
+) -> CmpKey:
+
     # When we compare a release version, we want to compare it with all of the
     # trailing zeros removed. So we'll use a reverse the list, drop all the now
     # leading zeros until we come to something non zero, then take the rest
     # re-reverse it back into the correct order and make it a tuple and use
     # that for our sorting key.
-    release = tuple(
+    _release = tuple(
         reversed(list(itertools.dropwhile(lambda x: x == 0, reversed(release))))
     )
 
@@ -390,23 +464,31 @@ def _cmpkey(epoch, release, pre, post, dev, local):
     # if there is not a pre or a post segment. If we have one of those then
     # the normal sorting rules will handle this case correctly.
     if pre is None and post is None and dev is not None:
-        pre = -Infinity
+        _pre: PrePostDevType = NegativeInfinity
     # Versions without a pre-release (except as noted above) should sort after
     # those with one.
     elif pre is None:
-        pre = Infinity
+        _pre = Infinity
+    else:
+        _pre = pre
 
     # Versions without a post segment should sort before those with one.
     if post is None:
-        post = -Infinity
+        _post: PrePostDevType = NegativeInfinity
+
+    else:
+        _post = post
 
     # Versions without a development segment should sort after those with one.
     if dev is None:
-        dev = Infinity
+        _dev: PrePostDevType = Infinity
+
+    else:
+        _dev = dev
 
     if local is None:
         # Versions without a local segment should sort before those with one.
-        local = -Infinity
+        _local: LocalType = NegativeInfinity
     else:
         # Versions with a local segment need that segment parsed to implement
         # the sorting rules in PEP440.
@@ -415,6 +497,8 @@ def _cmpkey(epoch, release, pre, post, dev, local):
         # - Numeric segments sort numerically
         # - Shorter versions sort before longer versions when the prefixes
         #   match exactly
-        local = tuple((i, "") if isinstance(i, int) else (-Infinity, i) for i in local)
+        _local = tuple(
+            (i, "") if isinstance(i, int) else (NegativeInfinity, i) for i in local
+        )
 
-    return epoch, release, pre, post, dev, local
+    return epoch, _release, _pre, _post, _dev, _local

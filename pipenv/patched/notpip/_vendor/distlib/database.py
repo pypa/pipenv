@@ -550,7 +550,7 @@ class InstalledDistribution(BaseInstalledDistribution):
                 r = finder.find(WHEEL_METADATA_FILENAME)
             # Temporary - for legacy support
             if r is None:
-                r = finder.find('METADATA')
+                r = finder.find(LEGACY_METADATA_FILENAME)
             if r is None:
                 raise ValueError('no %s found in %s' % (METADATA_FILENAME,
                                                         path))
@@ -567,7 +567,7 @@ class InstalledDistribution(BaseInstalledDistribution):
         p  = os.path.join(path, 'top_level.txt')
         if os.path.exists(p):
             with open(p, 'rb') as f:
-                data = f.read()
+                data = f.read().decode('utf-8')
             self.modules = data.splitlines()
 
     def __repr__(self):

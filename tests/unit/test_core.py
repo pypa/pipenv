@@ -1,59 +1,70 @@
 import os
+from tempfile import TemporaryDirectory
 
-import mock
 import pytest
 
-from pipenv._compat import TemporaryDirectory
 from pipenv.core import load_dot_env, warn_in_virtualenv
 from pipenv.utils import temp_environ
 
 
-@mock.patch('pipenv.environments.PIPENV_VIRTUALENV', 'totallyrealenv')
-@mock.patch('pipenv.environments.PIPENV_VERBOSITY', -1)
 @pytest.mark.core
-def test_suppress_nested_venv_warning(capsys):
+def test_suppress_nested_venv_warning(capsys, project):
     # Capture the stderr of warn_in_virtualenv to test for the presence of the
     # courtesy notice.
-    warn_in_virtualenv()
+    project.s.PIPENV_VIRTUALENV = 'totallyrealenv'
+    project.s.PIPENV_VERBOSITY = -1
+    warn_in_virtualenv(project)
     output, err = capsys.readouterr()
     assert 'Courtesy Notice' not in err
 
 
 @pytest.mark.core
-def test_load_dot_env_from_environment_variable_location(capsys):
-    with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
-        dotenv_path = os.path.join(tempdir.name, 'test.env')
+def test_load_dot_env_from_environment_variable_location(monkeypatch, capsys, project):
+    with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
+        if os.name == "nt":
+            import click
+            is_console = False
+            m.setattr(click._winconsole, "_is_console", lambda x: is_console)
+        dotenv_path = os.path.join(tempdir, 'test.env')
         key, val = 'SOME_KEY', 'some_value'
         with open(dotenv_path, 'w') as f:
-            f.write('{}={}'.format(key, val))
+            f.write(f'{key}={val}')
 
-        with mock.patch('pipenv.environments.PIPENV_DOTENV_LOCATION', dotenv_path):
-            load_dot_env()
+        project.s.PIPENV_DOTENV_LOCATION = str(dotenv_path)
+        load_dot_env(project)
         assert os.environ[key] == val
 
 
 @pytest.mark.core
-def test_doesnt_load_dot_env_if_disabled(capsys):
-    with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
-        dotenv_path = os.path.join(tempdir.name, 'test.env')
+def test_doesnt_load_dot_env_if_disabled(monkeypatch, capsys, project):
+    with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
+        if os.name == "nt":
+            import click
+            is_console = False
+            m.setattr(click._winconsole, "_is_console", lambda x: is_console)
+        dotenv_path = os.path.join(tempdir, 'test.env')
         key, val = 'SOME_KEY', 'some_value'
         with open(dotenv_path, 'w') as f:
-            f.write('{}={}'.format(key, val))
+            f.write(f'{key}={val}')
 
-        with mock.patch('pipenv.environments.PIPENV_DOTENV_LOCATION', dotenv_path):
-            with mock.patch('pipenv.environments.PIPENV_DONT_LOAD_ENV', '1'):
-                load_dot_env()
-            assert key not in os.environ
-
-            load_dot_env()
-            assert key in os.environ
+        project.s.PIPENV_DOTENV_LOCATION = str(dotenv_path)
+        project.s.PIPENV_DONT_LOAD_ENV = True
+        load_dot_env(project)
+        assert key not in os.environ
+        project.s.PIPENV_DONT_LOAD_ENV = False
+        load_dot_env(project)
+        assert key in os.environ
 
 
 @pytest.mark.core
-def test_load_dot_env_warns_if_file_doesnt_exist(capsys):
-    with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
-        dotenv_path = os.path.join(tempdir.name, 'does-not-exist.env')
-        with mock.patch('pipenv.environments.PIPENV_DOTENV_LOCATION', dotenv_path):
-            load_dot_env()
+def test_load_dot_env_warns_if_file_doesnt_exist(monkeypatch, capsys, project):
+    with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
+        if os.name == "nt":
+            import click
+            is_console = False
+            m.setattr(click._winconsole, "_is_console", lambda x: is_console)
+        dotenv_path = os.path.join(tempdir, 'does-not-exist.env')
+        project.s.PIPENV_DOTENV_LOCATION = str(dotenv_path)
+        load_dot_env(project)
         output, err = capsys.readouterr()
         assert 'Warning' in err

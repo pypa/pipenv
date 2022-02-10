@@ -1,88 +1,130 @@
-from __future__ import absolute_import
-
 import contextlib
-import errno
 import hashlib
 import logging
 import os
+from types import TracebackType
+from typing import Dict, Iterator, Optional, Set, Type, Union
 
+from pipenv.patched.notpip._internal.models.link import Link
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
-from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-
-if MYPY_CHECK_RUNNING:
-    from typing import Set, Iterator  # noqa: F401
-    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement  # noqa: F401
-    from pipenv.patched.notpip._internal.models.link import Link  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
 
-class RequirementTracker(object):
+@contextlib.contextmanager
+def update_env_context_manager(**changes: str) -> Iterator[None]:
+    target = os.environ
 
-    def __init__(self):
-        # type: () -> None
-        self._root = os.environ.get('PIP_REQ_TRACKER')
-        if self._root is None:
-            self._temp_dir = TempDirectory(delete=False, kind='req-tracker')
-            self._temp_dir.create()
-            self._root = os.environ['PIP_REQ_TRACKER'] = self._temp_dir.path
-            logger.debug('Created requirements tracker %r', self._root)
-        else:
-            self._temp_dir = None
-            logger.debug('Re-using requirements tracker %r', self._root)
-        self._entries = set()  # type: Set[InstallRequirement]
+    # Save values from the target and change them.
+    non_existent_marker = object()
+    saved_values: Dict[str, Union[object, str]] = {}
+    for name, new_value in changes.items():
+        try:
+            saved_values[name] = target[name]
+        except KeyError:
+            saved_values[name] = non_existent_marker
+        target[name] = new_value
 
-    def __enter__(self):
+    try:
+        yield
+    finally:
+        # Restore original values in the target.
+        for name, original_value in saved_values.items():
+            if original_value is non_existent_marker:
+                del target[name]
+            else:
+                assert isinstance(original_value, str)  # for mypy
+                target[name] = original_value
+
+
+@contextlib.contextmanager
+def get_requirement_tracker() -> Iterator["RequirementTracker"]:
+    root = os.environ.get('PIP_REQ_TRACKER')
+    with contextlib.ExitStack() as ctx:
+        if root is None:
+            root = ctx.enter_context(
+                TempDirectory(kind='req-tracker')
+            ).path
+            ctx.enter_context(update_env_context_manager(PIP_REQ_TRACKER=root))
+            logger.debug("Initialized build tracking at %s", root)
+
+        with RequirementTracker(root) as tracker:
+            yield tracker
+
+
+class RequirementTracker:
+
+    def __init__(self, root: str) -> None:
+        self._root = root
+        self._entries: Set[InstallRequirement] = set()
+        logger.debug("Created build tracker: %s", self._root)
+
+    def __enter__(self) -> "RequirementTracker":
+        logger.debug("Entered build tracker: %s", self._root)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType]
+    ) -> None:
         self.cleanup()
 
-    def _entry_path(self, link):
-        # type: (Link) -> str
+    def _entry_path(self, link: Link) -> str:
         hashed = hashlib.sha224(link.url_without_fragment.encode()).hexdigest()
         return os.path.join(self._root, hashed)
 
-    def add(self, req):
-        # type: (InstallRequirement) -> None
-        link = req.link
-        info = str(req)
-        entry_path = self._entry_path(link)
+    def add(self, req: InstallRequirement) -> None:
+        """Add an InstallRequirement to build tracking.
+        """
+
+        assert req.link
+        # Get the file to write information about this requirement.
+        entry_path = self._entry_path(req.link)
+
+        # Try reading from the file. If it exists and can be read from, a build
+        # is already in progress, so a LookupError is raised.
         try:
             with open(entry_path) as fp:
-                # Error, these's already a build in progress.
-                raise LookupError('%s is already being built: %s'
-                                  % (link, fp.read()))
-        except IOError as e:
-            if e.errno != errno.ENOENT:
-                raise
-            assert req not in self._entries
-            with open(entry_path, 'w') as fp:
-                fp.write(info)
-            self._entries.add(req)
-            logger.debug('Added %s to build tracker %r', req, self._root)
+                contents = fp.read()
+        except FileNotFoundError:
+            pass
+        else:
+            message = '{} is already being built: {}'.format(
+                req.link, contents)
+            raise LookupError(message)
 
-    def remove(self, req):
-        # type: (InstallRequirement) -> None
-        link = req.link
+        # If we're here, req should really not be building already.
+        assert req not in self._entries
+
+        # Start tracking this requirement.
+        with open(entry_path, 'w', encoding="utf-8") as fp:
+            fp.write(str(req))
+        self._entries.add(req)
+
+        logger.debug('Added %s to build tracker %r', req, self._root)
+
+    def remove(self, req: InstallRequirement) -> None:
+        """Remove an InstallRequirement from build tracking.
+        """
+
+        assert req.link
+        # Delete the created file and the corresponding entries.
+        os.unlink(self._entry_path(req.link))
         self._entries.remove(req)
-        os.unlink(self._entry_path(link))
+
         logger.debug('Removed %s from build tracker %r', req, self._root)
 
-    def cleanup(self):
-        # type: () -> None
+    def cleanup(self) -> None:
         for req in set(self._entries):
             self.remove(req)
-        remove = self._temp_dir is not None
-        if remove:
-            self._temp_dir.cleanup()
-        logger.debug('%s build tracker %r',
-                     'Removed' if remove else 'Cleaned',
-                     self._root)
+
+        logger.debug("Removed build tracker: %r", self._root)
 
     @contextlib.contextmanager
-    def track(self, req):
-        # type: (InstallRequirement) -> Iterator[None]
+    def track(self, req: InstallRequirement) -> Iterator[None]:
         self.add(req)
         yield
         self.remove(req)

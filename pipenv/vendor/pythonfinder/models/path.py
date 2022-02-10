@@ -1,18 +1,16 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
 
-import copy
 import operator
 import os
 import sys
 from collections import defaultdict
 from itertools import chain
 
-import attr
-import six
-from cached_property import cached_property
-from vistir.compat import Path, fs_str
-from vistir.misc import dedup
+import pipenv.vendor.attr as attr
+import pipenv.vendor.six as six
+from pipenv.vendor.cached_property import cached_property
+from ..compat import Path, fs_str
 
 from ..environment import (
     ASDF_DATA_DIR,
@@ -27,11 +25,10 @@ from ..exceptions import InvalidPythonVersion
 from ..utils import (
     Iterable,
     Sequence,
+    dedup,
     ensure_path,
-    expand_paths,
     filter_pythons,
     is_in_path,
-    looks_like_python,
     normalize_path,
     optional_instance_of,
     parse_asdf_version_order,
@@ -41,7 +38,6 @@ from ..utils import (
     unnest,
 )
 from .mixins import BaseFinder, BasePath
-from .python import PythonVersion
 
 if MYPY_RUNNING:
     from typing import (
@@ -58,7 +54,7 @@ if MYPY_RUNNING:
         Any,
         TypeVar,
     )
-    from .python import PythonFinder
+    from .python import PythonFinder, PythonVersion
     from .windows import WindowsFinder
 
     FinderType = TypeVar("FinderType", BaseFinder, PythonFinder, WindowsFinder)
@@ -130,7 +126,7 @@ class SystemPath(object):
         self._python_executables = {}
         self._executables = []
         self.python_version_dict = defaultdict(list)
-        self.version_dict = defaultdict(list)
+        self._version_dict = defaultdict(list)
         self.path_order = []
         self.pyenv_finder = None
         self.asdf_finder = None
@@ -193,7 +189,7 @@ class SystemPath(object):
                 if entry not in self._version_dict[version] and entry.is_python:
                     self._version_dict[version].append(entry)
         for p, entry in self.python_executables.items():
-            version = entry.as_python
+            version = entry.as_python  # type: PythonVersion
             if not version:
                 continue
             if not isinstance(version, tuple):
@@ -226,11 +222,12 @@ class SystemPath(object):
                     path=p.absolute(), is_root=True, only_python=self.only_python
                 )
                 for p in path_instances
+                if p.exists()
             }
         )
         new_instance = attr.evolve(
             new_instance,
-            path_order=[p.as_posix() for p in path_instances],
+            path_order=[p.as_posix() for p in path_instances if p.exists()],
             paths=path_entries,
         )
         if os.name == "nt" and "windows" not in self.finders:
@@ -306,7 +303,7 @@ class SystemPath(object):
             normalized = normalize_path(current_path)
             if normalized != target:
                 new_order.append(normalized)
-        new_order = [p for p in reversed(new_order)]
+        new_order = [ensure_path(p).as_posix() for p in reversed(new_order)]
         return attr.evolve(self, path_order=new_order, paths=new_paths)
 
     def _setup_asdf(self):
@@ -331,7 +328,8 @@ class SystemPath(object):
             # we are in a virtualenv without global pyenv on the path, so we should
             # not write pyenv to the path here
             return self
-        root_paths = [p for p in asdf_finder.roots]
+        # * These are the root paths for the finder
+        _ = [p for p in asdf_finder.roots]
         new_instance = self._slice_in_paths(asdf_index, [asdf_finder.root])
         paths = self.paths.copy()
         paths[asdf_finder.root] = asdf_finder
@@ -393,8 +391,8 @@ class SystemPath(object):
             # we are in a virtualenv without global pyenv on the path, so we should
             # not write pyenv to the path here
             return self
-
-        root_paths = [p for p in pyenv_finder.roots]
+        # * These are the root paths for the finder
+        _ = [p for p in pyenv_finder.roots]
         new_instance = self._slice_in_paths(pyenv_index, [pyenv_finder.root])
         paths = new_instance.paths.copy()
         paths[pyenv_finder.root] = pyenv_finder
@@ -432,7 +430,7 @@ class SystemPath(object):
         _path = self.paths.get(path)
         if not _path:
             _path = self.paths.get(path.as_posix())
-        if not _path and path.as_posix() in self.path_order:
+        if not _path and path.as_posix() in self.path_order and path.exists():
             _path = PathEntry.create(
                 path=path.absolute(), is_root=True, only_python=self.only_python
             )
@@ -649,7 +647,7 @@ class SystemPath(object):
         if global_search:
             if "PATH" in os.environ:
                 paths = os.environ["PATH"].split(os.pathsep)
-        path_order = []
+        path_order = []  # type: List[str]
         if path:
             path_order = [path]
             path_instance = ensure_path(path)
@@ -665,13 +663,13 @@ class SystemPath(object):
             paths = [path] + paths
         paths = [p for p in paths if not any(is_in_path(p, shim) for shim in SHIM_PATHS)]
         _path_objects = [ensure_path(p.strip('"')) for p in paths]
-        paths = [p.as_posix() for p in _path_objects]
         path_entries.update(
             {
                 p.as_posix(): PathEntry.create(
                     path=p.absolute(), is_root=True, only_python=only_python
                 )
                 for p in _path_objects
+                if p.exists()
             }
         )
         instance = cls(
@@ -688,18 +686,22 @@ class SystemPath(object):
 
 @attr.s(slots=True)
 class PathEntry(BasePath):
-    is_root = attr.ib(default=True, type=bool, cmp=False)
+    is_root = attr.ib(default=True, type=bool, order=False)
 
     def __lt__(self, other):
+        # type: (BasePath) -> bool
         return self.path.as_posix() < other.path.as_posix()
 
     def __lte__(self, other):
+        # type: (BasePath) -> bool
         return self.path.as_posix() <= other.path.as_posix()
 
     def __gt__(self, other):
+        # type: (BasePath) -> bool
         return self.path.as_posix() > other.path.as_posix()
 
     def __gte__(self, other):
+        # type: (BasePath) -> bool
         return self.path.as_posix() >= other.path.as_posix()
 
     def __del__(self):
@@ -738,11 +740,13 @@ class PathEntry(BasePath):
                     except (InvalidPythonVersion, ValueError):
                         continue
                 else:
-                    entry = PathEntry.create(path=child, **pass_args)  # type: ignore
+                    try:
+                        entry = PathEntry.create(path=child, **pass_args)  # type: ignore
+                    except (InvalidPythonVersion, ValueError):
+                        continue
                 yield (child.as_posix(), entry)
         return
 
-    # @cached_property
     @property
     def children(self):
         # type: () -> Dict[str, PathEntry]

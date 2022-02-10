@@ -1,4 +1,5 @@
-# -*- coding: utf-8 -*-
+# :copyright: (c) 2021 by Pavlo Dmytrenko.
+# :license: MIT, see LICENSE for more details.
 
 """
 yaspin.constants
@@ -38,12 +39,15 @@ COLOR_ATTRS = COLOR_MAP.keys()
 # Get spinner names:
 # $ < yaspin/data/spinners.json | jq '. | keys'
 SPINNER_ATTRS = [
+    "aesthetic",
     "arc",
     "arrow",
     "arrow2",
     "arrow3",
     "balloon",
     "balloon2",
+    "betaWave",
+    "bluePulse",
     "bounce",
     "bouncingBall",
     "bouncingBar",
@@ -65,9 +69,12 @@ SPINNER_ATTRS = [
     "dots6",
     "dots7",
     "dots8",
+    "dots8Bit",
     "dots9",
     "dqpb",
     "earth",
+    "fingerDance",
+    "fistBump",
     "flip",
     "grenade",
     "growHorizontal",
@@ -77,9 +84,13 @@ SPINNER_ATTRS = [
     "layer",
     "line",
     "line2",
+    "material",
+    "mindblown",
     "monkey",
     "moon",
     "noise",
+    "orangeBluePulse",
+    "orangePulse",
     "pipe",
     "point",
     "pong",
@@ -88,10 +99,13 @@ SPINNER_ATTRS = [
     "simpleDots",
     "simpleDotsScrolling",
     "smiley",
+    "soccerHeader",
+    "speaker",
     "squareCorners",
     "squish",
     "star",
     "star2",
+    "timeTravel",
     "toggle",
     "toggle10",
     "toggle11",

@@ -6,7 +6,7 @@ import operator
 
 from itertools import chain
 
-import six
+import pipenv.vendor.six as six
 
 from ..utils import KNOWN_EXTS, unnest
 from .path import SystemPath

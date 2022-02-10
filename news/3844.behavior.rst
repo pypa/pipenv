@@ -1,1 +1,0 @@
-Re-enable ``--help`` option for ``pipenv run`` command.

@@ -12,13 +12,13 @@ import sys
 
 # Import encoding now, to avoid implicit import later.
 # Implicit import within threads may cause LookupError when standard library is in a ZIP,
-# such as in Embedded Python. See https://github.com/requests/requests/issues/3578.
+# such as in Embedded Python. See https://github.com/psf/requests/issues/3578.
 import encodings.idna
 
-from urllib3.fields import RequestField
-from urllib3.filepost import encode_multipart_formdata
-from urllib3.util import parse_url
-from urllib3.exceptions import (
+from pipenv.vendor.urllib3.fields import RequestField
+from pipenv.vendor.urllib3.filepost import encode_multipart_formdata
+from pipenv.vendor.urllib3.util import parse_url
+from pipenv.vendor.urllib3.exceptions import (
     DecodeError, ReadTimeoutError, ProtocolError, LocationParseError)
 
 from io import UnsupportedOperation
@@ -29,7 +29,7 @@ from .auth import HTTPBasicAuth
 from .cookies import cookiejar_from_dict, get_cookie_header, _copy_cookie_jar
 from .exceptions import (
     HTTPError, MissingSchema, InvalidURL, ChunkedEncodingError,
-    ContentDecodingError, ConnectionError, StreamConsumedError)
+    ContentDecodingError, ConnectionError, StreamConsumedError, InvalidJSONError)
 from ._internal_utils import to_native_string, unicode_is_ascii
 from .utils import (
     guess_filename, get_auth_from_url, requote_uri,
@@ -273,13 +273,16 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
     """The fully mutable :class:`PreparedRequest <PreparedRequest>` object,
     containing the exact bytes that will be sent to the server.
 
-    Generated from either a :class:`Request <Request>` object or manually.
+    Instances are generated from a :class:`Request <Request>` object, and
+    should not be instantiated manually; doing so may produce undesirable
+    effects.
 
     Usage::
 
       >>> import requests
       >>> req = requests.Request('GET', 'https://httpbin.org/get')
       >>> r = req.prepare()
+      >>> r
       <PreparedRequest [GET]>
 
       >>> s = requests.Session()
@@ -344,7 +347,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
 
     @staticmethod
     def _get_idna_encoded_host(host):
-        import idna
+        import pipenv.vendor.idna as idna
 
         try:
             host = idna.encode(host, uts46=True).decode('utf-8')
@@ -358,7 +361,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         #: We're unable to blindly call unicode/str functions
         #: as this will include the bytestring indicator (b'')
         #: on python 3.x.
-        #: https://github.com/requests/requests/pull/2238
+        #: https://github.com/psf/requests/pull/2238
         if isinstance(url, bytes):
             url = url.decode('utf8')
         else:
@@ -463,7 +466,12 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
             # urllib3 requires a bytes-like body. Python 2's json.dumps
             # provides this natively, but Python 3 gives a Unicode string.
             content_type = 'application/json'
-            body = complexjson.dumps(json)
+
+            try:
+              body = complexjson.dumps(json, allow_nan=False)
+            except ValueError as ve:
+              raise InvalidJSONError(ve, request=self)
+
             if not isinstance(body, bytes):
                 body = body.encode('utf-8')
 
@@ -472,12 +480,12 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
             not isinstance(data, (basestring, list, tuple, Mapping))
         ])
 
-        try:
-            length = super_len(data)
-        except (TypeError, AttributeError, UnsupportedOperation):
-            length = None
-
         if is_stream:
+            try:
+                length = super_len(data)
+            except (TypeError, AttributeError, UnsupportedOperation):
+                length = None
+
             body = data
 
             if getattr(body, 'tell', None) is not None:
@@ -608,7 +616,7 @@ class Response(object):
 
         #: File-like object representation of response (for advanced usage).
         #: Use of ``raw`` requires that ``stream=True`` be set on the request.
-        # This requirement does not apply for use internally to Requests.
+        #: This requirement does not apply for use internally to Requests.
         self.raw = None
 
         #: Final URL location of Response.
@@ -723,7 +731,7 @@ class Response(object):
 
     @property
     def apparent_encoding(self):
-        """The apparent encoding, provided by the chardet library."""
+        """The apparent encoding, provided by the charset_normalizer or chardet libraries."""
         return chardet.detect(self.content)['encoding']
 
     def iter_content(self, chunk_size=1, decode_unicode=False):
@@ -837,7 +845,7 @@ class Response(object):
         """Content of the response, in unicode.
 
         If Response.encoding is None, encoding will be guessed using
-        ``chardet``.
+        ``charset_normalizer`` or ``chardet``.
 
         The encoding of the response content is determined based solely on HTTP
         headers, following RFC 2616 to the letter. If you can take advantage of
@@ -874,13 +882,18 @@ class Response(object):
         r"""Returns the json-encoded content of a response, if any.
 
         :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises ValueError: If the response body does not contain valid json.
+        :raises simplejson.JSONDecodeError: If the response body does not
+            contain valid json and simplejson is installed.
+        :raises json.JSONDecodeError: If the response body does not contain
+            valid json and simplejson is not installed on Python 3.
+        :raises ValueError: If the response body does not contain valid
+            json and simplejson is not installed on Python 2.        
         """
 
         if not self.encoding and self.content and len(self.content) > 3:
             # No encoding set. JSON RFC 4627 section 3 states we should expect
             # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using chardet to make
+            # decoding fails, fall back to `self.text` (using charset_normalizer to make
             # a best guess).
             encoding = guess_json_utf(self.content)
             if encoding is not None:
@@ -915,7 +928,7 @@ class Response(object):
         return l
 
     def raise_for_status(self):
-        """Raises stored :class:`HTTPError`, if one occurred."""
+        """Raises :class:`HTTPError`, if one occurred."""
 
         http_error_msg = ''
         if isinstance(self.reason, bytes):

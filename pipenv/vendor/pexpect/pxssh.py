@@ -20,7 +20,7 @@ PEXPECT LICENSE
 
 '''
 
-from pexpect import ExceptionPexpect, TIMEOUT, EOF, spawn
+from pipenv.vendor.pexpect import ExceptionPexpect, TIMEOUT, EOF, spawn
 import time
 import os
 import sys
@@ -64,7 +64,7 @@ class pxssh (spawn):
 
     Example that runs a few commands on a remote server and prints the result::
 
-        from pexpect import pxssh
+        from pipenv.vendor.pexpect import pxssh
         import getpass
         try:
             s = pxssh.pxssh()
@@ -88,7 +88,7 @@ class pxssh (spawn):
 
     Example showing how to specify SSH options::
 
-        from pexpect import pxssh
+        from pipenv.vendor.pexpect import pxssh
         s = pxssh.pxssh(options={
                             "StrictHostKeyChecking": "no",
                             "UserKnownHostsFile": "/dev/null"})

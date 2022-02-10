@@ -5,20 +5,23 @@ import contextlib
 import copy
 import functools
 import os
+from contextlib import ExitStack
+from json import JSONDecodeError
 
-import attr
+import pipenv.vendor.attr as attr
 import packaging.markers
 import packaging.version
 import pip_shims.shims
-import requests
-from first import first
-from packaging.utils import canonicalize_name
-from vistir.compat import JSONDecodeError, fs_str
-from vistir.contextmanagers import cd, temp_environ
-from vistir.misc import partialclass
-from vistir.path import create_tracked_tempdir
+import pipenv.vendor.requests as requests
+from pipenv.vendor.packaging.utils import canonicalize_name
+from pipenv.vendor.vistir.compat import fs_str
+from pipenv.vendor.vistir.contextmanagers import cd, temp_environ
+from pipenv.vendor.vistir.path import create_tracked_tempdir
 
+from ..environment import MYPY_RUNNING
+from ..utils import _ensure_dir, prepare_pip_source_args
 from .cache import CACHE_DIR, DependencyCache
+from .setup_info import SetupInfo
 from .utils import (
     clean_requires_python,
     fix_requires_python_marker,
@@ -30,29 +33,29 @@ from .utils import (
     name_from_req,
     version_from_ireq,
 )
-from ..environment import MYPY_RUNNING
-from ..utils import _ensure_dir, prepare_pip_source_args
 
 if MYPY_RUNNING:
     from typing import (
         Any,
         Dict,
-        List,
         Generator,
+        List,
         Optional,
-        Union,
+        Set,
+        Text,
         Tuple,
         TypeVar,
-        Text,
-        Set,
+        Union,
     )
-    from pip_shims.shims import (
-        InstallRequirement,
-        InstallationCandidate,
-        PackageFinder,
+
+    from pipenv.vendor.packaging.markers import Marker
+    from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.vendor.pip_shims.shims import (
         Command,
+        InstallationCandidate,
+        InstallRequirement,
+        PackageFinder,
     )
-    from packaging.requirements import Requirement as PackagingRequirement
 
     TRequirement = TypeVar("TRequirement")
     RequirementType = TypeVar(
@@ -67,9 +70,14 @@ PKGS_DOWNLOAD_DIR = fs_str(os.path.join(CACHE_DIR, "pkgs"))
 WHEEL_DOWNLOAD_DIR = fs_str(os.path.join(CACHE_DIR, "wheels"))
 
 DEPENDENCY_CACHE = DependencyCache()
-WHEEL_CACHE = pip_shims.shims.WheelCache(
-    CACHE_DIR, pip_shims.shims.FormatControl(set(), set())
-)
+
+
+@contextlib.contextmanager
+def _get_wheel_cache():
+    with pip_shims.shims.global_tempdir_manager():
+        yield pip_shims.shims.WheelCache(
+            CACHE_DIR, pip_shims.shims.FormatControl(set(), set())
+        )
 
 
 def _get_filtered_versions(ireq, versions, prereleases):
@@ -78,15 +86,15 @@ def _get_filtered_versions(ireq, versions, prereleases):
 
 def find_all_matches(finder, ireq, pre=False):
     # type: (PackageFinder, InstallRequirement, bool) -> List[InstallationCandidate]
-    """Find all matching dependencies using the supplied finder and the
-    given ireq.
+    """Find all matching dependencies using the supplied finder and the given
+    ireq.
 
     :param finder: A package finder for discovering matching candidates.
-    :type finder: :class:`~pip._internal.index.PackageFinder`
+    :type finder: :class:`~pipenv.patched.notpip._internal.index.PackageFinder`
     :param ireq: An install requirement.
-    :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
     :return: A list of matching candidates.
-    :rtype: list[:class:`~pip._internal.index.InstallationCandidate`]
+    :rtype: list[:class:`~pipenv.patched.notpip._internal.index.InstallationCandidate`]
     """
 
     candidates = clean_requires_python(finder.find_all_candidates(ireq.name))
@@ -103,22 +111,7 @@ def get_pip_command():
     # Use pip's parser for pip.conf management and defaults.
     # General options (find_links, index_url, extra_index_url, trusted_host,
     # and pre) are defered to pip.
-    import optparse
-
-    class PipCommand(pip_shims.shims.Command):
-        name = "PipCommand"
-
-    pip_command = PipCommand()
-    pip_command.parser.add_option(pip_shims.shims.cmdoptions.no_binary())
-    pip_command.parser.add_option(pip_shims.shims.cmdoptions.only_binary())
-    index_opts = pip_shims.shims.cmdoptions.make_option_group(
-        pip_shims.shims.cmdoptions.index_group, pip_command.parser
-    )
-    pip_command.parser.insert_option_group(0, index_opts)
-    pip_command.parser.add_option(
-        optparse.Option("--pre", action="store_true", default=False)
-    )
-
+    pip_command = pip_shims.shims.InstallCommand()
     return pip_command
 
 
@@ -135,7 +128,8 @@ class AbstractDependency(object):
 
     @property
     def version_set(self):
-        """Return the set of versions for the candidates in this abstract dependency.
+        """Return the set of versions for the candidates in this abstract
+        dependency.
 
         :return: A set of matching versions
         :rtype: set(str)
@@ -146,8 +140,8 @@ class AbstractDependency(object):
         return set(packaging.version.parse(version_from_ireq(c)) for c in self.candidates)
 
     def compatible_versions(self, other):
-        """Find compatible version numbers between this abstract
-        dependency and another one.
+        """Find compatible version numbers between this abstract dependency and
+        another one.
 
         :param other: An abstract dependency to compare with.
         :type other: :class:`~requirementslib.models.dependency.AbstractDependency`
@@ -155,9 +149,9 @@ class AbstractDependency(object):
         :rtype: set(str)
         """
 
-        if len(self.candidates) == 1 and first(self.candidates).editable:
+        if len(self.candidates) == 1 and next(iter(self.candidates)).editable:
             return self
-        elif len(other.candidates) == 1 and first(other.candidates).editable:
+        elif len(other.candidates) == 1 and next(iter(other.candidates)).editable:
             return other
         return self.version_set & other.version_set
 
@@ -174,9 +168,9 @@ class AbstractDependency(object):
 
         from .requirements import Requirement
 
-        if len(self.candidates) == 1 and first(self.candidates).editable:
+        if len(self.candidates) == 1 and next(iter(self.candidates)).editable:
             return self
-        elif len(other.candidates) == 1 and first(other.candidates).editable:
+        elif len(other.candidates) == 1 and next(iter(other.candidates)).editable:
             return other
         new_specifiers = self.specifiers & other.specifiers
         markers = set(self.markers) if self.markers else set()
@@ -219,7 +213,7 @@ class AbstractDependency(object):
         """Get the dependencies of the supplied candidate.
 
         :param candidate: An installrequirement
-        :type candidate: :class:`~pip._internal.req.req_install.InstallRequirement`
+        :type candidate: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
         :return: A list of abstract dependencies
         :rtype: list[:class:`~requirementslib.models.dependency.AbstractDependency`]
         """
@@ -235,8 +229,9 @@ class AbstractDependency(object):
 
     @classmethod
     def from_requirement(cls, requirement, parent=None):
-        """Creates a new :class:`~requirementslib.models.dependency.AbstractDependency`
-        from a :class:`~requirementslib.models.requirements.Requirement` object.
+        """Creates a new
+        :class:`~requirementslib.models.dependency.AbstractDependency` from a
+        :class:`~requirementslib.models.requirements.Requirement` object.
 
         This class is used to find all candidates matching a given set of specifiers
         and a given requirement.
@@ -250,7 +245,7 @@ class AbstractDependency(object):
         extras = requirement.ireq.extras
         is_pinned = is_pinned_requirement(requirement.ireq)
         is_constraint = bool(parent)
-        finder = get_finder(sources=None)
+        _, finder = get_finder(sources=None)
         candidates = []
         if not is_pinned and not requirement.editable:
             for r in requirement.find_all_matches(finder=finder):
@@ -261,7 +256,7 @@ class AbstractDependency(object):
                     markers=markers,
                     constraint=is_constraint,
                 )
-                req.req.link = r.location
+                req.req.link = getattr(r, "location", getattr(r, "link", None))
                 req.parent = parent
                 candidates.append(req)
                 candidates = sorted(
@@ -330,11 +325,11 @@ def get_dependencies(ireq, sources=None, parent=None):
     """Get all dependencies for a given install requirement.
 
     :param ireq: A single InstallRequirement
-    :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
     :param sources: Pipfile-formatted sources, defaults to None
     :type sources: list[dict], optional
     :param parent: The parent of this list of dependencies, defaults to None
-    :type parent: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :type parent: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
     :return: A set of dependency lines for generating new InstallRequirements.
     :rtype: set(str)
     """
@@ -362,23 +357,26 @@ def get_dependencies(ireq, sources=None, parent=None):
 
 
 def get_dependencies_from_wheel_cache(ireq):
-    """Retrieves dependencies for the given install requirement from the wheel cache.
+    # type: (pip_shims.shims.InstallRequirement) -> Optional[Set[pip_shims.shims.InstallRequirement]]
+    """Retrieves dependencies for the given install requirement from the wheel
+    cache.
 
     :param ireq: A single InstallRequirement
-    :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
     :return: A set of dependency lines for generating new InstallRequirements.
     :rtype: set(str) or None
     """
 
     if ireq.editable or not is_pinned_requirement(ireq):
         return
-    matches = WHEEL_CACHE.get(ireq.link, name_from_req(ireq.req))
-    if matches:
-        matches = set(matches)
-        if not DEPENDENCY_CACHE.get(ireq):
-            DEPENDENCY_CACHE[ireq] = [format_requirement(m) for m in matches]
-        return matches
-    return
+    with _get_wheel_cache() as wheel_cache:
+        matches = wheel_cache.get(ireq.link, name_from_req(ireq.req))
+        if matches:
+            matches = set(matches)
+            if not DEPENDENCY_CACHE.get(ireq):
+                DEPENDENCY_CACHE[ireq] = [format_requirement(m) for m in matches]
+            return matches
+        return None
 
 
 def _marker_contains_extra(ireq):
@@ -387,10 +385,11 @@ def _marker_contains_extra(ireq):
 
 
 def get_dependencies_from_json(ireq):
-    """Retrieves dependencies for the given install requirement from the json api.
+    """Retrieves dependencies for the given install requirement from the json
+    api.
 
     :param ireq: A single InstallRequirement
-    :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
     :return: A set of dependency lines for generating new InstallRequirements.
     :rtype: set(str) or None
     """
@@ -436,10 +435,11 @@ def get_dependencies_from_json(ireq):
 
 
 def get_dependencies_from_cache(ireq):
-    """Retrieves dependencies for the given install requirement from the dependency cache.
+    """Retrieves dependencies for the given install requirement from the
+    dependency cache.
 
     :param ireq: A single InstallRequirement
-    :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
     :return: A set of dependency lines for generating new InstallRequirements.
     :rtype: set(str) or None
     """
@@ -477,119 +477,49 @@ def is_python(section):
 
 
 def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache=None):
-    """Retrieves dependencies for the given install requirement from the pip resolver.
+    """Retrieves dependencies for the given install requirement from the pip
+    resolver.
 
     :param dep: A single InstallRequirement
-    :type dep: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :type dep: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
     :param sources: Pipfile-formatted sources, defaults to None
     :type sources: list[dict], optional
     :return: A set of dependency lines for generating new InstallRequirements.
     :rtype: set(str) or None
     """
 
-    finder = get_finder(sources=sources, pip_options=pip_options)
-    if not wheel_cache:
-        wheel_cache = WHEEL_CACHE
+    session, finder = get_finder(sources=sources, pip_options=pip_options)
     dep.is_direct = True
-    reqset = pip_shims.shims.RequirementSet()
-    reqset.add_requirement(dep)
     requirements = None
     setup_requires = {}
-    with temp_environ(), start_resolver(
-        finder=finder, wheel_cache=wheel_cache
-    ) as resolver:
+    with temp_environ(), ExitStack() as stack:
+        if not wheel_cache:
+            wheel_cache = stack.enter_context(_get_wheel_cache())
         os.environ["PIP_EXISTS_ACTION"] = "i"
-        dist = None
         if dep.editable and not dep.prepared and not dep.req:
-            with cd(dep.setup_py_dir):
-                from setuptools.dist import distutils
-
-                try:
-                    dist = distutils.core.run_setup(dep.setup_py)
-                except (ImportError, TypeError, AttributeError):
-                    dist = None
-                else:
-                    setup_requires[dist.get_name()] = dist.setup_requires
-                if not dist:
-                    try:
-                        dist = dep.get_dist()
-                    except (TypeError, ValueError, AttributeError):
-                        pass
-                    else:
-                        setup_requires[dist.get_name()] = dist.setup_requires
-        resolver.require_hashes = False
-        try:
-            results = resolver._resolve_one(reqset, dep)
-        except Exception:
-            # FIXME: Needs to bubble the exception somehow to the user.
-            results = []
-        finally:
-            try:
-                wheel_cache.cleanup()
-            except AttributeError:
-                pass
-        resolver_requires_python = getattr(resolver, "requires_python", None)
-        requires_python = getattr(reqset, "requires_python", resolver_requires_python)
-        if requires_python:
-            add_marker = fix_requires_python_marker(requires_python)
-            reqset.remove(dep)
-            if dep.req.marker:
-                dep.req.marker._markers.extend(["and"].extend(add_marker._markers))
-            else:
-                dep.req.marker = add_marker
-            reqset.add(dep)
-        requirements = set()
-        for r in results:
-            if requires_python:
-                if r.req.marker:
-                    r.req.marker._markers.extend(["and"].extend(add_marker._markers))
-                else:
-                    r.req.marker = add_marker
-            requirements.add(format_requirement(r))
-        for section in setup_requires:
-            python_version = section
-            not_python = not is_python(section)
-
-            # This is for cleaning up :extras: formatted markers
-            # by adding them to the results of the resolver
-            # since any such extra would have been returned as a result anyway
-            for value in setup_requires[section]:
-
-                # This is a marker.
-                if is_python(section):
-                    python_version = value[1:-1]
-                else:
-                    not_python = True
-
-                if ":" not in value and not_python:
-                    try:
-                        requirement_str = "{0}{1}".format(value, python_version).replace(
-                            ":", ";"
-                        )
-                        requirements.add(
-                            format_requirement(
-                                make_install_requirement(requirement_str).ireq
-                            )
-                        )
-                    # Anything could go wrong here -- can't be too careful.
-                    except Exception:
-                        pass
-
+            setup_info = SetupInfo.from_ireq(dep)
+            results = setup_info.get_info()
+            setup_requires.update(results["setup_requires"])
+            requirements = set(results["requires"].values())
+        else:
+            results = pip_shims.shims.resolve(dep)
+            requirements = [v for v in results.values() if v.name != dep.name]
+        requirements = set([format_requirement(r) for r in requirements])
     if not dep.editable and is_pinned_requirement(dep) and requirements is not None:
         DEPENDENCY_CACHE[dep] = list(requirements)
     return requirements
 
 
-def get_pip_options(args=[], sources=None, pip_command=None):
-    """Build a pip command from a list of sources
+def get_pip_options(args=None, sources=None, pip_command=None):
+    """Build a pip command from a list of sources.
 
     :param args: positional arguments passed through to the pip parser
     :param sources: A list of pipfile-formatted sources, defaults to None
     :param sources: list[dict], optional
     :param pip_command: A pre-built pip command instance
-    :type pip_command: :class:`~pip._internal.cli.base_command.Command`
+    :type pip_command: :class:`~pipenv.patched.notpip._internal.cli.base_command.Command`
     :return: An instance of pip_options using the supplied arguments plus sane defaults
-    :rtype: :class:`~pip._internal.cli.cmdoptions`
+    :rtype: :class:`~pipenv.patched.notpip._internal.cli.cmdoptions`
     """
 
     if not pip_command:
@@ -597,7 +527,7 @@ def get_pip_options(args=[], sources=None, pip_command=None):
     if not sources:
         sources = [{"url": "https://pypi.org/simple", "name": "pypi", "verify_ssl": True}]
     _ensure_dir(CACHE_DIR)
-    pip_args = args
+    pip_args = args or []
     pip_args = prepare_pip_source_args(sources, pip_args)
     pip_options, _ = pip_command.parser.parse_args(pip_args)
     pip_options.cache_dir = CACHE_DIR
@@ -606,95 +536,96 @@ def get_pip_options(args=[], sources=None, pip_command=None):
 
 def get_finder(sources=None, pip_command=None, pip_options=None):
     # type: (List[Dict[S, Union[S, bool]]], Optional[Command], Any) -> PackageFinder
-    """Get a package finder for looking up candidates to install
+    """Get a package finder for looking up candidates to install.
 
     :param sources: A list of pipfile-formatted sources, defaults to None
     :param sources: list[dict], optional
     :param pip_command: A pip command instance, defaults to None
-    :type pip_command: :class:`~pip._internal.cli.base_command.Command`
+    :type pip_command: :class:`~pipenv.patched.notpip._internal.cli.base_command.Command`
     :param pip_options: A pip options, defaults to None
-    :type pip_options: :class:`~pip._internal.cli.cmdoptions`
+    :type pip_options: :class:`~pipenv.patched.notpip._internal.cli.cmdoptions`
     :return: A package finder
-    :rtype: :class:`~pip._internal.index.PackageFinder`
+    :rtype: :class:`~pipenv.patched.notpip._internal.index.PackageFinder`
     """
 
     if not pip_command:
-        pip_command = get_pip_command()
+        pip_command = pip_shims.shims.InstallCommand()
     if not sources:
         sources = [{"url": "https://pypi.org/simple", "name": "pypi", "verify_ssl": True}]
     if not pip_options:
         pip_options = get_pip_options(sources=sources, pip_command=pip_command)
     session = pip_command._build_session(pip_options)
     atexit.register(session.close)
-    finder = pip_shims.shims.PackageFinder(
-        find_links=[],
-        index_urls=[s.get("url") for s in sources],
-        trusted_hosts=[],
-        allow_all_prereleases=pip_options.pre,
-        session=session,
+    finder = pip_shims.shims.get_package_finder(
+        pip_shims.shims.InstallCommand(), options=pip_options, session=session
     )
-    return finder
+    return session, finder
 
 
 @contextlib.contextmanager
-def start_resolver(finder=None, wheel_cache=None):
+def start_resolver(finder=None, session=None, wheel_cache=None):
     """Context manager to produce a resolver.
 
     :param finder: A package finder to use for searching the index
-    :type finder: :class:`~pip._internal.index.PackageFinder`
+    :type finder: :class:`~pipenv.patched.notpip._internal.index.PackageFinder`
+    :param :class:`~requests.Session` session: A session instance
+    :param :class:`~pipenv.patched.notpip._internal.cache.WheelCache` wheel_cache: A pip WheelCache instance
     :return: A 3-tuple of finder, preparer, resolver
-    :rtype: (:class:`~pip._internal.operations.prepare.RequirementPreparer`, :class:`~pip._internal.resolve.Resolver`)
+    :rtype: (:class:`~pipenv.patched.notpip._internal.operations.prepare.RequirementPreparer`,
+             :class:`~pipenv.patched.notpip._internal.resolve.Resolver`)
     """
 
     pip_command = get_pip_command()
     pip_options = get_pip_options(pip_command=pip_command)
-
+    session = None
     if not finder:
-        finder = get_finder(pip_command=pip_command, pip_options=pip_options)
-
-    if not wheel_cache:
-        wheel_cache = WHEEL_CACHE
-    _ensure_dir(fs_str(os.path.join(wheel_cache.cache_dir, "wheels")))
+        session, finder = get_finder(pip_command=pip_command, pip_options=pip_options)
+    if not session:
+        session = pip_command._build_session(pip_options)
 
     download_dir = PKGS_DOWNLOAD_DIR
     _ensure_dir(download_dir)
 
     _build_dir = create_tracked_tempdir(fs_str("build"))
     _source_dir = create_tracked_tempdir(fs_str("source"))
-    preparer = partialclass(
-        pip_shims.shims.RequirementPreparer,
-        build_dir=_build_dir,
-        src_dir=_source_dir,
-        download_dir=download_dir,
-        wheel_download_dir=WHEEL_DOWNLOAD_DIR,
-        progress_bar="off",
-        build_isolation=False,
-    )
-    resolver = partialclass(
-        pip_shims.shims.Resolver,
-        finder=finder,
-        session=finder.session,
-        upgrade_strategy="to-satisfy-only",
-        force_reinstall=True,
-        ignore_dependencies=False,
-        ignore_requires_python=True,
-        ignore_installed=True,
-        isolated=False,
-        wheel_cache=wheel_cache,
-        use_user_site=False,
-    )
     try:
-        if packaging.version.parse(
-            pip_shims.shims.pip_version
-        ) >= packaging.version.parse("18"):
-            with pip_shims.shims.RequirementTracker() as req_tracker:
-                preparer = preparer(req_tracker=req_tracker)
-                yield resolver(preparer=preparer)
-        else:
-            preparer = preparer()
-            yield resolver(preparer=preparer)
+        with ExitStack() as ctx:
+            ctx.enter_context(pip_shims.shims.global_tempdir_manager())
+            if not wheel_cache:
+                wheel_cache = ctx.enter_context(_get_wheel_cache())
+            _ensure_dir(fs_str(os.path.join(wheel_cache.cache_dir, "wheels")))
+            preparer = ctx.enter_context(
+                pip_shims.shims.make_preparer(
+                    options=pip_options,
+                    finder=finder,
+                    session=session,
+                    build_dir=_build_dir,
+                    src_dir=_source_dir,
+                    download_dir=download_dir,
+                    wheel_download_dir=WHEEL_DOWNLOAD_DIR,
+                    progress_bar="off",
+                    build_isolation=False,
+                    install_cmd=pip_command,
+                )
+            )
+            resolver = pip_shims.shims.get_resolver(
+                finder=finder,
+                ignore_dependencies=False,
+                ignore_requires_python=True,
+                preparer=preparer,
+                session=session,
+                options=pip_options,
+                install_cmd=pip_command,
+                wheel_cache=wheel_cache,
+                force_reinstall=True,
+                ignore_installed=True,
+                upgrade_strategy="to-satisfy-only",
+                isolated=False,
+                use_user_site=False,
+            )
+            yield resolver
     finally:
-        finder.session.close()
+        session.close()
 
 
 def get_grouped_dependencies(constraints):
@@ -704,10 +635,10 @@ def get_grouped_dependencies(constraints):
     # then we take the loose match (which _is_ flexible) and start moving backwards in
     # versions by popping them off of a stack and checking for the conflicting package
     for _, ireqs in full_groupby(constraints, key=key_from_ireq):
-        ireqs = list(ireqs)
-        editable_ireq = first(ireqs, key=lambda ireq: ireq.editable)
+        ireqs = sorted(ireqs, key=lambda ireq: ireq.editable)
+        editable_ireq = next(iter(ireq for ireq in ireqs if ireq.editable), None)
         if editable_ireq:
-            yield editable_ireq  # ignore all the other specs: the editable one is the one that counts
+            yield editable_ireq  # only the editable match mattters, ignore all others
             continue
         ireqs = iter(ireqs)
         # deepcopy the accumulator so as to not modify the self.our_constraints invariant

@@ -5,11 +5,10 @@ import abc
 import operator
 from collections import defaultdict
 
-import attr
-import six
-from cached_property import cached_property
-from vistir.compat import fs_str
+import pipenv.vendor.attr as attr
+import pipenv.vendor.six as six
 
+from ..compat import fs_str
 from ..environment import MYPY_RUNNING
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
@@ -36,7 +35,7 @@ if MYPY_RUNNING:
         TypeVar,
         Type,
     )
-    from vistir.compat import Path
+    from ..compat import Path  # noqa
 
     BaseFinderType = TypeVar("BaseFinderType")
 
@@ -45,17 +44,17 @@ if MYPY_RUNNING:
 class BasePath(object):
     path = attr.ib(default=None)  # type: Path
     _children = attr.ib(
-        default=attr.Factory(dict), cmp=False
+        default=attr.Factory(dict), order=False
     )  # type: Dict[str, PathEntry]
     only_python = attr.ib(default=False)  # type: bool
     name = attr.ib(type=str)
-    _py_version = attr.ib(default=None, cmp=False)  # type: Optional[PythonVersion]
+    _py_version = attr.ib(default=None, order=False)  # type: Optional[PythonVersion]
     _pythons = attr.ib(
-        default=attr.Factory(defaultdict), cmp=False
+        default=attr.Factory(defaultdict), order=False
     )  # type: DefaultDict[str, PathEntry]
-    _is_dir = attr.ib(default=None, cmp=False)  # type: Optional[bool]
-    _is_executable = attr.ib(default=None, cmp=False)  # type: Optional[bool]
-    _is_python = attr.ib(default=None, cmp=False)  # type: Optional[bool]
+    _is_dir = attr.ib(default=None, order=False)  # type: Optional[bool]
+    _is_executable = attr.ib(default=None, order=False)  # type: Optional[bool]
+    _is_python = attr.ib(default=None, order=False)  # type: Optional[bool]
 
     def __str__(self):
         # type: () -> str
@@ -174,7 +173,6 @@ class BasePath(object):
         # type: () -> None
         self._is_dir = None
 
-    # @cached_property
     @property
     def is_executable(self):
         # type: () -> bool
@@ -195,7 +193,6 @@ class BasePath(object):
         # type: () -> None
         self._is_executable = None
 
-    # @cached_property
     @property
     def is_python(self):
         # type: () -> bool
@@ -240,7 +237,6 @@ class BasePath(object):
             return py_version
         return None
 
-    # @cached_property
     @property
     def py_version(self):
         # type: () -> Optional[PythonVersion]
