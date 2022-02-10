@@ -1,0 +1,1 @@
+New CLI command ``verify``, checks the Pipfile.lock is up-to-date

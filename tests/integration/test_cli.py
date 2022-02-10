@@ -3,7 +3,7 @@
 
 import os
 import re
-
+from pathlib import Path
 import pytest
 
 from flaky import flaky
@@ -291,3 +291,44 @@ sqlalchemy = "<=1.2.3"
             f.write(contents)
         c = p.pipenv('update --pre --outdated')
         assert c.returncode == 0
+
+
+@pytest.mark.cli
+def test_pipenv_verify_without_pipfile(PipenvInstance):
+    with PipenvInstance(pipfile=False) as p:
+        c = p.pipenv('verify')
+        assert c.returncode == 1
+        assert 'No Pipfile present at project home.' in c.stderr
+
+
+@pytest.mark.cli
+def test_pipenv_verify_without_pipfile_lock(PipenvInstance):
+    with PipenvInstance() as p:
+        c = p.pipenv('verify')
+        assert c.returncode == 1
+        assert 'Pipfile.lock is out-of-date.' in c.stderr
+
+
+@pytest.mark.cli
+def test_pipenv_verify_locked_passing(PipenvInstance):
+    with PipenvInstance() as p:
+        p.pipenv('lock')
+        c = p.pipenv('verify')
+        assert c.returncode == 0
+        assert 'Pipfile.lock is up-to-date.' in c.stdout
+
+
+@pytest.mark.cli
+def test_pipenv_verify_locked_outdated_failing(PipenvInstance):
+    with PipenvInstance() as p:
+        p.pipenv('lock')
+
+        # modify the Pipfile
+        pf = Path(p.path).joinpath('Pipfile')
+        pf_data = pf.read_text()
+        pf_new = re.sub(r'\[packages\]', '[packages]\nrequests = "*"', pf_data)
+        pf.write_text(pf_new)
+
+        c = p.pipenv('verify')
+        assert c.returncode == 1
+        assert 'Pipfile.lock is out-of-date.' in c.stderr

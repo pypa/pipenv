@@ -133,6 +133,12 @@ Or you can install packages exactly as specified in ``Pipfile.lock`` using the `
 
     ``pipenv install --ignore-pipfile`` is nearly equivalent to ``pipenv sync``, but ``pipenv sync`` will *never* attempt to re-lock your dependencies as it is considered an atomic operation.  ``pipenv install`` by default does attempt to re-lock unless using the ``--deploy`` flag.
 
+You may only wish to verify your ``Pipfile.lock`` is up-to-date with dependencies specified in the ``Pipfile``, without installing::
+
+    $ pipenv verify
+
+The command will perform a verification, and return an exit code ``1`` when dependency locking is needed. This may be useful for cases when the ``Pipfile.lock`` file is subject to version control, so this command can be used within your CI/CD pipelines.
+
 Deploying System Dependencies
 /////////////////////////////
 
