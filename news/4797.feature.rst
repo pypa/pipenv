@@ -1,0 +1,1 @@
+Use environment variable `PIPENV_SKIP_LOCK` to control the behaviour of lock skipping.
