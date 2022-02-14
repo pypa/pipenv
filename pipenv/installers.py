@@ -1,6 +1,7 @@
 import os
 import operator
 import re
+import sys
 from abc import ABCMeta, abstractmethod
 
 from pipenv.vendor import attr
@@ -81,7 +82,7 @@ class Installer(metaclass=ABCMeta):
         installer.
 
         pyenv/asdf are not always present on PATH. Both installers also support a
-        custom environment variable (PYENV_ROOT or ASDF_DIR) which alows them to
+        custom environment variable (PYENV_ROOT or ASDF_DIR) which allows them to
         be installed into a non-default location (the default/suggested source
         install location is in ~/.pyenv or ~/.asdf).
 
@@ -113,11 +114,12 @@ class Installer(metaclass=ABCMeta):
 
     def _run(self, *args, **kwargs):
         timeout = kwargs.pop('timeout', 30)
+        shell = kwargs.pop('shell', False)
         if kwargs:
             k = list(kwargs.keys())[0]
             raise TypeError(f'unexpected keyword argument {k!r}')
         args = (self.cmd,) + tuple(args)
-        c = subprocess_run(args, timeout=timeout)
+        c = subprocess_run(args, timeout=timeout, shell=shell)
         if c.returncode != 0:
             raise InstallerError(f'failed to run {args}', c)
         return c
@@ -162,9 +164,15 @@ class Installer(metaclass=ABCMeta):
 
 
 class Pyenv(Installer):
+    WIN = sys.platform.startswith("win") or (sys.platform == "cli" and os.name == "nt")
 
     def _find_installer(self):
         return self._find_python_installer_by_name_and_env('pyenv', 'PYENV_ROOT')
+
+    def _run(self, *args, **kwargs):
+        if Pyenv.WIN:
+            kwargs['shell'] = True
+        return super(Pyenv, self)._run(*args, **kwargs)
 
     def iter_installable_versions(self):
         """Iterate through CPython versions available for Pipenv to install.
@@ -183,11 +191,11 @@ class Pyenv(Installer):
         A ValueError is raised if the given version does not have a match in
         pyenv. A InstallerError is raised if the pyenv command fails.
         """
-        c = self._run(
-            'install', '-s', str(version),
-            timeout=self.project.s.PIPENV_INSTALL_TIMEOUT,
-        )
-        return c
+        args = ['install', '-s', str(version)]
+        if Pyenv.WIN:
+            # pyenv-win skips installed versions by default and does not support -s
+            del args[1]
+        return self._run(*args, timeout=self.project.s.PIPENV_INSTALL_TIMEOUT)
 
 
 class Asdf(Installer):
