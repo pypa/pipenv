@@ -1623,7 +1623,7 @@ def find_windows_executable(bin_path, exe_name):
             if os.path.isfile(path):
                 return path
 
-    return find_executable(exe_name)
+    return shutil.which(exe_name)
 
 
 def path_to_url(path):
