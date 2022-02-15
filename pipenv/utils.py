@@ -14,7 +14,6 @@ import sys
 import warnings
 
 from contextlib import contextmanager
-from distutils.spawn import find_executable
 from pathlib import Path
 from urllib.parse import urlparse
 
