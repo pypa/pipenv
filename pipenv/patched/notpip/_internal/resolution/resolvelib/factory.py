@@ -295,6 +295,8 @@ class Factory:
                 )
                 yield ican.version, func
 
+            raise StopIteration
+
         return FoundCandidates(
             iter_index_candidate_infos,
             _get_installed_candidate(),
