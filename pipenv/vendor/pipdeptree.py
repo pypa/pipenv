@@ -20,11 +20,12 @@ try:
 except ImportError:
     from collections import Mapping
 
-from pipenv.patched.notpip._vendor import pkg_resources
-try:
-    from pipenv.patched.notpip._internal.operations.freeze import FrozenRequirement
-except ImportError:
-    from pipenv.patched.notpip import FrozenRequirement
+import pkg_resources
+
+pardir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(pardir)
+from pipenv.vendor.pip_shims.shims import get_installed_distributions, FrozenRequirement
+
 # inline:
 # from graphviz import Digraph
 # from graphviz import parameters
