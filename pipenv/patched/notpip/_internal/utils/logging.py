@@ -4,27 +4,27 @@ import logging
 import logging.handlers
 import os
 import sys
+import threading
+from dataclasses import dataclass
 from logging import Filter
-from typing import IO, Any, Callable, Iterator, Optional, TextIO, Type, cast
+from typing import IO, Any, ClassVar, Iterator, List, Optional, TextIO, Type
 
+from pipenv.patched.notpip._vendor.rich.console import (
+    Console,
+    ConsoleOptions,
+    ConsoleRenderable,
+    RenderResult,
+)
+from pipenv.patched.notpip._vendor.rich.highlighter import NullHighlighter
+from pipenv.patched.notpip._vendor.rich.logging import RichHandler
+from pipenv.patched.notpip._vendor.rich.segment import Segment
+from pipenv.patched.notpip._vendor.rich.style import Style
+
+from pipenv.patched.notpip._internal.exceptions import DiagnosticPipError
 from pipenv.patched.notpip._internal.utils._log import VERBOSE, getLogger
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 from pipenv.patched.notpip._internal.utils.deprecation import DEPRECATION_MSG_PREFIX
 from pipenv.patched.notpip._internal.utils.misc import ensure_dir
-
-try:
-    import threading
-except ImportError:
-    import dummy_threading as threading  # type: ignore
-
-
-try:
-    from pipenv.patched.notpip._vendor import colorama
-# Lots of different errors can come from this, including SystemError and
-# ImportError.
-except Exception:
-    colorama = None
-
 
 _log_state = threading.local()
 subprocess_logger = getLogger("pip.subprocessor")
@@ -35,39 +35,22 @@ class BrokenStdoutLoggingError(Exception):
     Raised if BrokenPipeError occurs for the stdout stream while logging.
     """
 
-    pass
 
+def _is_broken_pipe_error(exc_class: Type[BaseException], exc: BaseException) -> bool:
+    if exc_class is BrokenPipeError:
+        return True
 
-# BrokenPipeError manifests differently in Windows and non-Windows.
-if WINDOWS:
-    # In Windows, a broken pipe can show up as EINVAL rather than EPIPE:
+    # On Windows, a broken pipe can show up as EINVAL rather than EPIPE:
     # https://bugs.python.org/issue19612
     # https://bugs.python.org/issue30418
-    def _is_broken_pipe_error(exc_class, exc):
-        # type: (Type[BaseException], BaseException) -> bool
-        """See the docstring for non-Windows below."""
-        return (exc_class is BrokenPipeError) or (
-            isinstance(exc, OSError) and exc.errno in (errno.EINVAL, errno.EPIPE)
-        )
+    if not WINDOWS:
+        return False
 
-
-else:
-    # Then we are in the non-Windows case.
-    def _is_broken_pipe_error(exc_class, exc):
-        # type: (Type[BaseException], BaseException) -> bool
-        """
-        Return whether an exception is a broken pipe error.
-
-        Args:
-          exc_class: an exception class.
-          exc: an exception instance.
-        """
-        return exc_class is BrokenPipeError
+    return isinstance(exc, OSError) and exc.errno in (errno.EINVAL, errno.EPIPE)
 
 
 @contextlib.contextmanager
-def indent_log(num=2):
-    # type: (int) -> Iterator[None]
+def indent_log(num: int = 2) -> Iterator[None]:
     """
     A context manager which will cause the log output to be indented for any
     log messages emitted inside it.
@@ -81,8 +64,7 @@ def indent_log(num=2):
         _log_state.indentation -= num
 
 
-def get_indentation():
-    # type: () -> int
+def get_indentation() -> int:
     return getattr(_log_state, "indentation", 0)
 
 
@@ -91,11 +73,10 @@ class IndentingFormatter(logging.Formatter):
 
     def __init__(
         self,
-        *args,  # type: Any
-        add_timestamp=False,  # type: bool
-        **kwargs,  # type: Any
-    ):
-        # type: (...) -> None
+        *args: Any,
+        add_timestamp: bool = False,
+        **kwargs: Any,
+    ) -> None:
         """
         A logging.Formatter that obeys the indent_log() context manager.
 
@@ -105,8 +86,7 @@ class IndentingFormatter(logging.Formatter):
         self.add_timestamp = add_timestamp
         super().__init__(*args, **kwargs)
 
-    def get_message_start(self, formatted, levelno):
-        # type: (str, int) -> str
+    def get_message_start(self, formatted: str, levelno: int) -> str:
         """
         Return the start of the formatted log message (not counting the
         prefix to add to each line).
@@ -122,8 +102,7 @@ class IndentingFormatter(logging.Formatter):
 
         return "ERROR: "
 
-    def format(self, record):
-        # type: (logging.LogRecord) -> str
+    def format(self, record: logging.LogRecord) -> str:
         """
         Calls the standard formatter, but will indent all of the log message
         lines by our current indentation level.
@@ -140,85 +119,63 @@ class IndentingFormatter(logging.Formatter):
         return formatted
 
 
-def _color_wrap(*colors):
-    # type: (*str) -> Callable[[str], str]
-    def wrapped(inp):
-        # type: (str) -> str
-        return "".join(list(colors) + [inp, colorama.Style.RESET_ALL])
+@dataclass
+class IndentedRenderable:
+    renderable: ConsoleRenderable
+    indent: int
 
-    return wrapped
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
+        segments = console.render(self.renderable, options)
+        lines = Segment.split_lines(segments)
+        for line in lines:
+            yield Segment(" " * self.indent)
+            yield from line
+            yield Segment("\n")
 
 
-class ColorizedStreamHandler(logging.StreamHandler):
+class RichPipStreamHandler(RichHandler):
+    KEYWORDS: ClassVar[Optional[List[str]]] = []
 
-    # Don't build up a list of colors if we don't have colorama
-    if colorama:
-        COLORS = [
-            # This needs to be in order from highest logging level to lowest.
-            (logging.ERROR, _color_wrap(colorama.Fore.RED)),
-            (logging.WARNING, _color_wrap(colorama.Fore.YELLOW)),
-        ]
-    else:
-        COLORS = []
-
-    def __init__(self, stream=None, no_color=None):
-        # type: (Optional[TextIO], bool) -> None
-        super().__init__(stream)
-        self._no_color = no_color
-
-        if WINDOWS and colorama:
-            self.stream = colorama.AnsiToWin32(self.stream)
-
-    def _using_stdout(self):
-        # type: () -> bool
-        """
-        Return whether the handler is using sys.stdout.
-        """
-        if WINDOWS and colorama:
-            # Then self.stream is an AnsiToWin32 object.
-            stream = cast(colorama.AnsiToWin32, self.stream)
-            return stream.wrapped is sys.stdout
-
-        return self.stream is sys.stdout
-
-    def should_color(self):
-        # type: () -> bool
-        # Don't colorize things if we do not have colorama or if told not to
-        if not colorama or self._no_color:
-            return False
-
-        real_stream = (
-            self.stream
-            if not isinstance(self.stream, colorama.AnsiToWin32)
-            else self.stream.wrapped
+    def __init__(self, stream: Optional[TextIO], no_color: bool) -> None:
+        super().__init__(
+            console=Console(file=stream, no_color=no_color, soft_wrap=True),
+            show_time=False,
+            show_level=False,
+            show_path=False,
+            highlighter=NullHighlighter(),
         )
 
-        # If the stream is a tty we should color it
-        if hasattr(real_stream, "isatty") and real_stream.isatty():
-            return True
+    # Our custom override on Rich's logger, to make things work as we need them to.
+    def emit(self, record: logging.LogRecord) -> None:
+        style: Optional[Style] = None
 
-        # If we have an ANSI term we should color it
-        if os.environ.get("TERM") == "ANSI":
-            return True
+        # If we are given a diagnostic error to present, present it with indentation.
+        if record.msg == "[present-diagnostic] %s" and len(record.args) == 1:
+            diagnostic_error: DiagnosticPipError = record.args[0]  # type: ignore[index]
+            assert isinstance(diagnostic_error, DiagnosticPipError)
 
-        # If anything else we should not color it
-        return False
+            renderable: ConsoleRenderable = IndentedRenderable(
+                diagnostic_error, indent=get_indentation()
+            )
+        else:
+            message = self.format(record)
+            renderable = self.render_message(record, message)
+            if record.levelno is not None:
+                if record.levelno >= logging.ERROR:
+                    style = Style(color="red")
+                elif record.levelno >= logging.WARNING:
+                    style = Style(color="yellow")
 
-    def format(self, record):
-        # type: (logging.LogRecord) -> str
-        msg = super().format(record)
+        try:
+            self.console.print(renderable, overflow="ignore", crop=False, style=style)
+        except Exception:
+            self.handleError(record)
 
-        if self.should_color():
-            for level, color in self.COLORS:
-                if record.levelno >= level:
-                    msg = color(msg)
-                    break
+    def handleError(self, record: logging.LogRecord) -> None:
+        """Called when logging is unable to log some output."""
 
-        return msg
-
-    # The logging module says handleError() can be customized.
-    def handleError(self, record):
-        # type: (logging.LogRecord) -> None
         exc_class, exc = sys.exc_info()[:2]
         # If a broken pipe occurred while calling write() or flush() on the
         # stdout stream in logging's Handler.emit(), then raise our special
@@ -227,7 +184,7 @@ class ColorizedStreamHandler(logging.StreamHandler):
         if (
             exc_class
             and exc
-            and self._using_stdout()
+            and self.console.file is sys.stdout
             and _is_broken_pipe_error(exc_class, exc)
         ):
             raise BrokenStdoutLoggingError()
@@ -236,19 +193,16 @@ class ColorizedStreamHandler(logging.StreamHandler):
 
 
 class BetterRotatingFileHandler(logging.handlers.RotatingFileHandler):
-    def _open(self):
-        # type: () -> IO[Any]
+    def _open(self) -> IO[Any]:
         ensure_dir(os.path.dirname(self.baseFilename))
         return super()._open()
 
 
 class MaxLevelFilter(Filter):
-    def __init__(self, level):
-        # type: (int) -> None
+    def __init__(self, level: int) -> None:
         self.level = level
 
-    def filter(self, record):
-        # type: (logging.LogRecord) -> bool
+    def filter(self, record: logging.LogRecord) -> bool:
         return record.levelno < self.level
 
 
@@ -258,15 +212,13 @@ class ExcludeLoggerFilter(Filter):
     A logging Filter that excludes records from a logger (or its children).
     """
 
-    def filter(self, record):
-        # type: (logging.LogRecord) -> bool
+    def filter(self, record: logging.LogRecord) -> bool:
         # The base Filter class allows only records from a logger (or its
         # children).
         return not super().filter(record)
 
 
-def setup_logging(verbosity, no_color, user_log_file):
-    # type: (int, bool, Optional[str]) -> int
+def setup_logging(verbosity: int, no_color: bool, user_log_file: Optional[str]) -> int:
     """Configures and sets up all of the logging
 
     Returns the requested logging level, as its integer value.
@@ -308,7 +260,7 @@ def setup_logging(verbosity, no_color, user_log_file):
         "stderr": "ext://sys.stderr",
     }
     handler_classes = {
-        "stream": "pipenv.patched.notpip._internal.utils.logging.ColorizedStreamHandler",
+        "stream": "pipenv.patched.notpip._internal.utils.logging.RichPipStreamHandler",
         "file": "pipenv.patched.notpip._internal.utils.logging.BetterRotatingFileHandler",
     }
     handlers = ["console", "console_errors", "console_subprocess"] + (
@@ -366,8 +318,8 @@ def setup_logging(verbosity, no_color, user_log_file):
                 "console_subprocess": {
                     "level": level,
                     "class": handler_classes["stream"],
-                    "no_color": no_color,
                     "stream": log_streams["stderr"],
+                    "no_color": no_color,
                     "filters": ["restrict_to_subprocess"],
                     "formatter": "indent",
                 },

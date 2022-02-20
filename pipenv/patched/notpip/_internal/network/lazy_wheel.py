@@ -8,33 +8,33 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 from zipfile import BadZipfile, ZipFile
 
-from pipenv.patched.notpip._vendor.pkg_resources import Distribution
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.notpip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
 
+from pipenv.patched.notpip._internal.metadata import BaseDistribution, MemoryWheel, get_wheel_distribution
 from pipenv.patched.notpip._internal.network.session import PipSession
 from pipenv.patched.notpip._internal.network.utils import HEADERS, raise_for_status, response_chunks
-from pipenv.patched.notpip._internal.utils.wheel import pkg_resources_distribution_for_wheel
 
 
 class HTTPRangeRequestUnsupported(Exception):
     pass
 
 
-def dist_from_wheel_url(name: str, url: str, session: PipSession) -> Distribution:
-    """Return a pkg_resources.Distribution from the given wheel URL.
+def dist_from_wheel_url(name: str, url: str, session: PipSession) -> BaseDistribution:
+    """Return a distribution object from the given wheel URL.
 
     This uses HTTP range requests to only fetch the potion of the wheel
     containing metadata, just enough for the object to be constructed.
     If such requests are not supported, HTTPRangeRequestUnsupported
     is raised.
     """
-    with LazyZipOverHTTP(url, session) as wheel:
+    with LazyZipOverHTTP(url, session) as zf:
         # For read-only ZIP files, ZipFile only needs methods read,
         # seek, seekable and tell, not the whole IO protocol.
-        zip_file = ZipFile(wheel)  # type: ignore
+        wheel = MemoryWheel(zf.name, zf)  # type: ignore
         # After context manager exit, wheel.name
         # is an invalid file by intention.
-        return pkg_resources_distribution_for_wheel(zip_file, name, wheel.name)
+        return get_wheel_distribution(wheel, canonicalize_name(name))
 
 
 class LazyZipOverHTTP:

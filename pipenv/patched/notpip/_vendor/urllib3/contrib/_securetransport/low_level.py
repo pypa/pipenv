@@ -188,6 +188,7 @@ def _cert_array_from_pem(pem_bundle):
         # We only want to do that if an error occurs: otherwise, the caller
         # should free.
         CoreFoundation.CFRelease(cert_array)
+        raise
 
     return cert_array
 

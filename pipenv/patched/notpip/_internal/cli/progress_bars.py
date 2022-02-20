@@ -1,10 +1,23 @@
+import functools
 import itertools
 import sys
 from signal import SIGINT, default_int_handler, signal
-from typing import Any
+from typing import Any, Callable, Iterator, Optional, Tuple
 
 from pipenv.patched.notpip._vendor.progress.bar import Bar, FillingCirclesBar, IncrementalBar
 from pipenv.patched.notpip._vendor.progress.spinner import Spinner
+from pipenv.patched.notpip._vendor.rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    FileSizeColumn,
+    Progress,
+    ProgressColumn,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
+)
 
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 from pipenv.patched.notpip._internal.utils.logging import get_indentation
@@ -16,6 +29,8 @@ try:
 # ImportError.
 except Exception:
     colorama = None
+
+DownloadProgressRenderer = Callable[[Iterator[bytes]], Iterator[bytes]]
 
 
 def _select_progress_class(preferred: Bar, fallback: Bar) -> Bar:
@@ -243,8 +258,64 @@ BAR_TYPES = {
 }
 
 
-def DownloadProgressProvider(progress_bar, max=None):  # type: ignore
+def _legacy_progress_bar(
+    progress_bar: str, max: Optional[int]
+) -> DownloadProgressRenderer:
     if max is None or max == 0:
-        return BAR_TYPES[progress_bar][1]().iter
+        return BAR_TYPES[progress_bar][1]().iter  # type: ignore
     else:
         return BAR_TYPES[progress_bar][0](max=max).iter
+
+
+#
+# Modern replacement, for our legacy progress bars.
+#
+def _rich_progress_bar(
+    iterable: Iterator[bytes],
+    *,
+    bar_type: str,
+    size: int,
+) -> Iterator[bytes]:
+    assert bar_type == "on", "This should only be used in the default mode."
+
+    if not size:
+        total = float("inf")
+        columns: Tuple[ProgressColumn, ...] = (
+            TextColumn("[progress.description]{task.description}"),
+            SpinnerColumn("line", speed=1.5),
+            FileSizeColumn(),
+            TransferSpeedColumn(),
+            TimeElapsedColumn(),
+        )
+    else:
+        total = size
+        columns = (
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            DownloadColumn(),
+            TransferSpeedColumn(),
+            TextColumn("eta"),
+            TimeRemainingColumn(),
+        )
+
+    progress = Progress(*columns, refresh_per_second=30)
+    task_id = progress.add_task(" " * (get_indentation() + 2), total=total)
+    with progress:
+        for chunk in iterable:
+            yield chunk
+            progress.update(task_id, advance=len(chunk))
+
+
+def get_download_progress_renderer(
+    *, bar_type: str, size: Optional[int] = None
+) -> DownloadProgressRenderer:
+    """Get an object that can be used to render the download progress.
+
+    Returns a callable, that takes an iterable to "wrap".
+    """
+    if bar_type == "on":
+        return functools.partial(_rich_progress_bar, bar_type=bar_type, size=size)
+    elif bar_type == "off":
+        return iter  # no-op, when passed an iterator
+    else:
+        return _legacy_progress_bar(bar_type, size)

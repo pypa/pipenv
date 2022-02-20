@@ -9,7 +9,14 @@ class AbstractProvider(object):
         """
         raise NotImplementedError
 
-    def get_preference(self, identifier, resolutions, candidates, information):
+    def get_preference(
+        self,
+        identifier,
+        resolutions,
+        candidates,
+        information,
+        backtrack_causes,
+    ):
         """Produce a sort key for given requirement based on preference.
 
         The preference is defined as "I think this requirement should be
@@ -25,6 +32,8 @@ class AbstractProvider(object):
             Each value is an iterator of candidates.
         :param information: Mapping of requirement information of each package.
             Each value is an iterator of *requirement information*.
+        :param backtrack_causes: Sequence of requirement information that were
+            the requirements that caused the resolver to most recently backtrack.
 
         A *requirement information* instance is a named tuple with two members:
 

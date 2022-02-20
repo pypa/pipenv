@@ -27,6 +27,7 @@ if TYPE_CHECKING:
         summary: str
         versions: List[str]
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,17 +40,19 @@ class SearchCommand(Command, SessionCommandMixin):
 
     def add_options(self) -> None:
         self.cmd_opts.add_option(
-            '-i', '--index',
-            dest='index',
-            metavar='URL',
+            "-i",
+            "--index",
+            dest="index",
+            metavar="URL",
             default=PyPI.pypi_url,
-            help='Base URL of Python Package Index (default %default)')
+            help="Base URL of Python Package Index (default %default)",
+        )
 
         self.parser.insert_option_group(0, self.cmd_opts)
 
     def run(self, options: Values, args: List[str]) -> int:
         if not args:
-            raise CommandError('Missing required argument (search query).')
+            raise CommandError("Missing required argument (search query).")
         query = args
         pypi_hits = self.search(query, options)
         hits = transform_hits(pypi_hits)
@@ -71,7 +74,7 @@ class SearchCommand(Command, SessionCommandMixin):
         transport = PipXmlrpcTransport(index_url, session)
         pypi = xmlrpc.client.ServerProxy(index_url, transport)
         try:
-            hits = pypi.search({'name': query, 'summary': query}, 'or')
+            hits = pypi.search({"name": query, "summary": query}, "or")
         except xmlrpc.client.Fault as fault:
             message = "XMLRPC request failed [code: {code}]\n{string}".format(
                 code=fault.faultCode,
@@ -90,22 +93,22 @@ def transform_hits(hits: List[Dict[str, str]]) -> List["TransformedHit"]:
     """
     packages: Dict[str, "TransformedHit"] = OrderedDict()
     for hit in hits:
-        name = hit['name']
-        summary = hit['summary']
-        version = hit['version']
+        name = hit["name"]
+        summary = hit["summary"]
+        version = hit["version"]
 
         if name not in packages.keys():
             packages[name] = {
-                'name': name,
-                'summary': summary,
-                'versions': [version],
+                "name": name,
+                "summary": summary,
+                "versions": [version],
             }
         else:
-            packages[name]['versions'].append(version)
+            packages[name]["versions"].append(version)
 
             # if this is the highest version, replace summary and score
-            if version == highest_version(packages[name]['versions']):
-                packages[name]['summary'] = summary
+            if version == highest_version(packages[name]["versions"]):
+                packages[name]["summary"] = summary
 
     return list(packages.values())
 
@@ -116,14 +119,17 @@ def print_dist_installation_info(name: str, latest: str) -> None:
     if dist is not None:
         with indent_log():
             if dist.version == latest:
-                write_output('INSTALLED: %s (latest)', dist.version)
+                write_output("INSTALLED: %s (latest)", dist.version)
             else:
-                write_output('INSTALLED: %s', dist.version)
+                write_output("INSTALLED: %s", dist.version)
                 if parse_version(latest).pre:
-                    write_output('LATEST:    %s (pre-release; install'
-                                 ' with "pip install --pre")', latest)
+                    write_output(
+                        "LATEST:    %s (pre-release; install"
+                        " with `pip install --pre`)",
+                        latest,
+                    )
                 else:
-                    write_output('LATEST:    %s', latest)
+                    write_output("LATEST:    %s", latest)
 
 
 def print_results(
@@ -134,25 +140,29 @@ def print_results(
     if not hits:
         return
     if name_column_width is None:
-        name_column_width = max([
-            len(hit['name']) + len(highest_version(hit.get('versions', ['-'])))
-            for hit in hits
-        ]) + 4
+        name_column_width = (
+            max(
+                [
+                    len(hit["name"]) + len(highest_version(hit.get("versions", ["-"])))
+                    for hit in hits
+                ]
+            )
+            + 4
+        )
 
     for hit in hits:
-        name = hit['name']
-        summary = hit['summary'] or ''
-        latest = highest_version(hit.get('versions', ['-']))
+        name = hit["name"]
+        summary = hit["summary"] or ""
+        latest = highest_version(hit.get("versions", ["-"]))
         if terminal_width is not None:
             target_width = terminal_width - name_column_width - 5
             if target_width > 10:
                 # wrap and indent summary to fit terminal
                 summary_lines = textwrap.wrap(summary, target_width)
-                summary = ('\n' + ' ' * (name_column_width + 3)).join(
-                    summary_lines)
+                summary = ("\n" + " " * (name_column_width + 3)).join(summary_lines)
 
-        name_latest = f'{name} ({latest})'
-        line = f'{name_latest:{name_column_width}} - {summary}'
+        name_latest = f"{name} ({latest})"
+        line = f"{name_latest:{name_column_width}} - {summary}"
         try:
             write_output(line)
             print_dist_installation_info(name, latest)

@@ -10,9 +10,9 @@ pass on state. To be consistent, all options will follow this design.
 # The following comment should be removed at some point in the future.
 # mypy: strict-optional=False
 
+import logging
 import os
 import textwrap
-import warnings
 from functools import partial
 from optparse import SUPPRESS_HELP, Option, OptionGroup, OptionParser, Values
 from textwrap import dedent
@@ -29,6 +29,8 @@ from pipenv.patched.notpip._internal.models.index import PyPI
 from pipenv.patched.notpip._internal.models.target_python import TargetPython
 from pipenv.patched.notpip._internal.utils.hashes import STRONG_HASHES
 from pipenv.patched.notpip._internal.utils.misc import strtobool
+
+logger = logging.getLogger(__name__)
 
 
 def raise_option_error(parser: OptionParser, option: Option, msg: str) -> None:
@@ -76,10 +78,9 @@ def check_install_build_global(
     if any(map(getname, names)):
         control = options.format_control
         control.disallow_binaries()
-        warnings.warn(
+        logger.warning(
             "Disabling all use of wheels due to the use of --build-option "
             "/ --global-option / --install-option.",
-            stacklevel=2,
         )
 
 
@@ -151,6 +152,18 @@ help_: Callable[..., Option] = partial(
     help="Show help.",
 )
 
+debug_mode: Callable[..., Option] = partial(
+    Option,
+    "--debug",
+    dest="debug_mode",
+    action="store_true",
+    default=False,
+    help=(
+        "Let unhandled exceptions propagate outside the main subroutine, "
+        "instead of logging them to stderr."
+    ),
+)
+
 isolated_mode: Callable[..., Option] = partial(
     Option,
     "--isolated",
@@ -165,13 +178,15 @@ isolated_mode: Callable[..., Option] = partial(
 
 require_virtualenv: Callable[..., Option] = partial(
     Option,
-    # Run only if inside a virtualenv, bail if not.
     "--require-virtualenv",
     "--require-venv",
     dest="require_venv",
     action="store_true",
     default=False,
-    help=SUPPRESS_HELP,
+    help=(
+        "Allow pip to only run in a virtual environment; "
+        "exit with an error otherwise."
+    ),
 )
 
 verbose: Callable[..., Option] = partial(
@@ -719,18 +734,6 @@ no_deps: Callable[..., Option] = partial(
     help="Don't install package dependencies.",
 )
 
-build_dir: Callable[..., Option] = partial(
-    PipOption,
-    "-b",
-    "--build",
-    "--build-dir",
-    "--build-directory",
-    dest="build_dir",
-    type="path",
-    metavar="dir",
-    help=SUPPRESS_HELP,
-)
-
 ignore_requires_python: Callable[..., Option] = partial(
     Option,
     "--ignore-requires-python",
@@ -961,7 +964,12 @@ use_deprecated_feature: Callable[..., Option] = partial(
     metavar="feature",
     action="append",
     default=[],
-    choices=["legacy-resolver"],
+    choices=[
+        "legacy-resolver",
+        "out-of-tree-build",
+        "backtrack-on-build-failures",
+        "html5lib",
+    ],
     help=("Enable deprecated functionality, that will be removed in the future."),
 )
 
@@ -974,6 +982,7 @@ general_group: Dict[str, Any] = {
     "name": "General Options",
     "options": [
         help_,
+        debug_mode,
         isolated_mode,
         require_virtualenv,
         verbose,

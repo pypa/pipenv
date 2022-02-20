@@ -633,7 +633,7 @@ class SimpleScrapingLocator(Locator):
         self._threads = []
         for i in range(self.num_workers):
             t = threading.Thread(target=self._fetch)
-            t.setDaemon(True)
+            t.daemon = True
             t.start()
             self._threads.append(t)
 

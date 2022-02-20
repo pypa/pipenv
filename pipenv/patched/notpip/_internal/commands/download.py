@@ -37,7 +37,6 @@ class DownloadCommand(RequirementCommand):
     def add_options(self) -> None:
         self.cmd_opts.add_option(cmdoptions.constraints())
         self.cmd_opts.add_option(cmdoptions.requirements())
-        self.cmd_opts.add_option(cmdoptions.build_dir())
         self.cmd_opts.add_option(cmdoptions.no_deps())
         self.cmd_opts.add_option(cmdoptions.global_options())
         self.cmd_opts.add_option(cmdoptions.no_binary())
@@ -53,11 +52,14 @@ class DownloadCommand(RequirementCommand):
         self.cmd_opts.add_option(cmdoptions.ignore_requires_python())
 
         self.cmd_opts.add_option(
-            '-d', '--dest', '--destination-dir', '--destination-directory',
-            dest='download_dir',
-            metavar='dir',
+            "-d",
+            "--dest",
+            "--destination-dir",
+            "--destination-directory",
+            dest="download_dir",
+            metavar="dir",
             default=os.curdir,
-            help=("Download packages into <dir>."),
+            help="Download packages into <dir>.",
         )
 
         cmdoptions.add_target_python_options(self.cmd_opts)
@@ -111,6 +113,7 @@ class DownloadCommand(RequirementCommand):
             finder=finder,
             download_dir=options.download_dir,
             use_user_site=False,
+            verbosity=self.verbosity,
         )
 
         resolver = self.make_resolver(
@@ -123,9 +126,7 @@ class DownloadCommand(RequirementCommand):
 
         self.trace_basic_info(finder)
 
-        requirement_set = resolver.resolve(
-            reqs, check_supported_wheels=True
-        )
+        requirement_set = resolver.resolve(reqs, check_supported_wheels=True)
 
         downloaded: List[str] = []
         for req in requirement_set.requirements.values():
@@ -134,6 +135,6 @@ class DownloadCommand(RequirementCommand):
                 preparer.save_linked_requirement(req)
                 downloaded.append(req.name)
         if downloaded:
-            write_output('Successfully downloaded %s', ' '.join(downloaded))
+            write_output("Successfully downloaded %s", " ".join(downloaded))
 
         return SUCCESS

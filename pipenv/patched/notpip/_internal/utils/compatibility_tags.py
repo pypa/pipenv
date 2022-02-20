@@ -2,9 +2,10 @@
 """
 
 import re
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from pipenv.patched.notpip._vendor.packaging.tags import (
+    PythonVersion,
     Tag,
     compatible_tags,
     cpython_tags,
@@ -13,10 +14,6 @@ from pipenv.patched.notpip._vendor.packaging.tags import (
     interpreter_version,
     mac_platforms,
 )
-
-if TYPE_CHECKING:
-    from pipenv.patched.notpip._vendor.packaging.tags import PythonVersion
-
 
 _osx_arch_pat = re.compile(r"(.+)_(\d+)_(\d+)_(.+)")
 
@@ -95,7 +92,7 @@ def _expand_allowed_platforms(platforms: Optional[List[str]]) -> Optional[List[s
     return result
 
 
-def _get_python_version(version: str) -> "PythonVersion":
+def _get_python_version(version: str) -> PythonVersion:
     if len(version) > 1:
         return int(version[0]), int(version[1:])
     else:
@@ -132,7 +129,7 @@ def get_supported(
     """
     supported: List[Tag] = []
 
-    python_version: Optional["PythonVersion"] = None
+    python_version: Optional[PythonVersion] = None
     if version is not None:
         python_version = _get_python_version(version)
 

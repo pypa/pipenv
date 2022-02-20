@@ -1,10 +1,13 @@
 from typing import List, Optional
 
-from .base import BaseDistribution, BaseEnvironment
+from .base import BaseDistribution, BaseEnvironment, FilesystemWheel, MemoryWheel, Wheel
 
 __all__ = [
     "BaseDistribution",
     "BaseEnvironment",
+    "FilesystemWheel",
+    "MemoryWheel",
+    "Wheel",
     "get_default_environment",
     "get_environment",
     "get_wheel_distribution",
@@ -35,7 +38,18 @@ def get_environment(paths: Optional[List[str]]) -> BaseEnvironment:
     return Environment.from_paths(paths)
 
 
-def get_wheel_distribution(wheel_path: str, canonical_name: str) -> BaseDistribution:
+def get_directory_distribution(directory: str) -> BaseDistribution:
+    """Get the distribution metadata representation in the specified directory.
+
+    This returns a Distribution instance from the chosen backend based on
+    the given on-disk ``.dist-info`` directory.
+    """
+    from .pkg_resources import Distribution
+
+    return Distribution.from_directory(directory)
+
+
+def get_wheel_distribution(wheel: Wheel, canonical_name: str) -> BaseDistribution:
     """Get the representation of the specified wheel's distribution metadata.
 
     This returns a Distribution instance from the chosen backend based on
@@ -45,4 +59,4 @@ def get_wheel_distribution(wheel_path: str, canonical_name: str) -> BaseDistribu
     """
     from .pkg_resources import Distribution
 
-    return Distribution.from_wheel(wheel_path, canonical_name)
+    return Distribution.from_wheel(wheel, canonical_name)

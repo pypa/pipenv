@@ -15,7 +15,7 @@ index 0ba06c52..6fdb59b7 100644
 --- a/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
 +++ b/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
 @@ -253,7 +253,10 @@ class _InstallRequirementBackedCandidate(Candidate):
-         yield self._get_requires_python_dependency()
+        yield self._factory.make_requires_python_requirement(self.dist.requires_python)
  
      def get_install_requirement(self) -> Optional[InstallRequirement]:
 -        return self._ireq
