@@ -46,3 +46,4 @@ wheel==0.36.2
 yarg==0.1.9
 yaspin==2.0.0
 zipp==3.5.0
+packaging==21.3

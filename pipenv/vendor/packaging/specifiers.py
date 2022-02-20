@@ -57,13 +57,6 @@ class BaseSpecifier(metaclass=abc.ABCMeta):
         objects are equal.
         """
 
-    @abc.abstractmethod
-    def __ne__(self, other: object) -> bool:
-        """
-        Returns a boolean representing whether or not the two Specifier like
-        objects are not equal.
-        """
-
     @abc.abstractproperty
     def prereleases(self) -> Optional[bool]:
         """
@@ -119,7 +112,7 @@ class _IndividualSpecifier(BaseSpecifier):
             else ""
         )
 
-        return "<{}({!r}{})>".format(self.__class__.__name__, str(self), pre)
+        return f"<{self.__class__.__name__}({str(self)!r}{pre})>"
 
     def __str__(self) -> str:
         return "{}{}".format(*self._spec)
@@ -141,17 +134,6 @@ class _IndividualSpecifier(BaseSpecifier):
             return NotImplemented
 
         return self._canonical_spec == other._canonical_spec
-
-    def __ne__(self, other: object) -> bool:
-        if isinstance(other, str):
-            try:
-                other = self.__class__(str(other))
-            except InvalidSpecifier:
-                return NotImplemented
-        elif not isinstance(other, self.__class__):
-            return NotImplemented
-
-        return self._spec != other._spec
 
     def _get_operator(self, op: str) -> CallableOperator:
         operator_callable: CallableOperator = getattr(
@@ -667,7 +649,7 @@ class SpecifierSet(BaseSpecifier):
             else ""
         )
 
-        return "<SpecifierSet({!r}{})>".format(str(self), pre)
+        return f"<SpecifierSet({str(self)!r}{pre})>"
 
     def __str__(self) -> str:
         return ",".join(sorted(str(s) for s in self._specs))
@@ -705,14 +687,6 @@ class SpecifierSet(BaseSpecifier):
             return NotImplemented
 
         return self._specs == other._specs
-
-    def __ne__(self, other: object) -> bool:
-        if isinstance(other, (str, _IndividualSpecifier)):
-            other = SpecifierSet(str(other))
-        elif not isinstance(other, SpecifierSet):
-            return NotImplemented
-
-        return self._specs != other._specs
 
     def __len__(self) -> int:
         return len(self._specs)
