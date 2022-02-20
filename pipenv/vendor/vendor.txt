@@ -18,12 +18,12 @@ iso8601==0.1.16
 markupsafe==2.0.1
 more-itertools==8.8.0
 orderedmultidict==1.0.1
-packaging==21.0
+packaging==21.3
 parse==1.19.0
 pep517==0.11.0
 pexpect==4.8.0
 pip-shims==0.6.0
-pipdeptree==2.0.0
+pipdeptree==2.2.1
 pipreqs==0.4.10
 platformdirs==2.4.0
 plette[validation]==0.2.3
@@ -46,5 +46,3 @@ wheel==0.36.2
 yarg==0.1.9
 yaspin==2.0.0
 zipp==3.5.0
-packaging==21.3
-pipdeptree==2.2.1
