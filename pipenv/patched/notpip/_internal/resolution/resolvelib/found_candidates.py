@@ -32,8 +32,9 @@ def _iter_built(infos: Iterator[IndexCandidateInfo]) -> Iterator[Candidate]:
         candidate = func()
         if candidate is None:
             continue
-        yield candidate
         versions_found.add(version)
+        yield candidate
+    raise StopIteration
 
 
 def _iter_built_with_prepended(
@@ -46,8 +47,10 @@ def _iter_built_with_prepended(
     always yielded first, and candidates from index come later in their
     normal ordering, except skipped when the version is already installed.
     """
-    yield installed
-    versions_found: Set[_BaseVersion] = {installed.version}
+    versions_found: Set[_BaseVersion] = set()
+    if installed:
+        versions_found.add(installed.version)
+        yield installed
     for version, func in infos:
         if version in versions_found:
             continue
@@ -56,6 +59,7 @@ def _iter_built_with_prepended(
             continue
         yield candidate
         versions_found.add(version)
+    raise StopIteration
 
 
 def _iter_built_with_inserted(
@@ -88,6 +92,8 @@ def _iter_built_with_inserted(
     # If the installed candidate is older than all other candidates.
     if installed.version not in versions_found:
         yield installed
+
+    raise StopIteration
 
 
 class FoundCandidates(collections_abc.Sequence):
