@@ -34,7 +34,6 @@ def _iter_built(infos: Iterator[IndexCandidateInfo]) -> Iterator[Candidate]:
             continue
         versions_found.add(version)
         yield candidate
-    raise StopIteration
 
 
 def _iter_built_with_prepended(
@@ -59,7 +58,6 @@ def _iter_built_with_prepended(
             continue
         yield candidate
         versions_found.add(version)
-    raise StopIteration
 
 
 def _iter_built_with_inserted(
@@ -92,8 +90,6 @@ def _iter_built_with_inserted(
     # If the installed candidate is older than all other candidates.
     if installed.version not in versions_found:
         yield installed
-
-    raise StopIteration
 
 
 class FoundCandidates(collections_abc.Sequence):

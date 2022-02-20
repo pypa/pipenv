@@ -325,7 +325,6 @@ class Factory:
             base_cand = as_base_candidate(lookup_cand)
             assert base_cand is not None, "no extras here"
             yield self._make_extras_candidate(base_cand, extras)
-        raise StopIteration
 
     def _iter_candidates_from_constraints(
         self,
@@ -349,7 +348,6 @@ class Factory:
             )
             if candidate:
                 yield candidate
-        raise StopIteration
 
     def find_candidates(
         self,
