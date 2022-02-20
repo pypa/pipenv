@@ -693,7 +693,6 @@ def get_package_finder(
         and "ignore_requires_python" in builder_args.args
     ):
         build_kwargs["ignore_requires_python"] = ignore_requires_python
-
     return install_cmd._build_package_finder(**build_kwargs)  # type: ignore
 
 

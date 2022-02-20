@@ -174,7 +174,7 @@ class CharsetMatch:
                 return "English"
 
             # doing it there to avoid circular import
-            from charset_normalizer.cd import encoding_languages, mb_encoding_languages
+            from pipenv.vendor.charset_normalizer.cd import encoding_languages, mb_encoding_languages
 
             languages = (
                 mb_encoding_languages(self.encoding)

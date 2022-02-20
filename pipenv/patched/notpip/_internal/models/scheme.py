@@ -6,7 +6,7 @@ https://docs.python.org/3/install/index.html#alternate-installation.
 """
 
 
-SCHEME_KEYS = ['platlib', 'purelib', 'headers', 'scripts', 'data']
+SCHEME_KEYS = ["platlib", "purelib", "headers", "scripts", "data"]
 
 
 class Scheme:

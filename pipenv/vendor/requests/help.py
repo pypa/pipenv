@@ -17,7 +17,7 @@ except ImportError:
     charset_normalizer = None
 
 try:
-    import pipenv.vendor.chardet as chardet
+    import chardet
 except ImportError:
     chardet = None
 

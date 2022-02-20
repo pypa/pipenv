@@ -1,7 +1,7 @@
 import sys
 
 try:
-    import pipenv.vendor.chardet as chardet
+    import chardet
 except ImportError:
     import pipenv.vendor.charset_normalizer as chardet
     import warnings

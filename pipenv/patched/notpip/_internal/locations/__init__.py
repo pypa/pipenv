@@ -4,11 +4,12 @@ import os
 import pathlib
 import sys
 import sysconfig
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from pipenv.patched.notpip._internal.models.scheme import SCHEME_KEYS, Scheme
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 from pipenv.patched.notpip._internal.utils.deprecation import deprecated
+from pipenv.patched.notpip._internal.utils.virtualenv import running_under_virtualenv
 
 from . import _distutils, _sysconfig
 from .base import (
@@ -37,14 +38,54 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-if os.environ.get("_PIP_LOCATIONS_NO_WARN_ON_MISMATCH"):
-    _MISMATCH_LEVEL = logging.DEBUG
-else:
+
+_PLATLIBDIR: str = getattr(sys, "platlibdir", "lib")
+
+_USE_SYSCONFIG_DEFAULT = sys.version_info >= (3, 10)
+
+
+def _should_use_sysconfig() -> bool:
+    """This function determines the value of _USE_SYSCONFIG.
+
+    By default, pip uses sysconfig on Python 3.10+.
+    But Python distributors can override this decision by setting:
+        sysconfig._PIP_USE_SYSCONFIG = True / False
+    Rationale in https://github.com/pypa/pip/issues/10647
+
+    This is a function for testability, but should be constant during any one
+    run.
+    """
+    return bool(getattr(sysconfig, "_PIP_USE_SYSCONFIG", _USE_SYSCONFIG_DEFAULT))
+
+
+_USE_SYSCONFIG = _should_use_sysconfig()
+
+# Be noisy about incompatibilities if this platforms "should" be using
+# sysconfig, but is explicitly opting out and using distutils instead.
+if _USE_SYSCONFIG_DEFAULT and not _USE_SYSCONFIG:
     _MISMATCH_LEVEL = logging.WARNING
+else:
+    _MISMATCH_LEVEL = logging.DEBUG
+
+
+def _looks_like_bpo_44860() -> bool:
+    """The resolution to bpo-44860 will change this incorrect platlib.
+
+    See <https://bugs.python.org/issue44860>.
+    """
+    from distutils.command.install import INSTALL_SCHEMES  # type: ignore
+
+    try:
+        unix_user_platlib = INSTALL_SCHEMES["unix_user"]["platlib"]
+    except KeyError:
+        return False
+    return unix_user_platlib == "$usersite"
 
 
 def _looks_like_red_hat_patched_platlib_purelib(scheme: Dict[str, str]) -> bool:
     platlib = scheme["platlib"]
+    if "/$platlibdir/" in platlib:
+        platlib = platlib.replace("/$platlibdir/", f"/{_PLATLIBDIR}/")
     if "/lib64/" not in platlib:
         return False
     unpatched = platlib.replace("/lib64/", "/lib/")
@@ -52,7 +93,7 @@ def _looks_like_red_hat_patched_platlib_purelib(scheme: Dict[str, str]) -> bool:
 
 
 @functools.lru_cache(maxsize=None)
-def _looks_like_red_hat_patched() -> bool:
+def _looks_like_red_hat_lib() -> bool:
     """Red Hat patches platlib in unix_prefix and unix_home, but not purelib.
 
     This is the only way I can see to tell a Red Hat-patched Python.
@@ -67,11 +108,65 @@ def _looks_like_red_hat_patched() -> bool:
 
 
 @functools.lru_cache(maxsize=None)
-def _looks_like_debian_patched() -> bool:
+def _looks_like_debian_scheme() -> bool:
     """Debian adds two additional schemes."""
     from distutils.command.install import INSTALL_SCHEMES  # type: ignore
 
     return "deb_system" in INSTALL_SCHEMES and "unix_local" in INSTALL_SCHEMES
+
+
+@functools.lru_cache(maxsize=None)
+def _looks_like_red_hat_scheme() -> bool:
+    """Red Hat patches ``sys.prefix`` and ``sys.exec_prefix``.
+
+    Red Hat's ``00251-change-user-install-location.patch`` changes the install
+    command's ``prefix`` and ``exec_prefix`` to append ``"/local"``. This is
+    (fortunately?) done quite unconditionally, so we create a default command
+    object without any configuration to detect this.
+    """
+    from distutils.command.install import install
+    from distutils.dist import Distribution
+
+    cmd: Any = install(Distribution())
+    cmd.finalize_options()
+    return (
+        cmd.exec_prefix == f"{os.path.normpath(sys.exec_prefix)}/local"
+        and cmd.prefix == f"{os.path.normpath(sys.prefix)}/local"
+    )
+
+
+@functools.lru_cache(maxsize=None)
+def _looks_like_slackware_scheme() -> bool:
+    """Slackware patches sysconfig but fails to patch distutils and site.
+
+    Slackware changes sysconfig's user scheme to use ``"lib64"`` for the lib
+    path, but does not do the same to the site module.
+    """
+    if user_site is None:  # User-site not available.
+        return False
+    try:
+        paths = sysconfig.get_paths(scheme="posix_user", expand=False)
+    except KeyError:  # User-site not available.
+        return False
+    return "/lib64/" in paths["purelib"] and "/lib64/" not in user_site
+
+
+@functools.lru_cache(maxsize=None)
+def _looks_like_msys2_mingw_scheme() -> bool:
+    """MSYS2 patches distutils and sysconfig to use a UNIX-like scheme.
+
+    However, MSYS2 incorrectly patches sysconfig ``nt`` scheme. The fix is
+    likely going to be included in their 3.10 release, so we ignore the warning.
+    See msys2/MINGW-packages#9319.
+
+    MSYS2 MINGW's patch uses lowercase ``"lib"`` instead of the usual uppercase,
+    and is missing the final ``"site-packages"``.
+    """
+    paths = sysconfig.get_paths("nt", expand=False)
+    return all(
+        "Lib" not in p and "lib" in p and not p.endswith("site-packages")
+        for p in (paths[key] for key in ("platlib", "purelib"))
+    )
 
 
 def _fix_abiflags(parts: Tuple[str]) -> Iterator[str]:
@@ -88,15 +183,6 @@ def _fix_abiflags(parts: Tuple[str]) -> Iterator[str]:
         if part.endswith(ldversion):
             part = part[: (0 - len(abiflags))]
         yield part
-
-
-def _default_base(*, user: bool) -> str:
-    if user:
-        base = sysconfig.get_config_var("userbase")
-    else:
-        base = sysconfig.get_config_var("base")
-    assert base is not None
-    return base
 
 
 @functools.lru_cache(maxsize=None)
@@ -144,14 +230,6 @@ def get_scheme(
     isolated: bool = False,
     prefix: Optional[str] = None,
 ) -> Scheme:
-    old = _distutils.get_scheme(
-        dist_name,
-        user=user,
-        home=home,
-        root=root,
-        isolated=isolated,
-        prefix=prefix,
-    )
     new = _sysconfig.get_scheme(
         dist_name,
         user=user,
@@ -160,12 +238,21 @@ def get_scheme(
         isolated=isolated,
         prefix=prefix,
     )
+    if _USE_SYSCONFIG:
+        return new
 
-    base = prefix or home or _default_base(user=user)
+    old = _distutils.get_scheme(
+        dist_name,
+        user=user,
+        home=home,
+        root=root,
+        isolated=isolated,
+        prefix=prefix,
+    )
+
     warning_contexts = []
     for k in SCHEME_KEYS:
-        # Extra join because distutils can return relative paths.
-        old_v = pathlib.Path(base, getattr(old, k))
+        old_v = pathlib.Path(getattr(old, k))
         new_v = pathlib.Path(getattr(new, k))
 
         if old_v == new_v:
@@ -201,19 +288,45 @@ def get_scheme(
 
         # On Red Hat and derived Linux distributions, distutils is patched to
         # use "lib64" instead of "lib" for platlib.
-        if k == "platlib" and _looks_like_red_hat_patched():
+        if k == "platlib" and _looks_like_red_hat_lib():
+            continue
+
+        # On Python 3.9+, sysconfig's posix_user scheme sets platlib against
+        # sys.platlibdir, but distutils's unix_user incorrectly coninutes
+        # using the same $usersite for both platlib and purelib. This creates a
+        # mismatch when sys.platlibdir is not "lib".
+        skip_bpo_44860 = (
+            user
+            and k == "platlib"
+            and not WINDOWS
+            and sys.version_info >= (3, 9)
+            and _PLATLIBDIR != "lib"
+            and _looks_like_bpo_44860()
+        )
+        if skip_bpo_44860:
+            continue
+
+        # Slackware incorrectly patches posix_user to use lib64 instead of lib,
+        # but not usersite to match the location.
+        skip_slackware_user_scheme = (
+            user
+            and k in ("platlib", "purelib")
+            and not WINDOWS
+            and _looks_like_slackware_scheme()
+        )
+        if skip_slackware_user_scheme:
             continue
 
         # Both Debian and Red Hat patch Python to place the system site under
         # /usr/local instead of /usr. Debian also places lib in dist-packages
         # instead of site-packages, but the /usr/local check should cover it.
         skip_linux_system_special_case = (
-            not (user or home or prefix)
+            not (user or home or prefix or running_under_virtualenv())
             and old_v.parts[1:3] == ("usr", "local")
             and len(new_v.parts) > 1
             and new_v.parts[1] == "usr"
             and (len(new_v.parts) < 3 or new_v.parts[2] != "local")
-            and (_looks_like_red_hat_patched() or _looks_like_debian_patched())
+            and (_looks_like_red_hat_scheme() or _looks_like_debian_scheme())
         )
         if skip_linux_system_special_case:
             continue
@@ -227,6 +340,26 @@ def get_scheme(
             and tuple(_fix_abiflags(old_v.parts)) == new_v.parts
         )
         if skip_sysconfig_abiflag_bug:
+            continue
+
+        # MSYS2 MINGW's sysconfig patch does not include the "site-packages"
+        # part of the path. This is incorrect and will be fixed in MSYS.
+        skip_msys2_mingw_bug = (
+            WINDOWS and k in ("platlib", "purelib") and _looks_like_msys2_mingw_scheme()
+        )
+        if skip_msys2_mingw_bug:
+            continue
+
+        # CPython's POSIX install script invokes pip (via ensurepip) against the
+        # interpreter located in the source tree, not the install site. This
+        # triggers special logic in sysconfig that's not present in distutils.
+        # https://github.com/python/cpython/blob/8c21941ddaf/Lib/sysconfig.py#L178-L194
+        skip_cpython_build = (
+            sysconfig.is_python_build(check_home=True)
+            and not WINDOWS
+            and k in ("headers", "include", "platinclude")
+        )
+        if skip_cpython_build:
             continue
 
         warning_contexts.append((old_v, new_v, f"scheme.{k}"))
@@ -248,10 +381,12 @@ def get_scheme(
     )
     if any(default_old[k] != getattr(old, k) for k in SCHEME_KEYS):
         deprecated(
-            "Configuring installation scheme with distutils config files "
-            "is deprecated and will no longer work in the near future. If you "
-            "are using a Homebrew or Linuxbrew Python, please see discussion "
-            "at https://github.com/Homebrew/homebrew-core/issues/76621",
+            reason=(
+                "Configuring installation scheme with distutils config files "
+                "is deprecated and will no longer work in the near future. If you "
+                "are using a Homebrew or Linuxbrew Python, please see discussion "
+                "at https://github.com/Homebrew/homebrew-core/issues/76621"
+            ),
             replacement=None,
             gone_in=None,
         )
@@ -266,8 +401,11 @@ def get_scheme(
 
 
 def get_bin_prefix() -> str:
-    old = _distutils.get_bin_prefix()
     new = _sysconfig.get_bin_prefix()
+    if _USE_SYSCONFIG:
+        return new
+
+    old = _distutils.get_bin_prefix()
     if _warn_if_mismatch(pathlib.Path(old), pathlib.Path(new), key="bin_prefix"):
         _log_context()
     return old
@@ -277,10 +415,32 @@ def get_bin_user() -> str:
     return _sysconfig.get_scheme("", user=True).scripts
 
 
+def _looks_like_deb_system_dist_packages(value: str) -> bool:
+    """Check if the value is Debian's APT-controlled dist-packages.
+
+    Debian's ``distutils.sysconfig.get_python_lib()`` implementation returns the
+    default package path controlled by APT, but does not patch ``sysconfig`` to
+    do the same. This is similar to the bug worked around in ``get_scheme()``,
+    but here the default is ``deb_system`` instead of ``unix_local``. Ultimately
+    we can't do anything about this Debian bug, and this detection allows us to
+    skip the warning when needed.
+    """
+    if not _looks_like_debian_scheme():
+        return False
+    if value == "/usr/lib/python3/dist-packages":
+        return True
+    return False
+
+
 def get_purelib() -> str:
     """Return the default pure-Python lib location."""
-    old = _distutils.get_purelib()
     new = _sysconfig.get_purelib()
+    if _USE_SYSCONFIG:
+        return new
+
+    old = _distutils.get_purelib()
+    if _looks_like_deb_system_dist_packages(old):
+        return old
     if _warn_if_mismatch(pathlib.Path(old), pathlib.Path(new), key="purelib"):
         _log_context()
     return old
@@ -288,17 +448,59 @@ def get_purelib() -> str:
 
 def get_platlib() -> str:
     """Return the default platform-shared lib location."""
-    old = _distutils.get_platlib()
     new = _sysconfig.get_platlib()
+    if _USE_SYSCONFIG:
+        return new
+
+    old = _distutils.get_platlib()
+    if _looks_like_deb_system_dist_packages(old):
+        return old
     if _warn_if_mismatch(pathlib.Path(old), pathlib.Path(new), key="platlib"):
         _log_context()
     return old
 
 
+def _deduplicated(v1: str, v2: str) -> List[str]:
+    """Deduplicate values from a list."""
+    if v1 == v2:
+        return [v1]
+    return [v1, v2]
+
+
+def _looks_like_apple_library(path: str) -> bool:
+    """Apple patches sysconfig to *always* look under */Library/Python*."""
+    if sys.platform[:6] != "darwin":
+        return False
+    return path == f"/Library/Python/{get_major_minor_version()}/site-packages"
+
+
 def get_prefixed_libs(prefix: str) -> List[str]:
     """Return the lib locations under ``prefix``."""
-    old_pure, old_plat = _distutils.get_prefixed_libs(prefix)
     new_pure, new_plat = _sysconfig.get_prefixed_libs(prefix)
+    if _USE_SYSCONFIG:
+        return _deduplicated(new_pure, new_plat)
+
+    old_pure, old_plat = _distutils.get_prefixed_libs(prefix)
+    old_lib_paths = _deduplicated(old_pure, old_plat)
+
+    # Apple's Python (shipped with Xcode and Command Line Tools) hard-code
+    # platlib and purelib to '/Library/Python/X.Y/site-packages'. This will
+    # cause serious build isolation bugs when Apple starts shipping 3.10 because
+    # pip will install build backends to the wrong location. This tells users
+    # who is at fault so Apple may notice it and fix the issue in time.
+    if all(_looks_like_apple_library(p) for p in old_lib_paths):
+        deprecated(
+            reason=(
+                "Python distributed by Apple's Command Line Tools incorrectly "
+                "patches sysconfig to always point to '/Library/Python'. This "
+                "will cause build isolation to operate incorrectly on Python "
+                "3.10 or later. Please help report this to Apple so they can "
+                "fix this. https://developer.apple.com/bug-reporting/"
+            ),
+            replacement=None,
+            gone_in=None,
+        )
+        return old_lib_paths
 
     warned = [
         _warn_if_mismatch(
@@ -315,6 +517,4 @@ def get_prefixed_libs(prefix: str) -> List[str]:
     if any(warned):
         _log_context(prefix=prefix)
 
-    if old_pure == old_plat:
-        return [old_pure]
-    return [old_pure, old_plat]
+    return old_lib_paths

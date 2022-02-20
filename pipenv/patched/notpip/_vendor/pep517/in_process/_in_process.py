@@ -103,6 +103,19 @@ def _build_backend():
     return obj
 
 
+def _supported_features():
+    """Return the list of options features supported by the backend.
+
+    Returns a list of strings.
+    The only possible value is 'build_editable'.
+    """
+    backend = _build_backend()
+    features = []
+    if hasattr(backend, "build_editable"):
+        features.append("build_editable")
+    return features
+
+
 def get_requires_for_build_wheel(config_settings):
     """Invoke the optional get_requires_for_build_wheel hook
 
@@ -312,6 +325,7 @@ HOOK_NAMES = {
     'build_editable',
     'get_requires_for_build_sdist',
     'build_sdist',
+    '_supported_features',
 }
 
 

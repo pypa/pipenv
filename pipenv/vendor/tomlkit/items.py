@@ -50,7 +50,7 @@ def item(value, _parent=None, _sort_keys=False):
             val[k] = item(v, _parent=val, _sort_keys=_sort_keys)
 
         return val
-    elif isinstance(value, (tuple, list)):
+    elif isinstance(value, list):
         if value and isinstance(value[0], dict):
             a = AoT([])
         else:

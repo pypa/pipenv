@@ -21,11 +21,13 @@ try:
 except ImportError:
     from collections import Mapping
 
-pardir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(pardir)
-from pipenv.vendor.pip_shims.shims import get_installed_distributions, FrozenRequirement
+try:
+    from pipenv.patched.notpip._internal.utils.misc import get_installed_distributions
+    from pipenv.patched.notpip._internal.operations.freeze import FrozenRequirement
+except ImportError:
+    from pipenv.patched.notpip import get_installed_distributions, FrozenRequirement
 
-import pkg_resources
+from pipenv.patched.notpip._vendor import pkg_resources
 # inline:
 # from graphviz import backend, Digraph
 

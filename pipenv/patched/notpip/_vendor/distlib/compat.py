@@ -22,7 +22,6 @@ if sys.version_info[0] < 3:  # pragma: no cover
     from types import FileType as file_type
     import __builtin__ as builtins
     import ConfigParser as configparser
-    from ._backport import shutil
     from urlparse import urlparse, urlunparse, urljoin, urlsplit, urlunsplit
     from urllib import (urlretrieve, quote as _quote, unquote, url2pathname,
                         pathname2url, ContentTooShortError, splittype)
@@ -48,17 +47,18 @@ if sys.version_info[0] < 3:  # pragma: no cover
     from itertools import ifilter as filter
     from itertools import ifilterfalse as filterfalse
 
-    _userprog = None
-    def splituser(host):
-        """splituser('user[:passwd]@host[:port]') --> 'user[:passwd]', 'host[:port]'."""
-        global _userprog
-        if _userprog is None:
-            import re
-            _userprog = re.compile('^(.*)@(.*)$')
+    # Leaving this around for now, in case it needs resurrecting in some way
+    # _userprog = None
+    # def splituser(host):
+        # """splituser('user[:passwd]@host[:port]') --> 'user[:passwd]', 'host[:port]'."""
+        # global _userprog
+        # if _userprog is None:
+            # import re
+            # _userprog = re.compile('^(.*)@(.*)$')
 
-        match = _userprog.match(host)
-        if match: return match.group(1, 2)
-        return None, host
+        # match = _userprog.match(host)
+        # if match: return match.group(1, 2)
+        # return None, host
 
 else:  # pragma: no cover
     from io import StringIO
@@ -68,7 +68,7 @@ else:  # pragma: no cover
     import builtins
     import configparser
     import shutil
-    from urllib.parse import (urlparse, urlunparse, urljoin, splituser, quote,
+    from urllib.parse import (urlparse, urlunparse, urljoin, quote,
                               unquote, urlsplit, urlunsplit, splittype)
     from urllib.request import (urlopen, urlretrieve, Request, url2pathname,
                                 pathname2url,
@@ -87,6 +87,7 @@ else:  # pragma: no cover
     raw_input = input
     from itertools import filterfalse
     filter = filter
+
 
 try:
     from ssl import match_hostname, CertificateError
@@ -311,10 +312,8 @@ except ImportError: # pragma: no cover
             return 'IronPython'
         return 'CPython'
 
-try:
-    import sysconfig
-except ImportError: # pragma: no cover
-    from ._backport import sysconfig
+import shutil
+import sysconfig
 
 try:
     callable = callable
@@ -616,18 +615,15 @@ except ImportError: # pragma: no cover
 try:
     from importlib.util import cache_from_source  # Python >= 3.4
 except ImportError:  # pragma: no cover
-    try:
-        from imp import cache_from_source
-    except ImportError:  # pragma: no cover
-        def cache_from_source(path, debug_override=None):
-            assert path.endswith('.py')
-            if debug_override is None:
-                debug_override = __debug__
-            if debug_override:
-                suffix = 'c'
-            else:
-                suffix = 'o'
-            return path + suffix
+    def cache_from_source(path, debug_override=None):
+        assert path.endswith('.py')
+        if debug_override is None:
+            debug_override = __debug__
+        if debug_override:
+            suffix = 'c'
+        else:
+            suffix = 'o'
+        return path + suffix
 
 try:
     from collections import OrderedDict

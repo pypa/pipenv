@@ -13,18 +13,28 @@ Parser for the environment markers micro-language defined in PEP 508.
 # as ~= and === which aren't in Python, necessitating a different approach.
 
 import os
+import re
 import sys
 import platform
 
 from .compat import string_types
 from .util import in_venv, parse_marker
+from .version import NormalizedVersion as NV
 
 __all__ = ['interpret']
+
+_VERSION_PATTERN = re.compile(r'((\d+(\.\d+)*\w*)|\'(\d+(\.\d+)*\w*)\'|\"(\d+(\.\d+)*\w*)\")')
 
 def _is_literal(o):
     if not isinstance(o, string_types) or not o:
         return False
     return o[0] in '\'"'
+
+def _get_versions(s):
+    result = []
+    for m in _VERSION_PATTERN.finditer(s):
+        result.append(NV(m.groups()[0]))
+    return set(result)
 
 class Evaluator(object):
     """
@@ -70,8 +80,17 @@ class Evaluator(object):
 
             lhs = self.evaluate(elhs, context)
             rhs = self.evaluate(erhs, context)
+            if ((elhs == 'python_version' or erhs == 'python_version') and
+                op in ('<', '<=', '>', '>=', '===', '==', '!=', '~=')):
+                lhs = NV(lhs)
+                rhs = NV(rhs)
+            elif elhs == 'python_version' and op in ('in', 'not in'):
+                lhs = NV(lhs)
+                rhs = _get_versions(rhs)
             result = self.operations[op](lhs, rhs)
         return result
+
+_DIGITS = re.compile(r'\d+\.\d+')
 
 def default_context():
     def format_full_version(info):
@@ -88,6 +107,9 @@ def default_context():
         implementation_version = '0'
         implementation_name = ''
 
+    ppv = platform.python_version()
+    m = _DIGITS.match(ppv)
+    pv = m.group(0)
     result = {
         'implementation_name': implementation_name,
         'implementation_version': implementation_version,
@@ -98,8 +120,8 @@ def default_context():
         'platform_system': platform.system(),
         'platform_version': platform.version(),
         'platform_in_venv': str(in_venv()),
-        'python_full_version': platform.python_version(),
-        'python_version': platform.python_version()[:3],
+        'python_full_version': ppv,
+        'python_version': pv,
         'sys_platform': sys.platform,
     }
     return result

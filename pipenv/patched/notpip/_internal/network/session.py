@@ -2,17 +2,8 @@
 network request configuration and behavior.
 """
 
-# When mypy runs on Windows the call to distro.linux_distribution() is skipped
-# resulting in the failure:
-#
-#     error: unused 'type: ignore' comment
-#
-# If the upstream module adds typing, this comment should be removed. See
-# https://github.com/nir0s/distro/pull/269
-#
-# mypy: warn-unused-ignores=False
-
 import email.utils
+import io
 import ipaddress
 import json
 import logging
@@ -128,9 +119,8 @@ def user_agent() -> str:
     if sys.platform.startswith("linux"):
         from pipenv.patched.notpip._vendor import distro
 
-        # https://github.com/nir0s/distro/pull/269
-        linux_distribution = distro.linux_distribution()  # type: ignore
-        distro_infos = dict(
+        linux_distribution = distro.name(), distro.version(), distro.codename()
+        distro_infos: Dict[str, Any] = dict(
             filter(
                 lambda x: x[1],
                 zip(["name", "version", "id"], linux_distribution),
@@ -218,8 +208,11 @@ class LocalFSAdapter(BaseAdapter):
         try:
             stats = os.stat(pathname)
         except OSError as exc:
+            # format the exception raised as a io.BytesIO object,
+            # to return a better error message:
             resp.status_code = 404
-            resp.raw = exc
+            resp.reason = type(exc).__name__
+            resp.raw = io.BytesIO(f"{resp.reason}: {exc}".encode("utf8"))
         else:
             modified = email.utils.formatdate(stats.st_mtime, usegmt=True)
             content_type = mimetypes.guess_type(pathname)[0] or "text/plain"
@@ -369,8 +362,15 @@ class PipSession(requests.Session):
         if host_port not in self.pip_trusted_origins:
             self.pip_trusted_origins.append(host_port)
 
+        self.mount(
+            build_url_from_netloc(host, scheme="http") + "/", self._trusted_host_adapter
+        )
         self.mount(build_url_from_netloc(host) + "/", self._trusted_host_adapter)
         if not host_port[1]:
+            self.mount(
+                build_url_from_netloc(host, scheme="http") + ":",
+                self._trusted_host_adapter,
+            )
             # Mount wildcard ports for the same host.
             self.mount(build_url_from_netloc(host) + ":", self._trusted_host_adapter)
 

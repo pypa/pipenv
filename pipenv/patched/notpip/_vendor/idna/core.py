@@ -29,43 +29,36 @@ class InvalidCodepointContext(IDNAError):
     pass
 
 
-def _combining_class(cp):
-    # type: (int) -> int
+def _combining_class(cp: int) -> int:
     v = unicodedata.combining(chr(cp))
     if v == 0:
         if not unicodedata.name(chr(cp)):
             raise ValueError('Unknown character in unicodedata')
     return v
 
-def _is_script(cp, script):
-    # type: (str, str) -> bool
+def _is_script(cp: str, script: str) -> bool:
     return intranges_contain(ord(cp), idnadata.scripts[script])
 
-def _punycode(s):
-    # type: (str) -> bytes
+def _punycode(s: str) -> bytes:
     return s.encode('punycode')
 
-def _unot(s):
-    # type: (int) -> str
+def _unot(s: int) -> str:
     return 'U+{:04X}'.format(s)
 
 
-def valid_label_length(label):
-    # type: (Union[bytes, str]) -> bool
+def valid_label_length(label: Union[bytes, str]) -> bool:
     if len(label) > 63:
         return False
     return True
 
 
-def valid_string_length(label, trailing_dot):
-    # type: (Union[bytes, str], bool) -> bool
+def valid_string_length(label: Union[bytes, str], trailing_dot: bool) -> bool:
     if len(label) > (254 if trailing_dot else 253):
         return False
     return True
 
 
-def check_bidi(label, check_ltr=False):
-    # type: (str, bool) -> bool
+def check_bidi(label: str, check_ltr: bool = False) -> bool:
     # Bidi rules should only be applied if string contains RTL characters
     bidi_label = False
     for (idx, cp) in enumerate(label, 1):
@@ -124,15 +117,13 @@ def check_bidi(label, check_ltr=False):
     return True
 
 
-def check_initial_combiner(label):
-    # type: (str) -> bool
+def check_initial_combiner(label: str) -> bool:
     if unicodedata.category(label[0])[0] == 'M':
         raise IDNAError('Label begins with an illegal combining character')
     return True
 
 
-def check_hyphen_ok(label):
-    # type: (str) -> bool
+def check_hyphen_ok(label: str) -> bool:
     if label[2:4] == '--':
         raise IDNAError('Label has disallowed hyphens in 3rd and 4th position')
     if label[0] == '-' or label[-1] == '-':
@@ -140,14 +131,12 @@ def check_hyphen_ok(label):
     return True
 
 
-def check_nfc(label):
-    # type: (str) -> None
+def check_nfc(label: str) -> None:
     if unicodedata.normalize('NFC', label) != label:
         raise IDNAError('Label must be in Normalization Form C')
 
 
-def valid_contextj(label, pos):
-    # type: (str, int) -> bool
+def valid_contextj(label: str, pos: int) -> bool:
     cp_value = ord(label[pos])
 
     if cp_value == 0x200c:
@@ -190,8 +179,7 @@ def valid_contextj(label, pos):
         return False
 
 
-def valid_contexto(label, pos, exception=False):
-    # type: (str, int, bool) -> bool
+def valid_contexto(label: str, pos: int, exception: bool = False) -> bool:
     cp_value = ord(label[pos])
 
     if cp_value == 0x00b7:
@@ -233,8 +221,7 @@ def valid_contexto(label, pos, exception=False):
     return False
 
 
-def check_label(label):
-    # type: (Union[str, bytes, bytearray]) -> None
+def check_label(label: Union[str, bytes, bytearray]) -> None:
     if isinstance(label, (bytes, bytearray)):
         label = label.decode('utf-8')
     if len(label) == 0:
@@ -265,8 +252,7 @@ def check_label(label):
     check_bidi(label)
 
 
-def alabel(label):
-    # type: (str) -> bytes
+def alabel(label: str) -> bytes:
     try:
         label_bytes = label.encode('ascii')
         ulabel(label_bytes)
@@ -290,8 +276,7 @@ def alabel(label):
     return label_bytes
 
 
-def ulabel(label):
-    # type: (Union[str, bytes, bytearray]) -> str
+def ulabel(label: Union[str, bytes, bytearray]) -> str:
     if not isinstance(label, (bytes, bytearray)):
         try:
             label_bytes = label.encode('ascii')
@@ -312,13 +297,15 @@ def ulabel(label):
         check_label(label_bytes)
         return label_bytes.decode('ascii')
 
-    label = label_bytes.decode('punycode')
+    try:
+        label = label_bytes.decode('punycode')
+    except UnicodeError:
+        raise IDNAError('Invalid A-label')
     check_label(label)
     return label
 
 
-def uts46_remap(domain, std3_rules=True, transitional=False):
-    # type: (str, bool, bool) -> str
+def uts46_remap(domain: str, std3_rules: bool = True, transitional: bool = False) -> str:
     """Re-map the characters in the string according to UTS46 processing."""
     from .uts46data import uts46data
     output = ''
@@ -350,8 +337,7 @@ def uts46_remap(domain, std3_rules=True, transitional=False):
     return unicodedata.normalize('NFC', output)
 
 
-def encode(s, strict=False, uts46=False, std3_rules=False, transitional=False):
-    # type: (Union[str, bytes, bytearray], bool, bool, bool, bool) -> bytes
+def encode(s: Union[str, bytes, bytearray], strict: bool = False, uts46: bool = False, std3_rules: bool = False, transitional: bool = False) -> bytes:
     if isinstance(s, (bytes, bytearray)):
         s = s.decode('ascii')
     if uts46:
@@ -381,10 +367,12 @@ def encode(s, strict=False, uts46=False, std3_rules=False, transitional=False):
     return s
 
 
-def decode(s, strict=False, uts46=False, std3_rules=False):
-    # type: (Union[str, bytes, bytearray], bool, bool, bool) -> str
-    if isinstance(s, (bytes, bytearray)):
-        s = s.decode('ascii')
+def decode(s: Union[str, bytes, bytearray], strict: bool = False, uts46: bool = False, std3_rules: bool = False) -> str:
+    try:
+        if isinstance(s, (bytes, bytearray)):
+            s = s.decode('ascii')
+    except UnicodeDecodeError:
+        raise IDNAError('Invalid ASCII in A-label')
     if uts46:
         s = uts46_remap(s, std3_rules, False)
     trailing_dot = False

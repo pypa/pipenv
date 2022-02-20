@@ -9,8 +9,10 @@ from .req_install import InstallRequirement
 from .req_set import RequirementSet
 
 __all__ = [
-    "RequirementSet", "InstallRequirement",
-    "parse_requirements", "install_given_reqs",
+    "RequirementSet",
+    "InstallRequirement",
+    "parse_requirements",
+    "install_given_reqs",
 ]
 
 logger = logging.getLogger(__name__)
@@ -52,8 +54,8 @@ def install_given_reqs(
 
     if to_install:
         logger.info(
-            'Installing collected packages: %s',
-            ', '.join(to_install.keys()),
+            "Installing collected packages: %s",
+            ", ".join(to_install.keys()),
         )
 
     installed = []
@@ -61,11 +63,9 @@ def install_given_reqs(
     with indent_log():
         for req_name, requirement in to_install.items():
             if requirement.should_reinstall:
-                logger.info('Attempting uninstall: %s', req_name)
+                logger.info("Attempting uninstall: %s", req_name)
                 with indent_log():
-                    uninstalled_pathset = requirement.uninstall(
-                        auto_confirm=True
-                    )
+                    uninstalled_pathset = requirement.uninstall(auto_confirm=True)
             else:
                 uninstalled_pathset = None
 

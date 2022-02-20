@@ -19,14 +19,10 @@ import time
 from typing import List, Set, Union
 
 from pipenv.vendor.termcolor import colored
-from pipenv.vendor import colorama
-from pipenv.vendor.vistir import cursor
 
 from .base_spinner import Spinner, default_spinner
 from .constants import COLOR_ATTRS, COLOR_MAP, SPINNER_ATTRS
 from .helpers import to_unicode
-
-colorama.init()
 
 
 class Yaspin:  # pylint: disable=useless-object-inheritance,too-many-instance-attributes
@@ -405,14 +401,11 @@ class Yaspin:  # pylint: disable=useless-object-inheritance,too-many-instance-at
         # SIGKILL cannot be caught or ignored, and the receiving
         # process cannot perform any clean-up upon receiving this
         # signal.
-        try:
-            if signal.SIGKILL in self._sigmap.keys():
-                raise ValueError(
-                    "Trying to set handler for SIGKILL signal. "
-                    "SIGKILL cannot be cought or ignored in POSIX systems."
-                )
-        except AttributeError:
-            pass
+        if signal.SIGKILL in self._sigmap.keys():
+            raise ValueError(
+                "Trying to set handler for SIGKILL signal. "
+                "SIGKILL cannot be cought or ignored in POSIX systems."
+            )
 
         for sig, sig_handler in self._sigmap.items():
             # A handler for a particular signal, once set, remains
@@ -535,11 +528,13 @@ class Yaspin:  # pylint: disable=useless-object-inheritance,too-many-instance-at
 
     @staticmethod
     def _hide_cursor():
-        cursor.hide_cursor()
+        sys.stdout.write("\033[?25l")
+        sys.stdout.flush()
 
     @staticmethod
     def _show_cursor():
-        cursor.show_cursor()
+        sys.stdout.write("\033[?25h")
+        sys.stdout.flush()
 
     @staticmethod
     def _clear_line():

@@ -22,6 +22,7 @@ packaging==21.0
 parse==1.19.0
 pep517==0.11.0
 pexpect==4.8.0
+pip==22.0.3
 pip-shims==0.6.0
 pipdeptree==2.0.0
 pipreqs==0.4.10
