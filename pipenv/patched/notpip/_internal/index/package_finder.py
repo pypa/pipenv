@@ -147,7 +147,7 @@ class LinkEvaluator:
         self._target_python = target_python
 
         self.project_name = project_name
-		self._ignore_compatibility = ignore_compatibility
+        self._ignore_compatibility = ignore_compatibility
 
     def evaluate_link(self, link: Link) -> Tuple[bool, Optional[str]]:
         """
@@ -618,7 +618,7 @@ class PackageFinder:
         self._ignore_requires_python = ignore_requires_python
         self._link_collector = link_collector
         self._target_python = target_python
-		self._ignore_compatibility = ignore_compatibility
+        self._ignore_compatibility = ignore_compatibility
         self._use_deprecated_html5lib = use_deprecated_html5lib
 
         self.format_control = format_control
