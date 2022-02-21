@@ -6,7 +6,7 @@ index daeb7fbc8..88482908b 100644
          *,
          kind: str,
      ) -> None:
-+		sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
++        sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
          args: List[str] = [
 -            sys.executable,
 +            sys_executable,
@@ -124,7 +124,7 @@ index 223d06df6..dd5283c7f 100644
          target_python: TargetPython,
          allow_yanked: bool,
          ignore_requires_python: Optional[bool] = None,
-+		ignore_compatibility: Optional[bool] = None,
++        ignore_compatibility: Optional[bool] = None,
      ) -> None:
          """
          :param project_name: The user supplied package name.
@@ -139,15 +139,15 @@ index 223d06df6..dd5283c7f 100644
              ignore_requires_python = False
 +        if ignore_compatibility is None:
 +            ignore_compatibility = True
- 
+
          self._allow_yanked = allow_yanked
          self._canonical_name = canonical_name
 @@ -142,6 +147,7 @@ class LinkEvaluator:
          self._target_python = target_python
- 
+
          self.project_name = project_name
-+		self._ignore_compatibility = ignore_compatibility
- 
++        self._ignore_compatibility = ignore_compatibility
+
      def evaluate_link(self, link: Link) -> Tuple[bool, Optional[str]]:
          """
 @@ -166,10 +172,10 @@ class LinkEvaluator:
@@ -165,7 +165,7 @@ index 223d06df6..dd5283c7f 100644
                  try:
 @@ -181,7 +187,7 @@ class LinkEvaluator:
                      return (False, reason)
- 
+
                  supported_tags = self._target_python.get_tags()
 -                if not wheel.supported(supported_tags):
 +                if not wheel.supported(supported_tags) and not self._ignore_compatibility:
@@ -182,9 +182,9 @@ index 223d06df6..dd5283c7f 100644
              # _log_skipped_link().
              return (False, None)
 @@ -469,7 +475,10 @@ class CandidateEvaluator:
- 
+
          return sorted(filtered_applicable_candidates, key=self._sort_key)
- 
+
 -    def _sort_key(self, candidate: InstallationCandidate) -> CandidateSortingKey:
 +    def _sort_key(
 +        self, candidate: InstallationCandidate,
@@ -215,7 +215,7 @@ index 223d06df6..dd5283c7f 100644
          format_control: Optional[FormatControl] = None,
          candidate_prefs: Optional[CandidatePreferences] = None,
          ignore_requires_python: Optional[bool] = None,
-+		ignore_compatibility: Optional[bool] = False
++        ignore_compatibility: Optional[bool] = False
      ) -> None:
          """
          This constructor is primarily meant to be used by the create() class
@@ -223,17 +223,17 @@ index 223d06df6..dd5283c7f 100644
          self._ignore_requires_python = ignore_requires_python
          self._link_collector = link_collector
          self._target_python = target_python
-+		self._ignore_compatibility = ignore_compatibility
++        self._ignore_compatibility = ignore_compatibility
          self._use_deprecated_html5lib = use_deprecated_html5lib
- 
+
          self.format_control = format_control
 @@ -701,6 +715,7 @@ class PackageFinder:
              target_python=self._target_python,
              allow_yanked=self._allow_yanked,
              ignore_requires_python=self._ignore_requires_python,
-+			ignore_compatibility=self._ignore_compatibility
++            ignore_compatibility=self._ignore_compatibility
          )
- 
+
      def _sort_links(self, links: Iterable[Link]) -> List[Link]:
 diff --git a/src/pip/_internal/req/req_install.py b/src/pip/_internal/req/req_install.py
 index 02dbda194..72ab5c1dc 100644
@@ -243,9 +243,9 @@ index 02dbda194..72ab5c1dc 100644
              self.unpacked_source_directory,
              backend,
              backend_path=backend_path,
-+			python_executable=os.getenv('PIP_PYTHON_PATH', sys.executable)
++            python_executable=os.getenv('PIP_PYTHON_PATH', sys.executable)
          )
- 
+
      def isolated_editable_sanity_check(self) -> None:
 diff --git a/src/pip/_vendor/requests/packages.py b/src/pip/_vendor/requests/packages.py
 index 9582fa730..5fb6f07df 100644
@@ -253,7 +253,7 @@ index 9582fa730..5fb6f07df 100644
 +++ b/src/pip/_vendor/requests/packages.py
 @@ -4,13 +4,13 @@ import sys
  # I don't like it either. Just look the other way. :)
- 
+
  for package in ('urllib3', 'idna', 'chardet'):
 -    vendored_package = "pip._vendor." + package
 +    vendored_package = "pipenv.patched.notpip._vendor." + package
@@ -266,5 +266,5 @@ index 9582fa730..5fb6f07df 100644
 -            sys.modules['pip._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
 +            unprefixed_mod = mod[len("pipenv.patched.notpip._vendor."):]
 +            sys.modules['pipenv.patched.notpip._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
- 
+
  # Kinda cool, though, right?
