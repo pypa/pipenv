@@ -1,7 +1,7 @@
-diff --git a/src/pip/_internal/build_env.py b/src/pip/_internal/build_env.py
+diff --git a/pipenv/patched/pip/_internal/build_env.py b/src/pip/_internal/build_env.py
 index daeb7fbc8..88482908b 100644
---- a/src/pip/_internal/build_env.py
-+++ b/src/pip/_internal/build_env.py
+--- a/pipenv/patched/pip/_internal/build_env.py
++++ b/pipenv/patched/pip/_internal/build_env.py
 @@ -216,8 +216,9 @@ class BuildEnvironment:
          *,
          kind: str,
@@ -13,10 +13,10 @@ index daeb7fbc8..88482908b 100644
              pip_runnable,
              "install",
              "--ignore-installed",
-diff --git a/src/pip/_internal/commands/__init__.py b/src/pip/_internal/commands/__init__.py
+diff --git a/pipenv/patched/pip/_internal/commands/__init__.py b/src/pip/_internal/commands/__init__.py
 index c72f24f30..df5defb16 100644
---- a/src/pip/_internal/commands/__init__.py
-+++ b/src/pip/_internal/commands/__init__.py
+--- a/pipenv/patched/pip/_internal/commands/__init__.py
++++ b/pipenv/patched/pip/_internal/commands/__init__.py
 @@ -19,82 +19,82 @@ CommandInfo = namedtuple("CommandInfo", "module_path, class_name, summary")
  # `commands_dict` in test setup / teardown).
  commands_dict: Dict[str, CommandInfo] = {
@@ -116,10 +116,10 @@ index c72f24f30..df5defb16 100644
          "HelpCommand",
          "Show help for commands.",
      ),
-diff --git a/src/pip/_internal/index/package_finder.py b/src/pip/_internal/index/package_finder.py
+diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/src/pip/_internal/index/package_finder.py
 index 223d06df6..dd5283c7f 100644
---- a/src/pip/_internal/index/package_finder.py
-+++ b/src/pip/_internal/index/package_finder.py
+--- a/pipenv/patched/pip/_internal/index/package_finder.py
++++ b/pipenv/patched/pip/_internal/index/package_finder.py
 @@ -114,6 +114,7 @@ class LinkEvaluator:
          target_python: TargetPython,
          allow_yanked: bool,
@@ -235,10 +235,10 @@ index 223d06df6..dd5283c7f 100644
          )
 
      def _sort_links(self, links: Iterable[Link]) -> List[Link]:
-diff --git a/src/pip/_internal/req/req_install.py b/src/pip/_internal/req/req_install.py
+diff --git a/pipenv/patched/pip/_internal/req/req_install.py b/src/pip/_internal/req/req_install.py
 index 02dbda194..72ab5c1dc 100644
---- a/src/pip/_internal/req/req_install.py
-+++ b/src/pip/_internal/req/req_install.py
+--- a/pipenv/patched/pip/_internal/req/req_install.py
++++ b/pipenv/patched/pip/_internal/req/req_install.py
 @@ -474,6 +474,7 @@ class InstallRequirement:
              self.unpacked_source_directory,
              backend,
@@ -247,10 +247,10 @@ index 02dbda194..72ab5c1dc 100644
          )
 
      def isolated_editable_sanity_check(self) -> None:
-diff --git a/src/pip/_vendor/requests/packages.py b/src/pip/_vendor/requests/packages.py
+diff --git a/pipenv/patched/pip/_vendor/requests/packages.py b/src/pip/_vendor/requests/packages.py
 index 9582fa730..5fb6f07df 100644
---- a/src/pip/_vendor/requests/packages.py
-+++ b/src/pip/_vendor/requests/packages.py
+--- a/pipenv/patched/pip/_vendor/requests/packages.py
++++ b/pipenv/patched/pip/_vendor/requests/packages.py
 @@ -4,13 +4,13 @@ import sys
  # I don't like it either. Just look the other way. :)
 
