@@ -45,6 +45,7 @@ PY2_DOWNLOAD = ["enum34"]
 HARDCODED_LICENSE_URLS = {
     "cursor": "https://raw.githubusercontent.com/GijsTimmers/cursor/master/LICENSE",
     "delegator.py": "https://raw.githubusercontent.com/amitt001/delegator.py/master/LICENSE",
+    "cachecontrol": "https://raw.githubusercontent.com/ionrock/cachecontrol/master/LICENSE.txt",
     "click-didyoumean": "https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE",
     "click-completion": "https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE",
     "parse": "https://raw.githubusercontent.com/techalchemy/parse/master/LICENSE",
