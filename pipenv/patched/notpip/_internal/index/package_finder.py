@@ -114,6 +114,7 @@ class LinkEvaluator:
         target_python: TargetPython,
         allow_yanked: bool,
         ignore_requires_python: Optional[bool] = None,
+		ignore_compatibility: Optional[bool] = None,
     ) -> None:
         """
         :param project_name: The user supplied package name.
@@ -131,9 +132,13 @@ class LinkEvaluator:
         :param ignore_requires_python: Whether to ignore incompatible
             PEP 503 "data-requires-python" values in HTML links. Defaults
             to False.
+        :param ignore_compatibility: Whether to ignore
+            compatibility of python versions and allow all versions of packages.
         """
         if ignore_requires_python is None:
             ignore_requires_python = False
+        if ignore_compatibility is None:
+            ignore_compatibility = True
 
         self._allow_yanked = allow_yanked
         self._canonical_name = canonical_name
@@ -142,6 +147,7 @@ class LinkEvaluator:
         self._target_python = target_python
 
         self.project_name = project_name
+		self._ignore_compatibility = ignore_compatibility
 
     def evaluate_link(self, link: Link) -> Tuple[bool, Optional[str]]:
         """
@@ -166,10 +172,10 @@ class LinkEvaluator:
                 return (False, "not a file")
             if ext not in SUPPORTED_EXTENSIONS:
                 return (False, f"unsupported archive format: {ext}")
-            if "binary" not in self._formats and ext == WHEEL_EXTENSION:
+            if "binary" not in self._formats and ext == WHEEL_EXTENSION and not self._ignore_compatibility:
                 reason = "No binaries permitted for {}".format(self.project_name)
                 return (False, reason)
-            if "macosx10" in link.path and ext == ".zip":
+            if "macosx10" in link.path and ext == '.zip' and not self._ignore_compatibility:
                 return (False, "macosx10 one")
             if ext == WHEEL_EXTENSION:
                 try:
@@ -181,7 +187,7 @@ class LinkEvaluator:
                     return (False, reason)
 
                 supported_tags = self._target_python.get_tags()
-                if not wheel.supported(supported_tags):
+                if not wheel.supported(supported_tags) and not self._ignore_compatibility:
                     # Include the wheel's tags in the reason string to
                     # simplify troubleshooting compatibility issues.
                     file_tags = wheel.get_formatted_file_tags()
@@ -221,7 +227,7 @@ class LinkEvaluator:
             version_info=self._target_python.py_version_info,
             ignore_requires_python=self._ignore_requires_python,
         )
-        if not supports_python:
+        if not supports_python and not self._ignore_compatibility:
             # Return None for the reason text to suppress calling
             # _log_skipped_link().
             return (False, None)
@@ -469,7 +475,10 @@ class CandidateEvaluator:
 
         return sorted(filtered_applicable_candidates, key=self._sort_key)
 
-    def _sort_key(self, candidate: InstallationCandidate) -> CandidateSortingKey:
+    def _sort_key(
+        self, candidate: InstallationCandidate,
+        ignore_compatibility: bool = True
+    ) -> CandidateSortingKey:
         """
         Function to pass as the `key` argument to a call to sorted() to sort
         InstallationCandidates by preference.
@@ -514,10 +523,13 @@ class CandidateEvaluator:
                     )
                 )
             except ValueError:
-                raise UnsupportedWheel(
-                    "{} is not a supported wheel for this platform. It "
-                    "can't be sorted.".format(wheel.filename)
-                )
+                if not ignore_compatibility:
+                    raise UnsupportedWheel(
+                        "{} is not a supported wheel for this platform. It "
+                        "can't be sorted.".format(wheel.filename)
+                    )
+                pri = -(support_num)
+
             if self._prefer_binary:
                 binary_preference = 1
             if wheel.build_tag is not None:
@@ -584,6 +596,7 @@ class PackageFinder:
         format_control: Optional[FormatControl] = None,
         candidate_prefs: Optional[CandidatePreferences] = None,
         ignore_requires_python: Optional[bool] = None,
+		ignore_compatibility: Optional[bool] = False
     ) -> None:
         """
         This constructor is primarily meant to be used by the create() class
@@ -605,6 +618,7 @@ class PackageFinder:
         self._ignore_requires_python = ignore_requires_python
         self._link_collector = link_collector
         self._target_python = target_python
+		self._ignore_compatibility = ignore_compatibility
         self._use_deprecated_html5lib = use_deprecated_html5lib
 
         self.format_control = format_control
@@ -701,6 +715,7 @@ class PackageFinder:
             target_python=self._target_python,
             allow_yanked=self._allow_yanked,
             ignore_requires_python=self._ignore_requires_python,
+			ignore_compatibility=self._ignore_compatibility
         )
 
     def _sort_links(self, links: Iterable[Link]) -> List[Link]:
