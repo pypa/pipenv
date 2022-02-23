@@ -31,6 +31,7 @@ from pipenv.exceptions import (
 from pipenv.pep508checker import lookup
 from pipenv.vendor.packaging.markers import Marker
 from pipenv.vendor.urllib3 import util as urllib3_util
+from pipenv.patched.notpip._vendor.packaging.specifiers import Specifier
 from pipenv.vendor.vistir.compat import (
     Mapping, ResourceWarning, Sequence, Set, TemporaryDirectory, lru_cache
 )
@@ -895,6 +896,7 @@ class Resolver:
             else:
                 candidate = self.finder.find_best_candidate(result.name, result.specifier).best_candidate
                 if candidate:
+                    setattr(result.req, 'specifier', Specifier(f"=={str(candidate.version)}"))
                     requires_python = candidate.link.requires_python
                     if requires_python:
                         marker = marker_from_specifier(requires_python)
