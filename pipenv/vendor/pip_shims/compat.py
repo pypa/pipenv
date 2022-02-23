@@ -709,6 +709,7 @@ def shim_unpack(
     only_download=None,  # type: Optional[bool]
     downloader_provider=None,  # type: Optional[TShimmedFunc]
     session=None,  # type: Optional[Any]
+    verbosity=0,
 ):
     # (...) -> None
     """
@@ -743,7 +744,7 @@ def shim_unpack(
     downloader_provider = resolve_possible_shim(downloader_provider)
     tempdir_manager_provider = resolve_possible_shim(tempdir_manager_provider)
     required_args = inspect.getargs(unpack_fn.__code__).args  # type: ignore
-    unpack_kwargs = {"download_dir": download_dir}
+    unpack_kwargs = {"download_dir": download_dir, "verbosity": verbosity}
     with tempdir_manager_provider():
         if ireq:
             if not link and ireq.link:
