@@ -31,7 +31,7 @@ from pipenv.exceptions import (
 from pipenv.pep508checker import lookup
 from pipenv.vendor.packaging.markers import Marker
 from pipenv.vendor.urllib3 import util as urllib3_util
-from pipenv.patched.notpip._vendor.packaging.specifiers import Specifier
+from pipenv.patched.notpip._vendor.packaging.specifiers import Specifier, SpecifierSet
 from pipenv.vendor.vistir.compat import (
     Mapping, ResourceWarning, Sequence, Set, TemporaryDirectory, lru_cache
 )
@@ -934,7 +934,9 @@ class Resolver:
                 cleaned_releases[api_version] = api_info
             version = ""
             if ireq.specifier:
-                spec = next(iter(s for s in ireq.specifier), None)
+                spec = ireq.specifier
+                if isinstance(spec, SpecifierSet):
+                    spec = next(iter(s for s in ireq.specifier), None)
                 if spec:
                     version = spec.version
             for release in cleaned_releases[version]:
@@ -1018,7 +1020,7 @@ class Resolver:
                 continue
             elif req.normalized_name in self.skipped.keys():
                 continue
-            collected_hashes = self.hashes.get(ireq, set())
+            collected_hashes = self.collect_hashes(ireq)
             req = req.add_hashes(collected_hashes)
             if collected_hashes:
                 collected_hashes = sorted(collected_hashes)
@@ -1429,10 +1431,12 @@ def is_pinned_requirement(ireq):
     if ireq.editable:
         return False
 
-    if ireq.req is None or len(ireq.specifier) != 1:
+    if ireq.req is None or (isinstance(ireq.specifier, SpecifierSet) and len(ireq.specifier) != 1):
         return False
 
-    spec = next(iter(ireq.specifier))
+    spec = ireq.specifier
+    if isinstance(spec, SpecifierSet):
+        spec = next(iter(ireq.specifier))
     return spec.operator in {"==", "==="} and not spec.version.endswith(".*")
 
 
