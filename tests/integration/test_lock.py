@@ -714,13 +714,13 @@ def test_vcs_lock_respects_top_level_pins(PipenvInstance):
             "editable": True, "git": f"{requests_uri}",
             "ref": "v2.18.4"
         })
-        p._pipfile.add("urllib3", "==1.21.1")
+        p._pipfile.add("urllib3", "==1.22")
         c = p.pipenv("install")
         assert c.returncode == 0
         assert "requests" in p.lockfile["default"]
         assert "git" in p.lockfile["default"]["requests"]
         assert "urllib3" in p.lockfile["default"]
-        assert p.lockfile["default"]["urllib3"]["version"] == "==1.21.1"
+        assert p.lockfile["default"]["urllib3"]["version"] == "==1.22"
 
 
 @pytest.mark.lock
