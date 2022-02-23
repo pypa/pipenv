@@ -73,7 +73,7 @@ class VCSRepository(object):
             if lt_pip_19_2:
                 self.repo_backend.obtain(self.checkout_directory)
             else:
-                self.repo_backend.obtain(self.checkout_directory, self.parsed_url)
+                self.repo_backend.obtain(self.checkout_directory, self.parsed_url, 0)
         else:
             if self.ref:
                 self.checkout_ref(self.ref)
