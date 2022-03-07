@@ -416,9 +416,6 @@ class Project:
     @property
     def virtualenv_name(self):
         # type: () -> str
-        custom_name = os.getenv("PIPENV_CUSTOM_VENV_NAME")
-        if custom_name:
-            return custom_name
         names = []
         base_name = os.getenv("PIPENV_VENV_BASE_NAME")
         if base_name:
