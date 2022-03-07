@@ -419,17 +419,22 @@ class Project:
         custom_name = os.getenv("PIPENV_CUSTOM_VENV_NAME")
         if custom_name:
             return custom_name
+        names = []
+        base_name = os.getenv("PIPENV_VENV_BASE_NAME")
+        if base_name:
+            names.append(base_name)
         sanitized, encoded_hash = self._get_virtualenv_hash(self.name)
-        suffix = ""
+        
         if self.s.PIPENV_PYTHON:
             if os.path.isabs(self.s.PIPENV_PYTHON):
-                suffix = "-{0}".format(os.path.basename(self.s.PIPENV_PYTHON))
+                names.append("{0}".format(os.path.basename(self.s.PIPENV_PYTHON)))
             else:
-                suffix = "-{0}".format(self.s.PIPENV_PYTHON)
+                names.append("{0}".format(self.s.PIPENV_PYTHON))
 
-        # If the pipfile was located at '/home/user/MY_PROJECT/Pipfile',
-        # the name of its virtualenv will be 'my-project-wyUfYPqE'
-        return sanitized + "-" + encoded_hash + suffix
+        names.append(sanitized)
+        if not os.getenv("PIPENV_VENV_SHORT_NAME"):
+            names.append(encoded_hash)
+        return "-".join(names)
 
     @property
     def virtualenv_location(self):
