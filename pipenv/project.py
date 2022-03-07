@@ -417,7 +417,7 @@ class Project:
     def virtualenv_name(self):
         # type: () -> str
         names = []
-        base_name = os.getenv("PIPENV_VENV_BASE_NAME")
+        base_name = os.getenv("PIPENV_VENV_PREFIX_NAME")
         if base_name:
             names.append(base_name)
         sanitized, encoded_hash = self._get_virtualenv_hash(self.name)
