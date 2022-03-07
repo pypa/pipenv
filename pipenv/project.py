@@ -422,15 +422,16 @@ class Project:
             names.append(base_name)
         sanitized, encoded_hash = self._get_virtualenv_hash(self.name)
         
+        names.append(sanitized)
+        if not os.getenv("PIPENV_VENV_SHORT_NAME"):
+            names.append(encoded_hash)
+            
         if self.s.PIPENV_PYTHON:
             if os.path.isabs(self.s.PIPENV_PYTHON):
                 names.append("{0}".format(os.path.basename(self.s.PIPENV_PYTHON)))
             else:
                 names.append("{0}".format(self.s.PIPENV_PYTHON))
 
-        names.append(sanitized)
-        if not os.getenv("PIPENV_VENV_SHORT_NAME"):
-            names.append(encoded_hash)
         return "-".join(names)
 
     @property
