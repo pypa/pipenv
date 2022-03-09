@@ -14,7 +14,7 @@ from .path import PathEntry
 from .python import PythonVersion, VersionMap
 
 if MYPY_RUNNING:
-    from typing import DefaultDict, Tuple, List, Optional, Union, TypeVar, Type, Any
+    from typing import Any, DefaultDict, List, Optional, Tuple, Type, TypeVar, Union
 
     FinderType = TypeVar("FinderType")
 
@@ -43,7 +43,8 @@ class WindowsFinder(BaseFinder):
         pythons = [py for py in self.version_list if version_matcher(py)]
         version_sort = operator.attrgetter("version_sort")
         return [
-            c.comes_from for c in sorted(pythons, key=version_sort, reverse=True)
+            c.comes_from
+            for c in sorted(pythons, key=version_sort, reverse=True)
             if c.comes_from
         ]
 
