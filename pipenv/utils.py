@@ -893,7 +893,7 @@ class Resolver:
         for result in self.resolved_tree:
             candidate = self.finder.find_best_candidate(result.name, result.specifier).best_candidate
             if candidate:
-                setattr(result.req, 'specifier', Specifier(f"=={str(candidate.version)}"))
+                result.req.specifier = result.specifier.__class__(f"=={candidate.version}")
                 requires_python = candidate.link.requires_python
                 if requires_python:
                     marker = marker_from_specifier(requires_python)
