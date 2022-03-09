@@ -32,11 +32,7 @@ from pipenv.patched.notpip._vendor import html5lib, requests
 from pipenv.patched.notpip._vendor.requests import Response
 from pipenv.patched.notpip._vendor.requests.exceptions import RetryError, SSLError
 
-from pipenv.patched.notpip._internal.exceptions import (
-    BadHTMLDoctypeDeclaration,
-    MissingHTMLDoctypeDeclaration,
-    NetworkConnectionError,
-)
+from pipenv.patched.notpip._internal.exceptions import NetworkConnectionError
 from pipenv.patched.notpip._internal.models.link import Link
 from pipenv.patched.notpip._internal.models.search_scope import SearchScope
 from pipenv.patched.notpip._internal.network.session import PipSession
@@ -401,33 +397,12 @@ class HTMLLinkParser(HTMLParser):
 
     def __init__(self, url: str) -> None:
         super().__init__(convert_charrefs=True)
-        self._dealt_with_doctype_issues = False
 
         self.url: str = url
         self.base_url: Optional[str] = None
         self.anchors: List[Dict[str, Optional[str]]] = []
 
-    def handle_decl(self, decl: str) -> None:
-        self._dealt_with_doctype_issues = True
-        match = re.match(
-            r"""doctype\s+html\s*(?:SYSTEM\s+(["'])about:legacy-compat\1)?\s*$""",
-            decl,
-            re.IGNORECASE,
-        )
-        if match is None:
-            logger.warning(
-                "[present-diagnostic] %s",
-                BadHTMLDoctypeDeclaration(url=self.url),
-            )
-
     def handle_starttag(self, tag: str, attrs: List[Tuple[str, Optional[str]]]) -> None:
-        if not self._dealt_with_doctype_issues:
-            logger.warning(
-                "[present-diagnostic] %s",
-                MissingHTMLDoctypeDeclaration(url=self.url),
-            )
-            self._dealt_with_doctype_issues = True
-
         if tag == "base" and self.base_url is None:
             href = self.get_href(attrs)
             if href is not None:

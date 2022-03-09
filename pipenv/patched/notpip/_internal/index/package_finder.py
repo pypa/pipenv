@@ -114,7 +114,7 @@ class LinkEvaluator:
         target_python: TargetPython,
         allow_yanked: bool,
         ignore_requires_python: Optional[bool] = None,
-		ignore_compatibility: Optional[bool] = None,
+        ignore_compatibility: Optional[bool] = None,
     ) -> None:
         """
         :param project_name: The user supplied package name.
@@ -596,7 +596,7 @@ class PackageFinder:
         format_control: Optional[FormatControl] = None,
         candidate_prefs: Optional[CandidatePreferences] = None,
         ignore_requires_python: Optional[bool] = None,
-		ignore_compatibility: Optional[bool] = False
+        ignore_compatibility: Optional[bool] = False
     ) -> None:
         """
         This constructor is primarily meant to be used by the create() class
@@ -715,7 +715,7 @@ class PackageFinder:
             target_python=self._target_python,
             allow_yanked=self._allow_yanked,
             ignore_requires_python=self._ignore_requires_python,
-			ignore_compatibility=self._ignore_compatibility
+            ignore_compatibility=self._ignore_compatibility
         )
 
     def _sort_links(self, links: Iterable[Link]) -> List[Link]:
