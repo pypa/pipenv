@@ -356,10 +356,7 @@ def parse_req_from_line(name: str, line_source: Optional[str]) -> RequirementPar
             # This currently works by accident because _strip_extras() parses
             # any extras in the end of the string and those are saved in
             # RequirementParts
-            specifier = req.specifier
-            if isinstance(specifier, Specifier):
-                specifier = [specifier]
-            for spec in specifier:
+            for spec in req.specifier:
                 spec_str = str(spec)
                 if spec_str.endswith("]"):
                     msg = f"Extras after version '{spec_str}'."
