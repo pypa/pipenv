@@ -31,7 +31,6 @@ from pipenv.exceptions import (
 from pipenv.pep508checker import lookup
 from pipenv.vendor.packaging.markers import Marker
 from pipenv.vendor.urllib3 import util as urllib3_util
-from pipenv.patched.notpip._vendor.packaging.specifiers import Specifier, SpecifierSet
 from pipenv.vendor.vistir.compat import (
     Mapping, ResourceWarning, Sequence, Set, TemporaryDirectory, lru_cache
 )
