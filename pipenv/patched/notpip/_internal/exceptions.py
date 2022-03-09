@@ -181,30 +181,6 @@ class UninstallationError(PipError):
     """General exception during uninstallation"""
 
 
-class BadHTMLDoctypeDeclaration(DiagnosticPipError):
-    reference = "bad-index-doctype"
-
-    def __init__(self, *, url: str) -> None:
-        super().__init__(
-            kind="warning",
-            message=(
-                "The package index page being used does not have a proper HTML "
-                "doctype declaration."
-            ),
-            context=f"Problematic URL: {escape(url)}",
-            note_stmt="This is an issue with the page at the URL mentioned above.",
-            hint_stmt=(
-                "You might need to reach out to the owner of that package index, "
-                "to get this fixed. "
-                "See https://github.com/pypa/pip/issues/10825 for context."
-            ),
-        )
-
-
-class MissingHTMLDoctypeDeclaration(BadHTMLDoctypeDeclaration):
-    reference = "missing-index-doctype"
-
-
 class MissingPyProjectBuildRequires(DiagnosticPipError):
     """Raised when pyproject.toml has `build-system`, but no `build-system.requires`."""
 

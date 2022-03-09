@@ -132,35 +132,29 @@ class DistributionPath(object):
                 r = finder.find(entry)
                 if not r or r.path in seen:
                     continue
-                try:
-                    if self._include_dist and entry.endswith(DISTINFO_EXT):
-                        possible_filenames = [METADATA_FILENAME,
-                                              WHEEL_METADATA_FILENAME,
-                                              LEGACY_METADATA_FILENAME]
-                        for metadata_filename in possible_filenames:
-                            metadata_path = posixpath.join(entry, metadata_filename)
-                            pydist = finder.find(metadata_path)
-                            if pydist:
-                                break
-                        else:
-                            continue
+                if self._include_dist and entry.endswith(DISTINFO_EXT):
+                    possible_filenames = [METADATA_FILENAME,
+                                          WHEEL_METADATA_FILENAME,
+                                          LEGACY_METADATA_FILENAME]
+                    for metadata_filename in possible_filenames:
+                        metadata_path = posixpath.join(entry, metadata_filename)
+                        pydist = finder.find(metadata_path)
+                        if pydist:
+                            break
+                    else:
+                        continue
 
-                        with contextlib.closing(pydist.as_stream()) as stream:
-                            metadata = Metadata(fileobj=stream, scheme='legacy')
-                        logger.debug('Found %s', r.path)
-                        seen.add(r.path)
-                        yield new_dist_class(r.path, metadata=metadata,
-                                             env=self)
-                    elif self._include_egg and entry.endswith(('.egg-info',
-                                                              '.egg')):
-                        logger.debug('Found %s', r.path)
-                        seen.add(r.path)
-                        yield old_dist_class(r.path, self)
-                except Exception as e:
-                    msg = 'Unable to read distribution at %s, perhaps due to bad metadata: %s'
-                    logger.warning(msg, r.path, e)
-                    import warnings
-                    warnings.warn(msg % (r.path, e), stacklevel=2)
+                    with contextlib.closing(pydist.as_stream()) as stream:
+                        metadata = Metadata(fileobj=stream, scheme='legacy')
+                    logger.debug('Found %s', r.path)
+                    seen.add(r.path)
+                    yield new_dist_class(r.path, metadata=metadata,
+                                         env=self)
+                elif self._include_egg and entry.endswith(('.egg-info',
+                                                          '.egg')):
+                    logger.debug('Found %s', r.path)
+                    seen.add(r.path)
+                    yield old_dist_class(r.path, self)
 
     def _generate_cache(self):
         """
