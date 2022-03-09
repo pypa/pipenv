@@ -931,9 +931,7 @@ class Resolver:
                 cleaned_releases[api_version] = api_info
             version = ""
             if ireq.specifier:
-                spec = ireq.specifier
-                if isinstance(spec, SpecifierSet):
-                    spec = next(iter(s for s in ireq.specifier), None)
+                spec = next(iter(s for s in ireq.specifier), None)
                 if spec:
                     version = spec.version
             for release in cleaned_releases[version]:
@@ -1428,12 +1426,10 @@ def is_pinned_requirement(ireq):
     if ireq.editable:
         return False
 
-    if ireq.req is None or (isinstance(ireq.specifier, SpecifierSet) and len(ireq.specifier) != 1):
+    if ireq.req is None or len(ireq.specifier) != 1:
         return False
 
-    spec = ireq.specifier
-    if isinstance(spec, SpecifierSet):
-        spec = next(iter(ireq.specifier))
+    spec = next(iter(ireq.specifier))
     return spec.operator in {"==", "==="} and not spec.version.endswith(".*")
 
 
