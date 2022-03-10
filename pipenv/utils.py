@@ -890,9 +890,10 @@ class Resolver:
         from .vendor.requirementslib.models.markers import marker_from_specifier
         new_tree = set()
         for result in self.resolved_tree:
+            if result.markers:
+                self.markers[result.name] = result.markers
             candidate = self.finder.find_best_candidate(result.name, result.specifier).best_candidate
             if candidate:
-                result.req.specifier = result.specifier.__class__(f"=={candidate.version}")
                 requires_python = candidate.link.requires_python
                 if requires_python:
                     marker = marker_from_specifier(requires_python)
