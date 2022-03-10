@@ -892,15 +892,16 @@ class Resolver:
         for result in self.resolved_tree:
             if result.markers:
                 self.markers[result.name] = result.markers
-            candidate = self.finder.find_best_candidate(result.name, result.specifier).best_candidate
-            if candidate:
-                requires_python = candidate.link.requires_python
-                if requires_python:
-                    marker = marker_from_specifier(requires_python)
-                    self.markers[result.name] = marker
-                    result.markers = marker
-                    if result.req:
-                        result.req.marker = marker
+            else:
+                candidate = self.finder.find_best_candidate(result.name, result.specifier).best_candidate
+                if candidate:
+                    requires_python = candidate.link.requires_python
+                    if requires_python:
+                        marker = marker_from_specifier(requires_python)
+                        self.markers[result.name] = marker
+                        result.markers = marker
+                        if result.req:
+                            result.req.marker = marker
             new_tree.add(result)
         self.resolved_tree = new_tree
 
