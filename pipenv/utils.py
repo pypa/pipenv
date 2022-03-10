@@ -1016,7 +1016,7 @@ class Resolver:
                 continue
             elif req.normalized_name in self.skipped.keys():
                 continue
-            collected_hashes = self.collect_hashes(ireq)
+            collected_hashes = self.hashes.get(ireq, set())
             req = req.add_hashes(collected_hashes)
             if collected_hashes:
                 collected_hashes = sorted(collected_hashes)
