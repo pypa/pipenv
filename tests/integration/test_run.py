@@ -80,5 +80,5 @@ def test_run_with_usr_env_shebang(PipenvInstance):
         c = p.pipenv("run ./test_script")
         assert c.returncode == 0
         project = Project()
-        lines = [line.strip() for line in c.stdout.splitlines()]
+        lines = [line.strip() for line in c.stdout.splitlines()[1:]]
         assert all(line == project.virtualenv_location for line in lines)
