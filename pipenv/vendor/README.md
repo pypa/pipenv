@@ -6,15 +6,21 @@ you need to patch anything, move the package to `patched` and generate a
 patch for it using `git diff -p <dependency_root_dir>`. This patch belongs
 in `./pipenv/tasks/vendoring/patches/patched/<packagename.patchdesc>.patch`.
 
-To add a vendored dependency or to update a single dependency, use the
-vendoring scripts:
+To add a vendored dependency or to update a single dependency, add the package
+name and version to `pipenv/vendor/vendor.txt`, for example:
+
 ```
-    pipenv run inv vendoring.update --package="pkgname==versionnum"
+appdirs==1.4.4
 ```
 
-This will automatically pin the package in `./pipenv/vendor/vendor.txt`
-or it will update the pin if the package is already present, and it will
-then update the package and download any necessary licenses (if available).
+And the run the vendoring script:
+
+```
+python -m invoke vendoring.update
+```
+
+This will automatically download or pin if the package is already present,
+and it will also download any necessary licenses (if available).
 Note that this will not download any dependencies, you must add those each
 individually.
 
