@@ -306,7 +306,6 @@ Along with the basic install command, which takes the form::
 
 The user can provide these additional parameters:
 
-    - ``--two`` — Performs the installation in a virtualenv using the system ``python2`` link.
     - ``--three`` — Performs the installation in a virtualenv using the system ``python3`` link.
     - ``--python`` — Performs the installation in a virtualenv using the provided Python interpreter.
 
@@ -437,7 +436,7 @@ doing a multi stage build for your application::
   ENV PIPENV_VENV_IN_PROJECT=1
 
   # Pipefile contains requests
-  ADD Pipfile.lock Pipfile /usr/src/ 
+  ADD Pipfile.lock Pipfile /usr/src/
 
   WORKDIR /usr/src
 
@@ -448,13 +447,13 @@ doing a multi stage build for your application::
 
   # RUN apt install -y libcurl3-gnutls libcurl4-gnutls-dev
 
-  RUN /root/.local/bin/pipenv sync 
+  RUN /root/.local/bin/pipenv sync
 
   RUN /usr/src/.venv/bin/python -c "import requests; print(requests.__version__)"
 
   FROM docker.io/python:3.9 AS runtime
 
-  RUN mkdir -v /usr/src/venv 
+  RUN mkdir -v /usr/src/venv
 
   COPY --from=builder /usr/src/.venv/ /usr/src/venv/
 

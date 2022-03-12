@@ -106,9 +106,8 @@ activate a virtualenv, run `$ pipenv shell`).
 -   A virtualenv will automatically be created, when one doesn\'t exist.
 -   When no parameters are passed to `install`, all packages
     `[packages]` specified will be installed.
--   To initialize a Python 3 virtual environment, run
+-   To initialize a virtual environment with system python3, run
     `$ pipenv --three`.
--   To initialize a Python 2 virtual environment, run `$ pipenv --two`.
 -   Otherwise, whatever virtualenv defaults to will be the default.
 
 ### Other Commands
@@ -154,7 +153,7 @@ Magic shell completions are now enabled!
       --rm             Remove the virtualenv.
       --bare           Minimal output.
       --man            Display manpage.
-      --three / --two  Use Python 3/2 when creating virtualenv.
+      --three          Use Python 3 when creating virtualenv.
       --python TEXT    Specify which version of Python virtualenv should use.
       --site-packages  Enable site-packages for the virtualenv.
       --version        Show the version and exit.
@@ -162,8 +161,8 @@ Magic shell completions are now enabled!
 
 
     Usage Examples:
-       Create a new project using Python 3.7, specifically:
-       $ pipenv --python 3.7
+       Create a new project using Python 3.9, specifically:
+       $ pipenv --python 3.9
 
        Remove project virtualenv (inferred from current directory):
        $ pipenv --rm

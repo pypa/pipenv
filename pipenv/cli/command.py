@@ -156,7 +156,7 @@ def cli(
                     err=True,
                 )
                 ctx.abort()
-    # --two / --three was passed...
+    # --python or --three was passed...
     if (state.python or state.three is not None) or state.site_packages:
         ensure_project(
             state.project,
