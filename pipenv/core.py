@@ -103,25 +103,23 @@ def load_dot_env(project, as_dict=False):
             [project_directory, ".env"]
         )
 
-        if os.path.isfile(dotenv_file):
+        if not os.path.isfile(dotenv_file) and project.s.PIPENV_DOTENV_LOCATION:
             click.echo(
-                crayons.normal(fix_utf8("Loading .env environment variables..."), bold=True),
+                "{}: file {}={} does not exist!!\n{}".format(
+                    crayons.red("Warning", bold=True),
+                    crayons.normal("PIPENV_DOTENV_LOCATION", bold=True),
+                    crayons.normal(project.s.PIPENV_DOTENV_LOCATION, bold=True),
+                    crayons.red("Not loading environment variables.", bold=True),
+                ),
                 err=True,
             )
-        else:
-            if project.s.PIPENV_DOTENV_LOCATION:
-                click.echo(
-                    "{}: file {}={} does not exist!!\n{}".format(
-                        crayons.red("Warning", bold=True),
-                        crayons.normal("PIPENV_DOTENV_LOCATION", bold=True),
-                        crayons.normal(project.s.PIPENV_DOTENV_LOCATION, bold=True),
-                        crayons.red("Not loading environment variables.", bold=True),
-                    ),
-                    err=True,
-                )
         if as_dict:
             return dotenv.dotenv_values(dotenv_file)
         else:
+            click.echo(
+                crayons.normal(fix_utf8("Loading .env environment variables..."), bold=True),
+                err=False,
+            )
             dotenv.load_dotenv(dotenv_file, override=True)
             project.s.initialize()
 
@@ -2473,8 +2471,8 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
         project, three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
     )
 
+    load_dot_env(project)
     env = os.environ.copy()
-    env.update(load_dot_env(project, as_dict=True) or {})
     env.pop("PIP_SHIMS_BASE_MODULE", None)
 
     path = env.get('PATH', '')

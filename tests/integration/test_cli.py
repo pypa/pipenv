@@ -211,6 +211,27 @@ pyver = "which python"
 
 
 @pytest.mark.cli
+def test_scripts_resolve_dot_env_vars(PipenvInstance):
+    with PipenvInstance() as p:
+        with open(".env", "w") as f:
+            contents = """
+HELLO=WORLD
+            """.strip()
+            f.write(contents)
+
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[scripts]
+hello = "echo $HELLO"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('run hello')
+        print(c)
+        print(c.stdout)
+        assert 'WORLD' in c.stdout
+
+
+@pytest.mark.cli
 def test_help(PipenvInstance):
     with PipenvInstance() as p:
         assert p.pipenv('--help').stdout
