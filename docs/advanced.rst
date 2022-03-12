@@ -636,4 +636,4 @@ You can force Pipenv to use a different cache location by setting the environmen
 ☤ Changing Default Python Versions
 ----------------------------------
 
-By default, Pipenv will initialize a project using whatever version of python the python3 is. Besides starting a project with the ``--three`` or ``--two`` flags, you can also use ``PIPENV_DEFAULT_PYTHON_VERSION`` to specify what version to use when starting a project when ``--three`` or ``--two`` aren't used.
+By default, Pipenv will initialize a project using whatever version of python the system has as default. Besides starting a project with the ``--python`` or ``--three`` flags, you can also use ``PIPENV_DEFAULT_PYTHON_VERSION`` to specify what version to use when starting a project when ``--python`` or ``--three`` aren't used.

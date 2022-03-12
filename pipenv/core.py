@@ -469,7 +469,7 @@ def ensure_virtualenv(project, three=None, python=None, site_packages=None, pypi
             # If interrupted, cleanup the virtualenv.
             cleanup_virtualenv(project, bare=False)
             sys.exit(1)
-    # If --three, --two, or --python were passed...
+    # If --python or --three were passed...
     elif (python) or (three is not None) or (site_packages is not None):
         project.s.USING_DEFAULT_PYTHON = False
         # Ensure python is installed before deleting existing virtual env
