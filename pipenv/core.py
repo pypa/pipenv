@@ -1413,9 +1413,10 @@ def pip_install(
             ignore_hashes = False
     line = None
     # Try installing for each source in project.sources.
-    if not index and requirement.index:
+    if requirement.index:
         index = requirement.index
-    if index and not extra_indexes:
+        extra_indexes = []
+    elif index and not extra_indexes:
         extra_indexes = list(project.sources)
     if requirement and requirement.vcs or requirement.editable:
         requirement.index = None
