@@ -905,7 +905,7 @@ class Resolver:
                                 result.req.marker = marker
                         except TypeError as e:
                             click_echo(
-                                f"Error generating python specifier for {candidate}.  "
+                                f"Error generating python marker for {candidate}.  "
                                 f"Is the specifier {requires_python} incorrectly quoted or otherwise wrong?"
                                 f"Full error: {e}", err=True
                             )
