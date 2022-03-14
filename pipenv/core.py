@@ -1437,7 +1437,7 @@ def pip_install(
         project, index, extra_indexes=extra_indexes, trusted_hosts=trusted_hosts,
         pypi_mirror=pypi_mirror
     )
-    sources = list(filter(lambda d: d['name'] == requirement.index, sources))
+    sources = list(filter(lambda d: d.get('name') == requirement.index, sources))
     if r:
         with open(r, "r") as fh:
             if "--hash" not in fh.read():

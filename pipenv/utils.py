@@ -496,9 +496,10 @@ class Resolver:
             # directories into the initial constraint pool to be resolved with the
             # rest of the dependencies, while adding the files/vcs deps/paths themselves
             # to the lockfile directly
+            use_sources = None
             if req.name in index_lookup:
-                use_sources = list(filter(lambda d: d['name'] == index_lookup[req.name], sources))
-            else:
+                use_sources = list(filter(lambda s: s.get('name') == index_lookup[req.name], sources))
+            if not use_sources:
                 use_sources = sources
             transient_resolver = cls(
                 [], req_dir, project, use_sources, index_lookup=index_lookup,
@@ -806,10 +807,12 @@ class Resolver:
             )
         index_mapping = {}
         for source in self.sources:
-            index_mapping[source['name']] = source['url']
+            if source.get('name'):
+                index_mapping[source['name']] = source['url']
         alt_index_lookup = {}
         for req_name, index in self.index_lookup.items():
-            alt_index_lookup[req_name] = index_mapping[index]
+            if index_mapping.get(index):
+                alt_index_lookup[req_name] = index_mapping[index]
         self._finder._link_collector.index_lookup = alt_index_lookup
         self._finder._link_collector.search_scope.index_lookup = alt_index_lookup
         return self._finder
