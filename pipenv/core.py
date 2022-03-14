@@ -1413,9 +1413,8 @@ def pip_install(
             ignore_hashes = False
     line = None
     # Try installing for each source in project.sources.
-    if requirement.index:
+    if not index and requirement.index:
         index = requirement.index
-        extra_indexes = []
     if index and not extra_indexes:
         extra_indexes = list(project.sources)
         extra_indexes = list(filter(lambda d: d['name'] == requirement.index, extra_indexes))
@@ -1462,7 +1461,8 @@ def pip_install(
         pip_command.extend(["-r", vistir.path.normalize_path(r)])
     elif line:
         pip_command.extend(line)
-    pip_command.extend(prepare_pip_source_args(sources))
+    pip_source_args = prepare_pip_source_args(sources)
+    pip_command.extend(pip_source_args)
     if project.s.is_verbose():
         click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
     cache_dir = Path(project.s.PIPENV_CACHE_DIR)

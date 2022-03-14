@@ -804,6 +804,14 @@ class Resolver:
                 options=self.pip_options,
                 session=self.session
             )
+        index_mapping = {}
+        for source in self.sources:
+            index_mapping[source['name']] = source['url']
+        alt_index_lookup = {}
+        for req_name, index in self.index_lookup.items():
+            alt_index_lookup[req_name] = index_mapping[index]
+        self._finder._link_collector.index_lookup = alt_index_lookup
+        self._finder._link_collector.search_scope.index_lookup = alt_index_lookup
         return self._finder
 
     @property
@@ -827,7 +835,6 @@ class Resolver:
         from pipenv.vendor.pip_shims import shims
 
         pip_options = self.pip_options
-        print("pip_options", pip_options)
         pip_options.extra_index_urls = []
         if self._parsed_constraints is None:
             self._parsed_constraints = shims.parse_requirements(
@@ -887,9 +894,10 @@ class Resolver:
         from pipenv.vendor.pip_shims.shims import InstallationError
         from pipenv.exceptions import ResolutionFailure
 
+        constraints = self.constraints
         with temp_environ(), self.get_resolver() as resolver:
             try:
-                results = resolver.resolve(self.constraints, check_supported_wheels=False)
+                results = resolver.resolve(constraints, check_supported_wheels=False)
             except InstallationError as e:
                 raise ResolutionFailure(message=str(e))
             else:
