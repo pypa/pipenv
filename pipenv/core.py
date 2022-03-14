@@ -1463,8 +1463,7 @@ def pip_install(
         pip_command.extend(["-r", vistir.path.normalize_path(r)])
     elif line:
         pip_command.extend(line)
-    pip_source_args = prepare_pip_source_args(sources)
-    pip_command.extend(pip_source_args)
+    pip_command.extend(prepare_pip_source_args(sources))
     if project.s.is_verbose():
         click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
     cache_dir = Path(project.s.PIPENV_CACHE_DIR)
