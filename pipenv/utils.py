@@ -897,10 +897,9 @@ class Resolver:
         from pipenv.vendor.pip_shims.shims import InstallationError
         from pipenv.exceptions import ResolutionFailure
 
-        constraints = self.constraints
         with temp_environ(), self.get_resolver() as resolver:
             try:
-                results = resolver.resolve(constraints, check_supported_wheels=False)
+                results = resolver.resolve(self.constraints, check_supported_wheels=False)
             except InstallationError as e:
                 raise ResolutionFailure(message=str(e))
             else:
