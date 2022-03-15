@@ -1416,9 +1416,11 @@ def pip_install(
     if not index and requirement.index:
         index = requirement.index
     if index and not extra_indexes:
-        extra_indexes = list(project.sources)
+        extra_indexes = []
         if requirement.index:
-            extra_indexes = list(filter(lambda d: d['name'] == requirement.index, extra_indexes))
+            extra_indexes = list(filter(lambda d: d['name'] == requirement.index, project.sources))
+        if not extra_indexes:
+            extra_indexes = list(project.sources)
     if requirement and requirement.vcs or requirement.editable:
         requirement.index = None
         # Install dependencies when a package is a non-editable VCS dependency.

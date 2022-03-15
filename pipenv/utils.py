@@ -897,6 +897,7 @@ class Resolver:
         from pipenv.vendor.pip_shims.shims import InstallationError
         from pipenv.exceptions import ResolutionFailure
 
+        self.constraints  # For some reason its important to evaluate constraints before resolver context
         with temp_environ(), self.get_resolver() as resolver:
             try:
                 results = resolver.resolve(self.constraints, check_supported_wheels=False)
