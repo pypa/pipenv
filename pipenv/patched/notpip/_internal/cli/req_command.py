@@ -34,6 +34,7 @@ from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker
 from pipenv.patched.notpip._internal.resolution.base import BaseResolver
 from pipenv.patched.notpip._internal.self_outdated_check import pip_self_version_check
+from pipenv.patched.notpip._internal.utils.deprecation import deprecated
 from pipenv.patched.notpip._internal.utils.temp_dir import (
     TempDirectory,
     TempDirectoryTypeRegistry,
@@ -172,9 +173,10 @@ def warn_if_run_as_root() -> None:
     # checks: https://mypy.readthedocs.io/en/stable/common_issues.html
     if sys.platform == "win32" or sys.platform == "cygwin":
         return
-    if sys.platform == "darwin" or sys.platform == "linux":
-        if os.getuid() != 0:
-            return
+
+    if os.getuid() != 0:
+        return
+
     logger.warning(
         "Running pip as the 'root' user can result in broken permissions and "
         "conflicting behaviour with the system package manager. "
@@ -225,6 +227,31 @@ class RequirementCommand(IndexGroupCommand):
 
         return "2020-resolver"
 
+    @staticmethod
+    def determine_build_failure_suppression(options: Values) -> bool:
+        """Determines whether build failures should be suppressed and backtracked on."""
+        if "backtrack-on-build-failures" not in options.deprecated_features_enabled:
+            return False
+
+        if "legacy-resolver" in options.deprecated_features_enabled:
+            raise CommandError("Cannot backtrack with legacy resolver.")
+
+        deprecated(
+            reason=(
+                "Backtracking on build failures can mask issues related to how "
+                "a package generates metadata or builds a wheel. This flag will "
+                "be removed in pip 22.2."
+            ),
+            gone_in=None,
+            replacement=(
+                "avoiding known-bad versions by explicitly telling pip to ignore them "
+                "(either directly as requirements, or via a constraints file)"
+            ),
+            feature_flag=None,
+            issue=10655,
+        )
+        return True
+
     @classmethod
     def make_requirement_preparer(
         cls,
@@ -235,6 +262,7 @@ class RequirementCommand(IndexGroupCommand):
         finder: PackageFinder,
         use_user_site: bool,
         download_dir: Optional[str] = None,
+        verbosity: int = 0,
     ) -> RequirementPreparer:
         """
         Create a RequirementPreparer instance for the given parameters.
@@ -260,6 +288,27 @@ class RequirementCommand(IndexGroupCommand):
                     "fast-deps has no effect when used with the legacy resolver."
                 )
 
+        in_tree_build = "out-of-tree-build" not in options.deprecated_features_enabled
+        if "in-tree-build" in options.features_enabled:
+            deprecated(
+                reason="In-tree builds are now the default.",
+                replacement="to remove the --use-feature=in-tree-build flag",
+                gone_in="22.1",
+            )
+        if "out-of-tree-build" in options.deprecated_features_enabled:
+            deprecated(
+                reason="Out-of-tree builds are deprecated.",
+                replacement=None,
+                gone_in="22.1",
+            )
+
+        if options.progress_bar not in {"on", "off"}:
+            deprecated(
+                reason="Custom progress bar styles are deprecated",
+                replacement="to use the default progress bar style.",
+                gone_in="22.1",
+            )
+
         return RequirementPreparer(
             build_dir=temp_build_dir_path,
             src_dir=options.src_dir,
@@ -272,7 +321,8 @@ class RequirementCommand(IndexGroupCommand):
             require_hashes=options.require_hashes,
             use_user_site=use_user_site,
             lazy_wheel=lazy_wheel,
-            in_tree_build="in-tree-build" in options.features_enabled,
+            verbosity=verbosity,
+            in_tree_build=in_tree_build,
         )
 
     @classmethod
@@ -298,6 +348,7 @@ class RequirementCommand(IndexGroupCommand):
             isolated=options.isolated_mode,
             use_pep517=use_pep517,
         )
+        suppress_build_failures = cls.determine_build_failure_suppression(options)
         resolver_variant = cls.determine_resolver_variant(options)
         # The long import name and duplicated invocation is needed to convince
         # Mypy into correctly typechecking. Otherwise it would complain the
@@ -317,6 +368,7 @@ class RequirementCommand(IndexGroupCommand):
                 force_reinstall=force_reinstall,
                 upgrade_strategy=upgrade_strategy,
                 py_version_info=py_version_info,
+                suppress_build_failures=suppress_build_failures,
             )
         import pipenv.patched.notpip._internal.resolution.legacy.resolver
 
@@ -450,4 +502,5 @@ class RequirementCommand(IndexGroupCommand):
             link_collector=link_collector,
             selection_prefs=selection_prefs,
             target_python=target_python,
+            use_deprecated_html5lib="html5lib" in options.deprecated_features_enabled,
         )

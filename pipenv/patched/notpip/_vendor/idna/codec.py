@@ -7,8 +7,7 @@ _unicode_dots_re = re.compile('[\u002e\u3002\uff0e\uff61]')
 
 class Codec(codecs.Codec):
 
-    def encode(self, data, errors='strict'):
-        # type: (str, str) -> Tuple[bytes, int]
+    def encode(self, data: str, errors: str = 'strict') -> Tuple[bytes, int]:
         if errors != 'strict':
             raise IDNAError('Unsupported error handling \"{}\"'.format(errors))
 
@@ -17,8 +16,7 @@ class Codec(codecs.Codec):
 
         return encode(data), len(data)
 
-    def decode(self, data, errors='strict'):
-        # type: (bytes, str) -> Tuple[str, int]
+    def decode(self, data: bytes, errors: str = 'strict') -> Tuple[str, int]:
         if errors != 'strict':
             raise IDNAError('Unsupported error handling \"{}\"'.format(errors))
 
@@ -28,8 +26,7 @@ class Codec(codecs.Codec):
         return decode(data), len(data)
 
 class IncrementalEncoder(codecs.BufferedIncrementalEncoder):
-    def _buffer_encode(self, data, errors, final):  # type: ignore
-        # type: (str, str, bool) -> Tuple[str, int]
+    def _buffer_encode(self, data: str, errors: str, final: bool) -> Tuple[str, int]:  # type: ignore
         if errors != 'strict':
             raise IDNAError('Unsupported error handling \"{}\"'.format(errors))
 
@@ -62,8 +59,7 @@ class IncrementalEncoder(codecs.BufferedIncrementalEncoder):
         return result_str, size
 
 class IncrementalDecoder(codecs.BufferedIncrementalDecoder):
-    def _buffer_decode(self, data, errors, final):  # type: ignore
-        # type: (str, str, bool) -> Tuple[str, int]
+    def _buffer_decode(self, data: str, errors: str, final: bool) -> Tuple[str, int]:  # type: ignore
         if errors != 'strict':
             raise IDNAError('Unsupported error handling \"{}\"'.format(errors))
 
@@ -103,8 +99,7 @@ class StreamReader(Codec, codecs.StreamReader):
     pass
 
 
-def getregentry():
-    # type: () -> codecs.CodecInfo
+def getregentry() -> codecs.CodecInfo:
     # Compatibility as a search_function for codecs.register()
     return codecs.CodecInfo(
         name='idna',

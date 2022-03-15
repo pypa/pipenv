@@ -98,7 +98,7 @@ def _get_musl_version(executable: str) -> Optional[_MuslVersion]:
     with contextlib.ExitStack() as stack:
         try:
             f = stack.enter_context(open(executable, "rb"))
-        except IOError:
+        except OSError:
             return None
         ld = _parse_ld_musl_from_elf(f)
     if not ld:

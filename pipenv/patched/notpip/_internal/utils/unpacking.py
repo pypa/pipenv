@@ -40,16 +40,14 @@ except ImportError:
     logger.debug("lzma module is not available")
 
 
-def current_umask():
-    # type: () -> int
+def current_umask() -> int:
     """Get the current umask which involves having to set it temporarily."""
     mask = os.umask(0)
     os.umask(mask)
     return mask
 
 
-def split_leading_dir(path):
-    # type: (str) -> List[str]
+def split_leading_dir(path: str) -> List[str]:
     path = path.lstrip("/").lstrip("\\")
     if "/" in path and (
         ("\\" in path and path.find("/") < path.find("\\")) or "\\" not in path
@@ -61,8 +59,7 @@ def split_leading_dir(path):
         return [path, ""]
 
 
-def has_leading_dir(paths):
-    # type: (Iterable[str]) -> bool
+def has_leading_dir(paths: Iterable[str]) -> bool:
     """Returns true if all the paths have the same leading path name
     (i.e., everything is in one subdirectory in an archive)"""
     common_prefix = None
@@ -77,8 +74,7 @@ def has_leading_dir(paths):
     return True
 
 
-def is_within_directory(directory, target):
-    # type: (str, str) -> bool
+def is_within_directory(directory: str, target: str) -> bool:
     """
     Return true if the absolute path of target is within the directory
     """
@@ -89,8 +85,7 @@ def is_within_directory(directory, target):
     return prefix == abs_directory
 
 
-def set_extracted_file_to_default_mode_plus_executable(path):
-    # type: (str) -> None
+def set_extracted_file_to_default_mode_plus_executable(path: str) -> None:
     """
     Make file present at path have execute for user/group/world
     (chmod +x) is no-op on windows per python docs
@@ -98,16 +93,14 @@ def set_extracted_file_to_default_mode_plus_executable(path):
     os.chmod(path, (0o777 & ~current_umask() | 0o111))
 
 
-def zip_item_is_executable(info):
-    # type: (ZipInfo) -> bool
+def zip_item_is_executable(info: ZipInfo) -> bool:
     mode = info.external_attr >> 16
     # if mode and regular file and any execute permissions for
     # user/group/world?
     return bool(mode and stat.S_ISREG(mode) and mode & 0o111)
 
 
-def unzip_file(filename, location, flatten=True):
-    # type: (str, str, bool) -> None
+def unzip_file(filename: str, location: str, flatten: bool = True) -> None:
     """
     Unzip the file (with path `filename`) to the destination `location`.  All
     files are written based on system defaults and umask (i.e. permissions are
@@ -153,8 +146,7 @@ def unzip_file(filename, location, flatten=True):
         zipfp.close()
 
 
-def untar_file(filename, location):
-    # type: (str, str) -> None
+def untar_file(filename: str, location: str) -> None:
     """
     Untar the file (with path `filename`) to the destination `location`.
     All files are written based on system defaults and umask (i.e. permissions
@@ -236,11 +228,10 @@ def untar_file(filename, location):
 
 
 def unpack_file(
-    filename,  # type: str
-    location,  # type: str
-    content_type=None,  # type: Optional[str]
-):
-    # type: (...) -> None
+    filename: str,
+    location: str,
+    content_type: Optional[str] = None,
+) -> None:
     filename = os.path.realpath(filename)
     if (
         content_type == "application/zip"

@@ -235,6 +235,83 @@ six = "*"
         assert pipfile["packages"]["pipenv-test-private-package"]["index"] == "testpypi"
 
 
+@pytest.mark.urls
+@pytest.mark.index
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_install_specifying_index_will_not_check_other_source(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
+        example_py_path = os.sep.join([p.path, 'example.py'])
+        with open(example_py_path, "w") as f:
+            contents = """
+import pkg_resources
+
+def main():
+    print(pkg_resources.get_distribution('example'))
+            """.strip()
+            f.write(contents)
+        setup_py_path = os.sep.join([p.path, 'setup.py'])
+        with open(setup_py_path, "w") as f:
+            contents = """
+import os
+import setuptools
+
+setuptools.setup(
+    name='example',
+    version=os.environ['EXAMPLE_VERSION'],
+    description='Example package',
+    py_modules=['example'],
+    python_requires='>=3.6',
+    entry_points={
+        'console_scripts': [
+            'show-installed-package = example:main',
+        ],
+    },
+)
+            """.strip()
+            f.write(contents)
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "http://127.0.0.1:8081"
+name = "server1"
+
+[[source]]
+url = "http://127.0.0.1:8082"
+name = "server2"
+
+[packages]
+example = {version="*", index="server1"}
+            """.strip()
+            f.write(contents)
+        # Build the same package example with two different versions
+        c = p.pipenv("run EXAMPLE_VERSION=1 python setup.py bdist_wheel")
+        assert c.returncode == 0
+        c = p.pipenv("run EXAMPLE_VERSION=2 python setup.py bdist_wheel")
+        assert c.returncode == 0
+        # Create a server directory for each version
+        c = p.pipenv("run mkdir -p server1 server2")
+        assert c.returncode == 0
+        c = p.pipenv("cp dist/example-1-py3-none-any.whl server1/")
+        assert c.returncode == 0
+        c = p.pipenv("cp dist/example-2-py3-none-any.whl server2/")
+        assert c.returncode == 0
+
+        # Start two local test pypi servers
+        c = p.pipenv("run pypi-server -p 8081 -i 127.0.0.1 server1/")
+        assert c.returncode == 0
+        c = p.pipenv("run pypi-server -p 8082 -i 127.0.0.1 server2/")
+        assert c.returncode == 0
+
+        c = p.pipenv("lock -v")
+        assert c.returncode == 0
+        c = p.pipenv("sync -v")
+        assert c.returncode == 0
+
+        assert "example" in p.lockfile["default"]
+        print(p.lockfile["default"])
+
+
 @pytest.mark.vcs
 @pytest.mark.urls
 @pytest.mark.install

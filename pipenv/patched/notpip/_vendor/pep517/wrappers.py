@@ -154,6 +154,10 @@ class Pep517HookCaller(object):
         finally:
             self._subprocess_runner = prev
 
+    def _supported_features(self):
+        """Return the list of optional features supported by the backend."""
+        return self._call_hook('_supported_features', {})
+
     def get_requires_for_build_wheel(self, config_settings=None):
         """Identify packages required for building a wheel
 

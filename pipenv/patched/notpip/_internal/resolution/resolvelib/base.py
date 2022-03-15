@@ -36,11 +36,8 @@ class Constraint:
         links = frozenset([ireq.link]) if ireq.link else frozenset()
         return Constraint(ireq.specifier, ireq.hashes(trust_internet=False), links)
 
-    def __nonzero__(self) -> bool:
-        return bool(self.specifier) or bool(self.hashes) or bool(self.links)
-
     def __bool__(self) -> bool:
-        return self.__nonzero__()
+        return bool(self.specifier) or bool(self.hashes) or bool(self.links)
 
     def __and__(self, other: InstallRequirement) -> "Constraint":
         if not isinstance(other, InstallRequirement):

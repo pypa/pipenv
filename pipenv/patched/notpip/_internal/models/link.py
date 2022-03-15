@@ -26,8 +26,7 @@ _SUPPORTED_HASHES = ("sha1", "sha224", "sha384", "sha256", "sha512", "md5")
 
 
 class Link(KeyBasedCompareMixin):
-    """Represents a parsed link from a Package Index's simple URL
-    """
+    """Represents a parsed link from a Package Index's simple URL"""
 
     __slots__ = [
         "_parsed_url",
@@ -68,7 +67,7 @@ class Link(KeyBasedCompareMixin):
         """
 
         # url can be a UNC windows share
-        if url.startswith('\\\\'):
+        if url.startswith("\\\\"):
             url = path_to_url(url)
 
         self._parsed_url = urllib.parse.urlsplit(url)
@@ -86,17 +85,18 @@ class Link(KeyBasedCompareMixin):
 
     def __str__(self) -> str:
         if self.requires_python:
-            rp = f' (requires-python:{self.requires_python})'
+            rp = f" (requires-python:{self.requires_python})"
         else:
-            rp = ''
+            rp = ""
         if self.comes_from:
-            return '{} (from {}){}'.format(
-                redact_auth_from_url(self._url), self.comes_from, rp)
+            return "{} (from {}){}".format(
+                redact_auth_from_url(self._url), self.comes_from, rp
+            )
         else:
             return redact_auth_from_url(str(self._url))
 
     def __repr__(self) -> str:
-        return f'<Link {self}>'
+        return f"<Link {self}>"
 
     @property
     def url(self) -> str:
@@ -104,7 +104,7 @@ class Link(KeyBasedCompareMixin):
 
     @property
     def filename(self) -> str:
-        path = self.path.rstrip('/')
+        path = self.path.rstrip("/")
         name = posixpath.basename(path)
         if not name:
             # Make sure we don't leak auth information if the netloc
@@ -113,7 +113,7 @@ class Link(KeyBasedCompareMixin):
             return netloc
 
         name = urllib.parse.unquote(name)
-        assert name, f'URL {self._url!r} produced no filename'
+        assert name, f"URL {self._url!r} produced no filename"
         return name
 
     @property
@@ -136,7 +136,7 @@ class Link(KeyBasedCompareMixin):
         return urllib.parse.unquote(self._parsed_url.path)
 
     def splitext(self) -> Tuple[str, str]:
-        return splitext(posixpath.basename(self.path.rstrip('/')))
+        return splitext(posixpath.basename(self.path.rstrip("/")))
 
     @property
     def ext(self) -> str:
@@ -145,9 +145,9 @@ class Link(KeyBasedCompareMixin):
     @property
     def url_without_fragment(self) -> str:
         scheme, netloc, path, query, fragment = self._parsed_url
-        return urllib.parse.urlunsplit((scheme, netloc, path, query, ''))
+        return urllib.parse.urlunsplit((scheme, netloc, path, query, ""))
 
-    _egg_fragment_re = re.compile(r'[#&]egg=([^&]*)')
+    _egg_fragment_re = re.compile(r"[#&]egg=([^&]*)")
 
     @property
     def egg_fragment(self) -> Optional[str]:
@@ -156,7 +156,7 @@ class Link(KeyBasedCompareMixin):
             return None
         return match.group(1)
 
-    _subdirectory_fragment_re = re.compile(r'[#&]subdirectory=([^&]*)')
+    _subdirectory_fragment_re = re.compile(r"[#&]subdirectory=([^&]*)")
 
     @property
     def subdirectory_fragment(self) -> Optional[str]:
@@ -166,7 +166,7 @@ class Link(KeyBasedCompareMixin):
         return match.group(1)
 
     _hash_re = re.compile(
-        r'({choices})=([a-f0-9]+)'.format(choices="|".join(_SUPPORTED_HASHES))
+        r"({choices})=([a-f0-9]+)".format(choices="|".join(_SUPPORTED_HASHES))
     )
 
     @property
@@ -185,11 +185,11 @@ class Link(KeyBasedCompareMixin):
 
     @property
     def show_url(self) -> str:
-        return posixpath.basename(self._url.split('#', 1)[0].split('?', 1)[0])
+        return posixpath.basename(self._url.split("#", 1)[0].split("?", 1)[0])
 
     @property
     def is_file(self) -> bool:
-        return self.scheme == 'file'
+        return self.scheme == "file"
 
     def is_existing_dir(self) -> bool:
         return self.is_file and os.path.isdir(self.file_path)
@@ -256,33 +256,33 @@ class _CleanResult(NamedTuple):
     subdirectory: str
     hashes: Dict[str, str]
 
-    @classmethod
-    def from_link(cls, link: Link) -> "_CleanResult":
-        parsed = link._parsed_url
-        netloc = parsed.netloc.rsplit("@", 1)[-1]
-        # According to RFC 8089, an empty host in file: means localhost.
-        if parsed.scheme == "file" and not netloc:
-            netloc = "localhost"
-        fragment = urllib.parse.parse_qs(parsed.fragment)
-        if "egg" in fragment:
-            logger.debug("Ignoring egg= fragment in %s", link)
-        try:
-            # If there are multiple subdirectory values, use the first one.
-            # This matches the behavior of Link.subdirectory_fragment.
-            subdirectory = fragment["subdirectory"][0]
-        except (IndexError, KeyError):
-            subdirectory = ""
-        # If there are multiple hash values under the same algorithm, use the
-        # first one. This matches the behavior of Link.hash_value.
-        hashes = {k: fragment[k][0] for k in _SUPPORTED_HASHES if k in fragment}
-        return cls(
-            parsed=parsed._replace(netloc=netloc, query="", fragment=""),
-            query=urllib.parse.parse_qs(parsed.query),
-            subdirectory=subdirectory,
-            hashes=hashes,
-        )
+
+def _clean_link(link: Link) -> _CleanResult:
+    parsed = link._parsed_url
+    netloc = parsed.netloc.rsplit("@", 1)[-1]
+    # According to RFC 8089, an empty host in file: means localhost.
+    if parsed.scheme == "file" and not netloc:
+        netloc = "localhost"
+    fragment = urllib.parse.parse_qs(parsed.fragment)
+    if "egg" in fragment:
+        logger.debug("Ignoring egg= fragment in %s", link)
+    try:
+        # If there are multiple subdirectory values, use the first one.
+        # This matches the behavior of Link.subdirectory_fragment.
+        subdirectory = fragment["subdirectory"][0]
+    except (IndexError, KeyError):
+        subdirectory = ""
+    # If there are multiple hash values under the same algorithm, use the
+    # first one. This matches the behavior of Link.hash_value.
+    hashes = {k: fragment[k][0] for k in _SUPPORTED_HASHES if k in fragment}
+    return _CleanResult(
+        parsed=parsed._replace(netloc=netloc, query="", fragment=""),
+        query=urllib.parse.parse_qs(parsed.query),
+        subdirectory=subdirectory,
+        hashes=hashes,
+    )
 
 
 @functools.lru_cache(maxsize=None)
 def links_equivalent(link1: Link, link2: Link) -> bool:
-    return _CleanResult.from_link(link1) == _CleanResult.from_link(link2)
+    return _clean_link(link1) == _clean_link(link2)

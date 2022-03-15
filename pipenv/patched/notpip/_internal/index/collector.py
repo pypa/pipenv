@@ -5,7 +5,6 @@ The main purpose of this module is to expose LinkCollector.collect_sources().
 import cgi
 import collections
 import functools
-import html
 import itertools
 import logging
 import os
@@ -13,15 +12,19 @@ import re
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree
+from html.parser import HTMLParser
 from optparse import Values
 from typing import (
+    TYPE_CHECKING,
     Callable,
+    Dict,
     Iterable,
     List,
     MutableMapping,
     NamedTuple,
     Optional,
     Sequence,
+    Tuple,
     Union,
 )
 
@@ -40,6 +43,11 @@ from pipenv.patched.notpip._internal.vcs import vcs
 
 from .sources import CandidatesFromPage, LinkSource, build_source
 
+if TYPE_CHECKING:
+    from typing import Protocol
+else:
+    Protocol = object
+
 logger = logging.getLogger(__name__)
 
 HTMLElement = xml.etree.ElementTree.Element
@@ -52,7 +60,7 @@ def _match_vcs_scheme(url: str) -> Optional[str]:
     Returns the matched VCS scheme, or None if there's no match.
     """
     for scheme in vcs.schemes:
-        if url.lower().startswith(scheme) and url[len(scheme)] in '+:':
+        if url.lower().startswith(scheme) and url[len(scheme)] in "+:":
             return scheme
     return None
 
@@ -85,7 +93,7 @@ def _ensure_html_response(url: str, session: PipSession) -> None:
     `_NotHTML` if the content type is not text/html.
     """
     scheme, netloc, path, query, fragment = urllib.parse.urlsplit(url)
-    if scheme not in {'http', 'https'}:
+    if scheme not in {"http", "https"}:
         raise _NotHTTP()
 
     resp = session.head(url, allow_redirects=True)
@@ -110,7 +118,7 @@ def _get_html_response(url: str, session: PipSession) -> Response:
     if is_archive_file(Link(url).filename):
         _ensure_html_response(url, session=session)
 
-    logger.debug('Getting page %s', redact_auth_from_url(url))
+    logger.debug("Getting page %s", redact_auth_from_url(url))
 
     resp = session.get(
         url,
@@ -145,12 +153,11 @@ def _get_html_response(url: str, session: PipSession) -> Response:
 
 
 def _get_encoding_from_headers(headers: ResponseHeaders) -> Optional[str]:
-    """Determine if we have any encoding information in our headers.
-    """
+    """Determine if we have any encoding information in our headers."""
     if headers and "Content-Type" in headers:
         content_type, params = cgi.parse_header(headers["Content-Type"])
         if "charset" in params:
-            return params['charset']
+            return params["charset"]
     return None
 
 
@@ -165,6 +172,8 @@ def _determine_base_url(document: HTMLElement, page_url: str) -> str:
     :param document: An HTML document representation. The current
         implementation expects the result of ``html5lib.parse()``.
     :param page_url: The URL of the HTML document.
+
+    TODO: Remove when `html5lib` is dropped.
     """
     for base in document.findall(".//base"):
         href = base.get("href")
@@ -195,7 +204,7 @@ def _clean_file_url_path(part: str) -> str:
 
 
 # percent-encoded:                   /
-_reserved_chars_re = re.compile('(@|%2F)', re.IGNORECASE)
+_reserved_chars_re = re.compile("(@|%2F)", re.IGNORECASE)
 
 
 def _clean_url_path(path: str, is_local_path: bool) -> str:
@@ -212,12 +221,12 @@ def _clean_url_path(path: str, is_local_path: bool) -> str:
     parts = _reserved_chars_re.split(path)
 
     cleaned_parts = []
-    for to_clean, reserved in pairwise(itertools.chain(parts, [''])):
+    for to_clean, reserved in pairwise(itertools.chain(parts, [""])):
         cleaned_parts.append(clean_func(to_clean))
         # Normalize %xx escapes (e.g. %2f -> %2F)
         cleaned_parts.append(reserved.upper())
 
-    return ''.join(cleaned_parts)
+    return "".join(cleaned_parts)
 
 
 def _clean_link(url: str) -> str:
@@ -236,24 +245,20 @@ def _clean_link(url: str) -> str:
 
 
 def _create_link_from_element(
-    anchor: HTMLElement,
+    element_attribs: Dict[str, Optional[str]],
     page_url: str,
     base_url: str,
 ) -> Optional[Link]:
     """
-    Convert an anchor element in a simple repository page to a Link.
+    Convert an anchor element's attributes in a simple repository page to a Link.
     """
-    href = anchor.get("href")
+    href = element_attribs.get("href")
     if not href:
         return None
 
     url = _clean_link(urllib.parse.urljoin(base_url, href))
-    pyrequire = anchor.get('data-requires-python')
-    pyrequire = html.unescape(pyrequire) if pyrequire else None
-
-    yanked_reason = anchor.get('data-yanked')
-    if yanked_reason:
-        yanked_reason = html.unescape(yanked_reason)
+    pyrequire = element_attribs.get("data-requires-python")
+    yanked_reason = element_attribs.get("data-yanked")
 
     link = Link(
         url,
@@ -271,16 +276,20 @@ class CacheablePageContent:
         self.page = page
 
     def __eq__(self, other: object) -> bool:
-        return (isinstance(other, type(self)) and
-                self.page.url == other.page.url)
+        return isinstance(other, type(self)) and self.page.url == other.page.url
 
     def __hash__(self) -> int:
         return hash(self.page.url)
 
 
-def with_cached_html_pages(
-    fn: Callable[["HTMLPage"], Iterable[Link]],
-) -> Callable[["HTMLPage"], List[Link]]:
+class ParseLinks(Protocol):
+    def __call__(
+        self, page: "HTMLPage", use_deprecated_html5lib: bool
+    ) -> Iterable[Link]:
+        ...
+
+
+def with_cached_html_pages(fn: ParseLinks) -> ParseLinks:
     """
     Given a function that parses an Iterable[Link] from an HTMLPage, cache the
     function's result (keyed by CacheablePageContent), unless the HTMLPage
@@ -288,22 +297,25 @@ def with_cached_html_pages(
     """
 
     @functools.lru_cache(maxsize=None)
-    def wrapper(cacheable_page: CacheablePageContent) -> List[Link]:
-        return list(fn(cacheable_page.page))
+    def wrapper(
+        cacheable_page: CacheablePageContent, use_deprecated_html5lib: bool
+    ) -> List[Link]:
+        return list(fn(cacheable_page.page, use_deprecated_html5lib))
 
     @functools.wraps(fn)
-    def wrapper_wrapper(page: "HTMLPage") -> List[Link]:
+    def wrapper_wrapper(page: "HTMLPage", use_deprecated_html5lib: bool) -> List[Link]:
         if page.cache_link_parsing:
-            return wrapper(CacheablePageContent(page))
-        return list(fn(page))
+            return wrapper(CacheablePageContent(page), use_deprecated_html5lib)
+        return list(fn(page, use_deprecated_html5lib))
 
     return wrapper_wrapper
 
 
-@with_cached_html_pages
-def parse_links(page: "HTMLPage") -> Iterable[Link]:
+def _parse_links_html5lib(page: "HTMLPage") -> Iterable[Link]:
     """
     Parse an HTML document, and yield its anchor elements as Link objects.
+
+    TODO: Remove when `html5lib` is dropped.
     """
     document = html5lib.parse(
         page.content,
@@ -314,6 +326,33 @@ def parse_links(page: "HTMLPage") -> Iterable[Link]:
     url = page.url
     base_url = _determine_base_url(document, url)
     for anchor in document.findall(".//a"):
+        link = _create_link_from_element(
+            anchor.attrib,
+            page_url=url,
+            base_url=base_url,
+        )
+        if link is None:
+            continue
+        yield link
+
+
+@with_cached_html_pages
+def parse_links(page: "HTMLPage", use_deprecated_html5lib: bool) -> Iterable[Link]:
+    """
+    Parse an HTML document, and yield its anchor elements as Link objects.
+    """
+
+    if use_deprecated_html5lib:
+        yield from _parse_links_html5lib(page)
+        return
+
+    parser = HTMLLinkParser(page.url)
+    encoding = page.encoding or "utf-8"
+    parser.feed(page.content.decode(encoding))
+
+    url = page.url
+    base_url = parser.base_url or url
+    for anchor in parser.anchors:
         link = _create_link_from_element(
             anchor,
             page_url=url,
@@ -350,10 +389,38 @@ class HTMLPage:
         return redact_auth_from_url(self.url)
 
 
+class HTMLLinkParser(HTMLParser):
+    """
+    HTMLParser that keeps the first base HREF and a list of all anchor
+    elements' attributes.
+    """
+
+    def __init__(self, url: str) -> None:
+        super().__init__(convert_charrefs=True)
+
+        self.url: str = url
+        self.base_url: Optional[str] = None
+        self.anchors: List[Dict[str, Optional[str]]] = []
+
+    def handle_starttag(self, tag: str, attrs: List[Tuple[str, Optional[str]]]) -> None:
+        if tag == "base" and self.base_url is None:
+            href = self.get_href(attrs)
+            if href is not None:
+                self.base_url = href
+        elif tag == "a":
+            self.anchors.append(dict(attrs))
+
+    def get_href(self, attrs: List[Tuple[str, Optional[str]]]) -> Optional[str]:
+        for name, value in attrs:
+            if name == "href":
+                return value
+        return None
+
+
 def _handle_get_page_fail(
     link: Link,
     reason: Union[str, Exception],
-    meth: Optional[Callable[..., None]] = None
+    meth: Optional[Callable[..., None]] = None,
 ) -> None:
     if meth is None:
         meth = logger.debug
@@ -366,7 +433,8 @@ def _make_html_page(response: Response, cache_link_parsing: bool = True) -> HTML
         response.content,
         encoding=encoding,
         url=response.url,
-        cache_link_parsing=cache_link_parsing)
+        cache_link_parsing=cache_link_parsing,
+    )
 
 
 def _get_html_page(
@@ -377,37 +445,43 @@ def _get_html_page(
             "_get_html_page() missing 1 required keyword argument: 'session'"
         )
 
-    url = link.url.split('#', 1)[0]
+    url = link.url.split("#", 1)[0]
 
     # Check for VCS schemes that do not support lookup as web pages.
     vcs_scheme = _match_vcs_scheme(url)
     if vcs_scheme:
-        logger.warning('Cannot look at %s URL %s because it does not support '
-                       'lookup as web pages.', vcs_scheme, link)
+        logger.warning(
+            "Cannot look at %s URL %s because it does not support lookup as web pages.",
+            vcs_scheme,
+            link,
+        )
         return None
 
     # Tack index.html onto file:// URLs that point to directories
     scheme, _, path, _, _, _ = urllib.parse.urlparse(url)
-    if (scheme == 'file' and os.path.isdir(urllib.request.url2pathname(path))):
+    if scheme == "file" and os.path.isdir(urllib.request.url2pathname(path)):
         # add trailing slash if not present so urljoin doesn't trim
         # final segment
-        if not url.endswith('/'):
-            url += '/'
-        url = urllib.parse.urljoin(url, 'index.html')
-        logger.debug(' file: URL is directory, getting %s', url)
+        if not url.endswith("/"):
+            url += "/"
+        url = urllib.parse.urljoin(url, "index.html")
+        logger.debug(" file: URL is directory, getting %s", url)
 
     try:
         resp = _get_html_response(url, session=session)
     except _NotHTTP:
         logger.warning(
-            'Skipping page %s because it looks like an archive, and cannot '
-            'be checked by a HTTP HEAD request.', link,
+            "Skipping page %s because it looks like an archive, and cannot "
+            "be checked by a HTTP HEAD request.",
+            link,
         )
     except _NotHTML as exc:
         logger.warning(
-            'Skipping page %s because the %s request got Content-Type: %s.'
-            'The only supported Content-Type is text/html',
-            link, exc.request_desc, exc.content_type,
+            "Skipping page %s because the %s request got Content-Type: %s."
+            "The only supported Content-Type is text/html",
+            link,
+            exc.request_desc,
+            exc.content_type,
         )
     except NetworkConnectionError as exc:
         _handle_get_page_fail(link, exc)
@@ -422,8 +496,7 @@ def _get_html_page(
     except requests.Timeout:
         _handle_get_page_fail(link, "timed out")
     else:
-        return _make_html_page(resp,
-                               cache_link_parsing=link.cache_link_parsing)
+        return _make_html_page(resp, cache_link_parsing=link.cache_link_parsing)
     return None
 
 
@@ -453,7 +526,8 @@ class LinkCollector:
 
     @classmethod
     def create(
-        cls, session: PipSession,
+        cls,
+        session: PipSession,
         options: Values,
         suppress_no_index: bool = False,
         index_lookup: dict = None,
@@ -466,8 +540,8 @@ class LinkCollector:
         index_urls = [options.index_url] + options.extra_index_urls
         if options.no_index and not suppress_no_index:
             logger.debug(
-                'Ignoring indexes: %s',
-                ','.join(redact_auth_from_url(url) for url in index_urls),
+                "Ignoring indexes: %s",
+                ",".join(redact_auth_from_url(url) for url in index_urls),
             )
             index_urls = []
 
@@ -475,10 +549,14 @@ class LinkCollector:
         find_links = options.find_links or []
 
         search_scope = SearchScope.create(
-            find_links=find_links, index_urls=index_urls, index_lookup=index_lookup
+            find_links=find_links,
+            index_urls=index_urls,
+            index_lookup = index_lookup,
         )
         link_collector = LinkCollector(
-            session=session, search_scope=search_scope, index_lookup=index_lookup
+            session=session,
+            search_scope=search_scope,
+            index_lookup=index_lookup,
         )
         return link_collector
 

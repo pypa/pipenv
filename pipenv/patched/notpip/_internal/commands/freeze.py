@@ -8,7 +8,7 @@ from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
 from pipenv.patched.notpip._internal.operations.freeze import freeze
 from pipenv.patched.notpip._internal.utils.compat import stdlib_pkgs
 
-DEV_PKGS = {'pip', 'setuptools', 'distribute', 'wheel'}
+DEV_PKGS = {"pip", "setuptools", "distribute", "wheel"}
 
 
 class FreezeCommand(Command):
@@ -24,39 +24,52 @@ class FreezeCommand(Command):
 
     def add_options(self) -> None:
         self.cmd_opts.add_option(
-            '-r', '--requirement',
-            dest='requirements',
-            action='append',
+            "-r",
+            "--requirement",
+            dest="requirements",
+            action="append",
             default=[],
-            metavar='file',
-            help="Use the order in the given requirements file and its "
-                 "comments when generating output. This option can be "
-                 "used multiple times.")
+            metavar="file",
+            help=(
+                "Use the order in the given requirements file and its "
+                "comments when generating output. This option can be "
+                "used multiple times."
+            ),
+        )
         self.cmd_opts.add_option(
-            '-l', '--local',
-            dest='local',
-            action='store_true',
+            "-l",
+            "--local",
+            dest="local",
+            action="store_true",
             default=False,
-            help='If in a virtualenv that has global access, do not output '
-                 'globally-installed packages.')
+            help=(
+                "If in a virtualenv that has global access, do not output "
+                "globally-installed packages."
+            ),
+        )
         self.cmd_opts.add_option(
-            '--user',
-            dest='user',
-            action='store_true',
+            "--user",
+            dest="user",
+            action="store_true",
             default=False,
-            help='Only output packages installed in user-site.')
+            help="Only output packages installed in user-site.",
+        )
         self.cmd_opts.add_option(cmdoptions.list_path())
         self.cmd_opts.add_option(
-            '--all',
-            dest='freeze_all',
-            action='store_true',
-            help='Do not skip these packages in the output:'
-                 ' {}'.format(', '.join(DEV_PKGS)))
+            "--all",
+            dest="freeze_all",
+            action="store_true",
+            help=(
+                "Do not skip these packages in the output:"
+                " {}".format(", ".join(DEV_PKGS))
+            ),
+        )
         self.cmd_opts.add_option(
-            '--exclude-editable',
-            dest='exclude_editable',
-            action='store_true',
-            help='Exclude editable package from output.')
+            "--exclude-editable",
+            dest="exclude_editable",
+            action="store_true",
+            help="Exclude editable package from output.",
+        )
         self.cmd_opts.add_option(cmdoptions.list_exclude())
 
         self.parser.insert_option_group(0, self.cmd_opts)
@@ -80,5 +93,5 @@ class FreezeCommand(Command):
             skip=skip,
             exclude_editable=options.exclude_editable,
         ):
-            sys.stdout.write(line + '\n')
+            sys.stdout.write(line + "\n")
         return SUCCESS
