@@ -1288,7 +1288,6 @@ def get_pip_args(
     no_build_isolation=False,  # type: bool
     no_use_pep517=False,  # type: bool
     no_deps=False,  # type: bool
-    selective_upgrade=False,  # type: bool
     src_dir=None,  # type: Optional[str]
 ):
     # type: (...) -> List[str]
@@ -1301,10 +1300,6 @@ def get_pip_args(
         "no_build_isolation": ["--no-build-isolation"],
         "no_use_pep517": [],
         "no_deps": ["--no-deps"],
-        "selective_upgrade": [
-            "--upgrade-strategy=only-if-needed",
-            "--exists-action={}".format(project.s.PIP_EXISTS_ACTION or "i")
-        ],
         "src_dir": src_dir,
     }
     if project.environment.pip_version >= parse_version("19.0"):
@@ -1315,8 +1310,6 @@ def get_pip_args(
     for key in arg_map.keys():
         if key in locals() and locals().get(key):
             arg_set.extend(arg_map.get(key))
-        elif key == "selective_upgrade" and not locals().get(key):
-            arg_set.append("--exists-action=i")
     return list(vistir.misc.dedup(arg_set))
 
 
@@ -1389,7 +1382,6 @@ def pip_install(
     block=True,
     index=None,
     pre=False,
-    selective_upgrade=False,
     requirements_dir=None,
     extra_indexes=None,
     pypi_mirror=None,
@@ -1451,7 +1443,7 @@ def pip_install(
     pip_command = [project._which("python", allow_global=allow_global), "-m", "pip", "install"]
     pip_args = get_pip_args(
         project, pre=pre, verbose=project.s.is_verbose(), upgrade=True,
-        selective_upgrade=selective_upgrade, no_use_pep517=not use_pep517,
+        no_use_pep517=not use_pep517,
         no_deps=no_deps, require_hashes=not ignore_hashes,
     )
     pip_command.extend(pip_args)
@@ -1463,10 +1455,7 @@ def pip_install(
     if project.s.is_verbose():
         click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
     cache_dir = Path(project.s.PIPENV_CACHE_DIR)
-    DEFAULT_EXISTS_ACTION = "w"
-    if selective_upgrade:
-        DEFAULT_EXISTS_ACTION = "i"
-    exists_action = vistir.misc.fs_str(project.s.PIP_EXISTS_ACTION or DEFAULT_EXISTS_ACTION)
+    exists_action = vistir.misc.fs_str(project.s.PIP_EXISTS_ACTION)
     pip_config = {
         "PIP_CACHE_DIR": vistir.misc.fs_str(cache_dir.as_posix()),
         "PIP_WHEEL_DIR": vistir.misc.fs_str(cache_dir.joinpath("wheels").as_posix()),
@@ -1838,7 +1827,6 @@ def do_install(
     code=False,
     deploy=False,
     keep_outdated=False,
-    selective_upgrade=False,
     site_packages=None,
 ):
     from .vendor.pip_shims.shims import PipError
@@ -1847,8 +1835,6 @@ def do_install(
         suffix="-requirements", prefix="pipenv-"
     )
     warnings.filterwarnings("default", category=vistir.compat.ResourceWarning)
-    if selective_upgrade:
-        keep_outdated = True
     packages = packages if packages else []
     editable_packages = editable_packages if editable_packages else []
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
@@ -1967,24 +1953,6 @@ def do_install(
     package_args = [p for p in packages] + [
         f"-e {pkg}" for pkg in editable_packages
     ]
-    # Support for --selective-upgrade.
-    # We should do this part first to make sure that we actually do selectively upgrade
-    # the items specified
-    if selective_upgrade:
-        from .vendor.requirementslib.models.requirements import Requirement
-
-        for i, package in enumerate(package_args[:]):
-            section = project.packages if not dev else project.dev_packages
-            package = Requirement.from_line(package)
-            package__name, package__val = package.pipfile_entry
-            try:
-                if not is_star(section[package__name]) and is_star(package__val):
-                    # Support for VCS dependencies.
-                    package_args[i] = convert_deps_to_pip(
-                        {package__name: section[package__name]}, project=project, r=False
-                    )[0]
-            except KeyError:
-                pass
     # Install all dependencies, if none was provided.
     # This basically ensures that we have a pipfile and lockfile, then it locks and
     # installs from the lockfile
@@ -2058,7 +2026,6 @@ def do_install(
                         pkg_requirement,
                         ignore_hashes=True,
                         allow_global=system,
-                        selective_upgrade=selective_upgrade,
                         no_deps=no_deps,
                         pre=pre,
                         requirements_dir=requirements_directory,

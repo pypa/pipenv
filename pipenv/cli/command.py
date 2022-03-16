@@ -207,7 +207,6 @@ def install(
         code=state.installstate.code,
         deploy=state.installstate.deploy,
         keep_outdated=state.installstate.keep_outdated,
-        selective_upgrade=state.installstate.selective_upgrade,
         index_url=state.index,
         extra_index_url=state.extra_index_urls,
         packages=state.installstate.packages,

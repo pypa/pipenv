@@ -75,7 +75,6 @@ class InstallState:
     def __init__(self):
         self.dev = False
         self.pre = False
-        self.selective_upgrade = False
         self.keep_outdated = False
         self.skip_lock = False
         self.ignore_pipfile = False
@@ -158,16 +157,6 @@ def keep_outdated_option(f):
     return option("--keep-outdated", is_flag=True, default=False, expose_value=False,
                   help="Keep out-dated dependencies from being updated in Pipfile.lock.",
                   callback=callback, type=click_types.BOOL, show_envvar=True)(f)
-
-
-def selective_upgrade_option(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        state.installstate.selective_upgrade = value
-        return value
-    return option("--selective-upgrade", is_flag=True, default=False, type=click_types.BOOL,
-                  help="Update specified packages.", callback=callback,
-                  expose_value=False)(f)
 
 
 def ignore_pipfile_option(f):
@@ -462,7 +451,6 @@ def install_options(f):
     f = index_option(f)
     f = extra_index_option(f)
     f = requirementstxt_option(f)
-    f = selective_upgrade_option(f)
     f = ignore_pipfile_option(f)
     f = editable_option(f)
     f = package_arg(f)
