@@ -1,0 +1,1 @@
+Removal of undocumented and broken install feature flag `--selective-upgrade` in favor of the flag `--keep-outdated`
