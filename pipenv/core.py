@@ -15,14 +15,22 @@ import vistir
 from pipenv import environments, exceptions, pep508checker, progress
 from pipenv._compat import decode_for_output, fix_utf8
 from pipenv.patched import crayons
-from pipenv.utils import (
-    cmd_list_to_shell, convert_deps_to_pip, create_spinner, download_file,
-    find_python, get_canonical_names, get_host_and_port, get_source_list, is_pinned,
-    is_python_command, is_required_version, is_star, is_valid_url,
-    parse_indexes, pep423_name, prepare_pip_source_args, proper_case,
-    python_version, run_command, subprocess_run, venv_resolve_deps
-)
 
+from pipenv.utils.dependencies import (
+    convert_deps_to_pip,
+    get_canonical_names,
+    is_pinned,
+    is_required_version,
+    is_star,
+    pep423_name,
+    python_version
+)
+from pipenv.utils.internet import download_file, get_host_and_port, is_valid_url, proper_case
+from pipenv.utils.indexes import get_source_list, parse_indexes, prepare_pip_source_args
+from pipenv.utils.resolver import venv_resolve_deps
+from pipenv.utils.shell import cmd_list_to_shell, find_python, is_python_command, subprocess_run
+from pipenv.utils.spinner import create_spinner
+from pipenv.utils.processes import run_command
 
 if environments.is_type_checking():
     from typing import Dict, List, Optional, Union

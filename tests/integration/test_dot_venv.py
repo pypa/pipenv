@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from pipenv.utils import normalize_drive, temp_environ
+from pipenv.utils.shell import normalize_drive, temp_environ
 
 
 @pytest.mark.dotvenv

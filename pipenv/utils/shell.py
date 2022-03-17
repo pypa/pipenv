@@ -8,10 +8,11 @@ from functools import lru_cache
 import posixpath
 from pathlib import Path
 
-import utils.dependencies
-from utils import normalize_path, mkdir_p
-from pipenv.utils import subprocess_run
-from utils.internet import normalize_drive
+from .dependencies import is_file
+from .processes import subprocess_run
+from pipenv import environments
+if environments.MYPY_RUNNING:
+    from typing import Text
 
 
 @lru_cache()
@@ -220,7 +221,7 @@ def is_virtual_environment(path):
     for bindir_name in ('bin', 'Scripts'):
         for python in path.joinpath(bindir_name).glob('python*'):
             try:
-                exeness = utils.dependencies.is_file() and os.access(str(python), os.X_OK)
+                exeness = is_file() and os.access(str(python), os.X_OK)
             except OSError:
                 exeness = False
             if exeness:
@@ -325,3 +326,25 @@ def is_python_command(line):
     if line.startswith("py"):
         return True
     return False
+
+
+# TODO This code is basically a duplicate of pipenv.vendor.vistir.path.normalize_drive
+# Proposal:  Try removing this method and replacing usages in separate PR
+def normalize_drive(path):
+    """Normalize drive in path so they stay consistent.
+
+    This currently only affects local drives on Windows, which can be
+    identified with either upper or lower cased drive names. The case is
+    always converted to uppercase because it seems to be preferred.
+
+    See: <https://github.com/pypa/pipenv/issues/1218>
+    """
+    if os.name != "nt" or not isinstance(path, str):
+        return path
+
+    drive, tail = os.path.splitdrive(path)
+    # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
+    if drive.islower() and len(drive) == 2 and drive[1] == ":":
+        return f"{drive.upper()}{tail}"
+
+    return path

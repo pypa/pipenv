@@ -12,10 +12,11 @@ from sysconfig import get_paths, get_python_version
 import pkg_resources
 
 import pipenv
-import utils.indexes
 
 from pipenv.environments import is_type_checking
-from pipenv.utils import make_posix, normalize_path, subprocess_run
+from pipenv.utils.shell import make_posix, normalize_path
+from pipenv.utils.processes import subprocess_run
+from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.vendor import vistir
 from pipenv.vendor.cached_property import cached_property
 from pipenv.vendor.packaging.utils import canonicalize_name
@@ -599,7 +600,7 @@ class Environment:
         from .vendor.pip_shims.shims import InstallCommand, get_package_finder
 
         pip_command = InstallCommand()
-        pip_args = utils.indexes.prepare_pip_source_args(self.sources)
+        pip_args = prepare_pip_source_args(self.sources)
         pip_options, _ = pip_command.parser.parse_args(pip_args)
         pip_options.cache_dir = self.project.s.PIPENV_CACHE_DIR
         pip_options.pre = self.pipfile.get("pre", pre)

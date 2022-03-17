@@ -5,24 +5,29 @@ import subprocess
 import sys
 import warnings
 from functools import lru_cache
-from typing import List, Dict, Optional, Tuple, AbstractSet, Union, Any
 
 import crayons
-import environments
-import utils.dependencies
+from pipenv import environments
 from click import echo as click_echo
-from exceptions import ResolutionFailure, RequirementError
-from project import Project
-from requirementslib import Requirement, Pipfile
-from requirementslib.models.requirements import Line
-from utils import parse_indexes, prepare_pip_source_args, is_pinned_requirement, format_requirement_for_lockfile, \
-    _show_warning, subprocess_run, make_posix, temp_environ, get_pipenv_sitedir, create_spinner, convert_deps_to_pip, \
-    prepare_lockfile, HackedPythonVersion
-from utils.dependencies import get_vcs_deps, pep423_name, translate_markers, clean_pkg_version
-from utils.internet import _get_requests_session
-from utils.shell import temp_environ
-from vistir import open_file, TemporaryDirectory
+from pipenv.exceptions import ResolutionFailure, RequirementError
+from pipenv.vendor.requirementslib import Requirement, Pipfile
+from pipenv.vendor.vistir import open_file, TemporaryDirectory
 
+from .dependencies import get_vcs_deps, pep423_name, translate_markers, clean_pkg_version, \
+    is_pinned_requirement, convert_deps_to_pip, HackedPythonVersion
+from .indexes import parse_indexes, prepare_pip_source_args
+from .internet import _get_requests_session
+from .locking import format_requirement_for_lockfile, prepare_lockfile
+from .shell import temp_environ, subprocess_run, make_posix
+from .spinner import create_spinner
+if environments.MYPY_RUNNING:
+    from typing import Any, Dict, List, Optional, Tuple, Union
+
+    from pipenv.project import Project
+    from pipenv.vendor.requirementslib.models.pipfile import Pipfile
+    from pipenv.vendor.requirementslib.models.requirements import (
+        Line, Requirement
+    )
 
 class HashCacheMixin:
 
@@ -532,7 +537,7 @@ class Resolver:
 
         with temp_environ(), self.get_resolver() as resolver:
             try:
-                results = resolve(self.constraints, check_supported_wheels=False)
+                results = resolver.resolve(self.constraints, check_supported_wheels=False)
             except InstallationError as e:
                 raise ResolutionFailure(message=str(e))
             else:
@@ -604,7 +609,7 @@ class Resolver:
     def collect_hashes(self, ireq):
         if ireq.link:
             link = ireq.link
-            if link.is_vcs or (utils.dependencies.is_file and link.is_existing_dir()):
+            if link.is_vcs or (link.is_file and link.is_existing_dir()):
                 return set()
             if ireq.original_link:
                 return {self._get_hash_from_link(ireq.original_link)}
@@ -725,9 +730,9 @@ def actually_resolve_deps(
 
 
 def resolve(cmd, sp, project):
-    from ._compat import decode_output
-    from .cmdparse import Script
-    from .vendor.vistir.misc import echo
+    from pipenv._compat import decode_output
+    from pipenv.cmdparse import Script
+    from pipenv.vendor.vistir.misc import echo
     c = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())
     is_verbose = project.s.is_verbose()
     err = ""
@@ -801,11 +806,11 @@ def venv_resolve_deps(
 
     import json
 
-    from . import resolver
-    from ._compat import decode_for_output
-    from .vendor.vistir.compat import JSONDecodeError, NamedTemporaryFile, Path
-    from .vendor.vistir.misc import fs_str
-    from .vendor.vistir.path import create_tracked_tempdir
+    from pipenv import resolver
+    from pipenv._compat import decode_for_output
+    from pipenv.vendor.vistir.compat import JSONDecodeError, NamedTemporaryFile, Path
+    from pipenv.vendor.vistir.misc import fs_str
+    from pipenv.vendor.vistir.path import create_tracked_tempdir
 
     results = []
     pipfile_section = "dev-packages" if dev else "packages"
@@ -916,7 +921,7 @@ def resolve_deps(
     # First (proper) attempt:
     req_dir = req_dir if req_dir else os.environ.get("req_dir", None)
     if not req_dir:
-        from .vendor.vistir.path import create_tracked_tempdir
+        from pipenv.vendor.vistir.path import create_tracked_tempdir
         req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-requirements")
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:

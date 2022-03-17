@@ -7,10 +7,10 @@ import sys
 import warnings
 from contextlib import contextmanager
 from urllib.parse import urlparse
-
-import parse
 from urllib3 import util as urllib3_util
-from vistir.compat import ResourceWarning
+
+from pipenv.vendor import parse
+from pipenv.vendor.vistir.compat import ResourceWarning
 
 
 requests_session = None  # type: ignore
@@ -71,26 +71,6 @@ def temp_path():
         yield
     finally:
         sys.path = [p for p in path]
-
-
-def normalize_drive(path):
-    """Normalize drive in path so they stay consistent.
-
-    This currently only affects local drives on Windows, which can be
-    identified with either upper or lower cased drive names. The case is
-    always converted to uppercase because it seems to be preferred.
-
-    See: <https://github.com/pypa/pipenv/issues/1218>
-    """
-    if os.name != "nt" or not isinstance(path, str):
-        return path
-
-    drive, tail = os.path.splitdrive(path)
-    # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
-    if drive.islower() and len(drive) == 2 and drive[1] == ":":
-        return f"{drive.upper()}{tail}"
-
-    return path
 
 
 def is_readonly_path(fn):

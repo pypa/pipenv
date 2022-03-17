@@ -5,8 +5,13 @@ import subprocess
 
 import crayons
 from click import echo as click_echo
-from exceptions import PipenvCmdError
-from vistir import run
+from pipenv.vendor.vistir import run
+
+from pipenv.exceptions import PipenvCmdError
+from pipenv import environments
+
+if environments.MYPY_RUNNING:
+    from typing import Any, Dict, List, Optional, Text, Tuple, Union
 
 
 def run_command(cmd, *args, is_verbose=False, **kwargs):

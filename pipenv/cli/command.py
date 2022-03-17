@@ -12,7 +12,7 @@ from pipenv.cli.options import (
 )
 from pipenv.exceptions import PipenvOptionsError
 from pipenv.patched import crayons
-from pipenv.utils import subprocess_run
+from pipenv.utils.processes import subprocess_run
 from pipenv.vendor.click import (
     Choice, argument, echo, edit, group, option, pass_context, secho, types,
     version_option
@@ -64,7 +64,7 @@ def cli(
         cleanup_virtualenv, do_clear, do_py, do_where, ensure_project,
         format_help, system_which, warn_in_virtualenv
     )
-    from ..utils import create_spinner
+    from pipenv.utils.spinner import create_spinner
 
     if man:
         if system_which("man"):

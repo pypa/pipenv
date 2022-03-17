@@ -5,7 +5,8 @@ import sys
 from abc import ABCMeta, abstractmethod
 
 from pipenv.vendor import attr
-from pipenv.utils import find_windows_executable, subprocess_run
+from pipenv.utils.processes import subprocess_run
+from pipenv.utils.shell import find_windows_executable
 
 
 @attr.s

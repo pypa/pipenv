@@ -8,7 +8,8 @@ import pytest
 
 from flaky import flaky
 
-from pipenv.utils import normalize_drive, subprocess_run
+from pipenv.utils.processes import subprocess_run
+from pipenv.utils.shell import normalize_drive
 
 
 @pytest.mark.cli

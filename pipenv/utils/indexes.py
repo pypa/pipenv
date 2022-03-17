@@ -1,11 +1,17 @@
 import re
-from typing import Optional, Union, List, Mapping, Text, Tuple
+from pipenv import environments
+if environments.MYPY_RUNNING:
+    from typing import List, Optional, Text, Tuple, Union
 
-from exceptions import PipenvUsageError
-from project import TSource, Project
-from requirementslib import Requirement
+    from pipenv.project import Project, TSource
+    from pipenv.vendor.requirementslib.models.requirements import Requirement
+
 from urllib3 import util as urllib3_util
-from utils import create_mirror_source, is_pypi_url
+from requirementslib import Requirement
+
+from pipenv.vendor.vistir.compat import Mapping
+from pipenv.exceptions import PipenvUsageError
+from .internet import create_mirror_source, is_pypi_url
 
 
 def prepare_pip_source_args(sources, pip_args=None):
@@ -43,7 +49,7 @@ def prepare_pip_source_args(sources, pip_args=None):
 
 def get_project_index(project, index=None, trusted_hosts=None):
     # type: (Optional[Union[str, TSource]], Optional[List[str]], Optional[Project]) -> TSource
-    from .project import SourceNotFound
+    from pipenv.project import SourceNotFound
     if trusted_hosts is None:
         trusted_hosts = []
     if isinstance(index, Mapping):

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from flaky import flaky
 
-from pipenv.utils import subprocess_run
+from pipenv.utils.processes import subprocess_run
 
 
 @flaky

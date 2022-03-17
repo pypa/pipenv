@@ -1,6 +1,6 @@
 from typing import Mapping
 
-from utils import pep423_name, translate_markers, clean_resolved_dep
+from .dependencies import pep423_name, translate_markers, clean_resolved_dep
 
 
 def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=None):
