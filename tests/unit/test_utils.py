@@ -3,6 +3,11 @@ import os
 import pytest
 
 import pipenv.utils
+import utils.dependencies
+import utils.indexes
+import utils.internet
+import utils.shell
+import utils.toml
 from pipenv.exceptions import PipenvUsageError
 
 
@@ -84,7 +89,7 @@ def test_convert_deps_to_pip(monkeypatch, deps, expected):
         m.setattr(pip_shims.shims, "unpack_url", mock_unpack)
         if expected.startswith("Django"):
             expected = expected.lower()
-        assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected]
+        assert utils.dependencies.convert_deps_to_pip(deps, r=False) == [expected]
 
 
 @pytest.mark.utils
@@ -126,14 +131,14 @@ def test_convert_deps_to_pip(monkeypatch, deps, expected):
     ],
 )
 def test_convert_deps_to_pip_one_way(deps, expected):
-    assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected.lower()]
+    assert utils.dependencies.convert_deps_to_pip(deps, r=False) == [expected.lower()]
 
 
 @pytest.mark.skipif(isinstance("", str), reason="don't need to test if unicode is str")
 @pytest.mark.utils
 def test_convert_deps_to_pip_unicode():
     deps = {"django": "==1.10"}
-    deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
+    deps = utils.dependencies.convert_deps_to_pip(deps, r=False)
     assert deps[0] == "django==1.10"
 
 
@@ -146,7 +151,7 @@ def test_convert_deps_to_pip_unicode():
 ])
 @pytest.mark.utils
 def test_parse_indexes(line, result):
-    assert pipenv.utils.parse_indexes(line) == result
+    assert utils.indexes.parse_indexes(line) == result
 
 
 @pytest.mark.parametrize("line", [
@@ -157,7 +162,7 @@ def test_parse_indexes(line, result):
 @pytest.mark.utils
 def test_parse_indexes_individual_lines(line):
     with pytest.raises(ValueError):
-        pipenv.utils.parse_indexes(line, strict=True)
+        utils.indexes.parse_indexes(line, strict=True)
 
 
 class TestUtils:
@@ -179,7 +184,7 @@ class TestUtils:
         ],
     )
     def test_is_required_version(self, version, specified_ver, expected):
-        assert pipenv.utils.is_required_version(version, specified_ver) is expected
+        assert utils.dependencies.is_required_version(version, specified_ver) is expected
 
     @pytest.mark.utils
     @pytest.mark.parametrize(
@@ -202,11 +207,11 @@ class TestUtils:
 
     @pytest.mark.utils
     def test_python_version_from_bad_path(self):
-        assert pipenv.utils.python_version("/fake/path") is None
+        assert utils.dependencies.python_version("/fake/path") is None
 
     @pytest.mark.utils
     def test_python_version_from_non_python(self):
-        assert pipenv.utils.python_version("/dev/null") is None
+        assert utils.dependencies.python_version("/dev/null") is None
 
     @pytest.mark.utils
     @pytest.mark.parametrize(
@@ -228,29 +233,21 @@ class TestUtils:
         def mock_version(path):
             return version_output.split()[1]
         monkeypatch.setattr("pipenv.vendor.pythonfinder.utils.get_python_version", mock_version)
-        assert pipenv.utils.python_version("some/path") == version
-
-    @pytest.mark.utils
-    @pytest.mark.windows
-    @pytest.mark.skipif(os.name != "nt", reason="Windows test only")
-    def test_windows_shellquote(self):
-        test_path = r"C:\Program Files\Python36\python.exe"
-        expected_path = '"C:\\\\Program Files\\\\Python36\\\\python.exe"'
-        assert pipenv.utils.escape_grouped_arguments(test_path) == expected_path
+        assert utils.dependencies.python_version("some/path") == version
 
     @pytest.mark.utils
     def test_is_valid_url(self):
         url = "https://github.com/psf/requests.git"
         not_url = "something_else"
-        assert pipenv.utils.is_valid_url(url)
-        assert pipenv.utils.is_valid_url(not_url) is False
+        assert utils.internet.is_valid_url(url)
+        assert utils.internet.is_valid_url(not_url) is False
 
     @pytest.mark.utils
     @pytest.mark.needs_internet
     def test_download_file(self):
         url = "https://github.com/pypa/pipenv/blob/master/README.md"
         output = "test_download.md"
-        pipenv.utils.download_file(url, output)
+        utils.internet.download_file(url, output)
         assert os.path.exists(output)
         os.remove(output)
 
@@ -275,7 +272,7 @@ class TestUtils:
         ("3", True)
     ])
     def test_is_python_command(self, line, expected):
-        assert pipenv.utils.is_python_command(line) == expected
+        assert utils.shell.is_python_command(line) == expected
 
     @pytest.mark.utils
     def test_new_line_end_of_toml_file(this):
@@ -292,7 +289,7 @@ twine = "*"
 "sphinx-click" = "*"
 "pytest-xdist" = "*"
         """
-        new_toml = pipenv.utils.cleanup_toml(toml)
+        new_toml = utils.toml.cleanup_toml(toml)
         # testing if the end of the generated file contains a newline
         assert new_toml[-1] == "\n"
 
@@ -316,7 +313,7 @@ twine = "*"
     )
     @pytest.mark.skipif(os.name != "nt", reason="Windows file paths tested")
     def test_win_normalize_drive(self, input_path, expected):
-        assert pipenv.utils.normalize_drive(input_path) == expected
+        assert utils.internet.normalize_drive(input_path) == expected
 
     @pytest.mark.utils
     @pytest.mark.parametrize(
@@ -330,7 +327,7 @@ twine = "*"
     )
     @pytest.mark.skipif(os.name == "nt", reason="*nix file paths tested")
     def test_nix_normalize_drive(self, input_path, expected):
-        assert pipenv.utils.normalize_drive(input_path) == expected
+        assert utils.internet.normalize_drive(input_path) == expected
 
     @pytest.mark.utils
     @pytest.mark.parametrize(
@@ -445,32 +442,32 @@ twine = "*"
     )
     def test_prepare_pip_source_args(self, sources, expected_args):
         assert (
-            pipenv.utils.prepare_pip_source_args(sources, pip_args=None)
-            == expected_args
+                utils.indexes.prepare_pip_source_args(sources, pip_args=None)
+                == expected_args
         )
 
     @pytest.mark.utils
     def test_invalid_prepare_pip_source_args(self):
         sources = [{}]
         with pytest.raises(PipenvUsageError):
-            pipenv.utils.prepare_pip_source_args(sources, pip_args=None)
+            utils.indexes.prepare_pip_source_args(sources, pip_args=None)
 
     @pytest.mark.utils
     def test_parse_python_version(self):
-        ver = pipenv.utils.parse_python_version("Python 3.6.5\n")
+        ver = utils.dependencies.parse_python_version("Python 3.6.5\n")
         assert ver == {"major": "3", "minor": "6", "micro": "5"}
 
     @pytest.mark.utils
     def test_parse_python_version_suffix(self):
-        ver = pipenv.utils.parse_python_version("Python 3.6.5rc1\n")
+        ver = utils.dependencies.parse_python_version("Python 3.6.5rc1\n")
         assert ver == {"major": "3", "minor": "6", "micro": "5"}
 
     @pytest.mark.utils
     def test_parse_python_version_270(self):
-        ver = pipenv.utils.parse_python_version("Python 2.7\n")
+        ver = utils.dependencies.parse_python_version("Python 2.7\n")
         assert ver == {"major": "2", "minor": "7", "micro": "0"}
 
     @pytest.mark.utils
     def test_parse_python_version_270_garbage(self):
-        ver = pipenv.utils.parse_python_version("Python 2.7+\n")
+        ver = utils.dependencies.parse_python_version("Python 2.7+\n")
         assert ver == {"major": "2", "minor": "7", "micro": "0"}

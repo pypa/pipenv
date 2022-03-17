@@ -1031,10 +1031,7 @@ def do_lock(
         for k, v in lockfile[section].copy().items():
             if not hasattr(v, "keys"):
                 del lockfile[section][k]
-    # Ensure that develop inherits from default.
-    dev_packages = project.dev_packages.copy()
-    dev_packages = overwrite_dev(project.packages, dev_packages)
-    # Resolve dev-package dependencies, with pip-tools.
+    # Resolve dev-package dependencies followed by packages dependencies.
     for is_dev in [True, False]:
         pipfile_section = "dev-packages" if is_dev else "packages"
         if project.pipfile_exists:
