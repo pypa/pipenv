@@ -96,33 +96,6 @@ def get_source_list(
     return sources
 
 
-def get_indexes_from_requirement(req, project, index=None, extra_indexes=None, trusted_hosts=None, pypi_mirror=None):
-    # type: (Requirement, Project, Optional[Text], Optional[List[Text]], Optional[List[Text]], Optional[Text]) -> Tuple[TSource, List[TSource], List[Text]]
-    index_sources = []  # type: List[TSource]
-    if not trusted_hosts:
-        trusted_hosts = []  # type: List[Text]
-    if extra_indexes is None:
-        extra_indexes = []
-    project_indexes = project.pipfile_sources[:]
-    indexes = []
-    if req.index:
-        indexes.append(req.index)
-    if getattr(req, "extra_indexes", None):
-        if not isinstance(req.extra_indexes, list):
-            indexes.append(req.extra_indexes)
-        else:
-            indexes.extend(req.extra_indexes)
-    indexes.extend(project_indexes)
-    if len(indexes) > 1:
-        index, extra_indexes = indexes[0], indexes[1:]
-    index_sources = get_source_list(project, index=index, extra_indexes=extra_indexes, trusted_hosts=trusted_hosts, pypi_mirror=pypi_mirror)
-    if len(index_sources) > 1:
-        index_source, extra_index_sources = index_sources[0], index_sources[1:]
-    else:
-        index_source, extra_index_sources = index_sources[0], []
-    return index_source, extra_index_sources
-
-
 def parse_indexes(line, strict=False):
     from argparse import ArgumentParser
 

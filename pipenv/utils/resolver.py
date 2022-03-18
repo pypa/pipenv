@@ -29,6 +29,7 @@ if environments.MYPY_RUNNING:
         Line, Requirement
     )
 
+
 class HashCacheMixin:
 
     """Caches hashes of PyPI artifacts so we do not need to re-download them.
@@ -699,6 +700,12 @@ class Resolver:
         return results
 
 
+def _show_warning(message, category, filename, lineno, line):
+    warnings.showwarning(message=message, category=category, filename=filename,
+                         lineno=lineno, file=sys.stderr, line=line)
+    sys.stderr.flush()
+
+
 def actually_resolve_deps(
     deps,
     index_lookup,
@@ -758,12 +765,6 @@ def resolve(cmd, sp, project):
     if is_verbose:
         echo(out.strip(), err=True)
     return subprocess.CompletedProcess(c.args, returncode, out, err)
-
-
-def _show_warning(message, category, filename, lineno, line):
-    warnings.showwarning(message=message, category=category, filename=filename,
-                         lineno=lineno, file=sys.stderr, line=line)
-    sys.stderr.flush()
 
 
 def venv_resolve_deps(

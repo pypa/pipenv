@@ -9,40 +9,7 @@ from urllib.parse import urlparse
 from packaging.markers import Marker
 from pipenv import fs_str
 from .constants import SCHEME_LIST, VCS_LIST
-from .internet import temp_path
-
-
-def parse_python_version(output):
-    """Parse a Python version output returned by `python --version`.
-
-    Return a dict with three keys: major, minor, and micro. Each value is a
-    string containing a version part.
-
-    Note: The micro part would be `'0'` if it's missing from the input string.
-    """
-    version_line = output.split("\n", 1)[0]
-    version_pattern = re.compile(
-        r"""
-        ^                   # Beginning of line.
-        Python              # Literally "Python".
-        \s                  # Space.
-        (?P<major>\d+)      # Major = one or more digits.
-        \.                  # Dot.
-        (?P<minor>\d+)      # Minor = one or more digits.
-        (?:                 # Unnamed group for dot-micro.
-            \.              # Dot.
-            (?P<micro>\d+)  # Micro = one or more digit.
-        )?                  # Micro is optional because pypa/pipenv#1893.
-        .*                  # Trailing garbage.
-        $                   # End of line.
-    """,
-        re.VERBOSE,
-    )
-
-    match = version_pattern.match(version_line)
-    if not match:
-        return None
-    return match.groupdict(default="0")
+from .shell import temp_path
 
 
 def python_version(path_to_python):
@@ -93,21 +60,6 @@ def get_canonical_names(packages):
             return packages
         packages = [packages]
     return {canonicalize_name(pkg) for pkg in packages if pkg}
-
-
-def is_file(package):
-    """Determine if a package name is for a File dependency."""
-    if hasattr(package, "keys"):
-        return any(key for key in package.keys() if key in ["file", "path"])
-
-    if os.path.exists(str(package)):
-        return True
-
-    for start in SCHEME_LIST:
-        if str(package).startswith(start):
-            return True
-
-    return False
 
 
 def pep440_version(version):
