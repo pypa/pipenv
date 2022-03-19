@@ -20,22 +20,23 @@ from ..utils import (
 )
 
 if MYPY_RUNNING:
-    from .path import PathEntry
-    from .python import PythonVersion
     from typing import (
-        Optional,
-        Union,
         Any,
+        DefaultDict,
         Dict,
+        Generator,
         Iterator,
         List,
-        DefaultDict,
-        Generator,
+        Optional,
         Tuple,
-        TypeVar,
         Type,
+        TypeVar,
+        Union,
     )
+
     from ..compat import Path  # noqa
+    from .path import PathEntry
+    from .python import PythonVersion
 
     BaseFinderType = TypeVar("BaseFinderType")
 

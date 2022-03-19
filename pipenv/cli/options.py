@@ -225,9 +225,8 @@ def three_option(f):
         state = ctx.ensure_object(State)
         if value is not None:
             state.three = value
-            state.two = not value
         return value
-    return option("--three/--two", is_flag=True, default=None,
+    return option("--three", is_flag=True, default=None,
                   help="Use Python 3/2 when creating virtualenv.", callback=callback,
                   expose_value=False)(f)
 

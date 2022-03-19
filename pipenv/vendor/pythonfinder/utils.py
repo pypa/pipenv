@@ -14,7 +14,7 @@ import pipenv.vendor.attr as attr
 import pipenv.vendor.six as six
 from pipenv.vendor.packaging.version import LegacyVersion, Version
 
-from .compat import Path, lru_cache, TimeoutError  # noqa
+from .compat import Path, TimeoutError, lru_cache  # noqa
 from .environment import MYPY_RUNNING, PYENV_ROOT, SUBPROCESS_TIMEOUT
 from .exceptions import InvalidPythonVersion
 
@@ -30,8 +30,10 @@ from pipenv.vendor.six.moves import Sequence  # type: ignore  # noqa  # isort:sk
 # fmt: on
 
 if MYPY_RUNNING:
-    from typing import Any, Union, List, Callable, Set, Tuple, Dict, Optional, Iterator
+    from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple, Union
+
     from pipenv.vendor.attr.validators import _OptionalValidator  # type: ignore
+
     from .models.path import PathEntry
 
 
@@ -62,8 +64,10 @@ else:
 KNOWN_EXTS = KNOWN_EXTS | set(
     filter(None, os.environ.get("PATHEXT", "").split(os.pathsep))
 )
-PY_MATCH_STR = r"((?P<implementation>{0})(?:\d?(?:\.\d[cpm]{{0,3}}))?(?:-?[\d\.]+)*(?!w))".format(
-    "|".join(PYTHON_IMPLEMENTATIONS)
+PY_MATCH_STR = (
+    r"((?P<implementation>{0})(?:\d?(?:\.\d[cpm]{{0,3}}))?(?:-?[\d\.]+)*(?!w))".format(
+        "|".join(PYTHON_IMPLEMENTATIONS)
+    )
 )
 EXE_MATCH_STR = r"{0}(?:\.(?P<ext>{1}))?".format(PY_MATCH_STR, "|".join(KNOWN_EXTS))
 RE_MATCHER = re.compile(r"({0}|{1})".format(version_re_str, PY_MATCH_STR))

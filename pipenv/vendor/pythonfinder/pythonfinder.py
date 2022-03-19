@@ -14,10 +14,10 @@ from .exceptions import InvalidPythonVersion
 from .utils import Iterable, filter_pythons, version_re
 
 if environment.MYPY_RUNNING:
-    from typing import Optional, Dict, Any, Union, List, Iterator, Text
-    from .models.path import Path, PathEntry
+    from typing import Any, Dict, Iterator, List, Optional, Text, Union
+
+    from .models.path import Path, PathEntry, SystemPath
     from .models.windows import WindowsFinder
-    from .models.path import SystemPath
 
     STRING_TYPE = Union[str, Text, bytes]
 

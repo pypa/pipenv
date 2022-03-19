@@ -8,7 +8,6 @@ import sys
 
 from pipenv.vendor.pythonfinder.cli import cli
 
-
 PYTHONFINDER_MAIN = os.path.dirname(os.path.abspath(__file__))
 PYTHONFINDER_PACKAGE = os.path.dirname(PYTHONFINDER_MAIN)
 

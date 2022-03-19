@@ -103,25 +103,23 @@ def load_dot_env(project, as_dict=False):
             [project_directory, ".env"]
         )
 
-        if os.path.isfile(dotenv_file):
+        if not os.path.isfile(dotenv_file) and project.s.PIPENV_DOTENV_LOCATION:
             click.echo(
-                crayons.normal(fix_utf8("Loading .env environment variables..."), bold=True),
+                "{}: file {}={} does not exist!!\n{}".format(
+                    crayons.red("Warning", bold=True),
+                    crayons.normal("PIPENV_DOTENV_LOCATION", bold=True),
+                    crayons.normal(project.s.PIPENV_DOTENV_LOCATION, bold=True),
+                    crayons.red("Not loading environment variables.", bold=True),
+                ),
                 err=True,
             )
-        else:
-            if project.s.PIPENV_DOTENV_LOCATION:
-                click.echo(
-                    "{}: file {}={} does not exist!!\n{}".format(
-                        crayons.red("Warning", bold=True),
-                        crayons.normal("PIPENV_DOTENV_LOCATION", bold=True),
-                        crayons.normal(project.s.PIPENV_DOTENV_LOCATION, bold=True),
-                        crayons.red("Not loading environment variables.", bold=True),
-                    ),
-                    err=True,
-                )
         if as_dict:
             return dotenv.dotenv_values(dotenv_file)
         else:
+            click.echo(
+                crayons.normal(fix_utf8("Loading .env environment variables..."), bold=True),
+                err=False,
+            )
             dotenv.load_dotenv(dotenv_file, override=True)
             project.s.initialize()
 
@@ -243,10 +241,12 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
             )
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists and not skip_requirements:
+            requirements_dir_path = os.path.dirname(project.requirements_location)
             click.echo(
-                crayons.normal(
-                    fix_utf8("requirements.txt found, instead of Pipfile! Converting..."),
-                    bold=True,
+                "{0} found in {1} instead of {2}! Converting...".format(
+                    crayons.normal("requirements.txt", bold=True),
+                    crayons.yellow(requirements_dir_path, bold=True),
+                    crayons.normal("Pipfile", bold=True),
                 )
             )
             # Create a Pipfile...
@@ -469,7 +469,7 @@ def ensure_virtualenv(project, three=None, python=None, site_packages=None, pypi
             # If interrupted, cleanup the virtualenv.
             cleanup_virtualenv(project, bare=False)
             sys.exit(1)
-    # If --three, --two, or --python were passed...
+    # If --python or --three were passed...
     elif (python) or (three is not None) or (site_packages is not None):
         project.s.USING_DEFAULT_PYTHON = False
         # Ensure python is installed before deleting existing virtual env
@@ -2473,8 +2473,8 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
         project, three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
     )
 
+    load_dot_env(project)
     env = os.environ.copy()
-    env.update(load_dot_env(project, as_dict=True) or {})
     env.pop("PIP_SHIMS_BASE_MODULE", None)
 
     path = env.get('PATH', '')

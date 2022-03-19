@@ -99,7 +99,6 @@ Basic Concepts
 - A virtualenv will automatically be created, when one doesn't exist.
 - When no parameters are passed to ``install``, all packages ``[packages]`` specified will be installed.
 - To initialize a Python 3 virtual environment, run ``$ pipenv --three``.
-- To initialize a Python 2 virtual environment, run ``$ pipenv --two``.
 - Otherwise, whatever virtualenv defaults to will be the default.
 
 
