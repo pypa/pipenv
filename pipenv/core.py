@@ -249,10 +249,12 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
             )
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists and not skip_requirements:
+            requirements_dir_path = os.path.dirname(project.requirements_location)
             click.echo(
-                crayons.normal(
-                    fix_utf8("requirements.txt found, instead of Pipfile! Converting..."),
-                    bold=True,
+                "{0} found in {1} instead of {2}! Converting...".format(
+                    crayons.normal("requirements.txt", bold=True),
+                    crayons.yellow(requirements_dir_path, bold=True),
+                    crayons.normal("Pipfile", bold=True),
                 )
             )
             # Create a Pipfile...
