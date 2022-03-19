@@ -130,7 +130,7 @@ Vendored Libraries
   - ``tomli 1.1.0``
   - ``wheel 0.36.2``  `#4747 <https://github.com/pypa/pipenv/issues/4747>`_
 - Drop the dependencies for Python 2.7 compatibility purpose.  `#4751 <https://github.com/pypa/pipenv/issues/4751>`_
-- Switch the dependency resolver from ``pip-tools`` to `pip`.
+- Switch the dependency resolver from ``pip-tools`` to ``pip``.
 
   Update vendor libraries:
   - Update ``requirementslib`` from ``1.5.16`` to ``1.6.1``
@@ -339,7 +339,7 @@ Features & Improvements
 - Allow overriding PIPENV_INSTALL_TIMEOUT environment variable (in seconds).  `#3652 <https://github.com/pypa/pipenv/issues/3652>`_
 - Allow overriding PIP_EXISTS_ACTION evironment variable (value is passed to pip install).
   Possible values here: https://pip.pypa.io/en/stable/reference/pip/#exists-action-option
-  Useful when you need to `PIP_EXISTS_ACTION=i` (ignore existing packages) - great for CI environments, where you need really fast setup.  `#3738 <https://github.com/pypa/pipenv/issues/3738>`_
+  Useful when you need to ``PIP_EXISTS_ACTION=i`` (ignore existing packages) - great for CI environments, where you need really fast setup.  `#3738 <https://github.com/pypa/pipenv/issues/3738>`_
 - Pipenv will no longer forcibly override ``PIP_NO_DEPS`` on all vcs and file dependencies as resolution happens on these in a pre-lock step.  `#3763 <https://github.com/pypa/pipenv/issues/3763>`_
 - Improved verbose logging output during ``pipenv lock`` will now stream output to the console while maintaining a spinner.  `#3810 <https://github.com/pypa/pipenv/issues/3810>`_
 - Added support for automatic python installs via ``asdf`` and associated ``PIPENV_DONT_USE_ASDF`` environment variable.  `#4018 <https://github.com/pypa/pipenv/issues/4018>`_
@@ -357,7 +357,7 @@ Behavior Changes
 Bug Fixes
 ---------
 
-- Raise `PipenvUsageError` when [[source]] does not contain url field.  `#2373 <https://github.com/pypa/pipenv/issues/2373>`_
+- Raise ``PipenvUsageError`` when [[source]] does not contain url field.  `#2373 <https://github.com/pypa/pipenv/issues/2373>`_
 - Fixed a bug which caused editable package resolution to sometimes fail with an unhelpful setuptools-related error message.  `#2722 <https://github.com/pypa/pipenv/issues/2722>`_
 - Fixed an issue which caused errors due to reliance on the system utilities ``which`` and ``where`` which may not always exist on some systems.
   - Fixed a bug which caused periodic failures in python discovery when executables named ``python`` were not present on the target ``$PATH``.  `#2783 <https://github.com/pypa/pipenv/issues/2783>`_
@@ -620,13 +620,13 @@ Bug Fixes
 - Fixed an issue in ``delegator.py`` related to subprocess calls when using ``PopenSpawn`` to stream output, which sometimes threw unexpected ``EOF`` errors.  `#3102 <https://github.com/pypa/pipenv/issues/3102>`_,
   `#3114 <https://github.com/pypa/pipenv/issues/3114>`_,
   `#3117 <https://github.com/pypa/pipenv/issues/3117>`_
-- Fix the path casing issue that makes `pipenv clean` fail on Windows  `#3104 <https://github.com/pypa/pipenv/issues/3104>`_
+- Fix the path casing issue that makes ``pipenv clean`` fail on Windows  `#3104 <https://github.com/pypa/pipenv/issues/3104>`_
 - Pipenv will avoid leaving build artifacts in the current working directory.  `#3106 <https://github.com/pypa/pipenv/issues/3106>`_
 - Fixed issues with broken subprocess calls leaking resource handles and causing random and sporadic failures.  `#3109 <https://github.com/pypa/pipenv/issues/3109>`_
 - Fixed an issue which caused ``pipenv clean`` to sometimes clean packages from the base ``site-packages`` folder or fail entirely.  `#3113 <https://github.com/pypa/pipenv/issues/3113>`_
 - Updated ``pythonfinder`` to correct an issue with unnesting of nested paths when searching for python versions.  `#3121 <https://github.com/pypa/pipenv/issues/3121>`_
 - Added additional logic for ignoring and replacing non-ascii characters when formatting console output on non-UTF-8 systems.  `#3131 <https://github.com/pypa/pipenv/issues/3131>`_
-- Fix virtual environment discovery when ``PIPENV_VENV_IN_PROJECT`` is set, but the in-project `.venv` is a file.  `#3134 <https://github.com/pypa/pipenv/issues/3134>`_
+- Fix virtual environment discovery when ``PIPENV_VENV_IN_PROJECT`` is set, but the in-project ``.venv`` is a file.  `#3134 <https://github.com/pypa/pipenv/issues/3134>`_
 - Hashes for remote and local non-PyPI artifacts will now be included in ``Pipfile.lock`` during resolution.  `#3145 <https://github.com/pypa/pipenv/issues/3145>`_
 - Fix project path hashing logic in purpose to prevent collisions of virtual environments.  `#3151 <https://github.com/pypa/pipenv/issues/3151>`_
 - Fix package installation when the virtual environment path contains parentheses.  `#3158 <https://github.com/pypa/pipenv/issues/3158>`_
@@ -710,7 +710,7 @@ Vendored Libraries
 Features & Improvements
 -----------------------
 
-- Added environment variables `PIPENV_VERBOSE` and `PIPENV_QUIET` to control
+- Added environment variables ``PIPENV_VERBOSE`` and ``PIPENV_QUIET`` to control
   output verbosity without needing to pass options.  `#2527 <https://github.com/pypa/pipenv/issues/2527>`_
 
 - Updated test-PyPI add-on to better support json-API access (forward compatibility).
@@ -743,7 +743,7 @@ Behavior Changes
 - Add ``COMSPEC`` to fallback option (along with ``SHELL`` and ``PYENV_SHELL``)
   if shell detection fails, improving robustness on Windows.  `#2651 <https://github.com/pypa/pipenv/issues/2651>`_
 
-- Fallback to shell mode if `run` fails with Windows error 193 to handle non-executable commands. This should improve usability on Windows, where some users run non-executable files without specifying a command, relying on Windows file association to choose the current command.  `#2718 <https://github.com/pypa/pipenv/issues/2718>`_
+- Fallback to shell mode if ``run`` fails with Windows error 193 to handle non-executable commands. This should improve usability on Windows, where some users run non-executable files without specifying a command, relying on Windows file association to choose the current command.  `#2718 <https://github.com/pypa/pipenv/issues/2718>`_
 
 
 Bug Fixes
@@ -841,7 +841,7 @@ Bug Fixes
   `#2867 <https://github.com/pypa/pipenv/issues/2867>`_,
   `#2880 <https://github.com/pypa/pipenv/issues/2880>`_
 
-- Fixed a bug where `pipenv` crashes when the `WORKON_HOME` directory does not exist.  `#2877 <https://github.com/pypa/pipenv/issues/2877>`_
+- Fixed a bug where ``pipenv`` crashes when the ``WORKON_HOME`` directory does not exist.  `#2877 <https://github.com/pypa/pipenv/issues/2877>`_
 
 - Fixed pip is not loaded from pipenv's patched one but the system one  `#2912 <https://github.com/pypa/pipenv/issues/2912>`_
 
@@ -908,7 +908,7 @@ Improved Documentation
 
 - Added simple example to README.md for installing from git.  `#2685 <https://github.com/pypa/pipenv/issues/2685>`_
 
-- Stopped recommending `--system` for Docker contexts.  `#2762 <https://github.com/pypa/pipenv/issues/2762>`_
+- Stopped recommending ``--system`` for Docker contexts.  `#2762 <https://github.com/pypa/pipenv/issues/2762>`_
 
 - Fixed the example url for doing "pipenv install -e
   some-repository-url#egg=something", it was missing the "egg=" in the fragment
@@ -916,7 +916,7 @@ Improved Documentation
 
 - Fixed link to the "be cordial" essay in the contribution documentation.  `#2793 <https://github.com/pypa/pipenv/issues/2793>`_
 
-- Clarify `pipenv install` documentation  `#2844 <https://github.com/pypa/pipenv/issues/2844>`_
+- Clarify ``pipenv install`` documentation  `#2844 <https://github.com/pypa/pipenv/issues/2844>`_
 
 - Replace reference to uservoice with PEEP-000  `#2909 <https://github.com/pypa/pipenv/issues/2909>`_
 

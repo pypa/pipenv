@@ -1,2 +1,2 @@
-Updated vendor version of `pythonfinder` from `1.2.9` to `1.2.10` which fixes a bug with WSL
+Updated vendor version of ``pythonfinder`` from ``1.2.9`` to ``1.2.10`` which fixes a bug with WSL
 (Windows Subsystem for Linux) when a path can not be read and Permission Denied error is encountered.

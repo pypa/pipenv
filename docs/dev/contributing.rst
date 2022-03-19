@@ -272,10 +272,11 @@ It is important that your environment is setup correctly, and
 this may take some work, for example, on a specific Mac installation, the following
 steps may be needed::
 
+.. code-block:: bash
     # Make sure the tests can access github
     if [ "$SSH_AGENT_PID" = "" ]
     then
-       eval `ssh-agent`
+       eval ``ssh-agent``
        ssh-add
     fi
 

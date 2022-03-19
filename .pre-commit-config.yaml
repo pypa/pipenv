@@ -39,16 +39,15 @@ repos:
   - id: isort
     files: \.py$
 
-#- repo: https://github.com/pre-commit/pygrep-hooks
-#  rev: v1.7.0
-#  hooks:
-#  - id: python-no-log-warn
-#  - id: python-no-eval
-#  - id: rst-backticks
-#    files: .*\.rst$
-#    types: [file]
-#    exclude: NEWS.rst  # The errors flagged in NEWS.rst are old.
-#
+- repo: https://github.com/pre-commit/pygrep-hooks
+  rev: v1.7.0
+  hooks:
+  - id: python-no-log-warn
+  - id: python-no-eval
+  - id: rst-backticks
+    files: .*\.rst$
+    types: [file]
+
 #- repo: local
 #  hooks:
 #  - id: news-fragment-filenames
