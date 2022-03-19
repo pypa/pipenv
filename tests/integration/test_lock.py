@@ -457,7 +457,7 @@ def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInst
         assert c.returncode == 0
         c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
         assert c.returncode == 0
-        assert c.stdout.strip() == "40.2.0"
+        assert c.stdout.splitlines()[1] == "40.2.0"
         c = p.pipenv("install legacy-backend-package")
         assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]
@@ -481,7 +481,7 @@ def test_outdated_setuptools_with_pep517_cython_import_in_setuppy(PipenvInstance
         assert c.returncode == 0
         c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
         assert c.returncode == 0
-        assert c.stdout.strip() == "40.2.0"
+        assert c.stdout.splitlines()[1] == "40.2.0"
         c = p.pipenv("install cython-import-package")
         assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]

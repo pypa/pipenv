@@ -35,22 +35,23 @@ from .mixins import BaseFinder, BasePath
 
 if MYPY_RUNNING:
     from typing import (
-        DefaultDict,
-        Optional,
-        Callable,
-        Generator,
         Any,
-        Union,
-        Tuple,
-        List,
+        Callable,
+        DefaultDict,
         Dict,
+        Generator,
+        Iterator,
+        List,
+        Optional,
+        Tuple,
         Type,
         TypeVar,
-        Iterator,
+        Union,
         overload,
     )
-    from .path import PathEntry
+
     from .._vendor.pep514tools.environment import Environment
+    from .path import PathEntry
 else:
 
     def overload(f):
@@ -197,7 +198,7 @@ class PythonFinder(BaseFinder, BasePath):
     def versions(self):
         # type: () -> DefaultDict[Tuple, PathEntry]
         if not self._versions:
-            for base_path, entry, version_tuple in self._iter_versions():
+            for _, entry, version_tuple in self._iter_versions():
                 self._versions[version_tuple] = entry
         return self._versions
 

@@ -17,16 +17,16 @@ DEP_PIP_PAIRS = [
     (
         {
             "pinax": {
-                "git": "git://github.com/pinax/pinax.git",
+                "git": "https://github.com/pinax/pinax.git",
                 "ref": "1.4",
                 "editable": True,
             }
         },
-        "-e git+git://github.com/pinax/pinax.git@1.4#egg=pinax",
+        "-e git+https://github.com/pinax/pinax.git@1.4#egg=pinax",
     ),
     (
-        {"pinax": {"git": "git://github.com/pinax/pinax.git", "ref": "1.4"}},
-        "git+git://github.com/pinax/pinax.git@1.4#egg=pinax",
+        {"pinax": {"git": "https://github.com/pinax/pinax.git", "ref": "1.4"}},
+        "git+https://github.com/pinax/pinax.git@1.4#egg=pinax",
     ),
     (  # Mercurial.
         {

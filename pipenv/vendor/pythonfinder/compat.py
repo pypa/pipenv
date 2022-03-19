@@ -9,8 +9,8 @@ else:
     from pathlib import Path
 
 if six.PY3:
-    from functools import lru_cache
     from builtins import TimeoutError
+    from functools import lru_cache
 else:
     from backports.functools_lru_cache import lru_cache  # type: ignore  # noqa
 
@@ -20,6 +20,7 @@ else:
 
 def getpreferredencoding():
     import locale
+
     # Borrowed from Invoke
     # (see https://github.com/pyinvoke/invoke/blob/93af29d/invoke/runners.py#L881)
     _encoding = locale.getpreferredencoding(False)

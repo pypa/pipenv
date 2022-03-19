@@ -30,7 +30,7 @@ def cli(
         click.echo(
             "{0} version {1}".format(
                 click.style("PythonFinder", fg="white", bold=True),
-                click.style(str(__version__), fg="yellow")
+                click.style(str(__version__), fg="yellow"),
             )
         )
         ctx.exit()

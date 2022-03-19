@@ -27,7 +27,7 @@ ASDF_DATA_DIR = os.path.expanduser(
 IS_64BIT_OS = None
 SYSTEM_ARCH = platform.architecture()[0]
 
-if sys.maxsize > 2 ** 32:
+if sys.maxsize > 2**32:
     IS_64BIT_OS = platform.machine() == "AMD64"
 else:
     IS_64BIT_OS = False
