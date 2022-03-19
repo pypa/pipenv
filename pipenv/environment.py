@@ -540,7 +540,8 @@ class Environment:
         :rtype: iterator
         """
 
-        libdirs = self.base_paths["libdirs"].split(os.pathsep)
+        pip_target_dir = os.environ.get('PIP_TARGET')
+        libdirs = [pip_target_dir] if pip_target_dir else self.base_paths["libdirs"].split(os.pathsep)
         dists = (pkg_resources.find_distributions(libdir) for libdir in libdirs)
         yield from itertools.chain.from_iterable(dists)
 
