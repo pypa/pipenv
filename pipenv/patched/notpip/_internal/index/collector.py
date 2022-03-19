@@ -17,6 +17,7 @@ from optparse import Values
 from typing import (
     Callable,
     Iterable,
+    Dict,
     List,
     MutableMapping,
     NamedTuple,
@@ -445,7 +446,7 @@ class LinkCollector:
         self,
         session: PipSession,
         search_scope: SearchScope,
-        index_lookup: dict = None,
+        index_lookup: Optional[Dict[str, List[str]]] = None,
     ) -> None:
         self.search_scope = search_scope
         self.session = session
@@ -456,7 +457,7 @@ class LinkCollector:
         cls, session: PipSession,
         options: Values,
         suppress_no_index: bool = False,
-        index_lookup: dict = None,
+        index_lookup: Optional[Dict[str, List[str]]] = None,
     ) -> "LinkCollector":
         """
         :param session: The Session to use to make requests.

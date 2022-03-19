@@ -3,7 +3,7 @@ import logging
 import os
 import posixpath
 import urllib.parse
-from typing import List
+from typing import Dict, List, Optional
 
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
@@ -27,7 +27,7 @@ class SearchScope:
         cls,
         find_links: List[str],
         index_urls: List[str],
-        index_lookup: dict = None,
+        index_lookup: Optional[Dict[str, List[str]]] = None,
     ) -> "SearchScope":
         """
         Create a SearchScope object after normalizing the `find_links`.
@@ -68,7 +68,7 @@ class SearchScope:
         self,
         find_links: List[str],
         index_urls: List[str],
-        index_lookup: dict = None,
+        index_lookup: Optional[Dict[str, List[str]]] = None,
     ) -> None:
         self.find_links = find_links
         self.index_urls = index_urls
