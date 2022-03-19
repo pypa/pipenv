@@ -11,6 +11,7 @@ from click import echo as click_echo
 
 from pipenv import environments
 from pipenv.exceptions import RequirementError, ResolutionFailure
+from pipenv.vendor.requirementslib import Pipfile, Requirement
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
 from pipenv.vendor.vistir import TemporaryDirectory, open_file
 from pipenv.vendor.vistir.path import create_tracked_tempdir

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-The `distro` package (`distro` stands for Linux Distribution) provides
+The ``distro`` package (``distro`` stands for Linux Distribution) provides
 information about the Linux distribution it runs on, such as a reliable
 machine-readable distro ID, or version information.
 
@@ -100,14 +100,14 @@ _DISTRO_RELEASE_IGNORE_BASENAMES = (
 def linux_distribution(full_distribution_name=True):
     """
     Return information about the current OS distribution as a tuple
-    `(id_name, version, codename)` with items as follows:
+    ``(id_name, version, codename)`` with items as follows:
 
-    * `id_name`:  If *full_distribution_name* is false, the result of
+    * ``id_name``:  If *full_distribution_name* is false, the result of
       :func:`distro.id`. Otherwise, the result of :func:`distro.name`.
 
-    * `version`:  The result of :func:`distro.version`.
+    * ``version``:  The result of :func:`distro.version`.
 
-    * `codename`:  The result of :func:`distro.codename`.
+    * ``codename``:  The result of :func:`distro.codename`.
 
     The interface of this function is compatible with the original
     :py:func:`platform.linux_distribution` function, supporting a subset of
@@ -290,13 +290,13 @@ def version(pretty=False, best=False):
 def version_parts(best=False):
     """
     Return the version of the current OS distribution as a tuple
-    `(major, minor, build_number)` with items as follows:
+    ``(major, minor, build_number)`` with items as follows:
 
-    * `major`:  The result of :func:`distro.major_version`.
+    * ``major``:  The result of :func:`distro.major_version`.
 
-    * `minor`:  The result of :func:`distro.minor_version`.
+    * ``minor``:  The result of :func:`distro.minor_version`.
 
-    * `build_number`:  The result of :func:`distro.build_number`.
+    * ``build_number``:  The result of :func:`distro.build_number`.
 
     For a description of the *best* parameter, see the :func:`distro.version`
     method.
@@ -407,20 +407,20 @@ def info(pretty=False, best=False):
     information items are available in the underlying data sources. The values
     for the various keys are as follows:
 
-    * `id`:  The result of :func:`distro.id`.
+    * ``id``:  The result of :func:`distro.id`.
 
-    * `version`:  The result of :func:`distro.version`.
+    * ``version``:  The result of :func:`distro.version`.
 
-    * `version_parts -> major`:  The result of :func:`distro.major_version`.
+    * ``version_parts -> major``:  The result of :func:`distro.major_version`.
 
-    * `version_parts -> minor`:  The result of :func:`distro.minor_version`.
+    * ``version_parts -> minor``:  The result of :func:`distro.minor_version`.
 
-    * `version_parts -> build_number`:  The result of
+    * ``version_parts -> build_number``:  The result of
       :func:`distro.build_number`.
 
-    * `like`:  The result of :func:`distro.like`.
+    * ``like``:  The result of :func:`distro.like`.
 
-    * `codename`:  The result of :func:`distro.codename`.
+    * ``codename``:  The result of :func:`distro.codename`.
 
     For a description of the *pretty* and *best* parameters, see the
     :func:`distro.version` method.
@@ -474,7 +474,7 @@ def os_release_attr(attribute):
 
     Parameters:
 
-    * `attribute` (string): Key of the information item.
+    * ``attribute`` (string): Key of the information item.
 
     Returns:
 
@@ -493,7 +493,7 @@ def lsb_release_attr(attribute):
 
     Parameters:
 
-    * `attribute` (string): Key of the information item.
+    * ``attribute`` (string): Key of the information item.
 
     Returns:
 
@@ -513,7 +513,7 @@ def distro_release_attr(attribute):
 
     Parameters:
 
-    * `attribute` (string): Key of the information item.
+    * ``attribute`` (string): Key of the information item.
 
     Returns:
 
@@ -532,7 +532,7 @@ def uname_attr(attribute):
 
     Parameters:
 
-    * `attribute` (string): Key of the information item.
+    * ``attribute`` (string): Key of the information item.
 
     Returns:
 
@@ -588,13 +588,13 @@ class LinuxDistribution(object):
 
         Parameters:
 
-        * `include_lsb` (bool): Controls whether the
+        * ``include_lsb`` (bool): Controls whether the
           `lsb_release command output`_ is included as a data source.
 
           If the lsb_release command is not available in the program execution
           path, the data source for the lsb_release command will be empty.
 
-        * `os_release_file` (string): The path name of the
+        * ``os_release_file`` (string): The path name of the
           `os-release file`_ that is to be used as a data source.
 
           An empty string (the default) will cause the default path name to
@@ -603,7 +603,7 @@ class LinuxDistribution(object):
           If the specified or defaulted os-release file does not exist, the
           data source for the os-release file will be empty.
 
-        * `distro_release_file` (string): The path name of the
+        * ``distro_release_file`` (string): The path name of the
           `distro release file`_ that is to be used as a data source.
 
           An empty string (the default) will cause a default search algorithm
@@ -613,25 +613,25 @@ class LinuxDistribution(object):
           distro release file can be found, the data source for the distro
           release file will be empty.
 
-        * `include_uname` (bool): Controls whether uname command output is
+        * ``include_uname`` (bool): Controls whether uname command output is
           included as a data source. If the uname command is not available in
           the program execution path the data source for the uname command will
           be empty.
 
         Public instance attributes:
 
-        * `os_release_file` (string): The path name of the
+        * ``os_release_file`` (string): The path name of the
           `os-release file`_ that is actually used as a data source. The
           empty string if no distro release file is used as a data source.
 
-        * `distro_release_file` (string): The path name of the
+        * ``distro_release_file`` (string): The path name of the
           `distro release file`_ that is actually used as a data source. The
           empty string if no distro release file is used as a data source.
 
-        * `include_lsb` (bool): The result of the `include_lsb` parameter.
+        * ``include_lsb`` (bool): The result of the ``include_lsb`` parameter.
           This controls whether the lsb information will be loaded.
 
-        * `include_uname` (bool): The result of the `include_uname`
+        * ``include_uname`` (bool): The result of the ``include_uname``
           parameter. This controls whether the uname information will
           be loaded.
 

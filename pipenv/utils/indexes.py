@@ -1,6 +1,6 @@
 import re
 
-import urllib3.util
+from urllib3.util import parse_url
 
 from pipenv import environments
 from pipenv.exceptions import PipenvUsageError
@@ -25,7 +25,7 @@ def prepare_pip_source_args(sources, pip_args=None):
         pip_args.extend(["-i", package_url])
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
-            url_parts = urllib3.util.parse_url(package_url)
+            url_parts = parse_url(package_url)
             url_port = f":{url_parts.port}" if url_parts.port else ""
             pip_args.extend(["--trusted-host", f"{url_parts.host}{url_port}"])
         # Add additional sources as extra indexes.
@@ -37,7 +37,7 @@ def prepare_pip_source_args(sources, pip_args=None):
                 pip_args.extend(["--extra-index-url", url])
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
-                    url_parts = urllib3.util.parse_url(url)
+                    url_parts = parse_url(url)
                     url_port = f":{url_parts.port}" if url_parts.port else ""
                     pip_args.extend(["--trusted-host", f"{url_parts.host}{url_port}"])
     return pip_args
@@ -54,7 +54,7 @@ def get_project_index(project, index=None, trusted_hosts=None):
     try:
         source = project.find_source(index)
     except SourceNotFound:
-        index_url = urllib3.util.parse_url(index)
+        index_url = parse_url(index)
         src_name = project.src_name_from_url(index)
         verify_ssl = index_url.host not in trusted_hosts
         source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
