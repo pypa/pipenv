@@ -48,14 +48,14 @@ repos:
     files: .*\.rst$
     types: [file]
 
-#- repo: local
-#  hooks:
-#  - id: news-fragment-filenames
-#    name: NEWS fragment
-#    language: fail
-#    entry: NEWS fragment files must be named *.(process|removal|feature|bugfix|vendor|doc|trivial).rst
-#    exclude: ^pipenv/news/(.gitignore|.*\.(process|removal|feature|bugfix|vendor|doc|trivial).rst)
-#    files: ^pipenv/news/
+- repo: local
+  hooks:
+  - id: news-fragment-filenames
+    name: NEWS fragment
+    language: fail
+    entry: NEWS fragment files must be named *.(feature|behavior|bugfix|vendor|doc|trivial|removal|process).rst
+    exclude: ^news/(towncrier_template.rst|.*\.(feature|behavior|bugfix|vendor|doc|trivial|removal|process).rst)
+    files: ^news/
 
 - repo: https://github.com/mgedmin/check-manifest
   rev: '0.46'
