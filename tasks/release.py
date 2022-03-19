@@ -2,8 +2,8 @@ import datetime
 import os
 import pathlib
 import re
-import sys
 import subprocess
+import sys
 
 import invoke
 
@@ -49,8 +49,7 @@ def get_build_dir(ctx):
 
 
 def _render_log():
-    """Totally tap into Towncrier internals to get an in-memory result.
-    """
+    """Totally tap into Towncrier internals to get an in-memory result."""
     rendered = subprocess.check_output(["towncrier", "--draft"]).decode("utf-8")
     return rendered
 
@@ -66,7 +65,9 @@ release_help = {
 
 
 @invoke.task(help=release_help)
-def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, month_offset="0"):
+def release(
+    ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, month_offset="0"
+):
     trunc_month = False
     if pre:
         trunc_month = True
@@ -77,7 +78,7 @@ def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, 
         pre=pre,
         tag=tag,
         month_offset=month_offset,
-        trunc_month=trunc_month
+        trunc_month=trunc_month,
     )
     tag_content = _render_log()
     if dry_run:
@@ -93,9 +94,7 @@ def release(ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, 
             ctx.run(f"git add {get_version_file(ctx).as_posix()}")
         else:
             ctx.run("towncrier")
-            ctx.run(
-                f"git add CHANGELOG.rst news/ {get_version_file(ctx).as_posix()}"
-            )
+            ctx.run(f"git add CHANGELOG.rst news/ {get_version_file(ctx).as_posix()}")
             log("removing changelog draft if present")
             draft_changelog = pathlib.Path("CHANGELOG.draft.rst")
             if draft_changelog.exists():
@@ -150,11 +149,9 @@ def build_dists(ctx):
         log("Building sdist using %s ...." % executable)
         os.environ["PIPENV_PYTHON"] = py_version
         ctx.run("pipenv install --dev", env=env)
-        ctx.run(
-            "pipenv run pip install -e . --upgrade --upgrade-strategy=eager", env=env
-        )
+        ctx.run("pipenv run pip install -e . --upgrade --upgrade-strategy=eager", env=env)
         log("Building wheel using python %s ...." % py_version)
-        ctx.run(f"pipenv run python setup.py sdist bdist_wheel", env=env)
+        ctx.run("pipenv run python setup.py sdist bdist_wheel", env=env)
 
 
 @invoke.task(build_dists)
@@ -266,9 +263,11 @@ def date_offset(dt, month_offset=0, day_offset=0, truncate=False):
         "month": dt.month + month_offset,
         "year": dt.year + year_offset,
     }
-    log("Getting updated date from date: {} using month offset: {} and year offset {}".format(
-        dt, new_month, replace_args["year"]
-    ))
+    log(
+        "Getting updated date from date: {} using month offset: {} and year offset {}".format(
+            dt, new_month, replace_args["year"]
+        )
+    )
     if day_offset:
         dt = dt + datetime.timedelta(days=day_offset)
         log(f"updated date using day offset: {day_offset} => {dt}")
@@ -279,7 +278,16 @@ def date_offset(dt, month_offset=0, day_offset=0, truncate=False):
 
 
 @invoke.task
-def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=False, month_offset="0", trunc_month=False):
+def bump_version(
+    ctx,
+    dry_run=False,
+    dev=False,
+    pre=False,
+    tag=None,
+    commit=False,
+    month_offset="0",
+    trunc_month=False,
+):
     current_version = Version.parse(__version__)
     current_date = datetime.date(*current_version.release)
     today = datetime.date.today()
@@ -295,10 +303,7 @@ def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=Fals
     ):
         day_offset = 1
     target_day = date_offset(
-        today,
-        month_offset=month_offset,
-        day_offset=day_offset,
-        truncate=trunc_month
+        today, month_offset=month_offset, day_offset=day_offset, truncate=trunc_month
     )
     log(f"target_day: {target_day}")
     target_timetuple = target_day.timetuple()[:3]

@@ -8,17 +8,24 @@ import warnings
 
 from pipenv.vendor import vistir
 
+
 warnings.filterwarnings("ignore", category=ResourceWarning)
 
 
 __all__ = [
-    "getpreferredencoding", "DEFAULT_ENCODING", "canonical_encoding_name",
-    "force_encoding", "UNICODE_TO_ASCII_TRANSLATION_MAP", "decode_output", "fix_utf8"
+    "getpreferredencoding",
+    "DEFAULT_ENCODING",
+    "canonical_encoding_name",
+    "force_encoding",
+    "UNICODE_TO_ASCII_TRANSLATION_MAP",
+    "decode_output",
+    "fix_utf8",
 ]
 
 
 def getpreferredencoding():
     import locale
+
     # Borrowed from Invoke
     # (see https://github.com/pyinvoke/invoke/blob/93af29d/invoke/runners.py#L881)
     return locale.getpreferredencoding(False)
@@ -29,6 +36,7 @@ DEFAULT_ENCODING = getpreferredencoding()
 
 def canonical_encoding_name(name):
     import codecs
+
     try:
         codec = codecs.lookup(name)
     except LookupError:
@@ -55,7 +63,7 @@ def force_encoding():
     if stdout_encoding != "utf-8" or stderr_encoding != "utf-8":
 
         try:
-            from ctypes import pythonapi, py_object, c_char_p
+            from ctypes import c_char_p, py_object, pythonapi
         except ImportError:
             return DEFAULT_ENCODING, DEFAULT_ENCODING
         try:

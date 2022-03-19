@@ -1,8 +1,11 @@
 import re
+
 from urllib.parse import urlparse
+
 from urllib3 import util as urllib3_util
 
 from pipenv.vendor import parse
+
 
 requests_session = None  # type: ignore
 
@@ -75,7 +78,7 @@ def get_host_and_port(url):
     :return: a string with the host:port pair if the URL includes port number explicitly; otherwise, returns host only
     """
     url = urllib3_util.parse_url(url)
-    return '{}:{}'.format(url.host, url.port) if url.port else url.host
+    return "{}:{}".format(url.host, url.port) if url.port else url.host
 
 
 def get_url_name(url):
@@ -120,9 +123,7 @@ def proper_case(package_name):
         f"https://pypi.org/pypi/{package_name}/json", timeout=0.3, stream=True
     )
     if not r.ok:
-        raise OSError(
-            f"Unable to find package {package_name} in PyPI repository."
-        )
+        raise OSError(f"Unable to find package {package_name} in PyPI repository.")
 
     r = parse.parse("https://pypi.org/pypi/{name}/json", r.url)
     good_name = r["name"]

@@ -109,4 +109,3 @@ jobs:
       - run: |
           python -m pip install --upgrade wheel invoke parver bs4 vistir towncrier
           python -m invoke vendoring.update
-

@@ -1,17 +1,18 @@
 import re
+
+import urllib3.util
+
 from pipenv import environments
-if environments.MYPY_RUNNING:
-    from typing import List, Optional, Text, Tuple, Union
-
-    from pipenv.project import Project, TSource
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
-
-from urllib3 import util as urllib3_util
-from requirementslib import Requirement
-
-from pipenv.vendor.vistir.compat import Mapping
 from pipenv.exceptions import PipenvUsageError
+from pipenv.vendor.vistir.compat import Mapping
+
 from .internet import create_mirror_source, is_pypi_url
+
+
+if environments.MYPY_RUNNING:
+    from typing import List, Optional, Union  # noqa
+
+    from pipenv.project import Project, TSource  # noqa
 
 
 def prepare_pip_source_args(sources, pip_args=None):
@@ -25,11 +26,9 @@ def prepare_pip_source_args(sources, pip_args=None):
         pip_args.extend(["-i", package_url])
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
-            url_parts = urllib3_util.parse_url(package_url)
+            url_parts = urllib3.util.parse_url(package_url)
             url_port = f":{url_parts.port}" if url_parts.port else ""
-            pip_args.extend(
-                ["--trusted-host", f"{url_parts.host}{url_port}"]
-            )
+            pip_args.extend(["--trusted-host", f"{url_parts.host}{url_port}"])
         # Add additional sources as extra indexes.
         if len(sources) > 1:
             for source in sources[1:]:
@@ -39,17 +38,16 @@ def prepare_pip_source_args(sources, pip_args=None):
                 pip_args.extend(["--extra-index-url", url])
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
-                    url_parts = urllib3_util.parse_url(url)
+                    url_parts = urllib3.util.parse_url(url)
                     url_port = f":{url_parts.port}" if url_parts.port else ""
-                    pip_args.extend(
-                        ["--trusted-host", f"{url_parts.host}{url_port}"]
-                    )
+                    pip_args.extend(["--trusted-host", f"{url_parts.host}{url_port}"])
     return pip_args
 
 
 def get_project_index(project, index=None, trusted_hosts=None):
     # type: (Optional[Union[str, TSource]], Optional[List[str]], Optional[Project]) -> TSource
     from pipenv.project import SourceNotFound
+
     if trusted_hosts is None:
         trusted_hosts = []
     if isinstance(index, Mapping):
@@ -57,7 +55,7 @@ def get_project_index(project, index=None, trusted_hosts=None):
     try:
         source = project.find_source(index)
     except SourceNotFound:
-        index_url = urllib3_util.parse_url(index)
+        index_url = urllib3.util.parse_url(index)
         src_name = project.src_name_from_url(index)
         verify_ssl = index_url.host not in trusted_hosts
         source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
@@ -109,8 +107,9 @@ def parse_indexes(line, strict=False):
     index = args.index
     extra_index = args.extra_index
     trusted_host = args.trusted_host
-    if strict and sum(
-        bool(arg) for arg in (index, extra_index, trusted_host, remainder)
-    ) > 1:
+    if (
+        strict
+        and sum(bool(arg) for arg in (index, extra_index, trusted_host, remainder)) > 1
+    ):
         raise ValueError("Index arguments must be on their own lines.")
     return index, extra_index, trusted_host, remainder

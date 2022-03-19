@@ -49,7 +49,7 @@ def _get_activate_script(cmd, venv):
         command = "."
     # Escape any special characters located within the virtualenv path to allow
     # for proper activation.
-    venv_location = re.sub(r'([ &$()\[\]])', r"\\\1", str(venv))
+    venv_location = re.sub(r"([ &$()\[\]])", r"\\\1", str(venv))
     # The leading space can make history cleaner in some shells.
     return f" {command} {venv_location}/bin/activate{suffix}"
 
@@ -68,7 +68,7 @@ class Shell:
         self.args = []
 
     def __repr__(self):
-        return '{type}(cmd={cmd!r})'.format(
+        return "{type}(cmd={cmd!r})".format(
             type=type(self).__name__,
             cmd=self.cmd,
         )
@@ -149,10 +149,9 @@ class Bash(Shell):
                 base_rc_src = f'source "{bashrc_path.as_posix()}"\n'
                 rcfile.write(base_rc_src)
 
-            export_path = 'export PATH="{}:$PATH"\n'.format(":".join(
-                self._format_path(python)
-                for python in _iter_python(venv)
-            ))
+            export_path = 'export PATH="{}:$PATH"\n'.format(
+                ":".join(self._format_path(python) for python in _iter_python(venv))
+            )
             rcfile.write(export_path)
             rcfile.flush()
             self.args.extend(["--rcfile", rcfile.name])
@@ -165,7 +164,7 @@ class MsysBash(Bash):
         if not python.drive:
             return s
         # Convert "C:/something" to "/c/something".
-        return f'/{s[0].lower()}{s[2:]}'
+        return f"/{s[0].lower()}{s[2:]}"
 
 
 class CmderEmulatedShell(Shell):
@@ -207,16 +206,20 @@ SHELL_LOOKUP = collections.defaultdict(
     lambda: collections.defaultdict(lambda: Shell),
     {
         "bash": collections.defaultdict(
-            lambda: Bash, {"msys": MsysBash},
+            lambda: Bash,
+            {"msys": MsysBash},
         ),
         "cmd": collections.defaultdict(
-            lambda: Shell, {"cmder": CmderCommandPrompt},
+            lambda: Shell,
+            {"cmder": CmderCommandPrompt},
         ),
         "powershell": collections.defaultdict(
-            lambda: Shell, {"cmder": CmderPowershell},
+            lambda: Shell,
+            {"cmder": CmderPowershell},
         ),
         "pwsh": collections.defaultdict(
-            lambda: Shell, {"cmder": CmderPowershell},
+            lambda: Shell,
+            {"cmder": CmderPowershell},
         ),
     },
 )

@@ -9,6 +9,7 @@ os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 def find_site_path(pkg, site_dir=None):
     import pkg_resources
+
     if site_dir is None:
         site_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     working_set = pkg_resources.WorkingSet([site_dir] + sys.path[:])
@@ -17,7 +18,16 @@ def find_site_path(pkg, site_dir=None):
         base_name = dist.project_name if dist.project_name else dist.key
         name = None
         if "top_level.txt" in dist.metadata_listdir(""):
-            name = next(iter([line.strip() for line in dist.get_metadata_lines("top_level.txt") if line is not None]), None)
+            name = next(
+                iter(
+                    [
+                        line.strip()
+                        for line in dist.get_metadata_lines("top_level.txt")
+                        if line is not None
+                    ]
+                ),
+                None,
+            )
         if name is None:
             name = pkg_resources.safe_name(base_name).replace("-", "_")
         if not any(pkg == _ for _ in [base_name, name]):
@@ -26,15 +36,15 @@ def find_site_path(pkg, site_dir=None):
         path_options = [os.path.join(root, p) for p in path_options if p is not None]
         path = next(iter(p for p in path_options if os.path.exists(p)), None)
         if path is not None:
-            return (dist, path)
-    return (None, None)
+            return dist, path
+    return None, None
 
 
 def _patch_path(pipenv_site=None):
     import site
+
     pipenv_libdir = os.path.dirname(os.path.abspath(__file__))
     pipenv_site_dir = os.path.dirname(pipenv_libdir)
-    pipenv_dist = None
     if pipenv_site is not None:
         pipenv_dist, pipenv_path = find_site_path("pipenv", site_dir=pipenv_site)
     else:
@@ -42,10 +52,16 @@ def _patch_path(pipenv_site=None):
     if pipenv_dist is not None:
         pipenv_dist.activate()
     else:
-        site.addsitedir(next(iter(
-            sitedir for sitedir in (pipenv_site, pipenv_site_dir)
-            if sitedir is not None
-        ), None))
+        site.addsitedir(
+            next(
+                iter(
+                    sitedir
+                    for sitedir in (pipenv_site, pipenv_site_dir)
+                    if sitedir is not None
+                ),
+                None,
+            )
+        )
     if pipenv_path is not None:
         pipenv_libdir = pipenv_path
     for _dir in ("vendor", "patched", pipenv_libdir):
@@ -54,6 +70,7 @@ def _patch_path(pipenv_site=None):
 
 def get_parser():
     from argparse import ArgumentParser
+
     parser = ArgumentParser("pipenv-resolver")
     parser.add_argument("--pre", action="store_true", default=False)
     parser.add_argument("--clear", action="store_true", default=False)
@@ -62,12 +79,24 @@ def get_parser():
     parser.add_argument("--debug", action="store_true", default=False)
     parser.add_argument("--system", action="store_true", default=False)
     parser.add_argument("--parse-only", action="store_true", default=False)
-    parser.add_argument("--pipenv-site", metavar="pipenv_site_dir", action="store",
-                        default=os.environ.get("PIPENV_SITE_DIR"))
-    parser.add_argument("--requirements-dir", metavar="requirements_dir", action="store",
-                        default=os.environ.get("PIPENV_REQ_DIR"))
-    parser.add_argument("--write", metavar="write", action="store",
-                        default=os.environ.get("PIPENV_RESOLVER_FILE"))
+    parser.add_argument(
+        "--pipenv-site",
+        metavar="pipenv_site_dir",
+        action="store",
+        default=os.environ.get("PIPENV_SITE_DIR"),
+    )
+    parser.add_argument(
+        "--requirements-dir",
+        metavar="requirements_dir",
+        action="store",
+        default=os.environ.get("PIPENV_REQ_DIR"),
+    )
+    parser.add_argument(
+        "--write",
+        metavar="write",
+        action="store",
+        default=os.environ.get("PIPENV_RESOLVER_FILE"),
+    )
     parser.add_argument("packages", nargs="*")
     return parser
 
@@ -102,7 +131,10 @@ class Entry:
 
     def __init__(self, name, entry_dict, project, resolver, reverse_deps=None, dev=False):
         super().__init__()
-        from pipenv.vendor.requirementslib.models.utils import tomlkit_value_to_python
+        from pipenv.vendor.requirementslib.models.utils import (
+            tomlkit_value_to_python
+        )
+
         self.name = name
         if isinstance(entry_dict, dict):
             self.entry_dict = self.clean_initial_dict(entry_dict)
@@ -136,7 +168,10 @@ class Entry:
 
     @staticmethod
     def make_requirement(name=None, entry=None, from_ireq=False):
-        from pipenv.vendor.requirementslib.models.requirements import Requirement
+        from pipenv.vendor.requirementslib.models.requirements import (
+            Requirement
+        )
+
         if from_ireq:
             return Requirement.from_ireq(entry)
         return Requirement.from_pipfile(name, entry)
@@ -152,12 +187,11 @@ class Entry:
     @classmethod
     def parse_pyparsing_exprs(cls, expr_iterable):
         from pipenv.vendor.pyparsing import Literal, MatchFirst
+
         keys = []
         expr_list = []
         expr = expr_iterable.copy()
-        if isinstance(expr, Literal) or (
-            expr.__class__.__name__ == Literal.__name__
-        ):
+        if isinstance(expr, Literal) or (expr.__class__.__name__ == Literal.__name__):
             keys.append(expr.match)
         elif isinstance(expr, MatchFirst) or (
             expr.__class__.__name__ == MatchFirst.__name__
@@ -173,14 +207,14 @@ class Entry:
     @classmethod
     def get_markers_from_dict(cls, entry_dict):
         from pipenv.vendor.packaging import markers as packaging_markers
-        from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
+        from pipenv.vendor.requirementslib.models.markers import (
+            normalize_marker_str
+        )
+
         marker_keys = cls.parse_pyparsing_exprs(packaging_markers.VARIABLE)
         markers = set()
         keys_in_dict = [k for k in marker_keys if k in entry_dict]
-        markers = {
-            normalize_marker_str(f"{k} {entry_dict.pop(k)}")
-            for k in keys_in_dict
-        }
+        markers = {normalize_marker_str(f"{k} {entry_dict.pop(k)}") for k in keys_in_dict}
         if "markers" in entry_dict:
             markers.add(normalize_marker_str(entry_dict["markers"]))
         if None in markers:
@@ -209,19 +243,21 @@ class Entry:
 
     @property
     def original_markers(self):
-        original_markers, lockfile_dict = self.get_markers_from_dict(
-            self.lockfile_dict
-        )
+        original_markers, lockfile_dict = self.get_markers_from_dict(self.lockfile_dict)
         self.lockfile_dict = lockfile_dict
         self._original_markers = self.marker_to_str(original_markers)
         return self._original_markers
 
     @staticmethod
     def marker_to_str(marker):
-        from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
+        from pipenv.vendor.requirementslib.models.markers import (
+            normalize_marker_str
+        )
+
         if not marker:
             return None
         from pipenv.vendor.vistir.compat import Mapping
+
         marker_str = None
         if isinstance(marker, Mapping):
             marker_dict, _ = Entry.get_markers_from_dict(marker)
@@ -274,7 +310,9 @@ class Entry:
     @property
     def pipfile_entry(self):
         if self._pipfile_entry is None:
-            self._pipfile_entry = self.make_requirement(self.pipfile_name, self.pipfile_dict)
+            self._pipfile_entry = self.make_requirement(
+                self.pipfile_name, self.pipfile_dict
+            )
         return self._pipfile_entry
 
     @property
@@ -300,8 +338,9 @@ class Entry:
         return self.project.pipfile_package_names["dev" if self.dev else "default"]
 
     def create_parent(self, name, specifier="*"):
-        parent = self.create(name, specifier, self.project, self.resolver,
-                             self.reverse_deps, self.dev)
+        parent = self.create(
+            name, specifier, self.project, self.resolver, self.reverse_deps, self.dev
+        )
         parent._deptree = self.deptree
         return parent
 
@@ -318,6 +357,7 @@ class Entry:
     @staticmethod
     def clean_specifier(specifier):
         from pipenv.vendor.packaging.specifiers import Specifier
+
         if not any(specifier.startswith(k) for k in Specifier._operators.keys()):
             if specifier.strip().lower() in ["any", "<any>", "*"]:
                 return "*"
@@ -329,17 +369,19 @@ class Entry:
     @staticmethod
     def strip_version(specifier):
         from pipenv.vendor.packaging.specifiers import Specifier
-        op = next(iter(
-            k for k in Specifier._operators.keys() if specifier.startswith(k)
-        ), None)
+
+        op = next(
+            iter(k for k in Specifier._operators.keys() if specifier.startswith(k)), None
+        )
         if op:
-            specifier = specifier[len(op):]
+            specifier = specifier[len(op) :]
         while op:
-            op = next(iter(
-                k for k in Specifier._operators.keys() if specifier.startswith(k)
-            ), None)
+            op = next(
+                iter(k for k in Specifier._operators.keys() if specifier.startswith(k)),
+                None,
+            )
             if op:
-                specifier = specifier[len(op):]
+                specifier = specifier[len(op) :]
         return specifier
 
     @property
@@ -358,7 +400,8 @@ class Entry:
     def parents_in_pipfile(self):
         if not self._parents_in_pipfile:
             self._parents_in_pipfile = [
-                p for p in self.flattened_parents
+                p
+                for p in self.flattened_parents
                 if p.normalized_name in self.pipfile_packages
             ]
         return self._parents_in_pipfile
@@ -370,9 +413,9 @@ class Entry:
     @property
     def requirements(self):
         if not self._requires:
-            self._requires = next(iter(
-                self.project.environment.get_package_requirements(self.name)
-            ), {})
+            self._requires = next(
+                iter(self.project.environment.get_package_requirements(self.name)), {}
+            )
         return self._requires
 
     @property
@@ -403,14 +446,19 @@ class Entry:
 
     def get_dependency(self, name):
         if self.requirements:
-            return next(iter(
-                dep for dep in self.requirements.get("dependencies", [])
-                if dep and dep.get("package_name", "") == name
-            ), {})
+            return next(
+                iter(
+                    dep
+                    for dep in self.requirements.get("dependencies", [])
+                    if dep and dep.get("package_name", "") == name
+                ),
+                {},
+            )
         return {}
 
     def get_parent_deps(self, unnest=False):
         from pipenv.vendor.packaging.specifiers import Specifier
+
         parents = []
         for spec in self.reverse_deps.get(self.normalized_name, {}).get("parents", set()):
             spec_match = next(iter(c for c in Specifier._operators if c in spec), None)
@@ -418,7 +466,9 @@ class Entry:
             parent = None
             if spec_match is not None:
                 spec_index = spec.index(spec_match)
-                specifier = self.clean_specifier(spec[spec_index:len(spec_match)]).strip()
+                specifier = self.clean_specifier(
+                    spec[spec_index : len(spec_match)]
+                ).strip()
                 name_start = spec_index + len(spec_match)
                 name = spec[name_start:].strip()
                 parent = self.create_parent(name, specifier)
@@ -460,13 +510,16 @@ class Entry:
             self.entry_dict = self.lockfile_dict.copy()
         elif can_use_updated:
             if len(satisfied_by_versions) == 1:
-                self.entry_dict["version"] = next(iter(
-                    sat_by for sat_by in satisfied_by_versions if sat_by
-                ), None)
+                self.entry_dict["version"] = next(
+                    iter(sat_by for sat_by in satisfied_by_versions if sat_by), None
+                )
                 hashes = None
                 if self.lockfile_entry.specifiers == satisfied_by:
                     ireq = self.lockfile_entry.as_ireq()
-                    if not self.lockfile_entry.hashes and self.resolver._should_include_hash(ireq):
+                    if (
+                        not self.lockfile_entry.hashes
+                        and self.resolver._should_include_hash(ireq)
+                    ):
                         hashes = self.resolver.get_hash(ireq)
                     else:
                         hashes = self.lockfile_entry.hashes
@@ -491,11 +544,12 @@ class Entry:
         :rtype: Set
         """
         constraints = {
-            c for c in self.resolver.parsed_constraints
-            if c and c.name == self.entry.name
+            c for c in self.resolver.parsed_constraints if c and c.name == self.entry.name
         }
         pipfile_constraint = self.get_pipfile_constraint()
-        if pipfile_constraint and not (self.pipfile_entry.editable or pipfile_constraint.editable):
+        if pipfile_constraint and not (
+            self.pipfile_entry.editable or pipfile_constraint.editable
+        ):
             constraints.add(pipfile_constraint)
         return constraints
 
@@ -532,8 +586,10 @@ class Entry:
                 msg = (
                     "Cannot resolve conflicting version {}{} while {}{} is "
                     "locked.".format(
-                        self.name, constraint.req.specifier,
-                        self.name, self.updated_specifier
+                        self.name,
+                        constraint.req.specifier,
+                        self.name,
+                        self.updated_specifier,
                     )
                 )
                 raise DependencyConflict(msg)
@@ -545,12 +601,15 @@ class Entry:
                 continue
             if not parent.validate_specifiers():
                 from pipenv.exceptions import DependencyConflict
+
                 msg = (
                     "Cannot resolve conflicting versions: (Root: {}) {}{} (Pipfile) "
                     "Incompatible with {}{} (resolved)\n".format(
-                        self.name, parent.pipfile_name,
-                        parent.pipfile_entry.requirement.specifiers, parent.name,
-                        parent.updated_specifiers
+                        self.name,
+                        parent.pipfile_name,
+                        parent.pipfile_entry.requirement.specifiers,
+                        parent.name,
+                        parent.updated_specifiers,
                     )
                 )
                 raise DependencyConflict(msg)
@@ -586,6 +645,7 @@ class Entry:
 
 def clean_results(results, resolver, project, dev=False):
     from pipenv.utils.dependencies import translate_markers
+
     if not project.lockfile_exists:
         return results
     lockfile = project.lockfile_content
@@ -595,7 +655,9 @@ def clean_results(results, resolver, project, dev=False):
     for result in results:
         name = result.get("name")
         entry_dict = result.copy()
-        entry = Entry(name, entry_dict, project, resolver, reverse_deps=reverse_deps, dev=dev)
+        entry = Entry(
+            name, entry_dict, project, resolver, reverse_deps=reverse_deps, dev=dev
+        )
         entry_dict = translate_markers(entry.get_cleaned_dict(keep_outdated=False))
         new_results.append(entry_dict)
     return new_results
@@ -611,7 +673,9 @@ def clean_outdated(results, resolver, project, dev=False):
     for result in results:
         name = result.get("name")
         entry_dict = result.copy()
-        entry = Entry(name, entry_dict, project, resolver, reverse_deps=reverse_deps, dev=dev)
+        entry = Entry(
+            name, entry_dict, project, resolver, reverse_deps=reverse_deps, dev=dev
+        )
         # The old entry was editable but this one isnt; prefer the old one
         # TODO: Should this be the case for all locking?
         if entry.was_editable and not entry.is_editable:
@@ -622,9 +686,17 @@ def clean_outdated(results, resolver, project, dev=False):
             if name in lockfile[alternate_section]:
                 lockfile_entry = lockfile[alternate_section][name]
         if lockfile_entry and not entry.is_updated:
-            old_markers = next(iter(m for m in (
-                entry.lockfile_entry.markers, lockfile_entry.get("markers", None)
-            ) if m is not None), None)
+            old_markers = next(
+                iter(
+                    m
+                    for m in (
+                        entry.lockfile_entry.markers,
+                        lockfile_entry.get("markers", None),
+                    )
+                    if m is not None
+                ),
+                None,
+            )
             new_markers = entry_dict.get("markers", None)
             if old_markers:
                 old_markers = Entry.marker_to_str(old_markers)
@@ -644,14 +716,15 @@ def clean_outdated(results, resolver, project, dev=False):
 
 
 def parse_packages(packages, pre, clear, system, requirements_dir=None):
+    from pipenv.utils.indexes import parse_indexes
     from pipenv.vendor.requirementslib.models.requirements import Requirement
     from pipenv.vendor.vistir.contextmanagers import cd, temp_path
-    from pipenv.utils.indexes import parse_indexes
+
     parsed_packages = []
     for package in packages:
         *_, line = parse_indexes(package)
         line = " ".join(line)
-        pf = dict()
+        pf = {}
         req = Requirement.from_line(line)
         if not req.name:
             with temp_path(), cd(req.req.setup_info.base_dir):
@@ -676,6 +749,7 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
 def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages, dev):
     from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
     from pipenv.utils.resolver import resolve_deps
+
     pypi_mirror_source = (
         create_mirror_source(os.environ["PIPENV_PYPI_MIRROR"])
         if "PIPENV_PYPI_MIRROR" in os.environ
@@ -691,10 +765,11 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
             sources=sources,
             clear=clear,
             allow_global=system,
-            req_dir=requirements_dir
+            req_dir=requirements_dir,
         )
 
     from pipenv.project import Project
+
     project = Project()
     sources = (
         replace_pypi_sources(project.pipfile_sources, pypi_mirror_source)
@@ -729,8 +804,20 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
             print(json.dumps([]))
 
 
-def _main(pre, clear, verbose, system, write, requirements_dir, packages, parse_only=False, dev=False):
-    os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = ".".join([str(s) for s in sys.version_info[:3]])
+def _main(
+    pre,
+    clear,
+    verbose,
+    system,
+    write,
+    requirements_dir,
+    packages,
+    parse_only=False,
+    dev=False,
+):
+    os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = ".".join(
+        [str(s) for s in sys.version_info[:3]]
+    )
     os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
     if parse_only:
         parse_packages(
@@ -741,7 +828,9 @@ def _main(pre, clear, verbose, system, write, requirements_dir, packages, parse_
             requirements_dir=requirements_dir,
         )
     else:
-        resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages, dev)
+        resolve_packages(
+            pre, clear, verbose, system, write, requirements_dir, packages, dev
+        )
 
 
 def main(argv=None):
@@ -749,8 +838,10 @@ def main(argv=None):
     parsed, remaining = parser.parse_known_args(argv)
     _patch_path(pipenv_site=parsed.pipenv_site)
     import warnings
+
     from pipenv.vendor.vistir.compat import ResourceWarning
     from pipenv.vendor.vistir.misc import replace_with_text_stream
+
     warnings.simplefilter("ignore", category=ResourceWarning)
     replace_with_text_stream("stdout")
     replace_with_text_stream("stderr")
@@ -758,9 +849,17 @@ def main(argv=None):
     os.environ["PYTHONIOENCODING"] = "utf-8"
     os.environ["PYTHONUNBUFFERED"] = "1"
     parsed = handle_parsed_args(parsed)
-    _main(parsed.pre, parsed.clear, parsed.verbose, parsed.system, parsed.write,
-          parsed.requirements_dir, parsed.packages, parse_only=parsed.parse_only,
-          dev=parsed.dev)
+    _main(
+        parsed.pre,
+        parsed.clear,
+        parsed.verbose,
+        parsed.system,
+        parsed.write,
+        parsed.requirements_dir,
+        parsed.packages,
+        parse_only=parsed.parse_only,
+        dev=parsed.dev,
+    )
 
 
 if __name__ == "__main__":

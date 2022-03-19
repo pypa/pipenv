@@ -4,30 +4,36 @@ import os
 import subprocess
 import sys
 import warnings
+
 from functools import lru_cache
 
 import crayons
-from pipenv import environments
-from click import echo as click_echo
-from pipenv.exceptions import ResolutionFailure, RequirementError
-from pipenv.vendor.requirementslib import Requirement, Pipfile
-from pipenv.vendor.vistir import open_file, TemporaryDirectory
 
-from .dependencies import get_vcs_deps, pep423_name, translate_markers, clean_pkg_version, \
-    is_pinned_requirement, convert_deps_to_pip, HackedPythonVersion
+from click import echo as click_echo
+
+from pipenv import environments
+from pipenv.exceptions import RequirementError, ResolutionFailure
+from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
+from pipenv.vendor.vistir import TemporaryDirectory, open_file
+from pipenv.vendor.vistir.path import create_tracked_tempdir
+
+from .dependencies import (
+    HackedPythonVersion, clean_pkg_version, convert_deps_to_pip, get_vcs_deps,
+    is_pinned_requirement, pep423_name, translate_markers
+)
 from .indexes import parse_indexes, prepare_pip_source_args
 from .internet import _get_requests_session
 from .locking import format_requirement_for_lockfile, prepare_lockfile
-from .shell import temp_environ, subprocess_run, make_posix
+from .shell import make_posix, subprocess_run, temp_environ
 from .spinner import create_spinner
-if environments.MYPY_RUNNING:
-    from typing import Any, Dict, List, Optional, Tuple, Union
 
-    from pipenv.project import Project
-    from pipenv.vendor.requirementslib.models.pipfile import Pipfile
-    from pipenv.vendor.requirementslib.models.requirements import (
-        Line, Requirement
-    )
+
+if environments.MYPY_RUNNING:
+    from typing import Any, Dict, List, Optional, Set, Tuple, Union  # noqa
+
+    from pipenv.project import Project  # noqa
+    from pipenv.vendor.requirementslib import Pipfile, Requirement  # noqa
+    from pipenv.vendor.requirementslib.models.requirements import Line  # noqa
 
 
 class HashCacheMixin:
@@ -38,6 +44,7 @@ class HashCacheMixin:
     cache key includes the hash value returned from the server). This ought to
     avoid issues where the location on the server changes.
     """
+
     def __init__(self, directory, session):
         self.session = session
         if not os.path.isdir(directory):
@@ -65,8 +72,16 @@ class HashCacheMixin:
 
 class Resolver:
     def __init__(
-        self, constraints, req_dir, project, sources, index_lookup=None,
-        markers_lookup=None, skipped=None, clear=False, pre=False
+        self,
+        constraints,
+        req_dir,
+        project,
+        sources,
+        index_lookup=None,
+        markers_lookup=None,
+        skipped=None,
+        clear=False,
+        pre=False,
     ):
         self.initial_constraints = constraints
         self.req_dir = req_dir
@@ -113,9 +128,9 @@ class Resolver:
         from pipenv.vendor.pip_shims import shims
 
         if not self._hash_cache:
-            self._hash_cache = type("HashCache", (HashCacheMixin, shims.SafeFileCache), {})(
-                os.path.join(self.project.s.PIPENV_CACHE_DIR, "hashes"), self.session
-            )
+            self._hash_cache = type(
+                "HashCache", (HashCacheMixin, shims.SafeFileCache), {}
+            )(os.path.join(self.project.s.PIPENV_CACHE_DIR, "hashes"), self.session)
         return self._hash_cache
 
     @classmethod
@@ -132,23 +147,31 @@ class Resolver:
     ):
         # type: (...) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]], Dict[str, str], Dict[str, str]]
         constraints = set()  # type: Set[str]
-        skipped = dict()  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
+        skipped = {}  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
         if index_lookup is None:
             index_lookup = {}
         if markers_lookup is None:
             markers_lookup = {}
         if not req_dir:
-            from pipenv.vendor.vistir.path import create_tracked_tempdir
             req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-reqdir")
         transient_resolver = cls(
-            [], req_dir, project, sources, index_lookup=index_lookup,
-            markers_lookup=markers_lookup, clear=clear, pre=pre
+            [],
+            req_dir,
+            project,
+            sources,
+            index_lookup=index_lookup,
+            markers_lookup=markers_lookup,
+            clear=clear,
+            pre=pre,
         )
         for dep in deps:
             if not dep:
                 continue
             req, req_idx, markers_idx = cls.parse_line(
-                dep, index_lookup=index_lookup, markers_lookup=markers_lookup, project=project
+                dep,
+                index_lookup=index_lookup,
+                markers_lookup=markers_lookup,
+                project=project,
             )
             index_lookup.update(req_idx)
             markers_lookup.update(markers_idx)
@@ -169,17 +192,17 @@ class Resolver:
         line,  # type: str
         index_lookup=None,  # type: Dict[str, str]
         markers_lookup=None,  # type: Dict[str, str]
-        project=None  # type: Optional[Project]
+        project=None,  # type: Optional[Project]
     ):
         # type: (...) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]
-        from pipenv.vendor.requirementslib.models.requirements import Requirement
-        from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
+
         if index_lookup is None:
             index_lookup = {}
         if markers_lookup is None:
             markers_lookup = {}
         if project is None:
             from pipenv.project import Project
+
             project = Project()
         index, extra_index, trust_host, remainder = parse_indexes(line)
         line = " ".join(remainder)
@@ -193,13 +216,18 @@ class Resolver:
                 try:
                     req = Requirement.from_line(line)
                 except ValueError:
-                    raise ResolutionFailure(f"Failed to resolve requirement from line: {line!s}")
+                    raise ResolutionFailure(
+                        f"Failed to resolve requirement from line: {line!s}"
+                    )
             else:
-                raise ResolutionFailure(f"Failed to resolve requirement from line: {line!s}")
+                raise ResolutionFailure(
+                    f"Failed to resolve requirement from line: {line!s}"
+                )
         if index:
             try:
                 index_lookup[req.normalized_name] = project.get_source(
-                    url=index, refresh=True).get("name")
+                    url=index, refresh=True
+                ).get("name")
             except TypeError:
                 pass
         try:
@@ -216,7 +244,9 @@ class Resolver:
     @classmethod
     def get_deps_from_req(cls, req, resolver=None, resolve_vcs=True):
         # type: (Requirement, Optional["Resolver"], bool) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]
-        from pipenv.vendor.requirementslib.models.requirements import Requirement
+        from pipenv.vendor.requirementslib.models.requirements import (
+            Requirement
+        )
         from pipenv.vendor.requirementslib.models.utils import (
             _requirement_to_str_lowercase_name
         )
@@ -224,7 +254,7 @@ class Resolver:
 
         # TODO: this is way too complex, refactor this
         constraints = set()  # type: Set[str]
-        locked_deps = dict()  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
+        locked_deps = {}  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
         if (req.is_file_or_url or req.is_vcs) and not req.is_wheel:
             # for local packages with setup.py files and potential direct url deps:
             if req.is_vcs:
@@ -234,7 +264,6 @@ class Resolver:
             else:
                 _, entry = req.pipfile_entry
             parsed_line = req.req.parsed_line  # type: Line
-            setup_info = None  # type: Any
             try:
                 name = req.normalized_name
             except TypeError:
@@ -246,8 +275,11 @@ class Resolver:
             # Allow users to toggle resolution off for non-editable VCS packages
             # but leave it on for local, installable folders on the filesystem
             if resolve_vcs or (
-                req.editable or parsed_line.is_wheel or (
-                    req.is_file_or_url and parsed_line.is_local
+                req.editable
+                or parsed_line.is_wheel
+                or (
+                    req.is_file_or_url
+                    and parsed_line.is_local
                     and is_installable_dir(parsed_line.path)
                 )
             ):
@@ -262,9 +294,7 @@ class Resolver:
                         if r.marker and not r.marker.evaluate():
                             new_constraints = {}
                             _, new_entry = req.pipfile_entry
-                            new_lock = {
-                                pep423_name(new_req.normalized_name): new_entry
-                            }
+                            new_lock = {pep423_name(new_req.normalized_name): new_entry}
                         else:
                             new_constraints, new_lock = cls.get_deps_from_req(
                                 new_req, resolver
@@ -289,14 +319,22 @@ class Resolver:
         else:
             # if the dependency isn't installable, don't add it to constraints
             # and instead add it directly to the lock
-            if req and req.requirement and (
-                req.requirement.marker and not req.requirement.marker.evaluate()
+            if (
+                req
+                and req.requirement
+                and (req.requirement.marker and not req.requirement.marker.evaluate())
             ):
                 pypi = resolver.finder if resolver else None
                 ireq = req.ireq
-                best_match = pypi.find_best_candidate(ireq.name, ireq.specifier).best_candidate if pypi else None
+                best_match = (
+                    pypi.find_best_candidate(ireq.name, ireq.specifier).best_candidate
+                    if pypi
+                    else None
+                )
                 if best_match:
-                    ireq.req.specifier = ireq.specifier.__class__(f"=={best_match.version}")
+                    ireq.req.specifier = ireq.specifier.__class__(
+                        f"=={best_match.version}"
+                    )
                     hashes = resolver.collect_hashes(ireq) if resolver else []
                     new_req = Requirement.from_ireq(ireq)
                     new_req = new_req.add_hashes(hashes)
@@ -305,13 +343,13 @@ class Resolver:
                     click_echo(
                         "{} doesn't match your environment, "
                         "its dependencies won't be resolved.".format(req.as_line()),
-                        err=True
+                        err=True,
                     )
                 else:
                     click_echo(
                         "Could not find a version of {} that matches your environment, "
                         "it will be skipped.".format(req.as_line()),
-                        err=True
+                        err=True,
                     )
                 return constraints, locked_deps
             constraints.add(req.constraint_line)
@@ -328,10 +366,9 @@ class Resolver:
         sources=None,  # type: List[str]
         req_dir=None,  # type: str
         clear=False,  # type: bool
-        pre=False  # type: bool
+        pre=False,  # type: bool
     ):
         # type: (...) -> "Resolver"
-        from pipenv.vendor.vistir.path import create_tracked_tempdir
         if not req_dir:
             req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
         if index_lookup is None:
@@ -341,18 +378,30 @@ class Resolver:
         if sources is None:
             sources = project.sources
         constraints, skipped, index_lookup, markers_lookup = cls.get_metadata(
-            deps, index_lookup, markers_lookup, project, sources, req_dir=req_dir,
-            pre=pre, clear=clear
+            deps,
+            index_lookup,
+            markers_lookup,
+            project,
+            sources,
+            req_dir=req_dir,
+            pre=pre,
+            clear=clear,
         )
         return Resolver(
-            constraints, req_dir, project, sources, index_lookup=index_lookup,
-            markers_lookup=markers_lookup, skipped=skipped, clear=clear, pre=pre
+            constraints,
+            req_dir,
+            project,
+            sources,
+            index_lookup=index_lookup,
+            markers_lookup=markers_lookup,
+            skipped=skipped,
+            clear=clear,
+            pre=pre,
         )
 
     @classmethod
     def from_pipfile(cls, project, pipfile=None, dev=False, pre=False, clear=False):
         # type: (Optional[Project], Optional[Pipfile], bool, bool, bool) -> "Resolver"
-        from pipenv.vendor.vistir.path import create_tracked_tempdir
         if not pipfile:
             pipfile = project._pipfile
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
@@ -362,12 +411,25 @@ class Resolver:
             deps.update({req.as_line() for req in pipfile.dev_packages})
         deps.update({req.as_line() for req in pipfile.packages})
         constraints, skipped, index_lookup, markers_lookup = cls.get_metadata(
-            list(deps), index_lookup, markers_lookup, project, project.sources,
-            req_dir=req_dir, pre=pre, clear=clear
+            list(deps),
+            index_lookup,
+            markers_lookup,
+            project,
+            project.sources,
+            req_dir=req_dir,
+            pre=pre,
+            clear=clear,
         )
         return Resolver(
-            constraints, req_dir, project, project.sources, index_lookup=index_lookup,
-            markers_lookup=markers_lookup, skipped=skipped, clear=clear, pre=pre
+            constraints,
+            req_dir,
+            project,
+            project.sources,
+            index_lookup=index_lookup,
+            markers_lookup=markers_lookup,
+            skipped=skipped,
+            clear=clear,
+            pre=pre,
         )
 
     @property
@@ -401,6 +463,7 @@ class Resolver:
 
     def prepare_constraint_file(self):
         from pipenv.vendor.vistir.path import create_tracked_tempfile
+
         constraints_file = create_tracked_tempfile(
             mode="w",
             prefix="pipenv-",
@@ -410,7 +473,8 @@ class Resolver:
         )
         skip_args = ("build-isolation", "use-pep517", "cache-dir")
         args_to_add = [
-            arg for arg in self.pip_args
+            arg
+            for arg in self.pip_args
             if not any(bad_arg in arg for bad_arg in skip_args)
         ]
         if self.sources:
@@ -437,7 +501,9 @@ class Resolver:
             pip_options.no_input = True
             pip_options.progress_bar = "off"
             pip_options.ignore_requires_python = True
-            pip_options.pre = self.pre or self.project.settings.get("allow_prereleases", False)
+            pip_options.pre = self.pre or self.project.settings.get(
+                "allow_prereleases", False
+            )
             self._pip_options = pip_options
         return self._pip_options
 
@@ -450,17 +516,19 @@ class Resolver:
     @property
     def finder(self):
         from pipenv.vendor.pip_shims import shims
+
         if self._finder is None:
             self._finder = shims.get_package_finder(
                 install_cmd=self.pip_command,
                 options=self.pip_options,
-                session=self.session
+                session=self.session,
             )
         return self._finder
 
     @property
     def ignore_compatibility_finder(self):
         from pipenv.vendor.pip_shims import shims
+
         if self._ignore_compatibility_finder is None:
             ignore_compatibility_finder = shims.get_package_finder(
                 install_cmd=self.pip_command,
@@ -480,20 +548,26 @@ class Resolver:
 
         if self._parsed_constraints is None:
             self._parsed_constraints = shims.parse_requirements(
-                self.constraint_file, finder=self.finder, session=self.session,
-                options=self.pip_options
+                self.constraint_file,
+                finder=self.finder,
+                session=self.session,
+                options=self.pip_options,
             )
         return self._parsed_constraints
 
     @property
     def constraints(self):
-        from pipenv.patched.notpip._internal.req.constructors import install_req_from_parsed_requirement
+        from pipenv.patched.notpip._internal.req.constructors import (
+            install_req_from_parsed_requirement
+        )
 
         if self._constraints is None:
             self._constraints = [
                 install_req_from_parsed_requirement(
-                    c, isolated=self.pip_options.build_isolation,
-                    use_pep517=self.pip_options.use_pep517, user_supplied=True
+                    c,
+                    isolated=self.pip_options.build_isolation,
+                    use_pep517=self.pip_options.use_pep517,
+                    user_supplied=True,
                 )
                 for c in self.parsed_constraints
             ]
@@ -505,7 +579,9 @@ class Resolver:
             WheelCache, get_requirement_tracker, global_tempdir_manager
         )
 
-        with global_tempdir_manager(), get_requirement_tracker() as req_tracker, TemporaryDirectory(suffix="-build", prefix="pipenv-") as directory:
+        with global_tempdir_manager(), get_requirement_tracker() as req_tracker, TemporaryDirectory(
+            suffix="-build", prefix="pipenv-"
+        ) as directory:
             pip_options = self.pip_options
             finder = self.finder
             wheel_cache = WheelCache(pip_options.cache_dir, pip_options.format_control)
@@ -533,8 +609,8 @@ class Resolver:
             yield resolver
 
     def resolve(self):
-        from pipenv.vendor.pip_shims.shims import InstallationError
         from pipenv.exceptions import ResolutionFailure
+        from pipenv.vendor.pip_shims.shims import InstallationError
 
         with temp_environ(), self.get_resolver() as resolver:
             try:
@@ -547,13 +623,18 @@ class Resolver:
         return self.resolved_tree
 
     def resolve_constraints(self):
-        from pipenv.vendor.requirementslib.models.markers import marker_from_specifier
+        from pipenv.vendor.requirementslib.models.markers import (
+            marker_from_specifier
+        )
+
         new_tree = set()
         for result in self.resolved_tree:
             if result.markers:
                 self.markers[result.name] = result.markers
             else:
-                candidate = self.finder.find_best_candidate(result.name, result.specifier).best_candidate
+                candidate = self.finder.find_best_candidate(
+                    result.name, result.specifier
+                ).best_candidate
                 if candidate:
                     requires_python = candidate.link.requires_python
                     if requires_python:
@@ -603,7 +684,8 @@ class Resolver:
                 click_echo(
                     "{}: Error generating hash for {}".format(
                         crayons.red("Warning", bold=True), ireq.name
-                    ), err=True
+                    ),
+                    err=True,
                 )
             return None
 
@@ -669,10 +751,11 @@ class Resolver:
         from pipenv.vendor.requirementslib.models.requirements import (
             Requirement
         )
+
         reqs = [(Requirement.from_ireq(ireq), ireq) for ireq in self.resolved_tree]
         results = {}
         for req, ireq in reqs:
-            if (req.vcs and req.editable and not req.is_direct_url):
+            if req.vcs and req.editable and not req.is_direct_url:
                 continue
             elif req.normalized_name in self.skipped.keys():
                 continue
@@ -701,8 +784,14 @@ class Resolver:
 
 
 def _show_warning(message, category, filename, lineno, line):
-    warnings.showwarning(message=message, category=category, filename=filename,
-                         lineno=lineno, file=sys.stderr, line=line)
+    warnings.showwarning(
+        message=message,
+        category=category,
+        filename=filename,
+        lineno=lineno,
+        file=sys.stderr,
+        line=line,
+    )
     sys.stderr.flush()
 
 
@@ -716,8 +805,6 @@ def actually_resolve_deps(
     pre,
     req_dir=None,
 ):
-    from pipenv.vendor.vistir.path import create_tracked_tempdir
-
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
     warning_list = []
@@ -731,8 +818,13 @@ def actually_resolve_deps(
         resolver.resolve_constraints()
         results = resolver.clean_results()
     for warning in warning_list:
-        _show_warning(warning.message, warning.category, warning.filename, warning.lineno,
-                      warning.line)
+        _show_warning(
+            warning.message,
+            warning.category,
+            warning.filename,
+            warning.lineno,
+            warning.line,
+        )
     return (results, hashes, resolver.markers_lookup, resolver, resolver.skipped)
 
 
@@ -740,6 +832,7 @@ def resolve(cmd, sp, project):
     from pipenv._compat import decode_output
     from pipenv.cmdparse import Script
     from pipenv.vendor.vistir.misc import echo
+
     c = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())
     is_verbose = project.s.is_verbose()
     err = ""
@@ -755,9 +848,7 @@ def resolve(cmd, sp, project):
     returncode = c.poll()
     out = c.stdout.read()
     if returncode != 0:
-        sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
-            "Locking Failed!"
-        ))
+        sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
         echo(out.strip(), err=True)
         if not is_verbose:
             echo(err, err=True)
@@ -778,7 +869,7 @@ def venv_resolve_deps(
     dev=False,
     pipfile=None,
     lockfile=None,
-    keep_outdated=False
+    keep_outdated=False,
 ):
     """
     Resolve dependencies for a pipenv project, acts as a portal to the target environment.
@@ -809,9 +900,10 @@ def venv_resolve_deps(
 
     from pipenv import resolver
     from pipenv._compat import decode_for_output
-    from pipenv.vendor.vistir.compat import JSONDecodeError, NamedTemporaryFile, Path
+    from pipenv.vendor.vistir.compat import (
+        JSONDecodeError, NamedTemporaryFile, Path
+    )
     from pipenv.vendor.vistir.misc import fs_str
-    from pipenv.vendor.vistir.path import create_tracked_tempdir
 
     results = []
     pipfile_section = "dev-packages" if dev else "packages"
@@ -830,7 +922,7 @@ def venv_resolve_deps(
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
     cmd = [
         which("python", allow_global=allow_global),
-        Path(resolver.__file__.rstrip("co")).as_posix()
+        Path(resolver.__file__.rstrip("co")).as_posix(),
     ]
     if pre:
         cmd.append("--pre")
@@ -857,15 +949,15 @@ def venv_resolve_deps(
             os.environ.pop("PIPENV_SITE_DIR", None)
         if keep_outdated:
             os.environ["PIPENV_KEEP_OUTDATED"] = fs_str("1")
-        with create_spinner(text=decode_for_output("Locking..."), setting=project.s) as sp:
+        with create_spinner(
+            text=decode_for_output("Locking..."), setting=project.s
+        ) as sp:
             # This conversion is somewhat slow on local and file-type requirements since
             # we now download those requirements / make temporary folders to perform
             # dependency resolution on them, so we are including this step inside the
             # spinner context manager for the UX improvement
             sp.write(decode_for_output("Building requirements..."))
-            deps = convert_deps_to_pip(
-                deps, project, r=False, include_index=True
-            )
+            deps = convert_deps_to_pip(deps, project, r=False, include_index=True)
             constraints = set(deps)
             os.environ["PIPENV_PACKAGES"] = str("\n".join(constraints))
             sp.write(decode_for_output("Resolving dependencies..."))
@@ -876,7 +968,9 @@ def venv_resolve_deps(
                 if not project.s.is_verbose() and c.stderr.strip():
                     click_echo(crayons.yellow(f"Warning: {c.stderr.strip()}"), err=True)
             else:
-                sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
+                sp.red.fail(
+                    environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
+                )
                 click_echo(f"Output: {c.stdout.strip()}", err=True)
                 click_echo(f"Error: {c.stderr.strip()}", err=True)
     try:
@@ -904,7 +998,7 @@ def resolve_deps(
     clear=False,
     pre=False,
     allow_global=False,
-    req_dir=None
+    req_dir=None,
 ):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
@@ -922,7 +1016,6 @@ def resolve_deps(
     # First (proper) attempt:
     req_dir = req_dir if req_dir else os.environ.get("req_dir", None)
     if not req_dir:
-        from pipenv.vendor.vistir.path import create_tracked_tempdir
         req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-requirements")
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:
@@ -948,7 +1041,13 @@ def resolve_deps(
             try:
                 # Attempt to resolve again, with different Python version information,
                 # particularly for particularly particular packages.
-                results, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
+                (
+                    results,
+                    hashes,
+                    markers_lookup,
+                    resolver,
+                    skipped,
+                ) = actually_resolve_deps(
                     deps,
                     index_lookup,
                     markers_lookup,
@@ -967,6 +1066,7 @@ def resolve_deps(
 def get_pipenv_sitedir():
     # type: () -> Optional[str]
     import pkg_resources
+
     site_dir = next(
         iter(d for d in pkg_resources.working_set if d.key.lower() == "pipenv"), None
     )

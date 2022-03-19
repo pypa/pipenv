@@ -15,10 +15,10 @@ from pipenv.vendor.cerberus.utils import compare_paths_lt, quote_string
 ErrorDefinition = namedtuple('ErrorDefinition', 'code, rule')
 """
 This class is used to define possible errors. Each distinguishable error is
-defined by a *unique* error ``code`` as integer and the ``rule`` that can
+defined by a *unique* error `code` as integer and the `rule` that can
 cause it as string.
 The instances' names do not contain a common prefix as they are supposed to be
-referenced within the module namespace, e.g. ``errors.CUSTOM``.
+referenced within the module namespace, e.g. `errors.CUSTOM`.
 """
 
 

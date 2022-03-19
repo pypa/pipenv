@@ -2,9 +2,11 @@
 import codecs
 import os
 import sys
+
 from shutil import rmtree
 
-from setuptools import find_packages, setup, Command
+from setuptools import Command, find_packages, setup
+
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -25,7 +27,7 @@ required = [
     "certifi",
     "setuptools>=36.2.1",
     "virtualenv-clone>=0.2.5",
-    "virtualenv"
+    "virtualenv",
 ]
 extras = {
     "dev": [
@@ -113,7 +115,7 @@ setup(
     version=about["__version__"],
     description="Python Development Workflow for Humans.",
     long_description=long_description,
-    long_description_content_type='text/markdown',
+    long_description_content_type="text/markdown",
     author="Pipenv maintainer team",
     author_email="distutils-sig@python.org",
     url="https://github.com/pypa/pipenv",

@@ -20,10 +20,7 @@ from pipenv.vendor.click import (
 
 
 subcommand_context = CONTEXT_SETTINGS.copy()
-subcommand_context.update({
-    "ignore_unknown_options": True,
-    "allow_extra_args": True
-})
+subcommand_context.update({"ignore_unknown_options": True, "allow_extra_args": True})
 subcommand_context_no_interspersion = subcommand_context.copy()
 subcommand_context_no_interspersion["allow_interspersed_args"] = False
 
@@ -31,8 +28,12 @@ subcommand_context_no_interspersion["allow_interspersed_args"] = False
 @group(cls=PipenvGroup, invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
 @option("--where", is_flag=True, default=False, help="Output project home information.")
 @option("--venv", is_flag=True, default=False, help="Output virtualenv information.")
-@option("--py", is_flag=True, default=False, help="Output Python interpreter information.")
-@option("--envs", is_flag=True, default=False, help="Output Environment Variable options.")
+@option(
+    "--py", is_flag=True, default=False, help="Output Python interpreter information."
+)
+@option(
+    "--envs", is_flag=True, default=False, help="Output Environment Variable options."
+)
 @option("--rm", is_flag=True, default=False, help="Remove the virtualenv.")
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--man", is_flag=True, default=False, help="Display manpage.")
@@ -58,13 +59,14 @@ def cli(
     support=None,
     help=False,
     site_packages=None,
-    **kwargs
+    **kwargs,
 ):
+    from pipenv.utils.spinner import create_spinner
+
     from ..core import (
         cleanup_virtualenv, do_clear, do_py, do_where, ensure_project,
         format_help, system_which, warn_in_virtualenv
     )
-    from pipenv.utils.spinner import create_spinner
 
     if man:
         if system_which("man"):
@@ -72,7 +74,12 @@ def cli(
             os.execle(system_which("man"), "man", path, os.environ)
             return 0
         else:
-            secho("man does not appear to be available on your system.", fg="yellow", bold=True, err=True)
+            secho(
+                "man does not appear to be available on your system.",
+                fg="yellow",
+                bold=True,
+                err=True,
+            )
             return 1
     if envs:
         echo("The following environment variables can be set, to do various things:\n")
@@ -114,7 +121,7 @@ def cli(
                     "{}({}){}".format(
                         crayons.red("No virtualenv has been created for this project"),
                         crayons.normal(state.project.project_directory, bold=True),
-                        crayons.red(" yet!")
+                        crayons.red(" yet!"),
                     ),
                     err=True,
                 )
@@ -184,10 +191,7 @@ def cli(
 @skip_lock_option
 @install_options
 @pass_state
-def install(
-    state,
-    **kwargs
-):
+def install(state, **kwargs):
     """Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile."""
     from ..core import do_install
 
@@ -212,13 +216,13 @@ def install(
         extra_index_url=state.extra_index_urls,
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
-        site_packages=state.site_packages
+        site_packages=state.site_packages,
     )
 
 
 @cli.command(
     short_help="Uninstalls a provided package and removes it from Pipfile.",
-    context_settings=subcommand_context
+    context_settings=subcommand_context,
 )
 @option(
     "--all-dev",
@@ -235,15 +239,10 @@ def install(
 @uninstall_options
 @pass_state
 @pass_context
-def uninstall(
-    ctx,
-    state,
-    all_dev=False,
-    all=False,
-    **kwargs
-):
+def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
     """Uninstalls a provided package and removes it from Pipfile."""
     from ..core import do_uninstall
+
     retcode = do_uninstall(
         state.project,
         packages=state.installstate.packages,
@@ -256,7 +255,7 @@ def uninstall(
         all=all,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
-        ctx=ctx
+        ctx=ctx,
     )
     if retcode:
         sys.exit(retcode)
@@ -282,11 +281,7 @@ LOCK_DEV_NOTE = """\
 @lock_options
 @pass_state
 @pass_context
-def lock(
-    ctx,
-    state,
-    **kwargs
-):
+def lock(ctx, state, **kwargs):
     """Generates Pipfile.lock."""
     from ..core import do_init, do_lock, ensure_project
 
@@ -294,8 +289,12 @@ def lock(
     # Note that we don't pass clear on to ensure_project as it is also
     # handled in do_lock
     ensure_project(
-        state.project, three=state.three, python=state.python, pypi_mirror=state.pypi_mirror,
-        warn=(not state.quiet), site_packages=state.site_packages,
+        state.project,
+        three=state.three,
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
+        warn=(not state.quiet),
+        site_packages=state.site_packages,
     )
     emit_requirements = state.lockoptions.emit_requirements
     dev = state.installstate.dev
@@ -327,7 +326,7 @@ def lock(
         raise PipenvOptionsError(
             "--dev-only",
             "--dev-only is only permitted in combination with --requirements. "
-            "Aborting."
+            "Aborting.",
         )
     do_lock(
         state.project,
@@ -349,7 +348,7 @@ def lock(
     is_flag=True,
     default=False,
     help="Run in shell in fancy mode. Make sure the shell have no path manipulating"
-         " scripts. Run $pipenv shell for issues with compatibility mode.",
+    " scripts. Run $pipenv shell for issues with compatibility mode.",
 )
 @option(
     "--anyway",
@@ -411,15 +410,21 @@ def shell(
 def run(state, command, args):
     """Spawns a command installed into the virtualenv."""
     from ..core import do_run
+
     do_run(
-        state.project, command=command, args=args, three=state.three, python=state.python, pypi_mirror=state.pypi_mirror
+        state.project,
+        command=command,
+        args=args,
+        three=state.three,
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
     )
 
 
 @cli.command(
     short_help="Checks for PyUp Safety security vulnerabilities and against"
-               " PEP 508 markers provided in Pipfile.",
-    context_settings=subcommand_context
+    " PEP 508 markers provided in Pipfile.",
+    context_settings=subcommand_context,
 )
 @option(
     "--unused",
@@ -431,9 +436,9 @@ def run(state, command, args):
 @option(
     "--db",
     nargs=1,
-    default=lambda: os.environ.get('PIPENV_SAFETY_DB'),
+    default=lambda: os.environ.get("PIPENV_SAFETY_DB"),
     help="Path to a local PyUp Safety vulnerabilities database."
-         " Default: ENV PIPENV_SAFETY_DB or None.",
+    " Default: ENV PIPENV_SAFETY_DB or None.",
 )
 @option(
     "--ignore",
@@ -450,13 +455,11 @@ def run(state, command, args):
 @option(
     "--key",
     help="Safety API key from PyUp.io for scanning dependencies against a live"
-         " vulnerabilities database. Leave blank for scanning against a"
-         " database that only updates once a month.",
+    " vulnerabilities database. Leave blank for scanning against a"
+    " database that only updates once a month.",
 )
 @option(
-    "--quiet",
-    is_flag=True,
-    help="Quiet standard output, except vulnerability report."
+    "--quiet", is_flag=True, help="Quiet standard output, except vulnerability report."
 )
 @common_options
 @system_option
@@ -472,7 +475,7 @@ def check(
     key=None,
     quiet=False,
     args=None,
-    **kwargs
+    **kwargs,
 ):
     """Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile."""
     from ..core import do_check
@@ -495,31 +498,33 @@ def check(
 
 @cli.command(short_help="Runs lock, then sync.", context_settings=CONTEXT_SETTINGS)
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
-@option(
-    "--outdated", is_flag=True, default=False, help="List out-of-date dependencies."
-)
+@option("--outdated", is_flag=True, default=False, help="List out-of-date dependencies.")
 @option("--dry-run", is_flag=True, default=None, help="List out-of-date dependencies.")
 @install_options
 @pass_state
 @pass_context
-def update(
-    ctx,
-    state,
-    bare=False,
-    dry_run=None,
-    outdated=False,
-    **kwargs
-):
+def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
     """Runs lock, then sync."""
     from ..core import do_lock, do_outdated, do_sync, ensure_project
+
     ensure_project(
-        state.project, three=state.three, python=state.python, pypi_mirror=state.pypi_mirror,
-        warn=(not state.quiet), site_packages=state.site_packages, clear=state.clear
+        state.project,
+        three=state.three,
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
+        warn=(not state.quiet),
+        site_packages=state.site_packages,
+        clear=state.clear,
     )
     if not outdated:
         outdated = bool(dry_run)
     if outdated:
-        do_outdated(state.project, clear=state.clear, pre=state.installstate.pre, pypi_mirror=state.pypi_mirror)
+        do_outdated(
+            state.project,
+            clear=state.clear,
+            pre=state.installstate.pre,
+            pypi_mirror=state.pypi_mirror,
+        )
     packages = [p for p in state.installstate.packages if p]
     editable = [p for p in state.installstate.editables if p]
     if not packages:
@@ -570,7 +575,7 @@ def update(
 
 @cli.command(
     short_help="Displays currently-installed dependency graph information.",
-    context_settings=CONTEXT_SETTINGS
+    context_settings=CONTEXT_SETTINGS,
 )
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--json", is_flag=True, default=False, help="Output JSON.")
@@ -585,8 +590,9 @@ def graph(state, bare=False, json=False, json_tree=False, reverse=False):
 
 
 @cli.command(
-    short_help="View a given module in your editor.", name="open",
-    context_settings=CONTEXT_SETTINGS
+    short_help="View a given module in your editor.",
+    name="open",
+    context_settings=CONTEXT_SETTINGS,
 )
 @common_options
 @argument("module", nargs=1)
@@ -603,11 +609,18 @@ def run_open(state, module, *args, **kwargs):
 
     # Ensure that virtualenv is available.
     ensure_project(
-        state.project, three=state.three, python=state.python,
-        validate=False, pypi_mirror=state.pypi_mirror,
+        state.project,
+        three=state.three,
+        python=state.python,
+        validate=False,
+        pypi_mirror=state.pypi_mirror,
     )
     c = subprocess_run(
-        [state.project._which("python"), "-c", "import {0}; print({0}.__file__)".format(module)]
+        [
+            state.project._which("python"),
+            "-c",
+            "import {0}; print({0}.__file__)".format(module),
+        ]
     )
     if c.returncode:
         echo(crayons.red("Module not found!"))
@@ -624,21 +637,14 @@ def run_open(state, module, *args, **kwargs):
 
 @cli.command(
     short_help="Installs all packages specified in Pipfile.lock.",
-    context_settings=CONTEXT_SETTINGS
+    context_settings=CONTEXT_SETTINGS,
 )
 @system_option
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @sync_options
 @pass_state
 @pass_context
-def sync(
-    ctx,
-    state,
-    bare=False,
-    user=False,
-    unused=False,
-    **kwargs
-):
+def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
     """Installs all packages specified in Pipfile.lock."""
     from ..core import do_sync
 
@@ -654,7 +660,7 @@ def sync(
         unused=unused,
         sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
-        system=state.system
+        system=state.system,
     )
     if retcode:
         ctx.abort()
@@ -662,7 +668,7 @@ def sync(
 
 @cli.command(
     short_help="Uninstalls all packages not specified in Pipfile.lock.",
-    context_settings=CONTEXT_SETTINGS
+    context_settings=CONTEXT_SETTINGS,
 )
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--dry-run", is_flag=True, default=False, help="Just output unneeded packages.")
@@ -673,8 +679,14 @@ def sync(
 def clean(state, dry_run=False, bare=False, user=False):
     """Uninstalls all packages not specified in Pipfile.lock."""
     from ..core import do_clean
-    do_clean(state.project, three=state.three, python=state.python, dry_run=dry_run,
-             system=state.system)
+
+    do_clean(
+        state.project,
+        three=state.three,
+        python=state.python,
+        dry_run=dry_run,
+        system=state.system,
+    )
 
 
 @cli.command(
@@ -688,7 +700,7 @@ def scripts(state):
     if not state.project.pipfile_exists:
         echo("No Pipfile present at project home.", err=True)
         sys.exit(1)
-    scripts = state.project.parsed_pipfile.get('scripts', {})
+    scripts = state.project.parsed_pipfile.get("scripts", {})
     first_column_width = max(len(word) for word in ["Command"] + list(scripts))
     second_column_width = max(len(word) for word in ["Script"] + list(scripts.values()))
     lines = ["{0:<{width}}  Script".format("Command", width=first_column_width)]
@@ -712,13 +724,13 @@ def verify(state):
         sys.exit(1)
     if state.project.get_lockfile_hash() != state.project.calculate_pipfile_hash():
         echo(
-            'Pipfile.lock is out-of-date. Run {} to update.'.format(
+            "Pipfile.lock is out-of-date. Run {} to update.".format(
                 crayons.yellow("$ pipenv lock", bold=True)
             ),
-            err=True
+            err=True,
         )
         sys.exit(1)
-    echo(crayons.green('Pipfile.lock is up-to-date.'))
+    echo(crayons.green("Pipfile.lock is up-to-date."))
     sys.exit(0)
 
 
