@@ -17,10 +17,10 @@ repos:
   - id: trailing-whitespace
     exclude: .patch
 
-#- repo: https://github.com/psf/black
-#  rev: 22.1.0
-#  hooks:
-#  - id: black
+- repo: https://github.com/psf/black
+  rev: 22.1.0
+  hooks:
+  - id: black
 
 - repo: https://gitlab.com/pycqa/flake8
   rev: 4.0.1
@@ -33,11 +33,11 @@ repos:
     ]
     exclude: tests/data
 
-#- repo: https://github.com/PyCQA/isort
-#  rev: 5.10.1
-#  hooks:
-#  - id: isort
-#    files: \.py$
+- repo: https://github.com/PyCQA/isort
+  rev: 5.10.1
+  hooks:
+  - id: isort
+    files: \.py$
 
 #- repo: https://github.com/pre-commit/pygrep-hooks
 #  rev: v1.7.0

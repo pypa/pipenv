@@ -4,11 +4,9 @@ import os
 import subprocess
 import sys
 import warnings
-
 from functools import lru_cache
 
 import crayons
-
 from click import echo as click_echo
 
 from pipenv import environments
@@ -18,15 +16,19 @@ from pipenv.vendor.vistir import TemporaryDirectory, open_file
 from pipenv.vendor.vistir.path import create_tracked_tempdir
 
 from .dependencies import (
-    HackedPythonVersion, clean_pkg_version, convert_deps_to_pip, get_vcs_deps,
-    is_pinned_requirement, pep423_name, translate_markers
+    HackedPythonVersion,
+    clean_pkg_version,
+    convert_deps_to_pip,
+    get_vcs_deps,
+    is_pinned_requirement,
+    pep423_name,
+    translate_markers,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
 from .internet import _get_requests_session
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
 from .spinner import create_spinner
-
 
 if environments.MYPY_RUNNING:
     from typing import Any, Dict, List, Optional, Set, Tuple, Union  # noqa
@@ -244,11 +246,9 @@ class Resolver:
     @classmethod
     def get_deps_from_req(cls, req, resolver=None, resolve_vcs=True):
         # type: (Requirement, Optional["Resolver"], bool) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]
-        from pipenv.vendor.requirementslib.models.requirements import (
-            Requirement
-        )
+        from pipenv.vendor.requirementslib.models.requirements import Requirement
         from pipenv.vendor.requirementslib.models.utils import (
-            _requirement_to_str_lowercase_name
+            _requirement_to_str_lowercase_name,
         )
         from pipenv.vendor.requirementslib.utils import is_installable_dir
 
@@ -558,7 +558,7 @@ class Resolver:
     @property
     def constraints(self):
         from pipenv.patched.notpip._internal.req.constructors import (
-            install_req_from_parsed_requirement
+            install_req_from_parsed_requirement,
         )
 
         if self._constraints is None:
@@ -576,7 +576,9 @@ class Resolver:
     @contextlib.contextmanager
     def get_resolver(self, clear=False):
         from pipenv.vendor.pip_shims.shims import (
-            WheelCache, get_requirement_tracker, global_tempdir_manager
+            WheelCache,
+            get_requirement_tracker,
+            global_tempdir_manager,
         )
 
         with global_tempdir_manager(), get_requirement_tracker() as req_tracker, TemporaryDirectory(
@@ -623,9 +625,7 @@ class Resolver:
         return self.resolved_tree
 
     def resolve_constraints(self):
-        from pipenv.vendor.requirementslib.models.markers import (
-            marker_from_specifier
-        )
+        from pipenv.vendor.requirementslib.models.markers import marker_from_specifier
 
         new_tree = set()
         for result in self.resolved_tree:
@@ -748,9 +748,7 @@ class Resolver:
         return req.name, entry
 
     def clean_results(self):
-        from pipenv.vendor.requirementslib.models.requirements import (
-            Requirement
-        )
+        from pipenv.vendor.requirementslib.models.requirements import Requirement
 
         reqs = [(Requirement.from_ireq(ireq), ireq) for ireq in self.resolved_tree]
         results = {}
@@ -900,9 +898,7 @@ def venv_resolve_deps(
 
     from pipenv import resolver
     from pipenv._compat import decode_for_output
-    from pipenv.vendor.vistir.compat import (
-        JSONDecodeError, NamedTemporaryFile, Path
-    )
+    from pipenv.vendor.vistir.compat import JSONDecodeError, NamedTemporaryFile, Path
     from pipenv.vendor.vistir.misc import fs_str
 
     results = []

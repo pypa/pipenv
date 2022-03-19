@@ -4,7 +4,6 @@ import os
 import sys
 import time
 import warnings
-
 from pathlib import Path
 from posixpath import expandvars
 
@@ -17,22 +16,30 @@ from pipenv import environments, exceptions, pep508checker, progress
 from pipenv._compat import decode_for_output, fix_utf8
 from pipenv.patched import crayons
 from pipenv.utils.dependencies import (
-    convert_deps_to_pip, get_canonical_names, is_pinned, is_required_version,
-    is_star, pep423_name, python_version
+    convert_deps_to_pip,
+    get_canonical_names,
+    is_pinned,
+    is_required_version,
+    is_star,
+    pep423_name,
+    python_version,
 )
-from pipenv.utils.indexes import (
-    get_source_list, parse_indexes, prepare_pip_source_args
-)
+from pipenv.utils.indexes import get_source_list, parse_indexes, prepare_pip_source_args
 from pipenv.utils.internet import (
-    download_file, get_host_and_port, is_valid_url, proper_case
+    download_file,
+    get_host_and_port,
+    is_valid_url,
+    proper_case,
 )
 from pipenv.utils.processes import run_command
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.utils.shell import (
-    cmd_list_to_shell, find_python, is_python_command, subprocess_run
+    cmd_list_to_shell,
+    find_python,
+    is_python_command,
+    subprocess_run,
 )
 from pipenv.utils.spinner import create_spinner
-
 
 if environments.is_type_checking():
     from typing import Dict, List, Optional, Union
@@ -159,7 +166,7 @@ def cleanup_virtualenv(project, bare=True):
 
 def import_requirements(project, r=None, dev=False):
     from pipenv.patched.notpip._internal.req.constructors import (
-        install_req_from_parsed_requirement
+        install_req_from_parsed_requirement,
     )
     from pipenv.patched.notpip._vendor import requests as pip_requests
     from pipenv.vendor.pip_shims.shims import parse_requirements
@@ -722,7 +729,7 @@ def batch_install(
     sequential_deps=None,
 ):
     from .vendor.requirementslib.models.utils import (
-        strip_extras_markers_from_requirement
+        strip_extras_markers_from_requirement,
     )
 
     if sequential_deps is None:

@@ -1,7 +1,6 @@
 import itertools
 import re
 import sys
-
 from collections import namedtuple
 from traceback import format_tb
 
@@ -11,7 +10,6 @@ from pipenv.patched import crayons
 from pipenv.vendor import vistir
 from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
 from pipenv.vendor.vistir.misc import echo as click_echo
-
 
 ANSI_REMOVAL_RE = re.compile(r"\033\[((?:\d|;)*)([a-zA-Z])", re.MULTILINE)
 STRING_TYPES = ((str,), crayons.ColoredString)

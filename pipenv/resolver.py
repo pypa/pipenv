@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 
-
 os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 
@@ -131,9 +130,7 @@ class Entry:
 
     def __init__(self, name, entry_dict, project, resolver, reverse_deps=None, dev=False):
         super().__init__()
-        from pipenv.vendor.requirementslib.models.utils import (
-            tomlkit_value_to_python
-        )
+        from pipenv.vendor.requirementslib.models.utils import tomlkit_value_to_python
 
         self.name = name
         if isinstance(entry_dict, dict):
@@ -168,9 +165,7 @@ class Entry:
 
     @staticmethod
     def make_requirement(name=None, entry=None, from_ireq=False):
-        from pipenv.vendor.requirementslib.models.requirements import (
-            Requirement
-        )
+        from pipenv.vendor.requirementslib.models.requirements import Requirement
 
         if from_ireq:
             return Requirement.from_ireq(entry)
@@ -207,9 +202,7 @@ class Entry:
     @classmethod
     def get_markers_from_dict(cls, entry_dict):
         from pipenv.vendor.packaging import markers as packaging_markers
-        from pipenv.vendor.requirementslib.models.markers import (
-            normalize_marker_str
-        )
+        from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
 
         marker_keys = cls.parse_pyparsing_exprs(packaging_markers.VARIABLE)
         markers = set()
@@ -250,9 +243,7 @@ class Entry:
 
     @staticmethod
     def marker_to_str(marker):
-        from pipenv.vendor.requirementslib.models.markers import (
-            normalize_marker_str
-        )
+        from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
 
         if not marker:
             return None

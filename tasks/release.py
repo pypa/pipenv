@@ -6,14 +6,12 @@ import subprocess
 import sys
 
 import invoke
-
 from parver import Version
 
 from pipenv.__version__ import __version__
 from pipenv.vendor.vistir.contextmanagers import temp_environ
 
 from .vendoring import _get_git_root, drop_dir
-
 
 VERSION_FILE = "pipenv/__version__.py"
 ROOT = pathlib.Path(".").parent.parent.absolute()

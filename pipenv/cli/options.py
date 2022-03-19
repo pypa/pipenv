@@ -3,12 +3,17 @@ import os
 from pipenv.project import Project
 from pipenv.utils.internet import is_valid_url
 from pipenv.vendor.click import (
-    BadArgumentUsage, BadParameter, Group, Option, argument, echo,
-    make_pass_decorator, option
+    BadArgumentUsage,
+    BadParameter,
+    Group,
+    Option,
+    argument,
+    echo,
+    make_pass_decorator,
+    option,
 )
 from pipenv.vendor.click import types as click_types
 from pipenv.vendor.click_didyoumean import DYMMixin
-
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "auto_envvar_prefix": "PIPENV"}
 

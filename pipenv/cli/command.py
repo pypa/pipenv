@@ -5,19 +5,40 @@ from pipenv import environments
 from pipenv.__version__ import __version__
 from pipenv._compat import fix_utf8
 from pipenv.cli.options import (
-    CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
-    general_options, install_options, lock_options, pass_state,
-    pypi_mirror_option, python_option, site_packages_option, skip_lock_option,
-    sync_options, system_option, three_option, uninstall_options, verbose_option
+    CONTEXT_SETTINGS,
+    PipenvGroup,
+    code_option,
+    common_options,
+    deploy_option,
+    general_options,
+    install_options,
+    lock_options,
+    pass_state,
+    pypi_mirror_option,
+    python_option,
+    site_packages_option,
+    skip_lock_option,
+    sync_options,
+    system_option,
+    three_option,
+    uninstall_options,
+    verbose_option,
 )
 from pipenv.exceptions import PipenvOptionsError
 from pipenv.patched import crayons
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor.click import (
-    Choice, argument, echo, edit, group, option, pass_context, secho, types,
-    version_option
+    Choice,
+    argument,
+    echo,
+    edit,
+    group,
+    option,
+    pass_context,
+    secho,
+    types,
+    version_option,
 )
-
 
 subcommand_context = CONTEXT_SETTINGS.copy()
 subcommand_context.update({"ignore_unknown_options": True, "allow_extra_args": True})
@@ -64,8 +85,14 @@ def cli(
     from pipenv.utils.spinner import create_spinner
 
     from ..core import (
-        cleanup_virtualenv, do_clear, do_py, do_where, ensure_project,
-        format_help, system_which, warn_in_virtualenv
+        cleanup_virtualenv,
+        do_clear,
+        do_py,
+        do_where,
+        ensure_project,
+        format_help,
+        system_which,
+        warn_in_virtualenv,
     )
 
     if man:

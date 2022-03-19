@@ -1,5 +1,4 @@
 import os
-
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -107,7 +106,7 @@ def get_vcs_deps(project=None, dev=False, pypi_mirror=None, packages=None, reqs=
             try:
                 with temp_path(), locked_repository(requirement) as repo:
                     from pipenv.vendor.requirementslib.models.requirements import (
-                        Requirement
+                        Requirement,
                     )
 
                     # from distutils.sysconfig import get_python_lib
@@ -298,9 +297,7 @@ def is_editable(pipfile_entry):
 def is_installable_file(path):
     """Determine if a path can potentially be installed"""
     from pipenv.patched.notpip._internal.utils.packaging import specifiers
-    from pipenv.vendor.pip_shims.models import (
-        is_archive_file, is_installable_dir
-    )
+    from pipenv.vendor.pip_shims.models import is_archive_file, is_installable_dir
 
     if hasattr(path, "keys") and any(
         key for key in path.keys() if key in ["file", "path"]

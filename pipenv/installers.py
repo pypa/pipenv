@@ -2,7 +2,6 @@ import operator
 import os
 import re
 import sys
-
 from abc import ABCMeta, abstractmethod
 
 from pipenv.utils.processes import subprocess_run

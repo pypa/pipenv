@@ -6,14 +6,12 @@ import operator
 import os
 import site
 import sys
-
 from pathlib import Path
 from sysconfig import get_paths, get_python_version
 
 import pkg_resources
 
 import pipenv
-
 from pipenv.environments import is_type_checking
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
@@ -22,12 +20,9 @@ from pipenv.vendor import vistir
 from pipenv.vendor.cached_property import cached_property
 from pipenv.vendor.packaging.utils import canonicalize_name
 
-
 if is_type_checking():
     from types import ModuleType
-    from typing import (
-        ContextManager, Dict, Generator, List, Optional, Set, Union
-    )
+    from typing import ContextManager, Dict, Generator, List, Optional, Set, Union
 
     import pip_shims.shims
     import tomlkit

@@ -10,7 +10,6 @@ from pipenv.vendor import shellingham
 from pipenv.vendor.vistir.compat import Path, get_terminal_size
 from pipenv.vendor.vistir.contextmanagers import temp_environ
 
-
 ShellDetectionFailure = shellingham.ShellDetectionFailure
 
 

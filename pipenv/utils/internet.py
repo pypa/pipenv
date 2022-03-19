@@ -1,11 +1,9 @@
 import re
-
 from urllib.parse import urlparse
 
 from urllib3 import util as urllib3_util
 
 from pipenv.vendor import parse
-
 
 requests_session = None  # type: ignore
 

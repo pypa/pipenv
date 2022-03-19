@@ -7,20 +7,16 @@ import re
 import shutil
 import tarfile
 import zipfile
-
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import bs4
 import invoke
 import requests
-
 from urllib3.util import parse_url as urllib3_parse
 
 import pipenv.vendor.parse as parse
-
 from pipenv.vendor.vistir.contextmanagers import open_file
-
 
 TASK_NAME = "update"
 

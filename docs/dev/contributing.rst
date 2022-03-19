@@ -8,7 +8,7 @@ contributing to the Pipenv project is *very* generous of you.
 
 This document lays out guidelines and advice for contributing to this project.
 If you're thinking of contributing, please start by reading this document and
-getting a feel for how contributing to this project works. 
+getting a feel for how contributing to this project works.
 
 The guide is split into sections based on the type of contribution you're
 thinking of making, with a section that covers general guidelines for all
@@ -241,7 +241,7 @@ you run it before you open a PR. Taking this second approach,
 will allow you, for example, to run a single test case, or
 ``fail fast`` if you need it.
 
-2. Manually, which repeat the steps of the scripts above: 
+2. Manually, which repeat the steps of the scripts above:
 
 .. code-block:: console
 

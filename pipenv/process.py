@@ -1,7 +1,6 @@
 import os
 import subprocess
 import threading
-
 from time import monotonic as _time
 
 from pipenv._compat import DEFAULT_ENCODING

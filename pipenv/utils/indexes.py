@@ -8,7 +8,6 @@ from pipenv.vendor.vistir.compat import Mapping
 
 from .internet import create_mirror_source, is_pypi_url
 
-
 if environments.MYPY_RUNNING:
     from typing import List, Optional, Union  # noqa
 

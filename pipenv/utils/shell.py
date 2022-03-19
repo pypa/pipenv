@@ -7,7 +7,6 @@ import shutil
 import stat
 import sys
 import warnings
-
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
@@ -17,7 +16,6 @@ from pipenv.vendor.vistir.compat import ResourceWarning
 
 from .constants import SCHEME_LIST
 from .processes import subprocess_run
-
 
 if environments.MYPY_RUNNING:
     from typing import Text  # noqa
@@ -83,7 +81,6 @@ def looks_like_dir(path):
 
 def load_path(python):
     import json
-
     from pathlib import Path
 
     python = Path(python).as_posix()

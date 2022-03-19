@@ -65,7 +65,6 @@
 
 import sys
 
-
 this_python = sys.version_info[:2]
 min_version = (3, 6)
 if this_python < min_version:
@@ -82,7 +81,6 @@ import os.path
 import pkgutil
 import shutil
 import tempfile
-
 from base64 import b85decode
 
 

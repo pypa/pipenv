@@ -9,7 +9,6 @@ import os
 import re
 import sys
 import urllib.parse
-
 from pathlib import Path
 
 import pipfile
@@ -22,24 +21,32 @@ from pipenv.cmdparse import Script
 from pipenv.core import system_which
 from pipenv.environment import Environment
 from pipenv.environments import (
-    Setting, is_in_virtualenv, is_type_checking, normalize_pipfile_path
+    Setting,
+    is_in_virtualenv,
+    is_type_checking,
+    normalize_pipfile_path,
 )
 from pipenv.utils.dependencies import (
-    get_canonical_names, is_editable, is_installable_file, is_star,
-    python_version
+    get_canonical_names,
+    is_editable,
+    is_installable_file,
+    is_star,
+    python_version,
 )
 from pipenv.utils.internet import get_url_name, is_valid_url, proper_case
 from pipenv.utils.resolver import pep423_name
 from pipenv.utils.shell import (
-    find_requirements, find_windows_executable, get_pipenv_dist,
-    get_workon_home, is_virtual_environment, looks_like_dir, safe_expandvars
+    find_requirements,
+    find_windows_executable,
+    get_pipenv_dist,
+    get_workon_home,
+    is_virtual_environment,
+    looks_like_dir,
+    safe_expandvars,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
 from pipenv.vendor.cached_property import cached_property
-from pipenv.vendor.requirementslib.models.utils import (
-    get_default_pyproject_backend
-)
-
+from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 
 if is_type_checking():
     from typing import Dict, List, Optional, Set, Text, Tuple, Union
@@ -637,8 +644,7 @@ class Project:
 
     @property
     def _pipfile(self):
-        from .vendor.requirementslib.models.pipfile import \
-            Pipfile as ReqLibPipfile
+        from .vendor.requirementslib.models.pipfile import Pipfile as ReqLibPipfile
 
         pf = ReqLibPipfile.load(self.pipfile_location)
         return pf
@@ -767,8 +773,9 @@ class Project:
         return source
 
     def get_or_create_lockfile(self, from_pipfile=False):
-        from pipenv.vendor.requirementslib.models.lockfile import \
-            Lockfile as Req_Lockfile
+        from pipenv.vendor.requirementslib.models.lockfile import (
+            Lockfile as Req_Lockfile,
+        )
 
         lockfile = None
         if from_pipfile and self.pipfile_exists:

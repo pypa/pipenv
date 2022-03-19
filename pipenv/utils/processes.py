@@ -2,12 +2,10 @@ import os
 import subprocess
 
 import crayons
-
 from click import echo as click_echo
 
 from pipenv import environments
 from pipenv.exceptions import PipenvCmdError
-
 
 if environments.MYPY_RUNNING:
     from typing import Tuple  # noqa

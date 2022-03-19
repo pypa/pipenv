@@ -8,7 +8,6 @@ import warnings
 
 from pipenv.vendor import vistir
 
-
 warnings.filterwarnings("ignore", category=ResourceWarning)
 
 

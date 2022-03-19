@@ -3,7 +3,6 @@ import pprint
 import sys
 
 import pipenv
-
 from pipenv.pep508checker import lookup
 from pipenv.vendor import pythonfinder
 
