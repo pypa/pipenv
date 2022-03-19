@@ -54,7 +54,7 @@ index 4b700407..58154c31 100644
 -from typing import List
 +from typing import Dict, List, Optional
 
- from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+ from pip._vendor.packaging.utils import canonicalize_name
 
 @@ -20,13 +20,14 @@ class SearchScope:
      Encapsulates the locations that pip is configured to search.
