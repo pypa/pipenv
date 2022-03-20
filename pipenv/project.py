@@ -538,8 +538,11 @@ class Project:
 
         (call clear_pipfile_cache() afterwards if mutating)"""
         contents = self.read_pipfile()
-        # use full contents to get around str/bytes 2/3 issues
-        cache_key = (self.pipfile_location, contents)
+        # This should be pretty fast; we need this pipfile a lot
+        cache_key = (
+            self.pipfile_location,
+            hashlib.md5(contents.encode("utf8")).hexdigest(),
+        )
         if cache_key not in _pipfile_cache:
             parsed = self._parse_pipfile(contents)
             _pipfile_cache[cache_key] = parsed
