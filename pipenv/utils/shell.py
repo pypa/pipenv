@@ -242,7 +242,7 @@ def is_virtual_environment(path):
     for bindir_name in ("bin", "Scripts"):
         for python in path.joinpath(bindir_name).glob("python*"):
             try:
-                exeness = is_file() and os.access(str(python), os.X_OK)
+                exeness = python.is_file() and os.access(str(python), os.X_OK)
             except OSError:
                 exeness = False
             if exeness:
