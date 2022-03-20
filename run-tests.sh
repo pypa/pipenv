@@ -53,4 +53,5 @@ git submodule sync && git submodule update --init --recursive
 
 echo "$pipenv run pytest -ra -n auto -v --cov-config setup.cfg --fulltrace tests"
 
-PIPENV_PYTHON=${PIPENV_PYTHON} ${PYTHON} -m pipenv run pytest -ra -n auto -v --cov-config setup.cfg --fulltrace tests
+PYTEST_CMD="${PYTHON} -m pipenv run pytest -ra -n auto -v --cov-config setup.cfg --fulltrace tests"
+PIPENV_PYTHON=${PIPENV_PYTHON} $PYTEST_CMD
