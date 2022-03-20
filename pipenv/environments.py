@@ -205,16 +205,10 @@ class Setting:
         Default is 0. Automatically set to 1 on CI environments for robust testing.
         """
 
-        self.PIPENV_MAX_ROUNDS = int(os.environ.get("PIPENV_MAX_ROUNDS", "16"))
-        """Tells Pipenv how many rounds of resolving to do for Pip-Tools.
-
-        Default is 16, an arbitrary number that works most of the time.
-        """
-
         self.PIPENV_MAX_SUBPROCESS = int(os.environ.get("PIPENV_MAX_SUBPROCESS", "8"))
         """How many subprocesses should Pipenv use when installing.
 
-        Default is 16, an arbitrary number that seems to work.
+        Default is 8, an arbitrary number that seems to work.
         """
 
         self.PIPENV_NO_INHERIT = "PIPENV_NO_INHERIT" in os.environ
@@ -392,18 +386,6 @@ class Setting:
 
     def is_quiet(self, threshold=-1):
         return self.PIPENV_VERBOSITY <= threshold
-
-
-def is_using_venv():
-    # type: () -> bool
-    """Check for venv-based virtual environment which sets sys.base_prefix"""
-    if getattr(sys, "real_prefix", None) is not None:
-        # virtualenv venvs
-        result = True
-    else:
-        # PEP 405 venvs
-        result = sys.prefix != getattr(sys, "base_prefix", sys.prefix)
-    return result
 
 
 def is_in_virtualenv():

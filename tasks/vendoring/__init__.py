@@ -26,7 +26,6 @@ LIBRARY_DIRNAMES = {
     "backports.weakref": "backports/weakref",
     "backports.functools_lru_cache": "backports/functools_lru_cache",
     "python-dotenv": "dotenv",
-    "pip-tools": "piptools",
     "setuptools": "pkg_resources",
     "msgpack-python": "msgpack",
     "attrs": "attr",
@@ -43,7 +42,6 @@ HARDCODED_LICENSE_URLS = {
     "click-completion": "https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE",
     "parse": "https://raw.githubusercontent.com/techalchemy/parse/master/LICENSE",
     "crayons": "https://raw.githubusercontent.com/MasterOdin/crayons/master/LICENSE",
-    "pip-tools": "https://raw.githubusercontent.com/jazzband/pip-tools/master/LICENSE",
     "pytoml": "https://github.com/avakar/pytoml/raw/master/LICENSE",
     "webencodings": "https://github.com/SimonSapin/python-webencodings/raw/"
     "master/LICENSE",

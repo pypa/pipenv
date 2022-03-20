@@ -997,9 +997,7 @@ def resolve_deps(
     allow_global=False,
     req_dir=None,
 ):
-    """Given a list of dependencies, return a resolved list of dependencies,
-    using pip-tools -- and their hashes, using the warehouse API / pip.
-    """
+    """Given a list of dependencies, return a resolved list of dependencies, and their hashes, using pip."""
     index_lookup = {}
     markers_lookup = {}
     python_path = which("python", allow_global=allow_global)

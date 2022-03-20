@@ -155,7 +155,7 @@ class Project:
         return os.sep.join([self._original_dir, p])
 
     def _build_package_list(self, package_section):
-        """Returns a list of packages for pip-tools to consume."""
+        """Returns the list of packages from the Project's Pipfile."""
         from pipenv.vendor.requirementslib.utils import is_vcs
 
         ps = {}
@@ -163,9 +163,10 @@ class Project:
         for k, v in self.parsed_pipfile.get(package_section, {}).items():
             # Skip editable VCS deps.
             if hasattr(v, "keys"):
-                # When a vcs url is gven without editable it only appears as a key
+                # When a vcs url is given without editable it only appears as a key.
                 # Eliminate any vcs, path, or url entries which are not editable
                 # Since pip-tools can't do deep resolution on them, even setuptools-installable ones
+                # TODO Is this accurate logic since we no longer are using pip-tools?
                 if (
                     is_vcs(v)
                     or is_vcs(k)
@@ -691,29 +692,29 @@ class Project:
 
     @property
     def vcs_packages(self):
-        """Returns a list of VCS packages, for not pip-tools to consume."""
+        """Returns the list of VCS packages."""
         return self._get_vcs_packages(dev=False)
 
     @property
     def vcs_dev_packages(self):
-        """Returns a list of VCS packages, for not pip-tools to consume."""
+        """Returns the list of VCS dev packages."""
         return self._get_vcs_packages(dev=True)
 
     @property
     def all_packages(self):
-        """Returns a list of all packages."""
+        """Returns a dictionary with all packages."""
         p = dict(self.parsed_pipfile.get("dev-packages", {}))
         p.update(self.parsed_pipfile.get("packages", {}))
         return p
 
     @property
     def packages(self):
-        """Returns a list of packages, for pip-tools to consume."""
+        """Returns the list of packages."""
         return self._build_package_list("packages")
 
     @property
     def dev_packages(self):
-        """Returns a list of dev-packages, for pip-tools to consume."""
+        """Returns the list of dev-packages."""
         return self._build_package_list("dev-packages")
 
     @property
