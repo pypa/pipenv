@@ -209,23 +209,6 @@ def ensure_environment():
             )
 
 
-def import_from_code(path="."):
-    from pipreqs import pipreqs
-
-    rs = []
-    try:
-        for r in pipreqs.get_all_imports(
-            path, encoding="utf-8", extra_ignore_dirs=[".venv"]
-        ):
-            if r not in BAD_PACKAGES:
-                rs.append(r)
-        pkg_names = pipreqs.get_pkg_names(rs)
-        return [proper_case(r) for r in pkg_names]
-
-    except Exception:
-        return []
-
-
 def ensure_pipfile(project, validate=True, skip_requirements=False, system=False):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
@@ -1837,7 +1820,6 @@ def do_install(
     requirementstxt=False,
     sequential=False,
     pre=False,
-    code=False,
     deploy=False,
     keep_outdated=False,
     selective_upgrade=False,
@@ -1872,7 +1854,7 @@ def do_install(
         site_packages=site_packages,
     )
     # Don't attempt to install develop and default packages if Pipfile is missing
-    if not project.pipfile_exists and not (package_args or dev) and not code:
+    if not project.pipfile_exists and not (package_args or dev):
         if not (ignore_pipfile or deploy):
             raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
         elif ((skip_lock and deploy) or ignore_pipfile) and not project.lockfile_exists:
@@ -1958,13 +1940,6 @@ def do_install(
                 click.echo(crayons.red(error))
                 click.echo(crayons.yellow(str(traceback)), err=True)
                 sys.exit(1)
-    if code:
-        click.echo(
-            crayons.normal(fix_utf8("Discovering imports from local codebase..."), bold=True)
-        )
-        for req in import_from_code(code):
-            click.echo(f"  Found {crayons.green(req)}!")
-            project.add_package_to_pipfile(req)
     # Allow more than one package to be provided.
     package_args = [p for p in packages] + [
         f"-e {pkg}" for pkg in editable_packages
@@ -2517,13 +2492,11 @@ def do_check(
     three=None,
     python=False,
     system=False,
-    unused=False,
     db=None,
     ignore=None,
     output="default",
     key=None,
     quiet=False,
-    args=None,
     pypi_mirror=None
 ):
     from pipenv.vendor.vistir.compat import JSONDecodeError
@@ -2538,28 +2511,6 @@ def do_check(
             warn=False,
             pypi_mirror=pypi_mirror,
         )
-    if not args:
-        args = []
-    if unused:
-        deps_required = [k.lower() for k in project.packages.keys()]
-        deps_needed = [k.lower() for k in import_from_code(unused)]
-        for dep in deps_needed:
-            try:
-                deps_required.remove(dep)
-            except ValueError:
-                pass
-        if deps_required:
-            if not quiet and not project.s.is_quiet():
-                click.echo(
-                    crayons.normal(
-                        "The following dependencies appear unused, and may be safe for removal:"
-                    )
-                )
-                for dep in deps_required:
-                    click.echo(f"  - {crayons.green(dep)}")
-                sys.exit(1)
-        else:
-            sys.exit(0)
     if not quiet and not project.s.is_quiet():
         click.echo(crayons.normal(decode_for_output("Checking PEP 508 requirements..."), bold=True))
     pep508checker_path = pep508checker.__file__.rstrip("cdo")
