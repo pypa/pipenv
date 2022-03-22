@@ -15,7 +15,6 @@ recursive-include pipenv *.rst
 
 include pipenv/patched/notpip/_vendor/vendor.txt
 include pipenv/patched/safety.zip pipenv/patched/patched.txt
-include pipenv/vendor/pipreqs/stdlib pipenv/vendor/pipreqs/mapping
 include pipenv/vendor/*.txt pipenv/vendor/pexpect/bashrc.sh
 include pipenv/vendor/Makefile
 include pipenv/pipenv.1
