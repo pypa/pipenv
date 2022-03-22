@@ -62,7 +62,7 @@ def _get_requests_session(max_retries=1):
     global requests_session
     if requests_session is not None:
         return requests_session
-    import requests
+    from pipenv.patched.notpip._vendor import requests
 
     requests_session = requests.Session()
     adapter = requests.adapters.HTTPAdapter(max_retries=max_retries)
