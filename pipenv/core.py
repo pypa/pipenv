@@ -1418,7 +1418,11 @@ def pip_install(
     if not index and requirement.index:
         index = requirement.index
     if index and not extra_indexes:
-        extra_indexes = list(project.sources)
+        extra_indexes = []
+        if requirement.index:
+            extra_indexes = list(filter(lambda d: d['name'] == requirement.index, project.sources))
+        if not extra_indexes:
+            extra_indexes = list(project.sources)
     if requirement and requirement.vcs or requirement.editable:
         requirement.index = None
         # Install dependencies when a package is a non-editable VCS dependency.
@@ -1438,6 +1442,8 @@ def pip_install(
         project, index, extra_indexes=extra_indexes, trusted_hosts=trusted_hosts,
         pypi_mirror=pypi_mirror
     )
+    if requirement.index in sources:
+        sources = list(filter(lambda d: d.get('name') == requirement.index, sources))
     if r:
         with open(r, "r") as fh:
             if "--hash" not in fh.read():

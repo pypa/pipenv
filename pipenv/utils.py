@@ -496,6 +496,15 @@ class Resolver:
             # directories into the initial constraint pool to be resolved with the
             # rest of the dependencies, while adding the files/vcs deps/paths themselves
             # to the lockfile directly
+            use_sources = None
+            if req.name in index_lookup:
+                use_sources = list(filter(lambda s: s.get('name') == index_lookup[req.name], sources))
+            if not use_sources:
+                use_sources = sources
+            transient_resolver = cls(
+                [], req_dir, project, use_sources, index_lookup=index_lookup,
+                markers_lookup=markers_lookup, clear=clear, pre=pre
+            )
             constraint_update, lockfile_update = cls.get_deps_from_req(
                 req, resolver=transient_resolver, resolve_vcs=project.s.PIPENV_RESOLVE_VCS
             )
@@ -796,6 +805,16 @@ class Resolver:
                 options=self.pip_options,
                 session=self.session
             )
+        index_mapping = {}
+        for source in self.sources:
+            if source.get('name'):
+                index_mapping[source['name']] = source['url']
+        alt_index_lookup = {}
+        for req_name, index in self.index_lookup.items():
+            if index_mapping.get(index):
+                alt_index_lookup[req_name] = index_mapping[index]
+        self._finder._link_collector.index_lookup = alt_index_lookup
+        self._finder._link_collector.search_scope.index_lookup = alt_index_lookup
         return self._finder
 
     @property
@@ -818,10 +837,12 @@ class Resolver:
     def parsed_constraints(self):
         from pipenv.vendor.pip_shims import shims
 
+        pip_options = self.pip_options
+        pip_options.extra_index_urls = []
         if self._parsed_constraints is None:
             self._parsed_constraints = shims.parse_requirements(
                 self.constraint_file, finder=self.finder, session=self.session,
-                options=self.pip_options
+                options=pip_options
             )
         return self._parsed_constraints
 
@@ -876,6 +897,7 @@ class Resolver:
         from pipenv.vendor.pip_shims.shims import InstallationError
         from pipenv.exceptions import ResolutionFailure
 
+        self.constraints  # For some reason its important to evaluate constraints before resolver context
         with temp_environ(), self.get_resolver() as resolver:
             try:
                 results = resolver.resolve(self.constraints, check_supported_wheels=False)

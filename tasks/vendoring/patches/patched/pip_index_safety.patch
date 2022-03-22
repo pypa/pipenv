@@ -1,0 +1,102 @@
+diff --git a/pipenv/patched/pip/_internal/index/collector.py b/pipenv/patched/pip/_internal/index/collector.py
+index 98ac9d2e..fc532c40 100644
+--- a/pipenv/patched/pip/_internal/index/collector.py
++++ b/pipenv/patched/pip/_internal/index/collector.py
+@@ -17,6 +17,7 @@ from optparse import Values
+ from typing import (
+     Callable,
+     Iterable,
++    Dict,
+     List,
+     MutableMapping,
+     NamedTuple,
+@@ -445,15 +446,18 @@ class LinkCollector:
+         self,
+         session: PipSession,
+         search_scope: SearchScope,
++        index_lookup: Optional[Dict[str, List[str]]] = None,
+     ) -> None:
+         self.search_scope = search_scope
+         self.session = session
++        self.index_lookup = index_lookup if index_lookup else {}
+
+     @classmethod
+     def create(
+         cls, session: PipSession,
+         options: Values,
+-        suppress_no_index: bool = False
++        suppress_no_index: bool = False,
++        index_lookup: Optional[Dict[str, List[str]]] = None,
+     ) -> "LinkCollector":
+         """
+         :param session: The Session to use to make requests.
+@@ -472,10 +476,10 @@ class LinkCollector:
+         find_links = options.find_links or []
+
+         search_scope = SearchScope.create(
+-            find_links=find_links, index_urls=index_urls,
++            find_links=find_links, index_urls=index_urls, index_lookup=index_lookup
+         )
+         link_collector = LinkCollector(
+-            session=session, search_scope=search_scope,
++            session=session, search_scope=search_scope, index_lookup=index_lookup
+         )
+         return link_collector
+
+diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patched/pip/_internal/models/search_scope.py
+index 4b700407..58154c31 100644
+--- a/pipenv/patched/pip/_internal/models/search_scope.py
++++ b/pipenv/patched/pip/_internal/models/search_scope.py
+@@ -3,7 +3,7 @@ import logging
+ import os
+ import posixpath
+ import urllib.parse
+-from typing import List
++from typing import Dict, List, Optional
+
+ from pip._vendor.packaging.utils import canonicalize_name
+
+@@ -20,13 +20,14 @@ class SearchScope:
+     Encapsulates the locations that pip is configured to search.
+     """
+
+-    __slots__ = ["find_links", "index_urls"]
++    __slots__ = ["find_links", "index_urls", "index_lookup"]
+
+     @classmethod
+     def create(
+         cls,
+         find_links: List[str],
+         index_urls: List[str],
++        index_lookup: Optional[Dict[str, List[str]]] = None,
+     ) -> "SearchScope":
+         """
+         Create a SearchScope object after normalizing the `find_links`.
+@@ -60,15 +61,18 @@ class SearchScope:
+         return cls(
+             find_links=built_find_links,
+             index_urls=index_urls,
++            index_lookup=index_lookup
+         )
+
+     def __init__(
+         self,
+         find_links: List[str],
+         index_urls: List[str],
++        index_lookup: Optional[Dict[str, List[str]]] = None,
+     ) -> None:
+         self.find_links = find_links
+         self.index_urls = index_urls
++        self.index_lookup = index_lookup if index_lookup else {}
+
+     def get_formatted_locations(self) -> str:
+         lines = []
+@@ -123,4 +127,7 @@ class SearchScope:
+                 loc = loc + '/'
+             return loc
+
+-        return [mkurl_pypi_url(url) for url in self.index_urls]
++        index_urls = self.index_urls
++        if project_name in self.index_lookup:
++            index_urls = [self.index_lookup[project_name]]
++        return [mkurl_pypi_url(url) for url in index_urls]
