@@ -115,13 +115,13 @@ def load_dot_env(project, as_dict=False):
             )
         if as_dict:
             return dotenv.dotenv_values(dotenv_file)
-        else:
+        elif os.path.isfile(dotenv_file):
             click.echo(
                 crayons.normal(fix_utf8("Loading .env environment variables..."), bold=True),
                 err=True,
             )
             dotenv.load_dotenv(dotenv_file, override=True)
-            project.s.initialize()
+        project.s.initialize()
 
 
 def cleanup_virtualenv(project, bare=True):
