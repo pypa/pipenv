@@ -1,2 +1,0 @@
-It is now possible to silence the ``Loading .env environment variables`` message on ``pipenv run``
-with the ``--quiet`` flag or the `PIPENV_QUIET` environment variable.

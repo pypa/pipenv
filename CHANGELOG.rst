@@ -1,3 +1,22 @@
+2022.3.24 (2022-03-23)
+======================
+
+
+Features & Improvements
+-----------------------
+
+- It is now possible to silence the ``Loading .env environment variables`` message on ``pipenv run``
+  with the ``--quiet`` flag or the `PIPENV_QUIET` environment variable.  `#4027 <https://github.com/pypa/pipenv/issues/4027>`_
+
+Bug Fixes
+---------
+
+- Fixes issue with new index safety restriction, whereby an unnamed extra sources index
+  caused and error to be thrown during install.  `#5002 <https://github.com/pypa/pipenv/issues/5002>`_
+- The text ``Loading .env environment variables...`` has been switched back to stderr as to not
+  break requirements.txt generation.  Also it only prints now when a ``.env`` file is actually present.  `#5003 <https://github.com/pypa/pipenv/issues/5003>`_
+
+
 2022.3.23 (2022-03-22)
 ======================
 
