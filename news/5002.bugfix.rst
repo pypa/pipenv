@@ -1,0 +1,2 @@
+Fixes issue with new index safety restriction, whereby an unnamed extra sources index
+caused and error to be thrown during install.
