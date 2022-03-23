@@ -410,7 +410,13 @@ def run(state, command, args):
     """Spawns a command installed into the virtualenv."""
     from ..core import do_run
     do_run(
-        state.project, command=command, args=args, three=state.three, python=state.python, pypi_mirror=state.pypi_mirror
+        state.project,
+        command=command,
+        args=args,
+        three=state.three,
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
+        quiet=state.quiet
     )
 
 
@@ -443,11 +449,6 @@ def run(state, command, args):
     help="Safety API key from PyUp.io for scanning dependencies against a live"
          " vulnerabilities database. Leave blank for scanning against a"
          " database that only updates once a month.",
-)
-@option(
-    "--quiet",
-    is_flag=True,
-    help="Quiet standard output, except vulnerability report."
 )
 @common_options
 @system_option

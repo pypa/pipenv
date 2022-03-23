@@ -94,7 +94,7 @@ def do_clear(project):
         raise
 
 
-def load_dot_env(project, as_dict=False):
+def load_dot_env(project, as_dict=False, quiet=False):
     """Loads .env file into sys.environ."""
     if not project.s.PIPENV_DONT_LOAD_ENV:
         # If the project doesn't exist yet, check current directory for a .env file
@@ -115,7 +115,7 @@ def load_dot_env(project, as_dict=False):
             )
         if as_dict:
             return dotenv.dotenv_values(dotenv_file)
-        elif os.path.isfile(dotenv_file):
+        elif os.path.isfile(dotenv_file) and not quiet:
             click.echo(
                 crayons.normal(fix_utf8("Loading .env environment variables..."), bold=True),
                 err=True,
@@ -2442,7 +2442,7 @@ def do_run_posix(project, script, command, env):
     )
 
 
-def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
+def do_run(project, command, args, three=None, python=False, pypi_mirror=None, quiet=False):
     """Attempt to run command either pulling from project or interpreting as executable.
 
     Args are appended to the command in [scripts] section of project if found.
@@ -2454,7 +2454,7 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
         project, three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
     )
 
-    load_dot_env(project)
+    load_dot_env(project, quiet=quiet)
     env = os.environ.copy()
     env.pop("PIP_SHIMS_BASE_MODULE", None)
 
