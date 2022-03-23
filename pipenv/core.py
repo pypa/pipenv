@@ -118,7 +118,7 @@ def load_dot_env(project, as_dict=False):
         else:
             click.echo(
                 crayons.normal(fix_utf8("Loading .env environment variables..."), bold=True),
-                err=False,
+                err=True,
             )
             dotenv.load_dotenv(dotenv_file, override=True)
             project.s.initialize()
