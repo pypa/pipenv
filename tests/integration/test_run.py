@@ -60,7 +60,7 @@ multicommand = "bash -c \"cd docs && make html\""
             c = p.pipenv("run scriptwithenv")
             assert c.returncode == 0
             if os.name != "nt":  # This doesn't work on CI windows.
-                assert c.stdout.splitlines()[1] == "WORLD"
+                assert c.stdout.strip() == "WORLD"
 
 
 @pytest.mark.run
