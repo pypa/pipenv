@@ -36,12 +36,12 @@ multicommand = "bash -c \"cd docs && make html\""
         assert c.returncode == 0
         c = p.pipenv('run printfoo')
         assert c.returncode == 0
-        assert c.stdout.splitlines()[1] == 'foo'
+        assert c.stdout.strip() == 'foo'
         assert not c.stderr.strip()
 
         c = p.pipenv('run notfoundscript')
         assert c.returncode != 0
-        assert c.stdout == 'Loading .env environment variables...\n'
+        assert c.stdout == ''
         if os.name != 'nt':     # TODO: Implement this message for Windows.
             assert 'not found' in c.stderr
 
@@ -60,7 +60,7 @@ multicommand = "bash -c \"cd docs && make html\""
             c = p.pipenv("run scriptwithenv")
             assert c.returncode == 0
             if os.name != "nt":  # This doesn't work on CI windows.
-                assert c.stdout.splitlines()[1] == "WORLD"
+                assert c.stdout.strip() == "WORLD"
 
 
 @pytest.mark.run
@@ -80,5 +80,5 @@ def test_run_with_usr_env_shebang(PipenvInstance):
         c = p.pipenv("run ./test_script")
         assert c.returncode == 0
         project = Project()
-        lines = [line.strip() for line in c.stdout.splitlines()[1:]]
+        lines = [line.strip() for line in c.stdout.splitlines()]
         assert all(line == project.virtualenv_location for line in lines)

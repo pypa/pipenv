@@ -189,7 +189,7 @@ def test_run_in_virtualenv_with_global_context(PipenvInstance, virtualenv):
 
         c = p.pipenv("run python -c 'import click;print(click.__file__)'")
         assert c.returncode == 0, (c.stdout, c.stderr)
-        assert is_in_path(c.stdout.splitlines()[1], str(virtualenv)), (c.stdout.splitlines()[1], str(virtualenv))
+        assert is_in_path(c.stdout.strip(), str(virtualenv)), (c.stdout.strip(), str(virtualenv))
 
         c = p.pipenv("clean --dry-run")
         assert c.returncode == 0, (c.stdout, c.stderr)
@@ -210,7 +210,7 @@ def test_run_in_virtualenv(PipenvInstance):
         assert c.returncode == 0
         c = p.pipenv('run python -c "import click;print(click.__file__)"')
         assert c.returncode == 0
-        assert normalize_path(c.stdout.splitlines()[1]).startswith(
+        assert normalize_path(c.stdout.strip()).startswith(
             normalize_path(str(project.virtualenv_location))
         )
         c = p.pipenv("clean --dry-run")

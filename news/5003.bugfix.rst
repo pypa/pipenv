@@ -1,0 +1,2 @@
+The text ``Loading .env environment variables...`` has been switched back to stderr as to not
+break requirements.txt generation.  Also it only prints now when a ``.env`` file is actually present.
