@@ -1,0 +1,1 @@
+Patched our vendored Pip to fix: Pipenv Lock (Or Install) Does Not Respect Index Specified For A Package.
