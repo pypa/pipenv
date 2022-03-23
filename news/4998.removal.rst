@@ -1,3 +1,0 @@
-Removes long broken argument ``--code`` from ``install`` and ``--unused`` from ``check``.
-Check command no longer takes in arguments to ignore.
-Removed the vendored dependencies:  ``pipreqs`` and ``yarg``
