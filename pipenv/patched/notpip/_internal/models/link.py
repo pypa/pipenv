@@ -256,33 +256,33 @@ class _CleanResult(NamedTuple):
     subdirectory: str
     hashes: Dict[str, str]
 
-    @classmethod
-    def from_link(cls, link: Link) -> "_CleanResult":
-        parsed = link._parsed_url
-        netloc = parsed.netloc.rsplit("@", 1)[-1]
-        # According to RFC 8089, an empty host in file: means localhost.
-        if parsed.scheme == "file" and not netloc:
-            netloc = "localhost"
-        fragment = urllib.parse.parse_qs(parsed.fragment)
-        if "egg" in fragment:
-            logger.debug("Ignoring egg= fragment in %s", link)
-        try:
-            # If there are multiple subdirectory values, use the first one.
-            # This matches the behavior of Link.subdirectory_fragment.
-            subdirectory = fragment["subdirectory"][0]
-        except (IndexError, KeyError):
-            subdirectory = ""
-        # If there are multiple hash values under the same algorithm, use the
-        # first one. This matches the behavior of Link.hash_value.
-        hashes = {k: fragment[k][0] for k in _SUPPORTED_HASHES if k in fragment}
-        return cls(
-            parsed=parsed._replace(netloc=netloc, query="", fragment=""),
-            query=urllib.parse.parse_qs(parsed.query),
-            subdirectory=subdirectory,
-            hashes=hashes,
-        )
+
+def _clean_link(link: Link) -> _CleanResult:
+    parsed = link._parsed_url
+    netloc = parsed.netloc.rsplit("@", 1)[-1]
+    # According to RFC 8089, an empty host in file: means localhost.
+    if parsed.scheme == "file" and not netloc:
+        netloc = "localhost"
+    fragment = urllib.parse.parse_qs(parsed.fragment)
+    if "egg" in fragment:
+        logger.debug("Ignoring egg= fragment in %s", link)
+    try:
+        # If there are multiple subdirectory values, use the first one.
+        # This matches the behavior of Link.subdirectory_fragment.
+        subdirectory = fragment["subdirectory"][0]
+    except (IndexError, KeyError):
+        subdirectory = ""
+    # If there are multiple hash values under the same algorithm, use the
+    # first one. This matches the behavior of Link.hash_value.
+    hashes = {k: fragment[k][0] for k in _SUPPORTED_HASHES if k in fragment}
+    return _CleanResult(
+        parsed=parsed._replace(netloc=netloc, query="", fragment=""),
+        query=urllib.parse.parse_qs(parsed.query),
+        subdirectory=subdirectory,
+        hashes=hashes,
+    )
 
 
 @functools.lru_cache(maxsize=None)
 def links_equivalent(link1: Link, link2: Link) -> bool:
-    return _CleanResult.from_link(link1) == _CleanResult.from_link(link2)
+    return _clean_link(link1) == _clean_link(link2)
