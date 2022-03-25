@@ -1,0 +1,1 @@
+Vendor in pip==21.2.4 (from 21.2.2) in order to bring in requested bug fix for python3.6.  Note: support for 3.6 will be dropped in a subsequent release.
