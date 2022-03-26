@@ -804,3 +804,40 @@ def test_default_lock_overwrite_dev_lock(PipenvInstance):
         assert c.returncode == 0
         assert p.lockfile["default"]["click"]["version"] == "==6.7"
         assert p.lockfile["develop"]["click"]["version"] == "==6.7"
+
+
+@flaky
+@pytest.mark.lock
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_pipenv_respects_package_index_restrictions(PipenvInstance):
+    with PipenvInstance() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "{url}/simple"
+verify_ssl = true
+name = "local"
+
+[packages]
+requests = {requirement}
+                """.strip().format(url=p.pypi, requirement='{version="*", index="local"}')
+            f.write(contents)
+
+        c = p.pipenv('lock')
+        assert c.returncode == 0
+        assert 'requests' in p.lockfile['default']
+        assert 'idna' in p.lockfile['default']
+        assert 'certifi' in p.lockfile['default']
+        assert 'urllib3' in p.lockfile['default']
+        assert 'chardet' in p.lockfile['default']
+        # this is the newest version we have in our private pypi (but pypi.org has 2.27.1 at present)
+        expected_result = {'hashes': ['sha256:63b52e3c866428a224f97cab011de738c36aec0185aa91cfacd418b5d58911d1',
+                                      'sha256:ec22d826a36ed72a7358ff3fe56cbd4ba69dd7a6718ffd450ff0e9df7a47ce6a'],
+                           'index': 'local', 'version': '==2.19.1'}
+        assert p.lockfile['default']['requests'] == expected_result
