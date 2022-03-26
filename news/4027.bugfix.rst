@@ -1,0 +1,2 @@
+Fixes issue where silencing the ``Loading .env environment variables`` message also disables loading
+of the ``.env`` file.
