@@ -199,7 +199,7 @@ development dependencies::
     py==1.4.34
     pytest==3.2.3
 
-Finally, if you wish to generate a requirements file with only the
+If you wish to generate a requirements file with only the
 development requirements you can do that too, using the ``--dev-only``
 flag::
 
@@ -207,11 +207,37 @@ flag::
     py==1.4.34
     pytest==3.2.3
 
+Often, you would want to generate a requirements file based on your current
+environment. However, using pipenv lock -r will still do the locking process which
+could update package versions. To keep the packages as is, use the ``--keep-outdated``
+flag::
+
+    $ pipenv lock -r --keep-outdated
+    chardet==3.0.4
+    requests==2.18.4
+    certifi==2017.7.27.1
+    idna==2.6
+    urllib3==1.22
+
+Note that using this approach, packages newly added to the Pipfile will still be
+included in requirements.txt. If you really want to use Pipfile.lock and
+Pipfile.lock only, you can generate the requirements using::
+    $ pipenv reqs
+    chardet==3.0.4
+    requests==2.18.4
+    certifi==2017.7.27.1
+    idna==2.6
+    urllib3==1.22
+
+This will bypass the locking process completely. As with other commands,
+passing ``--dev`` will include both the default and development dependencies
+
 The locked requirements are written to stdout, with shell output redirection
 used to write them to a file::
 
     $ pipenv lock -r > requirements.txt
     $ pipenv lock -r --dev-only > dev-requirements.txt
+    $ pipenv reqs --dev > all-requirements.txt
     $ cat requirements.txt
     chardet==3.0.4
     requests==2.18.4
@@ -221,7 +247,14 @@ used to write them to a file::
     $ cat dev-requirements.txt
     py==1.4.34
     pytest==3.2.3
-
+    $ cat all-requirements.txt
+    chardet==3.0.4
+    requests==2.18.4
+    certifi==2017.7.27.1
+    idna==2.6
+    urllib3==1.22
+    py==1.4.34
+    pytest==3.2.3
 
 ☤ Detection of Security Vulnerabilities
 ---------------------------------------

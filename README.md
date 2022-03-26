@@ -185,6 +185,9 @@ Magic shell completions are now enabled!
        Use a lower-level pip command:
        $ pipenv run pip freeze
 
+       Generate a requirements.txt file (including dev):
+       $ pipenv reqs --dev > requirements.txt
+
     Commands:
       check      Checks for security vulnerabilities and against PEP 508 markers
                  provided in Pipfile.
@@ -199,6 +202,7 @@ Magic shell completions are now enabled!
                  Pipfile.
       shell      Spawns a shell within the virtualenv.
       sync       Installs all packages specified in Pipfile.lock.
+      reqs       Generates a requirements.txt compatible output directly from Pipfile.lock
       uninstall  Un-installs a provided package and removes it from Pipfile.
 
 Locate the project:

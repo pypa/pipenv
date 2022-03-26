@@ -11,6 +11,7 @@ sphinxcontrib-spelling = "<4.3.0"
 
 [scripts]
 tests = "bash ./run-tests.sh"
+test = "pytest -vvs"
 
 [pipenv]
 allow_prereleases = true

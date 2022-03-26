@@ -709,5 +709,24 @@ def verify(state):
     sys.exit(0)
 
 
+@cli.command(
+    short_help="Generate a requirements.txt from Pipfile.lock.",
+    context_settings=CONTEXT_SETTINGS,
+)
+@option("--dev", is_flag=True, default=False, help="Also add development requirements.")
+@pass_state
+def reqs(state, dev=False):
+    lockfile = state.project.lockfile_content
+    for i, package_index in enumerate(lockfile['_meta']['sources']):
+        prefix = '-i' if i == 0 else '--extra-index-url'
+        echo(crayons.normal(' '.join([prefix, package_index['url']])))
+    for req_name, value in lockfile['default'].items():
+        echo(crayons.normal(f"{req_name}{value['version']}"))
+    if dev:
+        for req_name, value in lockfile['develop'].items():
+            echo(crayons.normal(f"{req_name}{value['version']}"))
+    sys.exit(0)
+
+
 if __name__ == "__main__":
     cli()
