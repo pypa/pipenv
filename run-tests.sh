@@ -30,7 +30,8 @@ if [[ ! -z "$HOME" ]]; then
 fi
 
 # This installs the dependencies for pipenv
-${PIP_CALL} --upgrade pip setuptools wheel virtualenv --upgrade-strategy=eager
+${PIP_CALL} --upgrade pip wheel virtualenv --upgrade-strategy=eager
+${PIP_CALL} install "setuptools<61.0.0"
 
 VENV_CMD="${PYTHON} -m pipenv --venv"
 RM_CMD="pipenv --rm"
