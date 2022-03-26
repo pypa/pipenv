@@ -106,3 +106,24 @@ hello = "echo $HELLO"
             c = p.pipenv('run hello')
         assert c.returncode == 0
         assert 'WORLD\n' == c.stdout
+
+
+@pytest.mark.run
+@pytest.mark.parametrize('quiet', [True, False])
+def test_pipenv_run_pip_freeze_has_expected_output(quiet, PipenvInstance):
+    with PipenvInstance() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+    [packages]
+    requests = "==2.14.0"
+                """.strip()
+            f.write(contents)
+        c = p.pipenv('install')
+        assert c.returncode == 0
+
+        if quiet:
+            c = p.pipenv('run --quiet pip freeze')
+        else:
+            c = p.pipenv('run pip freeze')
+        assert c.returncode == 0
+        assert 'requests==2.14.0\n' == c.stdout
