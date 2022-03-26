@@ -108,7 +108,7 @@ class Project:
         self._original_dir = os.path.abspath(os.curdir)
         self._environment = None
         self._build_system = {
-            "requires": ["setuptools", "wheel"]
+            "requires": ["setuptools>=40.8.0<61.0.0", "wheel"]
         }
         self.python_version = python_version
         self.s = Setting()
