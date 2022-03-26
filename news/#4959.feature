@@ -1,0 +1,1 @@
+Implements a `pipenv reqs` command which generates a requirements.txt compatible output without locking.
