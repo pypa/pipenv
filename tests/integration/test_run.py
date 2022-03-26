@@ -90,14 +90,14 @@ def test_scripts_resolve_dot_env_vars(quiet, PipenvInstance):
     with PipenvInstance() as p:
         with open(".env", "w") as f:
             contents = """
-HELLO=WORLD
+HELLO_VAR=WORLD
             """.strip()
             f.write(contents)
 
         with open(p.pipfile_path, "w") as f:
             contents = """
 [scripts]
-hello = "echo $HELLO"
+hello = "echo $HELLO_VAR"
             """.strip()
             f.write(contents)
         if quiet:
