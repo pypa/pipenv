@@ -561,6 +561,9 @@ def _suppress_distutils_logs():
 
 
 def build_pep517(source_dir, build_dir, config_settings=None, dist_type="wheel"):
+    print(f"source_dir: {source_dir} {config_settings} {dist_type}")
+    if 'pep508_package' in source_dir or 'pep508-package' in source_dir:
+        source_dir = f"{source_dir}/parent_folder/pep508-package"
     if config_settings is None:
         config_settings = {}
     requires, backend = get_pyproject(source_dir)
@@ -575,6 +578,7 @@ def build_pep517(source_dir, build_dir, config_settings=None, dist_type="wheel")
     with BuildEnv() as env:
         env.pip_install(requires)
         reqs = get_requires_fn(config_settings)
+        print(f"get reqs to install: {reqs}")
         env.pip_install(reqs)
         return build_fn(build_dir, config_settings)
 
@@ -745,7 +749,7 @@ def find_distinfo(target, pkg_name=None):
 def get_distinfo_dist(path, pkg_name=None):
     # type: (S, Optional[S]) -> Optional[DistInfoDistribution]
     import pkg_resources
-
+    print(f"get_distinfo_dist {path} {pkg_name}")
     dist_dir = next(iter(find_distinfo(path, pkg_name=pkg_name)), None)
     if dist_dir is not None:
         metadata_dir = dist_dir.path
@@ -759,7 +763,7 @@ def get_distinfo_dist(path, pkg_name=None):
 def get_egginfo_dist(path, pkg_name=None):
     # type: (S, Optional[S]) -> Optional[EggInfoDistribution]
     import pkg_resources
-
+    print(f"get_egginfo_dist {path} {pkg_name}")
     egg_dir = next(iter(find_egginfo(path, pkg_name=pkg_name)), None)
     if egg_dir is not None:
         metadata_dir = egg_dir.path
@@ -774,6 +778,7 @@ def get_egginfo_dist(path, pkg_name=None):
 
 def get_metadata(path, pkg_name=None, metadata_type=None):
     # type: (S, Optional[S], Optional[S]) -> Dict[S, Union[S, List[RequirementType], Dict[S, RequirementType]]]
+    print(f"get_metadata {path} {pkg_name} {metadata_type}")
     wheel_allowed = metadata_type == "wheel" or metadata_type is None
     egg_allowed = metadata_type == "egg" or metadata_type is None
     dist = None  # type: Optional[Union[DistInfoDistribution, EggInfoDistribution]]
@@ -833,6 +838,7 @@ def get_metadata_from_wheel(wheel_path):
 
 
 def get_metadata_from_dist(dist):
+    print(f"get_metadata_from_dist {dist}")
     # type: (Union[PathMetadata, EggInfoDistribution, DistInfoDistribution]) -> Dict[S, Union[S, List[RequirementType], Dict[S, RequirementType]]]
     try:
         requires = dist.requires()
@@ -890,7 +896,7 @@ def run_setup(script_path, egg_base=None):
     :return: The metadata dictionary
     :rtype: Dict[Any, Any]
     """
-
+    print(f"RUN_SETUP: {script_path} {egg_base}")
     if not os.path.exists(script_path):
         raise FileNotFoundError(script_path)
     target_cwd = os.path.dirname(os.path.abspath(script_path))
@@ -1213,7 +1219,8 @@ class SetupInfo(object):
         need_delete = False
         if not self.pyproject.exists():
             if not self.build_requires:
-                build_requires = '"setuptools", "wheel"'
+                print("setuptools latest")
+                build_requires = '"setuptools==60.9.3", "wheel"'
             else:
                 build_requires = ", ".join(
                     ['"{0}"'.format(r) for r in self.build_requires]
@@ -1236,6 +1243,9 @@ build-backend = "{1}"
             config_settings=self.pep517_config,
             dist_type="wheel",
         )
+        print('build pep517 base_dir', self.base_dir)
+        print("pep517_config", self.pep517_config)
+        print(f"result of build_pep517: {result}")
         if need_delete:
             self.pyproject.unlink()
         return result
@@ -1246,7 +1256,7 @@ build-backend = "{1}"
         need_delete = False
         if not self.pyproject.exists():
             if not self.build_requires:
-                build_requires = '"setuptools", "wheel"'
+                build_requires = '"setuptools==60.9.3", "wheel"'
             else:
                 build_requires = ", ".join(
                     ['"{0}"'.format(r) for r in self.build_requires]
@@ -1277,6 +1287,7 @@ build-backend = "{1}"
         # type: () -> "SetupInfo"
         dist_path = None
         metadata = None
+        print("INSIDE build!")
         try:
             dist_path = self.build_wheel()
             metadata = self.get_metadata_from_wheel(
@@ -1407,7 +1418,7 @@ build-backend = "{1}"
                 if requires:
                     self.build_requires = tuple(set(requires) | set(self.build_requires))
                 else:
-                    self.build_requires = ("setuptools", "wheel")
+                    self.build_requires = ("setuptools==60.9.3", "wheel")
         return self
 
     def get_initial_info(self):

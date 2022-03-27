@@ -590,6 +590,7 @@ class Resolver:
                 raise RequirementError(req=req)
             setup_info = req.req.setup_info
             setup_info.get_info()
+            print("SETUP INFO:", name, pep423_name(name), entry)
             locked_deps[pep423_name(name)] = entry
             requirements = []
             # Allow users to toggle resolution off for non-editable VCS packages
@@ -601,6 +602,7 @@ class Resolver:
                 )
             ):
                 requirements = [v for v in getattr(setup_info, "requires", {}).values()]
+                print('Condition true, requirements:', requirements)
             for r in requirements:
                 if getattr(r, "url", None) and not getattr(r, "editable", False):
                     if r is not None:
@@ -636,6 +638,7 @@ class Resolver:
             # if not req.is_vcs:
             locked_deps.update({name: entry})
         else:
+            print(f"WE ARE HERE!")
             # if the dependency isn't installable, don't add it to constraints
             # and instead add it directly to the lock
             if req and req.requirement and (
@@ -897,13 +900,14 @@ class Resolver:
         from pipenv.vendor.pip_shims.shims import InstallationError
         from pipenv.exceptions import ResolutionFailure
 
-        self.constraints  # For some reason its important to evaluate constraints before resolver context
+        print(f"constraints: {self.constraints}")
         with temp_environ(), self.get_resolver() as resolver:
             try:
                 results = resolver.resolve(self.constraints, check_supported_wheels=False)
             except InstallationError as e:
                 raise ResolutionFailure(message=str(e))
             else:
+                print(f"resultls all requirements = {results}")
                 self.results = set(results.all_requirements)
                 self.resolved_tree.update(self.results)
         return self.resolved_tree
@@ -911,6 +915,7 @@ class Resolver:
     def resolve_constraints(self):
         from .vendor.requirementslib.models.markers import marker_from_specifier
         new_tree = set()
+        print(f"resolved tree: {self.resolved_tree}")
         for result in self.resolved_tree:
             if result.markers:
                 self.markers[result.name] = result.markers
@@ -925,6 +930,7 @@ class Resolver:
                         if result.req:
                             result.req.marker = marker
             new_tree.add(result)
+        print(f"new tree: {new_tree}")
         self.resolved_tree = new_tree
 
     @classmethod
@@ -1011,6 +1017,7 @@ class Resolver:
         return self.hash_cache.get_hash(link)
 
     def _clean_skipped_result(self, req, value):
+        print("_clean_skipped_result", req, value)
         ref = None
         if req.is_vcs:
             ref = req.commit_hash
@@ -1033,6 +1040,8 @@ class Resolver:
         )
         reqs = [(Requirement.from_ireq(ireq), ireq) for ireq in self.resolved_tree]
         results = {}
+        print("clean_results", reqs)
+        print(vars(self))
         for req, ireq in reqs:
             if (req.vcs and req.editable and not req.is_direct_url):
                 continue
@@ -1050,14 +1059,18 @@ class Resolver:
                 results[name].update(entry)
             else:
                 results[name] = entry
+        print("skipped keys", list(self.skipped.keys()))
         for k in list(self.skipped.keys()):
             req = Requirement.from_pipfile(k, self.skipped[k])
+            print(f"Skipped key {k} req: {req}")
             name, entry = self._clean_skipped_result(req, self.skipped[k])
+            print("_clean_skipped_result", name, entry)
             entry = translate_markers(entry)
             if name in results:
                 results[name].update(entry)
             else:
                 results[name] = entry
+        print("results:", results)
         results = list(results.values())
         return results
 
@@ -1126,8 +1139,10 @@ def actually_resolve_deps(
         )
         resolver.resolve()
         hashes = resolver.resolve_hashes()
+        print("resolved hashes", hashes)
         resolver.resolve_constraints()
         results = resolver.clean_results()
+        print(f"actually resolve cleaned results {results}")
     for warning in warning_list:
         _show_warning(warning.message, warning.category, warning.filename, warning.lineno,
                       warning.line)
@@ -1429,6 +1444,7 @@ def resolve_deps(
                 )
             except RuntimeError:
                 sys.exit(1)
+    print(f"utils results: {results}")
     return results, resolver
 
 

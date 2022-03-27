@@ -336,6 +336,7 @@ class Resolution(object):
 
         # Initialize the root state.
         self._states = [State(mapping=collections.OrderedDict(), criteria={})]
+        print(f"requirements: {requirements}")
         for r in requirements:
             try:
                 self._add_to_criteria(self.state.criteria, r, parent=None)
@@ -355,6 +356,7 @@ class Resolution(object):
                 for key, criterion in self.state.criteria.items()
                 if not self._is_current_pin_satisfying(key, criterion)
             ]
+            print(f"unsatisfied_names {unsatisfied_names}")
 
             # All criteria are accounted for. Nothing more to pin, we are done!
             if not unsatisfied_names:

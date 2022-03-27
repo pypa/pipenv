@@ -886,6 +886,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         Path(sys.executable).absolute().as_posix(),
         "-m",
         "virtualenv",
+        "--no-setuptools",
         f"--prompt={project.name}",
         f"--python={python}",
         project.get_location_for_virtualenv(),

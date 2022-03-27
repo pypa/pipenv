@@ -528,7 +528,7 @@ class Line(object):
                 setup_dict = SetupInfo.get_setup_cfg(self.setup_cfg)
                 pyproject_backend = get_default_pyproject_backend()
                 pyproject_requires = setup_dict.get(
-                    "build_requires", ["setuptools", "wheel"]
+                    "build_requires", ["setuptools==60.9.3", "wheel"]
                 )  # type: ignore
             if pyproject_requires:
                 self._pyproject_requires = tuple(pyproject_requires)
@@ -879,7 +879,9 @@ class Line(object):
             and is_installable_dir(self.path)
             and self.setup_cfg
         ):
+            print('return empty!')
             return {}
+        print(f"parsed_setup_cfg: {self.setup_info.parse_setup_cfg()}")
         return self.setup_info.parse_setup_cfg()
 
     @cached_property
@@ -2012,10 +2014,12 @@ class VCSRequirement(FileRequirement):
 
     @property
     def setup_info(self):
+        print("INSIDE setup_info!")
         if self._parsed_line and self._parsed_line.setup_info:
             if not self._parsed_line.setup_info.name:
                 with pip_shims.shims.global_tempdir_manager():
                     self._parsed_line._setup_info.get_info()
+            print(self._parsed_line.setup_info)
             return self._parsed_line.setup_info
         subdir = self.subdirectory or self.parsed_line.subdirectory
         if self._repo:
@@ -2024,11 +2028,13 @@ class VCSRequirement(FileRequirement):
                     Line(self._repo.checkout_directory).ireq, subdir=subdir
                 )
                 self._setup_info.get_info()
+            print(self._setup_info)
             return self._setup_info
         ireq = self.parsed_line.ireq
 
         with pip_shims.shims.global_tempdir_manager():
             self._setup_info = SetupInfo.from_ireq(ireq, subdir=subdir)
+        print(self._setup_info)
         return self._setup_info
 
     @setup_info.setter

@@ -710,10 +710,12 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
         system=system,
         requirements_dir=requirements_dir,
     )
+    print(f'results: {results}')
     if keep_outdated:
         results = clean_outdated(results, resolver, project, dev)
     else:
         results = clean_results(results, resolver, project, dev)
+        print(f'clean results: {clean_results}')
     if write:
         with open(write, "w") as fh:
             if not results:
