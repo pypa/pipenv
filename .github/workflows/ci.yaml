@@ -73,6 +73,7 @@ jobs:
           git submodule update --init --recursive
           python -m pip install -e .
           pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
+          pipenv run pip uninstall setuptools --yes
           pipenv run pip install "setuptools>=40.8.0<=60.10.0"
       - name: Run tests
         env:
