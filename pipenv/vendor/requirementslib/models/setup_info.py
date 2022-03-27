@@ -13,7 +13,7 @@ import sys
 from collections.abc import Iterable, Mapping
 from functools import lru_cache, partial
 from pathlib import Path
-from urllib.parse import urlparse, urlunparse, parse_qs
+from urllib.parse import parse_qs, urlparse, urlunparse
 from weakref import finalize
 
 import pipenv.vendor.attr as attr
