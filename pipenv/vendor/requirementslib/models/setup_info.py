@@ -561,9 +561,9 @@ def _suppress_distutils_logs():
 
 
 def build_pep517(source_dir, build_dir, config_settings=None, dist_type="wheel"):
-    print(f"source_dir: {source_dir} {config_settings} {dist_type}")
-    if 'pep508_package' in source_dir or 'pep508-package' in source_dir:
-        source_dir = f"{source_dir}/parent_folder/pep508-package"
+    print(f"build_pep517 source_dir: {source_dir} {config_settings} {dist_type}")
+    #if 'pep508_package' in source_dir or 'pep508-package' in source_dir:
+    #    source_dir = f"{source_dir}/parent_folder/pep508-package"
     if config_settings is None:
         config_settings = {}
     requires, backend = get_pyproject(source_dir)
@@ -1010,6 +1010,7 @@ class Extra(object):
 class SetupInfo(object):
     name = attr.ib(default=None, eq=True)  # type: STRING_TYPE
     base_dir = attr.ib(default=None, eq=True, hash=False)  # type: STRING_TYPE
+    subdir = attr.ib(default=None, eq=True, hash=False)  # type: STRING_TYPE
     _version = attr.ib(default=None, eq=True)  # type: STRING_TYPE
     _requirements = attr.ib(
         type=frozenset, factory=frozenset, eq=True, hash=True
@@ -1220,7 +1221,7 @@ class SetupInfo(object):
         if not self.pyproject.exists():
             if not self.build_requires:
                 print("setuptools latest")
-                build_requires = '"setuptools==60.9.3", "wheel"'
+                build_requires = '"setuptools", "wheel"'
             else:
                 build_requires = ", ".join(
                     ['"{0}"'.format(r) for r in self.build_requires]
@@ -1237,8 +1238,16 @@ build-backend = "{1}"
                 )
             )
             need_delete = True
+        print("IREQ", str(self.ireq.link))
+        import urllib.parse
+        parsed = urllib.parse.urlparse(str(self.ireq.link))
+        subdir = urllib.parse.parse_qs(parsed.fragment).get('subdirectory', [])
+        if subdir:
+            directory = f"{self.base_dir}/{subdir[0]}"
+        else:
+            directory = self.base_dir
         result = build_pep517(
-            self.base_dir,
+            directory,
             self.extra_kwargs["build_dir"],
             config_settings=self.pep517_config,
             dist_type="wheel",
@@ -1256,7 +1265,7 @@ build-backend = "{1}"
         need_delete = False
         if not self.pyproject.exists():
             if not self.build_requires:
-                build_requires = '"setuptools==60.9.3", "wheel"'
+                build_requires = '"setuptools", "wheel"'
             else:
                 build_requires = ", ".join(
                     ['"{0}"'.format(r) for r in self.build_requires]
@@ -1418,7 +1427,7 @@ build-backend = "{1}"
                 if requires:
                     self.build_requires = tuple(set(requires) | set(self.build_requires))
                 else:
-                    self.build_requires = ("setuptools==60.9.3", "wheel")
+                    self.build_requires = ("setuptools", "wheel")
         return self
 
     def get_initial_info(self):
@@ -1498,7 +1507,10 @@ build-backend = "{1}"
     def from_requirement(cls, requirement, finder=None):
         # type: (TRequirement, Optional[PackageFinder]) -> Optional[SetupInfo]
         ireq = requirement.as_ireq()
-        subdir = getattr(requirement.req, "subdirectory", None)
+        print("ireq", ireq)
+        print("requirement", requirement)
+        print("requirement.req", requirement.req)
+        self.subdir = subdir = getattr(requirement.req, "subdirectory", None)
         return cls.from_ireq(ireq, subdir=subdir, finder=finder)
 
     @classmethod

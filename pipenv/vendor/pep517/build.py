@@ -51,7 +51,7 @@ def compat_system(source_dir):
         'build-backend',
         'setuptools.build_meta:__legacy__',
     )
-    system.setdefault('requires', ['setuptools==60.9.3', 'wheel'])
+    system.setdefault('requires', ['setuptools', 'wheel'])
     return system
 
 
