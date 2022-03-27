@@ -17,7 +17,7 @@ from pipenv.patched.notpip._vendor.certifi import where
 from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
 from pipenv.patched.notpip._vendor.packaging.version import Version
 
-from pip import __file__ as pip_location
+from pipenv.patched.notpip import __file__ as pip_location
 from pipenv.patched.notpip._internal.cli.spinners import open_spinner
 from pipenv.patched.notpip._internal.locations import get_platlib, get_prefixed_libs, get_purelib
 from pipenv.patched.notpip._internal.metadata import get_environment
