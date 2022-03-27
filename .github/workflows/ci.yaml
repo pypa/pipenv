@@ -72,8 +72,8 @@ jobs:
           git submodule sync
           git submodule update --init --recursive
           python -m pip install -e .
-          pipenv sync --dev --python=${{ steps.python-path.outputs.path }}
           python -m pip install "setuptools>=40.8.0<=60.10.0"
+          pipenv sync --dev --python=${{ steps.python-path.outputs.path }}
       - name: Run tests
         env:
           PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
