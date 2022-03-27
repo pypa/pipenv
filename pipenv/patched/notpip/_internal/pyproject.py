@@ -112,7 +112,7 @@ def load_pyproject_toml(
         # a version of setuptools that supports that backend.
 
         build_system = {
-            "requires": ["setuptools>=40.8.0<61.0.0", "wheel"],
+            "requires": ["setuptools>=40.8.0<=60.10.0", "wheel"],
             "build-backend": "setuptools.build_meta:__legacy__",
         }
 
@@ -178,6 +178,6 @@ def load_pyproject_toml(
         # tools themselves. The original PEP 518 code had a similar check (but
         # implemented in a different way).
         backend = "setuptools.build_meta:__legacy__"
-        check = ["setuptools>=40.8.0<61.0.0", "wheel"]
+        check = ["setuptools>=40.8.0<=60.10.0", "wheel"]
 
     return BuildSystemDetails(requires, backend, check, backend_path)

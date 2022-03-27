@@ -108,7 +108,7 @@ class Project:
         self._original_dir = os.path.abspath(os.curdir)
         self._environment = None
         self._build_system = {
-            "requires": ["setuptools>=40.8.0<61.0.0", "wheel"]
+            "requires": ["setuptools>=40.8.0<=60.10.0", "wheel"]
         }
         self.python_version = python_version
         self.s = Setting()
@@ -559,7 +559,7 @@ class Project:
             if not os.path.exists(self.path_to("setup.py")):
                 if not build_system or not build_system.get("requires"):
                     build_system = {
-                        "requires": ["setuptools>=40.8.0<61.0.0", "wheel"],
+                        "requires": ["setuptools>=40.8.0<=60.10.0", "wheel"],
                         "build-backend": get_default_pyproject_backend(),
                     }
                 self._build_system = build_system
@@ -567,7 +567,7 @@ class Project:
     @property
     def build_requires(self):
         # type: () -> List[str]
-        return self._build_system.get("requires", ["setuptools>=40.8.0<61.0.0", "wheel"])
+        return self._build_system.get("requires", ["setuptools>=40.8.0<=60.10.0", "wheel"])
 
     @property
     def build_backend(self):
