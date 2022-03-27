@@ -774,9 +774,6 @@ def test_lock_nested_vcs_direct_url(PipenvInstance):
         })
         c = p.pipenv("lock")
         assert c.returncode == 0
-        c = p.pipenv("run pip freeze --all")
-        print(c.stdout)
-        assert c.returncode == 0
         assert "git" in p.lockfile["default"]["pep508-package"]
         assert "sibling-package" in p.lockfile["default"]
         assert "git" in p.lockfile["default"]["sibling-package"]
