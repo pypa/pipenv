@@ -1213,7 +1213,7 @@ class SetupInfo(object):
         need_delete = False
         if not self.pyproject.exists():
             if not self.build_requires:
-                build_requires = '"setuptools", "wheel"'
+                build_requires = '"setuptools>=40.8.0<=60.10.0", "wheel"'
             else:
                 build_requires = ", ".join(
                     ['"{0}"'.format(r) for r in self.build_requires]
@@ -1246,7 +1246,7 @@ build-backend = "{1}"
         need_delete = False
         if not self.pyproject.exists():
             if not self.build_requires:
-                build_requires = '"setuptools", "wheel"'
+                build_requires = '"setuptools>=40.8.0<=60.10.0", "wheel"'
             else:
                 build_requires = ", ".join(
                     ['"{0}"'.format(r) for r in self.build_requires]
@@ -1407,7 +1407,7 @@ build-backend = "{1}"
                 if requires:
                     self.build_requires = tuple(set(requires) | set(self.build_requires))
                 else:
-                    self.build_requires = ("setuptools", "wheel")
+                    self.build_requires = ("setuptools>=40.8.0<=60.10.0", "wheel")
         return self
 
     def get_initial_info(self):

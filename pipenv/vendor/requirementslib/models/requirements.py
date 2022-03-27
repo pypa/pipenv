@@ -528,7 +528,7 @@ class Line(object):
                 setup_dict = SetupInfo.get_setup_cfg(self.setup_cfg)
                 pyproject_backend = get_default_pyproject_backend()
                 pyproject_requires = setup_dict.get(
-                    "build_requires", ["setuptools", "wheel"]
+                    "build_requires", ["setuptools>=40.8.0<=60.10.0", "wheel"]
                 )  # type: ignore
             if pyproject_requires:
                 self._pyproject_requires = tuple(pyproject_requires)
