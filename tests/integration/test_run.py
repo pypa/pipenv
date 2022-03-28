@@ -82,3 +82,48 @@ def test_run_with_usr_env_shebang(PipenvInstance):
         project = Project()
         lines = [line.strip() for line in c.stdout.splitlines()]
         assert all(line == project.virtualenv_location for line in lines)
+
+
+@pytest.mark.run
+@pytest.mark.parametrize('quiet', [True, False])
+def test_scripts_resolve_dot_env_vars(quiet, PipenvInstance):
+    with PipenvInstance() as p:
+        with open(".env", "w") as f:
+            contents = """
+HELLO_VAR=WORLD
+            """.strip()
+            f.write(contents)
+
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[scripts]
+hello = "echo $HELLO_VAR"
+            """.strip()
+            f.write(contents)
+        if quiet:
+            c = p.pipenv('run --quiet hello')
+        else:
+            c = p.pipenv('run hello')
+        assert c.returncode == 0
+        assert 'WORLD\n' == c.stdout
+
+
+@pytest.mark.run
+@pytest.mark.parametrize('quiet', [True, False])
+def test_pipenv_run_pip_freeze_has_expected_output(quiet, PipenvInstance):
+    with PipenvInstance() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+    [packages]
+    requests = "==2.14.0"
+                """.strip()
+            f.write(contents)
+        c = p.pipenv('install')
+        assert c.returncode == 0
+
+        if quiet:
+            c = p.pipenv('run --quiet pip freeze')
+        else:
+            c = p.pipenv('run pip freeze')
+        assert c.returncode == 0
+        assert 'requests==2.14.0\n' == c.stdout
