@@ -1,0 +1,4 @@
+It would appear that ``requirementslib`` was not fully specifying the subdirectory to ``build_pep517`` and
+and when a new version of ``setuptools`` was released, the test ``test_lock_nested_vcs_direct_url``
+broke indicating the Pipfile.lock no longer contained the extra dependencies that should have been resolved.
+This regression affected ``pipenv>=2021.11.9`` but has been fixed by a patch to ``requirementslib``.
