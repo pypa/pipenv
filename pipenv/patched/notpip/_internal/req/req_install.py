@@ -838,12 +838,10 @@ def check_invalid_constraint_type(req: InstallRequirement) -> str:
                 "undocumented. The new implementation of the resolver no "
                 "longer supports these forms."
             ),
-            replacement=(
-                "replacing the constraint with a requirement."
-            ),
+            replacement="replacing the constraint with a requirement",
             # No plan yet for when the new resolver becomes default
             gone_in=None,
-            issue=8210
+            issue=8210,
         )
 
     return problem

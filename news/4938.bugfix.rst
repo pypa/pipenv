@@ -1,1 +1,0 @@
-Remove remaining mention of python2 and --two flag from codebase.

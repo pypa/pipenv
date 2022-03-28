@@ -1,3 +1,80 @@
+2022.3.28 (2022-03-27)
+======================
+
+
+Bug Fixes
+---------
+
+- Environment variables were not being loaded when the `--quiet` flag was set  `#5010 <https://github.com/pypa/pipenv/issues/5010>`_
+- It would appear that ``requirementslib`` was not fully specifying the subdirectory to ``build_pep517`` and
+  and when a new version of ``setuptools`` was released, the test ``test_lock_nested_vcs_direct_url``
+  broke indicating the Pipfile.lock no longer contained the extra dependencies that should have been resolved.
+  This regression affected ``pipenv>=2021.11.9`` but has been fixed by a patch to ``requirementslib``.  `#5019 <https://github.com/pypa/pipenv/issues/5019>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in pip==21.2.4 (from 21.2.2) in order to bring in requested bug fix for python3.6.  Note: support for 3.6 will be dropped in a subsequent release.  `#5008 <https://github.com/pypa/pipenv/issues/5008>`_
+
+
+2022.3.24 (2022-03-23)
+======================
+
+
+Features & Improvements
+-----------------------
+
+- It is now possible to silence the ``Loading .env environment variables`` message on ``pipenv run``
+  with the ``--quiet`` flag or the `PIPENV_QUIET` environment variable.  `#4027 <https://github.com/pypa/pipenv/issues/4027>`_
+
+Bug Fixes
+---------
+
+- Fixes issue with new index safety restriction, whereby an unnamed extra sources index
+  caused and error to be thrown during install.  `#5002 <https://github.com/pypa/pipenv/issues/5002>`_
+- The text ``Loading .env environment variables...`` has been switched back to stderr as to not
+  break requirements.txt generation.  Also it only prints now when a ``.env`` file is actually present.  `#5003 <https://github.com/pypa/pipenv/issues/5003>`_
+
+
+2022.3.23 (2022-03-22)
+======================
+
+
+Features & Improvements
+-----------------------
+
+- Use environment variable `PIPENV_SKIP_LOCK` to control the behaviour of lock skipping.  `#4797 <https://github.com/pypa/pipenv/issues/4797>`_
+- New CLI command ``verify``, checks the Pipfile.lock is up-to-date  `#4893 <https://github.com/pypa/pipenv/issues/4893>`_
+
+Behavior Changes
+----------------
+
+- Pattern expansion for arguments was disabled on Windows.  `#4935 <https://github.com/pypa/pipenv/issues/4935>`_
+
+Bug Fixes
+---------
+
+- Python versions on Windows can now be installed automatically through pyenv-win  `#4525 <https://github.com/pypa/pipenv/issues/4525>`_
+- Patched our vendored Pip to fix: Pipenv Lock (Or Install) Does Not Respect Index Specified For A Package.  `#4637 <https://github.com/pypa/pipenv/issues/4637>`_
+- If `PIP_TARGET` is set to environment variables,  Refer specified directory for calculate delta, instead default directory  `#4775 <https://github.com/pypa/pipenv/issues/4775>`_
+- Remove remaining mention of python2 and --two flag from codebase.  `#4938 <https://github.com/pypa/pipenv/issues/4938>`_
+- Use `CI` environment value, over mere existence of name  `#4944 <https://github.com/pypa/pipenv/issues/4944>`_
+- Environment variables from dot env files are now properly expanded when included in scripts.  `#4975 <https://github.com/pypa/pipenv/issues/4975>`_
+
+Vendored Libraries
+------------------
+
+- Updated vendor version of `pythonfinder` from `1.2.9` to `1.2.10` which fixes a bug with WSL
+  (Windows Subsystem for Linux) when a path can not be read and Permission Denied error is encountered.  `#4976 <https://github.com/pypa/pipenv/issues/4976>`_
+
+Removals and Deprecations
+-------------------------
+
+- Removes long broken argument ``--code`` from ``install`` and ``--unused`` from ``check``.
+  Check command no longer takes in arguments to ignore.
+  Removed the vendored dependencies:  ``pipreqs`` and ``yarg``  `#4998 <https://github.com/pypa/pipenv/issues/4998>`_
+
+
 2022.1.8 (2022-01-08)
 =====================
 
