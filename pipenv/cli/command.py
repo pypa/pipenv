@@ -7,7 +7,6 @@ from pipenv._compat import fix_utf8
 from pipenv.cli.options import (
     CONTEXT_SETTINGS,
     PipenvGroup,
-    code_option,
     common_options,
     deploy_option,
     general_options,
@@ -36,7 +35,6 @@ from pipenv.vendor.click import (
     option,
     pass_context,
     secho,
-    types,
     version_option,
 )
 
@@ -212,7 +210,6 @@ def cli(
     context_settings=subcommand_context,
 )
 @system_option
-@code_option
 @deploy_option
 @site_packages_option
 @skip_lock_option
@@ -235,7 +232,6 @@ def install(state, **kwargs):
         requirementstxt=state.installstate.requirementstxt,
         sequential=state.installstate.sequential,
         pre=state.installstate.pre,
-        code=state.installstate.code,
         deploy=state.installstate.deploy,
         keep_outdated=state.installstate.keep_outdated,
         selective_upgrade=state.installstate.selective_upgrade,
@@ -445,6 +441,7 @@ def run(state, command, args):
         three=state.three,
         python=state.python,
         pypi_mirror=state.pypi_mirror,
+        quiet=state.quiet,
     )
 
 
@@ -452,13 +449,6 @@ def run(state, command, args):
     short_help="Checks for PyUp Safety security vulnerabilities and against"
     " PEP 508 markers provided in Pipfile.",
     context_settings=subcommand_context,
-)
-@option(
-    "--unused",
-    nargs=1,
-    default="",
-    type=types.STRING,
-    help="Given a code path, show potentially unused dependencies.",
 )
 @option(
     "--db",
@@ -490,18 +480,15 @@ def run(state, command, args):
 )
 @common_options
 @system_option
-@argument("args", nargs=-1)
 @pass_state
 def check(
     state,
-    unused=False,
     db=None,
     style=False,
     ignore=None,
     output="default",
     key=None,
     quiet=False,
-    args=None,
     **kwargs,
 ):
     """Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile."""
@@ -512,13 +499,11 @@ def check(
         three=state.three,
         python=state.python,
         system=state.system,
-        unused=unused,
         db=db,
         ignore=ignore,
         output=output,
         key=key,
         quiet=quiet,
-        args=args,
         pypi_mirror=state.pypi_mirror,
     )
 

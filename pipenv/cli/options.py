@@ -529,25 +529,6 @@ def dev_only_flag(f):
     )(f)
 
 
-def code_option(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        if value:
-            state.installstate.code = value
-        return value
-
-    return option(
-        "--code",
-        "-c",
-        nargs=1,
-        default="",
-        help="Install packages automatically discovered from import statements.",
-        callback=callback,
-        expose_value=False,
-        type=click_types.STRING,
-    )(f)
-
-
 def deploy_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
@@ -607,6 +588,7 @@ def validate_pypi_mirror(ctx, param, value):
 def common_options(f):
     f = pypi_mirror_option(f)
     f = verbose_option(f)
+    f = quiet_option(f)
     f = clear_option(f)
     f = three_option(f)
     f = python_option(f)

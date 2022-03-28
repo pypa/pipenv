@@ -212,27 +212,6 @@ pyver = "which python"
 
 
 @pytest.mark.cli
-def test_scripts_resolve_dot_env_vars(PipenvInstance):
-    with PipenvInstance() as p:
-        with open(".env", "w") as f:
-            contents = """
-HELLO=WORLD
-            """.strip()
-            f.write(contents)
-
-        with open(p.pipfile_path, "w") as f:
-            contents = """
-[scripts]
-hello = "echo $HELLO"
-            """.strip()
-            f.write(contents)
-        c = p.pipenv('run hello')
-        print(c)
-        print(c.stdout)
-        assert 'WORLD' in c.stdout
-
-
-@pytest.mark.cli
 def test_help(PipenvInstance):
     with PipenvInstance() as p:
         assert p.pipenv('--help').stdout
@@ -261,29 +240,6 @@ def test_install_parse_error(PipenvInstance):
         c = p.pipenv('install requests u/\\/p@r\\$34b13+pkg')
         assert c.returncode != 0
         assert 'u/\\/p@r$34b13+pkg' not in p.pipfile['packages']
-
-
-@pytest.mark.code
-@pytest.mark.check
-@pytest.mark.unused
-@pytest.mark.skip_osx
-@pytest.mark.needs_internet(reason='required by check')
-def test_check_unused(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
-        with open('__init__.py', 'w') as f:
-            contents = """
-import click
-import records
-import flask
-            """.strip()
-            f.write(contents)
-        p.pipenv('install requests click flask')
-
-        assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'click', 'flask']), p.pipfile["packages"]
-
-        c = p.pipenv('check --unused .')
-        assert 'click' not in c.stdout
-        assert 'flask' not in c.stdout
 
 
 @pytest.mark.cli

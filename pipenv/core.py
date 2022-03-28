@@ -25,12 +25,7 @@ from pipenv.utils.dependencies import (
     python_version,
 )
 from pipenv.utils.indexes import get_source_list, parse_indexes, prepare_pip_source_args
-from pipenv.utils.internet import (
-    download_file,
-    get_host_and_port,
-    is_valid_url,
-    proper_case,
-)
+from pipenv.utils.internet import download_file, get_host_and_port, is_valid_url
 from pipenv.utils.processes import run_command
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.utils.shell import (
@@ -114,7 +109,7 @@ def do_clear(project):
         raise
 
 
-def load_dot_env(project, as_dict=False):
+def load_dot_env(project, as_dict=False, quiet=False):
     """Loads .env file into sys.environ."""
     if not project.s.PIPENV_DONT_LOAD_ENV:
         # If the project doesn't exist yet, check current directory for a .env file
@@ -135,15 +130,16 @@ def load_dot_env(project, as_dict=False):
             )
         if as_dict:
             return dotenv.dotenv_values(dotenv_file)
-        else:
-            click.echo(
-                crayons.normal(
-                    fix_utf8("Loading .env environment variables..."), bold=True
-                ),
-                err=False,
-            )
+        elif os.path.isfile(dotenv_file):
+            if not quiet:
+                click.echo(
+                    crayons.normal(
+                        fix_utf8("Loading .env environment variables..."), bold=True
+                    ),
+                    err=True,
+                )
             dotenv.load_dotenv(dotenv_file, override=True)
-            project.s.initialize()
+        project.s.initialize()
 
 
 def cleanup_virtualenv(project, bare=True):
@@ -239,23 +235,6 @@ def ensure_environment():
                 ),
                 err=True,
             )
-
-
-def import_from_code(path="."):
-    from pipreqs import pipreqs
-
-    rs = []
-    try:
-        for r in pipreqs.get_all_imports(
-            path, encoding="utf-8", extra_ignore_dirs=[".venv"]
-        ):
-            if r not in BAD_PACKAGES:
-                rs.append(r)
-        pkg_names = pipreqs.get_pkg_names(rs)
-        return [proper_case(r) for r in pkg_names]
-
-    except Exception:
-        return []
 
 
 def ensure_pipfile(project, validate=True, skip_requirements=False, system=False):
@@ -1508,7 +1487,13 @@ def pip_install(
     if not index and requirement.index:
         index = requirement.index
     if index and not extra_indexes:
-        extra_indexes = list(project.sources)
+        extra_indexes = []
+        if requirement.index:
+            extra_indexes = list(
+                filter(lambda d: d.get("name") == requirement.index, project.sources)
+            )
+        if not extra_indexes:
+            extra_indexes = list(project.sources)
     if requirement and requirement.vcs or requirement.editable:
         requirement.index = None
         # Install dependencies when a package is a non-editable VCS dependency.
@@ -1534,6 +1519,8 @@ def pip_install(
         trusted_hosts=trusted_hosts,
         pypi_mirror=pypi_mirror,
     )
+    if requirement.index in sources:
+        sources = list(filter(lambda d: d.get("name") == requirement.index, sources))
     if r:
         with open(r, "r") as fh:
             if "--hash" not in fh.read():
@@ -1948,7 +1935,6 @@ def do_install(
     requirementstxt=False,
     sequential=False,
     pre=False,
-    code=False,
     deploy=False,
     keep_outdated=False,
     selective_upgrade=False,
@@ -1983,7 +1969,7 @@ def do_install(
         site_packages=site_packages,
     )
     # Don't attempt to install develop and default packages if Pipfile is missing
-    if not project.pipfile_exists and not (package_args or dev) and not code:
+    if not project.pipfile_exists and not (package_args or dev):
         if not (ignore_pipfile or deploy):
             raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
         elif ((skip_lock and deploy) or ignore_pipfile) and not project.lockfile_exists:
@@ -2070,15 +2056,7 @@ def do_install(
                 click.echo(crayons.red(error))
                 click.echo(crayons.yellow(str(traceback)), err=True)
                 sys.exit(1)
-    if code:
-        click.echo(
-            crayons.normal(
-                fix_utf8("Discovering imports from local codebase..."), bold=True
-            )
-        )
-        for req in import_from_code(code):
-            click.echo(f"  Found {crayons.green(req)}!")
-            project.add_package_to_pipfile(req)
+
     # Allow more than one package to be provided.
     package_args = [p for p in packages] + [f"-e {pkg}" for pkg in editable_packages]
     # Support for --selective-upgrade.
@@ -2619,7 +2597,9 @@ def do_run_posix(project, script, command, env):
     )
 
 
-def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
+def do_run(
+    project, command, args, three=None, python=False, pypi_mirror=None, quiet=False
+):
     """Attempt to run command either pulling from project or interpreting as executable.
 
     Args are appended to the command in [scripts] section of project if found.
@@ -2635,7 +2615,7 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
         pypi_mirror=pypi_mirror,
     )
 
-    load_dot_env(project)
+    load_dot_env(project, quiet=quiet)
     env = os.environ.copy()
     env.pop("PIP_SHIMS_BASE_MODULE", None)
 
@@ -2681,13 +2661,11 @@ def do_check(
     three=None,
     python=False,
     system=False,
-    unused=False,
     db=None,
     ignore=None,
     output="default",
     key=None,
     quiet=False,
-    args=None,
     pypi_mirror=None,
 ):
     from pipenv.vendor.vistir.compat import JSONDecodeError
@@ -2702,28 +2680,6 @@ def do_check(
             warn=False,
             pypi_mirror=pypi_mirror,
         )
-    if not args:
-        args = []
-    if unused:
-        deps_required = [k.lower() for k in project.packages.keys()]
-        deps_needed = [k.lower() for k in import_from_code(unused)]
-        for dep in deps_needed:
-            try:
-                deps_required.remove(dep)
-            except ValueError:
-                pass
-        if deps_required:
-            if not quiet and not project.s.is_quiet():
-                click.echo(
-                    crayons.normal(
-                        "The following dependencies appear unused, and may be safe for removal:"
-                    )
-                )
-                for dep in deps_required:
-                    click.echo(f"  - {crayons.green(dep)}")
-                sys.exit(1)
-        else:
-            sys.exit(0)
     if not quiet and not project.s.is_quiet():
         click.echo(
             crayons.normal(

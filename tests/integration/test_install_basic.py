@@ -498,3 +498,30 @@ extras = ["socks"]
         assert 'six = {version = "*"}' in contents
         assert 'requests = {version = "*"' in contents
         assert 'flask = "*"' in contents
+
+
+@flaky
+@pytest.mark.dev
+@pytest.mark.basic
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_install_with_unnamed_source(PipenvInstance):
+    """Ensure that running `pipenv install` doesn't break with an unamed index"""
+    with PipenvInstance(chdir=True) as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+requests = {version="*", index="pypi"}
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install")
+        assert c.returncode == 0
