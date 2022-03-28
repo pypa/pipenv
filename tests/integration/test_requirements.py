@@ -2,7 +2,7 @@ import pytest
 
 
 @pytest.mark.requirements
-def test_reqs_generates_requirements_from_lockfile(PipenvInstance):
+def test_requirements_generates_requirements_from_lockfile(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         packages = ('requests', '2.14.0')
         dev_packages = ('flask', '0.12.2')
@@ -15,8 +15,8 @@ def test_reqs_generates_requirements_from_lockfile(PipenvInstance):
             """.strip()
             f.write(contents)
         p.pipenv('lock')
-        c = p.pipenv('reqs')
-        d = p.pipenv('reqs --dev')
+        c = p.pipenv('requirements')
+        d = p.pipenv('requirements --dev')
         assert c.returncode == 0
         assert d.returncode == 0
 
@@ -28,7 +28,7 @@ def test_reqs_generates_requirements_from_lockfile(PipenvInstance):
 
 
 @pytest.mark.requirements
-def test_reqs_generates_requirements_from_lockfile_multiple_sources(PipenvInstance):
+def test_requirements_generates_requirements_from_lockfile_multiple_sources(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         packages = ('requests', '2.14.0')
         dev_packages = ('flask', '0.12.2')
@@ -49,7 +49,7 @@ def test_reqs_generates_requirements_from_lockfile_multiple_sources(PipenvInstan
             """.strip()
             f.write(contents)
         p.pipenv('lock')
-        c = p.pipenv('reqs')
+        c = p.pipenv('requirements')
         assert c.returncode == 0
 
         assert '-i https://pypi.org/simple' in c.stdout
