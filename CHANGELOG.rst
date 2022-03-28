@@ -1,3 +1,22 @@
+2022.3.28 (2022-03-27)
+======================
+
+
+Bug Fixes
+---------
+
+- Environment variables were not being loaded when the `--quiet` flag was set  `#5010 <https://github.com/pypa/pipenv/issues/5010>`_
+- It would appear that ``requirementslib`` was not fully specifying the subdirectory to ``build_pep517`` and
+  and when a new version of ``setuptools`` was released, the test ``test_lock_nested_vcs_direct_url``
+  broke indicating the Pipfile.lock no longer contained the extra dependencies that should have been resolved.
+  This regression affected ``pipenv>=2021.11.9`` but has been fixed by a patch to ``requirementslib``.  `#5019 <https://github.com/pypa/pipenv/issues/5019>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in pip==21.2.4 (from 21.2.2) in order to bring in requested bug fix for python3.6.  Note: support for 3.6 will be dropped in a subsequent release.  `#5008 <https://github.com/pypa/pipenv/issues/5008>`_
+
+
 2022.3.24 (2022-03-23)
 ======================
 
