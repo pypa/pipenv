@@ -723,12 +723,9 @@ class Resolver:
             return None
 
     def collect_hashes(self, ireq):
-        if ireq.link:
-            link = ireq.link
-            if link.is_vcs or (link.is_file and link.is_existing_dir()):
-                return set()
-            if ireq.original_link:
-                return {self._get_hash_from_link(ireq.original_link)}
+        link = ireq.link  # Handle VCS and file links first
+        if link and (link.is_vcs or (link.is_file and link.is_existing_dir())):
+            return set()
 
         if not is_pinned_requirement(ireq):
             return set()
@@ -750,8 +747,11 @@ class Resolver:
                 self._get_hash_from_link(candidate.link)
                 for candidate in applicable_candidates
             }
-        elif ireq.link:
-            return {self._get_hash_from_link(ireq.link)}
+        if link:
+            return {self._get_hash_from_link(link)}
+        if ireq.original_link:
+            return {self._get_hash_from_link(ireq.original_link)}
+        return set()
 
     def resolve_hashes(self):
         if self.results is not None:
