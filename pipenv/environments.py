@@ -297,7 +297,13 @@ class Setting:
         Default is 120 seconds, an arbitrary number that seems to work.
         """
 
-        self.PIPENV_VENV_IN_PROJECT = bool(os.environ.get("PIPENV_VENV_IN_PROJECT"))
+        self.PIPENV_VENV_IN_PROJECT = os.environ.get("PIPENV_VENV_IN_PROJECT")
+        if self.PIPENV_VENV_IN_PROJECT is not None:
+            self.PIPENV_VENV_IN_PROJECT = self.PIPENV_VENV_IN_PROJECT.lower() in (
+                "true",
+                "1",
+                "t",
+            )
         """If set, creates ``.venv`` in your project directory.
 
         Default is to create new virtual environments in a global location.

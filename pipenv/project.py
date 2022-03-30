@@ -242,6 +242,8 @@ class Project:
 
     def is_venv_in_project(self):
         # type: () -> bool
+        if self.s.PIPENV_VENV_IN_PROJECT is False:
+            return False
         return self.s.PIPENV_VENV_IN_PROJECT or (
             self.project_directory
             and os.path.isdir(os.path.join(self.project_directory, ".venv"))
@@ -288,7 +290,7 @@ class Project:
             return str(get_workon_home().joinpath(self.virtualenv_name))
 
         # If content looks like a path, use it as a relative path.
-        # Otherwise use directory named after content in WORKON_HOME.
+        # Otherwise, use directory named after content in WORKON_HOME.
         if looks_like_dir(name):
             path = Path(self.project_directory, name)
             return path.absolute().as_posix()
