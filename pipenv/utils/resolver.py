@@ -744,10 +744,14 @@ class Resolver:
         applicable_candidates = self.ignore_compatibility_finder.find_best_candidate(
             ireq.name, ireq.specifier
         ).iter_applicable()
-        return {
-            self._get_hash_from_link(candidate.link)
-            for candidate in applicable_candidates
-        }
+        applicable_candidates = list(applicable_candidates)
+        if applicable_candidates:
+            return {
+                self._get_hash_from_link(candidate.link)
+                for candidate in applicable_candidates
+            }
+        elif ireq.link:
+            return {self._get_hash_from_link(ireq.link)}
 
     def resolve_hashes(self):
         if self.results is not None:
