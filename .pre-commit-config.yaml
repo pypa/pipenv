@@ -1,0 +1,64 @@
+exclude: '^(pipenv/patched/|pipenv/vendor/|tests/)'
+
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.1.0
+  hooks:
+  - id: check-builtin-literals
+  - id: check-added-large-files
+  - id: check-case-conflict
+  - id: check-ast
+  - id: check-toml
+  - id: check-yaml
+  - id: debug-statements
+  - id: end-of-file-fixer
+    exclude: WHEEL
+  - id: forbid-new-submodules
+  - id: trailing-whitespace
+    exclude: .patch
+
+- repo: https://github.com/psf/black
+  rev: 22.3.0
+  hooks:
+  - id: black
+
+- repo: https://gitlab.com/pycqa/flake8
+  rev: 4.0.1
+  hooks:
+  - id: flake8
+    additional_dependencies: [
+        'flake8-bugbear==20.1.4',
+        'flake8-logging-format==0.6.0',
+        'flake8-implicit-str-concat==0.2.0',
+    ]
+    exclude: tests/data
+
+- repo: https://github.com/PyCQA/isort
+  rev: 5.10.1
+  hooks:
+  - id: isort
+    files: \.py$
+
+- repo: https://github.com/pre-commit/pygrep-hooks
+  rev: v1.7.0
+  hooks:
+  - id: python-no-log-warn
+  - id: python-no-eval
+  - id: rst-backticks
+    files: .*\.rst$
+    types: [file]
+
+- repo: local
+  hooks:
+  - id: news-fragment-filenames
+    name: NEWS fragment
+    language: fail
+    entry: NEWS fragment files must be named *.(feature|behavior|bugfix|vendor|doc|trivial|removal|process).rst
+    exclude: ^news/(towncrier_template.rst|.*\.(feature|behavior|bugfix|vendor|doc|trivial|removal|process).rst)
+    files: ^news/
+
+- repo: https://github.com/mgedmin/check-manifest
+  rev: '0.46'
+  hooks:
+  - id: check-manifest
+    stages: [manual]

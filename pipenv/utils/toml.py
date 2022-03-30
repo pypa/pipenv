@@ -27,6 +27,7 @@ def cleanup_toml(tml):
 
 def convert_toml_outline_tables(parsed):
     """Converts all outline tables to inline tables."""
+
     def convert_tomlkit_table(section):
         if isinstance(section, tomlkit.items.Table):
             body = section.value._body
@@ -35,14 +36,18 @@ def convert_toml_outline_tables(parsed):
         for key, value in body:
             if not key:
                 continue
-            if hasattr(value, "keys") and not isinstance(value, tomlkit.items.InlineTable):
+            if hasattr(value, "keys") and not isinstance(
+                value, tomlkit.items.InlineTable
+            ):
                 table = tomlkit.inline_table()
                 table.update(value.value)
                 section[key.key] = table
 
     def convert_toml_table(section):
         for package, value in section.items():
-            if hasattr(value, "keys") and not isinstance(value, toml.decoder.InlineTableDict):
+            if hasattr(value, "keys") and not isinstance(
+                value, toml.decoder.InlineTableDict
+            ):
                 table = toml.TomlDecoder().get_empty_inline_table()
                 table.update(value)
                 section[package] = table

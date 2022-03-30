@@ -3,26 +3,20 @@
 """"Vendoring script, python 3.5 needed"""
 
 import itertools
-import os
 import re
 import shutil
-
-# from tempfile import TemporaryDirectory
 import tarfile
 import zipfile
-
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import bs4
 import invoke
 import requests
-
 from urllib3.util import parse_url as urllib3_parse
 
-from tempfile import TemporaryDirectory
-from pipenv.vendor.vistir.contextmanagers import open_file
 import pipenv.vendor.parse as parse
-
+from pipenv.vendor.vistir.contextmanagers import open_file
 
 TASK_NAME = "update"
 
@@ -190,10 +184,16 @@ def rewrite_file_imports(item, vendored_libs):
 
     for lib, to_lib in vendored_libs.items():
         text = re.sub(
-            r"^(?m)(\s*)import %s((?:\.\S*)?\s+as)" % lib, r"\1import %s\2" % to_lib, text,
+            r"^(?m)(\s*)import %s((?:\.\S*)?\s+as)" % lib,
+            r"\1import %s\2" % to_lib,
+            text,
         )
         text = re.sub(r"^(?m)(\s*)from %s([\s\.]+)" % lib, r"\1from %s\2" % to_lib, text)
-        text = re.sub(r"^(?m)(\s*)import %s(\s*[,\n#])" % lib, r"\1import %s as %s\2" % (to_lib, lib), text)
+        text = re.sub(
+            r"^(?m)(\s*)import %s(\s*[,\n#])" % lib,
+            r"\1import %s as %s\2" % (to_lib, lib),
+            text,
+        )
     for pattern, sub in GLOBAL_REPLACEMENT:
         text = re.sub(pattern, sub, text)
     item.write_text(text, encoding="utf-8")
@@ -209,7 +209,7 @@ def _recursive_write_to_zip(zf, path, root=None):
         return
     if root is None:
         if not path.is_dir():
-            raise ValueError('root is required for non-directory path')
+            raise ValueError("root is required for non-directory path")
         root = path
     if not path.is_dir():
         zf.write(str(path), str(path.relative_to(root)))
@@ -251,7 +251,7 @@ def write_backport_imports(ctx, vendor_dir):
 def _ensure_package_in_requirements(ctx, requirements_file, package):
     requirement = None
     log("using requirements file: %s" % requirements_file)
-    req_file_lines = [l for l in requirements_file.read_text().splitlines()]
+    req_file_lines = [line for line in requirements_file.read_text().splitlines()]
     if package:
         match = [r for r in req_file_lines if r.strip().lower().startswith(package)]
         matched_req = None
@@ -274,8 +274,10 @@ def _ensure_package_in_requirements(ctx, requirements_file, package):
 
 def install_pyyaml(ctx, vendor_dir):
     with TemporaryDirectory(prefix="pipenv-", suffix="-yaml") as download_dir:
-        pip_command = "pip download --no-binary=:all: --no-clean --no-deps -d {} pyyaml".format(
-            download_dir
+        pip_command = (
+            "pip download --no-binary=:all: --no-clean --no-deps -d {} pyyaml".format(
+                download_dir
+            )
         )
         log(f"downloading deps via pip: {pip_command}")
         ctx.run(pip_command)
@@ -291,7 +293,9 @@ def install_pyyaml(ctx, vendor_dir):
         if yaml_dir.exists():
             drop_dir(yaml_dir)
         path_dict["current_path"].rename(path_dict["destination"])
-        path_dict["destination"].joinpath("LICENSE").write_text(extracted.joinpath("LICENSE").read_text())
+        path_dict["destination"].joinpath("LICENSE").write_text(
+            extracted.joinpath("LICENSE").read_text()
+        )
 
 
 def install(ctx, vendor_dir, package=None):
@@ -305,7 +309,8 @@ def install(ctx, vendor_dir, package=None):
     # the chain.
     ctx.run(
         "pip install -t {} --no-compile --no-deps --upgrade {}".format(
-            vendor_dir.as_posix(), requirement,
+            vendor_dir.as_posix(),
+            requirement,
         )
     )
     # read licenses from distinfo files if possible
@@ -319,22 +324,16 @@ def install(ctx, vendor_dir, package=None):
                 license_file.read_text()
             )
         elif vendor_dir.joinpath(f"{pkg}.py").exists():
-            vendor_dir.joinpath(f"{pkg}.LICENSE").write_text(
-                license_file.read_text()
-            )
+            vendor_dir.joinpath(f"{pkg}.LICENSE").write_text(license_file.read_text())
         else:
             pkg = pkg.replace("-", "?").replace("_", "?")
-            matched_path = next(
-                iter(pth for pth in vendor_dir.glob(f"{pkg}*")), None
-            )
+            matched_path = next(iter(pth for pth in vendor_dir.glob(f"{pkg}*")), None)
             if matched_path is not None:
                 if matched_path.is_dir():
                     target = vendor_dir.joinpath(matched_path).joinpath("LICENSE")
                 else:
                     target = vendor_dir.joinpath(f"{matched_path}.LICENSE")
-                target.write_text(
-                    license_file.read_text()
-                )
+                target.write_text(license_file.read_text())
 
 
 def post_install_cleanup(ctx, vendor_dir):
@@ -460,7 +459,7 @@ def packages_missing_licenses(
         ".".join(lic)
         for lic in itertools.product(("LICENSE", "LICENSE-MIT"), LICENSE_EXTS)
     ]
-    for i, req in enumerate(requirements):
+    for _, req in enumerate(requirements):
         if req.startswith("git+"):
             pkg = req.strip().split("#egg=")[1]
         else:
@@ -549,9 +548,7 @@ def download_licenses(
                 if "." in backend:
                     backend, _, _ = backend.partition(".")
                 ctx.run(f"pip install {backend}")
-            ctx.run(
-                f"{cmd} --no-build-isolation -d {tmp_dir.as_posix()} {req}"
-            )
+            ctx.run(f"{cmd} --no-build-isolation -d {tmp_dir.as_posix()} {req}")
     for sdist in tmp_dir.iterdir():
         extract_license(vendor_dir, sdist)
     drop_dir(tmp_dir)
@@ -720,9 +717,7 @@ def unpin_and_copy_requirements(ctx, requirement_file, name="requirements.txt"):
         ctx.run("pipenv --rm", env=env, hide=True)
         result = list(sorted(line.strip() for line in result.splitlines()[1:]))
         new_requirements = requirement_file.parent.joinpath(name)
-        requirement_file.rename(
-            requirement_file.parent.joinpath(f"{name}.bak")
-        )
+        requirement_file.rename(requirement_file.parent.joinpath(f"{name}.bak"))
         new_requirements.write_text("\n".join(result))
     return result
 

@@ -23,44 +23,44 @@
 # Don't manually edit this script! Check ths instructions in the link above to
 # create get-pip.py and patch the following:
 
-#+++ ./get-pip/public/get-pip.py	2022-01-12 16:52:11.920161471 +0100
-#--- ./pipenv/get-pipenv.py	2022-01-12 20:11:35.816906142 +0100
-#@@ -55,7 +28,7 @@
+# +++ ./get-pip/public/get-pip.py	2022-01-12 16:52:11.920161471 +0100
+# --- ./pipenv/get-pipenv.py	2022-01-12 20:11:35.816906142 +0100
+# @@ -55,7 +28,7 @@
 #     message_parts = [
 #         "This script does not work on Python {}.{}".format(*this_python),
 #         "The minimum supported Python version is {}.{}.".format(*min_version),
-#-        "Please use an alternative installation https://pipenv.pypa.io/en/latest/install/",
-#+        "Please use https://bootstrap.pypa.io/pip/{}.{}/get-pip.py instead.".format(*this_python),
+# -        "Please use an alternative installation https://pipenv.pypa.io/en/latest/install/",
+# +        "Please use https://bootstrap.pypa.io/pip/{}.{}/get-pip.py instead.".format(*this_python),
 #     ]
 #     print("ERROR: " + " ".join(message_parts))
 #     sys.exit(1)
-#@@ -70,7 +43,7 @@
-# 
+# @@ -70,7 +43,7 @@
+#
 # def determine_pip_install_arguments():
 #     implicit_pip = True
-#+    implicit_setuptools = False
-#-    implicit_setuptools = True
+# +    implicit_setuptools = False
+# -    implicit_setuptools = True
 #     implicit_wheel = True
-# 
+#
 #     # Check if the user has requested us not to install setuptools
-#@@ -87,8 +60,6 @@
-# 
+# @@ -87,8 +60,6 @@
+#
 #     # We only want to implicitly install setuptools and wheel if they don't
 #     # already exist on the target platform.
-#+    # No need for doing this, since pipenv already has setuptools as 
-#+    # a dependency in setup.py
+# +    # No need for doing this, since pipenv already has setuptools as
+# +    # a dependency in setup.py
 #     if implicit_setuptools:
 #         try:
 #             import setuptools  # noqa
-#@@ -109,8 +80,6 @@
+# @@ -109,8 +80,6 @@
 #         args += ["setuptools"]
 #     if implicit_wheel:
 #         args += ["wheel"]
-#+    
-#+    args += ["pipenv"]
-# 
+# +
+# +    args += ["pipenv"]
+#
 #     return ["install", "--upgrade", "--force-reinstall"] + args
- 
+
 # YMMV, so dig a bit to find how to add pipenv to the args passed to pip.
 
 import sys
@@ -103,17 +103,19 @@ def determine_pip_install_arguments():
 
     # We only want to implicitly install setuptools and wheel if they don't
     # already exist on the target platform.
-    # No need for doing this, since pipenv already has setuptools as 
+    # No need for doing this, since pipenv already has setuptools as
     # a dependency in setup.py
     if implicit_setuptools:
         try:
             import setuptools  # noqa
+
             implicit_setuptools = False
         except ImportError:
             pass
     if implicit_wheel:
         try:
             import wheel  # noqa
+
             implicit_wheel = False
         except ImportError:
             pass
@@ -125,7 +127,7 @@ def determine_pip_install_arguments():
         args += ["setuptools"]
     if implicit_wheel:
         args += ["wheel"]
-    
+
     args += ["pipenv"]
 
     return ["install", "--upgrade", "--force-reinstall"] + args
@@ -164,6 +166,7 @@ def bootstrap(tmpdir):
     # Execute the included pip and use it to install the latest pip and
     # setuptools from PyPI
     from pip._internal.cli.main import main as pip_entry_point
+
     args = determine_pip_install_arguments()
     sys.exit(pip_entry_point(args))
 

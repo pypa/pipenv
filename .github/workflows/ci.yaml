@@ -72,6 +72,14 @@ jobs:
           git submodule update --init --recursive
           python -m pip install -e . --upgrade
           pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
+      - name: Lint check of the code
+        env:
+          PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
+          PYTHONWARNINGS: ignore:DEPRECATION
+          PYTHONIOENCODING: "utf-8"
+          GIT_ASK_YESNO: "false"
+        run: |
+          pipenv run pre-commit run --all-files --verbose
       - name: Run tests
         env:
           PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
@@ -109,4 +117,3 @@ jobs:
       - run: |
           python -m pip install --upgrade wheel invoke parver bs4 vistir towncrier
           python -m invoke vendoring.update
-

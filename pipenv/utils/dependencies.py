@@ -1,13 +1,13 @@
 import os
-import re
 from contextlib import contextmanager
 from pathlib import Path
-
-from typing import Sequence, Mapping
+from typing import Mapping, Sequence
 from urllib.parse import urlparse
 
 from packaging.markers import Marker
+
 from pipenv import fs_str
+
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
 
@@ -80,13 +80,7 @@ def pep423_name(name):
         return name
 
 
-def get_vcs_deps(
-    project=None,
-    dev=False,
-    pypi_mirror=None,
-    packages=None,
-    reqs=None
-):
+def get_vcs_deps(project=None, dev=False, pypi_mirror=None, packages=None, reqs=None):
     from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
@@ -112,7 +106,7 @@ def get_vcs_deps(
             try:
                 with temp_path(), locked_repository(requirement) as repo:
                     from pipenv.vendor.requirementslib.models.requirements import (
-                        Requirement
+                        Requirement,
                     )
 
                     # from distutils.sysconfig import get_python_lib
@@ -120,7 +114,7 @@ def get_vcs_deps(
                     commit_hash = repo.get_commit_hash()
                     name = requirement.normalized_name
                     lockfile[name] = requirement.pipfile_entry[1]
-                    lockfile[name]['ref'] = commit_hash
+                    lockfile[name]["ref"] = commit_hash
                     result.append(requirement)
             except OSError:
                 continue
@@ -152,7 +146,7 @@ def translate_markers(pipfile_entry):
         marker_str = new_pipfile.pop("markers")
         if marker_str:
             marker = str(Marker(marker_str))
-            if 'extra' not in marker:
+            if "extra" not in marker:
                 marker_set.add(marker)
     for m in pipfile_markers:
         entry = f"{pipfile_entry[m]}"
@@ -160,15 +154,19 @@ def translate_markers(pipfile_entry):
             marker_set.add(str(Marker(f"{m} {entry}")))
             new_pipfile.pop(m)
     if marker_set:
-        new_pipfile["markers"] = str(Marker(" or ".join(
-            f"{s}" if " and " in s else s
-            for s in sorted(dedup(marker_set))
-        ))).replace('"', "'")
+        new_pipfile["markers"] = str(
+            Marker(
+                " or ".join(
+                    f"{s}" if " and " in s else s for s in sorted(dedup(marker_set))
+                )
+            )
+        ).replace('"', "'")
     return new_pipfile
 
 
 def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     from pipenv.vendor.requirementslib.utils import is_vcs
+
     name = pep423_name(dep["name"])
     lockfile = {}
     # We use this to determine if there are any markers on top level packages
@@ -195,7 +193,9 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     fs_key = next(iter(k for k in ["path", "file"] if k in dep), None)
     pipfile_fs_key = None
     if pipfile_entry:
-        pipfile_fs_key = next(iter(k for k in ["path", "file"] if k in pipfile_entry), None)
+        pipfile_fs_key = next(
+            iter(k for k in ["path", "file"] if k in pipfile_entry), None
+        )
     if fs_key and pipfile_fs_key and fs_key != pipfile_fs_key:
         lockfile[pipfile_fs_key] = pipfile_entry[pipfile_fs_key]
     elif fs_key is not None:
@@ -248,7 +248,7 @@ def is_pinned_requirement(ireq):
 
 
 def convert_deps_to_pip(deps, project=None, r=True, include_index=True):
-    """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
+    """ "Converts a Pipfile-formatted dependency to a pip-formatted one."""
     from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     dependencies = []
@@ -266,6 +266,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=True):
 
     # Write requirements.txt to tmp directory.
     from pipenv.vendor.vistir.path import create_tracked_tempfile
+
     f = create_tracked_tempfile(suffix="-requirements.txt", delete=False)
     f.write("\n".join(dependencies).encode("utf-8"))
     f.close()
@@ -333,6 +334,7 @@ def is_installable_file(path):
 @contextmanager
 def locked_repository(requirement):
     from pipenv.vendor.vistir.path import create_tracked_tempdir
+
     if not requirement.is_vcs:
         return
     original_base = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)

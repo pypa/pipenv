@@ -4,11 +4,11 @@ import subprocess
 import crayons
 from click import echo as click_echo
 
-from pipenv.exceptions import PipenvCmdError
 from pipenv import environments
+from pipenv.exceptions import PipenvCmdError
 
 if environments.MYPY_RUNNING:
-    from typing import Tuple
+    from typing import Tuple  # noqa
 
 
 def run_command(cmd, *args, is_verbose=False, **kwargs):
@@ -25,6 +25,7 @@ def run_command(cmd, *args, is_verbose=False, **kwargs):
 
     from pipenv._compat import decode_for_output
     from pipenv.cmdparse import Script
+
     catch_exceptions = kwargs.pop("catch_exceptions", True)
     if isinstance(cmd, ((str,), list, tuple)):
         cmd = Script.parse(cmd)
@@ -38,17 +39,24 @@ def run_command(cmd, *args, is_verbose=False, **kwargs):
         click_echo(f"Running command: $ {cmd.cmdify()}")
     c = subprocess_run(command, *args, **kwargs)
     if is_verbose:
-        click_echo("Command output: {}".format(
-            crayons.cyan(decode_for_output(c.stdout))
-        ), err=True)
+        click_echo(
+            "Command output: {}".format(crayons.cyan(decode_for_output(c.stdout))),
+            err=True,
+        )
     if c.returncode and catch_exceptions:
         raise PipenvCmdError(cmd.cmdify(), c.stdout, c.stderr, c.returncode)
     return c
 
 
 def subprocess_run(
-    args, *, block=True, text=True, capture_output=True,
-    encoding="utf-8", env=None, **other_kwargs
+    args,
+    *,
+    block=True,
+    text=True,
+    capture_output=True,
+    encoding="utf-8",
+    env=None,
+    **other_kwargs,
 ):
     """A backward compatible version of subprocess.run().
 
@@ -61,17 +69,13 @@ def subprocess_run(
         _env.update(env)
     other_kwargs["env"] = _env
     if capture_output:
-        other_kwargs['stdout'] = subprocess.PIPE
-        other_kwargs['stderr'] = subprocess.PIPE
+        other_kwargs["stdout"] = subprocess.PIPE
+        other_kwargs["stderr"] = subprocess.PIPE
     if block:
         return subprocess.run(
-            args, universal_newlines=text,
-            encoding=encoding, **other_kwargs
+            args, universal_newlines=text, encoding=encoding, **other_kwargs
         )
     else:
         return subprocess.Popen(
-            args, universal_newlines=text,
-            encoding=encoding, **other_kwargs
+            args, universal_newlines=text, encoding=encoding, **other_kwargs
         )
-
-

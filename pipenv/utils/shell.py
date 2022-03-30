@@ -1,5 +1,6 @@
 import errno
 import os
+import posixpath
 import re
 import shlex
 import shutil
@@ -8,17 +9,16 @@ import sys
 import warnings
 from contextlib import contextmanager
 from functools import lru_cache
-import posixpath
 from pathlib import Path
 
-from .constants import SCHEME_LIST
-from .processes import subprocess_run
 from pipenv import environments
 from pipenv.vendor.vistir.compat import ResourceWarning
 
+from .constants import SCHEME_LIST
+from .processes import subprocess_run
 
 if environments.MYPY_RUNNING:
-    from typing import Text
+    from typing import Text  # noqa
 
 
 @lru_cache()
@@ -51,6 +51,7 @@ def make_posix(path):
 
 def get_pipenv_dist(pkg="pipenv", pipenv_site=None):
     from pipenv.resolver import find_site_path
+
     pipenv_libdir = os.path.dirname(os.path.abspath(__file__))
     if pipenv_site is None:
         pipenv_site = os.path.dirname(pipenv_libdir)
@@ -80,8 +81,8 @@ def looks_like_dir(path):
 
 def load_path(python):
     import json
-
     from pathlib import Path
+
     python = Path(python).as_posix()
     json_dump_commmand = '"import json, sys; print(json.dumps(sys.path));"'
     c = subprocess_run([python, "-c", json_dump_commmand])
@@ -96,9 +97,9 @@ def path_to_url(path):
 
 
 def normalize_path(path):
-    return os.path.expandvars(os.path.expanduser(
-        os.path.normcase(os.path.normpath(os.path.abspath(str(path))))
-    ))
+    return os.path.expandvars(
+        os.path.expanduser(os.path.normcase(os.path.normpath(os.path.abspath(str(path)))))
+    )
 
 
 def get_windows_path(*args):
@@ -157,7 +158,7 @@ def walk_up(bottom):
 def find_requirements(max_depth=3):
     """Returns the path of a requirements.txt file in parent directories."""
     i = 0
-    for c, d, f in walk_up(os.getcwd()):
+    for c, _, _ in walk_up(os.getcwd()):
         i += 1
         if i < max_depth:
             r = os.path.join(c, "requirements.txt")
@@ -183,13 +184,12 @@ def temp_environ():
 
 def escape_cmd(cmd):
     if any(special_char in cmd for special_char in ["<", ">", "&", ".", "^", "|", "?"]):
-        cmd = f'\"{cmd}\"'
+        cmd = f'"{cmd}"'
     return cmd
 
 
 def safe_expandvars(value):
-    """Call os.path.expandvars if value is a string, otherwise do nothing.
-    """
+    """Call os.path.expandvars if value is a string, otherwise do nothing."""
     if isinstance(value, str):
         return os.path.expandvars(value)
     return value
@@ -239,8 +239,8 @@ def is_virtual_environment(path):
     """
     if not path.is_dir():
         return False
-    for bindir_name in ('bin', 'Scripts'):
-        for python in path.joinpath(bindir_name).glob('python*'):
+    for bindir_name in ("bin", "Scripts"):
+        for python in path.joinpath(bindir_name).glob("python*"):
             try:
                 exeness = python.is_file() and os.access(str(python), os.X_OK)
             except OSError:
@@ -252,10 +252,17 @@ def is_virtual_environment(path):
 
 def mkdir_p(newdir):
     """works the way a good mkdir should :)
+    <<<<<<< HEAD
         - already exists, silently complete
         - regular file in the way, raise an exception
         - parent directory(ies) does not exist, make them as well
         From: http://code.activestate.com/recipes/82465-a-friendly-mkdir/
+    =======
+            - already exists, silently complete
+            - regular file in the way, raise an exception
+            - parent directory(ies) does not exist, make them as well
+            From: http://code.activestate.com/recipes/82465-a-friendly-mkdir/
+    >>>>>>> main
     """
     if os.path.isdir(newdir):
         pass
@@ -295,19 +302,18 @@ def find_python(finder, line=None):
     """
 
     if line and not isinstance(line, str):
-        raise TypeError(
-            f"Invalid python search type: expected string, received {line!r}"
-        )
+        raise TypeError(f"Invalid python search type: expected string, received {line!r}")
     if line and os.path.isabs(line):
         if os.name == "nt":
             line = make_posix(line)
         return line
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
+
         finder = Finder(global_search=True)
     if not line:
         result = next(iter(finder.find_all_python_versions()), None)
-    elif line and line[0].isdigit() or re.match(r'[\d\.]+', line):
+    elif line and line[0].isdigit() or re.match(r"[\d\.]+", line):
         result = finder.find_python_version(line)
     else:
         result = finder.find_python_version(name=line)
@@ -339,9 +345,13 @@ def is_python_command(line):
         raise TypeError(f"Not a valid command to check: {line!r}")
 
     from pipenv.vendor.pythonfinder.utils import PYTHON_IMPLEMENTATIONS
-    is_version = re.match(r'\d+(\.\d+)*', line)
-    if (line.startswith("python") or is_version
-            or any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS)):
+
+    is_version = re.match(r"\d+(\.\d+)*", line)
+    if (
+        line.startswith("python")
+        or is_version
+        or any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS)
+    ):
         return True
     # we are less sure about this but we can guess
     if line.startswith("py"):
@@ -405,9 +415,7 @@ def handle_remove_readonly(func, path, exc):
     Windows source repo folders are read-only by default, so this error handler
     attempts to set them as writeable and then proceed with deletion."""
     # Check for read-only attribute
-    default_warning_message = (
-        "Unable to remove file due to permissions restriction: {!r}"
-    )
+    default_warning_message = "Unable to remove file due to permissions restriction: {!r}"
     # split the initial exception out into its type, exception, and traceback
     exc_type, exc_exception, exc_tb = exc
     if is_readonly_path(path):

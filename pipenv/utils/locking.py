@@ -1,6 +1,6 @@
 from typing import Mapping
 
-from .dependencies import pep423_name, translate_markers, clean_resolved_dep
+from .dependencies import clean_resolved_dep, pep423_name, translate_markers
 
 
 def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=None):
@@ -44,16 +44,12 @@ def get_locked_dep(dep, pipfile_section, prefer_pipfile=True):
     # it now for development purposes
     # TODO: Is this implementation clear? How can it be improved?
     entry = None
-    cleaner_kwargs = {
-        "is_top_level": False,
-        "pipfile_entry": None
-    }
+    cleaner_kwargs = {"is_top_level": False, "pipfile_entry": None}
     if isinstance(dep, Mapping) and dep.get("name", ""):
         dep_name = pep423_name(dep["name"])
-        name = next(iter(
-            k for k in pipfile_section.keys()
-            if pep423_name(k) == dep_name
-        ), None)
+        name = next(
+            iter(k for k in pipfile_section.keys() if pep423_name(k) == dep_name), None
+        )
         entry = pipfile_section[name] if name else None
 
     if entry:
@@ -66,7 +62,12 @@ def get_locked_dep(dep, pipfile_section, prefer_pipfile=True):
     lockfile_name, lockfile_dict = lockfile_entry.copy().popitem()
     lockfile_version = lockfile_dict.get("version", "")
     # Keep pins from the lockfile
-    if prefer_pipfile and lockfile_version != version and version.startswith("==") and "*" not in version:
+    if (
+        prefer_pipfile
+        and lockfile_version != version
+        and version.startswith("==")
+        and "*" not in version
+    ):
         lockfile_dict["version"] = version
     lockfile_entry[lockfile_name] = lockfile_dict
     return lockfile_entry
