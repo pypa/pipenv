@@ -570,6 +570,12 @@ class Resolver:
             # we'd rather avoid touching.
             ignore_compatibility_finder._ignore_compatibility = True
             self._ignore_compatibility_finder = ignore_compatibility_finder
+            self._ignore_compatibility_finder._link_collector.index_lookup = (
+                self.index_lookup
+            )
+            self._ignore_compatibility_finder._link_collector.search_scope.index_lookup = (
+                self.index_lookup
+            )
         return self._ignore_compatibility_finder
 
     @property
@@ -730,9 +736,14 @@ class Resolver:
         if not is_pinned_requirement(ireq):
             return set()
 
+        sources = self.sources  # Enforce index restrictions
+        if ireq.name in self.index_lookup:
+            sources = list(
+                filter(lambda s: s.get("name") == self.index_lookup[ireq.name], sources)
+            )
         if any(
             "python.org" in source["url"] or "pypi.org" in source["url"]
-            for source in self.sources
+            for source in sources
         ):
             hashes = self._get_hashes_from_pypi(ireq)
             if hashes:
