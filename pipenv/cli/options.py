@@ -1,7 +1,7 @@
 import os
 
 from pipenv.project import Project
-from pipenv.utils import is_valid_url
+from pipenv.utils.internet import is_valid_url
 from pipenv.vendor.click import (
     BadArgumentUsage, BadParameter, Group, Option, argument, echo,
     make_pass_decorator, option

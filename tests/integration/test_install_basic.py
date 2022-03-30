@@ -7,7 +7,8 @@ import pytest
 
 from flaky import flaky
 
-from pipenv.utils import subprocess_run, temp_environ
+from pipenv.utils.processes import subprocess_run
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.setup

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from flaky import flaky
 
-from pipenv.utils import mkdir_p, temp_environ
+from pipenv.utils.shell import mkdir_p, temp_environ
 
 
 @pytest.mark.extras

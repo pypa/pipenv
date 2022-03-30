@@ -585,7 +585,7 @@ class Entry:
 
 
 def clean_results(results, resolver, project, dev=False):
-    from pipenv.utils import translate_markers
+    from pipenv.utils.dependencies import translate_markers
     if not project.lockfile_exists:
         return results
     lockfile = project.lockfile_content
@@ -646,7 +646,7 @@ def clean_outdated(results, resolver, project, dev=False):
 def parse_packages(packages, pre, clear, system, requirements_dir=None):
     from pipenv.vendor.requirementslib.models.requirements import Requirement
     from pipenv.vendor.vistir.contextmanagers import cd, temp_path
-    from pipenv.utils import parse_indexes
+    from pipenv.utils.indexes import parse_indexes
     parsed_packages = []
     for package in packages:
         *_, line = parse_indexes(package)
@@ -674,7 +674,8 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
 
 
 def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages, dev):
-    from pipenv.utils import create_mirror_source, resolve_deps, replace_pypi_sources
+    from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
+    from pipenv.utils.resolver import resolve_deps
     pypi_mirror_source = (
         create_mirror_source(os.environ["PIPENV_PYPI_MIRROR"])
         if "PIPENV_PYPI_MIRROR" in os.environ

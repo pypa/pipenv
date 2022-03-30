@@ -3,7 +3,7 @@ import os
 import mock
 import pytest
 
-from pipenv import utils
+from pipenv.utils import shell
 
 
 # This module is run only on Windows.
@@ -19,7 +19,7 @@ pytestmark = pytest.mark.skipif(
 def test_find_windows_executable_when_not_found(mocked_which, mocked_isfile):
     mocked_isfile.return_value = False
     mocked_which.return_value = None
-    found = utils.find_windows_executable('fake/path', 'python')
+    found = shell.find_windows_executable('fake/path', 'python')
     assert found is None
 
     assert mocked_isfile.call_count > 1
@@ -38,7 +38,7 @@ def test_find_windows_executable_when_found(mocked_which, mocked_isfile):
     mocked_isfile.return_value = False
     found_path = '/fake/known/system/path/pyenv'
     mocked_which.return_value = found_path
-    found = utils.find_windows_executable('fake/path', 'pyenv')
+    found = shell.find_windows_executable('fake/path', 'pyenv')
     assert found is found_path
 
     assert mocked_isfile.call_count > 1

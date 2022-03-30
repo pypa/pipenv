@@ -15,14 +15,22 @@ import vistir
 from pipenv import environments, exceptions, pep508checker, progress
 from pipenv._compat import decode_for_output, fix_utf8
 from pipenv.patched import crayons
-from pipenv.utils import (
-    cmd_list_to_shell, convert_deps_to_pip, create_spinner, download_file,
-    find_python, get_canonical_names, get_host_and_port, get_source_list, is_pinned,
-    is_python_command, is_required_version, is_star, is_valid_url,
-    parse_indexes, pep423_name, prepare_pip_source_args, proper_case,
-    python_version, run_command, subprocess_run, venv_resolve_deps
-)
 
+from pipenv.utils.dependencies import (
+    convert_deps_to_pip,
+    get_canonical_names,
+    is_pinned,
+    is_required_version,
+    is_star,
+    pep423_name,
+    python_version
+)
+from pipenv.utils.internet import download_file, get_host_and_port, is_valid_url, proper_case
+from pipenv.utils.indexes import get_source_list, parse_indexes, prepare_pip_source_args
+from pipenv.utils.resolver import venv_resolve_deps
+from pipenv.utils.shell import cmd_list_to_shell, find_python, is_python_command, subprocess_run
+from pipenv.utils.spinner import create_spinner
+from pipenv.utils.processes import run_command
 
 if environments.is_type_checking():
     from typing import Dict, List, Optional, Union
@@ -1017,10 +1025,7 @@ def do_lock(
         for k, v in lockfile[section].copy().items():
             if not hasattr(v, "keys"):
                 del lockfile[section][k]
-    # Ensure that develop inherits from default.
-    dev_packages = project.dev_packages.copy()
-    dev_packages = overwrite_dev(project.packages, dev_packages)
-    # Resolve dev-package dependencies, with pip-tools.
+    # Resolve dev-package dependencies followed by packages dependencies.
     for is_dev in [True, False]:
         pipfile_section = "dev-packages" if is_dev else "packages"
         if project.pipfile_exists:

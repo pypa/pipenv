@@ -20,7 +20,7 @@ from pytest_pypi.app import prepare_packages as prepare_pypi_packages
 
 from pipenv.cli import cli
 from pipenv.exceptions import VirtualenvActivationException
-from pipenv.utils import subprocess_run
+from pipenv.utils.processes import subprocess_run
 from pipenv.vendor import toml, tomlkit
 from pipenv.vendor.vistir.compat import fs_encode, fs_str
 from pipenv.vendor.vistir.contextmanagers import temp_environ

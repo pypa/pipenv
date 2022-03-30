@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from pipenv.utils import temp_environ
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.lock

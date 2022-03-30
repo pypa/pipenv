@@ -21,13 +21,20 @@ from pipenv.cmdparse import Script
 from pipenv.core import system_which
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_type_checking, is_in_virtualenv, normalize_pipfile_path
-from pipenv.utils import (
-    cleanup_toml, convert_toml_outline_tables, find_requirements,
-    find_windows_executable, get_canonical_names, get_pipenv_dist, get_url_name,
-    get_workon_home, is_editable, is_installable_file, is_star, is_valid_url,
-    is_virtual_environment, looks_like_dir, pep423_name,
-    proper_case, python_version, safe_expandvars
+from pipenv.utils.dependencies import get_canonical_names, is_editable, is_installable_file, is_star, python_version
+from pipenv.utils.internet import get_url_name, is_valid_url, proper_case
+from pipenv.utils.resolver import pep423_name
+from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
+from pipenv.utils.shell import (
+    find_requirements,
+    find_windows_executable,
+    get_pipenv_dist,
+    get_workon_home,
+    is_virtual_environment,
+    looks_like_dir,
+    safe_expandvars
 )
+
 from pipenv.vendor.cached_property import cached_property
 from pipenv.vendor.requirementslib.models.utils import (
     get_default_pyproject_backend
@@ -285,7 +292,7 @@ class Project:
     @property
     def working_set(self):
         # type: () -> pkg_resources.WorkingSet
-        from .utils import load_path
+        from pipenv.utils.shell import load_path
         sys_path = load_path(self.which("python"))
         import pkg_resources
         return pkg_resources.WorkingSet(sys_path)
@@ -902,7 +909,7 @@ class Project:
         return source
 
     def get_source(self, name=None, url=None, refresh=False):
-        from .utils import is_url_equal
+        from pipenv.utils.internet import is_url_equal
 
         def find_source(sources, name=None, url=None):
             source = None

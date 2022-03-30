@@ -2,7 +2,7 @@ import itertools
 import pytest
 import os
 from pipenv import environments
-from pipenv.utils import temp_environ
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.environments

@@ -7,8 +7,8 @@ import pytest
 
 import pytest_pypi.app
 from flaky import flaky
-from vistir.misc import to_text
-from pipenv.utils import temp_environ
+from pipenv.vendor.vistir.misc import to_text
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.lock

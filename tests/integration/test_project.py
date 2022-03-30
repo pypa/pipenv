@@ -7,7 +7,7 @@ import pytest
 
 from pipenv.patched import pipfile
 from pipenv.project import Project
-from pipenv.utils import temp_environ
+from pipenv.utils.shell import temp_environ
 from pipenv.vendor.vistir.path import is_in_path, normalize_path
 
 
