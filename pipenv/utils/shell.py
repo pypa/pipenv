@@ -252,10 +252,17 @@ def is_virtual_environment(path):
 
 def mkdir_p(newdir):
     """works the way a good mkdir should :)
-    - already exists, silently complete
-    - regular file in the way, raise an exception
-    - parent directory(ies) does not exist, make them as well
-    From: http://code.activestate.com/recipes/82465-a-friendly-mkdir/
+    <<<<<<< HEAD
+        - already exists, silently complete
+        - regular file in the way, raise an exception
+        - parent directory(ies) does not exist, make them as well
+        From: http://code.activestate.com/recipes/82465-a-friendly-mkdir/
+    =======
+            - already exists, silently complete
+            - regular file in the way, raise an exception
+            - parent directory(ies) does not exist, make them as well
+            From: http://code.activestate.com/recipes/82465-a-friendly-mkdir/
+    >>>>>>> main
     """
     if os.path.isdir(newdir):
         pass

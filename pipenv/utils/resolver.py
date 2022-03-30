@@ -387,6 +387,7 @@ class Resolver:
         pre=False,  # type: bool
     ):
         # type: (...) -> "Resolver"
+
         if not req_dir:
             req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
         if index_lookup is None:
@@ -420,6 +421,7 @@ class Resolver:
     @classmethod
     def from_pipfile(cls, project, pipfile=None, dev=False, pre=False, clear=False):
         # type: (Optional[Project], Optional[Pipfile], bool, bool, bool) -> "Resolver"
+
         if not pipfile:
             pipfile = project._pipfile
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
