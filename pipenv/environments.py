@@ -299,12 +299,16 @@ class Setting:
 
         self.PIPENV_VENV_IN_PROJECT = os.environ.get("PIPENV_VENV_IN_PROJECT")
         if self.PIPENV_VENV_IN_PROJECT is not None:
-            self.PIPENV_VENV_IN_PROJECT = (
-                self.PIPENV_VENV_IN_PROJECT.lower() in _true_values
-            )
-        """If set, creates ``.venv`` in your project directory.
-
-        Default is to create new virtual environments in a global location.
+            if self.PIPENV_VENV_IN_PROJECT.lower() in _true_values:
+                self.PIPENV_VENV_IN_PROJECT = True
+            elif self.PIPENV_VENV_IN_PROJECT.lower() in _false_values:
+                self.PIPENV_VENV_IN_PROJECT = False
+            else:
+                self.PIPENV_VENV_IN_PROJECT = None
+        """ When set True, will create or use the ``.venv`` in your project directory.
+        When Set False, will ignore the .venv in your project directory even if it exists.
+        Default is None will use the .venv of project directory should it exist, otherwise
+          will create new virtual environments in a global location.
         """
 
         self.PIPENV_VERBOSE = bool(os.environ.get("PIPENV_VERBOSE"))
