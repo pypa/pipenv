@@ -299,10 +299,8 @@ class Setting:
 
         self.PIPENV_VENV_IN_PROJECT = os.environ.get("PIPENV_VENV_IN_PROJECT")
         if self.PIPENV_VENV_IN_PROJECT is not None:
-            self.PIPENV_VENV_IN_PROJECT = self.PIPENV_VENV_IN_PROJECT.lower() in (
-                "true",
-                "1",
-                "t",
+            self.PIPENV_VENV_IN_PROJECT = (
+                self.PIPENV_VENV_IN_PROJECT.lower() in _true_values
             )
         """If set, creates ``.venv`` in your project directory.
 

@@ -1,0 +1,2 @@
+Pipenv will now ignore ``.venv`` in the project when ``PIPENV_VENV_IN_PROJECT`` variable is False.
+Unset variable maintains the existing behavior of preferring to use the project's ``.venv`` should it exist.
