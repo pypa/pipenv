@@ -533,6 +533,17 @@ class Resolver:
             self._session = self.pip_command._build_session(self.pip_options)
         return self._session
 
+    def prepare_index_lookup(self):
+        index_mapping = {}
+        for source in self.sources:
+            if source.get("name"):
+                index_mapping[source["name"]] = source["url"]
+        alt_index_lookup = {}
+        for req_name, index in self.index_lookup.items():
+            if index_mapping.get(index):
+                alt_index_lookup[req_name] = index_mapping[index]
+        return alt_index_lookup
+
     @property
     def finder(self):
         from pipenv.vendor.pip_shims import shims
@@ -543,16 +554,9 @@ class Resolver:
                 options=self.pip_options,
                 session=self.session,
             )
-        index_mapping = {}
-        for source in self.sources:
-            if source.get("name"):
-                index_mapping[source["name"]] = source["url"]
-        alt_index_lookup = {}
-        for req_name, index in self.index_lookup.items():
-            if index_mapping.get(index):
-                alt_index_lookup[req_name] = index_mapping[index]
-        self._finder._link_collector.index_lookup = alt_index_lookup
-        self._finder._link_collector.search_scope.index_lookup = alt_index_lookup
+        index_lookup = self.prepare_index_lookup()
+        self._finder._link_collector.index_lookup = index_lookup
+        self._finder._link_collector.search_scope.index_lookup = index_lookup
         return self._finder
 
     @property
@@ -568,13 +572,12 @@ class Resolver:
             # It would be nice if `shims.get_package_finder` took an
             # `ignore_compatibility` parameter, but that's some vendorered code
             # we'd rather avoid touching.
+            index_lookup = self.prepare_index_lookup()
             ignore_compatibility_finder._ignore_compatibility = True
             self._ignore_compatibility_finder = ignore_compatibility_finder
-            self._ignore_compatibility_finder._link_collector.index_lookup = (
-                self.index_lookup
-            )
+            self._ignore_compatibility_finder._link_collector.index_lookup = index_lookup
             self._ignore_compatibility_finder._link_collector.search_scope.index_lookup = (
-                self.index_lookup
+                index_lookup
             )
         return self._ignore_compatibility_finder
 
