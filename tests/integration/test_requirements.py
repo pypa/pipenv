@@ -51,7 +51,7 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(Pipe
             verify_ssl = true
             [[source]]
             name = "other_source"
-            url = "https://https://$USERNAME:${{PASSWORD}}@some_other_source.org"
+            url = "https://$USERNAME:${{PASSWORD}}@some_other_source.org"
             verify_ssl = true
             [packages]
             {packages[0]}= "=={packages[1]}"
