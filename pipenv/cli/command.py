@@ -724,11 +724,17 @@ def requirements(state, dev=False, dev_only=False, hash=False):
         echo(crayons.normal(' '.join([prefix, package_index['url']])))
     if not dev_only:
         for req_name, value in lockfile['default'].items():
-            hashes = [f' \\\n    --hash={h}' for h in value['hashes'] if hash]
+            if hash:
+                hashes = [f' \\\n    --hash={h}' for h in value['hashes']]
+            else:
+                hashes = []
             echo(crayons.normal(''.join([req_name, value['version'], *hashes])))
     if dev or dev_only:
         for req_name, value in lockfile['develop'].items():
-            hashes = [f' \\\n    --hash={h}' for h in value['hashes'] if hash]
+            if hash:
+                hashes = [f' \\\n    --hash={h}' for h in value['hashes']]
+            else:
+                hashes = []
             echo(crayons.normal(''.join([req_name, value['version'], *hashes])))
     sys.exit(0)
 
