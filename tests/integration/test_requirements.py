@@ -51,7 +51,7 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(Pipe
             verify_ssl = true
             [[source]]
             name = "other_source"
-            url = "https://$USERNAME:${{PASSWORD}}@some_other_source.org"
+            url = "https://some_other_source.org"
             verify_ssl = true
             [packages]
             {packages[0]}= "=={packages[1]}"
@@ -65,4 +65,4 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(Pipe
         assert c.returncode == 0
 
         assert '-i https://pypi.org/simple' in c.stdout
-        assert '--extra-index-url https://$USERNAME:${PASSWORD}@some_other_source.org' in c.stdout
+        assert '--extra-index-url https://some_other_source.org' in c.stdout
