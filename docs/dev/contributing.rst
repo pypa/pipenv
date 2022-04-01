@@ -8,7 +8,7 @@ contributing to the Pipenv project is *very* generous of you.
 
 This document lays out guidelines and advice for contributing to this project.
 If you're thinking of contributing, please start by reading this document and
-getting a feel for how contributing to this project works. 
+getting a feel for how contributing to this project works.
 
 The guide is split into sections based on the type of contribution you're
 thinking of making, with a section that covers general guidelines for all
@@ -105,6 +105,18 @@ resolve conflicts with the ``pipenv`` folder being implicitly added to ``sys.pat
 See `pypa/pipenv#2557`_ for more details.
 
 .. _pypa/pipenv#2557: https://github.com/pypa/pipenv/issues/2557
+
+Pipenv now uses pre-commit hooks similar to Pip in order to apply linting and
+code formatting automatically!  The build now also checks that these linting rules
+have been applied to the code before running the tests.
+The build will fail when linting changes are detected so be sure to sync dev requirements
+and install the pre-commit hooks locally:
+
+   $ ``pipenv install --dev``
+   # This will configure running the pre-commit checks at start of each commit
+   $ ``pre-commit install``
+   # Should you want to check the pre-commit configuration against all configured project files
+   $ ``pre-commit run --all-files --verbose``
 
 
 .. _testing:
@@ -241,7 +253,7 @@ you run it before you open a PR. Taking this second approach,
 will allow you, for example, to run a single test case, or
 ``fail fast`` if you need it.
 
-2. Manually, which repeat the steps of the scripts above: 
+2. Manually, which repeat the steps of the scripts above:
 
 .. code-block:: console
 
@@ -272,10 +284,11 @@ It is important that your environment is setup correctly, and
 this may take some work, for example, on a specific Mac installation, the following
 steps may be needed::
 
+.. code-block:: bash
     # Make sure the tests can access github
     if [ "$SSH_AGENT_PID" = "" ]
     then
-       eval `ssh-agent`
+       eval ``ssh-agent``
        ssh-add
     fi
 

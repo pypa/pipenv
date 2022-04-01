@@ -309,7 +309,7 @@ Example::
 
 .. note::
 
-   Each month, `PyUp.io` updates the ``safety`` database of
+   Each month, `PyUp.io`_ updates the ``safety`` database of
    insecure Python packages and `makes it available to the
    community for free <https://pyup.io/safety/>`__. Pipenv
    makes an API call to retrieve those results and use them
@@ -415,7 +415,7 @@ If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv
     >>> os.environ['HELLO']
     'WORLD'
 
-Shell like variable expansion is available in ``.env`` files using `${VARNAME}` syntax.::
+Shell like variable expansion is available in ``.env`` files using ``${VARNAME}`` syntax.::
 
     $ cat .env
     CONFIG_PATH=${HOME}/.config/foo
@@ -626,15 +626,15 @@ Magic shell completions are now enabled!
 It's reasonably common for platform specific Python bindings for
 operating system interfaces to only be available through the system
 package manager, and hence unavailable for installation into virtual
-environments with `pip`. In these cases, the virtual environment can
-be created with access to the system `site-packages` directory::
+environments with ``pip``. In these cases, the virtual environment can
+be created with access to the system ``site-packages`` directory::
 
     $ pipenv --three --site-packages
 
-To ensure that all `pip`-installable components actually are installed
+To ensure that all ``pip``-installable components actually are installed
 into the virtual environment and system packages are only used for
 interfaces that don't participate in Python-level dependency resolution
-at all, use the `PIP_IGNORE_INSTALLED` setting::
+at all, use the ``PIP_IGNORE_INSTALLED`` setting::
 
     $ PIP_IGNORE_INSTALLED=1 pipenv install --dev
 
@@ -653,7 +653,7 @@ Libraries are ultimately meant to be used in some **application**. Applications 
 To summarize:
 
 - For libraries, define **abstract dependencies** via ``install_requires`` in ``setup.py``. The decision of which version exactly to be installed and where to obtain that dependency is not yours to make!
-- For applications, define **dependencies and where to get them** in the `Pipfile` and use this file to update the set of **concrete dependencies** in ``Pipfile.lock``. This file defines a specific idempotent environment that is known to work for your project. The ``Pipfile.lock`` is your source of truth. The ``Pipfile`` is a convenience for you to create that lock-file, in that it allows you to still remain somewhat vague about the exact version of a dependency to be used. Pipenv is there to help you define a working conflict-free set of specific dependency-versions, which would otherwise be a very tedious task.
+- For applications, define **dependencies and where to get them** in the ``Pipfile`` and use this file to update the set of **concrete dependencies** in ``Pipfile.lock``. This file defines a specific idempotent environment that is known to work for your project. The ``Pipfile.lock`` is your source of truth. The ``Pipfile`` is a convenience for you to create that lock-file, in that it allows you to still remain somewhat vague about the exact version of a dependency to be used. Pipenv is there to help you define a working conflict-free set of specific dependency-versions, which would otherwise be a very tedious task.
 - Of course, ``Pipfile`` and Pipenv are still useful for library developers, as they can be used to define a development or test environment.
 - And, of course, there are projects for which the distinction between library and application isn't that clear. In that case, use ``install_requires`` alongside Pipenv and ``Pipfile``.
 

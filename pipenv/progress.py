@@ -15,7 +15,6 @@ import crayons
 
 from pipenv.environments import PIPENV_COLORBLIND, PIPENV_HIDE_EMOJIS
 
-
 STREAM = sys.stderr
 MILL_TEMPLATE = "%s %s %i/%i\r"
 DOTS_CHAR = "."

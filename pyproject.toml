@@ -70,3 +70,8 @@ template = "news/towncrier_template.rst"
   directory = "removal"
   name = "Removals and Deprecations"
   showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = "process"
+  name = "Relates to dev process changes"
+  showcontent = true

@@ -1,0 +1,2 @@
+Fix an edge case of hash collection in index restricted packages whereby the hashes for some packages would
+be missing from the ``Pipfile.lock`` following package index restrictions added in ``pipenv==2022.3.23``.

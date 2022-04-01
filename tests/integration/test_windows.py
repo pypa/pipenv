@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from pipenv.utils import subprocess_run
+from pipenv.utils.processes import subprocess_run
 
 # This module is run only on Windows.
 pytestmark = pytest.mark.skipif(os.name != 'nt', reason="only relevant on windows")

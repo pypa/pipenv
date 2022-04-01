@@ -3,7 +3,7 @@ import os
 import pytest
 
 from pipenv.project import Project
-from pipenv.utils import subprocess_run, temp_environ
+from pipenv.utils.shell import subprocess_run, temp_environ
 
 
 @pytest.mark.run
