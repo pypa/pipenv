@@ -533,6 +533,17 @@ class Resolver:
             self._session = self.pip_command._build_session(self.pip_options)
         return self._session
 
+    def prepare_index_lookup(self):
+        index_mapping = {}
+        for source in self.sources:
+            if source.get("name"):
+                index_mapping[source["name"]] = source["url"]
+        alt_index_lookup = {}
+        for req_name, index in self.index_lookup.items():
+            if index_mapping.get(index):
+                alt_index_lookup[req_name] = index_mapping[index]
+        return alt_index_lookup
+
     @property
     def finder(self):
         from pipenv.vendor.pip_shims import shims
@@ -543,16 +554,9 @@ class Resolver:
                 options=self.pip_options,
                 session=self.session,
             )
-        index_mapping = {}
-        for source in self.sources:
-            if source.get("name"):
-                index_mapping[source["name"]] = source["url"]
-        alt_index_lookup = {}
-        for req_name, index in self.index_lookup.items():
-            if index_mapping.get(index):
-                alt_index_lookup[req_name] = index_mapping[index]
-        self._finder._link_collector.index_lookup = alt_index_lookup
-        self._finder._link_collector.search_scope.index_lookup = alt_index_lookup
+        index_lookup = self.prepare_index_lookup()
+        self._finder._link_collector.index_lookup = index_lookup
+        self._finder._link_collector.search_scope.index_lookup = index_lookup
         return self._finder
 
     @property
@@ -568,8 +572,13 @@ class Resolver:
             # It would be nice if `shims.get_package_finder` took an
             # `ignore_compatibility` parameter, but that's some vendorered code
             # we'd rather avoid touching.
+            index_lookup = self.prepare_index_lookup()
             ignore_compatibility_finder._ignore_compatibility = True
             self._ignore_compatibility_finder = ignore_compatibility_finder
+            self._ignore_compatibility_finder._link_collector.index_lookup = index_lookup
+            self._ignore_compatibility_finder._link_collector.search_scope.index_lookup = (
+                index_lookup
+            )
         return self._ignore_compatibility_finder
 
     @property
@@ -723,19 +732,21 @@ class Resolver:
             return None
 
     def collect_hashes(self, ireq):
-        if ireq.link:
-            link = ireq.link
-            if link.is_vcs or (link.is_file and link.is_existing_dir()):
-                return set()
-            if ireq.original_link:
-                return {self._get_hash_from_link(ireq.original_link)}
+        link = ireq.link  # Handle VCS and file links first
+        if link and (link.is_vcs or (link.is_file and link.is_existing_dir())):
+            return set()
 
         if not is_pinned_requirement(ireq):
             return set()
 
+        sources = self.sources  # Enforce index restrictions
+        if ireq.name in self.index_lookup:
+            sources = list(
+                filter(lambda s: s.get("name") == self.index_lookup[ireq.name], sources)
+            )
         if any(
             "python.org" in source["url"] or "pypi.org" in source["url"]
-            for source in self.sources
+            for source in sources
         ):
             hashes = self._get_hashes_from_pypi(ireq)
             if hashes:
@@ -744,10 +755,17 @@ class Resolver:
         applicable_candidates = self.ignore_compatibility_finder.find_best_candidate(
             ireq.name, ireq.specifier
         ).iter_applicable()
-        return {
-            self._get_hash_from_link(candidate.link)
-            for candidate in applicable_candidates
-        }
+        applicable_candidates = list(applicable_candidates)
+        if applicable_candidates:
+            return {
+                self._get_hash_from_link(candidate.link)
+                for candidate in applicable_candidates
+            }
+        if link:
+            return {self._get_hash_from_link(link)}
+        if ireq.original_link:
+            return {self._get_hash_from_link(ireq.original_link)}
+        return set()
 
     def resolve_hashes(self):
         if self.results is not None:
