@@ -231,7 +231,7 @@ Pipfile.lock only, you can generate the requirements using::
 
 This will bypass the locking process completely. As with other commands,
 passing ``--dev`` will include both the default and development dependencies.
-Passing ``--dev-only`` only will include only development dependencies and ``--hash`` will
+Passing ``--dev-only`` will include only development dependencies and ``--hash`` will
 add package hashes to the output for extra security.
 
 The locked requirements are written to stdout, with shell output redirection
