@@ -751,28 +751,30 @@ def verify(state):
     context_settings=CONTEXT_SETTINGS,
 )
 @option("--dev", is_flag=True, default=False, help="Also add development requirements.")
-@option("--dev-only", is_flag=True, default=False, help="Only add development requirements.")
+@option(
+    "--dev-only", is_flag=True, default=False, help="Only add development requirements."
+)
 @option("--hash", is_flag=True, default=False, help="Add package hashes.")
 @pass_state
 def requirements(state, dev=False, dev_only=False, hash=False):
     lockfile = state.project.lockfile_content
-    for i, package_index in enumerate(lockfile['_meta']['sources']):
-        prefix = '-i' if i == 0 else '--extra-index-url'
-        echo(crayons.normal(' '.join([prefix, package_index['url']])))
+    for i, package_index in enumerate(lockfile["_meta"]["sources"]):
+        prefix = "-i" if i == 0 else "--extra-index-url"
+        echo(crayons.normal(" ".join([prefix, package_index["url"]])))
     if not dev_only:
-        for req_name, value in lockfile['default'].items():
+        for req_name, value in lockfile["default"].items():
             if hash:
-                hashes = [f' \\\n    --hash={h}' for h in value.get('hashes', [])]
+                hashes = [f" \\\n    --hash={h}" for h in value.get("hashes", [])]
             else:
                 hashes = []
-            echo(crayons.normal(''.join([req_name, value['version'], *hashes])))
+            echo(crayons.normal("".join([req_name, value["version"], *hashes])))
     if dev or dev_only:
-        for req_name, value in lockfile['develop'].items():
+        for req_name, value in lockfile["develop"].items():
             if hash:
-                hashes = [f' \\\n    --hash={h}' for h in value.get('hashes', [])]
+                hashes = [f" \\\n    --hash={h}" for h in value.get("hashes", [])]
             else:
                 hashes = []
-            echo(crayons.normal(''.join([req_name, value['version'], *hashes])))
+            echo(crayons.normal("".join([req_name, value["version"], *hashes])))
     sys.exit(0)
 
 
