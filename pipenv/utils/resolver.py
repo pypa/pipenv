@@ -26,7 +26,7 @@ from .dependencies import (
     translate_markers,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
-from .internet import _get_requests_session
+from .internet import _get_requests_session, is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
 from .spinner import create_spinner
@@ -243,7 +243,8 @@ class Resolver:
                 raise ResolutionFailure(
                     f"Failed to resolve requirement from line: {line!s}"
                 )
-        if index:
+        # Apply index restriction when it is a non-pypi index, or when no extra indexes
+        if index and (not is_pypi_url(index) or not extra_index):
             try:
                 index_lookup[req.normalized_name] = project.get_source(
                     url=index, refresh=True
@@ -744,10 +745,7 @@ class Resolver:
             sources = list(
                 filter(lambda s: s.get("name") == self.index_lookup[ireq.name], sources)
             )
-        if any(
-            "python.org" in source["url"] or "pypi.org" in source["url"]
-            for source in sources
-        ):
+        if any(is_pypi_url(source["url"]) for source in sources):
             hashes = self._get_hashes_from_pypi(ireq)
             if hashes:
                 return hashes
