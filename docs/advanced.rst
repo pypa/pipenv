@@ -40,7 +40,7 @@ For a specific package to be installed from an alternate package index, you must
 
 **Note:** In prior versions of ``pipenv`` it was possible to specify to search ``--extra-index-urls`` to ``pip`` and not
 specifically match the expected index by name.   This functionality has been deprecated in favor of index restricted
-packages,which is a simplifying assumption that is more security mindful.  The pip documentation has the following
+packages, which is a simplifying assumption that is more security mindful.  The pip documentation has the following
 warning around this option.
 
 > Using this option to search for packages which are not in the main repository (such as private packages) is unsafe,
