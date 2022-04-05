@@ -14,6 +14,7 @@ atomicwrites = {version = "*", markers="sys_platform == 'win32'"}
 
 [scripts]
 tests = "bash ./run-tests.sh"
+test = "pytest -vvs"
 
 [pipenv]
 allow_prereleases = true
