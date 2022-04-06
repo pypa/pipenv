@@ -46,14 +46,15 @@ the following command:
 Alternatively the index may be specified by full url, and it will be added to the ``Pipfile`` with a generated name
 unless it already exists in which case the existing name with be reused when pinning the package index.
 
-**Note:** In prior versions of ``pipenv`` you could specify ``--extra-index-urls`` to the ``pip`` resolver and avoid
-specifically matching the expected index by name.   That functionality was deprecated in favor of index restricted
-packages, which is a simplifying assumption that is more security mindful.  The pip documentation has the following
-warning around the ``--extra-index-urls`` option::
+.. note::
+    In prior versions of ``pipenv`` you could specify ``--extra-index-urls`` to the ``pip`` resolver and avoid
+    specifically matching the expected index by name.   That functionality was deprecated in favor of index restricted
+    packages, which is a simplifying assumption that is more security mindful.  The pip documentation has the following
+    warning around the ``--extra-index-urls`` option::
 
-> Using this option to search for packages which are not in the main repository (such as private packages) is unsafe,
-per a security vulnerability called dependency confusion: an attacker can claim the package on the public repository
-in a way that will ensure it gets chosen over the private package.
+    Using this option to search for packages which are not in the main repository (such as private packages) is unsafe,
+    per a security vulnerability called dependency confusion: an attacker can claim the package on the public repository
+    in a way that will ensure it gets chosen over the private package.
 
 Should you wish to use an alternative default index other than PyPI: simply do not specify PyPI as one of the
 sources in your ``Pipfile``.  When PyPI is omitted, then any public packages required either directly or
@@ -332,15 +333,15 @@ Example::
 
 .. note::
 
-   Each month, `PyUp.io`_ updates the ``safety`` database of
-   insecure Python packages and `makes it available to the
-   community for free <https://pyup.io/safety/>`__. Pipenv
-   makes an API call to retrieve those results and use them
-   each time you run ``pipenv check`` to show you vulnerable
-   dependencies.
+    Each month, `PyUp.io`_ updates the ``safety`` database of
+    insecure Python packages and `makes it available to the
+    community for free <https://pyup.io/safety/>`__. Pipenv
+    makes an API call to retrieve those results and use them
+    each time you run ``pipenv check`` to show you vulnerable
+    dependencies.
 
-   For more up-to-date vulnerability data, you may also use your own safety
-   API key by setting the environment variable ``PIPENV_PYUP_API_KEY``.
+    For more up-to-date vulnerability data, you may also use your own safety
+    API key by setting the environment variable ``PIPENV_PYUP_API_KEY``.
 
 
 ☤ Community Integrations
