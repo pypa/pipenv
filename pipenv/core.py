@@ -1923,7 +1923,6 @@ def do_install(
     packages=False,
     editable_packages=False,
     index_url=False,
-    extra_index_url=False,
     dev=False,
     three=False,
     python=False,
@@ -2165,7 +2164,6 @@ def do_install(
                         pre=pre,
                         requirements_dir=requirements_directory,
                         index=index_url,
-                        extra_indexes=extra_index_url,
                         pypi_mirror=pypi_mirror,
                     )
                     if c.returncode:
@@ -2240,13 +2238,11 @@ def do_install(
                     )
                 )
                 # Add the package to the Pipfile.
-                indexes = list(filter(None, [index_url, *extra_index_url]))
-                for index in indexes:
+                if index_url:
                     index_name = project.add_index_to_pipfile(
-                        index, verify_ssl=index.startswith("https:")
+                        index_url, verify_ssl=index_url.startswith("https:")
                     )
-                    if index_url and not extra_index_url:
-                        pkg_requirement.index = index_name
+                    pkg_requirement.index = index_name
                 try:
                     project.add_package_to_pipfile(pkg_requirement, dev)
                 except ValueError:

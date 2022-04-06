@@ -225,8 +225,6 @@ def handle_option_line(
             index_urls = [opts.index_url]
         if opts.no_index is True:
             index_urls = []
-        if opts.extra_index_urls:
-            index_urls.extend(opts.extra_index_urls)
         if opts.find_links:
             # FIXME: it would be nice to keep track of the source
             # of the find_links: support a find-links local path

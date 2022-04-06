@@ -62,9 +62,6 @@ class SessionCommandMixin(CommandContextMixIn):
             url = getattr(options, "index_url", None)
             if url:
                 index_urls.append(url)
-        urls = getattr(options, "extra_index_urls", None)
-        if urls:
-            index_urls.extend(urls)
         # Return None rather than an empty list
         return index_urls or None
 

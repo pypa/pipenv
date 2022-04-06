@@ -1,0 +1,2 @@
+Removes the optional ``install`` argument ``--extra-index-url`` as it was not compatible with index restricted packages.
+Using the ``--index`` argument is the correct way to specify a package should be pulled from the non-default index.
