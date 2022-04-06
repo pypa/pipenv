@@ -3,7 +3,6 @@ name: CI
 on:
   push:
     paths-ignore:
-      - "docs/**"
       - "news/**"
       - "examples/**"
       - "peeps/**"
@@ -19,7 +18,6 @@ on:
       - main
   pull_request:
     paths-ignore:
-      - "docs/**"
       - "news/**"
       - "examples/**"
       - "peeps/**"
