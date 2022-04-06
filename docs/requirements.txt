@@ -11,7 +11,7 @@ Jinja2==2.10
 MarkupSafe==1.1.0
 pbr==5.1.1
 -e .
-Pygments==2.3.0
+Pygments==2.11.2
 pythonz-bd==1.11.4
 pytz==2018.5
 requests==2.20.1
