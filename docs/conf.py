@@ -26,7 +26,9 @@ with open(os.path.join(here, "..", "pipenv", "__version__.py")) as f:
 
 # Hackery to get the CLI docs to generate
 import click
+
 import pipenv.vendor.click
+
 click.BaseCommand = pipenv.vendor.click.BaseCommand
 
 # -- General configuration ------------------------------------------------
