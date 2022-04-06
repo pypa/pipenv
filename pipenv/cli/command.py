@@ -236,7 +236,6 @@ def install(state, **kwargs):
         keep_outdated=state.installstate.keep_outdated,
         selective_upgrade=state.installstate.selective_upgrade,
         index_url=state.index,
-        extra_index_url=state.extra_index_urls,
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
         site_packages=state.site_packages,

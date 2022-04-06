@@ -59,7 +59,6 @@ class PipenvGroup(DYMMixin, Group):
 class State:
     def __init__(self):
         self.index = None
-        self.extra_index_urls = []
         self.verbose = False
         self.quiet = False
         self.pypi_mirror = None
@@ -111,25 +110,9 @@ def index_option(f):
         "--index",
         expose_value=False,
         envvar="PIP_INDEX_URL",
-        help="Target PyPI-compatible package index url.",
+        help="Specify target package index by url or index name from Pipfile.",
         nargs=1,
         callback=callback,
-    )(f)
-
-
-def extra_index_option(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        state.extra_index_urls.extend(list(value))
-        return value
-
-    return option(
-        "--extra-index-url",
-        multiple=True,
-        expose_value=False,
-        help="URLs to the extra PyPI compatible indexes to query for package look-ups.",
-        callback=callback,
-        envvar="PIP_EXTRA_INDEX_URL",
     )(f)
 
 
@@ -630,7 +613,6 @@ def sync_options(f):
 def install_options(f):
     f = sync_options(f)
     f = index_option(f)
-    f = extra_index_option(f)
     f = requirementstxt_option(f)
     f = selective_upgrade_option(f)
     f = ignore_pipfile_option(f)
