@@ -1,0 +1,1 @@
+Improve documentation around extra indexes and index restricted packages.

@@ -18,7 +18,7 @@ This document covers some of Pipenv's more glorious and advanced features.
 ----------------------------
 
 Starting in release ``2022.3.23`` all packages are mapped only to a single package index for security reasons.
-All unspecified packages are resolved using the default index source; the default package index is pypi.
+All unspecified packages are resolved using the default index source; the default package index is PyPI.
 
 For a specific package to be installed from an alternate package index, you must match the name of the index as in the following example::
 
@@ -38,18 +38,28 @@ For a specific package to be installed from an alternate package index, you must
     torch = {version="*", index="pytorch"}
     numpy = {version="*"}
 
-**Note:** In prior versions of ``pipenv`` it was possible to specify to search ``--extra-index-urls`` to ``pip`` and not
-specifically match the expected index by name.   This functionality has been deprecated in favor of index restricted
+You may install a package such as the example ``torch`` from the named index ``pytorch`` using the CLI by running
+the following command:
+
+``pipenv install --index=pytorch torch``
+
+Alternatively the index may be specified by full url, and it will be added to the ``Pipfile`` with a generated name
+unless it already exists in which case the existing name with be reused when pinning the package index.
+
+**Note:** In prior versions of ``pipenv`` you could specify ``--extra-index-urls`` to the ``pip`` resolver and avoid
+specifically matching the expected index by name.   That functionality was deprecated in favor of index restricted
 packages, which is a simplifying assumption that is more security mindful.  The pip documentation has the following
-warning around this option.
+warning around the ``--extra-index-urls`` option::
 
 > Using this option to search for packages which are not in the main repository (such as private packages) is unsafe,
 per a security vulnerability called dependency confusion: an attacker can claim the package on the public repository
 in a way that will ensure it gets chosen over the private package.
 
-It is possible to use an alternative default index other than pypi.  To accomplish this, simply do not specify pypi
-as one of the sources in your Pipfile. When pypi is not a default source, any public packages required by your
-primary index packages must be mirrored onto your private index or they will not resolve properly, as is standard.
+Should you wish to use an alternative default index other than PyPI: simply do not specify PyPI as one of the
+sources in your ``Pipfile``.  When PyPI is omitted, then any public packages required either directly or
+as sub-dependencies must be mirrored onto your private index or they will not resolve properly.  This matches the
+standard recommendation of ``pip`` maintainers: "To correctly make a private project installable is to point
+--index-url to an index that contains both PyPI and their private projects—which is our recommended best practice."
 
 ☤ Using a PyPI Mirror
 ----------------------------
