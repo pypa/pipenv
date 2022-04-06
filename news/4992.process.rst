@@ -1,1 +1,0 @@
-Internal to pipenv, the utils.py was split into a utils module with unused code removed.

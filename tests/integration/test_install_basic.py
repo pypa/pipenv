@@ -405,8 +405,6 @@ def test_install_venv_project_directory(PipenvInstance):
             prefix="pipenv-", suffix="temp_workon_home"
         ) as workon_home:
             os.environ["WORKON_HOME"] = workon_home
-            if "PIPENV_VENV_IN_PROJECT" in os.environ:
-                del os.environ["PIPENV_VENV_IN_PROJECT"]
 
             c = p.pipenv("install six")
             assert c.returncode == 0
