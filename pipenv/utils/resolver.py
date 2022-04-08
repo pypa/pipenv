@@ -518,7 +518,7 @@ class Resolver:
             pip_options, _ = self.pip_command.parser.parse_args(self.pip_args)
             pip_options.cache_dir = self.project.s.PIPENV_CACHE_DIR
             pip_options.no_python_version_warning = True
-            pip_options.no_input = True
+            pip_options.no_input = self.project.settings.get("disable_pip_input", True)
             pip_options.progress_bar = "off"
             pip_options.ignore_requires_python = True
             pip_options.pre = self.pre or self.project.settings.get(
