@@ -1,2 +1,0 @@
-Pipenv CLI documentation generation has been fixed.  It had broke when ``click`` was vendored into the project in
-``2021.11.9`` because by default ``sphinx-click`` could no longer determine the CLI inherited from click.

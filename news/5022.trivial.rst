@@ -1,1 +1,0 @@
-Reuse existing utility method for determining if index is pypi, reducing code complexity.

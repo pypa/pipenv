@@ -1,3 +1,41 @@
+2022.4.8 (2022-04-08)
+=====================
+
+
+Features & Improvements
+-----------------------
+
+- Implements a ``pipenv requirements`` command which generates a requirements.txt compatible output without locking.  `#4959 <https://github.com/pypa/pipenv/issues/4959>`_
+- Internal to pipenv, the utils.py was split into a utils module with unused code removed.  `#4992 <https://github.com/pypa/pipenv/issues/4992>`_
+
+Bug Fixes
+---------
+
+- Pipenv will now ignore ``.venv`` in the project when ``PIPENV_VENV_IN_PROJECT`` variable is False.
+  Unset variable maintains the existing behavior of preferring to use the project's ``.venv`` should it exist.  `#2763 <https://github.com/pypa/pipenv/issues/2763>`_
+- Fix an edge case of hash collection in index restricted packages whereby the hashes for some packages would
+  be missing from the ``Pipfile.lock`` following package index restrictions added in ``pipenv==2022.3.23``.  `#5023 <https://github.com/pypa/pipenv/issues/5023>`_
+
+Improved Documentation
+----------------------
+
+- Pipenv CLI documentation generation has been fixed.  It had broke when ``click`` was vendored into the project in
+  ``2021.11.9`` because by default ``sphinx-click`` could no longer determine the CLI inherited from click.  `#4778 <https://github.com/pypa/pipenv/issues/4778>`_
+- Improve documentation around extra indexes and index restricted packages.  `#5022 <https://github.com/pypa/pipenv/issues/5022>`_
+
+Removals and Deprecations
+-------------------------
+
+- Removes the optional ``install`` argument ``--extra-index-url`` as it was not compatible with index restricted packages.
+  Using the ``--index`` argument is the correct way to specify a package should be pulled from the non-default index.  `#5022 <https://github.com/pypa/pipenv/issues/5022>`_
+
+Relates to dev process changes
+------------------------------
+
+- Added code linting using pre-commit-hooks, black, flake8, isort, pygrep-hooks, news-fragments and check-manifest.
+  Very similar to pip's configuration; adds a towncrier new's type ``process`` for change to Development processes.
+
+
 2022.3.28 (2022-03-27)
 ======================
 

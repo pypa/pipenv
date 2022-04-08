@@ -1,2 +1,0 @@
-Added code linting using pre-commit-hooks, black, flake8, isort, pygrep-hooks, news-fragments and check-manifest.
-Very similar to pip's configuration; adds a towncrier new's type ``process`` for change to Development processes.
