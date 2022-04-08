@@ -24,6 +24,13 @@ about = {}
 with open(os.path.join(here, "..", "pipenv", "__version__.py")) as f:
     exec(f.read(), about)
 
+# Hackery to get the CLI docs to generate
+import click
+
+import pipenv.vendor.click
+
+click.BaseCommand = pipenv.vendor.click.BaseCommand
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -38,7 +45,7 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.coverage",
     "sphinx.ext.viewcode",
-    "sphinx_click.ext",
+    "sphinx_click",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -124,7 +131,7 @@ html_static_path = ["_static"]
 
 
 def setup(app):
-    app.add_stylesheet("custom.css")
+    app.add_css_file("custom.css")
 
 
 # -- Options for HTMLHelp output ------------------------------------------
