@@ -9,6 +9,7 @@ importlib-resources = {version = "*", markers = "python_version < '3.7'"}
 sphinxcontrib-spelling = "<4.3.0"
 pre-commit = "*"
 atomicwrites = {version = "*", markers="sys_platform == 'win32'"}
+pytest-cov = "*"
 
 [packages]
 
