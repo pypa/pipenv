@@ -10,6 +10,7 @@ sphinxcontrib-spelling = "<4.3.0"
 pre-commit = ">=2.*"
 atomicwrites = {version = "*", markers="sys_platform == 'win32'"}
 pytest-cov = ">=3.*"
+typing-extensions = ">=4.*"
 
 [packages]
 
