@@ -89,7 +89,7 @@ jobs:
           PYTHONIOENCODING: "utf-8"
           GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
         run: |
-          pipenv run pytest -ra -n auto --fulltrace tests
+          pipenv run pytest -ra -n auto -v --cov-config setup.cfg --fulltrace tests
 
   build:
     name: Build Package
