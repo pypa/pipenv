@@ -1,15 +1,15 @@
 [dev-packages]
 pipenv = {path = ".", editable = true, extras = ["tests", "dev"]}
 sphinx-click = "<3"
-click = "*"
+click = ">=8.*"
 pytest_pypi = {path = "./tests/pytest-pypi", editable = true}
 stdeb = {version="*", markers="sys_platform == 'linux'"}
 dataclasses = {version="*", markers="python_version < '3.7'"}
 importlib-resources = {version = "*", markers = "python_version < '3.7'"}
 sphinxcontrib-spelling = "<4.3.0"
-pre-commit = "*"
+pre-commit = ">=2.*"
 atomicwrites = {version = "*", markers="sys_platform == 'win32'"}
-pytest-cov = "*"
+pytest-cov = ">=3.*"
 
 [packages]
 
