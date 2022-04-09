@@ -1,7 +1,7 @@
 [dev-packages]
 pipenv = {path = ".", editable = true, extras = ["tests", "dev"]}
 sphinx-click = "<3"
-click = ">=8.*"
+click = "==8.0.3"
 pytest_pypi = {path = "./tests/pytest-pypi", editable = true}
 stdeb = {version="*", markers="sys_platform == 'linux'"}
 dataclasses = {version="*", markers="python_version < '3.7'"}
