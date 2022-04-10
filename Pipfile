@@ -6,6 +6,7 @@ pytest_pypi = {path = "./tests/pytest-pypi", editable = true}
 stdeb = {version="*", markers="sys_platform == 'linux'"}
 dataclasses = {version="*", markers="python_version < '3.7'"}
 importlib-resources = {version = "==5.4.0", markers = "python_version < '3.7'"}
+importlib-metadata = {version = "==4.8.3", markers = "python_version < '3.7'"}
 sphinxcontrib-spelling = "<4.3.0"
 pre-commit = "==2.17.0"
 tomli = "==1.2.2"
