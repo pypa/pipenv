@@ -5,7 +5,7 @@ click = "==8.0.3"
 pytest_pypi = {path = "./tests/pytest-pypi", editable = true}
 stdeb = {version="*", markers="sys_platform == 'linux'"}
 dataclasses = {version="*", markers="python_version < '3.7'"}
-importlib-resources = {version = "*", markers = "python_version < '3.7'"}
+importlib-resources = {version = ">=5.4.*", markers = "python_version < '3.7'"}
 sphinxcontrib-spelling = "<4.3.0"
 pre-commit = ">=2.*"
 atomicwrites = {version = "*", markers="sys_platform == 'win32'"}
