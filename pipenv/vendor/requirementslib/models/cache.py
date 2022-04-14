@@ -50,7 +50,7 @@ class DependencyCache(object):
     version. The cache file is written to the appropriate user cache dir for
     the current platform, i.e.
 
-        ~/.cache/pip-tools/depcache-pyX.Y.json
+        ~/.cache/pip/depcache-pyX.Y.json
 
     Where X.Y indicates the Python version.
     """
@@ -243,7 +243,7 @@ class _JSONCache(object):
     The cache file is written to the appropriate user cache dir for the
     current platform, i.e.
 
-        ~/.cache/pip-tools/depcache-pyX.Y.json
+        ~/.cache/pip/depcache-pyX.Y.json
 
     Where X.Y indicates the Python version.
     """
