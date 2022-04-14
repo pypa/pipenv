@@ -62,7 +62,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "pipenv"
-copyright = '2020. A project founded by <a href="http://kennethreitz.com/pages/open-projects.html">Kenneth Reitz</a>'
+copyright = "2022"
 author = "Python Packaging Authority"
 
 # The version info for the project you're documenting, acts as replacement for
