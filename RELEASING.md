@@ -24,7 +24,7 @@ A lot of pipenv depends on ancillary libraries. You may need to make new release
 
 ## Updating Vendored Dependencies
 
-This is the most complex element of releasing new versions of pipenv due to existing patches on current code. Currently the largest patchsets are maintained against [pip](https://github.com/pypa/pip).
+This is the most complex element of releasing new versions of pipenv due to existing patches on current code. Currently the largest patchsets are maintained against [pip](https://github.com/pypa/pip) and [pip-tools](https://github.com/jazzband/pip-tools).
 
 You can begin by reviewing vendored dependencies which can be found in `pipenv/vendor/vendor.txt`, a file which is consumed by the automated vendoring process. These dependencies may have minor patches applied which can be found in `tasks/vendoring/patches/vendor`. Check PyPI for updates to the specified packages and increment the versions as needed, making sure to capture all dependencies in case any were added. It would be *very bad* to release without necessary dependencies, obviously.
 
@@ -49,6 +49,19 @@ For larger libraries you can keep local clones of them and simply generate full 
 sed -i -r 's/([a-b]\/)(?:src\/)?(pip)/\1pipenv\/patched\/\2/g' diff.patch
 cp diff.patch ../pipenv/tasks/vendoring/patches/patched/pip19.patch
 ```
+
+Assuming patches are kept up to date and you are simply working on a modification that is relatively minor, here is a script you can use to pull in a single modified file from `pipenv` into a local clone of `pip-tools` and regenerate a patch from the updated version of that file:
+
+```bash
+#!/bin/bash
+cp ../pipenv/pipenv/patched/piptools/$@ piptools/$@
+sed -i 's/pipenv.patched.notpip/pip/g' piptools/$@
+git diff -p piptools/$@ > diff.patch
+sed -i -r 's:([a-b]/)(piptools):\1pipenv/patched/\2:g' diff.patch
+```
+
+The resulting patch is then combined into the patchset by hand (make sure you don't alter the whitespace in the patch!)
+
 
 ## Updating Vendored Dependencies (continued)
 

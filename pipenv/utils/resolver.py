@@ -1045,7 +1045,7 @@ def resolve_deps(
     req_dir=None,
 ):
     """Given a list of dependencies, return a resolved list of dependencies,
-    and their hashes, using the warehouse API / pip.
+    using pip-tools -- and their hashes, using the warehouse API / pip.
     """
     index_lookup = {}
     markers_lookup = {}
