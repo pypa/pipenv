@@ -15,7 +15,6 @@ importlib-metadata==4.6.1
 importlib-resources==5.2.0
 iso8601==0.1.16
 markupsafe==2.0.1
-more-itertools==8.8.0
 orderedmultidict==1.0.1
 packaging==21.0
 parse==1.19.0
