@@ -729,7 +729,9 @@ def batch_install(
     ]
     sequential_dep_names = [d.name for d in sequential_deps]
 
-    deps_list_bar = progress.bar(deps_to_install, width=32, label=label)
+    deps_list_bar = progress.bar(
+        deps_to_install, width=32, label=label, hide=environments.PIPENV_IS_CI
+    )
 
     trusted_hosts = []
     # Install these because
