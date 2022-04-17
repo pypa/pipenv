@@ -29,7 +29,8 @@ import click
 
 import pipenv.vendor.click
 
-click.BaseCommand = pipenv.vendor.click.BaseCommand
+click.Command = pipenv.vendor.click.Command
+click.Group = pipenv.vendor.click.Group
 
 # -- General configuration ------------------------------------------------
 
