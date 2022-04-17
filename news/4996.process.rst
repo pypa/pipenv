@@ -1,0 +1,1 @@
+Added pytest-cov and basic configuration to the project for generating html testing coverage reports.
