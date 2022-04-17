@@ -901,11 +901,10 @@ def do_install_dependencies(
             failed_dep = failed_deps_queue.get()
             failed_list.append(failed_dep)
         click.echo(
-            "{}".format(
-                crayons.red(
-                    f"Failed to install some dependency or packages.  "
-                    f"The following have failed installation and attempted retry: {failed_list}"
-                )
+            click.style(
+                f"Failed to install some dependency or packages.  "
+                f"The following have failed installation and attempted retry: {failed_list}",
+                fg="red",
             ),
             err=True,
         )
