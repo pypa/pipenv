@@ -62,7 +62,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "pipenv"
-copyright = "2022"
+copyright = '2020. A project founded by Kenneth Reitz and maintained by <a href="https://www.pypa.io/en/latest/">Python Packaging Authority (PyPA).</a>'
 author = "Python Packaging Authority"
 
 # The version info for the project you're documenting, acts as replacement for
@@ -112,7 +112,7 @@ html_theme_options = {
 }
 
 html_sidebars = {
-    "index": ["sidebarintro.html", "sourcelink.html", "searchbox.html", "hacks.html"],
+    "index": ["sidebarlogo.html", "sourcelink.html", "searchbox.html", "hacks.html"],
     "**": [
         "sidebarlogo.html",
         "localtoc.html",

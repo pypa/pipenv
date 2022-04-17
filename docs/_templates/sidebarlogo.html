@@ -1,13 +1,3 @@
-<p class="logo">
-  <a href="{{ pathto(master_doc) }}">
-    <img class="logo" src="{{ pathto('_static/pipenv.png', 1) }}" title="Gift-wrapped box w/ 'pipenv' on the ribbon"/>
-  </a>
-</p>
-
-<p>
-  <iframe src="https://ghbtns.com/github-btn.html?user=pypa&repo=pipenv&type=watch&count=true&size=large"
-    allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
-</p>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.css" />
 <style>
   .algolia-autocomplete{
@@ -16,6 +6,12 @@
   }
   .algolia-autocomplete a{
     border-bottom: none !important;
+  }
+  iframe.noScrolling{
+    overflow: hidden;
+  }
+  iframe.noBorder{
+    border: none;
   }
   #doc_search{
     width: 100%;
@@ -29,7 +25,16 @@
     inputSelector: '#doc_search',
     debug: false // Set debug to true if you want to inspect the dropdown
   })" async></script>
+<p class="logo">
+  <a href="{{ pathto(master_doc) }}">
+    <img class="logo" src="{{ pathto('_static/pipenv.png', 1) }}" title="Gift-wrapped box w/ 'pipenv' on the ribbon"/>
+  </a>
+</p>
 
+<p>
+  <iframe src="https://ghbtns.com/github-btn.html?user=pypa&repo=pipenv&type=watch&count=true&size=large"
+    allowtransparency="true" class="noScrolling noBorder" width="200px" height="35px" ></iframe>
+</p>
 <p>
   <strong>Pipenv</strong> is a production-ready tool that aims to bring the best of all packaging worlds to the Python world. It harnesses Pipfile, pip, and virtualenv into one single command.
   <p>It features very pretty terminal colors.</p>
@@ -39,7 +44,7 @@
 <p>Receive updates on new releases and upcoming projects.</p>
 
 <p><iframe src="https://ghbtns.com/github-btn.html?user=pypa&type=follow&count=true"
-  allowtransparency="true" frameborder="0" scrolling="0" width="200" height="20"></iframe></p>
+  allowtransparency="true" class="noScrolling noBorder" width="200" height="20"></iframe></p>
 
 <p><a href="https://twitter.com/ThePyPA" class="twitter-follow-button" data-show-count="false">Follow @ThePyPA</a> <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script></p>
 <p><a href="https://mail.python.org/mailman3/lists/distutils-sig.python.org/">Join Mailing List</a>.</p>
@@ -47,21 +52,25 @@
 <h3>Other Projects</h3>
 
 <ul>
-  <li><a href="https://pipenv-pipes.readthedocs.io/en/latest/">Pipenv-Pipes</a></li>
+    <li><a href="https://pipenv-pipes.readthedocs.io/en/latest/">Pipenv-Pipes</a></li>
+    <li><a href="https://pip.pypa.io/en/stable/">pip: package installer for Python</a></li>
+    <li><a href="https://requests.readthedocs.io">Requests: HTTP for Humans</a></li>
 </ul>
 
 
 <h3>Useful Links</h3>
 <ul>
-  <li><a href="https://requests.readthedocs.io/en/latest/community/recommended/">Recommended Packages and Extensions</a></li>
+    <li><a href="https://requests.readthedocs.io/en/latest/community/recommended/">Recommended Packages and
+        Extensions</a>
+    </li>
 
-  <p></p>
+    <p></p>
 
-  <li><a href="https://github.com/pypa/pipenv">Pipenv @ GitHub</a></li>
-  <li><a href="https://pypi.org/project/pipenv">Pipenv @ PyPI</a></li>
-  <li><a href="https://launchpad.net/~pypa/+archive/ubuntu/ppa">Pipenv PPA (PyPA)</a></li>
-  <li><a href="https://github.com/pypa/pipenv/issues">Issue Tracker</a></li>
-  <hr>
-  <li><a href="https://pipenv-ja.readthedocs.io/ja/translate-ja/">日本語</a></li>
-  <li><a href="https://pipenv-es.readthedocs.io/es/latest/">Español</a></li>
+    <li><a href="https://github.com/pypa/pipenv">Pipenv @ GitHub</a></li>
+    <li><a href="https://pypi.org/project/pipenv">Pipenv @ PyPI</a></li>
+    <li><a href="https://launchpad.net/~pypa/+archive/ubuntu/ppa">Pipenv PPA (PyPA)</a></li>
+    <li><a href="https://github.com/pypa/pipenv/issues">Issue Tracker</a></li>
+    <hr>
+    <li><a href="https://pipenv-ja.readthedocs.io/ja/translate-ja/">日本語</a></li>
+    <li><a href="https://pipenv-es.readthedocs.io/es/latest/">Español</a></li>
 </ul>
