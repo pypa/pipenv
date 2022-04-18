@@ -9,8 +9,8 @@ index c66a075a..febea8df 100644
 -    old_module = sys.modules["pip_shims"]
 +    if __name__ != "pip_shims":
 +        del sys.modules["pip_shims"]
- 
- 
+
+
 -module = sys.modules["pip_shims"] = shims._new()
 +if __name__ in sys.modules:
 +    old_module = sys.modules[__name__]
@@ -27,14 +27,14 @@ index 2a31a4df..d3b5e708 100644
 @@ -11,7 +11,7 @@ import sys
  from collections.abc import Callable
  from functools import wraps
- 
+
 -import packaging.version
 +from pipenv.vendor.packaging import version as pkg_version
- 
+
  from .environment import MYPY_RUNNING
- 
+
 @@ -107,10 +107,10 @@ def _parse(version):
- 
+
  @memoize
  def parse_version(version):
 -    # type: (str) -> packaging.version._BaseVersion
@@ -43,12 +43,12 @@ index 2a31a4df..d3b5e708 100644
          raise TypeError("Can only derive versions from string, got {!r}".format(version))
 -    return packaging.version.parse(version)
 +    return pkg_version.parse(version)
- 
- 
+
+
  @memoize
 @@ -130,10 +130,10 @@ def split_package(module, subimport=None):
      :Example:
- 
+
      >>> from pip_shims.utils import split_package
 -    >>> split_package("pipenv.patched.notpip._internal.req.req_install", subimport="InstallRequirement")
 -    ("pipenv.patched.notpip._internal.req.req_install", "InstallRequirement")
