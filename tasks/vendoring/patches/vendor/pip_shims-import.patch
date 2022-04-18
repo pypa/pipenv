@@ -2,7 +2,7 @@ diff --git a/pipenv/vendor/pip_shims/__init__.py b/pipenv/vendor/pip_shims/__ini
 index c66a075a..febea8df 100644
 --- a/pipenv/vendor/pip_shims/__init__.py
 +++ b/pipenv/vendor/pip_shims/__init__.py
-@@ -31,10 +31,15 @@ __version__ = "0.6.0"
+@@ -31,10 +31,15 @@ __version__ = "0.7.0"
  if "pip_shims" in sys.modules:
      # mainly to keep a reference to the old module on hand so it doesn't get
      # weakref'd away

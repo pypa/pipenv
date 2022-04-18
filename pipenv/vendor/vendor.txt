@@ -20,7 +20,7 @@ packaging==21.3
 parse==1.19.0
 pep517==0.11.0
 pexpect==4.8.0
-pip-shims==0.6.0
+pip-shims==0.7.0
 pipdeptree==2.2.1
 platformdirs==2.4.0
 plette[validation]==0.2.3
@@ -30,7 +30,7 @@ python-dateutil==2.8.2
 python-dotenv==0.19.0
 pythonfinder==1.2.10
 requests==2.26.0
-requirementslib==1.6.1
+requirementslib==1.6.2
 shellingham==1.4.0
 six==1.16.0
 termcolor==1.1.0
