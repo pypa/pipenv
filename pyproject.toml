@@ -25,6 +25,7 @@ exclude = '''
   | tests/pytest-pypi
   | tests/test_artifacts
   | get-pipenv.py
+  | pyproject.toml
 )
 '''
 
