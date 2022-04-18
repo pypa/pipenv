@@ -518,9 +518,11 @@ class LinkCollector:
         self,
         session: PipSession,
         search_scope: SearchScope,
+        index_lookup: Optional[Dict[str, List[str]]] = None,
     ) -> None:
         self.search_scope = search_scope
         self.session = session
+        self.index_lookup = index_lookup if index_lookup else {}
 
     @classmethod
     def create(
@@ -528,6 +530,7 @@ class LinkCollector:
         session: PipSession,
         options: Values,
         suppress_no_index: bool = False,
+        index_lookup: Optional[Dict[str, List[str]]] = None,
     ) -> "LinkCollector":
         """
         :param session: The Session to use to make requests.
@@ -546,12 +549,10 @@ class LinkCollector:
         find_links = options.find_links or []
 
         search_scope = SearchScope.create(
-            find_links=find_links,
-            index_urls=index_urls,
+            find_links=find_links, index_urls=index_urls, index_lookup=index_lookup
         )
         link_collector = LinkCollector(
-            session=session,
-            search_scope=search_scope,
+            session=session, search_scope=search_scope, index_lookup=index_lookup
         )
         return link_collector
 

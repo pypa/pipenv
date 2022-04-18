@@ -17,7 +17,10 @@ This document covers some of Pipenv's more glorious and advanced features.
 ☤ Specifying Package Indexes
 ----------------------------
 
-If you'd like a specific package to be installed with a specific package index, you can do the following::
+Starting in release ``2022.3.23`` all packages are mapped only to a single package index for security reasons.
+All unspecified packages are resolved using the default index source; the default package index is PyPI.
+
+For a specific package to be installed from an alternate package index, you must match the name of the index as in the following example::
 
     [[source]]
     url = "https://pypi.org/simple"
@@ -25,23 +28,44 @@ If you'd like a specific package to be installed with a specific package index, 
     name = "pypi"
 
     [[source]]
-    url = "http://pypi.home.kennethreitz.org/simple"
+    url = "https://download.pytorch.org/whl/cu113/"
     verify_ssl = false
-    name = "home"
+    name = "pytorch"
 
     [dev-packages]
 
     [packages]
-    requests = {version="*", index="home"}
-    maya = {version="*", index="pypi"}
-    records = "*"
+    torch = {version="*", index="pytorch"}
+    numpy = {version="*"}
 
-Very fancy.
+You may install a package such as the example ``torch`` from the named index ``pytorch`` using the CLI by running
+the following command:
+
+``pipenv install --index=pytorch torch``
+
+Alternatively the index may be specified by full url, and it will be added to the ``Pipfile`` with a generated name
+unless it already exists in which case the existing name with be reused when pinning the package index.
+
+.. note::
+    In prior versions of ``pipenv`` you could specify ``--extra-index-urls`` to the ``pip`` resolver and avoid
+    specifically matching the expected index by name.   That functionality was deprecated in favor of index restricted
+    packages, which is a simplifying assumption that is more security mindful.  The pip documentation has the following
+    warning around the ``--extra-index-urls`` option:
+
+    *Using this option to search for packages which are not in the main repository (such as private packages) is unsafe,
+    per a security vulnerability called dependency confusion: an attacker can claim the package on the public repository
+    in a way that will ensure it gets chosen over the private package.*
+
+Should you wish to use an alternative default index other than PyPI: simply do not specify PyPI as one of the
+sources in your ``Pipfile``.  When PyPI is omitted, then any public packages required either directly or
+as sub-dependencies must be mirrored onto your private index or they will not resolve properly.  This matches the
+standard recommendation of ``pip`` maintainers: "To correctly make a private project installable is to point
+--index-url to an index that contains both PyPI and their private projects—which is our recommended best practice."
 
 ☤ Using a PyPI Mirror
 ----------------------------
 
-If you would like to override the default PyPI index URLs with the URL for a PyPI mirror, you can use the following::
+Should you wish to override the default PyPI index URLs with the URL for a PyPI mirror, you can do the following::
 
     $ pipenv install --pypi-mirror <mirror_url>
 
@@ -53,9 +77,9 @@ If you would like to override the default PyPI index URLs with the URL for a PyP
 
     $ pipenv uninstall --pypi-mirror <mirror_url>
 
-Alternatively, you can set the ``PIPENV_PYPI_MIRROR`` environment variable.
+Alternatively, setting the ``PIPENV_PYPI_MIRROR`` environment variable is equivalent to passing ``--pypi-mirror <mirror_url>``.
 
-☤ Injecting credentials into Pipfiles via environment variables
+☤ Injecting credentials into Pipfile via environment variables
 -----------------------------------------------------------------
 
 Pipenv will expand environment variables (if defined) in your Pipfile. Quite
@@ -199,7 +223,7 @@ development dependencies::
     py==1.4.34
     pytest==3.2.3
 
-Finally, if you wish to generate a requirements file with only the
+If you wish to generate a requirements file with only the
 development requirements you can do that too, using the ``--dev-only``
 flag::
 
@@ -207,11 +231,40 @@ flag::
     py==1.4.34
     pytest==3.2.3
 
+Sometimes, you would want to generate a requirements file based on your current
+environment. However, using pipenv lock -r will still do the locking process which
+could update package versions. To keep the packages as is, use the ``--keep-outdated``
+flag::
+
+    $ pipenv lock -r --keep-outdated
+    chardet==3.0.4
+    requests==2.18.4
+    certifi==2017.7.27.1
+    idna==2.6
+    urllib3==1.22
+
+Note that using this approach, packages newly added to the Pipfile will still be
+included in requirements.txt. If you really want to use Pipfile.lock and
+Pipfile.lock only, you can generate the requirements using::
+
+    $ pipenv requirements
+    chardet==3.0.4
+    requests==2.18.4
+    certifi==2017.7.27.1
+    idna==2.6
+    urllib3==1.22
+
+This will bypass the locking process completely. As with other commands,
+passing ``--dev`` will include both the default and development dependencies.
+Passing ``--dev-only`` will include only development dependencies and ``--hash`` will
+add package hashes to the output for extra security.
+
 The locked requirements are written to stdout, with shell output redirection
 used to write them to a file::
 
     $ pipenv lock -r > requirements.txt
     $ pipenv lock -r --dev-only > dev-requirements.txt
+    $ pipenv requirements --dev > all-requirements.txt
     $ cat requirements.txt
     chardet==3.0.4
     requests==2.18.4
@@ -221,7 +274,14 @@ used to write them to a file::
     $ cat dev-requirements.txt
     py==1.4.34
     pytest==3.2.3
-
+    $ cat all-requirements.txt
+    chardet==3.0.4
+    requests==2.18.4
+    certifi==2017.7.27.1
+    idna==2.6
+    urllib3==1.22
+    py==1.4.34
+    pytest==3.2.3
 
 ☤ Detection of Security Vulnerabilities
 ---------------------------------------
@@ -274,15 +334,15 @@ Example::
 
 .. note::
 
-   Each month, `PyUp.io` updates the ``safety`` database of
-   insecure Python packages and `makes it available to the
-   community for free <https://pyup.io/safety/>`__. Pipenv
-   makes an API call to retrieve those results and use them
-   each time you run ``pipenv check`` to show you vulnerable
-   dependencies.
+    Each month, `PyUp.io <https://pyup.io>`_ updates the ``safety`` database of
+    insecure Python packages and `makes it available to the
+    community for free <https://pyup.io/safety/>`__. Pipenv
+    makes an API call to retrieve those results and use them
+    each time you run ``pipenv check`` to show you vulnerable
+    dependencies.
 
-   For more up-to-date vulnerability data, you may also use your own safety
-   API key by setting the environment variable ``PIPENV_PYUP_API_KEY``.
+    For more up-to-date vulnerability data, you may also use your own safety
+    API key by setting the environment variable ``PIPENV_PYUP_API_KEY``.
 
 
 ☤ Community Integrations
@@ -380,7 +440,7 @@ If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv
     >>> os.environ['HELLO']
     'WORLD'
 
-Shell like variable expansion is available in ``.env`` files using `${VARNAME}` syntax.::
+Shell like variable expansion is available in ``.env`` files using ``${VARNAME}`` syntax.::
 
     $ cat .env
     CONFIG_PATH=${HOME}/.config/foo
@@ -591,15 +651,15 @@ Magic shell completions are now enabled!
 It's reasonably common for platform specific Python bindings for
 operating system interfaces to only be available through the system
 package manager, and hence unavailable for installation into virtual
-environments with `pip`. In these cases, the virtual environment can
-be created with access to the system `site-packages` directory::
+environments with ``pip``. In these cases, the virtual environment can
+be created with access to the system ``site-packages`` directory::
 
     $ pipenv --three --site-packages
 
-To ensure that all `pip`-installable components actually are installed
+To ensure that all ``pip``-installable components actually are installed
 into the virtual environment and system packages are only used for
 interfaces that don't participate in Python-level dependency resolution
-at all, use the `PIP_IGNORE_INSTALLED` setting::
+at all, use the ``PIP_IGNORE_INSTALLED`` setting::
 
     $ PIP_IGNORE_INSTALLED=1 pipenv install --dev
 
@@ -618,7 +678,7 @@ Libraries are ultimately meant to be used in some **application**. Applications 
 To summarize:
 
 - For libraries, define **abstract dependencies** via ``install_requires`` in ``setup.py``. The decision of which version exactly to be installed and where to obtain that dependency is not yours to make!
-- For applications, define **dependencies and where to get them** in the `Pipfile` and use this file to update the set of **concrete dependencies** in ``Pipfile.lock``. This file defines a specific idempotent environment that is known to work for your project. The ``Pipfile.lock`` is your source of truth. The ``Pipfile`` is a convenience for you to create that lock-file, in that it allows you to still remain somewhat vague about the exact version of a dependency to be used. Pipenv is there to help you define a working conflict-free set of specific dependency-versions, which would otherwise be a very tedious task.
+- For applications, define **dependencies and where to get them** in the ``Pipfile`` and use this file to update the set of **concrete dependencies** in ``Pipfile.lock``. This file defines a specific idempotent environment that is known to work for your project. The ``Pipfile.lock`` is your source of truth. The ``Pipfile`` is a convenience for you to create that lock-file, in that it allows you to still remain somewhat vague about the exact version of a dependency to be used. Pipenv is there to help you define a working conflict-free set of specific dependency-versions, which would otherwise be a very tedious task.
 - Of course, ``Pipfile`` and Pipenv are still useful for library developers, as they can be used to define a development or test environment.
 - And, of course, there are projects for which the distinction between library and application isn't that clear. In that case, use ``install_requires`` alongside Pipenv and ``Pipfile``.
 

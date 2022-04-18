@@ -11,18 +11,28 @@ class PopenProcess:
     """A wrapper of subprocess.Popen that
     doesn't need to worry about the Pipe buffer exceeding the limit.
     """
+
     def __init__(
-        self, args, *, block=True, encoding=DEFAULT_ENCODING, env=None, timeout=None, **other_kwargs
+        self,
+        args,
+        *,
+        block=True,
+        encoding=DEFAULT_ENCODING,
+        env=None,
+        timeout=None,
+        **other_kwargs
     ):
         self.blocking = block
         self.env = env
         self.script = Script.parse(args)
         if env is not None:
             env = dict(os.environ, **env)
-            other_kwargs['env'] = env
-        other_kwargs['stdout'] = subprocess.PIPE
-        other_kwargs['stderr'] = subprocess.PIPE
-        self._process = subprocess.Popen(args, universal_newlines=True, encoding=encoding, **other_kwargs)
+            other_kwargs["env"] = env
+        other_kwargs["stdout"] = subprocess.PIPE
+        other_kwargs["stderr"] = subprocess.PIPE
+        self._process = subprocess.Popen(
+            args, universal_newlines=True, encoding=encoding, **other_kwargs
+        )
         self._endtime = None
         if timeout is not None:
             self._endtime = _time() + timeout

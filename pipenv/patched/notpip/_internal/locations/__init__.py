@@ -70,7 +70,6 @@ else:
 
 def _looks_like_bpo_44860() -> bool:
     """The resolution to bpo-44860 will change this incorrect platlib.
-
     See <https://bugs.python.org/issue44860>.
     """
     from distutils.command.install import INSTALL_SCHEMES  # type: ignore
@@ -138,7 +137,6 @@ def _looks_like_red_hat_scheme() -> bool:
 @functools.lru_cache(maxsize=None)
 def _looks_like_slackware_scheme() -> bool:
     """Slackware patches sysconfig but fails to patch distutils and site.
-
     Slackware changes sysconfig's user scheme to use ``"lib64"`` for the lib
     path, but does not do the same to the site module.
     """
@@ -154,11 +152,9 @@ def _looks_like_slackware_scheme() -> bool:
 @functools.lru_cache(maxsize=None)
 def _looks_like_msys2_mingw_scheme() -> bool:
     """MSYS2 patches distutils and sysconfig to use a UNIX-like scheme.
-
     However, MSYS2 incorrectly patches sysconfig ``nt`` scheme. The fix is
     likely going to be included in their 3.10 release, so we ignore the warning.
     See msys2/MINGW-packages#9319.
-
     MSYS2 MINGW's patch uses lowercase ``"lib"`` instead of the usual uppercase,
     and is missing the final ``"site-packages"``.
     """

@@ -7,8 +7,8 @@ import pytest
 
 import pytest_pypi.app
 from flaky import flaky
-from vistir.misc import to_text
-from pipenv.utils import temp_environ
+from pipenv.vendor.vistir.misc import to_text
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.lock
@@ -457,7 +457,7 @@ def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInst
         assert c.returncode == 0
         c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
         assert c.returncode == 0
-        assert c.stdout.splitlines()[1] == "40.2.0"
+        assert c.stdout.strip() == "40.2.0"
         c = p.pipenv("install legacy-backend-package")
         assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]
@@ -481,7 +481,7 @@ def test_outdated_setuptools_with_pep517_cython_import_in_setuppy(PipenvInstance
         assert c.returncode == 0
         c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
         assert c.returncode == 0
-        assert c.stdout.splitlines()[1] == "40.2.0"
+        assert c.stdout.strip() == "40.2.0"
         c = p.pipenv("install cython-import-package")
         assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]
@@ -804,3 +804,40 @@ def test_default_lock_overwrite_dev_lock(PipenvInstance):
         assert c.returncode == 0
         assert p.lockfile["default"]["click"]["version"] == "==6.7"
         assert p.lockfile["develop"]["click"]["version"] == "==6.7"
+
+
+@flaky
+@pytest.mark.lock
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_pipenv_respects_package_index_restrictions(PipenvInstance):
+    with PipenvInstance() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "{url}/simple"
+verify_ssl = true
+name = "local"
+
+[packages]
+requests = {requirement}
+                """.strip().format(url=p.pypi, requirement='{version="*", index="local"}')
+            f.write(contents)
+
+        c = p.pipenv('lock')
+        assert c.returncode == 0
+        assert 'requests' in p.lockfile['default']
+        assert 'idna' in p.lockfile['default']
+        assert 'certifi' in p.lockfile['default']
+        assert 'urllib3' in p.lockfile['default']
+        assert 'chardet' in p.lockfile['default']
+        # this is the newest version we have in our private pypi (but pypi.org has 2.27.1 at present)
+        expected_result = {'hashes': ['sha256:63b52e3c866428a224f97cab011de738c36aec0185aa91cfacd418b5d58911d1',
+                                      'sha256:ec22d826a36ed72a7358ff3fe56cbd4ba69dd7a6718ffd450ff0e9df7a47ce6a'],
+                           'index': 'local', 'version': '==2.19.1'}
+        assert p.lockfile['default']['requests'] == expected_result

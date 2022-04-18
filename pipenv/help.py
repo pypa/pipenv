@@ -3,7 +3,6 @@ import pprint
 import sys
 
 import pipenv
-
 from pipenv.pep508checker import lookup
 from pipenv.vendor import pythonfinder
 
@@ -69,9 +68,7 @@ def get_pipenv_diagnostics(project):
         print("")
     if project.lockfile_exists:
         print("")
-        print_utf(
-            f"Contents of `Pipfile.lock` ({project.lockfile_location!r}):"
-        )
+        print_utf(f"Contents of `Pipfile.lock` ({project.lockfile_location!r}):")
         print("")
         print("```json")
         with open(project.lockfile_location) as f:
@@ -82,4 +79,5 @@ def get_pipenv_diagnostics(project):
 
 if __name__ == "__main__":
     from pipenv.project import Project
+
     get_pipenv_diagnostics(Project())

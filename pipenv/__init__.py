@@ -7,8 +7,7 @@ import os
 import sys
 import warnings
 
-from pipenv.__version__ import __version__    # noqa
-
+from pipenv.__version__ import __version__  # noqa
 
 PIPENV_ROOT = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 PIPENV_VENDOR = os.sep.join([PIPENV_ROOT, "vendor"])
@@ -54,8 +53,8 @@ if os.name == "nt":
 sys.stdout = stdout
 sys.stderr = stderr
 
-from .cli import cli
 from . import resolver  # noqa
+from .cli import cli
 
 if __name__ == "__main__":
     cli()

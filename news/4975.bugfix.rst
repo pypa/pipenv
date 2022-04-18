@@ -1,1 +1,0 @@
-Environment variables from dot env files are now properly expanded when included in scripts.

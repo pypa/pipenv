@@ -10,7 +10,6 @@ from vistir.path import normalize_drive
 from pipenv._compat import fix_utf8
 from pipenv.vendor.vistir.misc import _isatty, fs_str
 
-
 # HACK: avoid resolver.py uses the wrong byte code files.
 # I hope I can remove this one day.
 os.environ["PYTHONDONTWRITEBYTECODE"] = fs_str("1")
@@ -36,8 +35,7 @@ def env_to_bool(val):
 
 
 def _is_env_truthy(name):
-    """An environment variable is truthy if it exists and isn't one of (0, false, no, off)
-    """
+    """An environment variable is truthy if it exists and isn't one of (0, false, no, off)"""
     if name not in os.environ:
         return False
     return os.environ.get(name).lower() not in _false_values
@@ -86,8 +84,8 @@ def normalize_pipfile_path(p):
     except OSError:
         loc = loc.absolute()
     # Recase the path properly on Windows. From https://stackoverflow.com/a/35229734/5043728
-    if os.name == 'nt':
-        matches = glob.glob(re.sub(r'([^:/\\])(?=[/\\]|$)', r'[\1]', str(loc)))
+    if os.name == "nt":
+        matches = glob.glob(re.sub(r"([^:/\\])(?=[/\\]|$)", r"[\1]", str(loc)))
         path_str = matches and matches[0] or str(loc)
     else:
         path_str = str(loc)
@@ -99,7 +97,7 @@ def normalize_pipfile_path(p):
 os.environ.pop("__PYVENV_LAUNCHER__", None)
 # Internal, to tell whether the command line session is interactive.
 SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
-PIPENV_IS_CI = env_to_bool(os.environ.get('CI') or os.environ.get('TF_BUILD') or False)
+PIPENV_IS_CI = env_to_bool(os.environ.get("CI") or os.environ.get("TF_BUILD") or False)
 PIPENV_COLORBLIND = bool(os.environ.get("PIPENV_COLORBLIND"))
 """If set, disable terminal colors.
 
@@ -125,14 +123,18 @@ class Setting:
 
     def initialize(self):
 
-        self.PIPENV_CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
+        self.PIPENV_CACHE_DIR = os.environ.get(
+            "PIPENV_CACHE_DIR", user_cache_dir("pipenv")
+        )
         """Location for Pipenv to store it's package cache.
 
         Default is to use appdir's user cache directory.
         """
 
         # Tells Pipenv which Python to default to, when none is provided.
-        self.PIPENV_DEFAULT_PYTHON_VERSION = os.environ.get("PIPENV_DEFAULT_PYTHON_VERSION")
+        self.PIPENV_DEFAULT_PYTHON_VERSION = os.environ.get(
+            "PIPENV_DEFAULT_PYTHON_VERSION"
+        )
         """Use this Python version when creating new virtual environments by default.
 
         This can be set to a version string, e.g. ``3.9``, or a path. Default is to use
@@ -180,7 +182,9 @@ class Setting:
         and enables the user to use any user-built environments with Pipenv.
         """
 
-        self.PIPENV_INSTALL_TIMEOUT = int(os.environ.get("PIPENV_INSTALL_TIMEOUT", 60 * 15))
+        self.PIPENV_INSTALL_TIMEOUT = int(
+            os.environ.get("PIPENV_INSTALL_TIMEOUT", 60 * 15)
+        )
         """Max number of seconds to wait for package installation.
 
         Defaults to 900 (15 minutes), a very long arbitrary time.
@@ -248,7 +252,7 @@ class Setting:
                 pipenv_pipfile = normalize_pipfile_path(pipenv_pipfile)
                 # Overwrite environment variable so that subprocesses can get the correct path.
                 # See https://github.com/pypa/pipenv/issues/3584
-                os.environ['PIPENV_PIPFILE'] = pipenv_pipfile
+                os.environ["PIPENV_PIPFILE"] = pipenv_pipfile
         self.PIPENV_PIPFILE = pipenv_pipfile
         """If set, this specifies a custom Pipfile location.
 
@@ -293,10 +297,18 @@ class Setting:
         Default is 120 seconds, an arbitrary number that seems to work.
         """
 
-        self.PIPENV_VENV_IN_PROJECT = bool(os.environ.get("PIPENV_VENV_IN_PROJECT"))
-        """If set, creates ``.venv`` in your project directory.
-
-        Default is to create new virtual environments in a global location.
+        self.PIPENV_VENV_IN_PROJECT = os.environ.get("PIPENV_VENV_IN_PROJECT")
+        if self.PIPENV_VENV_IN_PROJECT is not None:
+            if self.PIPENV_VENV_IN_PROJECT.lower() in _true_values:
+                self.PIPENV_VENV_IN_PROJECT = True
+            elif self.PIPENV_VENV_IN_PROJECT.lower() in _false_values:
+                self.PIPENV_VENV_IN_PROJECT = False
+            else:
+                self.PIPENV_VENV_IN_PROJECT = None
+        """ When set True, will create or use the ``.venv`` in your project directory.
+        When Set False, will ignore the .venv in your project directory even if it exists.
+        Default is None will use the .venv of project directory should it exist, otherwise
+          will create new virtual environments in a global location.
         """
 
         self.PIPENV_VERBOSE = bool(os.environ.get("PIPENV_VERBOSE"))
@@ -332,10 +344,9 @@ class Setting:
         Defaults to ``(w)ipe``
         """
 
-        self.PIPENV_RESOLVE_VCS = (
-            os.environ.get("PIPENV_RESOLVE_VCS") is None
-            or _is_env_truthy("PIPENV_RESOLVE_VCS")
-        )
+        self.PIPENV_RESOLVE_VCS = os.environ.get(
+            "PIPENV_RESOLVE_VCS"
+        ) is None or _is_env_truthy("PIPENV_RESOLVE_VCS")
 
         """Tells Pipenv whether to resolve all VCS dependencies in full.
 
@@ -344,9 +355,7 @@ class Setting:
         approach, you may set this to '0', 'off', or 'false'.
         """
 
-        self.PIPENV_PYUP_API_KEY = os.environ.get(
-            "PIPENV_PYUP_API_KEY", None
-        )
+        self.PIPENV_PYUP_API_KEY = os.environ.get("PIPENV_PYUP_API_KEY", None)
 
         # Internal, support running in a different Python from sys.executable.
         self.PIPENV_PYTHON = os.environ.get("PIPENV_PYTHON")
@@ -396,12 +405,12 @@ class Setting:
 def is_using_venv():
     # type: () -> bool
     """Check for venv-based virtual environment which sets sys.base_prefix"""
-    if getattr(sys, 'real_prefix', None) is not None:
+    if getattr(sys, "real_prefix", None) is not None:
         # virtualenv venvs
         result = True
     else:
         # PEP 405 venvs
-        result = sys.prefix != getattr(sys, 'base_prefix', sys.prefix)
+        result = sys.prefix != getattr(sys, "base_prefix", sys.prefix)
     return result
 
 

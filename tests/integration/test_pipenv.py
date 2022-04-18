@@ -8,7 +8,8 @@ import os
 import pytest
 
 from pipenv.project import Project
-from pipenv.utils import subprocess_run, temp_environ
+from pipenv.utils.processes import subprocess_run
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.code
@@ -91,14 +92,9 @@ def test_proper_names_unamanged_virtualenv(PipenvInstance):
 def test_directory_with_leading_dash(raw_venv, PipenvInstance):
     with temp_environ():
         with PipenvInstance(chdir=True, venv_in_project=False, name="-project-with-dash") as p:
-            if "PIPENV_VENV_IN_PROJECT" in os.environ:
-                del os.environ['PIPENV_VENV_IN_PROJECT']
             c = p.pipenv('run pip freeze')
             assert c.returncode == 0
             c = p.pipenv('--venv')
             assert c.returncode == 0
             venv_path = c.stdout.strip()
             assert os.path.isdir(venv_path)
-            # Manually clean up environment, since PipenvInstance assumes that
-            # the virutalenv is in the project directory.
-            p.pipenv('--rm')

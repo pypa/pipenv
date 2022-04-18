@@ -7,7 +7,8 @@ import pytest
 
 from flaky import flaky
 
-from pipenv.utils import subprocess_run, temp_environ
+from pipenv.utils.processes import subprocess_run
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.setup
@@ -404,8 +405,6 @@ def test_install_venv_project_directory(PipenvInstance):
             prefix="pipenv-", suffix="temp_workon_home"
         ) as workon_home:
             os.environ["WORKON_HOME"] = workon_home
-            if "PIPENV_VENV_IN_PROJECT" in os.environ:
-                del os.environ["PIPENV_VENV_IN_PROJECT"]
 
             c = p.pipenv("install six")
             assert c.returncode == 0
@@ -497,3 +496,30 @@ extras = ["socks"]
         assert 'six = {version = "*"}' in contents
         assert 'requests = {version = "*"' in contents
         assert 'flask = "*"' in contents
+
+
+@flaky
+@pytest.mark.dev
+@pytest.mark.basic
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_install_with_unnamed_source(PipenvInstance):
+    """Ensure that running `pipenv install` doesn't break with an unamed index"""
+    with PipenvInstance(chdir=True) as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+requests = {version="*", index="pypi"}
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install")
+        assert c.returncode == 0
