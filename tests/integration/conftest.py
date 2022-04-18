@@ -310,7 +310,7 @@ class _PipenvInstance:
         if venv_in_project:
             self.env["PIPENV_VENV_IN_PROJECT"] = fs_str("1")
         else:
-            self.env["PIPENV_VENV_IN_PROJECT"] = fs_str("0")
+            self.env.pop("PIPENV_VENV_IN_PROJECT", None)
 
         self.original_dir = Path(__file__).parent.parent.parent
         path = path if path else os.environ.get("PIPENV_PROJECT_DIR", None)
