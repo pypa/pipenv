@@ -14,7 +14,7 @@ import sys
 from .compat import sysconfig, detect_encoding, ZipFile
 from .resources import finder
 from .util import (FileOperator, get_export_entry, convert_path,
-                   get_executable, in_venv)
+                   get_executable, get_platform, in_venv)
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +170,11 @@ class ScriptMaker(object):
                 sysconfig.get_config_var('BINDIR'),
                'python%s%s' % (sysconfig.get_config_var('VERSION'),
                                sysconfig.get_config_var('EXE')))
+            if not os.path.isfile(executable):
+                # for Python builds from source on Windows, no Python executables with
+                # a version suffix are created, so we use python.exe
+                executable = os.path.join(sysconfig.get_config_var('BINDIR'),
+                                'python%s' % (sysconfig.get_config_var('EXE')))
         if options:
             executable = self._get_alternate_executable(executable, options)
 
@@ -379,7 +384,8 @@ class ScriptMaker(object):
                 bits = '64'
             else:
                 bits = '32'
-            name = '%s%s.exe' % (kind, bits)
+            platform_suffix = '-arm' if get_platform() == 'win-arm64' else ''
+            name = '%s%s%s.exe' % (kind, bits, platform_suffix)
             # Issue 31: don't hardcode an absolute package name, but
             # determine it relative to the current package
             distlib_package = __name__.rsplit('.', 1)[0]

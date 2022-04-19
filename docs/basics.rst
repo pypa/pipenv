@@ -133,7 +133,7 @@ Example Pipfile.lock
 - Generally, keep both ``Pipfile`` and ``Pipfile.lock`` in version control.
 - Do not keep ``Pipfile.lock`` in version control if multiple versions of Python are being targeted.
 - Specify your target Python version in your ``Pipfile``'s ``[requires]`` section. Ideally, you should only have one target Python version, as this is a deployment tool. ``python_version`` should be in the format ``X.Y`` (or ``X``) and ``python_full_version`` should be in ``X.Y.Z`` format.
-- ``pipenv install`` is fully compatible with ``pip install`` syntax, for which the full documentation can be found `here <https://pip.pypa.io/en/stable/user_guide/#installing-packages>`_.
+- ``pipenv install`` is fully compatible with ``pip install`` syntax, for which the full documentation can be found `here <https://pip.pypa.io/en/stable/user_guide/#installing-packages>`__.
 - Note that the ``Pipfile`` uses the `TOML Spec <https://github.com/toml-lang/toml#user-content-spec>`_.
 
 
@@ -390,7 +390,7 @@ Below is an example usage which installs the git repository located at ``https:/
 
 Valid values for ``<vcs_type>`` include ``git``, ``bzr``, ``svn``, and ``hg``.  Valid values for ``<scheme>`` include ``http``, ``https``, ``ssh``, and ``file``.  In specific cases you also have access to other schemes: ``svn`` may be combined with ``svn`` as a scheme, and ``bzr`` can be combined with ``sftp`` and ``lp``.
 
-You can read more about pip's implementation of VCS support `here <https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`_. For more information about other options available when specifying VCS dependencies, please check the `Pipfile spec <https://github.com/pypa/pipfile>`_.
+You can read more about pip's implementation of VCS support `here <https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`__. For more information about other options available when specifying VCS dependencies, please check the `Pipfile spec <https://github.com/pypa/pipfile>`_.
 
 
 ☤ Pipfile.lock Security Features

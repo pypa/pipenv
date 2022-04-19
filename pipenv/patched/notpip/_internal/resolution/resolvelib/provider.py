@@ -1,6 +1,15 @@
 import collections
 import math
-from typing import TYPE_CHECKING, Dict, Iterable, Iterator, Mapping, Sequence, Union
+from typing import (
+    TYPE_CHECKING,
+    Dict,
+    Iterable,
+    Iterator,
+    Mapping,
+    Sequence,
+    TypeVar,
+    Union,
+)
 
 from pipenv.patched.notpip._vendor.resolvelib.providers import AbstractProvider
 
@@ -37,6 +46,35 @@ else:
 # services to those objects (access to pip's finder and preparer).
 
 
+D = TypeVar("D")
+V = TypeVar("V")
+
+
+def _get_with_identifier(
+    mapping: Mapping[str, V],
+    identifier: str,
+    default: D,
+) -> Union[D, V]:
+    """Get item from a package name lookup mapping with a resolver identifier.
+
+    This extra logic is needed when the target mapping is keyed by package
+    name, which cannot be directly looked up with an identifier (which may
+    contain requested extras). Additional logic is added to also look up a value
+    by "cleaning up" the extras from the identifier.
+    """
+    if identifier in mapping:
+        return mapping[identifier]
+    # HACK: Theoretically we should check whether this identifier is a valid
+    # "NAME[EXTRAS]" format, and parse out the name part with packaging or
+    # some regular expression. But since pip's resolver only spits out three
+    # kinds of identifiers: normalized PEP 503 names, normalized names plus
+    # extras, and Requires-Python, we can cheat a bit here.
+    name, open_bracket, _ = identifier.partition("[")
+    if open_bracket and name in mapping:
+        return mapping[name]
+    return default
+
+
 class PipProvider(_ProviderBase):
     """Pip's provider implementation for resolvelib.
 
@@ -66,12 +104,13 @@ class PipProvider(_ProviderBase):
     def identify(self, requirement_or_candidate: Union[Requirement, Candidate]) -> str:
         return requirement_or_candidate.name
 
-    def get_preference(
+    def get_preference(  # type: ignore
         self,
         identifier: str,
         resolutions: Mapping[str, Candidate],
         candidates: Mapping[str, Iterator[Candidate]],
-        information: Mapping[str, Iterator["PreferenceInformation"]],
+        information: Mapping[str, Iterable["PreferenceInformation"]],
+        backtrack_causes: Sequence["PreferenceInformation"],
     ) -> "Preference":
         """Produce a sort key for given requirement based on preference.
 
@@ -112,9 +151,9 @@ class PipProvider(_ProviderBase):
                 for _, parent in information[identifier]
             )
             inferred_depth = min(d for d in parent_depths) + 1.0
-            self._known_depths[identifier] = inferred_depth
         else:
             inferred_depth = 1.0
+        self._known_depths[identifier] = inferred_depth
 
         requested_order = self._user_requested.get(identifier, math.inf)
 
@@ -128,35 +167,26 @@ class PipProvider(_ProviderBase):
         # (Most projects specify it only to request for an installer feature,
         # which does not work, but that's another topic.) Intentionally
         # delaying Setuptools helps reduce branches the resolver has to check.
-        # This serves as a temporary fix for issues like "apache-airlfow[all]"
+        # This serves as a temporary fix for issues like "apache-airflow[all]"
         # while we work on "proper" branch pruning techniques.
         delay_this = identifier == "setuptools"
+
+        # Prefer the causes of backtracking on the assumption that the problem
+        # resolving the dependency tree is related to the failures that caused
+        # the backtracking
+        backtrack_cause = self.is_backtrack_cause(identifier, backtrack_causes)
 
         return (
             not requires_python,
             delay_this,
             not direct,
             not pinned,
+            not backtrack_cause,
             inferred_depth,
             requested_order,
             not unfree,
             identifier,
         )
-
-    def _get_constraint(self, identifier: str) -> Constraint:
-        if identifier in self._constraints:
-            return self._constraints[identifier]
-
-        # HACK: Theoratically we should check whether this identifier is a valid
-        # "NAME[EXTRAS]" format, and parse out the name part with packaging or
-        # some regular expression. But since pip's resolver only spits out
-        # three kinds of identifiers: normalized PEP 503 names, normalized names
-        # plus extras, and Requires-Python, we can cheat a bit here.
-        name, open_bracket, _ = identifier.partition("[")
-        if open_bracket and name in self._constraints:
-            return self._constraints[name]
-
-        return Constraint.empty()
 
     def find_matches(
         self,
@@ -164,7 +194,7 @@ class PipProvider(_ProviderBase):
         requirements: Mapping[str, Iterator[Requirement]],
         incompatibilities: Mapping[str, Iterator[Candidate]],
     ) -> Iterable[Candidate]:
-        def _eligible_for_upgrade(name: str) -> bool:
+        def _eligible_for_upgrade(identifier: str) -> bool:
             """Are upgrades allowed for this project?
 
             This checks the upgrade strategy, and whether the project was one
@@ -178,13 +208,23 @@ class PipProvider(_ProviderBase):
             if self._upgrade_strategy == "eager":
                 return True
             elif self._upgrade_strategy == "only-if-needed":
-                return name in self._user_requested
+                user_order = _get_with_identifier(
+                    self._user_requested,
+                    identifier,
+                    default=None,
+                )
+                return user_order is not None
             return False
 
+        constraint = _get_with_identifier(
+            self._constraints,
+            identifier,
+            default=Constraint.empty(),
+        )
         return self._factory.find_candidates(
             identifier=identifier,
             requirements=requirements,
-            constraint=self._get_constraint(identifier),
+            constraint=constraint,
             prefers_installed=(not _eligible_for_upgrade(identifier)),
             incompatibilities=incompatibilities,
         )
@@ -195,3 +235,14 @@ class PipProvider(_ProviderBase):
     def get_dependencies(self, candidate: Candidate) -> Sequence[Requirement]:
         with_requires = not self._ignore_dependencies
         return [r for r in candidate.iter_dependencies(with_requires) if r is not None]
+
+    @staticmethod
+    def is_backtrack_cause(
+        identifier: str, backtrack_causes: Sequence["PreferenceInformation"]
+    ) -> bool:
+        for backtrack_cause in backtrack_causes:
+            if identifier == backtrack_cause.requirement.name:
+                return True
+            if backtrack_cause.parent and identifier == backtrack_cause.parent.name:
+                return True
+        return False

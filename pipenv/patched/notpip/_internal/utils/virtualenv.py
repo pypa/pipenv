@@ -11,8 +11,7 @@ _INCLUDE_SYSTEM_SITE_PACKAGES_REGEX = re.compile(
 )
 
 
-def _running_under_venv():
-    # type: () -> bool
+def _running_under_venv() -> bool:
     """Checks if sys.base_prefix and sys.prefix match.
 
     This handles PEP 405 compliant virtual environments.
@@ -20,8 +19,7 @@ def _running_under_venv():
     return sys.prefix != getattr(sys, "base_prefix", sys.prefix)
 
 
-def _running_under_regular_virtualenv():
-    # type: () -> bool
+def _running_under_regular_virtualenv() -> bool:
     """Checks if sys.real_prefix is set.
 
     This handles virtual environments created with pypa's virtualenv.
@@ -30,14 +28,12 @@ def _running_under_regular_virtualenv():
     return hasattr(sys, "real_prefix")
 
 
-def running_under_virtualenv():
-    # type: () -> bool
+def running_under_virtualenv() -> bool:
     """Return True if we're running inside a virtualenv, False otherwise."""
     return _running_under_venv() or _running_under_regular_virtualenv()
 
 
-def _get_pyvenv_cfg_lines():
-    # type: () -> Optional[List[str]]
+def _get_pyvenv_cfg_lines() -> Optional[List[str]]:
     """Reads {sys.prefix}/pyvenv.cfg and returns its contents as list of lines
 
     Returns None, if it could not read/access the file.
@@ -52,8 +48,7 @@ def _get_pyvenv_cfg_lines():
         return None
 
 
-def _no_global_under_venv():
-    # type: () -> bool
+def _no_global_under_venv() -> bool:
     """Check `{sys.prefix}/pyvenv.cfg` for system site-packages inclusion
 
     PEP 405 specifies that when system site-packages are not supposed to be
@@ -82,8 +77,7 @@ def _no_global_under_venv():
     return False
 
 
-def _no_global_under_regular_virtualenv():
-    # type: () -> bool
+def _no_global_under_regular_virtualenv() -> bool:
     """Check if "no-global-site-packages.txt" exists beside site.py
 
     This mirrors logic in pypa/virtualenv for determining whether system
@@ -97,8 +91,7 @@ def _no_global_under_regular_virtualenv():
     return os.path.exists(no_global_site_packages_file)
 
 
-def virtualenv_no_global():
-    # type: () -> bool
+def virtualenv_no_global() -> bool:
     """Returns a boolean, whether running in venv with no system site-packages."""
     # PEP 405 compliance needs to be checked first since virtualenv >=20 would
     # return True for both checks, but is only able to use the PEP 405 config.

@@ -58,10 +58,13 @@ class VCSRepository(object):
             url = url.split("+")[1]
         return url.startswith("file")
 
-    def obtain(self):
+    def obtain(self, verbosity=1):
         # type: () -> None
         lt_pip_19_2 = (
             pip_shims.parsed_pip_version.parsed_version < pip_shims.parse_version("19.2")
+        )
+        gte_pip_22_0 = (
+            pip_shims.parsed_pip_version.parsed_version >= pip_shims.parse_version("22.0")
         )
         if lt_pip_19_2:
             self.repo_backend = self.repo_backend(self.url)
@@ -72,7 +75,11 @@ class VCSRepository(object):
         elif not os.path.exists(self.checkout_directory):
             if lt_pip_19_2:
                 self.repo_backend.obtain(self.checkout_directory)
-            else:
+            elif gte_pip_22_0:
+                self.repo_backend.obtain(
+                    self.checkout_directory, self.parsed_url, verbosity
+                )
+            else:  # at least Pip 19.2 but not quite pip 22.x
                 self.repo_backend.obtain(self.checkout_directory, self.parsed_url)
         else:
             if self.ref:

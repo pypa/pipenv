@@ -13,10 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class RequirementSet:
-
     def __init__(self, check_supported_wheels: bool = True) -> None:
-        """Create a RequirementSet.
-        """
+        """Create a RequirementSet."""
 
         self.requirements: Dict[str, InstallRequirement] = OrderedDict()
         self.check_supported_wheels = check_supported_wheels
@@ -28,7 +26,7 @@ class RequirementSet:
             (req for req in self.requirements.values() if not req.comes_from),
             key=lambda req: canonicalize_name(req.name or ""),
         )
-        return ' '.join(str(req.req) for req in requirements)
+        return " ".join(str(req.req) for req in requirements)
 
     def __repr__(self) -> str:
         requirements = sorted(
@@ -36,11 +34,11 @@ class RequirementSet:
             key=lambda req: canonicalize_name(req.name or ""),
         )
 
-        format_string = '<{classname} object; {count} requirement(s): {reqs}>'
+        format_string = "<{classname} object; {count} requirement(s): {reqs}>"
         return format_string.format(
             classname=self.__class__.__name__,
             count=len(requirements),
-            reqs=', '.join(str(req.req) for req in requirements),
+            reqs=", ".join(str(req.req) for req in requirements),
         )
 
     def add_unnamed_requirement(self, install_req: InstallRequirement) -> None:
@@ -57,7 +55,7 @@ class RequirementSet:
         self,
         install_req: InstallRequirement,
         parent_req_name: Optional[str] = None,
-        extras_requested: Optional[Iterable[str]] = None
+        extras_requested: Optional[Iterable[str]] = None,
     ) -> Tuple[List[InstallRequirement], Optional[InstallRequirement]]:
         """Add install_req as a requirement to install.
 
@@ -77,7 +75,8 @@ class RequirementSet:
         if not install_req.match_markers(extras_requested):
             logger.info(
                 "Ignoring %s: markers '%s' don't match your environment",
-                install_req.name, install_req.markers,
+                install_req.name,
+                install_req.markers,
             )
             return [], None
 
@@ -88,16 +87,17 @@ class RequirementSet:
         if install_req.link and install_req.link.is_wheel:
             wheel = Wheel(install_req.link.filename)
             tags = compatibility_tags.get_supported()
-            if (self.check_supported_wheels and not wheel.supported(tags)):
+            if self.check_supported_wheels and not wheel.supported(tags):
                 raise InstallationError(
                     "{} is not a supported wheel on this platform.".format(
-                        wheel.filename)
+                        wheel.filename
+                    )
                 )
 
         # This next bit is really a sanity check.
-        assert not install_req.user_supplied or parent_req_name is None, (
-            "a user supplied req shouldn't have a parent"
-        )
+        assert (
+            not install_req.user_supplied or parent_req_name is None
+        ), "a user supplied req shouldn't have a parent"
 
         # Unnamed requirements are scanned again and the requirement won't be
         # added as a dependency until after scanning.
@@ -107,23 +107,25 @@ class RequirementSet:
 
         try:
             existing_req: Optional[InstallRequirement] = self.get_requirement(
-                install_req.name)
+                install_req.name
+            )
         except KeyError:
             existing_req = None
 
         has_conflicting_requirement = (
-            parent_req_name is None and
-            existing_req and
-            not existing_req.constraint and
-            existing_req.extras == install_req.extras and
-            existing_req.req and
-            install_req.req and
-            existing_req.req.specifier != install_req.req.specifier
+            parent_req_name is None
+            and existing_req
+            and not existing_req.constraint
+            and existing_req.extras == install_req.extras
+            and existing_req.req
+            and install_req.req
+            and existing_req.req.specifier != install_req.req.specifier
         )
         if has_conflicting_requirement:
             raise InstallationError(
-                "Double requirement given: {} (already in {}, name={!r})"
-                .format(install_req, existing_req, install_req.name)
+                "Double requirement given: {} (already in {}, name={!r})".format(
+                    install_req, existing_req, install_req.name
+                )
             )
 
         # When no existing requirement exists, add the requirement as a
@@ -138,12 +140,8 @@ class RequirementSet:
         if install_req.constraint or not existing_req.constraint:
             return [], existing_req
 
-        does_not_satisfy_constraint = (
-            install_req.link and
-            not (
-                existing_req.link and
-                install_req.link.path == existing_req.link.path
-            )
+        does_not_satisfy_constraint = install_req.link and not (
+            existing_req.link and install_req.link.path == existing_req.link.path
         )
         if does_not_satisfy_constraint:
             raise InstallationError(
@@ -158,12 +156,13 @@ class RequirementSet:
         # mark the existing object as such.
         if install_req.user_supplied:
             existing_req.user_supplied = True
-        existing_req.extras = tuple(sorted(
-            set(existing_req.extras) | set(install_req.extras)
-        ))
+        existing_req.extras = tuple(
+            sorted(set(existing_req.extras) | set(install_req.extras))
+        )
         logger.debug(
             "Setting %s extras to: %s",
-            existing_req, existing_req.extras,
+            existing_req,
+            existing_req.extras,
         )
         # Return the existing requirement for addition to the parent and
         # scanning again.
@@ -173,8 +172,8 @@ class RequirementSet:
         project_name = canonicalize_name(name)
 
         return (
-            project_name in self.requirements and
-            not self.requirements[project_name].constraint
+            project_name in self.requirements
+            and not self.requirements[project_name].constraint
         )
 
     def get_requirement(self, name: str) -> InstallRequirement:

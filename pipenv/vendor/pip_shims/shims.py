@@ -7,7 +7,7 @@ from __future__ import absolute_import
 import sys
 import types
 
-from pipenv.vendor.packaging.version import parse as parse_version
+from packaging.version import parse as parse_version
 
 from .models import (
     ShimmedPathCollection,

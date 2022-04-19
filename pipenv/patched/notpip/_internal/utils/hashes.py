@@ -28,8 +28,7 @@ class Hashes:
 
     """
 
-    def __init__(self, hashes=None):
-        # type: (Dict[str, List[str]]) -> None
+    def __init__(self, hashes: Dict[str, List[str]] = None) -> None:
         """
         :param hashes: A dict of algorithm names pointing to lists of allowed
             hex digests
@@ -41,8 +40,7 @@ class Hashes:
                 allowed[alg] = sorted(keys)
         self._allowed = allowed
 
-    def __and__(self, other):
-        # type: (Hashes) -> Hashes
+    def __and__(self, other: "Hashes") -> "Hashes":
         if not isinstance(other, Hashes):
             return NotImplemented
 
@@ -62,21 +60,14 @@ class Hashes:
         return Hashes(new)
 
     @property
-    def digest_count(self):
-        # type: () -> int
+    def digest_count(self) -> int:
         return sum(len(digests) for digests in self._allowed.values())
 
-    def is_hash_allowed(
-        self,
-        hash_name,  # type: str
-        hex_digest,  # type: str
-    ):
-        # type: (...) -> bool
+    def is_hash_allowed(self, hash_name: str, hex_digest: str) -> bool:
         """Return whether the given hex digest is allowed."""
         return hex_digest in self._allowed.get(hash_name, [])
 
-    def check_against_chunks(self, chunks):
-        # type: (Iterator[bytes]) -> None
+    def check_against_chunks(self, chunks: Iterator[bytes]) -> None:
         """Check good hashes against ones built from iterable of chunks of
         data.
 
@@ -99,12 +90,10 @@ class Hashes:
                 return
         self._raise(gots)
 
-    def _raise(self, gots):
-        # type: (Dict[str, _Hash]) -> NoReturn
+    def _raise(self, gots: Dict[str, "_Hash"]) -> "NoReturn":
         raise HashMismatch(self._allowed, gots)
 
-    def check_against_file(self, file):
-        # type: (BinaryIO) -> None
+    def check_against_file(self, file: BinaryIO) -> None:
         """Check good hashes against a file-like object
 
         Raise HashMismatch if none match.
@@ -112,28 +101,20 @@ class Hashes:
         """
         return self.check_against_chunks(read_chunks(file))
 
-    def check_against_path(self, path):
-        # type: (str) -> None
+    def check_against_path(self, path: str) -> None:
         with open(path, "rb") as file:
             return self.check_against_file(file)
 
-    def __nonzero__(self):
-        # type: () -> bool
+    def __bool__(self) -> bool:
         """Return whether I know any known-good hashes."""
         return bool(self._allowed)
 
-    def __bool__(self):
-        # type: () -> bool
-        return self.__nonzero__()
-
-    def __eq__(self, other):
-        # type: (object) -> bool
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Hashes):
             return NotImplemented
         return self._allowed == other._allowed
 
-    def __hash__(self):
-        # type: () -> int
+    def __hash__(self) -> int:
         return hash(
             ",".join(
                 sorted(
@@ -153,13 +134,11 @@ class MissingHashes(Hashes):
 
     """
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """Don't offer the ``hashes`` kwarg."""
         # Pass our favorite hash in to generate a "gotten hash". With the
         # empty list, it will never match, so an error will always raise.
         super().__init__(hashes={FAVORITE_HASH: []})
 
-    def _raise(self, gots):
-        # type: (Dict[str, _Hash]) -> NoReturn
+    def _raise(self, gots: Dict[str, "_Hash"]) -> "NoReturn":
         raise HashMissing(gots[FAVORITE_HASH].hexdigest())

@@ -21,12 +21,12 @@ class ExplicitRequirement(Requirement):
 
     @property
     def project_name(self) -> NormalizedName:
-        # No need to canonicalise - the candidate did this
+        # No need to canonicalize - the candidate did this
         return self.candidate.project_name
 
     @property
     def name(self) -> str:
-        # No need to canonicalise - the candidate did this
+        # No need to canonicalize - the candidate did this
         return self.candidate.name
 
     def format_for_error(self) -> str:

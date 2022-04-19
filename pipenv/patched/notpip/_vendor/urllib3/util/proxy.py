@@ -45,6 +45,7 @@ def create_proxy_ssl_context(
         ssl_version=resolve_ssl_version(ssl_version),
         cert_reqs=resolve_cert_reqs(cert_reqs),
     )
+
     if (
         not ca_certs
         and not ca_cert_dir

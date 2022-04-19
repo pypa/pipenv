@@ -19,8 +19,6 @@ from pipenv.patched.notpip._internal.resolution.resolvelib.reporter import (
     PipDebuggingReporter,
     PipReporter,
 )
-from pipenv.patched.notpip._internal.utils.deprecation import deprecated
-from pipenv.patched.notpip._internal.utils.filetypes import is_archive_file
 
 from .base import Candidate, Requirement
 from .factory import Factory
@@ -49,6 +47,7 @@ class Resolver(BaseResolver):
         ignore_requires_python: bool,
         force_reinstall: bool,
         upgrade_strategy: str,
+        suppress_build_failures: bool,
         py_version_info: Optional[Tuple[int, ...]] = None,
     ):
         super().__init__()
@@ -63,6 +62,7 @@ class Resolver(BaseResolver):
             force_reinstall=force_reinstall,
             ignore_installed=ignore_installed,
             ignore_requires_python=ignore_requires_python,
+            suppress_build_failures=suppress_build_failures,
             py_version_info=py_version_info,
         )
         self.ignore_dependencies = ignore_dependencies
@@ -136,25 +136,6 @@ class Resolver(BaseResolver):
                     )
                     continue
 
-                looks_like_sdist = (
-                    is_archive_file(candidate.source_link.file_path)
-                    and candidate.source_link.ext != ".zip"
-                )
-                if looks_like_sdist:
-                    # is a local sdist -- show a deprecation warning!
-                    reason = (
-                        "Source distribution is being reinstalled despite an "
-                        "installed package having the same name and version as "
-                        "the installed package."
-                    )
-                    replacement = "use --force-reinstall"
-                    deprecated(
-                        reason=reason,
-                        replacement=replacement,
-                        gone_in="21.3",
-                        issue=8711,
-                    )
-
                 # is a local sdist or path -- reinstall
                 ireq.should_reinstall = True
             else:
@@ -192,17 +173,19 @@ class Resolver(BaseResolver):
         get installed one-by-one.
 
         The current implementation creates a topological ordering of the
-        dependency graph, while breaking any cycles in the graph at arbitrary
-        points. We make no guarantees about where the cycle would be broken,
-        other than they would be broken.
+        dependency graph, giving more weight to packages with less
+        or no dependencies, while breaking any cycles in the graph at
+        arbitrary points. We make no guarantees about where the cycle
+        would be broken, other than it *would* be broken.
         """
         assert self._result is not None, "must call resolve() first"
 
+        if not req_set.requirements:
+            # Nothing is left to install, so we do not need an order.
+            return []
+
         graph = self._result.graph
-        weights = get_topological_weights(
-            graph,
-            expected_node_count=len(self._result.mapping) + 1,
-        )
+        weights = get_topological_weights(graph, set(req_set.requirements.keys()))
 
         sorted_items = sorted(
             req_set.requirements.items(),
@@ -213,23 +196,32 @@ class Resolver(BaseResolver):
 
 
 def get_topological_weights(
-    graph: "DirectedGraph[Optional[str]]", expected_node_count: int
+    graph: "DirectedGraph[Optional[str]]", requirement_keys: Set[str]
 ) -> Dict[Optional[str], int]:
     """Assign weights to each node based on how "deep" they are.
 
     This implementation may change at any point in the future without prior
     notice.
 
-    We take the length for the longest path to any node from root, ignoring any
-    paths that contain a single node twice (i.e. cycles). This is done through
-    a depth-first search through the graph, while keeping track of the path to
-    the node.
+    We first simplify the dependency graph by pruning any leaves and giving them
+    the highest weight: a package without any dependencies should be installed
+    first. This is done again and again in the same way, giving ever less weight
+    to the newly found leaves. The loop stops when no leaves are left: all
+    remaining packages have at least one dependency left in the graph.
+
+    Then we continue with the remaining graph, by taking the length for the
+    longest path to any node from root, ignoring any paths that contain a single
+    node twice (i.e. cycles). This is done through a depth-first search through
+    the graph, while keeping track of the path to the node.
 
     Cycles in the graph result would result in node being revisited while also
-    being it's own path. In this case, take no action. This helps ensure we
+    being on its own path. In this case, take no action. This helps ensure we
     don't get stuck in a cycle.
 
     When assigning weight, the longer path (i.e. larger length) is preferred.
+
+    We are only interested in the weights of packages that are in the
+    requirement_keys.
     """
     path: Set[Optional[str]] = set()
     weights: Dict[Optional[str], int] = {}
@@ -245,15 +237,49 @@ def get_topological_weights(
             visit(child)
         path.remove(node)
 
+        if node not in requirement_keys:
+            return
+
         last_known_parent_count = weights.get(node, 0)
         weights[node] = max(last_known_parent_count, len(path))
 
+    # Simplify the graph, pruning leaves that have no dependencies.
+    # This is needed for large graphs (say over 200 packages) because the
+    # `visit` function is exponentially slower then, taking minutes.
+    # See https://github.com/pypa/pip/issues/10557
+    # We will loop until we explicitly break the loop.
+    while True:
+        leaves = set()
+        for key in graph:
+            if key is None:
+                continue
+            for _child in graph.iter_children(key):
+                # This means we have at least one child
+                break
+            else:
+                # No child.
+                leaves.add(key)
+        if not leaves:
+            # We are done simplifying.
+            break
+        # Calculate the weight for the leaves.
+        weight = len(graph) - 1
+        for leaf in leaves:
+            if leaf not in requirement_keys:
+                continue
+            weights[leaf] = weight
+        # Remove the leaves from the graph, making it simpler.
+        for leaf in leaves:
+            graph.remove(leaf)
+
+    # Visit the remaining graph.
     # `None` is guaranteed to be the root node by resolvelib.
     visit(None)
 
-    # Sanity checks
-    assert weights[None] == 0
-    assert len(weights) == expected_node_count
+    # Sanity check: all requirement keys should be in the weights,
+    # and no other keys should be in the weights.
+    difference = set(weights.keys()).difference(requirement_keys)
+    assert not difference, difference
 
     return weights
 
