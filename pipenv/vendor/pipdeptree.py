@@ -6,7 +6,6 @@ import subprocess
 from itertools import chain
 from collections import defaultdict, deque
 import argparse
-from operator import attrgetter
 import json
 from importlib import import_module
 import tempfile
@@ -21,16 +20,18 @@ try:
 except ImportError:
     from collections import Mapping
 
+import pkg_resources
+
 pardir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(pardir)
 from pipenv.vendor.pip_shims.shims import get_installed_distributions, FrozenRequirement
 
-import pkg_resources
 # inline:
-# from graphviz import backend, Digraph
+# from graphviz import Digraph
+# from graphviz import parameters
 
 
-__version__ = '2.0.0'
+__version__ = '2.2.1'
 
 
 flatten = chain.from_iterable
@@ -48,9 +49,7 @@ def sorted_tree(tree):
     :rtype: collections.OrderedDict
 
     """
-    return OrderedDict(sorted([(k, sorted(v, key=attrgetter('key')))
-                               for k, v in tree.items()],
-                              key=lambda kv: kv[0].key))
+    return OrderedDict([(k, sorted(v)) for k, v in sorted(tree.items())])
 
 
 def guess_version(pkg_key, default='?'):
@@ -75,6 +74,23 @@ def guess_version(pkg_key, default='?'):
 
 
 def frozen_req_from_dist(dist):
+    # The `pipenv.patched.notpip._internal.metadata` modules were introduced in 21.1.1
+    # and the `pipenv.patched.notpip._internal.operations.freeze.FrozenRequirement`
+    # class now expects dist to be a subclass of
+    # `pipenv.patched.notpip._internal.metadata.BaseDistribution`, however the
+    # `pipenv.patched.notpip._internal.utils.misc.get_installed_distributions` continues
+    # to return objects of type
+    # pipenv.patched.notpip._vendor.pkg_resources.DistInfoDistribution.
+    #
+    # This is a hacky backward compatible (with older versions of pip)
+    # fix.
+    try:
+        from pipenv.patched.notpip._internal import metadata
+    except ImportError:
+        pass
+    else:
+        dist = metadata.pkg_resources.Distribution(dist)
+
     try:
         return FrozenRequirement.from_dist(dist)
     except TypeError:
@@ -116,6 +132,9 @@ class Package(object):
 
     def __repr__(self):
         return '<{0}("{1}")>'.format(self.__class__.__name__, self.key)
+
+    def __lt__(self, rhs):
+        return self.key < rhs.key
 
 
 class DistPackage(Package):
@@ -522,6 +541,7 @@ def render_json(tree, indent):
     :rtype: str
 
     """
+    tree = tree.sort()
     return json.dumps([{'package': k.as_dict(),
                         'dependencies': [v.as_dict() for v in vs]}
                        for k, vs in tree.items()],
@@ -579,17 +599,28 @@ def dump_graphviz(tree, output_format='dot', is_reverse=False):
 
     """
     try:
-        from graphviz import backend, Digraph
+        from graphviz import Digraph
     except ImportError:
         print('graphviz is not available, but necessary for the output '
               'option. Please install it.', file=sys.stderr)
         sys.exit(1)
 
-    if output_format not in backend.FORMATS:
+    try:
+        from graphviz import parameters
+    except ImportError:
+        from graphviz import backend
+        valid_formats = backend.FORMATS
+        print('Deprecation warning! Please upgrade graphviz to version >=0.18.0 '
+              'Support for older versions will be removed in upcoming release',
+              file=sys.stderr)
+    else:
+        valid_formats = parameters.FORMATS
+
+    if output_format not in valid_formats:
         print('{0} is not a supported output format.'.format(output_format),
               file=sys.stderr)
         print('Supported formats are: {0}'.format(
-            ', '.join(sorted(backend.FORMATS))), file=sys.stderr)
+            ', '.join(sorted(valid_formats))), file=sys.stderr)
         sys.exit(1)
 
     graph = Digraph(format=output_format)
@@ -666,7 +697,7 @@ def render_conflicts_text(conflicts):
         print('Warning!!! Possibly conflicting dependencies found:',
               file=sys.stderr)
         # Enforce alphabetical order when listing conflicts
-        pkgs = sorted(conflicts.keys(), key=attrgetter('key'))
+        pkgs = sorted(conflicts.keys())
         for p in pkgs:
             pkg = p.render_as_root(False)
             print('* {}'.format(pkg), file=sys.stderr)
@@ -815,11 +846,33 @@ def handle_non_host_target(args):
     return None
 
 
+def get_installed_distributions(local_only=False, user_only=False):
+    try:
+        from pipenv.patched.notpip._internal.metadata import get_environment
+    except ImportError:
+        # For backward compatibility with python ver. 2.7 and pip
+        # version 20.3.4 (latest pip version that works with python
+        # version 2.7)
+        from pipenv.patched.notpip._internal.utils import misc
+        return misc.get_installed_distributions(
+            local_only=local_only,
+            user_only=user_only
+        )
+    else:
+        dists = get_environment(None).iter_installed_distributions(
+            local_only=local_only,
+            skip=(),
+            user_only=user_only
+        )
+        return [d._dist for d in dists]
+
+
 def main():
     args = _get_args()
     result = handle_non_host_target(args)
     if result is not None:
         return result
+
     pkgs = get_installed_distributions(local_only=args.local_only,
                                        user_only=args.user_only)
 

@@ -8,7 +8,7 @@ from typing import Iterable, Optional, Tuple
 
 from pipenv.patched.notpip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
 
-from pipenv.patched.notpip._internal.cli.progress_bars import DownloadProgressProvider
+from pipenv.patched.notpip._internal.cli.progress_bars import get_download_progress_renderer
 from pipenv.patched.notpip._internal.exceptions import NetworkConnectionError
 from pipenv.patched.notpip._internal.models.index import PyPI
 from pipenv.patched.notpip._internal.models.link import Link
@@ -65,7 +65,8 @@ def _prepare_download(
     if not show_progress:
         return chunks
 
-    return DownloadProgressProvider(progress_bar, max=total_length)(chunks)
+    renderer = get_download_progress_renderer(bar_type=progress_bar, size=total_length)
+    return renderer(chunks)
 
 
 def sanitize_content_filename(filename: str) -> str:

@@ -137,9 +137,7 @@ class DirInfo:
     def _from_dict(cls, d: Optional[Dict[str, Any]]) -> Optional["DirInfo"]:
         if d is None:
             return None
-        return cls(
-            editable=_get_required(d, bool, "editable", default=False)
-        )
+        return cls(editable=_get_required(d, bool, "editable", default=False))
 
     def _to_dict(self) -> Dict[str, Any]:
         return _filter_none(editable=self.editable or None)
@@ -149,7 +147,6 @@ InfoType = Union[ArchiveInfo, DirInfo, VcsInfo]
 
 
 class DirectUrl:
-
     def __init__(
         self,
         url: str,
@@ -165,9 +162,9 @@ class DirectUrl:
             return netloc
         user_pass, netloc_no_user_pass = netloc.split("@", 1)
         if (
-            isinstance(self.info, VcsInfo) and
-            self.info.vcs == "git" and
-            user_pass == "git"
+            isinstance(self.info, VcsInfo)
+            and self.info.vcs == "git"
+            and user_pass == "git"
         ):
             return netloc
         if ENV_VAR_RE.match(user_pass):
@@ -218,3 +215,6 @@ class DirectUrl:
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), sort_keys=True)
+
+    def is_local_editable(self) -> bool:
+        return isinstance(self.info, DirInfo) and self.info.editable

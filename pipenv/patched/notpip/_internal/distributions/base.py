@@ -1,9 +1,7 @@
 import abc
-from typing import Optional
-
-from pipenv.patched.notpip._vendor.pkg_resources import Distribution
 
 from pipenv.patched.notpip._internal.index.package_finder import PackageFinder
+from pipenv.patched.notpip._internal.metadata.base import BaseDistribution
 from pipenv.patched.notpip._internal.req import InstallRequirement
 
 
@@ -28,7 +26,7 @@ class AbstractDistribution(metaclass=abc.ABCMeta):
         self.req = req
 
     @abc.abstractmethod
-    def get_pkg_resources_distribution(self) -> Optional[Distribution]:
+    def get_metadata_distribution(self) -> BaseDistribution:
         raise NotImplementedError()
 
     @abc.abstractmethod

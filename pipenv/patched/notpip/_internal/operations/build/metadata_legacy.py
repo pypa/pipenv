@@ -5,7 +5,12 @@ import logging
 import os
 
 from pipenv.patched.notpip._internal.build_env import BuildEnvironment
-from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.cli.spinners import open_spinner
+from pipenv.patched.notpip._internal.exceptions import (
+    InstallationError,
+    InstallationSubprocessError,
+    MetadataGenerationFailed,
+)
 from pipenv.patched.notpip._internal.utils.setuptools_build import make_setuptools_egg_info_args
 from pipenv.patched.notpip._internal.utils.subprocess import call_subprocess
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
@@ -13,49 +18,39 @@ from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 logger = logging.getLogger(__name__)
 
 
-def _find_egg_info(directory):
-    # type: (str) -> str
-    """Find an .egg-info subdirectory in `directory`.
-    """
-    filenames = [
-        f for f in os.listdir(directory) if f.endswith(".egg-info")
-    ]
+def _find_egg_info(directory: str) -> str:
+    """Find an .egg-info subdirectory in `directory`."""
+    filenames = [f for f in os.listdir(directory) if f.endswith(".egg-info")]
 
     if not filenames:
-        raise InstallationError(
-            f"No .egg-info directory found in {directory}"
-        )
+        raise InstallationError(f"No .egg-info directory found in {directory}")
 
     if len(filenames) > 1:
         raise InstallationError(
-            "More than one .egg-info directory found in {}".format(
-                directory
-            )
+            "More than one .egg-info directory found in {}".format(directory)
         )
 
     return os.path.join(directory, filenames[0])
 
 
 def generate_metadata(
-    build_env,  # type: BuildEnvironment
-    setup_py_path,  # type: str
-    source_dir,  # type: str
-    isolated,  # type: bool
-    details,  # type: str
-):
-    # type: (...) -> str
+    build_env: BuildEnvironment,
+    setup_py_path: str,
+    source_dir: str,
+    isolated: bool,
+    details: str,
+) -> str:
     """Generate metadata using setup.py-based defacto mechanisms.
 
     Returns the generated metadata directory.
     """
     logger.debug(
-        'Running setup.py (path:%s) egg_info for package %s',
-        setup_py_path, details,
+        "Running setup.py (path:%s) egg_info for package %s",
+        setup_py_path,
+        details,
     )
 
-    egg_info_dir = TempDirectory(
-        kind="pip-egg-info", globally_managed=True
-    ).path
+    egg_info_dir = TempDirectory(kind="pip-egg-info", globally_managed=True).path
 
     args = make_setuptools_egg_info_args(
         setup_py_path,
@@ -64,11 +59,16 @@ def generate_metadata(
     )
 
     with build_env:
-        call_subprocess(
-            args,
-            cwd=source_dir,
-            command_desc='python setup.py egg_info',
-        )
+        with open_spinner("Preparing metadata (setup.py)") as spinner:
+            try:
+                call_subprocess(
+                    args,
+                    cwd=source_dir,
+                    command_desc="python setup.py egg_info",
+                    spinner=spinner,
+                )
+            except InstallationSubprocessError as error:
+                raise MetadataGenerationFailed(package_details=details) from error
 
     # Return the .egg-info directory.
     return _find_egg_info(egg_info_dir)

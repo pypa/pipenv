@@ -462,11 +462,11 @@
         },
         "platformdirs": {
             "hashes": [
-                "sha256:7535e70dfa32e84d4b34996ea99c5e432fa29a708d0f4e394bbcb2a8faa4f16d",
-                "sha256:bcae7cab893c2d310a711b70b24efb93334febe65f8de776ee320b517471e227"
+                "sha256:027d8e83a2d7de06bbac4e5ef7e023c02b863d7ea5d079477e722bb41ab25788",
+                "sha256:58c8abb07dcb441e6ee4b11d8df0ac856038f944ab98b7be6b27b2a3c7feef19"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==2.5.1"
+            "version": "==2.5.2"
         },
         "pluggy": {
             "hashes": [
@@ -668,7 +668,7 @@
                 "sha256:c50f3d253bc6a9bb9c79d61a26d510d74abdf1b16881260fab5edfc3edfb082f",
                 "sha256:ea74bc9dad9589d8eea3e3fd0b136d8bf6e428888955f215824c2894f0da8b47"
             ],
-            "markers": "python_version < '4' and python_full_version >= '3.6.3'",
+            "markers": "python_full_version >= '3.6.3' and python_full_version < '4.0.0'",
             "version": "==12.2.0"
         },
         "setuptools": {
@@ -794,7 +794,7 @@
                 "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc",
                 "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"
             ],
-            "markers": "python_version >= '3.6'",
+            "markers": "python_version >= '3.7'",
             "version": "==2.0.1"
         },
         "towncrier": {
@@ -814,18 +814,18 @@
         },
         "typing-extensions": {
             "hashes": [
-                "sha256:1a9462dcc3347a79b1f1c0271fbe79e844580bb598bafa1ed208b94da3cdcd42",
-                "sha256:21c85e0fe4b9a155d0799430b0ad741cdce7e359660ccbd8b530613e8df88ce2"
+                "sha256:6657594ee297170d19f67d55c05852a874e7eb634f4f753dbd667855e07c1708",
+                "sha256:f1c24655a0da0d1b67f07e17a5e6b2a105894e6824b92096378bb3668ef02376"
             ],
             "index": "pypi",
-            "version": "==4.1.1"
+            "version": "==4.2.0"
         },
         "urllib3": {
             "hashes": [
                 "sha256:44ece4d53fb1706f667c9bd1c648f5469a2ec925fcf3a776667042d645472c14",
                 "sha256:aabaf16477806a5e1dd19aa41f8c2b7950dd3c746362d7e3223dbe6de6ac448e"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'",
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_full_version < '4.0.0'",
             "version": "==1.26.9"
         },
         "virtualenv": {

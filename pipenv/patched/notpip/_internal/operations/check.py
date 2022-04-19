@@ -2,18 +2,15 @@
 """
 
 import logging
-from typing import TYPE_CHECKING, Callable, Dict, List, NamedTuple, Optional, Set, Tuple
+from typing import Callable, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
-from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.utils import NormalizedName, canonicalize_name
 
 from pipenv.patched.notpip._internal.distributions import make_distribution_for_install_requirement
 from pipenv.patched.notpip._internal.metadata import get_default_environment
 from pipenv.patched.notpip._internal.metadata.base import DistributionVersion
 from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
-
-if TYPE_CHECKING:
-    from pipenv.patched.notpip._vendor.packaging.utils import NormalizedName
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +21,12 @@ class PackageDetails(NamedTuple):
 
 
 # Shorthands
-PackageSet = Dict['NormalizedName', PackageDetails]
-Missing = Tuple['NormalizedName', Requirement]
-Conflicting = Tuple['NormalizedName', DistributionVersion, Requirement]
+PackageSet = Dict[NormalizedName, PackageDetails]
+Missing = Tuple[NormalizedName, Requirement]
+Conflicting = Tuple[NormalizedName, DistributionVersion, Requirement]
 
-MissingDict = Dict['NormalizedName', List[Missing]]
-ConflictingDict = Dict['NormalizedName', List[Conflicting]]
+MissingDict = Dict[NormalizedName, List[Missing]]
+ConflictingDict = Dict[NormalizedName, List[Conflicting]]
 CheckResult = Tuple[MissingDict, ConflictingDict]
 ConflictDetails = Tuple[PackageSet, CheckResult]
 
@@ -51,8 +48,9 @@ def create_package_set_from_installed() -> Tuple[PackageSet, bool]:
     return package_set, problems
 
 
-def check_package_set(package_set, should_ignore=None):
-    # type: (PackageSet, Optional[Callable[[str], bool]]) -> CheckResult
+def check_package_set(
+    package_set: PackageSet, should_ignore: Optional[Callable[[str], bool]] = None
+) -> CheckResult:
     """Check if a package set is consistent
 
     If should_ignore is passed, it should be a callable that takes a
@@ -64,8 +62,8 @@ def check_package_set(package_set, should_ignore=None):
 
     for package_name, package_detail in package_set.items():
         # Info about dependencies of package_name
-        missing_deps = set()  # type: Set[Missing]
-        conflicting_deps = set()  # type: Set[Conflicting]
+        missing_deps: Set[Missing] = set()
+        conflicting_deps: Set[Conflicting] = set()
 
         if should_ignore and should_ignore(package_name):
             continue
@@ -95,8 +93,7 @@ def check_package_set(package_set, should_ignore=None):
     return missing, conflicting
 
 
-def check_install_conflicts(to_install):
-    # type: (List[InstallRequirement]) -> ConflictDetails
+def check_install_conflicts(to_install: List[InstallRequirement]) -> ConflictDetails:
     """For checking if the dependency graph would be consistent after \
     installing given requirements
     """
@@ -112,33 +109,32 @@ def check_install_conflicts(to_install):
         package_set,
         check_package_set(
             package_set, should_ignore=lambda name: name not in whitelist
-        )
+        ),
     )
 
 
-def _simulate_installation_of(to_install, package_set):
-    # type: (List[InstallRequirement], PackageSet) -> Set[NormalizedName]
-    """Computes the version of packages after installing to_install.
-    """
+def _simulate_installation_of(
+    to_install: List[InstallRequirement], package_set: PackageSet
+) -> Set[NormalizedName]:
+    """Computes the version of packages after installing to_install."""
     # Keep track of packages that were installed
     installed = set()
 
     # Modify it as installing requirement_set would (assuming no errors)
     for inst_req in to_install:
         abstract_dist = make_distribution_for_install_requirement(inst_req)
-        dist = abstract_dist.get_pkg_resources_distribution()
-
-        assert dist is not None
-        name = canonicalize_name(dist.project_name)
-        package_set[name] = PackageDetails(dist.parsed_version, dist.requires())
+        dist = abstract_dist.get_metadata_distribution()
+        name = dist.canonical_name
+        package_set[name] = PackageDetails(dist.version, list(dist.iter_dependencies()))
 
         installed.add(name)
 
     return installed
 
 
-def _create_whitelist(would_be_installed, package_set):
-    # type: (Set[NormalizedName], PackageSet) -> Set[NormalizedName]
+def _create_whitelist(
+    would_be_installed: Set[NormalizedName], package_set: PackageSet
+) -> Set[NormalizedName]:
     packages_affected = set(would_be_installed)
 
     for package_name in package_set:

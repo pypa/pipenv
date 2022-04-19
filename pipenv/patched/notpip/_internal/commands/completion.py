@@ -12,7 +12,7 @@ BASE_COMPLETION = """
 """
 
 COMPLETION_SCRIPTS = {
-    'bash': """
+    "bash": """
         _pip_completion()
         {{
             COMPREPLY=( $( COMP_WORDS="${{COMP_WORDS[*]}}" \\
@@ -21,7 +21,7 @@ COMPLETION_SCRIPTS = {
         }}
         complete -o default -F _pip_completion {prog}
     """,
-    'zsh': """
+    "zsh": """
         function _pip_completion {{
           local words cword
           read -Ac words
@@ -32,7 +32,7 @@ COMPLETION_SCRIPTS = {
         }}
         compctl -K _pip_completion {prog}
     """,
-    'fish': """
+    "fish": """
         function __fish_complete_pip
             set -lx COMP_WORDS (commandline -o) ""
             set -lx COMP_CWORD ( \\
@@ -53,39 +53,44 @@ class CompletionCommand(Command):
 
     def add_options(self) -> None:
         self.cmd_opts.add_option(
-            '--bash', '-b',
-            action='store_const',
-            const='bash',
-            dest='shell',
-            help='Emit completion code for bash')
+            "--bash",
+            "-b",
+            action="store_const",
+            const="bash",
+            dest="shell",
+            help="Emit completion code for bash",
+        )
         self.cmd_opts.add_option(
-            '--zsh', '-z',
-            action='store_const',
-            const='zsh',
-            dest='shell',
-            help='Emit completion code for zsh')
+            "--zsh",
+            "-z",
+            action="store_const",
+            const="zsh",
+            dest="shell",
+            help="Emit completion code for zsh",
+        )
         self.cmd_opts.add_option(
-            '--fish', '-f',
-            action='store_const',
-            const='fish',
-            dest='shell',
-            help='Emit completion code for fish')
+            "--fish",
+            "-f",
+            action="store_const",
+            const="fish",
+            dest="shell",
+            help="Emit completion code for fish",
+        )
 
         self.parser.insert_option_group(0, self.cmd_opts)
 
     def run(self, options: Values, args: List[str]) -> int:
         """Prints the completion code of the given shell"""
         shells = COMPLETION_SCRIPTS.keys()
-        shell_options = ['--' + shell for shell in sorted(shells)]
+        shell_options = ["--" + shell for shell in sorted(shells)]
         if options.shell in shells:
             script = textwrap.dedent(
-                COMPLETION_SCRIPTS.get(options.shell, '').format(
-                    prog=get_prog())
+                COMPLETION_SCRIPTS.get(options.shell, "").format(prog=get_prog())
             )
             print(BASE_COMPLETION.format(script=script, shell=options.shell))
             return SUCCESS
         else:
             sys.stderr.write(
-                'ERROR: You must pass {}\n' .format(' or '.join(shell_options))
+                "ERROR: You must pass {}\n".format(" or ".join(shell_options))
             )
             return SUCCESS

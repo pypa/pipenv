@@ -8,6 +8,8 @@ This module contains the set of Requests' exceptions.
 """
 from pipenv.patched.notpip._vendor.urllib3.exceptions import HTTPError as BaseHTTPError
 
+from .compat import JSONDecodeError as CompatJSONDecodeError
+
 
 class RequestException(IOError):
     """There was an ambiguous exception that occurred while handling your
@@ -27,6 +29,10 @@ class RequestException(IOError):
 
 class InvalidJSONError(RequestException):
     """A JSON error occurred."""
+
+
+class JSONDecodeError(InvalidJSONError, CompatJSONDecodeError):
+    """Couldn't decode the text into json"""
 
 
 class HTTPError(RequestException):
@@ -74,11 +80,11 @@ class TooManyRedirects(RequestException):
 
 
 class MissingSchema(RequestException, ValueError):
-    """The URL schema (e.g. http or https) is missing."""
+    """The URL scheme (e.g. http or https) is missing."""
 
 
 class InvalidSchema(RequestException, ValueError):
-    """See defaults.py for valid schemas."""
+    """The URL scheme provided is either invalid or unsupported."""
 
 
 class InvalidURL(RequestException, ValueError):

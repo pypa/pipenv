@@ -7,15 +7,13 @@ from typing import Optional
 from .compat import WINDOWS
 
 
-def get_url_scheme(url):
-    # type: (str) -> Optional[str]
+def get_url_scheme(url: str) -> Optional[str]:
     if ":" not in url:
         return None
     return url.split(":", 1)[0].lower()
 
 
-def path_to_url(path):
-    # type: (str) -> str
+def path_to_url(path: str) -> str:
     """
     Convert a path to a file: URL.  The path will be made absolute and have
     quoted path parts.
@@ -25,8 +23,7 @@ def path_to_url(path):
     return url
 
 
-def url_to_path(url):
-    # type: (str) -> str
+def url_to_path(url: str) -> str:
     """
     Convert a file: URL to a path.
     """

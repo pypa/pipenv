@@ -9,14 +9,29 @@ something.
 """
 
 import functools
-from typing import Callable, Iterator, Optional, Set, Tuple
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Set, Tuple
 
 from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion
-from pipenv.patched.notpip._vendor.six.moves import collections_abc  # type: ignore
 
 from .base import Candidate
 
 IndexCandidateInfo = Tuple[_BaseVersion, Callable[[], Optional[Candidate]]]
+
+if TYPE_CHECKING:
+    SequenceCandidate = Sequence[Candidate]
+else:
+    # For compatibility: Python before 3.9 does not support using [] on the
+    # Sequence class.
+    #
+    # >>> from collections.abc import Sequence
+    # >>> Sequence[str]
+    # Traceback (most recent call last):
+    #   File "<stdin>", line 1, in <module>
+    # TypeError: 'ABCMeta' object is not subscriptable
+    #
+    # TODO: Remove this block after dropping Python 3.8 support.
+    SequenceCandidate = Sequence
 
 
 def _iter_built(infos: Iterator[IndexCandidateInfo]) -> Iterator[Candidate]:
@@ -90,7 +105,7 @@ def _iter_built_with_inserted(
         yield installed
 
 
-class FoundCandidates(collections_abc.Sequence):
+class FoundCandidates(SequenceCandidate):
     """A lazy sequence to provide candidates to the resolver.
 
     The intended usage is to return this from `find_matches()` so the resolver
@@ -111,7 +126,7 @@ class FoundCandidates(collections_abc.Sequence):
         self._prefers_installed = prefers_installed
         self._incompatible_ids = incompatible_ids
 
-    def __getitem__(self, index: int) -> Candidate:
+    def __getitem__(self, index: Any) -> Any:
         # Implemented to satisfy the ABC check. This is not needed by the
         # resolver, and should not be used by the provider either (for
         # performance reasons).
@@ -138,5 +153,3 @@ class FoundCandidates(collections_abc.Sequence):
         if self._prefers_installed and self._installed:
             return True
         return any(self)
-
-    __nonzero__ = __bool__  # XXX: Python 2.

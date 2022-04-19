@@ -40,12 +40,10 @@ def update_env_context_manager(**changes: str) -> Iterator[None]:
 
 @contextlib.contextmanager
 def get_requirement_tracker() -> Iterator["RequirementTracker"]:
-    root = os.environ.get('PIP_REQ_TRACKER')
+    root = os.environ.get("PIP_REQ_TRACKER")
     with contextlib.ExitStack() as ctx:
         if root is None:
-            root = ctx.enter_context(
-                TempDirectory(kind='req-tracker')
-            ).path
+            root = ctx.enter_context(TempDirectory(kind="req-tracker")).path
             ctx.enter_context(update_env_context_manager(PIP_REQ_TRACKER=root))
             logger.debug("Initialized build tracking at %s", root)
 
@@ -54,7 +52,6 @@ def get_requirement_tracker() -> Iterator["RequirementTracker"]:
 
 
 class RequirementTracker:
-
     def __init__(self, root: str) -> None:
         self._root = root
         self._entries: Set[InstallRequirement] = set()
@@ -68,7 +65,7 @@ class RequirementTracker:
         self,
         exc_type: Optional[Type[BaseException]],
         exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType]
+        exc_tb: Optional[TracebackType],
     ) -> None:
         self.cleanup()
 
@@ -77,8 +74,7 @@ class RequirementTracker:
         return os.path.join(self._root, hashed)
 
     def add(self, req: InstallRequirement) -> None:
-        """Add an InstallRequirement to build tracking.
-        """
+        """Add an InstallRequirement to build tracking."""
 
         assert req.link
         # Get the file to write information about this requirement.
@@ -92,30 +88,28 @@ class RequirementTracker:
         except FileNotFoundError:
             pass
         else:
-            message = '{} is already being built: {}'.format(
-                req.link, contents)
+            message = "{} is already being built: {}".format(req.link, contents)
             raise LookupError(message)
 
         # If we're here, req should really not be building already.
         assert req not in self._entries
 
         # Start tracking this requirement.
-        with open(entry_path, 'w', encoding="utf-8") as fp:
+        with open(entry_path, "w", encoding="utf-8") as fp:
             fp.write(str(req))
         self._entries.add(req)
 
-        logger.debug('Added %s to build tracker %r', req, self._root)
+        logger.debug("Added %s to build tracker %r", req, self._root)
 
     def remove(self, req: InstallRequirement) -> None:
-        """Remove an InstallRequirement from build tracking.
-        """
+        """Remove an InstallRequirement from build tracking."""
 
         assert req.link
         # Delete the created file and the corresponding entries.
         os.unlink(self._entry_path(req.link))
         self._entries.remove(req)
 
-        logger.debug('Removed %s from build tracker %r', req, self._root)
+        logger.debug("Removed %s from build tracker %r", req, self._root)
 
     def cleanup(self) -> None:
         for req in set(self._entries):

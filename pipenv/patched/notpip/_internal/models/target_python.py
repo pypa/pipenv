@@ -53,7 +53,7 @@ class TargetPython:
         else:
             py_version_info = normalize_version_info(py_version_info)
 
-        py_version = '.'.join(map(str, py_version_info[:2]))
+        py_version = ".".join(map(str, py_version_info[:2]))
 
         self.abis = abis
         self.implementation = implementation
@@ -70,19 +70,18 @@ class TargetPython:
         """
         display_version = None
         if self._given_py_version_info is not None:
-            display_version = '.'.join(
+            display_version = ".".join(
                 str(part) for part in self._given_py_version_info
             )
 
         key_values = [
-            ('platforms', self.platforms),
-            ('version_info', display_version),
-            ('abis', self.abis),
-            ('implementation', self.implementation),
+            ("platforms", self.platforms),
+            ("version_info", display_version),
+            ("abis", self.abis),
+            ("implementation", self.implementation),
         ]
-        return ' '.join(
-            f'{key}={value!r}' for key, value in key_values
-            if value is not None
+        return " ".join(
+            f"{key}={value!r}" for key, value in key_values if value is not None
         )
 
     def get_tags(self) -> List[Tag]:
