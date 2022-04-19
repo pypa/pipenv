@@ -11,7 +11,7 @@ import sys
 from collections.abc import Callable
 from functools import wraps
 
-from pipenv.vendor.packaging import version as pkg_version
+import packaging.version
 
 from .environment import MYPY_RUNNING
 
@@ -107,10 +107,10 @@ def _parse(version):
 
 @memoize
 def parse_version(version):
-    # type: (str) -> pkg_version._BaseVersion
+    # type: (str) -> packaging.version._BaseVersion
     if not isinstance(version, STRING_TYPES):
         raise TypeError("Can only derive versions from string, got {!r}".format(version))
-    return pkg_version.parse(version)
+    return packaging.version.parse(version)
 
 
 @memoize
