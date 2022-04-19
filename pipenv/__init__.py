@@ -18,15 +18,14 @@ sys.path.insert(0, PIPENV_VENDOR)
 sys.path.insert(0, PIPENV_PATCHED)
 
 from pipenv.vendor.urllib3.exceptions import DependencyWarning
-from pipenv.vendor.vistir.compat import fs_str
 
 warnings.filterwarnings("ignore", category=DependencyWarning)
 warnings.filterwarnings("ignore", category=ResourceWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 # Load patched pip instead of system pip
-os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
-os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = fs_str("1")
+os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.notpip"
+os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
 
 # Hack to make things work better.
 try:

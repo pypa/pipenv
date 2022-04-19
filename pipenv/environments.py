@@ -8,11 +8,12 @@ from appdirs import user_cache_dir
 from vistir.path import normalize_drive
 
 from pipenv._compat import fix_utf8
-from pipenv.vendor.vistir.misc import _isatty, fs_str
+from pipenv.vendor.vistir.misc import _isatty
 
 # HACK: avoid resolver.py uses the wrong byte code files.
 # I hope I can remove this one day.
-os.environ["PYTHONDONTWRITEBYTECODE"] = fs_str("1")
+
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 _false_values = ("0", "false", "no", "off")
 _true_values = ("1", "true", "yes", "on")
 
