@@ -70,6 +70,13 @@ tests: virtualenv submodules test-install
 	. $(get_venv_path)/bin/activate && \
 		pipenv run pytest -ra -vvv --full-trace --tb=long
 
+.PHONY: vendor
+vendor: virtualenv
+	. $(get_venv_path)/bin/activate && \
+		python -m pip install invoke && \
+		python -m pip install -e .[dev] && \
+		python -m invoke vendoring.update
+
 .PHONY: test-specific
 test-specific: submodules virtualenv test-install
 	. $(get_venv_path)/bin/activate && pipenv run pytest -ra -k '$(tests)'
