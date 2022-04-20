@@ -979,7 +979,7 @@ def venv_resolve_deps(
     target_file.close()
     cmd.extend(["--write", make_posix(target_file.name)])
     with temp_environ():
-        os.environ.update({k: val for k, val in os.environ.items()})
+        os.environ.update({k: str(val) for k, val in os.environ.items()})
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
         os.environ["PIPENV_VERBOSITY"] = str(project.s.PIPENV_VERBOSITY)
