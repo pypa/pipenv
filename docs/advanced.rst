@@ -119,7 +119,7 @@ If you want to work with private registries that use the keychain for authentica
 can disable the "enforcement of no input".
 
 **Note:** Please be sure that the keychain will really not ask for
-input. Otherwise the process will hang forever!
+input. Otherwise the process will hang forever!::
 
     [[source]]
     url = "https://pypi.org/simple"
