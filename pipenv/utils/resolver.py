@@ -735,6 +735,8 @@ class Resolver:
         link = ireq.link  # Handle VCS and file links first
         if link and (link.is_vcs or (link.is_file and link.is_existing_dir())):
             return set()
+        if link and ireq.original_link:
+            return {self._get_hash_from_link(ireq.original_link)}
 
         if not is_pinned_requirement(ireq):
             return set()
@@ -760,8 +762,6 @@ class Resolver:
             }
         if link:
             return {self._get_hash_from_link(link)}
-        if ireq.original_link:
-            return {self._get_hash_from_link(ireq.original_link)}
         return set()
 
     def resolve_hashes(self):
@@ -947,7 +947,6 @@ def venv_resolve_deps(
     from pipenv import resolver
     from pipenv._compat import decode_for_output
     from pipenv.vendor.vistir.compat import JSONDecodeError, NamedTemporaryFile, Path
-    from pipenv.vendor.vistir.misc import fs_str
 
     results = []
     pipfile_section = "dev-packages" if dev else "packages"
@@ -980,19 +979,19 @@ def venv_resolve_deps(
     target_file.close()
     cmd.extend(["--write", make_posix(target_file.name)])
     with temp_environ():
-        os.environ.update({fs_str(k): fs_str(val) for k, val in os.environ.items()})
+        os.environ.update({k: str(val) for k, val in os.environ.items()})
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
         os.environ["PIPENV_VERBOSITY"] = str(project.s.PIPENV_VERBOSITY)
-        os.environ["PIPENV_REQ_DIR"] = fs_str(req_dir)
-        os.environ["PIP_NO_INPUT"] = fs_str("1")
+        os.environ["PIPENV_REQ_DIR"] = req_dir
+        os.environ["PIP_NO_INPUT"] = "1"
         pipenv_site_dir = get_pipenv_sitedir()
         if pipenv_site_dir is not None:
             os.environ["PIPENV_SITE_DIR"] = pipenv_site_dir
         else:
             os.environ.pop("PIPENV_SITE_DIR", None)
         if keep_outdated:
-            os.environ["PIPENV_KEEP_OUTDATED"] = fs_str("1")
+            os.environ["PIPENV_KEEP_OUTDATED"] = "1"
         with create_spinner(
             text=decode_for_output("Locking..."), setting=project.s
         ) as sp:
@@ -1045,7 +1044,7 @@ def resolve_deps(
     req_dir=None,
 ):
     """Given a list of dependencies, return a resolved list of dependencies,
-    using pip-tools -- and their hashes, using the warehouse API / pip.
+    and their hashes, using the warehouse API / pip.
     """
     index_lookup = {}
     markers_lookup = {}

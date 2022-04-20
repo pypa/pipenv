@@ -1,20 +1,19 @@
+import functools
 import logging
-from email.message import Message
-from email.parser import FeedParser
-from typing import Optional, Tuple
+import re
+from typing import NewType, Optional, Tuple, cast
 
-from pipenv.patched.notpip._vendor import pkg_resources
 from pipenv.patched.notpip._vendor.packaging import specifiers, version
-from pipenv.patched.notpip._vendor.pkg_resources import Distribution
+from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
 
-from pipenv.patched.notpip._internal.exceptions import NoneMetadataError
-from pipenv.patched.notpip._internal.utils.misc import display_path
+NormalizedExtra = NewType("NormalizedExtra", str)
 
 logger = logging.getLogger(__name__)
 
 
-def check_requires_python(requires_python, version_info):
-    # type: (Optional[str], Tuple[int, ...]) -> bool
+def check_requires_python(
+    requires_python: Optional[str], version_info: Tuple[int, ...]
+) -> bool:
     """
     Check if the given Python version matches a "Requires-Python" specifier.
 
@@ -35,55 +34,24 @@ def check_requires_python(requires_python, version_info):
     return python_version in requires_python_specifier
 
 
-def get_metadata(dist):
-    # type: (Distribution) -> Message
+@functools.lru_cache(maxsize=512)
+def get_requirement(req_string: str) -> Requirement:
+    """Construct a packaging.Requirement object with caching"""
+    # Parsing requirement strings is expensive, and is also expected to happen
+    # with a low diversity of different arguments (at least relative the number
+    # constructed). This method adds a cache to requirement object creation to
+    # minimize repeated parsing of the same string to construct equivalent
+    # Requirement objects.
+    return Requirement(req_string)
+
+
+def safe_extra(extra: str) -> NormalizedExtra:
+    """Convert an arbitrary string to a standard 'extra' name
+
+    Any runs of non-alphanumeric characters are replaced with a single '_',
+    and the result is always lowercased.
+
+    This function is duplicated from ``pkg_resources``. Note that this is not
+    the same to either ``canonicalize_name`` or ``_egg_link_name``.
     """
-    :raises NoneMetadataError: if the distribution reports `has_metadata()`
-        True but `get_metadata()` returns None.
-    """
-    metadata_name = "METADATA"
-    if isinstance(dist, pkg_resources.DistInfoDistribution) and dist.has_metadata(
-        metadata_name
-    ):
-        metadata = dist.get_metadata(metadata_name)
-    elif dist.has_metadata("PKG-INFO"):
-        metadata_name = "PKG-INFO"
-        metadata = dist.get_metadata(metadata_name)
-    else:
-        logger.warning("No metadata found in %s", display_path(dist.location))
-        metadata = ""
-
-    if metadata is None:
-        raise NoneMetadataError(dist, metadata_name)
-
-    feed_parser = FeedParser()
-    # The following line errors out if with a "NoneType" TypeError if
-    # passed metadata=None.
-    feed_parser.feed(metadata)
-    return feed_parser.close()
-
-
-def get_requires_python(dist):
-    # type: (pkg_resources.Distribution) -> Optional[str]
-    """
-    Return the "Requires-Python" metadata for a distribution, or None
-    if not present.
-    """
-    pkg_info_dict = get_metadata(dist)
-    requires_python = pkg_info_dict.get("Requires-Python")
-
-    if requires_python is not None:
-        # Convert to a str to satisfy the type checker, since requires_python
-        # can be a Header object.
-        requires_python = str(requires_python)
-
-    return requires_python
-
-
-def get_installer(dist):
-    # type: (Distribution) -> str
-    if dist.has_metadata("INSTALLER"):
-        for line in dist.get_metadata_lines("INSTALLER"):
-            if line.strip():
-                return line.strip()
-    return ""
+    return cast(NormalizedExtra, re.sub("[^A-Za-z0-9.-]+", "_", extra).lower())

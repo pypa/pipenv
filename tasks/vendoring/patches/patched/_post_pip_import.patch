@@ -14,8 +14,16 @@ diff --git a/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
 index 0ba06c52..6fdb59b7 100644
 --- a/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
 +++ b/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
+@@ -2,6 +2,7 @@ import logging
+ import sys
+ from typing import TYPE_CHECKING, Any, FrozenSet, Iterable, Optional, Tuple, Union, cast
+ 
++from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
+ from pipenv.patched.notpip._vendor.packaging.utils import NormalizedName, canonicalize_name
+ from pipenv.patched.notpip._vendor.packaging.version import Version
+
 @@ -253,7 +253,10 @@ class _InstallRequirementBackedCandidate(Candidate):
-         yield self._get_requires_python_dependency()
+        yield self._factory.make_requires_python_requirement(self.dist.requires_python)
  
      def get_install_requirement(self) -> Optional[InstallRequirement]:
 -        return self._ireq

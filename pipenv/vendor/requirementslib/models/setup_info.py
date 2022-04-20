@@ -913,7 +913,7 @@ def run_setup(script_path, egg_base=None):
             sys.argv[0] = script_name
             sys.argv[1:] = args
             with open(script_name, "rb") as f:
-                contents = f.read().replace(br"\r\n", br"\n")
+                contents = f.read().replace(rb"\r\n", rb"\n")
                 exec(contents, g)
         # We couldn't import everything needed to run setup
         except Exception:
@@ -1230,13 +1230,12 @@ build-backend = "{1}"
                 )
             )
             need_delete = True
-
-        parsed = urlparse(str(self.ireq.link))
-        subdir = parse_qs(parsed.fragment).get('subdirectory', [])
-        if subdir:
-            directory = f"{self.base_dir}/{subdir[0]}"
-        else:
-            directory = self.base_dir
+        directory = self.base_dir
+        if self.ireq and self.ireq.link:
+            parsed = urlparse(str(self.ireq.link))
+            subdir = parse_qs(parsed.fragment).get("subdirectory", [])
+            if subdir:
+                directory = f"{self.base_dir}/{subdir[0]}"
         result = build_pep517(
             directory,
             self.extra_kwargs["build_dir"],
@@ -1551,8 +1550,12 @@ build-backend = "{1}"
         if build_location_func is None:
             build_location_func = getattr(ireq, "ensure_build_location", None)
         if not ireq.source_dir:
+            if subdir:
+                directory = f"{kwargs['build_dir']}/{subdir}"
+            else:
+                directory = kwargs["build_dir"]
             build_kwargs = {
-                "build_dir": kwargs["build_dir"],
+                "build_dir": directory,
                 "autodelete": False,
                 "parallel_builds": True,
             }

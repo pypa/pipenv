@@ -1,6 +1,6 @@
 # -*- coding=utf-8 -*-
 """
-This library is a set of compatibilty access shims to the ``pip`` internal API.
+This library is a set of compatibility access shims to the ``pip`` internal API.
 It provides compatibility with pip versions 8.0 through the current release. The
 shims are provided using a lazy import strategy by hacking a module by overloading
 a class instance's ``getattr`` method. This library exists due to my constant
@@ -25,7 +25,7 @@ import sys
 
 from . import shims
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 
 if "pip_shims" in sys.modules:
@@ -37,7 +37,6 @@ if "pip_shims" in sys.modules:
 
 if __name__ in sys.modules:
     old_module = sys.modules[__name__]
-
 
 module = sys.modules["pip_shims"] = sys.modules[__name__] = shims._new()
 module.shims = shims

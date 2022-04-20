@@ -524,8 +524,8 @@ class Environment:
         # type: () -> Dict[str, str]
         paths = {}
         with vistir.contextmanagers.temp_environ(), vistir.contextmanagers.temp_path():
-            os.environ["PYTHONIOENCODING"] = vistir.compat.fs_str("utf-8")
-            os.environ["PYTHONDONTWRITEBYTECODE"] = vistir.compat.fs_str("1")
+            os.environ["PYTHONIOENCODING"] = "utf-8"
+            os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
             paths = self.base_paths
             os.environ["PATH"] = paths["PATH"]
             os.environ["PYTHONPATH"] = paths["PYTHONPATH"]
@@ -954,16 +954,16 @@ class Environment:
         with vistir.contextmanagers.temp_environ(), vistir.contextmanagers.temp_path():
             os.environ["PATH"] = os.pathsep.join(
                 [
-                    vistir.compat.fs_str(self.script_basedir),
-                    vistir.compat.fs_str(self.prefix.as_posix()),
+                    self.script_basedir,
+                    self.prefix.as_posix(),
                     os.environ.get("PATH", ""),
                 ]
             )
-            os.environ["PYTHONIOENCODING"] = vistir.compat.fs_str("utf-8")
-            os.environ["PYTHONDONTWRITEBYTECODE"] = vistir.compat.fs_str("1")
+            os.environ["PYTHONIOENCODING"] = "utf-8"
+            os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
             if self.is_venv:
                 os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
-                os.environ["VIRTUAL_ENV"] = vistir.compat.fs_str(prefix)
+                os.environ["VIRTUAL_ENV"] = prefix
             else:
                 if not self.project.s.PIPENV_USE_SYSTEM and not os.environ.get(
                     "VIRTUAL_ENV"

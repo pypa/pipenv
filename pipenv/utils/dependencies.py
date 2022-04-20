@@ -1,12 +1,8 @@
 import os
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Mapping, Sequence
-from urllib.parse import urlparse
 
 from packaging.markers import Marker
-
-from pipenv import fs_str
 
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
@@ -294,43 +290,6 @@ def is_editable(pipfile_entry):
     return False
 
 
-def is_installable_file(path):
-    """Determine if a path can potentially be installed"""
-    from pipenv.patched.notpip._internal.utils.packaging import specifiers
-    from pipenv.vendor.pip_shims.models import is_archive_file, is_installable_dir
-
-    if hasattr(path, "keys") and any(
-        key for key in path.keys() if key in ["file", "path"]
-    ):
-        path = urlparse(path["file"]).path if "file" in path else path["path"]
-    if not isinstance(path, str) or path == "*":
-        return False
-
-    # If the string starts with a valid specifier operator, test if it is a valid
-    # specifier set before making a path object (to avoid breaking windows)
-    if any(path.startswith(spec) for spec in "!=<>~"):
-        try:
-            specifiers.SpecifierSet(path)
-        # If this is not a valid specifier, just move on and try it as a path
-        except specifiers.InvalidSpecifier:
-            pass
-        else:
-            return False
-
-    if not os.path.exists(os.path.abspath(path)):
-        return False
-
-    lookup_path = Path(path)
-    absolute_path = f"{lookup_path.absolute()}"
-    if lookup_path.is_dir() and is_installable_dir(absolute_path):
-        return True
-
-    elif lookup_path.is_file() and is_archive_file(absolute_path):
-        return True
-
-    return False
-
-
 @contextmanager
 def locked_repository(requirement):
     from pipenv.vendor.vistir.path import create_tracked_tempdir
@@ -338,7 +297,7 @@ def locked_repository(requirement):
     if not requirement.is_vcs:
         return
     original_base = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-    os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
+    os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.notpip"
     src_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-src")
     try:
         with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:

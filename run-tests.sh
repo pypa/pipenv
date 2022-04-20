@@ -51,6 +51,6 @@ echo "$ git submodule sync && git submodule update --init --recursive"
 
 git submodule sync && git submodule update --init --recursive
 
-echo "$pipenv run pytest -ra -n auto -v --fulltrace tests"
+echo "$pipenv run pytest -v -ra -n auto --cov-config setup.cfg --fulltrace tests"
 
-PIPENV_PYTHON=${PIPENV_PYTHON} ${PYTHON} -m pipenv run pytest -v -ra -n auto --fulltrace tests
+PIPENV_PYTHON=${PIPENV_PYTHON} ${PYTHON} -m pipenv run pytest -v -ra -n auto --cov-config setup.cfg --fulltrace tests

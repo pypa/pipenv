@@ -69,6 +69,24 @@ class _RetryMeta(type):
         )
         cls.DEFAULT_REMOVE_HEADERS_ON_REDIRECT = value
 
+    @property
+    def BACKOFF_MAX(cls):
+        warnings.warn(
+            "Using 'Retry.BACKOFF_MAX' is deprecated and "
+            "will be removed in v2.0. Use 'Retry.DEFAULT_BACKOFF_MAX' instead",
+            DeprecationWarning,
+        )
+        return cls.DEFAULT_BACKOFF_MAX
+
+    @BACKOFF_MAX.setter
+    def BACKOFF_MAX(cls, value):
+        warnings.warn(
+            "Using 'Retry.BACKOFF_MAX' is deprecated and "
+            "will be removed in v2.0. Use 'Retry.DEFAULT_BACKOFF_MAX' instead",
+            DeprecationWarning,
+        )
+        cls.DEFAULT_BACKOFF_MAX = value
+
 
 @six.add_metaclass(_RetryMeta)
 class Retry(object):
@@ -181,7 +199,7 @@ class Retry(object):
 
         seconds. If the backoff_factor is 0.1, then :func:`.sleep` will sleep
         for [0.0s, 0.2s, 0.4s, ...] between retries. It will never be longer
-        than :attr:`Retry.BACKOFF_MAX`.
+        than :attr:`Retry.DEFAULT_BACKOFF_MAX`.
 
         By default, backoff is disabled (set to 0).
 
@@ -220,7 +238,7 @@ class Retry(object):
     DEFAULT_REMOVE_HEADERS_ON_REDIRECT = frozenset(["Authorization"])
 
     #: Maximum backoff time.
-    BACKOFF_MAX = 120
+    DEFAULT_BACKOFF_MAX = 120
 
     def __init__(
         self,
@@ -348,7 +366,7 @@ class Retry(object):
             return 0
 
         backoff_value = self.backoff_factor * (2 ** (consecutive_errors_len - 1))
-        return min(self.BACKOFF_MAX, backoff_value)
+        return min(self.DEFAULT_BACKOFF_MAX, backoff_value)
 
     def parse_retry_after(self, retry_after):
         # Whitespace: https://tools.ietf.org/html/rfc7230#section-3.2.4

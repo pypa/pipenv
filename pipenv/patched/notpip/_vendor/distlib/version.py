@@ -194,7 +194,7 @@ def _pep_440_key(s):
     if not groups[0]:
         epoch = 0
     else:
-        epoch = int(groups[0])
+        epoch = int(groups[0][:-1])
     pre = groups[4:6]
     post = groups[7:9]
     dev = groups[10:12]

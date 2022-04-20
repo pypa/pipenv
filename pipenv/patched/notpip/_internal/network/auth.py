@@ -28,13 +28,13 @@ Credentials = Tuple[str, str, str]
 try:
     import keyring
 except ImportError:
-    keyring = None
+    keyring = None  # type: ignore[assignment]
 except Exception as exc:
     logger.warning(
         "Keyring is skipped due to an exception: %s",
         str(exc),
     )
-    keyring = None
+    keyring = None  # type: ignore[assignment]
 
 
 def get_keyring_auth(url: Optional[str], username: Optional[str]) -> Optional[AuthInfo]:
@@ -66,7 +66,7 @@ def get_keyring_auth(url: Optional[str], username: Optional[str]) -> Optional[Au
             "Keyring is skipped due to an exception: %s",
             str(exc),
         )
-        keyring = None
+        keyring = None  # type: ignore[assignment]
     return None
 
 
@@ -179,9 +179,16 @@ class MultiDomainBasicAuth(AuthBase):
         # Try to get credentials from original url
         username, password = self._get_new_credentials(original_url)
 
-        # If credentials not found, use any stored credentials for this netloc
-        if username is None and password is None:
-            username, password = self.passwords.get(netloc, (None, None))
+        # If credentials not found, use any stored credentials for this netloc.
+        # Do this if either the username or the password is missing.
+        # This accounts for the situation in which the user has specified
+        # the username in the index url, but the password comes from keyring.
+        if (username is None or password is None) and netloc in self.passwords:
+            un, pw = self.passwords[netloc]
+            # It is possible that the cached credentials are for a different username,
+            # in which case the cache should be ignored.
+            if username is None or username == un:
+                username, password = un, pw
 
         if username is not None or password is not None:
             # Convert the username and password if they're None, so that

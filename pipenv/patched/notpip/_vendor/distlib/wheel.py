@@ -47,10 +47,7 @@ else:
 
 VER_SUFFIX = sysconfig.get_config_var('py_version_nodot')
 if not VER_SUFFIX:   # pragma: no cover
-    if sys.version_info[1] >= 10:
-        VER_SUFFIX = '%s_%s' % sys.version_info[:2]  # PEP 641 (draft)
-    else:
-        VER_SUFFIX = '%s%s' % sys.version_info[:2]
+    VER_SUFFIX = '%s%s' % sys.version_info[:2]
 PYVER = 'py' + VER_SUFFIX
 IMPVER = IMP_PREFIX + VER_SUFFIX
 

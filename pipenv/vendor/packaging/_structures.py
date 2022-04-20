@@ -19,9 +19,6 @@ class InfinityType:
     def __eq__(self, other: object) -> bool:
         return isinstance(other, self.__class__)
 
-    def __ne__(self, other: object) -> bool:
-        return not isinstance(other, self.__class__)
-
     def __gt__(self, other: object) -> bool:
         return True
 
@@ -50,9 +47,6 @@ class NegativeInfinityType:
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, self.__class__)
-
-    def __ne__(self, other: object) -> bool:
-        return not isinstance(other, self.__class__)
 
     def __gt__(self, other: object) -> bool:
         return False

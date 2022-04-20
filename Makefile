@@ -3,7 +3,7 @@ venv_dir := $(get_venv_dir)/pipenv_venv
 venv_file := $(CURDIR)/.test_venv
 get_venv_path =$(file < $(venv_file))
 # This is how we will build tag-specific wheels, e.g. py36 or py37
-PY_VERSIONS:= 2.7 3.5 3.6 3.7 3.8
+PY_VERSIONS:= 3.7 3.8 3.9 3.10
 BACKSLASH = '\\'
 # This is how we will build generic wheels, e.g. py2 or py3
 INSTALL_TARGETS := $(addprefix install-py,$(PY_VERSIONS))
@@ -12,14 +12,12 @@ DATE_STRING := $(shell date +%Y.%m.%d)
 THIS_MONTH_DATE := $(shell date +%Y.%m.01)
 NEXT_MONTH_DATE := $(shell date -d "+1 month" +%Y.%m.01)
 PATCHED_PIP_VERSION := $(shell awk '/__version__/{gsub(/"/,"",$$3); print $$3}' pipenv/patched/notpip/__init__.py)
-PATCHED_PIPTOOLS_VERSION := $(shell awk -F "=" '/pip-tools/ {print $$3}' pipenv/patched/patched.txt)
 GITDIR_STAMPFILE := $(CURDIR)/.git-checkout-dir
 create_git_tmpdir = $(shell mktemp -dt pipenv-vendor-XXXXXXXX 2>/dev/null || mktemp -d 2>/dev/null)
 write_git_tmpdir = $(file > $(GITDIR_STAMPFILE),$(create_git_tmpdir))
 get_checkout_dir = $(file < $(GITDIR_STAMPFILE))
 get_checkout_subdir = $(addprefix $(get_checkout_dir), $(1))
 pip-checkout-dir = $(get_checkout_dir)/patch-pip
-piptools-checkout-dir = $(get_checkout_dir)/patch-piptools
 
 format:
 	black pipenv/*.py
@@ -68,17 +66,26 @@ submodules:
 	git submodule update --init --recursive
 
 .PHONY: tests
+tests: parallel ?= -n auto
 tests: virtualenv submodules test-install
 	. $(get_venv_path)/bin/activate && \
-		pipenv run pytest -ra -vvv --full-trace --tb=long
+		pipenv run pytest -ra $(parallel) -vvv --full-trace --tb=long
+
+.PHONY: vendor
+vendor: virtualenv
+	. $(get_venv_path)/bin/activate && \
+		python -m pip install invoke && \
+		python -m pip install -e .[dev] && \
+		python -m invoke vendoring.update
 
 .PHONY: test-specific
 test-specific: submodules virtualenv test-install
 	. $(get_venv_path)/bin/activate && pipenv run pytest -ra -k '$(tests)'
 
 .PHONY: retest
+retest: parallel ?= -n auto
 retest: virtualenv submodules test-install
-	. $(get_venv_path)/bin/activate && pipenv run pytest -ra -k 'test_check_unused or test_install_editable_git_tag or test_get_vcs_refs or test_skip_requirements_when_pipfile or test_editable_vcs_install or test_basic_vcs_install or test_git_vcs_install or test_ssh_vcs_install or test_vcs_can_use_markers' -vvv --full-trace --tb=long
+	. $(get_venv_path)/bin/activate && pipenv run pytest $(parallel) -ra -k 'test_check_unused or test_install_editable_git_tag or test_get_vcs_refs or test_skip_requirements_when_pipfile or test_editable_vcs_install or test_basic_vcs_install or test_git_vcs_install or test_ssh_vcs_install or test_vcs_can_use_markers' -vvv --full-trace --tb=long
 
 .PHONY: build
 build: install-virtualenvs.stamp install.stamp
@@ -142,10 +149,6 @@ gitclean:
 clone-pip: .git-checkout-dir
 	[ -e $(pip-checkout-dir) ] && echo "Pip already exists, moving on!" || git clone https://github.com/pypa/pip.git $(pip-checkout-dir) -b $(PATCHED_PIP_VERSION)
 
-.PHONY: clone-piptools
-clone-piptools: .git-checkout-dir
-	[ -e $(piptools-checkout-dir) ] && echo "Piptools already exists, moving on!" || git clone https://github.com/jazzband/pip-tools.git $(piptools-checkout-dir) -b $(PATCHED_PIPTOOLS_VERSION)
-
 .PHONY: patch-pip
 patch-pip: clone-pip
 	@find $(CURDIR)/tasks/vendoring/patches/patched/ -regex ".*/pip[0-9]+.patch" -exec cp {} $(pip-checkout-dir) \;
@@ -155,15 +158,8 @@ patch-pip: clone-pip
 	@cd $(pip-checkout-dir)/ && git apply --ignore-whitespace --verbose pip*.patch
 	@echo "Head to $(pip-checkout-dir) to update the pip patches to the latest version"
 
-.PHONY: patch-piptools
-patch-piptools: clone-piptools
-	@find $(CURDIR)/tasks/vendoring/patches/patched/ -regex ".*/piptools[^/\.]*.patch" -exec cp {} $(piptools-checkout-dir)/ \;
-	@sed -i -r 's:([a-b]\/)pipenv/patched/:\1/:g' $(piptools-checkout-dir)/*.patch
-	@cd $(piptools-checkout-dir)/ && git apply --ignore-whitespace --verbose piptools*.patch
-	@echo "Head to $(piptools-checkout-dir) to update the piptools patches to the latest version"
-
 .PHONY: patches
-patches: patch-pip patch-piptools
+patches: patch-pip
 
 .PHONY: reimport-pip-patch
 reimport-pip-patch:
@@ -171,8 +167,3 @@ reimport-pip-patch:
 	@sed -i -r 's:([a-b]\/)src/:\1pipenv/patched/:g' $(pip-checkout-dir)/pip*.patch
 	@find $(pip-checkout-dir) -maxdepth 1 -regex ".*/pip[0-9]+.patch" -exec cp {} $(CURDIR)/tasks/vendoring/patches/patched/ \;
 	@find $(pip-checkout-dir) -maxdepth 1 -regex ".*/_post-pip-[^/\.]*.patch" -exec cp {} $(CURDIR)/tasks/vendoring/patches/patched/ \;
-
-.PHONY: reimport-piptools-patch
-reimport-piptools-patch:
-	@sed -i -r 's:([a-b]\/):\1pipenv/patched/:g' $(piptools-checkout-dir)/*.patch
-	@find $(piptools-checkout-dir)/ -maxdepth 1 -regex ".*/piptools[^/\.]*.patch" -exec cp {} $(CURDIR)/tasks/vendoring/patches/patched/ \;

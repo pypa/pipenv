@@ -2,21 +2,21 @@ diff --git a/pipenv/vendor/pipdeptree.py b/pipenv/vendor/pipdeptree.py
 index e15cd8f4..9f692879 100644
 --- a/pipenv/vendor/pipdeptree.py
 +++ b/pipenv/vendor/pipdeptree.py
-@@ -21,13 +21,11 @@ try:
+@@ -20,11 +20,12 @@ try:
  except ImportError:
      from collections import Mapping
- 
+
+-from pipenv.patched.notpip._vendor import pkg_resources
 -try:
--    from pipenv.patched.notpip._internal.utils.misc import get_installed_distributions
 -    from pipenv.patched.notpip._internal.operations.freeze import FrozenRequirement
 -except ImportError:
--    from pipenv.patched.notpip import get_installed_distributions, FrozenRequirement
+-    from pipenv.patched.notpip import FrozenRequirement
++import pkg_resources
++
 +pardir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 +sys.path.append(pardir)
 +from pipenv.vendor.pip_shims.shims import get_installed_distributions, FrozenRequirement
- 
--from pipenv.patched.notpip._vendor import pkg_resources
-+import pkg_resources
++
  # inline:
- # from graphviz import backend, Digraph
- 
+ # from graphviz import Digraph
+ # from graphviz import parameters

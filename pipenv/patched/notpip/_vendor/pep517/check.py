@@ -142,7 +142,7 @@ def check(source_dir):
         return False
 
     try:
-        with io.open(pyproject, encoding="utf-8") as f:
+        with io.open(pyproject, 'rb') as f:
             pyproject_data = toml_load(f)
         # Ensure the mandatory data can be loaded
         buildsys = pyproject_data['build-system']

@@ -369,7 +369,7 @@ Representer.add_representer(complex,
 Representer.add_representer(tuple,
         Representer.represent_tuple)
 
-Representer.add_representer(type,
+Representer.add_multi_representer(type,
         Representer.represent_name)
 
 Representer.add_representer(collections.OrderedDict,

@@ -39,17 +39,17 @@ class CacheCommand(Command):
     def add_options(self) -> None:
 
         self.cmd_opts.add_option(
-            '--format',
-            action='store',
-            dest='list_format',
+            "--format",
+            action="store",
+            dest="list_format",
             default="human",
-            choices=('human', 'abspath'),
-            help="Select the output format among: human (default) or abspath"
+            choices=("human", "abspath"),
+            help="Select the output format among: human (default) or abspath",
         )
 
         self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options: Values, args: List[Any]) -> int:
+    def run(self, options: Values, args: List[str]) -> int:
         handlers = {
             "dir": self.get_cache_dir,
             "info": self.get_cache_info,
@@ -59,8 +59,7 @@ class CacheCommand(Command):
         }
 
         if not options.cache_dir:
-            logger.error("pip cache commands can not "
-                         "function since cache is disabled.")
+            logger.error("pip cache commands can not function since cache is disabled.")
             return ERROR
 
         # Determine action
@@ -84,69 +83,73 @@ class CacheCommand(Command):
 
     def get_cache_dir(self, options: Values, args: List[Any]) -> None:
         if args:
-            raise CommandError('Too many arguments')
+            raise CommandError("Too many arguments")
 
         logger.info(options.cache_dir)
 
     def get_cache_info(self, options: Values, args: List[Any]) -> None:
         if args:
-            raise CommandError('Too many arguments')
+            raise CommandError("Too many arguments")
 
         num_http_files = len(self._find_http_files(options))
-        num_packages = len(self._find_wheels(options, '*'))
+        num_packages = len(self._find_wheels(options, "*"))
 
-        http_cache_location = self._cache_dir(options, 'http')
-        wheels_cache_location = self._cache_dir(options, 'wheels')
+        http_cache_location = self._cache_dir(options, "http")
+        wheels_cache_location = self._cache_dir(options, "wheels")
         http_cache_size = filesystem.format_directory_size(http_cache_location)
-        wheels_cache_size = filesystem.format_directory_size(
-            wheels_cache_location
-        )
+        wheels_cache_size = filesystem.format_directory_size(wheels_cache_location)
 
-        message = textwrap.dedent("""
-            Package index page cache location: {http_cache_location}
-            Package index page cache size: {http_cache_size}
-            Number of HTTP files: {num_http_files}
-            Wheels location: {wheels_cache_location}
-            Wheels size: {wheels_cache_size}
-            Number of wheels: {package_count}
-        """).format(
-            http_cache_location=http_cache_location,
-            http_cache_size=http_cache_size,
-            num_http_files=num_http_files,
-            wheels_cache_location=wheels_cache_location,
-            package_count=num_packages,
-            wheels_cache_size=wheels_cache_size,
-        ).strip()
+        message = (
+            textwrap.dedent(
+                """
+                    Package index page cache location: {http_cache_location}
+                    Package index page cache size: {http_cache_size}
+                    Number of HTTP files: {num_http_files}
+                    Wheels location: {wheels_cache_location}
+                    Wheels size: {wheels_cache_size}
+                    Number of wheels: {package_count}
+                """
+            )
+            .format(
+                http_cache_location=http_cache_location,
+                http_cache_size=http_cache_size,
+                num_http_files=num_http_files,
+                wheels_cache_location=wheels_cache_location,
+                package_count=num_packages,
+                wheels_cache_size=wheels_cache_size,
+            )
+            .strip()
+        )
 
         logger.info(message)
 
     def list_cache_items(self, options: Values, args: List[Any]) -> None:
         if len(args) > 1:
-            raise CommandError('Too many arguments')
+            raise CommandError("Too many arguments")
 
         if args:
             pattern = args[0]
         else:
-            pattern = '*'
+            pattern = "*"
 
         files = self._find_wheels(options, pattern)
-        if options.list_format == 'human':
+        if options.list_format == "human":
             self.format_for_human(files)
         else:
             self.format_for_abspath(files)
 
     def format_for_human(self, files: List[str]) -> None:
         if not files:
-            logger.info('Nothing cached.')
+            logger.info("Nothing cached.")
             return
 
         results = []
         for filename in files:
             wheel = os.path.basename(filename)
             size = filesystem.format_file_size(filename)
-            results.append(f' - {wheel} ({size})')
-        logger.info('Cache contents:\n')
-        logger.info('\n'.join(sorted(results)))
+            results.append(f" - {wheel} ({size})")
+        logger.info("Cache contents:\n")
+        logger.info("\n".join(sorted(results)))
 
     def format_for_abspath(self, files: List[str]) -> None:
         if not files:
@@ -156,23 +159,27 @@ class CacheCommand(Command):
         for filename in files:
             results.append(filename)
 
-        logger.info('\n'.join(sorted(results)))
+        logger.info("\n".join(sorted(results)))
 
     def remove_cache_items(self, options: Values, args: List[Any]) -> None:
         if len(args) > 1:
-            raise CommandError('Too many arguments')
+            raise CommandError("Too many arguments")
 
         if not args:
-            raise CommandError('Please provide a pattern')
+            raise CommandError("Please provide a pattern")
 
         files = self._find_wheels(options, args[0])
 
-        # Only fetch http files if no specific pattern given
-        if args[0] == '*':
+        no_matching_msg = "No matching packages"
+        if args[0] == "*":
+            # Only fetch http files if no specific pattern given
             files += self._find_http_files(options)
+        else:
+            # Add the pattern to the log message
+            no_matching_msg += ' for pattern "{}"'.format(args[0])
 
         if not files:
-            raise CommandError('No matching packages')
+            logger.warning(no_matching_msg)
 
         for filename in files:
             os.unlink(filename)
@@ -181,19 +188,19 @@ class CacheCommand(Command):
 
     def purge_cache(self, options: Values, args: List[Any]) -> None:
         if args:
-            raise CommandError('Too many arguments')
+            raise CommandError("Too many arguments")
 
-        return self.remove_cache_items(options, ['*'])
+        return self.remove_cache_items(options, ["*"])
 
     def _cache_dir(self, options: Values, subdir: str) -> str:
         return os.path.join(options.cache_dir, subdir)
 
     def _find_http_files(self, options: Values) -> List[str]:
-        http_dir = self._cache_dir(options, 'http')
-        return filesystem.find_files(http_dir, '*')
+        http_dir = self._cache_dir(options, "http")
+        return filesystem.find_files(http_dir, "*")
 
     def _find_wheels(self, options: Values, pattern: str) -> List[str]:
-        wheel_dir = self._cache_dir(options, 'wheels')
+        wheel_dir = self._cache_dir(options, "wheels")
 
         # The wheel filename format, as specified in PEP 427, is:
         #     {distribution}-{version}(-{build})?-{python}-{abi}-{platform}.whl
