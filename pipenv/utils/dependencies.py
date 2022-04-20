@@ -4,8 +4,6 @@ from typing import Mapping, Sequence
 
 from packaging.markers import Marker
 
-from pipenv import fs_str
-
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
 
@@ -299,7 +297,7 @@ def locked_repository(requirement):
     if not requirement.is_vcs:
         return
     original_base = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-    os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
+    os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.notpip"
     src_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-src")
     try:
         with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:

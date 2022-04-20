@@ -756,7 +756,7 @@ def batch_install(
 
         with vistir.contextmanagers.temp_environ():
             if not allow_global:
-                os.environ["PIP_USER"] = vistir.compat.fs_str("0")
+                os.environ["PIP_USER"] = "0"
                 if "PYTHONHOME" in os.environ:
                     del os.environ["PYTHONHOME"]
             if "GIT_CONFIG" in os.environ and dep.is_vcs:
@@ -971,7 +971,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         cmd.append("--system-site-packages")
 
     if pypi_mirror:
-        pip_config = {"PIP_INDEX_URL": vistir.misc.fs_str(pypi_mirror)}
+        pip_config = {"PIP_INDEX_URL": pypi_mirror}
     else:
         pip_config = {}
 
@@ -1002,7 +1002,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
     # This mimics Pew's "setproject".
     project_file_name = os.path.join(project.virtualenv_location, ".project")
     with open(project_file_name, "w") as f:
-        f.write(vistir.misc.fs_str(project.project_directory))
+        f.write(project.project_directory)
     from .environment import Environment
 
     sources = project.pipfile_sources
@@ -1565,20 +1565,18 @@ def pip_install(
     DEFAULT_EXISTS_ACTION = "w"
     if selective_upgrade:
         DEFAULT_EXISTS_ACTION = "i"
-    exists_action = vistir.misc.fs_str(
-        project.s.PIP_EXISTS_ACTION or DEFAULT_EXISTS_ACTION
-    )
+    exists_action = project.s.PIP_EXISTS_ACTION or DEFAULT_EXISTS_ACTION
     pip_config = {
-        "PIP_CACHE_DIR": vistir.misc.fs_str(cache_dir.as_posix()),
-        "PIP_WHEEL_DIR": vistir.misc.fs_str(cache_dir.joinpath("wheels").as_posix()),
-        "PIP_DESTINATION_DIR": vistir.misc.fs_str(cache_dir.joinpath("pkgs").as_posix()),
+        "PIP_CACHE_DIR": cache_dir.as_posix(),
+        "PIP_WHEEL_DIR": cache_dir.joinpath("wheels").as_posix(),
+        "PIP_DESTINATION_DIR": cache_dir.joinpath("pkgs").as_posix(),
         "PIP_EXISTS_ACTION": exists_action,
-        "PATH": vistir.misc.fs_str(os.environ.get("PATH")),
+        "PATH": os.environ.get("PATH"),
     }
     if src_dir:
         if project.s.is_verbose():
             click.echo(f"Using source directory: {src_dir!r}", err=True)
-        pip_config.update({"PIP_SRC": vistir.misc.fs_str(src_dir)})
+        pip_config.update({"PIP_SRC": src_dir})
     c = subprocess_run(pip_command, block=block, env=pip_config)
     c.env = pip_config
     return c
@@ -1587,9 +1585,9 @@ def pip_install(
 def pip_download(project, package_name):
     cache_dir = Path(project.s.PIPENV_CACHE_DIR)
     pip_config = {
-        "PIP_CACHE_DIR": vistir.misc.fs_str(cache_dir.as_posix()),
-        "PIP_WHEEL_DIR": vistir.misc.fs_str(cache_dir.joinpath("wheels").as_posix()),
-        "PIP_DESTINATION_DIR": vistir.misc.fs_str(cache_dir.joinpath("pkgs").as_posix()),
+        "PIP_CACHE_DIR": cache_dir.as_posix(),
+        "PIP_WHEEL_DIR": cache_dir.joinpath("wheels").as_posix(),
+        "PIP_DESTINATION_DIR": cache_dir.joinpath("pkgs").as_posix(),
     }
     for source in project.sources:
         cmd = [
@@ -2134,16 +2132,14 @@ def do_install(
                 "Installing...", project.s
             ) as sp:
                 if not system:
-                    os.environ["PIP_USER"] = vistir.compat.fs_str("0")
+                    os.environ["PIP_USER"] = "0"
                     if "PYTHONHOME" in os.environ:
                         del os.environ["PYTHONHOME"]
                 sp.text = f"Resolving {pkg_line}..."
                 try:
                     pkg_requirement = Requirement.from_line(pkg_line)
                 except ValueError as e:
-                    sp.write_err(
-                        vistir.compat.fs_str("{}: {}".format(crayons.red("WARNING"), e))
-                    )
+                    sp.write_err("{}: {}".format(crayons.red("WARNING"), e))
                     sp.red.fail(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format(
                             "Installation Failed"
@@ -2176,23 +2172,15 @@ def do_install(
                                 crayons.red("Error: ", bold=True), crayons.green(pkg_line)
                             ),
                         )
-                        sp.write_err(vistir.compat.fs_str(f"Error text: {c.stdout}"))
-                        sp.write_err(
-                            crayons.cyan(vistir.compat.fs_str(format_pip_error(c.stderr)))
-                        )
+                        sp.write_err(f"Error text: {c.stdout}")
+                        sp.write_err(crayons.cyan(format_pip_error(c.stderr)))
                         if project.s.is_verbose():
-                            sp.write_err(
-                                crayons.cyan(
-                                    vistir.compat.fs_str(format_pip_output(c.stdout))
-                                )
-                            )
+                            sp.write_err(crayons.cyan(format_pip_output(c.stdout)))
                         if "setup.py egg_info" in c.stderr:
                             sp.write_err(
-                                vistir.compat.fs_str(
-                                    "This is likely caused by a bug in {}. "
-                                    "Report this to its maintainers.".format(
-                                        crayons.green(pkg_requirement.name)
-                                    )
+                                "This is likely caused by a bug in {}. "
+                                "Report this to its maintainers.".format(
+                                    crayons.green(pkg_requirement.name)
                                 )
                             )
                         sp.red.fail(
@@ -2202,11 +2190,7 @@ def do_install(
                         )
                         sys.exit(1)
                 except (ValueError, RuntimeError) as e:
-                    sp.write_err(
-                        vistir.compat.fs_str(
-                            "{}: {}".format(crayons.red("WARNING"), e),
-                        )
-                    )
+                    sp.write_err("{}: {}".format(crayons.red("WARNING"), e))
                     sp.red.fail(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format(
                             "Installation Failed",
@@ -2229,16 +2213,14 @@ def do_install(
                         )
                     )
                 sp.write(
-                    vistir.compat.fs_str(
-                        "{} {} {} {}{}".format(
-                            crayons.normal("Adding", bold=True),
-                            crayons.green(f"{pkg_requirement.name}", bold=True),
-                            crayons.normal("to Pipfile's", bold=True),
-                            crayons.yellow(
-                                "[dev-packages]" if dev else "[packages]", bold=True
-                            ),
-                            crayons.normal(fix_utf8("..."), bold=True),
-                        )
+                    "{} {} {} {}{}".format(
+                        crayons.normal("Adding", bold=True),
+                        crayons.green(f"{pkg_requirement.name}", bold=True),
+                        crayons.normal("to Pipfile's", bold=True),
+                        crayons.yellow(
+                            "[dev-packages]" if dev else "[packages]", bold=True
+                        ),
+                        crayons.normal(fix_utf8("..."), bold=True),
                     )
                 )
                 # Add the package to the Pipfile.
@@ -2465,7 +2447,7 @@ def do_shell(
     # Set an environment variable, so we know we're in the environment.
     # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
     # otherwise its value will be changed
-    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+    os.environ["PIPENV_ACTIVE"] = "1"
 
     os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
@@ -2528,7 +2510,7 @@ def inline_activate_virtual_environment(project):
     else:
         _inline_activate_virtualenv(project)
     if "VIRTUAL_ENV" not in os.environ:
-        os.environ["VIRTUAL_ENV"] = vistir.misc.fs_str(root)
+        os.environ["VIRTUAL_ENV"] = root
 
 
 def _launch_windows_subprocess(script, env):
@@ -2634,7 +2616,7 @@ def do_run(
     # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
     # such as in inline_activate_virtual_environment
     # otherwise its value will be changed
-    env["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+    env["PIPENV_ACTIVE"] = "1"
     env.pop("PIP_SHIMS_BASE_MODULE", None)
 
     try:

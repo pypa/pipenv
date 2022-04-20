@@ -3,7 +3,7 @@ venv_dir := $(get_venv_dir)/pipenv_venv
 venv_file := $(CURDIR)/.test_venv
 get_venv_path =$(file < $(venv_file))
 # This is how we will build tag-specific wheels, e.g. py36 or py37
-PY_VERSIONS:= 2.7 3.5 3.6 3.7 3.8
+PY_VERSIONS:= 3.7 3.8 3.9 3.10
 BACKSLASH = '\\'
 # This is how we will build generic wheels, e.g. py2 or py3
 INSTALL_TARGETS := $(addprefix install-py,$(PY_VERSIONS))
@@ -66,17 +66,26 @@ submodules:
 	git submodule update --init --recursive
 
 .PHONY: tests
+tests: parallel ?= -n auto
 tests: virtualenv submodules test-install
 	. $(get_venv_path)/bin/activate && \
-		pipenv run pytest -ra -vvv --full-trace --tb=long
+		pipenv run pytest -ra $(parallel) -vvv --full-trace --tb=long
+
+.PHONY: vendor
+vendor: virtualenv
+	. $(get_venv_path)/bin/activate && \
+		python -m pip install invoke && \
+		python -m pip install -e .[dev] && \
+		python -m invoke vendoring.update
 
 .PHONY: test-specific
 test-specific: submodules virtualenv test-install
 	. $(get_venv_path)/bin/activate && pipenv run pytest -ra -k '$(tests)'
 
 .PHONY: retest
+retest: parallel ?= -n auto
 retest: virtualenv submodules test-install
-	. $(get_venv_path)/bin/activate && pipenv run pytest -ra -k 'test_check_unused or test_install_editable_git_tag or test_get_vcs_refs or test_skip_requirements_when_pipfile or test_editable_vcs_install or test_basic_vcs_install or test_git_vcs_install or test_ssh_vcs_install or test_vcs_can_use_markers' -vvv --full-trace --tb=long
+	. $(get_venv_path)/bin/activate && pipenv run pytest $(parallel) -ra -k 'test_check_unused or test_install_editable_git_tag or test_get_vcs_refs or test_skip_requirements_when_pipfile or test_editable_vcs_install or test_basic_vcs_install or test_git_vcs_install or test_ssh_vcs_install or test_vcs_can_use_markers' -vvv --full-trace --tb=long
 
 .PHONY: build
 build: install-virtualenvs.stamp install.stamp

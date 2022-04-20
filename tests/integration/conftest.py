@@ -22,7 +22,7 @@ from pipenv.cli import cli
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor import toml, tomlkit
-from pipenv.vendor.vistir.compat import fs_encode, fs_str
+from pipenv.vendor.vistir.compat import fs_encode
 from pipenv.vendor.vistir.contextmanagers import temp_environ
 from pipenv.vendor.vistir.misc import run
 from pipenv.vendor.vistir.path import (
@@ -156,7 +156,7 @@ def local_tempdir(request):
     os.environ["TEMP"] = new_temp.as_posix()
 
     def finalize():
-        os.environ['TEMP'] = fs_str(old_temp)
+        os.environ['TEMP'] = old_temp
         _rmtree_func(new_temp.as_posix())
 
     request.addfinalizer(finalize)
@@ -192,13 +192,12 @@ def isolate(create_tmpdir):
         fp.write(
             b"[user]\n\tname = pipenv\n\temail = pipenv@pipenv.org\n"
         )
-    # os.environ["GIT_CONFIG"] = fs_str(git_config_file)
-    os.environ["GIT_CONFIG_NOSYSTEM"] = fs_str("1")
-    os.environ["GIT_AUTHOR_NAME"] = fs_str("pipenv")
-    os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
-    os.environ["GIT_ASK_YESNO"] = fs_str("false")
+    os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
+    os.environ["GIT_AUTHOR_NAME"] = "pipenv"
+    os.environ["GIT_AUTHOR_EMAIL"] = "pipenv@pipenv.org"
+    os.environ["GIT_ASK_YESNO"] = "false"
     workon_home = create_tmpdir()
-    os.environ["WORKON_HOME"] = fs_str(str(workon_home))
+    os.environ["WORKON_HOME"] = str(workon_home)
     os.environ["HOME"] = os.path.abspath(home_dir)
     mkdir_p(os.path.join(home_dir, "projects"))
     # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
@@ -304,11 +303,11 @@ class _PipenvInstance:
         self.index = os.getenv("PIPENV_PYPI_INDEX")
         self.env["PYTHONWARNINGS"] = "ignore:DEPRECATION"
         if ignore_virtualenvs:
-            self.env["PIPENV_IGNORE_VIRTUALENVS"] = fs_str("1")
+            self.env["PIPENV_IGNORE_VIRTUALENVS"] = "1"
         if venv_root:
             self.env["VIRTUAL_ENV"] = venv_root
         if venv_in_project:
-            self.env["PIPENV_VENV_IN_PROJECT"] = fs_str("1")
+            self.env["PIPENV_VENV_IN_PROJECT"] = "1"
         else:
             self.env.pop("PIPENV_VENV_IN_PROJECT", None)
 
@@ -340,9 +339,7 @@ class _PipenvInstance:
         self.chdir = chdir
 
         if self.pypi and "PIPENV_PYPI_URL" not in os.environ:
-            self.env['PIPENV_PYPI_URL'] = fs_str(f'{self.pypi}')
-            # os.environ['PIPENV_PYPI_URL'] = fs_str('{0}'.format(self.pypi.url))
-            # os.environ['PIPENV_TEST_INDEX'] = fs_str('{0}/simple'.format(self.pypi.url))
+            self.env['PIPENV_PYPI_URL'] = f'{self.pypi}'
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
@@ -372,7 +369,7 @@ class _PipenvInstance:
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path and os.path.isfile(self.pipfile_path):
-            os.environ['PIPENV_PIPFILE'] = fs_str(self.pipfile_path)
+            os.environ['PIPENV_PIPFILE'] = self.pipfile_path
         # a bit of a hack to make sure the virtualenv is created
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
@@ -435,7 +432,7 @@ def pip_src_dir(request, vistir_tmpdir):
     os.environ['PIP_SRC'] = vistir_tmpdir.as_posix()
 
     def finalize():
-        os.environ['PIP_SRC'] = fs_str(old_src_dir)
+        os.environ['PIP_SRC'] = old_src_dir
 
     request.addfinalizer(finalize)
     return request
@@ -446,9 +443,9 @@ def PipenvInstance(pip_src_dir, monkeypatch, pypi, capfdbinary):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
-        m.setenv("PIPENV_NOSPIN", fs_str("1"))
-        m.setenv("CI", fs_str("1"))
-        m.setenv('PIPENV_DONT_USE_PYENV', fs_str('1'))
+        m.setenv("PIPENV_NOSPIN", "1")
+        m.setenv("CI", "1")
+        m.setenv('PIPENV_DONT_USE_PYENV', '1')
         m.setenv("PIPENV_TEST_INDEX", f"{pypi.url}/simple")
         m.setenv("PIPENV_PYPI_INDEX", "simple")
         m.setenv("ARTIFACT_PYPI_URL", pypi.url)
@@ -466,9 +463,9 @@ def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir, pypi, capfdbinary):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
-        m.setenv("PIPENV_NOSPIN", fs_str("1"))
-        m.setenv("CI", fs_str("1"))
-        m.setenv('PIPENV_DONT_USE_PYENV', fs_str('1'))
+        m.setenv("PIPENV_NOSPIN", "1")
+        m.setenv("CI", "1")
+        m.setenv('PIPENV_DONT_USE_PYENV', '1')
         m.setenv("PIPENV_TEST_INDEX", f"{pypi.url}/simple")
         m.setenv("ARTIFACT_PYPI_URL", pypi.url)
         warnings.simplefilter("ignore", category=ResourceWarning)
