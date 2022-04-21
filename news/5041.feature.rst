@@ -1,0 +1,2 @@
+Added new Pipenv option ``install_search_all_sources`` that allows installation of packages from an
+existing ``Pipfile.lock`` to search all defined indexes for the constrained package version and hash signatures.
