@@ -21,9 +21,9 @@ if sys.argv[-1] == "publish":
     sys.exit()
 
 required = [
-    "pip>=18.0",
+    "pip>=22.0.4",
     "certifi",
-    "setuptools>=36.2.1",
+    "setuptools>=60.0.0",
     "virtualenv-clone>=0.2.5",
     "virtualenv",
 ]
@@ -34,7 +34,7 @@ extras = {
         "twine",
         "sphinx",
         "flake8>=3.3.0,<4.0",
-        "black;python_version>='3.6'",
+        "black;python_version>='3.7'",
         "parver",
         "invoke",
     ],
@@ -138,7 +138,7 @@ setup(
             "w64.exe",
         ],
     },
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     zip_safe=True,
     setup_requires=[],
     install_requires=required,
@@ -149,7 +149,6 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
