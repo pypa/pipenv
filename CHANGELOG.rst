@@ -30,7 +30,7 @@ Removals and Deprecations
 Relates to dev process changes
 ------------------------------
 
-- Added pytest-cov and basic configuration to the project for generating html testing coverage reports.  
+- Added pytest-cov and basic configuration to the project for generating html testing coverage reports.
 - Make all CI jobs run only after the lint stage. Also added a makefile target for vendoring the packages.
 
 
