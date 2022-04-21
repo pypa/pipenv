@@ -1466,10 +1466,8 @@ def pip_install(
     use_pep517=True,
 ):
     piplogger = logging.getLogger("pipenv.patched.notpip._internal.commands.install")
-    src_dir = None
     if not trusted_hosts:
         trusted_hosts = []
-
     trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
     if not allow_global:
         src_dir = os.getenv(
@@ -1484,22 +1482,26 @@ def pip_install(
             ignore_hashes = False
     line = None
     # Try installing for each source in project.sources.
+    search_all_sources = project.settings.get("install_search_all_sources", False)
     if not index and requirement.index:
         index = requirement.index
     if index and not extra_indexes:
-        extra_indexes = []
-        if requirement.index:
-            extra_indexes = list(
-                filter(lambda d: d.get("name") == requirement.index, project.sources)
-            )
-        if not extra_indexes:
+        if search_all_sources:
             extra_indexes = list(project.sources)
+        else:  # Default: index restrictions apply during installation
+            extra_indexes = []
+            if requirement.index:
+                extra_indexes = list(
+                    filter(lambda d: d.get("name") == requirement.index, project.sources)
+                )
+            if not extra_indexes:
+                extra_indexes = list(project.sources)
     if requirement and requirement.vcs or requirement.editable:
         requirement.index = None
         # Install dependencies when a package is a non-editable VCS dependency.
         # Don't specify a source directory when using --system.
         if not requirement.editable and no_deps is not True:
-            # Leave this off becauase old lockfiles don't have all deps included
+            # Leave this off because old Pipfile.lock don't have all deps included
             # TODO: When can it be turned back on?
             no_deps = False
         elif requirement.editable and no_deps is None:
@@ -1519,7 +1521,7 @@ def pip_install(
         trusted_hosts=trusted_hosts,
         pypi_mirror=pypi_mirror,
     )
-    if requirement.index in sources:
+    if not search_all_sources and requirement.index in sources:
         sources = list(filter(lambda d: d.get("name") == requirement.index, sources))
     if r:
         with open(r, "r") as fh:
@@ -1558,10 +1560,10 @@ def pip_install(
     if project.s.is_verbose():
         click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
     cache_dir = Path(project.s.PIPENV_CACHE_DIR)
-    DEFAULT_EXISTS_ACTION = "w"
+    default_exists_action = "w"
     if selective_upgrade:
-        DEFAULT_EXISTS_ACTION = "i"
-    exists_action = project.s.PIP_EXISTS_ACTION or DEFAULT_EXISTS_ACTION
+        default_exists_action = "i"
+    exists_action = project.s.PIP_EXISTS_ACTION or default_exists_action
     pip_config = {
         "PIP_CACHE_DIR": cache_dir.as_posix(),
         "PIP_WHEEL_DIR": cache_dir.joinpath("wheels").as_posix(),

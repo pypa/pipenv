@@ -62,6 +62,19 @@ as sub-dependencies must be mirrored onto your private index or they will not re
 standard recommendation of ``pip`` maintainers: "To correctly make a private project installable is to point
 --index-url to an index that contains both PyPI and their private projects—which is our recommended best practice."
 
+The above documentation holds true for both ``lock`` resolution and ``sync`` of packages. It was suggested that
+once the resolution and the lock file are updated, it is theoretically possible to safely scan multiple indexes
+for these packages when running ``pipenv sync`` or ``pipenv install --deploy`` since it will verify the package
+hashes match the allowed hashes that were already captured from a safe locking cycle.
+To enable this non-default behavior, add ``install_search_all_sources = true`` option
+to your ``Pipfile`` in the  ``pipenv`` section::
+
+    [pipenv]
+    install_search_all_sources = true
+
+**Note:** The locking cycle will still requires that each package be resolved from a single index.  This feature was
+requested as a workaround in order to support organizations where not everyone has access to the package sources.
+
 ☤ Using a PyPI Mirror
 ----------------------------
 
@@ -119,7 +132,7 @@ If you want to work with private registries that use the keychain for authentica
 can disable the "enforcement of no input".
 
 **Note:** Please be sure that the keychain will really not ask for
-input. Otherwise the process will hang forever!
+input. Otherwise the process will hang forever!::
 
     [[source]]
     url = "https://pypi.org/simple"
