@@ -1,1 +1,0 @@
-Removed all usages of ``pipenv.vendor.vistir.compat.fs_str``, since this function was used for PY2-PY3 compatability and is no longer needed.

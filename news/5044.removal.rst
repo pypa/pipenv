@@ -1,1 +1,0 @@
-Removed the vendor dependency ``more-itertools`` as it was originally added for ``zipp``, which since stopped using it.

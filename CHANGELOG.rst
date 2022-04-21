@@ -1,3 +1,39 @@
+2022.4.20 (2022-04-20)
+======================
+
+
+Features & Improvements
+-----------------------
+
+- Added new Pipenv option ``install_search_all_sources`` that allows installation of packages from an
+  existing ``Pipfile.lock`` to search all defined indexes for the constrained package version and hash signatures.  `#5041 <https://github.com/pypa/pipenv/issues/5041>`_
+
+Bug Fixes
+---------
+
+- allow the user to disable the ``no_input`` flag, so the use of e.g Google Artifact Registry is possible.  `#4706 <https://github.com/pypa/pipenv/issues/4706>`_
+- Fixes case where packages could fail to install and the exit code was successful.  `#5031 <https://github.com/pypa/pipenv/issues/5031>`_
+
+Vendored Libraries
+------------------
+
+- Updated vendor version of ``pip`` from ``21.2.2`` to ``22.0.4`` which fixes a number of bugs including
+  several reports of pipenv locking for an infinite amount of time when using certain package constraints.
+  This also drops support for python 3.6 as it is EOL and support was removed in pip 22.x  `#4995 <https://github.com/pypa/pipenv/issues/4995>`_
+
+Removals and Deprecations
+-------------------------
+
+- Removed the vendor dependency ``more-itertools`` as it was originally added for ``zipp``, which since stopped using it.  `#5044 <https://github.com/pypa/pipenv/issues/5044>`_
+- Removed all usages of ``pipenv.vendor.vistir.compat.fs_str``, since this function was used for PY2-PY3 compatability and is no longer needed.  `#5062 <https://github.com/pypa/pipenv/issues/5062>`_
+
+Relates to dev process changes
+------------------------------
+
+- Added pytest-cov and basic configuration to the project for generating html testing coverage reports.  
+- Make all CI jobs run only after the lint stage. Also added a makefile target for vendoring the packages.
+
+
 2022.4.8 (2022-04-08)
 =====================
 
