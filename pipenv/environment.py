@@ -300,8 +300,7 @@ class Environment:
         :return: The :data:`sys.path` from the environment
         :rtype: list
         """
-
-        from .vendor.vistir.compat import JSONDecodeError
+        import json
 
         current_executable = Path(sys.executable).as_posix()
         if not self.python or self.python == current_executable:
@@ -319,7 +318,7 @@ class Environment:
         )
         try:
             path = json.loads(path.strip())
-        except JSONDecodeError:
+        except json.JSONDecodeError:
             path = sys.path
         return path
 

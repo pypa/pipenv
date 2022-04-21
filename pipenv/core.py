@@ -2652,7 +2652,7 @@ def do_check(
     quiet=False,
     pypi_mirror=None,
 ):
-    from pipenv.vendor.vistir.compat import JSONDecodeError
+    import json
 
     if not system:
         # Ensure that virtualenv is available.
@@ -2689,7 +2689,7 @@ def do_check(
     if c.returncode is not None:
         try:
             results = simplejson.loads(c.stdout.strip())
-        except JSONDecodeError:
+        except json.JSONDecodeError:
             click.echo(
                 "{}\n{}\n{}".format(
                     crayons.white(
@@ -2763,7 +2763,7 @@ def do_check(
     if output == "default":
         try:
             results = simplejson.loads(c.stdout)
-        except (ValueError, JSONDecodeError):
+        except (ValueError, json.JSONDecodeError):
             raise exceptions.JSONParseError(c.stdout, c.stderr)
         except Exception:
             raise exceptions.PipenvCmdError(
@@ -2791,8 +2791,9 @@ def do_check(
 
 
 def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
+    import json as jsonlib
+
     from pipenv.vendor import pipdeptree
-    from pipenv.vendor.vistir.compat import JSONDecodeError
 
     pipdeptree_path = pipdeptree.__file__.rstrip("cdo")
     try:
@@ -2873,7 +2874,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
             data = []
             try:
                 parsed = simplejson.loads(c.stdout.strip())
-            except JSONDecodeError:
+            except jsonlib.JSONDecodeError:
                 raise exceptions.JSONParseError(c.stdout, c.stderr)
             else:
                 for d in parsed:
@@ -2896,7 +2897,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
             try:
                 parsed = simplejson.loads(c.stdout.strip())
-            except JSONDecodeError:
+            except jsonlib.JSONDecodeError:
                 raise exceptions.JSONParseError(c.stdout, c.stderr)
             else:
                 data = traverse(parsed)
