@@ -1,6 +1,7 @@
 import json as simplejson
 import logging
 import os
+import shutil
 import sys
 import time
 import warnings
@@ -91,11 +92,11 @@ def do_clear(project):
         from pip import locations
 
     try:
-        vistir.path.rmtree(
+        shutil.rmtree(
             project.s.PIPENV_CACHE_DIR, onerror=vistir.path.handle_remove_readonly
         )
         # Other processes may be writing into this directory simultaneously.
-        vistir.path.rmtree(
+        shutil.rmtree(
             locations.USER_CACHE_DIR,
             ignore_errors=environments.PIPENV_IS_CI,
             onerror=vistir.path.handle_remove_readonly,
@@ -148,7 +149,7 @@ def cleanup_virtualenv(project, bare=True):
         click.echo(crayons.red("Environment creation aborted."))
     try:
         # Delete the virtualenv.
-        vistir.path.rmtree(project.virtualenv_location)
+        shutil.rmtree(project.virtualenv_location)
     except OSError as e:
         click.echo(
             "{} An error occurred while removing {}!".format(
@@ -1182,7 +1183,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
             click.echo(
                 crayons.normal(fix_utf8("Clearing out downloads directory..."), bold=True)
             )
-        vistir.path.rmtree(project.download_location)
+        shutil.rmtree(project.download_location)
         return
 
     # Remove comments from the output, if any.
