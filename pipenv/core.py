@@ -1,6 +1,7 @@
 import json as simplejson
 import logging
 import os
+import shutil
 import sys
 import time
 import warnings
@@ -91,11 +92,11 @@ def do_clear(project):
         from pip import locations
 
     try:
-        vistir.path.rmtree(
+        shutil.rmtree(
             project.s.PIPENV_CACHE_DIR, onerror=vistir.path.handle_remove_readonly
         )
         # Other processes may be writing into this directory simultaneously.
-        vistir.path.rmtree(
+        shutil.rmtree(
             locations.USER_CACHE_DIR,
             ignore_errors=environments.PIPENV_IS_CI,
             onerror=vistir.path.handle_remove_readonly,
@@ -148,7 +149,7 @@ def cleanup_virtualenv(project, bare=True):
         click.echo(crayons.red("Environment creation aborted."))
     try:
         # Delete the virtualenv.
-        vistir.path.rmtree(project.virtualenv_location)
+        shutil.rmtree(project.virtualenv_location)
     except OSError as e:
         click.echo(
             "{} An error occurred while removing {}!".format(
@@ -1182,7 +1183,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
             click.echo(
                 crayons.normal(fix_utf8("Clearing out downloads directory..."), bold=True)
             )
-        vistir.path.rmtree(project.download_location)
+        shutil.rmtree(project.download_location)
         return
 
     # Remove comments from the output, if any.
@@ -2652,7 +2653,7 @@ def do_check(
     quiet=False,
     pypi_mirror=None,
 ):
-    from pipenv.vendor.vistir.compat import JSONDecodeError
+    import json
 
     if not system:
         # Ensure that virtualenv is available.
@@ -2689,7 +2690,7 @@ def do_check(
     if c.returncode is not None:
         try:
             results = simplejson.loads(c.stdout.strip())
-        except JSONDecodeError:
+        except json.JSONDecodeError:
             click.echo(
                 "{}\n{}\n{}".format(
                     crayons.white(
@@ -2763,7 +2764,7 @@ def do_check(
     if output == "default":
         try:
             results = simplejson.loads(c.stdout)
-        except (ValueError, JSONDecodeError):
+        except (ValueError, json.JSONDecodeError):
             raise exceptions.JSONParseError(c.stdout, c.stderr)
         except Exception:
             raise exceptions.PipenvCmdError(
@@ -2791,8 +2792,9 @@ def do_check(
 
 
 def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
+    import json as jsonlib
+
     from pipenv.vendor import pipdeptree
-    from pipenv.vendor.vistir.compat import JSONDecodeError
 
     pipdeptree_path = pipdeptree.__file__.rstrip("cdo")
     try:
@@ -2873,7 +2875,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
             data = []
             try:
                 parsed = simplejson.loads(c.stdout.strip())
-            except JSONDecodeError:
+            except jsonlib.JSONDecodeError:
                 raise exceptions.JSONParseError(c.stdout, c.stderr)
             else:
                 for d in parsed:
@@ -2896,7 +2898,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
             try:
                 parsed = simplejson.loads(c.stdout.strip())
-            except JSONDecodeError:
+            except jsonlib.JSONDecodeError:
                 raise exceptions.JSONParseError(c.stdout, c.stderr)
             else:
                 data = traverse(parsed)

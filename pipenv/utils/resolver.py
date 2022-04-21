@@ -946,7 +946,7 @@ def venv_resolve_deps(
 
     from pipenv import resolver
     from pipenv._compat import decode_for_output
-    from pipenv.vendor.vistir.compat import JSONDecodeError, NamedTemporaryFile, Path
+    from pipenv.vendor.vistir.compat import NamedTemporaryFile, Path
 
     results = []
     pipfile_section = "dev-packages" if dev else "packages"
@@ -1019,7 +1019,7 @@ def venv_resolve_deps(
     try:
         with open(target_file.name) as fh:
             results = json.load(fh)
-    except (IndexError, JSONDecodeError):
+    except (IndexError, json.JSONDecodeError):
         click_echo(c.stdout.strip(), err=True)
         click_echo(c.stderr.strip(), err=True)
         if os.path.exists(target_file.name):
