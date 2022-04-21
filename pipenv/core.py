@@ -729,7 +729,9 @@ def batch_install(
     ]
     sequential_dep_names = [d.name for d in sequential_deps]
 
-    deps_list_bar = progress.bar(deps_to_install, width=32, label=label)
+    deps_list_bar = progress.bar(
+        deps_to_install, width=32, label=label, hide=environments.PIPENV_IS_CI
+    )
 
     trusted_hosts = []
     # Install these because
@@ -871,18 +873,6 @@ def do_install_dependencies(
     if not procs.empty():
         _cleanup_procs(project, procs, failed_deps_queue)
 
-    # click.echo(crayons.normal(
-    #     decode_for_output("Installing editable and vcs dependencies..."), bold=True
-    # ))
-
-    # install_kwargs.update({"blocking": True})
-    # # XXX: All failed and editable/vcs deps should be installed in sequential mode!
-    # procs = queue.Queue(maxsize=1)
-    # batch_install(
-    #     editable_or_vcs_deps, procs, failed_deps_queue, requirements_dir,
-    #     **install_kwargs
-    # )
-
     # Iterate over the hopefully-poorly-packaged dependencies...
     if not failed_deps_queue.empty():
         click.echo(
@@ -905,6 +895,20 @@ def do_install_dependencies(
         )
     if not procs.empty():
         _cleanup_procs(project, procs, failed_deps_queue, retry=False)
+    if not failed_deps_queue.empty():
+        failed_list = []
+        while not failed_deps_queue.empty():
+            failed_dep = failed_deps_queue.get()
+            failed_list.append(failed_dep)
+        click.echo(
+            click.style(
+                f"Failed to install some dependency or packages.  "
+                f"The following have failed installation and attempted retry: {failed_list}",
+                fg="red",
+            ),
+            err=True,
+        )
+        sys.exit(1)
 
 
 def convert_three_to_python(three, python):
