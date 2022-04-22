@@ -323,6 +323,11 @@ def lock(ctx, state, **kwargs):
     dev_only = state.lockoptions.dev_only
     pre = state.installstate.pre
     if emit_requirements:
+        echo(crayons.yellow("""
+            Warning: The lock flags -r/--requirements, along with it's options (--keep-outdated, --dev, --dev-only)
+            will be deprecated in a future version of pipenv in favor of the new requirements command.
+            For more info see https://pipenv.pypa.io/en/latest/advanced/#generating-a-requirements-txt
+            """))
         # Emit requirements file header (unless turned off with --no-header)
         if state.lockoptions.emit_requirements_header:
             header_options = ["--requirements"]

@@ -231,9 +231,10 @@ Anaconda uses Conda to manage packages. To reuse Conda–installed Python packag
 ☤ Generating a ``requirements.txt``
 -----------------------------------
 
+Sometimes, you would want to generate a requirements file based on your current
+environment, for example to include tooling that only supports requirements.txt.
 You can convert a ``Pipfile`` and ``Pipfile.lock`` into a ``requirements.txt``
-file very easily, and get all the benefits of extras and other goodies we have
-included.
+file very easily.
 
 Let's take this ``Pipfile``::
 
@@ -249,7 +250,8 @@ Let's take this ``Pipfile``::
 
 And generate a set of requirements out of it with only the default dependencies::
 
-    $ pipenv lock -r
+    $ pipenv requirements
+    -i https://pypi.org/simple
     chardet==3.0.4
     requests==2.18.4
     certifi==2017.7.27.1
@@ -259,7 +261,8 @@ And generate a set of requirements out of it with only the default dependencies:
 As with other commands, passing ``--dev`` will include both the default and
 development dependencies::
 
-    $ pipenv lock -r --dev
+    $ pipenv requirements --dev
+    -i https://pypi.org/simple
     chardet==3.0.4
     requests==2.18.4
     certifi==2017.7.27.1
@@ -272,59 +275,27 @@ If you wish to generate a requirements file with only the
 development requirements you can do that too, using the ``--dev-only``
 flag::
 
-    $ pipenv lock -r --dev-only
+    $ pipenv requirements --dev-only
+    -i https://pypi.org/simple
     py==1.4.34
     pytest==3.2.3
 
-Sometimes, you would want to generate a requirements file based on your current
-environment. However, using pipenv lock -r will still do the locking process which
-could update package versions. To keep the packages as is, use the ``--keep-outdated``
-flag::
-
-    $ pipenv lock -r --keep-outdated
-    chardet==3.0.4
-    requests==2.18.4
-    certifi==2017.7.27.1
-    idna==2.6
-    urllib3==1.22
-
-Note that using this approach, packages newly added to the Pipfile will still be
-included in requirements.txt. If you really want to use Pipfile.lock and
-Pipfile.lock only, you can generate the requirements using::
-
-    $ pipenv requirements
-    chardet==3.0.4
-    requests==2.18.4
-    certifi==2017.7.27.1
-    idna==2.6
-    urllib3==1.22
-
-This will bypass the locking process completely. As with other commands,
-passing ``--dev`` will include both the default and development dependencies.
-Passing ``--dev-only`` will include only development dependencies and ``--hash`` will
-add package hashes to the output for extra security.
+Adding the ``--hash`` flag will add package hashes to the output for extra security.
 
 The locked requirements are written to stdout, with shell output redirection
 used to write them to a file::
 
-    $ pipenv lock -r > requirements.txt
-    $ pipenv lock -r --dev-only > dev-requirements.txt
-    $ pipenv requirements --dev > all-requirements.txt
+    $ pipenv requirements > requirements.txt
+    $ pipenv requirements --dev-only > dev-requirements.txt
     $ cat requirements.txt
+    -i https://pypi.org/simple
     chardet==3.0.4
     requests==2.18.4
     certifi==2017.7.27.1
     idna==2.6
     urllib3==1.22
     $ cat dev-requirements.txt
-    py==1.4.34
-    pytest==3.2.3
-    $ cat all-requirements.txt
-    chardet==3.0.4
-    requests==2.18.4
-    certifi==2017.7.27.1
-    idna==2.6
-    urllib3==1.22
+    -i https://pypi.org/simple
     py==1.4.34
     pytest==3.2.3
 
