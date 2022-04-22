@@ -1,3 +1,13 @@
+2022.4.21 (2022-04-21)
+======================
+
+
+Removals and Deprecations
+-------------------------
+
+- Updated setup.py to remove support for python 3.6 from built ``pipenv`` packages' Metadata.  `#5065 <https://github.com/pypa/pipenv/issues/5065>`_
+
+
 2022.4.20 (2022-04-20)
 ======================
 
