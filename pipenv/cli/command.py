@@ -764,22 +764,20 @@ def requirements(state, dev=False, dev_only=False, hash=False):
         for req_name, value in lockfile["default"].items():
             if value.get("editable", False):
                 echo(crayons.normal("-e " + value["path"]))
-            else:
-                if hash:
-                    hashes = [f" \\\n    --hash={h}" for h in value.get("hashes", [])]
-                else:
-                    hashes = []
+            elif hash:
+                hashes = [f" \\\n    --hash={h}" for h in value.get("hashes", [])]
                 echo(crayons.normal("".join([req_name, value["version"], *hashes])))
+            else:
+                echo(crayons.normal("".join([req_name, value["version"]])))
     if dev or dev_only:
         for req_name, value in lockfile["develop"].items():
             if value.get("editable", False):
                 echo(crayons.normal("-e " + value["path"]))
-            else:
-                if hash:
-                    hashes = [f" \\\n    --hash={h}" for h in value.get("hashes", [])]
-                else:
-                    hashes = []
+            elif hash:
+                hashes = [f" \\\n    --hash={h}" for h in value.get("hashes", [])]
                 echo(crayons.normal("".join([req_name, value["version"], *hashes])))
+            else:
+                echo(crayons.normal("".join([req_name, value["version"]])))
     sys.exit(0)
 
 
