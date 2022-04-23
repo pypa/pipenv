@@ -1395,7 +1395,7 @@ def get_pip_args(
             arg_set.extend(arg_map.get(key))
         elif key == "selective_upgrade" and not locals().get(key):
             arg_set.append("--exists-action=i")
-    return list(vistir.misc.dedup(arg_set))
+    return list(dict.fromkeys(arg_set))
 
 
 def get_requirement_line(
