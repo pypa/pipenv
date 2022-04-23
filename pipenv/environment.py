@@ -16,7 +16,7 @@ from pipenv.environments import is_type_checking
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import make_posix, normalize_path
-from pipenv.vendor import vistir
+from pipenv.vendor import click, vistir
 from pipenv.vendor.cached_property import cached_property
 from pipenv.vendor.packaging.utils import canonicalize_name
 
@@ -410,8 +410,8 @@ class Environment:
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            vistir.misc.echo(f"Failed to load paths: {c.stderr}", fg="yellow")
-            vistir.misc.echo(f"Output: {c.stdout}", fg="yellow")
+            click.echo(f"Failed to load paths: {c.stderr}", fg="yellow")
+            click.echo(f"Output: {c.stdout}", fg="yellow")
         return None
 
     def get_lib_paths(self):
@@ -439,8 +439,8 @@ class Environment:
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            vistir.misc.echo(f"Failed to load paths: {c.stderr}", fg="yellow")
-            vistir.misc.echo(f"Output: {c.stdout}", fg="yellow")
+            click.secho(f"Failed to load paths: {c.stderr}", fg="yellow")
+            click.secho(f"Output: {c.stdout}", fg="yellow")
         if not paths:
             if not self.prefix.joinpath("lib").exists():
                 return {}
@@ -499,8 +499,8 @@ class Environment:
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            vistir.misc.echo(f"Failed to load paths: {c.stderr}", fg="yellow")
-            vistir.misc.echo(f"Output: {c.stdout}", fg="yellow")
+            click.secho(f"Failed to load paths: {c.stderr}", fg="yellow")
+            click.secho(f"Output: {c.stdout}", fg="yellow")
         return None
 
     @cached_property
