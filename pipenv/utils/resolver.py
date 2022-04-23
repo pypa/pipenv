@@ -943,10 +943,11 @@ def venv_resolve_deps(
     """
 
     import json
+    import tempfile
 
     from pipenv import resolver
     from pipenv._compat import decode_for_output
-    from pipenv.vendor.vistir.compat import NamedTemporaryFile, Path
+    from pipenv.vendor.vistir.compat import Path
 
     results = []
     pipfile_section = "dev-packages" if dev else "packages"
@@ -975,7 +976,9 @@ def venv_resolve_deps(
         cmd.append("--system")
     if dev:
         cmd.append("--dev")
-    target_file = NamedTemporaryFile(prefix="resolver", suffix=".json", delete=False)
+    target_file = tempfile.NamedTemporaryFile(
+        prefix="resolver", suffix=".json", delete=False
+    )
     target_file.close()
     cmd.extend(["--write", make_posix(target_file.name)])
     with temp_environ():
