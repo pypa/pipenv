@@ -26,6 +26,7 @@ from pipenv.cli.options import (
 from pipenv.exceptions import PipenvOptionsError
 from pipenv.patched import crayons
 from pipenv.utils.processes import subprocess_run
+from pipenv.utils.dependencies import convert_deps_to_pip
 from pipenv.vendor.click import (
     Choice,
     argument,
@@ -760,20 +761,17 @@ def requirements(state, dev=False, dev_only=False, hash=False):
     for i, package_index in enumerate(lockfile["_meta"]["sources"]):
         prefix = "-i" if i == 0 else "--extra-index-url"
         echo(crayons.normal(" ".join([prefix, package_index["url"]])))
+
+    deps = {}
     if not dev_only:
-        for req_name, value in lockfile["default"].items():
-            if hash:
-                hashes = [f" \\\n    --hash={h}" for h in value.get("hashes", [])]
-            else:
-                hashes = []
-            echo(crayons.normal("".join([req_name, value["version"], *hashes])))
+        deps.update(lockfile['default'])
     if dev or dev_only:
-        for req_name, value in lockfile["develop"].items():
-            if hash:
-                hashes = [f" \\\n    --hash={h}" for h in value.get("hashes", [])]
-            else:
-                hashes = []
-            echo(crayons.normal("".join([req_name, value["version"], *hashes])))
+        deps.update(lockfile['develop'])
+
+    pip_deps = convert_deps_to_pip(deps, r=False, include_index=False, with_hashes=hash, with_markers=False)
+    for pip_dep in pip_deps:
+        echo(crayons.normal(pip_dep))
+
     sys.exit(0)
 
 
