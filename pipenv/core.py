@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 import sys
+import tempfile
 import time
 import warnings
 from pathlib import Path
@@ -1440,7 +1441,7 @@ def write_requirement_to_file(
         with_prefix=True, with_hashes=include_hashes, with_markers=True, as_list=False
     )
 
-    f = vistir.compat.NamedTemporaryFile(
+    f = tempfile.NamedTemporaryFile(
         prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir, delete=False
     )
     if project.s.is_verbose():
