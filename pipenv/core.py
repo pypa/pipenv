@@ -1845,11 +1845,11 @@ def do_py(project, ctx=None, system=False):
 def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
     # TODO: Allow --skip-lock here?
     from collections import namedtuple
+    from collections.abc import Mapping
 
     from .vendor.packaging.utils import canonicalize_name
     from .vendor.requirementslib.models.requirements import Requirement
     from .vendor.requirementslib.models.utils import get_version
-    from .vendor.vistir.compat import Mapping
 
     packages = {}
     package_info = namedtuple("PackageInfo", ["name", "installed", "available"])

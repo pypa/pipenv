@@ -247,7 +247,7 @@ class Entry:
 
         if not marker:
             return None
-        from pipenv.vendor.vistir.compat import Mapping
+        from collections.abc import Mapping
 
         marker_str = None
         if isinstance(marker, Mapping):
