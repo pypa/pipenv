@@ -1,0 +1,1 @@
+Fixes issue of ``requirements`` command problem by modifying to print ``-e`` and path of the editable package.
