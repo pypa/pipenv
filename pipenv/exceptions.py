@@ -1,18 +1,13 @@
 import itertools
-import re
 import sys
 from collections import namedtuple
 from traceback import format_tb
 
 from pipenv import environments
 from pipenv._compat import decode_for_output
-from pipenv.patched import crayons
-from pipenv.vendor import vistir
+from pipenv.vendor import click, vistir
 from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
 from pipenv.vendor.vistir.misc import echo as click_echo
-
-ANSI_REMOVAL_RE = re.compile(r"\033\[((?:\d|;)*)([a-zA-Z])", re.MULTILINE)
-STRING_TYPES = ((str,), crayons.ColoredString)
 
 if sys.version_info[:2] >= (3, 7):
     KnownException = namedtuple(
@@ -62,7 +57,7 @@ sys.excepthook = handle_exception
 
 
 class PipenvException(ClickException):
-    message = "{0}: {{0}}".format(crayons.red("ERROR", bold=True))
+    message = "{0}: {{0}}".format(click.style("ERROR", fg="red", bold=True))
 
     def __init__(self, message=None, **kwargs):
         if not message:
@@ -76,15 +71,14 @@ class PipenvException(ClickException):
         if file is None:
             file = vistir.misc.get_text_stderr()
         if self.extra:
-            if isinstance(self.extra, STRING_TYPES):
+            if isinstance(self.extra, str):
                 self.extra = [self.extra]
             for extra in self.extra:
                 extra = "[pipenv.exceptions.{!s}]: {}".format(
                     self.__class__.__name__, extra
                 )
-                extra = decode_for_output(extra, file)
-                click_echo(extra, file=file)
-        click_echo(decode_for_output(f"{self.message}", file), file=file)
+                click.echo(extra, file=file)
+        click.echo(f"{self.message}", file=file)
 
 
 class PipenvCmdError(PipenvException):
@@ -99,25 +93,24 @@ class PipenvCmdError(PipenvException):
     def show(self, file=None):
         if file is None:
             file = vistir.misc.get_text_stderr()
-        click_echo(
+        click.echo(
             "{} {}".format(
-                crayons.red("Error running command: "),
-                crayons.normal(decode_for_output(f"$ {self.cmd}", file), bold=True),
+                click.style("Error running command: ", fg="red"),
+                click.style(f"$ {self.cmd}", bold=True),
             ),
             err=True,
+            file=file,
         )
         if self.out:
-            click_echo(
-                "{} {}".format(
-                    crayons.normal("OUTPUT: "), decode_for_output(self.out, file)
-                ),
+            click.echo(
+                "{} {}".format("OUTPUT: ", self.out),
+                file=file,
                 err=True,
             )
         if self.err:
             click_echo(
-                "{} {}".format(
-                    crayons.normal("STDERR: "), decode_for_output(self.err, file)
-                ),
+                "{} {}".format("STDERR: ", self.err),
+                file=file,
                 err=True,
             )
 
@@ -131,14 +124,14 @@ class JSONParseError(PipenvException):
         if file is None:
             file = vistir.misc.get_text_stderr()
         message = "{}\n{}".format(
-            crayons.normal("Failed parsing JSON results:", bold=True),
+            click.style("Failed parsing JSON results:", bold=True),
             decode_for_output(self.message.strip(), file),
         )
         click_echo(message, err=True)
         if self.error_text:
             click_echo(
                 "{} {}".format(
-                    crayons.normal("ERROR TEXT:", bold=True),
+                    click.style("ERROR TEXT:", bold=True),
                     decode_for_output(self.error_text, file),
                 ),
                 err=True,
@@ -148,10 +141,10 @@ class JSONParseError(PipenvException):
 class PipenvUsageError(UsageError):
     def __init__(self, message=None, ctx=None, **kwargs):
         formatted_message = "{0}: {1}"
-        msg_prefix = crayons.red("ERROR:", bold=True)
+        msg_prefix = click.style("ERROR:", fg="red", bold=True)
         if not message:
             message = "Pipenv encountered a problem and had to exit."
-        message = formatted_message.format(msg_prefix, crayons.normal(message, bold=True))
+        message = formatted_message.format(msg_prefix, click.style(message, bold=True))
         self.message = message
         extra = kwargs.pop("extra", [])
         UsageError.__init__(self, decode_for_output(message), ctx)
@@ -164,12 +157,12 @@ class PipenvUsageError(UsageError):
         if self.ctx is not None:
             color = self.ctx.color
         if self.extra:
-            if isinstance(self.extra, STRING_TYPES):
+            if isinstance(self.extra, str):
                 self.extra = [self.extra]
             for extra in self.extra:
                 if color:
-                    extra = getattr(crayons, color, "blue")(extra)
-                click_echo(decode_for_output(extra, file), file=file)
+                    extra = click.style(extra, fg=color)
+                click.echo(extra, file=file)
         hint = ""
         if self.cmd is not None and self.cmd.get_help_option(self.ctx) is not None:
             hint = 'Try "%s %s" for help.\n' % (
@@ -177,19 +170,21 @@ class PipenvUsageError(UsageError):
                 self.ctx.help_option_names[0],
             )
         if self.ctx is not None:
-            click_echo(self.ctx.get_usage() + "\n%s" % hint, file=file, color=color)
-        click_echo(self.message, file=file)
+            click.echo(self.ctx.get_usage() + "\n%s" % hint, file=file, color=color)
+        click.echo(self.message, file=file)
 
 
 class PipenvFileError(FileError):
-    formatted_message = "{0} {{0}} {{1}}".format(crayons.red("ERROR:", bold=True))
+    formatted_message = "{0} {{0}} {{1}}".format(
+        click.style("ERROR:", fg="red", bold=True)
+    )
 
     def __init__(self, filename, message=None, **kwargs):
         extra = kwargs.pop("extra", [])
         if not message:
-            message = crayons.normal("Please ensure that the file exists!", bold=True)
+            message = click.style("Please ensure that the file exists!", bold=True)
         message = self.formatted_message.format(
-            crayons.normal(f"{filename} not found!", bold=True), message
+            click.style(f"{filename} not found!", bold=True), message
         )
         FileError.__init__(
             self, filename=filename, hint=decode_for_output(message), **kwargs
@@ -200,7 +195,7 @@ class PipenvFileError(FileError):
         if file is None:
             file = vistir.misc.get_text_stderr()
         if self.extra:
-            if isinstance(self.extra, STRING_TYPES):
+            if isinstance(self.extra, str):
                 self.extra = [self.extra]
             for extra in self.extra:
                 click_echo(decode_for_output(extra, file), file=file)
@@ -211,8 +206,8 @@ class PipfileNotFound(PipenvFileError):
     def __init__(self, filename="Pipfile", extra=None, **kwargs):
         extra = kwargs.pop("extra", [])
         message = "{} {}".format(
-            crayons.red("Aborting!", bold=True),
-            crayons.normal(
+            click.style("Aborting!", bold=True, fg="red"),
+            click.style(
                 "Please ensure that the file exists and is located in your"
                 " project root directory.",
                 bold=True,
@@ -225,9 +220,9 @@ class LockfileNotFound(PipenvFileError):
     def __init__(self, filename="Pipfile.lock", extra=None, **kwargs):
         extra = kwargs.pop("extra", [])
         message = "{} {} {}".format(
-            crayons.normal("You need to run", bold=True),
-            crayons.red("$ pipenv lock", bold=True),
-            crayons.normal("before you can continue.", bold=True),
+            click.style("You need to run", bold=True),
+            click.style("$ pipenv lock", bold=True, fg="red"),
+            click.style("before you can continue.", bold=True),
         )
         super().__init__(filename, message=message, extra=extra, **kwargs)
 
@@ -235,7 +230,7 @@ class LockfileNotFound(PipenvFileError):
 class DeployException(PipenvUsageError):
     def __init__(self, message=None, **kwargs):
         if not message:
-            message = str(crayons.normal("Aborting deploy", bold=True))
+            message = click.style("Aborting deploy", bold=True)
         extra = kwargs.pop("extra", [])
         PipenvUsageError.__init__(self, message=message, extra=extra, **kwargs)
 
@@ -254,12 +249,12 @@ class SystemUsageError(PipenvOptionsError):
         extra += [
             "{}: --system is intended to be used for Pipfile installation, "
             "not installation of specific packages. Aborting.".format(
-                crayons.red("Warning", bold=True)
+                click.style("Warning", bold=True, fg="red")
             ),
         ]
         if message is None:
-            message = str(
-                crayons.cyan("See also: {}".format(crayons.normal("--deploy flag.")))
+            message = "{} --deploy flag".format(
+                click.style("See also: {}", fg="cyan"),
             )
         super().__init__(option_name, message=message, ctx=ctx, extra=extra, **kwargs)
 
@@ -296,14 +291,11 @@ class VirtualenvCreationException(VirtualenvException):
             message = "Failed to create virtual environment."
         self.message = message
         extra = kwargs.pop("extra", None)
-        if extra is not None and isinstance(extra, STRING_TYPES):
-            # note we need the format interpolation because ``crayons.ColoredString``
-            # is not an actual string type but is only a preparation for interpolation
-            # so replacement or parsing requires this step
-            extra = ANSI_REMOVAL_RE.sub("", f"{extra}")
+        if extra is not None and isinstance(extra, str):
+            extra = click.unstyle(f"{extra}")
             if "KeyboardInterrupt" in extra:
-                extra = str(
-                    crayons.red("Virtualenv creation interrupted by user", bold=True)
+                extra = click.style(
+                    "Virtualenv creation interrupted by user", fg="red", bold=True
                 )
             self.extra = extra = [extra]
         VirtualenvException.__init__(self, message, extra=extra)
@@ -313,16 +305,18 @@ class UninstallError(PipenvException):
     def __init__(self, package, command, return_values, return_code, **kwargs):
         extra = [
             "{} {}".format(
-                crayons.cyan("Attempted to run command: "),
-                crayons.yellow(f"$ {command!r}", bold=True),
+                click.style("Attempted to run command: ", fg="cyan"),
+                click.style(f"$ {command!r}", bold=True, fg="yellow"),
             )
         ]
-        extra.extend([crayons.cyan(line.strip()) for line in return_values.splitlines()])
+        extra.extend(
+            [click.style(line.strip(), fg="cyan") for line in return_values.splitlines()]
+        )
         if isinstance(package, (tuple, list, set)):
             package = " ".join(package)
         message = "{!s} {!s}...".format(
-            crayons.normal("Failed to uninstall package(s)"),
-            crayons.yellow(f"{package}!s", bold=True),
+            click.style("Failed to uninstall package(s)", fg="reset"),
+            click.style(f"{package}!s", bold=True, fg="yellow"),
         )
         self.exit_code = return_code
         PipenvException.__init__(self, message=message, extra=extra)
@@ -334,10 +328,11 @@ class InstallError(PipenvException):
         package_message = ""
         if package is not None:
             package_message = "Couldn't install package: {}\n".format(
-                crayons.normal(f"{package!s}", bold=True)
+                click.style(f"{package!s}", bold=True)
             )
         message = "{} {}".format(
-            f"{package_message}", crayons.yellow("Package installation failed...")
+            f"{package_message}",
+            click.style("Package installation failed...", fg="yellow"),
         )
         extra = kwargs.pop("extra", [])
         PipenvException.__init__(self, message=message, extra=extra, **kwargs)
@@ -346,9 +341,9 @@ class InstallError(PipenvException):
 class CacheError(PipenvException):
     def __init__(self, path, **kwargs):
         message = "{} {}\n{}".format(
-            crayons.cyan("Corrupt cache file"),
-            crayons.normal(f"{path!s}"),
-            crayons.normal('Consider trying "pipenv lock --clear" to clear the cache.'),
+            click.style("Corrupt cache file", fg="cyan"),
+            click.style(f"{path!s}", fg="reset", bg="reset"),
+            click.style('Consider trying "pipenv lock --clear" to clear the cache.'),
         )
         PipenvException.__init__(self, message=message)
 
@@ -357,9 +352,10 @@ class DependencyConflict(PipenvException):
     def __init__(self, message):
         extra = [
             "{} {}".format(
-                crayons.red("The operation failed...", bold=True),
-                crayons.red(
-                    "A dependency conflict was detected and could not be resolved."
+                click.style("The operation failed...", bold=True, fg="red"),
+                click.style(
+                    "A dependency conflict was detected and could not be resolved.",
+                    fg="red",
                 ),
             )
         ]
@@ -375,21 +371,22 @@ class ResolutionFailure(PipenvException):
             "{} to inspect the situation.\n  "
             "Hint: try {} if it is a pre-release dependency."
             "".format(
-                crayons.red("Warning", bold=True),
-                crayons.yellow("$ pipenv install --skip-lock"),
-                crayons.yellow("$ pipenv graph"),
-                crayons.yellow("$ pipenv lock --pre"),
+                click.style("Warning", fg="red", bold=True),
+                click.style("$ pipenv install --skip-lock", fg="yellow"),
+                click.style("$ pipenv graph", fg="yellow"),
+                click.style("$ pipenv lock --pre", fg="yellow"),
             ),
         )
         if "no version found at all" in message:
             no_version_found = True
-        message = crayons.yellow(f"{message}")
+        message = click.style(f"{message}", fg="yellow")
         if no_version_found:
             message = "{}\n{}".format(
                 message,
-                crayons.cyan(
+                click.style(
                     "Please check your version specifier and version number. "
-                    "See PEP440 for more information."
+                    "See PEP440 for more information.",
+                    fg="cyan",
                 ),
             )
         PipenvException.__init__(self, message, extra=extra)
@@ -428,9 +425,11 @@ class RequirementError(PipenvException):
                     req_value = "\n".join([f"    {k}: {v}" for k, v in values])
                 else:
                     req_value = getattr(req.line_instance, "line", None)
-        message = "{} {}".format(
-            crayons.normal(decode_for_output("Failed creating requirement instance")),
-            crayons.normal(decode_for_output(f"{req_value!r}")),
+        message = click.style(
+            f"Failed creating requirement instance {req_value}",
+            bold=False,
+            fg="reset",
+            bg="reset",
         )
         extra = [str(req)]
         PipenvException.__init__(self, message, extra=extra)
