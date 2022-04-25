@@ -131,7 +131,6 @@ def translate_markers(pipfile_entry):
     if not isinstance(pipfile_entry, Mapping):
         raise TypeError("Entry is not a pipfile formatted mapping.")
     from pipenv.vendor.packaging.markers import default_environment
-    from pipenv.vendor.vistir.misc import dedup
 
     allowed_marker_keys = ["markers"] + list(default_environment().keys())
     provided_keys = list(pipfile_entry.keys()) if hasattr(pipfile_entry, "keys") else []
@@ -153,7 +152,8 @@ def translate_markers(pipfile_entry):
         new_pipfile["markers"] = str(
             Marker(
                 " or ".join(
-                    f"{s}" if " and " in s else s for s in sorted(dedup(marker_set))
+                    f"{s}" if " and " in s else s
+                    for s in sorted(dict.fromkeys(marker_set))
                 )
             )
         ).replace('"', "'")

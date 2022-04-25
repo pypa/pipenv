@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 import sys
+import tempfile
 import time
 import warnings
 from pathlib import Path
@@ -1394,7 +1395,7 @@ def get_pip_args(
             arg_set.extend(arg_map.get(key))
         elif key == "selective_upgrade" and not locals().get(key):
             arg_set.append("--exists-action=i")
-    return list(vistir.misc.dedup(arg_set))
+    return list(dict.fromkeys(arg_set))
 
 
 def get_requirement_line(
@@ -1440,7 +1441,7 @@ def write_requirement_to_file(
         with_prefix=True, with_hashes=include_hashes, with_markers=True, as_list=False
     )
 
-    f = vistir.compat.NamedTemporaryFile(
+    f = tempfile.NamedTemporaryFile(
         prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir, delete=False
     )
     if project.s.is_verbose():
@@ -1844,11 +1845,11 @@ def do_py(project, ctx=None, system=False):
 def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
     # TODO: Allow --skip-lock here?
     from collections import namedtuple
+    from collections.abc import Mapping
 
     from .vendor.packaging.utils import canonicalize_name
     from .vendor.requirementslib.models.requirements import Requirement
     from .vendor.requirementslib.models.utils import get_version
-    from .vendor.vistir.compat import Mapping
 
     packages = {}
     package_info = namedtuple("PackageInfo", ["name", "installed", "available"])
