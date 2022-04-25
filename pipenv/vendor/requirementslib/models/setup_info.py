@@ -513,7 +513,11 @@ class SetupReader:
 
 
 def setuptools_parse_setup_cfg(path):
-    from setuptools.config import read_configuration
+    try:
+        # v61.0.0 of setuptools deprecated setuptools.config.read_configuration
+        from setuptools.config.setupcfg import read_configuration
+    except ImportError:
+        from setuptools.config import read_configuration
 
     parsed = read_configuration(path)
     results = parsed.get("metadata", {})
