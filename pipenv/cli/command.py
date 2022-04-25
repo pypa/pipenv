@@ -768,7 +768,7 @@ def requirements(state, dev=False, dev_only=False, hash=False):
     if dev or dev_only:
         deps.update(lockfile['develop'])
 
-    pip_deps = convert_deps_to_pip(deps, r=False, include_index=False, with_hashes=hash, with_markers=False)
+    pip_deps = convert_deps_to_pip(deps, r=False, include_index=False, include_hashes=hash, include_markers=False)
     for pip_dep in pip_deps:
         echo(crayons.normal(pip_dep))
 

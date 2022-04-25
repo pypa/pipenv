@@ -2730,7 +2730,7 @@ class Requirement(object):
         )
 
     @classmethod
-    def from_pipfile(cls, name, pipfile, with_hashes=True, with_markers=True):
+    def from_pipfile(cls, name, pipfile):
         from .markers import PipenvMarkers
 
         _pipfile = {}
@@ -2765,12 +2765,12 @@ class Requirement(object):
             "name": r.name,
             "vcs": vcs,
             "req": r,
-            "markers": markers if with_markers else None,
+            "markers": markers,
             "extras": tuple(_pipfile.get("extras", ())),
             "editable": _pipfile.get("editable", False),
             "index": _pipfile.get("index"),
         }
-        if with_hashes and any(key in _pipfile for key in ["hash", "hashes"]):
+        if any(key in _pipfile for key in ["hash", "hashes"]):
             args["hashes"] = _pipfile.get("hashes", [pipfile.get("hash")])
         cls_inst = cls(**args)
         return cls_inst
