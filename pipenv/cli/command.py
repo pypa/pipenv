@@ -756,28 +756,34 @@ def verify(state):
 @option("--hash", is_flag=True, default=False, help="Add package hashes.")
 @pass_state
 def requirements(state, dev=False, dev_only=False, hash=False):
+
+    from pipenv.utils.dependencies import convert_deps_to_pip
+
     lockfile = state.project.lockfile_content
+
     for i, package_index in enumerate(lockfile["_meta"]["sources"]):
         prefix = "-i" if i == 0 else "--extra-index-url"
         echo(" ".join([prefix, package_index["url"]]))
+
+    deps = {}
+
     if not dev_only:
-        for req_name, value in lockfile["default"].items():
-            if value.get("editable", False):
-                echo("-e " + value["path"])
-            elif hash:
-                hashes = [f" \\\n    --hash={h}" for h in value.get("hashes", [])]
-                echo("".join([req_name, value["version"], *hashes]))
-            else:
-                echo("".join([req_name, value["version"]]))
+        deps.update(lockfile["default"])
     if dev or dev_only:
-        for req_name, value in lockfile["develop"].items():
-            if value.get("editable", False):
-                echo("-e " + value["path"])
-            elif hash:
-                hashes = [f" \\\n    --hash={h}" for h in value.get("hashes", [])]
-                echo("".join([req_name, value["version"], *hashes]))
-            else:
-                echo("".join([req_name, value["version"]]))
+        deps.update(lockfile["develop"])
+
+    pip_deps = convert_deps_to_pip(
+        deps,
+        project=None,
+        r=False,
+        include_index=False,
+        include_hashes=hash,
+        include_markers=False,
+    )
+
+    for d in pip_deps:
+        echo(d)
+
     sys.exit(0)
 
 
