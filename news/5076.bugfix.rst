@@ -1,0 +1,1 @@
+Fixes issue of requirements command where git requirements cause the command to fail, solved by using existing convert_deps_to_pip function.

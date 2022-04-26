@@ -1,3 +1,4 @@
+import json
 import pytest
 
 
@@ -66,3 +67,27 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(Pipe
 
         assert '-i https://pypi.org/simple' in c.stdout
         assert '--extra-index-url https://some_other_source.org' in c.stdout
+
+@pytest.mark.requirements
+def test_requirements_with_git_requirements(PipenvInstance):
+    req_name, req_hash = 'example-repo', 'cc858e89f19bc0dbd70983f86b811ab625dc9292'
+    lockfile = {
+        "_meta": {"sources": []},
+        "default": {
+            req_name: {
+                "editable": True,
+                "git": F"ssh://git@bitbucket.org/code/{req_name}.git",
+                "ref": req_hash
+            }
+        },
+        "develop": {}
+    }
+
+    with PipenvInstance(chdir=True) as p:
+        with open(p.lockfile_path, 'w') as f:
+            json.dump(lockfile, f)
+
+        c = p.pipenv('requirements')
+        assert c.returncode == 0
+        assert req_name in c.stdout
+        assert req_hash in c.stdout

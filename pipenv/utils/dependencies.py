@@ -243,7 +243,14 @@ def is_pinned_requirement(ireq):
     return spec.operator in {"==", "==="} and not spec.version.endswith(".*")
 
 
-def convert_deps_to_pip(deps, project=None, r=True, include_index=True):
+def convert_deps_to_pip(
+    deps,
+    project=None,
+    r=True,
+    include_index=True,
+    include_hashes=True,
+    include_markers=True,
+):
     """ "Converts a Pipfile-formatted dependency to a pip-formatted one."""
     from pipenv.vendor.requirementslib.models.requirements import Requirement
 
@@ -255,7 +262,12 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=True):
         new_dep = Requirement.from_pipfile(dep_name, dep)
         if new_dep.index:
             include_index = True
-        req = new_dep.as_line(sources=indexes if include_index else None).strip()
+        sources = indexes if include_index else None
+        req = new_dep.as_line(
+            sources=sources,
+            include_hashes=include_hashes,
+            include_markers=include_markers,
+        ).strip()
         dependencies.append(req)
     if not r:
         return dependencies
