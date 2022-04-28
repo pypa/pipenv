@@ -23,7 +23,7 @@ if sys.argv[-1] == "publish":
 required = [
     "pip>=22.0.4",
     "certifi",
-    "setuptools>=60.0.0",
+    "setuptools>=36.2.1",
     "virtualenv-clone>=0.2.5",
     "virtualenv",
 ]
