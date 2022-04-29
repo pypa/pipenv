@@ -1,0 +1,1 @@
+Revert specifier of ``setuptools`` requirement in ``setup.py`` back to what it was in order to fix ``FileNotFoundError: [Errno 2]`` issue report.
