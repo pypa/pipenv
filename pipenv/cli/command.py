@@ -35,6 +35,7 @@ from pipenv.vendor.click import (
     option,
     pass_context,
     secho,
+    style,
     version_option,
 )
 
@@ -324,12 +325,15 @@ def lock(ctx, state, **kwargs):
     pre = state.installstate.pre
     if emit_requirements:
         echo(
-            crayons.yellow(
+            style(
                 """
-            Warning: The lock flags -r/--requirements, along with it's options (--keep-outdated, --dev, --dev-only)
-            will be deprecated in a future version of pipenv in favor of the new requirements command.
-            For more info see https://pipenv.pypa.io/en/latest/advanced/#generating-a-requirements-txt
-            """
+            Warning: The lock flag -r/--requirements will be deprecated in a future version
+            of pipenv in favor of the new requirements command. For more info see
+            https://pipenv.pypa.io/en/latest/advanced/#generating-a-requirements-txt
+            NOTE: the requirements command parses Pipfile.lock directly without performing any
+            locking operations. Updating packages should be done by running pipenv lock
+            """,
+                fg="yellow",
             )
         )
         # Emit requirements file header (unless turned off with --no-header)
