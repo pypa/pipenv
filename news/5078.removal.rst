@@ -1,1 +1,0 @@
-Remove more usage of misc functions of vistir. Many of this function are availabel in the STL or in another dependency of pipenv.

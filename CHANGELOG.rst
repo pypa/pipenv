@@ -1,3 +1,25 @@
+2022.4.30 (2022-04-30)
+======================
+
+
+Bug Fixes
+---------
+
+- Fixes issue of ``requirements`` command problem by modifying to print ``-e`` and path of the editable package.  `#5070 <https://github.com/pypa/pipenv/issues/5070>`_
+- Revert specifier of ``setuptools`` requirement in ``setup.py`` back to what it was in order to fix ``FileNotFoundError: [Errno 2]`` issue report.  `#5075 <https://github.com/pypa/pipenv/issues/5075>`_
+- Fixes issue of requirements command where git requirements cause the command to fail, solved by using existing convert_deps_to_pip function.  `#5076 <https://github.com/pypa/pipenv/issues/5076>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in ``requirementslib==1.6.4`` to Fix ``SetuptoolsDeprecationWarning`` ``setuptools.config.read_configuration`` became deprecated.  `#5081 <https://github.com/pypa/pipenv/issues/5081>`_
+
+Removals and Deprecations
+-------------------------
+
+- Remove more usage of misc functions of vistir. Many of this function are availabel in the STL or in another dependency of pipenv.  `#5078 <https://github.com/pypa/pipenv/issues/5078>`_
+
+
 2022.4.21 (2022-04-21)
 ======================
 

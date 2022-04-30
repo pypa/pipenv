@@ -1,1 +1,0 @@
-Vendor in ``requirementslib==1.6.4`` to Fix ``SetuptoolsDeprecationWarning`` ``setuptools.config.read_configuration`` became deprecated.
