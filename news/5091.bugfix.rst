@@ -1,0 +1,1 @@
+Fixes issue of ``pipenv lock -r`` command printing to stdout instead of stderr.
