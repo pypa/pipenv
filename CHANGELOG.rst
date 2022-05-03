@@ -1,3 +1,13 @@
+2022.5.2 (2022-05-02)
+=====================
+
+
+Bug Fixes
+---------
+
+- Fixes issue of ``pipenv lock -r`` command printing to stdout instead of stderr.  `#5091 <https://github.com/pypa/pipenv/issues/5091>`_
+
+
 2022.4.30 (2022-04-30)
 ======================
 
