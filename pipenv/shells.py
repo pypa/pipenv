@@ -6,9 +6,9 @@ import signal
 import subprocess
 import sys
 from pathlib import Path
+from shutil import get_terminal_size
 
 from pipenv.vendor import shellingham
-from pipenv.vendor.vistir.compat import get_terminal_size
 from pipenv.vendor.vistir.contextmanagers import temp_environ
 
 ShellDetectionFailure = shellingham.ShellDetectionFailure
