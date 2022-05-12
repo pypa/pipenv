@@ -1,10 +1,10 @@
 import re
+from collections.abc import Mapping
 
 from urllib3.util import parse_url
 
 from pipenv import environments
 from pipenv.exceptions import PipenvUsageError
-from pipenv.vendor.vistir.compat import Mapping
 
 from .internet import create_mirror_source, is_pypi_url
 
