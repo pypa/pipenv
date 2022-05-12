@@ -830,7 +830,6 @@ def main(argv=None):
     _patch_path(pipenv_site=parsed.pipenv_site)
     import warnings
 
-    from pipenv.vendor.vistir.compat import ResourceWarning
     from pipenv.vendor.vistir.misc import replace_with_text_stream
 
     warnings.simplefilter("ignore", category=ResourceWarning)
