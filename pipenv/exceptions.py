@@ -7,7 +7,6 @@ from pipenv import environments
 from pipenv._compat import decode_for_output
 from pipenv.vendor import click, vistir
 from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
-from pipenv.vendor.vistir.misc import echo as click_echo
 
 if sys.version_info[:2] >= (3, 7):
     KnownException = namedtuple(
@@ -49,7 +48,7 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
             formatted_lines.append(line)
         # use new exception prettification rules to format exceptions according to
         # UX rules
-        click_echo(decode_for_output(prettify_exc("\n".join(formatted_lines))), err=True)
+        click.echo(decode_for_output(prettify_exc("\n".join(formatted_lines))), err=True)
         exception.show()
 
 
@@ -108,7 +107,7 @@ class PipenvCmdError(PipenvException):
                 err=True,
             )
         if self.err:
-            click_echo(
+            click.echo(
                 "{} {}".format("STDERR: ", self.err),
                 file=file,
                 err=True,
@@ -127,9 +126,9 @@ class JSONParseError(PipenvException):
             click.style("Failed parsing JSON results:", bold=True),
             decode_for_output(self.message.strip(), file),
         )
-        click_echo(message, err=True)
+        click.echo(message, err=True)
         if self.error_text:
-            click_echo(
+            click.echo(
                 "{} {}".format(
                     click.style("ERROR TEXT:", bold=True),
                     decode_for_output(self.error_text, file),
@@ -198,8 +197,8 @@ class PipenvFileError(FileError):
             if isinstance(self.extra, str):
                 self.extra = [self.extra]
             for extra in self.extra:
-                click_echo(decode_for_output(extra, file), file=file)
-        click_echo(self.message, file=file)
+                click.echo(decode_for_output(extra, file), file=file)
+        click.echo(self.message, file=file)
 
 
 class PipfileNotFound(PipenvFileError):
