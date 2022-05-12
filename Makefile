@@ -51,11 +51,11 @@ ramdisk-virtualenv: ramdisk
 
 .PHONY: virtualenv
 virtualenv:
-	[ ! -e $(venv_dir) ] && rm -rf $(venv_file) && python -m venv $(venv_dir)
+	[ ! -e $(venv_dir) ] && rm -rvf $(venv_file) && python -m venv $(venv_dir)
 	@echo $(venv_dir) >> $(venv_file)
 
 .PHONY: test-install
-test-install: virtualenv
+test-install:
 	. $(get_venv_path)/bin/activate && \
 		python -m pip install --upgrade pip -e .[tests,dev] && \
 		pipenv install --dev
@@ -67,7 +67,7 @@ submodules:
 
 .PHONY: tests
 tests: parallel ?= -n auto
-tests: virtualenv submodules test-install
+tests: submodules test-install
 	. $(get_venv_path)/bin/activate && \
 		pipenv run pytest -ra $(parallel) -vvv --full-trace --tb=long
 
