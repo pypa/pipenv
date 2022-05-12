@@ -1950,7 +1950,7 @@ def do_install(
     requirements_directory = vistir.path.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
     )
-    warnings.filterwarnings("default", category=vistir.compat.ResourceWarning)
+    warnings.filterwarnings("default", category=ResourceWarning)
     if selective_upgrade:
         keep_outdated = True
     packages = packages if packages else []
