@@ -12,7 +12,6 @@ from functools import lru_cache
 from pathlib import Path
 
 from pipenv import environments
-from pipenv.vendor.vistir.compat import ResourceWarning
 
 from .constants import SCHEME_LIST
 from .processes import subprocess_run
