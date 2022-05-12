@@ -56,6 +56,7 @@ virtualenv:
 
 .PHONY: test-install
 test-install:
+test-install: $(if $(RAMDISK), ramdisk-virtualenv virtualenv)
 	. $(get_venv_path)/bin/activate && \
 		python -m pip install --upgrade pip -e .[tests,dev] && \
 		pipenv install --dev
@@ -65,6 +66,8 @@ submodules:
 	git submodule sync
 	git submodule update --init --recursive
 
+# Run the tests within ramdisk by setting RAMDISK=1
+# e.g make tests RAMDISK=1
 .PHONY: tests
 tests: parallel ?= -n auto
 tests: submodules test-install
