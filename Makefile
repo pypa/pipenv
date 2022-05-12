@@ -46,18 +46,18 @@ ramdisk:
 .PHONY: ramdisk-virtualenv
 ramdisk-virtualenv: ramdisk
 	[ ! -e "/mnt/ramdisk/.venv/bin/activate" ] && \
-		python -m virtualenv /mnt/ramdisk/.venv
-	@echo "/mnt/ramdisk/.venv" >> $(venv_file)
+		python -m venv /mnt/ramdisk/.venv
+	echo "/mnt/ramdisk/.venv" >> $(venv_file)
 
 .PHONY: virtualenv
 virtualenv:
-	[ ! -e $(venv_dir) ] && rm -rf $(venv_file) && python -m virtualenv $(venv_dir)
+	[ ! -e $(venv_dir) ] && rm -rf $(venv_file) && python -m venv $(venv_dir)
 	@echo $(venv_dir) >> $(venv_file)
 
 .PHONY: test-install
 test-install: virtualenv
 	. $(get_venv_path)/bin/activate && \
-		python -m pip install --upgrade pip virtualenv -e .[tests,dev] && \
+		python -m pip install --upgrade pip -e .[tests,dev] && \
 		pipenv install --dev
 
 .PHONY: submodules
