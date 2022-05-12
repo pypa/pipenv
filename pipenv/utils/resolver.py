@@ -944,10 +944,10 @@ def venv_resolve_deps(
 
     import json
     import tempfile
+    from pathlib import Path
 
     from pipenv import resolver
     from pipenv._compat import decode_for_output
-    from pipenv.vendor.vistir.compat import Path
 
     results = []
     pipfile_section = "dev-packages" if dev else "packages"
