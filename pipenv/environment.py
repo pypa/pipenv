@@ -410,8 +410,8 @@ class Environment:
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            click.echo(f"Failed to load paths: {c.stderr}", fg="yellow")
-            click.echo(f"Output: {c.stdout}", fg="yellow")
+            click.secho(f"Failed to load paths: {c.stderr}", fg="yellow")
+            click.secho(f"Output: {c.stdout}", fg="yellow")
         return None
 
     def get_lib_paths(self):
