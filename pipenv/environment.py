@@ -7,7 +7,7 @@ import os
 import site
 import sys
 from pathlib import Path
-from sysconfig import get_paths, get_python_version
+from sysconfig import get_paths, get_python_version, get_scheme_names
 
 import pkg_resources
 
@@ -175,6 +175,15 @@ class Environment:
         return path
 
     @cached_property
+    def install_scheme(self):
+        if "venv" in get_scheme_names():
+            return "venv"
+        elif os.name == "nt":
+            return "nt"
+        else:
+            return "posix_prefix"
+
+    @cached_property
     def base_paths(self):
         # type: () -> Dict[str, str]
         """
@@ -213,9 +222,8 @@ class Environment:
             try:
                 paths = self.get_paths()
             except Exception:
-                install_scheme = "nt" if (os.name == "nt") else "posix_prefix"
                 paths = get_paths(
-                    install_scheme,
+                    self.install_scheme,
                     vars={
                         "base": prefix,
                         "platbase": prefix,
@@ -236,9 +244,8 @@ class Environment:
                     paths.update(self.get_lib_paths())
                     paths["scripts"] = self.script_basedir
         if not paths:
-            install_scheme = "nt" if (os.name == "nt") else "posix_prefix"
             paths = get_paths(
-                install_scheme,
+                self.install_scheme,
                 vars={
                     "base": prefix,
                     "platbase": prefix,
@@ -266,9 +273,8 @@ class Environment:
         # type: () -> str
         """Path to the environment scripts dir"""
         prefix = make_posix(self.prefix.as_posix())
-        install_scheme = "nt" if (os.name == "nt") else "posix_prefix"
         paths = get_paths(
-            install_scheme,
+            self.install_scheme,
             vars={
                 "base": prefix,
                 "platbase": prefix,
