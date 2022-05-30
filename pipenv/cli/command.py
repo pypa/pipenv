@@ -787,7 +787,7 @@ def requirements(state, dev=False, dev_only=False, hash=False):
         r=False,
         include_index=False,
         include_hashes=hash,
-        include_markers=False,
+        include_markers=True,
     )
 
     for d in pip_deps:
