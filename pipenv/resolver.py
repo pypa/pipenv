@@ -415,13 +415,11 @@ class Entry:
         return self.strip_version(version)
 
     @property
-    def updated_specifier(self):
-        # type: () -> str
+    def updated_specifier(self) -> str:
         return self.entry.specifiers
 
     @property
-    def original_specifier(self):
-        # type: () -> str
+    def original_specifier(self) -> str:
         return self.lockfile_entry.specifiers
 
     @property

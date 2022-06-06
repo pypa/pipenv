@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json as simplejson
 import logging
 import os
@@ -1358,17 +1360,16 @@ def do_init(
 
 def get_pip_args(
     project,
-    pre=False,  # type: bool
-    verbose=False,  # type: bool
-    upgrade=False,  # type: bool
-    require_hashes=False,  # type: bool
-    no_build_isolation=False,  # type: bool
-    no_use_pep517=False,  # type: bool
-    no_deps=False,  # type: bool
-    selective_upgrade=False,  # type: bool
-    src_dir=None,  # type: Optional[str]
-):
-    # type: (...) -> List[str]
+    pre: bool = False,
+    verbose: bool = False,
+    upgrade: bool = False,
+    require_hashes: bool = False,
+    no_build_isolation: bool = False,
+    no_use_pep517: bool = False,
+    no_deps: bool = False,
+    selective_upgrade: bool = False,
+    src_dir: Optional[str] = None,
+) -> List[str]:
     from .vendor.packaging.version import parse as parse_version
 
     arg_map = {
@@ -1399,12 +1400,11 @@ def get_pip_args(
 
 
 def get_requirement_line(
-    requirement,  # type: Requirement
-    src_dir=None,  # type: Optional[str]
-    include_hashes=True,  # type: bool
-    format_for_file=False,  # type: bool
-):
-    # type: (...) -> Union[List[str], str]
+    requirement: Requirement,
+    src_dir: Optional[str] = None,
+    include_hashes: bool = True,
+    format_for_file: bool = False,
+) -> Union[List[str], str]:
     line = None
     if requirement.vcs or requirement.is_file_or_url:
         if src_dir and requirement.line_instance.wheel_kwargs:
@@ -1426,13 +1426,12 @@ def get_requirement_line(
 
 
 def write_requirement_to_file(
-    project,  # type: Project
-    requirement,  # type: Requirement
-    requirements_dir=None,  # type: Optional[str]
-    src_dir=None,  # type: Optional[str]
-    include_hashes=True,  # type: bool
-):
-    # type: (...) -> str
+    project: Project,
+    requirement: Requirement,
+    requirements_dir: Optional[str] = None,
+    src_dir: Optional[str] = None,
+    include_hashes: bool = True,
+) -> str:
     if not requirements_dir:
         requirements_dir = vistir.path.create_tracked_tempdir(
             prefix="pipenv", suffix="requirements"

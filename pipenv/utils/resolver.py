@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import hashlib
 import os
@@ -139,18 +141,22 @@ class Resolver:
     @classmethod
     def get_metadata(
         cls,
-        deps,  # type: List[str]
-        index_lookup,  # type: Dict[str, str]
-        markers_lookup,  # type: Dict[str, str]
-        project,  # type: Project
-        sources,  # type: Dict[str, str]
-        req_dir=None,  # type: Optional[str]
-        pre=False,  # type: bool
-        clear=False,  # type: bool
-    ):
-        # type: (...) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]], Dict[str, str], Dict[str, str]]
-        constraints = set()  # type: Set[str]
-        skipped = {}  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
+        deps: List[str],
+        index_lookup: Dict[str, str],
+        markers_lookup: Dict[str, str],
+        project: Project,
+        sources: Dict[str, str],
+        req_dir: Optional[str] = None,
+        pre: bool = False,
+        clear: bool = False,
+    ) -> Tuple[
+        Set[str],
+        Dict[str, Dict[str, Union[str, bool, List[str]]]],
+        Dict[str, str],
+        Dict[str, str],
+    ]:
+        constraints: Set[str] = set()
+        skipped: Dict[str, Dict[str, Union[str, bool, List[str]]]] = {}
         if index_lookup is None:
             index_lookup = {}
         if markers_lookup is None:
@@ -209,12 +215,11 @@ class Resolver:
     @classmethod
     def parse_line(
         cls,
-        line,  # type: str
-        index_lookup=None,  # type: Dict[str, str]
-        markers_lookup=None,  # type: Dict[str, str]
-        project=None,  # type: Optional[Project]
-    ):
-        # type: (...) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]
+        line: str,
+        index_lookup: Dict[str, str] = None,
+        markers_lookup: Dict[str, str] = None,
+        project: Optional[Project] = None,
+    ) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]:
 
         if index_lookup is None:
             index_lookup = {}
@@ -226,7 +231,7 @@ class Resolver:
             project = Project()
         index, extra_index, trust_host, remainder = parse_indexes(line)
         line = " ".join(remainder)
-        req = None  # type: Requirement
+        req: Requirement = None
         try:
             req = Requirement.from_line(line)
         except ValueError:
@@ -262,8 +267,12 @@ class Resolver:
         return req, index_lookup, markers_lookup
 
     @classmethod
-    def get_deps_from_req(cls, req, resolver=None, resolve_vcs=True):
-        # type: (Requirement, Optional["Resolver"], bool) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]
+    def get_deps_from_req(
+        cls,
+        req: Requirement,
+        resolver: Optional["Resolver"] = None,
+        resolve_vcs: bool = True,
+    ) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]:
         from pipenv.vendor.requirementslib.models.requirements import Requirement
         from pipenv.vendor.requirementslib.models.utils import (
             _requirement_to_str_lowercase_name,
@@ -271,8 +280,8 @@ class Resolver:
         from pipenv.vendor.requirementslib.utils import is_installable_dir
 
         # TODO: this is way too complex, refactor this
-        constraints = set()  # type: Set[str]
-        locked_deps = {}  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
+        constraints: Set[str] = set()
+        locked_deps: Dict[str, Dict[str, Union[str, bool, List[str]]]] = {}
         if (req.is_file_or_url or req.is_vcs) and not req.is_wheel:
             # for local packages with setup.py files and potential direct url deps:
             if req.is_vcs:
@@ -281,7 +290,7 @@ class Resolver:
                 entry = lockfile[pep423_name(req.normalized_name)]
             else:
                 _, entry = req.pipfile_entry
-            parsed_line = req.req.parsed_line  # type: Line
+            parsed_line: Line = req.req.parsed_line
             try:
                 name = req.normalized_name
             except TypeError:
@@ -377,16 +386,15 @@ class Resolver:
     @classmethod
     def create(
         cls,
-        deps,  # type: List[str]
-        project,  # type: Project
-        index_lookup=None,  # type: Dict[str, str]
-        markers_lookup=None,  # type: Dict[str, str]
-        sources=None,  # type: List[str]
-        req_dir=None,  # type: str
-        clear=False,  # type: bool
-        pre=False,  # type: bool
-    ):
-        # type: (...) -> "Resolver"
+        deps: List[str],
+        project: Project,
+        index_lookup: Dict[str, str] = None,
+        markers_lookup: Dict[str, str] = None,
+        sources: List[str] = None,
+        req_dir: str = None,
+        clear: bool = False,
+        pre: bool = False,
+    ) -> "Resolver":
 
         if not req_dir:
             req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
@@ -419,8 +427,14 @@ class Resolver:
         )
 
     @classmethod
-    def from_pipfile(cls, project, pipfile=None, dev=False, pre=False, clear=False):
-        # type: (Optional[Project], Optional[Pipfile], bool, bool, bool) -> "Resolver"
+    def from_pipfile(
+        cls,
+        project: Optional[Project],
+        pipfile: Optional[Pipfile] = None,
+        dev: bool = False,
+        pre: bool = False,
+        clear: bool = False,
+    ) -> "Resolver":
 
         if not pipfile:
             pipfile = project._pipfile
@@ -1109,8 +1123,7 @@ def resolve_deps(
 
 
 @lru_cache()
-def get_pipenv_sitedir():
-    # type: () -> Optional[str]
+def get_pipenv_sitedir() -> Optional[str]:
     import pkg_resources
 
     site_dir = next(

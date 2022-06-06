@@ -85,8 +85,7 @@ def get_url_name(url):
     return urllib3_util.parse_url(url).host
 
 
-def is_url_equal(url, other_url):
-    # type: (str, str) -> bool
+def is_url_equal(url: str, other_url: str) -> bool:
     """
     Compare two urls by scheme, host, and path, ignoring auth
 
