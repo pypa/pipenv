@@ -1,3 +1,14 @@
+2022.5.3.dev0 (2022-06-07)
+==========================
+
+
+Bug Fixes
+---------
+
+- Adjust pipenv to work with the newly added ``venv`` install scheme in Python.
+  First check if ``venv`` is among the available install schemes, and use it if it is. Otherwise fall back to the ``nt`` or ``posix_prefix`` install schemes as before. This should produce no change for environments where the install schemes were not redefined.  `#5096 <https://github.com/pypa/pipenv/issues/5096>`_
+
+
 2022.5.2 (2022-05-02)
 =====================
 
