@@ -91,3 +91,30 @@ def test_requirements_with_git_requirements(PipenvInstance):
         assert c.returncode == 0
         assert req_name in c.stdout
         assert req_hash in c.stdout
+
+
+@pytest.mark.requirements
+def test_requirements_markers_get_included(PipenvInstance):
+    package, version, markers = "werkzeug", "==2.1.2", "python_version >= '3.7'"
+    lockfile = {
+        "_meta": {"sources": []},
+        "default": {
+            package: {
+                "hashes": [
+                    "sha256:1ce08e8093ed67d638d63879fd1ba3735817f7a80de3674d293f5984f25fb6e6",
+                    "sha256:72a4b735692dd3135217911cbeaa1be5fa3f62bffb8745c5215420a03dc55255"
+                ],
+                "markers": markers,
+                "version": version
+            }
+        },
+        "develop": {}
+    }
+
+    with PipenvInstance(chdir=True) as p:
+        with open(p.lockfile_path, 'w') as f:
+            json.dump(lockfile, f)
+
+        c = p.pipenv('requirements --markers')
+        assert c.returncode == 0
+        assert f'{package}{version}; {markers}' in c.stdout
