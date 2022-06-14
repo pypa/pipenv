@@ -1,2 +1,0 @@
-Adjust pipenv to work with the newly added ``venv`` install scheme in Python.
-First check if ``venv`` is among the available install schemes, and use it if it is. Otherwise fall back to the ``nt`` or ``posix_prefix`` install schemes as before. This should produce no change for environments where the install schemes were not redefined.
