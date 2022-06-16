@@ -21,8 +21,7 @@ if environments.MYPY_RUNNING:
 
 
 @lru_cache()
-def make_posix(path):
-    # type: (str) -> str
+def make_posix(path: str) -> str:
     """
     Convert a path with possible windows-style separators to a posix-style path
     (with **/** separators instead of **\\** separators).

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from collections.abc import Mapping
 
@@ -43,8 +45,11 @@ def prepare_pip_source_args(sources, pip_args=None):
     return pip_args
 
 
-def get_project_index(project, index=None, trusted_hosts=None):
-    # type: (Optional[Union[str, TSource]], Optional[List[str]], Optional[Project]) -> TSource
+def get_project_index(
+    project: Optional[Union[str, TSource]],
+    index: Optional[List[str]] = None,
+    trusted_hosts: Optional[Project] = None,
+) -> TSource:
     from pipenv.project import SourceNotFound
 
     if trusted_hosts is None:
@@ -62,14 +67,13 @@ def get_project_index(project, index=None, trusted_hosts=None):
 
 
 def get_source_list(
-    project,  # type: Project
-    index=None,  # type: Optional[Union[str, TSource]]
-    extra_indexes=None,  # type: Optional[List[str]]
-    trusted_hosts=None,  # type: Optional[List[str]]
-    pypi_mirror=None,  # type: Optional[str]
-):
-    # type: (...) -> List[TSource]
-    sources = []  # type: List[TSource]
+    project: Project,
+    index: Optional[Union[str, TSource]] = None,
+    extra_indexes: Optional[List[str]] = None,
+    trusted_hosts: Optional[List[str]] = None,
+    pypi_mirror: Optional[str] = None,
+) -> List[TSource]:
+    sources: List[TSource] = []
     if index:
         sources.append(get_project_index(project, index))
     if extra_indexes:

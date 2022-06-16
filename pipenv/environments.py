@@ -403,8 +403,7 @@ class Setting:
         return self.PIPENV_VERBOSITY <= threshold
 
 
-def is_using_venv():
-    # type: () -> bool
+def is_using_venv() -> bool:
     """Check for venv-based virtual environment which sets sys.base_prefix"""
     if getattr(sys, "real_prefix", None) is not None:
         # virtualenv venvs
