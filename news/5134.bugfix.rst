@@ -1,0 +1,1 @@
+Stopped expanding environment variables when using ``pipenv requirements``
