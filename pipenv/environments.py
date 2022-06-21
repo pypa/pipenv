@@ -206,12 +206,6 @@ class Setting:
         Default is 0. Automatically set to 1 on CI environments for robust testing.
         """
 
-        self.PIPENV_MAX_ROUNDS = int(os.environ.get("PIPENV_MAX_ROUNDS", "16"))
-        """Tells Pipenv how many rounds of resolving to do for Pip-Tools.
-
-        Default is 16, an arbitrary number that works most of the time.
-        """
-
         self.PIPENV_MAX_SUBPROCESS = int(os.environ.get("PIPENV_MAX_SUBPROCESS", "8"))
         """How many subprocesses should Pipenv use when installing.
 
