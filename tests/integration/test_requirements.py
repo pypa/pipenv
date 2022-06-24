@@ -71,6 +71,7 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(Pipe
         assert '-i https://pypi.org/simple' in c.stdout
         assert '--extra-index-url https://some_other_source.org' in c.stdout
 
+
 @pytest.mark.requirements
 def test_requirements_with_git_requirements(PipenvInstance):
     req_name, req_hash = 'example-repo', 'cc858e89f19bc0dbd70983f86b811ab625dc9292'
@@ -118,9 +119,36 @@ def test_requirements_markers_get_included(PipenvInstance):
         with open(p.lockfile_path, 'w') as f:
             json.dump(lockfile, f)
 
-        c = p.pipenv('requirements --markers')
+        c = p.pipenv('requirements')
         assert c.returncode == 0
         assert f'{package}{version}; {markers}' in c.stdout
+
+
+@pytest.mark.requirements
+def test_requirements_markers_get_excluded(PipenvInstance):
+    package, version, markers = "werkzeug", "==2.1.2", "python_version >= '3.7'"
+    lockfile = {
+        "_meta": {"sources": []},
+        "default": {
+            package: {
+                "hashes": [
+                    "sha256:1ce08e8093ed67d638d63879fd1ba3735817f7a80de3674d293f5984f25fb6e6",
+                    "sha256:72a4b735692dd3135217911cbeaa1be5fa3f62bffb8745c5215420a03dc55255"
+                ],
+                "markers": markers,
+                "version": version
+            }
+        },
+        "develop": {}
+    }
+
+    with PipenvInstance(chdir=True) as p:
+        with open(p.lockfile_path, 'w') as f:
+            json.dump(lockfile, f)
+
+        c = p.pipenv('requirements --exclude-markers')
+        assert c.returncode == 0
+        assert markers not in c.stdout
 
 
 def test_requirements_generates_requirements_from_lockfile_without_env_var_expansion(
