@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import base64
 import fnmatch
 import hashlib
@@ -145,8 +147,7 @@ class Project:
             except (TypeError, AttributeError):
                 pass
 
-    def path_to(self, p):
-        # type: (str) -> str
+    def path_to(self, p: str) -> str:
         """Returns the absolute path to a given relative path."""
         if os.path.isabs(p):
             return p
@@ -158,20 +159,17 @@ class Project:
         return self.parsed_pipfile.get(package_section, {})
 
     @property
-    def name(self):
-        # type: () -> str
+    def name(self) -> str:
         if self._name is None:
             self._name = self.pipfile_location.split(os.sep)[-2]
         return self._name
 
     @property
-    def pipfile_exists(self):
-        # type: () -> bool
+    def pipfile_exists(self) -> bool:
         return os.path.isfile(self.pipfile_location)
 
     @property
-    def required_python_version(self):
-        # type: () -> str
+    def required_python_version(self) -> str:
         if self.pipfile_exists:
             required = self.parsed_pipfile.get("requires", {}).get("python_full_version")
             if not required:
@@ -180,17 +178,14 @@ class Project:
                 return required
 
     @property
-    def project_directory(self):
-        # type: () -> str
+    def project_directory(self) -> str:
         return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
 
     @property
-    def requirements_exists(self):
-        # type: () -> bool
+    def requirements_exists(self) -> bool:
         return bool(self.requirements_location)
 
-    def is_venv_in_project(self):
-        # type: () -> bool
+    def is_venv_in_project(self) -> bool:
         if self.s.PIPENV_VENV_IN_PROJECT is False:
             return False
         return self.s.PIPENV_VENV_IN_PROJECT or (
@@ -199,8 +194,7 @@ class Project:
         )
 
     @property
-    def virtualenv_exists(self):
-        # type: () -> bool
+    def virtualenv_exists(self) -> bool:
         if os.path.exists(self.virtualenv_location):
             if os.name == "nt":
                 extra = ["Scripts", "activate.bat"]
@@ -210,8 +204,7 @@ class Project:
 
         return False
 
-    def get_location_for_virtualenv(self):
-        # type: () -> str
+    def get_location_for_virtualenv(self) -> str:
         # If there's no project yet, set location based on config.
         if not self.project_directory:
             if self.is_venv_in_project():
@@ -246,8 +239,7 @@ class Project:
         return str(get_workon_home().joinpath(name))
 
     @property
-    def working_set(self):
-        # type: () -> pkg_resources.WorkingSet
+    def working_set(self) -> pkg_resources.WorkingSet:
         from pipenv.utils.shell import load_path
 
         sys_path = load_path(self.which("python"))
@@ -260,13 +252,11 @@ class Project:
         return self.environment.get_installed_packages()
 
     @property
-    def installed_package_names(self):
-        # type: () -> List[str]
+    def installed_package_names(self) -> List[str]:
         return get_canonical_names([pkg.key for pkg in self.installed_packages])
 
     @property
-    def lockfile_package_names(self):
-        # type: () -> Dict[str, Set[str]]
+    def lockfile_package_names(self) -> Dict[str, Set[str]]:
         dev_keys = get_canonical_names(self.lockfile_content["develop"].keys())
         default_keys = get_canonical_names(self.lockfile_content["default"].keys())
         return {
@@ -276,8 +266,7 @@ class Project:
         }
 
     @property
-    def pipfile_package_names(self):
-        # type: () -> Dict[str, Set[str]]
+    def pipfile_package_names(self) -> Dict[str, Set[str]]:
         dev_keys = get_canonical_names(self.dev_packages.keys())
         default_keys = get_canonical_names(self.packages.keys())
         return {
@@ -286,8 +275,7 @@ class Project:
             "combined": dev_keys | default_keys,
         }
 
-    def get_environment(self, allow_global=False):
-        # type: (bool) -> Environment
+    def get_environment(self, allow_global: bool = False) -> Environment:
         is_venv = is_in_virtualenv()
         if allow_global and not is_venv:
             prefix = sys.prefix
@@ -312,20 +300,17 @@ class Project:
         return environment
 
     @property
-    def environment(self):
-        # type: () -> Environment
+    def environment(self) -> Environment:
         if not self._environment:
             allow_global = self.s.PIPENV_USE_SYSTEM
             self._environment = self.get_environment(allow_global=allow_global)
         return self._environment
 
-    def get_outdated_packages(self):
-        # type: () -> List[pkg_resources.Distribution]
+    def get_outdated_packages(self) -> List[pkg_resources.Distribution]:
         return self.environment.get_outdated_packages(pre=self.pipfile.get("pre", False))
 
     @classmethod
-    def _sanitize(cls, name):
-        # type: (str) -> Tuple[str, str]
+    def _sanitize(cls, name: str) -> Tuple[str, str]:
         # Replace dangerous characters into '_'. The length of the sanitized
         # project name is limited as 42 because of the limit of linux kernel
         #
@@ -340,8 +325,7 @@ class Project:
         #   https://github.com/torvalds/linux/blob/2bfe01ef/include/uapi/linux/binfmts.h#L18
         return re.sub(r'[ &$`!*@"()\[\]\\\r\n\t]', "_", name)[0:42]
 
-    def _get_virtualenv_hash(self, name):
-        # type: (str) -> str
+    def _get_virtualenv_hash(self, name: str) -> str:
         """Get the name of the virtualenv adjusted for windows if needed
 
         Returns (name, encoded_hash)
@@ -383,8 +367,7 @@ class Project:
         return clean_name, encoded_hash
 
     @property
-    def virtualenv_name(self):
-        # type: () -> str
+    def virtualenv_name(self) -> str:
         sanitized, encoded_hash = self._get_virtualenv_hash(self.name)
         suffix = ""
         if self.s.PIPENV_PYTHON:
@@ -398,8 +381,7 @@ class Project:
         return sanitized + "-" + encoded_hash + suffix
 
     @property
-    def virtualenv_location(self):
-        # type: () -> str
+    def virtualenv_location(self) -> str:
         # if VIRTUAL_ENV is set, use that.
         virtualenv_env = os.getenv("VIRTUAL_ENV")
         if (
@@ -415,8 +397,7 @@ class Project:
         return self._virtualenv_location
 
     @property
-    def virtualenv_src_location(self):
-        # type: () -> str
+    def virtualenv_src_location(self) -> str:
         if self.virtualenv_location:
             loc = os.sep.join([self.virtualenv_location, "src"])
         else:
@@ -425,8 +406,7 @@ class Project:
         return loc
 
     @property
-    def download_location(self):
-        # type: () -> str
+    def download_location(self) -> str:
         if self._download_location is None:
             loc = os.sep.join([self.virtualenv_location, "downloads"])
             self._download_location = loc
@@ -435,8 +415,7 @@ class Project:
         return self._download_location
 
     @property
-    def proper_names_db_path(self):
-        # type: () -> str
+    def proper_names_db_path(self) -> str:
         if self._proper_names_db_path is None:
             self._proper_names_db_path = Path(
                 self.virtualenv_location, "pipenv-proper-names.txt"
@@ -445,20 +424,17 @@ class Project:
         return self._proper_names_db_path
 
     @property
-    def proper_names(self):
-        # type: () -> str
+    def proper_names(self) -> str:
         with self.proper_names_db_path.open() as f:
             return f.read().splitlines()
 
-    def register_proper_name(self, name):
-        # type: (str) -> None
+    def register_proper_name(self, name: str) -> None:
         """Registers a proper name to the database."""
         with self.proper_names_db_path.open("a") as f:
             f.write("{0}\n".format(name))
 
     @property
-    def pipfile_location(self):
-        # type: () -> str
+    def pipfile_location(self) -> str:
         if self.s.PIPENV_PIPFILE:
             return self.s.PIPENV_PIPFILE
 
@@ -471,8 +447,7 @@ class Project:
         return self._pipfile_location
 
     @property
-    def requirements_location(self):
-        # type: () -> Optional[str]
+    def requirements_location(self) -> Optional[str]:
         if self._requirements_location is None:
             try:
                 loc = find_requirements(max_depth=self.s.PIPENV_MAX_DEPTH)
@@ -482,8 +457,7 @@ class Project:
         return self._requirements_location
 
     @property
-    def parsed_pipfile(self):
-        # type: () -> Union[tomlkit.toml_document.TOMLDocument, TPipfile]
+    def parsed_pipfile(self) -> Union[tomlkit.toml_document.TOMLDocument, TPipfile]:
         """Parse Pipfile into a TOMLFile and cache it
 
         (call clear_pipfile_cache() afterwards if mutating)"""
@@ -495,8 +469,7 @@ class Project:
             _pipfile_cache[cache_key] = parsed
         return _pipfile_cache[cache_key]
 
-    def read_pipfile(self):
-        # type: () -> str
+    def read_pipfile(self) -> str:
         # Open the pipfile, read it into memory.
         if not self.pipfile_exists:
             return ""
@@ -506,13 +479,13 @@ class Project:
 
         return contents
 
-    def clear_pipfile_cache(self):
-        # type: () -> None
+    def clear_pipfile_cache(self) -> None:
         """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
         _pipfile_cache.clear()
 
-    def _parse_pipfile(self, contents):
-        # type: (str) -> Union[tomlkit.toml_document.TOMLDocument, TPipfile]
+    def _parse_pipfile(
+        self, contents: str
+    ) -> Union[tomlkit.toml_document.TOMLDocument, TPipfile]:
         try:
             return tomlkit.parse(contents)
         except Exception:
@@ -520,8 +493,7 @@ class Project:
             # Fallback to toml parser, for large files.
             return toml.loads(contents)
 
-    def _read_pyproject(self):
-        # type: () -> None
+    def _read_pyproject(self) -> None:
         pyproject = self.path_to("pyproject.toml")
         if os.path.exists(pyproject):
             self._pyproject = toml.load(pyproject)
@@ -535,30 +507,25 @@ class Project:
                 self._build_system = build_system
 
     @property
-    def build_requires(self):
-        # type: () -> List[str]
+    def build_requires(self) -> List[str]:
         return self._build_system.get("requires", ["setuptools>=40.8.0", "wheel"])
 
     @property
-    def build_backend(self):
-        # type: () -> str
+    def build_backend(self) -> str:
         return self._build_system.get("build-backend", get_default_pyproject_backend())
 
     @property
-    def settings(self):
-        # type: () -> Union[tomlkit.items.Table, Dict[str, Union[str, bool]]]
+    def settings(self) -> Union[tomlkit.items.Table, Dict[str, Union[str, bool]]]:
         """A dictionary of the settings added to the Pipfile."""
         return self.parsed_pipfile.get("pipenv", {})
 
-    def has_script(self, name):
-        # type: (str) -> bool
+    def has_script(self, name: str) -> bool:
         try:
             return name in self.parsed_pipfile["scripts"]
         except KeyError:
             return False
 
-    def build_script(self, name, extra_args=None):
-        # type: (str, Optional[List[str]]) -> Script
+    def build_script(self, name: str, extra_args: Optional[List[str]] = None) -> Script:
         try:
             script = Script.parse(self.parsed_pipfile["scripts"][name])
         except KeyError:
@@ -567,8 +534,7 @@ class Project:
             script.extend(extra_args)
         return script
 
-    def update_settings(self, d):
-        # type: (Dict[str, Union[str, bool]]) -> None
+    def update_settings(self, d: Dict[str, Union[str, bool]]) -> None:
         settings = self.settings
         changed = False
         for new in d:

@@ -769,7 +769,7 @@ def requirements(state, dev=False, dev_only=False, hash=False, markers=False):
 
     from pipenv.utils.dependencies import convert_deps_to_pip
 
-    lockfile = state.project.lockfile_content
+    lockfile = state.project.load_lockfile(expand_env_vars=False)
 
     for i, package_index in enumerate(lockfile["_meta"]["sources"]):
         prefix = "-i" if i == 0 else "--extra-index-url"

@@ -1,5 +1,8 @@
 import json
+import os
 import pytest
+
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.requirements
@@ -118,3 +121,35 @@ def test_requirements_markers_get_included(PipenvInstance):
         c = p.pipenv('requirements --markers')
         assert c.returncode == 0
         assert f'{package}{version}; {markers}' in c.stdout
+
+
+def test_requirements_generates_requirements_from_lockfile_without_env_var_expansion(
+    PipenvInstance,
+):
+    lockfile = {
+        "_meta": {
+            "sources": [
+                {
+                    "name": "private_source",
+                    "url": "https://${redacted_user}:${redacted_pwd}@private_source.org",
+                    "verify_ssl": True,
+                }
+            ]
+        },
+        "default": {},
+    }
+
+    with PipenvInstance(chdir=True) as p:
+        with open(p.lockfile_path, "w") as f:
+            json.dump(lockfile, f)
+
+        with temp_environ():
+            os.environ['redacted_user'] = "example_user"
+            os.environ['redacted_pwd'] = "example_pwd"
+            c = p.pipenv("requirements")
+            assert c.returncode == 0
+
+            assert (
+                "-i https://${redacted_user}:${redacted_pwd}@private_source.org"
+                in c.stdout
+            )
