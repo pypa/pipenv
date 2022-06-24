@@ -777,10 +777,10 @@ def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=F
 
     deps = {}
 
-    if not dev_only:
-        deps.update(lockfile["default"])
     if dev or dev_only:
         deps.update(lockfile["develop"])
+    if not dev_only:
+        deps.update(lockfile["default"])
 
     pip_deps = convert_deps_to_pip(
         deps,
