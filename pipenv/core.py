@@ -248,7 +248,7 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
     python = (
         project._which("python")
         if not (project.s.USING_DEFAULT_PYTHON or system)
-        else None
+        else project._which("python", allow_global=True)
     )
     if project.pipfile_is_empty:
         # If there's a requirements file, but no Pipfile...
