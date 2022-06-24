@@ -1967,10 +1967,6 @@ def do_install(
     if not keep_outdated:
         keep_outdated = project.settings.get("keep_outdated")
     remote = requirementstxt and is_valid_url(requirementstxt)
-    # Warn and exit if --system is used without a pipfile.
-    if (system and package_args) and not project.s.PIPENV_VIRTUALENV:
-        raise exceptions.SystemUsageError
-    # Automatically use an activated virtualenv.
     if project.s.PIPENV_USE_SYSTEM:
         system = True
     if system:
