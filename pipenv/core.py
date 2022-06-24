@@ -1305,9 +1305,7 @@ def do_init(
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
         click.echo(
-            crayons.normal(
-                fix_utf8("Pipfile.lock not found, creating..."), bold=True
-            ),
+            crayons.normal(fix_utf8("Pipfile.lock not found, creating..."), bold=True),
             err=True,
         )
         do_lock(
