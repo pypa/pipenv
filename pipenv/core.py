@@ -1304,30 +1304,20 @@ def do_init(
                 )
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
-        # Unless we're in a virtualenv not managed by pipenv, abort if we're
-        # using the system's python.
-        if (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
-            raise exceptions.PipenvOptionsError(
-                "--system",
-                "--system is intended to be used for Pipfile installation, "
-                "not installation of specific packages. Aborting.\n"
-                "See also: --deploy flag.",
-            )
-        else:
-            click.echo(
-                crayons.normal(
-                    fix_utf8("Pipfile.lock not found, creating..."), bold=True
-                ),
-                err=True,
-            )
-            do_lock(
-                project,
-                system=system,
-                pre=pre,
-                keep_outdated=keep_outdated,
-                write=True,
-                pypi_mirror=pypi_mirror,
-            )
+        click.echo(
+            crayons.normal(
+                fix_utf8("Pipfile.lock not found, creating..."), bold=True
+            ),
+            err=True,
+        )
+        do_lock(
+            project,
+            system=system,
+            pre=pre,
+            keep_outdated=keep_outdated,
+            write=True,
+            pypi_mirror=pypi_mirror,
+        )
     do_install_dependencies(
         project,
         dev=dev,
