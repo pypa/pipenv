@@ -251,13 +251,6 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
         else None
     )
     if project.pipfile_is_empty:
-        # Show an error message and exit if system is passed and no pipfile exists
-        if system and not project.s.PIPENV_VIRTUALENV:
-            raise exceptions.PipenvOptionsError(
-                "--system",
-                "--system is intended to be used for pre-existing Pipfile "
-                "installation, not installation of specific packages. Aborting.",
-            )
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists and not skip_requirements:
             requirements_dir_path = os.path.dirname(project.requirements_location)
