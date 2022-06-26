@@ -763,8 +763,9 @@ def verify(state):
     "--dev-only", is_flag=True, default=False, help="Only add development requirements."
 )
 @option("--hash", is_flag=True, default=False, help="Add package hashes.")
+@option("--exclude-markers", is_flag=True, default=False, help="Exclude markers.")
 @pass_state
-def requirements(state, dev=False, dev_only=False, hash=False):
+def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=False):
 
     from pipenv.utils.dependencies import convert_deps_to_pip
 
@@ -776,10 +777,10 @@ def requirements(state, dev=False, dev_only=False, hash=False):
 
     deps = {}
 
-    if not dev_only:
-        deps.update(lockfile["default"])
     if dev or dev_only:
         deps.update(lockfile["develop"])
+    if not dev_only:
+        deps.update(lockfile["default"])
 
     pip_deps = convert_deps_to_pip(
         deps,
@@ -787,7 +788,7 @@ def requirements(state, dev=False, dev_only=False, hash=False):
         r=False,
         include_index=False,
         include_hashes=hash,
-        include_markers=False,
+        include_markers=not exclude_markers,
     )
 
     for d in pip_deps:
