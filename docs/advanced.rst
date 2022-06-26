@@ -281,6 +281,7 @@ flag::
     pytest==3.2.3
 
 Adding the ``--hash`` flag will add package hashes to the output for extra security.
+Adding the ``--exclude-markers`` flagwill exclude the markers from the output.
 
 The locked requirements are written to stdout, with shell output redirection
 used to write them to a file::
