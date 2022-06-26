@@ -1,0 +1,1 @@
+Depend on ``requests`` and ``certifi`` from vendored ``pip`` and remove them as explicit vendor dependencies.
