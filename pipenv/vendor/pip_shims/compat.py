@@ -48,7 +48,7 @@ if MYPY_RUNNING:
         Union,
     )
 
-    from requests import Session
+    from pipenv.patched.notpip._vendor.requests import Session
 
     from .utils import TShim, TShimmedFunc, TShimmedPath
 
