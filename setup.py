@@ -126,8 +126,6 @@ setup(
     },
     package_data={
         "": ["LICENSE", "NOTICES"],
-        "pipenv.vendor.requests": ["*.pem"],
-        "pipenv.vendor.certifi": ["*.pem"],
         "pipenv.patched.notpip._vendor.certifi": ["*.pem"],
         "pipenv.patched.notpip._vendor.requests": ["*.pem"],
         "pipenv.patched.notpip._vendor.distlib._backport": ["sysconfig.cfg"],

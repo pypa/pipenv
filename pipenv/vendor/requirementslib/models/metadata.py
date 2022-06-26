@@ -16,7 +16,7 @@ import dateutil.parser
 import distlib.metadata
 import distlib.wheel
 import packaging.version
-import pipenv.vendor.requests as requests
+import pipenv.patched.notpip._vendor.requests as requests
 import pipenv.vendor.vistir as vistir
 from pipenv.vendor.packaging.markers import Marker
 from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement

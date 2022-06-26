@@ -28,7 +28,7 @@ if IS_TYPE_CHECKING:
         TypeVar,
     )
     from types import ModuleType
-    from pipenv.vendor.requests import Session
+    from pipenv.patched.notpip._vendor.requests import Session
     from pipenv.vendor.six.moves.http_client import HTTPResponse as Urllib_HTTPResponse
     from pipenv.vendor.urllib3.response import HTTPResponse as Urllib3_HTTPResponse
     from .spin import VistirSpinner, DummySpinner
@@ -340,7 +340,7 @@ def open_file(
         headers = {"Accept-Encoding": "identity"}
         if not session:
             try:
-                from pipenv.vendor.requests import Session  # noqa
+                from pipenv.patched.notpip._vendor.requests import Session  # noqa
             except ImportError:
                 session = None
             else:

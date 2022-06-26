@@ -12,7 +12,7 @@ import pipenv.vendor.attr as attr
 import packaging.markers
 import packaging.version
 import pip_shims.shims
-import pipenv.vendor.requests as requests
+import pipenv.patched.notpip._vendor.requests as requests
 from pipenv.vendor.packaging.utils import canonicalize_name
 from pipenv.vendor.vistir.compat import fs_str
 from pipenv.vendor.vistir.contextmanagers import cd, temp_environ
