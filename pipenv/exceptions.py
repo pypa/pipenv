@@ -393,7 +393,7 @@ class ResolutionFailure(PipenvException):
 
 class RequirementError(PipenvException):
     def __init__(self, req=None):
-        from .utils import VCS_LIST
+        from pipenv.utils.constants import VCS_LIST
 
         keys = (
             (
