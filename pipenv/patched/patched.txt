@@ -1,4 +1,4 @@
 crayons==0.1.2
-pip==22.1.2
+pip==22.0.4
 pipfile==0.0.2
 safety==1.10.3
