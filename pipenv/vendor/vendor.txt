@@ -11,8 +11,6 @@ distlib==0.3.2
 dparse==0.5.1
 funcsigs==1.0.2
 idna==3.2
-importlib-metadata==4.6.1
-importlib-resources==5.2.0
 iso8601==0.1.16
 markupsafe==2.0.1
 orderedmultidict==1.0.1
