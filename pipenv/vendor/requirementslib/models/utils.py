@@ -567,7 +567,7 @@ def split_ref_from_uri(uri):
     path = parsed.path if parsed.path else ""
     scheme = parsed.scheme if parsed.scheme else ""
     ref = None
-    if scheme != "file" and "@" in path:
+    if scheme != "file" and (re.match("^.*@[^/@]*$", path) or path.count("@") >= 2):
         path, _, ref = path.rpartition("@")
     parsed = parsed._replace(path=path)
     return (parsed.url, ref)

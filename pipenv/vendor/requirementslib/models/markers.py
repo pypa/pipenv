@@ -9,7 +9,7 @@ import pipenv.vendor.attr as attr
 import distlib.markers
 import packaging.version
 from pipenv.vendor.packaging.markers import InvalidMarker, Marker
-from pipenv.vendor.packaging.specifiers import Specifier, SpecifierSet
+from pipenv.vendor.packaging.specifiers import LegacySpecifier, Specifier, SpecifierSet
 from pipenv.vendor.vistir.misc import dedup
 
 from ..environment import MYPY_RUNNING
@@ -20,7 +20,6 @@ if MYPY_RUNNING:
     from typing import Any, AnyStr, Iterator, List, Optional, Text, Tuple, Type, Union
 
     STRING_TYPE = Union[str, bytes, Text]
-
 
 MAX_VERSIONS = {1: 7, 2: 7, 3: 11, 4: 0}
 DEPRECATED_VERSIONS = ["3.0", "3.1", "3.2", "3.3"]
@@ -120,8 +119,17 @@ class PipenvMarkers(object):
 
 @lru_cache(maxsize=1024)
 def _tuplize_version(version):
-    # type: (STRING_TYPE) -> Tuple[int, ...]
-    return tuple(int(x) for x in filter(lambda i: i != "*", version.split(".")))
+    # type: (STRING_TYPE) -> Union[Tuple[()], Tuple[int, ...], Tuple[int, int, str]]
+    output = []
+    for idx, part in enumerate(version.split(".")):
+        if part == "*":
+            break
+        if idx in (0, 1):
+            # Only convert the major and minor identifiers into integers (if present),
+            # the patch identifier can include strings like 'b' marking a beta: ex 3.11.0b1
+            part = int(part)
+        output.append(part)
+    return tuple(output)
 
 
 @lru_cache(maxsize=1024)
@@ -140,15 +148,19 @@ REPLACE_RANGES = {">": ">=", "<=": "<"}
 def _format_pyspec(specifier):
     # type: (Union[STRING_TYPE, Specifier]) -> Specifier
     if isinstance(specifier, str):
-        if not any(op in specifier for op in Specifier._operators.keys()):
+        if not specifier.startswith(tuple(Specifier._operators.keys())):
             specifier = "=={0}".format(specifier)
         specifier = Specifier(specifier)
     version = getattr(specifier, "version", specifier).rstrip()
-    if version and version.endswith("*"):
-        if version.endswith(".*"):
-            version = version[:-2]
-        version = version.rstrip("*")
-        specifier = Specifier("{0}{1}".format(specifier.operator, version))
+    if version:
+        if version.startswith("*"):
+            # don't parse invalid identifiers
+            return specifier
+        if version.endswith("*"):
+            if version.endswith(".*"):
+                version = version[:-2]
+            version = version.rstrip("*")
+            specifier = Specifier("{0}{1}".format(specifier.operator, version))
     try:
         op = REPLACE_RANGES[specifier.operator]
     except KeyError:
@@ -172,7 +184,7 @@ def _format_pyspec(specifier):
 def _get_specs(specset):
     if specset is None:
         return
-    if is_instance(specset, Specifier):
+    if is_instance(specset, Specifier) or is_instance(specset, LegacySpecifier):
         new_specset = SpecifierSet()
         specs = set()
         specs.add(specset)
