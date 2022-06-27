@@ -39,15 +39,3 @@ index 2a31a4df..d3b5e708 100644
      """
      package = None
      if subimport:
-diff --git a/pipenv/vendor/pip_shims/compat.py b/pipenv/vendor/pip_shims/compat.py
-index 8a072b0e..882a226e 100644
---- a/pipenv/vendor/pip_shims/compat.py
-+++ b/pipenv/vendor/pip_shims/compat.py
-@@ -48,7 +48,7 @@ if MYPY_RUNNING:
-         Union,
-     )
-
--    from requests import Session
-+    from pipenv.patched.notpip._vendor.requests import Session
-
-     from .utils import TShim, TShimmedFunc, TShimmedPath
