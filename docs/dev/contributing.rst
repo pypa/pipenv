@@ -282,9 +282,10 @@ $ docker run --rm -v $(pwd):/usr/src -it python:3.7 bash
 
 It is important that your environment is setup correctly, and
 this may take some work, for example, on a specific Mac installation, the following
-steps may be needed::
+steps may be needed:
 
 .. code-block:: bash
+
     # Make sure the tests can access github
     if [ "$SSH_AGENT_PID" = "" ]
     then

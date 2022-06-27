@@ -31,7 +31,7 @@ import pipenv.vendor.click
 
 click.Command = pipenv.vendor.click.Command
 click.Group = pipenv.vendor.click.Group
-
+click.BaseCommand = pipenv.vendor.click.BaseCommand
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
