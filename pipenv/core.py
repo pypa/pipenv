@@ -168,7 +168,7 @@ def import_requirements(project, r=None, dev=False):
     from pipenv.patched.notpip._internal.req.constructors import (
         install_req_from_parsed_requirement,
     )
-    from pipenv.patched.notpip._vendor import requests as pip_requests
+    from pipenv.patched.notpip._vendor import requests
     from pipenv.vendor.pip_shims.shims import parse_requirements
 
     # Parse requirements.txt file with Pip's parser.
@@ -196,7 +196,7 @@ def import_requirements(project, r=None, dev=False):
     trusted_hosts = sorted(set(trusted_hosts))
     reqs = [
         install_req_from_parsed_requirement(f)
-        for f in parse_requirements(r, session=pip_requests)
+        for f in parse_requirements(r, session=requests)
     ]
     for package in reqs:
         if package.name not in BAD_PACKAGES:

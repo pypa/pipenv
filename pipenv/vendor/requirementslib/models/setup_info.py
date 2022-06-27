@@ -71,7 +71,7 @@ if MYPY_RUNNING:
         Union,
     )
 
-    import pipenv.vendor.requests as requests
+    import pipenv.patched.notpip._vendor.requests as requests
     from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
     from pipenv.vendor.pip_shims.shims import InstallRequirement, PackageFinder
     from pkg_resources import DistInfoDistribution, EggInfoDistribution, PathMetadata

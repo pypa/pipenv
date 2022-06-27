@@ -195,7 +195,7 @@ class HashCache(SafeFileCache):
     def __init__(self, *args, **kwargs):
         session = kwargs.pop("session", None)
         if not session:
-            import pipenv.vendor.requests as requests
+            import pipenv.patched.notpip._vendor.requests as requests
 
             session = requests.session()
             atexit.register(session.close)
