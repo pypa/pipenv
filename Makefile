@@ -38,9 +38,10 @@ install-virtualenvs.stamp: ${INSTALL_TARGETS}
 	@touch install-virtualenvs.stamp
 
 .PHONY: ramdisk
+ramdisk: SIZE ?= 4g
 ramdisk:
 	sudo mkdir -p /mnt/ramdisk
-	sudo mount -t tmpfs -o size=2g tmpfs /mnt/ramdisk
+	sudo mount -t tmpfs -o size=$(SIZE) tmpfs /mnt/ramdisk
 	sudo chown -R ${USER}:${USER} /mnt/ramdisk
 
 .PHONY: ramdisk-virtualenv
