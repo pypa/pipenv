@@ -41,39 +41,6 @@ extras = {
 }
 
 
-# https://pypi.python.org/pypi/stdeb/0.8.5#quickstart-2-just-tell-me-the-fastest-way-to-make-a-deb
-class DebCommand(Command):
-    """Support for setup.py deb"""
-
-    description = "Build and publish the .deb package."
-    user_options = []
-
-    @staticmethod
-    def status(s):
-        """Prints things in bold."""
-        print(f"\033[1m{s}\033[0m")
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        try:
-            self.status("Removing previous builds...")
-            rmtree(os.path.join(here, "deb_dist"))
-        except FileNotFoundError:
-            pass
-        self.status("Creating debian mainfest...")
-        os.system(
-            "python setup.py --command-packages=stdeb.command sdist_dsc -z artful --package3=pipenv --depends3=python3-virtualenv-clone"
-        )
-        self.status("Building .deb...")
-        os.chdir("deb_dist/pipenv-{}".format(about["__version__"]))
-        os.system("dpkg-buildpackage -rfakeroot -uc -us")
-
-
 setup(
     name="pipenv",
     version=about["__version__"],
@@ -122,5 +89,4 @@ setup(
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: Implementation :: PyPy",
     ],
-    cmdclass={"deb": DebCommand},
 )
