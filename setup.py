@@ -31,7 +31,6 @@ extras = {
     "dev": [
         "towncrier",
         "bs4",
-        "twine",
         "sphinx",
         "flake8>=3.3.0,<4.0",
         "black;python_version>='3.7'",
@@ -73,39 +72,6 @@ class DebCommand(Command):
         self.status("Building .deb...")
         os.chdir("deb_dist/pipenv-{}".format(about["__version__"]))
         os.system("dpkg-buildpackage -rfakeroot -uc -us")
-
-
-class UploadCommand(Command):
-    """Support setup.py upload."""
-
-    description = "Build and publish the package."
-    user_options = []
-
-    @staticmethod
-    def status(s):
-        """Prints things in bold."""
-        print(f"\033[1m{s}\033[0m")
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        try:
-            self.status("Removing previous builds...")
-            rmtree(os.path.join(here, "dist"))
-        except FileNotFoundError:
-            pass
-        self.status("Building Source distribution...")
-        os.system(f"{sys.executable} setup.py sdist bdist_wheel")
-        self.status("Uploading the package to PyPI via Twine...")
-        os.system("twine upload dist/*")
-        self.status("Pushing git tags...")
-        os.system("git tag v{}".format(about["__version__"]))
-        os.system("git push --tags")
-        sys.exit()
 
 
 setup(
@@ -156,5 +122,5 @@ setup(
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: Implementation :: PyPy",
     ],
-    cmdclass={"upload": UploadCommand, "deb": DebCommand},
+    cmdclass={"deb": DebCommand},
 )
