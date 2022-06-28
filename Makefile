@@ -72,7 +72,7 @@ submodules:
 .PHONY: tests
 tests: parallel ?= -n auto
 tests: submodules test-install
-	. $(get_venv_path)/bin/activate && \
+	source $(get_venv_path)/bin/activate && \
 		pipenv run pytest -ra $(parallel) -vvv --full-trace --tb=long
 
 .PHONY: vendor
