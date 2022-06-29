@@ -823,6 +823,7 @@ def make_preparer(
     install_cmd=None,  # type: Optional[TCommandInstance]
     finder_provider=None,  # type: Optional[TShimmedFunc]
     verbosity=0,  # type: Optional[int]
+    check_build_deps=False,  # type: Optional[bool]
 ):
     # (...) -> ContextManager
     """
@@ -934,6 +935,8 @@ def make_preparer(
         preparer_args["in_tree_build"] = True
     if "verbosity" in required_args:
         preparer_args["verbosity"] = verbosity
+    if "check_build_deps" in required_args:
+        preparer_args["check_build_deps"] = check_build_deps
     req_tracker_fn = resolve_possible_shim(req_tracker_fn)
     req_tracker_fn = nullcontext if not req_tracker_fn else req_tracker_fn
     with req_tracker_fn() as tracker_ctx:
@@ -1351,14 +1354,6 @@ def resolve(  # noqa:C901
             wheel_download_dir=wheel_download_dir,
             **kwargs,
         )  # type: ignore
-        if getattr(reqset, "prepare_files", None):
-            reqset.add_requirement(ireq)
-            results = reqset.prepare_files(finder)
-            result = reqset.requirements
-            reqset.cleanup_files()
-            return result
-        if make_preparer_provider is None:
-            raise TypeError("Cannot create requirement preparer, cannot resolve!")
 
         preparer_args = {
             "build_dir": kwargs["build_dir"],
@@ -1401,12 +1396,26 @@ def resolve(  # noqa:C901
         _, required_resolver_args = get_method_args(resolver.resolve)
         resolver_args = []
         if "requirement_set" in required_resolver_args.args:
-            reqset.add_requirement(ireq)
+            if hasattr(reqset, "add_requirement"):
+                reqset.add_requirement(ireq)
+            else:  # Pip >= 22.1.0
+                resolver._add_requirement_to_set(reqset, ireq)
             resolver_args.append(reqset)
         elif "root_reqs" in required_resolver_args.args:
             resolver_args.append([ireq])
         if "check_supported_wheels" in required_resolver_args.args:
             resolver_args.append(check_supported_wheels)
+        if getattr(reqset, "prepare_files", None):
+            if hasattr(reqset, "add_requirement"):
+                reqset.add_requirement(ireq)
+            else:  # Pip >= 22.1.0
+                resolver._add_requirement_to_set(reqset, ireq)
+            results = reqset.prepare_files(finder)
+            result = reqset.requirements
+            reqset.cleanup_files()
+            return result
+        if make_preparer_provider is None:
+            raise TypeError("Cannot create requirement preparer, cannot resolve!")
         result_reqset = resolver.resolve(*resolver_args)  # type: ignore
         if result_reqset is None:
             result_reqset = reqset
