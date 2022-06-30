@@ -48,7 +48,7 @@ if MYPY_RUNNING:
         Union,
     )
 
-    from pipenv.patched.notpip._vendor.requests import Session
+    from requests import Session
 
     from .utils import TShim, TShimmedFunc, TShimmedPath
 
@@ -303,24 +303,29 @@ def temp_environ():
 
 
 @contextlib.contextmanager
-def get_requirement_tracker(req_tracker_creator=None):
-    # type: (Optional[Callable]) -> Generator[Optional[TReqTracker], None, None]
-    root = os.environ.get("PIP_REQ_TRACKER")
-    if not req_tracker_creator:
+def get_tracker(tracker_creator=None, tracker_type="REQ"):
+    # type: (Optional[Callable]) -> Generator[Optional[TReqTracker, TBuildTracker], None, None]
+    env_var = "PIP_REQ_TRACKER"
+    prefix = "req-tracker"
+    if tracker_type == "BUILD":  # Replaced the req tracker in pip>=22.1
+        env_var = "PIP_BUILD_TRACKER"
+        prefix = "build-tracker"
+    root = os.environ.get(env_var)
+    if not tracker_creator:
         yield None
     else:
         req_tracker_args = []
-        _, required_args = get_method_args(req_tracker_creator.__init__)  # type: ignore
+        _, required_args = get_method_args(tracker_creator.__init__)  # type: ignore
         with ExitStack() as ctx:
             if root is None:
-                root = ctx.enter_context(TemporaryDirectory(prefix="req-tracker"))
+                root = ctx.enter_context(TemporaryDirectory(prefix=prefix))
                 if root:
                     root = str(root)
                     ctx.enter_context(temp_environ())
-                    os.environ["PIP_REQ_TRACKER"] = root
+                    os.environ[env_var] = root
             if required_args is not None and "root" in required_args:
                 req_tracker_args.append(root)
-            with req_tracker_creator(*req_tracker_args) as tracker:
+            with tracker_creator(*req_tracker_args) as tracker:
                 yield tracker
 
 
@@ -804,6 +809,7 @@ def _ensure_finder(
 @contextlib.contextmanager
 def make_preparer(
     preparer_fn,  # type: TShimmedFunc
+    build_tracker_fn=None,  # type: Optional[TShimmedFunc]
     req_tracker_fn=None,  # type: Optional[TShimmedFunc]
     build_dir=None,  # type: Optional[str]
     src_dir=None,  # type: Optional[str]
@@ -823,6 +829,7 @@ def make_preparer(
     install_cmd=None,  # type: Optional[TCommandInstance]
     finder_provider=None,  # type: Optional[TShimmedFunc]
     verbosity=0,  # type: Optional[int]
+    check_build_deps=False,  # type: Optional[bool]
 ):
     # (...) -> ContextManager
     """
@@ -890,6 +897,8 @@ def make_preparer(
     required_args, required_kwargs = get_allowed_args(preparer_fn)  # type: ignore
     if not req_tracker and not req_tracker_fn and "req_tracker" in required_args:
         raise TypeError("No requirement tracker and no req tracker generator found!")
+    if not build_tracker and not build_tracker_fn and "build_tracker" in required_args:
+        raise TypeError("No build tracker and no build tracker generator found!")
     if "downloader" in required_args and not downloader_provider:
         raise TypeError("no downloader provided, but one is required to continue!")
     pip_options_created = options is None
@@ -934,19 +943,27 @@ def make_preparer(
         preparer_args["in_tree_build"] = True
     if "verbosity" in required_args:
         preparer_args["verbosity"] = verbosity
-    req_tracker_fn = resolve_possible_shim(req_tracker_fn)
-    req_tracker_fn = nullcontext if not req_tracker_fn else req_tracker_fn
-    with req_tracker_fn() as tracker_ctx:
-        if "req_tracker" in required_args:
+    if "check_build_deps" in required_args:
+        preparer_args["check_build_deps"] = check_build_deps
+
+    if "build_tracker" in required_args:
+        build_tracker_fn = resolve_possible_shim(build_tracker_fn)
+        build_tracker_fn = nullcontext if not build_tracker_fn else build_tracker_fn
+        with build_tracker_fn() as tracker_ctx:
+            build_tracker = tracker_ctx if build_tracker is None else build_tracker
+            preparer_args["build_tracker"] = build_tracker
+            preparer_args["lazy_wheel"] = True
+            result = call_function_with_correct_args(preparer_fn, **preparer_args)
+            yield result
+    if "req_tracker" in required_args:
+        req_tracker_fn = resolve_possible_shim(req_tracker_fn)
+        req_tracker_fn = nullcontext if not req_tracker_fn else req_tracker_fn
+        with req_tracker_fn() as tracker_ctx:
             req_tracker = tracker_ctx if req_tracker is None else req_tracker
             preparer_args["req_tracker"] = req_tracker
-        if "build_tracker" in required_args:
-            req_tracker = tracker_ctx if req_tracker is None else req_tracker
-            build_tracker = req_tracker if build_tracker is None else build_tracker
-            preparer_args["build_tracker"] = build_tracker
-        preparer_args["lazy_wheel"] = True
-        result = call_function_with_correct_args(preparer_fn, **preparer_args)
-        yield result
+            preparer_args["lazy_wheel"] = True
+            result = call_function_with_correct_args(preparer_fn, **preparer_args)
+            yield result
 
 
 @contextlib.contextmanager
@@ -1351,14 +1368,6 @@ def resolve(  # noqa:C901
             wheel_download_dir=wheel_download_dir,
             **kwargs,
         )  # type: ignore
-        if getattr(reqset, "prepare_files", None):
-            reqset.add_requirement(ireq)
-            results = reqset.prepare_files(finder)
-            result = reqset.requirements
-            reqset.cleanup_files()
-            return result
-        if make_preparer_provider is None:
-            raise TypeError("Cannot create requirement preparer, cannot resolve!")
 
         preparer_args = {
             "build_dir": kwargs["build_dir"],
@@ -1401,12 +1410,26 @@ def resolve(  # noqa:C901
         _, required_resolver_args = get_method_args(resolver.resolve)
         resolver_args = []
         if "requirement_set" in required_resolver_args.args:
-            reqset.add_requirement(ireq)
+            if hasattr(reqset, "add_requirement"):
+                reqset.add_requirement(ireq)
+            else:  # Pip >= 22.1.0
+                resolver._add_requirement_to_set(reqset, ireq)
             resolver_args.append(reqset)
         elif "root_reqs" in required_resolver_args.args:
             resolver_args.append([ireq])
         if "check_supported_wheels" in required_resolver_args.args:
             resolver_args.append(check_supported_wheels)
+        if getattr(reqset, "prepare_files", None):
+            if hasattr(reqset, "add_requirement"):
+                reqset.add_requirement(ireq)
+            else:  # Pip >= 22.1.0
+                resolver._add_requirement_to_set(reqset, ireq)
+            results = reqset.prepare_files(finder)
+            result = reqset.requirements
+            reqset.cleanup_files()
+            return result
+        if make_preparer_provider is None:
+            raise TypeError("Cannot create requirement preparer, cannot resolve!")
         result_reqset = resolver.resolve(*resolver_args)  # type: ignore
         if result_reqset is None:
             result_reqset = reqset

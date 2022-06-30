@@ -1565,13 +1565,30 @@ build-backend = "{1}"
             }
             call_function_with_correct_args(build_location_func, **build_kwargs)
             ireq.ensure_has_source_dir(kwargs["src_dir"])
-            pip_shims.shims.shim_unpack(
-                download_dir=download_dir,
-                ireq=ireq,
-                only_download=only_download,
-                session=session,
-                hashes=ireq.hashes(False),
-            )
+            try:  # Support for pip >= 21.1
+                from pipenv.patched.notpip._internal.network.download import Downloader
+
+                from pipenv.vendor.requirementslib.models.old_pip_utils import old_unpack_url
+
+                location = None
+                if getattr(ireq, "source_dir", None):
+                    location = ireq.source_dir
+                old_unpack_url(
+                    link=ireq.link,
+                    location=location,
+                    download=Downloader(session, "off"),
+                    verbosity=1,
+                    download_dir=download_dir,
+                    hashes=ireq.hashes(True),
+                )
+            except ImportError:
+                pip_shims.shims.shim_unpack(
+                    download_dir=download_dir,
+                    ireq=ireq,
+                    only_download=only_download,
+                    session=session,
+                    hashes=ireq.hashes(False),
+                )
         created = cls.create(
             ireq.source_dir, subdirectory=subdir, ireq=ireq, kwargs=kwargs, stack=stack
         )

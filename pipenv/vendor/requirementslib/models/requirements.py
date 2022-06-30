@@ -1025,7 +1025,7 @@ class Line(object):
                         name, _, _ = name.partition("&")
             if name is None and self.is_named:
                 name = self._parse_name_from_line()
-            elif name is None and self.is_file or self.is_remote_url or self.is_path:
+            elif name is None and (self.is_file or self.is_remote_url or self.is_path):
                 if self.is_local:
                     name = self._parse_name_from_path()
             if name is not None:
