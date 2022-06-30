@@ -31,7 +31,6 @@ extras = {
     "dev": [
         "towncrier",
         "bs4",
-        "twine",
         "sphinx",
         "flake8>=3.3.0,<4.0",
         "black;python_version>='3.7'",
@@ -40,72 +39,6 @@ extras = {
     ],
     "tests": ["pytest>=5.0", "pytest-timeout", "pytest-xdist", "flaky", "mock"],
 }
-
-
-# https://pypi.python.org/pypi/stdeb/0.8.5#quickstart-2-just-tell-me-the-fastest-way-to-make-a-deb
-class DebCommand(Command):
-    """Support for setup.py deb"""
-
-    description = "Build and publish the .deb package."
-    user_options = []
-
-    @staticmethod
-    def status(s):
-        """Prints things in bold."""
-        print(f"\033[1m{s}\033[0m")
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        try:
-            self.status("Removing previous builds...")
-            rmtree(os.path.join(here, "deb_dist"))
-        except FileNotFoundError:
-            pass
-        self.status("Creating debian mainfest...")
-        os.system(
-            "python setup.py --command-packages=stdeb.command sdist_dsc -z artful --package3=pipenv --depends3=python3-virtualenv-clone"
-        )
-        self.status("Building .deb...")
-        os.chdir("deb_dist/pipenv-{}".format(about["__version__"]))
-        os.system("dpkg-buildpackage -rfakeroot -uc -us")
-
-
-class UploadCommand(Command):
-    """Support setup.py upload."""
-
-    description = "Build and publish the package."
-    user_options = []
-
-    @staticmethod
-    def status(s):
-        """Prints things in bold."""
-        print(f"\033[1m{s}\033[0m")
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        try:
-            self.status("Removing previous builds...")
-            rmtree(os.path.join(here, "dist"))
-        except FileNotFoundError:
-            pass
-        self.status("Building Source distribution...")
-        os.system(f"{sys.executable} setup.py sdist bdist_wheel")
-        self.status("Uploading the package to PyPI via Twine...")
-        os.system("twine upload dist/*")
-        self.status("Pushing git tags...")
-        os.system("git tag v{}".format(about["__version__"]))
-        os.system("git push --tags")
-        sys.exit()
 
 
 setup(
@@ -154,5 +87,4 @@ setup(
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: Implementation :: PyPy",
     ],
-    cmdclass={"upload": UploadCommand, "deb": DebCommand},
 )
