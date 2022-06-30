@@ -56,47 +56,6 @@ if MYPY_RUNNING:
     )
 
 
-PIP_VERSION_SET = {
-    "7.0.0",
-    "7.0.1",
-    "7.0.2",
-    "7.0.3",
-    "7.1.0",
-    "7.1.1",
-    "7.1.2",
-    "8.0.0",
-    "8.0.1",
-    "8.0.2",
-    "8.0.3",
-    "8.1.0",
-    "8.1.1",
-    "8.1.2",
-    "9.0.0",
-    "9.0.1",
-    "9.0.2",
-    "9.0.3",
-    "10.0.0",
-    "10.0.1",
-    "18.0",
-    "18.1",
-    "19.0",
-    "19.0.1",
-    "19.0.2",
-    "19.0.3",
-    "19.1",
-    "19.1.1",
-    "19.2",
-    "19.2.1",
-    "19.2.2",
-    "19.2.3",
-    "19.3",
-    "19.3.1",
-    "20.0",
-    "20.0.1",
-    "20.0.2",
-}
-
-
 ImportTypesBase = collections.namedtuple(
     "ImportTypes", ["FUNCTION", "CLASS", "MODULE", "CONTEXTMANAGER"]
 )
@@ -992,6 +951,9 @@ RequirementPreparer.create_path("operations.prepare.RequirementPreparer", "7", "
 RequirementSet = ShimmedPathCollection("RequirementSet", ImportTypes.CLASS)
 RequirementSet.create_path("req.req_set.RequirementSet", "7.0.0", "9999")
 
+BuildTracker = ShimmedPathCollection("BuildTracker", ImportTypes.CONTEXTMANAGER)
+BuildTracker.create_path("operations.build.build_tracker.BuildTracker", "22.1", "9999")
+
 RequirementTracker = ShimmedPathCollection(
     "RequirementTracker", ImportTypes.CONTEXTMANAGER
 )
@@ -1021,10 +983,17 @@ get_requirement_tracker = ShimmedPathCollection(
     "get_requirement_tracker", ImportTypes.CONTEXTMANAGER
 )
 get_requirement_tracker.set_default(
-    functools.partial(compat.get_requirement_tracker, RequirementTracker.shim())
+    functools.partial(compat.get_tracker, RequirementTracker.shim())
 )
 get_requirement_tracker.create_path(
     "req.req_tracker.get_requirement_tracker", "7.0.0", "9999"
+)
+get_build_tracker = ShimmedPathCollection("get_build_tracker", ImportTypes.CONTEXTMANAGER)
+get_build_tracker.set_default(
+    functools.partial(compat.get_tracker, BuildTracker.shim(), tracker_type="BUILD")
+)
+get_build_tracker.create_path(
+    "operations.build.build_tracker.get_build_tracker", "7.0.0", "9999"
 )
 
 Resolver = ShimmedPathCollection("Resolver", ImportTypes.CLASS)
@@ -1137,6 +1106,7 @@ make_preparer.set_default(
         install_cmd_provider=InstallCommand,
         preparer_fn=RequirementPreparer,
         downloader_provider=Downloader,
+        build_tracker_fn=get_build_tracker,
         req_tracker_fn=get_requirement_tracker,
         finder_provider=get_package_finder,
     )
