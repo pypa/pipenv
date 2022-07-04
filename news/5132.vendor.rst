@@ -1,1 +1,0 @@
-Vendor in the latest version of ``requirementslib==1.6.5`` which includes bug fixes for beta python versions, projects with an at sign (@) in the path, and a ``setuptools`` deprecation warning.

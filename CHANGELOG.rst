@@ -1,3 +1,29 @@
+2022.7.4 (2022-07-04)
+=====================
+
+
+Behavior Changes
+----------------
+
+- Adjust ``pipenv requirements`` to add markers and add an ``--exclude-markers`` option to allow the exclusion of markers.  `#5092 <https://github.com/pypa/pipenv/issues/5092>`_
+
+Bug Fixes
+---------
+
+- Stopped expanding environment variables when using ``pipenv requirements``  `#5134 <https://github.com/pypa/pipenv/issues/5134>`_
+
+Vendored Libraries
+------------------
+
+- Depend on ``requests`` and ``certifi`` from vendored ``pip`` and remove them as explicit vendor dependencies.  `#5000 <https://github.com/pypa/pipenv/issues/5000>`_
+- Vendor in the latest version of ``requirementslib==1.6.5`` which includes bug fixes for beta python versions, projects with an at sign (@) in the path, and a ``setuptools`` deprecation warning.  `#5132 <https://github.com/pypa/pipenv/issues/5132>`_
+
+Relates to dev process changes
+------------------------------
+
+- Switch from using type comments to type annotations.
+
+
 2022.5.3.dev0 (2022-06-07)
 ==========================
 
