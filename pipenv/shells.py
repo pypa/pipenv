@@ -97,30 +97,35 @@ class Shell:
             _handover(self.cmd, self.args + list(args))
 
     def fork_compat(self, venv, cwd, args):
-        from .vendor import pexpect
-
-        # Grab current terminal dimensions to replace the hardcoded default
-        # dimensions of pexpect.
+        # Grab current terminal dimensions to replace the hardcoded default dimensions.
         dims = get_terminal_size()
         with temp_environ():
-            c = pexpect.spawn(self.cmd, ["-i"], dimensions=(dims.lines, dims.columns))
-        c.sendline(_get_activate_script(self.cmd, venv))
-        if args:
-            c.sendline(" ".join(args))
+            if os.name == "nt":
+                from .vendor import wexpect
 
-        # Handler for terminal resizing events
-        # Must be defined here to have the shell process in its context, since
-        # we can't pass it as an argument
-        def sigwinch_passthrough(sig, data):
-            dims = get_terminal_size()
-            c.setwinsize(dims.lines, dims.columns)
+                c = wexpect.spawn(self.cmd, ["-i"], dimensions=(dims.lines, dims.columns))
+            else:
+                from .vendor import pexpect
 
-        signal.signal(signal.SIGWINCH, sigwinch_passthrough)
+                c = pexpect.spawn(self.cmd, ["-i"], dimensions=(dims.lines, dims.columns))
 
-        # Interact with the new shell.
-        c.interact(escape_character=None)
-        c.close()
-        sys.exit(c.exitstatus)
+            c.sendline(_get_activate_script(self.cmd, venv))
+            if args:
+                c.sendline(" ".join(args))
+
+            # Handler for terminal resizing events
+            # Must be defined here to have the shell process in its context, since
+            # we can't pass it as an argument
+            def sigwinch_passthrough(sig, data):
+                dims = get_terminal_size()
+                c.setwinsize(dims.lines, dims.columns)
+
+            signal.signal(signal.SIGWINCH, sigwinch_passthrough)
+
+            # Interact with the new shell.
+            c.interact(escape_character=None)
+            c.close()
+            sys.exit(c.exitstatus)
 
 
 POSSIBLE_ENV_PYTHON = [Path("bin", "python"), Path("Scripts", "python.exe")]
