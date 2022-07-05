@@ -36,5 +36,6 @@ tomlkit==0.7.2
 urllib3==1.26.6
 vistir==0.5.2
 wheel==0.36.2
+wexpect==4.0.0
 yaspin==2.0.0
 zipp==3.5.0
