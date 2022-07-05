@@ -126,7 +126,6 @@ def test_local_vcs_urls_work(PipenvInstance, tmpdir):
 @pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
-@pytest.mark.skip_windows  # FIXME: https://github.com/pypa/pipenv/issues/5064
 def test_editable_vcs_install(PipenvInstance_NoPyPI):
     with PipenvInstance_NoPyPI(chdir=True) as p:
         c = p.pipenv(
@@ -147,7 +146,6 @@ def test_editable_vcs_install(PipenvInstance_NoPyPI):
 @pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
-@pytest.mark.skip_windows  # FIXME: https://github.com/pypa/pipenv/issues/5064
 def test_install_editable_git_tag(PipenvInstance_NoPyPI):
     # This uses the real PyPI since we need Internet to access the Git
     # dependency anyway.
@@ -242,7 +240,6 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance):
 @pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
-@pytest.mark.skip_windows  # FIXME: https://github.com/pypa/pipenv/issues/5064
 def test_get_vcs_refs(PipenvInstance_NoPyPI):
     with PipenvInstance_NoPyPI(chdir=True) as p:
         c = p.pipenv(
