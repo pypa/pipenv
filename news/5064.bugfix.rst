@@ -1,0 +1,1 @@
+Re-enabled three installs tests again on the Windows CI as recent refactor work has fixed them.
