@@ -118,7 +118,6 @@ setup(
 @pytest.mark.e
 @pytest.mark.local
 @pytest.mark.install
-@pytest.mark.skip(reason="this doesn't work on windows")
 def test_e_dot(PipenvInstance, pip_src_dir):
     with PipenvInstance() as p:
         path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -129,6 +128,7 @@ def test_e_dot(PipenvInstance, pip_src_dir):
         key = [k for k in p.pipfile["dev-packages"].keys()][0]
         assert "path" in p.pipfile["dev-packages"][key]
         assert "requests" in p.lockfile["develop"]
+
 
 @pytest.mark.install
 @pytest.mark.multiprocessing
