@@ -720,7 +720,6 @@ def batch_install(
     if sequential_deps is None:
         sequential_deps = []
     failed = not retry
-    install_deps = not no_deps
     if not failed:
         label = INSTALL_LABEL if not environments.PIPENV_HIDE_EMOJIS else ""
     else:
@@ -755,8 +754,9 @@ def batch_install(
         elif dep.is_vcs:
             is_artifact = True
         if not project.s.PIPENV_RESOLVE_VCS and is_artifact and not dep.editable:
-            install_deps = True
-            no_deps = False
+            skip_dependencies = False
+        else:
+            skip_dependencies = no_deps
 
         with vistir.contextmanagers.temp_environ():
             if not allow_global:
@@ -776,7 +776,7 @@ def batch_install(
                 dep,
                 ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
                 allow_global=allow_global,
-                no_deps=not install_deps,
+                no_deps=skip_dependencies,
                 block=is_blocking,
                 index=dep.index,
                 requirements_dir=requirements_dir,
@@ -838,8 +838,6 @@ def do_install_dependencies(
                     bold=True,
                 )
             )
-    # Allow pip to resolve dependencies when in skip-lock mode.
-    no_deps = not skip_lock  # skip_lock true, no_deps False, pip resolves deps
     dev = dev or dev_only
     deps_list = list(lockfile.get_requirements(dev=dev, only=dev_only))
     if emit_requirements:
@@ -862,7 +860,7 @@ def do_install_dependencies(
     editable_or_vcs_deps = [dep for dep in deps_list if (dep.editable or dep.vcs)]
     normal_deps = [dep for dep in deps_list if not (dep.editable or dep.vcs)]
     install_kwargs = {
-        "no_deps": no_deps,
+        "no_deps": not skip_lock,
         "ignore_hashes": ignore_hashes,
         "allow_global": allow_global,
         "blocking": not concurrent,
@@ -1459,7 +1457,7 @@ def pip_install(
     r=None,
     allow_global=False,
     ignore_hashes=False,
-    no_deps=None,
+    no_deps=False,
     block=True,
     index=None,
     pre=False,
@@ -1503,14 +1501,6 @@ def pip_install(
                 extra_indexes = list(project.sources)
     if requirement and requirement.vcs or requirement.editable:
         requirement.index = None
-        # Install dependencies when a package is a non-editable VCS dependency.
-        # Don't specify a source directory when using --system.
-        if not requirement.editable and no_deps is not True:
-            # Leave this off because old Pipfile.lock don't have all deps included
-            # TODO: When can it be turned back on?
-            no_deps = False
-        elif requirement.editable and no_deps is None:
-            no_deps = True
 
     r = write_requirement_to_file(
         project,
@@ -2149,7 +2139,6 @@ def do_install(
                         )
                     )
                     sys.exit(1)
-                no_deps = False
                 sp.text = "Installing..."
                 try:
                     sp.text = f"Installing {pkg_requirement.name}..."
@@ -2163,7 +2152,7 @@ def do_install(
                         ignore_hashes=True,
                         allow_global=system,
                         selective_upgrade=selective_upgrade,
-                        no_deps=no_deps,
+                        no_deps=False,
                         pre=pre,
                         requirements_dir=requirements_directory,
                         index=index_url,
