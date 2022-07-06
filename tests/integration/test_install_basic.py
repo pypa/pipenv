@@ -31,7 +31,6 @@ def test_basic_setup(PipenvInstance):
 @flaky
 @pytest.mark.basic
 @pytest.mark.install
-@pytest.mark.skip_osx
 def test_basic_install(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv("install requests")
@@ -81,18 +80,6 @@ def test_bad_mirror_install(PipenvInstance):
         os.environ.pop("PIPENV_TEST_INDEX", None)
         c = p.pipenv("install requests --pypi-mirror https://pypi.example.org")
         assert c.returncode != 0
-
-
-@pytest.mark.lock
-@pytest.mark.complex
-@pytest.mark.skip(reason="Does not work unless you can explicitly install into py2")
-def test_complex_lock(PipenvInstance):
-    with PipenvInstance() as p:
-        c = p.pipenv("install apscheduler")
-        assert c.returncode == 0
-        assert "apscheduler" in p.pipfile["packages"]
-        assert "funcsigs" in p.lockfile["default"]
-        assert "futures" in p.lockfile["default"]
 
 
 @flaky
@@ -313,7 +300,6 @@ def test_requirements_to_pipfile(PipenvInstance, pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-@pytest.mark.skip_osx
 @pytest.mark.requirements
 def test_skip_requirements_when_pipfile(PipenvInstance):
     """Ensure requirements.txt is NOT imported when

@@ -311,31 +311,6 @@ requests = {version = "*", extras = ["socks"]}
         assert "extra == 'socks'" not in c.stdout.strip()
 
 
-@pytest.mark.lock
-@pytest.mark.extras
-@pytest.mark.complex
-@pytest.mark.needs_internet
-@pytest.mark.skip(reason='Needs numpy to be mocked')
-def test_complex_lock_deep_extras(PipenvInstance):
-    # records[pandas] requires tablib[pandas] which requires pandas.
-    # This uses the real PyPI; Pandas has too many requirements to mock.
-
-    with PipenvInstance() as p:
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
-[packages]
-records = {extras = ["pandas"], version = "==0.5.2"}
-            """.strip()
-            f.write(contents)
-
-        c = p.pipenv('install')
-        assert c.returncode == 0
-        c = p.pipenv('lock')
-        assert c.returncode == 0
-        assert 'tablib' in p.lockfile['default']
-        assert 'pandas' in p.lockfile['default']
-
-
 @pytest.mark.index
 @pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.skip_lock
@@ -605,25 +580,6 @@ requests = {git = "%s", editable = true, markers = "python_version >= '2.6'"}
         assert 'certifi' in p.lockfile['default']
         c = p.pipenv('install')
         assert c.returncode == 0
-
-
-@pytest.mark.lock
-@pytest.mark.skip(reason="This doesn't work for some reason.")
-def test_lock_respecting_python_version(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
-            f.write("""
-[packages]
-django = "*"
-            """.strip())
-        c = p.pipenv('install ')
-        assert c.returncode == 0
-        c = p.pipenv('run python --version')
-        assert c.returncode == 0
-        py_version = c.stderr.splitlines()[-1].strip().split()[-1]
-        django_version = '==2.0.6' if py_version.startswith('3') else '==1.11.13'
-        assert py_version == '2.7.14'
-        assert p.lockfile['default']['django']['version'] == django_version
 
 
 @pytest.mark.lock
