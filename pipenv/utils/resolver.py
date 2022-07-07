@@ -632,11 +632,11 @@ class Resolver:
     def get_resolver(self, clear=False):
         from pipenv.vendor.pip_shims.shims import (
             WheelCache,
-            get_requirement_tracker,
+            get_build_tracker,
             global_tempdir_manager,
         )
 
-        with global_tempdir_manager(), get_requirement_tracker() as req_tracker, TemporaryDirectory(
+        with global_tempdir_manager(), get_build_tracker() as build_tracker, TemporaryDirectory(
             suffix="-build", prefix="pipenv-"
         ) as directory:
             pip_options = self.pip_options
@@ -646,7 +646,7 @@ class Resolver:
             preparer = self.pip_command.make_requirement_preparer(
                 temp_build_dir=directory,
                 options=pip_options,
-                req_tracker=req_tracker,
+                build_tracker=build_tracker,
                 session=self.session,
                 finder=finder,
                 use_user_site=False,
