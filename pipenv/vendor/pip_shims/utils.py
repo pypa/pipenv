@@ -11,7 +11,7 @@ import sys
 from collections.abc import Callable
 from functools import wraps
 
-import packaging.version
+from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion, parse
 
 from .environment import MYPY_RUNNING
 
@@ -107,10 +107,10 @@ def _parse(version):
 
 @memoize
 def parse_version(version):
-    # type: (str) -> packaging.version._BaseVersion
+    # type: (str) -> _BaseVersion
     if not isinstance(version, STRING_TYPES):
         raise TypeError("Can only derive versions from string, got {!r}".format(version))
-    return packaging.version.parse(version)
+    return parse(version)
 
 
 @memoize
@@ -130,10 +130,10 @@ def split_package(module, subimport=None):
     :Example:
 
     >>> from pip_shims.utils import split_package
-    >>> split_package("pip._internal.req.req_install", subimport="InstallRequirement")
-    ("pip._internal.req.req_install", "InstallRequirement")
-    >>> split_package("pip._internal.cli.base_command")
-    ("pip._internal.cli", "base_command")
+    >>> split_package("pipenv.patched.notpip._internal.req.req_install", subimport="InstallRequirement")
+    ("pipenv.patched.notpip._internal.req.req_install", "InstallRequirement")
+    >>> split_package("pipenv.patched.notpip._internal.cli.base_command")
+    ("pipenv.patched.notpip._internal.cli", "base_command")
     """
     package = None
     if subimport:

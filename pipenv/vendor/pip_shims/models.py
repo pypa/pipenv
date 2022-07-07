@@ -36,7 +36,7 @@ from .utils import (
 )
 
 if MYPY_RUNNING:
-    import packaging.version
+    from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion
 
     Module = types.ModuleType
     from typing import (  # noqa:F811
@@ -115,7 +115,7 @@ class PipVersion(Sequence):
         return self.version_tuple[item]
 
     def _parse(self):
-        # type: () -> packaging.version._BaseVersion
+        # type: () -> _BaseVersion
         return parse_version(self.version)
 
     def __hash__(self):

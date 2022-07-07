@@ -1138,7 +1138,7 @@ def do_lock(
 
     # Support for --keep-outdated...
     if keep_outdated:
-        from pipenv.vendor.packaging.utils import canonicalize_name
+        from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
         for section_name, section in (
             ("default", project.packages),
@@ -1370,7 +1370,7 @@ def get_pip_args(
     selective_upgrade: bool = False,
     src_dir: Optional[str] = None,
 ) -> List[str]:
-    from .vendor.packaging.version import parse as parse_version
+    from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
 
     arg_map = {
         "pre": ["--pre"],
@@ -1846,7 +1846,8 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
     from collections import namedtuple
     from collections.abc import Mapping
 
-    from .vendor.packaging.utils import canonicalize_name
+    from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+
     from .vendor.requirementslib.models.requirements import Requirement
     from .vendor.requirementslib.models.utils import get_version
 
@@ -2284,7 +2285,8 @@ def do_uninstall(
     pypi_mirror=None,
     ctx=None,
 ):
-    from .vendor.packaging.utils import canonicalize_name
+    from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+
     from .vendor.requirementslib.models.requirements import Requirement
 
     # Automatically use an activated virtualenv.
@@ -2994,7 +2996,7 @@ def do_clean(
     system=False,
 ):
     # Ensure that virtualenv is available.
-    from packaging.utils import canonicalize_name
+    from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
     ensure_project(
         project, three=three, python=python, validate=False, pypi_mirror=pypi_mirror

@@ -7,10 +7,7 @@ from contextlib import contextmanager
 from socket import error as SocketError
 from socket import timeout as SocketTimeout
 
-try:
-    import brotli
-except ImportError:
-    brotli = None
+brotli = None
 
 from ._collections import HTTPHeaderDict
 from .connection import BaseSSLError, HTTPException

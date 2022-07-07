@@ -74,14 +74,10 @@ class VcsInfo:
         vcs: str,
         commit_id: str,
         requested_revision: Optional[str] = None,
-        resolved_revision: Optional[str] = None,
-        resolved_revision_type: Optional[str] = None,
     ) -> None:
         self.vcs = vcs
         self.requested_revision = requested_revision
         self.commit_id = commit_id
-        self.resolved_revision = resolved_revision
-        self.resolved_revision_type = resolved_revision_type
 
     @classmethod
     def _from_dict(cls, d: Optional[Dict[str, Any]]) -> Optional["VcsInfo"]:
@@ -91,8 +87,6 @@ class VcsInfo:
             vcs=_get_required(d, str, "vcs"),
             commit_id=_get_required(d, str, "commit_id"),
             requested_revision=_get(d, str, "requested_revision"),
-            resolved_revision=_get(d, str, "resolved_revision"),
-            resolved_revision_type=_get(d, str, "resolved_revision_type"),
         )
 
     def _to_dict(self) -> Dict[str, Any]:
@@ -100,8 +94,6 @@ class VcsInfo:
             vcs=self.vcs,
             requested_revision=self.requested_revision,
             commit_id=self.commit_id,
-            resolved_revision=self.resolved_revision,
-            resolved_revision_type=self.resolved_revision_type,
         )
 
 

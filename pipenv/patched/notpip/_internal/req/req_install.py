@@ -46,6 +46,7 @@ from pipenv.patched.notpip._internal.utils.direct_url_helpers import (
 )
 from pipenv.patched.notpip._internal.utils.hashes import Hashes
 from pipenv.patched.notpip._internal.utils.misc import (
+    ConfiguredPep517HookCaller,
     ask_path_exists,
     backup_dir,
     display_path,
@@ -80,6 +81,7 @@ class InstallRequirement:
         install_options: Optional[List[str]] = None,
         global_options: Optional[List[str]] = None,
         hash_options: Optional[Dict[str, List[str]]] = None,
+        config_settings: Optional[Dict[str, str]] = None,
         constraint: bool = False,
         extras: Collection[str] = (),
         user_supplied: bool = False,
@@ -138,6 +140,7 @@ class InstallRequirement:
         self.install_options = install_options if install_options else []
         self.global_options = global_options if global_options else []
         self.hash_options = hash_options if hash_options else {}
+        self.config_settings = config_settings
         # Set to True after successful preparation of this requirement
         self.prepared = False
         # User supplied requirement are explicitly requested for installation
@@ -470,7 +473,8 @@ class InstallRequirement:
         requires, backend, check, backend_path = pyproject_toml_data
         self.requirements_to_check = check
         self.pyproject_requires = requires
-        self.pep517_backend = Pep517HookCaller(
+        self.pep517_backend = ConfiguredPep517HookCaller(
+            self,
             self.unpacked_source_directory,
             backend,
             backend_path=backend_path,

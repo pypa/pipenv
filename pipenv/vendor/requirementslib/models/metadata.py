@@ -15,13 +15,13 @@ import pipenv.vendor.attr as attr
 import dateutil.parser
 import distlib.metadata
 import distlib.wheel
-import packaging.version
 import pipenv.patched.notpip._vendor.requests as requests
 import pipenv.vendor.vistir as vistir
-from pipenv.vendor.packaging.markers import Marker
-from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
-from pipenv.vendor.packaging.specifiers import Specifier, SpecifierSet
-from pipenv.vendor.packaging.tags import Tag
+from pipenv.patched.notpip._vendor.packaging.markers import Marker
+from pipenv.patched.notpip._vendor.packaging.requirements import Requirement as PackagingRequirement
+from pipenv.patched.notpip._vendor.packaging.specifiers import Specifier, SpecifierSet
+from pipenv.patched.notpip._vendor.packaging.tags import Tag
+from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion, parse
 
 from ..environment import MYPY_RUNNING
 from .markers import (
@@ -776,8 +776,8 @@ class Release(Sequence):
 
     @property
     def parsed_version(self):
-        # type: () -> packaging.version._BaseVersion
-        return packaging.version.parse(self.version)
+        # type: () -> _BaseVersion
+        return parse(self.version)
 
     @property
     def wheels(self):

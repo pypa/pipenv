@@ -15,9 +15,6 @@ import invoke
 import requests
 from urllib3.util import parse_url as urllib3_parse
 
-import pipenv.vendor.parse as parse
-from pipenv.vendor.vistir.contextmanagers import open_file
-
 TASK_NAME = "update"
 
 LIBRARY_DIRNAMES = {
@@ -72,6 +69,7 @@ LIBRARY_RENAMES = {
     "pip": "pipenv.patched.notpip",
     "functools32": "pipenv.vendor.backports.functools_lru_cache",
     "requests": "pipenv.patched.notpip._vendor.requests",
+    "packaging": "pipenv.patched.notpip._vendor.packaging",
 }
 
 GLOBAL_REPLACEMENT = [
@@ -508,6 +506,8 @@ def download_licenses(
     only=False,
     patched=False,
 ):
+    import pipenv.vendor.parse as parse
+
     log("Downloading licenses")
     if not vendor_dir:
         if patched:
@@ -743,9 +743,14 @@ def main(ctx, package=None, type=None):
     else:
         target_dirs = [vendor_dir, patched_dir]
     if package:
-        log("Using vendor dir: %s" % vendor_dir)
-        vendor(ctx, vendor_dir, package=package)
-        download_licenses(ctx, vendor_dir, package=package)
+        if type is None or type == "vendor":
+            log("Using vendor dir: %s" % vendor_dir)
+            vendor(ctx, vendor_dir, package=package)
+            download_licenses(ctx, vendor_dir, package=package)
+        elif type == "patched":
+            log("Using patched dir: %s" % patched_dir)
+            vendor(ctx, patched_dir, package=package)
+            download_licenses(ctx, patched_dir, package=package)
         log("Vendored %s" % package)
         return
     for package_dir in target_dirs:
@@ -770,6 +775,8 @@ def install_yaml(ctx):
 
 @invoke.task
 def vendor_artifact(ctx, package, version=None):
+    from pipenv.vendor.vistir.contextmanagers import open_file
+
     simple = requests.get(f"https://pypi.org/simple/{package}/")
     pkg_str = f"{package}-{version}"
     soup = bs4.BeautifulSoup(simple.content)

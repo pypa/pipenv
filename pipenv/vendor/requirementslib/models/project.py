@@ -7,11 +7,11 @@ import io
 import os
 
 import pipenv.vendor.attr as attr
-import packaging.markers
-import packaging.utils
 import pipenv.vendor.plette as plette
 import plette.models
 import pipenv.vendor.tomlkit as tomlkit
+from pipenv.patched.notpip._vendor.packaging.markers import Marker
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
 SectionDifference = collections.namedtuple("SectionDifference", ["inthis", "inthat"])
 FileDifference = collections.namedtuple("FileDifference", ["default", "develop"])
@@ -23,11 +23,11 @@ def _are_pipfile_entries_equal(a, b):
     if a != b:
         return False
     try:
-        marker_eval_a = packaging.markers.Marker(a["markers"]).evaluate()
+        marker_eval_a = Marker(a["markers"]).evaluate()
     except (AttributeError, KeyError, TypeError, ValueError):
         marker_eval_a = True
     try:
-        marker_eval_b = packaging.markers.Marker(b["markers"]).evaluate()
+        marker_eval_b = Marker(b["markers"]).evaluate()
     except (AttributeError, KeyError, TypeError, ValueError):
         marker_eval_b = True
     return marker_eval_a == marker_eval_b
@@ -129,10 +129,7 @@ class Project(object):
             self._get_pipfile_section(develop=True, insert=False),
         ]
         return any(
-            (
-                packaging.utils.canonicalize_name(name)
-                == packaging.utils.canonicalize_name(key)
-            )
+            (canonicalize_name(name) == canonicalize_name(key))
             for section in sections
             for name in section
         )
@@ -155,7 +152,7 @@ class Project(object):
         section[key] = entry
 
     def remove_keys_from_pipfile(self, keys, default, develop):
-        keys = {packaging.utils.canonicalize_name(key) for key in keys}
+        keys = {canonicalize_name(key) for key in keys}
         sections = []
         if default:
             sections.append(self._get_pipfile_section(develop=False, insert=False))
@@ -164,13 +161,13 @@ class Project(object):
         for section in sections:
             removals = set()
             for name in section:
-                if packaging.utils.canonicalize_name(name) in keys:
+                if canonicalize_name(name) in keys:
                     removals.add(name)
             for key in removals:
                 del section._data[key]
 
     def remove_keys_from_lockfile(self, keys):
-        keys = {packaging.utils.canonicalize_name(key) for key in keys}
+        keys = {canonicalize_name(key) for key in keys}
         removed = False
         for section_name in ("default", "develop"):
             try:
@@ -179,7 +176,7 @@ class Project(object):
                 continue
             removals = set()
             for name in section:
-                if packaging.utils.canonicalize_name(name) in keys:
+                if canonicalize_name(name) in keys:
                     removals.add(name)
             removed = removed or bool(removals)
             for key in removals:

@@ -355,16 +355,14 @@ class HTTPSConnection(HTTPConnection):
 
     def connect(self):
         # Add certificate verification
-        conn = self._new_conn()
+        self.sock = conn = self._new_conn()
         hostname = self.host
         tls_in_tls = False
 
         if self._is_using_tunnel():
             if self.tls_in_tls_required:
-                conn = self._connect_tls_proxy(hostname, conn)
+                self.sock = conn = self._connect_tls_proxy(hostname, conn)
                 tls_in_tls = True
-
-            self.sock = conn
 
             # Calls self._set_hostport(), so self.host is
             # self._tunnel_host below.

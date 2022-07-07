@@ -1,6 +1,6 @@
 import collections
 import logging
-from typing import Iterator, List, Optional, Sequence, Tuple
+from typing import Generator, List, Optional, Sequence, Tuple
 
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 
@@ -28,7 +28,7 @@ class InstallationResult:
 
 def _validate_requirements(
     requirements: List[InstallRequirement],
-) -> Iterator[Tuple[str, InstallRequirement]]:
+) -> Generator[Tuple[str, InstallRequirement], None, None]:
     for req in requirements:
         assert req.name, f"invalid to-be-installed requirement: {req}"
         yield req.name, req

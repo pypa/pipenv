@@ -27,10 +27,16 @@ class ConfigurationCommand(Command):
 
     - list: List the active configuration (or from the file specified)
     - edit: Edit the configuration file in an editor
-    - get: Get the value associated with name
-    - set: Set the name=value
-    - unset: Unset the value associated with name
+    - get: Get the value associated with command.option
+    - set: Set the command.option=value
+    - unset: Unset the value associated with command.option
     - debug: List the configuration files and values defined under them
+
+    Configuration keys should be dot separated command and option name,
+    with the special prefix "global" affecting any command. For example,
+    "pip config set global.index-url https://example.org/" would configure
+    the index url for all commands, but "pip config set download.timeout 10"
+    would configure a 10 second timeout only for "pip download" commands.
 
     If none of --user, --global and --site are passed, a virtual
     environment configuration file is used if one is active and the file
@@ -43,9 +49,9 @@ class ConfigurationCommand(Command):
         %prog [<file-option>] list
         %prog [<file-option>] [--editor <editor-path>] edit
 
-        %prog [<file-option>] get name
-        %prog [<file-option>] set name value
-        %prog [<file-option>] unset name
+        %prog [<file-option>] get command.option
+        %prog [<file-option>] set command.option value
+        %prog [<file-option>] unset command.option
         %prog [<file-option>] debug
     """
 
@@ -225,6 +231,10 @@ class ConfigurationCommand(Command):
 
         try:
             subprocess.check_call([editor, fname])
+        except FileNotFoundError as e:
+            if not e.filename:
+                e.filename = editor
+            raise
         except subprocess.CalledProcessError as e:
             raise PipError(
                 "Editor Subprocess exited with exit code {}".format(e.returncode)

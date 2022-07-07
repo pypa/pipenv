@@ -8,7 +8,7 @@ index 204a8ca2..546caab1 100644
      )
 +    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
      from pipenv.patched.notpip._internal.cli.main import main as _main
- 
+
      sys.exit(_main())
 diff --git a/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py b/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
 index 0ba06c52..6fdb59b7 100644
@@ -17,33 +17,33 @@ index 0ba06c52..6fdb59b7 100644
 @@ -2,6 +2,7 @@ import logging
  import sys
  from typing import TYPE_CHECKING, Any, FrozenSet, Iterable, Optional, Tuple, Union, cast
- 
+
 +from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
  from pipenv.patched.notpip._vendor.packaging.utils import NormalizedName, canonicalize_name
  from pipenv.patched.notpip._vendor.packaging.version import Version
 
 @@ -253,7 +253,10 @@ class _InstallRequirementBackedCandidate(Candidate):
         yield self._factory.make_requires_python_requirement(self.dist.requires_python)
- 
+
      def get_install_requirement(self) -> Optional[InstallRequirement]:
 -        return self._ireq
 +        ireq = self._ireq
 +        if self._version and ireq.req and not ireq.req.url:
 +            ireq.req.specifier = SpecifierSet(f"=={self._version}")
 +        return ireq
- 
- 
+
+
  class LinkCandidate(_InstallRequirementBackedCandidate):
 diff --git a/pipenv/patched/notpip/_internal/build_env.py b/pipenv/patched/notpip/_internal/build_env.py
 index 05457c5a..d8c66b3f 100644
 --- a/pipenv/patched/notpip/_internal/build_env.py
 +++ b/pipenv/patched/notpip/_internal/build_env.py
-@@ -17,7 +17,7 @@ from pipenv.patched.notpip._vendor.certifi import where
+@@ -16,7 +16,7 @@ from pipenv.patched.notpip._vendor.certifi import where
  from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
  from pipenv.patched.notpip._vendor.packaging.version import Version
- 
+
 -from pipenv.patched.notpip import __file__ as pip_location
 +from pip import __file__ as pip_location
  from pipenv.patched.notpip._internal.cli.spinners import open_spinner
  from pipenv.patched.notpip._internal.locations import get_platlib, get_prefixed_libs, get_purelib
- from pipenv.patched.notpip._internal.metadata import get_environment
+ from pipenv.patched.notpip._internal.metadata import get_default_environment, get_environment

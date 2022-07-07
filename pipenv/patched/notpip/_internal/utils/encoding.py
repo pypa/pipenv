@@ -14,7 +14,7 @@ BOMS: List[Tuple[bytes, str]] = [
     (codecs.BOM_UTF32_LE, "utf-32-le"),
 ]
 
-ENCODING_RE = re.compile(br"coding[:=]\s*([-\w.]+)")
+ENCODING_RE = re.compile(rb"coding[:=]\s*([-\w.]+)")
 
 
 def auto_decode(data: bytes) -> str:

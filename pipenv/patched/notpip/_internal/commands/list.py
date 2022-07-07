@@ -1,7 +1,7 @@
 import json
 import logging
 from optparse import Values
-from typing import TYPE_CHECKING, Iterator, List, Optional, Sequence, Tuple, cast
+from typing import TYPE_CHECKING, Generator, List, Optional, Sequence, Tuple, cast
 
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
@@ -222,7 +222,7 @@ class ListCommand(IndexGroupCommand):
 
     def iter_packages_latest_infos(
         self, packages: "_ProcessedDists", options: Values
-    ) -> Iterator["_DistWithLatestInfo"]:
+    ) -> Generator["_DistWithLatestInfo", None, None]:
         with self._build_session(options) as session:
             finder = self._build_package_finder(options, session)
 

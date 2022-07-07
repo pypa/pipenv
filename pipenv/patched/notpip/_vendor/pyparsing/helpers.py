@@ -185,7 +185,9 @@ def match_previous_expr(expr: ParserElement) -> ParserElement:
         def must_match_these_tokens(s, l, t):
             theseTokens = _flatten(t.as_list())
             if theseTokens != matchTokens:
-                raise ParseException(s, l, "Expected {}, found{}".format(matchTokens, theseTokens))
+                raise ParseException(
+                    s, l, "Expected {}, found{}".format(matchTokens, theseTokens)
+                )
 
         rep.set_parse_action(must_match_these_tokens, callDuringTry=True)
 
@@ -310,7 +312,7 @@ def one_of(
 
             return ret
 
-        except sre_constants.error:
+        except re.error:
             warnings.warn(
                 "Exception creating Regex for one_of, building MatchFirst", stacklevel=2
             )
@@ -350,10 +352,10 @@ def dict_of(key: ParserElement, value: ParserElement) -> ParserElement:
     prints::
 
         [['shape', 'SQUARE'], ['posn', 'upper left'], ['color', 'light blue'], ['texture', 'burlap']]
-        - color: light blue
-        - posn: upper left
-        - shape: SQUARE
-        - texture: burlap
+        - color: 'light blue'
+        - posn: 'upper left'
+        - shape: 'SQUARE'
+        - texture: 'burlap'
         SQUARE
         SQUARE
         {'color': 'light blue', 'shape': 'SQUARE', 'posn': 'upper left', 'texture': 'burlap'}
@@ -758,10 +760,14 @@ def infix_notation(
         a tuple or list of functions, this is equivalent to calling
         ``set_parse_action(*fn)``
         (:class:`ParserElement.set_parse_action`)
-    - ``lpar`` - expression for matching left-parentheses
-      (default= ``Suppress('(')``)
-    - ``rpar`` - expression for matching right-parentheses
-      (default= ``Suppress(')')``)
+    - ``lpar`` - expression for matching left-parentheses; if passed as a
+      str, then will be parsed as Suppress(lpar). If lpar is passed as
+      an expression (such as ``Literal('(')``), then it will be kept in
+      the parsed results, and grouped with them. (default= ``Suppress('(')``)
+    - ``rpar`` - expression for matching right-parentheses; if passed as a
+      str, then will be parsed as Suppress(rpar). If rpar is passed as
+      an expression (such as ``Literal(')')``), then it will be kept in
+      the parsed results, and grouped with them. (default= ``Suppress(')')``)
 
     Example::
 
@@ -803,9 +809,17 @@ def infix_notation(
     _FB.__name__ = "FollowedBy>"
 
     ret = Forward()
-    lpar = Suppress(lpar)
-    rpar = Suppress(rpar)
-    lastExpr = base_expr | (lpar + ret + rpar)
+    if isinstance(lpar, str):
+        lpar = Suppress(lpar)
+    if isinstance(rpar, str):
+        rpar = Suppress(rpar)
+
+    # if lpar and rpar are not suppressed, wrap in group
+    if not (isinstance(rpar, Suppress) and isinstance(rpar, Suppress)):
+        lastExpr = base_expr | Group(lpar + ret + rpar)
+    else:
+        lastExpr = base_expr | (lpar + ret + rpar)
+
     for i, operDef in enumerate(op_list):
         opExpr, arity, rightLeftAssoc, pa = (operDef + (None,))[:4]
         if isinstance(opExpr, str_type):

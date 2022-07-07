@@ -1,0 +1,4 @@
+Vendor in latest version of ``pip==22.1.2`` which upgrades ``pipenv`` from ``pip==22.0.4``.
+Vendor in latest version of ``requirementslib==1.6.7`` which includes a fix for tracebacks on encountering Annotated variables.
+Vendor in latest version of ``pip-shims==0.7.3`` such that imports could be rewritten to utilize ``packaging`` from vendor'd ``pip``.
+Drop the ``packaging`` requirement from the ``vendor`` directory in ``pipenv``.

@@ -65,9 +65,9 @@ class ParseResults:
         'month' in result -> True
         'minutes' in result -> False
         result.dump() -> ['1999', '/', '12', '/', '31']
-        - day: 31
-        - month: 12
-        - year: 1999
+        - day: '31'
+        - month: '12'
+        - year: '1999'
     """
 
     _null_values: Tuple[Any, ...] = (None, [], "", ())
@@ -301,7 +301,7 @@ class ParseResults:
         prints::
 
             ['AAB', '123', '321']
-            - LABEL: AAB
+            - LABEL: 'AAB'
 
             ['AAB', '123', '321']
         """
@@ -603,15 +603,15 @@ class ParseResults:
             integer = Word(nums)
             date_str = integer("year") + '/' + integer("month") + '/' + integer("day")
 
-            result = date_str.parse_string('12/31/1999')
+            result = date_str.parse_string('1999/12/31')
             print(result.dump())
 
         prints::
 
-            ['12', '/', '31', '/', '1999']
-            - day: 1999
-            - month: 31
-            - year: 12
+            ['1999', '/', '12', '/', '31']
+            - day: '31'
+            - month: '12'
+            - year: '1999'
         """
         out = []
         NL = "\n"

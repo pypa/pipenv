@@ -4,7 +4,7 @@ import logging
 import os.path
 import tempfile
 from contextlib import ExitStack, contextmanager
-from typing import Any, Dict, Iterator, Optional, TypeVar, Union
+from typing import Any, Dict, Generator, Optional, TypeVar, Union
 
 from pipenv.patched.notpip._internal.utils.misc import enum, rmtree
 
@@ -26,7 +26,7 @@ _tempdir_manager: Optional[ExitStack] = None
 
 
 @contextmanager
-def global_tempdir_manager() -> Iterator[None]:
+def global_tempdir_manager() -> Generator[None, None, None]:
     global _tempdir_manager
     with ExitStack() as stack:
         old_tempdir_manager, _tempdir_manager = _tempdir_manager, stack
@@ -59,7 +59,7 @@ _tempdir_registry: Optional[TempDirectoryTypeRegistry] = None
 
 
 @contextmanager
-def tempdir_registry() -> Iterator[TempDirectoryTypeRegistry]:
+def tempdir_registry() -> Generator[TempDirectoryTypeRegistry, None, None]:
     """Provides a scoped global tempdir registry that can be used to dictate
     whether directories should be deleted.
     """
@@ -200,7 +200,7 @@ class AdjacentTempDirectory(TempDirectory):
         super().__init__(delete=delete)
 
     @classmethod
-    def _generate_names(cls, name: str) -> Iterator[str]:
+    def _generate_names(cls, name: str) -> Generator[str, None, None]:
         """Generates a series of temporary names.
 
         The algorithm replaces the leading characters in the name

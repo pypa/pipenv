@@ -11,7 +11,7 @@ import re
 import sys
 import types
 
-from packaging import specifiers
+from pipenv.patched.notpip._vendor.packaging import specifiers
 
 from .environment import MYPY_RUNNING
 from .utils import (

@@ -33,12 +33,11 @@ from pipenv.patched.notpip._internal.network.lazy_wheel import (
     dist_from_wheel_url,
 )
 from pipenv.patched.notpip._internal.network.session import PipSession
+from pipenv.patched.notpip._internal.operations.build.build_tracker import BuildTracker
 from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
-from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker
-from pipenv.patched.notpip._internal.utils.filesystem import copy2_fixed
 from pipenv.patched.notpip._internal.utils.hashes import Hashes, MissingHashes
 from pipenv.patched.notpip._internal.utils.logging import indent_log
-from pipenv.patched.notpip._internal.utils.misc import display_path, hide_url, is_installable_dir, rmtree
+from pipenv.patched.notpip._internal.utils.misc import display_path, hide_url, is_installable_dir
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.notpip._internal.utils.unpacking import unpack_file
 from pipenv.patched.notpip._internal.vcs import vcs
@@ -48,14 +47,17 @@ logger = logging.getLogger(__name__)
 
 def _get_prepared_distribution(
     req: InstallRequirement,
-    req_tracker: RequirementTracker,
+    build_tracker: BuildTracker,
     finder: PackageFinder,
     build_isolation: bool,
+    check_build_deps: bool,
 ) -> BaseDistribution:
     """Prepare a distribution for installation."""
     abstract_dist = make_distribution_for_install_requirement(req)
-    with req_tracker.track(req):
-        abstract_dist.prepare_distribution_metadata(finder, build_isolation)
+    with build_tracker.track(req):
+        abstract_dist.prepare_distribution_metadata(
+            finder, build_isolation, check_build_deps
+        )
     return abstract_dist.get_metadata_distribution()
 
 
@@ -96,55 +98,6 @@ def get_http_url(
             hashes.check_against_path(from_path)
 
     return File(from_path, content_type)
-
-
-def _copy2_ignoring_special_files(src: str, dest: str) -> None:
-    """Copying special files is not supported, but as a convenience to users
-    we skip errors copying them. This supports tools that may create e.g.
-    socket files in the project source directory.
-    """
-    try:
-        copy2_fixed(src, dest)
-    except shutil.SpecialFileError as e:
-        # SpecialFileError may be raised due to either the source or
-        # destination. If the destination was the cause then we would actually
-        # care, but since the destination directory is deleted prior to
-        # copy we ignore all of them assuming it is caused by the source.
-        logger.warning(
-            "Ignoring special file error '%s' encountered copying %s to %s.",
-            str(e),
-            src,
-            dest,
-        )
-
-
-def _copy_source_tree(source: str, target: str) -> None:
-    target_abspath = os.path.abspath(target)
-    target_basename = os.path.basename(target_abspath)
-    target_dirname = os.path.dirname(target_abspath)
-
-    def ignore(d: str, names: List[str]) -> List[str]:
-        skipped: List[str] = []
-        if d == source:
-            # Pulling in those directories can potentially be very slow,
-            # exclude the following directories if they appear in the top
-            # level dir (and only it).
-            # See discussion at https://github.com/pypa/pip/pull/6770
-            skipped += [".tox", ".nox"]
-        if os.path.abspath(d) == target_dirname:
-            # Prevent an infinite recursion if the target is in source.
-            # This can happen when TMPDIR is set to ${PWD}/...
-            # and we copy PWD to TMPDIR.
-            skipped += [target_basename]
-        return skipped
-
-    shutil.copytree(
-        source,
-        target,
-        ignore=ignore,
-        symlinks=True,
-        copy_function=_copy2_ignoring_special_files,
-    )
 
 
 def get_file_url(
@@ -191,19 +144,7 @@ def unpack_url(
         unpack_vcs_link(link, location, verbosity=verbosity)
         return None
 
-    # Once out-of-tree-builds are no longer supported, could potentially
-    # replace the below condition with `assert not link.is_existing_dir`
-    # - unpack_url does not need to be called for in-tree-builds.
-    #
-    # As further cleanup, _copy_source_tree and accompanying tests can
-    # be removed.
-    #
-    # TODO when use-deprecated=out-of-tree-build is removed
-    if link.is_existing_dir():
-        if os.path.isdir(location):
-            rmtree(location)
-        _copy_source_tree(link.file_path, location)
-        return None
+    assert not link.is_existing_dir()
 
     # file urls
     if link.is_file:
@@ -261,7 +202,8 @@ class RequirementPreparer:
         download_dir: Optional[str],
         src_dir: str,
         build_isolation: bool,
-        req_tracker: RequirementTracker,
+        check_build_deps: bool,
+        build_tracker: BuildTracker,
         session: PipSession,
         progress_bar: str,
         finder: PackageFinder,
@@ -269,13 +211,12 @@ class RequirementPreparer:
         use_user_site: bool,
         lazy_wheel: bool,
         verbosity: int,
-        in_tree_build: bool,
     ) -> None:
         super().__init__()
 
         self.src_dir = src_dir
         self.build_dir = build_dir
-        self.req_tracker = req_tracker
+        self.build_tracker = build_tracker
         self._session = session
         self._download = Downloader(session, progress_bar)
         self._batch_download = BatchDownloader(session, progress_bar)
@@ -288,6 +229,9 @@ class RequirementPreparer:
         # Is build isolation allowed?
         self.build_isolation = build_isolation
 
+        # Should check build dependencies?
+        self.check_build_deps = check_build_deps
+
         # Should hash-checking be required?
         self.require_hashes = require_hashes
 
@@ -299,9 +243,6 @@ class RequirementPreparer:
 
         # How verbose should underlying tooling be?
         self.verbosity = verbosity
-
-        # Should in-tree builds be used for local paths?
-        self.in_tree_build = in_tree_build
 
         # Memoized downloaded files, as mapping of url: path.
         self._downloaded: Dict[str, str] = {}
@@ -336,7 +277,7 @@ class RequirementPreparer:
             # directory.
             return
         assert req.source_dir is None
-        if req.link.is_existing_dir() and self.in_tree_build:
+        if req.link.is_existing_dir():
             # build local directories in-tree
             req.source_dir = req.link.file_path
             return
@@ -525,7 +466,7 @@ class RequirementPreparer:
         self._ensure_link_req_src_dir(req, parallel_builds)
         hashes = self._get_linked_req_hashes(req)
 
-        if link.is_existing_dir() and self.in_tree_build:
+        if link.is_existing_dir():
             local_file = None
         elif link.url not in self._downloaded:
             try:
@@ -555,9 +496,10 @@ class RequirementPreparer:
 
         dist = _get_prepared_distribution(
             req,
-            self.req_tracker,
+            self.build_tracker,
             self.finder,
             self.build_isolation,
+            self.check_build_deps,
         )
         return dist
 
@@ -608,9 +550,10 @@ class RequirementPreparer:
 
             dist = _get_prepared_distribution(
                 req,
-                self.req_tracker,
+                self.build_tracker,
                 self.finder,
                 self.build_isolation,
+                self.check_build_deps,
             )
 
             req.check_if_exists(self.use_user_site)

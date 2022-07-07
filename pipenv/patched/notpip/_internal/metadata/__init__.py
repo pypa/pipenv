@@ -1,6 +1,17 @@
-from typing import List, Optional
+import contextlib
+import functools
+import os
+import sys
+from typing import TYPE_CHECKING, List, Optional, Type, cast
+
+from pipenv.patched.notpip._internal.utils.misc import strtobool
 
 from .base import BaseDistribution, BaseEnvironment, FilesystemWheel, MemoryWheel, Wheel
+
+if TYPE_CHECKING:
+    from typing import Protocol
+else:
+    Protocol = object
 
 __all__ = [
     "BaseDistribution",
@@ -11,7 +22,47 @@ __all__ = [
     "get_default_environment",
     "get_environment",
     "get_wheel_distribution",
+    "select_backend",
 ]
+
+
+def _should_use_importlib_metadata() -> bool:
+    """Whether to use the ``importlib.metadata`` or ``pkg_resources`` backend.
+
+    By default, pip uses ``importlib.metadata`` on Python 3.11+, and
+    ``pkg_resourcess`` otherwise. This can be overriden by a couple of ways:
+
+    * If environment variable ``_PIP_USE_IMPORTLIB_METADATA`` is set, it
+      dictates whether ``importlib.metadata`` is used, regardless of Python
+      version.
+    * On Python 3.11+, Python distributors can patch ``importlib.metadata``
+      to add a global constant ``_PIP_USE_IMPORTLIB_METADATA = False``. This
+      makes pip use ``pkg_resources`` (unless the user set the aforementioned
+      environment variable to *True*).
+    """
+    with contextlib.suppress(KeyError, ValueError):
+        return bool(strtobool(os.environ["_PIP_USE_IMPORTLIB_METADATA"]))
+    if sys.version_info < (3, 11):
+        return False
+    import importlib.metadata
+
+    return bool(getattr(importlib.metadata, "_PIP_USE_IMPORTLIB_METADATA", True))
+
+
+class Backend(Protocol):
+    Distribution: Type[BaseDistribution]
+    Environment: Type[BaseEnvironment]
+
+
+@functools.lru_cache(maxsize=None)
+def select_backend() -> Backend:
+    if _should_use_importlib_metadata():
+        from . import importlib
+
+        return cast(Backend, importlib)
+    from . import pkg_resources
+
+    return cast(Backend, pkg_resources)
 
 
 def get_default_environment() -> BaseEnvironment:
@@ -21,9 +72,7 @@ def get_default_environment() -> BaseEnvironment:
     Environment instance should be built from ``sys.path`` and may use caching
     to share instance state accorss calls.
     """
-    from .pkg_resources import Environment
-
-    return Environment.default()
+    return select_backend().Environment.default()
 
 
 def get_environment(paths: Optional[List[str]]) -> BaseEnvironment:
@@ -33,9 +82,7 @@ def get_environment(paths: Optional[List[str]]) -> BaseEnvironment:
     given import paths. The backend must build a fresh instance representing
     the state of installed distributions when this function is called.
     """
-    from .pkg_resources import Environment
-
-    return Environment.from_paths(paths)
+    return select_backend().Environment.from_paths(paths)
 
 
 def get_directory_distribution(directory: str) -> BaseDistribution:
@@ -44,9 +91,7 @@ def get_directory_distribution(directory: str) -> BaseDistribution:
     This returns a Distribution instance from the chosen backend based on
     the given on-disk ``.dist-info`` directory.
     """
-    from .pkg_resources import Distribution
-
-    return Distribution.from_directory(directory)
+    return select_backend().Distribution.from_directory(directory)
 
 
 def get_wheel_distribution(wheel: Wheel, canonical_name: str) -> BaseDistribution:
@@ -57,6 +102,4 @@ def get_wheel_distribution(wheel: Wheel, canonical_name: str) -> BaseDistributio
 
     :param canonical_name: Normalized project name of the given wheel.
     """
-    from .pkg_resources import Distribution
-
-    return Distribution.from_wheel(wheel, canonical_name)
+    return select_backend().Distribution.from_wheel(wheel, canonical_name)

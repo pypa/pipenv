@@ -4,6 +4,7 @@ from typing import List
 
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
+from pipenv.patched.notpip._internal.cli import cmdoptions
 from pipenv.patched.notpip._internal.cli.base_command import Command
 from pipenv.patched.notpip._internal.cli.req_command import SessionCommandMixin, warn_if_run_as_root
 from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
@@ -53,7 +54,7 @@ class UninstallCommand(Command, SessionCommandMixin):
             action="store_true",
             help="Don't ask for confirmation of uninstall deletions.",
         )
-
+        self.cmd_opts.add_option(cmdoptions.root_user_action())
         self.parser.insert_option_group(0, self.cmd_opts)
 
     def run(self, options: Values, args: List[str]) -> int:
@@ -100,6 +101,6 @@ class UninstallCommand(Command, SessionCommandMixin):
             )
             if uninstall_pathset:
                 uninstall_pathset.commit()
-
-        warn_if_run_as_root()
+        if options.root_user_action == "warn":
+            warn_if_run_as_root()
         return SUCCESS

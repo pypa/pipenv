@@ -12,9 +12,10 @@ from pipenv.patched.notpip._vendor.pygments.lexers import guess_lexer_for_filena
 from pipenv.patched.notpip._vendor.pygments.token import Comment, Keyword, Name, Number, Operator, String
 from pipenv.patched.notpip._vendor.pygments.token import Text as TextToken
 from pipenv.patched.notpip._vendor.pygments.token import Token
+from pipenv.patched.notpip._vendor.pygments.util import ClassNotFound
 
 from . import pretty
-from ._loop import loop_first, loop_last
+from ._loop import loop_last
 from .columns import Columns
 from .console import Console, ConsoleOptions, ConsoleRenderable, RenderResult, group
 from .constrain import Constrain
@@ -130,7 +131,7 @@ def install(
 
     try:  # pragma: no cover
         # if within ipython, use customized traceback
-        ip = get_ipython()  # type: ignore
+        ip = get_ipython()  # type: ignore[name-defined]
         ipy_excepthook_closure(ip)
         return sys.excepthook
     except Exception:
@@ -390,9 +391,8 @@ class Traceback:
                 exc_type = cause.__class__
                 exc_value = cause
                 traceback = cause.__traceback__
-                if traceback:
-                    is_cause = True
-                    continue
+                is_cause = True
+                continue
 
             cause = exc_value.__context__
             if (
@@ -403,9 +403,8 @@ class Traceback:
                 exc_type = cause.__class__
                 exc_value = cause
                 traceback = cause.__traceback__
-                if traceback:
-                    is_cause = False
-                    continue
+                is_cause = False
+                continue
             # No cover, code is reached but coverage doesn't recognize it.
             break  # pragma: no cover
 
@@ -523,10 +522,10 @@ class Traceback:
             first_line = code[:new_line_index] if new_line_index != -1 else code
             if first_line.startswith("#!") and "python" in first_line.lower():
                 return "python"
-        lexer_name = (
-            cls.LEXERS.get(ext) or guess_lexer_for_filename(filename, code).name
-        )
-        return lexer_name
+        try:
+            return cls.LEXERS.get(ext) or guess_lexer_for_filename(filename, code).name
+        except ClassNotFound:
+            return "text"
 
     @group()
     def _render_stack(self, stack: Stack) -> RenderResult:
@@ -671,7 +670,7 @@ if __name__ == "__main__":  # pragma: no cover
             try:
                 foo(0)
             except:
-                slfkjsldkfj  # type: ignore
+                slfkjsldkfj  # type: ignore[name-defined]
         except:
             console.print_exception(show_locals=True)
 
