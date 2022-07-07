@@ -3,9 +3,7 @@ import itertools
 import logging
 import sys
 import time
-from typing import IO, Iterator
-
-from pipenv.patched.notpip._vendor.progress import HIDE_CURSOR, SHOW_CURSOR
+from typing import IO, Generator
 
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 from pipenv.patched.notpip._internal.utils.logging import get_indentation
@@ -115,7 +113,7 @@ class RateLimiter:
 
 
 @contextlib.contextmanager
-def open_spinner(message: str) -> Iterator[SpinnerInterface]:
+def open_spinner(message: str) -> Generator[SpinnerInterface, None, None]:
     # Interactive spinner goes directly to sys.stdout rather than being routed
     # through the logging system, but it acts like it has level INFO,
     # i.e. it's only displayed if we're at level INFO or better.
@@ -138,8 +136,12 @@ def open_spinner(message: str) -> Iterator[SpinnerInterface]:
         spinner.finish("done")
 
 
+HIDE_CURSOR = "\x1b[?25l"
+SHOW_CURSOR = "\x1b[?25h"
+
+
 @contextlib.contextmanager
-def hidden_cursor(file: IO[str]) -> Iterator[None]:
+def hidden_cursor(file: IO[str]) -> Generator[None, None, None]:
     # The Windows terminal does not support the hide/show cursor ANSI codes,
     # even via colorama. So don't even try.
     if WINDOWS:

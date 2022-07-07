@@ -21,10 +21,10 @@ from pipenv.patched.notpip._internal.exceptions import CommandError, Installatio
 from pipenv.patched.notpip._internal.locations import get_scheme
 from pipenv.patched.notpip._internal.metadata import get_environment
 from pipenv.patched.notpip._internal.models.format_control import FormatControl
+from pipenv.patched.notpip._internal.operations.build.build_tracker import get_build_tracker
 from pipenv.patched.notpip._internal.operations.check import ConflictDetails, check_install_conflicts
 from pipenv.patched.notpip._internal.req import install_given_reqs
 from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
-from pipenv.patched.notpip._internal.req.req_tracker import get_requirement_tracker
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 from pipenv.patched.notpip._internal.utils.distutils_args import parse_distutils_args
 from pipenv.patched.notpip._internal.utils.filesystem import test_writable_dir
@@ -189,7 +189,9 @@ class InstallCommand(RequirementCommand):
         self.cmd_opts.add_option(cmdoptions.no_build_isolation())
         self.cmd_opts.add_option(cmdoptions.use_pep517())
         self.cmd_opts.add_option(cmdoptions.no_use_pep517())
+        self.cmd_opts.add_option(cmdoptions.check_build_deps())
 
+        self.cmd_opts.add_option(cmdoptions.config_settings())
         self.cmd_opts.add_option(cmdoptions.install_options())
         self.cmd_opts.add_option(cmdoptions.global_options())
 
@@ -222,12 +224,12 @@ class InstallCommand(RequirementCommand):
             default=True,
             help="Do not warn about broken dependencies",
         )
-
         self.cmd_opts.add_option(cmdoptions.no_binary())
         self.cmd_opts.add_option(cmdoptions.only_binary())
         self.cmd_opts.add_option(cmdoptions.prefer_binary())
         self.cmd_opts.add_option(cmdoptions.require_hashes())
         self.cmd_opts.add_option(cmdoptions.progress_bar())
+        self.cmd_opts.add_option(cmdoptions.root_user_action())
 
         index_opts = cmdoptions.make_option_group(
             cmdoptions.index_group,
@@ -293,7 +295,7 @@ class InstallCommand(RequirementCommand):
         )
         wheel_cache = WheelCache(options.cache_dir, options.format_control)
 
-        req_tracker = self.enter_context(get_requirement_tracker())
+        build_tracker = self.enter_context(get_build_tracker())
 
         directory = TempDirectory(
             delete=not options.no_clean,
@@ -315,7 +317,7 @@ class InstallCommand(RequirementCommand):
             preparer = self.make_requirement_preparer(
                 temp_build_dir=directory,
                 options=options,
-                req_tracker=req_tracker,
+                build_tracker=build_tracker,
                 session=session,
                 finder=finder,
                 use_user_site=options.use_user_site,
@@ -464,8 +466,8 @@ class InstallCommand(RequirementCommand):
             self._handle_target_dir(
                 options.target_dir, target_temp_dir, options.upgrade
             )
-
-        warn_if_run_as_root()
+        if options.root_user_action == "warn":
+            warn_if_run_as_root()
         return SUCCESS
 
     def _handle_target_dir(

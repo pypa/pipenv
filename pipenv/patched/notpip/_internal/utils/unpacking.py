@@ -188,8 +188,7 @@ def untar_file(filename: str, location: str) -> None:
                 ensure_dir(path)
             elif member.issym():
                 try:
-                    # https://github.com/python/typeshed/issues/2673
-                    tar._extract_member(member, path)  # type: ignore
+                    tar._extract_member(member, path)
                 except Exception as exc:
                     # Some corrupt tar files seem to produce this
                     # (specifically bad symlinks)

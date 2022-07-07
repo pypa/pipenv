@@ -6,7 +6,7 @@ import hashlib
 import os
 from textwrap import dedent
 
-from ..cache import BaseCache
+from ..cache import BaseCache, SeparateBodyBaseCache
 from ..controller import CacheController
 
 try:
@@ -57,7 +57,8 @@ def _secure_open_write(filename, fmode):
         raise
 
 
-class FileCache(BaseCache):
+class _FileCacheMixin:
+    """Shared implementation for both FileCache variants."""
 
     def __init__(
         self,
@@ -120,25 +121,62 @@ class FileCache(BaseCache):
 
     def set(self, key, value, expires=None):
         name = self._fn(key)
+        self._write(name, value)
 
+    def _write(self, path, data: bytes):
+        """
+        Safely write the data to the given path.
+        """
         # Make sure the directory exists
         try:
-            os.makedirs(os.path.dirname(name), self.dirmode)
+            os.makedirs(os.path.dirname(path), self.dirmode)
         except (IOError, OSError):
             pass
 
-        with self.lock_class(name) as lock:
+        with self.lock_class(path) as lock:
             # Write our actual file
             with _secure_open_write(lock.path, self.filemode) as fh:
-                fh.write(value)
+                fh.write(data)
 
-    def delete(self, key):
-        name = self._fn(key)
+    def _delete(self, key, suffix):
+        name = self._fn(key) + suffix
         if not self.forever:
             try:
                 os.remove(name)
             except FileNotFoundError:
                 pass
+
+
+class FileCache(_FileCacheMixin, BaseCache):
+    """
+    Traditional FileCache: body is stored in memory, so not suitable for large
+    downloads.
+    """
+
+    def delete(self, key):
+        self._delete(key, "")
+
+
+class SeparateBodyFileCache(_FileCacheMixin, SeparateBodyBaseCache):
+    """
+    Memory-efficient FileCache: body is stored in a separate file, reducing
+    peak memory usage.
+    """
+
+    def get_body(self, key):
+        name = self._fn(key) + ".body"
+        try:
+            return open(name, "rb")
+        except FileNotFoundError:
+            return None
+
+    def set_body(self, key, body):
+        name = self._fn(key) + ".body"
+        self._write(name, body)
+
+    def delete(self, key):
+        self._delete(key, "")
+        self._delete(key, ".body")
 
 
 def url_to_file_path(url, filecache):

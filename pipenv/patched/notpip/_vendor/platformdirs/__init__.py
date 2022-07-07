@@ -4,7 +4,6 @@ usage.
 """
 from __future__ import annotations
 
-import importlib
 import os
 import sys
 from pathlib import Path
@@ -18,16 +17,26 @@ from .version import __version__, __version_info__
 
 
 def _set_platform_dir_class() -> type[PlatformDirsABC]:
-    if os.getenv("ANDROID_DATA") == "/data" and os.getenv("ANDROID_ROOT") == "/system":
-        module, name = "pipenv.patched.notpip._vendor.platformdirs.android", "Android"
-    elif sys.platform == "win32":
-        module, name = "pipenv.patched.notpip._vendor.platformdirs.windows", "Windows"
+    if sys.platform == "win32":
+        from pipenv.patched.notpip._vendor.platformdirs.windows import Windows as Result
     elif sys.platform == "darwin":
-        module, name = "pipenv.patched.notpip._vendor.platformdirs.macos", "MacOS"
+        from pipenv.patched.notpip._vendor.platformdirs.macos import MacOS as Result
     else:
-        module, name = "pipenv.patched.notpip._vendor.platformdirs.unix", "Unix"
-    result: type[PlatformDirsABC] = getattr(importlib.import_module(module), name)
-    return result
+        from pipenv.patched.notpip._vendor.platformdirs.unix import Unix as Result
+
+    if os.getenv("ANDROID_DATA") == "/data" and os.getenv("ANDROID_ROOT") == "/system":
+
+        if os.getenv("SHELL") is not None:
+            return Result
+
+        from pipenv.patched.notpip._vendor.platformdirs.android import _android_folder
+
+        if _android_folder() is not None:
+            from pipenv.patched.notpip._vendor.platformdirs.android import Android
+
+            return Android  # return to avoid redefinition of result
+
+    return Result
 
 
 PlatformDirs = _set_platform_dir_class()  #: Currently active platform

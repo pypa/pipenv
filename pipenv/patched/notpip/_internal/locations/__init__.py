@@ -4,7 +4,7 @@ import os
 import pathlib
 import sys
 import sysconfig
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 from pipenv.patched.notpip._internal.models.scheme import SCHEME_KEYS, Scheme
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS
@@ -70,9 +70,10 @@ else:
 
 def _looks_like_bpo_44860() -> bool:
     """The resolution to bpo-44860 will change this incorrect platlib.
+
     See <https://bugs.python.org/issue44860>.
     """
-    from distutils.command.install import INSTALL_SCHEMES  # type: ignore
+    from distutils.command.install import INSTALL_SCHEMES
 
     try:
         unix_user_platlib = INSTALL_SCHEMES["unix_user"]["platlib"]
@@ -97,7 +98,7 @@ def _looks_like_red_hat_lib() -> bool:
 
     This is the only way I can see to tell a Red Hat-patched Python.
     """
-    from distutils.command.install import INSTALL_SCHEMES  # type: ignore
+    from distutils.command.install import INSTALL_SCHEMES
 
     return all(
         k in INSTALL_SCHEMES
@@ -109,7 +110,7 @@ def _looks_like_red_hat_lib() -> bool:
 @functools.lru_cache(maxsize=None)
 def _looks_like_debian_scheme() -> bool:
     """Debian adds two additional schemes."""
-    from distutils.command.install import INSTALL_SCHEMES  # type: ignore
+    from distutils.command.install import INSTALL_SCHEMES
 
     return "deb_system" in INSTALL_SCHEMES and "unix_local" in INSTALL_SCHEMES
 
@@ -137,6 +138,7 @@ def _looks_like_red_hat_scheme() -> bool:
 @functools.lru_cache(maxsize=None)
 def _looks_like_slackware_scheme() -> bool:
     """Slackware patches sysconfig but fails to patch distutils and site.
+
     Slackware changes sysconfig's user scheme to use ``"lib64"`` for the lib
     path, but does not do the same to the site module.
     """
@@ -152,9 +154,11 @@ def _looks_like_slackware_scheme() -> bool:
 @functools.lru_cache(maxsize=None)
 def _looks_like_msys2_mingw_scheme() -> bool:
     """MSYS2 patches distutils and sysconfig to use a UNIX-like scheme.
+
     However, MSYS2 incorrectly patches sysconfig ``nt`` scheme. The fix is
     likely going to be included in their 3.10 release, so we ignore the warning.
     See msys2/MINGW-packages#9319.
+
     MSYS2 MINGW's patch uses lowercase ``"lib"`` instead of the usual uppercase,
     and is missing the final ``"site-packages"``.
     """
@@ -165,9 +169,9 @@ def _looks_like_msys2_mingw_scheme() -> bool:
     )
 
 
-def _fix_abiflags(parts: Tuple[str]) -> Iterator[str]:
+def _fix_abiflags(parts: Tuple[str]) -> Generator[str, None, None]:
     ldversion = sysconfig.get_config_var("LDVERSION")
-    abiflags: str = getattr(sys, "abiflags", None)
+    abiflags = getattr(sys, "abiflags", None)
 
     # LDVERSION does not end with sys.abiflags. Just return the path unchanged.
     if not ldversion or not abiflags or not ldversion.endswith(abiflags):

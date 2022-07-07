@@ -11,7 +11,7 @@ import zipfile
 from collections import OrderedDict
 from sysconfig import get_paths
 from types import TracebackType
-from typing import TYPE_CHECKING, Iterable, Iterator, List, Optional, Set, Tuple, Type
+from typing import TYPE_CHECKING, Generator, Iterable, List, Optional, Set, Tuple, Type
 
 from pipenv.patched.notpip._vendor.certifi import where
 from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
@@ -20,7 +20,7 @@ from pipenv.patched.notpip._vendor.packaging.version import Version
 from pip import __file__ as pip_location
 from pipenv.patched.notpip._internal.cli.spinners import open_spinner
 from pipenv.patched.notpip._internal.locations import get_platlib, get_prefixed_libs, get_purelib
-from pipenv.patched.notpip._internal.metadata import get_environment
+from pipenv.patched.notpip._internal.metadata import get_default_environment, get_environment
 from pipenv.patched.notpip._internal.utils.subprocess import call_subprocess
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
 
@@ -42,7 +42,7 @@ class _Prefix:
 
 
 @contextlib.contextmanager
-def _create_standalone_pip() -> Iterator[str]:
+def _create_standalone_pip() -> Generator[str, None, None]:
     """Create a "standalone pip" zip file.
 
     The zip file's content is identical to the currently-running pip.
@@ -168,9 +168,17 @@ class BuildEnvironment:
         missing = set()
         conflicting = set()
         if reqs:
-            env = get_environment(self._lib_dirs)
+            env = (
+                get_environment(self._lib_dirs)
+                if hasattr(self, "_lib_dirs")
+                else get_default_environment()
+            )
             for req_str in reqs:
                 req = Requirement(req_str)
+                # We're explicitly evaluating with an empty extra value, since build
+                # environments are not provided any mechanism to select specific extras.
+                if req.marker is not None and not req.marker.evaluate({"extra": ""}):
+                    continue
                 dist = env.get_distribution(req.name)
                 if not dist:
                     missing.add(req_str)
@@ -179,7 +187,7 @@ class BuildEnvironment:
                     installed_req_str = f"{req.name}=={dist.version}"
                 else:
                     installed_req_str = f"{req.name}==={dist.version}"
-                if dist.version not in req.specifier:
+                if not req.specifier.contains(dist.version, prereleases=True):
                     conflicting.add((installed_req_str, req_str))
                 # FIXME: Consider direct URL?
         return conflicting, missing

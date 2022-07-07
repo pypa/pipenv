@@ -3,7 +3,7 @@ import hashlib
 import logging
 import os
 from types import TracebackType
-from typing import Dict, Iterator, Optional, Set, Type, Union
+from typing import Dict, Generator, Optional, Set, Type, Union
 
 from pipenv.patched.notpip._internal.models.link import Link
 from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 @contextlib.contextmanager
-def update_env_context_manager(**changes: str) -> Iterator[None]:
+def update_env_context_manager(**changes: str) -> Generator[None, None, None]:
     target = os.environ
 
     # Save values from the target and change them.
@@ -39,25 +39,25 @@ def update_env_context_manager(**changes: str) -> Iterator[None]:
 
 
 @contextlib.contextmanager
-def get_requirement_tracker() -> Iterator["RequirementTracker"]:
-    root = os.environ.get("PIP_REQ_TRACKER")
+def get_build_tracker() -> Generator["BuildTracker", None, None]:
+    root = os.environ.get("PIP_BUILD_TRACKER")
     with contextlib.ExitStack() as ctx:
         if root is None:
-            root = ctx.enter_context(TempDirectory(kind="req-tracker")).path
-            ctx.enter_context(update_env_context_manager(PIP_REQ_TRACKER=root))
+            root = ctx.enter_context(TempDirectory(kind="build-tracker")).path
+            ctx.enter_context(update_env_context_manager(PIP_BUILD_TRACKER=root))
             logger.debug("Initialized build tracking at %s", root)
 
-        with RequirementTracker(root) as tracker:
+        with BuildTracker(root) as tracker:
             yield tracker
 
 
-class RequirementTracker:
+class BuildTracker:
     def __init__(self, root: str) -> None:
         self._root = root
         self._entries: Set[InstallRequirement] = set()
         logger.debug("Created build tracker: %s", self._root)
 
-    def __enter__(self) -> "RequirementTracker":
+    def __enter__(self) -> "BuildTracker":
         logger.debug("Entered build tracker: %s", self._root)
         return self
 
@@ -118,7 +118,7 @@ class RequirementTracker:
         logger.debug("Removed build tracker: %r", self._root)
 
     @contextlib.contextmanager
-    def track(self, req: InstallRequirement) -> Iterator[None]:
+    def track(self, req: InstallRequirement) -> Generator[None, None, None]:
         self.add(req)
         yield
         self.remove(req)

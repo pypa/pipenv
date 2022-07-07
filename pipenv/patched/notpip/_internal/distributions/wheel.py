@@ -26,6 +26,9 @@ class WheelDistribution(AbstractDistribution):
         return get_wheel_distribution(wheel, canonicalize_name(self.req.name))
 
     def prepare_distribution_metadata(
-        self, finder: PackageFinder, build_isolation: bool
+        self,
+        finder: PackageFinder,
+        build_isolation: bool,
+        check_build_deps: bool,
     ) -> None:
         pass

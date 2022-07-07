@@ -3,7 +3,7 @@ import os
 import sys
 import sysconfig
 from importlib.util import cache_from_source
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Set, Tuple
 
 from pipenv.patched.notpip._internal.exceptions import UninstallationError
 from pipenv.patched.notpip._internal.locations import get_bin_prefix, get_bin_user
@@ -17,7 +17,9 @@ from pipenv.patched.notpip._internal.utils.temp_dir import AdjacentTempDirectory
 logger = getLogger(__name__)
 
 
-def _script_names(bin_dir: str, script_name: str, is_gui: bool) -> Iterator[str]:
+def _script_names(
+    bin_dir: str, script_name: str, is_gui: bool
+) -> Generator[str, None, None]:
     """Create the fully qualified name of the files created by
     {console,gui}_scripts for the given ``dist``.
     Returns the list of file names
@@ -34,9 +36,11 @@ def _script_names(bin_dir: str, script_name: str, is_gui: bool) -> Iterator[str]
         yield f"{exe_name}-script.py"
 
 
-def _unique(fn: Callable[..., Iterator[Any]]) -> Callable[..., Iterator[Any]]:
+def _unique(
+    fn: Callable[..., Generator[Any, None, None]]
+) -> Callable[..., Generator[Any, None, None]]:
     @functools.wraps(fn)
-    def unique(*args: Any, **kw: Any) -> Iterator[Any]:
+    def unique(*args: Any, **kw: Any) -> Generator[Any, None, None]:
         seen: Set[Any] = set()
         for item in fn(*args, **kw):
             if item not in seen:
@@ -47,7 +51,7 @@ def _unique(fn: Callable[..., Iterator[Any]]) -> Callable[..., Iterator[Any]]:
 
 
 @_unique
-def uninstallation_paths(dist: BaseDistribution) -> Iterator[str]:
+def uninstallation_paths(dist: BaseDistribution) -> Generator[str, None, None]:
     """
     Yield all the uninstallation paths for dist based on RECORD-without-.py[co]
 
@@ -527,7 +531,10 @@ class UninstallPathSet:
             # above, so this only covers the setuptools-style editable.
             with open(develop_egg_link) as fh:
                 link_pointer = os.path.normcase(fh.readline().strip())
-            assert link_pointer == dist_location, (
+                normalized_link_pointer = normalize_path(link_pointer)
+            assert os.path.samefile(
+                normalized_link_pointer, normalized_dist_location
+            ), (
                 f"Egg-link {link_pointer} does not match installed location of "
                 f"{dist.raw_name} (at {dist_location})"
             )
@@ -551,10 +558,10 @@ class UninstallPathSet:
 
         # find distutils scripts= scripts
         try:
-            for script in dist.iterdir("scripts"):
-                paths_to_remove.add(os.path.join(bin_dir, script.name))
+            for script in dist.iter_distutils_script_names():
+                paths_to_remove.add(os.path.join(bin_dir, script))
                 if WINDOWS:
-                    paths_to_remove.add(os.path.join(bin_dir, f"{script.name}.bat"))
+                    paths_to_remove.add(os.path.join(bin_dir, f"{script}.bat"))
         except (FileNotFoundError, NotADirectoryError):
             pass
 
@@ -562,7 +569,7 @@ class UninstallPathSet:
         def iter_scripts_to_remove(
             dist: BaseDistribution,
             bin_dir: str,
-        ) -> Iterator[str]:
+        ) -> Generator[str, None, None]:
             for entry_point in dist.iter_entry_points():
                 if entry_point.group == "console_scripts":
                     yield from _script_names(bin_dir, entry_point.name, False)

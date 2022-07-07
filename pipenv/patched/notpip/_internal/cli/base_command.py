@@ -168,7 +168,7 @@ class Command(CommandContextMixIn):
                     assert isinstance(status, int)
                     return status
                 except DiagnosticPipError as exc:
-                    logger.error("[present-diagnostic] %s", exc)
+                    logger.error("[present-rich] %s", exc)
                     logger.debug("Exception information:", exc_info=True)
 
                     return ERROR

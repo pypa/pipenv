@@ -22,6 +22,7 @@ from typing import (
     BinaryIO,
     Callable,
     Dict,
+    Generator,
     Iterable,
     Iterator,
     List,
@@ -589,7 +590,7 @@ def _install_wheel(
         file.save()
         record_installed(file.src_record_path, file.dest_path, file.changed)
 
-    def pyc_source_file_paths() -> Iterator[str]:
+    def pyc_source_file_paths() -> Generator[str, None, None]:
         # We de-duplicate installation paths, since there can be overlap (e.g.
         # file in .data maps to same location as file in wheel root).
         # Sorting installation paths makes it easier to reproduce and debug
@@ -656,7 +657,7 @@ def _install_wheel(
     generated_file_mode = 0o666 & ~current_umask()
 
     @contextlib.contextmanager
-    def _generate_file(path: str, **kwargs: Any) -> Iterator[BinaryIO]:
+    def _generate_file(path: str, **kwargs: Any) -> Generator[BinaryIO, None, None]:
         with adjacent_tmp_file(path, **kwargs) as f:
             yield f
         os.chmod(f.name, generated_file_mode)
@@ -706,7 +707,7 @@ def _install_wheel(
 
 
 @contextlib.contextmanager
-def req_error_context(req_description: str) -> Iterator[None]:
+def req_error_context(req_description: str) -> Generator[None, None, None]:
     try:
         yield
     except InstallationError as e:

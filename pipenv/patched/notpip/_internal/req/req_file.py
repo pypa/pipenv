@@ -13,8 +13,8 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Generator,
     Iterable,
-    Iterator,
     List,
     Optional,
     Tuple,
@@ -129,7 +129,7 @@ def parse_requirements(
     finder: Optional["PackageFinder"] = None,
     options: Optional[optparse.Values] = None,
     constraint: bool = False,
-) -> Iterator[ParsedRequirement]:
+) -> Generator[ParsedRequirement, None, None]:
     """Parse a requirements file and yield ParsedRequirement instances.
 
     :param filename:    Path or url of requirements file.
@@ -233,6 +233,8 @@ def handle_option_line(
             index_urls = [opts.index_url]
         if opts.no_index is True:
             index_urls = []
+        if opts.extra_index_urls:
+            index_urls.extend(opts.extra_index_urls)
         if opts.find_links:
             # FIXME: it would be nice to keep track of the source
             # of the find_links: support a find-links local path
@@ -319,13 +321,15 @@ class RequirementsFileParser:
         self._session = session
         self._line_parser = line_parser
 
-    def parse(self, filename: str, constraint: bool) -> Iterator[ParsedLine]:
+    def parse(
+        self, filename: str, constraint: bool
+    ) -> Generator[ParsedLine, None, None]:
         """Parse a given file, yielding parsed lines."""
         yield from self._parse_and_recurse(filename, constraint)
 
     def _parse_and_recurse(
         self, filename: str, constraint: bool
-    ) -> Iterator[ParsedLine]:
+    ) -> Generator[ParsedLine, None, None]:
         for line in self._parse_file(filename, constraint):
             if not line.is_requirement and (
                 line.opts.requirements or line.opts.constraints
@@ -354,7 +358,9 @@ class RequirementsFileParser:
             else:
                 yield line
 
-    def _parse_file(self, filename: str, constraint: bool) -> Iterator[ParsedLine]:
+    def _parse_file(
+        self, filename: str, constraint: bool
+    ) -> Generator[ParsedLine, None, None]:
         _, content = get_file_content(filename, self._session)
 
         lines_enum = preprocess(content)

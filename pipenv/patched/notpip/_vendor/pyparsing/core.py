@@ -23,7 +23,6 @@ import string
 import copy
 import warnings
 import re
-import sre_constants
 import sys
 from collections.abc import Iterable
 import traceback
@@ -53,7 +52,7 @@ _MAX_INT = sys.maxsize
 str_type: Tuple[type, ...] = (str, bytes)
 
 #
-# Copyright (c) 2003-2021  Paul T. McGuire
+# Copyright (c) 2003-2022  Paul T. McGuire
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -74,6 +73,19 @@ str_type: Tuple[type, ...] = (str, bytes)
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
+
+
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+
+    class cached_property:
+        def __init__(self, func):
+            self._func = func
+
+        def __get__(self, instance, owner=None):
+            ret = instance.__dict__[self._func.__name__] = self._func(instance)
+            return ret
 
 
 class __compat__(__config_flags):
@@ -246,10 +258,10 @@ hexnums = nums + "ABCDEFabcdef"
 alphanums = alphas + nums
 printables = "".join([c for c in string.printable if c not in string.whitespace])
 
-_trim_arity_call_line = None
+_trim_arity_call_line: traceback.StackSummary = None
 
 
-def _trim_arity(func, maxargs=2):
+def _trim_arity(func, max_limit=3):
     """decorator to trim function calls to match the arity of the target"""
     global _trim_arity_call_line
 
@@ -267,16 +279,12 @@ def _trim_arity(func, maxargs=2):
     # synthesize what would be returned by traceback.extract_stack at the call to
     # user's parse action 'func', so that we don't incur call penalty at parse time
 
-    LINE_DIFF = 11
+    # fmt: off
+    LINE_DIFF = 7
     # IF ANY CODE CHANGES, EVEN JUST COMMENTS OR BLANK LINES, BETWEEN THE NEXT LINE AND
     # THE CALL TO FUNC INSIDE WRAPPER, LINE_DIFF MUST BE MODIFIED!!!!
-    _trim_arity_call_line = (
-        _trim_arity_call_line or traceback.extract_stack(limit=2)[-1]
-    )
-    pa_call_line_synth = (
-        _trim_arity_call_line[0],
-        _trim_arity_call_line[1] + LINE_DIFF,
-    )
+    _trim_arity_call_line = (_trim_arity_call_line or traceback.extract_stack(limit=2)[-1])
+    pa_call_line_synth = (_trim_arity_call_line[0], _trim_arity_call_line[1] + LINE_DIFF)
 
     def wrapper(*args):
         nonlocal found_arity, limit
@@ -297,16 +305,18 @@ def _trim_arity(func, maxargs=2):
                     del tb
 
                     if trim_arity_type_error:
-                        if limit <= maxargs:
+                        if limit < max_limit:
                             limit += 1
                             continue
 
                     raise
+    # fmt: on
 
     # copy func name to wrapper for sensible debug output
     # (can't use functools.wraps, since that messes with function signature)
     func_name = getattr(func, "__name__", getattr(func, "__class__").__name__)
     wrapper.__name__ = func_name
+    wrapper.__doc__ = func.__doc__
 
     return wrapper
 
@@ -467,7 +477,6 @@ class ParserElement(ABC):
         self.modalResults = True
         # custom debug actions
         self.debugActions = self.DebugActions(None, None, None)
-        self.re = None
         # avoid redundant calls to preParse
         self.callPreparse = True
         self.callDuringTry = False
@@ -1342,7 +1351,7 @@ class ParserElement(ABC):
             last = e
         yield instring[last:]
 
-    def __add__(self, other):
+    def __add__(self, other) -> "ParserElement":
         """
         Implementation of ``+`` operator - returns :class:`And`. Adding strings to a :class:`ParserElement`
         converts them to :class:`Literal`s by default.
@@ -1382,7 +1391,7 @@ class ParserElement(ABC):
             )
         return And([self, other])
 
-    def __radd__(self, other):
+    def __radd__(self, other) -> "ParserElement":
         """
         Implementation of ``+`` operator when left operand is not a :class:`ParserElement`
         """
@@ -1399,7 +1408,7 @@ class ParserElement(ABC):
             )
         return other + self
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> "ParserElement":
         """
         Implementation of ``-`` operator, returns :class:`And` with error stop
         """
@@ -1413,7 +1422,7 @@ class ParserElement(ABC):
             )
         return self + And._ErrorStop() + other
 
-    def __rsub__(self, other):
+    def __rsub__(self, other) -> "ParserElement":
         """
         Implementation of ``-`` operator when left operand is not a :class:`ParserElement`
         """
@@ -1427,7 +1436,7 @@ class ParserElement(ABC):
             )
         return other - self
 
-    def __mul__(self, other):
+    def __mul__(self, other) -> "ParserElement":
         """
         Implementation of ``*`` operator, allows use of ``expr * 3`` in place of
         ``expr + expr + expr``.  Expressions may also be multiplied by a 2-integer
@@ -1513,10 +1522,10 @@ class ParserElement(ABC):
                 ret = And([self] * minElements)
         return ret
 
-    def __rmul__(self, other):
+    def __rmul__(self, other) -> "ParserElement":
         return self.__mul__(other)
 
-    def __or__(self, other):
+    def __or__(self, other) -> "ParserElement":
         """
         Implementation of ``|`` operator - returns :class:`MatchFirst`
         """
@@ -1533,7 +1542,7 @@ class ParserElement(ABC):
             )
         return MatchFirst([self, other])
 
-    def __ror__(self, other):
+    def __ror__(self, other) -> "ParserElement":
         """
         Implementation of ``|`` operator when left operand is not a :class:`ParserElement`
         """
@@ -1547,7 +1556,7 @@ class ParserElement(ABC):
             )
         return other | self
 
-    def __xor__(self, other):
+    def __xor__(self, other) -> "ParserElement":
         """
         Implementation of ``^`` operator - returns :class:`Or`
         """
@@ -1561,7 +1570,7 @@ class ParserElement(ABC):
             )
         return Or([self, other])
 
-    def __rxor__(self, other):
+    def __rxor__(self, other) -> "ParserElement":
         """
         Implementation of ``^`` operator when left operand is not a :class:`ParserElement`
         """
@@ -1575,7 +1584,7 @@ class ParserElement(ABC):
             )
         return other ^ self
 
-    def __and__(self, other):
+    def __and__(self, other) -> "ParserElement":
         """
         Implementation of ``&`` operator - returns :class:`Each`
         """
@@ -1589,7 +1598,7 @@ class ParserElement(ABC):
             )
         return Each([self, other])
 
-    def __rand__(self, other):
+    def __rand__(self, other) -> "ParserElement":
         """
         Implementation of ``&`` operator when left operand is not a :class:`ParserElement`
         """
@@ -1603,7 +1612,7 @@ class ParserElement(ABC):
             )
         return other & self
 
-    def __invert__(self):
+    def __invert__(self) -> "ParserElement":
         """
         Implementation of ``~`` operator - returns :class:`NotAny`
         """
@@ -1653,7 +1662,7 @@ class ParserElement(ABC):
         ret = self * tuple(key[:2])
         return ret
 
-    def __call__(self, name: str = None):
+    def __call__(self, name: str = None) -> "ParserElement":
         """
         Shortcut for :class:`set_results_name`, with ``list_all_matches=False``.
 
@@ -2140,6 +2149,7 @@ class ParserElement(ABC):
         output_html: Union[TextIO, Path, str],
         vertical: int = 3,
         show_results_names: bool = False,
+        show_groups: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -2152,7 +2162,7 @@ class ParserElement(ABC):
           instead of horizontally (default=3)
         - show_results_names - bool flag whether diagram should show annotations for
           defined results names
-
+        - show_groups - bool flag whether groups should be highlighted with an unlabeled surrounding box
         Additional diagram-formatting keyword arguments can also be included;
         see railroad.Diagram class.
         """
@@ -2170,6 +2180,7 @@ class ParserElement(ABC):
             self,
             vertical=vertical,
             show_results_names=show_results_names,
+            show_groups=show_groups,
             diagram_kwargs=kwargs,
         )
         if isinstance(output_html, (str, Path)):
@@ -2219,7 +2230,7 @@ class _PendingSkip(ParserElement):
     def _generateDefaultName(self):
         return str(self.anchor + Empty()).replace("Empty", "...")
 
-    def __add__(self, other):
+    def __add__(self, other) -> "ParserElement":
         skipper = SkipTo(other).set_name("...")("_skipped*")
         if self.must_skip:
 
@@ -2773,7 +2784,7 @@ class Word(Token):
 
             try:
                 self.re = re.compile(self.reString)
-            except sre_constants.error:
+            except re.error:
                 self.re = None
             else:
                 self.re_match = self.re.match
@@ -2926,19 +2937,12 @@ class Regex(Token):
             if not pattern:
                 raise ValueError("null string passed to Regex; use Empty() instead")
 
-            self.pattern = pattern
+            self._re = None
+            self.reString = self.pattern = pattern
             self.flags = flags
 
-            try:
-                self.re = re.compile(self.pattern, self.flags)
-                self.reString = self.pattern
-            except sre_constants.error:
-                raise ValueError(
-                    "invalid pattern ({!r}) passed to Regex".format(pattern)
-                )
-
         elif hasattr(pattern, "pattern") and hasattr(pattern, "match"):
-            self.re = pattern
+            self._re = pattern
             self.pattern = self.reString = pattern.pattern
             self.flags = flags
 
@@ -2947,17 +2951,34 @@ class Regex(Token):
                 "Regex may only be constructed with a string or a compiled RE object"
             )
 
-        self.re_match = self.re.match
-
         self.errmsg = "Expected " + self.name
         self.mayIndexError = False
-        self.mayReturnEmpty = self.re_match("") is not None
         self.asGroupList = asGroupList
         self.asMatch = asMatch
         if self.asGroupList:
             self.parseImpl = self.parseImplAsGroupList
         if self.asMatch:
             self.parseImpl = self.parseImplAsMatch
+
+    @cached_property
+    def re(self):
+        if self._re:
+            return self._re
+        else:
+            try:
+                return re.compile(self.pattern, self.flags)
+            except re.error:
+                raise ValueError(
+                    "invalid pattern ({!r}) passed to Regex".format(self.pattern)
+                )
+
+    @cached_property
+    def re_match(self):
+        return self.re.match
+
+    @cached_property
+    def mayReturnEmpty(self):
+        return self.re_match("") is not None
 
     def _generateDefaultName(self):
         return "Re:({})".format(repr(self.pattern).replace("\\\\", "\\"))
@@ -3168,7 +3189,7 @@ class QuotedString(Token):
             self.re = re.compile(self.pattern, self.flags)
             self.reString = self.pattern
             self.re_match = self.re.match
-        except sre_constants.error:
+        except re.error:
             raise ValueError(
                 "invalid pattern {!r} passed to Regex".format(self.pattern)
             )
@@ -3826,7 +3847,9 @@ class And(ParseExpression):
                 seen.add(id(cur))
                 if isinstance(cur, IndentedBlock):
                     prev.add_parse_action(
-                        lambda s, l, t, cur_=cur: setattr(cur_, "parent_anchor", col(l, s))
+                        lambda s, l, t, cur_=cur: setattr(
+                            cur_, "parent_anchor", col(l, s)
+                        )
                     )
                     break
                 subs = cur.recurse()
@@ -5002,20 +5025,20 @@ class SkipTo(ParseElementEnhance):
     prints::
 
         ['101', 'Critical', 'Intermittent system crash', '6']
-        - days_open: 6
-        - desc: Intermittent system crash
-        - issue_num: 101
-        - sev: Critical
+        - days_open: '6'
+        - desc: 'Intermittent system crash'
+        - issue_num: '101'
+        - sev: 'Critical'
         ['94', 'Cosmetic', "Spelling error on Login ('log|n')", '14']
-        - days_open: 14
-        - desc: Spelling error on Login ('log|n')
-        - issue_num: 94
-        - sev: Cosmetic
+        - days_open: '14'
+        - desc: "Spelling error on Login ('log|n')"
+        - issue_num: '94'
+        - sev: 'Cosmetic'
         ['79', 'Minor', 'System slow when running too many reports', '47']
-        - days_open: 47
-        - desc: System slow when running too many reports
-        - issue_num: 79
-        - sev: Minor
+        - days_open: '47'
+        - desc: 'System slow when running too many reports'
+        - issue_num: '79'
+        - sev: 'Minor'
     """
 
     def __init__(
@@ -5473,10 +5496,10 @@ class Dict(TokenConverter):
 
         ['shape', 'SQUARE', 'posn', 'upper left', 'color', 'light blue', 'texture', 'burlap']
         [['shape', 'SQUARE'], ['posn', 'upper left'], ['color', 'light blue'], ['texture', 'burlap']]
-        - color: light blue
-        - posn: upper left
-        - shape: SQUARE
-        - texture: burlap
+        - color: 'light blue'
+        - posn: 'upper left'
+        - shape: 'SQUARE'
+        - texture: 'burlap'
         SQUARE
         {'color': 'light blue', 'posn': 'upper left', 'texture': 'burlap', 'shape': 'SQUARE'}
 
@@ -5564,13 +5587,13 @@ class Suppress(TokenConverter):
             expr = _PendingSkip(NoMatch())
         super().__init__(expr)
 
-    def __add__(self, other):
+    def __add__(self, other) -> "ParserElement":
         if isinstance(self.expr, _PendingSkip):
             return Suppress(SkipTo(other)) + other
         else:
             return super().__add__(other)
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> "ParserElement":
         if isinstance(self.expr, _PendingSkip):
             return Suppress(SkipTo(other)) - other
         else:

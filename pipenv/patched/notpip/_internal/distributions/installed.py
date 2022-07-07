@@ -15,6 +15,9 @@ class InstalledDistribution(AbstractDistribution):
         return self.req.satisfied_by
 
     def prepare_distribution_metadata(
-        self, finder: PackageFinder, build_isolation: bool
+        self,
+        finder: PackageFinder,
+        build_isolation: bool,
+        check_build_deps: bool,
     ) -> None:
         pass

@@ -21,6 +21,8 @@ from typing import (
     BinaryIO,
     Callable,
     ContextManager,
+    Dict,
+    Generator,
     Iterable,
     Iterator,
     List,
@@ -32,6 +34,7 @@ from typing import (
     cast,
 )
 
+from pipenv.patched.notpip._vendor.pep517 import Pep517HookCaller
 from pipenv.patched.notpip._vendor.tenacity import retry, stop_after_delay, wait_fixed
 
 from pipenv.patched.notpip import __version__
@@ -54,6 +57,7 @@ __all__ = [
     "captured_stdout",
     "ensure_dir",
     "remove_auth_from_url",
+    "ConfiguredPep517HookCaller",
 ]
 
 
@@ -264,7 +268,9 @@ def is_installable_dir(path: str) -> bool:
     return False
 
 
-def read_chunks(file: BinaryIO, size: int = io.DEFAULT_BUFFER_SIZE) -> Iterator[bytes]:
+def read_chunks(
+    file: BinaryIO, size: int = io.DEFAULT_BUFFER_SIZE
+) -> Generator[bytes, None, None]:
     """Yield pieces of data from a file-like object until EOF."""
     while True:
         chunk = file.read(size)
@@ -346,7 +352,7 @@ class StreamWrapper(StringIO):
 
 
 @contextlib.contextmanager
-def captured_output(stream_name: str) -> Iterator[StreamWrapper]:
+def captured_output(stream_name: str) -> Generator[StreamWrapper, None, None]:
     """Return a context manager used by captured_stdout/stdin/stderr
     that temporarily replaces the sys stream *stream_name* with a StringIO.
 
@@ -556,9 +562,9 @@ def protect_pip_from_modification_on_windows(modifying_pip: bool) -> None:
         python -m pip ...
     """
     pip_names = [
-        "pip.exe",
-        "pip{}.exe".format(sys.version_info[0]),
-        "pip{}.{}.exe".format(*sys.version_info[:2]),
+        "pip",
+        f"pip{sys.version_info.major}",
+        f"pip{sys.version_info.major}.{sys.version_info.minor}",
     ]
 
     # See https://github.com/pypa/pip/issues/1299 for more discussion
@@ -627,3 +633,91 @@ def partition(
     """
     t1, t2 = tee(iterable)
     return filterfalse(pred, t1), filter(pred, t2)
+
+
+class ConfiguredPep517HookCaller(Pep517HookCaller):
+    def __init__(
+        self,
+        config_holder: Any,
+        source_dir: str,
+        build_backend: str,
+        backend_path: Optional[str] = None,
+        runner: Optional[Callable[..., None]] = None,
+        python_executable: Optional[str] = None,
+    ):
+        super().__init__(
+            source_dir, build_backend, backend_path, runner, python_executable
+        )
+        self.config_holder = config_holder
+
+    def build_wheel(
+        self,
+        wheel_directory: str,
+        config_settings: Optional[Dict[str, str]] = None,
+        metadata_directory: Optional[str] = None,
+    ) -> str:
+        cs = self.config_holder.config_settings
+        return super().build_wheel(
+            wheel_directory, config_settings=cs, metadata_directory=metadata_directory
+        )
+
+    def build_sdist(
+        self, sdist_directory: str, config_settings: Optional[Dict[str, str]] = None
+    ) -> str:
+        cs = self.config_holder.config_settings
+        return super().build_sdist(sdist_directory, config_settings=cs)
+
+    def build_editable(
+        self,
+        wheel_directory: str,
+        config_settings: Optional[Dict[str, str]] = None,
+        metadata_directory: Optional[str] = None,
+    ) -> str:
+        cs = self.config_holder.config_settings
+        return super().build_editable(
+            wheel_directory, config_settings=cs, metadata_directory=metadata_directory
+        )
+
+    def get_requires_for_build_wheel(
+        self, config_settings: Optional[Dict[str, str]] = None
+    ) -> List[str]:
+        cs = self.config_holder.config_settings
+        return super().get_requires_for_build_wheel(config_settings=cs)
+
+    def get_requires_for_build_sdist(
+        self, config_settings: Optional[Dict[str, str]] = None
+    ) -> List[str]:
+        cs = self.config_holder.config_settings
+        return super().get_requires_for_build_sdist(config_settings=cs)
+
+    def get_requires_for_build_editable(
+        self, config_settings: Optional[Dict[str, str]] = None
+    ) -> List[str]:
+        cs = self.config_holder.config_settings
+        return super().get_requires_for_build_editable(config_settings=cs)
+
+    def prepare_metadata_for_build_wheel(
+        self,
+        metadata_directory: str,
+        config_settings: Optional[Dict[str, str]] = None,
+        _allow_fallback: bool = True,
+    ) -> str:
+        cs = self.config_holder.config_settings
+        return super().prepare_metadata_for_build_wheel(
+            metadata_directory=metadata_directory,
+            config_settings=cs,
+            _allow_fallback=_allow_fallback,
+        )
+
+    def prepare_metadata_for_build_editable(
+        self,
+        metadata_directory: str,
+        config_settings: Optional[Dict[str, str]] = None,
+        _allow_fallback: bool = True,
+    ) -> str:
+        cs = self.config_holder.config_settings
+        return super().prepare_metadata_for_build_editable(
+            metadata_directory=metadata_directory,
+            config_settings=cs,
+            _allow_fallback=_allow_fallback,
+        )

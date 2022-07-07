@@ -2,7 +2,6 @@ import email.message
 import email.parser
 import logging
 import os
-import pathlib
 import zipfile
 from typing import Collection, Iterable, Iterator, List, Mapping, NamedTuple, Optional
 
@@ -12,7 +11,8 @@ from pipenv.patched.notpip._vendor.packaging.utils import NormalizedName, canoni
 from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
 
 from pipenv.patched.notpip._internal.exceptions import InvalidWheel, NoneMetadataError, UnsupportedWheel
-from pipenv.patched.notpip._internal.utils.misc import display_path
+from pipenv.patched.notpip._internal.utils.egg_link import egg_link_path_from_location
+from pipenv.patched.notpip._internal.utils.misc import display_path, normalize_path
 from pipenv.patched.notpip._internal.utils.wheel import parse_wheel, read_wheel_metadata_file
 
 from .base import (
@@ -73,7 +73,7 @@ class Distribution(BaseDistribution):
         self._dist = dist
 
     @classmethod
-    def from_directory(cls, directory: str) -> "Distribution":
+    def from_directory(cls, directory: str) -> BaseDistribution:
         dist_dir = directory.rstrip(os.sep)
 
         # Build a PathMetadata object, from path to metadata. :wink:
@@ -93,14 +93,7 @@ class Distribution(BaseDistribution):
         return cls(dist)
 
     @classmethod
-    def from_wheel(cls, wheel: Wheel, name: str) -> "Distribution":
-        """Load the distribution from a given wheel.
-
-        :raises InvalidWheel: Whenever loading of the wheel causes a
-            :py:exc:`zipfile.BadZipFile` exception to be thrown.
-        :raises UnsupportedWheel: If the wheel is a valid zip, but malformed
-            internally.
-        """
+    def from_wheel(cls, wheel: Wheel, name: str) -> BaseDistribution:
         try:
             with wheel.as_zipfile() as zf:
                 info_dir, _ = parse_wheel(zf, name)
@@ -123,6 +116,17 @@ class Distribution(BaseDistribution):
     @property
     def location(self) -> Optional[str]:
         return self._dist.location
+
+    @property
+    def installed_location(self) -> Optional[str]:
+        egg_link = egg_link_path_from_location(self.raw_name)
+        if egg_link:
+            location = egg_link
+        elif self.location:
+            location = self.location
+        else:
+            return None
+        return normalize_path(location)
 
     @property
     def info_location(self) -> Optional[str]:
@@ -149,14 +153,8 @@ class Distribution(BaseDistribution):
     def is_file(self, path: InfoPath) -> bool:
         return self._dist.has_metadata(str(path))
 
-    def iterdir(self, path: InfoPath) -> Iterator[pathlib.PurePosixPath]:
-        name = str(path)
-        if not self._dist.has_metadata(name):
-            raise FileNotFoundError(name)
-        if not self._dist.isdir(name):
-            raise NotADirectoryError(name)
-        for child in self._dist.metadata_listdir(name):
-            yield pathlib.PurePosixPath(path, child)
+    def iter_distutils_script_names(self) -> Iterator[str]:
+        yield from self._dist.metadata_listdir("scripts")
 
     def read_text(self, path: InfoPath) -> str:
         name = str(path)
@@ -217,6 +215,10 @@ class Environment(BaseEnvironment):
     def from_paths(cls, paths: Optional[List[str]]) -> BaseEnvironment:
         return cls(pkg_resources.WorkingSet(paths))
 
+    def _iter_distributions(self) -> Iterator[BaseDistribution]:
+        for dist in self._ws:
+            yield Distribution(dist)
+
     def _search_distribution(self, name: str) -> Optional[BaseDistribution]:
         """Find a distribution matching the ``name`` in the environment.
 
@@ -224,7 +226,7 @@ class Environment(BaseEnvironment):
         match the behavior of ``pkg_resources.get_distribution()``.
         """
         canonical_name = canonicalize_name(name)
-        for dist in self.iter_distributions():
+        for dist in self.iter_all_distributions():
             if dist.canonical_name == canonical_name:
                 return dist
         return None
@@ -250,7 +252,3 @@ class Environment(BaseEnvironment):
         except pkg_resources.DistributionNotFound:
             return None
         return self._search_distribution(name)
-
-    def _iter_distributions(self) -> Iterator[BaseDistribution]:
-        for dist in self._ws:
-            yield Distribution(dist)

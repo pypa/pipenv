@@ -7,7 +7,7 @@ from pipenv.patched.notpip._internal.cli import cmdoptions
 from pipenv.patched.notpip._internal.cli.cmdoptions import make_target_python
 from pipenv.patched.notpip._internal.cli.req_command import RequirementCommand, with_cleanup
 from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
-from pipenv.patched.notpip._internal.req.req_tracker import get_requirement_tracker
+from pipenv.patched.notpip._internal.operations.build.build_tracker import get_build_tracker
 from pipenv.patched.notpip._internal.utils.misc import ensure_dir, normalize_path, write_output
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 
@@ -49,6 +49,7 @@ class DownloadCommand(RequirementCommand):
         self.cmd_opts.add_option(cmdoptions.no_build_isolation())
         self.cmd_opts.add_option(cmdoptions.use_pep517())
         self.cmd_opts.add_option(cmdoptions.no_use_pep517())
+        self.cmd_opts.add_option(cmdoptions.check_build_deps())
         self.cmd_opts.add_option(cmdoptions.ignore_requires_python())
 
         self.cmd_opts.add_option(
@@ -95,7 +96,7 @@ class DownloadCommand(RequirementCommand):
             ignore_requires_python=options.ignore_requires_python,
         )
 
-        req_tracker = self.enter_context(get_requirement_tracker())
+        build_tracker = self.enter_context(get_build_tracker())
 
         directory = TempDirectory(
             delete=not options.no_clean,
@@ -108,7 +109,7 @@ class DownloadCommand(RequirementCommand):
         preparer = self.make_requirement_preparer(
             temp_build_dir=directory,
             options=options,
-            req_tracker=req_tracker,
+            build_tracker=build_tracker,
             session=session,
             finder=finder,
             download_dir=options.download_dir,

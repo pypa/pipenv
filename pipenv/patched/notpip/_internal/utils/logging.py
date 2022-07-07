@@ -6,21 +6,23 @@ import os
 import sys
 import threading
 from dataclasses import dataclass
+from io import TextIOWrapper
 from logging import Filter
-from typing import IO, Any, ClassVar, Iterator, List, Optional, TextIO, Type
+from typing import Any, ClassVar, Generator, List, Optional, TextIO, Type
 
 from pipenv.patched.notpip._vendor.rich.console import (
     Console,
     ConsoleOptions,
     ConsoleRenderable,
+    RenderableType,
     RenderResult,
+    RichCast,
 )
 from pipenv.patched.notpip._vendor.rich.highlighter import NullHighlighter
 from pipenv.patched.notpip._vendor.rich.logging import RichHandler
 from pipenv.patched.notpip._vendor.rich.segment import Segment
 from pipenv.patched.notpip._vendor.rich.style import Style
 
-from pipenv.patched.notpip._internal.exceptions import DiagnosticPipError
 from pipenv.patched.notpip._internal.utils._log import VERBOSE, getLogger
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 from pipenv.patched.notpip._internal.utils.deprecation import DEPRECATION_MSG_PREFIX
@@ -50,7 +52,7 @@ def _is_broken_pipe_error(exc_class: Type[BaseException], exc: BaseException) ->
 
 
 @contextlib.contextmanager
-def indent_log(num: int = 2) -> Iterator[None]:
+def indent_log(num: int = 2) -> Generator[None, None, None]:
     """
     A context manager which will cause the log output to be indented for any
     log messages emitted inside it.
@@ -121,7 +123,7 @@ class IndentingFormatter(logging.Formatter):
 
 @dataclass
 class IndentedRenderable:
-    renderable: ConsoleRenderable
+    renderable: RenderableType
     indent: int
 
     def __rich_console__(
@@ -152,12 +154,15 @@ class RichPipStreamHandler(RichHandler):
         style: Optional[Style] = None
 
         # If we are given a diagnostic error to present, present it with indentation.
-        if record.msg == "[present-diagnostic] %s" and len(record.args) == 1:
-            diagnostic_error: DiagnosticPipError = record.args[0]  # type: ignore[index]
-            assert isinstance(diagnostic_error, DiagnosticPipError)
+        assert isinstance(record.args, tuple)
+        if record.msg == "[present-rich] %s" and len(record.args) == 1:
+            rich_renderable = record.args[0]
+            assert isinstance(
+                rich_renderable, (ConsoleRenderable, RichCast, str)
+            ), f"{rich_renderable} is not rich-console-renderable"
 
-            renderable: ConsoleRenderable = IndentedRenderable(
-                diagnostic_error, indent=get_indentation()
+            renderable: RenderableType = IndentedRenderable(
+                rich_renderable, indent=get_indentation()
             )
         else:
             message = self.format(record)
@@ -193,7 +198,7 @@ class RichPipStreamHandler(RichHandler):
 
 
 class BetterRotatingFileHandler(logging.handlers.RotatingFileHandler):
-    def _open(self) -> IO[Any]:
+    def _open(self) -> TextIOWrapper:
         ensure_dir(os.path.dirname(self.baseFilename))
         return super()._open()
 

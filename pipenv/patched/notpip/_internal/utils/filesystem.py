@@ -2,12 +2,10 @@ import fnmatch
 import os
 import os.path
 import random
-import shutil
-import stat
 import sys
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
-from typing import Any, BinaryIO, Iterator, List, Union, cast
+from typing import Any, BinaryIO, Generator, List, Union, cast
 
 from pipenv.patched.notpip._vendor.tenacity import retry, stop_after_delay, wait_fixed
 
@@ -42,35 +40,8 @@ def check_path_owner(path: str) -> bool:
     return False  # assume we don't own the path
 
 
-def copy2_fixed(src: str, dest: str) -> None:
-    """Wrap shutil.copy2() but map errors copying socket files to
-    SpecialFileError as expected.
-
-    See also https://bugs.python.org/issue37700.
-    """
-    try:
-        shutil.copy2(src, dest)
-    except OSError:
-        for f in [src, dest]:
-            try:
-                is_socket_file = is_socket(f)
-            except OSError:
-                # An error has already occurred. Another error here is not
-                # a problem and we can ignore it.
-                pass
-            else:
-                if is_socket_file:
-                    raise shutil.SpecialFileError(f"`{f}` is a socket")
-
-        raise
-
-
-def is_socket(path: str) -> bool:
-    return stat.S_ISSOCK(os.lstat(path).st_mode)
-
-
 @contextmanager
-def adjacent_tmp_file(path: str, **kwargs: Any) -> Iterator[BinaryIO]:
+def adjacent_tmp_file(path: str, **kwargs: Any) -> Generator[BinaryIO, None, None]:
     """Return a file-like object pointing to a tmp file next to path.
 
     The file is created securely and is ensured to be written to disk

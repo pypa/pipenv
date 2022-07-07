@@ -1,4 +1,4 @@
-from typing import Dict, Iterator
+from typing import Dict, Generator
 
 from pipenv.patched.notpip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
 
@@ -56,7 +56,7 @@ def raise_for_status(resp: Response) -> None:
 
 def response_chunks(
     response: Response, chunk_size: int = CONTENT_CHUNK_SIZE
-) -> Iterator[bytes]:
+) -> Generator[bytes, None, None]:
     """Given a requests Response, provide the data chunks."""
     try:
         # Special case for urllib3.

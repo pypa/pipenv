@@ -1,6 +1,11 @@
-"""A lil' TOML parser."""
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2021 Taneli Hukkinen
+# Licensed to PSF under a Contributor Agreement.
 
 __all__ = ("loads", "load", "TOMLDecodeError")
-__version__ = "1.0.3"  # DO NOT EDIT THIS LINE MANUALLY. LET bump2version UTILITY DO IT
+__version__ = "2.0.1"  # DO NOT EDIT THIS LINE MANUALLY. LET bump2version UTILITY DO IT
 
-from pipenv.patched.notpip._vendor.tomli._parser import TOMLDecodeError, load, loads
+from ._parser import TOMLDecodeError, load, loads
+
+# Pretend this exception was created here.
+TOMLDecodeError.__module__ = __name__

@@ -1,6 +1,6 @@
 # module pyparsing.py
 #
-# Copyright (c) 2003-2021  Paul T. McGuire
+# Copyright (c) 2003-2022  Paul T. McGuire
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -105,14 +105,17 @@ class version_info(NamedTuple):
 
     @property
     def __version__(self):
-        return "{}.{}.{}".format(self.major, self.minor, self.micro) + (
-            "{}{}{}".format(
-                "r" if self.releaselevel[0] == "c" else "",
-                self.releaselevel[0],
-                self.serial,
-            ),
-            "",
-        )[self.releaselevel == "final"]
+        return (
+            "{}.{}.{}".format(self.major, self.minor, self.micro)
+            + (
+                "{}{}{}".format(
+                    "r" if self.releaselevel[0] == "c" else "",
+                    self.releaselevel[0],
+                    self.serial,
+                ),
+                "",
+            )[self.releaselevel == "final"]
+        )
 
     def __str__(self):
         return "{} {} / {}".format(__name__, self.__version__, __version_time__)
@@ -125,8 +128,8 @@ class version_info(NamedTuple):
         )
 
 
-__version_info__ = version_info(3, 0, 7, "final", 0)
-__version_time__ = "15 Jan 2022 04:10 UTC"
+__version_info__ = version_info(3, 0, 8, "final", 0)
+__version_time__ = "09 Apr 2022 23:29 UTC"
 __version__ = __version_info__.__version__
 __versionTime__ = __version_time__
 __author__ = "Paul McGuire <ptmcg.gm+pyparsing@gmail.com>"

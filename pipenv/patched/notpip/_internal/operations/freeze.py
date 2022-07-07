@@ -1,7 +1,7 @@
 import collections
 import logging
 import os
-from typing import Container, Dict, Iterable, Iterator, List, NamedTuple, Optional, Set
+from typing import Container, Dict, Generator, Iterable, List, NamedTuple, Optional, Set
 
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.notpip._vendor.packaging.version import Version
@@ -31,7 +31,7 @@ def freeze(
     isolated: bool = False,
     exclude_editable: bool = False,
     skip: Container[str] = (),
-) -> Iterator[str]:
+) -> Generator[str, None, None]:
     installations: Dict[str, FrozenRequirement] = {}
 
     dists = get_environment(paths).iter_installed_distributions(

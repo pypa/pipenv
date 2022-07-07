@@ -38,6 +38,18 @@ index e6e9469af..fe8b8c19d 100644
          return link_collector
 
 diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patched/pip/_internal/models/search_scope.py
+index e4e54c2f4..23baf19ed 100644
+--- a/pipenv/patched/pip/_internal/models/search_scope.py
++++ b/pipenv/patched/pip/_internal/models/search_scope.py
+@@ -3,7 +3,7 @@ import logging
+ import os
+ import posixpath
+ import urllib.parse
+-from typing import List
++from typing import Dict, List, Optional
+
+ from pip._vendor.packaging.utils import canonicalize_name
+
 index e4e54c2f4..8cf4f1e6e 100644
 --- a/pipenv/patched/pip/_internal/models/search_scope.py
 +++ b/pipenv/patched/pip/_internal/models/search_scope.py

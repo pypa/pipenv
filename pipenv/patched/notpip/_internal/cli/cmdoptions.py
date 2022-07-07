@@ -10,6 +10,7 @@ pass on state. To be consistent, all options will follow this design.
 # The following comment should be removed at some point in the future.
 # mypy: strict-optional=False
 
+import importlib.util
 import logging
 import os
 import textwrap
@@ -21,7 +22,6 @@ from typing import Any, Callable, Dict, Optional, Tuple
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
 from pipenv.patched.notpip._internal.cli.parser import ConfigOptionParser
-from pipenv.patched.notpip._internal.cli.progress_bars import BAR_TYPES
 from pipenv.patched.notpip._internal.exceptions import CommandError
 from pipenv.patched.notpip._internal.locations import USER_CACHE_DIR, get_src_prefix
 from pipenv.patched.notpip._internal.models.format_control import FormatControl
@@ -236,13 +236,9 @@ progress_bar: Callable[..., Option] = partial(
     "--progress-bar",
     dest="progress_bar",
     type="choice",
-    choices=list(BAR_TYPES.keys()),
+    choices=["on", "off"],
     default="on",
-    help=(
-        "Specify type of progress to be displayed ["
-        + "|".join(BAR_TYPES.keys())
-        + "] (default: %default)"
-    ),
+    help="Specify whether the progress bar should be used [on, off] (default: on)",
 )
 
 log: Callable[..., Option] = partial(
@@ -272,7 +268,7 @@ proxy: Callable[..., Option] = partial(
     dest="proxy",
     type="str",
     default="",
-    help="Specify a proxy in the form [user:passwd@]proxy.server:port.",
+    help="Specify a proxy in the form scheme://[user:passwd@]proxy.server:port.",
 )
 
 retries: Callable[..., Option] = partial(
@@ -753,6 +749,15 @@ no_build_isolation: Callable[..., Option] = partial(
     "if this option is used.",
 )
 
+check_build_deps: Callable[..., Option] = partial(
+    Option,
+    "--check-build-dependencies",
+    dest="check_build_deps",
+    action="store_true",
+    default=False,
+    help="Check the build dependencies when PEP517 is used.",
+)
+
 
 def _handle_no_use_pep517(
     option: Option, opt: str, value: str, parser: OptionParser
@@ -773,6 +778,12 @@ def _handle_no_use_pep517(
         of the PIP_USE_PEP517 environment variable or the "use-pep517"
         config file option instead.
         """
+        raise_option_error(parser, option=option, msg=msg)
+
+    # If user doesn't wish to use pep517, we check if setuptools is installed
+    # and raise error if it is not.
+    if not importlib.util.find_spec("setuptools"):
+        msg = "It is not possible to use --no-use-pep517 without setuptools installed."
         raise_option_error(parser, option=option, msg=msg)
 
     # Otherwise, --no-use-pep517 was passed via the command-line.
@@ -797,6 +808,33 @@ no_use_pep517: Any = partial(
     callback=_handle_no_use_pep517,
     default=None,
     help=SUPPRESS_HELP,
+)
+
+
+def _handle_config_settings(
+    option: Option, opt_str: str, value: str, parser: OptionParser
+) -> None:
+    key, sep, val = value.partition("=")
+    if sep != "=":
+        parser.error(f"Arguments to {opt_str} must be of the form KEY=VAL")  # noqa
+    dest = getattr(parser.values, option.dest)
+    if dest is None:
+        dest = {}
+        setattr(parser.values, option.dest, dest)
+    dest[key] = val
+
+
+config_settings: Callable[..., Option] = partial(
+    Option,
+    "--config-settings",
+    dest="config_settings",
+    type=str,
+    action="callback",
+    callback=_handle_config_settings,
+    metavar="settings",
+    help="Configuration settings to be passed to the PEP 517 build backend. "
+    "Settings take the form KEY=VALUE. Use multiple --config-settings options "
+    "to pass multiple keys to the backend.",
 )
 
 install_options: Callable[..., Option] = partial(
@@ -856,6 +894,15 @@ disable_pip_version_check: Callable[..., Option] = partial(
     default=False,
     help="Don't periodically check PyPI to determine whether a new version "
     "of pip is available for download. Implied with --no-index.",
+)
+
+root_user_action: Callable[..., Option] = partial(
+    Option,
+    "--root-user-action",
+    dest="root_user_action",
+    default="warn",
+    choices=["warn", "ignore"],
+    help="Action if pip is run as a root user. By default, a warning message is shown.",
 )
 
 
@@ -953,7 +1000,7 @@ use_new_feature: Callable[..., Option] = partial(
     metavar="feature",
     action="append",
     default=[],
-    choices=["2020-resolver", "fast-deps", "in-tree-build"],
+    choices=["2020-resolver", "fast-deps"],
     help="Enable new functionality, that may be backward incompatible.",
 )
 
@@ -966,7 +1013,6 @@ use_deprecated_feature: Callable[..., Option] = partial(
     default=[],
     choices=[
         "legacy-resolver",
-        "out-of-tree-build",
         "backtrack-on-build-failures",
         "html5lib",
     ],

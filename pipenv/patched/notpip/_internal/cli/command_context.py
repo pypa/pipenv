@@ -1,5 +1,5 @@
 from contextlib import ExitStack, contextmanager
-from typing import ContextManager, Iterator, TypeVar
+from typing import ContextManager, Generator, TypeVar
 
 _T = TypeVar("_T", covariant=True)
 
@@ -11,7 +11,7 @@ class CommandContextMixIn:
         self._main_context = ExitStack()
 
     @contextmanager
-    def main_context(self) -> Iterator[None]:
+    def main_context(self) -> Generator[None, None, None]:
         assert not self._in_main_context
 
         self._in_main_context = True

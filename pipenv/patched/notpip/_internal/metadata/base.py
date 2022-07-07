@@ -31,10 +31,7 @@ from pipenv.patched.notpip._internal.models.direct_url import (
     DirectUrlValidationError,
 )
 from pipenv.patched.notpip._internal.utils.compat import stdlib_pkgs  # TODO: Move definition here.
-from pipenv.patched.notpip._internal.utils.egg_link import (
-    egg_link_path_from_location,
-    egg_link_path_from_sys_path,
-)
+from pipenv.patched.notpip._internal.utils.egg_link import egg_link_path_from_sys_path
 from pipenv.patched.notpip._internal.utils.misc import is_local, normalize_path
 from pipenv.patched.notpip._internal.utils.urls import url_to_path
 
@@ -45,7 +42,7 @@ else:
 
 DistributionVersion = Union[LegacyVersion, Version]
 
-InfoPath = Union[str, pathlib.PurePosixPath]
+InfoPath = Union[str, pathlib.PurePath]
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +92,28 @@ def _convert_installed_files_path(
 
 
 class BaseDistribution(Protocol):
+    @classmethod
+    def from_directory(cls, directory: str) -> "BaseDistribution":
+        """Load the distribution from a metadata directory.
+
+        :param directory: Path to a metadata directory, e.g. ``.dist-info``.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def from_wheel(cls, wheel: "Wheel", name: str) -> "BaseDistribution":
+        """Load the distribution from a given wheel.
+
+        :param wheel: A concrete wheel definition.
+        :param name: File name of the wheel.
+
+        :raises InvalidWheel: Whenever loading of the wheel causes a
+            :py:exc:`zipfile.BadZipFile` exception to be thrown.
+        :raises UnsupportedWheel: If the wheel is a valid zip, but malformed
+            internally.
+        """
+        raise NotImplementedError()
+
     def __repr__(self) -> str:
         return f"{self.raw_name} {self.version} ({self.location})"
 
@@ -148,14 +167,7 @@ class BaseDistribution(Protocol):
 
         The returned location is normalized (in particular, with symlinks removed).
         """
-        egg_link = egg_link_path_from_location(self.raw_name)
-        if egg_link:
-            location = egg_link
-        elif self.location:
-            location = self.location
-        else:
-            return None
-        return normalize_path(location)
+        raise NotImplementedError()
 
     @property
     def info_location(self) -> Optional[str]:
@@ -316,21 +328,19 @@ class BaseDistribution(Protocol):
         """Check whether an entry in the info directory is a file."""
         raise NotImplementedError()
 
-    def iterdir(self, path: InfoPath) -> Iterator[pathlib.PurePosixPath]:
-        """Iterate through a directory in the info directory.
+    def iter_distutils_script_names(self) -> Iterator[str]:
+        """Find distutils 'scripts' entries metadata.
 
-        Each item yielded would be a path relative to the info directory.
-
-        :raise FileNotFoundError: If ``name`` does not exist in the directory.
-        :raise NotADirectoryError: If ``name`` does not point to a directory.
+        If 'scripts' is supplied in ``setup.py``, distutils records those in the
+        installed distribution's ``scripts`` directory, a file for each script.
         """
         raise NotImplementedError()
 
     def read_text(self, path: InfoPath) -> str:
         """Read a file in the info directory.
 
-        :raise FileNotFoundError: If ``name`` does not exist in the directory.
-        :raise NoneMetadataError: If ``name`` exists in the info directory, but
+        :raise FileNotFoundError: If ``path`` does not exist in the directory.
+        :raise NoneMetadataError: If ``path`` exists in the info directory, but
             cannot be read.
         """
         raise NotImplementedError()
@@ -470,8 +480,8 @@ class BaseEnvironment:
         """
         raise NotImplementedError()
 
-    def iter_distributions(self) -> Iterator["BaseDistribution"]:
-        """Iterate through installed distributions."""
+    def iter_all_distributions(self) -> Iterator[BaseDistribution]:
+        """Iterate through all installed distributions without any filtering."""
         for dist in self._iter_distributions():
             # Make sure the distribution actually comes from a valid Python
             # packaging distribution. Pip's AdjacentTempDirectory leaves folders
@@ -501,6 +511,11 @@ class BaseEnvironment:
     ) -> Iterator[BaseDistribution]:
         """Return a list of installed distributions.
 
+        This is based on ``iter_all_distributions()`` with additional filtering
+        options. Note that ``iter_installed_distributions()`` without arguments
+        is *not* equal to ``iter_all_distributions()``, since some of the
+        configurations exclude packages by default.
+
         :param local_only: If True (default), only return installations
         local to the current virtualenv, if in a virtualenv.
         :param skip: An iterable of canonicalized project names to ignore;
@@ -510,7 +525,7 @@ class BaseEnvironment:
         :param user_only: If True, only report installations in the user
         site directory.
         """
-        it = self.iter_distributions()
+        it = self.iter_all_distributions()
         if local_only:
             it = (d for d in it if d.local)
         if not include_editables:

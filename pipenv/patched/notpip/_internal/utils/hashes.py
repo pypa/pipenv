@@ -1,5 +1,5 @@
 import hashlib
-from typing import TYPE_CHECKING, BinaryIO, Dict, Iterator, List
+from typing import TYPE_CHECKING, BinaryIO, Dict, Iterable, List
 
 from pipenv.patched.notpip._internal.exceptions import HashMismatch, HashMissing, InstallationError
 from pipenv.patched.notpip._internal.utils.misc import read_chunks
@@ -67,7 +67,7 @@ class Hashes:
         """Return whether the given hex digest is allowed."""
         return hex_digest in self._allowed.get(hash_name, [])
 
-    def check_against_chunks(self, chunks: Iterator[bytes]) -> None:
+    def check_against_chunks(self, chunks: Iterable[bytes]) -> None:
         """Check good hashes against ones built from iterable of chunks of
         data.
 

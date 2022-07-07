@@ -13,7 +13,7 @@ from email.utils import parsedate_tz
 
 from pipenv.patched.notpip._vendor.requests.structures import CaseInsensitiveDict
 
-from .cache import DictCache
+from .cache import DictCache, SeparateBodyBaseCache
 from .serialize import Serializer
 
 
@@ -27,15 +27,14 @@ PERMANENT_REDIRECT_STATUSES = (301, 308)
 def parse_uri(uri):
     """Parses a URI using the regex given in Appendix B of RFC 3986.
 
-        (scheme, authority, path, query, fragment) = parse_uri(uri)
+    (scheme, authority, path, query, fragment) = parse_uri(uri)
     """
     groups = URI.match(uri).groups()
     return (groups[1], groups[3], groups[4], groups[6], groups[8])
 
 
 class CacheController(object):
-    """An interface to see if request should cached or not.
-    """
+    """An interface to see if request should cached or not."""
 
     def __init__(
         self, cache=None, cache_etags=True, serializer=None, status_codes=None
@@ -147,8 +146,13 @@ class CacheController(object):
             logger.debug("No cache entry available")
             return False
 
+        if isinstance(self.cache, SeparateBodyBaseCache):
+            body_file = self.cache.get_body(cache_url)
+        else:
+            body_file = None
+
         # Check whether it can be deserialized
-        resp = self.serializer.loads(request, cache_data)
+        resp = self.serializer.loads(request, cache_data, body_file)
         if not resp:
             logger.warning("Cache entry deserialization failed, entry ignored")
             return False
@@ -251,6 +255,26 @@ class CacheController(object):
 
         return new_headers
 
+    def _cache_set(self, cache_url, request, response, body=None, expires_time=None):
+        """
+        Store the data in the cache.
+        """
+        if isinstance(self.cache, SeparateBodyBaseCache):
+            # We pass in the body separately; just put a placeholder empty
+            # string in the metadata.
+            self.cache.set(
+                cache_url,
+                self.serializer.dumps(request, response, b""),
+                expires=expires_time,
+            )
+            self.cache.set_body(cache_url, body)
+        else:
+            self.cache.set(
+                cache_url,
+                self.serializer.dumps(request, response, body),
+                expires=expires_time,
+            )
+
     def cache_response(self, request, response, body=None, status_codes=None):
         """
         Algorithm for caching requests.
@@ -326,17 +350,13 @@ class CacheController(object):
 
             logger.debug("etag object cached for {0} seconds".format(expires_time))
             logger.debug("Caching due to etag")
-            self.cache.set(
-                cache_url,
-                self.serializer.dumps(request, response, body),
-                expires=expires_time,
-            )
+            self._cache_set(cache_url, request, response, body, expires_time)
 
         # Add to the cache any permanent redirects. We do this before looking
         # that the Date headers.
         elif int(response.status) in PERMANENT_REDIRECT_STATUSES:
             logger.debug("Caching permanent redirect")
-            self.cache.set(cache_url, self.serializer.dumps(request, response, b""))
+            self._cache_set(cache_url, request, response, b"")
 
         # Add to the cache if the response headers demand it. If there
         # is no date header then we can't do anything about expiring
@@ -347,10 +367,12 @@ class CacheController(object):
             if "max-age" in cc and cc["max-age"] > 0:
                 logger.debug("Caching b/c date exists and max-age > 0")
                 expires_time = cc["max-age"]
-                self.cache.set(
+                self._cache_set(
                     cache_url,
-                    self.serializer.dumps(request, response, body),
-                    expires=expires_time,
+                    request,
+                    response,
+                    body,
+                    expires_time,
                 )
 
             # If the request can expire, it means we should cache it
@@ -368,10 +390,12 @@ class CacheController(object):
                             expires_time
                         )
                     )
-                    self.cache.set(
+                    self._cache_set(
                         cache_url,
-                        self.serializer.dumps(request, response, body=body),
-                        expires=expires_time,
+                        request,
+                        response,
+                        body,
+                        expires_time,
                     )
 
     def update_cached_response(self, request, response):
@@ -410,6 +434,6 @@ class CacheController(object):
         cached_response.status = 200
 
         # update our cache
-        self.cache.set(cache_url, self.serializer.dumps(request, cached_response))
+        self._cache_set(cache_url, request, cached_response)
 
         return cached_response

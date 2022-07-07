@@ -4,6 +4,7 @@ import os
 import re
 import sys
 from functools import lru_cache
+from typing import cast
 
 from .api import PlatformDirsABC
 
@@ -18,7 +19,7 @@ class Android(PlatformDirsABC):
     @property
     def user_data_dir(self) -> str:
         """:return: data directory tied to the user, e.g. ``/data/user/<userid>/<packagename>/files/<AppName>``"""
-        return self._append_app_name_and_version(_android_folder(), "files")
+        return self._append_app_name_and_version(cast(str, _android_folder()), "files")
 
     @property
     def site_data_dir(self) -> str:
@@ -30,7 +31,7 @@ class Android(PlatformDirsABC):
         """
         :return: config directory tied to the user, e.g. ``/data/user/<userid>/<packagename>/shared_prefs/<AppName>``
         """
-        return self._append_app_name_and_version(_android_folder(), "shared_prefs")
+        return self._append_app_name_and_version(cast(str, _android_folder()), "shared_prefs")
 
     @property
     def site_config_dir(self) -> str:
@@ -40,7 +41,7 @@ class Android(PlatformDirsABC):
     @property
     def user_cache_dir(self) -> str:
         """:return: cache directory tied to the user, e.g. e.g. ``/data/user/<userid>/<packagename>/cache/<AppName>``"""
-        return self._append_app_name_and_version(_android_folder(), "cache")
+        return self._append_app_name_and_version(cast(str, _android_folder()), "cache")
 
     @property
     def user_state_dir(self) -> str:
@@ -78,14 +79,14 @@ class Android(PlatformDirsABC):
 
 
 @lru_cache(maxsize=1)
-def _android_folder() -> str:
-    """:return: base folder for the Android OS"""
+def _android_folder() -> str | None:
+    """:return: base folder for the Android OS or None if cannot be found"""
     try:
         # First try to get path to android app via pyjnius
         from jnius import autoclass
 
         Context = autoclass("android.content.Context")  # noqa: N806
-        result: str = Context.getFilesDir().getParentFile().getAbsolutePath()
+        result: str | None = Context.getFilesDir().getParentFile().getAbsolutePath()
     except Exception:
         # if fails find an android folder looking path on the sys.path
         pattern = re.compile(r"/data/(data|user/\d+)/(.+)/files")
@@ -94,7 +95,7 @@ def _android_folder() -> str:
                 result = path.split("/files")[0]
                 break
         else:
-            raise OSError("Cannot find path to android app folder")
+            result = None
     return result
 
 

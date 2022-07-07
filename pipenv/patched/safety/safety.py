@@ -5,7 +5,7 @@ import os
 import time
 from collections import namedtuple
 
-import pipenv.patched.notpip._vendor.requests as requests
+import requests
 from pipenv.vendor.packaging.specifiers import SpecifierSet
 
 from .constants import (API_MIRRORS, CACHE_FILE, CACHE_LICENSES_VALID_SECONDS,

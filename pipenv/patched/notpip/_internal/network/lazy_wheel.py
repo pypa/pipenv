@@ -5,7 +5,7 @@ __all__ = ["HTTPRangeRequestUnsupported", "dist_from_wheel_url"]
 from bisect import bisect_left, bisect_right
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple
 from zipfile import BadZipfile, ZipFile
 
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
@@ -139,7 +139,7 @@ class LazyZipOverHTTP:
         return self._file.__exit__(*exc)
 
     @contextmanager
-    def _stay(self) -> Iterator[None]:
+    def _stay(self) -> Generator[None, None, None]:
         """Return a context manager keeping the position.
 
         At the end of the block, seek back to original position.
@@ -177,8 +177,8 @@ class LazyZipOverHTTP:
 
     def _merge(
         self, start: int, end: int, left: int, right: int
-    ) -> Iterator[Tuple[int, int]]:
-        """Return an iterator of intervals to be fetched.
+    ) -> Generator[Tuple[int, int], None, None]:
+        """Return a generator of intervals to be fetched.
 
         Args:
             start (int): Start of needed interval

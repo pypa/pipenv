@@ -3,7 +3,7 @@
 
 import os
 from contextlib import contextmanager
-from typing import Iterator, Optional
+from typing import Generator, Optional
 
 from pipenv.patched.notpip._vendor.cachecontrol.cache import BaseCache
 from pipenv.patched.notpip._vendor.cachecontrol.caches import FileCache
@@ -18,7 +18,7 @@ def is_from_cache(response: Response) -> bool:
 
 
 @contextmanager
-def suppressed_cache_errors() -> Iterator[None]:
+def suppressed_cache_errors() -> Generator[None, None, None]:
     """If we can't access the cache then we can just skip caching and process
     requests as if caching wasn't enabled.
     """

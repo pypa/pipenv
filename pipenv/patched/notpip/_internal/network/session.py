@@ -15,7 +15,7 @@ import subprocess
 import sys
 import urllib.parse
 import warnings
-from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple, Union
 
 from pipenv.patched.notpip._vendor import requests, urllib3
 from pipenv.patched.notpip._vendor.cachecontrol import CacheControlAdapter
@@ -374,7 +374,7 @@ class PipSession(requests.Session):
             # Mount wildcard ports for the same host.
             self.mount(build_url_from_netloc(host) + ":", self._trusted_host_adapter)
 
-    def iter_secure_origins(self) -> Iterator[SecureOrigin]:
+    def iter_secure_origins(self) -> Generator[SecureOrigin, None, None]:
         yield from SECURE_ORIGINS
         for host, port in self.pip_trusted_origins:
             yield ("*", host, "*" if port is None else port)
@@ -449,6 +449,8 @@ class PipSession(requests.Session):
     def request(self, method: str, url: str, *args: Any, **kwargs: Any) -> Response:
         # Allow setting a default timeout on a session
         kwargs.setdefault("timeout", self.timeout)
+        # Allow setting a default proxies on a session
+        kwargs.setdefault("proxies", self.proxies)
 
         # Dispatch the actual request
         return super().request(method, url, *args, **kwargs)

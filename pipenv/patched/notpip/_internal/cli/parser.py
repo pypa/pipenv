@@ -6,7 +6,7 @@ import shutil
 import sys
 import textwrap
 from contextlib import suppress
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import Any, Dict, Generator, List, Tuple
 
 from pipenv.patched.notpip._internal.cli.status_codes import UNKNOWN_ERROR
 from pipenv.patched.notpip._internal.configuration import Configuration, ConfigurationError
@@ -175,7 +175,9 @@ class ConfigOptionParser(CustomOptionParser):
             print(f"An error occurred during configuration: {exc}")
             sys.exit(3)
 
-    def _get_ordered_configuration_items(self) -> Iterator[Tuple[str, Any]]:
+    def _get_ordered_configuration_items(
+        self,
+    ) -> Generator[Tuple[str, Any], None, None]:
         # Configuration gives keys in an unordered manner. Order them.
         override_order = ["global", self.name, ":env:"]
 

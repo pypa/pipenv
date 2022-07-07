@@ -84,7 +84,7 @@ def distutils_scheme(
         if home:
             prefix = home
         elif user:
-            prefix = i.install_userbase  # type: ignore
+            prefix = i.install_userbase
         else:
             prefix = i.prefix
         scheme["headers"] = os.path.join(
