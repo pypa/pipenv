@@ -69,6 +69,7 @@ LIBRARY_RENAMES = {
     "pip": "pipenv.patched.notpip",
     "functools32": "pipenv.vendor.backports.functools_lru_cache",
     "requests": "pipenv.patched.notpip._vendor.requests",
+    "packaging": "pipenv.patched.notpip._vendor.packaging",
 }
 
 GLOBAL_REPLACEMENT = [

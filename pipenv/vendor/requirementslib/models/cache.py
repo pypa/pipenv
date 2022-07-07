@@ -10,7 +10,7 @@ import pathlib
 import sys
 
 import pipenv.vendor.vistir as vistir
-from pipenv.vendor.packaging.requirements import Requirement
+from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
 from pipenv.vendor.pip_shims.shims import FAVORITE_HASH, SafeFileCache
 from pipenv.vendor.platformdirs import user_cache_dir
 

@@ -171,7 +171,7 @@ def convert_entry_to_path(path):
 def is_installable_file(path):
     # type: (PipfileType) -> bool
     """Determine if a path can potentially be installed."""
-    from pipenv.vendor.packaging import specifiers
+    from pipenv.patched.notpip._vendor.packaging import specifiers
 
     if isinstance(path, Mapping):
         path = convert_entry_to_path(path)
@@ -645,7 +645,7 @@ def merge_items(target_list, sourced=False):
         if sourced:
 
             def remerge_visit(path, key, value):
-                source_map[path + (key,)] = t_name
+                source_map[path + (key,)] = t_name  # noqa: B023
                 return True
 
         else:

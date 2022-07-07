@@ -12,7 +12,7 @@ from threading import Timer
 
 import pipenv.vendor.attr as attr
 import pipenv.vendor.six as six
-from pipenv.vendor.packaging.version import LegacyVersion, Version
+from pipenv.patched.notpip._vendor.packaging.version import LegacyVersion, Version
 
 from .compat import Path, TimeoutError, lru_cache  # noqa
 from .environment import MYPY_RUNNING, PYENV_ROOT, SUBPROCESS_TIMEOUT
@@ -124,7 +124,7 @@ def get_python_version(path):
 @lru_cache(maxsize=1024)
 def parse_python_version(version_str):
     # type: (str) -> Dict[str, Union[str, int, Version]]
-    from pipenv.vendor.packaging.version import parse as parse_version
+    from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
 
     is_debug = False
     if version_str.endswith("-debug"):

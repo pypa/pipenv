@@ -16,15 +16,15 @@ from urllib.parse import unquote
 import pipenv.vendor.attr as attr
 import pipenv.vendor.pip_shims as pip_shims
 from pipenv.vendor.cached_property import cached_property
-from pipenv.vendor.packaging.markers import Marker
-from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
-from pipenv.vendor.packaging.specifiers import (
+from pipenv.patched.notpip._vendor.packaging.markers import Marker
+from pipenv.patched.notpip._vendor.packaging.requirements import Requirement as PackagingRequirement
+from pipenv.patched.notpip._vendor.packaging.specifiers import (
     InvalidSpecifier,
     LegacySpecifier,
     Specifier,
     SpecifierSet,
 )
-from pipenv.vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 from pipenv.vendor.vistir.contextmanagers import temp_path
 from pipenv.vendor.vistir.misc import dedup
 from pipenv.vendor.vistir.path import (

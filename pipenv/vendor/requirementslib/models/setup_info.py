@@ -17,13 +17,12 @@ from urllib.parse import parse_qs, urlparse, urlunparse
 from weakref import finalize
 
 import pipenv.vendor.attr as attr
-import packaging.specifiers
-import packaging.utils
-import packaging.version
 import pep517.envbuild
 import pep517.wrappers
 from pipenv.vendor.distlib.wheel import Wheel
-from pipenv.vendor.packaging.markers import Marker
+from pipenv.patched.notpip._vendor.packaging.markers import Marker
+from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.notpip._vendor.packaging.version import parse
 from pipenv.vendor.pip_shims.utils import call_function_with_correct_args
 from pipenv.vendor.platformdirs import user_cache_dir
 from pipenv.vendor.vistir.contextmanagers import cd, temp_path
@@ -72,7 +71,7 @@ if MYPY_RUNNING:
     )
 
     import pipenv.patched.notpip._vendor.requests as requests
-    from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.patched.notpip._vendor.packaging.requirements import Requirement as PackagingRequirement
     from pipenv.vendor.pip_shims.shims import InstallRequirement, PackageFinder
     from pkg_resources import DistInfoDistribution, EggInfoDistribution, PathMetadata
     from pkg_resources import Requirement as PkgResourcesRequirement
@@ -493,15 +492,17 @@ class SetupReader:
             if not isinstance(elem, (ast.Assign, ast.AnnAssign)):
                 continue
 
-            if getattr(elem, "target", None) and elem.target.id == name:
-                return elem.value
-
-            for target in elem.targets:
-                if not isinstance(target, ast.Name):
+            if isinstance(elem, ast.AnnAssign):
+                if not isinstance(elem.target, ast.Name):
                     continue
-
-                if target.id == name:
+                if elem.value and elem.target.id == name:
                     return elem.value
+            else:
+                for target in elem.targets:
+                    if not isinstance(target, ast.Name):
+                        continue
+                    if target.id == name:
+                        return elem.value
         return None
 
     @staticmethod
@@ -1015,9 +1016,7 @@ class SetupInfo(object):
     build_requires = attr.ib(default=None, eq=True)  # type: Optional[Tuple]
     build_backend = attr.ib(eq=True)  # type: STRING_TYPE
     setup_requires = attr.ib(default=None, eq=True)  # type: Optional[Tuple]
-    python_requires = attr.ib(
-        default=None, eq=True
-    )  # type: Optional[packaging.specifiers.SpecifierSet]
+    python_requires = attr.ib(default=None, eq=True)  # type: Optional[SpecifierSet]
     _extras_requirements = attr.ib(default=None, eq=True)  # type: Optional[Tuple]
     setup_cfg = attr.ib(type=Path, default=None, eq=True, hash=False)
     setup_py = attr.ib(type=Path, default=None, eq=True, hash=False)
@@ -1096,7 +1095,7 @@ class SetupInfo(object):
         version = metadata.get("version", None)
         if version:
             try:
-                packaging.version.parse(version)
+                parse(version)
             except TypeError:
                 version = self.version if self.version else None
             else:

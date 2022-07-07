@@ -10,7 +10,7 @@ from collections import defaultdict
 
 import pipenv.vendor.attr as attr
 import pipenv.vendor.six as six
-from pipenv.vendor.packaging.version import Version
+from pipenv.patched.notpip._vendor.packaging.version import Version
 
 from ..compat import Path, lru_cache
 from ..environment import ASDF_DATA_DIR, MYPY_RUNNING, PYENV_ROOT, SYSTEM_ARCH

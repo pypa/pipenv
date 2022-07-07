@@ -15,12 +15,12 @@ import pkg_resources
 
 import pipenv
 from pipenv.environments import is_type_checking
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import make_posix, normalize_path
 from pipenv.vendor import click, vistir
 from pipenv.vendor.cached_property import cached_property
-from pipenv.vendor.packaging.utils import canonicalize_name
 
 if is_type_checking():
     from types import ModuleType
@@ -29,8 +29,8 @@ if is_type_checking():
     import pip_shims.shims
     import tomlkit
 
+    from pipenv.patched.notpip._vendor.packaging.version import Version
     from pipenv.project import Project, TPipfile, TSource
-    from pipenv.vendor.packaging.version import Version
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
 # TODO: Unittests for this class
@@ -545,7 +545,9 @@ class Environment:
         Get the pip version in the environment.  Useful for knowing which args we can use
         when installing.
         """
-        from .vendor.packaging.version import parse as parse_version
+        from pipenv.patched.notpip._vendor.packaging.version import (
+            parse as parse_version,
+        )
 
         pip = next(
             iter(pkg for pkg in self.get_installed_packages() if pkg.key == "pip"), None

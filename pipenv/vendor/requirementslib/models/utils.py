@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pipenv.vendor.tomlkit as tomlkit
 from pipenv.vendor.attr import validators
-from pipenv.vendor.packaging.markers import InvalidMarker, Marker, Op, Value, Variable
-from pipenv.vendor.packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
-from pipenv.vendor.packaging.version import parse as parse_version
+from pipenv.patched.notpip._vendor.packaging.markers import InvalidMarker, Marker, Op, Value, Variable
+from pipenv.patched.notpip._vendor.packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
+from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
 from pipenv.vendor.plette.models import Package, PackageCollection
 from pipenv.vendor.tomlkit.container import Container
 from pipenv.vendor.tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
@@ -45,11 +45,11 @@ if MYPY_RUNNING:
     )
 
     from pipenv.vendor.attr import _ValidatorType  # noqa
-    from pipenv.vendor.packaging.markers import Marker as PkgResourcesMarker
-    from pipenv.vendor.packaging.markers import Op as PkgResourcesOp
-    from pipenv.vendor.packaging.markers import Value as PkgResourcesValue
-    from pipenv.vendor.packaging.markers import Variable as PkgResourcesVariable
-    from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.patched.notpip._vendor.packaging.markers import Marker as PkgResourcesMarker
+    from pipenv.patched.notpip._vendor.packaging.markers import Op as PkgResourcesOp
+    from pipenv.patched.notpip._vendor.packaging.markers import Value as PkgResourcesValue
+    from pipenv.patched.notpip._vendor.packaging.markers import Variable as PkgResourcesVariable
+    from pipenv.patched.notpip._vendor.packaging.requirements import Requirement as PackagingRequirement
     from pipenv.vendor.pip_shims.shims import Link
     from pkg_resources import Requirement as PkgResourcesRequirement
     from pipenv.vendor.urllib3.util.url import Url
@@ -912,7 +912,7 @@ def clean_requires_python(candidates):
     `requires_python` attributes."""
     all_candidates = []
     sys_version = ".".join(map(str, sys.version_info[:3]))
-    from pipenv.vendor.packaging.version import parse as parse_version
+    from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
 
     py_version = parse_version(os.environ.get("PIP_PYTHON_VERSION", sys_version))
     for c in candidates:
@@ -936,7 +936,7 @@ def clean_requires_python(candidates):
 
 
 def fix_requires_python_marker(requires_python):
-    from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.patched.notpip._vendor.packaging.requirements import Requirement as PackagingRequirement
 
     marker_str = ""
     if any(requires_python.startswith(op) for op in Specifier._operators.keys()):
@@ -986,7 +986,7 @@ def get_name_variants(pkg):
 
     if not isinstance(pkg, str):
         raise TypeError("must provide a string to derive package names")
-    from pipenv.vendor.packaging.utils import canonicalize_name
+    from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
     from pkg_resources import safe_name
 
     pkg = pkg.lower()

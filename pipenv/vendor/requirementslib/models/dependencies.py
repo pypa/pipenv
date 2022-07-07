@@ -9,11 +9,11 @@ from contextlib import ExitStack
 from json import JSONDecodeError
 
 import pipenv.vendor.attr as attr
-import packaging.markers
-import packaging.version
 import pip_shims.shims
 import pipenv.patched.notpip._vendor.requests as requests
-from pipenv.vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.markers import Marker
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.version import parse
 from pipenv.vendor.vistir.compat import fs_str
 from pipenv.vendor.vistir.contextmanagers import cd, temp_environ
 from pipenv.vendor.vistir.path import create_tracked_tempdir
@@ -48,8 +48,7 @@ if MYPY_RUNNING:
         Union,
     )
 
-    from pipenv.vendor.packaging.markers import Marker
-    from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.patched.notpip._vendor.packaging.requirements import Requirement as PackagingRequirement
     from pipenv.vendor.pip_shims.shims import (
         Command,
         InstallationCandidate,
@@ -137,7 +136,7 @@ class AbstractDependency(object):
 
         if len(self.candidates) == 1:
             return set()
-        return set(packaging.version.parse(version_from_ireq(c)) for c in self.candidates)
+        return set(parse(version_from_ireq(c)) for c in self.candidates)
 
     def compatible_versions(self, other):
         """Find compatible version numbers between this abstract dependency and
@@ -178,9 +177,7 @@ class AbstractDependency(object):
             markers.add(other.markers)
         new_markers = None
         if markers:
-            new_markers = packaging.markers.Marker(
-                " or ".join(str(m) for m in sorted(markers))
-            )
+            new_markers = Marker(" or ".join(str(m) for m in sorted(markers)))
         new_ireq = copy.deepcopy(self.requirement.ireq)
         new_ireq.req.specifier = new_specifiers
         new_ireq.req.marker = new_markers
@@ -191,7 +188,7 @@ class AbstractDependency(object):
         candidates = [
             c
             for c in self.candidates
-            if packaging.version.parse(version_from_ireq(c)) in compatible_versions
+            if parse(version_from_ireq(c)) in compatible_versions
         ]
         dep_dict = {}
         candidate_strings = [format_requirement(c) for c in candidates]
@@ -261,7 +258,7 @@ class AbstractDependency(object):
                 candidates.append(req)
                 candidates = sorted(
                     set(candidates),
-                    key=lambda k: packaging.version.parse(version_from_ireq(k)),
+                    key=lambda k: parse(version_from_ireq(k)),
                 )
         else:
             candidates = [requirement.ireq]
