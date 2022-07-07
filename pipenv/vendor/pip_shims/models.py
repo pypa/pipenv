@@ -76,7 +76,7 @@ class PipVersion(Sequence):
         version,
         round_prereleases_up=True,
         base_import_path=None,
-        vendor_import_path="pip._vendor",
+        vendor_import_path="pipenv.patched.notpip._vendor",
     ):
         # type: (str, bool, Optional[str], str) -> None
         self.version = version

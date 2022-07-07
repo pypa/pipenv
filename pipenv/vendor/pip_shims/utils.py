@@ -130,10 +130,10 @@ def split_package(module, subimport=None):
     :Example:
 
     >>> from pip_shims.utils import split_package
-    >>> split_package("pip._internal.req.req_install", subimport="InstallRequirement")
-    ("pip._internal.req.req_install", "InstallRequirement")
-    >>> split_package("pip._internal.cli.base_command")
-    ("pip._internal.cli", "base_command")
+    >>> split_package("pipenv.patched.notpip._internal.req.req_install", subimport="InstallRequirement")
+    ("pipenv.patched.notpip._internal.req.req_install", "InstallRequirement")
+    >>> split_package("pipenv.patched.notpip._internal.cli.base_command")
+    ("pipenv.patched.notpip._internal.cli", "base_command")
     """
     package = None
     if subimport:
@@ -387,7 +387,7 @@ def get_allowed_args(fn_or_class):
     try:
         signature = inspect.signature(fn_or_class)
     except AttributeError:
-        import funcsigs
+        import pipenv.vendor.funcsigs as funcsigs
 
         signature = funcsigs.signature(fn_or_class)
     args = []
