@@ -1,6 +1,7 @@
 # helpers.py
 import html.entities
 import re
+import typing
 
 from . import __diag__
 from .core import *
@@ -14,8 +15,8 @@ def delimited_list(
     expr: Union[str, ParserElement],
     delim: Union[str, ParserElement] = ",",
     combine: bool = False,
-    min: OptionalType[int] = None,
-    max: OptionalType[int] = None,
+    min: typing.Optional[int] = None,
+    max: typing.Optional[int] = None,
     *,
     allow_trailing_delim: bool = False,
 ) -> ParserElement:
@@ -69,9 +70,9 @@ def delimited_list(
 
 def counted_array(
     expr: ParserElement,
-    int_expr: OptionalType[ParserElement] = None,
+    int_expr: typing.Optional[ParserElement] = None,
     *,
-    intExpr: OptionalType[ParserElement] = None,
+    intExpr: typing.Optional[ParserElement] = None,
 ) -> ParserElement:
     """Helper to define a counted list of expressions.
 
@@ -185,7 +186,9 @@ def match_previous_expr(expr: ParserElement) -> ParserElement:
         def must_match_these_tokens(s, l, t):
             theseTokens = _flatten(t.as_list())
             if theseTokens != matchTokens:
-                raise ParseException(s, l, "Expected {}, found{}".format(matchTokens, theseTokens))
+                raise ParseException(
+                    s, l, "Expected {}, found{}".format(matchTokens, theseTokens)
+                )
 
         rep.set_parse_action(must_match_these_tokens, callDuringTry=True)
 
@@ -195,7 +198,7 @@ def match_previous_expr(expr: ParserElement) -> ParserElement:
 
 
 def one_of(
-    strs: Union[IterableType[str], str],
+    strs: Union[typing.Iterable[str], str],
     caseless: bool = False,
     use_regex: bool = True,
     as_keyword: bool = False,
@@ -310,7 +313,7 @@ def one_of(
 
             return ret
 
-        except sre_constants.error:
+        except re.error:
             warnings.warn(
                 "Exception creating Regex for one_of, building MatchFirst", stacklevel=2
             )
@@ -335,7 +338,7 @@ def dict_of(key: ParserElement, value: ParserElement) -> ParserElement:
 
         text = "shape: SQUARE posn: upper left color: light blue texture: burlap"
         attr_expr = (label + Suppress(':') + OneOrMore(data_word, stop_on=label).set_parse_action(' '.join))
-        print(OneOrMore(attr_expr).parse_string(text).dump())
+        print(attr_expr[1, ...].parse_string(text).dump())
 
         attr_label = label
         attr_value = Suppress(':') + OneOrMore(data_word, stop_on=label).set_parse_action(' '.join)
@@ -350,10 +353,10 @@ def dict_of(key: ParserElement, value: ParserElement) -> ParserElement:
     prints::
 
         [['shape', 'SQUARE'], ['posn', 'upper left'], ['color', 'light blue'], ['texture', 'burlap']]
-        - color: light blue
-        - posn: upper left
-        - shape: SQUARE
-        - texture: burlap
+        - color: 'light blue'
+        - posn: 'upper left'
+        - shape: 'SQUARE'
+        - texture: 'burlap'
         SQUARE
         SQUARE
         {'color': 'light blue', 'shape': 'SQUARE', 'posn': 'upper left', 'texture': 'burlap'}
@@ -459,7 +462,7 @@ def locatedExpr(expr: ParserElement) -> ParserElement:
 def nested_expr(
     opener: Union[str, ParserElement] = "(",
     closer: Union[str, ParserElement] = ")",
-    content: OptionalType[ParserElement] = None,
+    content: typing.Optional[ParserElement] = None,
     ignore_expr: ParserElement = quoted_string(),
     *,
     ignoreExpr: ParserElement = quoted_string(),
@@ -680,6 +683,8 @@ def make_xml_tags(
     return _makeTags(tag_str, True)
 
 
+any_open_tag: ParserElement
+any_close_tag: ParserElement
 any_open_tag, any_close_tag = make_html_tags(
     Word(alphas, alphanums + "_:").set_name("any tag")
 )
@@ -708,7 +713,7 @@ InfixNotationOperatorSpec = Union[
         InfixNotationOperatorArgType,
         int,
         OpAssoc,
-        OptionalType[ParseAction],
+        typing.Optional[ParseAction],
     ],
     Tuple[
         InfixNotationOperatorArgType,
@@ -758,10 +763,14 @@ def infix_notation(
         a tuple or list of functions, this is equivalent to calling
         ``set_parse_action(*fn)``
         (:class:`ParserElement.set_parse_action`)
-    - ``lpar`` - expression for matching left-parentheses
-      (default= ``Suppress('(')``)
-    - ``rpar`` - expression for matching right-parentheses
-      (default= ``Suppress(')')``)
+    - ``lpar`` - expression for matching left-parentheses; if passed as a
+      str, then will be parsed as Suppress(lpar). If lpar is passed as
+      an expression (such as ``Literal('(')``), then it will be kept in
+      the parsed results, and grouped with them. (default= ``Suppress('(')``)
+    - ``rpar`` - expression for matching right-parentheses; if passed as a
+      str, then will be parsed as Suppress(rpar). If rpar is passed as
+      an expression (such as ``Literal(')')``), then it will be kept in
+      the parsed results, and grouped with them. (default= ``Suppress(')')``)
 
     Example::
 
@@ -803,9 +812,17 @@ def infix_notation(
     _FB.__name__ = "FollowedBy>"
 
     ret = Forward()
-    lpar = Suppress(lpar)
-    rpar = Suppress(rpar)
-    lastExpr = base_expr | (lpar + ret + rpar)
+    if isinstance(lpar, str):
+        lpar = Suppress(lpar)
+    if isinstance(rpar, str):
+        rpar = Suppress(rpar)
+
+    # if lpar and rpar are not suppressed, wrap in group
+    if not (isinstance(rpar, Suppress) and isinstance(rpar, Suppress)):
+        lastExpr = base_expr | Group(lpar + ret + rpar)
+    else:
+        lastExpr = base_expr | (lpar + ret + rpar)
+
     for i, operDef in enumerate(op_list):
         opExpr, arity, rightLeftAssoc, pa = (operDef + (None,))[:4]
         if isinstance(opExpr, str_type):
@@ -826,7 +843,7 @@ def infix_notation(
         if rightLeftAssoc not in (OpAssoc.LEFT, OpAssoc.RIGHT):
             raise ValueError("operator must indicate right or left associativity")
 
-        thisExpr = Forward().set_name(term_name)
+        thisExpr: Forward = Forward().set_name(term_name)
         if rightLeftAssoc is OpAssoc.LEFT:
             if arity == 1:
                 matchExpr = _FB(lastExpr + opExpr) + Group(lastExpr + opExpr[1, ...])
@@ -931,7 +948,7 @@ def indentedBlock(blockStatementExpr, indentStack, indent=True, backup_stacks=[]
         assignment = Group(identifier + "=" + rvalue)
         stmt << (funcDef | assignment | identifier)
 
-        module_body = OneOrMore(stmt)
+        module_body = stmt[1, ...]
 
         parseTree = module_body.parseString(data)
         parseTree.pprint()
@@ -1041,7 +1058,9 @@ python_style_comment = Regex(r"#.*").set_name("Python style comment")
 
 # build list of built-in expressions, for future reference if a global default value
 # gets updated
-_builtin_exprs = [v for v in vars().values() if isinstance(v, ParserElement)]
+_builtin_exprs: List[ParserElement] = [
+    v for v in vars().values() if isinstance(v, ParserElement)
+]
 
 
 # pre-PEP8 compatible names

@@ -65,9 +65,9 @@ class ParseResults:
         'month' in result -> True
         'minutes' in result -> False
         result.dump() -> ['1999', '/', '12', '/', '31']
-        - day: 31
-        - month: 12
-        - year: 1999
+        - day: '31'
+        - month: '12'
+        - year: '1999'
     """
 
     _null_values: Tuple[Any, ...] = (None, [], "", ())
@@ -287,7 +287,7 @@ class ParseResults:
             print(numlist.parse_string("0 123 321")) # -> ['123', '321']
 
             label = Word(alphas)
-            patt = label("LABEL") + OneOrMore(Word(nums))
+            patt = label("LABEL") + Word(nums)[1, ...]
             print(patt.parse_string("AAB 123 321").dump())
 
             # Use pop() in a parse action to remove named result (note that corresponding value is not
@@ -301,7 +301,7 @@ class ParseResults:
         prints::
 
             ['AAB', '123', '321']
-            - LABEL: AAB
+            - LABEL: 'AAB'
 
             ['AAB', '123', '321']
         """
@@ -394,7 +394,7 @@ class ParseResults:
 
         Example::
 
-            patt = OneOrMore(Word(alphas))
+            patt = Word(alphas)[1, ...]
 
             # use a parse action to append the reverse of the matched strings, to make a palindrome
             def make_palindrome(tokens):
@@ -487,7 +487,7 @@ class ParseResults:
 
         Example::
 
-            patt = OneOrMore(Word(alphas))
+            patt = Word(alphas)[1, ...]
             result = patt.parse_string("sldkj lsdkj sldkj")
             # even though the result prints in string-like form, it is actually a pyparsing ParseResults
             print(type(result), result) # -> <class 'pyparsing.ParseResults'> ['sldkj', 'lsdkj', 'sldkj']
@@ -554,7 +554,7 @@ class ParseResults:
             user_data = (Group(house_number_expr)("house_number")
                         | Group(ssn_expr)("ssn")
                         | Group(integer)("age"))
-            user_info = OneOrMore(user_data)
+            user_info = user_data[1, ...]
 
             result = user_info.parse_string("22 111-22-3333 #221B")
             for item in result:
@@ -603,15 +603,15 @@ class ParseResults:
             integer = Word(nums)
             date_str = integer("year") + '/' + integer("month") + '/' + integer("day")
 
-            result = date_str.parse_string('12/31/1999')
+            result = date_str.parse_string('1999/12/31')
             print(result.dump())
 
         prints::
 
-            ['12', '/', '31', '/', '1999']
-            - day: 1999
-            - month: 31
-            - year: 12
+            ['1999', '/', '12', '/', '31']
+            - day: '31'
+            - month: '12'
+            - year: '1999'
         """
         out = []
         NL = "\n"
