@@ -2,7 +2,7 @@
 
 import re
 import sys
-from typing import Optional
+import typing
 
 from .util import col, line, lineno, _collapse_string_to_ranges
 from .unicode import pyparsing_unicode as ppu
@@ -25,7 +25,7 @@ class ParseBaseException(Exception):
         self,
         pstr: str,
         loc: int = 0,
-        msg: Optional[str] = None,
+        msg: typing.Optional[str] = None,
         elem=None,
     ):
         self.loc = loc

@@ -55,7 +55,7 @@ def replace_with(repl_str):
         na = one_of("N/A NA").set_parse_action(replace_with(math.nan))
         term = na | num
 
-        OneOrMore(term).parse_string("324 234 N/A 234") # -> [324, 234, nan, 234]
+        term[1, ...].parse_string("324 234 N/A 234") # -> [324, 234, nan, 234]
     """
     return lambda s, l, t: [repl_str]
 
