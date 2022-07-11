@@ -1,1 +1,1 @@
-Remove obsolete package funcsigs
+Remove obsolete package ``funcsigs``.
