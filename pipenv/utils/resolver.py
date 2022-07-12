@@ -7,6 +7,7 @@ import subprocess
 import sys
 import warnings
 from functools import lru_cache
+from importlib.metadata import PackageNotFoundError, distribution
 
 import crayons
 from click import echo as click_echo
@@ -37,7 +38,6 @@ if environments.MYPY_RUNNING:
     from typing import Any, Dict, List, Optional, Set, Tuple, Union  # noqa
 
     from pipenv.project import Project  # noqa
-    from pipenv.vendor.requirementslib import Pipfile, Requirement  # noqa
     from pipenv.vendor.requirementslib.models.requirements import Line  # noqa
 
 
@@ -1124,11 +1124,7 @@ def resolve_deps(
 
 @lru_cache()
 def get_pipenv_sitedir() -> Optional[str]:
-    import pkg_resources
-
-    site_dir = next(
-        iter(d for d in pkg_resources.working_set if d.key.lower() == "pipenv"), None
-    )
-    if site_dir is not None:
-        return site_dir.location
-    return None
+    try:
+        return str(distribution("pipenv")._path.cwd())
+    except PackageNotFoundError:
+        return None
