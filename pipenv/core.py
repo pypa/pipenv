@@ -585,7 +585,7 @@ def ensure_project(
                     click.echo(
                         "  {} and rebuilding the virtual environment "
                         "may resolve the issue.".format(
-                            click.style("$ pipenv --rm"), fg="green"
+                            click.style("$ pipenv --rm", fg="green")
                         ),
                         err=True,
                     )
@@ -627,7 +627,7 @@ def do_where(project, virtualenv=False, bare=True):
             click.echo(
                 "No Pipfile present at project home. Consider running "
                 "{} first to automatically generate a Pipfile for you."
-                "".format(click.style("`pipenv install`"), fg="green"),
+                "".format(click.style("`pipenv install`", fg="green")),
                 err=True,
             )
             return
@@ -637,7 +637,7 @@ def do_where(project, virtualenv=False, bare=True):
             location = shorten_path(location)
             click.echo(
                 "Pipfile found at {}.\n  Considering this to be the project home."
-                "".format(click.style(location), fg="green"),
+                "".format(click.style(location, fg="green")),
                 err=True,
             )
         else:
@@ -944,7 +944,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
     )
 
     click.echo(
-        f"Pipfile: " + click.style(project.pipfile_location, fg="yellow", bold=True),
+        "Pipfile: " + click.style(project.pipfile_location, fg="yellow", bold=True),
         err=True,
     )
 
@@ -2761,10 +2761,8 @@ def do_check(
         ignored = [["--ignore", cve] for cve in ignore]
         if not quiet and not project.s.is_quiet():
             click.echo(
-                click.style(
-                    "Notice: Ignoring CVE(s) {}".format(
-                        click.style(", ".join(ignore)), fg="yellow"
-                    )
+                "Notice: Ignoring CVE(s) {}".format(
+                    click.style(", ".join(ignore), fg="yellow")
                 ),
                 err=True,
             )
