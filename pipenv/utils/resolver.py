@@ -8,10 +8,9 @@ import sys
 import warnings
 from functools import lru_cache
 
-from pipenv.vendor import click
-
 from pipenv import environments
 from pipenv.exceptions import RequirementError, ResolutionFailure
+from pipenv.vendor import click
 from pipenv.vendor.requirementslib import Pipfile, Requirement
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
 from pipenv.vendor.vistir import TemporaryDirectory, open_file

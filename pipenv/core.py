@@ -11,7 +11,6 @@ import warnings
 from pathlib import Path
 from posixpath import expandvars
 
-from pipenv.vendor import click
 import dotenv
 import pipfile
 import vistir
@@ -38,6 +37,7 @@ from pipenv.utils.shell import (
     subprocess_run,
 )
 from pipenv.utils.spinner import create_spinner
+from pipenv.vendor import click
 
 if environments.is_type_checking():
     from typing import Dict, List, Optional, Union
@@ -82,10 +82,10 @@ else:
     STARTING_LABEL = "   "
 
 # Disable colors, for the color blind and others who do not prefer colors.
-#if environments.PIPENV_COLORBLIND:
+# if environments.PIPENV_COLORBLIND:
 
-#problem here, click.style and click.secho are doing other things besides just color
-    #crayons.disable()
+# problem here, click.style and click.secho are doing other things besides just color
+# crayons.disable()
 
 
 def do_clear(project):
@@ -129,7 +129,9 @@ def load_dot_env(project, as_dict=False, quiet=False):
                     click.style("Warning", fg="red", bold=True),
                     click.style("PIPENV_DOTENV_LOCATION", bold=True),
                     click.style(project.s.PIPENV_DOTENV_LOCATION, bold=True),
-                    click.style("Not loading environment variables.", fg="red", bold=True),
+                    click.style(
+                        "Not loading environment variables.", fg="red", bold=True
+                    ),
                 ),
                 err=True,
             )
@@ -348,7 +350,7 @@ def ensure_python(project, three=None, python=None):
                 click.style(msg, fg="red"),
                 click.style(
                     "$ pipenv --python {}".format(os.sep.join(("path", "to", "python"))),
-                    fg="yellow"
+                    fg="yellow",
                 ),
             ),
             err=True,
@@ -483,8 +485,8 @@ def ensure_virtualenv(
                 click.secho(
                     "You are attempting to re–create a virtualenv that "
                     "Pipenv did not create. Aborting.",
-                    fg="red"
-                    )
+                    fg="red",
+                )
                 sys.exit(1)
             do_create_virtualenv(
                 project,
@@ -573,14 +575,18 @@ def ensure_project(
                             click.style("Warning", fg="red", bold=True),
                             click.style("python_version", bold=True),
                             click.style(project.required_python_version, fg="cyan"),
-                            click.style(python_version(path_to_python) or "unknown", fg="cyan"),
+                            click.style(
+                                python_version(path_to_python) or "unknown", fg="cyan"
+                            ),
                             click.style(shorten_path(path_to_python), fg="green"),
                         ),
                         err=True,
                     )
                     click.echo(
                         "  {} and rebuilding the virtual environment "
-                        "may resolve the issue.".format(click.style("$ pipenv --rm"), fg="green"),
+                        "may resolve the issue.".format(
+                            click.style("$ pipenv --rm"), fg="green"
+                        ),
                         err=True,
                     )
                     if not deploy:
@@ -1000,7 +1006,9 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
                 )
             )
     if error is not None:
-        raise exceptions.VirtualenvCreationException(extra=click.style(f"{error}", fg="red"))
+        raise exceptions.VirtualenvCreationException(
+            extra=click.style(f"{error}", fg="red")
+        )
 
     # Associate project directory with the environment.
     # This mimics Pew's "setproject".
@@ -1115,7 +1123,9 @@ def do_lock(
             click.echo(
                 "{} {} {}".format(
                     click.style("Locking"),
-                    click.style("[{}]".format(pipfile_section.replace("_", "-")), fg="yellow"),
+                    click.style(
+                        "[{}]".format(pipfile_section.replace("_", "-")), fg="yellow"
+                    ),
                     click.style(fix_utf8("dependencies...")),
                 ),
                 err=True,
@@ -1275,8 +1285,9 @@ def do_init(
                 click.secho(
                     "Your Pipfile.lock ({}) is out of date. Expected: ({}).".format(
                         old_hash[-6:], new_hash[-6:]
-                ), fg="red"
-            )
+                    ),
+                    fg="red",
+                )
                 raise exceptions.DeployException
             elif (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
                 click.secho(
@@ -1295,7 +1306,9 @@ def do_init(
                 else:
                     msg = fix_utf8("Pipfile.lock is corrupted, replaced with ({1})...")
                 click.secho(
-                    msg.format(old_hash[-6:], new_hash[-6:]), fg="yellow", bold=True,
+                    msg.format(old_hash[-6:], new_hash[-6:]),
+                    fg="yellow",
+                    bold=True,
                     err=True,
                 )
                 do_lock(
@@ -1319,9 +1332,7 @@ def do_init(
             )
         else:
             click.echo(
-                click.style(
-                    fix_utf8("Pipfile.lock not found, creating..."), bold=True
-                ),
+                click.style(fix_utf8("Pipfile.lock not found, creating..."), bold=True),
                 err=True,
             )
             do_lock(
@@ -1350,7 +1361,8 @@ def do_init(
             "To activate this project's virtualenv, run {}.\n"
             "Alternatively, run a command "
             "inside the virtualenv with {}.".format(
-                click.style("pipenv shell", fg="yellow"), click.style("pipenv run", fg="yellow")
+                click.style("pipenv shell", fg="yellow"),
+                click.style("pipenv run", fg="yellow"),
             )
         )
 
@@ -1669,7 +1681,8 @@ def system_which(command, path=None):
             click.echo(
                 "{}: the {} system utility is required for Pipenv to find Python installations properly."
                 "\n  Please install it.".format(
-                    click.style("Warning", fg="red", bold=True), click.style(_which, fg="yellow")
+                    click.style("Warning", fg="red", bold=True),
+                    click.style(_which, fg="yellow"),
                 ),
                 err=True,
             )
@@ -1687,14 +1700,20 @@ def format_help(help):
     help = help.replace("  check", str(click.style("  check", fg="red", bold=True)))
     help = help.replace("  clean", str(click.style("  clean", fg="red", bold=True)))
     help = help.replace("  graph", str(click.style("  graph", fg="red", bold=True)))
-    help = help.replace("  install", str(click.style("  install", fg="magenta", bold=True)))
+    help = help.replace(
+        "  install", str(click.style("  install", fg="magenta", bold=True))
+    )
     help = help.replace("  lock", str(click.style("  lock", fg="green", bold=True)))
     help = help.replace("  open", str(click.style("  open", fg="red", bold=True)))
     help = help.replace("  run", str(click.style("  run", fg="yellow", bold=True)))
     help = help.replace("  shell", str(click.style("  shell", fg="yellow", bold=True)))
-    help = help.replace("  scripts", str(click.style("  scripts", fg="yellow", bold=True)))
+    help = help.replace(
+        "  scripts", str(click.style("  scripts", fg="yellow", bold=True))
+    )
     help = help.replace("  sync", str(click.style("  sync", fg="green", bold=True)))
-    help = help.replace("  uninstall", str(click.style("  uninstall", fg="magenta", bold=True)))
+    help = help.replace(
+        "  uninstall", str(click.style("  uninstall", fg="magenta", bold=True))
+    )
     help = help.replace("  update", str(click.style("  update", fg="green", bold=True)))
     additional_help = """
 Usage Examples:
@@ -1738,12 +1757,14 @@ Commands:""".format(
 
 def format_pip_error(error):
     error = error.replace("Expected", str(click.style("Expected", fg="green", bold=True)))
-    error = error.replace("Got", str(click.style("Got",fg="red", bold=True)))
+    error = error.replace("Got", str(click.style("Got", fg="red", bold=True)))
     error = error.replace(
         "THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE",
         str(
             click.style(
-                "THESE PACKAGES DO NOT MATCH THE HASHES FROM Pipfile.lock!", fg="red", bold=True
+                "THESE PACKAGES DO NOT MATCH THE HASHES FROM Pipfile.lock!",
+                fg="red",
+                bold=True,
             )
         ),
     )
@@ -1802,7 +1823,8 @@ def ensure_lockfile(project, keep_outdated=False, pypi_mirror=None):
                         "Pipfile.lock ({}) out of date, updating to ({})...".format(
                             old_hash[-6:], new_hash[-6:]
                         )
-                    ), fg="yellow",
+                    ),
+                    fg="yellow",
                     bold=True,
                 ),
                 err=True,
@@ -1897,7 +1919,8 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
                 "Skipped Update of Package {!s}: {!s} installed,{!s}{!s}, "
                 "{!s} available.".format(
                     package, old_version, required, pipfile_version_text, new_version
-                ), fg="yellow"
+                ),
+                fg="yellow",
             ),
             err=True,
         )
@@ -2003,8 +2026,8 @@ def do_install(
             fd.close()
             os.unlink(temp_reqs)
             click.secho(
-                    "Unable to find requirements file at {}.".format(
-                        click.style(requirements_url)
+                "Unable to find requirements file at {}.".format(
+                    click.style(requirements_url)
                 ),
                 fg="red",
                 err=True,
@@ -2159,13 +2182,16 @@ def do_install(
                     if c.returncode:
                         sp.write_err(
                             "{} An error occurred while installing {}!".format(
-                                click.style("Error: ", fg="red", bold=True), click.style(pkg_line, fg="green")
+                                click.style("Error: ", fg="red", bold=True),
+                                click.style(pkg_line, fg="green"),
                             ),
                         )
                         sp.write_err(f"Error text: {c.stdout}")
                         sp.write_err(click.style(format_pip_error(c.stderr), fg="cyan"))
                         if project.s.is_verbose():
-                            sp.write_err(click.style(format_pip_output(c.stdout), fg="cyan"))
+                            sp.write_err(
+                                click.style(format_pip_output(c.stdout), fg="cyan")
+                            )
                         if "setup.py egg_info" in c.stderr:
                             sp.write_err(
                                 "This is likely caused by a bug in {}. "
@@ -2208,7 +2234,9 @@ def do_install(
                         click.style(f"{pkg_requirement.name}", fg="green", bold=True),
                         click.style("to Pipfile's", bold=True),
                         click.style(
-                            "[dev-packages]" if dev else "[packages]", fg="yellow", bold=True
+                            "[dev-packages]" if dev else "[packages]",
+                            fg="yellow",
+                            bold=True,
                         ),
                         click.style(fix_utf8("..."), bold=True),
                     )
@@ -2226,7 +2254,8 @@ def do_install(
 
                     sp.write_err(
                         "{} {}".format(
-                            click.style("Error:", fg="red", bold=True), traceback.format_exc()
+                            click.style("Error:", fg="red", bold=True),
+                            traceback.format_exc(),
                         )
                     )
                     sp.fail(
@@ -2304,14 +2333,20 @@ def do_uninstall(
         if "dev-packages" not in project.parsed_pipfile and not project_pkg_names["dev"]:
             click.echo(
                 click.style(
-                    "No {} to uninstall.".format(click.style("[dev-packages]", fg="yellow")),
+                    "No {} to uninstall.".format(
+                        click.style("[dev-packages]", fg="yellow")
+                    ),
                     bold=True,
                 )
             )
             return
         click.echo(
             click.style(
-                fix_utf8("Un-installing {}...".format(click.style("[dev-packages]", fg="yellow"))),
+                fix_utf8(
+                    "Un-installing {}...".format(
+                        click.style("[dev-packages]", fg="yellow")
+                    )
+                ),
                 bold=True,
             )
         )
@@ -2351,7 +2386,9 @@ def do_uninstall(
     pip_path = None
     for normalized, package_name in selected_pkg_map.items():
         click.secho(
-                fix_utf8(f"Uninstalling {click.style(package_name)}..."), fg="green", bold=True
+            fix_utf8(f"Uninstalling {click.style(package_name)}..."),
+            fg="green",
+            bold=True,
         )
         # Uninstall the package.
         if package_name in packages_to_remove:
@@ -2391,10 +2428,7 @@ def do_uninstall(
                 )
                 continue
 
-            click.secho(
-                fix_utf8(f"Removing {package_name} from Pipfile..."),
-                fg="green"
-            )
+            click.secho(fix_utf8(f"Removing {package_name} from Pipfile..."), fg="green")
             # Remove package from both packages and dev-packages.
             if in_dev_packages:
                 project.remove_package_from_pipfile(package_name, dev=True)
@@ -2470,7 +2504,9 @@ def _inline_activate_virtualenv(project):
     except Exception:
         click.echo(
             "{}: There was an unexpected error while activating your "
-            "virtualenv. Continuing anyway...".format(click.style("Warning", fg="red", bold=True)),
+            "virtualenv. Continuing anyway...".format(
+                click.style("Warning", fg="red", bold=True)
+            ),
             err=True,
         )
 
@@ -2654,9 +2690,7 @@ def do_check(
         )
     if not quiet and not project.s.is_quiet():
         click.echo(
-            click.style(
-                decode_for_output("Checking PEP 508 requirements..."), bold=True
-            )
+            click.style(decode_for_output("Checking PEP 508 requirements..."), bold=True)
         )
     pep508checker_path = pep508checker.__file__.rstrip("cdo")
     safety_path = os.path.join(
@@ -2681,7 +2715,9 @@ def do_check(
             click.echo(
                 "{}\n{}\n{}".format(
                     click.style(
-                        decode_for_output("Failed parsing pep508 results: "), fg="white", bold=True
+                        decode_for_output("Failed parsing pep508 results: "),
+                        fg="white",
+                        bold=True,
                     ),
                     c.stdout.strip(),
                     c.stderr.strip(),
@@ -2726,7 +2762,9 @@ def do_check(
         if not quiet and not project.s.is_quiet():
             click.echo(
                 click.style(
-                    "Notice: Ignoring CVE(s) {}".format(click.style(", ".join(ignore)), fg="yellow")
+                    "Notice: Ignoring CVE(s) {}".format(
+                        click.style(", ".join(ignore)), fg="yellow"
+                    )
                 ),
                 err=True,
             )
@@ -3011,8 +3049,10 @@ def do_clean(
         else:
             if not bare:
                 click.secho(
-                    fix_utf8(f"Uninstalling {apparent_bad_package}..."), fg="white", bold=True
-                    )
+                    fix_utf8(f"Uninstalling {apparent_bad_package}..."),
+                    fg="white",
+                    bold=True,
+                )
             # Uninstall the package.
             cmd = [which_pip(project), "uninstall", apparent_bad_package, "-y"]
             c = run_command(cmd, is_verbose=project.s.is_verbose())
