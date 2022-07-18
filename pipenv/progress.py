@@ -11,9 +11,8 @@ import os
 import sys
 import time
 
-from pipenv.vendor import click
-
 from pipenv.environments import PIPENV_COLORBLIND, PIPENV_HIDE_EMOJIS
+from pipenv.vendor import click
 
 STREAM = sys.stderr
 MILL_TEMPLATE = "%s %s %i/%i\r"

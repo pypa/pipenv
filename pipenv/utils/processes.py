@@ -1,10 +1,9 @@
 import os
 import subprocess
 
-from pipenv.vendor import click
-
 from pipenv import environments
 from pipenv.exceptions import PipenvCmdError
+from pipenv.vendor import click
 
 if environments.MYPY_RUNNING:
     from typing import Tuple  # noqa
@@ -39,7 +38,9 @@ def run_command(cmd, *args, is_verbose=False, **kwargs):
     c = subprocess_run(command, *args, **kwargs)
     if is_verbose:
         click.echo(
-            "Command output: {}".format(click.style(decode_for_output(c.stdout), fg="cyan")),
+            "Command output: {}".format(
+                click.style(decode_for_output(c.stdout), fg="cyan")
+            ),
             err=True,
         )
     if c.returncode and catch_exceptions:

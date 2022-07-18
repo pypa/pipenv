@@ -33,8 +33,8 @@ from pipenv.vendor.click import (
     group,
     option,
     pass_context,
-    style,
     secho,
+    style,
     version_option,
 )
 
@@ -115,7 +115,7 @@ def cli(
             "\nYou can learn more at:\n   {}".format(
                 style(
                     "https://pipenv.pypa.io/en/latest/advanced/#configuration-with-environment-variables",
-                    fg="green"
+                    fg="green",
                 )
             )
         )
@@ -145,7 +145,9 @@ def cli(
             if not state.project.virtualenv_exists:
                 echo(
                     "{}({}){}".format(
-                        style("No virtualenv has been created for this project", fg="red"),
+                        style(
+                            "No virtualenv has been created for this project", fg="red"
+                        ),
                         style(state.project.project_directory, bold=True),
                         style(" yet!", fg="red"),
                     ),
@@ -162,7 +164,8 @@ def cli(
                 echo(
                     style(
                         "You are attempting to remove a virtualenv that "
-                        "Pipenv did not create. Aborting.", fg="red"
+                        "Pipenv did not create. Aborting.",
+                        fg="red",
                     )
                 )
                 ctx.abort()
