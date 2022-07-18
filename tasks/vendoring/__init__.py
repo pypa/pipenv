@@ -39,7 +39,6 @@ HARDCODED_LICENSE_URLS = {
     "click-didyoumean": "https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE",
     "click-completion": "https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE",
     "parse": "https://raw.githubusercontent.com/techalchemy/parse/master/LICENSE",
-    "crayons": "https://raw.githubusercontent.com/MasterOdin/crayons/master/LICENSE",
     "pytoml": "https://github.com/avakar/pytoml/raw/master/LICENSE",
     "webencodings": "https://github.com/SimonSapin/python-webencodings/raw/"
     "master/LICENSE",

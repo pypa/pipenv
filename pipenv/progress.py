@@ -11,7 +11,7 @@ import os
 import sys
 import time
 
-import crayons
+from pipenv.vendor import click
 
 from pipenv.environments import PIPENV_COLORBLIND, PIPENV_HIDE_EMOJIS
 
@@ -23,18 +23,18 @@ if PIPENV_HIDE_EMOJIS:
         BAR_FILLED_CHAR = "="
         BAR_EMPTY_CHAR = "-"
     else:
-        BAR_FILLED_CHAR = str(crayons.green("=", bold=True))
-        BAR_EMPTY_CHAR = str(crayons.black("-"))
+        BAR_FILLED_CHAR = str(click.style("=", bold=True, fg="green"))
+        BAR_EMPTY_CHAR = str(click.style("-", fg="black"))
 else:
     if PIPENV_COLORBLIND:
         BAR_FILLED_CHAR = "▉"
         BAR_EMPTY_CHAR = " "
     else:
-        BAR_FILLED_CHAR = str(crayons.green("▉", bold=True))
-        BAR_EMPTY_CHAR = str(crayons.black("▉"))
+        BAR_FILLED_CHAR = str(click.style("▉", bold=True))
+        BAR_EMPTY_CHAR = str(click.style("▉", fg=True))
 
 if (sys.version_info[0] >= 3) and (os.name != "nt"):
-    BAR_TEMPLATE = "  %s%s%s %i/%i — {}\r".format(crayons.black("%s"))
+    BAR_TEMPLATE = "  %s%s%s %i/%i — {}\r".format(click.style("%s", fg="black"))
 else:
     if os.name == "nt":
         BAR_TEMPLATE = "  %s%s%s %i/%i - %s\r"

@@ -8,8 +8,7 @@ import sys
 import warnings
 from functools import lru_cache
 
-import crayons
-from click import echo as click_echo
+from pipenv.vendor import click
 
 from pipenv import environments
 from pipenv.exceptions import RequirementError, ResolutionFailure
@@ -367,13 +366,13 @@ class Resolver:
                     new_req = new_req.add_hashes(hashes)
                     name, entry = new_req.pipfile_entry
                     locked_deps[pep423_name(name)] = translate_markers(entry)
-                    click_echo(
+                    click.echo(
                         "{} doesn't match your environment, "
                         "its dependencies won't be resolved.".format(req.as_line()),
                         err=True,
                     )
                 else:
-                    click_echo(
+                    click.echo(
                         "Could not find a version of {} that matches your environment, "
                         "it will be skipped.".format(req.as_line()),
                         err=True,
@@ -737,9 +736,9 @@ class Resolver:
             return self.prepend_hash_types(collected_hashes, shims.FAVORITE_HASH)
         except (ValueError, KeyError, ConnectionError):
             if self.project.s.is_verbose():
-                click_echo(
+                click.echo(
                     "{}: Error generating hash for {}".format(
-                        crayons.red("Warning", bold=True), ireq.name
+                        click.style("Warning", bold=True, fg="Red"), ireq.name
                     ),
                     err=True,
                 )
@@ -1026,19 +1025,19 @@ def venv_resolve_deps(
             if c.returncode == 0:
                 sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                 if not project.s.is_verbose() and c.stderr.strip():
-                    click_echo(crayons.yellow(f"Warning: {c.stderr.strip()}"), err=True)
+                    click.echo(click.style(f"Warning: {c.stderr.strip()}"), err=True)
             else:
                 sp.red.fail(
                     environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
                 )
-                click_echo(f"Output: {c.stdout.strip()}", err=True)
-                click_echo(f"Error: {c.stderr.strip()}", err=True)
+                click.echo(f"Output: {c.stdout.strip()}", err=True)
+                click.echo(f"Error: {c.stderr.strip()}", err=True)
     try:
         with open(target_file.name) as fh:
             results = json.load(fh)
     except (IndexError, json.JSONDecodeError):
-        click_echo(c.stdout.strip(), err=True)
-        click_echo(c.stderr.strip(), err=True)
+        click.echo(c.stdout.strip(), err=True)
+        click.echo(c.stderr.strip(), err=True)
         if os.path.exists(target_file.name):
             os.unlink(target_file.name)
         raise RuntimeError("There was a problem with locking.")
