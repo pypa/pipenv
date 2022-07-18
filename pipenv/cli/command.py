@@ -24,7 +24,6 @@ from pipenv.cli.options import (
     verbose_option,
 )
 from pipenv.exceptions import PipenvOptionsError
-from pipenv.patched import crayons
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor.click import (
     Choice,
@@ -34,6 +33,7 @@ from pipenv.vendor.click import (
     group,
     option,
     pass_context,
+    style,
     secho,
     version_option,
 )
@@ -62,7 +62,7 @@ subcommand_context_no_interspersion["allow_interspersed_args"] = False
     help="Output diagnostic information for use in GitHub issues.",
 )
 @general_options
-@version_option(prog_name=crayons.normal("pipenv", bold=True), version=__version__)
+@version_option(prog_name=style("pipenv", bold=True), version=__version__)
 @pass_state
 @pass_context
 def cli(
@@ -110,11 +110,12 @@ def cli(
         echo("The following environment variables can be set, to do various things:\n")
         for key in state.project.__dict__:
             if key.startswith("PIPENV"):
-                echo(f"  - {crayons.normal(key, bold=True)}")
+                echo(f"  - {style(key, bold=True)}")
         echo(
             "\nYou can learn more at:\n   {}".format(
-                crayons.green(
-                    "https://pipenv.pypa.io/en/latest/advanced/#configuration-with-environment-variables"
+                style(
+                    "https://pipenv.pypa.io/en/latest/advanced/#configuration-with-environment-variables",
+                    fg="green"
                 )
             )
         )
@@ -144,9 +145,9 @@ def cli(
             if not state.project.virtualenv_exists:
                 echo(
                     "{}({}){}".format(
-                        crayons.red("No virtualenv has been created for this project"),
-                        crayons.normal(state.project.project_directory, bold=True),
-                        crayons.red(" yet!"),
+                        style("No virtualenv has been created for this project", fg="red"),
+                        style(state.project.project_directory, bold=True),
+                        style(" yet!", fg="red"),
                     ),
                     err=True,
                 )
@@ -159,19 +160,19 @@ def cli(
             # Abort if --system (or running in a virtualenv).
             if state.project.s.PIPENV_USE_SYSTEM or environments.is_in_virtualenv():
                 echo(
-                    crayons.red(
+                    style(
                         "You are attempting to remove a virtualenv that "
-                        "Pipenv did not create. Aborting."
+                        "Pipenv did not create. Aborting.", fg="red"
                     )
                 )
                 ctx.abort()
             if state.project.virtualenv_exists:
                 loc = state.project.virtualenv_location
                 echo(
-                    crayons.normal(
+                    style(
                         "{} ({})...".format(
-                            crayons.normal("Removing virtualenv", bold=True),
-                            crayons.green(loc),
+                            style("Removing virtualenv", bold=True),
+                            style(loc, fg="green"),
                         )
                     )
                 )
@@ -181,8 +182,9 @@ def cli(
                 return 0
             else:
                 echo(
-                    crayons.red(
+                    style(
                         "No virtualenv has been created for this project yet!",
+                        fg="red",
                         bold=True,
                     ),
                     err=True,
@@ -408,9 +410,9 @@ def shell(
         if not anyway:
             echo(
                 "{} {} {}\nNo action taken to avoid nested environments.".format(
-                    crayons.normal("Shell for"),
-                    crayons.green(venv_name, bold=True),
-                    crayons.normal("already activated.", bold=True),
+                    style("Shell for"),
+                    style(venv_name, fg="green", bold=True),
+                    style("already activated.", bold=True),
                 ),
                 err=True,
             )
@@ -550,11 +552,11 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
     if not packages:
         echo(
             "{} {} {} {}{}".format(
-                crayons.normal("Running", bold=True),
-                crayons.yellow("$ pipenv lock", bold=True),
-                crayons.normal("then", bold=True),
-                crayons.yellow("$ pipenv sync", bold=True),
-                crayons.normal(".", bold=True),
+                style("Running", bold=True),
+                style("$ pipenv lock", fg="yellow", bold=True),
+                style("then", bold=True),
+                style("$ pipenv sync", fg="yellow", bold=True),
+                style(".", bold=True),
             )
         )
     else:
@@ -563,8 +565,8 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
                 echo(
                     "{}: {} was not found in your Pipfile! Aborting."
                     "".format(
-                        crayons.red("Warning", bold=True),
-                        crayons.green(package, bold=True),
+                        style("Warning", fg="red", bold=True),
+                        style(package, fg="green", bold=True),
                     ),
                     err=True,
                 )
@@ -643,13 +645,13 @@ def run_open(state, module, *args, **kwargs):
         ]
     )
     if c.returncode:
-        echo(crayons.red("Module not found!"))
+        echo(style("Module not found!", fg="red"))
         sys.exit(1)
     if "__init__.py" in c.stdout:
         p = os.path.dirname(c.stdout.strip().rstrip("cdo"))
     else:
         p = c.stdout.strip().rstrip("cdo")
-    echo(crayons.normal(f"Opening {p!r} in your EDITOR.", bold=True))
+    echo(style(f"Opening {p!r} in your EDITOR.", bold=True))
     inline_activate_virtual_environment(state.project)
     edit(filename=p)
     return 0
@@ -745,12 +747,12 @@ def verify(state):
     if state.project.get_lockfile_hash() != state.project.calculate_pipfile_hash():
         echo(
             "Pipfile.lock is out-of-date. Run {} to update.".format(
-                crayons.yellow("$ pipenv lock", bold=True)
+                style("$ pipenv lock", fg="yellow", bold=True)
             ),
             err=True,
         )
         sys.exit(1)
-    echo(crayons.green("Pipfile.lock is up-to-date."))
+    echo(style("Pipfile.lock is up-to-date.", fg="green"))
     sys.exit(0)
 
 

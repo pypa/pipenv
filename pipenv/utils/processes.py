@@ -1,8 +1,7 @@
 import os
 import subprocess
 
-import crayons
-from click import echo as click_echo
+from pipenv.vendor import click
 
 from pipenv import environments
 from pipenv.exceptions import PipenvCmdError
@@ -36,11 +35,11 @@ def run_command(cmd, *args, is_verbose=False, **kwargs):
     kwargs["env"]["PYTHONIOENCODING"] = "UTF-8"
     command = [cmd.command, *cmd.args]
     if is_verbose:
-        click_echo(f"Running command: $ {cmd.cmdify()}")
+        click.echo(f"Running command: $ {cmd.cmdify()}")
     c = subprocess_run(command, *args, **kwargs)
     if is_verbose:
-        click_echo(
-            "Command output: {}".format(crayons.cyan(decode_for_output(c.stdout))),
+        click.echo(
+            "Command output: {}".format(click.style(decode_for_output(c.stdout), fg="cyan")),
             err=True,
         )
     if c.returncode and catch_exceptions:
