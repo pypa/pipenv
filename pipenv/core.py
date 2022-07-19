@@ -675,6 +675,7 @@ def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
                             "Failed initial installation: Failed to overwrite existing "
                             "package, likely due to path aliasing. Expanding and trying "
                             "again!",
+                            fg="yellow",
                         )
                     )
                 )
