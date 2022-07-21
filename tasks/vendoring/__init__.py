@@ -20,13 +20,10 @@ TASK_NAME = "update"
 LIBRARY_DIRNAMES = {
     "requirements-parser": "requirements",
     "backports.shutil_get_terminal_size": "backports/shutil_get_terminal_size",
-    "backports.weakref": "backports/weakref",
-    "backports.functools_lru_cache": "backports/functools_lru_cache",
     "python-dotenv": "dotenv",
     "setuptools": "pkg_resources",
     "msgpack-python": "msgpack",
     "attrs": "attr",
-    "enum": "backports/enum",
 }
 
 # from time to time, remove the no longer needed ones
