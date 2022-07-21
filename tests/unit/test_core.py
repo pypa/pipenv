@@ -3,7 +3,9 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from pipenv.core import load_dot_env, warn_in_virtualenv
+from unittest.mock import Mock
+
+from pipenv.core import load_dot_env, warn_in_virtualenv, colorwise_secho
 from pipenv.utils.shell import temp_environ
 
 
@@ -68,3 +70,23 @@ def test_load_dot_env_warns_if_file_doesnt_exist(monkeypatch, capsys, project):
         load_dot_env(project)
         output, err = capsys.readouterr()
         assert 'Warning' in err
+
+@pytest.mark.core
+def test_colorwise_secho_respects_environment_variables():
+    # colorwise_secho is checking for $NO_COLOR or $PIPENV_COLORBLIND, 
+    # it will uncolor TTY output if they exist and are truthy.
+
+    with temp_environ():
+        from pipenv.vendor import click
+        mock_secho = Mock()
+        click.secho = mock_secho
+
+        # with color-wanting default env secho will be instructed to use color
+        colorwise_secho("a message", fg="red")
+        mock_secho.assert_called_with("a message",file=None, nl=True, err=False, fg="red", color=True)
+        
+        # when request for no color comes secho will do that and flag color false
+        os.environ["NO_COLOR"] = "1"
+        colorwise_secho("a message", fg="red")
+        mock_secho.assert_called_with("a message",file=None, nl=True, err=False, fg="red", color=False)
+
