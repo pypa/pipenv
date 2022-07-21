@@ -29,8 +29,6 @@ LIBRARY_DIRNAMES = {
     "enum": "backports/enum",
 }
 
-PY2_DOWNLOAD = ["enum34"]
-
 # from time to time, remove the no longer needed ones
 HARDCODED_LICENSE_URLS = {
     "cursor": "https://raw.githubusercontent.com/GijsTimmers/cursor/master/LICENSE",
@@ -463,9 +461,6 @@ def packages_missing_licenses(
             pkg = req.strip().split("=")[0]
         possible_pkgs = [pkg, pkg.replace("-", "_")]
         match_found = False
-        if pkg in PY2_DOWNLOAD:
-            match_found = True
-            # print("pkg ===> %s" % pkg)
         if pkg in LIBRARY_DIRNAMES:
             possible_pkgs.append(LIBRARY_DIRNAMES[pkg])
         for pkgpath in possible_pkgs:
@@ -522,15 +517,9 @@ def download_licenses(
     tmp_dir = vendor_dir / "__tmp__"
     # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
     cmd = "pip download --no-binary :all: --only-binary requests_download --no-deps"
-    enum_cmd = "pip download --no-deps"
     ctx.run("pip install flit")  # needed for the next step
     for req in requirements:
-        if req.startswith("enum34"):
-            exe_cmd = f"{enum_cmd} -d {tmp_dir.as_posix()} {req}"
-        else:
-            exe_cmd = "{} --no-build-isolation -d {} {}".format(
-                cmd, tmp_dir.as_posix(), req
-            )
+        exe_cmd = "{} --no-build-isolation -d {} {}".format(cmd, tmp_dir.as_posix(), req)
         try:
             ctx.run(exe_cmd)
         except invoke.exceptions.UnexpectedExit as e:
