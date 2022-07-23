@@ -42,6 +42,7 @@ if environments.is_type_checking():
     from typing import Dict, List, Optional, Union
 
     from pipenv.project import Project
+    from pipenv.vendor import click
     from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     TSourceDict = Dict[str, Union[str, bool]]
@@ -80,10 +81,9 @@ else:
     INSTALL_LABEL2 = "   "
     STARTING_LABEL = "   "
 
+
 # monkey patch for click.secho to respect environment variables requesting
 # no color
-from pipenv.vendor import click
-
 def colorwise_secho(message, file=None, nl=True, err=False, color=True, **styles):
     if os.getenv("NO_COLOR") or os.getenv("PIPENV_COLORBLIND"):
         color = False
@@ -93,13 +93,8 @@ def colorwise_secho(message, file=None, nl=True, err=False, color=True, **styles
 
     return click.echo(message, file=file, nl=nl, err=err, color=color)
 
+
 click.secho = colorwise_secho
-
-# Disable colors, for the color blind and others who do not prefer colors.
-# if environments.PIPENV_COLORBLIND:
-
-# problem here, click.style and click.secho are doing other things besides just color
-# crayons.disable()
 
 
 def do_clear(project):
@@ -321,9 +316,7 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
         changed = project.ensure_proper_casing()
         # Write changes out to disk.
         if changed:
-            click.secho(
-                "Fixing package names in Pipfile...", bold=True, err=True
-            )
+            click.secho("Fixing package names in Pipfile...", bold=True, err=True)
             project.write_toml(p)
 
 
@@ -839,9 +832,7 @@ def do_install_dependencies(
     # Load the lockfile if it exists, or if dev_only is being used.
     if skip_lock or not project.lockfile_exists:
         if not bare:
-            click.secho(
-                fix_utf8("Installing dependencies from Pipfile..."), bold=True
-            )
+            click.secho(fix_utf8("Installing dependencies from Pipfile..."), bold=True)
         # skip_lock should completely bypass the lockfile (broken in 4dac1676)
         lockfile = project.get_or_create_lockfile(from_pipfile=True)
     else:
@@ -853,7 +844,7 @@ def do_install_dependencies(
                         lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
                     )
                 ),
-                bold=True
+                bold=True,
             )
     dev = dev or dev_only
     deps_list = list(lockfile.get_requirements(dev=dev, only=dev_only))
@@ -1203,9 +1194,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
 
     if downloads:
         if not bare:
-            click.secho(
-                fix_utf8("Clearing out downloads directory..."), bold=True
-            )
+            click.secho(fix_utf8("Clearing out downloads directory..."), bold=True)
         shutil.rmtree(project.download_location)
         return
 
@@ -1371,7 +1360,7 @@ def do_init(
         click.secho(
             "PIPENV_COLORBLIND is deprecated, use NO_COLOR instead"
             "Per https://no-color.org/",
-            err=True
+            err=True,
         )
 
     # Hint the user what to do to activate the virtualenv.
@@ -2346,9 +2335,7 @@ def do_uninstall(
     if all_dev:
         if "dev-packages" not in project.parsed_pipfile and not project_pkg_names["dev"]:
             click.secho(
-                "No {} to uninstall.".format(
-                    click.style("[dev-packages]", fg="yellow")
-                ),
+                "No {} to uninstall.".format(click.style("[dev-packages]", fg="yellow")),
                 bold=True,
             )
             return
@@ -3017,6 +3004,7 @@ def do_sync(
     )
     if not bare:
         click.secho("All dependencies are now up-to-date!", fg="green")
+
 
 def do_clean(
     project,
