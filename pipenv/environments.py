@@ -83,7 +83,7 @@ os.environ.pop("__PYVENV_LAUNCHER__", None)
 SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
 PIPENV_IS_CI = env_to_bool(os.environ.get("CI") or os.environ.get("TF_BUILD") or False)
 NO_COLOR = False
-if env_to_bool(os.getenv("NO_COLOR")) or env_to_bool(os.getenv("PIPENV_COLORBLIND")):
+if os.getenv("NO_COLOR") or os.getenv("PIPENV_COLORBLIND"):
     NO_COLOR = True
     from pipenv.utils.shell import style_no_color
     from pipenv.vendor import click

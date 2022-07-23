@@ -442,8 +442,6 @@ def env_to_bool(val):
     :return: False if Falsey, True if truthy
     :rtype: bool
     """
-    if val is None:
-        return False
     if isinstance(val, bool):
         return val
     if val.lower() in FALSE_VALUES:
