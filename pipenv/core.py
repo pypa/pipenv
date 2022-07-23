@@ -15,9 +15,9 @@ import dotenv
 import pipfile
 import vistir
 
-import pipenv.utils.constants
 from pipenv import environments, exceptions, pep508checker, progress
 from pipenv._compat import decode_for_output, fix_utf8
+from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
     convert_deps_to_pip,
     get_canonical_names,
@@ -40,7 +40,7 @@ from pipenv.utils.shell import (
 from pipenv.utils.spinner import create_spinner
 from pipenv.vendor import click
 
-if pipenv.utils.constants.is_type_checking():
+if MYPY_RUNNING:
     from typing import Dict, List, Optional, Union
 
     from pipenv.project import Project
