@@ -37,12 +37,12 @@ from pipenv.utils.shell import (
     subprocess_run,
 )
 from pipenv.utils.spinner import create_spinner
+from pipenv.vendor import click
 
 if environments.is_type_checking():
     from typing import Dict, List, Optional, Union
 
     from pipenv.project import Project
-    from pipenv.vendor import click
     from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     TSourceDict = Dict[str, Union[str, bool]]
