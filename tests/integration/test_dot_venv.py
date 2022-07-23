@@ -7,12 +7,12 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from pipenv.environments import _true_values, _false_values
+from pipenv.utils.constants import FALSE_VALUES, TRUE_VALUES
 from pipenv.utils.shell import normalize_drive, temp_environ
 
 
 @pytest.mark.dotvenv
-@pytest.mark.parametrize("true_value", _true_values)
+@pytest.mark.parametrize("true_value", TRUE_VALUES)
 def test_venv_in_project(true_value, PipenvInstance):
     with temp_environ():
         os.environ['PIPENV_VENV_IN_PROJECT'] = true_value
@@ -23,7 +23,7 @@ def test_venv_in_project(true_value, PipenvInstance):
 
 
 @pytest.mark.dotvenv
-@pytest.mark.parametrize("false_value", _false_values)
+@pytest.mark.parametrize("false_value", FALSE_VALUES)
 def test_venv_in_project_disabled_ignores_venv(false_value, PipenvInstance):
     venv_name = "my_project"
     with temp_environ():
@@ -50,7 +50,7 @@ def test_venv_in_project_disabled_ignores_venv(false_value, PipenvInstance):
 
 
 @pytest.mark.dotvenv
-@pytest.mark.parametrize("true_value", _true_values)
+@pytest.mark.parametrize("true_value", TRUE_VALUES)
 def test_venv_at_project_root(true_value, PipenvInstance):
     with temp_environ():
         with PipenvInstance(chdir=True) as p:

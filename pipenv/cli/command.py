@@ -25,6 +25,7 @@ from pipenv.cli.options import (
 )
 from pipenv.exceptions import PipenvOptionsError
 from pipenv.utils.processes import subprocess_run
+from pipenv.utils.shell import env_to_bool
 from pipenv.vendor.click import (
     Choice,
     argument,
@@ -92,6 +93,20 @@ def cli(
         system_which,
         warn_in_virtualenv,
     )
+
+    if "PIPENV_COLORBLIND" in os.environ:
+        echo(
+            "PIPENV_COLORBLIND is deprecated, use NO_COLOR instead"
+            "Per https://no-color.org/",
+            err=True,
+        )
+
+    if env_to_bool(os.getenv("NO_COLOR")) or env_to_bool(os.getenv("PIPENV_COLORBLIND")):
+        from pipenv.utils.shell import style_no_color
+        from pipenv.vendor import click
+
+        click.original_style = click.style
+        click.style = style_no_color
 
     if man:
         if system_which("man"):

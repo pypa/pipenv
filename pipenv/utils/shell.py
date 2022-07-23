@@ -11,12 +11,13 @@ from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 
-from pipenv import environments
+from pipenv.utils.constants import MYPY_RUNNING
+from pipenv.vendor import click
 
-from .constants import SCHEME_LIST
+from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
 from .processes import subprocess_run
 
-if environments.MYPY_RUNNING:
+if MYPY_RUNNING:
     from typing import Text  # noqa
 
 
@@ -424,3 +425,29 @@ def handle_remove_readonly(func, path, exc):
         return
 
     raise exc
+
+
+def style_no_color(text, fg=None, bg=None, **kwargs) -> str:
+    """Wrap click style to ignore colors."""
+    if hasattr(click, "original_style"):
+        return click.original_style(text, **kwargs)
+    return click.style(text, **kwargs)
+
+
+def env_to_bool(val):
+    """
+    Convert **val** to boolean, returning True if truthy or False if falsey
+
+    :param Any val: The value to convert
+    :return: False if Falsey, True if truthy
+    :rtype: bool
+    """
+    if val is None:
+        return False
+    if isinstance(val, bool):
+        return val
+    if val.lower() in FALSE_VALUES:
+        return False
+    if val.lower() in TRUE_VALUES:
+        return True
+    raise ValueError(f"Value is not a valid boolean-like: {val}")

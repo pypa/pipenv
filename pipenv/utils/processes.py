@@ -1,11 +1,11 @@
 import os
 import subprocess
 
-from pipenv import environments
 from pipenv.exceptions import PipenvCmdError
+from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.vendor import click
 
-if environments.MYPY_RUNNING:
+if MYPY_RUNNING:
     from typing import Tuple  # noqa
 
 

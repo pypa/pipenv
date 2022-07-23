@@ -5,12 +5,12 @@ from collections.abc import Mapping
 
 from urllib3.util import parse_url
 
-from pipenv import environments
 from pipenv.exceptions import PipenvUsageError
+from pipenv.utils.constants import MYPY_RUNNING
 
 from .internet import create_mirror_source, is_pypi_url
 
-if environments.MYPY_RUNNING:
+if MYPY_RUNNING:
     from typing import List, Optional, Union  # noqa
 
     from pipenv.project import Project, TSource  # noqa

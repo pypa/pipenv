@@ -15,6 +15,7 @@ import dotenv
 import pipfile
 import vistir
 
+import pipenv.utils.constants
 from pipenv import environments, exceptions, pep508checker, progress
 from pipenv._compat import decode_for_output, fix_utf8
 from pipenv.utils.dependencies import (
@@ -39,7 +40,7 @@ from pipenv.utils.shell import (
 from pipenv.utils.spinner import create_spinner
 from pipenv.vendor import click
 
-if environments.is_type_checking():
+if pipenv.utils.constants.is_type_checking():
     from typing import Dict, List, Optional, Union
 
     from pipenv.project import Project
@@ -80,12 +81,6 @@ else:
     INSTALL_LABEL = "   "
     INSTALL_LABEL2 = "   "
     STARTING_LABEL = "   "
-
-# Disable colors, for the color blind and others who do not prefer colors.
-# if environments.PIPENV_COLORBLIND:
-
-# problem here, click.style and click.secho are doing other things besides just color
-# crayons.disable()
 
 
 def do_clear(project):

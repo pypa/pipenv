@@ -10,6 +10,7 @@ from functools import lru_cache
 
 from pipenv import environments
 from pipenv.exceptions import RequirementError, ResolutionFailure
+from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib import Pipfile, Requirement
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
@@ -31,11 +32,10 @@ from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
 from .spinner import create_spinner
 
-if environments.MYPY_RUNNING:
+if MYPY_RUNNING:
     from typing import Any, Dict, List, Optional, Set, Tuple, Union  # noqa
 
     from pipenv.project import Project  # noqa
-    from pipenv.vendor.requirementslib import Pipfile, Requirement  # noqa
     from pipenv.vendor.requirementslib.models.requirements import Line  # noqa
 
 
