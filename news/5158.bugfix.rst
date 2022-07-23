@@ -1,0 +1,1 @@
+Support ANSI ``NO_COLOR`` environment variable and deprecate ``PIPENV_COLORBLIND`` variable, which will be removed after this release.
