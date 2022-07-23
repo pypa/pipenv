@@ -1366,6 +1366,14 @@ def do_init(
         pypi_mirror=pypi_mirror,
     )
 
+    # warn the user that PIPENV_COLORBLIND is deprecated
+    if "PIPENV_COLORBLIND" in os.environ:
+        click.secho(
+            "PIPENV_COLORBLIND is deprecated, use NO_COLOR instead"
+            "Per https://no-color.org/",
+            err=True
+        )
+
     # Hint the user what to do to activate the virtualenv.
     if not allow_global and not deploy and "PIPENV_ACTIVE" not in os.environ:
         click.secho(
