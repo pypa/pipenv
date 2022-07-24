@@ -8,38 +8,21 @@ from appdirs import user_cache_dir
 from vistir.path import normalize_drive
 
 from pipenv._compat import fix_utf8
+from pipenv.utils.constants import FALSE_VALUES, TRUE_VALUES
+from pipenv.utils.shell import env_to_bool
 from pipenv.vendor.vistir.misc import _isatty
 
 # HACK: avoid resolver.py uses the wrong byte code files.
 # I hope I can remove this one day.
 
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
-_false_values = ("0", "false", "no", "off")
-_true_values = ("1", "true", "yes", "on")
-
-
-def env_to_bool(val):
-    """
-    Convert **val** to boolean, returning True if truthy or False if falsey
-
-    :param Any val: The value to convert
-    :return: False if Falsey, True if truthy
-    :rtype: bool
-    """
-    if isinstance(val, bool):
-        return val
-    if val.lower() in _false_values:
-        return False
-    if val.lower() in _true_values:
-        return True
-    raise ValueError(f"Value is not a valid boolean-like: {val}")
 
 
 def _is_env_truthy(name):
     """An environment variable is truthy if it exists and isn't one of (0, false, no, off)"""
     if name not in os.environ:
         return False
-    return os.environ.get(name).lower() not in _false_values
+    return os.environ.get(name).lower() not in FALSE_VALUES
 
 
 def get_from_env(arg, prefix="PIPENV", check_for_negation=True):
@@ -99,12 +82,14 @@ os.environ.pop("__PYVENV_LAUNCHER__", None)
 # Internal, to tell whether the command line session is interactive.
 SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
 PIPENV_IS_CI = env_to_bool(os.environ.get("CI") or os.environ.get("TF_BUILD") or False)
-PIPENV_COLORBLIND = bool(os.environ.get("PIPENV_COLORBLIND"))
-"""If set, disable terminal colors.
+NO_COLOR = False
+if os.getenv("NO_COLOR") or os.getenv("PIPENV_COLORBLIND"):
+    NO_COLOR = True
+    from pipenv.utils.shell import style_no_color
+    from pipenv.vendor import click
 
-Some people don't like colors in their terminals, for some reason. Default is
-to show colors.
-"""
+    click.original_style = click.style
+    click.style = style_no_color
 
 PIPENV_HIDE_EMOJIS = (
     os.environ.get("PIPENV_HIDE_EMOJIS") is None
@@ -294,9 +279,9 @@ class Setting:
 
         self.PIPENV_VENV_IN_PROJECT = os.environ.get("PIPENV_VENV_IN_PROJECT")
         if self.PIPENV_VENV_IN_PROJECT is not None:
-            if self.PIPENV_VENV_IN_PROJECT.lower() in _true_values:
+            if self.PIPENV_VENV_IN_PROJECT.lower() in TRUE_VALUES:
                 self.PIPENV_VENV_IN_PROJECT = True
-            elif self.PIPENV_VENV_IN_PROJECT.lower() in _false_values:
+            elif self.PIPENV_VENV_IN_PROJECT.lower() in FALSE_VALUES:
                 self.PIPENV_VENV_IN_PROJECT = False
             else:
                 self.PIPENV_VENV_IN_PROJECT = None
@@ -422,14 +407,5 @@ def is_in_virtualenv():
     return virtual_env and not (pipenv_active or ignore_virtualenvs)
 
 
-def is_type_checking():
-    try:
-        from typing import TYPE_CHECKING
-    except ImportError:
-        return False
-    return TYPE_CHECKING
-
-
-MYPY_RUNNING = is_type_checking()
 PIPENV_SPINNER_FAIL_TEXT = fix_utf8("✘ {0}") if not PIPENV_HIDE_EMOJIS else "{0}"
 PIPENV_SPINNER_OK_TEXT = fix_utf8("✔ {0}") if not PIPENV_HIDE_EMOJIS else "{0}"

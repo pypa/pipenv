@@ -11,21 +11,21 @@ import os
 import sys
 import time
 
-from pipenv.environments import PIPENV_COLORBLIND, PIPENV_HIDE_EMOJIS
+from pipenv.environments import NO_COLOR, PIPENV_HIDE_EMOJIS
 from pipenv.vendor import click
 
 STREAM = sys.stderr
 MILL_TEMPLATE = "%s %s %i/%i\r"
 DOTS_CHAR = "."
 if PIPENV_HIDE_EMOJIS:
-    if PIPENV_COLORBLIND:
+    if NO_COLOR:
         BAR_FILLED_CHAR = "="
         BAR_EMPTY_CHAR = "-"
     else:
         BAR_FILLED_CHAR = str(click.style("=", bold=True, fg="green"))
         BAR_EMPTY_CHAR = str(click.style("-", fg="black"))
 else:
-    if PIPENV_COLORBLIND:
+    if NO_COLOR:
         BAR_FILLED_CHAR = "▉"
         BAR_EMPTY_CHAR = " "
     else:

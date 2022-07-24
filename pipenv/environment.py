@@ -14,8 +14,8 @@ from sysconfig import get_paths, get_python_version, get_scheme_names
 import pkg_resources
 
 import pipenv
-from pipenv.environments import is_type_checking
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.utils.constants import is_type_checking
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import make_posix, normalize_path

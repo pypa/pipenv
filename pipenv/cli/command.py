@@ -93,6 +93,13 @@ def cli(
         warn_in_virtualenv,
     )
 
+    if "PIPENV_COLORBLIND" in os.environ:
+        echo(
+            "PIPENV_COLORBLIND is deprecated, use NO_COLOR instead"
+            "Per https://no-color.org/",
+            err=True,
+        )
+
     if man:
         if system_which("man"):
             path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "pipenv.1")

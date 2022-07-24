@@ -22,12 +22,8 @@ import vistir
 from pipenv.cmdparse import Script
 from pipenv.core import system_which
 from pipenv.environment import Environment
-from pipenv.environments import (
-    Setting,
-    is_in_virtualenv,
-    is_type_checking,
-    normalize_pipfile_path,
-)
+from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
+from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
     is_editable,
