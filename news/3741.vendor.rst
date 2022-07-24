@@ -1,1 +1,0 @@
-Remove crayons and replace with click.secho and click.styles per https://github.com/pypa/pipenv/issues/3741

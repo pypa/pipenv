@@ -1,3 +1,28 @@
+2022.7.24 (2022-07-24)
+======================
+
+
+Bug Fixes
+---------
+
+- Re-enabled three installs tests again on the Windows CI as recent refactor work has fixed them.  `#5064 <https://github.com/pypa/pipenv/issues/5064>`_
+- Support ANSI ``NO_COLOR`` environment variable and deprecate ``PIPENV_COLORBLIND`` variable, which will be removed after this release.  `#5158 <https://github.com/pypa/pipenv/issues/5158>`_
+- Fixed edge case where a non-editable file, url or vcs would overwrite the value ``no_deps`` for all other requirements in the loop causing a retry condition.  `#5164 <https://github.com/pypa/pipenv/issues/5164>`_
+- Vendor in latest ``requirementslib`` for fix to lock when using editable VCS module with specific ``@`` git reference.  `#5179 <https://github.com/pypa/pipenv/issues/5179>`_
+
+Vendored Libraries
+------------------
+
+- Remove crayons and replace with click.secho and click.styles per https://github.com/pypa/pipenv/issues/3741  `#3741 <https://github.com/pypa/pipenv/issues/3741>`_
+- Vendor in latest version of ``pip==22.1.2`` which upgrades ``pipenv`` from ``pip==22.0.4``.
+  Vendor in latest version of ``requirementslib==1.6.7`` which includes a fix for tracebacks on encountering Annotated variables.
+  Vendor in latest version of ``pip-shims==0.7.3`` such that imports could be rewritten to utilize ``packaging`` from vendor'd ``pip``.
+  Drop the ``packaging`` requirement from the ``vendor`` directory in ``pipenv``.  `#5147 <https://github.com/pypa/pipenv/issues/5147>`_
+- Remove unused vendored dependency ``normailze-charset``.  `#5161 <https://github.com/pypa/pipenv/issues/5161>`_
+- Remove obsolete package ``funcsigs``.  `#5168 <https://github.com/pypa/pipenv/issues/5168>`_
+- Bump vendored dependency ``pyparsing==3.0.9``.  `#5170 <https://github.com/pypa/pipenv/issues/5170>`_
+
+
 2022.7.4 (2022-07-04)
 =====================
 

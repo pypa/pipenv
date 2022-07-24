@@ -1,1 +1,0 @@
-Vendor in latest ``requirementslib`` for fix to lock when using editable VCS module with specific ``@`` git reference.

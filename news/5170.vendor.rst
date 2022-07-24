@@ -1,1 +1,0 @@
-Bump vendored dependency ``pyparsing==3.0.9``.

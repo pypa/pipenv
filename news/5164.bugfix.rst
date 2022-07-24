@@ -1,1 +1,0 @@
-Fixed edge case where a non-editable file, url or vcs would overwrite the value ``no_deps`` for all other requirements in the loop causing a retry condition.
