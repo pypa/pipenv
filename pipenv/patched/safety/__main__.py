@@ -44,8 +44,5 @@ def insert_pipenv_dirs():
 
 if __name__ == "__main__":  # pragma: no cover
     insert_pipenv_dirs()
-    yaml_lib = "pipenv.patched.yaml{0}".format(sys.version_info[0])
-    locals()[yaml_lib] = __import__(yaml_lib)
-    sys.modules["yaml"] = sys.modules[yaml_lib]
     from pipenv.patched.safety.cli import cli
     cli(prog_name="safety")
