@@ -15,17 +15,31 @@ def print_utf(line):
 
 
 def get_pipenv_diagnostics(project):
+    import setuptools
+
     print("<details><summary>$ pipenv --support</summary>")
     print("")
     print(f"Pipenv version: `{pipenv.__version__!r}`")
     print("")
     print(f"Pipenv location: `{os.path.dirname(pipenv.__file__)!r}`")
     print("")
+    print(f"setuptools version: `{setuptools.__version__!r}`")
+    print("")
     print(f"Python location: `{sys.executable!r}`")
     print("")
-    print("Python installations found:")
+    print(f"OS Name: `{os.name!r}`")
     print("")
 
+    try:
+        import pip
+
+        print(f"User pip version: `{pip.__version__!r}`")
+        print("")
+    except ImportError:
+        pass
+
+    print("user Python installations found:")
+    print("")
     finder = pythonfinder.Finder(system=False, global_search=True)
     python_paths = finder.find_all_python_versions()
     for python in python_paths:
