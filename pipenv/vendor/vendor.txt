@@ -2,7 +2,6 @@ appdirs==1.4.4
 attrs==21.2.0
 cached-property==1.5.2
 cerberus==1.3.4
-charset-normalizer==2.0.7
 click-didyoumean==0.0.3
 click==8.0.3
 colorama==0.4.4
