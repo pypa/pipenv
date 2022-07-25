@@ -1,7 +1,7 @@
 """Allow safety to be executable through `python -m safety`."""
 from __future__ import absolute_import
 
-from .cli import cli
+from pipenv.patched.safety.cli import cli
 
 
 if __name__ == "__main__":  # pragma: no cover
