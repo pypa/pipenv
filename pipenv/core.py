@@ -84,12 +84,9 @@ else:
 
 
 def do_clear(project):
-    click.secho(fix_utf8("Clearing caches..."), bold=True)
-    try:
-        from pip._internal import locations
-    except ImportError:  # pip 9.
-        from pip import locations
+    from pipenv.patched.notpip._internal import locations
 
+    click.secho(fix_utf8("Clearing caches..."), bold=True)
     try:
         shutil.rmtree(
             project.s.PIPENV_CACHE_DIR, onerror=vistir.path.handle_remove_readonly
