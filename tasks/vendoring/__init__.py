@@ -39,7 +39,6 @@ HARDCODED_LICENSE_URLS = {
     "requirementslib": "https://github.com/techalchemy/requirementslib/raw/master/LICENSE",
     "distlib": "https://github.com/vsajip/distlib/raw/master/LICENSE.txt",
     "pythonfinder": "https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt",
-    "pyparsing": "https://raw.githubusercontent.com/pyparsing/pyparsing/master/LICENSE",
 }
 
 FILE_WHITE_LIST = (
