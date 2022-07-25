@@ -71,6 +71,7 @@ submodules:
 # e.g make tests RAMDISK=1
 .PHONY: tests
 tests: parallel ?= -n auto
+tests: suite ?=
 tests: submodules test-install
 	source $(get_venv_path)/bin/activate && \
 		pipenv run pytest -ra $(parallel) -vvv --full-trace --tb=long
