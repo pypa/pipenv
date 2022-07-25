@@ -261,32 +261,6 @@ def _ensure_package_in_requirements(ctx, requirements_file, package):
     return requirement
 
 
-def install_pyyaml(ctx, vendor_dir):
-    with TemporaryDirectory(prefix="pipenv-", suffix="-yaml") as download_dir:
-        pip_command = (
-            "pip download --no-binary=:all: --no-clean --no-deps -d {} pyyaml".format(
-                download_dir
-            )
-        )
-        log(f"downloading deps via pip: {pip_command}")
-        ctx.run(pip_command)
-        downloaded = next(Path(download_dir).glob("*.tar.gz"))
-        with tarfile.open(downloaded, mode="r:gz") as tf:
-            tf.extractall(download_dir)
-        extracted = next((p for p in downloaded.parent.iterdir() if p != downloaded))
-        yaml_dir = vendor_dir / "yaml"
-        path_dict = {
-            "current_path": extracted / "lib/yaml",
-            "destination": vendor_dir / "yaml3",
-        }
-        if yaml_dir.exists():
-            drop_dir(yaml_dir)
-        path_dict["current_path"].rename(path_dict["destination"])
-        path_dict["destination"].joinpath("LICENSE").write_text(
-            extracted.joinpath("LICENSE").read_text()
-        )
-
-
 def install(ctx, vendor_dir, package=None):
     requirements_file = vendor_dir / f"{vendor_dir.name}.txt"
     requirement = f"-r {requirements_file.as_posix()}"
@@ -738,7 +712,6 @@ def main(ctx, package=None, type=None):
     for package_dir in target_dirs:
         clean_vendor(ctx, package_dir)
         if package_dir == patched_dir:
-            install_pyyaml(ctx, patched_dir)
             vendor(ctx, patched_dir, rewrite=True)
         else:
             vendor(ctx, package_dir)
@@ -747,12 +720,6 @@ def main(ctx, package=None, type=None):
         if package_dir == patched_dir:
             update_pip_deps(ctx)
     log("Revendoring complete")
-
-
-@invoke.task
-def install_yaml(ctx):
-    patched_dir = _get_patched_dir(ctx)
-    install_pyyaml(ctx, patched_dir)
 
 
 @invoke.task
