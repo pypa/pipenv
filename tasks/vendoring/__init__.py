@@ -678,7 +678,15 @@ def unpin_and_copy_requirements(ctx, requirement_file, name="requirements.txt"):
 
 
 @invoke.task
-def unpin_and_update_vendored(ctx, vendor=True, patched=False):
+def update_safety(ctx):
+    """This used to be a thing. It was removed by frostming.
+    It was doing a whole lot of other things besides updating safety.
+    """
+    pass
+
+
+@invoke.task
+def unpin_and_update_vendored(ctx, vendor=False, patched=True):
     if vendor:
         vendor_file = _get_vendor_dir(ctx) / "vendor.txt"
         unpin_and_copy_requirements(ctx, vendor_file, name="vendor.txt")
