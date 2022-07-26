@@ -20,7 +20,7 @@ def prepare_pip_source_args(sources, pip_args=None):
     if pip_args is None:
         pip_args = []
     if sources:
-        # Add the source to notpip.
+        # Add the source to pip.
         package_url = sources[0].get("url")
         if not package_url:
             raise PipenvUsageError("[[source]] section does not contain a URL.")

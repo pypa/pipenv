@@ -2,7 +2,7 @@ import os
 from contextlib import contextmanager
 from typing import Mapping, Sequence
 
-from pipenv.patched.notpip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.markers import Marker
 
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
@@ -49,7 +49,7 @@ class HackedPythonVersion:
 
 def get_canonical_names(packages):
     """Canonicalize a list of packages and return a set of canonical names"""
-    from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
     if not isinstance(packages, Sequence):
         if not isinstance(packages, str):
@@ -130,7 +130,7 @@ def translate_markers(pipfile_entry):
     """
     if not isinstance(pipfile_entry, Mapping):
         raise TypeError("Entry is not a pipfile formatted mapping.")
-    from pipenv.patched.notpip._vendor.packaging.markers import default_environment
+    from pipenv.patched.pip._vendor.packaging.markers import default_environment
 
     allowed_marker_keys = ["markers"] + list(default_environment().keys())
     provided_keys = list(pipfile_entry.keys()) if hasattr(pipfile_entry, "keys") else []
@@ -309,7 +309,7 @@ def locked_repository(requirement):
     if not requirement.is_vcs:
         return
     original_base = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-    os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.notpip"
+    os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.pip"
     src_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-src")
     try:
         with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:

@@ -171,7 +171,7 @@ def convert_entry_to_path(path):
 def is_installable_file(path):
     # type: (PipfileType) -> bool
     """Determine if a path can potentially be installed."""
-    from pipenv.patched.notpip._vendor.packaging import specifiers
+    from pipenv.patched.pip._vendor.packaging import specifiers
 
     if isinstance(path, Mapping):
         path = convert_entry_to_path(path)

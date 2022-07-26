@@ -59,10 +59,10 @@ setup(
     },
     package_data={
         "": ["LICENSE", "NOTICES"],
-        "pipenv.patched.notpip._vendor.certifi": ["*.pem"],
-        "pipenv.patched.notpip._vendor.requests": ["*.pem"],
-        "pipenv.patched.notpip._vendor.distlib._backport": ["sysconfig.cfg"],
-        "pipenv.patched.notpip._vendor.distlib": [
+        "pipenv.patched.pip._vendor.certifi": ["*.pem"],
+        "pipenv.patched.pip._vendor.requests": ["*.pem"],
+        "pipenv.patched.pip._vendor.distlib._backport": ["sysconfig.cfg"],
+        "pipenv.patched.pip._vendor.distlib": [
             "t32.exe",
             "t64.exe",
             "w32.exe",

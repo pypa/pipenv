@@ -22,97 +22,97 @@ index c72f24f30..df5defb16 100644
  commands_dict: Dict[str, CommandInfo] = {
      "install": CommandInfo(
 -        "pip._internal.commands.install",
-+        "pipenv.patched.notpip._internal.commands.install",
++        "pipenv.patched.pip._internal.commands.install",
          "InstallCommand",
          "Install packages.",
      ),
      "download": CommandInfo(
 -        "pip._internal.commands.download",
-+        "pipenv.patched.notpip._internal.commands.download",
++        "pipenv.patched.pip._internal.commands.download",
          "DownloadCommand",
          "Download packages.",
      ),
      "uninstall": CommandInfo(
 -        "pip._internal.commands.uninstall",
-+        "pipenv.patched.notpip._internal.commands.uninstall",
++        "pipenv.patched.pip._internal.commands.uninstall",
          "UninstallCommand",
          "Uninstall packages.",
      ),
      "freeze": CommandInfo(
 -        "pip._internal.commands.freeze",
-+        "pipenv.patched.notpip._internal.commands.freeze",
++        "pipenv.patched.pip._internal.commands.freeze",
          "FreezeCommand",
          "Output installed packages in requirements format.",
      ),
      "list": CommandInfo(
 -        "pip._internal.commands.list",
-+        "pipenv.patched.notpip._internal.commands.list",
++        "pipenv.patched.pip._internal.commands.list",
          "ListCommand",
          "List installed packages.",
      ),
      "show": CommandInfo(
 -        "pip._internal.commands.show",
-+        "pipenv.patched.notpip._internal.commands.show",
++        "pipenv.patched.pip._internal.commands.show",
          "ShowCommand",
          "Show information about installed packages.",
      ),
      "check": CommandInfo(
 -        "pip._internal.commands.check",
-+        "pipenv.patched.notpip._internal.commands.check",
++        "pipenv.patched.pip._internal.commands.check",
          "CheckCommand",
          "Verify installed packages have compatible dependencies.",
      ),
      "config": CommandInfo(
 -        "pip._internal.commands.configuration",
-+        "pipenv.patched.notpip._internal.commands.configuration",
++        "pipenv.patched.pip._internal.commands.configuration",
          "ConfigurationCommand",
          "Manage local and global configuration.",
      ),
      "search": CommandInfo(
 -        "pip._internal.commands.search",
-+        "pipenv.patched.notpip._internal.commands.search",
++        "pipenv.patched.pip._internal.commands.search",
          "SearchCommand",
          "Search PyPI for packages.",
      ),
      "cache": CommandInfo(
 -        "pip._internal.commands.cache",
-+        "pipenv.patched.notpip._internal.commands.cache",
++        "pipenv.patched.pip._internal.commands.cache",
          "CacheCommand",
          "Inspect and manage pip's wheel cache.",
      ),
      "index": CommandInfo(
 -        "pip._internal.commands.index",
-+        "pipenv.patched.notpip._internal.commands.index",
++        "pipenv.patched.pip._internal.commands.index",
          "IndexCommand",
          "Inspect information available from package indexes.",
      ),
      "wheel": CommandInfo(
 -        "pip._internal.commands.wheel",
-+        "pipenv.patched.notpip._internal.commands.wheel",
++        "pipenv.patched.pip._internal.commands.wheel",
          "WheelCommand",
          "Build wheels from your requirements.",
      ),
      "hash": CommandInfo(
 -        "pip._internal.commands.hash",
-+        "pipenv.patched.notpip._internal.commands.hash",
++        "pipenv.patched.pip._internal.commands.hash",
          "HashCommand",
          "Compute hashes of package archives.",
      ),
      "completion": CommandInfo(
 -        "pip._internal.commands.completion",
-+        "pipenv.patched.notpip._internal.commands.completion",
++        "pipenv.patched.pip._internal.commands.completion",
          "CompletionCommand",
          "A helper command used for command completion.",
      ),
      "debug": CommandInfo(
 -        "pip._internal.commands.debug",
-+        "pipenv.patched.notpip._internal.commands.debug",
++        "pipenv.patched.pip._internal.commands.debug",
          "DebugCommand",
          "Show information useful for debugging.",
      ),
      "help": CommandInfo(
 -        "pip._internal.commands.help",
-+        "pipenv.patched.notpip._internal.commands.help",
++        "pipenv.patched.pip._internal.commands.help",
          "HelpCommand",
          "Show help for commands.",
      ),
@@ -252,7 +252,7 @@ index 9582fa730..5fb6f07df 100644
 
  for package in ('urllib3', 'idna', 'chardet'):
 -    vendored_package = "pip._vendor." + package
-+    vendored_package = "pipenv.patched.notpip._vendor." + package
++    vendored_package = "pipenv.patched.pip._vendor." + package
      locals()[package] = __import__(vendored_package)
      # This traversal is apparently necessary such that the identities are
      # preserved (requests.packages.urllib3.* is urllib3.*)
@@ -260,7 +260,7 @@ index 9582fa730..5fb6f07df 100644
          if mod == vendored_package or mod.startswith(vendored_package + '.'):
 -            unprefixed_mod = mod[len("pip._vendor."):]
 -            sys.modules['pip._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
-+            unprefixed_mod = mod[len("pipenv.patched.notpip._vendor."):]
-+            sys.modules['pipenv.patched.notpip._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
++            unprefixed_mod = mod[len("pipenv.patched.pip._vendor."):]
++            sys.modules['pipenv.patched.pip._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
 
  # Kinda cool, though, right?

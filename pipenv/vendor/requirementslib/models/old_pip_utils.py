@@ -19,16 +19,16 @@ logger = logging.getLogger(__name__)
 try:  # Required for pip>=22.1
     from typing import Dict, Iterable, List, Optional
 
-    from pipenv.patched.notpip._internal.models.link import Link
-    from pipenv.patched.notpip._internal.network.download import Downloader
-    from pipenv.patched.notpip._internal.operations.prepare import (
+    from pipenv.patched.pip._internal.models.link import Link
+    from pipenv.patched.pip._internal.network.download import Downloader
+    from pipenv.patched.pip._internal.operations.prepare import (
         File,
         get_file_url,
         get_http_url,
         unpack_vcs_link,
     )
-    from pipenv.patched.notpip._internal.utils.hashes import Hashes
-    from pipenv.patched.notpip._internal.utils.unpacking import unpack_file
+    from pipenv.patched.pip._internal.utils.hashes import Hashes
+    from pipenv.patched.pip._internal.utils.unpacking import unpack_file
 
     def is_socket(path):
         # type: (str) -> bool

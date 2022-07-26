@@ -6,11 +6,11 @@ index e15cd8f4..9f692879 100644
  except ImportError:
      from collections import Mapping
 
--from pipenv.patched.notpip._vendor import pkg_resources
+-from pipenv.patched.pip._vendor import pkg_resources
 -try:
--    from pipenv.patched.notpip._internal.operations.freeze import FrozenRequirement
+-    from pipenv.patched.pip._internal.operations.freeze import FrozenRequirement
 -except ImportError:
--    from pipenv.patched.notpip import FrozenRequirement
+-    from pipenv.patched.pip import FrozenRequirement
 +import pkg_resources
 +
 +pardir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

@@ -7,9 +7,9 @@ from functools import lru_cache, reduce
 
 import pipenv.vendor.attr as attr
 import distlib.markers
-from pipenv.patched.notpip._vendor.packaging.markers import InvalidMarker, Marker
-from pipenv.patched.notpip._vendor.packaging.specifiers import LegacySpecifier, Specifier, SpecifierSet
-from pipenv.patched.notpip._vendor.packaging.version import parse
+from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker
+from pipenv.patched.pip._vendor.packaging.specifiers import LegacySpecifier, Specifier, SpecifierSet
+from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.vendor.vistir.misc import dedup
 
 from ..environment import MYPY_RUNNING

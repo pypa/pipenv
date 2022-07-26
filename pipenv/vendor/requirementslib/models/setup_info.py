@@ -20,9 +20,9 @@ import pipenv.vendor.attr as attr
 import pep517.envbuild
 import pep517.wrappers
 from pipenv.vendor.distlib.wheel import Wheel
-from pipenv.patched.notpip._vendor.packaging.markers import Marker
-from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
-from pipenv.patched.notpip._vendor.packaging.version import parse
+from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.vendor.pip_shims.utils import call_function_with_correct_args
 from pipenv.vendor.platformdirs import user_cache_dir
 from pipenv.vendor.vistir.contextmanagers import cd, temp_path
@@ -70,8 +70,8 @@ if MYPY_RUNNING:
         Union,
     )
 
-    import pipenv.patched.notpip._vendor.requests as requests
-    from pipenv.patched.notpip._vendor.packaging.requirements import Requirement as PackagingRequirement
+    import pipenv.patched.pip._vendor.requests as requests
+    from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
     from pipenv.vendor.pip_shims.shims import InstallRequirement, PackageFinder
     from pkg_resources import DistInfoDistribution, EggInfoDistribution, PathMetadata
     from pkg_resources import Requirement as PkgResourcesRequirement
@@ -1565,7 +1565,7 @@ build-backend = "{1}"
             call_function_with_correct_args(build_location_func, **build_kwargs)
             ireq.ensure_has_source_dir(kwargs["src_dir"])
             try:  # Support for pip >= 21.1
-                from pipenv.patched.notpip._internal.network.download import Downloader
+                from pipenv.patched.pip._internal.network.download import Downloader
 
                 from pipenv.vendor.requirementslib.models.old_pip_utils import old_unpack_url
 
