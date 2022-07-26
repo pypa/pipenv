@@ -282,11 +282,11 @@ maya = "*"
             """.strip()
             f.write(contents)
 
-        c = p.pipenv('lock --verbose')
-        assert c.returncode == 0
+            c = p.pipenv('lock --verbose')
+            assert c.returncode == 0
 
-        c = p.pipenv('install')
-        assert c.returncode == 0
+            c = p.pipenv('install')
+            assert c.returncode == 0
 
 
 @pytest.mark.lock
