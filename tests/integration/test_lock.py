@@ -213,7 +213,7 @@ def test_keep_outdated_doesnt_update_satisfied_constraints(PipenvInstance):
 @pytest.mark.lock
 @pytest.mark.complex
 @pytest.mark.needs_internet
-def test_complex_lock_with_vcs_deps(local_tempdir, PipenvInstance, pip_src_dir):
+def test_complex_lock_with_vcs_deps(local_tempdir, PipenvInstance):
     # This uses the real PyPI since we need Internet to access the Git
     # dependency anyway.
     with PipenvInstance() as p, local_tempdir:
@@ -271,22 +271,26 @@ allow_prereleases = true
 @pytest.mark.maya
 @pytest.mark.complex
 @pytest.mark.needs_internet
-@flaky
-def test_complex_deps_lock_and_install_properly(PipenvInstance, pip_src_dir):
+def test_complex_deps_lock_and_install_properly(PipenvInstance):
     # This uses the real PyPI because Maya has too many dependencies...
     with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 maya = "*"
             """.strip()
             f.write(contents)
 
-        c = p.pipenv('lock --verbose')
-        assert c.returncode == 0
+            c = p.pipenv('lock --verbose')
+            assert c.returncode == 0
 
-        c = p.pipenv('install')
-        assert c.returncode == 0
+            c = p.pipenv('install')
+            assert c.returncode == 0
 
 
 @pytest.mark.lock
@@ -749,6 +753,7 @@ six = "*"
 
 
 @pytest.mark.lock
+@pytest.mark.install
 def test_lock_nested_direct_url(PipenvInstance):
     """
     The dependency 'test_package' has a declared dependency on

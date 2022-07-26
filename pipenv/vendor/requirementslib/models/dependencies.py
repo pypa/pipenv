@@ -10,10 +10,10 @@ from json import JSONDecodeError
 
 import pipenv.vendor.attr as attr
 import pip_shims.shims
-import pipenv.patched.notpip._vendor.requests as requests
-from pipenv.patched.notpip._vendor.packaging.markers import Marker
-from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.notpip._vendor.packaging.version import parse
+import pipenv.patched.pip._vendor.requests as requests
+from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.vendor.vistir.compat import fs_str
 from pipenv.vendor.vistir.contextmanagers import cd, temp_environ
 from pipenv.vendor.vistir.path import create_tracked_tempdir
@@ -48,7 +48,7 @@ if MYPY_RUNNING:
         Union,
     )
 
-    from pipenv.patched.notpip._vendor.packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
     from pipenv.vendor.pip_shims.shims import (
         Command,
         InstallationCandidate,
@@ -89,11 +89,11 @@ def find_all_matches(finder, ireq, pre=False):
     ireq.
 
     :param finder: A package finder for discovering matching candidates.
-    :type finder: :class:`~pipenv.patched.notpip._internal.index.PackageFinder`
+    :type finder: :class:`~pipenv.patched.pip._internal.index.PackageFinder`
     :param ireq: An install requirement.
-    :type ireq: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
     :return: A list of matching candidates.
-    :rtype: list[:class:`~pipenv.patched.notpip._internal.index.InstallationCandidate`]
+    :rtype: list[:class:`~pipenv.patched.pip._internal.index.InstallationCandidate`]
     """
 
     candidates = clean_requires_python(finder.find_all_candidates(ireq.name))
@@ -210,7 +210,7 @@ class AbstractDependency(object):
         """Get the dependencies of the supplied candidate.
 
         :param candidate: An installrequirement
-        :type candidate: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
+        :type candidate: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
         :return: A list of abstract dependencies
         :rtype: list[:class:`~requirementslib.models.dependency.AbstractDependency`]
         """
@@ -322,11 +322,11 @@ def get_dependencies(ireq, sources=None, parent=None):
     """Get all dependencies for a given install requirement.
 
     :param ireq: A single InstallRequirement
-    :type ireq: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
     :param sources: Pipfile-formatted sources, defaults to None
     :type sources: list[dict], optional
     :param parent: The parent of this list of dependencies, defaults to None
-    :type parent: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
+    :type parent: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
     :return: A set of dependency lines for generating new InstallRequirements.
     :rtype: set(str)
     """
@@ -359,7 +359,7 @@ def get_dependencies_from_wheel_cache(ireq):
     cache.
 
     :param ireq: A single InstallRequirement
-    :type ireq: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
     :return: A set of dependency lines for generating new InstallRequirements.
     :rtype: set(str) or None
     """
@@ -386,7 +386,7 @@ def get_dependencies_from_json(ireq):
     api.
 
     :param ireq: A single InstallRequirement
-    :type ireq: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
     :return: A set of dependency lines for generating new InstallRequirements.
     :rtype: set(str) or None
     """
@@ -436,7 +436,7 @@ def get_dependencies_from_cache(ireq):
     dependency cache.
 
     :param ireq: A single InstallRequirement
-    :type ireq: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
     :return: A set of dependency lines for generating new InstallRequirements.
     :rtype: set(str) or None
     """
@@ -478,7 +478,7 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
     resolver.
 
     :param dep: A single InstallRequirement
-    :type dep: :class:`~pipenv.patched.notpip._internal.req.req_install.InstallRequirement`
+    :type dep: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
     :param sources: Pipfile-formatted sources, defaults to None
     :type sources: list[dict], optional
     :return: A set of dependency lines for generating new InstallRequirements.
@@ -514,9 +514,9 @@ def get_pip_options(args=None, sources=None, pip_command=None):
     :param sources: A list of pipfile-formatted sources, defaults to None
     :param sources: list[dict], optional
     :param pip_command: A pre-built pip command instance
-    :type pip_command: :class:`~pipenv.patched.notpip._internal.cli.base_command.Command`
+    :type pip_command: :class:`~pipenv.patched.pip._internal.cli.base_command.Command`
     :return: An instance of pip_options using the supplied arguments plus sane defaults
-    :rtype: :class:`~pipenv.patched.notpip._internal.cli.cmdoptions`
+    :rtype: :class:`~pipenv.patched.pip._internal.cli.cmdoptions`
     """
 
     if not pip_command:
@@ -538,11 +538,11 @@ def get_finder(sources=None, pip_command=None, pip_options=None):
     :param sources: A list of pipfile-formatted sources, defaults to None
     :param sources: list[dict], optional
     :param pip_command: A pip command instance, defaults to None
-    :type pip_command: :class:`~pipenv.patched.notpip._internal.cli.base_command.Command`
+    :type pip_command: :class:`~pipenv.patched.pip._internal.cli.base_command.Command`
     :param pip_options: A pip options, defaults to None
-    :type pip_options: :class:`~pipenv.patched.notpip._internal.cli.cmdoptions`
+    :type pip_options: :class:`~pipenv.patched.pip._internal.cli.cmdoptions`
     :return: A package finder
-    :rtype: :class:`~pipenv.patched.notpip._internal.index.PackageFinder`
+    :rtype: :class:`~pipenv.patched.pip._internal.index.PackageFinder`
     """
 
     if not pip_command:
@@ -564,12 +564,12 @@ def start_resolver(finder=None, session=None, wheel_cache=None):
     """Context manager to produce a resolver.
 
     :param finder: A package finder to use for searching the index
-    :type finder: :class:`~pipenv.patched.notpip._internal.index.PackageFinder`
+    :type finder: :class:`~pipenv.patched.pip._internal.index.PackageFinder`
     :param :class:`~requests.Session` session: A session instance
-    :param :class:`~pipenv.patched.notpip._internal.cache.WheelCache` wheel_cache: A pip WheelCache instance
+    :param :class:`~pipenv.patched.pip._internal.cache.WheelCache` wheel_cache: A pip WheelCache instance
     :return: A 3-tuple of finder, preparer, resolver
-    :rtype: (:class:`~pipenv.patched.notpip._internal.operations.prepare.RequirementPreparer`,
-             :class:`~pipenv.patched.notpip._internal.resolve.Resolver`)
+    :rtype: (:class:`~pipenv.patched.pip._internal.operations.prepare.RequirementPreparer`,
+             :class:`~pipenv.patched.pip._internal.resolve.Resolver`)
     """
 
     pip_command = get_pip_command()

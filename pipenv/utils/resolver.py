@@ -610,7 +610,7 @@ class Resolver:
 
     @property
     def constraints(self):
-        from pipenv.patched.notpip._internal.req.constructors import (
+        from pipenv.patched.pip._internal.req.constructors import (
             install_req_from_parsed_requirement,
         )
 
@@ -667,7 +667,6 @@ class Resolver:
         from pipenv.exceptions import ResolutionFailure
         from pipenv.vendor.pip_shims.shims import InstallationError
 
-        self.constraints  # For some reason it is important to evaluate constraints before resolver context
         with temp_environ(), self.get_resolver() as resolver:
             try:
                 results = resolver.resolve(self.constraints, check_supported_wheels=False)

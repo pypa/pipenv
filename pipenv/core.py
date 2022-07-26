@@ -163,10 +163,10 @@ def cleanup_virtualenv(project, bare=True):
 
 
 def import_requirements(project, r=None, dev=False):
-    from pipenv.patched.notpip._internal.req.constructors import (
+    from pipenv.patched.pip._internal.req.constructors import (
         install_req_from_parsed_requirement,
     )
-    from pipenv.patched.notpip._vendor import requests
+    from pipenv.patched.pip._vendor import requests
     from pipenv.vendor.pip_shims.shims import parse_requirements
 
     # Parse requirements.txt file with Pip's parser.
@@ -1144,7 +1144,7 @@ def do_lock(
 
     # Support for --keep-outdated...
     if keep_outdated:
-        from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+        from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
         for section_name, section in (
             ("default", project.packages),
@@ -1375,7 +1375,7 @@ def get_pip_args(
     selective_upgrade: bool = False,
     src_dir: Optional[str] = None,
 ) -> List[str]:
-    from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
+    from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
     arg_map = {
         "pre": ["--pre"],
@@ -1475,7 +1475,7 @@ def pip_install(
     trusted_hosts=None,
     use_pep517=True,
 ):
-    piplogger = logging.getLogger("pipenv.patched.notpip._internal.commands.install")
+    piplogger = logging.getLogger("pipenv.patched.pip._internal.commands.install")
     if not trusted_hosts:
         trusted_hosts = []
     trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
@@ -1853,7 +1853,7 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
     from collections import namedtuple
     from collections.abc import Mapping
 
-    from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
     from .vendor.requirementslib.models.requirements import Requirement
     from .vendor.requirementslib.models.utils import get_version
@@ -2296,7 +2296,7 @@ def do_uninstall(
     pypi_mirror=None,
     ctx=None,
 ):
-    from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
     from .vendor.requirementslib.models.requirements import Requirement
 
@@ -3013,7 +3013,7 @@ def do_clean(
     system=False,
 ):
     # Ensure that virtualenv is available.
-    from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
     ensure_project(
         project, three=three, python=python, validate=False, pypi_mirror=pypi_mirror

@@ -8,7 +8,6 @@ from collections.abc import ItemsView, Mapping, Sequence, Set
 from pathlib import Path
 from urllib.parse import urlparse, urlsplit, urlunparse
 
-import pip_shims.shims
 import pipenv.vendor.tomlkit as tomlkit
 import pipenv.vendor.vistir as vistir
 from pipenv.vendor.vistir.compat import fs_decode
@@ -73,7 +72,8 @@ VCS_SCHEMES = [
 
 def is_installable_dir(path):
     # type: (STRING_TYPE) -> bool
-    if pip_shims.shims.is_installable_dir(path):
+    from pipenv.vendor.pip_shims import shims
+    if shims.is_installable_dir(path):
         return True
     pyproject_path = os.path.join(path, "pyproject.toml")
     if os.path.exists(pyproject_path):
@@ -171,7 +171,8 @@ def convert_entry_to_path(path):
 def is_installable_file(path):
     # type: (PipfileType) -> bool
     """Determine if a path can potentially be installed."""
-    from pipenv.patched.notpip._vendor.packaging import specifiers
+    from pipenv.vendor.pip_shims import shims
+    from pipenv.patched.pip._vendor.packaging import specifiers
 
     if isinstance(path, Mapping):
         path = convert_entry_to_path(path)
@@ -199,14 +200,14 @@ def is_installable_file(path):
     if is_local and not os.path.exists(normalized_path):
         return False
 
-    is_archive = pip_shims.shims.is_archive_file(normalized_path)
+    is_archive = shims.is_archive_file(normalized_path)
     is_local_project = os.path.isdir(normalized_path) and is_installable_dir(
         normalized_path
     )
     if is_local and is_local_project or is_archive:
         return True
 
-    if not is_local and pip_shims.shims.is_archive_file(parsed.path):
+    if not is_local and shims.is_archive_file(parsed.path):
         return True
 
     return False

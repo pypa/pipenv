@@ -36,7 +36,7 @@ from .utils import (
 )
 
 if MYPY_RUNNING:
-    from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion
+    from pipenv.patched.pip._vendor.packaging.version import _BaseVersion
 
     Module = types.ModuleType
     from typing import (  # noqa:F811

@@ -74,18 +74,18 @@ def guess_version(pkg_key, default='?'):
 
 
 def frozen_req_from_dist(dist):
-    # The `pipenv.patched.notpip._internal.metadata` modules were introduced in 21.1.1
-    # and the `pipenv.patched.notpip._internal.operations.freeze.FrozenRequirement`
+    # The `pipenv.patched.pip._internal.metadata` modules were introduced in 21.1.1
+    # and the `pipenv.patched.pip._internal.operations.freeze.FrozenRequirement`
     # class now expects dist to be a subclass of
-    # `pipenv.patched.notpip._internal.metadata.BaseDistribution`, however the
-    # `pipenv.patched.notpip._internal.utils.misc.get_installed_distributions` continues
+    # `pipenv.patched.pip._internal.metadata.BaseDistribution`, however the
+    # `pipenv.patched.pip._internal.utils.misc.get_installed_distributions` continues
     # to return objects of type
-    # pipenv.patched.notpip._vendor.pkg_resources.DistInfoDistribution.
+    # pipenv.patched.pip._vendor.pkg_resources.DistInfoDistribution.
     #
     # This is a hacky backward compatible (with older versions of pip)
     # fix.
     try:
-        from pipenv.patched.notpip._internal import metadata
+        from pipenv.patched.pip._internal import metadata
     except ImportError:
         pass
     else:
@@ -848,12 +848,12 @@ def handle_non_host_target(args):
 
 def get_installed_distributions(local_only=False, user_only=False):
     try:
-        from pipenv.patched.notpip._internal.metadata import get_environment
+        from pipenv.patched.pip._internal.metadata import get_environment
     except ImportError:
         # For backward compatibility with python ver. 2.7 and pip
         # version 20.3.4 (latest pip version that works with python
         # version 2.7)
-        from pipenv.patched.notpip._internal.utils import misc
+        from pipenv.patched.pip._internal.utils import misc
         return misc.get_installed_distributions(
             local_only=local_only,
             user_only=user_only
