@@ -545,9 +545,7 @@ class Environment:
         Get the pip version in the environment.  Useful for knowing which args we can use
         when installing.
         """
-        from pipenv.patched.pip._vendor.packaging.version import (
-            parse as parse_version,
-        )
+        from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
         pip = next(
             iter(pkg for pkg in self.get_installed_packages() if pkg.key == "pip"), None
