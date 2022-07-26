@@ -282,11 +282,11 @@ maya = "*"
             """.strip()
             f.write(contents)
 
-        c = p.pipenv('lock --verbose')
-        assert c.returncode == 0
+            c = p.pipenv('lock --verbose')
+            assert c.returncode == 0
 
-        c = p.pipenv('install')
-        assert c.returncode == 0
+            c = p.pipenv('install')
+            assert c.returncode == 0
 
 
 @pytest.mark.lock
@@ -755,8 +755,8 @@ def test_lock_nested_direct_url(PipenvInstance):
     a PEP508 style VCS URL. This ensures that we capture the dependency
     here along with its own dependencies.
     """
-    with PipenvInstance(chdir=True) as p:
-        c = p.pipenv("install test_package")
+    with PipenvInstance() as p:
+        c = p.pipenv("install -v test_package")
         assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]
         assert "colorama" in p.lockfile["default"]
