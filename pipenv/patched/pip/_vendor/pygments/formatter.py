@@ -4,14 +4,14 @@
 
     Base formatter class.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
 import codecs
 
-from pipenv.patched.pip._vendor.pygments.util import get_bool_opt
-from pipenv.patched.pip._vendor.pygments.styles import get_style_by_name
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import get_bool_opt
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.styles import get_style_by_name
 
 __all__ = ['Formatter']
 

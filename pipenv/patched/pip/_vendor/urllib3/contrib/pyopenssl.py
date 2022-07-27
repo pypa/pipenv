@@ -28,7 +28,7 @@ like this:
 .. code-block:: python
 
     try:
-        import pipenv.patched.pip._vendor.urllib3.contrib.pyopenssl as pyopenssl
+        import pipenv.patched.pipenv.patched.pip._vendor.urllib3.contrib.pyopenssl as pyopenssl
         pyopenssl.inject_into_urllib3()
     except ImportError:
         pass
@@ -188,7 +188,7 @@ def _dnsname_to_stdlib(name):
         that we can't just safely call `idna.encode`: it can explode for
         wildcard names. This avoids that problem.
         """
-        from pipenv.patched.pip._vendor import idna
+        from pipenv.patched.pipenv.patched.pip._vendor import idna
 
         try:
             for prefix in [u"*.", u"."]:
@@ -405,7 +405,6 @@ if _fileobject:  # Platform-specific: Python 2
     def makefile(self, mode, bufsize=-1):
         self._makefile_refs += 1
         return _fileobject(self, mode, bufsize, close=True)
-
 
 else:  # Platform-specific: Python 3
     makefile = backport_makefile

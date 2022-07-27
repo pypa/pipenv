@@ -1,8 +1,8 @@
 import abc
 
-from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._internal.metadata.base import BaseDistribution
-from pipenv.patched.pip._internal.req import InstallRequirement
+from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pipenv.patched.pip._internal.metadata.base import BaseDistribution
+from pipenv.patched.pipenv.patched.pip._internal.req import InstallRequirement
 
 
 class AbstractDistribution(metaclass=abc.ABCMeta):

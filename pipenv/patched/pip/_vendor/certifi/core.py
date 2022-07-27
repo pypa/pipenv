@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 certifi.py
 ~~~~~~~~~~
@@ -7,6 +5,8 @@ certifi.py
 This module returns the installation location of cacert.pem or its contents.
 """
 import os
+import types
+from typing import Union
 
 
 class _PipPatchedCertificate(Exception):
@@ -28,7 +28,7 @@ try:
     _CACERT_CTX = None
     _CACERT_PATH = None
 
-    def where():
+    def where() -> str:
         # This is slightly terrible, but we want to delay extracting the file
         # in cases where we're inside of a zipimport situation until someone
         # actually calls where(), but we don't want to re-extract the file
@@ -56,21 +56,29 @@ except _PipPatchedCertificate:
     pass
 
 except ImportError:
+    Package = Union[types.ModuleType, str]
+    Resource = Union[str, "os.PathLike"]
+
     # This fallback will work for Python versions prior to 3.7 that lack the
     # importlib.resources module but relies on the existing `where` function
     # so won't address issues with environments like PyOxidizer that don't set
     # __file__ on modules.
-    def read_text(_module, _path, encoding="ascii"):
-        with open(where(), "r", encoding=encoding) as data:
+    def read_text(
+        package: Package,
+        resource: Resource,
+        encoding: str = 'utf-8',
+        errors: str = 'strict'
+    ) -> str:
+        with open(where(), encoding=encoding) as data:
             return data.read()
 
     # If we don't have importlib.resources, then we will just do the old logic
     # of assuming we're on the filesystem and munge the path directly.
-    def where():
+    def where() -> str:
         f = os.path.dirname(__file__)
 
         return os.path.join(f, "cacert.pem")
 
 
-def contents():
+def contents() -> str:
     return read_text("certifi", "cacert.pem", encoding="ascii")

@@ -4,7 +4,7 @@
 
     Pygments formatters.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -14,9 +14,9 @@ import types
 import fnmatch
 from os.path import basename
 
-from pipenv.patched.pip._vendor.pygments.formatters._mapping import FORMATTERS
-from pipenv.patched.pip._vendor.pygments.plugin import find_plugin_formatters
-from pipenv.patched.pip._vendor.pygments.util import ClassNotFound
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatters._mapping import FORMATTERS
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.plugin import find_plugin_formatters
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import ClassNotFound
 
 __all__ = ['get_formatter_by_name', 'get_formatter_for_filename',
            'get_all_formatters', 'load_formatter_from_file'] + list(FORMATTERS)

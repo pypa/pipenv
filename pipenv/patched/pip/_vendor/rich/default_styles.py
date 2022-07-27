@@ -39,6 +39,7 @@ DEFAULT_STYLES: Dict[str, Style] = {
     "inspect.attr": Style(color="yellow", italic=True),
     "inspect.attr.dunder": Style(color="yellow", italic=True, dim=True),
     "inspect.callable": Style(bold=True, color="red"),
+    "inspect.async_def": Style(italic=True, color="bright_cyan"),
     "inspect.def": Style(italic=True, color="bright_cyan"),
     "inspect.class": Style(italic=True, color="bright_cyan"),
     "inspect.error": Style(bold=True, color="red"),
@@ -78,6 +79,7 @@ DEFAULT_STYLES: Dict[str, Style] = {
     "repr.attrib_equal": Style(bold=True),
     "repr.attrib_value": Style(color="magenta", italic=False),
     "repr.number": Style(color="cyan", bold=True, italic=False),
+    "repr.number_complex": Style(color="cyan", bold=True, italic=False),  # same
     "repr.bool_true": Style(color="bright_green", italic=True),
     "repr.bool_false": Style(color="bright_red", italic=True),
     "repr.none": Style(color="magenta", italic=True),
@@ -156,6 +158,9 @@ DEFAULT_STYLES: Dict[str, Style] = {
     "markdown.h7": Style(italic=True, dim=True),
     "markdown.link": Style(color="bright_blue"),
     "markdown.link_url": Style(color="blue"),
+    "iso8601.date": Style(color="blue"),
+    "iso8601.time": Style(color="magenta"),
+    "iso8601.timezone": Style(color="yellow"),
 }
 
 
@@ -163,9 +168,9 @@ if __name__ == "__main__":  # pragma: no cover
     import argparse
     import io
 
-    from pipenv.patched.pip._vendor.rich.console import Console
-    from pipenv.patched.pip._vendor.rich.table import Table
-    from pipenv.patched.pip._vendor.rich.text import Text
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.table import Table
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.text import Text
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--html", action="store_true", help="Export as HTML table")

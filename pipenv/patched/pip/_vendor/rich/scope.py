@@ -68,7 +68,7 @@ def render_scope(
 
 
 if __name__ == "__main__":  # pragma: no cover
-    from pipenv.patched.pip._vendor.rich import print
+    from pipenv.patched.pipenv.patched.pip._vendor.rich import print
 
     print()
 

@@ -1,7 +1,7 @@
 from typing import Callable, List, Optional
 
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._internal.req.req_set import RequirementSet
+from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pipenv.patched.pip._internal.req.req_set import RequirementSet
 
 InstallRequirementProvider = Callable[
     [str, Optional[InstallRequirement]], InstallRequirement

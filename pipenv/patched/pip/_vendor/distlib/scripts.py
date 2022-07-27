@@ -10,6 +10,8 @@ import os
 import re
 import struct
 import sys
+import time
+from zipfile import ZipInfo
 
 from .compat import sysconfig, detect_encoding, ZipFile
 from .resources import finder
@@ -249,7 +251,13 @@ class ScriptMaker(object):
                 launcher = self._get_launcher('w')
             stream = BytesIO()
             with ZipFile(stream, 'w') as zf:
-                zf.writestr('__main__.py', script_bytes)
+                source_date_epoch = os.environ.get('SOURCE_DATE_EPOCH')
+                if source_date_epoch:
+                    date_time = time.gmtime(int(source_date_epoch))[:6]
+                    zinfo = ZipInfo(filename='__main__.py', date_time=date_time)
+                    zf.writestr(zinfo, script_bytes)
+                else:
+                    zf.writestr('__main__.py', script_bytes)
             zip_data = stream.getvalue()
             script_bytes = launcher + shebang + zip_data
         for name in names:

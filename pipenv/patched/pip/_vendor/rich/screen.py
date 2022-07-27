@@ -31,7 +31,7 @@ class Screen:
         style: Optional[StyleType] = None,
         application_mode: bool = False,
     ) -> None:
-        from pipenv.patched.pip._vendor.rich.console import Group
+        from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Group
 
         self.renderable = Group(*renderables)
         self.style = style

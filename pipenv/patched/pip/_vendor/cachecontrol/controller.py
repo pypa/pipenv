@@ -11,7 +11,7 @@ import calendar
 import time
 from email.utils import parsedate_tz
 
-from pipenv.patched.pip._vendor.requests.structures import CaseInsensitiveDict
+from pipenv.patched.pipenv.patched.pip._vendor.requests.structures import CaseInsensitiveDict
 
 from .cache import DictCache, SeparateBodyBaseCache
 from .serialize import Serializer

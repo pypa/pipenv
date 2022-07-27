@@ -4,13 +4,13 @@
 import logging
 from typing import Callable, Dict, List, NamedTuple, Optional, Set, Tuple
 
-from pipenv.patched.pip._vendor.packaging.requirements import Requirement
-from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import Requirement
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
 
-from pipenv.patched.pip._internal.distributions import make_distribution_for_install_requirement
-from pipenv.patched.pip._internal.metadata import get_default_environment
-from pipenv.patched.pip._internal.metadata.base import DistributionVersion
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pipenv.patched.pip._internal.distributions import make_distribution_for_install_requirement
+from pipenv.patched.pipenv.patched.pip._internal.metadata import get_default_environment
+from pipenv.patched.pipenv.patched.pip._internal.metadata.base import DistributionVersion
+from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
 
 logger = logging.getLogger(__name__)
 

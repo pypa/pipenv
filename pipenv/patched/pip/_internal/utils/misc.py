@@ -34,14 +34,14 @@ from typing import (
     cast,
 )
 
-from pipenv.patched.pip._vendor.pep517 import Pep517HookCaller
-from pipenv.patched.pip._vendor.tenacity import retry, stop_after_delay, wait_fixed
+from pipenv.patched.pipenv.patched.pip._vendor.pep517 import Pep517HookCaller
+from pipenv.patched.pipenv.patched.pip._vendor.tenacity import retry, stop_after_delay, wait_fixed
 
 from pipenv.patched.pip import __version__
-from pipenv.patched.pip._internal.exceptions import CommandError
-from pipenv.patched.pip._internal.locations import get_major_minor_version
-from pipenv.patched.pip._internal.utils.compat import WINDOWS
-from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import CommandError
+from pipenv.patched.pipenv.patched.pip._internal.locations import get_major_minor_version
+from pipenv.patched.pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
 __all__ = [
     "rmtree",

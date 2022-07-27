@@ -13,7 +13,9 @@ class BasePath(Protocol):
     in both classes *that we need*.
     """
 
-    name: str
+    @property
+    def name(self) -> str:
+        raise NotImplementedError()
 
     @property
     def parent(self) -> "BasePath":

@@ -1,3 +1,4 @@
+import importlib.resources
 import locale
 import logging
 import os
@@ -7,18 +8,17 @@ from types import ModuleType
 from typing import Any, Dict, List, Optional
 
 import pipenv.patched.pip._vendor
-from pipenv.patched.pip._vendor.certifi import where
-from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.pipenv.patched.pip._vendor.certifi import where
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
-from pipenv.patched.pip import __file__ as pip_location
-from pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pip._internal.cli.base_command import Command
-from pipenv.patched.pip._internal.cli.cmdoptions import make_target_python
-from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
-from pipenv.patched.pip._internal.configuration import Configuration
-from pipenv.patched.pip._internal.metadata import get_environment
-from pipenv.patched.pip._internal.utils.logging import indent_log
-from pipenv.patched.pip._internal.utils.misc import get_pip_version
+from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pipenv.patched.pip._internal.cli.base_command import Command
+from pipenv.patched.pipenv.patched.pip._internal.cli.cmdoptions import make_target_python
+from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.pipenv.patched.pip._internal.configuration import Configuration
+from pipenv.patched.pipenv.patched.pip._internal.metadata import get_environment
+from pipenv.patched.pipenv.patched.pip._internal.utils.logging import indent_log
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import get_pip_version
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +35,7 @@ def show_sys_implementation() -> None:
 
 
 def create_vendor_txt_map() -> Dict[str, str]:
-    vendor_txt_path = os.path.join(
-        os.path.dirname(pip_location), "_vendor", "vendor.txt"
-    )
-
-    with open(vendor_txt_path) as f:
+    with importlib.resources.open_text("pipenv.patched.pip._vendor", "vendor.txt") as f:
         # Purge non version specifying lines.
         # Also, remove any space prefix or suffixes (including comments).
         lines = [

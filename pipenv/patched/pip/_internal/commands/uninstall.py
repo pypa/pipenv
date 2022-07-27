@@ -2,19 +2,19 @@ import logging
 from optparse import Values
 from typing import List
 
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pip._internal.cli.base_command import Command
-from pipenv.patched.pip._internal.cli.req_command import SessionCommandMixin, warn_if_run_as_root
-from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
-from pipenv.patched.pip._internal.exceptions import InstallationError
-from pipenv.patched.pip._internal.req import parse_requirements
-from pipenv.patched.pip._internal.req.constructors import (
+from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pipenv.patched.pip._internal.cli.base_command import Command
+from pipenv.patched.pipenv.patched.pip._internal.cli.req_command import SessionCommandMixin, warn_if_run_as_root
+from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import InstallationError
+from pipenv.patched.pipenv.patched.pip._internal.req import parse_requirements
+from pipenv.patched.pipenv.patched.pip._internal.req.constructors import (
     install_req_from_line,
     install_req_from_parsed_requirement,
 )
-from pipenv.patched.pip._internal.utils.misc import protect_pip_from_modification_on_windows
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import protect_pip_from_modification_on_windows
 
 logger = logging.getLogger(__name__)
 

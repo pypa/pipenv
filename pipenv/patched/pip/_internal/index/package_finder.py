@@ -10,34 +10,34 @@ import logging
 import re
 from typing import FrozenSet, Iterable, List, Optional, Set, Tuple, Union
 
-from pipenv.patched.pip._vendor.packaging import specifiers
-from pipenv.patched.pip._vendor.packaging.tags import Tag
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pip._vendor.packaging.version import _BaseVersion
-from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.pipenv.patched.pip._vendor.packaging import specifiers
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.tags import Tag
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import _BaseVersion
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
-from pipenv.patched.pip._internal.exceptions import (
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
     BestVersionAlreadyInstalled,
     DistributionNotFound,
     InvalidWheelFilename,
     UnsupportedWheel,
 )
-from pipenv.patched.pip._internal.index.collector import LinkCollector, parse_links
-from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
-from pipenv.patched.pip._internal.models.format_control import FormatControl
-from pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pip._internal.models.search_scope import SearchScope
-from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
-from pipenv.patched.pip._internal.models.target_python import TargetPython
-from pipenv.patched.pip._internal.models.wheel import Wheel
-from pipenv.patched.pip._internal.req import InstallRequirement
-from pipenv.patched.pip._internal.utils._log import getLogger
-from pipenv.patched.pip._internal.utils.filetypes import WHEEL_EXTENSION
-from pipenv.patched.pip._internal.utils.hashes import Hashes
-from pipenv.patched.pip._internal.utils.logging import indent_log
-from pipenv.patched.pip._internal.utils.misc import build_netloc
-from pipenv.patched.pip._internal.utils.packaging import check_requires_python
-from pipenv.patched.pip._internal.utils.unpacking import SUPPORTED_EXTENSIONS
+from pipenv.patched.pipenv.patched.pip._internal.index.collector import LinkCollector, parse_links
+from pipenv.patched.pipenv.patched.pip._internal.models.candidate import InstallationCandidate
+from pipenv.patched.pipenv.patched.pip._internal.models.format_control import FormatControl
+from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pipenv.patched.pip._internal.models.search_scope import SearchScope
+from pipenv.patched.pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
+from pipenv.patched.pipenv.patched.pip._internal.models.target_python import TargetPython
+from pipenv.patched.pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pipenv.patched.pip._internal.req import InstallRequirement
+from pipenv.patched.pipenv.patched.pip._internal.utils._log import getLogger
+from pipenv.patched.pipenv.patched.pip._internal.utils.filetypes import WHEEL_EXTENSION
+from pipenv.patched.pipenv.patched.pip._internal.utils.hashes import Hashes
+from pipenv.patched.pipenv.patched.pip._internal.utils.logging import indent_log
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import build_netloc
+from pipenv.patched.pipenv.patched.pip._internal.utils.packaging import check_requires_python
+from pipenv.patched.pipenv.patched.pip._internal.utils.unpacking import SUPPORTED_EXTENSIONS
 
 __all__ = ["FormatControl", "BestCandidateResult", "PackageFinder"]
 
@@ -492,8 +492,8 @@ class CandidateEvaluator:
         return sorted(filtered_applicable_candidates, key=self._sort_key)
 
     def _sort_key(
-        self, candidate: InstallationCandidate,
-        ignore_compatibility: bool = True
+            self, candidate: InstallationCandidate,
+            ignore_compatibility: bool = True
     ) -> CandidateSortingKey:
         """
         Function to pass as the `key` argument to a call to sorted() to sort
@@ -545,7 +545,6 @@ class CandidateEvaluator:
                         "can't be sorted.".format(wheel.filename)
                     )
                 pri = -(support_num)
-
             if self._prefer_binary:
                 binary_preference = 1
             if wheel.build_tag is not None:
@@ -608,7 +607,6 @@ class PackageFinder:
         link_collector: LinkCollector,
         target_python: TargetPython,
         allow_yanked: bool,
-        use_deprecated_html5lib: bool,
         format_control: Optional[FormatControl] = None,
         candidate_prefs: Optional[CandidatePreferences] = None,
         ignore_requires_python: Optional[bool] = None,
@@ -635,7 +633,6 @@ class PackageFinder:
         self._link_collector = link_collector
         self._target_python = target_python
         self._ignore_compatibility = ignore_compatibility
-        self._use_deprecated_html5lib = use_deprecated_html5lib
 
         self.format_control = format_control
 
@@ -652,8 +649,6 @@ class PackageFinder:
         link_collector: LinkCollector,
         selection_prefs: SelectionPreferences,
         target_python: Optional[TargetPython] = None,
-        *,
-        use_deprecated_html5lib: bool,
     ) -> "PackageFinder":
         """Create a PackageFinder.
 
@@ -678,7 +673,7 @@ class PackageFinder:
             allow_yanked=selection_prefs.allow_yanked,
             format_control=selection_prefs.format_control,
             ignore_requires_python=selection_prefs.ignore_requires_python,
-            use_deprecated_html5lib=use_deprecated_html5lib,
+            ignore_compatibility=self._ignore_compatibility
         )
 
     @property
@@ -739,7 +734,6 @@ class PackageFinder:
             target_python=self._target_python,
             allow_yanked=self._allow_yanked,
             ignore_requires_python=self._ignore_requires_python,
-            ignore_compatibility=self._ignore_compatibility
         )
 
     def _sort_links(self, links: Iterable[Link]) -> List[Link]:
@@ -805,11 +799,11 @@ class PackageFinder:
             "Fetching project page and analyzing links: %s",
             project_url,
         )
-        html_page = self._link_collector.fetch_page(project_url)
-        if html_page is None:
+        index_response = self._link_collector.fetch_response(project_url)
+        if index_response is None:
             return []
 
-        page_links = list(parse_links(html_page, self._use_deprecated_html5lib))
+        page_links = list(parse_links(index_response))
 
         with indent_log():
             package_links = self.evaluate_links(

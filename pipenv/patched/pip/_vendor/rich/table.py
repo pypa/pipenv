@@ -752,8 +752,8 @@ class Table(JupyterMixin):
             if self.box
             else None
         )
+        _box = _box.get_plain_headed_box() if _box and not self.show_header else _box
 
-        # _box = self.box
         new_line = Segment.line()
 
         columns = self.columns
@@ -916,9 +916,9 @@ class Table(JupyterMixin):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    from pipenv.patched.pip._vendor.rich.console import Console
-    from pipenv.patched.pip._vendor.rich.highlighter import ReprHighlighter
-    from pipenv.patched.pip._vendor.rich.table import Table as Table
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.highlighter import ReprHighlighter
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.table import Table as Table
 
     from ._timer import timer
 

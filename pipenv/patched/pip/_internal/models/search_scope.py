@@ -5,11 +5,11 @@ import posixpath
 import urllib.parse
 from typing import Dict, List, Optional
 
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pip._internal.models.index import PyPI
-from pipenv.patched.pip._internal.utils.compat import has_tls
-from pipenv.patched.pip._internal.utils.misc import normalize_path, redact_auth_from_url
+from pipenv.patched.pipenv.patched.pip._internal.models.index import PyPI
+from pipenv.patched.pipenv.patched.pip._internal.utils.compat import has_tls
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import normalize_path, redact_auth_from_url
 
 logger = logging.getLogger(__name__)
 

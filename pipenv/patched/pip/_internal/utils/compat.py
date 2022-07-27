@@ -19,7 +19,7 @@ def has_tls() -> bool:
     except ImportError:
         pass
 
-    from pipenv.patched.pip._vendor.urllib3.util import IS_PYOPENSSL
+    from pipenv.patched.pipenv.patched.pip._vendor.urllib3.util import IS_PYOPENSSL
 
     return IS_PYOPENSSL
 

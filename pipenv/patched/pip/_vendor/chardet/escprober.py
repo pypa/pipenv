@@ -27,9 +27,13 @@
 
 from .charsetprober import CharSetProber
 from .codingstatemachine import CodingStateMachine
-from .enums import LanguageFilter, ProbingState, MachineState
-from .escsm import (HZ_SM_MODEL, ISO2022CN_SM_MODEL, ISO2022JP_SM_MODEL,
-                    ISO2022KR_SM_MODEL)
+from .enums import LanguageFilter, MachineState, ProbingState
+from .escsm import (
+    HZ_SM_MODEL,
+    ISO2022CN_SM_MODEL,
+    ISO2022JP_SM_MODEL,
+    ISO2022KR_SM_MODEL,
+)
 
 
 class EscCharSetProber(CharSetProber):
@@ -40,7 +44,7 @@ class EscCharSetProber(CharSetProber):
     """
 
     def __init__(self, lang_filter=None):
-        super(EscCharSetProber, self).__init__(lang_filter=lang_filter)
+        super().__init__(lang_filter=lang_filter)
         self.coding_sm = []
         if self.lang_filter & LanguageFilter.CHINESE_SIMPLIFIED:
             self.coding_sm.append(CodingStateMachine(HZ_SM_MODEL))
@@ -56,7 +60,7 @@ class EscCharSetProber(CharSetProber):
         self.reset()
 
     def reset(self):
-        super(EscCharSetProber, self).reset()
+        super().reset()
         for coding_sm in self.coding_sm:
             if not coding_sm:
                 continue
@@ -75,10 +79,7 @@ class EscCharSetProber(CharSetProber):
         return self._detected_language
 
     def get_confidence(self):
-        if self._detected_charset:
-            return 0.99
-        else:
-            return 0.00
+        return 0.99 if self._detected_charset else 0.00
 
     def feed(self, byte_str):
         for c in byte_str:

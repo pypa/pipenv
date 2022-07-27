@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 """
 requests.exceptions
 ~~~~~~~~~~~~~~~~~~~
 
 This module contains the set of Requests' exceptions.
 """
-from pipenv.patched.pip._vendor.urllib3.exceptions import HTTPError as BaseHTTPError
+from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import HTTPError as BaseHTTPError
 
 from .compat import JSONDecodeError as CompatJSONDecodeError
 
@@ -18,13 +16,12 @@ class RequestException(IOError):
 
     def __init__(self, *args, **kwargs):
         """Initialize RequestException with `request` and `response` objects."""
-        response = kwargs.pop('response', None)
+        response = kwargs.pop("response", None)
         self.response = response
-        self.request = kwargs.pop('request', None)
-        if (response is not None and not self.request and
-                hasattr(response, 'request')):
+        self.request = kwargs.pop("request", None)
+        if response is not None and not self.request and hasattr(response, "request"):
             self.request = self.response.request
-        super(RequestException, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 class InvalidJSONError(RequestException):
@@ -33,6 +30,16 @@ class InvalidJSONError(RequestException):
 
 class JSONDecodeError(InvalidJSONError, CompatJSONDecodeError):
     """Couldn't decode the text into json"""
+
+    def __init__(self, *args, **kwargs):
+        """
+        Construct the JSONDecodeError instance first with all
+        args. Then use it's args to construct the IOError so that
+        the json specific args aren't used as IOError specific args
+        and the error message from JSONDecodeError is preserved.
+        """
+        CompatJSONDecodeError.__init__(self, *args)
+        InvalidJSONError.__init__(self, *self.args, **kwargs)
 
 
 class HTTPError(RequestException):
@@ -117,6 +124,7 @@ class RetryError(RequestException):
 
 class UnrewindableBodyError(RequestException):
     """Requests encountered an error when trying to rewind a body."""
+
 
 # Warnings
 

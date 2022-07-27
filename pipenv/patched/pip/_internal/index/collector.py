@@ -2,10 +2,11 @@
 The main purpose of this module is to expose LinkCollector.collect_sources().
 """
 
-import cgi
 import collections
+import email.message
 import functools
 import itertools
+import json
 import logging
 import os
 import re
@@ -28,18 +29,18 @@ from typing import (
     Union,
 )
 
-from pipenv.patched.pip._vendor import html5lib, requests
-from pipenv.patched.pip._vendor.requests import Response
-from pipenv.patched.pip._vendor.requests.exceptions import RetryError, SSLError
+from pipenv.patched.pipenv.patched.pip._vendor import requests
+from pipenv.patched.pipenv.patched.pip._vendor.requests import Response
+from pipenv.patched.pipenv.patched.pip._vendor.requests.exceptions import RetryError, SSLError
 
-from pipenv.patched.pip._internal.exceptions import NetworkConnectionError
-from pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pip._internal.models.search_scope import SearchScope
-from pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pip._internal.network.utils import raise_for_status
-from pipenv.patched.pip._internal.utils.filetypes import is_archive_file
-from pipenv.patched.pip._internal.utils.misc import pairwise, redact_auth_from_url
-from pipenv.patched.pip._internal.vcs import vcs
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import NetworkConnectionError
+from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pipenv.patched.pip._internal.models.search_scope import SearchScope
+from pipenv.patched.pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pipenv.patched.pip._internal.network.utils import raise_for_status
+from pipenv.patched.pipenv.patched.pip._internal.utils.filetypes import is_archive_file
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import pairwise, redact_auth_from_url
+from pipenv.patched.pipenv.patched.pip._internal.vcs import vcs
 
 from .sources import CandidatesFromPage, LinkSource, build_source
 
@@ -65,32 +66,46 @@ def _match_vcs_scheme(url: str) -> Optional[str]:
     return None
 
 
-class _NotHTML(Exception):
+class _NotAPIContent(Exception):
     def __init__(self, content_type: str, request_desc: str) -> None:
         super().__init__(content_type, request_desc)
         self.content_type = content_type
         self.request_desc = request_desc
 
 
-def _ensure_html_header(response: Response) -> None:
-    """Check the Content-Type header to ensure the response contains HTML.
-
-    Raises `_NotHTML` if the content type is not text/html.
+def _ensure_api_header(response: Response) -> None:
     """
-    content_type = response.headers.get("Content-Type", "")
-    if not content_type.lower().startswith("text/html"):
-        raise _NotHTML(content_type, response.request.method)
+    Check the Content-Type header to ensure the response contains a Simple
+    API Response.
+
+    Raises `_NotAPIContent` if the content type is not a valid content-type.
+    """
+    content_type = response.headers.get("Content-Type", "Unknown")
+
+    content_type_l = content_type.lower()
+    if content_type_l.startswith(
+        (
+            "text/html",
+            "application/vnd.pypi.simple.v1+html",
+            "application/vnd.pypi.simple.v1+json",
+        )
+    ):
+        return
+
+    raise _NotAPIContent(content_type, response.request.method)
 
 
 class _NotHTTP(Exception):
     pass
 
 
-def _ensure_html_response(url: str, session: PipSession) -> None:
-    """Send a HEAD request to the URL, and ensure the response contains HTML.
+def _ensure_api_response(url: str, session: PipSession) -> None:
+    """
+    Send a HEAD request to the URL, and ensure the response contains a simple
+    API Response.
 
     Raises `_NotHTTP` if the URL is not available for a HEAD request, or
-    `_NotHTML` if the content type is not text/html.
+    `_NotAPIContent` if the content type is not a valid content type.
     """
     scheme, netloc, path, query, fragment = urllib.parse.urlsplit(url)
     if scheme not in {"http", "https"}:
@@ -99,31 +114,37 @@ def _ensure_html_response(url: str, session: PipSession) -> None:
     resp = session.head(url, allow_redirects=True)
     raise_for_status(resp)
 
-    _ensure_html_header(resp)
+    _ensure_api_header(resp)
 
 
-def _get_html_response(url: str, session: PipSession) -> Response:
-    """Access an HTML page with GET, and return the response.
+def _get_simple_response(url: str, session: PipSession) -> Response:
+    """Access an Simple API response with GET, and return the response.
 
     This consists of three parts:
 
     1. If the URL looks suspiciously like an archive, send a HEAD first to
-       check the Content-Type is HTML, to avoid downloading a large file.
-       Raise `_NotHTTP` if the content type cannot be determined, or
-       `_NotHTML` if it is not HTML.
+       check the Content-Type is HTML or Simple API, to avoid downloading a
+       large file. Raise `_NotHTTP` if the content type cannot be determined, or
+       `_NotAPIContent` if it is not HTML or a Simple API.
     2. Actually perform the request. Raise HTTP exceptions on network failures.
-    3. Check the Content-Type header to make sure we got HTML, and raise
-       `_NotHTML` otherwise.
+    3. Check the Content-Type header to make sure we got a Simple API response,
+       and raise `_NotAPIContent` otherwise.
     """
     if is_archive_file(Link(url).filename):
-        _ensure_html_response(url, session=session)
+        _ensure_api_response(url, session=session)
 
     logger.debug("Getting page %s", redact_auth_from_url(url))
 
     resp = session.get(
         url,
         headers={
-            "Accept": "text/html",
+            "Accept": ", ".join(
+                [
+                    "application/vnd.pypi.simple.v1+json",
+                    "application/vnd.pypi.simple.v1+html; q=0.1",
+                    "text/html; q=0.01",
+                ]
+            ),
             # We don't want to blindly returned cached data for
             # /simple/, because authors generally expecting that
             # twine upload && pip install will function, but if
@@ -145,9 +166,16 @@ def _get_html_response(url: str, session: PipSession) -> Response:
     # The check for archives above only works if the url ends with
     # something that looks like an archive. However that is not a
     # requirement of an url. Unless we issue a HEAD request on every
-    # url we cannot know ahead of time for sure if something is HTML
-    # or not. However we can check after we've downloaded it.
-    _ensure_html_header(resp)
+    # url we cannot know ahead of time for sure if something is a
+    # Simple API response or not. However we can check after we've
+    # downloaded it.
+    _ensure_api_header(resp)
+
+    logger.debug(
+        "Fetched page %s as %s",
+        redact_auth_from_url(url),
+        resp.headers.get("Content-Type", "Unknown"),
+    )
 
     return resp
 
@@ -155,31 +183,12 @@ def _get_html_response(url: str, session: PipSession) -> Response:
 def _get_encoding_from_headers(headers: ResponseHeaders) -> Optional[str]:
     """Determine if we have any encoding information in our headers."""
     if headers and "Content-Type" in headers:
-        content_type, params = cgi.parse_header(headers["Content-Type"])
-        if "charset" in params:
-            return params["charset"]
+        m = email.message.Message()
+        m["content-type"] = headers["Content-Type"]
+        charset = m.get_param("charset")
+        if charset:
+            return str(charset)
     return None
-
-
-def _determine_base_url(document: HTMLElement, page_url: str) -> str:
-    """Determine the HTML document's base URL.
-
-    This looks for a ``<base>`` tag in the HTML document. If present, its href
-    attribute denotes the base URL of anchor tags in the document. If there is
-    no such tag (or if it does not have a valid href attribute), the HTML
-    file's URL is used as the base URL.
-
-    :param document: An HTML document representation. The current
-        implementation expects the result of ``html5lib.parse()``.
-    :param page_url: The URL of the HTML document.
-
-    TODO: Remove when `html5lib` is dropped.
-    """
-    for base in document.findall(".//base"):
-        href = base.get("href")
-        if href is not None:
-            return href
-    return page_url
 
 
 def _clean_url_path_part(part: str) -> str:
@@ -271,7 +280,7 @@ def _create_link_from_element(
 
 
 class CacheablePageContent:
-    def __init__(self, page: "HTMLPage") -> None:
+    def __init__(self, page: "IndexContent") -> None:
         assert page.cache_link_parsing
         self.page = page
 
@@ -283,68 +292,59 @@ class CacheablePageContent:
 
 
 class ParseLinks(Protocol):
-    def __call__(
-        self, page: "HTMLPage", use_deprecated_html5lib: bool
-    ) -> Iterable[Link]:
+    def __call__(self, page: "IndexContent") -> Iterable[Link]:
         ...
 
 
-def with_cached_html_pages(fn: ParseLinks) -> ParseLinks:
+def with_cached_index_content(fn: ParseLinks) -> ParseLinks:
     """
-    Given a function that parses an Iterable[Link] from an HTMLPage, cache the
-    function's result (keyed by CacheablePageContent), unless the HTMLPage
+    Given a function that parses an Iterable[Link] from an IndexContent, cache the
+    function's result (keyed by CacheablePageContent), unless the IndexContent
     `page` has `page.cache_link_parsing == False`.
     """
 
     @functools.lru_cache(maxsize=None)
-    def wrapper(
-        cacheable_page: CacheablePageContent, use_deprecated_html5lib: bool
-    ) -> List[Link]:
-        return list(fn(cacheable_page.page, use_deprecated_html5lib))
+    def wrapper(cacheable_page: CacheablePageContent) -> List[Link]:
+        return list(fn(cacheable_page.page))
 
     @functools.wraps(fn)
-    def wrapper_wrapper(page: "HTMLPage", use_deprecated_html5lib: bool) -> List[Link]:
+    def wrapper_wrapper(page: "IndexContent") -> List[Link]:
         if page.cache_link_parsing:
-            return wrapper(CacheablePageContent(page), use_deprecated_html5lib)
-        return list(fn(page, use_deprecated_html5lib))
+            return wrapper(CacheablePageContent(page))
+        return list(fn(page))
 
     return wrapper_wrapper
 
 
-def _parse_links_html5lib(page: "HTMLPage") -> Iterable[Link]:
+@with_cached_index_content
+def parse_links(page: "IndexContent") -> Iterable[Link]:
     """
-    Parse an HTML document, and yield its anchor elements as Link objects.
-
-    TODO: Remove when `html5lib` is dropped.
-    """
-    document = html5lib.parse(
-        page.content,
-        transport_encoding=page.encoding,
-        namespaceHTMLElements=False,
-    )
-
-    url = page.url
-    base_url = _determine_base_url(document, url)
-    for anchor in document.findall(".//a"):
-        link = _create_link_from_element(
-            anchor.attrib,
-            page_url=url,
-            base_url=base_url,
-        )
-        if link is None:
-            continue
-        yield link
-
-
-@with_cached_html_pages
-def parse_links(page: "HTMLPage", use_deprecated_html5lib: bool) -> Iterable[Link]:
-    """
-    Parse an HTML document, and yield its anchor elements as Link objects.
+    Parse a Simple API's Index Content, and yield its anchor elements as Link objects.
     """
 
-    if use_deprecated_html5lib:
-        yield from _parse_links_html5lib(page)
-        return
+    content_type_l = page.content_type.lower()
+    if content_type_l.startswith("application/vnd.pypi.simple.v1+json"):
+        data = json.loads(page.content)
+        for file in data.get("files", []):
+            file_url = file.get("url")
+            if file_url is None:
+                continue
+
+            # The Link.yanked_reason expects an empty string instead of a boolean.
+            yanked_reason = file.get("yanked")
+            if yanked_reason and not isinstance(yanked_reason, str):
+                yanked_reason = ""
+            # The Link.yanked_reason expects None instead of False
+            elif not yanked_reason:
+                yanked_reason = None
+
+            yield Link(
+                _clean_link(urllib.parse.urljoin(page.url, file_url)),
+                comes_from=page.url,
+                requires_python=file.get("requires-python"),
+                yanked_reason=yanked_reason,
+                hashes=file.get("hashes", {}),
+            )
 
     parser = HTMLLinkParser(page.url)
     encoding = page.encoding or "utf-8"
@@ -363,12 +363,13 @@ def parse_links(page: "HTMLPage", use_deprecated_html5lib: bool) -> Iterable[Lin
         yield link
 
 
-class HTMLPage:
-    """Represents one page, along with its URL"""
+class IndexContent:
+    """Represents one response (or page), along with its URL"""
 
     def __init__(
         self,
         content: bytes,
+        content_type: str,
         encoding: Optional[str],
         url: str,
         cache_link_parsing: bool = True,
@@ -381,6 +382,7 @@ class HTMLPage:
                                    have this set to False, for example.
         """
         self.content = content
+        self.content_type = content_type
         self.encoding = encoding
         self.url = url
         self.cache_link_parsing = cache_link_parsing
@@ -417,7 +419,7 @@ class HTMLLinkParser(HTMLParser):
         return None
 
 
-def _handle_get_page_fail(
+def _handle_get_simple_fail(
     link: Link,
     reason: Union[str, Exception],
     meth: Optional[Callable[..., None]] = None,
@@ -427,19 +429,22 @@ def _handle_get_page_fail(
     meth("Could not fetch URL %s: %s - skipping", link, reason)
 
 
-def _make_html_page(response: Response, cache_link_parsing: bool = True) -> HTMLPage:
+def _make_index_content(
+    response: Response, cache_link_parsing: bool = True
+) -> IndexContent:
     encoding = _get_encoding_from_headers(response.headers)
-    return HTMLPage(
+    return IndexContent(
         response.content,
+        response.headers["Content-Type"],
         encoding=encoding,
         url=response.url,
         cache_link_parsing=cache_link_parsing,
     )
 
 
-def _get_html_page(
+def _get_index_content(
     link: Link, session: Optional[PipSession] = None
-) -> Optional["HTMLPage"]:
+) -> Optional["IndexContent"]:
     if session is None:
         raise TypeError(
             "_get_html_page() missing 1 required keyword argument: 'session'"
@@ -464,39 +469,44 @@ def _get_html_page(
         # final segment
         if not url.endswith("/"):
             url += "/"
+        # TODO: In the future, it would be nice if pip supported PEP 691
+        #       style respones in the file:// URLs, however there's no
+        #       standard file extension for application/vnd.pypi.simple.v1+json
+        #       so we'll need to come up with something on our own.
         url = urllib.parse.urljoin(url, "index.html")
         logger.debug(" file: URL is directory, getting %s", url)
 
     try:
-        resp = _get_html_response(url, session=session)
+        resp = _get_simple_response(url, session=session)
     except _NotHTTP:
         logger.warning(
             "Skipping page %s because it looks like an archive, and cannot "
             "be checked by a HTTP HEAD request.",
             link,
         )
-    except _NotHTML as exc:
+    except _NotAPIContent as exc:
         logger.warning(
-            "Skipping page %s because the %s request got Content-Type: %s."
-            "The only supported Content-Type is text/html",
+            "Skipping page %s because the %s request got Content-Type: %s. "
+            "The only supported Content-Types are application/vnd.pypi.simple.v1+json, "
+            "application/vnd.pypi.simple.v1+html, and text/html",
             link,
             exc.request_desc,
             exc.content_type,
         )
     except NetworkConnectionError as exc:
-        _handle_get_page_fail(link, exc)
+        _handle_get_simple_fail(link, exc)
     except RetryError as exc:
-        _handle_get_page_fail(link, exc)
+        _handle_get_simple_fail(link, exc)
     except SSLError as exc:
         reason = "There was a problem confirming the ssl certificate: "
         reason += str(exc)
-        _handle_get_page_fail(link, reason, meth=logger.info)
+        _handle_get_simple_fail(link, reason, meth=logger.info)
     except requests.ConnectionError as exc:
-        _handle_get_page_fail(link, f"connection error: {exc}")
+        _handle_get_simple_fail(link, f"connection error: {exc}")
     except requests.Timeout:
-        _handle_get_page_fail(link, "timed out")
+        _handle_get_simple_fail(link, "timed out")
     else:
-        return _make_html_page(resp, cache_link_parsing=link.cache_link_parsing)
+        return _make_index_content(resp, cache_link_parsing=link.cache_link_parsing)
     return None
 
 
@@ -560,11 +570,11 @@ class LinkCollector:
     def find_links(self) -> List[str]:
         return self.search_scope.find_links
 
-    def fetch_page(self, location: Link) -> Optional[HTMLPage]:
+    def fetch_response(self, location: Link) -> Optional[IndexContent]:
         """
         Fetch an HTML page containing package links.
         """
-        return _get_html_page(location, session=self.session)
+        return _get_index_content(location, session=self.session)
 
     def collect_sources(
         self,

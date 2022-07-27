@@ -1,12 +1,12 @@
 import logging
 from typing import Iterable, Set, Tuple
 
-from pipenv.patched.pip._internal.build_env import BuildEnvironment
-from pipenv.patched.pip._internal.distributions.base import AbstractDistribution
-from pipenv.patched.pip._internal.exceptions import InstallationError
-from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._internal.metadata import BaseDistribution
-from pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
+from pipenv.patched.pipenv.patched.pip._internal.build_env import BuildEnvironment
+from pipenv.patched.pipenv.patched.pip._internal.distributions.base import AbstractDistribution
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import InstallationError
+from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution
+from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
 
 logger = logging.getLogger(__name__)
 

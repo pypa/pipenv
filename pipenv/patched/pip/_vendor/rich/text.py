@@ -2,7 +2,6 @@ import re
 from functools import partial, reduce
 from math import gcd
 from operator import itemgetter
-from pipenv.patched.pip._vendor.rich.emoji import EmojiVariant
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -141,7 +140,8 @@ class Text(JupyterMixin):
         tab_size: Optional[int] = 8,
         spans: Optional[List[Span]] = None,
     ) -> None:
-        self._text = [strip_control_codes(text)]
+        sanitized_text = strip_control_codes(text)
+        self._text = [sanitized_text]
         self.style = style
         self.justify: Optional["JustifyMethod"] = justify
         self.overflow: Optional["OverflowMethod"] = overflow
@@ -149,7 +149,7 @@ class Text(JupyterMixin):
         self.end = end
         self.tab_size = tab_size
         self._spans: List[Span] = spans or []
-        self._length: int = len(text)
+        self._length: int = len(sanitized_text)
 
     def __len__(self) -> int:
         return self._length
@@ -394,9 +394,10 @@ class Text(JupyterMixin):
     def plain(self, new_text: str) -> None:
         """Set the text to a new value."""
         if new_text != self.plain:
-            self._text[:] = [new_text]
+            sanitized_text = strip_control_codes(new_text)
+            self._text[:] = [sanitized_text]
             old_length = self._length
-            self._length = len(new_text)
+            self._length = len(sanitized_text)
             if old_length > self._length:
                 self._trim_spans()
 
@@ -906,10 +907,10 @@ class Text(JupyterMixin):
 
         if len(text):
             if isinstance(text, str):
-                text = strip_control_codes(text)
-                self._text.append(text)
+                sanitized_text = strip_control_codes(text)
+                self._text.append(sanitized_text)
                 offset = len(self)
-                text_length = len(text)
+                text_length = len(sanitized_text)
                 if style is not None:
                     self._spans.append(Span(offset, offset + text_length, style))
                 self._length += text_length
@@ -1258,7 +1259,7 @@ class Text(JupyterMixin):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    from pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
 
     text = Text(
         """\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n"""

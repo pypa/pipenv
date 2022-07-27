@@ -15,13 +15,11 @@
 # 02110-1301  USA
 ######################### END LICENSE BLOCK #########################
 
-
-from .universaldetector import UniversalDetector
 from .enums import InputState
-from .version import __version__, VERSION
+from .universaldetector import UniversalDetector
+from .version import VERSION, __version__
 
-
-__all__ = ['UniversalDetector', 'detect', 'detect_all', '__version__', 'VERSION']
+__all__ = ["UniversalDetector", "detect", "detect_all", "__version__", "VERSION"]
 
 
 def detect(byte_str):
@@ -33,51 +31,63 @@ def detect(byte_str):
     """
     if not isinstance(byte_str, bytearray):
         if not isinstance(byte_str, bytes):
-            raise TypeError('Expected object of type bytes or bytearray, got: '
-                            '{}'.format(type(byte_str)))
-        else:
-            byte_str = bytearray(byte_str)
+            raise TypeError(
+                f"Expected object of type bytes or bytearray, got: {type(byte_str)}"
+            )
+        byte_str = bytearray(byte_str)
     detector = UniversalDetector()
     detector.feed(byte_str)
     return detector.close()
 
 
-def detect_all(byte_str):
+def detect_all(byte_str, ignore_threshold=False):
     """
     Detect all the possible encodings of the given byte string.
 
-    :param byte_str:     The byte sequence to examine.
-    :type byte_str:      ``bytes`` or ``bytearray``
+    :param byte_str:          The byte sequence to examine.
+    :type byte_str:           ``bytes`` or ``bytearray``
+    :param ignore_threshold:  Include encodings that are below
+                              ``UniversalDetector.MINIMUM_THRESHOLD``
+                              in results.
+    :type ignore_threshold:   ``bool``
     """
     if not isinstance(byte_str, bytearray):
         if not isinstance(byte_str, bytes):
-            raise TypeError('Expected object of type bytes or bytearray, got: '
-                            '{}'.format(type(byte_str)))
-        else:
-            byte_str = bytearray(byte_str)
+            raise TypeError(
+                f"Expected object of type bytes or bytearray, got: {type(byte_str)}"
+            )
+        byte_str = bytearray(byte_str)
 
     detector = UniversalDetector()
     detector.feed(byte_str)
     detector.close()
 
-    if detector._input_state == InputState.HIGH_BYTE:
+    if detector.input_state == InputState.HIGH_BYTE:
         results = []
-        for prober in detector._charset_probers:
-            if prober.get_confidence() > detector.MINIMUM_THRESHOLD:
-                charset_name = prober.charset_name
-                lower_charset_name = prober.charset_name.lower()
+        probers = []
+        for prober in detector.charset_probers:
+            if hasattr(prober, "probers"):
+                probers.extend(p for p in prober.probers)
+            else:
+                probers.append(prober)
+        for prober in probers:
+            if ignore_threshold or prober.get_confidence() > detector.MINIMUM_THRESHOLD:
+                charset_name = prober.charset_name or ""
+                lower_charset_name = charset_name.lower()
                 # Use Windows encoding name instead of ISO-8859 if we saw any
                 # extra Windows-specific bytes
-                if lower_charset_name.startswith('iso-8859'):
-                    if detector._has_win_bytes:
-                        charset_name = detector.ISO_WIN_MAP.get(lower_charset_name,
-                                                            charset_name)
-                results.append({
-                    'encoding': charset_name,
-                    'confidence': prober.get_confidence(),
-                    'language': prober.language,
-                })
+                if lower_charset_name.startswith("iso-8859") and detector.has_win_bytes:
+                    charset_name = detector.ISO_WIN_MAP.get(
+                        lower_charset_name, charset_name
+                    )
+                results.append(
+                    {
+                        "encoding": charset_name,
+                        "confidence": prober.get_confidence(),
+                        "language": prober.language,
+                    }
+                )
         if len(results) > 0:
-            return sorted(results, key=lambda result: -result['confidence'])
+            return sorted(results, key=lambda result: -result["confidence"])
 
     return [detector.result]

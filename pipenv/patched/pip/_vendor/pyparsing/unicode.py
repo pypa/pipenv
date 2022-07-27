@@ -120,7 +120,18 @@ class pyparsing_unicode(unicode_set):
     A namespace class for defining common language unicode_sets.
     """
 
-    _ranges: UnicodeRangeList = [(32, sys.maxunicode)]
+    # fmt: off
+
+    # define ranges in language character sets
+    _ranges: UnicodeRangeList = [
+        (0x0020, sys.maxunicode),
+    ]
+
+    class BasicMultilingualPlane(unicode_set):
+        "Unicode set for the Basic Multilingual Plane"
+        _ranges: UnicodeRangeList = [
+            (0x0020, 0xFFFF),
+        ]
 
     class Latin1(unicode_set):
         "Unicode set for Latin-1 Unicode Character Range"
@@ -278,11 +289,13 @@ class pyparsing_unicode(unicode_set):
 
     class CJK(Chinese, Japanese, Hangul):
         "Unicode set for combined Chinese, Japanese, and Korean (CJK) Unicode Character Range"
-        pass
 
     class Thai(unicode_set):
         "Unicode set for Thai Unicode Character Range"
-        _ranges: UnicodeRangeList = [(0x0E01, 0x0E3A), (0x0E3F, 0x0E5B)]
+        _ranges: UnicodeRangeList = [
+            (0x0E01, 0x0E3A),
+            (0x0E3F, 0x0E5B)
+        ]
 
     class Arabic(unicode_set):
         "Unicode set for Arabic Unicode Character Range"
@@ -308,7 +321,12 @@ class pyparsing_unicode(unicode_set):
 
     class Devanagari(unicode_set):
         "Unicode set for Devanagari Unicode Character Range"
-        _ranges: UnicodeRangeList = [(0x0900, 0x097F), (0xA8E0, 0xA8FF)]
+        _ranges: UnicodeRangeList = [
+            (0x0900, 0x097F),
+            (0xA8E0, 0xA8FF)
+        ]
+
+    # fmt: on
 
 
 pyparsing_unicode.Japanese._ranges = (
@@ -317,7 +335,9 @@ pyparsing_unicode.Japanese._ranges = (
     + pyparsing_unicode.Japanese.Katakana._ranges
 )
 
-# define ranges in language character sets
+pyparsing_unicode.BMP = pyparsing_unicode.BasicMultilingualPlane
+
+# add language identifiers using language Unicode
 pyparsing_unicode.العربية = pyparsing_unicode.Arabic
 pyparsing_unicode.中文 = pyparsing_unicode.Chinese
 pyparsing_unicode.кириллица = pyparsing_unicode.Cyrillic

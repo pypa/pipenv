@@ -6,8 +6,8 @@ import re
 import sys
 from typing import Optional
 
-from pipenv.patched.pip._internal.locations import site_packages, user_site
-from pipenv.patched.pip._internal.utils.virtualenv import (
+from pipenv.patched.pipenv.patched.pip._internal.locations import site_packages, user_site
+from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import (
     running_under_virtualenv,
     virtualenv_no_global,
 )

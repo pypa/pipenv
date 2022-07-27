@@ -1,3 +1,4 @@
 pip==22.1.2
 pipfile==0.0.2
 safety==1.10.3
+pip==22.2

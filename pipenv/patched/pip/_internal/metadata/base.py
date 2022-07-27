@@ -1,5 +1,6 @@
 import csv
 import email.message
+import functools
 import json
 import logging
 import pathlib
@@ -8,32 +9,38 @@ import zipfile
 from typing import (
     IO,
     TYPE_CHECKING,
+    Any,
     Collection,
     Container,
+    Dict,
     Iterable,
     Iterator,
     List,
+    NamedTuple,
     Optional,
     Tuple,
     Union,
 )
 
-from pipenv.patched.pip._vendor.packaging.requirements import Requirement
-from pipenv.patched.pip._vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
-from pipenv.patched.pip._vendor.packaging.utils import NormalizedName
-from pipenv.patched.pip._vendor.packaging.version import LegacyVersion, Version
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import Requirement
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import NormalizedName
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import LegacyVersion, Version
 
-from pipenv.patched.pip._internal.exceptions import NoneMetadataError
-from pipenv.patched.pip._internal.locations import site_packages, user_site
-from pipenv.patched.pip._internal.models.direct_url import (
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import NoneMetadataError
+from pipenv.patched.pipenv.patched.pip._internal.locations import site_packages, user_site
+from pipenv.patched.pipenv.patched.pip._internal.models.direct_url import (
     DIRECT_URL_METADATA_NAME,
     DirectUrl,
     DirectUrlValidationError,
 )
-from pipenv.patched.pip._internal.utils.compat import stdlib_pkgs  # TODO: Move definition here.
-from pipenv.patched.pip._internal.utils.egg_link import egg_link_path_from_sys_path
-from pipenv.patched.pip._internal.utils.misc import is_local, normalize_path
-from pipenv.patched.pip._internal.utils.urls import url_to_path
+from pipenv.patched.pipenv.patched.pip._internal.utils.compat import stdlib_pkgs  # TODO: Move definition here.
+from pipenv.patched.pipenv.patched.pip._internal.utils.egg_link import egg_link_path_from_sys_path
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import is_local, normalize_path
+from pipenv.patched.pipenv.patched.pip._internal.utils.packaging import safe_extra
+from pipenv.patched.pipenv.patched.pip._internal.utils.urls import url_to_path
+
+from ._json import msg_to_json
 
 if TYPE_CHECKING:
     from typing import Protocol
@@ -89,6 +96,12 @@ def _convert_installed_files_path(
             info = info[:-1]
         entry = entry[1:]
     return str(pathlib.Path(*info, *entry))
+
+
+class RequiresEntry(NamedTuple):
+    requirement: str
+    extra: str
+    marker: str
 
 
 class BaseDistribution(Protocol):
@@ -299,6 +312,10 @@ class BaseDistribution(Protocol):
         return ""
 
     @property
+    def requested(self) -> bool:
+        return self.is_file("REQUESTED")
+
+    @property
     def editable(self) -> bool:
         return bool(self.editable_project_location)
 
@@ -348,6 +365,17 @@ class BaseDistribution(Protocol):
     def iter_entry_points(self) -> Iterable[BaseEntryPoint]:
         raise NotImplementedError()
 
+    def _metadata_impl(self) -> email.message.Message:
+        raise NotImplementedError()
+
+    @functools.lru_cache(maxsize=1)
+    def _metadata_cached(self) -> email.message.Message:
+        # When we drop python 3.7 support, move this to the metadata property and use
+        # functools.cached_property instead of lru_cache.
+        metadata = self._metadata_impl()
+        self._add_egg_info_requires(metadata)
+        return metadata
+
     @property
     def metadata(self) -> email.message.Message:
         """Metadata of distribution parsed from e.g. METADATA or PKG-INFO.
@@ -357,7 +385,18 @@ class BaseDistribution(Protocol):
         :raises NoneMetadataError: If the metadata file is available, but does
             not contain valid metadata.
         """
-        raise NotImplementedError()
+        return self._metadata_cached()
+
+    @property
+    def metadata_dict(self) -> Dict[str, Any]:
+        """PEP 566 compliant JSON-serializable representation of METADATA or PKG-INFO.
+
+        This should return an empty dict if the metadata file is unavailable.
+
+        :raises NoneMetadataError: If the metadata file is available, but does
+            not contain valid metadata.
+        """
+        return msg_to_json(self.metadata)
 
     @property
     def metadata_version(self) -> Optional[str]:
@@ -436,7 +475,7 @@ class BaseDistribution(Protocol):
         )
 
     def iter_declared_entries(self) -> Optional[Iterator[str]]:
-        """Iterate through file entires declared in this distribution.
+        """Iterate through file entries declared in this distribution.
 
         For modern .dist-info distributions, this is the files listed in the
         ``RECORD`` metadata file. For legacy setuptools distributions, this
@@ -450,6 +489,76 @@ class BaseDistribution(Protocol):
             self._iter_declared_entries_from_record()
             or self._iter_declared_entries_from_legacy()
         )
+
+    def _iter_requires_txt_entries(self) -> Iterator[RequiresEntry]:
+        """Parse a ``requires.txt`` in an egg-info directory.
+
+        This is an INI-ish format where an egg-info stores dependencies. A
+        section name describes extra other environment markers, while each entry
+        is an arbitrary string (not a key-value pair) representing a dependency
+        as a requirement string (no markers).
+
+        There is a construct in ``importlib.metadata`` called ``Sectioned`` that
+        does mostly the same, but the format is currently considered private.
+        """
+        try:
+            content = self.read_text("requires.txt")
+        except FileNotFoundError:
+            return
+        extra = marker = ""  # Section-less entries don't have markers.
+        for line in content.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):  # Comment; ignored.
+                continue
+            if line.startswith("[") and line.endswith("]"):  # A section header.
+                extra, _, marker = line.strip("[]").partition(":")
+                continue
+            yield RequiresEntry(requirement=line, extra=extra, marker=marker)
+
+    def _iter_egg_info_extras(self) -> Iterable[str]:
+        """Get extras from the egg-info directory."""
+        known_extras = {""}
+        for entry in self._iter_requires_txt_entries():
+            if entry.extra in known_extras:
+                continue
+            known_extras.add(entry.extra)
+            yield entry.extra
+
+    def _iter_egg_info_dependencies(self) -> Iterable[str]:
+        """Get distribution dependencies from the egg-info directory.
+
+        To ease parsing, this converts a legacy dependency entry into a PEP 508
+        requirement string. Like ``_iter_requires_txt_entries()``, there is code
+        in ``importlib.metadata`` that does mostly the same, but not do exactly
+        what we need.
+
+        Namely, ``importlib.metadata`` does not normalize the extra name before
+        putting it into the requirement string, which causes marker comparison
+        to fail because the dist-info format do normalize. This is consistent in
+        all currently available PEP 517 backends, although not standardized.
+        """
+        for entry in self._iter_requires_txt_entries():
+            if entry.extra and entry.marker:
+                marker = f'({entry.marker}) and extra == "{safe_extra(entry.extra)}"'
+            elif entry.extra:
+                marker = f'extra == "{safe_extra(entry.extra)}"'
+            elif entry.marker:
+                marker = entry.marker
+            else:
+                marker = ""
+            if marker:
+                yield f"{entry.requirement} ; {marker}"
+            else:
+                yield entry.requirement
+
+    def _add_egg_info_requires(self, metadata: email.message.Message) -> None:
+        """Add egg-info requires.txt information to the metadata."""
+        if not metadata.get_all("Requires-Dist"):
+            for dep in self._iter_egg_info_dependencies():
+                metadata["Requires-Dist"] = dep
+        if not metadata.get_all("Provides-Extra"):
+            for extra in self._iter_egg_info_extras():
+                metadata["Provides-Extra"] = extra
 
 
 class BaseEnvironment:

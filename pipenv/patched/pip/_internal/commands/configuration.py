@@ -4,17 +4,17 @@ import subprocess
 from optparse import Values
 from typing import Any, List, Optional
 
-from pipenv.patched.pip._internal.cli.base_command import Command
-from pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
-from pipenv.patched.pip._internal.configuration import (
+from pipenv.patched.pipenv.patched.pip._internal.cli.base_command import Command
+from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
+from pipenv.patched.pipenv.patched.pip._internal.configuration import (
     Configuration,
     Kind,
     get_configuration_files,
     kinds,
 )
-from pipenv.patched.pip._internal.exceptions import PipError
-from pipenv.patched.pip._internal.utils.logging import indent_log
-from pipenv.patched.pip._internal.utils.misc import get_prog, write_output
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import PipError
+from pipenv.patched.pipenv.patched.pip._internal.utils.logging import indent_log
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import get_prog, write_output
 
 logger = logging.getLogger(__name__)
 

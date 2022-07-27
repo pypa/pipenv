@@ -2,13 +2,13 @@ import logging
 from optparse import Values
 from typing import List
 
-from pipenv.patched.pip._internal.cli.base_command import Command
-from pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
-from pipenv.patched.pip._internal.operations.check import (
+from pipenv.patched.pipenv.patched.pip._internal.cli.base_command import Command
+from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
+from pipenv.patched.pipenv.patched.pip._internal.operations.check import (
     check_package_set,
     create_package_set_from_installed,
 )
-from pipenv.patched.pip._internal.utils.misc import write_output
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import write_output
 
 logger = logging.getLogger(__name__)
 

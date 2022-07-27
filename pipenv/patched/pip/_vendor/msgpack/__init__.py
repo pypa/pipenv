@@ -1,10 +1,13 @@
 # coding: utf-8
-from ._version import version
 from .exceptions import *
 from .ext import ExtType, Timestamp
 
 import os
 import sys
+
+
+version = (1, 0, 4)
+__version__ = "1.0.4"
 
 
 if os.environ.get("MSGPACK_PUREPYTHON") or sys.version_info[0] == 2:

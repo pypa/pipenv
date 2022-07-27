@@ -4,19 +4,19 @@
 
     Lexers for Python and related languages.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
 import re
 import keyword
 
-from pipenv.patched.pip._vendor.pygments.lexer import Lexer, RegexLexer, include, bygroups, using, \
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.lexer import Lexer, RegexLexer, include, bygroups, using, \
     default, words, combined, do_insertions, this
-from pipenv.patched.pip._vendor.pygments.util import get_bool_opt, shebang_matches
-from pipenv.patched.pip._vendor.pygments.token import Text, Comment, Operator, Keyword, Name, String, \
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import get_bool_opt, shebang_matches
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import Text, Comment, Operator, Keyword, Name, String, \
     Number, Punctuation, Generic, Other, Error
-from pipenv.patched.pip._vendor.pygments import unistring as uni
+from pipenv.patched.pipenv.patched.pip._vendor.pygments import unistring as uni
 
 __all__ = ['PythonLexer', 'PythonConsoleLexer', 'PythonTracebackLexer',
            'Python2Lexer', 'Python2TracebackLexer',
@@ -27,7 +27,7 @@ line_re = re.compile('.*?\n')
 
 class PythonLexer(RegexLexer):
     """
-    For `Python <http://www.python.org>`_ source code (version 3.x).
+    For Python source code (version 3.x).
 
     .. versionadded:: 0.10
 
@@ -37,6 +37,7 @@ class PythonLexer(RegexLexer):
     """
 
     name = 'Python'
+    url = 'http://www.python.org'
     aliases = ['python', 'py', 'sage', 'python3', 'py3']
     filenames = [
         '*.py',
@@ -60,8 +61,6 @@ class PythonLexer(RegexLexer):
     ]
     mimetypes = ['text/x-python', 'application/x-python',
                  'text/x-python3', 'application/x-python3']
-
-    flags = re.MULTILINE | re.UNICODE
 
     uni_name = "[%s][%s]*" % (uni.xid_start, uni.xid_continue)
 
@@ -214,7 +213,7 @@ class PythonLexer(RegexLexer):
             (r'(^[ \t]*)'              # at beginning of line + possible indentation
              r'(match|case)\b'         # a possible keyword
              r'(?![ \t]*(?:'           # not followed by...
-             r'[:,;=^&|@~)\]}]|(?:' +  # characters and keywords that mean this isn't 
+             r'[:,;=^&|@~)\]}]|(?:' +  # characters and keywords that mean this isn't
              r'|'.join(keyword.kwlist) + r')\b))',                 # pattern matching
              bygroups(Text, Keyword), 'soft-keywords-inner'),
         ],
@@ -259,7 +258,8 @@ class PythonLexer(RegexLexer):
                 'InterruptedError', 'IsADirectoryError', 'NotADirectoryError',
                 'PermissionError', 'ProcessLookupError', 'TimeoutError',
                 # others new in Python 3
-                'StopAsyncIteration', 'ModuleNotFoundError', 'RecursionError'),
+                'StopAsyncIteration', 'ModuleNotFoundError', 'RecursionError',
+                'EncodingWarning'),
                 prefix=r'(?<!\.)', suffix=r'\b'),
              Name.Exception),
         ],
@@ -403,7 +403,7 @@ Python3Lexer = PythonLexer
 
 class Python2Lexer(RegexLexer):
     """
-    For `Python 2.x <http://www.python.org>`_ source code.
+    For Python 2.x source code.
 
     .. versionchanged:: 2.5
        This class has been renamed from ``PythonLexer``.  ``PythonLexer`` now
@@ -412,6 +412,7 @@ class Python2Lexer(RegexLexer):
     """
 
     name = 'Python 2.x'
+    url = 'http://www.python.org'
     aliases = ['python2', 'py2']
     filenames = []  # now taken over by PythonLexer (3.x)
     mimetypes = ['text/x-python2', 'application/x-python2']
@@ -816,12 +817,13 @@ class Python2TracebackLexer(RegexLexer):
 
 class CythonLexer(RegexLexer):
     """
-    For Pyrex and `Cython <http://cython.org>`_ source code.
+    For Pyrex and Cython source code.
 
     .. versionadded:: 1.1
     """
 
     name = 'Cython'
+    url = 'http://cython.org'
     aliases = ['cython', 'pyx', 'pyrex']
     filenames = ['*.pyx', '*.pxd', '*.pxi']
     mimetypes = ['text/x-cython', 'application/x-cython']
@@ -995,7 +997,7 @@ class CythonLexer(RegexLexer):
 
 class DgLexer(RegexLexer):
     """
-    Lexer for `dg <http://pyos.github.com/dg>`_,
+    Lexer for dg,
     a functional and object-oriented programming language
     running on the CPython 3 VM.
 
@@ -1100,6 +1102,7 @@ class NumPyLexer(PythonLexer):
     """
 
     name = 'NumPy'
+    url = 'https://numpy.org/'
     aliases = ['numpy']
 
     # override the mimetypes to not inherit them from python

@@ -1432,29 +1432,19 @@ if ssl:
                 self.sock = sock
                 self._tunnel()
 
-            if not hasattr(ssl, 'SSLContext'):
-                # For 2.x
-                if self.ca_certs:
-                    cert_reqs = ssl.CERT_REQUIRED
-                else:
-                    cert_reqs = ssl.CERT_NONE
-                self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file,
-                                            cert_reqs=cert_reqs,
-                                            ssl_version=ssl.PROTOCOL_SSLv23,
-                                            ca_certs=self.ca_certs)
-            else:  # pragma: no cover
-                context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-                if hasattr(ssl, 'OP_NO_SSLv2'):
-                    context.options |= ssl.OP_NO_SSLv2
-                if self.cert_file:
-                    context.load_cert_chain(self.cert_file, self.key_file)
-                kwargs = {}
-                if self.ca_certs:
-                    context.verify_mode = ssl.CERT_REQUIRED
-                    context.load_verify_locations(cafile=self.ca_certs)
-                    if getattr(ssl, 'HAS_SNI', False):
-                        kwargs['server_hostname'] = self.host
-                self.sock = context.wrap_socket(sock, **kwargs)
+            context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            if hasattr(ssl, 'OP_NO_SSLv2'):
+                context.options |= ssl.OP_NO_SSLv2
+            if self.cert_file:
+                context.load_cert_chain(self.cert_file, self.key_file)
+            kwargs = {}
+            if self.ca_certs:
+                context.verify_mode = ssl.CERT_REQUIRED
+                context.load_verify_locations(cafile=self.ca_certs)
+                if getattr(ssl, 'HAS_SNI', False):
+                    kwargs['server_hostname'] = self.host
+
+            self.sock = context.wrap_socket(sock, **kwargs)
             if self.ca_certs and self.check_domain:
                 try:
                     match_hostname(self.sock.getpeercert(), self.host)
@@ -1513,25 +1503,6 @@ if ssl:
 #
 # XML-RPC with timeouts
 #
-
-_ver_info = sys.version_info[:2]
-
-if _ver_info == (2, 6):
-    class HTTP(httplib.HTTP):
-        def __init__(self, host='', port=None, **kwargs):
-            if port == 0:   # 0 means use port 0, not the default port
-                port = None
-            self._setup(self._connection_class(host, port, **kwargs))
-
-
-    if ssl:
-        class HTTPS(httplib.HTTPS):
-            def __init__(self, host='', port=None, **kwargs):
-                if port == 0:   # 0 means use port 0, not the default port
-                    port = None
-                self._setup(self._connection_class(host, port, **kwargs))
-
-
 class Transport(xmlrpclib.Transport):
     def __init__(self, timeout, use_datetime=0):
         self.timeout = timeout
@@ -1539,14 +1510,10 @@ class Transport(xmlrpclib.Transport):
 
     def make_connection(self, host):
         h, eh, x509 = self.get_host_info(host)
-        if _ver_info == (2, 6):
-            result = HTTP(h, timeout=self.timeout)
-        else:
-            if not self._connection or host != self._connection[0]:
-                self._extra_headers = eh
-                self._connection = host, httplib.HTTPConnection(h)
-            result = self._connection[1]
-        return result
+        if not self._connection or host != self._connection[0]:
+            self._extra_headers = eh
+            self._connection = host, httplib.HTTPConnection(h)
+        return self._connection[1]
 
 if ssl:
     class SafeTransport(xmlrpclib.SafeTransport):
@@ -1559,15 +1526,11 @@ if ssl:
             if not kwargs:
                 kwargs = {}
             kwargs['timeout'] = self.timeout
-            if _ver_info == (2, 6):
-                result = HTTPS(host, None, **kwargs)
-            else:
-                if not self._connection or host != self._connection[0]:
-                    self._extra_headers = eh
-                    self._connection = host, httplib.HTTPSConnection(h, None,
-                                                                     **kwargs)
-                result = self._connection[1]
-            return result
+            if not self._connection or host != self._connection[0]:
+                self._extra_headers = eh
+                self._connection = host, httplib.HTTPSConnection(h, None,
+                                                                 **kwargs)
+            return self._connection[1]
 
 
 class ServerProxy(xmlrpclib.ServerProxy):

@@ -4,13 +4,13 @@ from typing import TYPE_CHECKING, Iterable, List
 if sys.version_info >= (3, 8):
     from typing import Literal
 else:
-    from pipenv.patched.pip._vendor.typing_extensions import Literal  # pragma: no cover
+    from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import Literal  # pragma: no cover
 
 
 from ._loop import loop_last
 
 if TYPE_CHECKING:
-    from pipenv.patched.pip._vendor.rich.console import ConsoleOptions
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import ConsoleOptions
 
 
 class Box:
@@ -87,6 +87,16 @@ class Box:
         if options.ascii_only and not box.ascii:
             box = ASCII
         return box
+
+    def get_plain_headed_box(self) -> "Box":
+        """If this box uses special characters for the borders of the header, then
+        return the equivalent box that does not.
+
+        Returns:
+            Box: The most similar Box that doesn't use header-specific box characters.
+                If the current Box already satisfies this criterion, then it's returned.
+        """
+        return PLAIN_HEADED_SUBSTITUTIONS.get(self, self)
 
     def get_top(self, widths: Iterable[int]) -> str:
         """Get the top of a simple box.
@@ -419,6 +429,20 @@ DOUBLE_EDGE: Box = Box(
 """
 )
 
+MARKDOWN: Box = Box(
+    """\
+    
+| ||
+|-||
+| ||
+|-||
+|-||
+| ||
+    
+""",
+    ascii=True,
+)
+
 # Map Boxes that don't render with raster fonts on to equivalent that do
 LEGACY_WINDOWS_SUBSTITUTIONS = {
     ROUNDED: SQUARE,
@@ -429,11 +453,20 @@ LEGACY_WINDOWS_SUBSTITUTIONS = {
     HEAVY_HEAD: SQUARE,
 }
 
+# Map headed boxes to their headerless equivalents
+PLAIN_HEADED_SUBSTITUTIONS = {
+    HEAVY_HEAD: SQUARE,
+    SQUARE_DOUBLE_HEAD: SQUARE,
+    MINIMAL_DOUBLE_HEAD: MINIMAL,
+    MINIMAL_HEAVY_HEAD: MINIMAL,
+    ASCII_DOUBLE_HEAD: ASCII2,
+}
+
 
 if __name__ == "__main__":  # pragma: no cover
 
-    from pipenv.patched.pip._vendor.rich.columns import Columns
-    from pipenv.patched.pip._vendor.rich.panel import Panel
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.columns import Columns
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.panel import Panel
 
     from . import box as box
     from .console import Console
@@ -461,6 +494,7 @@ if __name__ == "__main__":  # pragma: no cover
         "HEAVY_HEAD",
         "DOUBLE",
         "DOUBLE_EDGE",
+        "MARKDOWN",
     ]
 
     console.print(Panel("[bold green]Box Constants", style="green"), justify="center")

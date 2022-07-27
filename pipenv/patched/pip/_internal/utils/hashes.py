@@ -1,8 +1,8 @@
 import hashlib
 from typing import TYPE_CHECKING, BinaryIO, Dict, Iterable, List
 
-from pipenv.patched.pip._internal.exceptions import HashMismatch, HashMissing, InstallationError
-from pipenv.patched.pip._internal.utils.misc import read_chunks
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import HashMismatch, HashMissing, InstallationError
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import read_chunks
 
 if TYPE_CHECKING:
     from hashlib import _Hash

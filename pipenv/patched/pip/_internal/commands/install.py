@@ -1,4 +1,5 @@
 import errno
+import json
 import operator
 import os
 import shutil
@@ -6,41 +7,43 @@ import site
 from optparse import SUPPRESS_HELP, Values
 from typing import Iterable, List, Optional
 
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.rich import print_json
 
-from pipenv.patched.pip._internal.cache import WheelCache
-from pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pip._internal.cli.cmdoptions import make_target_python
-from pipenv.patched.pip._internal.cli.req_command import (
+from pipenv.patched.pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pipenv.patched.pip._internal.cli.cmdoptions import make_target_python
+from pipenv.patched.pipenv.patched.pip._internal.cli.req_command import (
     RequirementCommand,
     warn_if_run_as_root,
     with_cleanup,
 )
-from pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
-from pipenv.patched.pip._internal.exceptions import CommandError, InstallationError
-from pipenv.patched.pip._internal.locations import get_scheme
-from pipenv.patched.pip._internal.metadata import get_environment
-from pipenv.patched.pip._internal.models.format_control import FormatControl
-from pipenv.patched.pip._internal.operations.build.build_tracker import get_build_tracker
-from pipenv.patched.pip._internal.operations.check import ConflictDetails, check_install_conflicts
-from pipenv.patched.pip._internal.req import install_given_reqs
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._internal.utils.compat import WINDOWS
-from pipenv.patched.pip._internal.utils.distutils_args import parse_distutils_args
-from pipenv.patched.pip._internal.utils.filesystem import test_writable_dir
-from pipenv.patched.pip._internal.utils.logging import getLogger
-from pipenv.patched.pip._internal.utils.misc import (
+from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import CommandError, InstallationError
+from pipenv.patched.pipenv.patched.pip._internal.locations import get_scheme
+from pipenv.patched.pipenv.patched.pip._internal.metadata import get_environment
+from pipenv.patched.pipenv.patched.pip._internal.models.format_control import FormatControl
+from pipenv.patched.pipenv.patched.pip._internal.models.installation_report import InstallationReport
+from pipenv.patched.pipenv.patched.pip._internal.operations.build.build_tracker import get_build_tracker
+from pipenv.patched.pipenv.patched.pip._internal.operations.check import ConflictDetails, check_install_conflicts
+from pipenv.patched.pipenv.patched.pip._internal.req import install_given_reqs
+from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pipenv.patched.pip._internal.utils.distutils_args import parse_distutils_args
+from pipenv.patched.pipenv.patched.pip._internal.utils.filesystem import test_writable_dir
+from pipenv.patched.pipenv.patched.pip._internal.utils.logging import getLogger
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import (
     ensure_dir,
     get_pip_version,
     protect_pip_from_modification_on_windows,
     write_output,
 )
-from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
-from pipenv.patched.pip._internal.utils.virtualenv import (
+from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import (
     running_under_virtualenv,
     virtualenv_no_global,
 )
-from pipenv.patched.pip._internal.wheel_builder import (
+from pipenv.patched.pipenv.patched.pip._internal.wheel_builder import (
     BinaryAllowedPredicate,
     build,
     should_build_for_install_command,
@@ -85,6 +88,17 @@ class InstallCommand(RequirementCommand):
         self.cmd_opts.add_option(cmdoptions.pre())
 
         self.cmd_opts.add_option(cmdoptions.editable())
+        self.cmd_opts.add_option(
+            "--dry-run",
+            action="store_true",
+            dest="dry_run",
+            default=False,
+            help=(
+                "Don't actually install anything, just print what would be. "
+                "Can be used in combination with --ignore-installed "
+                "to 'resolve' the requirements."
+            ),
+        )
         self.cmd_opts.add_option(
             "-t",
             "--target",
@@ -239,6 +253,20 @@ class InstallCommand(RequirementCommand):
         self.parser.insert_option_group(0, index_opts)
         self.parser.insert_option_group(0, self.cmd_opts)
 
+        self.cmd_opts.add_option(
+            "--report",
+            dest="json_report_file",
+            metavar="file",
+            default=None,
+            help=(
+                "Generate a JSON file describing what pip did to install "
+                "the provided requirements. "
+                "Can be used in combination with --dry-run and --ignore-installed "
+                "to 'resolve' the requirements. "
+                "When - is used as file name it writes to stdout."
+            ),
+        )
+
     @with_cleanup
     def run(self, options: Values, args: List[str]) -> int:
         if options.use_user_site and options.target_dir is not None:
@@ -341,6 +369,32 @@ class InstallCommand(RequirementCommand):
             requirement_set = resolver.resolve(
                 reqs, check_supported_wheels=not options.target_dir
             )
+
+            if options.json_report_file:
+                logger.warning(
+                    "--report is currently an experimental option. "
+                    "The output format may change in a future release "
+                    "without prior warning."
+                )
+
+                report = InstallationReport(requirement_set.requirements_to_install)
+                if options.json_report_file == "-":
+                    print_json(data=report.to_dict())
+                else:
+                    with open(options.json_report_file, "w", encoding="utf-8") as f:
+                        json.dump(report.to_dict(), f, indent=2, ensure_ascii=False)
+
+            if options.dry_run:
+                would_install_items = sorted(
+                    (r.metadata["name"], r.metadata["version"])
+                    for r in requirement_set.requirements_to_install
+                )
+                if would_install_items:
+                    write_output(
+                        "Would install %s",
+                        " ".join("-".join(item) for item in would_install_items),
+                    )
+                return SUCCESS
 
             try:
                 pip_req = requirement_set.get_requirement("pip")

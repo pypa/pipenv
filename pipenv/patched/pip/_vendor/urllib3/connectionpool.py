@@ -767,6 +767,8 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                 isinstance(e, BaseSSLError)
                 and self.proxy
                 and _is_ssl_error_message_from_http_proxy(e)
+                and conn.proxy
+                and conn.proxy.scheme == "https"
             ):
                 e = ProxyError(
                     "Your proxy appears to only use HTTP and not HTTPS, "

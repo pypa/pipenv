@@ -19,7 +19,7 @@ import typing
 if typing.TYPE_CHECKING:
     import threading
 
-    from pipenv.patched.pip._vendor.tenacity import RetryCallState
+    from pipenv.patched.pipenv.patched.pip._vendor.tenacity import RetryCallState
 
 
 class stop_base(abc.ABC):

@@ -6,10 +6,10 @@ import urllib.parse
 import urllib.request
 from typing import List, Optional, Tuple
 
-from pipenv.patched.pip._internal.exceptions import BadCommand, InstallationError
-from pipenv.patched.pip._internal.utils.misc import HiddenText, display_path, hide_url
-from pipenv.patched.pip._internal.utils.subprocess import make_command
-from pipenv.patched.pip._internal.vcs.versioncontrol import (
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import BadCommand, InstallationError
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import HiddenText, display_path, hide_url
+from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import make_command
+from pipenv.patched.pipenv.patched.pip._internal.vcs.versioncontrol import (
     AuthInfo,
     RemoteNotFoundError,
     RemoteNotValidError,

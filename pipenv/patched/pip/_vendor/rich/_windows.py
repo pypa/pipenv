@@ -22,7 +22,7 @@ try:
         windll = None
         raise ImportError("Not windows")
 
-    from pipenv.patched.pip._vendor.rich._win32_console import (
+    from pipenv.patched.pipenv.patched.pip._vendor.rich._win32_console import (
         ENABLE_VIRTUAL_TERMINAL_PROCESSING,
         GetConsoleMode,
         GetStdHandle,
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     import platform
 
     features = get_windows_console_features()
-    from pipenv.patched.pip._vendor.rich import print
+    from pipenv.patched.pipenv.patched.pip._vendor.rich import print
 
     print(f'platform="{platform.system()}"')
     print(repr(features))

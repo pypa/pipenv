@@ -18,6 +18,7 @@ from typing import (
 
 from .cells import (
     _is_single_cell_widths,
+    cached_cell_len,
     cell_len,
     get_character_cell_size,
     set_cell_size,
@@ -49,10 +50,13 @@ class ControlType(IntEnum):
     CURSOR_MOVE_TO_COLUMN = 13
     CURSOR_MOVE_TO = 14
     ERASE_IN_LINE = 15
+    SET_WINDOW_TITLE = 16
 
 
 ControlCode = Union[
-    Tuple[ControlType], Tuple[ControlType, int], Tuple[ControlType, int, int]
+    Tuple[ControlType],
+    Tuple[ControlType, Union[int, str]],
+    Tuple[ControlType, int, int],
 ]
 
 
@@ -287,11 +291,11 @@ class Segment(NamedTuple):
 
         for segment in segments:
             if "\n" in segment.text and not segment.control:
-                text, style, _ = segment
+                text, segment_style, _ = segment
                 while text:
                     _text, new_line, text = text.partition("\n")
                     if _text:
-                        append(cls(_text, style))
+                        append(cls(_text, segment_style))
                     if new_line:
                         cropped_line = adjust_line_length(
                             line, length, style=style, pad=pad
@@ -599,44 +603,56 @@ class Segment(NamedTuple):
         iter_cuts = iter(cuts)
 
         while True:
-            try:
-                cut = next(iter_cuts)
-            except StopIteration:
+            cut = next(iter_cuts, -1)
+            if cut == -1:
                 return []
             if cut != 0:
                 break
             yield []
         pos = 0
 
+        segments_clear = split_segments.clear
+        segments_copy = split_segments.copy
+
+        _cell_len = cached_cell_len
         for segment in segments:
-            while segment.text:
-                end_pos = pos + segment.cell_length
+            text, _style, control = segment
+            while text:
+                end_pos = pos if control else pos + _cell_len(text)
                 if end_pos < cut:
                     add_segment(segment)
                     pos = end_pos
                     break
 
-                try:
-                    if end_pos == cut:
-                        add_segment(segment)
-                        yield split_segments[:]
-                        del split_segments[:]
-                        pos = end_pos
-                        break
-                    else:
-                        before, segment = segment.split_cells(cut - pos)
-                        add_segment(before)
-                        yield split_segments[:]
-                        del split_segments[:]
-                        pos = cut
-                finally:
-                    try:
-                        cut = next(iter_cuts)
-                    except StopIteration:
+                if end_pos == cut:
+                    add_segment(segment)
+                    yield segments_copy()
+                    segments_clear()
+                    pos = end_pos
+
+                    cut = next(iter_cuts, -1)
+                    if cut == -1:
                         if split_segments:
-                            yield split_segments[:]
+                            yield segments_copy()
                         return
-        yield split_segments[:]
+
+                    break
+
+                else:
+                    before, segment = segment.split_cells(cut - pos)
+                    text, _style, control = segment
+                    add_segment(before)
+                    yield segments_copy()
+                    segments_clear()
+                    pos = cut
+
+                cut = next(iter_cuts, -1)
+                if cut == -1:
+                    if split_segments:
+                        yield segments_copy()
+                    return
+
+        yield segments_copy()
 
 
 class Segments:
@@ -690,9 +706,9 @@ class SegmentLines:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    from pipenv.patched.pip._vendor.rich.console import Console
-    from pipenv.patched.pip._vendor.rich.syntax import Syntax
-    from pipenv.patched.pip._vendor.rich.text import Text
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.syntax import Syntax
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.text import Text
 
     code = """from rich.console import Console
 console = Console()

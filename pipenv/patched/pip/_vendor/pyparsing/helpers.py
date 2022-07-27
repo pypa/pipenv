@@ -1,6 +1,7 @@
 # helpers.py
 import html.entities
 import re
+import typing
 
 from . import __diag__
 from .core import *
@@ -14,8 +15,8 @@ def delimited_list(
     expr: Union[str, ParserElement],
     delim: Union[str, ParserElement] = ",",
     combine: bool = False,
-    min: OptionalType[int] = None,
-    max: OptionalType[int] = None,
+    min: typing.Optional[int] = None,
+    max: typing.Optional[int] = None,
     *,
     allow_trailing_delim: bool = False,
 ) -> ParserElement:
@@ -69,9 +70,9 @@ def delimited_list(
 
 def counted_array(
     expr: ParserElement,
-    int_expr: OptionalType[ParserElement] = None,
+    int_expr: typing.Optional[ParserElement] = None,
     *,
-    intExpr: OptionalType[ParserElement] = None,
+    intExpr: typing.Optional[ParserElement] = None,
 ) -> ParserElement:
     """Helper to define a counted list of expressions.
 
@@ -197,7 +198,7 @@ def match_previous_expr(expr: ParserElement) -> ParserElement:
 
 
 def one_of(
-    strs: Union[IterableType[str], str],
+    strs: Union[typing.Iterable[str], str],
     caseless: bool = False,
     use_regex: bool = True,
     as_keyword: bool = False,
@@ -337,7 +338,7 @@ def dict_of(key: ParserElement, value: ParserElement) -> ParserElement:
 
         text = "shape: SQUARE posn: upper left color: light blue texture: burlap"
         attr_expr = (label + Suppress(':') + OneOrMore(data_word, stop_on=label).set_parse_action(' '.join))
-        print(OneOrMore(attr_expr).parse_string(text).dump())
+        print(attr_expr[1, ...].parse_string(text).dump())
 
         attr_label = label
         attr_value = Suppress(':') + OneOrMore(data_word, stop_on=label).set_parse_action(' '.join)
@@ -461,7 +462,7 @@ def locatedExpr(expr: ParserElement) -> ParserElement:
 def nested_expr(
     opener: Union[str, ParserElement] = "(",
     closer: Union[str, ParserElement] = ")",
-    content: OptionalType[ParserElement] = None,
+    content: typing.Optional[ParserElement] = None,
     ignore_expr: ParserElement = quoted_string(),
     *,
     ignoreExpr: ParserElement = quoted_string(),
@@ -682,6 +683,8 @@ def make_xml_tags(
     return _makeTags(tag_str, True)
 
 
+any_open_tag: ParserElement
+any_close_tag: ParserElement
 any_open_tag, any_close_tag = make_html_tags(
     Word(alphas, alphanums + "_:").set_name("any tag")
 )
@@ -710,7 +713,7 @@ InfixNotationOperatorSpec = Union[
         InfixNotationOperatorArgType,
         int,
         OpAssoc,
-        OptionalType[ParseAction],
+        typing.Optional[ParseAction],
     ],
     Tuple[
         InfixNotationOperatorArgType,
@@ -840,7 +843,7 @@ def infix_notation(
         if rightLeftAssoc not in (OpAssoc.LEFT, OpAssoc.RIGHT):
             raise ValueError("operator must indicate right or left associativity")
 
-        thisExpr = Forward().set_name(term_name)
+        thisExpr: Forward = Forward().set_name(term_name)
         if rightLeftAssoc is OpAssoc.LEFT:
             if arity == 1:
                 matchExpr = _FB(lastExpr + opExpr) + Group(lastExpr + opExpr[1, ...])
@@ -945,7 +948,7 @@ def indentedBlock(blockStatementExpr, indentStack, indent=True, backup_stacks=[]
         assignment = Group(identifier + "=" + rvalue)
         stmt << (funcDef | assignment | identifier)
 
-        module_body = OneOrMore(stmt)
+        module_body = stmt[1, ...]
 
         parseTree = module_body.parseString(data)
         parseTree.pprint()
@@ -1055,7 +1058,9 @@ python_style_comment = Regex(r"#.*").set_name("Python style comment")
 
 # build list of built-in expressions, for future reference if a global default value
 # gets updated
-_builtin_exprs = [v for v in vars().values() if isinstance(v, ParserElement)]
+_builtin_exprs: List[ParserElement] = [
+    v for v in vars().values() if isinstance(v, ParserElement)
+]
 
 
 # pre-PEP8 compatible names

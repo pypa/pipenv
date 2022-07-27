@@ -1,7 +1,7 @@
 """Rich text and beautiful formatting in the terminal."""
 
 import os
-from typing import Callable, IO, TYPE_CHECKING, Any, Optional, Union
+from typing import IO, TYPE_CHECKING, Any, Callable, Optional, Union
 
 from ._extension import load_ipython_extension  # noqa: F401
 
@@ -13,7 +13,11 @@ if TYPE_CHECKING:
 # Global console used by alternative print
 _console: Optional["Console"] = None
 
-_IMPORT_CWD = os.path.abspath(os.getcwd())
+try:
+    _IMPORT_CWD = os.path.abspath(os.getcwd())
+except FileNotFoundError:
+    # Can happen if the cwd has been deleted
+    _IMPORT_CWD = ""
 
 
 def get_console() -> "Console":
@@ -38,7 +42,7 @@ def reconfigure(*args: Any, **kwargs: Any) -> None:
     Args:
         console (Console): Replacement console instance.
     """
-    from pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
 
     new_console = Console(*args, **kwargs)
     _console = get_console()
@@ -148,7 +152,7 @@ def inspect(
         value (bool, optional): Pretty print value. Defaults to True.
     """
     _console = console or get_console()
-    from pipenv.patched.pip._vendor.rich._inspect import Inspect
+    from pipenv.patched.pipenv.patched.pip._vendor.rich._inspect import Inspect
 
     # Special case for inspect(inspect)
     is_inspect = obj is inspect

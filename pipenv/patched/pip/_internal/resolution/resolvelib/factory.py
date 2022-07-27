@@ -18,35 +18,34 @@ from typing import (
     cast,
 )
 
-from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement
-from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
-from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
-from pipenv.patched.pip._vendor.resolvelib import ResolutionImpossible
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.resolvelib import ResolutionImpossible
 
-from pipenv.patched.pip._internal.cache import CacheEntry, WheelCache
-from pipenv.patched.pip._internal.exceptions import (
+from pipenv.patched.pipenv.patched.pip._internal.cache import CacheEntry, WheelCache
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
     DistributionNotFound,
     InstallationError,
-    InstallationSubprocessError,
     MetadataInconsistent,
     UnsupportedPythonVersion,
     UnsupportedWheel,
 )
-from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._internal.metadata import BaseDistribution, get_default_environment
-from pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pip._internal.models.wheel import Wheel
-from pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
-from pipenv.patched.pip._internal.req.constructors import install_req_from_link_and_ireq
-from pipenv.patched.pip._internal.req.req_install import (
+from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution, get_default_environment
+from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
+from pipenv.patched.pipenv.patched.pip._internal.req.constructors import install_req_from_link_and_ireq
+from pipenv.patched.pipenv.patched.pip._internal.req.req_install import (
     InstallRequirement,
     check_invalid_constraint_type,
 )
-from pipenv.patched.pip._internal.resolution.base import InstallRequirementProvider
-from pipenv.patched.pip._internal.utils.compatibility_tags import get_supported
-from pipenv.patched.pip._internal.utils.hashes import Hashes
-from pipenv.patched.pip._internal.utils.packaging import get_requirement
-from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.pipenv.patched.pip._internal.resolution.base import InstallRequirementProvider
+from pipenv.patched.pipenv.patched.pip._internal.utils.compatibility_tags import get_supported
+from pipenv.patched.pipenv.patched.pip._internal.utils.hashes import Hashes
+from pipenv.patched.pipenv.patched.pip._internal.utils.packaging import get_requirement
+from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
 from .base import Candidate, CandidateVersion, Constraint, Requirement
 from .candidates import (
@@ -97,7 +96,6 @@ class Factory:
         force_reinstall: bool,
         ignore_installed: bool,
         ignore_requires_python: bool,
-        suppress_build_failures: bool,
         py_version_info: Optional[Tuple[int, ...]] = None,
     ) -> None:
         self._finder = finder
@@ -108,7 +106,6 @@ class Factory:
         self._use_user_site = use_user_site
         self._force_reinstall = force_reinstall
         self._ignore_requires_python = ignore_requires_python
-        self._suppress_build_failures = suppress_build_failures
 
         self._build_failures: Cache[InstallationError] = {}
         self._link_candidate_cache: Cache[LinkCandidate] = {}
@@ -201,12 +198,6 @@ class Factory:
                     )
                     self._build_failures[link] = e
                     return None
-                except InstallationSubprocessError as e:
-                    if not self._suppress_build_failures:
-                        raise
-                    logger.warning("Discarding %s due to build failure: %s", link, e)
-                    self._build_failures[link] = e
-                    return None
 
             base: BaseCandidate = self._editable_candidate_cache[link]
         else:
@@ -226,12 +217,6 @@ class Factory:
                         e,
                         extra={"markup": True},
                     )
-                    self._build_failures[link] = e
-                    return None
-                except InstallationSubprocessError as e:
-                    if not self._suppress_build_failures:
-                        raise
-                    logger.warning("Discarding %s due to build failure: %s", link, e)
                     self._build_failures[link] = e
                     return None
             base = self._link_candidate_cache[link]

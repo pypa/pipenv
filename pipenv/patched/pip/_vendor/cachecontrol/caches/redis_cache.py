@@ -5,7 +5,7 @@
 from __future__ import division
 
 from datetime import datetime
-from pipenv.patched.pip._vendor.cachecontrol.cache import BaseCache
+from pipenv.patched.pipenv.patched.pip._vendor.cachecontrol.cache import BaseCache
 
 
 class RedisCache(BaseCache):

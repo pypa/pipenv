@@ -19,9 +19,9 @@ from typing import (
     Union,
 )
 
-from pipenv.patched.pip._internal.cli.spinners import SpinnerInterface
-from pipenv.patched.pip._internal.exceptions import BadCommand, InstallationError
-from pipenv.patched.pip._internal.utils.misc import (
+from pipenv.patched.pipenv.patched.pip._internal.cli.spinners import SpinnerInterface
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import BadCommand, InstallationError
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import (
     HiddenText,
     ask_path_exists,
     backup_dir,
@@ -31,13 +31,13 @@ from pipenv.patched.pip._internal.utils.misc import (
     is_installable_dir,
     rmtree,
 )
-from pipenv.patched.pip._internal.utils.subprocess import (
+from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import (
     CommandArgs,
     call_subprocess,
     format_command_args,
     make_command,
 )
-from pipenv.patched.pip._internal.utils.urls import get_url_scheme
+from pipenv.patched.pipenv.patched.pip._internal.utils.urls import get_url_scheme
 
 if TYPE_CHECKING:
     # Literal was introduced in Python 3.8.

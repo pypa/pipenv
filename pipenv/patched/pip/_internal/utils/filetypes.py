@@ -3,7 +3,7 @@
 
 from typing import Tuple
 
-from pipenv.patched.pip._internal.utils.misc import splitext
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import splitext
 
 WHEEL_EXTENSION = ".whl"
 BZ2_EXTENSIONS: Tuple[str, ...] = (".tar.bz2", ".tbz")

@@ -4,13 +4,13 @@
 
     Formatter for groff output.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
 import math
-from pipenv.patched.pip._vendor.pygments.formatter import Formatter
-from pipenv.patched.pip._vendor.pygments.util import get_bool_opt, get_int_opt
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatter import Formatter
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import get_bool_opt, get_int_opt
 
 __all__ = ['GroffFormatter']
 
@@ -144,6 +144,8 @@ class GroffFormatter(Formatter):
             self._write_lineno(outfile)
 
         for ttype, value in tokensource:
+            while ttype not in self.styles:
+                ttype = ttype.parent
             start, end = self.styles[ttype]
 
             for line in value.splitlines(True):

@@ -3,10 +3,10 @@
 import logging
 from typing import List, Optional, Sequence
 
-from pipenv.patched.pip._internal.build_env import BuildEnvironment
-from pipenv.patched.pip._internal.utils.logging import indent_log
-from pipenv.patched.pip._internal.utils.setuptools_build import make_setuptools_develop_args
-from pipenv.patched.pip._internal.utils.subprocess import call_subprocess
+from pipenv.patched.pipenv.patched.pip._internal.build_env import BuildEnvironment
+from pipenv.patched.pipenv.patched.pip._internal.utils.logging import indent_log
+from pipenv.patched.pipenv.patched.pip._internal.utils.setuptools_build import make_setuptools_develop_args
+from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import call_subprocess
 
 logger = logging.getLogger(__name__)
 

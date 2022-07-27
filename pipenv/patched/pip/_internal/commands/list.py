@@ -3,22 +3,22 @@ import logging
 from optparse import Values
 from typing import TYPE_CHECKING, Generator, List, Optional, Sequence, Tuple, cast
 
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pip._internal.cli.req_command import IndexGroupCommand
-from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
-from pipenv.patched.pip._internal.exceptions import CommandError
-from pipenv.patched.pip._internal.index.collector import LinkCollector
-from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._internal.metadata import BaseDistribution, get_environment
-from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
-from pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pip._internal.utils.compat import stdlib_pkgs
-from pipenv.patched.pip._internal.utils.misc import tabulate, write_output
+from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pipenv.patched.pip._internal.cli.req_command import IndexGroupCommand
+from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import CommandError
+from pipenv.patched.pipenv.patched.pip._internal.index.collector import LinkCollector
+from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution, get_environment
+from pipenv.patched.pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
+from pipenv.patched.pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pipenv.patched.pip._internal.utils.compat import stdlib_pkgs
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import tabulate, write_output
 
 if TYPE_CHECKING:
-    from pipenv.patched.pip._internal.metadata.base import DistributionVersion
+    from pipenv.patched.pipenv.patched.pip._internal.metadata.base import DistributionVersion
 
     class _DistWithLatestInfo(BaseDistribution):
         """Give the distribution object a couple of extra fields.
@@ -149,7 +149,6 @@ class ListCommand(IndexGroupCommand):
         return PackageFinder.create(
             link_collector=link_collector,
             selection_prefs=selection_prefs,
-            use_deprecated_html5lib="html5lib" in options.deprecated_features_enabled,
         )
 
     def run(self, options: Values, args: List[str]) -> int:

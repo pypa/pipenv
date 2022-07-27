@@ -19,17 +19,20 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Union,
 )
 
-from pipenv.patched.pip._vendor.rich.repr import RichReprResult
+from pipenv.patched.pipenv.patched.pip._vendor.rich.repr import RichReprResult
 
 try:
     import pipenv.vendor.attr as _attr_module
+
+    _has_attrs = True
 except ImportError:  # pragma: no cover
-    _attr_module = None  # type: ignore[assignment]
+    _has_attrs = False
 
 from . import get_console
 from ._loop import loop_last
@@ -52,14 +55,21 @@ if TYPE_CHECKING:
     )
 
 
+JUPYTER_CLASSES_TO_NOT_RENDER = {
+    # Matplotlib "Artists" manage their own rendering in a Jupyter notebook, and we should not try to render them too.
+    # "Typically, all [Matplotlib] visible elements in a figure are subclasses of Artist."
+    "matplotlib.artist.Artist",
+}
+
+
 def _is_attr_object(obj: Any) -> bool:
     """Check if an object was created with attrs module."""
-    return _attr_module is not None and _attr_module.has(type(obj))
+    return _has_attrs and _attr_module.has(type(obj))
 
 
-def _get_attr_fields(obj: Any) -> Iterable["_attr_module.Attribute[Any]"]:
+def _get_attr_fields(obj: Any) -> Sequence["_attr_module.Attribute[Any]"]:
     """Get fields for an attrs object."""
-    return _attr_module.fields(type(obj)) if _attr_module is not None else []
+    return _attr_module.fields(type(obj)) if _has_attrs else []
 
 
 def _is_dataclass_repr(obj: object) -> bool:
@@ -112,7 +122,9 @@ def _ipy_display_hook(
     max_string: Optional[int] = None,
     expand_all: bool = False,
 ) -> None:
-    from .console import ConsoleRenderable  # needed here to prevent circular import
+    # needed here to prevent circular import:
+    from ._inspect import is_object_one_of_types
+    from .console import ConsoleRenderable
 
     # always skip rich generated jupyter renderables or None values
     if _safe_isinstance(value, JupyterRenderable) or value is None:
@@ -144,6 +156,13 @@ def _ipy_display_hook(
                     continue  # If the method raises, treat it as if it doesn't exist, try any others
                 if repr_result is not None:
                     return  # Delegate rendering to IPython
+
+        # When in a Jupyter notebook let's avoid the display of some specific classes,
+        # as they result in the rendering of useless and noisy lines such as `<Figure size 432x288 with 1 Axes>`.
+        # What does this do?
+        # --> if the class has "matplotlib.artist.Artist" in its hierarchy for example, we don't render it.
+        if is_object_one_of_types(value, JUPYTER_CLASSES_TO_NOT_RENDER):
+            return
 
     # certain renderables should start on a new line
     if _safe_isinstance(value, ConsoleRenderable):
@@ -198,7 +217,7 @@ def install(
         expand_all (bool, optional): Expand all containers. Defaults to False.
         max_frames (int): Maximum number of frames to show in a traceback, 0 for no maximum. Defaults to 100.
     """
-    from pipenv.patched.pip._vendor.rich import get_console
+    from pipenv.patched.pipenv.patched.pip._vendor.rich import get_console
 
     console = console or get_console()
     assert console is not None
@@ -363,7 +382,7 @@ def _get_braces_for_defaultdict(_object: DefaultDict[Any, Any]) -> Tuple[str, st
 
 
 def _get_braces_for_array(_object: "array[Any]") -> Tuple[str, str, str]:
-    return (f"array({_object.typecode!r}, [", "])", "array({_object.typecode!r})")
+    return (f"array({_object.typecode!r}, [", "])", f"array({_object.typecode!r})")
 
 
 _BRACES: Dict[type, Callable[[Any], Tuple[str, str, str]]] = {
@@ -986,6 +1005,6 @@ if __name__ == "__main__":  # pragma: no cover
     }
     data["foo"].append(data)  # type: ignore[attr-defined]
 
-    from pipenv.patched.pip._vendor.rich import print
+    from pipenv.patched.pipenv.patched.pip._vendor.rich import print
 
     print(Pretty(data, indent_guides=True, max_string=20))

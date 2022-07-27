@@ -10,39 +10,62 @@ import os
 import sys
 from functools import partial
 from optparse import Values
-from typing import Any, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple
 
-from pipenv.patched.pip._internal.cache import WheelCache
-from pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pip._internal.cli.base_command import Command
-from pipenv.patched.pip._internal.cli.command_context import CommandContextMixIn
-from pipenv.patched.pip._internal.exceptions import CommandError, PreviousBuildDirError
-from pipenv.patched.pip._internal.index.collector import LinkCollector
-from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
-from pipenv.patched.pip._internal.models.target_python import TargetPython
-from pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pip._internal.operations.build.build_tracker import BuildTracker
-from pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
-from pipenv.patched.pip._internal.req.constructors import (
+from pipenv.patched.pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pipenv.patched.pip._internal.cli.base_command import Command
+from pipenv.patched.pipenv.patched.pip._internal.cli.command_context import CommandContextMixIn
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import CommandError, PreviousBuildDirError
+from pipenv.patched.pipenv.patched.pip._internal.index.collector import LinkCollector
+from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
+from pipenv.patched.pipenv.patched.pip._internal.models.target_python import TargetPython
+from pipenv.patched.pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pipenv.patched.pip._internal.operations.build.build_tracker import BuildTracker
+from pipenv.patched.pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
+from pipenv.patched.pipenv.patched.pip._internal.req.constructors import (
     install_req_from_editable,
     install_req_from_line,
     install_req_from_parsed_requirement,
     install_req_from_req_string,
 )
-from pipenv.patched.pip._internal.req.req_file import parse_requirements
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._internal.resolution.base import BaseResolver
-from pipenv.patched.pip._internal.self_outdated_check import pip_self_version_check
-from pipenv.patched.pip._internal.utils.deprecation import deprecated
-from pipenv.patched.pip._internal.utils.temp_dir import (
+from pipenv.patched.pipenv.patched.pip._internal.req.req_file import parse_requirements
+from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pipenv.patched.pip._internal.resolution.base import BaseResolver
+from pipenv.patched.pipenv.patched.pip._internal.self_outdated_check import pip_self_version_check
+from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import (
     TempDirectory,
     TempDirectoryTypeRegistry,
     tempdir_kinds,
 )
-from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
+
+if TYPE_CHECKING:
+    from ssl import SSLContext
 
 logger = logging.getLogger(__name__)
+
+
+def _create_truststore_ssl_context() -> Optional["SSLContext"]:
+    if sys.version_info < (3, 10):
+        raise CommandError("The truststore feature is only available for Python 3.10+")
+
+    try:
+        import ssl
+    except ImportError:
+        logger.warning("Disabling truststore since ssl support is missing")
+        return None
+
+    try:
+        import truststore
+    except ImportError:
+        raise CommandError(
+            "To use the truststore feature, 'truststore' must be installed into "
+            "pip's current environment."
+        )
+
+    return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
 
 class SessionCommandMixin(CommandContextMixIn):
@@ -84,15 +107,27 @@ class SessionCommandMixin(CommandContextMixIn):
         options: Values,
         retries: Optional[int] = None,
         timeout: Optional[int] = None,
+        fallback_to_certifi: bool = False,
     ) -> PipSession:
-        assert not options.cache_dir or os.path.isabs(options.cache_dir)
+        cache_dir = options.cache_dir
+        assert not cache_dir or os.path.isabs(cache_dir)
+
+        if "truststore" in options.features_enabled:
+            try:
+                ssl_context = _create_truststore_ssl_context()
+            except Exception:
+                if not fallback_to_certifi:
+                    raise
+                ssl_context = None
+        else:
+            ssl_context = None
+
         session = PipSession(
-            cache=(
-                os.path.join(options.cache_dir, "http") if options.cache_dir else None
-            ),
+            cache=os.path.join(cache_dir, "http") if cache_dir else None,
             retries=retries if retries is not None else options.retries,
             trusted_hosts=options.trusted_hosts,
             index_urls=self._get_index_urls(options),
+            ssl_context=ssl_context,
         )
 
         # Handle custom ca-bundles from the user
@@ -142,7 +177,14 @@ class IndexGroupCommand(Command, SessionCommandMixin):
 
         # Otherwise, check if we're using the latest version of pip available.
         session = self._build_session(
-            options, retries=0, timeout=min(5, options.timeout)
+            options,
+            retries=0,
+            timeout=min(5, options.timeout),
+            # This is set to ensure the function does not fail when truststore is
+            # specified in use-feature but cannot be loaded. This usually raises a
+            # CommandError and shows a nice user-facing error, but this function is not
+            # called in that try-except block.
+            fallback_to_certifi=True,
         )
         with session:
             pip_self_version_check(session, options)
@@ -227,31 +269,6 @@ class RequirementCommand(IndexGroupCommand):
 
         return "2020-resolver"
 
-    @staticmethod
-    def determine_build_failure_suppression(options: Values) -> bool:
-        """Determines whether build failures should be suppressed and backtracked on."""
-        if "backtrack-on-build-failures" not in options.deprecated_features_enabled:
-            return False
-
-        if "legacy-resolver" in options.deprecated_features_enabled:
-            raise CommandError("Cannot backtrack with legacy resolver.")
-
-        deprecated(
-            reason=(
-                "Backtracking on build failures can mask issues related to how "
-                "a package generates metadata or builds a wheel. This flag will "
-                "be removed in pip 22.2."
-            ),
-            gone_in=None,
-            replacement=(
-                "avoiding known-bad versions by explicitly telling pip to ignore them "
-                "(either directly as requirements, or via a constraints file)"
-            ),
-            feature_flag=None,
-            issue=10655,
-        )
-        return True
-
     @classmethod
     def make_requirement_preparer(
         cls,
@@ -328,7 +345,6 @@ class RequirementCommand(IndexGroupCommand):
             use_pep517=use_pep517,
             config_settings=getattr(options, "config_settings", None),
         )
-        suppress_build_failures = cls.determine_build_failure_suppression(options)
         resolver_variant = cls.determine_resolver_variant(options)
         # The long import name and duplicated invocation is needed to convince
         # Mypy into correctly typechecking. Otherwise it would complain the
@@ -348,7 +364,6 @@ class RequirementCommand(IndexGroupCommand):
                 force_reinstall=force_reinstall,
                 upgrade_strategy=upgrade_strategy,
                 py_version_info=py_version_info,
-                suppress_build_failures=suppress_build_failures,
             )
         import pipenv.patched.pip._internal.resolution.legacy.resolver
 
@@ -484,5 +499,4 @@ class RequirementCommand(IndexGroupCommand):
             link_collector=link_collector,
             selection_prefs=selection_prefs,
             target_python=target_python,
-            use_deprecated_html5lib="html5lib" in options.deprecated_features_enabled,
         )

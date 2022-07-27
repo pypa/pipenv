@@ -5,7 +5,7 @@ from typing import Sequence, Tuple, TYPE_CHECKING
 from .color_triplet import ColorTriplet
 
 if TYPE_CHECKING:
-    from pipenv.patched.pip._vendor.rich.table import Table
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.table import Table
 
 
 class Palette:
@@ -18,10 +18,10 @@ class Palette:
         return ColorTriplet(*self._colors[number])
 
     def __rich__(self) -> "Table":
-        from pipenv.patched.pip._vendor.rich.color import Color
-        from pipenv.patched.pip._vendor.rich.style import Style
-        from pipenv.patched.pip._vendor.rich.text import Text
-        from pipenv.patched.pip._vendor.rich.table import Table
+        from pipenv.patched.pipenv.patched.pip._vendor.rich.color import Color
+        from pipenv.patched.pipenv.patched.pip._vendor.rich.style import Style
+        from pipenv.patched.pipenv.patched.pip._vendor.rich.text import Text
+        from pipenv.patched.pipenv.patched.pip._vendor.rich.table import Table
 
         table = Table(
             "index",
@@ -75,10 +75,10 @@ class Palette:
 if __name__ == "__main__":  # pragma: no cover
     import colorsys
     from typing import Iterable
-    from pipenv.patched.pip._vendor.rich.color import Color
-    from pipenv.patched.pip._vendor.rich.console import Console, ConsoleOptions
-    from pipenv.patched.pip._vendor.rich.segment import Segment
-    from pipenv.patched.pip._vendor.rich.style import Style
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.color import Color
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console, ConsoleOptions
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.segment import Segment
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.style import Style
 
     class ColorBox:
         def __rich_console__(

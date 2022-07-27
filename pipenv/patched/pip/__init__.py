@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-__version__ = "22.1.2"
+__version__ = "22.2"
 
 
 def main(args: Optional[List[str]] = None) -> int:
@@ -8,6 +8,6 @@ def main(args: Optional[List[str]] = None) -> int:
 
     For additional details, see https://github.com/pypa/pip/issues/7498.
     """
-    from pipenv.patched.pip._internal.utils.entrypoints import _wrapper
+    from pipenv.patched.pipenv.patched.pip._internal.utils.entrypoints import _wrapper
 
     return _wrapper(args)

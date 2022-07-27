@@ -6,12 +6,12 @@ import sys
 import sysconfig
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
-from pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
-from pipenv.patched.pip._internal.utils.compat import WINDOWS
-from pipenv.patched.pip._internal.utils.deprecation import deprecated
-from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
+from pipenv.patched.pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pipenv.patched.pip._internal.utils.deprecation import deprecated
+from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
-from . import _distutils, _sysconfig
+from . import _sysconfig
 from .base import (
     USER_CACHE_DIR,
     get_major_minor_version,
@@ -241,6 +241,8 @@ def get_scheme(
     if _USE_SYSCONFIG:
         return new
 
+    from . import _distutils
+
     old = _distutils.get_scheme(
         dist_name,
         user=user,
@@ -405,6 +407,8 @@ def get_bin_prefix() -> str:
     if _USE_SYSCONFIG:
         return new
 
+    from . import _distutils
+
     old = _distutils.get_bin_prefix()
     if _warn_if_mismatch(pathlib.Path(old), pathlib.Path(new), key="bin_prefix"):
         _log_context()
@@ -438,6 +442,8 @@ def get_purelib() -> str:
     if _USE_SYSCONFIG:
         return new
 
+    from . import _distutils
+
     old = _distutils.get_purelib()
     if _looks_like_deb_system_dist_packages(old):
         return old
@@ -451,6 +457,8 @@ def get_platlib() -> str:
     new = _sysconfig.get_platlib()
     if _USE_SYSCONFIG:
         return new
+
+    from . import _distutils
 
     old = _distutils.get_platlib()
     if _looks_like_deb_system_dist_packages(old):
@@ -479,6 +487,8 @@ def get_prefixed_libs(prefix: str) -> List[str]:
     new_pure, new_plat = _sysconfig.get_prefixed_libs(prefix)
     if _USE_SYSCONFIG:
         return _deduplicated(new_pure, new_plat)
+
+    from . import _distutils
 
     old_pure, old_plat = _distutils.get_prefixed_libs(prefix)
     old_lib_paths = _deduplicated(old_pure, old_plat)

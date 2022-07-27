@@ -1,7 +1,7 @@
-from pipenv.patched.pip._internal.distributions.base import AbstractDistribution
-from pipenv.patched.pip._internal.distributions.sdist import SourceDistribution
-from pipenv.patched.pip._internal.distributions.wheel import WheelDistribution
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pipenv.patched.pip._internal.distributions.base import AbstractDistribution
+from pipenv.patched.pipenv.patched.pip._internal.distributions.sdist import SourceDistribution
+from pipenv.patched.pipenv.patched.pip._internal.distributions.wheel import WheelDistribution
+from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
 
 
 def make_distribution_for_install_requirement(

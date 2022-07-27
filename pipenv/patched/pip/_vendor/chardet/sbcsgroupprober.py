@@ -28,16 +28,20 @@
 
 from .charsetgroupprober import CharSetGroupProber
 from .hebrewprober import HebrewProber
-from .langbulgarianmodel import (ISO_8859_5_BULGARIAN_MODEL,
-                                 WINDOWS_1251_BULGARIAN_MODEL)
+from .langbulgarianmodel import ISO_8859_5_BULGARIAN_MODEL, WINDOWS_1251_BULGARIAN_MODEL
 from .langgreekmodel import ISO_8859_7_GREEK_MODEL, WINDOWS_1253_GREEK_MODEL
 from .langhebrewmodel import WINDOWS_1255_HEBREW_MODEL
+
 # from .langhungarianmodel import (ISO_8859_2_HUNGARIAN_MODEL,
 #                                  WINDOWS_1250_HUNGARIAN_MODEL)
-from .langrussianmodel import (IBM855_RUSSIAN_MODEL, IBM866_RUSSIAN_MODEL,
-                               ISO_8859_5_RUSSIAN_MODEL, KOI8_R_RUSSIAN_MODEL,
-                               MACCYRILLIC_RUSSIAN_MODEL,
-                               WINDOWS_1251_RUSSIAN_MODEL)
+from .langrussianmodel import (
+    IBM855_RUSSIAN_MODEL,
+    IBM866_RUSSIAN_MODEL,
+    ISO_8859_5_RUSSIAN_MODEL,
+    KOI8_R_RUSSIAN_MODEL,
+    MACCYRILLIC_RUSSIAN_MODEL,
+    WINDOWS_1251_RUSSIAN_MODEL,
+)
 from .langthaimodel import TIS_620_THAI_MODEL
 from .langturkishmodel import ISO_8859_9_TURKISH_MODEL
 from .sbcharsetprober import SingleByteCharSetProber
@@ -45,16 +49,17 @@ from .sbcharsetprober import SingleByteCharSetProber
 
 class SBCSGroupProber(CharSetGroupProber):
     def __init__(self):
-        super(SBCSGroupProber, self).__init__()
+        super().__init__()
         hebrew_prober = HebrewProber()
-        logical_hebrew_prober = SingleByteCharSetProber(WINDOWS_1255_HEBREW_MODEL,
-                                                        False, hebrew_prober)
+        logical_hebrew_prober = SingleByteCharSetProber(
+            WINDOWS_1255_HEBREW_MODEL, is_reversed=False, name_prober=hebrew_prober
+        )
         # TODO: See if using ISO-8859-8 Hebrew model works better here, since
         #       it's actually the visual one
-        visual_hebrew_prober = SingleByteCharSetProber(WINDOWS_1255_HEBREW_MODEL,
-                                                       True, hebrew_prober)
-        hebrew_prober.set_model_probers(logical_hebrew_prober,
-                                        visual_hebrew_prober)
+        visual_hebrew_prober = SingleByteCharSetProber(
+            WINDOWS_1255_HEBREW_MODEL, is_reversed=True, name_prober=hebrew_prober
+        )
+        hebrew_prober.set_model_probers(logical_hebrew_prober, visual_hebrew_prober)
         # TODO: ORDER MATTERS HERE. I changed the order vs what was in master
         #       and several tests failed that did not before. Some thought
         #       should be put into the ordering, and we should consider making

@@ -21,12 +21,12 @@
     .. _Pygments master branch:
        https://github.com/pygments/pygments/archive/master.zip#egg=Pygments-dev
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 from io import StringIO, BytesIO
 
-__version__ = '2.11.2'
+__version__ = '2.12.0'
 __docformat__ = 'restructuredtext'
 
 __all__ = ['lex', 'format', 'highlight']

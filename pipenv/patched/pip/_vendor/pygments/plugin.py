@@ -31,7 +31,7 @@
         yourfilter = yourfilter:YourFilter
 
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 LEXER_ENTRY_POINT = 'pygments.lexers'
@@ -42,7 +42,7 @@ FILTER_ENTRY_POINT = 'pygments.filters'
 
 def iter_entry_points(group_name):
     try:
-        from pipenv.patched.pip._vendor import pkg_resources
+        from pipenv.patched.pipenv.patched.pip._vendor import pkg_resources
     except (ImportError, OSError):
         return []
 

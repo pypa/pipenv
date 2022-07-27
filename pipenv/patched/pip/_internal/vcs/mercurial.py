@@ -3,11 +3,11 @@ import logging
 import os
 from typing import List, Optional, Tuple
 
-from pipenv.patched.pip._internal.exceptions import BadCommand, InstallationError
-from pipenv.patched.pip._internal.utils.misc import HiddenText, display_path
-from pipenv.patched.pip._internal.utils.subprocess import make_command
-from pipenv.patched.pip._internal.utils.urls import path_to_url
-from pipenv.patched.pip._internal.vcs.versioncontrol import (
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import BadCommand, InstallationError
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import HiddenText, display_path
+from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import make_command
+from pipenv.patched.pipenv.patched.pip._internal.utils.urls import path_to_url
+from pipenv.patched.pipenv.patched.pip._internal.vcs.versioncontrol import (
     RevOptions,
     VersionControl,
     find_path_to_project_root_from_repo_root,

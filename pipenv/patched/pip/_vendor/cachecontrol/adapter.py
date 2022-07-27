@@ -6,7 +6,7 @@ import types
 import functools
 import zlib
 
-from pipenv.patched.pip._vendor.requests.adapters import HTTPAdapter
+from pipenv.patched.pipenv.patched.pip._vendor.requests.adapters import HTTPAdapter
 
 from .controller import CacheController, PERMANENT_REDIRECT_STATUSES
 from .cache import DictCache

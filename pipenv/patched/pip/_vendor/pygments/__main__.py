@@ -4,12 +4,12 @@
 
     Main entry point for ``python -m pygments``.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
 import sys
-from pipenv.patched.pip._vendor.pygments.cmdline import main
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.cmdline import main
 
 try:
     sys.exit(main(sys.argv))

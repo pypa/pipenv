@@ -3,10 +3,10 @@ import os
 from collections import namedtuple
 from typing import Any, List, Optional
 
-from pipenv.patched.pip._vendor import tomli
-from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement, Requirement
+from pipenv.patched.pipenv.patched.pip._vendor import tomli
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement, Requirement
 
-from pipenv.patched.pip._internal.exceptions import (
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
     InstallationError,
     InvalidPyProjectBuildRequires,
     MissingPyProjectBuildRequires,

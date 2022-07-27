@@ -36,28 +36,28 @@ from typing import (
 )
 from zipfile import ZipFile, ZipInfo
 
-from pipenv.patched.pip._vendor.distlib.scripts import ScriptMaker
-from pipenv.patched.pip._vendor.distlib.util import get_export_entry
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.distlib.scripts import ScriptMaker
+from pipenv.patched.pipenv.patched.pip._vendor.distlib.util import get_export_entry
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pip._internal.exceptions import InstallationError
-from pipenv.patched.pip._internal.locations import get_major_minor_version
-from pipenv.patched.pip._internal.metadata import (
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import InstallationError
+from pipenv.patched.pipenv.patched.pip._internal.locations import get_major_minor_version
+from pipenv.patched.pipenv.patched.pip._internal.metadata import (
     BaseDistribution,
     FilesystemWheel,
     get_wheel_distribution,
 )
-from pipenv.patched.pip._internal.models.direct_url import DIRECT_URL_METADATA_NAME, DirectUrl
-from pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
-from pipenv.patched.pip._internal.utils.filesystem import adjacent_tmp_file, replace
-from pipenv.patched.pip._internal.utils.misc import captured_stdout, ensure_dir, hash_file, partition
-from pipenv.patched.pip._internal.utils.unpacking import (
+from pipenv.patched.pipenv.patched.pip._internal.models.direct_url import DIRECT_URL_METADATA_NAME, DirectUrl
+from pipenv.patched.pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
+from pipenv.patched.pipenv.patched.pip._internal.utils.filesystem import adjacent_tmp_file, replace
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import captured_stdout, ensure_dir, hash_file, partition
+from pipenv.patched.pipenv.patched.pip._internal.utils.unpacking import (
     current_umask,
     is_within_directory,
     set_extracted_file_to_default_mode_plus_executable,
     zip_item_is_executable,
 )
-from pipenv.patched.pip._internal.utils.wheel import parse_wheel
+from pipenv.patched.pipenv.patched.pip._internal.utils.wheel import parse_wheel
 
 if TYPE_CHECKING:
     from typing import Protocol
@@ -224,19 +224,16 @@ def _normalized_outrows(
     )
 
 
-def _record_to_fs_path(record_path: RecordPath) -> str:
-    return record_path
+def _record_to_fs_path(record_path: RecordPath, lib_dir: str) -> str:
+    return os.path.join(lib_dir, record_path)
 
 
-def _fs_to_record_path(path: str, relative_to: Optional[str] = None) -> RecordPath:
-    if relative_to is not None:
-        # On Windows, do not handle relative paths if they belong to different
-        # logical disks
-        if (
-            os.path.splitdrive(path)[0].lower()
-            == os.path.splitdrive(relative_to)[0].lower()
-        ):
-            path = os.path.relpath(path, relative_to)
+def _fs_to_record_path(path: str, lib_dir: str) -> RecordPath:
+    # On Windows, do not handle relative paths if they belong to different
+    # logical disks
+    if os.path.splitdrive(path)[0].lower() == os.path.splitdrive(lib_dir)[0].lower():
+        path = os.path.relpath(path, lib_dir)
+
     path = path.replace(os.path.sep, "/")
     return cast("RecordPath", path)
 
@@ -259,7 +256,7 @@ def get_csv_rows_for_installed(
         old_record_path = cast("RecordPath", row[0])
         new_record_path = installed.pop(old_record_path, old_record_path)
         if new_record_path in changed:
-            digest, length = rehash(_record_to_fs_path(new_record_path))
+            digest, length = rehash(_record_to_fs_path(new_record_path, lib_dir))
         else:
             digest = row[1] if len(row) > 1 else ""
             length = row[2] if len(row) > 2 else ""
@@ -475,7 +472,7 @@ def _install_wheel(
         newpath = _fs_to_record_path(destfile, lib_dir)
         installed[srcfile] = newpath
         if modified:
-            changed.add(_fs_to_record_path(destfile))
+            changed.add(newpath)
 
     def is_dir_path(path: RecordPath) -> bool:
         return path.endswith("/")

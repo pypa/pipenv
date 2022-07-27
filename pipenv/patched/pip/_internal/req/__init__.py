@@ -2,7 +2,7 @@ import collections
 import logging
 from typing import Generator, List, Optional, Sequence, Tuple
 
-from pipenv.patched.pip._internal.utils.logging import indent_log
+from pipenv.patched.pipenv.patched.pip._internal.utils.logging import indent_log
 
 from .req_file import parse_requirements
 from .req_install import InstallRequirement

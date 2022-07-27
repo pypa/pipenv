@@ -7,13 +7,25 @@ import zipfile
 import zipimport
 from typing import Iterator, List, Optional, Sequence, Set, Tuple
 
-from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
 
-from pipenv.patched.pip._internal.metadata.base import BaseDistribution, BaseEnvironment
-from pipenv.patched.pip._internal.utils.deprecation import deprecated
+from pipenv.patched.pipenv.patched.pip._internal.metadata.base import BaseDistribution, BaseEnvironment
+from pipenv.patched.pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pipenv.patched.pip._internal.utils.deprecation import deprecated
+from pipenv.patched.pipenv.patched.pip._internal.utils.filetypes import WHEEL_EXTENSION
 
 from ._compat import BasePath, get_dist_name, get_info_location
 from ._dists import Distribution
+
+
+def _looks_like_wheel(location: str) -> bool:
+    if not location.endswith(WHEEL_EXTENSION):
+        return False
+    if not os.path.isfile(location):
+        return False
+    if not Wheel.wheel_file_re.match(os.path.basename(location)):
+        return False
+    return zipfile.is_zipfile(location)
 
 
 class _DistributionFinder:
@@ -36,6 +48,11 @@ class _DistributionFinder:
 
     def _find_impl(self, location: str) -> Iterator[FoundResult]:
         """Find distributions in a location."""
+        # Skip looking inside a wheel. Since a package inside a wheel is not
+        # always valid (due to .data directories etc.), its .dist-info entry
+        # should not be considered an installed distribution.
+        if _looks_like_wheel(location):
+            return
         # To know exactly where we find a distribution, we have to feed in the
         # paths one by one, instead of dumping the list to importlib.metadata.
         for dist in importlib.metadata.distributions(path=[location]):
@@ -83,9 +100,9 @@ class _DistributionFinder:
                 yield Distribution(dist, info_location, path)
 
     def _find_eggs_in_dir(self, location: str) -> Iterator[BaseDistribution]:
-        from pipenv.patched.pip._vendor.pkg_resources import find_distributions
+        from pipenv.patched.pipenv.patched.pip._vendor.pkg_resources import find_distributions
 
-        from pipenv.patched.pip._internal.metadata import pkg_resources as legacy
+        from pipenv.patched.pipenv.patched.pip._internal.metadata import pkg_resources as legacy
 
         with os.scandir(location) as it:
             for entry in it:
@@ -95,9 +112,9 @@ class _DistributionFinder:
                     yield legacy.Distribution(dist)
 
     def _find_eggs_in_zip(self, location: str) -> Iterator[BaseDistribution]:
-        from pipenv.patched.pip._vendor.pkg_resources import find_eggs_in_zip
+        from pipenv.patched.pipenv.patched.pip._vendor.pkg_resources import find_eggs_in_zip
 
-        from pipenv.patched.pip._internal.metadata import pkg_resources as legacy
+        from pipenv.patched.pipenv.patched.pip._internal.metadata import pkg_resources as legacy
 
         try:
             importer = zipimport.zipimporter(location)

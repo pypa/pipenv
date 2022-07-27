@@ -7,9 +7,9 @@ from email.parser import Parser
 from typing import Tuple
 from zipfile import BadZipFile, ZipFile
 
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pip._internal.exceptions import UnsupportedWheel
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import UnsupportedWheel
 
 VERSION_COMPATIBLE = (1, 0)
 

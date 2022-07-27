@@ -6,7 +6,7 @@ import tempfile
 from contextlib import ExitStack, contextmanager
 from typing import Any, Dict, Generator, Optional, TypeVar, Union
 
-from pipenv.patched.pip._internal.utils.misc import enum, rmtree
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import enum, rmtree
 
 logger = logging.getLogger(__name__)
 

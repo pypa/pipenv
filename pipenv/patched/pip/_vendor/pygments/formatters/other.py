@@ -4,14 +4,14 @@
 
     Other formatters: NullFormatter, RawTokenFormatter.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
-from pipenv.patched.pip._vendor.pygments.formatter import Formatter
-from pipenv.patched.pip._vendor.pygments.util import get_choice_opt
-from pipenv.patched.pip._vendor.pygments.token import Token
-from pipenv.patched.pip._vendor.pygments.console import colorize
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatter import Formatter
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import get_choice_opt
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import Token
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.console import colorize
 
 __all__ = ['NullFormatter', 'RawTokenFormatter', 'TestcaseFormatter']
 

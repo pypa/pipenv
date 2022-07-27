@@ -1,18 +1,35 @@
-from typing import Callable, Dict, Iterable, List, TYPE_CHECKING, Union
+import sys
+import time
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Union
+
+if sys.version_info >= (3, 8):
+    from typing import Final
+else:
+    from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import Final  # pragma: no cover
 
 from .segment import ControlCode, ControlType, Segment
 
 if TYPE_CHECKING:
     from .console import Console, ConsoleOptions, RenderResult
 
-STRIP_CONTROL_CODES = [
+STRIP_CONTROL_CODES: Final = [
+    7,  # Bell
     8,  # Backspace
     11,  # Vertical tab
     12,  # Form feed
     13,  # Carriage return
 ]
-_CONTROL_TRANSLATE = {_codepoint: None for _codepoint in STRIP_CONTROL_CODES}
+_CONTROL_STRIP_TRANSLATE: Final = {
+    _codepoint: None for _codepoint in STRIP_CONTROL_CODES
+}
 
+CONTROL_ESCAPE: Final = {
+    7: "\\a",
+    8: "\\b",
+    11: "\\v",
+    12: "\\f",
+    13: "\\r",
+}
 
 CONTROL_CODES_FORMAT: Dict[int, Callable[..., str]] = {
     ControlType.BELL: lambda: "\x07",
@@ -30,6 +47,7 @@ CONTROL_CODES_FORMAT: Dict[int, Callable[..., str]] = {
     ControlType.CURSOR_MOVE_TO_COLUMN: lambda param: f"\x1b[{param+1}G",
     ControlType.ERASE_IN_LINE: lambda param: f"\x1b[{param}K",
     ControlType.CURSOR_MOVE_TO: lambda x, y: f"\x1b[{y+1};{x+1}H",
+    ControlType.SET_WINDOW_TITLE: lambda title: f"\x1b]0;{title}\x07",
 }
 
 
@@ -147,6 +165,15 @@ class Control:
         else:
             return cls(ControlType.DISABLE_ALT_SCREEN)
 
+    @classmethod
+    def title(cls, title: str) -> "Control":
+        """Set the terminal window title
+
+        Args:
+            title (str): The new terminal window title
+        """
+        return cls((ControlType.SET_WINDOW_TITLE, title))
+
     def __str__(self) -> str:
         return self.segment.text
 
@@ -158,7 +185,7 @@ class Control:
 
 
 def strip_control_codes(
-    text: str, _translate_table: Dict[int, None] = _CONTROL_TRANSLATE
+    text: str, _translate_table: Dict[int, None] = _CONTROL_STRIP_TRANSLATE
 ) -> str:
     """Remove control codes from text.
 
@@ -171,5 +198,28 @@ def strip_control_codes(
     return text.translate(_translate_table)
 
 
+def escape_control_codes(
+    text: str,
+    _translate_table: Dict[int, str] = CONTROL_ESCAPE,
+) -> str:
+    """Replace control codes with their "escaped" equivalent in the given text.
+    (e.g. "\b" becomes "\\b")
+
+    Args:
+        text (str): A string possibly containing control codes.
+
+    Returns:
+        str: String with control codes replaced with their escaped version.
+    """
+    return text.translate(_translate_table)
+
+
 if __name__ == "__main__":  # pragma: no cover
-    print(strip_control_codes("hello\rWorld"))
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
+
+    console = Console()
+    console.print("Look at the title of your terminal window ^")
+    # console.print(Control((ControlType.SET_WINDOW_TITLE, "Hello, world!")))
+    for i in range(10):
+        console.set_window_title("🚀 Loading" + "." * i)
+        time.sleep(0.5)

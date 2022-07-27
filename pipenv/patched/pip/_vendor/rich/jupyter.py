@@ -1,11 +1,14 @@
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Sequence
+
+if TYPE_CHECKING:
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import ConsoleRenderable
 
 from . import get_console
 from .segment import Segment
 from .terminal_theme import DEFAULT_TERMINAL_THEME
 
 if TYPE_CHECKING:
-    from pipenv.patched.pip._vendor.rich.console import ConsoleRenderable
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import ConsoleRenderable
 
 JUPYTER_HTML_FORMAT = """\
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">{code}</pre>
@@ -20,7 +23,7 @@ class JupyterRenderable:
         self.text = text
 
     def _repr_mimebundle_(
-        self, include: Iterable[str], exclude: Iterable[str], **kwargs: Any
+        self, include: Sequence[str], exclude: Sequence[str], **kwargs: Any
     ) -> Dict[str, str]:
         data = {"text/plain": self.text, "text/html": self.html}
         if include:
@@ -37,8 +40,8 @@ class JupyterMixin:
 
     def _repr_mimebundle_(
         self: "ConsoleRenderable",
-        include: Iterable[str],
-        exclude: Iterable[str],
+        include: Sequence[str],
+        exclude: Sequence[str],
         **kwargs: Any,
     ) -> Dict[str, str]:
         console = get_console()

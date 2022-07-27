@@ -5,8 +5,8 @@ import sys
 import time
 from typing import IO, Generator
 
-from pipenv.patched.pip._internal.utils.compat import WINDOWS
-from pipenv.patched.pip._internal.utils.logging import get_indentation
+from pipenv.patched.pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pipenv.patched.pip._internal.utils.logging import get_indentation
 
 logger = logging.getLogger(__name__)
 

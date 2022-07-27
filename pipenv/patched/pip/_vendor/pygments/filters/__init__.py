@@ -5,18 +5,18 @@
     Module containing filter lookup functions and default
     filters.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
 import re
 
-from pipenv.patched.pip._vendor.pygments.token import String, Comment, Keyword, Name, Error, Whitespace, \
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import String, Comment, Keyword, Name, Error, Whitespace, \
     string_to_tokentype
-from pipenv.patched.pip._vendor.pygments.filter import Filter
-from pipenv.patched.pip._vendor.pygments.util import get_list_opt, get_int_opt, get_bool_opt, \
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.filter import Filter
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import get_list_opt, get_int_opt, get_bool_opt, \
     get_choice_opt, ClassNotFound, OptionError
-from pipenv.patched.pip._vendor.pygments.plugin import find_plugin_filters
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.plugin import find_plugin_filters
 
 
 def find_filter_class(filtername):

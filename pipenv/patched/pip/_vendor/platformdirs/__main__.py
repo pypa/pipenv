@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pipenv.patched.pip._vendor.platformdirs import PlatformDirs, __version__
+from pipenv.patched.pipenv.patched.pip._vendor.platformdirs import PlatformDirs, __version__
 
 PROPS = (
     "user_data_dir",

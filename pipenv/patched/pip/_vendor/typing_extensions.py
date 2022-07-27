@@ -37,6 +37,7 @@ __all__ = [
     'Counter',
     'Deque',
     'DefaultDict',
+    'NamedTuple',
     'OrderedDict',
     'TypedDict',
 
@@ -380,6 +381,46 @@ def _is_callable_members_only(cls):
     return all(callable(getattr(cls, attr, None)) for attr in _get_protocol_attrs(cls))
 
 
+def _maybe_adjust_parameters(cls):
+    """Helper function used in Protocol.__init_subclass__ and _TypedDictMeta.__new__.
+
+    The contents of this function are very similar
+    to logic found in typing.Generic.__init_subclass__
+    on the CPython main branch.
+    """
+    tvars = []
+    if '__orig_bases__' in cls.__dict__:
+        tvars = typing._collect_type_vars(cls.__orig_bases__)
+        # Look for Generic[T1, ..., Tn] or Protocol[T1, ..., Tn].
+        # If found, tvars must be a subset of it.
+        # If not found, tvars is it.
+        # Also check for and reject plain Generic,
+        # and reject multiple Generic[...] and/or Protocol[...].
+        gvars = None
+        for base in cls.__orig_bases__:
+            if (isinstance(base, typing._GenericAlias) and
+                    base.__origin__ in (typing.Generic, Protocol)):
+                # for error messages
+                the_base = base.__origin__.__name__
+                if gvars is not None:
+                    raise TypeError(
+                        "Cannot inherit from Generic[...]"
+                        " and/or Protocol[...] multiple types.")
+                gvars = base.__parameters__
+        if gvars is None:
+            gvars = tvars
+        else:
+            tvarset = set(tvars)
+            gvarset = set(gvars)
+            if not tvarset <= gvarset:
+                s_vars = ', '.join(str(t) for t in tvars if t not in gvarset)
+                s_args = ', '.join(str(g) for g in gvars)
+                raise TypeError(f"Some type variables ({s_vars}) are"
+                                f" not listed in {the_base}[{s_args}]")
+            tvars = gvars
+    cls.__parameters__ = tuple(tvars)
+
+
 # 3.8+
 if hasattr(typing, 'Protocol'):
     Protocol = typing.Protocol
@@ -476,43 +517,13 @@ else:
             return typing._GenericAlias(cls, params)
 
         def __init_subclass__(cls, *args, **kwargs):
-            tvars = []
             if '__orig_bases__' in cls.__dict__:
                 error = typing.Generic in cls.__orig_bases__
             else:
                 error = typing.Generic in cls.__bases__
             if error:
                 raise TypeError("Cannot inherit from plain Generic")
-            if '__orig_bases__' in cls.__dict__:
-                tvars = typing._collect_type_vars(cls.__orig_bases__)
-                # Look for Generic[T1, ..., Tn] or Protocol[T1, ..., Tn].
-                # If found, tvars must be a subset of it.
-                # If not found, tvars is it.
-                # Also check for and reject plain Generic,
-                # and reject multiple Generic[...] and/or Protocol[...].
-                gvars = None
-                for base in cls.__orig_bases__:
-                    if (isinstance(base, typing._GenericAlias) and
-                            base.__origin__ in (typing.Generic, Protocol)):
-                        # for error messages
-                        the_base = base.__origin__.__name__
-                        if gvars is not None:
-                            raise TypeError(
-                                "Cannot inherit from Generic[...]"
-                                " and/or Protocol[...] multiple types.")
-                        gvars = base.__parameters__
-                if gvars is None:
-                    gvars = tvars
-                else:
-                    tvarset = set(tvars)
-                    gvarset = set(gvars)
-                    if not tvarset <= gvarset:
-                        s_vars = ', '.join(str(t) for t in tvars if t not in gvarset)
-                        s_args = ', '.join(str(g) for g in gvars)
-                        raise TypeError(f"Some type variables ({s_vars}) are"
-                                        f" not listed in {the_base}[{s_args}]")
-                    tvars = gvars
-            cls.__parameters__ = tuple(tvars)
+            _maybe_adjust_parameters(cls)
 
             # Determine if this is a protocol or a concrete subclass.
             if not cls.__dict__.get('_is_protocol', None):
@@ -613,6 +624,7 @@ if hasattr(typing, "Required"):
     # keyword with old-style TypedDict().  See https://bugs.python.org/issue42059
     # The standard library TypedDict below Python 3.11 does not store runtime
     # information about optional and required keys when using Required or NotRequired.
+    # Generic TypedDicts are also impossible using typing.TypedDict on Python <3.11.
     TypedDict = typing.TypedDict
     _TypedDictMeta = typing._TypedDictMeta
     is_typeddict = typing.is_typeddict
@@ -695,7 +707,15 @@ else:
             # Subclasses and instances of TypedDict return actual dictionaries
             # via _dict_new.
             ns['__new__'] = _typeddict_new if name == 'TypedDict' else _dict_new
+            # Don't insert typing.Generic into __bases__ here,
+            # or Generic.__init_subclass__ will raise TypeError
+            # in the super().__new__() call.
+            # Instead, monkey-patch __bases__ onto the class after it's been created.
             tp_dict = super().__new__(cls, name, (dict,), ns)
+
+            if any(issubclass(base, typing.Generic) for base in bases):
+                tp_dict.__bases__ = (typing.Generic, dict)
+                _maybe_adjust_parameters(tp_dict)
 
             annotations = {}
             own_annotations = ns.get('__annotations__', {})
@@ -1520,7 +1540,7 @@ else:
 
         Example::
 
-          from pipenv.patched.pip._vendor.typing_extensions import LiteralString
+          from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import LiteralString
 
           def query(sql: LiteralString) -> ...:
               ...
@@ -1565,7 +1585,7 @@ else:
         This can be used to define a function that should never be
         called, or a function that never returns::
 
-            from pipenv.patched.pip._vendor.typing_extensions import Never
+            from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import Never
 
             def never_call_me(arg: Never) -> None:
                 pass
@@ -1882,7 +1902,7 @@ else:
 
         Example:
 
-            from pipenv.patched.pip._vendor.typing_extensions import dataclass_transform
+            from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import dataclass_transform
 
             _T = TypeVar("_T")
 
@@ -1958,3 +1978,92 @@ else:
 if not hasattr(typing, "TypeVarTuple"):
     typing._collect_type_vars = _collect_type_vars
     typing._check_generic = _check_generic
+
+
+# Backport typing.NamedTuple as it exists in Python 3.11.
+# In 3.11, the ability to define generic `NamedTuple`s was supported.
+# This was explicitly disallowed in 3.9-3.10, and only half-worked in <=3.8.
+if sys.version_info >= (3, 11):
+    NamedTuple = typing.NamedTuple
+else:
+    def _caller():
+        try:
+            return sys._getframe(2).f_globals.get('__name__', '__main__')
+        except (AttributeError, ValueError):  # For platforms without _getframe()
+            return None
+
+    def _make_nmtuple(name, types, module, defaults=()):
+        fields = [n for n, t in types]
+        annotations = {n: typing._type_check(t, f"field {n} annotation must be a type")
+                       for n, t in types}
+        nm_tpl = collections.namedtuple(name, fields,
+                                        defaults=defaults, module=module)
+        nm_tpl.__annotations__ = nm_tpl.__new__.__annotations__ = annotations
+        # The `_field_types` attribute was removed in 3.9;
+        # in earlier versions, it is the same as the `__annotations__` attribute
+        if sys.version_info < (3, 9):
+            nm_tpl._field_types = annotations
+        return nm_tpl
+
+    _prohibited_namedtuple_fields = typing._prohibited
+    _special_namedtuple_fields = frozenset({'__module__', '__name__', '__annotations__'})
+
+    class _NamedTupleMeta(type):
+        def __new__(cls, typename, bases, ns):
+            assert _NamedTuple in bases
+            for base in bases:
+                if base is not _NamedTuple and base is not typing.Generic:
+                    raise TypeError(
+                        'can only inherit from a NamedTuple type and Generic')
+            bases = tuple(tuple if base is _NamedTuple else base for base in bases)
+            types = ns.get('__annotations__', {})
+            default_names = []
+            for field_name in types:
+                if field_name in ns:
+                    default_names.append(field_name)
+                elif default_names:
+                    raise TypeError(f"Non-default namedtuple field {field_name} "
+                                    f"cannot follow default field"
+                                    f"{'s' if len(default_names) > 1 else ''} "
+                                    f"{', '.join(default_names)}")
+            nm_tpl = _make_nmtuple(
+                typename, types.items(),
+                defaults=[ns[n] for n in default_names],
+                module=ns['__module__']
+            )
+            nm_tpl.__bases__ = bases
+            if typing.Generic in bases:
+                class_getitem = typing.Generic.__class_getitem__.__func__
+                nm_tpl.__class_getitem__ = classmethod(class_getitem)
+            # update from user namespace without overriding special namedtuple attributes
+            for key in ns:
+                if key in _prohibited_namedtuple_fields:
+                    raise AttributeError("Cannot overwrite NamedTuple attribute " + key)
+                elif key not in _special_namedtuple_fields and key not in nm_tpl._fields:
+                    setattr(nm_tpl, key, ns[key])
+            if typing.Generic in bases:
+                nm_tpl.__init_subclass__()
+            return nm_tpl
+
+    def NamedTuple(__typename, __fields=None, **kwargs):
+        if __fields is None:
+            __fields = kwargs.items()
+        elif kwargs:
+            raise TypeError("Either list of fields or keywords"
+                            " can be provided to NamedTuple, not both")
+        return _make_nmtuple(__typename, __fields, module=_caller())
+
+    NamedTuple.__doc__ = typing.NamedTuple.__doc__
+    _NamedTuple = type.__new__(_NamedTupleMeta, 'NamedTuple', (), {})
+
+    # On 3.8+, alter the signature so that it matches typing.NamedTuple.
+    # The signature of typing.NamedTuple on >=3.8 is invalid syntax in Python 3.7,
+    # so just leave the signature as it is on 3.7.
+    if sys.version_info >= (3, 8):
+        NamedTuple.__text_signature__ = '(typename, fields=None, /, **kwargs)'
+
+    def _namedtuple_mro_entries(bases):
+        assert NamedTuple in bases
+        return (_NamedTuple,)
+
+    NamedTuple.__mro_entries__ = _namedtuple_mro_entries

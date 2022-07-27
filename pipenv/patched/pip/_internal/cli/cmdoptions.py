@@ -19,16 +19,16 @@ from optparse import SUPPRESS_HELP, Option, OptionGroup, OptionParser, Values
 from textwrap import dedent
 from typing import Any, Callable, Dict, Optional, Tuple
 
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pip._internal.cli.parser import ConfigOptionParser
-from pipenv.patched.pip._internal.exceptions import CommandError
-from pipenv.patched.pip._internal.locations import USER_CACHE_DIR, get_src_prefix
-from pipenv.patched.pip._internal.models.format_control import FormatControl
-from pipenv.patched.pip._internal.models.index import PyPI
-from pipenv.patched.pip._internal.models.target_python import TargetPython
-from pipenv.patched.pip._internal.utils.hashes import STRONG_HASHES
-from pipenv.patched.pip._internal.utils.misc import strtobool
+from pipenv.patched.pipenv.patched.pip._internal.cli.parser import ConfigOptionParser
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import CommandError
+from pipenv.patched.pipenv.patched.pip._internal.locations import USER_CACHE_DIR, get_src_prefix
+from pipenv.patched.pipenv.patched.pip._internal.models.format_control import FormatControl
+from pipenv.patched.pipenv.patched.pip._internal.models.index import PyPI
+from pipenv.patched.pipenv.patched.pip._internal.models.target_python import TargetPython
+from pipenv.patched.pipenv.patched.pip._internal.utils.hashes import STRONG_HASHES
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import strtobool
 
 logger = logging.getLogger(__name__)
 
@@ -1000,7 +1000,7 @@ use_new_feature: Callable[..., Option] = partial(
     metavar="feature",
     action="append",
     default=[],
-    choices=["2020-resolver", "fast-deps"],
+    choices=["2020-resolver", "fast-deps", "truststore"],
     help="Enable new functionality, that may be backward incompatible.",
 )
 
@@ -1013,8 +1013,6 @@ use_deprecated_feature: Callable[..., Option] = partial(
     default=[],
     choices=[
         "legacy-resolver",
-        "backtrack-on-build-failures",
-        "html5lib",
     ],
     help=("Enable deprecated functionality, that will be removed in the future."),
 )

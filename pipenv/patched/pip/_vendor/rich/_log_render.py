@@ -87,7 +87,7 @@ class LogRender:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    from pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
 
     c = Console()
     c.print("[on blue]Hello", justify="right")

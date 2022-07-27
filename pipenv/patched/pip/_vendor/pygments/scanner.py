@@ -11,7 +11,7 @@
     Have a look at the `DelphiLexer` to get an idea of how to use
     this scanner.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 import re
@@ -72,7 +72,7 @@ class Scanner:
     def scan(self, pattern):
         """
         Scan the text for the given pattern and update pos/match
-        and related fields. The return value is a boolen that
+        and related fields. The return value is a boolean that
         indicates if the pattern matched. The matched value is
         stored on the instance as ``match``, the last value is
         stored as ``last``. ``start_pos`` is the position of the

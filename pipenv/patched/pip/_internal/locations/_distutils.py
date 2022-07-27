@@ -12,9 +12,9 @@ from distutils.command.install import install as distutils_install_command
 from distutils.sysconfig import get_python_lib
 from typing import Dict, List, Optional, Tuple, Union, cast
 
-from pipenv.patched.pip._internal.models.scheme import Scheme
-from pipenv.patched.pip._internal.utils.compat import WINDOWS
-from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.pipenv.patched.pip._internal.models.scheme import Scheme
+from pipenv.patched.pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
 from .base import get_major_minor_version
 

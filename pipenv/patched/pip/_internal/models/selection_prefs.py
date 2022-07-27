@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pipenv.patched.pip._internal.models.format_control import FormatControl
+from pipenv.patched.pipenv.patched.pip._internal.models.format_control import FormatControl
 
 
 class SelectionPreferences:

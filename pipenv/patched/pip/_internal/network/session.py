@@ -15,27 +15,45 @@ import subprocess
 import sys
 import urllib.parse
 import warnings
-from typing import Any, Dict, Generator, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generator,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
-from pipenv.patched.pip._vendor import requests, urllib3
-from pipenv.patched.pip._vendor.cachecontrol import CacheControlAdapter
-from pipenv.patched.pip._vendor.requests.adapters import BaseAdapter, HTTPAdapter
-from pipenv.patched.pip._vendor.requests.models import PreparedRequest, Response
-from pipenv.patched.pip._vendor.requests.structures import CaseInsensitiveDict
-from pipenv.patched.pip._vendor.urllib3.connectionpool import ConnectionPool
-from pipenv.patched.pip._vendor.urllib3.exceptions import InsecureRequestWarning
+from pipenv.patched.pipenv.patched.pip._vendor import requests, urllib3
+from pipenv.patched.pipenv.patched.pip._vendor.cachecontrol import CacheControlAdapter as _BaseCacheControlAdapter
+from pipenv.patched.pipenv.patched.pip._vendor.requests.adapters import DEFAULT_POOLBLOCK, BaseAdapter
+from pipenv.patched.pipenv.patched.pip._vendor.requests.adapters import HTTPAdapter as _BaseHTTPAdapter
+from pipenv.patched.pipenv.patched.pip._vendor.requests.models import PreparedRequest, Response
+from pipenv.patched.pipenv.patched.pip._vendor.requests.structures import CaseInsensitiveDict
+from pipenv.patched.pipenv.patched.pip._vendor.urllib3.connectionpool import ConnectionPool
+from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import InsecureRequestWarning
 
 from pipenv.patched.pip import __version__
-from pipenv.patched.pip._internal.metadata import get_default_environment
-from pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pip._internal.network.auth import MultiDomainBasicAuth
-from pipenv.patched.pip._internal.network.cache import SafeFileCache
+from pipenv.patched.pipenv.patched.pip._internal.metadata import get_default_environment
+from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pipenv.patched.pip._internal.network.auth import MultiDomainBasicAuth
+from pipenv.patched.pipenv.patched.pip._internal.network.cache import SafeFileCache
 
 # Import ssl from compat so the initial import occurs in only one place.
-from pipenv.patched.pip._internal.utils.compat import has_tls
-from pipenv.patched.pip._internal.utils.glibc import libc_ver
-from pipenv.patched.pip._internal.utils.misc import build_url_from_netloc, parse_netloc
-from pipenv.patched.pip._internal.utils.urls import url_to_path
+from pipenv.patched.pipenv.patched.pip._internal.utils.compat import has_tls
+from pipenv.patched.pipenv.patched.pip._internal.utils.glibc import libc_ver
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import build_url_from_netloc, parse_netloc
+from pipenv.patched.pipenv.patched.pip._internal.utils.urls import url_to_path
+
+if TYPE_CHECKING:
+    from ssl import SSLContext
+
+    from pipenv.patched.pipenv.patched.pip._vendor.urllib3.poolmanager import PoolManager
+
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +135,7 @@ def user_agent() -> str:
         data["implementation"]["version"] = platform.python_version()
 
     if sys.platform.startswith("linux"):
-        from pipenv.patched.pip._vendor import distro
+        from pipenv.patched.pipenv.patched.pip._vendor import distro
 
         linux_distribution = distro.name(), distro.version(), distro.codename()
         distro_infos: Dict[str, Any] = dict(
@@ -233,6 +251,48 @@ class LocalFSAdapter(BaseAdapter):
         pass
 
 
+class _SSLContextAdapterMixin:
+    """Mixin to add the ``ssl_context`` constructor argument to HTTP adapters.
+
+    The additional argument is forwarded directly to the pool manager. This allows us
+    to dynamically decide what SSL store to use at runtime, which is used to implement
+    the optional ``truststore`` backend.
+    """
+
+    def __init__(
+        self,
+        *,
+        ssl_context: Optional["SSLContext"] = None,
+        **kwargs: Any,
+    ) -> None:
+        self._ssl_context = ssl_context
+        super().__init__(**kwargs)
+
+    def init_poolmanager(
+        self,
+        connections: int,
+        maxsize: int,
+        block: bool = DEFAULT_POOLBLOCK,
+        **pool_kwargs: Any,
+    ) -> "PoolManager":
+        if self._ssl_context is not None:
+            pool_kwargs.setdefault("ssl_context", self._ssl_context)
+        return super().init_poolmanager(  # type: ignore[misc]
+            connections=connections,
+            maxsize=maxsize,
+            block=block,
+            **pool_kwargs,
+        )
+
+
+class HTTPAdapter(_SSLContextAdapterMixin, _BaseHTTPAdapter):
+    pass
+
+
+class CacheControlAdapter(_SSLContextAdapterMixin, _BaseCacheControlAdapter):
+    pass
+
+
 class InsecureHTTPAdapter(HTTPAdapter):
     def cert_verify(
         self,
@@ -266,6 +326,7 @@ class PipSession(requests.Session):
         cache: Optional[str] = None,
         trusted_hosts: Sequence[str] = (),
         index_urls: Optional[List[str]] = None,
+        ssl_context: Optional["SSLContext"] = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -318,13 +379,14 @@ class PipSession(requests.Session):
             secure_adapter = CacheControlAdapter(
                 cache=SafeFileCache(cache),
                 max_retries=retries,
+                ssl_context=ssl_context,
             )
             self._trusted_host_adapter = InsecureCacheControlAdapter(
                 cache=SafeFileCache(cache),
                 max_retries=retries,
             )
         else:
-            secure_adapter = HTTPAdapter(max_retries=retries)
+            secure_adapter = HTTPAdapter(max_retries=retries, ssl_context=ssl_context)
             self._trusted_host_adapter = insecure_adapter
 
         self.mount("https://", secure_adapter)
@@ -403,7 +465,7 @@ class PipSession(requests.Session):
                 continue
 
             try:
-                addr = ipaddress.ip_address(origin_host)
+                addr = ipaddress.ip_address(origin_host or "")
                 network = ipaddress.ip_network(secure_host)
             except ValueError:
                 # We don't have both a valid address or a valid network, so

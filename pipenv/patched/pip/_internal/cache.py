@@ -5,19 +5,23 @@ import hashlib
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-from pipenv.patched.pip._vendor.packaging.tags import Tag, interpreter_name, interpreter_version
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.tags import Tag, interpreter_name, interpreter_version
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pip._internal.exceptions import InvalidWheelFilename
-from pipenv.patched.pip._internal.models.format_control import FormatControl
-from pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pip._internal.models.wheel import Wheel
-from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
-from pipenv.patched.pip._internal.utils.urls import path_to_url
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import InvalidWheelFilename
+from pipenv.patched.pipenv.patched.pip._internal.models.direct_url import DirectUrl
+from pipenv.patched.pipenv.patched.pip._internal.models.format_control import FormatControl
+from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
+from pipenv.patched.pipenv.patched.pip._internal.utils.urls import path_to_url
 
 logger = logging.getLogger(__name__)
+
+ORIGIN_JSON_NAME = "origin.json"
 
 
 def _hash_dict(d: Dict[str, str]) -> str:
@@ -204,6 +208,10 @@ class CacheEntry:
     ):
         self.link = link
         self.persistent = persistent
+        self.origin: Optional[DirectUrl] = None
+        origin_direct_url_path = Path(self.link.file_path).parent / ORIGIN_JSON_NAME
+        if origin_direct_url_path.exists():
+            self.origin = DirectUrl.from_json(origin_direct_url_path.read_text())
 
 
 class WheelCache(Cache):
@@ -262,3 +270,20 @@ class WheelCache(Cache):
             return CacheEntry(retval, persistent=False)
 
         return None
+
+    @staticmethod
+    def record_download_origin(cache_dir: str, download_info: DirectUrl) -> None:
+        origin_path = Path(cache_dir) / ORIGIN_JSON_NAME
+        if origin_path.is_file():
+            origin = DirectUrl.from_json(origin_path.read_text())
+            # TODO: use DirectUrl.equivalent when https://github.com/pypa/pip/pull/10564
+            # is merged.
+            if origin.url != download_info.url:
+                logger.warning(
+                    "Origin URL %s in cache entry %s does not match download URL %s. "
+                    "This is likely a pip bug or a cache corruption issue.",
+                    origin.url,
+                    cache_dir,
+                    download_info.url,
+                )
+        origin_path.write_text(download_info.to_json(), encoding="utf-8")

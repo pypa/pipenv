@@ -46,7 +46,8 @@ _EscapeSubMethod = Callable[[_ReSubCallable, str], str]  # Sub method of a compi
 
 
 def escape(
-    markup: str, _escape: _EscapeSubMethod = re.compile(r"(\\*)(\[[a-z#\/@].*?\])").sub
+    markup: str,
+    _escape: _EscapeSubMethod = re.compile(r"(\\*)(\[[a-z#/@][^[]*?])").sub,
 ) -> str:
     """Escapes text so that it won't be interpreted as markup.
 
@@ -234,8 +235,8 @@ if __name__ == "__main__":  # pragma: no cover
         ":warning-emoji: [bold red blink] DANGER![/]",
     ]
 
-    from pipenv.patched.pip._vendor.rich import print
-    from pipenv.patched.pip._vendor.rich.table import Table
+    from pipenv.patched.pipenv.patched.pip._vendor.rich import print
+    from pipenv.patched.pipenv.patched.pip._vendor.rich.table import Table
 
     grid = Table("Markup", "Result", padding=(0, 1))
 

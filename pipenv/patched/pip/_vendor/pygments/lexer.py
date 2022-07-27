@@ -4,7 +4,7 @@
 
     Base lexer classes.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -12,12 +12,12 @@ import re
 import sys
 import time
 
-from pipenv.patched.pip._vendor.pygments.filter import apply_filters, Filter
-from pipenv.patched.pip._vendor.pygments.filters import get_filter_by_name
-from pipenv.patched.pip._vendor.pygments.token import Error, Text, Other, _TokenType
-from pipenv.patched.pip._vendor.pygments.util import get_bool_opt, get_int_opt, get_list_opt, \
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.filter import apply_filters, Filter
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.filters import get_filter_by_name
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import Error, Text, Other, _TokenType
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import get_bool_opt, get_int_opt, get_list_opt, \
     make_analysator, Future, guess_decode
-from pipenv.patched.pip._vendor.pygments.regexopt import regex_opt
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.regexopt import regex_opt
 
 __all__ = ['Lexer', 'RegexLexer', 'ExtendedRegexLexer', 'DelegatingLexer',
            'LexerContext', 'include', 'inherit', 'bygroups', 'using', 'this',
@@ -75,6 +75,9 @@ class Lexer(metaclass=LexerMeta):
 
     #: Name of the lexer
     name = None
+
+    #: URL of the language specification/definition
+    url = None
 
     #: Shortcuts for the lexer
     aliases = []
@@ -146,7 +149,7 @@ class Lexer(metaclass=LexerMeta):
                 text, _ = guess_decode(text)
             elif self.encoding == 'chardet':
                 try:
-                    from pipenv.patched.pip._vendor import chardet
+                    from pipenv.patched.pipenv.patched.pip._vendor import chardet
                 except ImportError as e:
                     raise ImportError('To enable chardet encoding guessing, '
                                       'please install the chardet library '
@@ -618,7 +621,7 @@ class RegexLexer(Lexer, metaclass=RegexLexerMeta):
         """
         Split ``text`` into (tokentype, text) pairs.
 
-        ``stack`` is the inital stack (default: ``['root']``)
+        ``stack`` is the initial stack (default: ``['root']``)
         """
         pos = 0
         tokendefs = self._tokens
@@ -738,7 +741,7 @@ class ExtendedRegexLexer(RegexLexer):
                         elif isinstance(new_state, int):
                             # see RegexLexer for why this check is made
                             if abs(new_state) >= len(ctx.stack):
-                                del ctx.state[1:]
+                                del ctx.stack[1:]
                             else:
                                 del ctx.stack[new_state:]
                         elif new_state == '#push':
@@ -792,7 +795,7 @@ def do_insertions(insertions, tokens):
     # iterate over the token stream where we want to insert
     # the tokens from the insertion list.
     for i, t, v in tokens:
-        # first iteration. store the postition of first item
+        # first iteration. store the position of first item
         if realpos is None:
             realpos = i
         oldi = 0

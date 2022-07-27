@@ -1,8 +1,8 @@
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pip._internal.distributions.base import AbstractDistribution
-from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._internal.metadata import (
+from pipenv.patched.pipenv.patched.pip._internal.distributions.base import AbstractDistribution
+from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pipenv.patched.pip._internal.metadata import (
     BaseDistribution,
     FilesystemWheel,
     get_wheel_distribution,

@@ -4,12 +4,12 @@
 
     Contains built-in styles.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
-from pipenv.patched.pip._vendor.pygments.plugin import find_plugin_styles
-from pipenv.patched.pip._vendor.pygments.util import ClassNotFound
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.plugin import find_plugin_styles
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import ClassNotFound
 
 
 #: Maps style names to 'submodule::classname'.

@@ -90,6 +90,8 @@ class Evaluator(object):
             result = self.operations[op](lhs, rhs)
         return result
 
+_DIGITS = re.compile(r'\d+\.\d+')
+
 def default_context():
     def format_full_version(info):
         version = '%s.%s.%s' % (info.major, info.minor, info.micro)
@@ -105,6 +107,9 @@ def default_context():
         implementation_version = '0'
         implementation_name = ''
 
+    ppv = platform.python_version()
+    m = _DIGITS.match(ppv)
+    pv = m.group(0)
     result = {
         'implementation_name': implementation_name,
         'implementation_version': implementation_version,
@@ -115,8 +120,8 @@ def default_context():
         'platform_system': platform.system(),
         'platform_version': platform.version(),
         'platform_in_venv': str(in_venv()),
-        'python_full_version': platform.python_version(),
-        'python_version': platform.python_version()[:3],
+        'python_full_version': ppv,
+        'python_version': pv,
         'sys_platform': sys.platform,
     }
     return result

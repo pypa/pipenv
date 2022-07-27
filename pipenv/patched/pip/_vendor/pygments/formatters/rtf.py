@@ -4,12 +4,12 @@
 
     A formatter that generates RTF files.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
-from pipenv.patched.pip._vendor.pygments.formatter import Formatter
-from pipenv.patched.pip._vendor.pygments.util import get_int_opt, surrogatepair
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatter import Formatter
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import get_int_opt, surrogatepair
 
 
 __all__ = ['RtfFormatter']

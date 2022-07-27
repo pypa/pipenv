@@ -1,31 +1,29 @@
 """Build Environment used for isolation during sdist building
 """
 
-import contextlib
 import logging
 import os
 import pathlib
 import sys
 import textwrap
-import zipfile
 from collections import OrderedDict
 from sysconfig import get_paths
 from types import TracebackType
-from typing import TYPE_CHECKING, Generator, Iterable, List, Optional, Set, Tuple, Type
+from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Tuple, Type
 
-from pipenv.patched.pip._vendor.certifi import where
-from pipenv.patched.pip._vendor.packaging.requirements import Requirement
-from pipenv.patched.pip._vendor.packaging.version import Version
+from pipenv.patched.pipenv.patched.pip._vendor.certifi import where
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import Requirement
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import Version
 
-from pip import __file__ as pip_location
-from pipenv.patched.pip._internal.cli.spinners import open_spinner
-from pipenv.patched.pip._internal.locations import get_platlib, get_prefixed_libs, get_purelib
-from pipenv.patched.pip._internal.metadata import get_default_environment, get_environment
-from pipenv.patched.pip._internal.utils.subprocess import call_subprocess
-from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
+from pipenv.patched.pip import __file__ as pip_location
+from pipenv.patched.pipenv.patched.pip._internal.cli.spinners import open_spinner
+from pipenv.patched.pipenv.patched.pip._internal.locations import get_platlib, get_prefixed_libs, get_purelib
+from pipenv.patched.pipenv.patched.pip._internal.metadata import get_default_environment, get_environment
+from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import call_subprocess
+from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
 
 if TYPE_CHECKING:
-    from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
 
 logger = logging.getLogger(__name__)
 
@@ -41,30 +39,20 @@ class _Prefix:
         self.lib_dirs = get_prefixed_libs(path)
 
 
-@contextlib.contextmanager
-def _create_standalone_pip() -> Generator[str, None, None]:
-    """Create a "standalone pip" zip file.
+def _get_runnable_pip() -> str:
+    """Get a file to pass to a Python executable, to run the currently-running pip.
 
-    The zip file's content is identical to the currently-running pip.
-    It will be used to install requirements into the build environment.
+    This is used to run a pip subprocess, for installing requirements into the build
+    environment.
     """
     source = pathlib.Path(pip_location).resolve().parent
 
-    # Return the current instance if `source` is not a directory. We can't build
-    # a zip from this, and it likely means the instance is already standalone.
     if not source.is_dir():
-        yield str(source)
-        return
+        # This would happen if someone is using pip from inside a zip file. In that
+        # case, we can use that directly.
+        return str(source)
 
-    with TempDirectory(kind="standalone-pip") as tmp_dir:
-        pip_zip = os.path.join(tmp_dir.path, "__env_pip__.zip")
-        kwargs = {}
-        if sys.version_info >= (3, 8):
-            kwargs["strict_timestamps"] = False
-        with zipfile.ZipFile(pip_zip, "w", **kwargs) as zf:
-            for child in source.rglob("*"):
-                zf.write(child, child.relative_to(source.parent).as_posix())
-        yield os.path.join(pip_zip, "pip")
+    return os.fsdecode(source / "__pip-runner__.py")
 
 
 class BuildEnvironment:
@@ -205,15 +193,13 @@ class BuildEnvironment:
         prefix.setup = True
         if not requirements:
             return
-        with contextlib.ExitStack() as ctx:
-            pip_runnable = ctx.enter_context(_create_standalone_pip())
-            self._install_requirements(
-                pip_runnable,
-                finder,
-                requirements,
-                prefix,
-                kind=kind,
-            )
+        self._install_requirements(
+            _get_runnable_pip(),
+            finder,
+            requirements,
+            prefix,
+            kind=kind,
+        )
 
     @staticmethod
     def _install_requirements(
@@ -224,9 +210,8 @@ class BuildEnvironment:
         *,
         kind: str,
     ) -> None:
-        sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
         args: List[str] = [
-            sys_executable,
+            sys.executable,
             pip_runnable,
             "install",
             "--ignore-installed",

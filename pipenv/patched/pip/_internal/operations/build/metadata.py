@@ -3,15 +3,15 @@
 
 import os
 
-from pipenv.patched.pip._vendor.pep517.wrappers import Pep517HookCaller
+from pipenv.patched.pipenv.patched.pip._vendor.pep517.wrappers import Pep517HookCaller
 
-from pipenv.patched.pip._internal.build_env import BuildEnvironment
-from pipenv.patched.pip._internal.exceptions import (
+from pipenv.patched.pipenv.patched.pip._internal.build_env import BuildEnvironment
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
     InstallationSubprocessError,
     MetadataGenerationFailed,
 )
-from pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
-from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
+from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 
 
 def generate_metadata(

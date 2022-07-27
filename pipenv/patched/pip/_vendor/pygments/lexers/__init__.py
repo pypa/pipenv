@@ -4,7 +4,7 @@
 
     Pygments lexers.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -14,10 +14,10 @@ import types
 import fnmatch
 from os.path import basename
 
-from pipenv.patched.pip._vendor.pygments.lexers._mapping import LEXERS
-from pipenv.patched.pip._vendor.pygments.modeline import get_filetype_from_buffer
-from pipenv.patched.pip._vendor.pygments.plugin import find_plugin_lexers
-from pipenv.patched.pip._vendor.pygments.util import ClassNotFound, guess_decode
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.lexers._mapping import LEXERS
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.modeline import get_filetype_from_buffer
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.plugin import find_plugin_lexers
+from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import ClassNotFound, guess_decode
 
 COMPAT = {
     'Python3Lexer': 'PythonLexer',
@@ -47,14 +47,18 @@ def _load_lexers(module_name):
         _lexer_cache[cls.name] = cls
 
 
-def get_all_lexers():
+def get_all_lexers(plugins=True):
     """Return a generator of tuples in the form ``(name, aliases,
     filenames, mimetypes)`` of all know lexers.
+
+    If *plugins* is true (the default), plugin lexers supplied by entrypoints
+    are also returned.  Otherwise, only builtin ones are considered.
     """
     for item in LEXERS.values():
         yield item[1:]
-    for lexer in find_plugin_lexers():
-        yield lexer.name, lexer.aliases, lexer.filenames, lexer.mimetypes
+    if plugins:
+        for lexer in find_plugin_lexers():
+            yield lexer.name, lexer.aliases, lexer.filenames, lexer.mimetypes
 
 
 def find_lexer_class(name):

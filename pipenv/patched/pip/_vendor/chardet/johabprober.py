@@ -1,7 +1,13 @@
 ######################## BEGIN LICENSE BLOCK ########################
+# The Original Code is mozilla.org code.
+#
+# The Initial Developer of the Original Code is
+# Netscape Communications Corporation.
+# Portions created by the Initial Developer are Copyright (C) 1998
+# the Initial Developer. All Rights Reserved.
+#
 # Contributor(s):
-#   Dan Blanchard
-#   Ian Cordasco
+#   Mark Pilgrim - port to Python
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -19,18 +25,23 @@
 # 02110-1301  USA
 ######################### END LICENSE BLOCK #########################
 
-import sys
+from .chardistribution import JOHABDistributionAnalysis
+from .codingstatemachine import CodingStateMachine
+from .mbcharsetprober import MultiByteCharSetProber
+from .mbcssm import JOHAB_SM_MODEL
 
 
-if sys.version_info < (3, 0):
-    PY2 = True
-    PY3 = False
-    string_types = (str, unicode)
-    text_type = unicode
-    iteritems = dict.iteritems
-else:
-    PY2 = False
-    PY3 = True
-    string_types = (bytes, str)
-    text_type = str
-    iteritems = dict.items
+class JOHABProber(MultiByteCharSetProber):
+    def __init__(self):
+        super().__init__()
+        self.coding_sm = CodingStateMachine(JOHAB_SM_MODEL)
+        self.distribution_analyzer = JOHABDistributionAnalysis()
+        self.reset()
+
+    @property
+    def charset_name(self):
+        return "Johab"
+
+    @property
+    def language(self):
+        return "Korean"

@@ -1,21 +1,21 @@
 """Download files with progress indicators.
 """
-import cgi
+import email.message
 import logging
 import mimetypes
 import os
 from typing import Iterable, Optional, Tuple
 
-from pipenv.patched.pip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
+from pipenv.patched.pipenv.patched.pip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
 
-from pipenv.patched.pip._internal.cli.progress_bars import get_download_progress_renderer
-from pipenv.patched.pip._internal.exceptions import NetworkConnectionError
-from pipenv.patched.pip._internal.models.index import PyPI
-from pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pip._internal.network.cache import is_from_cache
-from pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pip._internal.network.utils import HEADERS, raise_for_status, response_chunks
-from pipenv.patched.pip._internal.utils.misc import format_size, redact_auth_from_url, splitext
+from pipenv.patched.pipenv.patched.pip._internal.cli.progress_bars import get_download_progress_renderer
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import NetworkConnectionError
+from pipenv.patched.pipenv.patched.pip._internal.models.index import PyPI
+from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pipenv.patched.pip._internal.network.cache import is_from_cache
+from pipenv.patched.pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pipenv.patched.pip._internal.network.utils import HEADERS, raise_for_status, response_chunks
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import format_size, redact_auth_from_url, splitext
 
 logger = logging.getLogger(__name__)
 
@@ -81,12 +81,13 @@ def parse_content_disposition(content_disposition: str, default_filename: str) -
     Parse the "filename" value from a Content-Disposition header, and
     return the default filename if the result is empty.
     """
-    _type, params = cgi.parse_header(content_disposition)
-    filename = params.get("filename")
+    m = email.message.Message()
+    m["content-type"] = content_disposition
+    filename = m.get_param("filename")
     if filename:
         # We need to sanitize the filename to prevent directory traversal
         # in case the filename contains ".." path parts.
-        filename = sanitize_content_filename(filename)
+        filename = sanitize_content_filename(str(filename))
     return filename or default_filename
 
 

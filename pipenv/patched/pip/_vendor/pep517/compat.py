@@ -47,5 +47,5 @@ if sys.version_info < (3, 6):
 
     from pipenv.vendor.toml import TomlDecodeError as TOMLDecodeError  # noqa: F401
 else:
-    from pipenv.patched.pip._vendor.tomli import load as toml_load  # noqa: F401
-    from pipenv.patched.pip._vendor.tomli import TOMLDecodeError  # noqa: F401
+    from pipenv.patched.pipenv.patched.pip._vendor.tomli import load as toml_load  # noqa: F401
+    from pipenv.patched.pipenv.patched.pip._vendor.tomli import TOMLDecodeError  # noqa: F401

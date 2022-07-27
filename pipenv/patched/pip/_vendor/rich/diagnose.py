@@ -1,10 +1,10 @@
 import os
 import platform
 
-from pipenv.patched.pip._vendor.rich import inspect
-from pipenv.patched.pip._vendor.rich.console import Console, get_windows_console_features
-from pipenv.patched.pip._vendor.rich.panel import Panel
-from pipenv.patched.pip._vendor.rich.pretty import Pretty
+from pipenv.patched.pipenv.patched.pip._vendor.rich import inspect
+from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console, get_windows_console_features
+from pipenv.patched.pipenv.patched.pip._vendor.rich.panel import Panel
+from pipenv.patched.pipenv.patched.pip._vendor.rich.pretty import Pretty
 
 
 def report() -> None:  # pragma: no cover
@@ -22,6 +22,8 @@ def report() -> None:  # pragma: no cover
         "TERM_PROGRAM",
         "COLUMNS",
         "LINES",
+        "JUPYTER_COLUMNS",
+        "JUPYTER_LINES",
         "JPY_PARENT_PID",
         "VSCODE_VERBOSE_LOGGING",
     )

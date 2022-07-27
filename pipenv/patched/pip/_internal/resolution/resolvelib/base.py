@@ -1,12 +1,12 @@
 from typing import FrozenSet, Iterable, Optional, Tuple, Union
 
-from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
-from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
-from pipenv.patched.pip._vendor.packaging.version import LegacyVersion, Version
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import LegacyVersion, Version
 
-from pipenv.patched.pip._internal.models.link import Link, links_equivalent
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._internal.utils.hashes import Hashes
+from pipenv.patched.pipenv.patched.pip._internal.models.link import Link, links_equivalent
+from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pipenv.patched.pip._internal.utils.hashes import Hashes
 
 CandidateLookup = Tuple[Optional["Candidate"], Optional[InstallRequirement]]
 CandidateVersion = Union[LegacyVersion, Version]

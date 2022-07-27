@@ -132,29 +132,35 @@ class DistributionPath(object):
                 r = finder.find(entry)
                 if not r or r.path in seen:
                     continue
-                if self._include_dist and entry.endswith(DISTINFO_EXT):
-                    possible_filenames = [METADATA_FILENAME,
-                                          WHEEL_METADATA_FILENAME,
-                                          LEGACY_METADATA_FILENAME]
-                    for metadata_filename in possible_filenames:
-                        metadata_path = posixpath.join(entry, metadata_filename)
-                        pydist = finder.find(metadata_path)
-                        if pydist:
-                            break
-                    else:
-                        continue
+                try:
+                    if self._include_dist and entry.endswith(DISTINFO_EXT):
+                        possible_filenames = [METADATA_FILENAME,
+                                              WHEEL_METADATA_FILENAME,
+                                              LEGACY_METADATA_FILENAME]
+                        for metadata_filename in possible_filenames:
+                            metadata_path = posixpath.join(entry, metadata_filename)
+                            pydist = finder.find(metadata_path)
+                            if pydist:
+                                break
+                        else:
+                            continue
 
-                    with contextlib.closing(pydist.as_stream()) as stream:
-                        metadata = Metadata(fileobj=stream, scheme='legacy')
-                    logger.debug('Found %s', r.path)
-                    seen.add(r.path)
-                    yield new_dist_class(r.path, metadata=metadata,
-                                         env=self)
-                elif self._include_egg and entry.endswith(('.egg-info',
-                                                          '.egg')):
-                    logger.debug('Found %s', r.path)
-                    seen.add(r.path)
-                    yield old_dist_class(r.path, self)
+                        with contextlib.closing(pydist.as_stream()) as stream:
+                            metadata = Metadata(fileobj=stream, scheme='legacy')
+                        logger.debug('Found %s', r.path)
+                        seen.add(r.path)
+                        yield new_dist_class(r.path, metadata=metadata,
+                                             env=self)
+                    elif self._include_egg and entry.endswith(('.egg-info',
+                                                              '.egg')):
+                        logger.debug('Found %s', r.path)
+                        seen.add(r.path)
+                        yield old_dist_class(r.path, self)
+                except Exception as e:
+                    msg = 'Unable to read distribution at %s, perhaps due to bad metadata: %s'
+                    logger.warning(msg, r.path, e)
+                    import warnings
+                    warnings.warn(msg % (r.path, e), stacklevel=2)
 
     def _generate_cache(self):
         """
@@ -379,8 +385,9 @@ class Distribution(object):
 
     def _get_requirements(self, req_attr):
         md = self.metadata
-        logger.debug('Getting requirements from metadata %r', md.todict())
         reqts = getattr(md, req_attr)
+        logger.debug('%s: got requirements %r from metadata: %r', self.name, req_attr,
+                     reqts)
         return set(md.get_requirements(reqts, extras=self.extras,
                                        env=self.context))
 
@@ -1308,22 +1315,26 @@ def get_required_dists(dists, dist):
 
     :param dists: a list of distributions
     :param dist: a distribution, member of *dists* for which we are interested
+                 in finding the dependencies.
     """
     if dist not in dists:
         raise DistlibException('given distribution %r is not a member '
                                'of the list' % dist.name)
     graph = make_graph(dists)
 
-    req = []  # required distributions
+    req = set()  # required distributions
     todo = graph.adjacency_list[dist]  # list of nodes we should inspect
+    seen = set(t[0] for t in todo) # already added to todo
 
     while todo:
         d = todo.pop()[0]
-        req.append(d)
-        for pred in graph.adjacency_list[d]:
-            if pred not in req:
+        req.add(d)
+        pred_list = graph.adjacency_list[d]
+        for pred in pred_list:
+            d = pred[0]
+            if d not in req and d not in seen:
+                seen.add(d)
                 todo.append(pred)
-
     return req
 
 

@@ -12,17 +12,15 @@ If no paths are provided, it takes its input from stdin.
 
 """
 
-from __future__ import absolute_import, print_function, unicode_literals
 
 import argparse
 import sys
 
-from pipenv.patched.pip._vendor.chardet import __version__
-from pipenv.patched.pip._vendor.chardet.compat import PY2
-from pipenv.patched.pip._vendor.chardet.universaldetector import UniversalDetector
+from .. import __version__
+from ..universaldetector import UniversalDetector
 
 
-def description_of(lines, name='stdin'):
+def description_of(lines, name="stdin"):
     """
     Return a string describing the probable encoding of a file or
     list of strings.
@@ -41,13 +39,9 @@ def description_of(lines, name='stdin'):
             break
     u.close()
     result = u.result
-    if PY2:
-        name = name.decode(sys.getfilesystemencoding(), 'ignore')
-    if result['encoding']:
-        return '{}: {} with confidence {}'.format(name, result['encoding'],
-                                                     result['confidence'])
-    else:
-        return '{}: no result'.format(name)
+    if result["encoding"]:
+        return f'{name}: {result["encoding"]} with confidence {result["confidence"]}'
+    return f"{name}: no result"
 
 
 def main(argv=None):
@@ -61,24 +55,32 @@ def main(argv=None):
     # Get command line arguments
     parser = argparse.ArgumentParser(
         description="Takes one or more file paths and reports their detected \
-                     encodings")
-    parser.add_argument('input',
-                        help='File whose encoding we would like to determine. \
-                              (default: stdin)',
-                        type=argparse.FileType('rb'), nargs='*',
-                        default=[sys.stdin if PY2 else sys.stdin.buffer])
-    parser.add_argument('--version', action='version',
-                        version='%(prog)s {}'.format(__version__))
+                     encodings"
+    )
+    parser.add_argument(
+        "input",
+        help="File whose encoding we would like to determine. \
+                              (default: stdin)",
+        type=argparse.FileType("rb"),
+        nargs="*",
+        default=[sys.stdin.buffer],
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
     args = parser.parse_args(argv)
 
     for f in args.input:
         if f.isatty():
-            print("You are running chardetect interactively. Press " +
-                  "CTRL-D twice at the start of a blank line to signal the " +
-                  "end of your input. If you want help, run chardetect " +
-                  "--help\n", file=sys.stderr)
+            print(
+                "You are running chardetect interactively. Press "
+                "CTRL-D twice at the start of a blank line to signal the "
+                "end of your input. If you want help, run chardetect "
+                "--help\n",
+                file=sys.stderr,
+            )
         print(description_of(f, f.name))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

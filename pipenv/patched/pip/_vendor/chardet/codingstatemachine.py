@@ -30,7 +30,7 @@ import logging
 from .enums import MachineState
 
 
-class CodingStateMachine(object):
+class CodingStateMachine:
     """
     A state machine to verify a byte sequence for a particular encoding. For
     each byte the detector receives, it will feed that byte to every active
@@ -52,6 +52,7 @@ class CodingStateMachine(object):
                  negative answer for this encoding. Detector will exclude this
                  encoding from consideration from here on.
     """
+
     def __init__(self, sm):
         self._model = sm
         self._curr_byte_pos = 0
@@ -66,14 +67,13 @@ class CodingStateMachine(object):
     def next_state(self, c):
         # for each byte we get its class
         # if it is first byte, we also get byte length
-        byte_class = self._model['class_table'][c]
+        byte_class = self._model["class_table"][c]
         if self._curr_state == MachineState.START:
             self._curr_byte_pos = 0
-            self._curr_char_len = self._model['char_len_table'][byte_class]
+            self._curr_char_len = self._model["char_len_table"][byte_class]
         # from byte's class and state_table, we get its next state
-        curr_state = (self._curr_state * self._model['class_factor']
-                      + byte_class)
-        self._curr_state = self._model['state_table'][curr_state]
+        curr_state = self._curr_state * self._model["class_factor"] + byte_class
+        self._curr_state = self._model["state_table"][curr_state]
         self._curr_byte_pos += 1
         return self._curr_state
 
@@ -81,8 +81,8 @@ class CodingStateMachine(object):
         return self._curr_char_len
 
     def get_coding_state_machine(self):
-        return self._model['name']
+        return self._model["name"]
 
     @property
     def language(self):
-        return self._model['language']
+        return self._model["language"]

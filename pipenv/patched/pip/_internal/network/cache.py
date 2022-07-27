@@ -5,12 +5,12 @@ import os
 from contextlib import contextmanager
 from typing import Generator, Optional
 
-from pipenv.patched.pip._vendor.cachecontrol.cache import BaseCache
-from pipenv.patched.pip._vendor.cachecontrol.caches import FileCache
-from pipenv.patched.pip._vendor.requests.models import Response
+from pipenv.patched.pipenv.patched.pip._vendor.cachecontrol.cache import BaseCache
+from pipenv.patched.pipenv.patched.pip._vendor.cachecontrol.caches import FileCache
+from pipenv.patched.pipenv.patched.pip._vendor.requests.models import Response
 
-from pipenv.patched.pip._internal.utils.filesystem import adjacent_tmp_file, replace
-from pipenv.patched.pip._internal.utils.misc import ensure_dir
+from pipenv.patched.pipenv.patched.pip._internal.utils.filesystem import adjacent_tmp_file, replace
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import ensure_dir
 
 
 def is_from_cache(response: Response) -> bool:

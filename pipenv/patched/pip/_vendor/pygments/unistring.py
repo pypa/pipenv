@@ -7,7 +7,7 @@
 
     Inspired by chartypes_create.py from the MoinMoin project.
 
-    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -122,7 +122,7 @@ if __name__ == '__main__':  # pragma: no cover
         c = chr(code)
         cat = unicodedata.category(c)
         if ord(c) == 0xdc00:
-            # Hack to avoid combining this combining with the preceeding high
+            # Hack to avoid combining this combining with the preceding high
             # surrogate, 0xdbff, when doing a repr.
             c = '\\' + c
         elif ord(c) in (0x2d, 0x5b, 0x5c, 0x5d, 0x5e):

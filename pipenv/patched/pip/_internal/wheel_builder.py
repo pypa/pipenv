@@ -7,25 +7,25 @@ import re
 import shutil
 from typing import Any, Callable, Iterable, List, Optional, Tuple
 
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name, canonicalize_version
-from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name, canonicalize_version
+from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
 
-from pipenv.patched.pip._internal.cache import WheelCache
-from pipenv.patched.pip._internal.exceptions import InvalidWheelFilename, UnsupportedWheel
-from pipenv.patched.pip._internal.metadata import FilesystemWheel, get_wheel_distribution
-from pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pip._internal.models.wheel import Wheel
-from pipenv.patched.pip._internal.operations.build.wheel import build_wheel_pep517
-from pipenv.patched.pip._internal.operations.build.wheel_editable import build_wheel_editable
-from pipenv.patched.pip._internal.operations.build.wheel_legacy import build_wheel_legacy
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._internal.utils.logging import indent_log
-from pipenv.patched.pip._internal.utils.misc import ensure_dir, hash_file, is_wheel_installed
-from pipenv.patched.pip._internal.utils.setuptools_build import make_setuptools_clean_args
-from pipenv.patched.pip._internal.utils.subprocess import call_subprocess
-from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
-from pipenv.patched.pip._internal.utils.urls import path_to_url
-from pipenv.patched.pip._internal.vcs import vcs
+from pipenv.patched.pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pipenv.patched.pip._internal.exceptions import InvalidWheelFilename, UnsupportedWheel
+from pipenv.patched.pipenv.patched.pip._internal.metadata import FilesystemWheel, get_wheel_distribution
+from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pipenv.patched.pip._internal.operations.build.wheel import build_wheel_pep517
+from pipenv.patched.pipenv.patched.pip._internal.operations.build.wheel_editable import build_wheel_editable
+from pipenv.patched.pipenv.patched.pip._internal.operations.build.wheel_legacy import build_wheel_legacy
+from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pipenv.patched.pip._internal.utils.logging import indent_log
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import ensure_dir, hash_file, is_wheel_installed
+from pipenv.patched.pipenv.patched.pip._internal.utils.setuptools_build import make_setuptools_clean_args
+from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import call_subprocess
+from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.pipenv.patched.pip._internal.utils.urls import path_to_url
+from pipenv.patched.pipenv.patched.pip._internal.vcs import vcs
 
 logger = logging.getLogger(__name__)
 
@@ -354,6 +354,12 @@ def build(
                 req.editable and req.permit_editable_wheels,
             )
             if wheel_file:
+                # Record the download origin in the cache
+                if req.download_info is not None:
+                    # download_info is guaranteed to be set because when we build an
+                    # InstallRequirement it has been through the preparer before, but
+                    # let's be cautious.
+                    wheel_cache.record_download_origin(cache_dir, req.download_info)
                 # Update the link for this.
                 req.link = Link(path_to_url(wheel_file))
                 req.local_file_path = req.link.file_path

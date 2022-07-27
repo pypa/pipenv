@@ -5,7 +5,7 @@
 #
 """Implementation of the Metadata for Python packages PEPs.
 
-Supports all metadata formats (1.0, 1.1, 1.2, 1.3/2.1 and withdrawn 2.0).
+Supports all metadata formats (1.0, 1.1, 1.2, 1.3/2.1 and 2.2).
 """
 from __future__ import unicode_literals
 
@@ -100,12 +100,17 @@ _566_FIELDS = _426_FIELDS + ('Description-Content-Type',
 
 _566_MARKERS = ('Description-Content-Type',)
 
+_643_MARKERS = ('Dynamic', 'License-File')
+
+_643_FIELDS = _566_FIELDS + _643_MARKERS
+
 _ALL_FIELDS = set()
 _ALL_FIELDS.update(_241_FIELDS)
 _ALL_FIELDS.update(_314_FIELDS)
 _ALL_FIELDS.update(_345_FIELDS)
 _ALL_FIELDS.update(_426_FIELDS)
 _ALL_FIELDS.update(_566_FIELDS)
+_ALL_FIELDS.update(_643_FIELDS)
 
 EXTRA_RE = re.compile(r'''extra\s*==\s*("([^"]+)"|'([^']+)')''')
 
@@ -121,7 +126,10 @@ def _version2fieldlist(version):
         # avoid adding field names if already there
         return _345_FIELDS + tuple(f for f in _566_FIELDS if f not in _345_FIELDS)
     elif version == '2.0':
-        return _426_FIELDS
+        raise ValueError('Metadata 2.0 is withdrawn and not supported')
+        # return _426_FIELDS
+    elif version == '2.2':
+        return _643_FIELDS
     raise MetadataUnrecognizedVersionError(version)
 
 
@@ -139,7 +147,7 @@ def _best_version(fields):
             continue
         keys.append(key)
 
-    possible_versions = ['1.0', '1.1', '1.2', '1.3', '2.0', '2.1']
+    possible_versions = ['1.0', '1.1', '1.2', '1.3', '2.1', '2.2']  # 2.0 removed
 
     # first let's try to see if a field is not part of one of the version
     for key in keys:
@@ -159,9 +167,12 @@ def _best_version(fields):
             if key != 'Description':  # In 2.1, description allowed after headers
                 possible_versions.remove('2.1')
                 logger.debug('Removed 2.1 due to %s', key)
-        if key not in _426_FIELDS and '2.0' in possible_versions:
-            possible_versions.remove('2.0')
-            logger.debug('Removed 2.0 due to %s', key)
+        if key not in _643_FIELDS and '2.2' in possible_versions:
+            possible_versions.remove('2.2')
+            logger.debug('Removed 2.2 due to %s', key)
+        # if key not in _426_FIELDS and '2.0' in possible_versions:
+            # possible_versions.remove('2.0')
+            # logger.debug('Removed 2.0 due to %s', key)
 
     # possible_version contains qualified versions
     if len(possible_versions) == 1:
@@ -174,16 +185,18 @@ def _best_version(fields):
     is_1_1 = '1.1' in possible_versions and _has_marker(keys, _314_MARKERS)
     is_1_2 = '1.2' in possible_versions and _has_marker(keys, _345_MARKERS)
     is_2_1 = '2.1' in possible_versions and _has_marker(keys, _566_MARKERS)
-    is_2_0 = '2.0' in possible_versions and _has_marker(keys, _426_MARKERS)
-    if int(is_1_1) + int(is_1_2) + int(is_2_1) + int(is_2_0) > 1:
-        raise MetadataConflictError('You used incompatible 1.1/1.2/2.0/2.1 fields')
+    # is_2_0 = '2.0' in possible_versions and _has_marker(keys, _426_MARKERS)
+    is_2_2 = '2.2' in possible_versions and _has_marker(keys, _643_MARKERS)
+    if int(is_1_1) + int(is_1_2) + int(is_2_1) + int(is_2_2) > 1:
+        raise MetadataConflictError('You used incompatible 1.1/1.2/2.1/2.2 fields')
 
-    # we have the choice, 1.0, or 1.2, or 2.0
+    # we have the choice, 1.0, or 1.2, 2.1 or 2.2
     #   - 1.0 has a broken Summary field but works with all tools
     #   - 1.1 is to avoid
     #   - 1.2 fixes Summary but has little adoption
-    #   - 2.0 adds more features and is very new
-    if not is_1_1 and not is_1_2 and not is_2_1 and not is_2_0:
+    #   - 2.1 adds more features
+    #   - 2.2 is the latest
+    if not is_1_1 and not is_1_2 and not is_2_1 and not is_2_2:
         # we couldn't find any specific marker
         if PKG_INFO_PREFERRED_VERSION in possible_versions:
             return PKG_INFO_PREFERRED_VERSION
@@ -193,8 +206,10 @@ def _best_version(fields):
         return '1.2'
     if is_2_1:
         return '2.1'
+    # if is_2_2:
+        # return '2.2'
 
-    return '2.0'
+    return '2.2'
 
 # This follows the rules about transforming keys as described in
 # https://www.python.org/dev/peps/pep-0566/#id17
@@ -210,7 +225,7 @@ _LISTFIELDS = ('Platform', 'Classifier', 'Obsoletes',
                'Requires', 'Provides', 'Obsoletes-Dist',
                'Provides-Dist', 'Requires-Dist', 'Requires-External',
                'Project-URL', 'Supported-Platform', 'Setup-Requires-Dist',
-               'Provides-Extra', 'Extension')
+               'Provides-Extra', 'Extension', 'License-File')
 _LISTTUPLEFIELDS = ('Project-URL',)
 
 _ELEMENTSFIELD = ('Keywords',)
@@ -602,7 +617,7 @@ LEGACY_METADATA_FILENAME = 'METADATA'
 
 class Metadata(object):
     """
-    The metadata of a release. This implementation uses 2.0 (JSON)
+    The metadata of a release. This implementation uses 2.1
     metadata where possible. If not possible, it wraps a LegacyMetadata
     instance which handles the key-value metadata format.
     """
@@ -610,6 +625,8 @@ class Metadata(object):
     METADATA_VERSION_MATCHER = re.compile(r'^\d+(\.\d+)*$')
 
     NAME_MATCHER = re.compile('^[0-9A-Z]([0-9A-Z_.-]*[0-9A-Z])?$', re.I)
+
+    FIELDNAME_MATCHER = re.compile('^[A-Z]([0-9A-Z-]*[0-9A-Z])?$', re.I)
 
     VERSION_MATCHER = PEP440_VERSION_RE
 
@@ -638,6 +655,7 @@ class Metadata(object):
         'name': (NAME_MATCHER, ('legacy',)),
         'version': (VERSION_MATCHER, ('legacy',)),
         'summary': (SUMMARY_MATCHER, ('legacy',)),
+        'dynamic': (FIELDNAME_MATCHER, ('legacy',)),
     }
 
     __slots__ = ('_legacy', '_data', 'scheme')

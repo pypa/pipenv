@@ -7,19 +7,19 @@ providing credentials in the context of network requests.
 import urllib.parse
 from typing import Any, Dict, List, Optional, Tuple
 
-from pipenv.patched.pip._vendor.requests.auth import AuthBase, HTTPBasicAuth
-from pipenv.patched.pip._vendor.requests.models import Request, Response
-from pipenv.patched.pip._vendor.requests.utils import get_netrc_auth
+from pipenv.patched.pipenv.patched.pip._vendor.requests.auth import AuthBase, HTTPBasicAuth
+from pipenv.patched.pipenv.patched.pip._vendor.requests.models import Request, Response
+from pipenv.patched.pipenv.patched.pip._vendor.requests.utils import get_netrc_auth
 
-from pipenv.patched.pip._internal.utils.logging import getLogger
-from pipenv.patched.pip._internal.utils.misc import (
+from pipenv.patched.pipenv.patched.pip._internal.utils.logging import getLogger
+from pipenv.patched.pipenv.patched.pip._internal.utils.misc import (
     ask,
     ask_input,
     ask_password,
     remove_auth_from_url,
     split_auth_netloc_from_url,
 )
-from pipenv.patched.pip._internal.vcs.versioncontrol import AuthInfo
+from pipenv.patched.pipenv.patched.pip._internal.vcs.versioncontrol import AuthInfo
 
 logger = getLogger(__name__)
 
