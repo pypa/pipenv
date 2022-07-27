@@ -20,22 +20,3 @@ index c66a075a..febea8df 100644
  module.shims = shims
  module.__dict__.update(
      {
-diff --git a/pipenv/vendor/pip_shims/utils.py b/pipenv/vendor/pip_shims/utils.py
-index 2a31a4df..d3b5e708 100644
---- a/pipenv/vendor/pip_shims/utils.py
-+++ b/pipenv/vendor/pip_shims/utils.py
-@@ -130,10 +130,10 @@ def split_package(module, subimport=None):
-     :Example:
-
-     >>> from pip_shims.utils import split_package
--    >>> split_package("pipenv.patched.pip._internal.req.req_install", subimport="InstallRequirement")
--    ("pipenv.patched.pip._internal.req.req_install", "InstallRequirement")
--    >>> split_package("pipenv.patched.pip._internal.cli.base_command")
--    ("pipenv.patched.pip._internal.cli", "base_command")
-+    >>> split_package("pip._internal.req.req_install", subimport="InstallRequirement")
-+    ("pip._internal.req.req_install", "InstallRequirement")
-+    >>> split_package("pip._internal.cli.base_command")
-+    ("pip._internal.cli", "base_command")
-     """
-     package = None
-     if subimport:
