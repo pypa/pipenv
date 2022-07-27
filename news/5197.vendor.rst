@@ -1,0 +1,1 @@
+Fix ``distutils`` usage in our copy of ``vistir`` and note the library is deprecated and marked for removal.
