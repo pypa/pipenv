@@ -1,7 +1,7 @@
 diff --git a/pipenv/vendor/pipdeptree.py b/pipenv/vendor/pipdeptree.py
 index 6e2c3b3..4b92b02 100644
---- a/pipdeptree.py
-+++ b/pipdeptree.py
+--- a/pipenv/vendor/pipdeptree.py
++++ b/pipenv/vendor/pipdeptree.py
 @@ -20,7 +20,9 @@ try:
  except ImportError:
      from collections import Mapping
