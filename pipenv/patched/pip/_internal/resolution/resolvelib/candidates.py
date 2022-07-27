@@ -2,6 +2,7 @@ import logging
 import sys
 from typing import TYPE_CHECKING, Any, FrozenSet, Iterable, Optional, Tuple, Union, cast
 
+from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import Version
 
@@ -250,7 +251,10 @@ class _InstallRequirementBackedCandidate(Candidate):
         yield self._factory.make_requires_python_requirement(self.dist.requires_python)
 
     def get_install_requirement(self) -> Optional[InstallRequirement]:
-        return self._ireq
+        ireq = self._ireq
+        if self._version and ireq.req and not ireq.req.url:
+            ireq.req.specifier = SpecifierSet(f"=={self._version}")
+        return ireq
 
 
 class LinkCandidate(_InstallRequirementBackedCandidate):
