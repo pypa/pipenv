@@ -6,10 +6,9 @@ index 6e2c3b3..4b92b02 100644
  except ImportError:
      from collections import Mapping
 
--from pip._vendor import pkg_resources
 +pardir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 +sys.path.append(pardir)
-+from pipenv.patched.pip._vendor import pkg_resources
+from pipenv.patched.pip._vendor import pkg_resources
  try:
-     from pip._internal.operations.freeze import FrozenRequirement
+     from pipenv.patched.pip._internal.operations.freeze import FrozenRequirement
  except ImportError:
