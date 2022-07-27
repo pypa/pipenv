@@ -797,7 +797,6 @@ def do_install_dependencies(
     dev=False,
     dev_only=False,
     bare=False,
-    emit_requirements=False,
     allow_global=False,
     ignore_hashes=False,
     skip_lock=False,
@@ -805,16 +804,13 @@ def do_install_dependencies(
     requirements_dir=None,
     pypi_mirror=None,
 ):
-    """ "
-    Executes the install functionality.
+    """
+    Executes the installation functionality.
 
-    If emit_requirements is True, simply spits out a requirements format to stdout.
     """
 
     import queue
 
-    if emit_requirements:
-        bare = True
     # Load the lockfile if it exists, or if dev_only is being used.
     if skip_lock or not project.lockfile_exists:
         if not bare:
@@ -840,15 +836,6 @@ def do_install_dependencies(
             )
     dev = dev or dev_only
     deps_list = list(lockfile.get_requirements(dev=dev, only=dev_only))
-    if emit_requirements:
-        index_args = prepare_pip_source_args(
-            get_source_list(project, pypi_mirror=pypi_mirror)
-        )
-        index_args = " ".join(index_args).replace(" -", "\n-")
-        deps = [req.as_line(sources=False, include_hashes=False) for req in deps_list]
-        click.echo(index_args)
-        click.echo("\n".join(sorted(deps)))
-        sys.exit(0)
     if concurrent:
         nprocs = project.s.PIPENV_MAX_SUBPROCESS
     else:
@@ -1233,7 +1220,6 @@ def do_init(
     project,
     dev=False,
     dev_only=False,
-    emit_requirements=False,
     allow_global=False,
     ignore_pipfile=False,
     skip_lock=False,
@@ -1340,7 +1326,6 @@ def do_init(
         project,
         dev=dev,
         dev_only=dev_only,
-        emit_requirements=emit_requirements,
         allow_global=allow_global,
         skip_lock=skip_lock,
         concurrent=concurrent,
