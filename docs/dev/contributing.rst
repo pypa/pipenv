@@ -230,9 +230,11 @@ be aware of the following things when filing bug reports:
 Run the tests
 -------------
 
-Two ways of running the tests are as follows:
+There are a few ways of running the tests:
 
-1. ``./run-tests.sh`` or ``run-tests.bat``
+1. run-tests.sh
+
+The scripts for bash or windows: ``./run-tests.sh`` and ``run-tests.bat``
 
 Note that, you override the default Python Pipenv will use with
 PIPENV_PYTHON and the Python binary name with PYTHON in case it
@@ -253,7 +255,9 @@ you run it before you open a PR. Taking this second approach,
 will allow you, for example, to run a single test case, or
 ``fail fast`` if you need it.
 
-2. Manually, which repeat the steps of the scripts above:
+2. Manually
+
+This repeats the steps of the scripts above:
 
 .. code-block:: console
 
@@ -279,6 +283,19 @@ $ docker run --rm -v $(pwd):/usr/src -it python:3.7 bash
 # su debian && cd /usr/src/
 # bash run-tests.sh
 ```
+
+3. Using the Makefile:
+
+The Makefile automates all the task as in the script. However, it allows
+one more fine grained control on every step. For example::
+
+    $ make ramdisk  # create a ram disk to preserve your SSDs life
+    $ make ramdisk-virtualenv
+    $ make test suite="-m not cli"  # run all tests but cli
+
+or ::
+
+    $ make tests parallel="" suite="tests/integration/test_cli.py::test_pipenv_check"
 
 It is important that your environment is setup correctly, and
 this may take some work, for example, on a specific Mac installation, the following

@@ -2,7 +2,6 @@
 from __future__ import unicode_literals, absolute_import
 from collections import OrderedDict
 import re
-import yaml
 
 from io import StringIO
 
@@ -301,6 +300,7 @@ class CondaYMLParser(Parser):
 
         :return:
         """
+        import yaml
         try:
             data = yaml.safe_load(self.obj.content)
             if data and 'dependencies' in data and isinstance(data['dependencies'], list):

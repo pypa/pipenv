@@ -20,21 +20,15 @@ TASK_NAME = "update"
 LIBRARY_DIRNAMES = {
     "requirements-parser": "requirements",
     "backports.shutil_get_terminal_size": "backports/shutil_get_terminal_size",
-    "backports.weakref": "backports/weakref",
-    "backports.functools_lru_cache": "backports/functools_lru_cache",
     "python-dotenv": "dotenv",
     "setuptools": "pkg_resources",
     "msgpack-python": "msgpack",
     "attrs": "attr",
-    "enum": "backports/enum",
 }
-
-PY2_DOWNLOAD = ["enum34"]
 
 # from time to time, remove the no longer needed ones
 HARDCODED_LICENSE_URLS = {
     "cursor": "https://raw.githubusercontent.com/GijsTimmers/cursor/master/LICENSE",
-    "delegator.py": "https://raw.githubusercontent.com/amitt001/delegator.py/master/LICENSE",
     "CacheControl": "https://raw.githubusercontent.com/ionrock/cachecontrol/master/LICENSE.txt",
     "click-didyoumean": "https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE",
     "click-completion": "https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE",
@@ -45,8 +39,6 @@ HARDCODED_LICENSE_URLS = {
     "requirementslib": "https://github.com/techalchemy/requirementslib/raw/master/LICENSE",
     "distlib": "https://github.com/vsajip/distlib/raw/master/LICENSE.txt",
     "pythonfinder": "https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt",
-    "pyparsing": "https://raw.githubusercontent.com/pyparsing/pyparsing/master/LICENSE",
-    "funcsigs": "https://raw.githubusercontent.com/aliles/funcsigs/master/LICENSE",
 }
 
 FILE_WHITE_LIST = (
@@ -66,7 +58,6 @@ PATCHED_RENAMES = {}
 
 LIBRARY_RENAMES = {
     "pip": "pipenv.patched.pip",
-    "functools32": "pipenv.vendor.backports.functools_lru_cache",
     "requests": "pipenv.patched.pip._vendor.requests",
     "packaging": "pipenv.patched.pip._vendor.packaging",
 }
@@ -262,32 +253,6 @@ def _ensure_package_in_requirements(ctx, requirements_file, package):
     return requirement
 
 
-def install_pyyaml(ctx, vendor_dir):
-    with TemporaryDirectory(prefix="pipenv-", suffix="-yaml") as download_dir:
-        pip_command = (
-            "pip download --no-binary=:all: --no-clean --no-deps -d {} pyyaml".format(
-                download_dir
-            )
-        )
-        log(f"downloading deps via pip: {pip_command}")
-        ctx.run(pip_command)
-        downloaded = next(Path(download_dir).glob("*.tar.gz"))
-        with tarfile.open(downloaded, mode="r:gz") as tf:
-            tf.extractall(download_dir)
-        extracted = next((p for p in downloaded.parent.iterdir() if p != downloaded))
-        yaml_dir = vendor_dir / "yaml"
-        path_dict = {
-            "current_path": extracted / "lib/yaml",
-            "destination": vendor_dir / "yaml3",
-        }
-        if yaml_dir.exists():
-            drop_dir(yaml_dir)
-        path_dict["current_path"].rename(path_dict["destination"])
-        path_dict["destination"].joinpath("LICENSE").write_text(
-            extracted.joinpath("LICENSE").read_text()
-        )
-
-
 def install(ctx, vendor_dir, package=None):
     requirements_file = vendor_dir / f"{vendor_dir.name}.txt"
     requirement = f"-r {requirements_file.as_posix()}"
@@ -456,9 +421,6 @@ def packages_missing_licenses(
             pkg = req.strip().split("=")[0]
         possible_pkgs = [pkg, pkg.replace("-", "_")]
         match_found = False
-        if pkg in PY2_DOWNLOAD:
-            match_found = True
-            # print("pkg ===> %s" % pkg)
         if pkg in LIBRARY_DIRNAMES:
             possible_pkgs.append(LIBRARY_DIRNAMES[pkg])
         for pkgpath in possible_pkgs:
@@ -515,15 +477,9 @@ def download_licenses(
     tmp_dir = vendor_dir / "__tmp__"
     # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
     cmd = "pip download --no-binary :all: --only-binary requests_download --no-deps"
-    enum_cmd = "pip download --no-deps"
     ctx.run("pip install flit")  # needed for the next step
     for req in requirements:
-        if req.startswith("enum34"):
-            exe_cmd = f"{enum_cmd} -d {tmp_dir.as_posix()} {req}"
-        else:
-            exe_cmd = "{} --no-build-isolation -d {} {}".format(
-                cmd, tmp_dir.as_posix(), req
-            )
+        exe_cmd = "{} --no-build-isolation -d {} {}".format(cmd, tmp_dir.as_posix(), req)
         try:
             ctx.run(exe_cmd)
         except invoke.exceptions.UnexpectedExit as e:
@@ -715,7 +671,15 @@ def unpin_and_copy_requirements(ctx, requirement_file, name="requirements.txt"):
 
 
 @invoke.task
-def unpin_and_update_vendored(ctx, vendor=True, patched=False):
+def update_safety(ctx):
+    """This used to be a thing. It was removed by frostming.
+    It was doing a whole lot of other things besides updating safety.
+    """
+    pass
+
+
+@invoke.task
+def unpin_and_update_vendored(ctx, vendor=False, patched=True):
     if vendor:
         vendor_file = _get_vendor_dir(ctx) / "vendor.txt"
         unpin_and_copy_requirements(ctx, vendor_file, name="vendor.txt")
@@ -748,7 +712,6 @@ def main(ctx, package=None, type=None):
     for package_dir in target_dirs:
         clean_vendor(ctx, package_dir)
         if package_dir == patched_dir:
-            install_pyyaml(ctx, patched_dir)
             vendor(ctx, patched_dir, rewrite=True)
         else:
             vendor(ctx, package_dir)
@@ -757,12 +720,6 @@ def main(ctx, package=None, type=None):
         if package_dir == patched_dir:
             update_pip_deps(ctx)
     log("Revendoring complete")
-
-
-@invoke.task
-def install_yaml(ctx):
-    patched_dir = _get_patched_dir(ctx)
-    install_pyyaml(ctx, patched_dir)
 
 
 @invoke.task
