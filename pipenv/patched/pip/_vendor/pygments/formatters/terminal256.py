@@ -23,9 +23,9 @@
 #    black-on-while, so colors like "white background" need to be converted
 #    to "white background, black foreground", etc...
 
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatter import Formatter
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.console import codes
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.style import ansicolors
+from pipenv.patched.pip._vendor.pygments.formatter import Formatter
+from pipenv.patched.pip._vendor.pygments.console import codes
+from pipenv.patched.pip._vendor.pygments.style import ansicolors
 
 
 __all__ = ['Terminal256Formatter', 'TerminalTrueColorFormatter']

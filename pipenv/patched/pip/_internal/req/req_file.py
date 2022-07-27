@@ -20,20 +20,20 @@ from typing import (
     Tuple,
 )
 
-from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import InstallationError, RequirementsFileParseError
-from pipenv.patched.pipenv.patched.pip._internal.models.search_scope import SearchScope
-from pipenv.patched.pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pipenv.patched.pip._internal.network.utils import raise_for_status
-from pipenv.patched.pipenv.patched.pip._internal.utils.encoding import auto_decode
-from pipenv.patched.pipenv.patched.pip._internal.utils.urls import get_url_scheme
+from pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pip._internal.exceptions import InstallationError, RequirementsFileParseError
+from pipenv.patched.pip._internal.models.search_scope import SearchScope
+from pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pip._internal.network.utils import raise_for_status
+from pipenv.patched.pip._internal.utils.encoding import auto_decode
+from pipenv.patched.pip._internal.utils.urls import get_url_scheme
 
 if TYPE_CHECKING:
     # NoReturn introduced in 3.6.2; imported only for type checking to maintain
     # pip compatibility with older patch versions of Python 3.6
     from typing import NoReturn
 
-    from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 
 __all__ = ["parse_requirements"]
 

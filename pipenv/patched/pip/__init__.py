@@ -8,6 +8,6 @@ def main(args: Optional[List[str]] = None) -> int:
 
     For additional details, see https://github.com/pypa/pip/issues/7498.
     """
-    from pipenv.patched.pipenv.patched.pip._internal.utils.entrypoints import _wrapper
+    from pipenv.patched.pip._internal.utils.entrypoints import _wrapper
 
     return _wrapper(args)

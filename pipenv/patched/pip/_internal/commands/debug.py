@@ -8,17 +8,17 @@ from types import ModuleType
 from typing import Any, Dict, List, Optional
 
 import pipenv.patched.pip._vendor
-from pipenv.patched.pipenv.patched.pip._vendor.certifi import where
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.pip._vendor.certifi import where
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
-from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pipenv.patched.pip._internal.cli.base_command import Command
-from pipenv.patched.pipenv.patched.pip._internal.cli.cmdoptions import make_target_python
-from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import SUCCESS
-from pipenv.patched.pipenv.patched.pip._internal.configuration import Configuration
-from pipenv.patched.pipenv.patched.pip._internal.metadata import get_environment
-from pipenv.patched.pipenv.patched.pip._internal.utils.logging import indent_log
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import get_pip_version
+from pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pip._internal.cli.base_command import Command
+from pipenv.patched.pip._internal.cli.cmdoptions import make_target_python
+from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.pip._internal.configuration import Configuration
+from pipenv.patched.pip._internal.metadata import get_environment
+from pipenv.patched.pip._internal.utils.logging import indent_log
+from pipenv.patched.pip._internal.utils.misc import get_pip_version
 
 logger = logging.getLogger(__name__)
 

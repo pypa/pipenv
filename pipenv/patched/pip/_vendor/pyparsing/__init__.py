@@ -39,7 +39,7 @@ Here is a program to parse "Hello, World!" (or any greeting of the form
 (the :meth:`'+'<ParserElement.__add__>` operators create :class:`And` expressions,
 and the strings are auto-converted to :class:`Literal` expressions)::
 
-    from pipenv.patched.pipenv.patched.pip._vendor.pyparsing import Word, alphas
+    from pipenv.patched.pip._vendor.pyparsing import Word, alphas
 
     # define grammar of a greeting
     greet = Word(alphas) + "," + Word(alphas) + "!"

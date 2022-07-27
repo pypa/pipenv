@@ -10,7 +10,7 @@ from ._emoji_replace import _emoji_replace
 if sys.version_info >= (3, 8):
     from typing import Literal
 else:
-    from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import Literal  # pragma: no cover
+    from pipenv.patched.pip._vendor.typing_extensions import Literal  # pragma: no cover
 
 
 if TYPE_CHECKING:
@@ -81,8 +81,8 @@ class Emoji(JupyterMixin):
 if __name__ == "__main__":  # pragma: no cover
     import sys
 
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.columns import Columns
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pip._vendor.rich.columns import Columns
+    from pipenv.patched.pip._vendor.rich.console import Console
 
     console = Console(record=True)
 

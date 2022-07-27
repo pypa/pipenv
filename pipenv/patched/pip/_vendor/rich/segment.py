@@ -706,9 +706,9 @@ class SegmentLines:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.syntax import Syntax
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.text import Text
+    from pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pip._vendor.rich.syntax import Syntax
+    from pipenv.patched.pip._vendor.rich.text import Text
 
     code = """from rich.console import Console
 console = Console()

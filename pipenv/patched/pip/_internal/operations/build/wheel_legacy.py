@@ -2,9 +2,9 @@ import logging
 import os.path
 from typing import List, Optional
 
-from pipenv.patched.pipenv.patched.pip._internal.cli.spinners import open_spinner
-from pipenv.patched.pipenv.patched.pip._internal.utils.setuptools_build import make_setuptools_bdist_wheel_args
-from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import call_subprocess, format_command_args
+from pipenv.patched.pip._internal.cli.spinners import open_spinner
+from pipenv.patched.pip._internal.utils.setuptools_build import make_setuptools_bdist_wheel_args
+from pipenv.patched.pip._internal.utils.subprocess import call_subprocess, format_command_args
 
 logger = logging.getLogger(__name__)
 

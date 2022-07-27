@@ -42,7 +42,7 @@ FILTER_ENTRY_POINT = 'pygments.filters'
 
 def iter_entry_points(group_name):
     try:
-        from pipenv.patched.pipenv.patched.pip._vendor import pkg_resources
+        from pipenv.patched.pip._vendor import pkg_resources
     except (ImportError, OSError):
         return []
 

@@ -15,18 +15,18 @@ from typing import (
     Union,
 )
 
-from pipenv.patched.pipenv.patched.pip._internal.utils.filetypes import WHEEL_EXTENSION
-from pipenv.patched.pipenv.patched.pip._internal.utils.hashes import Hashes
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import (
+from pipenv.patched.pip._internal.utils.filetypes import WHEEL_EXTENSION
+from pipenv.patched.pip._internal.utils.hashes import Hashes
+from pipenv.patched.pip._internal.utils.misc import (
     redact_auth_from_url,
     split_auth_from_netloc,
     splitext,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.models import KeyBasedCompareMixin
-from pipenv.patched.pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
+from pipenv.patched.pip._internal.utils.models import KeyBasedCompareMixin
+from pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
 
 if TYPE_CHECKING:
-    from pipenv.patched.pipenv.patched.pip._internal.index.collector import IndexContent
+    from pipenv.patched.pip._internal.index.collector import IndexContent
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +226,7 @@ class Link(KeyBasedCompareMixin):
 
     @property
     def is_vcs(self) -> bool:
-        from pipenv.patched.pipenv.patched.pip._internal.vcs import vcs
+        from pipenv.patched.pip._internal.vcs import vcs
 
         return self.scheme in vcs.all_schemes
 

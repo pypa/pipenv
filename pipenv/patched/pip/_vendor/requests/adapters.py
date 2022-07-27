@@ -9,23 +9,23 @@ and maintain connections.
 import os.path
 import socket  # noqa: F401
 
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import ClosedPoolError, ConnectTimeoutError
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import HTTPError as _HTTPError
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import InvalidHeader as _InvalidHeader
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import (
+from pipenv.patched.pip._vendor.urllib3.exceptions import ClosedPoolError, ConnectTimeoutError
+from pipenv.patched.pip._vendor.urllib3.exceptions import HTTPError as _HTTPError
+from pipenv.patched.pip._vendor.urllib3.exceptions import InvalidHeader as _InvalidHeader
+from pipenv.patched.pip._vendor.urllib3.exceptions import (
     LocationValueError,
     MaxRetryError,
     NewConnectionError,
     ProtocolError,
 )
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import ProxyError as _ProxyError
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import ReadTimeoutError, ResponseError
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import SSLError as _SSLError
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.poolmanager import PoolManager, proxy_from_url
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.response import HTTPResponse
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.util import Timeout as TimeoutSauce
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.util import parse_url
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.util.retry import Retry
+from pipenv.patched.pip._vendor.urllib3.exceptions import ProxyError as _ProxyError
+from pipenv.patched.pip._vendor.urllib3.exceptions import ReadTimeoutError, ResponseError
+from pipenv.patched.pip._vendor.urllib3.exceptions import SSLError as _SSLError
+from pipenv.patched.pip._vendor.urllib3.poolmanager import PoolManager, proxy_from_url
+from pipenv.patched.pip._vendor.urllib3.response import HTTPResponse
+from pipenv.patched.pip._vendor.urllib3.util import Timeout as TimeoutSauce
+from pipenv.patched.pip._vendor.urllib3.util import parse_url
+from pipenv.patched.pip._vendor.urllib3.util.retry import Retry
 
 from .auth import _basic_auth_str
 from .compat import basestring, urlparse
@@ -55,7 +55,7 @@ from .utils import (
 )
 
 try:
-    from pipenv.patched.pipenv.patched.pip._vendor.urllib3.contrib.socks import SOCKSProxyManager
+    from pipenv.patched.pip._vendor.urllib3.contrib.socks import SOCKSProxyManager
 except ImportError:
 
     def SOCKSProxyManager(*args, **kwargs):

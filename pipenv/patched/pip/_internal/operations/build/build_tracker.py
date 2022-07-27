@@ -5,9 +5,9 @@ import os
 from types import TracebackType
 from typing import Dict, Generator, Optional, Set, Type, Union
 
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ import pipenv.patched.pip._internal.vcs.bazaar
 import pipenv.patched.pip._internal.vcs.git
 import pipenv.patched.pip._internal.vcs.mercurial
 import pipenv.patched.pip._internal.vcs.subversion  # noqa: F401
-from pipenv.patched.pipenv.patched.pip._internal.vcs.versioncontrol import (  # noqa: F401
+from pipenv.patched.pip._internal.vcs.versioncontrol import (  # noqa: F401
     RemoteNotFoundError,
     RemoteNotValidError,
     is_url,

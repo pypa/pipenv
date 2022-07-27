@@ -14,20 +14,20 @@ import shutil
 import argparse
 from textwrap import dedent
 
-from pipenv.patched.pipenv.patched.pip._vendor.pygments import __version__, highlight
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import ClassNotFound, OptionError, docstring_headline, \
+from pipenv.patched.pip._vendor.pygments import __version__, highlight
+from pipenv.patched.pip._vendor.pygments.util import ClassNotFound, OptionError, docstring_headline, \
     guess_decode, guess_decode_from_terminal, terminal_encoding, \
     UnclosingTextIOWrapper
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.lexers import get_all_lexers, get_lexer_by_name, guess_lexer, \
+from pipenv.patched.pip._vendor.pygments.lexers import get_all_lexers, get_lexer_by_name, guess_lexer, \
     load_lexer_from_file, get_lexer_for_filename, find_lexer_class_for_filename
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.lexers.special import TextLexer
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatters.latex import LatexEmbeddedLexer, LatexFormatter
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatters import get_all_formatters, get_formatter_by_name, \
+from pipenv.patched.pip._vendor.pygments.lexers.special import TextLexer
+from pipenv.patched.pip._vendor.pygments.formatters.latex import LatexEmbeddedLexer, LatexFormatter
+from pipenv.patched.pip._vendor.pygments.formatters import get_all_formatters, get_formatter_by_name, \
     load_formatter_from_file, get_formatter_for_filename, find_formatter_class
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatters.terminal import TerminalFormatter
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatters.terminal256 import Terminal256Formatter
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.filters import get_all_filters, find_filter_class
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.styles import get_all_styles, get_style_by_name
+from pipenv.patched.pip._vendor.pygments.formatters.terminal import TerminalFormatter
+from pipenv.patched.pip._vendor.pygments.formatters.terminal256 import Terminal256Formatter
+from pipenv.patched.pip._vendor.pygments.filters import get_all_filters, find_filter_class
+from pipenv.patched.pip._vendor.pygments.styles import get_all_styles, get_style_by_name
 
 
 def _parse_options(o_strs):
@@ -467,7 +467,7 @@ def main_inner(parser, argns):
         outfile = UnclosingTextIOWrapper(outfile, encoding=fmter.encoding)
         fmter.encoding = None
         try:
-            import pipenv.patched.pipenv.patched.pip._vendor.colorama.initialise as colorama_initialise
+            import pipenv.patched.pip._vendor.colorama.initialise as colorama_initialise
         except ImportError:
             pass
         else:

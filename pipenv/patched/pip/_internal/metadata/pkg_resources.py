@@ -5,15 +5,15 @@ import os
 import zipfile
 from typing import Collection, Iterable, Iterator, List, Mapping, NamedTuple, Optional
 
-from pipenv.patched.pipenv.patched.pip._vendor import pkg_resources
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import Requirement
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.pip._vendor import pkg_resources
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
+from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import InvalidWheel, NoneMetadataError, UnsupportedWheel
-from pipenv.patched.pipenv.patched.pip._internal.utils.egg_link import egg_link_path_from_location
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import display_path, normalize_path
-from pipenv.patched.pipenv.patched.pip._internal.utils.wheel import parse_wheel, read_wheel_metadata_file
+from pipenv.patched.pip._internal.exceptions import InvalidWheel, NoneMetadataError, UnsupportedWheel
+from pipenv.patched.pip._internal.utils.egg_link import egg_link_path_from_location
+from pipenv.patched.pip._internal.utils.misc import display_path, normalize_path
+from pipenv.patched.pip._internal.utils.wheel import parse_wheel, read_wheel_metadata_file
 
 from .base import (
     BaseDistribution,

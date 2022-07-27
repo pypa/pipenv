@@ -4,10 +4,10 @@ import os
 import pathlib
 from typing import Callable, Iterable, Optional, Tuple
 
-from pipenv.patched.pipenv.patched.pip._internal.models.candidate import InstallationCandidate
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
-from pipenv.patched.pipenv.patched.pip._internal.vcs import is_url
+from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
+from pipenv.patched.pip._internal.vcs import is_url
 
 logger = logging.getLogger(__name__)
 

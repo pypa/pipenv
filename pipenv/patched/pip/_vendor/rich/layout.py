@@ -26,7 +26,7 @@ from .segment import Segment
 from .style import StyleType
 
 if TYPE_CHECKING:
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.tree import Tree
+    from pipenv.patched.pip._vendor.rich.tree import Tree
 
 
 class LayoutRender(NamedTuple):
@@ -224,9 +224,9 @@ class Layout:
     @property
     def tree(self) -> "Tree":
         """Get a tree renderable to show layout structure."""
-        from pipenv.patched.pipenv.patched.pip._vendor.rich.styled import Styled
-        from pipenv.patched.pipenv.patched.pip._vendor.rich.table import Table
-        from pipenv.patched.pipenv.patched.pip._vendor.rich.tree import Tree
+        from pipenv.patched.pip._vendor.rich.styled import Styled
+        from pipenv.patched.pip._vendor.rich.table import Table
+        from pipenv.patched.pip._vendor.rich.tree import Tree
 
         def summary(layout: "Layout") -> Table:
 
@@ -419,7 +419,7 @@ class Layout:
 
 
 if __name__ == "__main__":
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pip._vendor.rich.console import Console
 
     console = Console()
     layout = Layout()

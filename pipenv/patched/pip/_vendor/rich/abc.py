@@ -19,7 +19,7 @@ class RichRenderable(ABC):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.text import Text
+    from pipenv.patched.pip._vendor.rich.text import Text
 
     t = Text()
     print(isinstance(Text, RichRenderable))

@@ -5,14 +5,14 @@ import logging
 import os
 from typing import List, Optional, Sequence
 
-from pipenv.patched.pipenv.patched.pip._internal.build_env import BuildEnvironment
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import InstallationError, LegacyInstallFailure
-from pipenv.patched.pipenv.patched.pip._internal.locations.base import change_root
-from pipenv.patched.pipenv.patched.pip._internal.models.scheme import Scheme
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import ensure_dir
-from pipenv.patched.pipenv.patched.pip._internal.utils.setuptools_build import make_setuptools_install_args
-from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
-from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.pip._internal.build_env import BuildEnvironment
+from pipenv.patched.pip._internal.exceptions import InstallationError, LegacyInstallFailure
+from pipenv.patched.pip._internal.locations.base import change_root
+from pipenv.patched.pip._internal.models.scheme import Scheme
+from pipenv.patched.pip._internal.utils.misc import ensure_dir
+from pipenv.patched.pip._internal.utils.setuptools_build import make_setuptools_install_args
+from pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 
 logger = logging.getLogger(__name__)
 

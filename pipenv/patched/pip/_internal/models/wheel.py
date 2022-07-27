@@ -4,9 +4,9 @@ name that have meaning.
 import re
 from typing import Dict, Iterable, List
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.tags import Tag
+from pipenv.patched.pip._vendor.packaging.tags import Tag
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import InvalidWheelFilename
+from pipenv.patched.pip._internal.exceptions import InvalidWheelFilename
 
 
 class Wheel:

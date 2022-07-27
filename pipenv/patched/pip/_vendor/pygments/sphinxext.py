@@ -84,7 +84,7 @@ class PygmentsDoc(Directive):
         return node.children
 
     def document_lexers(self):
-        from pipenv.patched.pipenv.patched.pip._vendor.pygments.lexers._mapping import LEXERS
+        from pipenv.patched.pip._vendor.pygments.lexers._mapping import LEXERS
         out = []
         modules = {}
         moduledocstrings = {}
@@ -121,7 +121,7 @@ class PygmentsDoc(Directive):
         return ''.join(out)
 
     def document_formatters(self):
-        from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatters import FORMATTERS
+        from pipenv.patched.pip._vendor.pygments.formatters import FORMATTERS
 
         out = []
         for classname, data in sorted(FORMATTERS.items(), key=lambda x: x[0]):
@@ -139,7 +139,7 @@ class PygmentsDoc(Directive):
         return ''.join(out)
 
     def document_filters(self):
-        from pipenv.patched.pipenv.patched.pip._vendor.pygments.filters import FILTERS
+        from pipenv.patched.pip._vendor.pygments.filters import FILTERS
 
         out = []
         for name, cls in FILTERS.items():

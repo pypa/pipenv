@@ -19,11 +19,11 @@ from collections import defaultdict
 from itertools import chain
 from typing import DefaultDict, Iterable, List, Optional, Set, Tuple
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging import specifiers
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import Requirement
+from pipenv.patched.pip._vendor.packaging import specifiers
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 
-from pipenv.patched.pipenv.patched.pip._internal.cache import WheelCache
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
+from pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pip._internal.exceptions import (
     BestVersionAlreadyInstalled,
     DistributionNotFound,
     HashError,
@@ -32,23 +32,23 @@ from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
     NoneMetadataError,
     UnsupportedPythonVersion,
 )
-from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.models.wheel import Wheel
-from pipenv.patched.pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
-from pipenv.patched.pipenv.patched.pip._internal.req.req_install import (
+from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.metadata import BaseDistribution
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
+from pipenv.patched.pip._internal.req.req_install import (
     InstallRequirement,
     check_invalid_constraint_type,
 )
-from pipenv.patched.pipenv.patched.pip._internal.req.req_set import RequirementSet
-from pipenv.patched.pipenv.patched.pip._internal.resolution.base import BaseResolver, InstallRequirementProvider
-from pipenv.patched.pipenv.patched.pip._internal.utils import compatibility_tags
-from pipenv.patched.pipenv.patched.pip._internal.utils.compatibility_tags import get_supported
-from pipenv.patched.pipenv.patched.pip._internal.utils.direct_url_helpers import direct_url_from_link
-from pipenv.patched.pipenv.patched.pip._internal.utils.logging import indent_log
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import normalize_version_info
-from pipenv.patched.pipenv.patched.pip._internal.utils.packaging import check_requires_python
+from pipenv.patched.pip._internal.req.req_set import RequirementSet
+from pipenv.patched.pip._internal.resolution.base import BaseResolver, InstallRequirementProvider
+from pipenv.patched.pip._internal.utils import compatibility_tags
+from pipenv.patched.pip._internal.utils.compatibility_tags import get_supported
+from pipenv.patched.pip._internal.utils.direct_url_helpers import direct_url_from_link
+from pipenv.patched.pip._internal.utils.logging import indent_log
+from pipenv.patched.pip._internal.utils.misc import normalize_version_info
+from pipenv.patched.pip._internal.utils.packaging import check_requires_python
 
 logger = logging.getLogger(__name__)
 

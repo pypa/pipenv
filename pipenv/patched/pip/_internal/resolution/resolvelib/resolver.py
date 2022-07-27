@@ -3,19 +3,19 @@ import logging
 import os
 from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, cast
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pipenv.patched.pip._vendor.resolvelib import BaseReporter, ResolutionImpossible
-from pipenv.patched.pipenv.patched.pip._vendor.resolvelib import Resolver as RLResolver
-from pipenv.patched.pipenv.patched.pip._vendor.resolvelib.structs import DirectedGraph
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.resolvelib import BaseReporter, ResolutionImpossible
+from pipenv.patched.pip._vendor.resolvelib import Resolver as RLResolver
+from pipenv.patched.pip._vendor.resolvelib.structs import DirectedGraph
 
-from pipenv.patched.pipenv.patched.pip._internal.cache import WheelCache
-from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
-from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pipenv.patched.pip._internal.req.req_set import RequirementSet
-from pipenv.patched.pipenv.patched.pip._internal.resolution.base import BaseResolver, InstallRequirementProvider
-from pipenv.patched.pipenv.patched.pip._internal.resolution.resolvelib.provider import PipProvider
-from pipenv.patched.pipenv.patched.pip._internal.resolution.resolvelib.reporter import (
+from pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.req.req_set import RequirementSet
+from pipenv.patched.pip._internal.resolution.base import BaseResolver, InstallRequirementProvider
+from pipenv.patched.pip._internal.resolution.resolvelib.provider import PipProvider
+from pipenv.patched.pip._internal.resolution.resolvelib.reporter import (
     PipDebuggingReporter,
     PipReporter,
 )
@@ -24,7 +24,7 @@ from .base import Candidate, Requirement
 from .factory import Factory
 
 if TYPE_CHECKING:
-    from pipenv.patched.pipenv.patched.pip._vendor.resolvelib.resolvers import Result as RLResult
+    from pipenv.patched.pip._vendor.resolvelib.resolvers import Result as RLResult
 
     Result = RLResult[Requirement, Candidate, str]
 

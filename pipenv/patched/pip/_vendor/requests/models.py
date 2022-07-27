@@ -13,16 +13,16 @@ import datetime
 import encodings.idna  # noqa: F401
 from io import UnsupportedOperation
 
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import (
+from pipenv.patched.pip._vendor.urllib3.exceptions import (
     DecodeError,
     LocationParseError,
     ProtocolError,
     ReadTimeoutError,
     SSLError,
 )
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.fields import RequestField
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.filepost import encode_multipart_formdata
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.util import parse_url
+from pipenv.patched.pip._vendor.urllib3.fields import RequestField
+from pipenv.patched.pip._vendor.urllib3.filepost import encode_multipart_formdata
+from pipenv.patched.pip._vendor.urllib3.util import parse_url
 
 from ._internal_utils import to_native_string, unicode_is_ascii
 from .auth import HTTPBasicAuth
@@ -399,7 +399,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
 
     @staticmethod
     def _get_idna_encoded_host(host):
-        from pipenv.patched.pipenv.patched.pip._vendor import idna
+        from pipenv.patched.pip._vendor import idna
 
         try:
             host = idna.encode(host, uts46=True).decode("utf-8")

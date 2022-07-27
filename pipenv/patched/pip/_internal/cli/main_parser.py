@@ -5,11 +5,11 @@ import os
 import sys
 from typing import List, Tuple
 
-from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pipenv.patched.pip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
-from pipenv.patched.pipenv.patched.pip._internal.commands import commands_dict, get_similar_commands
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import CommandError
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import get_pip_version, get_prog
+from pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
+from pipenv.patched.pip._internal.commands import commands_dict, get_similar_commands
+from pipenv.patched.pip._internal.exceptions import CommandError
+from pipenv.patched.pip._internal.utils.misc import get_pip_version, get_prog
 
 __all__ = ["create_main_parser", "parse_command"]
 

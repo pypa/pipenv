@@ -22,23 +22,23 @@ from typing import (
     Union,
 )
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import Requirement
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import NormalizedName
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import LegacyVersion, Version
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
+from pipenv.patched.pip._vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
+from pipenv.patched.pip._vendor.packaging.utils import NormalizedName
+from pipenv.patched.pip._vendor.packaging.version import LegacyVersion, Version
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import NoneMetadataError
-from pipenv.patched.pipenv.patched.pip._internal.locations import site_packages, user_site
-from pipenv.patched.pipenv.patched.pip._internal.models.direct_url import (
+from pipenv.patched.pip._internal.exceptions import NoneMetadataError
+from pipenv.patched.pip._internal.locations import site_packages, user_site
+from pipenv.patched.pip._internal.models.direct_url import (
     DIRECT_URL_METADATA_NAME,
     DirectUrl,
     DirectUrlValidationError,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.compat import stdlib_pkgs  # TODO: Move definition here.
-from pipenv.patched.pipenv.patched.pip._internal.utils.egg_link import egg_link_path_from_sys_path
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import is_local, normalize_path
-from pipenv.patched.pipenv.patched.pip._internal.utils.packaging import safe_extra
-from pipenv.patched.pipenv.patched.pip._internal.utils.urls import url_to_path
+from pipenv.patched.pip._internal.utils.compat import stdlib_pkgs  # TODO: Move definition here.
+from pipenv.patched.pip._internal.utils.egg_link import egg_link_path_from_sys_path
+from pipenv.patched.pip._internal.utils.misc import is_local, normalize_path
+from pipenv.patched.pip._internal.utils.packaging import safe_extra
+from pipenv.patched.pip._internal.utils.urls import url_to_path
 
 from ._json import msg_to_json
 

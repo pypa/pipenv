@@ -2,7 +2,7 @@ import os
 import errno
 import sys
 
-from pipenv.patched.pipenv.patched.pip._vendor import six
+from pipenv.patched.pip._vendor import six
 
 
 def _makedirs_31(path, exist_ok=False):

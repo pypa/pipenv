@@ -15,10 +15,10 @@
 import sys
 import typing
 
-from pipenv.patched.pipenv.patched.pip._vendor.tenacity import BaseRetrying
-from pipenv.patched.pipenv.patched.pip._vendor.tenacity import DoAttempt
-from pipenv.patched.pipenv.patched.pip._vendor.tenacity import DoSleep
-from pipenv.patched.pipenv.patched.pip._vendor.tenacity import RetryCallState
+from pipenv.patched.pip._vendor.tenacity import BaseRetrying
+from pipenv.patched.pip._vendor.tenacity import DoAttempt
+from pipenv.patched.pip._vendor.tenacity import DoSleep
+from pipenv.patched.pip._vendor.tenacity import RetryCallState
 
 from tornado import gen
 

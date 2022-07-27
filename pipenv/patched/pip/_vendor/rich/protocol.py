@@ -2,7 +2,7 @@ from typing import Any, cast, Set, TYPE_CHECKING
 from inspect import isclass
 
 if TYPE_CHECKING:
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import RenderableType
+    from pipenv.patched.pip._vendor.rich.console import RenderableType
 
 _GIBBERISH = """aihwerij235234ljsdnp34ksodfipwoe234234jlskjdf"""
 
@@ -25,7 +25,7 @@ def rich_cast(renderable: object) -> "RenderableType":
     Returns:
         object: The result of recursively calling __rich__.
     """
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import RenderableType
+    from pipenv.patched.pip._vendor.rich.console import RenderableType
 
     rich_visited_set: Set[type] = set()  # Prevent potential infinite loop
     while hasattr(renderable, "__rich__") and not isclass(renderable):

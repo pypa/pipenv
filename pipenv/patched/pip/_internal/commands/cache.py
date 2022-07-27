@@ -3,11 +3,11 @@ import textwrap
 from optparse import Values
 from typing import Any, List
 
-import pipenv.patched.pipenv.patched.pip._internal.utils.filesystem as filesystem
-from pipenv.patched.pipenv.patched.pip._internal.cli.base_command import Command
-from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import CommandError, PipError
-from pipenv.patched.pipenv.patched.pip._internal.utils.logging import getLogger
+import pipenv.patched.pip._internal.utils.filesystem as filesystem
+from pipenv.patched.pip._internal.cli.base_command import Command
+from pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
+from pipenv.patched.pip._internal.exceptions import CommandError, PipError
+from pipenv.patched.pip._internal.utils.logging import getLogger
 
 logger = getLogger(__name__)
 

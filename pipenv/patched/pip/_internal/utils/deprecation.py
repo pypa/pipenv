@@ -6,7 +6,7 @@ import logging
 import warnings
 from typing import Any, Optional, TextIO, Type, Union
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.patched.pip._vendor.packaging.version import parse
 
 from pipenv.patched.pip import __version__ as current_version  # NOTE: tests patch this name.
 

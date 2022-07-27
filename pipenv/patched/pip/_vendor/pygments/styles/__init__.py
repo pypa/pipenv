@@ -8,8 +8,8 @@
     :license: BSD, see LICENSE for details.
 """
 
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.plugin import find_plugin_styles
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import ClassNotFound
+from pipenv.patched.pip._vendor.pygments.plugin import find_plugin_styles
+from pipenv.patched.pip._vendor.pygments.util import ClassNotFound
 
 
 #: Maps style names to 'submodule::classname'.

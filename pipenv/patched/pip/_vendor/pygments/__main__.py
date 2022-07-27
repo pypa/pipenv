@@ -9,7 +9,7 @@
 """
 
 import sys
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.cmdline import main
+from pipenv.patched.pip._vendor.pygments.cmdline import main
 
 try:
     sys.exit(main(sys.argv))

@@ -10,11 +10,11 @@ import os
 import shutil
 from typing import Dict, Iterable, List, Optional
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pipenv.patched.pip._internal.distributions import make_distribution_for_install_requirement
-from pipenv.patched.pipenv.patched.pip._internal.distributions.installed import InstalledDistribution
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
+from pipenv.patched.pip._internal.distributions import make_distribution_for_install_requirement
+from pipenv.patched.pip._internal.distributions.installed import InstalledDistribution
+from pipenv.patched.pip._internal.exceptions import (
     DirectoryUrlHashUnsupported,
     HashMismatch,
     HashUnpinned,
@@ -23,34 +23,34 @@ from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
     PreviousBuildDirError,
     VcsHashUnsupported,
 )
-from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution
-from pipenv.patched.pipenv.patched.pip._internal.models.direct_url import ArchiveInfo
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.models.wheel import Wheel
-from pipenv.patched.pipenv.patched.pip._internal.network.download import BatchDownloader, Downloader
-from pipenv.patched.pipenv.patched.pip._internal.network.lazy_wheel import (
+from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.metadata import BaseDistribution
+from pipenv.patched.pip._internal.models.direct_url import ArchiveInfo
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pip._internal.network.download import BatchDownloader, Downloader
+from pipenv.patched.pip._internal.network.lazy_wheel import (
     HTTPRangeRequestUnsupported,
     dist_from_wheel_url,
 )
-from pipenv.patched.pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pipenv.patched.pip._internal.operations.build.build_tracker import BuildTracker
-from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pipenv.patched.pip._internal.utils.direct_url_helpers import (
+from pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pip._internal.operations.build.build_tracker import BuildTracker
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.direct_url_helpers import (
     direct_url_for_editable,
     direct_url_from_link,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.hashes import Hashes, MissingHashes
-from pipenv.patched.pipenv.patched.pip._internal.utils.logging import indent_log
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import (
+from pipenv.patched.pip._internal.utils.hashes import Hashes, MissingHashes
+from pipenv.patched.pip._internal.utils.logging import indent_log
+from pipenv.patched.pip._internal.utils.misc import (
     display_path,
     hash_file,
     hide_url,
     is_installable_dir,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
-from pipenv.patched.pipenv.patched.pip._internal.utils.unpacking import unpack_file
-from pipenv.patched.pipenv.patched.pip._internal.vcs import vcs
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.pip._internal.utils.unpacking import unpack_file
+from pipenv.patched.pip._internal.vcs import vcs
 
 logger = logging.getLogger(__name__)
 

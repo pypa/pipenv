@@ -37,7 +37,7 @@ from typing import (
 if sys.version_info >= (3, 8):
     from typing import Literal
 else:
-    from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import Literal  # pragma: no cover
+    from pipenv.patched.pip._vendor.typing_extensions import Literal  # pragma: no cover
 
 from . import filesize, get_console
 from .console import Console, Group, JustifyMethod, RenderableType

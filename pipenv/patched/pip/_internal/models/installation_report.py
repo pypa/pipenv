@@ -1,9 +1,9 @@
 from typing import Any, Dict, Sequence
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.markers import default_environment
+from pipenv.patched.pip._vendor.packaging.markers import default_environment
 
 from pipenv.patched.pip import __version__
-from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 
 
 class InstallationReport:

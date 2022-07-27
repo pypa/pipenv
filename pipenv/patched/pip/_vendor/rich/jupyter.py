@@ -1,14 +1,14 @@
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Sequence
 
 if TYPE_CHECKING:
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import ConsoleRenderable
+    from pipenv.patched.pip._vendor.rich.console import ConsoleRenderable
 
 from . import get_console
 from .segment import Segment
 from .terminal_theme import DEFAULT_TERMINAL_THEME
 
 if TYPE_CHECKING:
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import ConsoleRenderable
+    from pipenv.patched.pip._vendor.rich.console import ConsoleRenderable
 
 JUPYTER_HTML_FORMAT = """\
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">{code}</pre>

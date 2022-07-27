@@ -14,21 +14,21 @@ from typing import (
     cast,
 )
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import Requirement
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
+from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import InvalidWheel, UnsupportedWheel
-from pipenv.patched.pipenv.patched.pip._internal.metadata.base import (
+from pipenv.patched.pip._internal.exceptions import InvalidWheel, UnsupportedWheel
+from pipenv.patched.pip._internal.metadata.base import (
     BaseDistribution,
     BaseEntryPoint,
     DistributionVersion,
     InfoPath,
     Wheel,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import normalize_path
-from pipenv.patched.pipenv.patched.pip._internal.utils.packaging import safe_extra
-from pipenv.patched.pipenv.patched.pip._internal.utils.wheel import parse_wheel, read_wheel_metadata_file
+from pipenv.patched.pip._internal.utils.misc import normalize_path
+from pipenv.patched.pip._internal.utils.packaging import safe_extra
+from pipenv.patched.pip._internal.utils.wheel import parse_wheel, read_wheel_metadata_file
 
 from ._compat import BasePath, get_dist_name
 

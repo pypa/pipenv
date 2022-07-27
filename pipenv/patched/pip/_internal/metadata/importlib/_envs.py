@@ -7,12 +7,12 @@ import zipfile
 import zipimport
 from typing import Iterator, List, Optional, Sequence, Set, Tuple
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
 
-from pipenv.patched.pipenv.patched.pip._internal.metadata.base import BaseDistribution, BaseEnvironment
-from pipenv.patched.pipenv.patched.pip._internal.models.wheel import Wheel
-from pipenv.patched.pipenv.patched.pip._internal.utils.deprecation import deprecated
-from pipenv.patched.pipenv.patched.pip._internal.utils.filetypes import WHEEL_EXTENSION
+from pipenv.patched.pip._internal.metadata.base import BaseDistribution, BaseEnvironment
+from pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pip._internal.utils.deprecation import deprecated
+from pipenv.patched.pip._internal.utils.filetypes import WHEEL_EXTENSION
 
 from ._compat import BasePath, get_dist_name, get_info_location
 from ._dists import Distribution
@@ -100,9 +100,9 @@ class _DistributionFinder:
                 yield Distribution(dist, info_location, path)
 
     def _find_eggs_in_dir(self, location: str) -> Iterator[BaseDistribution]:
-        from pipenv.patched.pipenv.patched.pip._vendor.pkg_resources import find_distributions
+        from pipenv.patched.pip._vendor.pkg_resources import find_distributions
 
-        from pipenv.patched.pipenv.patched.pip._internal.metadata import pkg_resources as legacy
+        from pipenv.patched.pip._internal.metadata import pkg_resources as legacy
 
         with os.scandir(location) as it:
             for entry in it:
@@ -112,9 +112,9 @@ class _DistributionFinder:
                     yield legacy.Distribution(dist)
 
     def _find_eggs_in_zip(self, location: str) -> Iterator[BaseDistribution]:
-        from pipenv.patched.pipenv.patched.pip._vendor.pkg_resources import find_eggs_in_zip
+        from pipenv.patched.pip._vendor.pkg_resources import find_eggs_in_zip
 
-        from pipenv.patched.pipenv.patched.pip._internal.metadata import pkg_resources as legacy
+        from pipenv.patched.pip._internal.metadata import pkg_resources as legacy
 
         try:
             importer = zipimport.zipimporter(location)

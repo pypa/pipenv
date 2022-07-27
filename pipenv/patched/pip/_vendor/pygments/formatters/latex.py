@@ -10,10 +10,10 @@
 
 from io import StringIO
 
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatter import Formatter
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.lexer import Lexer, do_insertions
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import Token, STANDARD_TYPES
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import get_bool_opt, get_int_opt
+from pipenv.patched.pip._vendor.pygments.formatter import Formatter
+from pipenv.patched.pip._vendor.pygments.lexer import Lexer, do_insertions
+from pipenv.patched.pip._vendor.pygments.token import Token, STANDARD_TYPES
+from pipenv.patched.pip._vendor.pygments.util import get_bool_opt, get_int_opt
 
 
 __all__ = ['LatexFormatter']

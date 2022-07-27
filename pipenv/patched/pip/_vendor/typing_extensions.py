@@ -1540,7 +1540,7 @@ else:
 
         Example::
 
-          from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import LiteralString
+          from pipenv.patched.pip._vendor.typing_extensions import LiteralString
 
           def query(sql: LiteralString) -> ...:
               ...
@@ -1585,7 +1585,7 @@ else:
         This can be used to define a function that should never be
         called, or a function that never returns::
 
-            from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import Never
+            from pipenv.patched.pip._vendor.typing_extensions import Never
 
             def never_call_me(arg: Never) -> None:
                 pass
@@ -1902,7 +1902,7 @@ else:
 
         Example:
 
-            from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import dataclass_transform
+            from pipenv.patched.pip._vendor.typing_extensions import dataclass_transform
 
             _T = TypeVar("_T")
 

@@ -2,17 +2,17 @@ import colorsys
 import io
 from time import process_time
 
-from pipenv.patched.pipenv.patched.pip._vendor.rich import box
-from pipenv.patched.pipenv.patched.pip._vendor.rich.color import Color
-from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console, ConsoleOptions, Group, RenderableType, RenderResult
-from pipenv.patched.pipenv.patched.pip._vendor.rich.markdown import Markdown
-from pipenv.patched.pipenv.patched.pip._vendor.rich.measure import Measurement
-from pipenv.patched.pipenv.patched.pip._vendor.rich.pretty import Pretty
-from pipenv.patched.pipenv.patched.pip._vendor.rich.segment import Segment
-from pipenv.patched.pipenv.patched.pip._vendor.rich.style import Style
-from pipenv.patched.pipenv.patched.pip._vendor.rich.syntax import Syntax
-from pipenv.patched.pipenv.patched.pip._vendor.rich.table import Table
-from pipenv.patched.pipenv.patched.pip._vendor.rich.text import Text
+from pipenv.patched.pip._vendor.rich import box
+from pipenv.patched.pip._vendor.rich.color import Color
+from pipenv.patched.pip._vendor.rich.console import Console, ConsoleOptions, Group, RenderableType, RenderResult
+from pipenv.patched.pip._vendor.rich.markdown import Markdown
+from pipenv.patched.pip._vendor.rich.measure import Measurement
+from pipenv.patched.pip._vendor.rich.pretty import Pretty
+from pipenv.patched.pip._vendor.rich.segment import Segment
+from pipenv.patched.pip._vendor.rich.style import Style
+from pipenv.patched.pip._vendor.rich.syntax import Syntax
+from pipenv.patched.pip._vendor.rich.table import Table
+from pipenv.patched.pip._vendor.rich.text import Text
 
 
 class ColorBox:
@@ -235,7 +235,7 @@ if __name__ == "__main__":  # pragma: no cover
     print(f"rendered in {pre_cache_taken}ms (cold cache)")
     print(f"rendered in {taken}ms (warm cache)")
 
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.panel import Panel
+    from pipenv.patched.pip._vendor.rich.panel import Panel
 
     console = Console()
 

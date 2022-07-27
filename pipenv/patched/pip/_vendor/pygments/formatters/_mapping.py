@@ -41,7 +41,7 @@ if __name__ == '__main__':  # pragma: no cover
     found_formatters = []
     imports = []
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-    from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import docstring_headline
+    from pipenv.patched.pip._vendor.pygments.util import docstring_headline
 
     for root, dirs, files in os.walk('.'):
         for filename in files:

@@ -196,11 +196,11 @@ class Tree(JupyterMixin):
 
 if __name__ == "__main__":  # pragma: no cover
 
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Group
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.markdown import Markdown
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.panel import Panel
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.syntax import Syntax
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.table import Table
+    from pipenv.patched.pip._vendor.rich.console import Group
+    from pipenv.patched.pip._vendor.rich.markdown import Markdown
+    from pipenv.patched.pip._vendor.rich.panel import Panel
+    from pipenv.patched.pip._vendor.rich.syntax import Syntax
+    from pipenv.patched.pip._vendor.rich.table import Table
 
     table = Table(row_styles=["", "dim"])
 

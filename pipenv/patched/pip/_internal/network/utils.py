@@ -1,8 +1,8 @@
 from typing import Dict, Generator
 
-from pipenv.patched.pipenv.patched.pip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
+from pipenv.patched.pip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import NetworkConnectionError
+from pipenv.patched.pip._internal.exceptions import NetworkConnectionError
 
 # The following comments and HTTP headers were originally added by
 # Donald Stufft in git commit 22c562429a61bb77172039e480873fb239dd8c03.

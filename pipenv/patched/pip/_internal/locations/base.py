@@ -5,9 +5,9 @@ import sys
 import sysconfig
 import typing
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import InstallationError
-from pipenv.patched.pipenv.patched.pip._internal.utils import appdirs
-from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.pip._internal.exceptions import InstallationError
+from pipenv.patched.pip._internal.utils import appdirs
+from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
 # Application Directories
 USER_CACHE_DIR = appdirs.user_cache_dir("pip")

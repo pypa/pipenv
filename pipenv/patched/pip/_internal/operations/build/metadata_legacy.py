@@ -4,16 +4,16 @@
 import logging
 import os
 
-from pipenv.patched.pipenv.patched.pip._internal.build_env import BuildEnvironment
-from pipenv.patched.pipenv.patched.pip._internal.cli.spinners import open_spinner
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
+from pipenv.patched.pip._internal.build_env import BuildEnvironment
+from pipenv.patched.pip._internal.cli.spinners import open_spinner
+from pipenv.patched.pip._internal.exceptions import (
     InstallationError,
     InstallationSubprocessError,
     MetadataGenerationFailed,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.setuptools_build import make_setuptools_egg_info_args
-from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import call_subprocess
-from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.pip._internal.utils.setuptools_build import make_setuptools_egg_info_args
+from pipenv.patched.pip._internal.utils.subprocess import call_subprocess
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 
 logger = logging.getLogger(__name__)
 

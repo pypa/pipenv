@@ -1,10 +1,10 @@
 import sys
 from typing import List, Optional, Tuple
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.tags import Tag
+from pipenv.patched.pip._vendor.packaging.tags import Tag
 
-from pipenv.patched.pipenv.patched.pip._internal.utils.compatibility_tags import get_supported, version_info_to_nodot
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import normalize_version_info
+from pipenv.patched.pip._internal.utils.compatibility_tags import get_supported, version_info_to_nodot
+from pipenv.patched.pip._internal.utils.misc import normalize_version_info
 
 
 class TargetPython:

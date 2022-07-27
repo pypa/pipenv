@@ -347,7 +347,7 @@ class Confirm(PromptBase[bool]):
 
 if __name__ == "__main__":  # pragma: no cover
 
-    from pipenv.patched.pipenv.patched.pip._vendor.rich import print
+    from pipenv.patched.pip._vendor.rich import print
 
     if Confirm.ask("Run [i]prompt[/i] tests?", default=True):
         while True:

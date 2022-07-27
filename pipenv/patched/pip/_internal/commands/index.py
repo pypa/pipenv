@@ -2,19 +2,19 @@ import logging
 from optparse import Values
 from typing import Any, Iterable, List, Optional, Union
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import LegacyVersion, Version
+from pipenv.patched.pip._vendor.packaging.version import LegacyVersion, Version
 
-from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pipenv.patched.pip._internal.cli.req_command import IndexGroupCommand
-from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
-from pipenv.patched.pipenv.patched.pip._internal.commands.search import print_dist_installation_info
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import CommandError, DistributionNotFound, PipError
-from pipenv.patched.pipenv.patched.pip._internal.index.collector import LinkCollector
-from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
-from pipenv.patched.pipenv.patched.pip._internal.models.target_python import TargetPython
-from pipenv.patched.pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import write_output
+from pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pip._internal.cli.req_command import IndexGroupCommand
+from pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
+from pipenv.patched.pip._internal.commands.search import print_dist_installation_info
+from pipenv.patched.pip._internal.exceptions import CommandError, DistributionNotFound, PipError
+from pipenv.patched.pip._internal.index.collector import LinkCollector
+from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
+from pipenv.patched.pip._internal.models.target_python import TargetPython
+from pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pip._internal.utils.misc import write_output
 
 logger = logging.getLogger(__name__)
 

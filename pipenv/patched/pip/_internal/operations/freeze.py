@@ -3,17 +3,17 @@ import logging
 import os
 from typing import Container, Dict, Generator, Iterable, List, NamedTuple, Optional, Set
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import Version
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import Version
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import BadCommand, InstallationError
-from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution, get_environment
-from pipenv.patched.pipenv.patched.pip._internal.req.constructors import (
+from pipenv.patched.pip._internal.exceptions import BadCommand, InstallationError
+from pipenv.patched.pip._internal.metadata import BaseDistribution, get_environment
+from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_editable,
     install_req_from_line,
 )
-from pipenv.patched.pipenv.patched.pip._internal.req.req_file import COMMENT_RE
-from pipenv.patched.pipenv.patched.pip._internal.utils.direct_url_helpers import direct_url_as_pep440_direct_reference
+from pipenv.patched.pip._internal.req.req_file import COMMENT_RE
+from pipenv.patched.pip._internal.utils.direct_url_helpers import direct_url_as_pep440_direct_reference
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,7 @@ def _get_editable_info(dist: BaseDistribution) -> _EditableInfo:
     assert editable_project_location
     location = os.path.normcase(os.path.abspath(editable_project_location))
 
-    from pipenv.patched.pipenv.patched.pip._internal.vcs import RemoteNotFoundError, RemoteNotValidError, vcs
+    from pipenv.patched.pip._internal.vcs import RemoteNotFoundError, RemoteNotValidError, vcs
 
     vcs_backend = vcs.get_backend_for_dir(location)
 

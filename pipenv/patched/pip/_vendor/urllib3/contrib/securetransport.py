@@ -19,7 +19,7 @@ contrib module. So...here we are.
 
 To use this module, simply import and inject it::
 
-    import pipenv.patched.pipenv.patched.pip._vendor.urllib3.contrib.securetransport as securetransport
+    import pipenv.patched.pip._vendor.urllib3.contrib.securetransport as securetransport
     securetransport.inject_into_urllib3()
 
 Happy TLSing!
@@ -64,7 +64,7 @@ import struct
 import threading
 import weakref
 
-from pipenv.patched.pipenv.patched.pip._vendor import six
+from pipenv.patched.pip._vendor import six
 
 from .. import util
 from ..util.ssl_ import PROTOCOL_TLS_CLIENT

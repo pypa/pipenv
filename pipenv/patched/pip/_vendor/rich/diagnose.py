@@ -1,10 +1,10 @@
 import os
 import platform
 
-from pipenv.patched.pipenv.patched.pip._vendor.rich import inspect
-from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console, get_windows_console_features
-from pipenv.patched.pipenv.patched.pip._vendor.rich.panel import Panel
-from pipenv.patched.pipenv.patched.pip._vendor.rich.pretty import Pretty
+from pipenv.patched.pip._vendor.rich import inspect
+from pipenv.patched.pip._vendor.rich.console import Console, get_windows_console_features
+from pipenv.patched.pip._vendor.rich.panel import Panel
+from pipenv.patched.pip._vendor.rich.pretty import Pretty
 
 
 def report() -> None:  # pragma: no cover

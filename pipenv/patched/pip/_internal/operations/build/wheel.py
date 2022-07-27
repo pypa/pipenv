@@ -2,9 +2,9 @@ import logging
 import os
 from typing import Optional
 
-from pipenv.patched.pipenv.patched.pip._vendor.pep517.wrappers import Pep517HookCaller
+from pipenv.patched.pip._vendor.pep517.wrappers import Pep517HookCaller
 
-from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
+from pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.utils.models import KeyBasedCompareMixin
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.utils.models import KeyBasedCompareMixin
 
 
 class InstallationCandidate(KeyBasedCompareMixin):

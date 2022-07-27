@@ -3,9 +3,9 @@ import textwrap
 from optparse import Values
 from typing import List
 
-from pipenv.patched.pipenv.patched.pip._internal.cli.base_command import Command
-from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import SUCCESS
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import get_prog
+from pipenv.patched.pip._internal.cli.base_command import Command
+from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.pip._internal.utils.misc import get_prog
 
 BASE_COMPLETION = """
 # pip {shell} completion start{script}# pip {shell} completion end

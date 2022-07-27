@@ -11,12 +11,12 @@
 import re
 import keyword
 
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.lexer import Lexer, RegexLexer, include, bygroups, using, \
+from pipenv.patched.pip._vendor.pygments.lexer import Lexer, RegexLexer, include, bygroups, using, \
     default, words, combined, do_insertions, this
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import get_bool_opt, shebang_matches
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import Text, Comment, Operator, Keyword, Name, String, \
+from pipenv.patched.pip._vendor.pygments.util import get_bool_opt, shebang_matches
+from pipenv.patched.pip._vendor.pygments.token import Text, Comment, Operator, Keyword, Name, String, \
     Number, Punctuation, Generic, Other, Error
-from pipenv.patched.pipenv.patched.pip._vendor.pygments import unistring as uni
+from pipenv.patched.pip._vendor.pygments import unistring as uni
 
 __all__ = ['PythonLexer', 'PythonConsoleLexer', 'PythonTracebackLexer',
            'Python2Lexer', 'Python2TracebackLexer',

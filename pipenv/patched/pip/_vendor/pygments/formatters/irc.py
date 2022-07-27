@@ -8,10 +8,10 @@
     :license: BSD, see LICENSE for details.
 """
 
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatter import Formatter
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import Keyword, Name, Comment, String, Error, \
+from pipenv.patched.pip._vendor.pygments.formatter import Formatter
+from pipenv.patched.pip._vendor.pygments.token import Keyword, Name, Comment, String, Error, \
     Number, Operator, Generic, Token, Whitespace
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import get_choice_opt
+from pipenv.patched.pip._vendor.pygments.util import get_choice_opt
 
 
 __all__ = ['IRCFormatter']

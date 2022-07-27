@@ -121,7 +121,7 @@ class Rule(JupyterMixin):
 if __name__ == "__main__":  # pragma: no cover
     import sys
 
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pip._vendor.rich.console import Console
 
     try:
         text = sys.argv[1]

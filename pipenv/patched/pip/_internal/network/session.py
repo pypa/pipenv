@@ -28,31 +28,31 @@ from typing import (
     Union,
 )
 
-from pipenv.patched.pipenv.patched.pip._vendor import requests, urllib3
-from pipenv.patched.pipenv.patched.pip._vendor.cachecontrol import CacheControlAdapter as _BaseCacheControlAdapter
-from pipenv.patched.pipenv.patched.pip._vendor.requests.adapters import DEFAULT_POOLBLOCK, BaseAdapter
-from pipenv.patched.pipenv.patched.pip._vendor.requests.adapters import HTTPAdapter as _BaseHTTPAdapter
-from pipenv.patched.pipenv.patched.pip._vendor.requests.models import PreparedRequest, Response
-from pipenv.patched.pipenv.patched.pip._vendor.requests.structures import CaseInsensitiveDict
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.connectionpool import ConnectionPool
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import InsecureRequestWarning
+from pipenv.patched.pip._vendor import requests, urllib3
+from pipenv.patched.pip._vendor.cachecontrol import CacheControlAdapter as _BaseCacheControlAdapter
+from pipenv.patched.pip._vendor.requests.adapters import DEFAULT_POOLBLOCK, BaseAdapter
+from pipenv.patched.pip._vendor.requests.adapters import HTTPAdapter as _BaseHTTPAdapter
+from pipenv.patched.pip._vendor.requests.models import PreparedRequest, Response
+from pipenv.patched.pip._vendor.requests.structures import CaseInsensitiveDict
+from pipenv.patched.pip._vendor.urllib3.connectionpool import ConnectionPool
+from pipenv.patched.pip._vendor.urllib3.exceptions import InsecureRequestWarning
 
 from pipenv.patched.pip import __version__
-from pipenv.patched.pipenv.patched.pip._internal.metadata import get_default_environment
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.network.auth import MultiDomainBasicAuth
-from pipenv.patched.pipenv.patched.pip._internal.network.cache import SafeFileCache
+from pipenv.patched.pip._internal.metadata import get_default_environment
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.network.auth import MultiDomainBasicAuth
+from pipenv.patched.pip._internal.network.cache import SafeFileCache
 
 # Import ssl from compat so the initial import occurs in only one place.
-from pipenv.patched.pipenv.patched.pip._internal.utils.compat import has_tls
-from pipenv.patched.pipenv.patched.pip._internal.utils.glibc import libc_ver
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import build_url_from_netloc, parse_netloc
-from pipenv.patched.pipenv.patched.pip._internal.utils.urls import url_to_path
+from pipenv.patched.pip._internal.utils.compat import has_tls
+from pipenv.patched.pip._internal.utils.glibc import libc_ver
+from pipenv.patched.pip._internal.utils.misc import build_url_from_netloc, parse_netloc
+from pipenv.patched.pip._internal.utils.urls import url_to_path
 
 if TYPE_CHECKING:
     from ssl import SSLContext
 
-    from pipenv.patched.pipenv.patched.pip._vendor.urllib3.poolmanager import PoolManager
+    from pipenv.patched.pip._vendor.urllib3.poolmanager import PoolManager
 
 
 logger = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ def user_agent() -> str:
         data["implementation"]["version"] = platform.python_version()
 
     if sys.platform.startswith("linux"):
-        from pipenv.patched.pipenv.patched.pip._vendor import distro
+        from pipenv.patched.pip._vendor import distro
 
         linux_distribution = distro.name(), distro.version(), distro.codename()
         distro_infos: Dict[str, Any] = dict(

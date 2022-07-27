@@ -5,14 +5,14 @@ import sysconfig
 from importlib.util import cache_from_source
 from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Set, Tuple
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import UninstallationError
-from pipenv.patched.pipenv.patched.pip._internal.locations import get_bin_prefix, get_bin_user
-from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution
-from pipenv.patched.pipenv.patched.pip._internal.utils.compat import WINDOWS
-from pipenv.patched.pipenv.patched.pip._internal.utils.egg_link import egg_link_path_from_location
-from pipenv.patched.pipenv.patched.pip._internal.utils.logging import getLogger, indent_log
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import ask, is_local, normalize_path, renames, rmtree
-from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import AdjacentTempDirectory, TempDirectory
+from pipenv.patched.pip._internal.exceptions import UninstallationError
+from pipenv.patched.pip._internal.locations import get_bin_prefix, get_bin_user
+from pipenv.patched.pip._internal.metadata import BaseDistribution
+from pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pip._internal.utils.egg_link import egg_link_path_from_location
+from pipenv.patched.pip._internal.utils.logging import getLogger, indent_log
+from pipenv.patched.pip._internal.utils.misc import ask, is_local, normalize_path, renames, rmtree
+from pipenv.patched.pip._internal.utils.temp_dir import AdjacentTempDirectory, TempDirectory
 
 logger = getLogger(__name__)
 

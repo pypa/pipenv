@@ -4,11 +4,11 @@
 
 import logging
 
-from pipenv.patched.pipenv.patched.pip._vendor import requests
+from pipenv.patched.pip._vendor import requests
 
-from pipenv.patched.pipenv.patched.pip._vendor.cachecontrol.adapter import CacheControlAdapter
-from pipenv.patched.pipenv.patched.pip._vendor.cachecontrol.cache import DictCache
-from pipenv.patched.pipenv.patched.pip._vendor.cachecontrol.controller import logger
+from pipenv.patched.pip._vendor.cachecontrol.adapter import CacheControlAdapter
+from pipenv.patched.pip._vendor.cachecontrol.cache import DictCache
+from pipenv.patched.pip._vendor.cachecontrol.controller import logger
 
 from argparse import ArgumentParser
 

@@ -4,7 +4,7 @@ requests.exceptions
 
 This module contains the set of Requests' exceptions.
 """
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import HTTPError as BaseHTTPError
+from pipenv.patched.pip._vendor.urllib3.exceptions import HTTPError as BaseHTTPError
 
 from .compat import JSONDecodeError as CompatJSONDecodeError
 

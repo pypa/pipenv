@@ -13,12 +13,12 @@ from typing import (
     Union,
 )
 
-from pipenv.patched.pipenv.patched.pip._vendor.rich.markup import escape
+from pipenv.patched.pip._vendor.rich.markup import escape
 
-from pipenv.patched.pipenv.patched.pip._internal.cli.spinners import SpinnerInterface, open_spinner
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import InstallationSubprocessError
-from pipenv.patched.pipenv.patched.pip._internal.utils.logging import VERBOSE, subprocess_logger
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import HiddenText
+from pipenv.patched.pip._internal.cli.spinners import SpinnerInterface, open_spinner
+from pipenv.patched.pip._internal.exceptions import InstallationSubprocessError
+from pipenv.patched.pip._internal.utils.logging import VERBOSE, subprocess_logger
+from pipenv.patched.pip._internal.utils.misc import HiddenText
 
 if TYPE_CHECKING:
     # Literal was introduced in Python 3.8.

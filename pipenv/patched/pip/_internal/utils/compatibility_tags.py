@@ -4,7 +4,7 @@
 import re
 from typing import List, Optional, Tuple
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.tags import (
+from pipenv.patched.pip._vendor.packaging.tags import (
     PythonVersion,
     Tag,
     compatible_tags,

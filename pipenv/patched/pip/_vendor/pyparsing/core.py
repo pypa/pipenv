@@ -993,7 +993,7 @@ class ParserElement(ABC):
 
         Example::
 
-            from pipenv.patched.pipenv.patched.pip._vendor import pyparsing as pp
+            from pipenv.patched.pip._vendor import pyparsing as pp
             pp.ParserElement.enable_left_recursion()
 
             E = pp.Forward("E")
@@ -1054,7 +1054,7 @@ class ParserElement(ABC):
 
         Example::
 
-            from pipenv.patched.pipenv.patched.pip._vendor import pyparsing
+            from pipenv.patched.pip._vendor import pyparsing
             pyparsing.ParserElement.enable_packrat()
 
         Packrat parsing works similar but not identical to Bounded Recursion parsing,

@@ -8,12 +8,12 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Generator, List, Optional, Tuple
 from zipfile import BadZipfile, ZipFile
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pipenv.patched.pip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
 
-from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution, MemoryWheel, get_wheel_distribution
-from pipenv.patched.pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pipenv.patched.pip._internal.network.utils import HEADERS, raise_for_status, response_chunks
+from pipenv.patched.pip._internal.metadata import BaseDistribution, MemoryWheel, get_wheel_distribution
+from pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pip._internal.network.utils import HEADERS, raise_for_status, response_chunks
 
 
 class HTTPRangeRequestUnsupported(Exception):

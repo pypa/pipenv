@@ -1,7 +1,7 @@
 from typing import Iterable, Sequence, Tuple, cast
 
-from pipenv.patched.pipenv.patched.pip._vendor.rich._win32_console import LegacyWindowsTerm, WindowsCoordinates
-from pipenv.patched.pipenv.patched.pip._vendor.rich.segment import ControlCode, ControlType, Segment
+from pipenv.patched.pip._vendor.rich._win32_console import LegacyWindowsTerm, WindowsCoordinates
+from pipenv.patched.pip._vendor.rich.segment import ControlCode, ControlType, Segment
 
 
 def legacy_windows_render(buffer: Iterable[Segment], term: LegacyWindowsTerm) -> None:

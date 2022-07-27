@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 if sys.version_info >= (3, 8):
     from typing import Literal
 else:
-    from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import Literal  # pragma: no cover
+    from pipenv.patched.pip._vendor.typing_extensions import Literal  # pragma: no cover
 
 
 from ._loop import loop_last

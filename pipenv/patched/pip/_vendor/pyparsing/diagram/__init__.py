@@ -1,5 +1,5 @@
 import railroad
-from pipenv.patched.pipenv.patched.pip._vendor import pyparsing
+from pipenv.patched.pip._vendor import pyparsing
 import typing
 from typing import (
     List,

@@ -10,14 +10,14 @@ import zipfile
 from typing import Iterable, List, Optional
 from zipfile import ZipInfo
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import InstallationError
-from pipenv.patched.pipenv.patched.pip._internal.utils.filetypes import (
+from pipenv.patched.pip._internal.exceptions import InstallationError
+from pipenv.patched.pip._internal.utils.filetypes import (
     BZ2_EXTENSIONS,
     TAR_EXTENSIONS,
     XZ_EXTENSIONS,
     ZIP_EXTENSIONS,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import ensure_dir
+from pipenv.patched.pip._internal.utils.misc import ensure_dir
 
 logger = logging.getLogger(__name__)
 

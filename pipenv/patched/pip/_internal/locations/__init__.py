@@ -6,10 +6,10 @@ import sys
 import sysconfig
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
-from pipenv.patched.pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
-from pipenv.patched.pipenv.patched.pip._internal.utils.compat import WINDOWS
-from pipenv.patched.pipenv.patched.pip._internal.utils.deprecation import deprecated
-from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
+from pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pip._internal.utils.deprecation import deprecated
+from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
 from . import _sysconfig
 from .base import (

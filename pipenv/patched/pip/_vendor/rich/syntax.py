@@ -18,11 +18,11 @@ from typing import (
     Union,
 )
 
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.lexer import Lexer
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.lexers import get_lexer_by_name, guess_lexer_for_filename
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.style import Style as PygmentsStyle
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.styles import get_style_by_name
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import (
+from pipenv.patched.pip._vendor.pygments.lexer import Lexer
+from pipenv.patched.pip._vendor.pygments.lexers import get_lexer_by_name, guess_lexer_for_filename
+from pipenv.patched.pip._vendor.pygments.style import Style as PygmentsStyle
+from pipenv.patched.pip._vendor.pygments.styles import get_style_by_name
+from pipenv.patched.pip._vendor.pygments.token import (
     Comment,
     Error,
     Generic,
@@ -34,10 +34,10 @@ from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import (
     Token,
     Whitespace,
 )
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import ClassNotFound
+from pipenv.patched.pip._vendor.pygments.util import ClassNotFound
 
-from pipenv.patched.pipenv.patched.pip._vendor.rich.containers import Lines
-from pipenv.patched.pipenv.patched.pip._vendor.rich.padding import Padding, PaddingDimensions
+from pipenv.patched.pip._vendor.rich.containers import Lines
+from pipenv.patched.pip._vendor.rich.padding import Padding, PaddingDimensions
 
 from ._loop import loop_first
 from .color import Color, blend_rgb
@@ -902,7 +902,7 @@ if __name__ == "__main__":  # pragma: no cover
     )
     args = parser.parse_args()
 
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pip._vendor.rich.console import Console
 
     console = Console(force_terminal=args.force_color, width=args.width)
 

@@ -235,8 +235,8 @@ if __name__ == "__main__":  # pragma: no cover
         ":warning-emoji: [bold red blink] DANGER![/]",
     ]
 
-    from pipenv.patched.pipenv.patched.pip._vendor.rich import print
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.table import Table
+    from pipenv.patched.pip._vendor.rich import print
+    from pipenv.patched.pip._vendor.rich.table import Table
 
     grid = Table("Markup", "Result", padding=(0, 1))
 

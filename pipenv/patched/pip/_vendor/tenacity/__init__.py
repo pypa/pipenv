@@ -511,7 +511,7 @@ class RetryCallState:
         return f"<{clsname} {id(self)}: attempt #{self.attempt_number}; slept for {slept}; last result: {result}>"
 
 
-from pipenv.patched.pipenv.patched.pip._vendor.tenacity._asyncio import AsyncRetrying  # noqa:E402,I100
+from pipenv.patched.pip._vendor.tenacity._asyncio import AsyncRetrying  # noqa:E402,I100
 
 if tornado:
-    from pipenv.patched.pipenv.patched.pip._vendor.tenacity.tornadoweb import TornadoRetrying
+    from pipenv.patched.pip._vendor.tenacity.tornadoweb import TornadoRetrying

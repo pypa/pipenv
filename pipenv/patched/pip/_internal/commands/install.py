@@ -7,43 +7,43 @@ import site
 from optparse import SUPPRESS_HELP, Values
 from typing import Iterable, List, Optional
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pipenv.patched.pip._vendor.rich import print_json
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.rich import print_json
 
-from pipenv.patched.pipenv.patched.pip._internal.cache import WheelCache
-from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pipenv.patched.pip._internal.cli.cmdoptions import make_target_python
-from pipenv.patched.pipenv.patched.pip._internal.cli.req_command import (
+from pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pip._internal.cli.cmdoptions import make_target_python
+from pipenv.patched.pip._internal.cli.req_command import (
     RequirementCommand,
     warn_if_run_as_root,
     with_cleanup,
 )
-from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import CommandError, InstallationError
-from pipenv.patched.pipenv.patched.pip._internal.locations import get_scheme
-from pipenv.patched.pipenv.patched.pip._internal.metadata import get_environment
-from pipenv.patched.pipenv.patched.pip._internal.models.format_control import FormatControl
-from pipenv.patched.pipenv.patched.pip._internal.models.installation_report import InstallationReport
-from pipenv.patched.pipenv.patched.pip._internal.operations.build.build_tracker import get_build_tracker
-from pipenv.patched.pipenv.patched.pip._internal.operations.check import ConflictDetails, check_install_conflicts
-from pipenv.patched.pipenv.patched.pip._internal.req import install_given_reqs
-from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pipenv.patched.pip._internal.utils.compat import WINDOWS
-from pipenv.patched.pipenv.patched.pip._internal.utils.distutils_args import parse_distutils_args
-from pipenv.patched.pipenv.patched.pip._internal.utils.filesystem import test_writable_dir
-from pipenv.patched.pipenv.patched.pip._internal.utils.logging import getLogger
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import (
+from pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
+from pipenv.patched.pip._internal.exceptions import CommandError, InstallationError
+from pipenv.patched.pip._internal.locations import get_scheme
+from pipenv.patched.pip._internal.metadata import get_environment
+from pipenv.patched.pip._internal.models.format_control import FormatControl
+from pipenv.patched.pip._internal.models.installation_report import InstallationReport
+from pipenv.patched.pip._internal.operations.build.build_tracker import get_build_tracker
+from pipenv.patched.pip._internal.operations.check import ConflictDetails, check_install_conflicts
+from pipenv.patched.pip._internal.req import install_given_reqs
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pip._internal.utils.distutils_args import parse_distutils_args
+from pipenv.patched.pip._internal.utils.filesystem import test_writable_dir
+from pipenv.patched.pip._internal.utils.logging import getLogger
+from pipenv.patched.pip._internal.utils.misc import (
     ensure_dir,
     get_pip_version,
     protect_pip_from_modification_on_windows,
     write_output,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
-from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import (
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.pip._internal.utils.virtualenv import (
     running_under_virtualenv,
     virtualenv_no_global,
 )
-from pipenv.patched.pipenv.patched.pip._internal.wheel_builder import (
+from pipenv.patched.pip._internal.wheel_builder import (
     BinaryAllowedPredicate,
     build,
     should_build_for_install_command,

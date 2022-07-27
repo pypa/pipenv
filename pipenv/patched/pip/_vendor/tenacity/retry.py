@@ -19,7 +19,7 @@ import re
 import typing
 
 if typing.TYPE_CHECKING:
-    from pipenv.patched.pipenv.patched.pip._vendor.tenacity import RetryCallState
+    from pipenv.patched.pip._vendor.tenacity import RetryCallState
 
 
 class retry_base(abc.ABC):

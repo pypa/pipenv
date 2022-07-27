@@ -40,14 +40,14 @@ is at <https://requests.readthedocs.io>.
 
 import warnings
 
-from pipenv.patched.pipenv.patched.pip._vendor import urllib3
+from pipenv.patched.pip._vendor import urllib3
 
 from .exceptions import RequestsDependencyWarning
 
 charset_normalizer_version = None
 
 try:
-    from pipenv.patched.pipenv.patched.pip._vendor.chardet import __version__ as chardet_version
+    from pipenv.patched.pip._vendor.chardet import __version__ as chardet_version
 except ImportError:
     chardet_version = None
 
@@ -117,7 +117,7 @@ except (AssertionError, ValueError):
 try:
     # Note: This logic prevents upgrading cryptography on Windows, if imported
     #       as part of pip.
-    from pipenv.patched.pipenv.patched.pip._internal.utils.compat import WINDOWS
+    from pipenv.patched.pip._internal.utils.compat import WINDOWS
     if not WINDOWS:
         raise ImportError("pip internals: don't import cryptography on Windows")
     try:
@@ -126,7 +126,7 @@ try:
         ssl = None
 
     if not getattr(ssl, "HAS_SNI", False):
-        from pipenv.patched.pipenv.patched.pip._vendor.urllib3.contrib import pyopenssl
+        from pipenv.patched.pip._vendor.urllib3.contrib import pyopenssl
 
         pyopenssl.inject_into_urllib3()
 
@@ -138,7 +138,7 @@ except ImportError:
     pass
 
 # urllib3's DependencyWarnings should be silenced.
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.exceptions import DependencyWarning
+from pipenv.patched.pip._vendor.urllib3.exceptions import DependencyWarning
 
 warnings.simplefilter("ignore", DependencyWarning)
 

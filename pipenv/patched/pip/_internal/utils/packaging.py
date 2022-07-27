@@ -3,8 +3,8 @@ import logging
 import re
 from typing import NewType, Optional, Tuple, cast
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging import specifiers, version
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import Requirement
+from pipenv.patched.pip._vendor.packaging import specifiers, version
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 
 NormalizedExtra = NewType("NormalizedExtra", str)
 

@@ -6,16 +6,16 @@ import mimetypes
 import os
 from typing import Iterable, Optional, Tuple
 
-from pipenv.patched.pipenv.patched.pip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
+from pipenv.patched.pip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
 
-from pipenv.patched.pipenv.patched.pip._internal.cli.progress_bars import get_download_progress_renderer
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import NetworkConnectionError
-from pipenv.patched.pipenv.patched.pip._internal.models.index import PyPI
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.network.cache import is_from_cache
-from pipenv.patched.pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pipenv.patched.pip._internal.network.utils import HEADERS, raise_for_status, response_chunks
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import format_size, redact_auth_from_url, splitext
+from pipenv.patched.pip._internal.cli.progress_bars import get_download_progress_renderer
+from pipenv.patched.pip._internal.exceptions import NetworkConnectionError
+from pipenv.patched.pip._internal.models.index import PyPI
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.network.cache import is_from_cache
+from pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pip._internal.network.utils import HEADERS, raise_for_status, response_chunks
+from pipenv.patched.pip._internal.utils.misc import format_size, redact_auth_from_url, splitext
 
 logger = logging.getLogger(__name__)
 

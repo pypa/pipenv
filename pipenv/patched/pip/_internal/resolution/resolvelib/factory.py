@@ -18,34 +18,34 @@ from typing import (
     cast,
 )
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
-from pipenv.patched.pipenv.patched.pip._vendor.resolvelib import ResolutionImpossible
+from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement
+from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+from pipenv.patched.pip._vendor.resolvelib import ResolutionImpossible
 
-from pipenv.patched.pipenv.patched.pip._internal.cache import CacheEntry, WheelCache
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
+from pipenv.patched.pip._internal.cache import CacheEntry, WheelCache
+from pipenv.patched.pip._internal.exceptions import (
     DistributionNotFound,
     InstallationError,
     MetadataInconsistent,
     UnsupportedPythonVersion,
     UnsupportedWheel,
 )
-from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution, get_default_environment
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.models.wheel import Wheel
-from pipenv.patched.pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
-from pipenv.patched.pipenv.patched.pip._internal.req.constructors import install_req_from_link_and_ireq
-from pipenv.patched.pipenv.patched.pip._internal.req.req_install import (
+from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.metadata import BaseDistribution, get_default_environment
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
+from pipenv.patched.pip._internal.req.constructors import install_req_from_link_and_ireq
+from pipenv.patched.pip._internal.req.req_install import (
     InstallRequirement,
     check_invalid_constraint_type,
 )
-from pipenv.patched.pipenv.patched.pip._internal.resolution.base import InstallRequirementProvider
-from pipenv.patched.pipenv.patched.pip._internal.utils.compatibility_tags import get_supported
-from pipenv.patched.pipenv.patched.pip._internal.utils.hashes import Hashes
-from pipenv.patched.pipenv.patched.pip._internal.utils.packaging import get_requirement
-from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.pip._internal.resolution.base import InstallRequirementProvider
+from pipenv.patched.pip._internal.utils.compatibility_tags import get_supported
+from pipenv.patched.pip._internal.utils.hashes import Hashes
+from pipenv.patched.pip._internal.utils.packaging import get_requirement
+from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
 from .base import Candidate, CandidateVersion, Constraint, Requirement
 from .candidates import (

@@ -19,7 +19,7 @@ import warnings
 import zipfile
 from collections import OrderedDict
 
-from pipenv.patched.pipenv.patched.pip._vendor.urllib3.util import make_headers, parse_url
+from pipenv.patched.pip._vendor.urllib3.util import make_headers, parse_url
 
 from . import certs
 from .__version__ import __version__

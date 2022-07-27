@@ -29,18 +29,18 @@ from typing import (
     Union,
 )
 
-from pipenv.patched.pipenv.patched.pip._vendor import requests
-from pipenv.patched.pipenv.patched.pip._vendor.requests import Response
-from pipenv.patched.pipenv.patched.pip._vendor.requests.exceptions import RetryError, SSLError
+from pipenv.patched.pip._vendor import requests
+from pipenv.patched.pip._vendor.requests import Response
+from pipenv.patched.pip._vendor.requests.exceptions import RetryError, SSLError
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import NetworkConnectionError
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.models.search_scope import SearchScope
-from pipenv.patched.pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pipenv.patched.pip._internal.network.utils import raise_for_status
-from pipenv.patched.pipenv.patched.pip._internal.utils.filetypes import is_archive_file
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import pairwise, redact_auth_from_url
-from pipenv.patched.pipenv.patched.pip._internal.vcs import vcs
+from pipenv.patched.pip._internal.exceptions import NetworkConnectionError
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.models.search_scope import SearchScope
+from pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pip._internal.network.utils import raise_for_status
+from pipenv.patched.pip._internal.utils.filetypes import is_archive_file
+from pipenv.patched.pip._internal.utils.misc import pairwise, redact_auth_from_url
+from pipenv.patched.pip._internal.vcs import vcs
 
 from .sources import CandidatesFromPage, LinkSource, build_source
 

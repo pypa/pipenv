@@ -10,18 +10,18 @@ import traceback
 from optparse import Values
 from typing import Any, Callable, List, Optional, Tuple
 
-from pipenv.patched.pipenv.patched.pip._vendor.rich import traceback as rich_traceback
+from pipenv.patched.pip._vendor.rich import traceback as rich_traceback
 
-from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pipenv.patched.pip._internal.cli.command_context import CommandContextMixIn
-from pipenv.patched.pipenv.patched.pip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
-from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import (
+from pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pip._internal.cli.command_context import CommandContextMixIn
+from pipenv.patched.pip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
+from pipenv.patched.pip._internal.cli.status_codes import (
     ERROR,
     PREVIOUS_BUILD_DIR_ERROR,
     UNKNOWN_ERROR,
     VIRTUALENV_NOT_FOUND,
 )
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
+from pipenv.patched.pip._internal.exceptions import (
     BadCommand,
     CommandError,
     DiagnosticPipError,
@@ -30,12 +30,12 @@ from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
     PreviousBuildDirError,
     UninstallationError,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.filesystem import check_path_owner
-from pipenv.patched.pipenv.patched.pip._internal.utils.logging import BrokenStdoutLoggingError, setup_logging
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import get_prog, normalize_path
-from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectoryTypeRegistry as TempDirRegistry
-from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager, tempdir_registry
-from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.pip._internal.utils.filesystem import check_path_owner
+from pipenv.patched.pip._internal.utils.logging import BrokenStdoutLoggingError, setup_logging
+from pipenv.patched.pip._internal.utils.misc import get_prog, normalize_path
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectoryTypeRegistry as TempDirRegistry
+from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager, tempdir_registry
+from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
 __all__ = ["Command"]
 

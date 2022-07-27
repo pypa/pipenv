@@ -7,9 +7,9 @@ import sys
 from itertools import chain
 from typing import Any, Iterable, List, Optional
 
-from pipenv.patched.pipenv.patched.pip._internal.cli.main_parser import create_main_parser
-from pipenv.patched.pipenv.patched.pip._internal.commands import commands_dict, create_command
-from pipenv.patched.pipenv.patched.pip._internal.metadata import get_default_environment
+from pipenv.patched.pip._internal.cli.main_parser import create_main_parser
+from pipenv.patched.pip._internal.commands import commands_dict, create_command
+from pipenv.patched.pip._internal.metadata import get_default_environment
 
 
 def autocomplete() -> None:

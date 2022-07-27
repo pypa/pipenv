@@ -10,45 +10,45 @@ import uuid
 import zipfile
 from typing import Any, Collection, Dict, Iterable, List, Optional, Sequence, Union
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.markers import Marker
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import Requirement
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import Version
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import parse as parse_version
-from pipenv.patched.pipenv.patched.pip._vendor.pep517.wrappers import Pep517HookCaller
+from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
+from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import Version
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.pip._vendor.pep517.wrappers import Pep517HookCaller
 
-from pipenv.patched.pipenv.patched.pip._internal.build_env import BuildEnvironment, NoOpBuildEnvironment
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import InstallationError, LegacyInstallFailure
-from pipenv.patched.pipenv.patched.pip._internal.locations import get_scheme
-from pipenv.patched.pipenv.patched.pip._internal.metadata import (
+from pipenv.patched.pip._internal.build_env import BuildEnvironment, NoOpBuildEnvironment
+from pipenv.patched.pip._internal.exceptions import InstallationError, LegacyInstallFailure
+from pipenv.patched.pip._internal.locations import get_scheme
+from pipenv.patched.pip._internal.metadata import (
     BaseDistribution,
     get_default_environment,
     get_directory_distribution,
     get_wheel_distribution,
 )
-from pipenv.patched.pipenv.patched.pip._internal.metadata.base import FilesystemWheel
-from pipenv.patched.pipenv.patched.pip._internal.models.direct_url import DirectUrl
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.operations.build.metadata import generate_metadata
-from pipenv.patched.pipenv.patched.pip._internal.operations.build.metadata_editable import generate_editable_metadata
-from pipenv.patched.pipenv.patched.pip._internal.operations.build.metadata_legacy import (
+from pipenv.patched.pip._internal.metadata.base import FilesystemWheel
+from pipenv.patched.pip._internal.models.direct_url import DirectUrl
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.operations.build.metadata import generate_metadata
+from pipenv.patched.pip._internal.operations.build.metadata_editable import generate_editable_metadata
+from pipenv.patched.pip._internal.operations.build.metadata_legacy import (
     generate_metadata as generate_metadata_legacy,
 )
-from pipenv.patched.pipenv.patched.pip._internal.operations.install.editable_legacy import (
+from pipenv.patched.pip._internal.operations.install.editable_legacy import (
     install_editable as install_editable_legacy,
 )
-from pipenv.patched.pipenv.patched.pip._internal.operations.install.legacy import install as install_legacy
-from pipenv.patched.pipenv.patched.pip._internal.operations.install.wheel import install_wheel
-from pipenv.patched.pipenv.patched.pip._internal.pyproject import load_pyproject_toml, make_pyproject_path
-from pipenv.patched.pipenv.patched.pip._internal.req.req_uninstall import UninstallPathSet
-from pipenv.patched.pipenv.patched.pip._internal.utils.deprecation import deprecated
-from pipenv.patched.pipenv.patched.pip._internal.utils.direct_url_helpers import (
+from pipenv.patched.pip._internal.operations.install.legacy import install as install_legacy
+from pipenv.patched.pip._internal.operations.install.wheel import install_wheel
+from pipenv.patched.pip._internal.pyproject import load_pyproject_toml, make_pyproject_path
+from pipenv.patched.pip._internal.req.req_uninstall import UninstallPathSet
+from pipenv.patched.pip._internal.utils.deprecation import deprecated
+from pipenv.patched.pip._internal.utils.direct_url_helpers import (
     direct_url_for_editable,
     direct_url_from_link,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.hashes import Hashes
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import (
+from pipenv.patched.pip._internal.utils.hashes import Hashes
+from pipenv.patched.pip._internal.utils.misc import (
     ConfiguredPep517HookCaller,
     ask_path_exists,
     backup_dir,
@@ -56,11 +56,11 @@ from pipenv.patched.pipenv.patched.pip._internal.utils.misc import (
     hide_url,
     redact_auth_from_url,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.packaging import safe_extra
-from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
-from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
-from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
-from pipenv.patched.pipenv.patched.pip._internal.vcs import vcs
+from pipenv.patched.pip._internal.utils.packaging import safe_extra
+from pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
+from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.pip._internal.vcs import vcs
 
 logger = logging.getLogger(__name__)
 

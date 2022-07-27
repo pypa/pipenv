@@ -1,8 +1,8 @@
 from typing import FrozenSet, Optional, Set
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import CommandError
+from pipenv.patched.pip._internal.exceptions import CommandError
 
 
 class FormatControl:

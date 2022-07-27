@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import Literal  # pragma: no cover
+    from pipenv.patched.pip._vendor.typing_extensions import Literal  # pragma: no cover
 
 from .api import PlatformDirsABC
 from .version import __version__, __version_info__
@@ -18,21 +18,21 @@ from .version import __version__, __version_info__
 
 def _set_platform_dir_class() -> type[PlatformDirsABC]:
     if sys.platform == "win32":
-        from pipenv.patched.pipenv.patched.pip._vendor.platformdirs.windows import Windows as Result
+        from pipenv.patched.pip._vendor.platformdirs.windows import Windows as Result
     elif sys.platform == "darwin":
-        from pipenv.patched.pipenv.patched.pip._vendor.platformdirs.macos import MacOS as Result
+        from pipenv.patched.pip._vendor.platformdirs.macos import MacOS as Result
     else:
-        from pipenv.patched.pipenv.patched.pip._vendor.platformdirs.unix import Unix as Result
+        from pipenv.patched.pip._vendor.platformdirs.unix import Unix as Result
 
     if os.getenv("ANDROID_DATA") == "/data" and os.getenv("ANDROID_ROOT") == "/system":
 
         if os.getenv("SHELL") is not None:
             return Result
 
-        from pipenv.patched.pipenv.patched.pip._vendor.platformdirs.android import _android_folder
+        from pipenv.patched.pip._vendor.platformdirs.android import _android_folder
 
         if _android_folder() is not None:
-            from pipenv.patched.pipenv.patched.pip._vendor.platformdirs.android import Android
+            from pipenv.patched.pip._vendor.platformdirs.android import Android
 
             return Android  # return to avoid redefinition of result
 

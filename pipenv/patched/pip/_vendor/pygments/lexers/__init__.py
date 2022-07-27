@@ -14,10 +14,10 @@ import types
 import fnmatch
 from os.path import basename
 
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.lexers._mapping import LEXERS
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.modeline import get_filetype_from_buffer
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.plugin import find_plugin_lexers
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import ClassNotFound, guess_decode
+from pipenv.patched.pip._vendor.pygments.lexers._mapping import LEXERS
+from pipenv.patched.pip._vendor.pygments.modeline import get_filetype_from_buffer
+from pipenv.patched.pip._vendor.pygments.plugin import find_plugin_lexers
+from pipenv.patched.pip._vendor.pygments.util import ClassNotFound, guess_decode
 
 COMPAT = {
     'Python3Lexer': 'PythonLexer',

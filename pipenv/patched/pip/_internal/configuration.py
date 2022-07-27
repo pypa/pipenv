@@ -17,14 +17,14 @@ import os
 import sys
 from typing import Any, Dict, Iterable, List, NewType, Optional, Tuple
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
+from pipenv.patched.pip._internal.exceptions import (
     ConfigurationError,
     ConfigurationFileCouldNotBeLoaded,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils import appdirs
-from pipenv.patched.pipenv.patched.pip._internal.utils.compat import WINDOWS
-from pipenv.patched.pipenv.patched.pip._internal.utils.logging import getLogger
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import ensure_dir, enum
+from pipenv.patched.pip._internal.utils import appdirs
+from pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pip._internal.utils.logging import getLogger
+from pipenv.patched.pip._internal.utils.misc import ensure_dir, enum
 
 RawConfigParser = configparser.RawConfigParser  # Shorthand
 Kind = NewType("Kind", str)

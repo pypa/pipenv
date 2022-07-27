@@ -4,8 +4,8 @@ import shutil
 import sys
 from typing import List, Optional
 
-from pipenv.patched.pipenv.patched.pip._internal.cli.main import main
-from pipenv.patched.pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pip._internal.cli.main import main
+from pipenv.patched.pip._internal.utils.compat import WINDOWS
 
 _EXECUTABLE_NAMES = [
     "pip",

@@ -2,24 +2,24 @@ import logging
 import sys
 from typing import TYPE_CHECKING, Any, FrozenSet, Iterable, Optional, Tuple, Union, cast
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import Version
+from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import Version
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import (
+from pipenv.patched.pip._internal.exceptions import (
     HashError,
     InstallationSubprocessError,
     MetadataInconsistent,
 )
-from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link, links_equivalent
-from pipenv.patched.pipenv.patched.pip._internal.models.wheel import Wheel
-from pipenv.patched.pipenv.patched.pip._internal.req.constructors import (
+from pipenv.patched.pip._internal.metadata import BaseDistribution
+from pipenv.patched.pip._internal.models.link import Link, links_equivalent
+from pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_editable,
     install_req_from_line,
 )
-from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pipenv.patched.pip._internal.utils.direct_url_helpers import direct_url_from_link
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import normalize_version_info
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.direct_url_helpers import direct_url_from_link
+from pipenv.patched.pip._internal.utils.misc import normalize_version_info
 
 from .base import Candidate, CandidateVersion, Requirement, format_name
 

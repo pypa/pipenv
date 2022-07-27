@@ -16,12 +16,12 @@
 
 import typing
 
-from pipenv.patched.pipenv.patched.pip._vendor.tenacity import _utils
+from pipenv.patched.pip._vendor.tenacity import _utils
 
 if typing.TYPE_CHECKING:
     import logging
 
-    from pipenv.patched.pipenv.patched.pip._vendor.tenacity import RetryCallState
+    from pipenv.patched.pip._vendor.tenacity import RetryCallState
 
 
 def after_nothing(retry_state: "RetryCallState") -> None:

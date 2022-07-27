@@ -133,7 +133,7 @@ if __name__ == "__main__":
             yield "buy", "hand sanitizer"
 
     foo = Foo()
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pip._vendor.rich.console import Console
 
     console = Console()
 

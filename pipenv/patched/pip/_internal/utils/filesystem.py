@@ -7,10 +7,10 @@ from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 from typing import Any, BinaryIO, Generator, List, Union, cast
 
-from pipenv.patched.pipenv.patched.pip._vendor.tenacity import retry, stop_after_delay, wait_fixed
+from pipenv.patched.pip._vendor.tenacity import retry, stop_after_delay, wait_fixed
 
-from pipenv.patched.pipenv.patched.pip._internal.utils.compat import get_path_uid
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import format_size
+from pipenv.patched.pip._internal.utils.compat import get_path_uid
+from pipenv.patched.pip._internal.utils.misc import format_size
 
 
 def check_path_owner(path: str) -> bool:

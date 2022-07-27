@@ -168,9 +168,9 @@ if __name__ == "__main__":  # pragma: no cover
     import argparse
     import io
 
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.table import Table
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.text import Text
+    from pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pip._vendor.rich.table import Table
+    from pipenv.patched.pip._vendor.rich.text import Text
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--html", action="store_true", help="Export as HTML table")

@@ -2,11 +2,11 @@ import sys
 from optparse import Values
 from typing import List
 
-from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pipenv.patched.pip._internal.cli.base_command import Command
-from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import SUCCESS
-from pipenv.patched.pipenv.patched.pip._internal.operations.freeze import freeze
-from pipenv.patched.pipenv.patched.pip._internal.utils.compat import stdlib_pkgs
+from pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pip._internal.cli.base_command import Command
+from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.pip._internal.operations.freeze import freeze
+from pipenv.patched.pip._internal.utils.compat import stdlib_pkgs
 
 DEV_PKGS = {"pip", "setuptools", "distribute", "wheel"}
 

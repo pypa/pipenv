@@ -1,9 +1,9 @@
 from typing import Optional
 
-from pipenv.patched.pipenv.patched.pip._internal.models.direct_url import ArchiveInfo, DirectUrl, DirInfo, VcsInfo
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.utils.urls import path_to_url
-from pipenv.patched.pipenv.patched.pip._internal.vcs import vcs
+from pipenv.patched.pip._internal.models.direct_url import ArchiveInfo, DirectUrl, DirInfo, VcsInfo
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.utils.urls import path_to_url
+from pipenv.patched.pip._internal.vcs import vcs
 
 
 def direct_url_as_pep440_direct_reference(direct_url: DirectUrl, name: str) -> str:

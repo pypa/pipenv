@@ -7,17 +7,17 @@ from collections import OrderedDict
 from optparse import Values
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
-from pipenv.patched.pipenv.patched.pip._internal.cli.base_command import Command
-from pipenv.patched.pipenv.patched.pip._internal.cli.req_command import SessionCommandMixin
-from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import NO_MATCHES_FOUND, SUCCESS
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import CommandError
-from pipenv.patched.pipenv.patched.pip._internal.metadata import get_default_environment
-from pipenv.patched.pipenv.patched.pip._internal.models.index import PyPI
-from pipenv.patched.pipenv.patched.pip._internal.network.xmlrpc import PipXmlrpcTransport
-from pipenv.patched.pipenv.patched.pip._internal.utils.logging import indent_log
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import write_output
+from pipenv.patched.pip._internal.cli.base_command import Command
+from pipenv.patched.pip._internal.cli.req_command import SessionCommandMixin
+from pipenv.patched.pip._internal.cli.status_codes import NO_MATCHES_FOUND, SUCCESS
+from pipenv.patched.pip._internal.exceptions import CommandError
+from pipenv.patched.pip._internal.metadata import get_default_environment
+from pipenv.patched.pip._internal.models.index import PyPI
+from pipenv.patched.pip._internal.network.xmlrpc import PipXmlrpcTransport
+from pipenv.patched.pip._internal.utils.logging import indent_log
+from pipenv.patched.pip._internal.utils.misc import write_output
 
 if TYPE_CHECKING:
     from typing import TypedDict

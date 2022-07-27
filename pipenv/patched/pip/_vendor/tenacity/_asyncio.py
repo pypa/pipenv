@@ -20,11 +20,11 @@ import sys
 import typing
 from asyncio import sleep
 
-from pipenv.patched.pipenv.patched.pip._vendor.tenacity import AttemptManager
-from pipenv.patched.pipenv.patched.pip._vendor.tenacity import BaseRetrying
-from pipenv.patched.pipenv.patched.pip._vendor.tenacity import DoAttempt
-from pipenv.patched.pipenv.patched.pip._vendor.tenacity import DoSleep
-from pipenv.patched.pipenv.patched.pip._vendor.tenacity import RetryCallState
+from pipenv.patched.pip._vendor.tenacity import AttemptManager
+from pipenv.patched.pip._vendor.tenacity import BaseRetrying
+from pipenv.patched.pip._vendor.tenacity import DoAttempt
+from pipenv.patched.pip._vendor.tenacity import DoSleep
+from pipenv.patched.pip._vendor.tenacity import RetryCallState
 
 WrappedFn = typing.TypeVar("WrappedFn", bound=typing.Callable)
 _RetValT = typing.TypeVar("_RetValT")

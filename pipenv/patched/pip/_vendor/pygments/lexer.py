@@ -12,12 +12,12 @@ import re
 import sys
 import time
 
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.filter import apply_filters, Filter
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.filters import get_filter_by_name
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import Error, Text, Other, _TokenType
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import get_bool_opt, get_int_opt, get_list_opt, \
+from pipenv.patched.pip._vendor.pygments.filter import apply_filters, Filter
+from pipenv.patched.pip._vendor.pygments.filters import get_filter_by_name
+from pipenv.patched.pip._vendor.pygments.token import Error, Text, Other, _TokenType
+from pipenv.patched.pip._vendor.pygments.util import get_bool_opt, get_int_opt, get_list_opt, \
     make_analysator, Future, guess_decode
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.regexopt import regex_opt
+from pipenv.patched.pip._vendor.pygments.regexopt import regex_opt
 
 __all__ = ['Lexer', 'RegexLexer', 'ExtendedRegexLexer', 'DelegatingLexer',
            'LexerContext', 'include', 'inherit', 'bygroups', 'using', 'this',
@@ -149,7 +149,7 @@ class Lexer(metaclass=LexerMeta):
                 text, _ = guess_decode(text)
             elif self.encoding == 'chardet':
                 try:
-                    from pipenv.patched.pipenv.patched.pip._vendor import chardet
+                    from pipenv.patched.pip._vendor import chardet
                 except ImportError as e:
                     raise ImportError('To enable chardet encoding guessing, '
                                       'please install the chardet library '

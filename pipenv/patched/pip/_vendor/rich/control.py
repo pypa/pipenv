@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Union
 if sys.version_info >= (3, 8):
     from typing import Final
 else:
-    from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import Final  # pragma: no cover
+    from pipenv.patched.pip._vendor.typing_extensions import Final  # pragma: no cover
 
 from .segment import ControlCode, ControlType, Segment
 
@@ -215,7 +215,7 @@ def escape_control_codes(
 
 
 if __name__ == "__main__":  # pragma: no cover
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pip._vendor.rich.console import Console
 
     console = Console()
     console.print("Look at the title of your terminal window ^")

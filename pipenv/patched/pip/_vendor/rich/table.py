@@ -916,9 +916,9 @@ class Table(JupyterMixin):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.highlighter import ReprHighlighter
-    from pipenv.patched.pipenv.patched.pip._vendor.rich.table import Table as Table
+    from pipenv.patched.pip._vendor.rich.console import Console
+    from pipenv.patched.pip._vendor.rich.highlighter import ReprHighlighter
+    from pipenv.patched.pip._vendor.rich.table import Table as Table
 
     from ._timer import timer
 

@@ -1,4 +1,4 @@
-from pipenv.patched.pipenv.patched.pip._vendor.chardet.sbcharsetprober import SingleByteCharSetModel
+from pipenv.patched.pip._vendor.chardet.sbcharsetprober import SingleByteCharSetModel
 
 # 3: Positive
 # 2: Likely

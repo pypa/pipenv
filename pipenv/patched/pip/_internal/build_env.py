@@ -11,19 +11,19 @@ from sysconfig import get_paths
 from types import TracebackType
 from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Tuple, Type
 
-from pipenv.patched.pipenv.patched.pip._vendor.certifi import where
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import Requirement
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import Version
+from pipenv.patched.pip._vendor.certifi import where
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
+from pipenv.patched.pip._vendor.packaging.version import Version
 
 from pipenv.patched.pip import __file__ as pip_location
-from pipenv.patched.pipenv.patched.pip._internal.cli.spinners import open_spinner
-from pipenv.patched.pipenv.patched.pip._internal.locations import get_platlib, get_prefixed_libs, get_purelib
-from pipenv.patched.pipenv.patched.pip._internal.metadata import get_default_environment, get_environment
-from pipenv.patched.pipenv.patched.pip._internal.utils.subprocess import call_subprocess
-from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
+from pipenv.patched.pip._internal.cli.spinners import open_spinner
+from pipenv.patched.pip._internal.locations import get_platlib, get_prefixed_libs, get_purelib
+from pipenv.patched.pip._internal.metadata import get_default_environment, get_environment
+from pipenv.patched.pip._internal.utils.subprocess import call_subprocess
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
 
 if TYPE_CHECKING:
-    from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 
 logger = logging.getLogger(__name__)
 

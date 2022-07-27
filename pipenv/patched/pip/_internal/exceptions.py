@@ -10,17 +10,17 @@ import re
 from itertools import chain, groupby, repeat
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
-from pipenv.patched.pipenv.patched.pip._vendor.requests.models import Request, Response
-from pipenv.patched.pipenv.patched.pip._vendor.rich.console import Console, ConsoleOptions, RenderResult
-from pipenv.patched.pipenv.patched.pip._vendor.rich.markup import escape
-from pipenv.patched.pipenv.patched.pip._vendor.rich.text import Text
+from pipenv.patched.pip._vendor.requests.models import Request, Response
+from pipenv.patched.pip._vendor.rich.console import Console, ConsoleOptions, RenderResult
+from pipenv.patched.pip._vendor.rich.markup import escape
+from pipenv.patched.pip._vendor.rich.text import Text
 
 if TYPE_CHECKING:
     from hashlib import _Hash
     from typing import Literal
 
-    from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution
-    from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.pip._internal.metadata import BaseDistribution
+    from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 
 
 #
@@ -540,7 +540,7 @@ class HashMissing(HashError):
 
     def body(self) -> str:
         # Dodge circular import.
-        from pipenv.patched.pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
+        from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 
         package = None
         if self.req:

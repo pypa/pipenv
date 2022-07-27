@@ -37,7 +37,7 @@ from typing import (
 if sys.version_info >= (3, 8):
     from typing import Literal, Protocol, runtime_checkable
 else:
-    from pipenv.patched.pipenv.patched.pip._vendor.typing_extensions import (
+    from pipenv.patched.pip._vendor.typing_extensions import (
         Literal,
         Protocol,
         runtime_checkable,
@@ -1722,7 +1722,7 @@ class Console:
                 in to something that can be JSON encoded. Defaults to None.
             sort_keys (bool, optional): Sort dictionary keys. Defaults to False.
         """
-        from pipenv.patched.pipenv.patched.pip._vendor.rich.json import JSON
+        from pipenv.patched.pip._vendor.rich.json import JSON
 
         if json is None:
             json_renderable = JSON.from_data(
@@ -1993,8 +1993,8 @@ class Console:
                                 pass
 
                         if use_legacy_windows_render:
-                            from pipenv.patched.pipenv.patched.pip._vendor.rich._win32_console import LegacyWindowsTerm
-                            from pipenv.patched.pipenv.patched.pip._vendor.rich._windows_renderer import legacy_windows_render
+                            from pipenv.patched.pip._vendor.rich._win32_console import LegacyWindowsTerm
+                            from pipenv.patched.pip._vendor.rich._windows_renderer import legacy_windows_render
 
                             legacy_windows_render(
                                 self._buffer[:], LegacyWindowsTerm(self.file)
@@ -2252,7 +2252,7 @@ class Console:
                 injected by Rich can be found by inspecting the ``console.CONSOLE_SVG_FORMAT`` variable.
         """
 
-        from pipenv.patched.pipenv.patched.pip._vendor.rich.cells import cell_len
+        from pipenv.patched.pip._vendor.rich.cells import cell_len
 
         style_cache: Dict[Style, str] = {}
 

@@ -1,7 +1,7 @@
 import functools
 from typing import Callable, Generator, Iterable, Iterator, Optional, Tuple
 
-from pipenv.patched.pipenv.patched.pip._vendor.rich.progress import (
+from pipenv.patched.pip._vendor.rich.progress import (
     BarColumn,
     DownloadColumn,
     FileSizeColumn,
@@ -14,7 +14,7 @@ from pipenv.patched.pipenv.patched.pip._vendor.rich.progress import (
     TransferSpeedColumn,
 )
 
-from pipenv.patched.pipenv.patched.pip._internal.utils.logging import get_indentation
+from pipenv.patched.pip._internal.utils.logging import get_indentation
 
 DownloadProgressRenderer = Callable[[Iterable[bytes]], Iterator[bytes]]
 

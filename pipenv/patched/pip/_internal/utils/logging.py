@@ -10,7 +10,7 @@ from io import TextIOWrapper
 from logging import Filter
 from typing import Any, ClassVar, Generator, List, Optional, TextIO, Type
 
-from pipenv.patched.pipenv.patched.pip._vendor.rich.console import (
+from pipenv.patched.pip._vendor.rich.console import (
     Console,
     ConsoleOptions,
     ConsoleRenderable,
@@ -18,15 +18,15 @@ from pipenv.patched.pipenv.patched.pip._vendor.rich.console import (
     RenderResult,
     RichCast,
 )
-from pipenv.patched.pipenv.patched.pip._vendor.rich.highlighter import NullHighlighter
-from pipenv.patched.pipenv.patched.pip._vendor.rich.logging import RichHandler
-from pipenv.patched.pipenv.patched.pip._vendor.rich.segment import Segment
-from pipenv.patched.pipenv.patched.pip._vendor.rich.style import Style
+from pipenv.patched.pip._vendor.rich.highlighter import NullHighlighter
+from pipenv.patched.pip._vendor.rich.logging import RichHandler
+from pipenv.patched.pip._vendor.rich.segment import Segment
+from pipenv.patched.pip._vendor.rich.style import Style
 
-from pipenv.patched.pipenv.patched.pip._internal.utils._log import VERBOSE, getLogger
-from pipenv.patched.pipenv.patched.pip._internal.utils.compat import WINDOWS
-from pipenv.patched.pipenv.patched.pip._internal.utils.deprecation import DEPRECATION_MSG_PREFIX
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import ensure_dir
+from pipenv.patched.pip._internal.utils._log import VERBOSE, getLogger
+from pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pip._internal.utils.deprecation import DEPRECATION_MSG_PREFIX
+from pipenv.patched.pip._internal.utils.misc import ensure_dir
 
 _log_state = threading.local()
 subprocess_logger = getLogger("pip.subprocessor")

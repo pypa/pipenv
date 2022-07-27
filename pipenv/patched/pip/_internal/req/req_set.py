@@ -2,9 +2,9 @@ import logging
 from collections import OrderedDict
 from typing import Dict, List
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 
 logger = logging.getLogger(__name__)
 

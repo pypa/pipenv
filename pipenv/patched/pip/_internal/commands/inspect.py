@@ -2,16 +2,16 @@ import logging
 from optparse import Values
 from typing import Any, Dict, List
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.markers import default_environment
-from pipenv.patched.pipenv.patched.pip._vendor.rich import print_json
+from pipenv.patched.pip._vendor.packaging.markers import default_environment
+from pipenv.patched.pip._vendor.rich import print_json
 
 from pipenv.patched.pip import __version__
-from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pipenv.patched.pip._internal.cli.req_command import Command
-from pipenv.patched.pipenv.patched.pip._internal.cli.status_codes import SUCCESS
-from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution, get_environment
-from pipenv.patched.pipenv.patched.pip._internal.utils.compat import stdlib_pkgs
-from pipenv.patched.pipenv.patched.pip._internal.utils.urls import path_to_url
+from pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pip._internal.cli.req_command import Command
+from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.pip._internal.metadata import BaseDistribution, get_environment
+from pipenv.patched.pip._internal.utils.compat import stdlib_pkgs
+from pipenv.patched.pip._internal.utils.urls import path_to_url
 
 logger = logging.getLogger(__name__)
 

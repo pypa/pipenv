@@ -8,7 +8,7 @@
     :license: BSD, see LICENSE for details.
 """
 
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.formatter import Formatter
+from pipenv.patched.pip._vendor.pygments.formatter import Formatter
 
 
 __all__ = ['PangoMarkupFormatter']

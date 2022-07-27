@@ -13,21 +13,21 @@ import os
 import re
 from typing import Any, Dict, Optional, Set, Tuple, Union
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.markers import Marker
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement, Requirement
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.specifiers import Specifier
+from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement, Requirement
+from pipenv.patched.pip._vendor.packaging.specifiers import Specifier
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import InstallationError
-from pipenv.patched.pipenv.patched.pip._internal.models.index import PyPI, TestPyPI
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.models.wheel import Wheel
-from pipenv.patched.pipenv.patched.pip._internal.req.req_file import ParsedRequirement
-from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pipenv.patched.pip._internal.utils.filetypes import is_archive_file
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import is_installable_dir
-from pipenv.patched.pipenv.patched.pip._internal.utils.packaging import get_requirement
-from pipenv.patched.pipenv.patched.pip._internal.utils.urls import path_to_url
-from pipenv.patched.pipenv.patched.pip._internal.vcs import is_url, vcs
+from pipenv.patched.pip._internal.exceptions import InstallationError
+from pipenv.patched.pip._internal.models.index import PyPI, TestPyPI
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pip._internal.req.req_file import ParsedRequirement
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.filetypes import is_archive_file
+from pipenv.patched.pip._internal.utils.misc import is_installable_dir
+from pipenv.patched.pip._internal.utils.packaging import get_requirement
+from pipenv.patched.pip._internal.utils.urls import path_to_url
+from pipenv.patched.pip._internal.vcs import is_url, vcs
 
 __all__ = [
     "install_req_from_editable",

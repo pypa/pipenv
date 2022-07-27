@@ -6,11 +6,11 @@ import os
 import sys
 from typing import List, Optional
 
-from pipenv.patched.pipenv.patched.pip._internal.cli.autocompletion import autocomplete
-from pipenv.patched.pipenv.patched.pip._internal.cli.main_parser import parse_command
-from pipenv.patched.pipenv.patched.pip._internal.commands import create_command
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import PipError
-from pipenv.patched.pipenv.patched.pip._internal.utils import deprecation
+from pipenv.patched.pip._internal.cli.autocompletion import autocomplete
+from pipenv.patched.pip._internal.cli.main_parser import parse_command
+from pipenv.patched.pip._internal.commands import create_command
+from pipenv.patched.pip._internal.exceptions import PipError
+from pipenv.patched.pip._internal.utils import deprecation
 
 logger = logging.getLogger(__name__)
 

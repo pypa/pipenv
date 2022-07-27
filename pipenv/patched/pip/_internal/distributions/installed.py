@@ -1,6 +1,6 @@
-from pipenv.patched.pipenv.patched.pip._internal.distributions.base import AbstractDistribution
-from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pipenv.patched.pip._internal.metadata import BaseDistribution
+from pipenv.patched.pip._internal.distributions.base import AbstractDistribution
+from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.metadata import BaseDistribution
 
 
 class InstalledDistribution(AbstractDistribution):

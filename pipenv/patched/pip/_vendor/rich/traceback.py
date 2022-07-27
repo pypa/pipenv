@@ -8,11 +8,11 @@ from traceback import walk_tb
 from types import ModuleType, TracebackType
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Type, Union
 
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.lexers import guess_lexer_for_filename
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import Comment, Keyword, Name, Number, Operator, String
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import Text as TextToken
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.token import Token
-from pipenv.patched.pipenv.patched.pip._vendor.pygments.util import ClassNotFound
+from pipenv.patched.pip._vendor.pygments.lexers import guess_lexer_for_filename
+from pipenv.patched.pip._vendor.pygments.token import Comment, Keyword, Name, Number, Operator, String
+from pipenv.patched.pip._vendor.pygments.token import Text as TextToken
+from pipenv.patched.pip._vendor.pygments.token import Token
+from pipenv.patched.pip._vendor.pygments.util import ClassNotFound
 
 from . import pretty
 from ._loop import loop_last
@@ -334,7 +334,7 @@ class Traceback:
         stacks: List[Stack] = []
         is_cause = False
 
-        from pipenv.patched.pipenv.patched.pip._vendor.rich import _IMPORT_CWD
+        from pipenv.patched.pip._vendor.rich import _IMPORT_CWD
 
         def safe_str(_object: Any) -> str:
             """Don't allow exceptions from __str__ to propegate."""

@@ -2,7 +2,7 @@ from collections import defaultdict
 from logging import getLogger
 from typing import Any, DefaultDict
 
-from pipenv.patched.pipenv.patched.pip._vendor.resolvelib.reporters import BaseReporter
+from pipenv.patched.pip._vendor.resolvelib.reporters import BaseReporter
 
 from .base import Candidate, Requirement
 

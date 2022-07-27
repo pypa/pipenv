@@ -305,7 +305,7 @@ def _normalize_host(host, scheme):
 def _idna_encode(name):
     if name and any([ord(x) > 128 for x in name]):
         try:
-            from pipenv.patched.pipenv.patched.pip._vendor import idna
+            from pipenv.patched.pip._vendor import idna
         except ImportError:
             six.raise_from(
                 LocationParseError("Unable to parse URL without the 'idna' module"),

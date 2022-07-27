@@ -8,16 +8,16 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.tags import Tag, interpreter_name, interpreter_version
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.tags import Tag, interpreter_name, interpreter_version
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import InvalidWheelFilename
-from pipenv.patched.pipenv.patched.pip._internal.models.direct_url import DirectUrl
-from pipenv.patched.pipenv.patched.pip._internal.models.format_control import FormatControl
-from pipenv.patched.pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pipenv.patched.pip._internal.models.wheel import Wheel
-from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
-from pipenv.patched.pipenv.patched.pip._internal.utils.urls import path_to_url
+from pipenv.patched.pip._internal.exceptions import InvalidWheelFilename
+from pipenv.patched.pip._internal.models.direct_url import DirectUrl
+from pipenv.patched.pip._internal.models.format_control import FormatControl
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
+from pipenv.patched.pip._internal.utils.urls import path_to_url
 
 logger = logging.getLogger(__name__)
 

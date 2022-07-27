@@ -1,7 +1,7 @@
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
 
-from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 
 from .base import Candidate, CandidateLookup, Requirement, format_name
 

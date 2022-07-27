@@ -12,7 +12,7 @@ import functools
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Set, Tuple
 
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.version import _BaseVersion
+from pipenv.patched.pip._vendor.packaging.version import _BaseVersion
 
 from .base import Candidate
 

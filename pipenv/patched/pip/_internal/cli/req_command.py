@@ -12,34 +12,34 @@ from functools import partial
 from optparse import Values
 from typing import TYPE_CHECKING, Any, List, Optional, Tuple
 
-from pipenv.patched.pipenv.patched.pip._internal.cache import WheelCache
-from pipenv.patched.pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pipenv.patched.pip._internal.cli.base_command import Command
-from pipenv.patched.pipenv.patched.pip._internal.cli.command_context import CommandContextMixIn
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import CommandError, PreviousBuildDirError
-from pipenv.patched.pipenv.patched.pip._internal.index.collector import LinkCollector
-from pipenv.patched.pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
-from pipenv.patched.pipenv.patched.pip._internal.models.target_python import TargetPython
-from pipenv.patched.pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pipenv.patched.pip._internal.operations.build.build_tracker import BuildTracker
-from pipenv.patched.pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
-from pipenv.patched.pipenv.patched.pip._internal.req.constructors import (
+from pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pip._internal.cli.base_command import Command
+from pipenv.patched.pip._internal.cli.command_context import CommandContextMixIn
+from pipenv.patched.pip._internal.exceptions import CommandError, PreviousBuildDirError
+from pipenv.patched.pip._internal.index.collector import LinkCollector
+from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
+from pipenv.patched.pip._internal.models.target_python import TargetPython
+from pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pip._internal.operations.build.build_tracker import BuildTracker
+from pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
+from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_editable,
     install_req_from_line,
     install_req_from_parsed_requirement,
     install_req_from_req_string,
 )
-from pipenv.patched.pipenv.patched.pip._internal.req.req_file import parse_requirements
-from pipenv.patched.pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pipenv.patched.pip._internal.resolution.base import BaseResolver
-from pipenv.patched.pipenv.patched.pip._internal.self_outdated_check import pip_self_version_check
-from pipenv.patched.pipenv.patched.pip._internal.utils.temp_dir import (
+from pipenv.patched.pip._internal.req.req_file import parse_requirements
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.resolution.base import BaseResolver
+from pipenv.patched.pip._internal.self_outdated_check import pip_self_version_check
+from pipenv.patched.pip._internal.utils.temp_dir import (
     TempDirectory,
     TempDirectoryTypeRegistry,
     tempdir_kinds,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
+from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
 if TYPE_CHECKING:
     from ssl import SSLContext

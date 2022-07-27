@@ -26,6 +26,6 @@ if __name__ == "__main__":
     warnings.filterwarnings(
         "ignore", category=DeprecationWarning, module=".*packaging\\.version"
     )
-    from pipenv.patched.pipenv.patched.pip._internal.cli.main import main as _main
+    from pipenv.patched.pip._internal.cli.main import main as _main
 
     sys.exit(_main())

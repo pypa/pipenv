@@ -4,8 +4,8 @@ This module provides a pool manager that uses Google App Engine's
 
 Example usage::
 
-    from pipenv.patched.pipenv.patched.pip._vendor.urllib3 import PoolManager
-    from pipenv.patched.pipenv.patched.pip._vendor.urllib3.contrib.appengine import AppEngineManager, is_appengine_sandbox
+    from pipenv.patched.pip._vendor.urllib3 import PoolManager
+    from pipenv.patched.pip._vendor.urllib3.contrib.appengine import AppEngineManager, is_appengine_sandbox
 
     if is_appengine_sandbox():
         # AppEngineManager uses AppEngine's URLFetch API behind the scenes

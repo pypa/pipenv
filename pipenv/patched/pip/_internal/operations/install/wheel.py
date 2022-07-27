@@ -36,28 +36,28 @@ from typing import (
 )
 from zipfile import ZipFile, ZipInfo
 
-from pipenv.patched.pipenv.patched.pip._vendor.distlib.scripts import ScriptMaker
-from pipenv.patched.pipenv.patched.pip._vendor.distlib.util import get_export_entry
-from pipenv.patched.pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.distlib.scripts import ScriptMaker
+from pipenv.patched.pip._vendor.distlib.util import get_export_entry
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pipenv.patched.pip._internal.exceptions import InstallationError
-from pipenv.patched.pipenv.patched.pip._internal.locations import get_major_minor_version
-from pipenv.patched.pipenv.patched.pip._internal.metadata import (
+from pipenv.patched.pip._internal.exceptions import InstallationError
+from pipenv.patched.pip._internal.locations import get_major_minor_version
+from pipenv.patched.pip._internal.metadata import (
     BaseDistribution,
     FilesystemWheel,
     get_wheel_distribution,
 )
-from pipenv.patched.pipenv.patched.pip._internal.models.direct_url import DIRECT_URL_METADATA_NAME, DirectUrl
-from pipenv.patched.pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
-from pipenv.patched.pipenv.patched.pip._internal.utils.filesystem import adjacent_tmp_file, replace
-from pipenv.patched.pipenv.patched.pip._internal.utils.misc import captured_stdout, ensure_dir, hash_file, partition
-from pipenv.patched.pipenv.patched.pip._internal.utils.unpacking import (
+from pipenv.patched.pip._internal.models.direct_url import DIRECT_URL_METADATA_NAME, DirectUrl
+from pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
+from pipenv.patched.pip._internal.utils.filesystem import adjacent_tmp_file, replace
+from pipenv.patched.pip._internal.utils.misc import captured_stdout, ensure_dir, hash_file, partition
+from pipenv.patched.pip._internal.utils.unpacking import (
     current_umask,
     is_within_directory,
     set_extracted_file_to_default_mode_plus_executable,
     zip_item_is_executable,
 )
-from pipenv.patched.pipenv.patched.pip._internal.utils.wheel import parse_wheel
+from pipenv.patched.pip._internal.utils.wheel import parse_wheel
 
 if TYPE_CHECKING:
     from typing import Protocol
