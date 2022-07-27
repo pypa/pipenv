@@ -65,11 +65,15 @@ FILE_WHITE_LIST = (
 PATCHED_RENAMES = {}
 
 LIBRARY_RENAMES = {
-    "pip": "pipenv.patched.pip",
     "functools32": "pipenv.vendor.backports.functools_lru_cache",
     "requests": "pipenv.patched.pip._vendor.requests",
     "packaging": "pipenv.patched.pip._vendor.packaging",
 }
+
+GLOBAL_REPLACEMENT = [
+    (r"\bpip\._vendor", r"pipenv.patched.pip._vendor"),
+    (r"\bpip\._internal", r"pipenv.patched.pip._internal"),
+]
 
 
 LICENSE_RENAMES = {"pythonfinder/LICENSE": "pythonfinder/pep514tools.LICENSE"}
@@ -186,6 +190,8 @@ def rewrite_file_imports(item, vendored_libs):
             r"\1import %s as %s\2" % (to_lib, lib),
             text,
         )
+    for pattern, sub in GLOBAL_REPLACEMENT:
+        text = re.sub(pattern, sub, text)
     item.write_text(text, encoding="utf-8")
 
 
