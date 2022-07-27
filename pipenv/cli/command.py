@@ -23,7 +23,6 @@ from pipenv.cli.options import (
     uninstall_options,
     verbose_option,
 )
-from pipenv.exceptions import PipenvOptionsError
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor.click import (
     Choice,
@@ -330,47 +329,16 @@ def lock(ctx, state, **kwargs):
         warn=(not state.quiet),
         site_packages=state.site_packages,
     )
-    emit_requirements = state.lockoptions.emit_requirements
     dev = state.installstate.dev
     dev_only = state.lockoptions.dev_only
     pre = state.installstate.pre
-    if emit_requirements:
-        secho(
-            "Warning: The lock flag -r/--requirements will be deprecated in a future version\n"
-            "of pipenv in favor of the new requirements command. For more info see\n"
-            "https://pipenv.pypa.io/en/latest/advanced/#generating-a-requirements-txt\n"
-            "NOTE: the requirements command parses Pipfile.lock directly without performing any\n"
-            "locking operations. Updating packages should be done by running pipenv lock.",
-            fg="yellow",
-            err=True,
-        )
-        # Emit requirements file header (unless turned off with --no-header)
-        if state.lockoptions.emit_requirements_header:
-            header_options = ["--requirements"]
-            if dev_only:
-                header_options.append("--dev-only")
-            elif dev:
-                header_options.append("--dev")
-            echo(LOCK_HEADER.format(options=" ".join(header_options)))
-            # TODO: Emit pip-compile style header
-            if dev and not dev_only:
-                echo(LOCK_DEV_NOTE)
-        # Setting "emit_requirements=True" means do_init() just emits the
-        # install requirements file to stdout, it doesn't install anything
-        do_init(
-            state.project,
-            dev=dev,
-            dev_only=dev_only,
-            emit_requirements=emit_requirements,
-            pypi_mirror=state.pypi_mirror,
-            pre=pre,
-        )
-    elif state.lockoptions.dev_only:
-        raise PipenvOptionsError(
-            "--dev-only",
-            "--dev-only is only permitted in combination with --requirements. "
-            "Aborting.",
-        )
+    do_init(
+        state.project,
+        dev=dev,
+        dev_only=dev_only,
+        pypi_mirror=state.pypi_mirror,
+        pre=pre,
+    )
     do_lock(
         state.project,
         ctx=ctx,
