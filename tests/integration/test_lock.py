@@ -46,16 +46,18 @@ flask = "==0.12.2"
 
         dev_req_list = ("flask==0.12.2",)
 
-        c = p.pipenv('lock -r')
-        d = p.pipenv('lock -r -d')
+        c = p.pipenv('lock')
         assert c.returncode == 0
-        assert d.returncode == 0
+
+        default = p.pipenv('requirements')
+        assert default.returncode == 0
+        dev = p.pipenv('requirements --dev-only')
 
         for req in req_list:
-            assert req in c.stdout
+            assert req in default.stdout
 
         for req in dev_req_list:
-            assert req in d.stdout
+            assert req in dev.stdout
 
 
 @pytest.mark.lock
@@ -306,7 +308,9 @@ requests = {version = "*", extras = ["socks"]}
         assert "pysocks" in p.lockfile["default"]
         assert "markers" not in p.lockfile["default"]['pysocks']
 
-        c = p.pipenv('lock -r')
+        c = p.pipenv('lock')
+        assert c.returncode == 0
+        c = p.pipenv('requirements')
         assert c.returncode == 0
         assert "extra == 'socks'" not in c.stdout.strip()
 
@@ -363,12 +367,8 @@ pipenv-test-private-package = {version = "*", index = "testpypi"}
 requests = "*"
             """.strip()
             f.write(contents)
-        c = p.pipenv('install')
+        c = p.pipenv('lock')
         assert c.returncode == 0
-        c = p.pipenv('lock -r')
-        assert c.returncode == 0
-        assert '-i https://pypi.org/simple' in c.stdout.strip()
-        assert '--extra-index-url https://test.pypi.org/simple' in c.stdout.strip()
 
 
 @pytest.mark.lock
@@ -400,9 +400,7 @@ six = {version = "*", index = "testpypi"}
 fake-package = "*"
             """.strip()
             f.write(contents)
-        c = p.pipenv(f'install --pypi-mirror {mirror_url}')
-        assert c.returncode == 0
-        c = p.pipenv(f'lock -r --pypi-mirror {mirror_url}')
+        c = p.pipenv(f'install -v --pypi-mirror {mirror_url}')
         assert c.returncode == 0
         assert f'-i {mirror_url}' in c.stdout.strip()
         assert '--extra-index-url https://test.pypi.org/simple' in c.stdout.strip()
