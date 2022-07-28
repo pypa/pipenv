@@ -54,10 +54,13 @@ FILE_WHITE_LIST = (
     "vendor_pip.txt",
 )
 
-PATCHED_RENAMES = {}
+PATCHED_RENAMES = {
+    "pip": "pipenv.patched.pip"
+}
 
 LIBRARY_RENAMES = {
     "pip": "pipenv.patched.pip",
+    "pip_shims:": "pipenv.vendor.pip_shims",
     "requests": "pipenv.patched.pip._vendor.requests",
     "packaging": "pipenv.patched.pip._vendor.packaging",
 }
