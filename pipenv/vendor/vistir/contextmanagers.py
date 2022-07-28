@@ -311,7 +311,7 @@ def open_file(
     """
     Open local or remote file for reading.
 
-    :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with
+    :param pip._internal.index.Link link: A link object from resolving dependencies with
         pip, or else a URL.
     :param Optional[Session] session: A :class:`~requests.Session` instance
     :param bool stream: Whether to stream the content if remote, default True
@@ -322,7 +322,7 @@ def open_file(
         try:
             link = link.url_without_fragment
         except AttributeError:
-            raise ValueError("Cannot parse url from unkown type: {0!r}".format(link))
+            raise ValueError("Cannot parse url from unknown type: {0!r}".format(link))
 
     if not is_valid_url(link) and os.path.exists(link):
         link = path_to_url(link)

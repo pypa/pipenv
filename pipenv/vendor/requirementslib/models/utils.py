@@ -287,7 +287,7 @@ def _get_parsed_url(url):
     # type: (S) -> Url
     """This is a stand-in function for `urllib3.util.parse_url`
 
-    The orignal function doesn't handle special characters very well, this simply splits
+    The original function doesn't handle special characters very well, this simply splits
     out the authentication section, creates the parsed url, then puts the authentication
     section back in, bypassing validation.
 
@@ -854,7 +854,7 @@ def name_from_req(req):
 def make_install_requirement(
     name, version=None, extras=None, markers=None, constraint=False
 ):
-    """Generates an :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`.
+    """Generates an :class:`~pip._internal.req.req_install.InstallRequirement`.
 
     Create an InstallRequirement from the supplied metadata.
 
@@ -869,7 +869,7 @@ def make_install_requirement(
     :param constraint: Whether to flag the requirement as a constraint, defaults to False.
     :param constraint: bool, optional
     :return: A generated InstallRequirement
-    :rtype: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
+    :rtype: :class:`~pip._internal.req.req_install.InstallRequirement`
     """
 
     # If no extras are specified, the extras string is blank
@@ -890,10 +890,10 @@ def make_install_requirement(
 
 def version_from_ireq(ireq):
     """version_from_ireq Extract the version from a supplied
-    :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
+    :class:`~pip._internal.req.req_install.InstallRequirement`
 
     :param ireq: An InstallRequirement
-    :type ireq: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
     :return: The version of the InstallRequirement.
     :rtype: str
     """

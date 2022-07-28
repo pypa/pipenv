@@ -23,6 +23,7 @@ from pipenv.vendor.distlib.wheel import Wheel
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.vendor.pip_shims import shims
 from pipenv.vendor.pip_shims.utils import call_function_with_correct_args
 from pipenv.vendor.platformdirs import user_cache_dir
 from pipenv.vendor.vistir.contextmanagers import cd, temp_path
@@ -1503,18 +1504,16 @@ build-backend = "{1}"
     @lru_cache()
     def from_ireq(cls, ireq, subdir=None, finder=None, session=None):
         # type: (InstallRequirement, Optional[AnyStr], Optional[PackageFinder], Optional[requests.Session]) -> Optional[SetupInfo]
-        import pip_shims.shims
-
         if not ireq.link:
             return None
         if ireq.link.is_wheel:
             return None
         stack = ExitStack()
         if not session:
-            cmd = pip_shims.shims.InstallCommand()
+            cmd = shims.InstallCommand()
             options, _ = cmd.parser.parse_args([])
             session = cmd._build_session(options)
-        stack.enter_context(pip_shims.shims.global_tempdir_manager())
+        stack.enter_context(shims.global_tempdir_manager())
         vcs, uri = split_vcs_method_from_uri(ireq.link.url_without_fragment)
         parsed = urlparse(uri)
         if "file" in parsed.scheme:
@@ -1529,7 +1528,7 @@ build-backend = "{1}"
             is_file = True
             if "file:/" in uri and "file:///" not in uri:
                 uri = uri.replace("file:/", "file:///")
-            path = pip_shims.shims.url_to_path(uri)
+            path = shims.url_to_path(uri)
         kwargs = _prepare_wheel_building_kwargs(ireq)
         is_artifact_or_vcs = getattr(
             ireq.link, "is_vcs", getattr(ireq.link, "is_artifact", False)
@@ -1581,7 +1580,7 @@ build-backend = "{1}"
                     hashes=ireq.hashes(True),
                 )
             except ImportError:
-                pip_shims.shims.shim_unpack(
+                shims.shim_unpack(
                     download_dir=download_dir,
                     ireq=ireq,
                     only_download=only_download,

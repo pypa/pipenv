@@ -233,7 +233,7 @@ def pip_self_version_check(session: PipSession, options: optparse.Values) -> Non
             ),
         )
         if upgrade_prompt is not None:
-            logger.info("[present-rich] %s", upgrade_prompt)
+            logger.warning("[present-rich] %s", upgrade_prompt)
     except Exception:
         logger.warning("There was an error checking the latest version of pip.")
         logger.debug("See below for error", exc_info=True)

@@ -127,7 +127,7 @@ def get_license_name_by_id(license_id, db):
     return None
 
 def get_packages_licenses(packages, licenses_db):
-    """Get the licenses for the specified packages based on their version.
+    """Get the licenses for the specified packages based on their version. 
 
     :param packages: packages list
     :param licenses_db: the licenses db in the raw form.

@@ -1469,7 +1469,7 @@ class FileRequirement(object):
             forward slashes. Can be None if the line is a remote URI.
         - `uri` is the absolute URI to the package. Can be None if the line is
             not a URI.
-        - `link` is an instance of :class:`pipenv.patched.pip._internal.index.Link`,
+        - `link` is an instance of :class:`pip._internal.index.Link`,
             representing a URI parse result based on the value of `uri`.
 
         This function is provided to deal with edge cases concerning URIs
@@ -2998,7 +2998,7 @@ class Requirement(object):
         :param sources: list[dict], optional
         :param PackageFinder finder: A **PackageFinder** instance from pip's repository implementation
         :return: A list of Installation Candidates
-        :rtype: list[ :class:`~pipenv.patched.pip._internal.index.InstallationCandidate` ]
+        :rtype: list[ :class:`~pip._internal.index.InstallationCandidate` ]
         """
 
         from .dependencies import find_all_matches, get_finder

@@ -9,7 +9,7 @@ import functools
 try:
     import importlib.metadata as imp_meta
 except ImportError:
-    import pipenv.vendor.importlib_metadata as imp_meta
+    import importlib_metadata as imp_meta
 
 try:
     from zipfile import Path

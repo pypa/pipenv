@@ -489,7 +489,7 @@ def _markers_contains_key(markers, key):
 def get_contained_extras(marker):
     """Collect "extra == ..." operands from a marker.
 
-    Returns a list of str. Each str is a speficied extra in this marker.
+    Returns a list of str. Each str is a specified extra in this marker.
     """
     if not marker:
         return set()
@@ -532,7 +532,7 @@ def get_contained_pyversions(marker):
 
 @lru_cache(maxsize=128)
 def contains_extra(marker):
-    """Check whehter a marker contains an "extra == ..." operand."""
+    """Check whether a marker contains an "extra == ..." operand."""
     if not marker:
         return False
     marker = _ensure_marker(marker)

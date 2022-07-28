@@ -105,9 +105,9 @@ class CacheCommand(Command):
                     Package index page cache location: {http_cache_location}
                     Package index page cache size: {http_cache_size}
                     Number of HTTP files: {num_http_files}
-                    Wheels location: {wheels_cache_location}
-                    Wheels size: {wheels_cache_size}
-                    Number of wheels: {package_count}
+                    Locally built wheels location: {wheels_cache_location}
+                    Locally built wheels size: {wheels_cache_size}
+                    Number of locally built wheels: {package_count}
                 """
             )
             .format(
@@ -140,7 +140,7 @@ class CacheCommand(Command):
 
     def format_for_human(self, files: List[str]) -> None:
         if not files:
-            logger.info("Nothing cached.")
+            logger.info("No locally built wheels cached.")
             return
 
         results = []
