@@ -155,13 +155,14 @@ def _spawn_subprocess(
     block=True,  # type: bool
     cwd=None,  # type: Optional[Union[str, Path]]
     combine_stderr=True,  # type: bool
+    encoding="utf-8",  # type: str
 ):
     # type: (...) -> subprocess.Popen
-    from distutils.spawn import find_executable
+    from shutil import which
 
     if not env:
         env = os.environ.copy()
-    command = find_executable(script.command)
+    command = which(script.command)
     options = {
         "env": env,
         "universal_newlines": True,
@@ -170,7 +171,7 @@ def _spawn_subprocess(
         "shell": False,
     }
     if sys.version_info[:2] > (3, 5):
-        options.update({"universal_newlines": True, "encoding": "utf-8"})
+        options.update({"universal_newlines": True, "encoding": encoding})
     elif os.name != "nt":
         options["universal_newlines"] = True
     if not block:
@@ -506,12 +507,18 @@ def _create_subprocess(
     display_limit=200,
     start_text="",
     write_to_stdout=True,
+    encoding="utf-8",
 ):
     if not env:
         env = os.environ.copy()
     try:
         c = _spawn_subprocess(
-            cmd, env=env, block=block, cwd=cwd, combine_stderr=combine_stderr
+            cmd,
+            env=env,
+            block=block,
+            cwd=cwd,
+            combine_stderr=combine_stderr,
+            encoding=encoding,
         )
     except Exception as exc:  # pragma: no cover
         import traceback
@@ -561,6 +568,7 @@ def run(
     combine_stderr=True,
     display_limit=200,
     write_to_stdout=True,
+    encoding="utf-8",
 ):
     """Use `subprocess.Popen` to get the output of a command and decode it.
 
@@ -569,7 +577,7 @@ def run(
     :param bool return_object: When True, returns the whole subprocess instance
     :param bool block: When False, returns a potentially still-running
         :class:`subprocess.Popen` instance
-    :param str cwd: Current working directory contect to use for spawning the subprocess.
+    :param str cwd: Current working directory context to use for spawning the subprocess.
     :param bool verbose: Whether to print stdout in real time when non-blocking.
     :param bool nospin: Whether to disable the cli spinner.
     :param str spinner_name: The name of the spinner to use if enabled, defaults to
@@ -582,7 +590,7 @@ def run(
         defaults to True.
     :returns: A 2-tuple of (output, error) or a :class:`subprocess.Popen` object.
 
-    .. Warning:: Merging standard out and standarad error in a nonblocking subprocess
+    .. Warning:: Merging standard out and standard error in a nonblocking subprocess
         can cause errors in some cases and may not be ideal. Consider disabling
         this functionality.
     """
@@ -626,6 +634,7 @@ def run(
             combine_stderr=combine_stderr,
             start_text=start_text,
             write_to_stdout=write_to_stdout,
+            encoding=encoding,
         )
 
 

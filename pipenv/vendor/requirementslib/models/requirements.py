@@ -16,15 +16,15 @@ from urllib.parse import unquote
 import pipenv.vendor.attr as attr
 import pipenv.vendor.pip_shims as pip_shims
 from pipenv.vendor.cached_property import cached_property
-from pipenv.patched.notpip._vendor.packaging.markers import Marker
-from pipenv.patched.notpip._vendor.packaging.requirements import Requirement as PackagingRequirement
-from pipenv.patched.notpip._vendor.packaging.specifiers import (
+from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
+from pipenv.patched.pip._vendor.packaging.specifiers import (
     InvalidSpecifier,
     LegacySpecifier,
     Specifier,
     SpecifierSet,
 )
-from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.vendor.vistir.contextmanagers import temp_path
 from pipenv.vendor.vistir.misc import dedup
 from pipenv.vendor.vistir.path import (
@@ -1469,7 +1469,7 @@ class FileRequirement(object):
             forward slashes. Can be None if the line is a remote URI.
         - `uri` is the absolute URI to the package. Can be None if the line is
             not a URI.
-        - `link` is an instance of :class:`pipenv.patched.notpip._internal.index.Link`,
+        - `link` is an instance of :class:`pipenv.patched.pip._internal.index.Link`,
             representing a URI parse result based on the value of `uri`.
 
         This function is provided to deal with edge cases concerning URIs
@@ -2998,7 +2998,7 @@ class Requirement(object):
         :param sources: list[dict], optional
         :param PackageFinder finder: A **PackageFinder** instance from pip's repository implementation
         :return: A list of Installation Candidates
-        :rtype: list[ :class:`~pipenv.patched.notpip._internal.index.InstallationCandidate` ]
+        :rtype: list[ :class:`~pipenv.patched.pip._internal.index.InstallationCandidate` ]
         """
 
         from .dependencies import find_all_matches, get_finder

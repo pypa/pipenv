@@ -809,7 +809,7 @@ class BaseCommand:
     parsing methods that do not depend on the Click parser.
 
     For instance, this can be used to bridge Click and other systems like
-    argparse.
+    argparse or docopt.
 
     Because base commands do not implement a lot of the API that other
     parts of Click take for granted, they are not supported for all

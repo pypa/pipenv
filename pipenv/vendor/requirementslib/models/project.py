@@ -10,8 +10,8 @@ import pipenv.vendor.attr as attr
 import pipenv.vendor.plette as plette
 import plette.models
 import pipenv.vendor.tomlkit as tomlkit
-from pipenv.patched.notpip._vendor.packaging.markers import Marker
-from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
 SectionDifference = collections.namedtuple("SectionDifference", ["inthis", "inthat"])
 FileDifference = collections.namedtuple("FileDifference", ["default", "develop"])

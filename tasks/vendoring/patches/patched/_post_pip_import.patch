@@ -1,26 +1,26 @@
-diff --git a/pipenv/patched/notpip/__main__.py b/pipenv/patched/notpip/__main__.py
+diff --git a/pipenv/patched/pip/__main__.py b/pipenv/patched/pip/__main__.py
 index 204a8ca2..546caab1 100644
---- a/pipenv/patched/notpip/__main__.py
-+++ b/pipenv/patched/notpip/__main__.py
+--- a/pipenv/patched/pip/__main__.py
++++ b/pipenv/patched/pip/__main__.py
 @@ -26,6 +26,7 @@ if __name__ == "__main__":
      warnings.filterwarnings(
          "ignore", category=DeprecationWarning, module=".*packaging\\.version"
      )
 +    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
-     from pipenv.patched.notpip._internal.cli.main import main as _main
+     from pipenv.patched.pip._internal.cli.main import main as _main
 
      sys.exit(_main())
-diff --git a/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py b/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
+diff --git a/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py b/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py
 index 0ba06c52..6fdb59b7 100644
---- a/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
-+++ b/pipenv/patched/notpip/_internal/resolution/resolvelib/candidates.py
+--- a/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py
++++ b/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py
 @@ -2,6 +2,7 @@ import logging
  import sys
  from typing import TYPE_CHECKING, Any, FrozenSet, Iterable, Optional, Tuple, Union, cast
 
-+from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
- from pipenv.patched.notpip._vendor.packaging.utils import NormalizedName, canonicalize_name
- from pipenv.patched.notpip._vendor.packaging.version import Version
++from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+ from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+ from pipenv.patched.pip._vendor.packaging.version import Version
 
 @@ -253,7 +253,10 @@ class _InstallRequirementBackedCandidate(Candidate):
         yield self._factory.make_requires_python_requirement(self.dist.requires_python)
@@ -34,16 +34,3 @@ index 0ba06c52..6fdb59b7 100644
 
 
  class LinkCandidate(_InstallRequirementBackedCandidate):
-diff --git a/pipenv/patched/notpip/_internal/build_env.py b/pipenv/patched/notpip/_internal/build_env.py
-index 05457c5a..d8c66b3f 100644
---- a/pipenv/patched/notpip/_internal/build_env.py
-+++ b/pipenv/patched/notpip/_internal/build_env.py
-@@ -16,7 +16,7 @@ from pipenv.patched.notpip._vendor.certifi import where
- from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
- from pipenv.patched.notpip._vendor.packaging.version import Version
-
--from pipenv.patched.notpip import __file__ as pip_location
-+from pip import __file__ as pip_location
- from pipenv.patched.notpip._internal.cli.spinners import open_spinner
- from pipenv.patched.notpip._internal.locations import get_platlib, get_prefixed_libs, get_purelib
- from pipenv.patched.notpip._internal.metadata import get_default_environment, get_environment

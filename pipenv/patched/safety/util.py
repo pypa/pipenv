@@ -1,6 +1,6 @@
 from pipenv.vendor.dparse.parser import setuptools_parse_requirements_backport as _parse_requirements
 from collections import namedtuple
-from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 import pipenv.vendor.click as click
 import sys
 import json
@@ -127,7 +127,7 @@ def get_license_name_by_id(license_id, db):
     return None
 
 def get_packages_licenses(packages, licenses_db):
-    """Get the licenses for the specified packages based on their version.
+    """Get the licenses for the specified packages based on their version. 
 
     :param packages: packages list
     :param licenses_db: the licenses db in the raw form.
