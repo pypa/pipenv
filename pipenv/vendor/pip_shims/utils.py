@@ -11,7 +11,7 @@ import sys
 from collections.abc import Callable
 from functools import wraps
 
-from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion, parse
+from pipenv.patched.pip._vendor.packaging.version import _BaseVersion, parse
 
 from .environment import MYPY_RUNNING
 
@@ -130,10 +130,10 @@ def split_package(module, subimport=None):
     :Example:
 
     >>> from pip_shims.utils import split_package
-    >>> split_package("pipenv.patched.notpip._internal.req.req_install", subimport="InstallRequirement")
-    ("pipenv.patched.notpip._internal.req.req_install", "InstallRequirement")
-    >>> split_package("pipenv.patched.notpip._internal.cli.base_command")
-    ("pipenv.patched.notpip._internal.cli", "base_command")
+    >>> split_package("pipenv.patched.pip._internal.req.req_install", subimport="InstallRequirement")
+    ("pipenv.patched.pip._internal.req.req_install", "InstallRequirement")
+    >>> split_package("pipenv.patched.pip._internal.cli.base_command")
+    ("pipenv.patched.pip._internal.cli", "base_command")
     """
     package = None
     if subimport:

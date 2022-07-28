@@ -12,7 +12,7 @@ recursive-include pipenv/vendor vendor.txt
 recursive-include pipenv *.json
 recursive-include pipenv *.rst
 
-include pipenv/patched/notpip/_vendor/vendor.txt
+include pipenv/patched/pip/_vendor/vendor.txt
 include  pipenv/patched/patched.txt
 include pipenv/vendor/Makefile
 include pipenv/pipenv.1

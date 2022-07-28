@@ -610,7 +610,7 @@ class Resolver:
 
     @property
     def constraints(self):
-        from pipenv.patched.notpip._internal.req.constructors import (
+        from pipenv.patched.pip._internal.req.constructors import (
             install_req_from_parsed_requirement,
         )
 

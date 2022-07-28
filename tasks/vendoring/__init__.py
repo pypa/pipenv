@@ -54,17 +54,19 @@ FILE_WHITE_LIST = (
     "vendor_pip.txt",
 )
 
-PATCHED_RENAMES = {"pip": "notpip"}
+PATCHED_RENAMES = {}
 
 LIBRARY_RENAMES = {
-    "pip": "pipenv.patched.notpip",
-    "requests": "pipenv.patched.notpip._vendor.requests",
-    "packaging": "pipenv.patched.notpip._vendor.packaging",
+    "pip": "pipenv.patched.pip",
+    "pip_shims:": "pipenv.vendor.pip_shims",
+    "requests": "pipenv.patched.pip._vendor.requests",
+    "packaging": "pipenv.patched.pip._vendor.packaging",
 }
 
 GLOBAL_REPLACEMENT = [
-    (r"\bpip\._vendor", r"pipenv.patched.notpip._vendor"),
-    (r"\bpip\._internal", r"pipenv.patched.notpip._internal"),
+    (r"(?<!\.)\bpip\._vendor", r"pipenv.patched.pip._vendor"),
+    (r"(?<!\.)\bpip\._internal", r"pipenv.patched.pip._internal"),
+    (r"(?<!\.)\bpippipenv\.patched\.notpip", r"pipenv.patched.pip"),
 ]
 
 
@@ -367,7 +369,7 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
             piptools_vendor = vendor_dir / "piptools" / "_vendored"
             if piptools_vendor.exists():
                 drop_dir(piptools_vendor)
-            msgpack = vendor_dir / "notpip" / "_vendor" / "msgpack"
+            msgpack = vendor_dir / "pip" / "_vendor" / "msgpack"
             if msgpack.exists():
                 remove_all(msgpack.glob("*.so"))
 
@@ -631,7 +633,7 @@ def generate_patch(ctx, package_path, patch_description, base="HEAD"):
 @invoke.task()
 def update_pip_deps(ctx):
     patched_dir = _get_patched_dir(ctx)
-    pip_dir = patched_dir / "notpip"
+    pip_dir = patched_dir / "pip"
     vendor_dir = pip_dir / "_vendor"
     download_licenses(ctx, vendor_dir)
 
