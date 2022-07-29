@@ -12,6 +12,7 @@ from pipenv.exceptions import RequirementError, ResolutionFailure
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.exceptions import InstallationError
+from pipenv.patched.pip._internal.models.target_python import TargetPython
 from pipenv.patched.pip._internal.network.cache import SafeFileCache
 from pipenv.patched.pip._internal.operations.build.build_tracker import (
     get_build_tracker,
@@ -41,6 +42,35 @@ from .internet import _get_requests_session, is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
 from .spinner import create_spinner
+
+
+def get_package_finder(
+    install_cmd=None,
+    options=None,
+    session=None,
+    platform=None,
+    python_versions=None,
+    abi=None,
+    implementation=None,
+    ignore_requires_python=None,
+):
+    """Reduced Shim for compatibility to generate package finders."""
+    py_version_info = None
+    if python_versions:
+        py_version_info_python = max(python_versions)
+        py_version_info = tuple([int(part) for part in py_version_info_python])
+    target_python = TargetPython(
+        platforms=[platform] if platform else None,
+        py_version_info=py_version_info,
+        abis=[abi] if abi else None,
+        implementation=implementation,
+    )
+    return install_cmd._build_package_finder(
+        options=options,
+        session=session,
+        target_python=target_python,
+        ignore_requires_python=ignore_requires_python,
+    )
 
 
 class HashCacheMixin:
@@ -556,10 +586,8 @@ class Resolver:
 
     @property
     def finder(self):
-        from pipenv.vendor.pip_shims import shims
-
         if self._finder is None:
-            self._finder = shims.get_package_finder(
+            self._finder = get_package_finder(
                 install_cmd=self.pip_command,
                 options=self.pip_options,
                 session=self.session,
@@ -571,10 +599,8 @@ class Resolver:
 
     @property
     def ignore_compatibility_finder(self):
-        from pipenv.vendor.pip_shims import shims
-
         if self._ignore_compatibility_finder is None:
-            ignore_compatibility_finder = shims.get_package_finder(
+            ignore_compatibility_finder = get_package_finder(
                 install_cmd=self.pip_command,
                 options=self.pip_options,
                 session=self.session,

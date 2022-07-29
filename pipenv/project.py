@@ -643,7 +643,7 @@ class Project:
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
         # Inherit the pip's index configuration of install command.
-        command = InstallCommand()
+        command = InstallCommand(name="InstallCommand", summary="pip Install command.")
         indexes = command.cmd_opts.get_option("--extra-index-url").default
         sources = [self.default_source]
         for i, index in enumerate(indexes):

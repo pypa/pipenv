@@ -627,18 +627,20 @@ class Environment:
 
     @contextlib.contextmanager
     def get_finder(self, pre: bool = False) -> ContextManager[PackageFinder]:
-        from .vendor.pip_shims.shims import get_package_finder
+        from .utils.resolver import get_package_finder
 
-        pip_command = InstallCommand()
+        pip_command = InstallCommand(
+            name="InstallCommand", summary="pip Install command."
+        )
         pip_args = prepare_pip_source_args(self.sources)
         pip_options, _ = pip_command.parser.parse_args(pip_args)
         pip_options.cache_dir = self.project.s.PIPENV_CACHE_DIR
         pip_options.pre = self.pipfile.get("pre", pre)
-        with pip_command._build_session(pip_options) as session:
-            finder = get_package_finder(
-                install_cmd=pip_command, options=pip_options, session=session
-            )
-            yield finder
+        session = pip_command._build_session(self.pip_options)
+        finder = get_package_finder(
+            install_cmd=pip_command, options=pip_options, session=session
+        )
+        yield finder
 
     def get_package_info(
         self, pre: bool = False
