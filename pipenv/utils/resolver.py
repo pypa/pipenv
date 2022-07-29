@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import contextlib
 import hashlib
 import os
@@ -7,12 +5,24 @@ import subprocess
 import sys
 import warnings
 from functools import lru_cache
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 from pipenv import environments
 from pipenv.exceptions import RequirementError, ResolutionFailure
-from pipenv.utils.constants import MYPY_RUNNING
+from pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pip._internal.commands.install import InstallCommand
+from pipenv.patched.pip._internal.exceptions import InstallationError
+from pipenv.patched.pip._internal.network.cache import SafeFileCache
+from pipenv.patched.pip._internal.operations.build.build_tracker import (
+    get_build_tracker,
+)
+from pipenv.patched.pip._internal.req.req_file import parse_requirements
+from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
+from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
+from pipenv.project import Project
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib import Pipfile, Requirement
+from pipenv.vendor.requirementslib.models.requirements import Line
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
 from pipenv.vendor.vistir import TemporaryDirectory, open_file
 from pipenv.vendor.vistir.path import create_tracked_tempdir
@@ -31,12 +41,6 @@ from .internet import _get_requests_session, is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
 from .spinner import create_spinner
-
-if MYPY_RUNNING:
-    from typing import Any, Dict, List, Optional, Set, Tuple, Union  # noqa
-
-    from pipenv.project import Project  # noqa
-    from pipenv.vendor.requirementslib.models.requirements import Line  # noqa
 
 
 class HashCacheMixin:
@@ -64,9 +68,7 @@ class HashCacheMixin:
         return hash_value.decode("utf8")
 
     def _get_file_hash(self, link):
-        from pipenv.vendor.pip_shims import shims
-
-        h = hashlib.new(shims.FAVORITE_HASH)
+        h = hashlib.new(FAVORITE_HASH)
         with open_file(link.url, self.session) as fp:
             for chunk in iter(lambda: fp.read(8096), b""):
                 h.update(chunk)
@@ -122,18 +124,14 @@ class Resolver:
     @staticmethod
     @lru_cache()
     def _get_pip_command():
-        from pipenv.vendor.pip_shims import shims
-
-        return shims.InstallCommand()
+        return InstallCommand(name="InstallCommand", summary="pip Install command.")
 
     @property
     def hash_cache(self):
-        from pipenv.vendor.pip_shims import shims
-
         if not self._hash_cache:
-            self._hash_cache = type(
-                "HashCache", (HashCacheMixin, shims.SafeFileCache), {}
-            )(os.path.join(self.project.s.PIPENV_CACHE_DIR, "hashes"), self.session)
+            self._hash_cache = type("HashCache", (HashCacheMixin, SafeFileCache), {})(
+                os.path.join(self.project.s.PIPENV_CACHE_DIR, "hashes"), self.session
+            )
         return self._hash_cache
 
     @classmethod
@@ -595,12 +593,10 @@ class Resolver:
 
     @property
     def parsed_constraints(self):
-        from pipenv.vendor.pip_shims import shims
-
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
         if self._parsed_constraints is None:
-            self._parsed_constraints = shims.parse_requirements(
+            self._parsed_constraints = parse_requirements(
                 self.constraint_file,
                 finder=self.finder,
                 session=self.session,
@@ -628,12 +624,6 @@ class Resolver:
 
     @contextlib.contextmanager
     def get_resolver(self, clear=False):
-        from pipenv.vendor.pip_shims.shims import (
-            WheelCache,
-            get_build_tracker,
-            global_tempdir_manager,
-        )
-
         with global_tempdir_manager(), get_build_tracker() as build_tracker, TemporaryDirectory(
             suffix="-build", prefix="pipenv-"
         ) as directory:
@@ -664,9 +654,6 @@ class Resolver:
             yield resolver
 
     def resolve(self):
-        from pipenv.exceptions import ResolutionFailure
-        from pipenv.vendor.pip_shims.shims import InstallationError
-
         self.constraints  # For some reason it is important to evaluate constraints before resolver context
         with temp_environ(), self.get_resolver() as resolver:
             try:
@@ -712,8 +699,6 @@ class Resolver:
         return cleaned_checksums
 
     def _get_hashes_from_pypi(self, ireq):
-        from pipenv.vendor.pip_shims import shims
-
         pkg_url = f"https://pypi.org/pypi/{ireq.name}/json"
         session = _get_requests_session(self.project.s.PIPENV_MAX_RETRIES)
         try:
@@ -731,8 +716,8 @@ class Resolver:
                 if spec:
                     version = spec.version
             for release in cleaned_releases[version]:
-                collected_hashes.add(release["digests"][shims.FAVORITE_HASH])
-            return self.prepend_hash_types(collected_hashes, shims.FAVORITE_HASH)
+                collected_hashes.add(release["digests"][FAVORITE_HASH])
+            return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
         except (ValueError, KeyError, ConnectionError):
             if self.project.s.is_verbose():
                 click.echo(
@@ -783,9 +768,7 @@ class Resolver:
         return self.hashes
 
     def _get_hash_from_link(self, link):
-        from pipenv.vendor.pip_shims import shims
-
-        if link.hash and link.hash_name == shims.FAVORITE_HASH:
+        if link.hash and link.hash_name == FAVORITE_HASH:
             return f"{link.hash_name}:{link.hash}"
 
         return self.hash_cache.get_hash(link)
