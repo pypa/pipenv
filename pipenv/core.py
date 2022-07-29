@@ -17,6 +17,12 @@ import vistir
 
 from pipenv import environments, exceptions, pep508checker, progress
 from pipenv._compat import decode_for_output, fix_utf8
+from pipenv.patched.pip._internal.exceptions import PipError
+from pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pip._internal.req.constructors import (
+    install_req_from_parsed_requirement,
+)
+from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
     convert_deps_to_pip,
@@ -30,7 +36,6 @@ from pipenv.utils.dependencies import (
 from pipenv.utils.indexes import get_source_list, parse_indexes, prepare_pip_source_args
 from pipenv.utils.internet import download_file, get_host_and_port, is_valid_url
 from pipenv.utils.processes import run_command
-from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.utils.shell import (
     cmd_list_to_shell,
     find_python,
@@ -160,12 +165,6 @@ def cleanup_virtualenv(project, bare=True):
 
 
 def import_requirements(project, r=None, dev=False):
-    from pipenv.patched.pip._internal.req.constructors import (
-        install_req_from_parsed_requirement,
-    )
-    from pipenv.patched.pip._vendor import requests
-    from pipenv.vendor.pip_shims.shims import parse_requirements
-
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
     # Since we're not making any network calls, it's initialized to nothing.
@@ -191,7 +190,7 @@ def import_requirements(project, r=None, dev=False):
     trusted_hosts = sorted(set(trusted_hosts))
     reqs = [
         install_req_from_parsed_requirement(f)
-        for f in parse_requirements(r, session=requests)
+        for f in parse_requirements(r, session=PipSession())
     ]
     for package in reqs:
         if package.name not in BAD_PACKAGES:
@@ -1124,6 +1123,8 @@ def do_lock(
                 err=True,
             )
 
+        from pipenv.utils.resolver import venv_resolve_deps
+
         # Mutates the lockfile
         venv_resolve_deps(
             packages,
@@ -1372,8 +1373,6 @@ def get_pip_args(
     selective_upgrade: bool = False,
     src_dir: Optional[str] = None,
 ) -> List[str]:
-    from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
-
     arg_map = {
         "pre": ["--pre"],
         "verbose": ["--verbose"],
@@ -1388,10 +1387,8 @@ def get_pip_args(
         ],
         "src_dir": src_dir,
     }
-    if project.environment.pip_version >= parse_version("19.0"):
-        arg_map["no_use_pep517"].append("--no-use-pep517")
-    if project.environment.pip_version < parse_version("19.1"):
-        arg_map["no_use_pep517"].append("--no-build-isolation")
+    # TODO: Why do we use no pep517?
+    arg_map["no_use_pep517"].append("--no-use-pep517")
     arg_set = []
     for key in arg_map.keys():
         if key in locals() and locals().get(key):
@@ -1407,11 +1404,9 @@ def get_requirement_line(
     include_hashes: bool = True,
     format_for_file: bool = False,
 ) -> Union[List[str], str]:
-    line = None
     if requirement.vcs or requirement.is_file_or_url:
         if src_dir and requirement.line_instance.wheel_kwargs:
             requirement.line_instance._wheel_kwargs.update({"src_dir": src_dir})
-        requirement.line_instance.vcsrepo
         line = requirement.line_instance.line
         if requirement.line_instance.markers:
             line = f"{line}; {requirement.line_instance.markers}"
@@ -1950,8 +1945,6 @@ def do_install(
     selective_upgrade=False,
     site_packages=None,
 ):
-    from .vendor.pip_shims.shims import PipError
-
     requirements_directory = vistir.path.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
     )

@@ -14,6 +14,8 @@ from sysconfig import get_paths, get_python_version, get_scheme_names
 import pkg_resources
 
 import pipenv
+from pipenv.patched.pip._internal.commands.install import InstallCommand
+from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.indexes import prepare_pip_source_args
@@ -26,10 +28,8 @@ if is_type_checking():
     from types import ModuleType
     from typing import ContextManager, Dict, Generator, List, Optional, Set, Union
 
-    import pip_shims.shims
     import tomlkit
 
-    from pipenv.patched.pip._vendor.packaging.version import Version
     from pipenv.project import Project, TPipfile, TSource
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
@@ -539,21 +539,6 @@ class Environment:
             return "purelib", purelib
         return "platlib", self.paths["platlib"]
 
-    @property
-    def pip_version(self) -> Version:
-        """
-        Get the pip version in the environment.  Useful for knowing which args we can use
-        when installing.
-        """
-        from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
-
-        pip = next(
-            iter(pkg for pkg in self.get_installed_packages() if pkg.key == "pip"), None
-        )
-        if pip is not None:
-            return parse_version(pip.version)
-        return parse_version("20.2")
-
     def expand_egg_links(self) -> None:
         """
         Expand paths specified in egg-link files to prevent pip errors during
@@ -641,10 +626,8 @@ class Environment:
         return packages
 
     @contextlib.contextmanager
-    def get_finder(
-        self, pre: bool = False
-    ) -> ContextManager[pip_shims.shims.PackageFinder]:
-        from .vendor.pip_shims.shims import InstallCommand, get_package_finder
+    def get_finder(self, pre: bool = False) -> ContextManager[PackageFinder]:
+        from .vendor.pip_shims.shims import get_package_finder
 
         pip_command = InstallCommand()
         pip_args = prepare_pip_source_args(self.sources)
@@ -660,22 +643,9 @@ class Environment:
     def get_package_info(
         self, pre: bool = False
     ) -> Generator[pkg_resources.Distribution, None, None]:
-        from .vendor.pip_shims.shims import parse_version, pip_version
-
-        dependency_links = []
         packages = self.get_installed_packages()
-        # This code is borrowed from pip's current implementation
-        if parse_version(pip_version) < parse_version("19.0"):
-            for dist in packages:
-                if dist.has_metadata("dependency_links.txt"):
-                    dependency_links.extend(
-                        dist.get_metadata_lines("dependency_links.txt")
-                    )
 
         with self.get_finder() as finder:
-            if parse_version(pip_version) < parse_version("19.0"):
-                finder.add_dependency_links(dependency_links)
-
             for dist in packages:
                 typ = "unknown"
                 all_candidates = finder.find_all_candidates(dist.key)
