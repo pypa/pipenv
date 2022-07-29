@@ -737,7 +737,7 @@ class Resolver:
             if self.project.s.is_verbose():
                 click.echo(
                     "{}: Error generating hash for {}".format(
-                        click.style("Warning", bold=True, fg="Red"), ireq.name
+                        click.style("Warning", bold=True, fg="red"), ireq.name
                     ),
                     err=True,
                 )
