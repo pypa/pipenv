@@ -282,11 +282,11 @@ maya = "*"
             """.strip()
             f.write(contents)
 
-        c = p.pipenv('lock --verbose')
-        assert c.returncode == 0
+            c = p.pipenv('lock --verbose')
+            assert c.returncode == 0
 
-        c = p.pipenv('install')
-        assert c.returncode == 0
+            c = p.pipenv('install')
+            assert c.returncode == 0
 
 
 @pytest.mark.lock
@@ -309,31 +309,6 @@ requests = {version = "*", extras = ["socks"]}
         c = p.pipenv('lock -r')
         assert c.returncode == 0
         assert "extra == 'socks'" not in c.stdout.strip()
-
-
-@pytest.mark.lock
-@pytest.mark.extras
-@pytest.mark.complex
-@pytest.mark.needs_internet
-@pytest.mark.skip(reason='Needs numpy to be mocked')
-def test_complex_lock_deep_extras(PipenvInstance):
-    # records[pandas] requires tablib[pandas] which requires pandas.
-    # This uses the real PyPI; Pandas has too many requirements to mock.
-
-    with PipenvInstance() as p:
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
-[packages]
-records = {extras = ["pandas"], version = "==0.5.2"}
-            """.strip()
-            f.write(contents)
-
-        c = p.pipenv('install')
-        assert c.returncode == 0
-        c = p.pipenv('lock')
-        assert c.returncode == 0
-        assert 'tablib' in p.lockfile['default']
-        assert 'pandas' in p.lockfile['default']
 
 
 @pytest.mark.index
@@ -608,25 +583,6 @@ requests = {git = "%s", editable = true, markers = "python_version >= '2.6'"}
 
 
 @pytest.mark.lock
-@pytest.mark.skip(reason="This doesn't work for some reason.")
-def test_lock_respecting_python_version(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
-            f.write("""
-[packages]
-django = "*"
-            """.strip())
-        c = p.pipenv('install ')
-        assert c.returncode == 0
-        c = p.pipenv('run python --version')
-        assert c.returncode == 0
-        py_version = c.stderr.splitlines()[-1].strip().split()[-1]
-        django_version = '==2.0.6' if py_version.startswith('3') else '==1.11.13'
-        assert py_version == '2.7.14'
-        assert p.lockfile['default']['django']['version'] == django_version
-
-
-@pytest.mark.lock
 @pytest.mark.install
 def test_lockfile_corrupted(PipenvInstance):
     with PipenvInstance() as p:
@@ -755,8 +711,8 @@ def test_lock_nested_direct_url(PipenvInstance):
     a PEP508 style VCS URL. This ensures that we capture the dependency
     here along with its own dependencies.
     """
-    with PipenvInstance(chdir=True) as p:
-        c = p.pipenv("install test_package")
+    with PipenvInstance() as p:
+        c = p.pipenv("install -v test_package")
         assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]
         assert "colorama" in p.lockfile["default"]

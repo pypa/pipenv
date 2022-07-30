@@ -1,0 +1,5 @@
+* Rename patched ``notpip`` to ``pip`` in order to be clear that its a patched version of pip.
+* Remove the part of _post_pip_import.patch that overrode the standalone pip to be the user installed pip,
+now we fully rely on our vendored and patched ``pip``, even for all types of installs.
+* Vendor in the next newest version of ``pip==22.2``
+* Modify patch for ``pipdeptree`` to not use ``pip-shims``

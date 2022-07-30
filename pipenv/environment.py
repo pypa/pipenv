@@ -14,7 +14,7 @@ from sysconfig import get_paths, get_python_version, get_scheme_names
 import pkg_resources
 
 import pipenv
-from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
@@ -29,7 +29,7 @@ if is_type_checking():
     import pip_shims.shims
     import tomlkit
 
-    from pipenv.patched.notpip._vendor.packaging.version import Version
+    from pipenv.patched.pip._vendor.packaging.version import Version
     from pipenv.project import Project, TPipfile, TSource
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
@@ -529,9 +529,7 @@ class Environment:
         Get the pip version in the environment.  Useful for knowing which args we can use
         when installing.
         """
-        from pipenv.patched.notpip._vendor.packaging.version import (
-            parse as parse_version,
-        )
+        from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
         pip = next(
             iter(pkg for pkg in self.get_installed_packages() if pkg.key == "pip"), None

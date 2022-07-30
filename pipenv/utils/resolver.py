@@ -610,7 +610,7 @@ class Resolver:
 
     @property
     def constraints(self):
-        from pipenv.patched.notpip._internal.req.constructors import (
+        from pipenv.patched.pip._internal.req.constructors import (
             install_req_from_parsed_requirement,
         )
 
@@ -737,7 +737,7 @@ class Resolver:
             if self.project.s.is_verbose():
                 click.echo(
                     "{}: Error generating hash for {}".format(
-                        click.style("Warning", bold=True, fg="Red"), ireq.name
+                        click.style("Warning", bold=True, fg="red"), ireq.name
                     ),
                     err=True,
                 )

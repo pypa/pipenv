@@ -15,13 +15,13 @@ import pipenv.vendor.attr as attr
 import dateutil.parser
 import distlib.metadata
 import distlib.wheel
-import pipenv.patched.notpip._vendor.requests as requests
+import pipenv.patched.pip._vendor.requests as requests
 import pipenv.vendor.vistir as vistir
-from pipenv.patched.notpip._vendor.packaging.markers import Marker
-from pipenv.patched.notpip._vendor.packaging.requirements import Requirement as PackagingRequirement
-from pipenv.patched.notpip._vendor.packaging.specifiers import Specifier, SpecifierSet
-from pipenv.patched.notpip._vendor.packaging.tags import Tag
-from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion, parse
+from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
+from pipenv.patched.pip._vendor.packaging.specifiers import Specifier, SpecifierSet
+from pipenv.patched.pip._vendor.packaging.tags import Tag
+from pipenv.patched.pip._vendor.packaging.version import _BaseVersion, parse
 
 from ..environment import MYPY_RUNNING
 from .markers import (
