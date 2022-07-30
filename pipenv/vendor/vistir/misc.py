@@ -1109,7 +1109,7 @@ def _isatty(stream):
 _wrap_for_color = None
 
 try:
-    import pipenv.vendor.colorama as colorama
+    import pipenv.patched.pip._vendor.colorama as colorama
 except ImportError:
     colorama = None
 
