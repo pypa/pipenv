@@ -23,15 +23,16 @@ from pipenv.cmdparse import Script
 from pipenv.core import system_which
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
+from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
     is_editable,
     is_star,
+    pep423_name,
     python_version,
 )
 from pipenv.utils.internet import get_url_name, is_valid_url, proper_case
-from pipenv.utils.resolver import pep423_name
 from pipenv.utils.shell import (
     find_requirements,
     find_windows_executable,
@@ -641,10 +642,8 @@ class Project:
 
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
-        from .vendor.pip_shims.shims import InstallCommand
-
         # Inherit the pip's index configuration of install command.
-        command = InstallCommand()
+        command = InstallCommand(name="InstallCommand", summary="pip Install command.")
         indexes = command.cmd_opts.get_option("--extra-index-url").default
         sources = [self.default_source]
         for i, index in enumerate(indexes):
