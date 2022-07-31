@@ -61,6 +61,7 @@ LIBRARY_RENAMES = {
     "pip_shims:": "pipenv.vendor.pip_shims",
     "requests": "pipenv.patched.pip._vendor.requests",
     "packaging": "pipenv.patched.pip._vendor.packaging",
+    "urllib3": "pipenv.patched.pip._vendor.urllib3",
 }
 
 GLOBAL_REPLACEMENT = [

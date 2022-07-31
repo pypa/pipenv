@@ -8,8 +8,8 @@ from urllib.parse import unquote_plus
 import pipenv.vendor.attr as attr
 from pipenv.vendor.orderedmultidict import omdict
 from pipenv.vendor.pip_shims import shims
-from pipenv.vendor.urllib3.util import parse_url as urllib3_parse
-from pipenv.vendor.urllib3.util.url import Url
+from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
+from pipenv.patched.pip._vendor.urllib3.util.url import Url
 
 from ..environment import MYPY_RUNNING
 from ..utils import is_installable_file

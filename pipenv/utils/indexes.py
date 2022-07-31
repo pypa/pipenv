@@ -3,9 +3,8 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 
-from urllib3.util import parse_url
-
 from pipenv.exceptions import PipenvUsageError
+from pipenv.patched.pip._vendor.urllib3.util import parse_url
 from pipenv.utils.constants import MYPY_RUNNING
 
 from .internet import create_mirror_source, is_pypi_url

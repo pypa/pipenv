@@ -30,7 +30,7 @@ if IS_TYPE_CHECKING:
     from types import ModuleType
     from pipenv.patched.pip._vendor.requests import Session
     from pipenv.vendor.six.moves.http_client import HTTPResponse as Urllib_HTTPResponse
-    from pipenv.vendor.urllib3.response import HTTPResponse as Urllib3_HTTPResponse
+    from pipenv.patched.pip._vendor.urllib3.response import HTTPResponse as Urllib3_HTTPResponse
     from .spin import VistirSpinner, DummySpinner
 
     TSpinner = Union[VistirSpinner, DummySpinner]
