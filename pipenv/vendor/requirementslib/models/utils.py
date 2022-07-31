@@ -19,8 +19,8 @@ from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.vendor.plette.models import Package, PackageCollection
 from pipenv.vendor.tomlkit.container import Container
 from pipenv.vendor.tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
-from pipenv.vendor.urllib3 import util as urllib3_util
-from pipenv.vendor.urllib3.util import parse_url as urllib3_parse
+from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
+from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
 from pipenv.vendor.vistir.misc import dedup
 from pipenv.vendor.vistir.path import is_valid_url
 
@@ -52,7 +52,7 @@ if MYPY_RUNNING:
     from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
     from pipenv.vendor.pip_shims.shims import Link
     from pkg_resources import Requirement as PkgResourcesRequirement
-    from pipenv.vendor.urllib3.util.url import Url
+    from pipenv.patched.pip._vendor.urllib3.util.url import Url
 
     _T = TypeVar("_T")
     TMarker = Union[Marker, PkgResourcesMarker]
