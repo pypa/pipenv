@@ -342,26 +342,19 @@ class Environment:
         pylib_lines = []
         pyinc_lines = []
         py_command = (
-            "import sysconfig, distutils.sysconfig, io, json, sys; paths = {"
-            "%s }; value = u'{0}'.format(json.dumps(paths)); print(value)"
+            "import sysconfig, json; paths = {%s};"
+            "value = u'{0}'.format(json.dumps(paths)); print(value)"
         )
-        distutils_line = "distutils.sysconfig.get_python_{0}(plat_specific={1})"
         sysconfig_line = "sysconfig.get_path('{0}')"
         if python_lib:
-            for key, var, val in (("pure", "lib", "0"), ("plat", "lib", "1")):
-                dist_prefix = f"{key}lib"
-                # XXX: We need to get 'stdlib' or 'platstdlib'
-                sys_prefix = "{}stdlib".format("" if key == "pure" else key)
+            for key in ("purelib", "platlib", "stdlib", "platstdlib"):
                 pylib_lines.append(
-                    f"u'{dist_prefix}': u'{{0}}'.format({distutils_line.format(var, val)})"
-                )
-                pylib_lines.append(
-                    f"u'{sys_prefix}': u'{{0}}'.format({sysconfig_line.format(sys_prefix)})"
+                    f"u'{key}': u'{{0}}'.format({sysconfig_line.format(key)})"
                 )
         if python_inc:
-            for key, var, val in (("include", "inc", "0"), ("platinclude", "inc", "1")):
-                pylib_lines.append(
-                    f"u'{key}': u'{{0}}'.format({distutils_line.format(var, val)})"
+            for key in ("include", "platinclude"):
+                pyinc_lines.append(
+                    f"u'{key}': u'{{0}}'.format({sysconfig_line.format(key)})"
                 )
         lines = pylib_lines + pyinc_lines
         if scripts:
@@ -370,7 +363,7 @@ class Environment:
             )
         if py_version:
             lines.append(
-                "u'py_version_short': u'{0}'.format(distutils.sysconfig.get_python_version()),"
+                "u'py_version_short': u'{0}'.format(sysconfig.get_python_version()),"
             )
         lines_as_str = ",".join(lines)
         py_command = py_command % lines_as_str
@@ -465,13 +458,7 @@ class Environment:
         :return: The python include path for the environment
         :rtype: Dict[str, str]
         """
-        py_command = (
-            "import distutils.sysconfig, io, json, sys; paths = {u'include': "
-            "u'{0}'.format(distutils.sysconfig.get_python_inc(plat_specific=0)), "
-            "u'platinclude': u'{0}'.format(distutils.sysconfig.get_python_inc("
-            "plat_specific=1)) }; value = u'{0}'.format(json.dumps(paths));"
-            "print(value)"
-        )
+        py_command = self.build_command(python_inc=True)
         command = [self.python, "-c", py_command]
         c = subprocess_run(command)
         if c.returncode == 0:
