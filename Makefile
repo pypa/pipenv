@@ -48,12 +48,12 @@ ramdisk:
 ramdisk-virtualenv: ramdisk
 	[ ! -e "/mnt/ramdisk/.venv/bin/activate" ] && \
 		python -m venv /mnt/ramdisk/.venv
-	echo "/mnt/ramdisk/.venv" >> $(venv_file)
+	echo "/mnt/ramdisk/.venv" > $(venv_file)
 
 .PHONY: virtualenv
 virtualenv:
 	[ ! -e $(venv_dir) ] && rm -rvf $(venv_file) && python -m venv $(venv_dir)
-	@echo $(venv_dir) >> $(venv_file)
+	@echo $(venv_dir) > $(venv_file)
 
 .PHONY: test-install
 test-install:
@@ -74,7 +74,7 @@ tests: parallel ?= -n auto
 tests: suite ?=
 tests: submodules test-install
 	source $(get_venv_path)/bin/activate && \
-		pipenv run pytest -ra $(parallel) -vvv --full-trace --tb=long
+		pipenv run pytest -ra $(parallel) -vvv --full-trace --tb=long $(suite)
 
 .PHONY: vendor
 vendor: virtualenv
