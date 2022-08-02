@@ -13,8 +13,8 @@ from pipenv.vendor.click import BadParameter
 from pipenv.vendor.dparse.parser import setuptools_parse_requirements_backport as _parse_requirements
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
-from ruamel.yaml import YAML
-from ruamel.yaml.error import MarkedYAMLError
+from pipenv.vendor.ruamel.yaml import YAML
+from pipenv.vendor.ruamel.yaml.error import MarkedYAMLError
 import pipenv.patched.safety as safety
 
 from pipenv.patched.safety.constants import EXIT_CODE_FAILURE, EXIT_CODE_OK

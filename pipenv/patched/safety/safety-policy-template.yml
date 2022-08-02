@@ -1,0 +1,14 @@
+# Safety Security and License Configuration file
+# We recommend checking this file into your source control in the root of your Python project
+# If this file is named .safety-policy.yml and is in the same directory where you run `safety check` it will be used by default.
+# Otherwise, you can use the flag `safety check --policy-file <path-to-this-file>` to specify a custom location and name for the file.
+# To validate and review your policy file, run the validate command: `safety validate policy_file --path <path-to-this-file>`
+security: # configuration for the `safety check` command
+    ignore-cvss-severity-below: 0 # A severity number between 0 and 10. Some helpful reference points: 9=ignore all vulnerabilities except CRITICAL severity. 7=ignore all vulnerabilities except CRITICAL & HIGH severity. 4=ignore all vulnerabilities except CRITICAL, HIGH & MEDIUM severity.
+    ignore-cvss-unknown-severity: False # True or False. We recommend you set this to False.
+    ignore-vulnerabilities: # Here you can list multiple specific vulnerabilities you want to ignore (optionally for a time period)
+        # We recommend making use of the optional `reason` and `expires` keys for each vulnerability that you ignore.
+        25853: # Example vulnerability ID
+            reason: we don't use the vulnerable function # optional, for internal note purposes to communicate with your team. This reason will be reported in the Safety reports
+            expires: '2022-10-21' # datetime string - date this ignore will expire, best practice to use this variable
+    continue-on-vulnerability-error: False # Suppress non-zero exit codes when vulnerabilities are found. Enable this in pipelines and CI/CD processes if you want to pass builds that have vulnerabilities. We recommend you set this to False.
