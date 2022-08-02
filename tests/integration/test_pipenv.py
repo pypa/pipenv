@@ -12,17 +12,6 @@ from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
 
 
-@pytest.mark.code
-@pytest.mark.install
-@pytest.mark.skip(reason='non deterministic')
-def test_code_import_manual(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
-        with open('t.py', 'w') as f:
-            f.write('import requests')
-        p.pipenv('install -c .')
-        assert 'requests' in p.pipfile['packages']
-
-
 @pytest.mark.lock
 @pytest.mark.deploy
 def test_deploy_works(PipenvInstance):

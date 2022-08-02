@@ -38,6 +38,7 @@ if "pip_shims" in sys.modules:
 if __name__ in sys.modules:
     old_module = sys.modules[__name__]
 
+
 module = sys.modules["pip_shims"] = sys.modules[__name__] = shims._new()
 module.shims = shims
 module.__dict__.update(

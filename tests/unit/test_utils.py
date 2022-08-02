@@ -85,7 +85,7 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
 @pytest.mark.needs_internet
 def test_convert_deps_to_pip(monkeypatch, deps, expected):
     with monkeypatch.context() as m:
-        import pip_shims
+        from pipenv.vendor import pip_shims
         m.setattr(pip_shims.shims, "unpack_url", mock_unpack)
         if expected.startswith("Django"):
             expected = expected.lower()

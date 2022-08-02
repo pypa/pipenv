@@ -1,0 +1,1 @@
+Remove usages of ``pip_shims`` from the non vendored ``pipenv`` code, but retain initialization for ``requirementslib`` still has usages.

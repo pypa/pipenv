@@ -110,11 +110,11 @@ def handle_parsed_args(parsed):
     if parsed.debug:
         parsed.verbose = max(parsed.verbose, 2)
     if parsed.verbose > 1:
-        logging.getLogger("notpip").setLevel(logging.DEBUG)
+        logging.getLogger("pip").setLevel(logging.DEBUG)
     elif parsed.verbose > 0:
-        logging.getLogger("notpip").setLevel(logging.INFO)
+        logging.getLogger("pip").setLevel(logging.INFO)
         logger = logging.getLogger(
-            "pipenv.patched.notpip._internal.resolution.resolvelib.reporter"
+            "pipenv.patched.pip._internal.resolution.resolvelib.reporter"
         )
         logger.addHandler(logging.StreamHandler())
         logger.setLevel(logging.INFO)
@@ -201,7 +201,7 @@ class Entry:
 
     @classmethod
     def get_markers_from_dict(cls, entry_dict):
-        from pipenv.patched.notpip._vendor.packaging import markers as packaging_markers
+        from pipenv.patched.pip._vendor.packaging import markers as packaging_markers
         from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
 
         marker_keys = cls.parse_pyparsing_exprs(packaging_markers.VARIABLE)
@@ -347,7 +347,7 @@ class Entry:
 
     @staticmethod
     def clean_specifier(specifier):
-        from pipenv.patched.notpip._vendor.packaging.specifiers import Specifier
+        from pipenv.patched.pip._vendor.packaging.specifiers import Specifier
 
         if not any(specifier.startswith(k) for k in Specifier._operators.keys()):
             if specifier.strip().lower() in ["any", "<any>", "*"]:
@@ -359,7 +359,7 @@ class Entry:
 
     @staticmethod
     def strip_version(specifier):
-        from pipenv.patched.notpip._vendor.packaging.specifiers import Specifier
+        from pipenv.patched.pip._vendor.packaging.specifiers import Specifier
 
         op = next(
             iter(k for k in Specifier._operators.keys() if specifier.startswith(k)), None
@@ -446,7 +446,7 @@ class Entry:
         return {}
 
     def get_parent_deps(self, unnest=False):
-        from pipenv.patched.notpip._vendor.packaging.specifiers import Specifier
+        from pipenv.patched.pip._vendor.packaging.specifiers import Specifier
 
         parents = []
         for spec in self.reverse_deps.get(self.normalized_name, {}).get("parents", set()):

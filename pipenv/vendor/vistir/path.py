@@ -4,6 +4,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import atexit
 import errno
 import functools
+import locale
 import os
 import posixpath
 import shutil
@@ -392,6 +393,19 @@ def set_write_bit(fn):
                 ],
                 nospin=True,
                 return_object=True,
+                # 2020-06-12 Yukihiko Shinoda
+                # There are 3 way to get system default encoding in Stack Overflow.
+                # see: https://stackoverflow.com/questions/37506535/how-to-get-the-system-default-encoding-in-python-2-x
+                # I investigated these way by using Shift-JIS Windows.
+                # >>> import locale
+                # >>> locale.getpreferredencoding()
+                # "cp932" (Shift-JIS)
+                # >>> import sys
+                # >>> sys.getdefaultencoding()
+                # "utf-8"
+                # >>> sys.stdout.encoding
+                # "UTF8"
+                encoding=locale.getpreferredencoding(),
             )
             if not c.err and c.returncode == 0:
                 return

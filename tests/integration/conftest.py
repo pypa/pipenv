@@ -506,8 +506,6 @@ class VirtualEnv:
             cmd, verbose=False, return_object=True, write_to_stdout=False,
             combine_stderr=False, block=True, nospin=True,
         )
-        # cmd = "{0} -m virtualenv {1}".format(python, self.path.as_posix())
-        # c = delegator.run(cmd, block=True)
         assert c.returncode == 0
 
     def activate(self):

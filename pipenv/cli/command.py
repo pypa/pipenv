@@ -95,8 +95,8 @@ def cli(
 
     if "PIPENV_COLORBLIND" in os.environ:
         echo(
-            "PIPENV_COLORBLIND is deprecated, use NO_COLOR instead"
-            "Per https://no-color.org/",
+            "PIPENV_COLORBLIND is deprecated, use NO_COLOR"
+            " per https://no-color.org/ instead",
             err=True,
         )
 

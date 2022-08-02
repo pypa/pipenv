@@ -87,11 +87,11 @@ Now we will need to update the lockfile. This is required to ensure tests run ag
 # use the latest python here
 $ export PIPENV_PYTHON=3.8
 $ pipenv lock --dev
-# Inspect the changes in a diff viewer, for example we should keep the python 2 dependencies to use for running tests
+# Inspect the changes in a diff viewer, for example we should keep the older Python dependencies to use for running tests
 # on completion, stage the relevant changes
-$ export PIPENV_PYTHON=2.7
+$ export PIPENV_PYTHON=3.7
 $ pipenv lock --keep-outdated --dev
-# this helps avoid overwriting the entire lockfile and should introduce only the changes required to run tests on python 2
+# this helps avoid overwriting the entire lockfile and should introduce only the changes required to run tests on previous Python versions
 # inspect the resulting lockfile and commit the changes
 $ git commit
 ```
@@ -102,8 +102,6 @@ Test pipenv locally. If tests pass, you can go ahead and make a PR to merge what
 
 ```bash
 $ export PIPENV_PYTHON=3.8
-$ pipenv install --dev && pytest -ra tests
-$ export PIPENV_PYTHON=2.7
 $ pipenv install --dev && pytest -ra tests
 ```
 
@@ -151,8 +149,6 @@ If in doubt, follow the basic instructions below.
 7. Recruit manual testing ([example](https://pad.sfconservancy.org/p/help-test-pipenv-2020-03-26)) for workflows we don't account for
 8. Wait a week, then update version number to a canonical release and re-release on PyPI.org
 10. Publicize on lists, Discourse, GitHub issues
-
-
 
 ## Looking ahead
 

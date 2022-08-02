@@ -7,9 +7,9 @@ from functools import lru_cache, reduce
 
 import pipenv.vendor.attr as attr
 import distlib.markers
-from pipenv.patched.notpip._vendor.packaging.markers import InvalidMarker, Marker
-from pipenv.patched.notpip._vendor.packaging.specifiers import LegacySpecifier, Specifier, SpecifierSet
-from pipenv.patched.notpip._vendor.packaging.version import parse
+from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker
+from pipenv.patched.pip._vendor.packaging.specifiers import LegacySpecifier, Specifier, SpecifierSet
+from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.vendor.vistir.misc import dedup
 
 from ..environment import MYPY_RUNNING
@@ -489,7 +489,7 @@ def _markers_contains_key(markers, key):
 def get_contained_extras(marker):
     """Collect "extra == ..." operands from a marker.
 
-    Returns a list of str. Each str is a speficied extra in this marker.
+    Returns a list of str. Each str is a specified extra in this marker.
     """
     if not marker:
         return set()
@@ -532,7 +532,7 @@ def get_contained_pyversions(marker):
 
 @lru_cache(maxsize=128)
 def contains_extra(marker):
-    """Check whehter a marker contains an "extra == ..." operand."""
+    """Check whether a marker contains an "extra == ..." operand."""
     if not marker:
         return False
     marker = _ensure_marker(marker)
