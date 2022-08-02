@@ -1,0 +1,13 @@
+diff --git a/pipenv/patched/safety/__main__.py b/pipenv/patched/safety/__main__.py
+index d9a0bdab..be36e88b 100644
+--- a/pipenv/patched/safety/__main__.py
++++ b/pipenv/patched/safety/__main__.py
+@@ -1,7 +1,7 @@
+ """Allow safety to be executable through `python -m safety`."""
+ from __future__ import absolute_import
+ 
+-from .cli import cli
++from pipenv.patched.safety.cli import cli
+ 
+ 
+ if __name__ == "__main__":  # pragma: no cover
