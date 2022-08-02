@@ -2,4 +2,10 @@
 
 __author__ = """pyup.io"""
 __email__ = 'support@pyup.io'
-__version__ = '1.10.3'
+
+import os
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+
+with open(os.path.join(ROOT, 'VERSION')) as version_file:
+    VERSION = version_file.read().strip()
