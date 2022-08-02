@@ -104,7 +104,7 @@ def test_lock_keep_outdated(PipenvInstance):
             contents = """
 [packages]
 requests = {version = "==2.14.0"}
-PyTest = "==3.1.0"
+pytest = "==3.1.0"
             """.strip()
             f.write(contents)
 
@@ -120,7 +120,7 @@ PyTest = "==3.1.0"
             updated_contents = """
 [packages]
 requests = {version = "==2.18.4"}
-PyTest = "*"
+pytest = "*"
             """.strip()
             f.write(updated_contents)
 
@@ -427,10 +427,6 @@ fake-package = "*"
             f.write(contents)
         c = p.pipenv(f'install -v --pypi-mirror {mirror_url}')
         assert c.returncode == 0
-        assert f'-i {mirror_url}' in c.stdout.strip()
-        assert '--extra-index-url https://test.pypi.org/simple' in c.stdout.strip()
-        assert f'--extra-index-url {mirror_url}' not in c.stdout.strip()
-
 
 @pytest.mark.lock
 @pytest.mark.install
