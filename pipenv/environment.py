@@ -9,7 +9,7 @@ import os
 import site
 import sys
 from pathlib import Path
-from sysconfig import get_paths, get_scheme_names
+from sysconfig import get_paths, get_python_version, get_scheme_names
 
 import pkg_resources
 
@@ -159,6 +159,17 @@ class Environment:
             return {"py_version_short": py_version_short, "abiflags": abiflags}
         return {}
 
+    def _replace_parent_version(self, path: str, replace_version: str) -> str:
+        if not os.path.exists(path):
+            base, leaf = os.path.split(path)
+            base, parent = os.path.split(base)
+            leaf = os.path.join(parent, leaf).replace(
+                replace_version,
+                self.python_info.get("py_version_short", get_python_version()),
+            )
+            return os.path.join(base, leaf)
+        return path
+
     @cached_property
     def install_scheme(self):
         if "venv" in get_scheme_names():
@@ -203,7 +214,30 @@ class Environment:
         if self._base_paths:
             paths = self._base_paths.copy()
         else:
-            paths = self.get_paths()
+            try:
+                paths = self.get_paths()
+            except Exception:
+                paths = get_paths(
+                    self.install_scheme,
+                    vars={
+                        "base": prefix,
+                        "platbase": prefix,
+                    },
+                )
+                current_version = get_python_version()
+                try:
+                    for k in list(paths.keys()):
+                        if not os.path.exists(paths[k]):
+                            paths[k] = self._replace_parent_version(
+                                paths[k], current_version
+                            )
+                except OSError:
+                    # Sometimes virtualenvs are made using virtualenv interpreters and there is no
+                    # include directory, which will cause this approach to fail. This failsafe
+                    # will make sure we fall back to the shell execution to find the real include path
+                    paths = self.get_include_path()
+                    paths.update(self.get_lib_paths())
+                    paths["scripts"] = self.script_basedir
         if not paths:
             paths = get_paths(
                 self.install_scheme,
