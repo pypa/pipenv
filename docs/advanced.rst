@@ -558,6 +558,10 @@ wherever you want, e.g.::
 
 In addition, you can also have Pipenv stick the virtualenv in ``project/.venv`` by setting the ``PIPENV_VENV_IN_PROJECT`` environment variable.
 
+☤ Custom Virtual Environment Name
+-------------------------------------
+
+Pipenv supports a custom name for the virtual environment set at ``PIPENV_CUSTOM_VENV_NAME``.  by default the venv will be named after the project directory.
 
 ☤ Testing Projects
 ------------------

@@ -335,6 +335,9 @@ class Setting:
         approach, you may set this to '0', 'off', or 'false'.
         """
 
+        self.PIPENV_CUSTOM_VENV_NAME = os.getenv("PIPENV_CUSTOM_VENV_NAME", None)
+        """Tells Pipenv whether to name the venv something other than the default dir name."""
+
         self.PIPENV_PYUP_API_KEY = os.environ.get("PIPENV_PYUP_API_KEY", None)
 
         # Internal, support running in a different Python from sys.executable.
