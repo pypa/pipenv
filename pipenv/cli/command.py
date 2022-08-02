@@ -316,7 +316,7 @@ LOCK_DEV_NOTE = """\
 @pass_context
 def lock(ctx, state, **kwargs):
     """Generates Pipfile.lock."""
-    from ..core import do_init, do_lock, ensure_project
+    from ..core import do_lock, ensure_project
 
     # Ensure that virtualenv is available.
     # Note that we don't pass clear on to ensure_project as it is also
@@ -329,16 +329,7 @@ def lock(ctx, state, **kwargs):
         warn=(not state.quiet),
         site_packages=state.site_packages,
     )
-    dev = state.installstate.dev
-    dev_only = state.lockoptions.dev_only
     pre = state.installstate.pre
-    do_init(
-        state.project,
-        dev=dev,
-        dev_only=dev_only,
-        pypi_mirror=state.pypi_mirror,
-        pre=pre,
-    )
     do_lock(
         state.project,
         ctx=ctx,
