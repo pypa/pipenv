@@ -365,7 +365,7 @@ class Project:
 
     @property
     def virtualenv_name(self) -> str:
-        custom_name = os.getenv("PIPENV_CUSTOM_VENV_NAME")
+        custom_name = self.s.PIPENV_CUSTOM_VENV_NAME
         if custom_name:
             return custom_name
         sanitized, encoded_hash = self._get_virtualenv_hash(self.name)
