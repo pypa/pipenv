@@ -8,23 +8,26 @@ import sys
 import warnings
 
 from pipenv.__version__ import __version__  # noqa
+from pipenv.patched.pip._vendor.urllib3.exceptions import DependencyWarning
 
+warnings.filterwarnings("ignore", category=DependencyWarning)
+warnings.filterwarnings("ignore", category=ResourceWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 PIPENV_ROOT = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+
 PIPENV_VENDOR = os.sep.join([PIPENV_ROOT, "vendor"])
 PIPENV_PATCHED = os.sep.join([PIPENV_ROOT, "patched"])
+# PIP_VENDOR = os.sep.join([PIPENV_ROOT, "patched", "pip", "_vendor"])
+
+# sys.path.insert(0, PIP_VENDOR)
 # Inject vendored directory into system path.
 sys.path.insert(0, PIPENV_VENDOR)
 # Inject patched directory into system path.
 sys.path.insert(0, PIPENV_PATCHED)
 
-from pipenv.vendor.urllib3.exceptions import DependencyWarning
-
-warnings.filterwarnings("ignore", category=DependencyWarning)
-warnings.filterwarnings("ignore", category=ResourceWarning)
-warnings.filterwarnings("ignore", category=UserWarning)
 
 # Load patched pip instead of system pip
-os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.notpip"
+os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.pip"
 os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
 
 # Hack to make things work better.

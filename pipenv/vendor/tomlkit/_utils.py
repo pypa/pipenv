@@ -1,28 +1,23 @@
 import re
 
+from collections.abc import Mapping
 from datetime import date
 from datetime import datetime
 from datetime import time
 from datetime import timedelta
+from datetime import timezone
 from typing import Union
 
 from ._compat import decode
-from ._compat import timezone
-
-
-try:
-    from collections.abc import Mapping
-except ImportError:
-    from collections import Mapping
 
 
 RFC_3339_LOOSE = re.compile(
     "^"
     r"(([0-9]+)-(\d{2})-(\d{2}))?"  # Date
     "("
-    "([T ])?"  # Separator
+    "([Tt ])?"  # Separator
     r"(\d{2}):(\d{2}):(\d{2})(\.([0-9]+))?"  # Time
-    r"((Z)|([\+|\-]([01][0-9]|2[0-3]):([0-5][0-9])))?"  # Timezone
+    r"(([Zz])|([\+|\-]([01][0-9]|2[0-3]):([0-5][0-9])))?"  # Timezone
     ")?"
     "$"
 )
@@ -30,9 +25,9 @@ RFC_3339_LOOSE = re.compile(
 RFC_3339_DATETIME = re.compile(
     "^"
     "([0-9]+)-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])"  # Date
-    "[T ]"  # Separator
+    "[Tt ]"  # Separator
     r"([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9]|60)(\.([0-9]+))?"  # Time
-    r"((Z)|([\+|\-]([01][0-9]|2[0-3]):([0-5][0-9])))?"  # Timezone
+    r"(([Zz])|([\+|\-]([01][0-9]|2[0-3]):([0-5][0-9])))?"  # Timezone
     "$"
 )
 
@@ -45,7 +40,7 @@ RFC_3339_TIME = re.compile(
 _utc = timezone(timedelta(), "UTC")
 
 
-def parse_rfc3339(string):  # type: (str) -> Union[datetime, date, time]
+def parse_rfc3339(string: str) -> Union[datetime, date, time]:
     m = RFC_3339_DATETIME.match(string)
     if m:
         year = int(m.group(1))
@@ -57,12 +52,12 @@ def parse_rfc3339(string):  # type: (str) -> Union[datetime, date, time]
         microsecond = 0
 
         if m.group(7):
-            microsecond = int(("{:<06s}".format(m.group(8)))[:6])
+            microsecond = int((f"{m.group(8):<06s}")[:6])
 
         if m.group(9):
             # Timezone
             tz = m.group(9)
-            if tz == "Z":
+            if tz.upper() == "Z":
                 tzinfo = _utc
             else:
                 sign = m.group(11)[0]
@@ -71,9 +66,7 @@ def parse_rfc3339(string):  # type: (str) -> Union[datetime, date, time]
                 if sign == "-":
                     offset = -offset
 
-                tzinfo = timezone(
-                    offset, "{}{}:{}".format(sign, m.group(12), m.group(13))
-                )
+                tzinfo = timezone(offset, f"{sign}{m.group(12)}:{m.group(13)}")
 
             return datetime(
                 year, month, day, hour, minute, second, microsecond, tzinfo=tzinfo
@@ -97,7 +90,7 @@ def parse_rfc3339(string):  # type: (str) -> Union[datetime, date, time]
         microsecond = 0
 
         if m.group(4):
-            microsecond = int(("{:<06s}".format(m.group(5)))[:6])
+            microsecond = int((f"{m.group(5):<06s}")[:6])
 
         return time(hour, minute, second, microsecond)
 
@@ -108,7 +101,7 @@ _escaped = {"b": "\b", "t": "\t", "n": "\n", "f": "\f", "r": "\r", '"': '"', "\\
 _escapes = {v: k for k, v in _escaped.items()}
 
 
-def escape_string(s):
+def escape_string(s: str) -> str:
     s = decode(s)
 
     res = []
@@ -136,9 +129,9 @@ def escape_string(s):
     return "".join(res)
 
 
-def merge_dicts(d1, d2):
+def merge_dicts(d1: dict, d2: dict) -> dict:
     for k, v in d2.items():
-        if k in d1 and isinstance(d1[k], dict) and isinstance(d2[k], Mapping):
-            merge_dicts(d1[k], d2[k])
+        if k in d1 and isinstance(d1[k], dict) and isinstance(v, Mapping):
+            merge_dicts(d1[k], v)
         else:
             d1[k] = d2[k]

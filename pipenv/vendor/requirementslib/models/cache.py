@@ -10,7 +10,7 @@ import pathlib
 import sys
 
 import pipenv.vendor.vistir as vistir
-from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.vendor.pip_shims.shims import FAVORITE_HASH, SafeFileCache
 from pipenv.vendor.platformdirs import user_cache_dir
 
@@ -195,7 +195,7 @@ class HashCache(SafeFileCache):
     def __init__(self, *args, **kwargs):
         session = kwargs.pop("session", None)
         if not session:
-            import pipenv.patched.notpip._vendor.requests as requests
+            import pipenv.patched.pip._vendor.requests as requests
 
             session = requests.session()
             atexit.register(session.close)

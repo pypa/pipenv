@@ -11,7 +11,7 @@ CLEAN_TARGETS := $(addprefix clean-py,$(PY_VERSIONS))
 DATE_STRING := $(shell date +%Y.%m.%d)
 THIS_MONTH_DATE := $(shell date +%Y.%m.01)
 NEXT_MONTH_DATE := $(shell date -d "+1 month" +%Y.%m.01)
-PATCHED_PIP_VERSION := $(shell awk '/__version__/{gsub(/"/,"",$$3); print $$3}' pipenv/patched/notpip/__init__.py)
+PATCHED_PIP_VERSION := $(shell awk '/__version__/{gsub(/"/,"",$$3); print $$3}' pipenv/patched/pip/__init__.py)
 GITDIR_STAMPFILE := $(CURDIR)/.git-checkout-dir
 create_git_tmpdir = $(shell mktemp -dt pipenv-vendor-XXXXXXXX 2>/dev/null || mktemp -d 2>/dev/null)
 write_git_tmpdir = $(file > $(GITDIR_STAMPFILE),$(create_git_tmpdir))
@@ -48,12 +48,12 @@ ramdisk:
 ramdisk-virtualenv: ramdisk
 	[ ! -e "/mnt/ramdisk/.venv/bin/activate" ] && \
 		python -m venv /mnt/ramdisk/.venv
-	echo "/mnt/ramdisk/.venv" >> $(venv_file)
+	echo "/mnt/ramdisk/.venv" > $(venv_file)
 
 .PHONY: virtualenv
 virtualenv:
 	[ ! -e $(venv_dir) ] && rm -rvf $(venv_file) && python -m venv $(venv_dir)
-	@echo $(venv_dir) >> $(venv_file)
+	@echo $(venv_dir) > $(venv_file)
 
 .PHONY: test-install
 test-install:
@@ -71,9 +71,10 @@ submodules:
 # e.g make tests RAMDISK=1
 .PHONY: tests
 tests: parallel ?= -n auto
+tests: suite ?=
 tests: submodules test-install
 	source $(get_venv_path)/bin/activate && \
-		pipenv run pytest -ra $(parallel) -vvv --full-trace --tb=long
+		pipenv run pytest -ra $(parallel) -vvv --full-trace --tb=long $(suite)
 
 .PHONY: vendor
 vendor: virtualenv

@@ -2,7 +2,6 @@
 from __future__ import unicode_literals, absolute_import
 from collections import OrderedDict
 import re
-import yaml
 
 from io import StringIO
 
@@ -12,10 +11,10 @@ from configparser import SafeConfigParser, NoOptionError
 from .regex import URL_REGEX, HASH_REGEX
 
 from .dependencies import DependencyFile, Dependency
-from pipenv.patched.notpip._vendor.packaging.requirements import Requirement as PackagingRequirement, InvalidRequirement
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement, InvalidRequirement
 from . import filetypes
 import pipenv.vendor.toml as toml
-from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 import json
 
 
@@ -301,6 +300,7 @@ class CondaYMLParser(Parser):
 
         :return:
         """
+        import yaml
         try:
             data = yaml.safe_load(self.obj.content)
             if data and 'dependencies' in data and isinstance(data['dependencies'], list):

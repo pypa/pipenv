@@ -1,0 +1,1 @@
+* Remove vendored ``urllib3`` in favor of using it from vendored version in ``pip._vendor``
