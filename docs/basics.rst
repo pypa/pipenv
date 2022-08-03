@@ -313,12 +313,6 @@ The user can provide these additional parameters:
                  **destructive** and will delete your current virtualenv before replacing
                  it with an appropriately versioned one.
 
-    .. note:: The virtualenv created by Pipenv may be different from what you were expecting.
-              Dangerous characters (i.e. ``$`!*@"`` as well as space, line feed, carriage return,
-              and tab) are converted to underscores. Additionally, the full path to the current
-              folder is encoded into a "slug value" and appended to ensure the virtualenv name
-              is unique.
-
     - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile``.
     - ``--system`` — Use the system ``pip`` command rather than the one from your virtualenv.
     - ``--deploy`` — Make sure the packages are properly locked in Pipfile.lock, and abort if the lock file is out-of-date.
