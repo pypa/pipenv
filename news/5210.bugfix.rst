@@ -1,0 +1,2 @@
+Write output from ``subprocess_run`` directly to ``stdout`` instead of creating temporary file.
+Remove deprecated ``distutils.sysconfig``, use ``sysconfig``.
