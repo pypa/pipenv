@@ -78,14 +78,16 @@ def get_source_list(
     if extra_indexes:
         if isinstance(extra_indexes, str):
             extra_indexes = [extra_indexes]
+
         for source in extra_indexes:
             extra_src = get_project_index(project, source)
             if not sources or extra_src["url"] != sources[0]["url"]:
                 sources.append(extra_src)
-        else:
-            for source in project.pipfile_sources:
-                if not sources or source["url"] != sources[0]["url"]:
-                    sources.append(source)
+
+        for source in project.pipfile_sources:
+            if not sources or source["url"] != sources[0]["url"]:
+                sources.append(source)
+
     if not sources:
         sources = project.pipfile_sources[:]
     if pypi_mirror:
