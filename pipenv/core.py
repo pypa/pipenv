@@ -1503,7 +1503,8 @@ def pip_install(
         trusted_hosts=trusted_hosts,
         pypi_mirror=pypi_mirror,
     )
-    if not search_all_sources and requirement.index in sources:
+    source_names = {src.get("name") for src in sources}
+    if not search_all_sources and requirement.index in source_names:
         sources = list(filter(lambda d: d.get("name") == requirement.index, sources))
     if r:
         with open(r, "r") as fh:
