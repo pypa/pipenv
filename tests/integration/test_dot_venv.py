@@ -169,10 +169,11 @@ def test_venv_name_accepts_custom_name_environment_variable(PipenvInstance):
     """
     with PipenvInstance(chdir=True, venv_in_project=False) as p:
         test_name = "sensible_custom_venv_name"
-        os.environ['PIPENV_CUSTOM_VENV_NAME'] = test_name
-        c = p.pipenv('install')
-        assert c.returncode == 0
-        c = p.pipenv('--venv')
-        assert c.returncode == 0
-        venv_path = c.stdout.strip()
-        assert test_name == Path(venv_path).parts[-1]
+        with temp_environ():
+            os.environ['PIPENV_CUSTOM_VENV_NAME'] = test_name
+            c = p.pipenv('install')
+            assert c.returncode == 0
+            c = p.pipenv('--venv')
+            assert c.returncode == 0
+            venv_path = c.stdout.strip()
+            assert test_name == Path(venv_path).parts[-1]
