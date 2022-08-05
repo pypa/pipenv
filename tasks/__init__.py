@@ -4,8 +4,9 @@ from pathlib import Path
 
 import invoke
 
-from . import vendoring
+from . import release, vendoring
 
 ROOT = Path(".").parent.parent.absolute()
 
-ns = invoke.Collection(vendoring)
+ns = invoke.Collection(vendoring, release, release.clean_mdchangelog)
+
