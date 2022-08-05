@@ -161,3 +161,19 @@ def test_venv_in_project_default_when_venv_exists(PipenvInstance):
 
             assert venv_loc.joinpath('.project').exists()
             assert venv_loc == Path(venv_path)
+
+
+@pytest.mark.dotenv
+def test_venv_name_accepts_custom_name_environment_variable(PipenvInstance):
+    """Tests that virtualenv reads PIPENV_CUSTOM_VENV_NAME and accepts it as a name
+    """
+    with PipenvInstance(chdir=True, venv_in_project=False) as p:
+        test_name = "sensible_custom_venv_name"
+        with temp_environ():
+            os.environ['PIPENV_CUSTOM_VENV_NAME'] = test_name
+            c = p.pipenv('install')
+            assert c.returncode == 0
+            c = p.pipenv('--venv')
+            assert c.returncode == 0
+            venv_path = c.stdout.strip()
+            assert test_name == Path(venv_path).parts[-1]
