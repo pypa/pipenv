@@ -1,0 +1,1 @@
+If environment variable ``CI`` or ``TF_BUILD`` is set but does not evaluate to ``False`` it is now treated as ``True``.
