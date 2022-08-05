@@ -1,1 +1,0 @@
-Fix case sensitivity of color name ``red`` in exception when getting hashes from pypi in ``_get_hashes_from_pypi``.

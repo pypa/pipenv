@@ -1,3 +1,36 @@
+2022.7.24 (2022-08-05)
+======================
+
+
+Features & Improvements
+-----------------------
+
+- support PIPENV_CUSTOM_VENV_NAME to be the venv name if specified, update relevant docs.  `#4974 <https://github.com/pypa/pipenv/issues/4974>`_
+
+Bug Fixes
+---------
+
+- Remove usages of ``pip_shims`` from the non vendored ``pipenv`` code, but retain initialization for ``requirementslib`` still has usages.  `#5204 <https://github.com/pypa/pipenv/issues/5204>`_
+- Fix case sensitivity of color name ``red`` in exception when getting hashes from pypi in ``_get_hashes_from_pypi``.  `#5206 <https://github.com/pypa/pipenv/issues/5206>`_
+- Write output from ``subprocess_run`` directly to ``stdout`` instead of creating temporary file.
+  Remove deprecated ``distutils.sysconfig``, use ``sysconfig``.  `#5210 <https://github.com/pypa/pipenv/issues/5210>`_
+
+Vendored Libraries
+------------------
+
+- * Rename patched ``notpip`` to ``pip`` in order to be clear that its a patched version of pip.
+  * Remove the part of _post_pip_import.patch that overrode the standalone pip to be the user installed pip,
+  now we fully rely on our vendored and patched ``pip``, even for all types of installs.
+  * Vendor in the next newest version of ``pip==22.2``
+  * Modify patch for ``pipdeptree`` to not use ``pip-shims``  `#5188 <https://github.com/pypa/pipenv/issues/5188>`_
+- * Remove vendored ``urllib3`` in favor of using it from vendored version in ``pip._vendor``  `#5215 <https://github.com/pypa/pipenv/issues/5215>`_
+
+Removals and Deprecations
+-------------------------
+
+- Remove tests that have been for a while been marked skipped and are no longer relevant.  `#5165 <https://github.com/pypa/pipenv/issues/5165>`_
+
+
 2022.7.24 (2022-07-24)
 ======================
 
