@@ -9,4 +9,3 @@ from . import release, vendoring
 ROOT = Path(".").parent.parent.absolute()
 
 ns = invoke.Collection(vendoring, release, release.clean_mdchangelog)
-
