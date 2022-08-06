@@ -17,8 +17,8 @@ from urllib.parse import parse_qs, urlparse, urlunparse
 from weakref import finalize
 
 import pipenv.vendor.attr as attr
-import pep517.envbuild
-import pep517.wrappers
+from pipenv.patched.pip._vendor.pep517 import envbuild
+from pipenv.patched.pip._vendor.pep517 import wrappers
 from pipenv.vendor.distlib.wheel import Wheel
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
@@ -114,7 +114,7 @@ def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None):
     )
 
 
-class BuildEnv(pep517.envbuild.BuildEnvironment):
+class BuildEnv(envbuild.BuildEnvironment):
     def pip_install(self, reqs):
         cmd = [
             sys.executable,
@@ -135,7 +135,7 @@ class BuildEnv(pep517.envbuild.BuildEnvironment):
         )
 
 
-class HookCaller(pep517.wrappers.Pep517HookCaller):
+class HookCaller(wrappers.Pep517HookCaller):
     def __init__(self, source_dir, build_backend, backend_path=None):
         super().__init__(source_dir, build_backend, backend_path=backend_path)
         self.source_dir = os.path.abspath(source_dir)
@@ -143,7 +143,7 @@ class HookCaller(pep517.wrappers.Pep517HookCaller):
         self._subprocess_runner = pep517_subprocess_runner
         if backend_path:
             backend_path = [
-                pep517.wrappers.norm_and_check(self.source_dir, p) for p in backend_path
+                wrappers.norm_and_check(self.source_dir, p) for p in backend_path
             ]
         self.backend_path = backend_path
 
