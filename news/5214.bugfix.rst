@@ -1,0 +1,2 @@
+Fix auto-complete crashing on 'install' and 'uninstall' keywords
+
