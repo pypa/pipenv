@@ -224,21 +224,6 @@ def rename_if_needed(ctx, vendor_dir, item):
                 child.rename(str(new_path / child.name))
 
 
-def write_backport_imports(ctx, vendor_dir):
-    backport_dir = vendor_dir / "backports"
-    if not backport_dir.exists():
-        return
-    backport_init = backport_dir / "__init__.py"
-    backport_libs = detect_vendored_libs(backport_dir)
-    init_py_lines = backport_init.read_text().splitlines()
-    for lib in backport_libs:
-        lib_line = f"from . import {lib}"
-        if lib_line not in init_py_lines:
-            log("Adding backport %s to __init__.py exports" % lib)
-            init_py_lines.append(lib_line)
-    backport_init.write_text("\n".join(init_py_lines) + "\n")
-
-
 def _ensure_package_in_requirements(ctx, requirements_file, package):
     requirement = None
     log("using requirements file: %s" % requirements_file)
@@ -363,7 +348,6 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
         elif item.name not in FILE_WHITE_LIST:
             if rewrite and not package or (package and item.stem.lower() in package):
                 rewrite_file_imports(item, vendored_libs)
-    write_backport_imports(ctx, vendor_dir)
     if not package:
         apply_patches(ctx, patched=is_patched, pre=False)
         if is_patched:
