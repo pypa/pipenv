@@ -68,6 +68,16 @@ GLOBAL_REPLACEMENT = [
     (r"(?<!\.)\bpip\._vendor", r"pipenv.patched.pip._vendor"),
     (r"(?<!\.)\bpip\._internal", r"pipenv.patched.pip._internal"),
     (r"(?<!\.)\bpippipenv\.patched\.notpip", r"pipenv.patched.pip"),
+    (
+        r"(?<!\.)import pep517\.envbuild",
+        r"from pipenv.patched.pip._vendor.pep517 import envbuild",
+    ),
+    (
+        r"(?<!\.)import pep517\.wrappers",
+        r"from pipenv.patched.pip._vendor.pep517 import wrappers",
+    ),
+    (r"(?<!\.)pep517\.envbuild", r"envbuild"),
+    (r"(?<!\.)pep517\.wrappers", r"wrappers"),
 ]
 
 
