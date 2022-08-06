@@ -1,4 +1,5 @@
 import os
+from unittest import mock
 
 import pytest
 
@@ -83,13 +84,11 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
 @pytest.mark.utils
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
 @pytest.mark.needs_internet
-def test_convert_deps_to_pip(monkeypatch, deps, expected):
-    with monkeypatch.context() as m:
-        from pipenv.vendor import pip_shims
-        m.setattr(pip_shims.shims, "unpack_url", mock_unpack)
-        if expected.startswith("Django"):
-            expected = expected.lower()
-        assert dependencies.convert_deps_to_pip(deps, r=False) == [expected]
+@mock.patch("pipenv.patched.pip._internal.operations.prepare.unpack_url", mock_unpack)
+def test_convert_deps_to_pip(deps, expected):
+    if expected.startswith("Django"):
+        expected = expected.lower()
+    assert dependencies.convert_deps_to_pip(deps, r=False) == [expected]
 
 
 @pytest.mark.utils
@@ -132,14 +131,6 @@ def test_convert_deps_to_pip(monkeypatch, deps, expected):
 )
 def test_convert_deps_to_pip_one_way(deps, expected):
     assert dependencies.convert_deps_to_pip(deps, r=False) == [expected.lower()]
-
-
-@pytest.mark.skipif(isinstance("", str), reason="don't need to test if unicode is str")
-@pytest.mark.utils
-def test_convert_deps_to_pip_unicode():
-    deps = {"django": "==1.10"}
-    deps = dependencies.convert_deps_to_pip(deps, r=False)
-    assert deps[0] == "django==1.10"
 
 
 @pytest.mark.parametrize("line,result", [
