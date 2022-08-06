@@ -281,7 +281,7 @@ def package_arg(f):
         "packages",
         nargs=-1,
         callback=callback,
-        expose_value=False,
+        expose_value=True,
         type=click_types.STRING,
     )(f)
 
