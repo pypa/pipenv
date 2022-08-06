@@ -1,5 +1,6 @@
 import os
 from contextlib import contextmanager
+from tempfile import NamedTemporaryFile
 from typing import Mapping, Sequence
 
 from pipenv.patched.pip._vendor.packaging.markers import Marker
@@ -273,9 +274,7 @@ def convert_deps_to_pip(
         return dependencies
 
     # Write requirements.txt to tmp directory.
-    from pipenv.vendor.vistir.path import create_tracked_tempfile
-
-    f = create_tracked_tempfile(suffix="-requirements.txt", delete=False)
+    f = NamedTemporaryFile(suffix="-requirements.txt", delete=False)
     f.write("\n".join(dependencies).encode("utf-8"))
     f.close()
     return f.name
