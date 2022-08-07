@@ -20,7 +20,6 @@ import tomlkit
 import vistir
 
 from pipenv.cmdparse import Script
-from pipenv.core import system_which
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
 from pipenv.patched.pip._internal.commands.install import InstallCommand
@@ -41,6 +40,7 @@ from pipenv.utils.shell import (
     is_virtual_environment,
     looks_like_dir,
     safe_expandvars,
+    system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
 from pipenv.vendor.cached_property import cached_property
