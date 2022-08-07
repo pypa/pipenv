@@ -17,6 +17,7 @@ import vistir
 
 from pipenv import environments, exceptions, pep508checker, progress
 from pipenv._compat import decode_for_output, fix_utf8
+from pipenv.patched.pip._internal.build_env import _get_runnable_pip
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._internal.network.session import PipSession
 from pipenv.patched.pip._internal.req.constructors import (
@@ -40,7 +41,9 @@ from pipenv.utils.shell import (
     cmd_list_to_shell,
     find_python,
     is_python_command,
+    project_python,
     subprocess_run,
+    system_which,
 )
 from pipenv.utils.spinner import create_spinner
 from pipenv.vendor import click
@@ -1037,7 +1040,8 @@ def get_downloads_info(project, names_map, section):
         version = parse_download_fname(fname, name)
         # Get the hash of each file.
         cmd = [
-            which_pip(project),
+            project_python(project),
+            _get_runnable_pip(),
             "hash",
             os.sep.join([project.download_location, fname]),
         ]
@@ -1200,7 +1204,8 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
         click.echo(fix_utf8(f"Found {len(to_remove)} installed package(s), purging..."))
 
     command = [
-        which_pip(project, allow_global=allow_global),
+        project_python(project),
+        _get_runnable_pip(),
         "uninstall",
         "-y",
     ] + list(to_remove)
@@ -1516,8 +1521,7 @@ def pip_install(
 
     pip_command = [
         project._which("python", allow_global=allow_global),
-        "-m",
-        "pip",
+        _get_runnable_pip(),
         "install",
     ]
     pip_args = get_pip_args(
@@ -1568,7 +1572,8 @@ def pip_download(project, package_name):
     }
     for source in project.sources:
         cmd = [
-            which_pip(project),
+            project_python(project),
+            _get_runnable_pip(),
             "download",
             package_name,
             "-i",
@@ -1618,50 +1623,24 @@ def fallback_which(command, location=None, allow_global=False, system=False):
     return ""
 
 
-def which_pip(project, allow_global=False):
-    """Returns the location of virtualenv-installed pip."""
+def which_pip(project):
+    """Prefers to utilize the vendor'd version of pip, falls back to the location of virtualenv-installed pip."""
 
     location = None
     if "VIRTUAL_ENV" in os.environ:
         location = os.environ["VIRTUAL_ENV"]
-    if allow_global:
-        if location:
-            pip = project._which("pip", location=location)
-            if pip:
-                return pip
 
+    pip = project._which("python", location=location)
+    if pip:
+        return pip
+    if not pip:
         for p in ("pip", "pip3", "pip2"):
             where = system_which(p)
             if where:
                 return where
 
-    pip = project._which("pip")
-    if not pip:
-        pip = fallback_which("pip", allow_global=allow_global, location=location)
+    pip = fallback_which("pip", allow_global=True, location=location)
     return pip
-
-
-def system_which(command, path=None):
-    """Emulates the system's which. Returns None if not found."""
-    import shutil
-
-    result = shutil.which(command, path=path)
-    if result is None:
-        _which = "where" if os.name == "nt" else "which -a"
-        env = {"PATH": path} if path else None
-        c = subprocess_run(f"{_which} {command}", shell=True, env=env)
-        if c.returncode == 127:
-            click.echo(
-                "{}: the {} system utility is required for Pipenv to find Python installations properly."
-                "\n  Please install it.".format(
-                    click.style("Warning", fg="red", bold=True),
-                    click.style(_which, fg="yellow"),
-                ),
-                err=True,
-            )
-        if c.returncode == 0:
-            result = next(iter(c.stdout.splitlines()), None)
-    return result
 
 
 def format_help(help):
@@ -2354,7 +2333,6 @@ def do_uninstall(
         for normalized, p in selected_pkg_map.items()
         if normalized in (used_packages - bad_pkgs)
     ]
-    pip_path = None
     for normalized, package_name in selected_pkg_map.items():
         click.secho(
             fix_utf8(f"Uninstalling {click.style(package_name)}..."),
@@ -2364,9 +2342,13 @@ def do_uninstall(
         # Uninstall the package.
         if package_name in packages_to_remove:
             with project.environment.activated():
-                if pip_path is None:
-                    pip_path = which_pip(project, allow_global=system)
-                cmd = [pip_path, "uninstall", package_name, "-y"]
+                cmd = [
+                    project_python(project),
+                    _get_runnable_pip(),
+                    "uninstall",
+                    package_name,
+                    "-y",
+                ]
                 c = run_command(cmd, is_verbose=project.s.is_verbose())
                 click.secho(c.stdout, fg="cyan")
                 if c.returncode != 0:
@@ -2667,15 +2649,7 @@ def do_check(
     safety_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "patched", "safety"
     )
-    if not system:
-        python = project._which("python")
-    else:
-        interpreters = [system_which(p) for p in ("python", "python3", "python2")]
-        python = interpreters[0] if interpreters else None
-    if not python:
-        click.secho("The Python interpreter can't be found.", fg="red", err=True)
-        sys.exit(1)
-    _cmd = [Path(python).as_posix()]
+    _cmd = [project_python(project)]
     # Run the PEP 508 checker in the virtualenv.
     cmd = _cmd + [Path(pep508checker_path).as_posix()]
     c = run_command(cmd, is_verbose=project.s.is_verbose())
@@ -3011,7 +2985,6 @@ def do_clean(
         if used_package in installed_package_names:
             installed_package_names.remove(used_package)
     failure = False
-    cmd = [which_pip(project, allow_global=system), "uninstall", "-y", "-qq"]
     for apparent_bad_package in installed_package_names:
         if dry_run and not bare:
             click.echo(apparent_bad_package)
@@ -3023,7 +2996,13 @@ def do_clean(
                     bold=True,
                 )
             # Uninstall the package.
-            cmd = [which_pip(project), "uninstall", apparent_bad_package, "-y"]
+            cmd = [
+                project_python(project),
+                _get_runnable_pip(),
+                "uninstall",
+                apparent_bad_package,
+                "-y",
+            ]
             c = run_command(cmd, is_verbose=project.s.is_verbose())
             if c.returncode != 0:
                 failure = True
