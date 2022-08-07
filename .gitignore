@@ -168,3 +168,7 @@ prime/
 stage/
 pip-wheel-metadata/
 .vim/
+
+# Vendoring Files that generate but we don't want
+pipenv/vendor/Misc/NEWS.d/next/Library/2021-05-14-16-06-02.bpo-44095.v_pLwY.rst
+pipenv/vendor/markupsafe/_speedups.c
