@@ -84,7 +84,6 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
 @pytest.mark.utils
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
 @pytest.mark.needs_internet
-# @mock.patch("pipenv.patched.pip._internal.operations.prepare.unpack_url", mock_unpack)
 def test_convert_deps_to_pip(deps, expected):
     if expected.startswith("Django"):
         expected = expected.lower()
