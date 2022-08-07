@@ -4,6 +4,7 @@ from tempfile import NamedTemporaryFile
 from typing import Mapping, Sequence
 
 from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.version import parse
 
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
@@ -61,10 +62,7 @@ def get_canonical_names(packages):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    # Use pip built-in version parser.
-    from pipenv.vendor.pip_shims import shims
-
-    return str(shims.parse_version(version))
+    return str(parse(version))
 
 
 def pep423_name(name):
@@ -307,12 +305,6 @@ def locked_repository(requirement):
 
     if not requirement.is_vcs:
         return
-    original_base = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-    os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.pip"
     src_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-src")
-    try:
-        with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
-            yield repo
-    finally:
-        if original_base:
-            os.environ["PIP_SHIMS_BASE_MODULE"] = original_base
+    with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
+        yield repo

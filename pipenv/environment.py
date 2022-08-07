@@ -16,6 +16,7 @@ import pkg_resources
 import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.req.req_uninstall import UninstallPathSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.indexes import prepare_pip_source_args
@@ -1024,30 +1025,22 @@ class Environment:
             )
             if monkey_patch:
                 monkey_patch.activate()
-            pip_shims = self.safe_import("pip_shims")
-            pathset_base = pip_shims.UninstallPathSet
-            pathset_base._permitted = PatchedUninstaller._permitted
             dist = next(
                 iter(d for d in self.get_working_set() if d.project_name == pkgname), None
             )
-            pathset = pathset_base.from_dist(dist)
-            if pathset is not None:
-                pathset.remove(auto_confirm=auto_confirm, verbose=verbose)
+            path_set = UninstallPathSet.from_dist(dist)
+            if path_set is not None:
+                path_set.remove(auto_confirm=auto_confirm, verbose=verbose)
             try:
-                yield pathset
+                yield path_set
             except Exception:
-                if pathset is not None:
-                    pathset.rollback()
+                if path_set is not None:
+                    path_set.rollback()
             else:
-                if pathset is not None:
-                    pathset.commit()
-            if pathset is None:
+                if path_set is not None:
+                    path_set.commit()
+            if path_set is None:
                 return
-
-
-class PatchedUninstaller:
-    def _permitted(self, path):
-        return True
 
 
 SETUPTOOLS_SHIM = (

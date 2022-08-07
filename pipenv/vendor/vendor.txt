@@ -14,7 +14,6 @@ orderedmultidict==1.0.1
 parse==1.19.0
 pep517==0.11.0
 pexpect==4.8.0
-pip-shims==0.7.3
 pipdeptree==2.2.1
 platformdirs==2.4.0
 plette[validation]==0.2.3

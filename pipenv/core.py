@@ -2105,7 +2105,6 @@ def do_install(
                 pypi_mirror=pypi_mirror,
                 skip_lock=skip_lock,
             )
-        pip_shims_module = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
         for pkg_line in pkg_list:
             click.secho(
                 fix_utf8(f"Installing {pkg_line}..."),
@@ -2240,8 +2239,6 @@ def do_install(
             # Update project settings with pre preference.
             if pre:
                 project.update_settings({"allow_prereleases": pre})
-        if pip_shims_module:
-            os.environ["PIP_SHIMS_BASE_MODULE"] = pip_shims_module
         do_init(
             project,
             dev=dev,
@@ -2444,8 +2441,6 @@ def do_shell(
     # otherwise its value will be changed
     os.environ["PIPENV_ACTIVE"] = "1"
 
-    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-
     if fancy:
         shell.fork(*fork_args)
         return
@@ -2596,7 +2591,6 @@ def do_run(
 
     load_dot_env(project, quiet=quiet)
     env = os.environ.copy()
-    env.pop("PIP_SHIMS_BASE_MODULE", None)
 
     path = env.get("PATH", "")
     if project.virtualenv_location:
@@ -2614,7 +2608,6 @@ def do_run(
     # such as in inline_activate_virtual_environment
     # otherwise its value will be changed
     env["PIPENV_ACTIVE"] = "1"
-    env.pop("PIP_SHIMS_BASE_MODULE", None)
 
     try:
         script = project.build_script(command, args)
