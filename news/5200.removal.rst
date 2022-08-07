@@ -1,1 +1,1 @@
-The deprecated way of generating requriements ``install -r`` or ``lock -r`` has been removed in favor of the ``pipenv requirements`` command.
+The deprecated way of generating requirements ``install -r`` or ``lock -r`` has been removed in favor of the ``pipenv requirements`` command.
