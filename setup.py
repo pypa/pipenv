@@ -21,6 +21,7 @@ if sys.argv[-1] == "publish":
 
 required = [
     "certifi",
+    "setuptools>=36.2.1",
     "virtualenv-clone>=0.2.5",
     "virtualenv",
 ]
