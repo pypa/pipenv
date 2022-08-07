@@ -730,7 +730,9 @@ def batch_install(
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
     deps_to_install = [
-        dep for dep in deps_to_install if not project.environment.is_satisfied(dep) and dep.name not in BAD_PACKAGES
+        dep
+        for dep in deps_to_install
+        if not project.environment.is_satisfied(dep) and dep.name not in BAD_PACKAGES
     ]
     sequential_dep_names = [d.name for d in sequential_deps]
 
