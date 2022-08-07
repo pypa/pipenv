@@ -11,7 +11,7 @@
 # rationale for why this is done within pip.
 try:
     __import__("_distutils_hack").remove_shim()
-except ImportError:
+except (ImportError, AttributeError):
     pass
 
 import logging

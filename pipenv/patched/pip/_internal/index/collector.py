@@ -345,6 +345,7 @@ def parse_links(page: "IndexContent") -> Iterable[Link]:
                 yanked_reason=yanked_reason,
                 hashes=file.get("hashes", {}),
             )
+        return
 
     parser = HTMLLinkParser(page.url)
     encoding = page.encoding or "utf-8"
