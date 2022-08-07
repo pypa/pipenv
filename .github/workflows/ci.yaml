@@ -83,9 +83,6 @@ jobs:
         id: python-path
         run: |
           echo ::set-output name=path::$(python -c "import sys; print(sys.executable)")
-      - name: Install latest pip, setuptools, wheel
-        run: |
-          python -m pip install --upgrade pip setuptools wheel --upgrade-strategy=eager
       - name: Install dependencies
         env:
           PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
