@@ -2,9 +2,8 @@
 import codecs
 import os
 import sys
-from shutil import rmtree
 
-from setuptools import Command, find_packages, setup
+from setuptools import find_packages, setup
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -22,7 +21,6 @@ if sys.argv[-1] == "publish":
 
 required = [
     "certifi",
-    "setuptools>=36.2.1",
     "virtualenv-clone>=0.2.5",
     "virtualenv",
 ]
