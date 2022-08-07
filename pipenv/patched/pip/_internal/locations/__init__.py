@@ -60,6 +60,12 @@ def _should_use_sysconfig() -> bool:
 
 _USE_SYSCONFIG = _should_use_sysconfig()
 
+if not _USE_SYSCONFIG:
+    # Import distutils lazily to avoid deprecation warnings,
+    # but import it soon enough that it is in memory and available during
+    # a pip reinstall.
+    from . import _distutils
+
 # Be noisy about incompatibilities if this platforms "should" be using
 # sysconfig, but is explicitly opting out and using distutils instead.
 if _USE_SYSCONFIG_DEFAULT and not _USE_SYSCONFIG:
@@ -241,8 +247,6 @@ def get_scheme(
     if _USE_SYSCONFIG:
         return new
 
-    from . import _distutils
-
     old = _distutils.get_scheme(
         dist_name,
         user=user,
@@ -407,8 +411,6 @@ def get_bin_prefix() -> str:
     if _USE_SYSCONFIG:
         return new
 
-    from . import _distutils
-
     old = _distutils.get_bin_prefix()
     if _warn_if_mismatch(pathlib.Path(old), pathlib.Path(new), key="bin_prefix"):
         _log_context()
@@ -441,8 +443,6 @@ def get_purelib() -> str:
     new = _sysconfig.get_purelib()
     if _USE_SYSCONFIG:
         return new
-
-    from . import _distutils
 
     old = _distutils.get_purelib()
     if _looks_like_deb_system_dist_packages(old):
@@ -487,8 +487,6 @@ def get_prefixed_libs(prefix: str) -> List[str]:
     new_pure, new_plat = _sysconfig.get_prefixed_libs(prefix)
     if _USE_SYSCONFIG:
         return _deduplicated(new_pure, new_plat)
-
-    from . import _distutils
 
     old_pure, old_plat = _distutils.get_prefixed_libs(prefix)
     old_lib_paths = _deduplicated(old_pure, old_plat)
