@@ -558,25 +558,26 @@ class Line(object):
         :rtype: :class:`~Line`
         """
         extras = None
-        line = "{0}".format(self.line)
-        if any([self.is_vcs, self.is_url, "@" in line]):
-            try:
-                if self.parsed_url.name:
-                    self._name = self.parsed_url.name
-                if (
-                    self.parsed_url.host
-                    and self.parsed_url.path
-                    and self.parsed_url.scheme
-                ):
-                    self.line = self.parsed_url.to_string(
-                        escape_password=False,
-                        direct=False,
-                        strip_ssh=self.parsed_url.is_implicit_ssh,
-                    )
-            except ValueError:
+        if not self.line:
+            line = "{0}".format(self.line)
+            if any([self.is_vcs, self.is_url, "@" in line]):
+                try:
+                    if self.parsed_url.name:
+                        self._name = self.parsed_url.name
+                    if (
+                        self.parsed_url.host
+                        and self.parsed_url.path
+                        and self.parsed_url.scheme
+                    ):
+                        self.line = self.parsed_url.to_string(
+                            escape_password=False,
+                            direct=False,
+                            strip_ssh=self.parsed_url.is_implicit_ssh,
+                        )
+                except ValueError:
+                    self.line, extras = _strip_extras(self.line)
+            else:
                 self.line, extras = _strip_extras(self.line)
-        else:
-            self.line, extras = _strip_extras(self.line)
         extras_set = set()  # type: Set[STRING_TYPE]
         if extras is not None:
             extras_set = set(parse_extras(extras))
@@ -587,7 +588,6 @@ class Line(object):
                 extras_set |= name_extras
         if extras_set is not None:
             self.extras = tuple(sorted(extras_set))
-        return self
 
     def get_url(self):
         # type: () -> STRING_TYPE
@@ -850,14 +850,12 @@ class Line(object):
             self._vcsrepo = self._get_vcsrepo()
         return self._vcsrepo
 
-    @property
+    @cached_property
     def parsed_url(self):
         # type: () -> URI
-        if self._parsed_url is None:
-            self._parsed_url = URI.parse(self.line)
-        return self._parsed_url
+        return URI.parse(self.line)
 
-    @property
+    @cached_property
     def is_direct_url(self):
         # type: () -> bool
         try:
@@ -1177,7 +1175,6 @@ class Line(object):
             self._link = parsed_link
         else:
             self._link = link
-        return self
 
     def parse_markers(self):
         # type: () -> None
@@ -2523,7 +2520,10 @@ class Requirement(object):
             else:
                 line_parts.append(self.req.line_part)
         if not self.is_vcs and not self.vcs and self.extras_as_pip:
-            line_parts.append(self.extras_as_pip)
+            if self.is_file_or_url:
+                line_parts.append(f"#egg={self.extras_as_pip}")
+            else:
+                line_parts.append(self.extras_as_pip)
         if self._specifiers and not (self.is_file_or_url or self.is_vcs):
             line_parts.append(self._specifiers)
         if self.markers:
@@ -2545,16 +2545,7 @@ class Requirement(object):
     @property
     def line_instance(self):
         # type: () -> Optional[Line]
-        if self._line_instance is None:
-            self.line_instance = self.get_line_instance()
-        return self._line_instance
-
-    @line_instance.setter
-    def line_instance(self, line_instance):
-        # type: (Line) -> None
-        if self.req:
-            self.req._parsed_line = line_instance
-        self._line_instance = line_instance
+        return self.get_line_instance()
 
     @property
     def specifiers(self):
