@@ -146,7 +146,8 @@ def load_dot_env(project, as_dict=False, quiet=False):
                     err=True,
                 )
             dotenv.load_dotenv(dotenv_file, override=True)
-        project.s.initialize()
+
+            project.s = environments.Setting()
 
 
 def cleanup_virtualenv(project, bare=True):
