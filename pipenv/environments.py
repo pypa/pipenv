@@ -107,19 +107,20 @@ Default is to show emojis. This is automatically set on Windows.
 
 
 class Setting:
+    """
+    Control various settings of pipenv via environment variables.
+    """
+
     def __init__(self) -> None:
+
         self.USING_DEFAULT_PYTHON = True
-        self.initialize()
+        """Use the default Python"""
 
-    def initialize(self):
-
+        #: Location for Pipenv to store it's package cache.
+        #: Default is to use appdir's user cache directory.
         self.PIPENV_CACHE_DIR = os.environ.get(
             "PIPENV_CACHE_DIR", user_cache_dir("pipenv")
         )
-        """Location for Pipenv to store it's package cache.
-
-        Default is to use appdir's user cache directory.
-        """
 
         # Tells Pipenv which Python to default to, when none is provided.
         self.PIPENV_DEFAULT_PYTHON_VERSION = os.environ.get(
