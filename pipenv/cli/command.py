@@ -79,6 +79,7 @@ def cli(
     site_packages=None,
     **kwargs,
 ):
+    from pipenv.utils.shell import system_which
     from pipenv.utils.spinner import create_spinner
 
     from ..core import (
@@ -88,7 +89,6 @@ def cli(
         do_where,
         ensure_project,
         format_help,
-        system_which,
         warn_in_virtualenv,
     )
 

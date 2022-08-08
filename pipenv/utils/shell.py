@@ -449,3 +449,38 @@ def env_to_bool(val):
     if val.lower() in TRUE_VALUES:
         return True
     raise ValueError(f"Value is not a valid boolean-like: {val}")
+
+
+def project_python(project, system=False):
+    if not system:
+        python = project._which("python")
+    else:
+        interpreters = [system_which(p) for p in ("python", "python3")]
+        python = interpreters[0] if interpreters else None
+    if not python:
+        click.secho("The Python interpreter can't be found.", fg="red", err=True)
+        sys.exit(1)
+    return Path(python).as_posix()
+
+
+def system_which(command, path=None):
+    """Emulates the system's which. Returns None if not found."""
+    import shutil
+
+    result = shutil.which(command, path=path)
+    if result is None:
+        _which = "where" if os.name == "nt" else "which -a"
+        env = {"PATH": path} if path else None
+        c = subprocess_run(f"{_which} {command}", shell=True, env=env)
+        if c.returncode == 127:
+            click.echo(
+                "{}: the {} system utility is required for Pipenv to find Python installations properly."
+                "\n  Please install it.".format(
+                    click.style("Warning", fg="red", bold=True),
+                    click.style(_which, fg="yellow"),
+                ),
+                err=True,
+            )
+        if c.returncode == 0:
+            result = next(iter(c.stdout.splitlines()), None)
+    return result
