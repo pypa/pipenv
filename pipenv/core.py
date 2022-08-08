@@ -28,6 +28,8 @@ from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
     convert_deps_to_pip,
     get_canonical_names,
+    has_extras,
+    is_editable,
     is_pinned,
     is_required_version,
     is_star,
@@ -788,6 +790,7 @@ def batch_install(
                 trusted_hosts=trusted_hosts,
                 extra_indexes=extra_indexes,
                 use_pep517=use_pep517,
+                use_constraint=False,  # no need to use constraints, it's written in lockfile
             )
             c.dep = dep
 
@@ -1443,6 +1446,40 @@ def write_requirement_to_file(
     return r
 
 
+def write_constraint_to_file(
+    project: Project,
+    requirements_dir: Optional[str] = None,
+) -> str:
+    if not requirements_dir:
+        requirements_dir = vistir.path.create_tracked_tempdir(
+            prefix="pipenv", suffix="requirements"
+        )
+
+    f = tempfile.NamedTemporaryFile(
+        prefix="pipenv-", suffix="-constraint.txt", dir=requirements_dir, delete=False
+    )
+
+    # duplicated in pipenv.utils.resolver
+    # https://pip.pypa.io/en/stable/user_guide/#constraints-files
+    # constraints must have a name, they cannot be editable, and they cannot specify extras.
+    constraints = {
+        k: v
+        for k, v in project.packages.items()
+        if not is_editable(k) and not is_editable(v) and not has_extras(v)
+    }
+    constraints = convert_deps_to_pip(constraints, project=project, r=False)
+
+    for line in constraints:
+        if project.s.is_verbose():
+            click.echo(
+                f"Writing default constraints to temporary file: {line!r}", err=True
+            )
+        f.write(vistir.misc.to_bytes(line))
+    r = f.name
+    f.close()
+    return r
+
+
 def pip_install(
     project,
     requirement=None,
@@ -1453,12 +1490,14 @@ def pip_install(
     block=True,
     index=None,
     pre=False,
+    dev=False,
     selective_upgrade=False,
     requirements_dir=None,
     extra_indexes=None,
     pypi_mirror=None,
     trusted_hosts=None,
     use_pep517=True,
+    use_constraint=False,
 ):
     piplogger = logging.getLogger("pipenv.patched.pip._internal.commands.install")
     if not trusted_hosts:
@@ -1542,6 +1581,12 @@ def pip_install(
         pip_command.extend(["-r", vistir.path.normalize_path(r)])
     elif line:
         pip_command.extend(line)
+    if dev and use_constraint:
+        constraint_filename = write_constraint_to_file(
+            project,
+            requirements_dir=requirements_dir,
+        )
+        pip_command.extend(["-c", vistir.path.normalize_path(constraint_filename)])
     pip_command.extend(prepare_pip_source_args(sources))
     if project.s.is_verbose():
         click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
@@ -2128,9 +2173,11 @@ def do_install(
                         selective_upgrade=selective_upgrade,
                         no_deps=False,
                         pre=pre,
+                        dev=dev,
                         requirements_dir=requirements_directory,
                         index=index_url,
                         pypi_mirror=pypi_mirror,
+                        use_constraint=True,
                     )
                     if c.returncode:
                         sp.write_err(
