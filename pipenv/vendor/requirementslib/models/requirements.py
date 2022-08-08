@@ -2517,13 +2517,18 @@ class Requirement(object):
     def get_line_instance(self):
         # type: () -> Line
         line_parts = []
+        local_editable = False
         if self.req:
             if self.req.line_part.startswith("-e "):
+                local_editable = True
                 line_parts.extend(self.req.line_part.split(" ", 1))
             else:
                 line_parts.append(self.req.line_part)
         if not self.is_vcs and not self.vcs and self.extras_as_pip:
-            line_parts.append(self.extras_as_pip)
+            if self.is_file_or_url and not local_editable:
+                line_parts.append(f"#egg={self.extras_as_pip}")
+            else:
+                line_parts.append(self.extras_as_pip)
         if self._specifiers and not (self.is_file_or_url or self.is_vcs):
             line_parts.append(self._specifiers)
         if self.markers:
