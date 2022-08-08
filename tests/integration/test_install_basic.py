@@ -509,3 +509,30 @@ requests = {version="*", index="pypi"}
             f.write(contents)
         c = p.pipenv("install")
         assert c.returncode == 0
+
+@flaky
+@pytest.mark.dev
+@pytest.mark.install
+def test_install_dev_use_default_constraints(PipenvInstance):
+    # See https://github.com/pypa/pipenv/issues/4371
+    # See https://github.com/pypa/pipenv/issues/2987
+    with PipenvInstance(chdir=True) as p:
+
+        c = p.pipenv("install requests==2.14.0")
+        assert c.returncode == 0
+        assert "requests" in p.lockfile["default"]
+        assert p.lockfile["default"]["requests"]["version"] == "==2.14.0"
+
+        c = p.pipenv("install --dev requests")
+        assert c.returncode == 0
+        assert "requests" in p.lockfile["develop"]
+        assert p.lockfile["develop"]["requests"]["version"] == "==2.14.0"
+
+        # requests 2.14.0 doesn't require these packages
+        assert "idna" not in p.lockfile["develop"]
+        assert "certifi" not in p.lockfile["develop"]
+        assert "urllib3" not in p.lockfile["develop"]
+        assert "chardet" not in p.lockfile["develop"]
+
+        c = p.pipenv("run python -c 'import urllib3'")
+        assert c.returncode != 0
