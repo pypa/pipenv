@@ -1532,7 +1532,9 @@ build-backend = "{1}"
                 uri = uri.replace("file:/", "file:///")
             path = url_to_path(uri)
         kwargs = _prepare_wheel_building_kwargs(ireq)
-        is_artifact_or_vcs = getattr(ireq.link, "is_vcs", False)
+        is_artifact_or_vcs = getattr(
+            ireq.link, "is_vcs", getattr(ireq.link, "is_artifact", False)
+        )
         is_vcs = True if vcs else is_artifact_or_vcs
         download_dir = None
         if not (ireq.editable and is_file and is_vcs):
