@@ -1,0 +1,2 @@
+I have added a command which list all the latest availabe system varible in the docs 
+$ pipenv --support
