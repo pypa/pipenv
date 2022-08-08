@@ -537,62 +537,8 @@ will detect it.
 
 .. automodule:: pipenv.environments
     :members:
-    
- These are the list of all virtual environment available:-
- system environment variables:-
-  - ALLUSERSPROFILE
-  - APPDATA
-  - COMMONPROGRAMFILES
-  - COMMONPROGRAMFILES(X86)
-  - COMMONPROGRAMW6432
-  - COMPUTERNAME
-  - COMSPEC
-  - CONDA_DEFAULT_ENV
-  - CONDA_EXE
-  - CONDA_PREFIX
-  - CONDA_PROMPT_MODIFIER
-  - CONDA_PYTHON_EXE
-  - CONDA_SHLVL
-  - DRIVERDATA
-  - HOMEDRIVE
-  - HOMEPATH
-  - LOCALAPPDATA
-  - LOGONSERVER
-  - NUMBER_OF_PROCESSORS
-  - ONEDRIVE
-  - ONEDRIVECONSUMER
-  - ONLINESERVICES
-  - OS
-  - PATH
-  - PATHEXT
-  - PLATFORMCODE
-  - PROCESSOR_ARCHITECTURE
-  - PROCESSOR_IDENTIFIER
-  - PROCESSOR_LEVEL
-  - PROCESSOR_REVISION
-  - PROGRAMDATA
-  - PROGRAMFILES
-  - PROGRAMFILES(X86)
-  - PROGRAMW6432
-  - PROMPT
-  - PSMODULEPATH
-  - PUBLIC
-  - REGIONCODE
-  - SESSIONNAME
-  - SYSTEMDRIVE
-  - SYSTEMROOT
-  - TEMP
-  - TMP
-  - USERDOMAIN
-  - USERDOMAIN_ROAMINGPROFILE
-  - USERNAME
-  - USERPROFILE
-  - WINDIR
-  - PIP_SHIMS_BASE_MODULE
-  - PIP_DISABLE_PIP_VERSION_CHECK
-  - PIP_PYTHON_PATH
-  - PYTHONDONTWRITEBYTECODE
-  - PYTHONFINDER_IGNORE_UNSUPPORTED
+ .. Command to list system variable :-
+  $ pipenv --support
 
 If you'd like to set these environment variables on a per-project basis, I recommend utilizing the fantastic `direnv <https://direnv.net>`_ project, in order to do so.
 
