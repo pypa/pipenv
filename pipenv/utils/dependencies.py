@@ -301,6 +301,12 @@ def is_editable(pipfile_entry):
     return False
 
 
+def has_extras(pipfile_entry):
+    if hasattr(pipfile_entry, "get"):
+        return pipfile_entry.get("extras")
+    return False
+
+
 @contextmanager
 def locked_repository(requirement):
     from pipenv.vendor.vistir.path import create_tracked_tempdir

@@ -1095,8 +1095,9 @@ def do_lock(
         for k, v in lockfile[section].copy().items():
             if not hasattr(v, "keys"):
                 del lockfile[section][k]
-    # Resolve dev-package dependencies followed by packages dependencies.
-    for is_dev in [True, False]:
+
+    # Resolve package to generate constraints before resolving dev-packages
+    for is_dev in [False, True]:
         pipfile_section = "dev-packages" if is_dev else "packages"
         if project.pipfile_exists:
             packages = project.parsed_pipfile.get(pipfile_section, {})

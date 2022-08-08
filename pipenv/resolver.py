@@ -745,12 +745,15 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
         else None
     )
 
-    def resolve(packages, pre, project, sources, clear, system, requirements_dir=None):
+    def resolve(
+        packages, pre, project, sources, clear, system, dev, requirements_dir=None
+    ):
         return resolve_deps(
             packages,
             which,
             project=project,
             pre=pre,
+            dev=dev,
             sources=sources,
             clear=clear,
             allow_global=system,
@@ -769,6 +772,7 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
     results, resolver = resolve(
         packages,
         pre=pre,
+        dev=dev,
         project=project,
         sources=sources,
         clear=clear,
