@@ -791,3 +791,39 @@ requests = {requirement}
                                       'sha256:ec22d826a36ed72a7358ff3fe56cbd4ba69dd7a6718ffd450ff0e9df7a47ce6a'],
                            'index': 'local', 'version': '==2.19.1'}
         assert p.lockfile['default']['requests'] == expected_result
+
+
+@flaky
+@pytest.mark.dev
+@pytest.mark.lock
+@pytest.mark.install
+def test_dev_lock_use_default_packages_as_constraint(PipenvInstance):
+    # See https://github.com/pypa/pipenv/issues/4371
+    # See https://github.com/pypa/pipenv/issues/2987
+    with PipenvInstance(chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+requests = "<=2.14.0"
+
+[dev-packages]
+requests = "*"
+                """.strip()
+            f.write(contents)
+
+        c = p.pipenv("lock --dev")
+        assert c.returncode == 0
+        assert "requests" in p.lockfile["default"]
+        assert p.lockfile["default"]["requests"]["version"] == "==2.14.0"
+        assert "requests" in p.lockfile["develop"]
+        assert p.lockfile["develop"]["requests"]["version"] == "==2.14.0"
+
+        # requests 2.14.0 doesn't require these packages
+        assert "idna" not in p.lockfile["develop"]
+        assert "certifi" not in p.lockfile["develop"]
+        assert "urllib3" not in p.lockfile["develop"]
+        assert "chardet" not in p.lockfile["develop"]
+
+        c = p.pipenv("install --dev")
+        c = p.pipenv("run python -c 'import urllib3'")
+        assert c.returncode != 0
