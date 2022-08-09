@@ -28,8 +28,7 @@ from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
     convert_deps_to_pip,
     get_canonical_names,
-    has_extras,
-    is_editable,
+    get_constraints_from_deps,
     is_pinned,
     is_required_version,
     is_star,
@@ -1460,16 +1459,7 @@ def write_constraint_to_file(
         prefix="pipenv-", suffix="-constraint.txt", dir=requirements_dir, delete=False
     )
 
-    # duplicated in pipenv.utils.resolver
-    # https://pip.pypa.io/en/stable/user_guide/#constraints-files
-    # constraints must have a name, they cannot be editable, and they cannot specify extras.
-    constraints = {
-        k: v
-        for k, v in project.packages.items()
-        if not is_editable(k) and not is_editable(v) and not has_extras(v)
-    }
-    constraints = convert_deps_to_pip(constraints, project=project, r=False)
-
+    constraints = get_constraints_from_deps(project.packages)
     for line in constraints:
         if project.s.is_verbose():
             click.echo(

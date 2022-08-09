@@ -32,9 +32,8 @@ from .dependencies import (
     HackedPythonVersion,
     clean_pkg_version,
     convert_deps_to_pip,
+    get_constraints_from_deps,
     get_vcs_deps,
-    has_extras,
-    is_editable,
     is_pinned_requirement,
     pep423_name,
     translate_markers,
@@ -562,16 +561,6 @@ class Resolver:
         return self._constraint_file
 
     def prepare_default_constraint_file(self):
-        def get_default_constraints_from_packages():
-            # https://pip.pypa.io/en/stable/user_guide/#constraints-files
-            # constraints must have a name, they cannot be editable, and they cannot specify extras.
-            constraints = {
-                k: v
-                for k, v in self.project.packages.items()
-                if not is_editable(k) and not is_editable(v) and not has_extras(v)
-            }
-            constraints = convert_deps_to_pip(constraints, project=self.project, r=False)
-            return constraints
 
         from pipenv.vendor.vistir.path import create_tracked_tempfile
 
@@ -582,8 +571,7 @@ class Resolver:
             dir=self.req_dir,
             delete=False,
         )
-
-        default_constraints = get_default_constraints_from_packages()
+        default_constraints = get_constraints_from_deps(self.project.packages)
         default_constraints_file.write("\n".join([c for c in default_constraints]))
         default_constraints_file.close()
         return default_constraints_file.name
