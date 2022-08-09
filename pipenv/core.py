@@ -43,6 +43,7 @@ from pipenv.utils.shell import (
     cmd_list_to_shell,
     find_python,
     is_python_command,
+    normalize_path,
     project_python,
     subprocess_run,
     system_which,
@@ -1578,7 +1579,7 @@ def pip_install(
     )
     pip_command.extend(pip_args)
     if r:
-        pip_command.extend(["-r", vistir.path.normalize_path(r)])
+        pip_command.extend(["-r", normalize_path(r)])
     elif line:
         pip_command.extend(line)
     if dev and use_constraint:
@@ -1586,7 +1587,7 @@ def pip_install(
             project,
             requirements_dir=requirements_dir,
         )
-        pip_command.extend(["-c", vistir.path.normalize_path(constraint_filename)])
+        pip_command.extend(["-c", normalize_path(constraint_filename)])
     pip_command.extend(prepare_pip_source_args(sources))
     if project.s.is_verbose():
         click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
