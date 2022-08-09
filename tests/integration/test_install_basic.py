@@ -510,7 +510,6 @@ requests = {version="*", index="pypi"}
         c = p.pipenv("install")
         assert c.returncode == 0
 
-@flaky
 @pytest.mark.dev
 @pytest.mark.install
 def test_install_dev_use_default_constraints(PipenvInstance):

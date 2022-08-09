@@ -793,7 +793,6 @@ requests = {requirement}
         assert p.lockfile['default']['requests'] == expected_result
 
 
-@flaky
 @pytest.mark.dev
 @pytest.mark.lock
 @pytest.mark.install
