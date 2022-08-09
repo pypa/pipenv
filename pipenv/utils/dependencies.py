@@ -280,6 +280,24 @@ def convert_deps_to_pip(
     return f.name
 
 
+def get_constraints_from_deps(deps):
+    """Get contraints from Pipfile-formatted dependency"""
+    from pipenv.vendor.requirementslib.models.requirements import Requirement
+
+    # https://pip.pypa.io/en/stable/user_guide/#constraints-files
+    # constraints must have a name, they cannot be editable, and they cannot specify extras.
+    def is_constraint(dep):
+        return dep.name and not dep.editable and not dep.extras
+
+    constraints = []
+    for dep_name, dep in deps.items():
+        new_dep = Requirement.from_pipfile(dep_name, dep)
+        if is_constraint(new_dep):
+            c = new_dep.as_line().strip()
+            constraints.append(c)
+    return constraints
+
+
 def is_required_version(version, specified_version):
     """Check to see if there's a hard requirement for version
     number provided in the Pipfile.
@@ -298,12 +316,6 @@ def is_editable(pipfile_entry):
         return pipfile_entry.get("editable", False) and any(
             pipfile_entry.get(key) for key in ("file", "path") + VCS_LIST
         )
-    return False
-
-
-def has_extras(pipfile_entry):
-    if hasattr(pipfile_entry, "get"):
-        return pipfile_entry.get("extras")
     return False
 
 
