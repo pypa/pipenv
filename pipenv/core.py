@@ -28,11 +28,11 @@ from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
     convert_deps_to_pip,
     get_canonical_names,
-    get_constraints_from_deps,
     is_pinned,
     is_required_version,
     is_star,
     pep423_name,
+    prepare_default_constraint_file,
     python_version,
 )
 from pipenv.utils.indexes import get_source_list, parse_indexes, prepare_pip_source_args
@@ -1446,31 +1446,6 @@ def write_requirement_to_file(
     return r
 
 
-def write_constraint_to_file(
-    project: Project,
-    requirements_dir: Optional[str] = None,
-) -> str:
-    if not requirements_dir:
-        requirements_dir = vistir.path.create_tracked_tempdir(
-            prefix="pipenv", suffix="requirements"
-        )
-
-    f = tempfile.NamedTemporaryFile(
-        prefix="pipenv-", suffix="-constraint.txt", dir=requirements_dir, delete=False
-    )
-
-    constraints = get_constraints_from_deps(project.packages)
-    for line in constraints:
-        if project.s.is_verbose():
-            click.echo(
-                f"Writing default constraints to temporary file: {line!r}", err=True
-            )
-        f.write(vistir.misc.to_bytes(line))
-    r = f.name
-    f.close()
-    return r
-
-
 def pip_install(
     project,
     requirement=None,
@@ -1573,9 +1548,9 @@ def pip_install(
     elif line:
         pip_command.extend(line)
     if dev and use_constraint:
-        constraint_filename = write_constraint_to_file(
+        constraint_filename = prepare_default_constraint_file(
             project,
-            requirements_dir=requirements_dir,
+            dir=requirements_dir,
         )
         pip_command.extend(["-c", normalize_path(constraint_filename)])
     pip_command.extend(prepare_pip_source_args(sources))

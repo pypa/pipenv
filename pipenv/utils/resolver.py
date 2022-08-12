@@ -35,10 +35,10 @@ from .dependencies import (
     HackedPythonVersion,
     clean_pkg_version,
     convert_deps_to_pip,
-    get_constraints_from_deps,
     get_vcs_deps,
     is_pinned_requirement,
     pep423_name,
+    prepare_default_constraint_file,
     translate_markers,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
@@ -140,12 +140,15 @@ class Resolver:
         self.requires_python_markers = {}
         self._pip_args = None
         self._constraints = None
+        self._default_constraints = None
         self._parsed_constraints = None
+        self._parsed_default_constraints = None
         self._resolver = None
         self._finder = None
         self._ignore_compatibility_finder = None
         self._session = None
         self._constraint_file = None
+        self._default_constraint_file = None
         self._pip_options = None
         self._pip_command = None
         self._retry_attempts = 0
@@ -560,26 +563,13 @@ class Resolver:
             self._constraint_file = self.prepare_constraint_file()
         return self._constraint_file
 
-    def prepare_default_constraint_file(self):
-
-        from pipenv.vendor.vistir.path import create_tracked_tempfile
-
-        default_constraints_file = create_tracked_tempfile(
-            mode="w",
-            prefix="pipenv-",
-            suffix="-default-constraints.txt",
-            dir=self.req_dir,
-            delete=False,
-        )
-        default_constraints = get_constraints_from_deps(self.project.packages)
-        default_constraints_file.write("\n".join([c for c in default_constraints]))
-        default_constraints_file.close()
-        return default_constraints_file.name
-
     @property
-    @lru_cache()
     def default_constraint_file(self):
-        return self.prepare_default_constraint_file()
+        if self._default_constraint_file is None:
+            self._default_constraint_file = prepare_default_constraint_file(
+                self.project, dir=self.req_dir
+            )
+        return self._default_constraint_file
 
     @property
     def pip_options(self):
@@ -660,38 +650,34 @@ class Resolver:
         return self._parsed_constraints
 
     @property
-    @lru_cache()
     def parsed_default_constraints(self):
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
-        parsed_default_constraints = parse_requirements(
-            self.default_constraint_file,
-            constraint=True,
-            finder=self.finder,
-            session=self.session,
-            options=pip_options,
-        )
-        return parsed_default_constraints
+        if self._parsed_default_constraints is None:
+            self._parsed_default_constraints = parse_requirements(
+                self.default_constraint_file,
+                constraint=True,
+                finder=self.finder,
+                session=self.session,
+                options=pip_options,
+            )
+        return self._parsed_default_constraints
 
     @property
-    @lru_cache()
     def default_constraints(self):
-        default_constraints = [
-            install_req_from_parsed_requirement(
-                c,
-                isolated=self.pip_options.build_isolation,
-                user_supplied=False,
-            )
-            for c in self.parsed_default_constraints
-        ]
-        return default_constraints
+        if self._default_constraints is None:
+            self._default_constraints = [
+                install_req_from_parsed_requirement(
+                    c,
+                    isolated=self.pip_options.build_isolation,
+                    user_supplied=False,
+                )
+                for c in self.parsed_default_constraints
+            ]
+        return self._default_constraints
 
     @property
     def constraints(self):
-        from pipenv.patched.pip._internal.req.constructors import (
-            install_req_from_parsed_requirement,
-        )
-
         if self._constraints is None:
             self._constraints = [
                 install_req_from_parsed_requirement(
@@ -702,6 +688,7 @@ class Resolver:
                 )
                 for c in self.parsed_constraints
             ]
+            # Only use default_constraints when installing dev-packages
             if self.dev:
                 self._constraints += self.default_constraints
         return self._constraints
