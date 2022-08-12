@@ -4,7 +4,7 @@ import os
 import subprocess
 import sys
 import warnings
-from functools import cached_property, lru_cache
+from functools import lru_cache
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from pipenv import environments
@@ -576,7 +576,8 @@ class Resolver:
         default_constraints_file.close()
         return default_constraints_file.name
 
-    @cached_property
+    @property
+    @lru_cache()
     def default_constraint_file(self):
         return self.prepare_default_constraint_file()
 
@@ -658,7 +659,8 @@ class Resolver:
             )
         return self._parsed_constraints
 
-    @cached_property
+    @property
+    @lru_cache()
     def parsed_default_constraints(self):
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
@@ -671,7 +673,8 @@ class Resolver:
         )
         return parsed_default_constraints
 
-    @cached_property
+    @property
+    @lru_cache()
     def default_constraints(self):
         default_constraints = [
             install_req_from_parsed_requirement(
