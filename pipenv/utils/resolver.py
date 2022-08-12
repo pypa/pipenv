@@ -4,7 +4,7 @@ import os
 import subprocess
 import sys
 import warnings
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from pipenv import environments
@@ -16,6 +16,9 @@ from pipenv.patched.pip._internal.models.target_python import TargetPython
 from pipenv.patched.pip._internal.network.cache import SafeFileCache
 from pipenv.patched.pip._internal.operations.build.build_tracker import (
     get_build_tracker,
+)
+from pipenv.patched.pip._internal.req.constructors import (
+    install_req_from_parsed_requirement,
 )
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
@@ -137,15 +140,12 @@ class Resolver:
         self.requires_python_markers = {}
         self._pip_args = None
         self._constraints = None
-        self._default_constraints = None
         self._parsed_constraints = None
-        self._parsed_default_constraints = None
         self._resolver = None
         self._finder = None
         self._ignore_compatibility_finder = None
         self._session = None
         self._constraint_file = None
-        self._default_constraint_file = None
         self._pip_options = None
         self._pip_command = None
         self._retry_attempts = 0
@@ -576,11 +576,9 @@ class Resolver:
         default_constraints_file.close()
         return default_constraints_file.name
 
-    @property
+    @cached_property
     def default_constraint_file(self):
-        if self._default_constraint_file is None:
-            self._default_constraint_file = self.prepare_default_constraint_file()
-        return self._default_constraint_file
+        return self.prepare_default_constraint_file()
 
     @property
     def pip_options(self):
@@ -660,36 +658,30 @@ class Resolver:
             )
         return self._parsed_constraints
 
-    @property
+    @cached_property
     def parsed_default_constraints(self):
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
-        if self._parsed_default_constraints is None:
-            self._parsed_default_constraints = parse_requirements(
-                self.default_constraint_file,
-                constraint=True,
-                finder=self.finder,
-                session=self.session,
-                options=pip_options,
-            )
-        return self._parsed_default_constraints
-
-    @property
-    def default_constraints(self):
-        from pipenv.patched.pip._internal.req.constructors import (
-            install_req_from_parsed_requirement,
+        parsed_default_constraints = parse_requirements(
+            self.default_constraint_file,
+            constraint=True,
+            finder=self.finder,
+            session=self.session,
+            options=pip_options,
         )
+        return parsed_default_constraints
 
-        if self._default_constraints is None:
-            self._default_constraints = [
-                install_req_from_parsed_requirement(
-                    c,
-                    isolated=self.pip_options.build_isolation,
-                    user_supplied=False,
-                )
-                for c in self.parsed_default_constraints
-            ]
-        return self._default_constraints
+    @cached_property
+    def default_constraints(self):
+        default_constraints = [
+            install_req_from_parsed_requirement(
+                c,
+                isolated=self.pip_options.build_isolation,
+                user_supplied=False,
+            )
+            for c in self.parsed_default_constraints
+        ]
+        return default_constraints
 
     @property
     def constraints(self):
