@@ -535,3 +535,16 @@ def test_install_dev_use_default_constraints(PipenvInstance):
 
         c = p.pipenv("run python -c 'import urllib3'")
         assert c.returncode != 0
+
+
+@pytest.mark.dev
+@pytest.mark.basic
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_install_does_not_exclude_packaging(PipenvInstance):
+    """Ensure that running `pipenv install` doesn't exclude packaging when its required. """
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv("install dataclasses-json")
+        assert c.returncode == 0
+        c = p.pipenv("run python -c 'from dataclasses_json import DataClassJsonMixin'")
+        assert c.returncode == 0
