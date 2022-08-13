@@ -17,11 +17,15 @@ from pipenv.patched.pip._internal.network.cache import SafeFileCache
 from pipenv.patched.pip._internal.operations.build.build_tracker import (
     get_build_tracker,
 )
+from pipenv.patched.pip._internal.req.constructors import (
+    install_req_from_parsed_requirement,
+)
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.project import Project
 from pipenv.vendor import click
+from pipenv.vendor.cached_property import cached_property
 from pipenv.vendor.requirementslib import Pipfile, Requirement
 from pipenv.vendor.requirementslib.models.requirements import Line
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
@@ -32,9 +36,11 @@ from .dependencies import (
     HackedPythonVersion,
     clean_pkg_version,
     convert_deps_to_pip,
+    get_constraints_from_deps,
     get_vcs_deps,
     is_pinned_requirement,
     pep423_name,
+    prepare_constraint_file,
     translate_markers,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
@@ -117,6 +123,7 @@ class Resolver:
         skipped=None,
         clear=False,
         pre=False,
+        dev=False,
     ):
         self.initial_constraints = constraints
         self.req_dir = req_dir
@@ -126,6 +133,7 @@ class Resolver:
         self.hashes = {}
         self.clear = clear
         self.pre = pre
+        self.dev = dev
         self.results = None
         self.markers_lookup = markers_lookup if markers_lookup is not None else {}
         self.index_lookup = index_lookup if index_lookup is not None else {}
@@ -420,6 +428,7 @@ class Resolver:
         req_dir: str = None,
         clear: bool = False,
         pre: bool = False,
+        dev: bool = False,
     ) -> "Resolver":
 
         if not req_dir:
@@ -450,6 +459,7 @@ class Resolver:
             skipped=skipped,
             clear=clear,
             pre=pre,
+            dev=dev,
         )
 
     @classmethod
@@ -522,35 +532,30 @@ class Resolver:
         return self._pip_args
 
     def prepare_constraint_file(self):
-        from pipenv.vendor.vistir.path import create_tracked_tempfile
-
-        constraints_file = create_tracked_tempfile(
-            mode="w",
-            prefix="pipenv-",
-            suffix="-constraints.txt",
-            dir=self.req_dir,
-            delete=False,
+        constraint_filename = prepare_constraint_file(
+            self.initial_constraints,
+            directory=self.req_dir,
+            sources=self.sources,
+            pip_args=self.pip_args,
         )
-        skip_args = ("build-isolation", "use-pep517", "cache-dir")
-        args_to_add = [
-            arg
-            for arg in self.pip_args
-            if not any(bad_arg in arg for bad_arg in skip_args)
-        ]
-        if self.sources:
-            requirementstxt_sources = " ".join(args_to_add) if args_to_add else ""
-            requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
-            constraints_file.write(f"{requirementstxt_sources}\n")
-        constraints = self.initial_constraints
-        constraints_file.write("\n".join([c for c in constraints]))
-        constraints_file.close()
-        return constraints_file.name
+        return constraint_filename
 
     @property
     def constraint_file(self):
         if self._constraint_file is None:
             self._constraint_file = self.prepare_constraint_file()
         return self._constraint_file
+
+    @cached_property
+    def default_constraint_file(self):
+        default_constraints = get_constraints_from_deps(self.project.packages)
+        default_constraint_filename = prepare_constraint_file(
+            default_constraints,
+            directory=self.req_dir,
+            sources=None,
+            pip_args=None,
+        )
+        return default_constraint_filename
 
     @property
     def pip_options(self):
@@ -630,12 +635,33 @@ class Resolver:
             )
         return self._parsed_constraints
 
+    @cached_property
+    def parsed_default_constraints(self):
+        pip_options = self.pip_options
+        pip_options.extra_index_urls = []
+        parsed_default_constraints = parse_requirements(
+            self.default_constraint_file,
+            constraint=True,
+            finder=self.finder,
+            session=self.session,
+            options=pip_options,
+        )
+        return parsed_default_constraints
+
+    @cached_property
+    def default_constraints(self):
+        default_constraints = [
+            install_req_from_parsed_requirement(
+                c,
+                isolated=self.pip_options.build_isolation,
+                user_supplied=False,
+            )
+            for c in self.parsed_default_constraints
+        ]
+        return default_constraints
+
     @property
     def constraints(self):
-        from pipenv.patched.pip._internal.req.constructors import (
-            install_req_from_parsed_requirement,
-        )
-
         if self._constraints is None:
             self._constraints = [
                 install_req_from_parsed_requirement(
@@ -646,6 +672,9 @@ class Resolver:
                 )
                 for c in self.parsed_constraints
             ]
+            # Only use default_constraints when installing dev-packages
+            if self.dev:
+                self._constraints += self.default_constraints
         return self._constraints
 
     @contextlib.contextmanager
@@ -870,6 +899,7 @@ def actually_resolve_deps(
     sources,
     clear,
     pre,
+    dev,
     req_dir=None,
 ):
     if not req_dir:
@@ -878,7 +908,7 @@ def actually_resolve_deps(
 
     with warnings.catch_warnings(record=True) as warning_list:
         resolver = Resolver.create(
-            deps, project, index_lookup, markers_lookup, sources, req_dir, clear, pre
+            deps, project, index_lookup, markers_lookup, sources, req_dir, clear, pre, dev
         )
         resolver.resolve()
         hashes = resolver.resolve_hashes()
@@ -1064,6 +1094,7 @@ def resolve_deps(
     python=False,
     clear=False,
     pre=False,
+    dev=False,
     allow_global=False,
     req_dir=None,
 ):
@@ -1094,6 +1125,7 @@ def resolve_deps(
                 sources,
                 clear,
                 pre,
+                dev,
                 req_dir=req_dir,
             )
         except RuntimeError:
@@ -1122,6 +1154,7 @@ def resolve_deps(
                     sources,
                     clear,
                     pre,
+                    dev,
                     req_dir=req_dir,
                 )
             except RuntimeError:
