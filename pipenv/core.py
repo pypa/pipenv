@@ -1550,7 +1550,7 @@ def pip_install(
     if dev and use_constraint:
         constraint_filename = prepare_default_constraint_file(
             project,
-            dir=requirements_dir,
+            directory=requirements_dir,
         )
         pip_command.extend(["-c", normalize_path(constraint_filename)])
     pip_command.extend(prepare_pip_source_args(sources))

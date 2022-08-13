@@ -300,21 +300,21 @@ def get_constraints_from_deps(deps):
 
 def prepare_default_constraint_file(
     project,
-    dir=None,
+    directory=None,
 ):
     from pipenv.vendor.vistir.path import (
         create_tracked_tempdir,
         create_tracked_tempfile,
     )
 
-    if not dir:
-        dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
+    if not directory:
+        directory = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
 
     default_constraints_file = create_tracked_tempfile(
         mode="w",
         prefix="pipenv-",
         suffix="-default-constraints.txt",
-        dir=dir,
+        dir=directory,
         delete=False,
     )
     default_constraints = get_constraints_from_deps(project.packages)
