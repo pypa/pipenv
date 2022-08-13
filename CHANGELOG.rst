@@ -1,3 +1,32 @@
+2022.8.13 (2022-08-13)
+======================
+
+
+Bug Fixes
+---------
+
+- If environment variable ``CI`` or ``TF_BUILD`` is set but does not evaluate to ``False`` it is now treated as ``True``.  `#5128 <https://github.com/pypa/pipenv/issues/5128>`_
+- Fix auto-complete crashing on 'install' and 'uninstall' keywords  `#5214 <https://github.com/pypa/pipenv/issues/5214>`_
+- Address remaining ``pipenv`` commands that were still referencing the user or system installed ``pip`` to use the vendored ``pip`` internal to ``pipenv``.  `#5229 <https://github.com/pypa/pipenv/issues/5229>`_
+- Use ``packages`` as contraints when locking ``dev-packages`` in Pipfile.
+  Use ``packages`` as contraints when installing new ``dev-packages``.  `#5234 <https://github.com/pypa/pipenv/issues/5234>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in minor ``pip`` update ``22.2.2``  `#5230 <https://github.com/pypa/pipenv/issues/5230>`_
+
+Improved Documentation
+----------------------
+
+- Add documentation for environment variables the configure pipenv.  `#5235 <https://github.com/pypa/pipenv/issues/5235>`_
+
+Removals and Deprecations
+-------------------------
+
+- The deprecated way of generating requirements ``install -r`` or ``lock -r`` has been removed in favor of the ``pipenv requirements`` command.  `#5200 <https://github.com/pypa/pipenv/issues/5200>`_
+
+
 2022.8.5 (2022-08-05)
 =====================
 

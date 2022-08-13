@@ -1,1 +1,0 @@
-Address remaining ``pipenv`` commands that were still referencing the user or system installed ``pip`` to use the vendored ``pip`` internal to ``pipenv``.

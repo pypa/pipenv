@@ -1,1 +1,0 @@
-Modernize the test ``test_convert_deps_to_pip`` to not use ``pip-shims`` and the code it calls to not use ``vistir``.
