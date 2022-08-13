@@ -299,7 +299,7 @@ def get_constraints_from_deps(deps):
 
 
 def prepare_constraint_file(
-    constraints=None,
+    constraints,
     directory=None,
     sources=None,
     pip_args=None,
@@ -320,7 +320,7 @@ def prepare_constraint_file(
         delete=False,
     )
 
-    if sources:
+    if sources and pip_args:
         skip_args = ("build-isolation", "use-pep517", "cache-dir")
         args_to_add = [
             arg for arg in pip_args if not any(bad_arg in arg for bad_arg in skip_args)
