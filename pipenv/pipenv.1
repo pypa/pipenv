@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Aug 05, 2022" "2022.8.5" "pipenv"
+.TH "PIPENV" "1" "Aug 13, 2022" "2022.8.13" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -453,7 +453,35 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
-.SS 2022.7.24 (2022\-08\-05)
+.SS 2022.8.13 (2022\-08\-13)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+If environment variable \fBCI\fP or \fBTF_BUILD\fP is set but does not evaluate to \fBFalse\fP it is now treated as \fBTrue\fP\&.  \fI\%#5128\fP
+.IP \(bu 2
+Fix auto\-complete crashing on \(aqinstall\(aq and \(aquninstall\(aq keywords  \fI\%#5214\fP
+.IP \(bu 2
+Address remaining \fBpipenv\fP commands that were still referencing the user or system installed \fBpip\fP to use the vendored \fBpip\fP internal to \fBpipenv\fP\&.  \fI\%#5229\fP
+.IP \(bu 2
+Use \fBpackages\fP as contraints when locking \fBdev\-packages\fP in Pipfile.
+Use \fBpackages\fP as contraints when installing new \fBdev\-packages\fP\&.  \fI\%#5234\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Vendor in minor \fBpip\fP update \fB22.2.2\fP  \fI\%#5230\fP
+.UNINDENT
+.SS Improved Documentation
+.INDENT 0.0
+.IP \(bu 2
+Add documentation for environment variables the configure pipenv.  \fI\%#5235\fP
+.UNINDENT
+.SS Removals and Deprecations
+.INDENT 0.0
+.IP \(bu 2
+The deprecated way of generating requirements \fBinstall \-r\fP or \fBlock \-r\fP has been removed in favor of the \fBpipenv requirements\fP command.  \fI\%#5200\fP
+.UNINDENT
+.SS 2022.8.5 (2022\-08\-05)
 .SS Features & Improvements
 .INDENT 0.0
 .IP \(bu 2
@@ -1344,28 +1372,28 @@ Update vendored dependencies and invocations
 .INDENT 2.0
 .IP \(bu 2
 Update vendored and patched dependencies
-\- Update patches on \fBpiptools\fP, \fBpip\fP, \fBpip\-shims\fP,
+\- Update patches on \fBpiptools\fP, \fBpip\fP, \fBpip\-shims\fP, 
 .nf
 \(ga\(ga
 .fi
 tomlkit\(ga
 .IP \(bu 2
 Fix invocations of dependencies
-\- Fix custom
+\- Fix custom 
 .nf
 \(ga\(ga
 .fi
 InstallCommand\(ga instantiation
-\- Update
+\- Update 
 .nf
 \(ga\(ga
 .fi
 PackageFinder\(ga usage
-\- Fix
+\- Fix 
 .nf
 \(ga\(ga
 .fi
-Bool\(ga stringify attempts from
+Bool\(ga stringify attempts from 
 .nf
 \(ga\(ga
 .fi
@@ -3802,6 +3830,228 @@ will detect it.
 Disable emojis in output.
 .sp
 Default is to show emojis. This is automatically set on Windows.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class  pipenv.environments.Setting
+Control various settings of pipenv via environment variables.
+.INDENT 7.0
+.TP
+.B PIPENV_CACHE_DIR
+Location for Pipenv to store it\(aqs package cache.
+Default is to use appdir\(aqs user cache directory.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_CUSTOM_VENV_NAME
+Tells Pipenv whether to name the venv something other than the default dir name.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_DEFAULT_PYTHON_VERSION
+Use this Python version when creating new virtual environments by default.
+.sp
+This can be set to a version string, e.g. \fB3.9\fP, or a path. Default is to use
+whatever Python Pipenv is installed under (i.e. \fBsys.executable\fP). Command
+line flags (e.g. \fB\-\-python\fP and \fB\-\-three\fP) are prioritized over
+this configuration.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_DONT_LOAD_ENV
+If set, Pipenv does not load the \fB\&.env\fP file.
+.sp
+Default is to load \fB\&.env\fP for \fBrun\fP and \fBshell\fP commands.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_DONT_USE_ASDF
+If set, Pipenv does not attempt to install Python with asdf.
+.sp
+Default is to install Python automatically via asdf when needed, if possible.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_DONT_USE_PYENV
+If set, Pipenv does not attempt to install Python with pyenv.
+.sp
+Default is to install Python automatically via pyenv when needed, if possible.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_DOTENV_LOCATION
+If set, Pipenv loads the \fB\&.env\fP file at the specified location.
+.sp
+Default is to load \fB\&.env\fP from the project root, if found.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_EMULATOR
+If set, the terminal emulator\(aqs name for \fBpipenv shell\fP to use.
+.sp
+Default is to detect emulators automatically. This should be set if your
+emulator, e.g. Cmder, cannot be detected correctly.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_IGNORE_VIRTUALENVS
+If set, Pipenv will always assign a virtual environment for this project.
+.sp
+By default, Pipenv tries to detect whether it is run inside a virtual
+environment, and reuses it if possible. This is usually the desired behavior,
+and enables the user to use any user\-built environments with Pipenv.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_INSTALL_TIMEOUT
+Max number of seconds to wait for package installation.
+.sp
+Defaults to 900 (15 minutes), a very long arbitrary time.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_MAX_DEPTH
+Maximum number of directories to recursively search for a Pipfile.
+.sp
+Default is 3. See also \fBPIPENV_NO_INHERIT\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_MAX_RETRIES
+Specify how many retries Pipenv should attempt for network requests.
+.sp
+Default is 0. Automatically set to 1 on CI environments for robust testing.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_MAX_SUBPROCESS
+How many subprocesses should Pipenv use when installing.
+.sp
+Default is 16, an arbitrary number that seems to work.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_NOSPIN
+If set, disable terminal spinner.
+.sp
+This can make the logs cleaner. Automatically set on Windows, and in CI
+environments.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_NO_INHERIT
+Tell Pipenv not to inherit parent directories.
+.sp
+This is useful for deployment to avoid using the wrong current directory.
+Overwrites \fBPIPENV_MAX_DEPTH\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_PIPFILE
+If set, this specifies a custom Pipfile location.
+.sp
+When running pipenv from a location other than the same directory where the
+Pipfile is located, instruct pipenv to find the Pipfile in the location
+specified by this environment variable.
+.sp
+Default is to find Pipfile automatically in the current and parent directories.
+See also \fBPIPENV_MAX_DEPTH\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_PYPI_MIRROR
+If set, tells pipenv to override PyPI index urls with a mirror.
+.sp
+Default is to not mirror PyPI, i.e. use the real one, pypi.org. The
+\fB\-\-pypi\-mirror\fP command line flag overwrites this.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_QUIET
+If set, makes Pipenv quieter.
+.sp
+Default is unset, for normal verbosity. \fBPIPENV_VERBOSE\fP overrides this.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_RESOLVE_VCS
+Tells Pipenv whether to resolve all VCS dependencies in full.
+.sp
+As of Pipenv 2018.11.26, only editable VCS dependencies were resolved in full.
+To retain this behavior and avoid handling any conflicts that arise from the new
+approach, you may set this to \(aq0\(aq, \(aqoff\(aq, or \(aqfalse\(aq.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_SHELL_EXPLICIT
+An absolute path to the preferred shell for \fBpipenv shell\fP\&.
+.sp
+Default is to detect automatically what shell is currently in use.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_SHELL_FANCY
+If set, always use fancy mode when invoking \fBpipenv shell\fP\&.
+.sp
+Default is to use the compatibility shell if possible.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_SKIP_LOCK
+If set, Pipenv won\(aqt lock dependencies automatically.
+.sp
+This might be desirable if a project has large number of dependencies,
+because locking is an inherently slow operation.
+.sp
+Default is to lock dependencies and update \fBPipfile.lock\fP on each run.
+.sp
+Usage: \fIexport PIPENV_SKIP_LOCK=true\fP OR \fIexport PIPENV_SKIP_LOCK=1\fP to skip automatic locking
+.sp
+NOTE: This only affects the \fBinstall\fP and \fBuninstall\fP commands.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_SPINNER
+Sets the default spinner type.
+.sp
+Spinners are identical to the \fBnode.js\fP spinners and can be found at
+\fI\%https://github.com/sindresorhus/cli\-spinners\fP
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_TIMEOUT
+Max number of seconds Pipenv will wait for virtualenv creation to complete.
+.sp
+Default is 120 seconds, an arbitrary number that seems to work.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_VERBOSE
+If set, makes Pipenv more wordy.
+.sp
+Default is unset, for normal verbosity. This takes precedence over
+\fBPIPENV_QUIET\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIPENV_YES
+If set, Pipenv automatically assumes "yes" at all prompts.
+.sp
+Default is to prompt the user for an answer if the current command line session
+if interactive.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PIP_EXISTS_ACTION
+Specifies the value for pip\(aqs \-\-exists\-action option
+.sp
+Defaults to \fB(w)ipe\fP
+.UNINDENT
+.INDENT 7.0
+.TP
+.B USING_DEFAULT_PYTHON
+Use the default Python
+.UNINDENT
 .UNINDENT
 .INDENT 0.0
 .TP

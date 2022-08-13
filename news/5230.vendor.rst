@@ -1,1 +1,0 @@
-Vendor in minor ``pip`` update ``22.2.2``

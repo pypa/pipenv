@@ -1,2 +1,0 @@
-Use ``packages`` as contraints when locking ``dev-packages`` in Pipfile.
-Use ``packages`` as contraints when installing new ``dev-packages``.
