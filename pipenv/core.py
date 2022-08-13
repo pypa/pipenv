@@ -63,7 +63,6 @@ if MYPY_RUNNING:
 # Packages that should be ignored later.
 BAD_PACKAGES = (
     "distribute",
-    "packaging",
     "pip",
     "pkg-resources",
     "setuptools",
