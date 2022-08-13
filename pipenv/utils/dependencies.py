@@ -280,6 +280,60 @@ def convert_deps_to_pip(
     return f.name
 
 
+def get_constraints_from_deps(deps):
+    """Get contraints from Pipfile-formatted dependency"""
+    from pipenv.vendor.requirementslib.models.requirements import Requirement
+
+    def is_constraint(dep):
+        # https://pip.pypa.io/en/stable/user_guide/#constraints-files
+        # constraints must have a name, they cannot be editable, and they cannot specify extras.
+        return dep.name and not dep.editable and not dep.extras
+
+    constraints = []
+    for dep_name, dep in deps.items():
+        new_dep = Requirement.from_pipfile(dep_name, dep)
+        if is_constraint(new_dep):
+            c = new_dep.as_line().strip()
+            constraints.append(c)
+    return constraints
+
+
+def prepare_constraint_file(
+    constraints,
+    directory=None,
+    sources=None,
+    pip_args=None,
+):
+    from pipenv.vendor.vistir.path import (
+        create_tracked_tempdir,
+        create_tracked_tempfile,
+    )
+
+    if not directory:
+        directory = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
+
+    constraints_file = create_tracked_tempfile(
+        mode="w",
+        prefix="pipenv-",
+        suffix="-constraints.txt",
+        dir=directory,
+        delete=False,
+    )
+
+    if sources and pip_args:
+        skip_args = ("build-isolation", "use-pep517", "cache-dir")
+        args_to_add = [
+            arg for arg in pip_args if not any(bad_arg in arg for bad_arg in skip_args)
+        ]
+        requirementstxt_sources = " ".join(args_to_add) if args_to_add else ""
+        requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
+        constraints_file.write(f"{requirementstxt_sources}\n")
+
+    constraints_file.write("\n".join([c for c in constraints]))
+    constraints_file.close()
+    return constraints_file.name
+
+
 def is_required_version(version, specified_version):
     """Check to see if there's a hard requirement for version
     number provided in the Pipfile.

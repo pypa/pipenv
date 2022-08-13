@@ -28,10 +28,12 @@ from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
     convert_deps_to_pip,
     get_canonical_names,
+    get_constraints_from_deps,
     is_pinned,
     is_required_version,
     is_star,
     pep423_name,
+    prepare_constraint_file,
     python_version,
 )
 from pipenv.utils.indexes import get_source_list, parse_indexes, prepare_pip_source_args
@@ -41,6 +43,7 @@ from pipenv.utils.shell import (
     cmd_list_to_shell,
     find_python,
     is_python_command,
+    normalize_path,
     project_python,
     subprocess_run,
     system_which,
@@ -789,6 +792,7 @@ def batch_install(
                 trusted_hosts=trusted_hosts,
                 extra_indexes=extra_indexes,
                 use_pep517=use_pep517,
+                use_constraint=False,  # no need to use constraints, it's written in lockfile
             )
             c.dep = dep
 
@@ -1096,8 +1100,9 @@ def do_lock(
         for k, v in lockfile[section].copy().items():
             if not hasattr(v, "keys"):
                 del lockfile[section][k]
-    # Resolve dev-package dependencies followed by packages dependencies.
-    for is_dev in [True, False]:
+
+    # Resolve package to generate constraints before resolving dev-packages
+    for is_dev in [False, True]:
         pipfile_section = "dev-packages" if is_dev else "packages"
         if project.pipfile_exists:
             packages = project.parsed_pipfile.get(pipfile_section, {})
@@ -1453,12 +1458,14 @@ def pip_install(
     block=True,
     index=None,
     pre=False,
+    dev=False,
     selective_upgrade=False,
     requirements_dir=None,
     extra_indexes=None,
     pypi_mirror=None,
     trusted_hosts=None,
     use_pep517=True,
+    use_constraint=False,
 ):
     piplogger = logging.getLogger("pipenv.patched.pip._internal.commands.install")
     if not trusted_hosts:
@@ -1539,9 +1546,18 @@ def pip_install(
     )
     pip_command.extend(pip_args)
     if r:
-        pip_command.extend(["-r", vistir.path.normalize_path(r)])
+        pip_command.extend(["-r", normalize_path(r)])
     elif line:
         pip_command.extend(line)
+    if dev and use_constraint:
+        default_constraints = get_constraints_from_deps(project.packages)
+        constraint_filename = prepare_constraint_file(
+            default_constraints,
+            directory=requirements_dir,
+            sources=None,
+            pip_args=None,
+        )
+        pip_command.extend(["-c", normalize_path(constraint_filename)])
     pip_command.extend(prepare_pip_source_args(sources))
     if project.s.is_verbose():
         click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
@@ -2128,9 +2144,11 @@ def do_install(
                         selective_upgrade=selective_upgrade,
                         no_deps=False,
                         pre=pre,
+                        dev=dev,
                         requirements_dir=requirements_directory,
                         index=index_url,
                         pypi_mirror=pypi_mirror,
+                        use_constraint=True,
                     )
                     if c.returncode:
                         sp.write_err(

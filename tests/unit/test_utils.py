@@ -131,6 +131,20 @@ def test_convert_deps_to_pip(deps, expected):
 def test_convert_deps_to_pip_one_way(deps, expected):
     assert dependencies.convert_deps_to_pip(deps, r=False) == [expected.lower()]
 
+@pytest.mark.utils
+@pytest.mark.parametrize(
+    "deps, expected",
+    [
+        ({"requests": {}}, ["requests"]),
+        ({"FooProject": {"path": ".", "editable" : "true"}}, []),
+        ({"FooProject": {"version": "==1.2"}}, ["fooproject==1.2"]),
+        ({"requests": {"extras": ["security"]}}, []),
+        ({"requests": {"extras": []}}, ["requests"]),
+        ({"extras" : {}}, ["extras"]),
+    ],
+)
+def test_get_constraints_from_deps(deps, expected):
+    assert dependencies.get_constraints_from_deps(deps) == expected
 
 @pytest.mark.parametrize("line,result", [
     ("-i https://example.com/simple/", ("https://example.com/simple/", None, None, [])),
