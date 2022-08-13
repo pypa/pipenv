@@ -28,11 +28,12 @@ from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
     convert_deps_to_pip,
     get_canonical_names,
+    get_constraints_from_deps,
     is_pinned,
     is_required_version,
     is_star,
     pep423_name,
-    prepare_default_constraint_file,
+    prepare_constraint_file,
     python_version,
 )
 from pipenv.utils.indexes import get_source_list, parse_indexes, prepare_pip_source_args
@@ -1548,9 +1549,12 @@ def pip_install(
     elif line:
         pip_command.extend(line)
     if dev and use_constraint:
-        constraint_filename = prepare_default_constraint_file(
-            project,
+        default_constraints = get_constraints_from_deps(project.packages)
+        constraint_filename = prepare_constraint_file(
+            default_constraints,
             directory=requirements_dir,
+            sources=None,
+            pip_args=None,
         )
         pip_command.extend(["-c", normalize_path(constraint_filename)])
     pip_command.extend(prepare_pip_source_args(sources))

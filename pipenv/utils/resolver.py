@@ -36,10 +36,11 @@ from .dependencies import (
     HackedPythonVersion,
     clean_pkg_version,
     convert_deps_to_pip,
+    get_constraints_from_deps,
     get_vcs_deps,
     is_pinned_requirement,
     pep423_name,
-    prepare_default_constraint_file,
+    prepare_constraint_file,
     translate_markers,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
@@ -531,29 +532,13 @@ class Resolver:
         return self._pip_args
 
     def prepare_constraint_file(self):
-        from pipenv.vendor.vistir.path import create_tracked_tempfile
-
-        constraints_file = create_tracked_tempfile(
-            mode="w",
-            prefix="pipenv-",
-            suffix="-constraints.txt",
-            dir=self.req_dir,
-            delete=False,
+        constraint_filename = prepare_constraint_file(
+            self.initial_constraints,
+            directory=self.req_dir,
+            sources=self.sources,
+            pip_args=self.pip_args,
         )
-        skip_args = ("build-isolation", "use-pep517", "cache-dir")
-        args_to_add = [
-            arg
-            for arg in self.pip_args
-            if not any(bad_arg in arg for bad_arg in skip_args)
-        ]
-        if self.sources:
-            requirementstxt_sources = " ".join(args_to_add) if args_to_add else ""
-            requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
-            constraints_file.write(f"{requirementstxt_sources}\n")
-        constraints = self.initial_constraints
-        constraints_file.write("\n".join([c for c in constraints]))
-        constraints_file.close()
-        return constraints_file.name
+        return constraint_filename
 
     @property
     def constraint_file(self):
@@ -563,10 +548,14 @@ class Resolver:
 
     @cached_property
     def default_constraint_file(self):
-        default_constraint_file = prepare_default_constraint_file(
-            self.project, directory=self.req_dir
+        default_constraints = get_constraints_from_deps(self.project.packages)
+        default_constraint_filename = prepare_constraint_file(
+            default_constraints,
+            directory=self.req_dir,
+            sources=None,
+            pip_args=None,
         )
-        return default_constraint_file
+        return default_constraint_filename
 
     @property
     def pip_options(self):

@@ -298,9 +298,11 @@ def get_constraints_from_deps(deps):
     return constraints
 
 
-def prepare_default_constraint_file(
-    project,
+def prepare_constraint_file(
+    constraints=None,
     directory=None,
+    sources=None,
+    pip_args=None,
 ):
     from pipenv.vendor.vistir.path import (
         create_tracked_tempdir,
@@ -310,17 +312,26 @@ def prepare_default_constraint_file(
     if not directory:
         directory = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
 
-    default_constraints_file = create_tracked_tempfile(
+    constraints_file = create_tracked_tempfile(
         mode="w",
         prefix="pipenv-",
-        suffix="-default-constraints.txt",
+        suffix="-constraints.txt",
         dir=directory,
         delete=False,
     )
-    default_constraints = get_constraints_from_deps(project.packages)
-    default_constraints_file.write("\n".join([c for c in default_constraints]))
-    default_constraints_file.close()
-    return default_constraints_file.name
+
+    if sources:
+        skip_args = ("build-isolation", "use-pep517", "cache-dir")
+        args_to_add = [
+            arg for arg in pip_args if not any(bad_arg in arg for bad_arg in skip_args)
+        ]
+        requirementstxt_sources = " ".join(args_to_add) if args_to_add else ""
+        requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
+        constraints_file.write(f"{requirementstxt_sources}\n")
+
+    constraints_file.write("\n".join([c for c in constraints]))
+    constraints_file.close()
+    return constraints_file.name
 
 
 def is_required_version(version, specified_version):
