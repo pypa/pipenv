@@ -35,7 +35,6 @@ from pipenv.utils.internet import get_url_name, is_valid_url, proper_case
 from pipenv.utils.shell import (
     find_requirements,
     find_windows_executable,
-    get_pipenv_dist,
     get_workon_home,
     is_virtual_environment,
     looks_like_dir,
@@ -289,11 +288,6 @@ class Project:
             pipfile=self.parsed_pipfile,
             project=self,
         )
-        pipenv_dist = get_pipenv_dist(pkg="pipenv")
-        if pipenv_dist:
-            environment.extend_dists(pipenv_dist)
-        else:
-            environment.add_dist("pipenv")
         return environment
 
     @property
