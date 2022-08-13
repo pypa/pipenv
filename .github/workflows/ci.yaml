@@ -42,10 +42,10 @@ jobs:
       PYTHONIOENCODING: "utf-8"
       GIT_ASK_YESNO: "false"
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
-          python-version: 3.9
+          python-version: 3.x
       - run: |
           python -m pip install pre-commit
           pre-commit run --all-files --verbose --show-diff-on-failure
@@ -54,10 +54,10 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
-          python-version: 3.9
+          python-version: 3.x
       - run: |
           python -m pip install --upgrade wheel invoke parver bs4 vistir towncrier requests
           python -m invoke vendoring.update
@@ -72,10 +72,10 @@ jobs:
         os: [MacOS, Ubuntu, Windows]
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -115,10 +115,10 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
-          python-version: 3.9
+          python-version: 3.x
       - run: pip install -U build twine
       - run: |
           python -m build
