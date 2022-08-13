@@ -1,6 +1,7 @@
 import os
 from unittest import mock
 
+from flaky import flaky
 import pytest
 
 import pipenv.utils.shell
@@ -81,6 +82,7 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
     return
 
 
+@flaky
 @pytest.mark.utils
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
 @pytest.mark.needs_internet
@@ -90,6 +92,7 @@ def test_convert_deps_to_pip(deps, expected):
     assert dependencies.convert_deps_to_pip(deps, r=False) == [expected]
 
 
+@flaky
 @pytest.mark.utils
 @pytest.mark.parametrize(
     "deps, expected",
