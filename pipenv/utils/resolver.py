@@ -25,12 +25,18 @@ from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.project import Project
 from pipenv.vendor import click
-from pipenv.vendor.cached_property import cached_property
 from pipenv.vendor.requirementslib import Pipfile, Requirement
 from pipenv.vendor.requirementslib.models.requirements import Line
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
 from pipenv.vendor.vistir import TemporaryDirectory, open_file
 from pipenv.vendor.vistir.path import create_tracked_tempdir
+
+try:
+    # this is only in Python3.8 and later
+    from functools import cached_property
+except ImportError:
+    # eventually distlib will remove cached property when they drop Python3.7
+    from pipenv.patched.pip._vendor.distlib.util import cached_property
 
 from .dependencies import (
     HackedPythonVersion,

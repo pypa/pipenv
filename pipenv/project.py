@@ -42,8 +42,15 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
-from pipenv.vendor.cached_property import cached_property
 from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
+
+try:
+    # this is only in Python3.8 and later
+    from functools import cached_property
+except ImportError:
+    # eventually distlib will remove cached property when they drop Python3.7
+    from pipenv.patched.pip._vendor.distlib.util import cached_property
+
 
 if is_type_checking():
     from typing import Dict, List, Optional, Set, Text, Tuple, Union
