@@ -76,6 +76,10 @@ GLOBAL_REPLACEMENT = [
         r"(?<!\.)import pep517\.wrappers",
         r"from pipenv.patched.pip._vendor.pep517 import wrappers",
     ),
+    (
+        r"from cached_property import cached_property",
+        r"from pipenv.vendor.pyparsing.core import cached_property",
+    ),
     (r"(?<!\.)pep517\.envbuild", r"envbuild"),
     (r"(?<!\.)pep517\.wrappers", r"wrappers"),
 ]
