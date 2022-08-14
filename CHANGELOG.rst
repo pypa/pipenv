@@ -1,3 +1,13 @@
+2022.8.14 (2022-08-14)
+======================
+
+
+Bug Fixes
+---------
+
+- Removed ``packaging`` library from ``BAD_PACKAGES`` constant to allow it to be installed, which fixes regression from ``pipenv==2022.8.13``.  `#5247 <https://github.com/pypa/pipenv/issues/5247>`_
+
+
 2022.8.13 (2022-08-13)
 ======================
 

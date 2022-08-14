@@ -1,1 +1,0 @@
-Removed ``packaging`` library from ``BAD_PACKAGES`` constant to allow it to be installed, which fixes regression from ``pipenv==2022.8.13``.
