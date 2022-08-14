@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Aug 13, 2022" "2022.8.13" "pipenv"
+.TH "PIPENV" "1" "Aug 14, 2022" "2022.8.14" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -453,6 +453,12 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.8.14 (2022\-08\-14)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Removed \fBpackaging\fP library from \fBBAD_PACKAGES\fP constant to allow it to be installed, which fixes regression from \fBpipenv==2022.8.13\fP\&.  \fI\%#5247\fP
+.UNINDENT
 .SS 2022.8.13 (2022\-08\-13)
 .SS Bug Fixes
 .INDENT 0.0
@@ -1372,28 +1378,28 @@ Update vendored dependencies and invocations
 .INDENT 2.0
 .IP \(bu 2
 Update vendored and patched dependencies
-\- Update patches on \fBpiptools\fP, \fBpip\fP, \fBpip\-shims\fP,
+\- Update patches on \fBpiptools\fP, \fBpip\fP, \fBpip\-shims\fP, 
 .nf
 \(ga\(ga
 .fi
 tomlkit\(ga
 .IP \(bu 2
 Fix invocations of dependencies
-\- Fix custom
+\- Fix custom 
 .nf
 \(ga\(ga
 .fi
 InstallCommand\(ga instantiation
-\- Update
+\- Update 
 .nf
 \(ga\(ga
 .fi
 PackageFinder\(ga usage
-\- Fix
+\- Fix 
 .nf
 \(ga\(ga
 .fi
-Bool\(ga stringify attempts from
+Bool\(ga stringify attempts from 
 .nf
 \(ga\(ga
 .fi
