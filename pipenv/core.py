@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import json as simplejson
 import logging
 import os
@@ -1529,7 +1527,7 @@ def pip_install(
             )
 
     pip_command = [
-        project._which("python", allow_global=allow_global),
+        project_python(project),
         _get_runnable_pip(),
         "install",
     ]
