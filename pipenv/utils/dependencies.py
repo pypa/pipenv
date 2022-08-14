@@ -1,11 +1,11 @@
 import os
 from contextlib import contextmanager
-from tempfile import NamedTemporaryFile
 from typing import Mapping, Sequence
 
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 
 from .constants import SCHEME_LIST, VCS_LIST
+from .memory_tempfile import MemoryTempfile
 from .shell import temp_path
 
 
@@ -274,7 +274,8 @@ def convert_deps_to_pip(
         return dependencies
 
     # Write requirements.txt to tmp directory.
-    f = NamedTemporaryFile(suffix="-requirements.txt", delete=False)
+    m = MemoryTempfile()
+    f = m.NamedTemporaryFile(suffix="-requirements.txt", delete=False)
     f.write("\n".join(dependencies).encode("utf-8"))
     f.close()
     return f.name
@@ -300,23 +301,15 @@ def get_constraints_from_deps(deps):
 
 def prepare_constraint_file(
     constraints,
-    directory=None,
     sources=None,
     pip_args=None,
 ):
-    from pipenv.vendor.vistir.path import (
-        create_tracked_tempdir,
-        create_tracked_tempfile,
-    )
 
-    if not directory:
-        directory = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
-
-    constraints_file = create_tracked_tempfile(
+    m = MemoryTempfile()
+    constraints_file = m.NamedTemporaryFile(
         mode="w",
         prefix="pipenv-",
         suffix="-constraints.txt",
-        dir=directory,
         delete=False,
     )
 

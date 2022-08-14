@@ -5,7 +5,6 @@ import logging
 import os
 import shutil
 import sys
-import tempfile
 import time
 import warnings
 from pathlib import Path
@@ -38,6 +37,7 @@ from pipenv.utils.dependencies import (
 )
 from pipenv.utils.indexes import get_source_list, parse_indexes, prepare_pip_source_args
 from pipenv.utils.internet import download_file, get_host_and_port, is_valid_url
+from pipenv.utils.memory_tempfile import MemoryTempfile
 from pipenv.utils.processes import run_command
 from pipenv.utils.shell import (
     cmd_list_to_shell,
@@ -1434,7 +1434,8 @@ def write_requirement_to_file(
         with_prefix=True, with_hashes=include_hashes, with_markers=True, as_list=False
     )
 
-    f = tempfile.NamedTemporaryFile(
+    m = MemoryTempfile()
+    f = m.NamedTemporaryFile(
         prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir, delete=False
     )
     if project.s.is_verbose():
@@ -1552,7 +1553,6 @@ def pip_install(
         default_constraints = get_constraints_from_deps(project.packages)
         constraint_filename = prepare_constraint_file(
             default_constraints,
-            directory=requirements_dir,
             sources=None,
             pip_args=None,
         )

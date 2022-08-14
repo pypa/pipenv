@@ -52,6 +52,7 @@ from .dependencies import (
 from .indexes import parse_indexes, prepare_pip_source_args
 from .internet import _get_requests_session, is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
+from .memory_tempfile import MemoryTempfile
 from .shell import make_posix, subprocess_run, temp_environ
 from .spinner import create_spinner
 
@@ -540,7 +541,6 @@ class Resolver:
     def prepare_constraint_file(self):
         constraint_filename = prepare_constraint_file(
             self.initial_constraints,
-            directory=self.req_dir,
             sources=self.sources,
             pip_args=self.pip_args,
         )
@@ -557,7 +557,6 @@ class Resolver:
         default_constraints = get_constraints_from_deps(self.project.packages)
         default_constraint_filename = prepare_constraint_file(
             default_constraints,
-            directory=self.req_dir,
             sources=None,
             pip_args=None,
         )
@@ -1000,7 +999,6 @@ def venv_resolve_deps(
     """
 
     import json
-    import tempfile
     from pathlib import Path
 
     from pipenv import resolver
@@ -1033,9 +1031,8 @@ def venv_resolve_deps(
         cmd.append("--system")
     if dev:
         cmd.append("--dev")
-    target_file = tempfile.NamedTemporaryFile(
-        prefix="resolver", suffix=".json", delete=False
-    )
+    m = MemoryTempfile()
+    target_file = m.NamedTemporaryFile(prefix="resolver", suffix=".json", delete=False)
     target_file.close()
     cmd.extend(["--write", make_posix(target_file.name)])
     with temp_environ():
