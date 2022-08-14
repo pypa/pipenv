@@ -8,6 +8,7 @@ import time
 import warnings
 from pathlib import Path
 from posixpath import expandvars
+from typing import Dict, List, Optional, Union
 
 import dotenv
 import pipfile
@@ -22,6 +23,7 @@ from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_parsed_requirement,
 )
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
+from pipenv.project import Project
 from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
     convert_deps_to_pip,
@@ -48,12 +50,9 @@ from pipenv.utils.shell import (
 )
 from pipenv.utils.spinner import create_spinner
 from pipenv.vendor import click
+from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 if MYPY_RUNNING:
-    from typing import Dict, List, Optional, Union
-
-    from pipenv.project import Project
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     TSourceDict = Dict[str, Union[str, bool]]
 
