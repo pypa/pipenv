@@ -9,6 +9,7 @@ dparse==0.5.1
 idna==3.2
 iso8601==0.1.16
 markupsafe==2.0.1
+memory-tempfile==2.2.3
 orderedmultidict==1.0.1
 parse==1.19.0
 pexpect==4.8.0
