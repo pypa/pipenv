@@ -1208,7 +1208,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
         click.echo(fix_utf8(f"Found {len(to_remove)} installed package(s), purging..."))
 
     command = [
-        project_python(project),
+        project_python(project, system=allow_global),
         _get_runnable_pip(),
         "uninstall",
         "-y",
@@ -1526,7 +1526,7 @@ def pip_install(
             )
 
     pip_command = [
-        project_python(project),
+        project_python(project, system=allow_global),
         _get_runnable_pip(),
         "install",
     ]
@@ -2360,7 +2360,7 @@ def do_uninstall(
         if package_name in packages_to_remove:
             with project.environment.activated():
                 cmd = [
-                    project_python(project),
+                    project_python(project, system=system),
                     _get_runnable_pip(),
                     "uninstall",
                     package_name,
@@ -2666,7 +2666,7 @@ def do_check(
     safety_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "patched", "safety"
     )
-    _cmd = [project_python(project)]
+    _cmd = [project_python(project, system=system)]
     # Run the PEP 508 checker in the virtualenv.
     cmd = _cmd + [Path(pep508checker_path).as_posix()]
     c = run_command(cmd, is_verbose=project.s.is_verbose())
@@ -3014,7 +3014,7 @@ def do_clean(
                 )
             # Uninstall the package.
             cmd = [
-                project_python(project),
+                project_python(project, system=system),
                 _get_runnable_pip(),
                 "uninstall",
                 apparent_bad_package,
