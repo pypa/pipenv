@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Aug 14, 2022" "2022.8.14" "pipenv"
+.TH "PIPENV" "1" "Aug 15, 2022" "2022.8.15" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -453,6 +453,12 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.8.15 (2022\-08\-15)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+\fBpip_install\fP method was using a different way of finding the python executable than other \fBpipenv\fP commands, which caused an issue with skipping package installation if it was already installed in site\-packages.  \fI\%#5254\fP
+.UNINDENT
 .SS 2022.8.14 (2022\-08\-14)
 .SS Bug Fixes
 .INDENT 0.0
@@ -2934,9 +2940,7 @@ production environments for reproducible builds.
 \fBNOTE:\fP
 .INDENT 0.0
 .INDENT 3.5
-If you\(aqd like a \fBrequirements.txt\fP output of the lockfile, run \fB$ pipenv lock \-r\fP\&.
-This will not include hashes, however. To get a \fBrequirements.txt\fP
-you can also use \fB$ pipenv run pip freeze\fP\&.
+If you\(aqd like a \fBrequirements.txt\fP output of the lockfile, run \fB$ pipenv requirements\fP\&.
 .UNINDENT
 .UNINDENT
 .SS ☤ Pipenv and Docker Containers
