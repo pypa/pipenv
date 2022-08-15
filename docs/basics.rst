@@ -402,9 +402,7 @@ production environments for reproducible builds.
 
 .. note::
 
-    If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv lock -r``.
-    This will not include hashes, however. To get a ``requirements.txt``
-    you can also use ``$ pipenv run pip freeze``.
+    If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv requirements``.
 
 
 ☤ Pipenv and Docker Containers
