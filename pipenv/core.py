@@ -1529,6 +1529,7 @@ def pip_install(
         project_python(project, system=allow_global),
         _get_runnable_pip(),
         "install",
+        "--ignore-installed",
     ]
     pip_args = get_pip_args(
         project,
