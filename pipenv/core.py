@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import json as simplejson
 import logging
 import os
@@ -10,6 +8,7 @@ import time
 import warnings
 from pathlib import Path
 from posixpath import expandvars
+from typing import Dict, List, Optional, Union
 
 import dotenv
 import pipfile
@@ -24,6 +23,7 @@ from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_parsed_requirement,
 )
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
+from pipenv.project import Project
 from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
     convert_deps_to_pip,
@@ -50,12 +50,9 @@ from pipenv.utils.shell import (
 )
 from pipenv.utils.spinner import create_spinner
 from pipenv.vendor import click
+from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 if MYPY_RUNNING:
-    from typing import Dict, List, Optional, Union
-
-    from pipenv.project import Project
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     TSourceDict = Dict[str, Union[str, bool]]
 
@@ -1211,7 +1208,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
         click.echo(fix_utf8(f"Found {len(to_remove)} installed package(s), purging..."))
 
     command = [
-        project_python(project),
+        project_python(project, system=allow_global),
         _get_runnable_pip(),
         "uninstall",
         "-y",
@@ -1529,9 +1526,10 @@ def pip_install(
             )
 
     pip_command = [
-        project._which("python", allow_global=allow_global),
+        project_python(project, system=allow_global),
         _get_runnable_pip(),
         "install",
+        "--ignore-installed",
     ]
     pip_args = get_pip_args(
         project,
@@ -2363,7 +2361,7 @@ def do_uninstall(
         if package_name in packages_to_remove:
             with project.environment.activated():
                 cmd = [
-                    project_python(project),
+                    project_python(project, system=system),
                     _get_runnable_pip(),
                     "uninstall",
                     package_name,
@@ -2669,7 +2667,7 @@ def do_check(
     safety_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "patched", "safety"
     )
-    _cmd = [project_python(project)]
+    _cmd = [project_python(project, system=system)]
     # Run the PEP 508 checker in the virtualenv.
     cmd = _cmd + [Path(pep508checker_path).as_posix()]
     c = run_command(cmd, is_verbose=project.s.is_verbose())
@@ -3017,7 +3015,7 @@ def do_clean(
                 )
             # Uninstall the package.
             cmd = [
-                project_python(project),
+                project_python(project, system=system),
                 _get_runnable_pip(),
                 "uninstall",
                 apparent_bad_package,
