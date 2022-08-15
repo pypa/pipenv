@@ -56,6 +56,10 @@ Or, if you\'re using FreeBSD:
 Or, if you\'re using Gentoo:
 
     sudo emerge pipenv
+    
+Or, if you\'re using Void Linux:
+
+    sudo xbps-install -S python3-pipenv
 
 Or, if you\'re using Windows:
 
