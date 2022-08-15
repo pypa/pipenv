@@ -1,3 +1,13 @@
+2022.8.15 (2022-08-15)
+======================
+
+
+Bug Fixes
+---------
+
+- ``pip_install`` method was using a different way of finding the python executable than other ``pipenv`` commands, which caused an issue with skipping package installation if it was already installed in site-packages.  `#5254 <https://github.com/pypa/pipenv/issues/5254>`_
+
+
 2022.8.14 (2022-08-14)
 ======================
 

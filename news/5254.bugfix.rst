@@ -1,1 +1,0 @@
-``pip_install`` method was using a different way of finding the python executable than other ``pipenv`` commands, which caused an issue with skipping package installation if it was already installed in site-packages.
