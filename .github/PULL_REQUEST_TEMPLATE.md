@@ -19,7 +19,7 @@ How does this pull request fix your problem? Did you consider any alternatives? 
 ### The checklist
 
 * [ ] Associated issue
-* [ ] A news fragment in the `news/` directory to describe this fix with the extension `.bugfix`, `.feature`, `.behavior`, `.doc`. `.vendor`. or `.trivial` (this will appear in the release changelog). Use semantic line breaks and name the file after the issue number or the PR #.
+* [ ] A news fragment in the `news/` directory to describe this fix with the extension `.bugfix.rst`, `.feature.rst`, `.behavior.rst`, `.doc.rst`. `.vendor.rst`. or `.trivial.rst` (this will appear in the release changelog). Use semantic line breaks and name the file after the issue number or the PR #.
 
 <!--
 ### If this is a patch to the `vendor` directory...

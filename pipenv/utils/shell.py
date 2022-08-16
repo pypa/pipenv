@@ -446,6 +446,7 @@ def project_python(project, system=False):
         python = project._which("python")
     else:
         interpreters = [system_which(p) for p in ("python", "python3")]
+        interpreters = [i for i in interpreters if i]  # filter out not found interpreters
         python = interpreters[0] if interpreters else None
     if not python:
         click.secho("The Python interpreter can't be found.", fg="red", err=True)
