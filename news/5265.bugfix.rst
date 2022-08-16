@@ -1,0 +1,1 @@
+Revise pip import patch to include only ``pipenv`` from site-packages and removed ``--ignore-installed`` argument from pip install in order to fix regressions with ``--use-site-packages``.
