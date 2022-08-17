@@ -1,3 +1,14 @@
+2022.8.17 (2022-08-17)
+======================
+
+
+Bug Fixes
+---------
+
+- Fix "The Python interpreter can't be found" error when running ``pipenv install --system`` with a python3 but no python.  `#5261 <https://github.com/pypa/pipenv/issues/5261>`_
+- Revise pip import patch to include only ``pipenv`` from site-packages and removed ``--ignore-installed`` argument from pip install in order to fix regressions with ``--use-site-packages``.  `#5265 <https://github.com/pypa/pipenv/issues/5265>`_
+
+
 2022.8.15 (2022-08-15)
 ======================
 
