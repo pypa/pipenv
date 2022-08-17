@@ -1,0 +1,56 @@
+diff --git a/pipenv/vendor/yaspin/core.py b/pipenv/vendor/yaspin/core.py
+index 76dc2439..d8a0716c 100644
+--- a/pipenv/vendor/yaspin/core.py
++++ b/pipenv/vendor/yaspin/core.py
+@@ -19,11 +19,15 @@ import time
+ from typing import List, Set, Union
+ 
+ from pipenv.vendor.termcolor import colored
++from pipenv.vendor import colorama
++from pipenv.vendor.vistir import cursor
+ 
+ from .base_spinner import Spinner, default_spinner
+ from .constants import COLOR_ATTRS, COLOR_MAP, SPINNER_ATTRS
+ from .helpers import to_unicode
+ 
++colorama.init()
++
+ 
+ class Yaspin:  # pylint: disable=useless-object-inheritance,too-many-instance-attributes
+     """Implements a context manager that spawns a thread
+@@ -401,11 +405,14 @@ class Yaspin:  # pylint: disable=useless-object-inheritance,too-many-instance-at
+         # SIGKILL cannot be caught or ignored, and the receiving
+         # process cannot perform any clean-up upon receiving this
+         # signal.
+-        if signal.SIGKILL in self._sigmap.keys():
+-            raise ValueError(
+-                "Trying to set handler for SIGKILL signal. "
+-                "SIGKILL cannot be cought or ignored in POSIX systems."
+-            )
++        try:
++            if signal.SIGKILL in self._sigmap.keys():
++                raise ValueError(
++                    "Trying to set handler for SIGKILL signal. "
++                    "SIGKILL cannot be cought or ignored in POSIX systems."
++                )
++        except AttributeError:
++            pass
+ 
+         for sig, sig_handler in self._sigmap.items():
+             # A handler for a particular signal, once set, remains
+@@ -528,13 +535,11 @@ class Yaspin:  # pylint: disable=useless-object-inheritance,too-many-instance-at
+ 
+     @staticmethod
+     def _hide_cursor():
+-        sys.stdout.write("\033[?25l")
+-        sys.stdout.flush()
++        cursor.hide_cursor()
+ 
+     @staticmethod
+     def _show_cursor():
+-        sys.stdout.write("\033[?25h")
+-        sys.stdout.flush()
++        cursor.show_cursor()
+ 
+     @staticmethod
+     def _clear_line():

@@ -24,8 +24,10 @@ pythonfinder==1.2.10
 requirementslib==1.6.9
 shellingham==1.4.0
 six==1.16.0
+termcolor==1.1.0
 toml==0.10.2
 tomli==1.1.0
 tomlkit==0.9.2
 vistir==0.5.6
 wheel==0.36.2
+yaspin==2.0.0
