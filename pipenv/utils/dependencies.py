@@ -282,13 +282,14 @@ def convert_deps_to_pip(
 
 def get_constraints_from_deps(deps):
     """Get contraints from Pipfile-formatted dependency"""
+    from pipenv.patched.pip._internal.req.req_install import (
+        check_invalid_constraint_type,
+    )
     from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     def is_constraint(dep):
-        # https://pip.pypa.io/en/stable/user_guide/#constraints-files
-        # constraints must have a name, they cannot be editable, and they cannot specify extras.
-        ireq = dep.as_ireq()
-        return ireq.name and not ireq.editable and not ireq.extras
+        problem = check_invalid_constraint_type(dep.as_ireq())
+        return not problem
 
     constraints = []
     for dep_name, dep in deps.items():
