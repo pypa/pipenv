@@ -287,14 +287,11 @@ def get_constraints_from_deps(deps):
     )
     from pipenv.vendor.requirementslib.models.requirements import Requirement
 
-    def is_constraint(dep):
-        problem = check_invalid_constraint_type(dep.as_ireq())
-        return not problem
-
     constraints = []
     for dep_name, dep in deps.items():
         new_dep = Requirement.from_pipfile(dep_name, dep)
-        if is_constraint(new_dep):
+        problem = check_invalid_constraint_type(new_dep.as_ireq())
+        if not problem:
             c = new_dep.as_line().strip()
             constraints.append(c)
     return constraints
