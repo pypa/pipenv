@@ -144,6 +144,7 @@ def test_convert_deps_to_pip_one_way(deps, expected):
         ({"requests": {"extras": ["security"]}}, []),
         ({"requests": {"extras": []}}, ["requests"]),
         ({"extras" : {}}, ["extras"]),
+        ({"uvicorn[standard]" : {}}, [])
     ],
 )
 def test_get_constraints_from_deps(deps, expected):
