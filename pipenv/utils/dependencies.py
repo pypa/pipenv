@@ -287,7 +287,8 @@ def get_constraints_from_deps(deps):
     def is_constraint(dep):
         # https://pip.pypa.io/en/stable/user_guide/#constraints-files
         # constraints must have a name, they cannot be editable, and they cannot specify extras.
-        return dep.name and not dep.editable and not dep.extras
+        ireq = dep.as_ireq()
+        return ireq.name and not ireq.editable and not ireq.extras
 
     constraints = []
     for dep_name, dep in deps.items():
