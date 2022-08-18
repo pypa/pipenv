@@ -1,0 +1,1 @@
+Fix issue where resolver is provided with ``install_requires`` constraints from ``setup.py`` that depend on editable dependencies and could not resolve them.

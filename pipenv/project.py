@@ -579,7 +579,7 @@ class Project:
     def lockfile_content(self):
         return self.load_lockfile()
 
-    def _get_editable_packages(self, dev=False):
+    def get_editable_packages(self, dev=False):
         section = "dev-packages" if dev else "packages"
         packages = {
             k: v
@@ -601,11 +601,11 @@ class Project:
 
     @property
     def editable_packages(self):
-        return self._get_editable_packages(dev=False)
+        return self.get_editable_packages(dev=False)
 
     @property
     def editable_dev_packages(self):
-        return self._get_editable_packages(dev=True)
+        return self.get_editable_packages(dev=True)
 
     @property
     def vcs_packages(self):
