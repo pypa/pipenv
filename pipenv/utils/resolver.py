@@ -25,7 +25,7 @@ from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.project import Project
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib import Pipfile, Requirement
+from pipenv.vendor.requirementslib import Requirement
 from pipenv.vendor.requirementslib.models.requirements import Line
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
 from pipenv.vendor.vistir import TemporaryDirectory, open_file
@@ -178,9 +178,8 @@ class Resolver:
             )
         return self._hash_cache
 
-    @classmethod
     def get_metadata(
-        cls,
+        self,
         deps: List[str],
         index_lookup: Dict[str, str],
         markers_lookup: Dict[str, str],
@@ -203,7 +202,7 @@ class Resolver:
             markers_lookup = {}
         if not req_dir:
             req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-reqdir")
-        transient_resolver = cls(
+        transient_resolver = Resolver(
             [],
             req_dir,
             project,
@@ -216,7 +215,7 @@ class Resolver:
         for dep in deps:
             if not dep:
                 continue
-            req, req_idx, markers_idx = cls.parse_line(
+            req, req_idx, markers_idx = self.parse_line(
                 dep,
                 index_lookup=index_lookup,
                 markers_lookup=markers_lookup,
@@ -235,7 +234,7 @@ class Resolver:
                 )
             if not use_sources:
                 use_sources = sources
-            transient_resolver = cls(
+            transient_resolver = Resolver(
                 [],
                 req_dir,
                 project,
@@ -245,16 +244,15 @@ class Resolver:
                 clear=clear,
                 pre=pre,
             )
-            constraint_update, lockfile_update = cls.get_deps_from_req(
+            constraint_update, lockfile_update = self.get_deps_from_req(
                 req, resolver=transient_resolver, resolve_vcs=project.s.PIPENV_RESOLVE_VCS
             )
             constraints |= constraint_update
             skipped.update(lockfile_update)
         return constraints, skipped, index_lookup, markers_lookup
 
-    @classmethod
     def parse_line(
-        cls,
+        self,
         line: str,
         index_lookup: Dict[str, str] = None,
         markers_lookup: Dict[str, str] = None,
@@ -306,9 +304,8 @@ class Resolver:
             markers_lookup[req.normalized_name] = req.markers.replace('"', "'")
         return req, index_lookup, markers_lookup
 
-    @classmethod
     def get_deps_from_req(
-        cls,
+        self,
         req: Requirement,
         resolver: Optional["Resolver"] = None,
         resolve_vcs: bool = True,
@@ -322,6 +319,7 @@ class Resolver:
         # TODO: this is way too complex, refactor this
         constraints: Set[str] = set()
         locked_deps: Dict[str, Dict[str, Union[str, bool, List[str]]]] = {}
+        editable_packages = self.project.get_editable_packages(dev=self.dev)
         if (req.is_file_or_url or req.is_vcs) and not req.is_wheel:
             # for local packages with setup.py files and potential direct url deps:
             if req.is_vcs:
@@ -357,21 +355,22 @@ class Resolver:
                         if not r.url:
                             continue
                         line = _requirement_to_str_lowercase_name(r)
-                        new_req, _, _ = cls.parse_line(line)
+                        new_req, _, _ = self.parse_line(line)
                         if r.marker and not r.marker.evaluate():
                             new_constraints = {}
                             _, new_entry = req.pipfile_entry
                             new_lock = {pep423_name(new_req.normalized_name): new_entry}
                         else:
-                            new_constraints, new_lock = cls.get_deps_from_req(
+                            new_constraints, new_lock = self.get_deps_from_req(
                                 new_req, resolver
                             )
                         locked_deps.update(new_lock)
                         constraints |= new_constraints
                 # if there is no marker or there is a valid marker, add the constraint line
                 elif r and (not r.marker or (r.marker and r.marker.evaluate())):
-                    line = _requirement_to_str_lowercase_name(r)
-                    constraints.add(line)
+                    if r.name not in editable_packages:
+                        line = _requirement_to_str_lowercase_name(r)
+                        constraints.add(line)
             # ensure the top level entry remains as provided
             # note that we shouldn't pin versions for editable vcs deps
             if not req.is_vcs:
@@ -445,7 +444,18 @@ class Resolver:
             markers_lookup = {}
         if sources is None:
             sources = project.sources
-        constraints, skipped, index_lookup, markers_lookup = cls.get_metadata(
+        resolver = Resolver(
+            [],
+            req_dir,
+            project,
+            sources,
+            index_lookup=index_lookup,
+            markers_lookup=markers_lookup,
+            clear=clear,
+            pre=pre,
+            dev=dev,
+        )
+        constraints, skipped, index_lookup, markers_lookup = resolver.get_metadata(
             deps,
             index_lookup,
             markers_lookup,
@@ -454,59 +464,12 @@ class Resolver:
             req_dir=req_dir,
             pre=pre,
             clear=clear,
-        )
-        return Resolver(
-            constraints,
-            req_dir,
-            project,
-            sources,
-            index_lookup=index_lookup,
-            markers_lookup=markers_lookup,
-            skipped=skipped,
-            clear=clear,
-            pre=pre,
-            dev=dev,
-        )
-
-    @classmethod
-    def from_pipfile(
-        cls,
-        project: Optional[Project],
-        pipfile: Optional[Pipfile] = None,
-        dev: bool = False,
-        pre: bool = False,
-        clear: bool = False,
-    ) -> "Resolver":
-
-        if not pipfile:
-            pipfile = project._pipfile
-        req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
-        index_lookup, markers_lookup = {}, {}
-        deps = set()
-        if dev:
-            deps.update({req.as_line() for req in pipfile.dev_packages})
-        deps.update({req.as_line() for req in pipfile.packages})
-        constraints, skipped, index_lookup, markers_lookup = cls.get_metadata(
-            list(deps),
-            index_lookup,
-            markers_lookup,
-            project,
-            project.sources,
-            req_dir=req_dir,
-            pre=pre,
-            clear=clear,
-        )
-        return Resolver(
-            constraints,
-            req_dir,
-            project,
-            project.sources,
-            index_lookup=index_lookup,
-            markers_lookup=markers_lookup,
-            skipped=skipped,
-            clear=clear,
-            pre=pre,
-        )
+        )  # Workaround to the fact `get_metadata` instantiates a transient Resolver
+        resolver.initial_constraints = constraints
+        resolver.skipped = skipped
+        resolver.index_lookup = index_lookup
+        resolver.markers_lookup = markers_lookup
+        return resolver
 
     @property
     def pip_command(self):
