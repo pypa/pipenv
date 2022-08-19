@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Aug 17, 2022" "2022.8.17" "pipenv"
+.TH "PIPENV" "1" "Aug 19, 2022" "2022.8.19" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -453,6 +453,17 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.8.19 (2022\-08\-19)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fix issue where resolver is provided with \fBinstall_requires\fP constraints from \fBsetup.py\fP that depend on editable dependencies and could not resolve them.  \fI\%#5271\fP
+.IP \(bu 2
+Fix for \fBpipenv lock\fP fails for packages with extras as of \fB2022.8.13\fP\&.  \fI\%#5274\fP
+.IP \(bu 2
+Revert the exclusion of \fBBAD_PACKAGES\fP from \fBbatch_install\fP in order for \fBpipenv\fP to install specific versions of \fBsetuptools\fP\&.
+To prevent issue upgrading \fBsetuptools\fP this patches \fB_USE_SYSCONFIG_DEFAULT\fP to use \fBsysconfig\fP for \fB3.7\fP and above whereas \fBpip\fP default behavior was \fB3.10\fP and above.  \fI\%#5275\fP
+.UNINDENT
 .SS 2022.8.17 (2022\-08\-17)
 .SS Bug Fixes
 .INDENT 0.0
