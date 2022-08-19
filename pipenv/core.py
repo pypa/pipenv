@@ -1371,7 +1371,7 @@ def get_pip_args(
         "upgrade": ["--upgrade"],
         "require_hashes": ["--require-hashes"],
         "no_build_isolation": ["--no-build-isolation"],
-        "no_use_pep517": ["--no-use-pep517"],
+        "no_use_pep517": [],
         "no_deps": ["--no-deps"],
         "selective_upgrade": [
             "--upgrade-strategy=only-if-needed",
