@@ -1,0 +1,2 @@
+Revert the exclusion of ``BAD_PACKAGES`` from ``batch_install`` in order for ``pipenv`` to install specific versions of ``setuptools``.  
+To prevent issue upgrading ``setuptools`` this patches ``_USE_SYSCONFIG_DEFAULT`` to use ``sysconfig`` for ``3.7`` and above whereas ``pip`` default behavior was ``3.10`` and above.
