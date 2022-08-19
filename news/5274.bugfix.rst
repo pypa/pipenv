@@ -1,1 +1,0 @@
-Fix for ``pipenv lock`` fails for packages with extras as of ``2022.8.13``.

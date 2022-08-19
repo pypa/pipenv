@@ -1,3 +1,16 @@
+2022.8.19 (2022-08-19)
+======================
+
+
+Bug Fixes
+---------
+
+- Fix issue where resolver is provided with ``install_requires`` constraints from ``setup.py`` that depend on editable dependencies and could not resolve them.  `#5271 <https://github.com/pypa/pipenv/issues/5271>`_
+- Fix for ``pipenv lock`` fails for packages with extras as of ``2022.8.13``.  `#5274 <https://github.com/pypa/pipenv/issues/5274>`_
+- Revert the exclusion of ``BAD_PACKAGES`` from ``batch_install`` in order for ``pipenv`` to install specific versions of ``setuptools``.  
+  To prevent issue upgrading ``setuptools`` this patches ``_USE_SYSCONFIG_DEFAULT`` to use ``sysconfig`` for ``3.7`` and above whereas ``pip`` default behavior was ``3.10`` and above.  `#5275 <https://github.com/pypa/pipenv/issues/5275>`_
+
+
 2022.8.17 (2022-08-17)
 ======================
 
