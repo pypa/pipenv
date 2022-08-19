@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 _PLATLIBDIR: str = getattr(sys, "platlibdir", "lib")
 
-_USE_SYSCONFIG_DEFAULT = sys.version_info >= (3, 10)
+_USE_SYSCONFIG_DEFAULT = sys.version_info >= (3, 7)
 
 
 def _should_use_sysconfig() -> bool:

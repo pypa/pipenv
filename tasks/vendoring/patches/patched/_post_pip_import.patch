@@ -40,3 +40,16 @@ index 0ba06c52..6fdb59b7 100644
 
 
  class LinkCandidate(_InstallRequirementBackedCandidate):
+diff --git a/pipenv/patched/pip/_internal/locations/__init__.py b/pipenv/patched/pip/_internal/locations/__init__.py
+index 23eaea64..fe5dd5b4 100644
+--- a/pipenv/patched/pip/_internal/locations/__init__.py
++++ b/pipenv/patched/pip/_internal/locations/__init__.py
+@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
+
+ _PLATLIBDIR: str = getattr(sys, "platlibdir", "lib")
+
+-_USE_SYSCONFIG_DEFAULT = sys.version_info >= (3, 10)
++_USE_SYSCONFIG_DEFAULT = sys.version_info >= (3, 7)
+
+
+ def _should_use_sysconfig() -> bool:
