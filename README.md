@@ -150,35 +150,36 @@ Magic shell completions are now enabled!
 ☤ Usage
 -------
 
-   $ pipenv --help
-   Usage: pipenv [OPTIONS] COMMAND [ARGS]...
+    $ pipenv --help
+    Usage: pipenv [OPTIONS] COMMAND [ARGS]...
 
-   Options:
-     --where                         Output project home information.
-     --venv                          Output virtualenv information.
-     --py                            Output Python interpreter information.
-     --envs                          Output Environment Variable options.
-     --rm                            Remove the virtualenv.
-     --bare                          Minimal output.
-     --man                           Display manpage.
-     --support                       Output diagnostic information for use in
-                                     GitHub issues.
-     --site-packages / --no-site-packages
-                                     Enable site-packages for the virtualenv.
-                                     [env var: PIPENV_SITE_PACKAGES]
-     --python TEXT                   Specify which version of Python virtualenv
-                                     should use.
-     --three                         Use Python 3 when creating virtualenv.
-     --clear                         Clears caches (pipenv, pip).  [env var:
-                                     PIPENV_CLEAR]
-     -q, --quiet                     Quiet mode.
-     -v, --verbose                   Verbose mode.
-     --pypi-mirror TEXT              Specify a PyPI mirror.
-     --version                       Show the version and exit.
-     -h, --help                      Show this message and exit.
+    Options:
+      --where                         Output project home information.
+      --venv                          Output virtualenv information.
+      --py                            Output Python interpreter information.
+      --envs                          Output Environment Variable options.
+      --rm                            Remove the virtualenv.
+      --bare                          Minimal output.
+      --man                           Display manpage.
+      --support                       Output diagnostic information for use in
+                                      GitHub issues.
+      --site-packages / --no-site-packages
+                                      Enable site-packages for the virtualenv.
+                                      [env var: PIPENV_SITE_PACKAGES]
+      --python TEXT                   Specify which version of Python virtualenv
+                                      should use.
+      --three                         Use Python 3 when creating virtualenv.
+      --clear                         Clears caches (pipenv, pip).  [env var:
+                                      PIPENV_CLEAR]
+      -q, --quiet                     Quiet mode.
+      -v, --verbose                   Verbose mode.
+      --pypi-mirror TEXT              Specify a PyPI mirror.
+      --version                       Show the version and exit.
+      -h, --help                      Show this message and exit.
 
 
    Usage Examples:
+
       Create a new project using Python 3.7, specifically:
       $ pipenv --python 3.7
 
@@ -204,22 +205,23 @@ Magic shell completions are now enabled!
       $ pipenv run pip freeze
 
    Commands:
-     check         Checks for PyUp Safety security vulnerabilities and against
-                   PEP 508 markers provided in Pipfile.
-     clean         Uninstalls all packages not specified in Pipfile.lock.
-     graph         Displays currently-installed dependency graph information.
-     install       Installs provided packages and adds them to Pipfile, or (if no
-                   packages are given), installs all packages from Pipfile.
-     lock          Generates Pipfile.lock.
-     open          View a given module in your editor.
-     requirements  Generate a requirements.txt from Pipfile.lock.
-     run           Spawns a command installed into the virtualenv.
-     scripts       Lists scripts in current environment config.
-     shell         Spawns a shell within the virtualenv.
-     sync          Installs all packages specified in Pipfile.lock.
-     uninstall     Uninstalls a provided package and removes it from Pipfile.
-     update        Runs lock, then sync.
-     verify        Verify the hash in Pipfile.lock is up-to-date.
+
+      check         Checks for PyUp Safety security vulnerabilities and against
+                    PEP 508 markers provided in Pipfile.
+      clean         Uninstalls all packages not specified in Pipfile.lock.
+      graph         Displays currently-installed dependency graph information.
+      install       Installs provided packages and adds them to Pipfile, or (if no
+                    packages are given), installs all packages from Pipfile.
+      lock          Generates Pipfile.lock.
+      open          View a given module in your editor.
+      requirements  Generate a requirements.txt from Pipfile.lock.
+      run           Spawns a command installed into the virtualenv.
+      scripts       Lists scripts in current environment config.
+      shell         Spawns a shell within the virtualenv.
+      sync          Installs all packages specified in Pipfile.lock.
+      uninstall     Uninstalls a provided package and removes it from Pipfile.
+      update        Runs lock, then sync.
+      verify        Verify the hash in Pipfile.lock is up-to-date.
 
 
 Locate the project:
