@@ -250,6 +250,7 @@ def install(state, **kwargs):
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
         site_packages=state.site_packages,
+        extra_pip_args=state.installstate.extra_pip_args,
     )
 
 
@@ -561,6 +562,7 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
         unused=False,
         sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
+        extra_pip_args=state.installstate.extra_pip_args,
     )
 
 
@@ -652,6 +654,7 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
         sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
+        extra_pip_args=state.installstate.extra_pip_args,
     )
     if retcode:
         ctx.abort()
