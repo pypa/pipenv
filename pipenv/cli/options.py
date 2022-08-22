@@ -290,8 +290,9 @@ def package_arg(f):
 def extra_pip_args(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
-        for opt in value.split(" "):
-            state.installstate.extra_pip_args.append(opt)
+        if value:
+            for opt in value.split(" "):
+                state.installstate.extra_pip_args.append(opt)
         return value
 
     return option(
