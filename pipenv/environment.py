@@ -954,24 +954,6 @@ class Environment:
                 result = str(result.path)
         return result
 
-    def get_install_args(self, editable=False, setup_path=None):
-        install_arg = "install" if not editable else "develop"
-        install_keys = ["headers", "purelib", "platlib", "scripts", "data"]
-        install_args = [
-            self.environment.python,
-            "-u",
-            "-c",
-            SETUPTOOLS_SHIM % setup_path,
-            install_arg,
-            "--single-version-externally-managed",
-            "--no-deps",
-            "--prefix={}".format(self.base_paths["prefix"]),
-            "--no-warn-script-location",
-        ]
-        for key in install_keys:
-            install_args.append(f"--install-{key}={self.base_paths[key]}")
-        return install_args
-
     def install(self, requirements):
         if not isinstance(requirements, (tuple, list)):
             requirements = [requirements]
@@ -1055,12 +1037,3 @@ class Environment:
 class PatchedUninstaller:
     def _permitted(self, path):
         return True
-
-
-SETUPTOOLS_SHIM = (
-    "import setuptools, tokenize;__file__=%r;"
-    "f=getattr(tokenize, 'open', open)(__file__);"
-    "code=f.read().replace('\\r\\n', '\\n');"
-    "f.close();"
-    "exec(compile(code, __file__, 'exec'))"
-)
