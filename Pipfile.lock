@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "535f5609378c51f41250e88a2384edb3cf474276a042c1763354a26bebd206a0"
+            "sha256": "64dfa35807884dac7c04c3218849de56659da94dfc916b19ab686e08ec3e158e"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -139,7 +139,7 @@
                 "sha256:854bf444933e37f5824ae7bfc1e98d5bce2ebe4160d46b5edf346a89358e99da",
                 "sha256:e6c6b4334fc50988a639d9b98aa429a0b57da6e17b9a44f0451f930b6967b7a4"
             ],
-            "markers": "sys_platform == 'win32'",
+            "markers": "platform_system == 'Windows'",
             "version": "==0.4.5"
         },
         "coverage": {
@@ -507,8 +507,12 @@
             "version": "==3.0.9"
         },
         "pypiserver": {
-            "editable": true,
-            "path": "./../pypiserver"
+            "hashes": [
+                "sha256:dc689cf5a7b2b3ea941766bbf48b7d85ad01e9babcf90e40897b6aae2ad9f98e",
+                "sha256:fe2cbf08dfb8435767e9e8e2ea9aebf78f9382204c76d40f3bc79b45bb24f6eb"
+            ],
+            "index": "pypi",
+            "version": "==1.5.0"
         },
         "pytest": {
             "hashes": [
@@ -731,7 +735,7 @@
                 "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc",
                 "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"
             ],
-            "markers": "python_version >= '3.6'",
+            "markers": "python_full_version < '3.11.0a7'",
             "version": "==2.0.1"
         },
         "towncrier": {

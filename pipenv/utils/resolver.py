@@ -23,6 +23,7 @@ from pipenv.patched.pip._internal.req.constructors import (
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
+from pipenv.patched.pip._vendor.distlib.util import normalize_name
 from pipenv.project import Project
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib import Requirement
@@ -722,8 +723,12 @@ class Resolver:
             cleaned_checksums.add(checksum)
         return cleaned_checksums
 
-    def _get_hashes_from_pypi(self, ireq):
-        pkg_url = f"https://pypi.org/pypi/{ireq.name}/json"
+    def _get_hashes_from_pypi(self, ireq, alternate_index=None):
+        package_name = normalize_name(ireq.name)
+        if alternate_index:
+            pkg_url = f"{alternate_index}/{package_name}/json"
+        else:
+            pkg_url = f"https://pypi.org/pypi/{package_name}/json"
         session = _get_requests_session(self.project.s.PIPENV_MAX_RETRIES)
         try:
             collected_hashes = set()
@@ -771,6 +776,11 @@ class Resolver:
             hashes = self._get_hashes_from_pypi(ireq)
             if hashes:
                 return hashes
+        else:
+            for source in sources:
+                hashes = self._get_hashes_from_pypi(ireq, alternate_index=source["url"])
+                if hashes:
+                    return hashes
 
         applicable_candidates = self.ignore_compatibility_finder.find_best_candidate(
             ireq.name, ireq.specifier
