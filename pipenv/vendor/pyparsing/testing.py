@@ -1,7 +1,7 @@
 # testing.py
 
 from contextlib import contextmanager
-import typing
+from typing import Optional
 
 from .core import (
     ParserElement,
@@ -237,12 +237,12 @@ class pyparsing_test:
     @staticmethod
     def with_line_numbers(
         s: str,
-        start_line: typing.Optional[int] = None,
-        end_line: typing.Optional[int] = None,
+        start_line: Optional[int] = None,
+        end_line: Optional[int] = None,
         expand_tabs: bool = True,
         eol_mark: str = "|",
-        mark_spaces: typing.Optional[str] = None,
-        mark_control: typing.Optional[str] = None,
+        mark_spaces: Optional[str] = None,
+        mark_control: Optional[str] = None,
     ) -> str:
         """
         Helpful method for debugging a parser - prints a string with line and column numbers.

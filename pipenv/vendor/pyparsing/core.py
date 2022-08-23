@@ -2,8 +2,9 @@
 # core.py
 #
 import os
-import typing
 from typing import (
+    Optional as OptionalType,
+    Iterable as IterableType,
     NamedTuple,
     Union,
     Callable,
@@ -13,6 +14,7 @@ from typing import (
     List,
     TextIO,
     Set,
+    Dict as DictType,
     Sequence,
 )
 from abc import ABC, abstractmethod
@@ -21,6 +23,7 @@ import string
 import copy
 import warnings
 import re
+import sre_constants
 import sys
 from collections.abc import Iterable
 import traceback
@@ -50,7 +53,7 @@ _MAX_INT = sys.maxsize
 str_type: Tuple[type, ...] = (str, bytes)
 
 #
-# Copyright (c) 2003-2022  Paul T. McGuire
+# Copyright (c) 2003-2021  Paul T. McGuire
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -71,19 +74,6 @@ str_type: Tuple[type, ...] = (str, bytes)
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
-
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-
-    class cached_property:
-        def __init__(self, func):
-            self._func = func
-
-        def __get__(self, instance, owner=None):
-            ret = instance.__dict__[self._func.__name__] = self._func(instance)
-            return ret
 
 
 class __compat__(__config_flags):
@@ -190,7 +180,7 @@ del __config_flags
 
 
 def _should_enable_warnings(
-    cmd_line_warn_options: typing.Iterable[str], warn_env_var: typing.Optional[str]
+    cmd_line_warn_options: IterableType[str], warn_env_var: OptionalType[str]
 ) -> bool:
     enable = bool(warn_env_var)
     for warn_opt in cmd_line_warn_options:
@@ -256,10 +246,10 @@ hexnums = nums + "ABCDEFabcdef"
 alphanums = alphas + nums
 printables = "".join([c for c in string.printable if c not in string.whitespace])
 
-_trim_arity_call_line: traceback.StackSummary = None
+_trim_arity_call_line = None
 
 
-def _trim_arity(func, max_limit=3):
+def _trim_arity(func, maxargs=2):
     """decorator to trim function calls to match the arity of the target"""
     global _trim_arity_call_line
 
@@ -277,12 +267,16 @@ def _trim_arity(func, max_limit=3):
     # synthesize what would be returned by traceback.extract_stack at the call to
     # user's parse action 'func', so that we don't incur call penalty at parse time
 
-    # fmt: off
-    LINE_DIFF = 7
+    LINE_DIFF = 11
     # IF ANY CODE CHANGES, EVEN JUST COMMENTS OR BLANK LINES, BETWEEN THE NEXT LINE AND
     # THE CALL TO FUNC INSIDE WRAPPER, LINE_DIFF MUST BE MODIFIED!!!!
-    _trim_arity_call_line = (_trim_arity_call_line or traceback.extract_stack(limit=2)[-1])
-    pa_call_line_synth = (_trim_arity_call_line[0], _trim_arity_call_line[1] + LINE_DIFF)
+    _trim_arity_call_line = (
+        _trim_arity_call_line or traceback.extract_stack(limit=2)[-1]
+    )
+    pa_call_line_synth = (
+        _trim_arity_call_line[0],
+        _trim_arity_call_line[1] + LINE_DIFF,
+    )
 
     def wrapper(*args):
         nonlocal found_arity, limit
@@ -303,18 +297,16 @@ def _trim_arity(func, max_limit=3):
                     del tb
 
                     if trim_arity_type_error:
-                        if limit < max_limit:
+                        if limit <= maxargs:
                             limit += 1
                             continue
 
                     raise
-    # fmt: on
 
     # copy func name to wrapper for sensible debug output
     # (can't use functools.wraps, since that messes with function signature)
     func_name = getattr(func, "__name__", getattr(func, "__class__").__name__)
     wrapper.__name__ = func_name
-    wrapper.__doc__ = func.__doc__
 
     return wrapper
 
@@ -402,7 +394,7 @@ class ParserElement(ABC):
 
     DEFAULT_WHITE_CHARS: str = " \n\t\r"
     verbose_stacktrace: bool = False
-    _literalStringClass: typing.Optional[type] = None
+    _literalStringClass: OptionalType[type] = None
 
     @staticmethod
     def set_default_whitespace_chars(chars: str) -> None:
@@ -412,11 +404,11 @@ class ParserElement(ABC):
         Example::
 
             # default whitespace chars are space, <TAB> and newline
-            Word(alphas)[1, ...].parse_string("abc def\nghi jkl")  # -> ['abc', 'def', 'ghi', 'jkl']
+            OneOrMore(Word(alphas)).parse_string("abc def\nghi jkl")  # -> ['abc', 'def', 'ghi', 'jkl']
 
             # change to just treat newline as significant
             ParserElement.set_default_whitespace_chars(" \t")
-            Word(alphas)[1, ...].parse_string("abc def\nghi jkl")  # -> ['abc', 'def']
+            OneOrMore(Word(alphas)).parse_string("abc def\nghi jkl")  # -> ['abc', 'def']
         """
         ParserElement.DEFAULT_WHITE_CHARS = chars
 
@@ -448,13 +440,13 @@ class ParserElement(ABC):
         ParserElement._literalStringClass = cls
 
     class DebugActions(NamedTuple):
-        debug_try: typing.Optional[DebugStartAction]
-        debug_match: typing.Optional[DebugSuccessAction]
-        debug_fail: typing.Optional[DebugExceptionAction]
+        debug_try: OptionalType[DebugStartAction]
+        debug_match: OptionalType[DebugSuccessAction]
+        debug_fail: OptionalType[DebugExceptionAction]
 
     def __init__(self, savelist: bool = False):
         self.parseAction: List[ParseAction] = list()
-        self.failAction: typing.Optional[ParseFailAction] = None
+        self.failAction: OptionalType[ParseFailAction] = None
         self.customName = None
         self._defaultName = None
         self.resultsName = None
@@ -475,6 +467,7 @@ class ParserElement(ABC):
         self.modalResults = True
         # custom debug actions
         self.debugActions = self.DebugActions(None, None, None)
+        self.re = None
         # avoid redundant calls to preParse
         self.callPreparse = True
         self.callDuringTry = False
@@ -508,7 +501,7 @@ class ParserElement(ABC):
             integerK = integer.copy().add_parse_action(lambda toks: toks[0] * 1024) + Suppress("K")
             integerM = integer.copy().add_parse_action(lambda toks: toks[0] * 1024 * 1024) + Suppress("M")
 
-            print((integerK | integerM | integer)[1, ...].parse_string("5K 100 640K 256M"))
+            print(OneOrMore(integerK | integerM | integer).parse_string("5K 100 640K 256M"))
 
         prints::
 
@@ -893,7 +886,7 @@ class ParserElement(ABC):
 
     # cache for left-recursion in Forward references
     recursion_lock = RLock()
-    recursion_memos: typing.Dict[
+    recursion_memos: DictType[
         Tuple[int, "Forward", bool], Tuple[int, Union[ParseResults, Exception]]
     ] = {}
 
@@ -983,7 +976,7 @@ class ParserElement(ABC):
 
     @staticmethod
     def enable_left_recursion(
-        cache_size_limit: typing.Optional[int] = None, *, force=False
+        cache_size_limit: OptionalType[int] = None, *, force=False
     ) -> None:
         """
         Enables "bounded recursion" parsing, which allows for both direct and indirect
@@ -1349,7 +1342,7 @@ class ParserElement(ABC):
             last = e
         yield instring[last:]
 
-    def __add__(self, other) -> "ParserElement":
+    def __add__(self, other):
         """
         Implementation of ``+`` operator - returns :class:`And`. Adding strings to a :class:`ParserElement`
         converts them to :class:`Literal`s by default.
@@ -1389,7 +1382,7 @@ class ParserElement(ABC):
             )
         return And([self, other])
 
-    def __radd__(self, other) -> "ParserElement":
+    def __radd__(self, other):
         """
         Implementation of ``+`` operator when left operand is not a :class:`ParserElement`
         """
@@ -1406,7 +1399,7 @@ class ParserElement(ABC):
             )
         return other + self
 
-    def __sub__(self, other) -> "ParserElement":
+    def __sub__(self, other):
         """
         Implementation of ``-`` operator, returns :class:`And` with error stop
         """
@@ -1420,7 +1413,7 @@ class ParserElement(ABC):
             )
         return self + And._ErrorStop() + other
 
-    def __rsub__(self, other) -> "ParserElement":
+    def __rsub__(self, other):
         """
         Implementation of ``-`` operator when left operand is not a :class:`ParserElement`
         """
@@ -1434,7 +1427,7 @@ class ParserElement(ABC):
             )
         return other - self
 
-    def __mul__(self, other) -> "ParserElement":
+    def __mul__(self, other):
         """
         Implementation of ``*`` operator, allows use of ``expr * 3`` in place of
         ``expr + expr + expr``.  Expressions may also be multiplied by a 2-integer
@@ -1520,10 +1513,10 @@ class ParserElement(ABC):
                 ret = And([self] * minElements)
         return ret
 
-    def __rmul__(self, other) -> "ParserElement":
+    def __rmul__(self, other):
         return self.__mul__(other)
 
-    def __or__(self, other) -> "ParserElement":
+    def __or__(self, other):
         """
         Implementation of ``|`` operator - returns :class:`MatchFirst`
         """
@@ -1540,7 +1533,7 @@ class ParserElement(ABC):
             )
         return MatchFirst([self, other])
 
-    def __ror__(self, other) -> "ParserElement":
+    def __ror__(self, other):
         """
         Implementation of ``|`` operator when left operand is not a :class:`ParserElement`
         """
@@ -1554,7 +1547,7 @@ class ParserElement(ABC):
             )
         return other | self
 
-    def __xor__(self, other) -> "ParserElement":
+    def __xor__(self, other):
         """
         Implementation of ``^`` operator - returns :class:`Or`
         """
@@ -1568,7 +1561,7 @@ class ParserElement(ABC):
             )
         return Or([self, other])
 
-    def __rxor__(self, other) -> "ParserElement":
+    def __rxor__(self, other):
         """
         Implementation of ``^`` operator when left operand is not a :class:`ParserElement`
         """
@@ -1582,7 +1575,7 @@ class ParserElement(ABC):
             )
         return other ^ self
 
-    def __and__(self, other) -> "ParserElement":
+    def __and__(self, other):
         """
         Implementation of ``&`` operator - returns :class:`Each`
         """
@@ -1596,7 +1589,7 @@ class ParserElement(ABC):
             )
         return Each([self, other])
 
-    def __rand__(self, other) -> "ParserElement":
+    def __rand__(self, other):
         """
         Implementation of ``&`` operator when left operand is not a :class:`ParserElement`
         """
@@ -1610,7 +1603,7 @@ class ParserElement(ABC):
             )
         return other & self
 
-    def __invert__(self) -> "ParserElement":
+    def __invert__(self):
         """
         Implementation of ``~`` operator - returns :class:`NotAny`
         """
@@ -1660,7 +1653,7 @@ class ParserElement(ABC):
         ret = self * tuple(key[:2])
         return ret
 
-    def __call__(self, name: str = None) -> "ParserElement":
+    def __call__(self, name: str = None):
         """
         Shortcut for :class:`set_results_name`, with ``list_all_matches=False``.
 
@@ -1736,7 +1729,7 @@ class ParserElement(ABC):
 
         Example::
 
-            patt = Word(alphas)[1, ...]
+            patt = OneOrMore(Word(alphas))
             patt.parse_string('ablaj /* comment */ lskjd')
             # -> ['ablaj']
 
@@ -1796,7 +1789,7 @@ class ParserElement(ABC):
             # turn on debugging for wd
             wd.set_debug()
 
-            term[1, ...].parse_string("abc 123 xyz 890")
+            OneOrMore(term).parse_string("abc 123 xyz 890")
 
         prints::
 
@@ -1951,12 +1944,12 @@ class ParserElement(ABC):
         self,
         tests: Union[str, List[str]],
         parse_all: bool = True,
-        comment: typing.Optional[Union["ParserElement", str]] = "#",
+        comment: OptionalType[Union["ParserElement", str]] = "#",
         full_dump: bool = True,
         print_results: bool = True,
         failure_tests: bool = False,
         post_parse: Callable[[str, ParseResults], str] = None,
-        file: typing.Optional[TextIO] = None,
+        file: OptionalType[TextIO] = None,
         with_line_numbers: bool = False,
         *,
         parseAll: bool = True,
@@ -2147,7 +2140,6 @@ class ParserElement(ABC):
         output_html: Union[TextIO, Path, str],
         vertical: int = 3,
         show_results_names: bool = False,
-        show_groups: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -2160,7 +2152,7 @@ class ParserElement(ABC):
           instead of horizontally (default=3)
         - show_results_names - bool flag whether diagram should show annotations for
           defined results names
-        - show_groups - bool flag whether groups should be highlighted with an unlabeled surrounding box
+
         Additional diagram-formatting keyword arguments can also be included;
         see railroad.Diagram class.
         """
@@ -2178,7 +2170,6 @@ class ParserElement(ABC):
             self,
             vertical=vertical,
             show_results_names=show_results_names,
-            show_groups=show_groups,
             diagram_kwargs=kwargs,
         )
         if isinstance(output_html, (str, Path)):
@@ -2228,7 +2219,7 @@ class _PendingSkip(ParserElement):
     def _generateDefaultName(self):
         return str(self.anchor + Empty()).replace("Empty", "...")
 
-    def __add__(self, other) -> "ParserElement":
+    def __add__(self, other):
         skipper = SkipTo(other).set_name("...")("_skipped*")
         if self.must_skip:
 
@@ -2383,11 +2374,11 @@ class Keyword(Token):
     def __init__(
         self,
         match_string: str = "",
-        ident_chars: typing.Optional[str] = None,
+        ident_chars: OptionalType[str] = None,
         caseless: bool = False,
         *,
         matchString: str = "",
-        identChars: typing.Optional[str] = None,
+        identChars: OptionalType[str] = None,
     ):
         super().__init__()
         identChars = identChars or ident_chars
@@ -2477,7 +2468,7 @@ class CaselessLiteral(Literal):
 
     Example::
 
-        CaselessLiteral("CMD")[1, ...].parse_string("cmd CMD Cmd10")
+        OneOrMore(CaselessLiteral("CMD")).parse_string("cmd CMD Cmd10")
         # -> ['CMD', 'CMD', 'CMD']
 
     (Contrast with example for :class:`CaselessKeyword`.)
@@ -2502,7 +2493,7 @@ class CaselessKeyword(Keyword):
 
     Example::
 
-        CaselessKeyword("CMD")[1, ...].parse_string("cmd CMD Cmd10")
+        OneOrMore(CaselessKeyword("CMD")).parse_string("cmd CMD Cmd10")
         # -> ['CMD', 'CMD']
 
     (Contrast with example for :class:`CaselessLiteral`.)
@@ -2511,10 +2502,10 @@ class CaselessKeyword(Keyword):
     def __init__(
         self,
         match_string: str = "",
-        ident_chars: typing.Optional[str] = None,
+        ident_chars: OptionalType[str] = None,
         *,
         matchString: str = "",
-        identChars: typing.Optional[str] = None,
+        identChars: OptionalType[str] = None,
     ):
         identChars = identChars or ident_chars
         match_string = matchString or match_string
@@ -2678,17 +2669,17 @@ class Word(Token):
     def __init__(
         self,
         init_chars: str = "",
-        body_chars: typing.Optional[str] = None,
+        body_chars: OptionalType[str] = None,
         min: int = 1,
         max: int = 0,
         exact: int = 0,
         as_keyword: bool = False,
-        exclude_chars: typing.Optional[str] = None,
+        exclude_chars: OptionalType[str] = None,
         *,
-        initChars: typing.Optional[str] = None,
-        bodyChars: typing.Optional[str] = None,
+        initChars: OptionalType[str] = None,
+        bodyChars: OptionalType[str] = None,
         asKeyword: bool = False,
-        excludeChars: typing.Optional[str] = None,
+        excludeChars: OptionalType[str] = None,
     ):
         initChars = initChars or init_chars
         bodyChars = bodyChars or body_chars
@@ -2782,7 +2773,7 @@ class Word(Token):
 
             try:
                 self.re = re.compile(self.reString)
-            except re.error:
+            except sre_constants.error:
                 self.re = None
             else:
                 self.re_match = self.re.match
@@ -2870,10 +2861,10 @@ class Char(_WordRegex):
         self,
         charset: str,
         as_keyword: bool = False,
-        exclude_chars: typing.Optional[str] = None,
+        exclude_chars: OptionalType[str] = None,
         *,
         asKeyword: bool = False,
-        excludeChars: typing.Optional[str] = None,
+        excludeChars: OptionalType[str] = None,
     ):
         asKeyword = asKeyword or as_keyword
         excludeChars = excludeChars or exclude_chars
@@ -2935,12 +2926,19 @@ class Regex(Token):
             if not pattern:
                 raise ValueError("null string passed to Regex; use Empty() instead")
 
-            self._re = None
-            self.reString = self.pattern = pattern
+            self.pattern = pattern
             self.flags = flags
 
+            try:
+                self.re = re.compile(self.pattern, self.flags)
+                self.reString = self.pattern
+            except sre_constants.error:
+                raise ValueError(
+                    "invalid pattern ({!r}) passed to Regex".format(pattern)
+                )
+
         elif hasattr(pattern, "pattern") and hasattr(pattern, "match"):
-            self._re = pattern
+            self.re = pattern
             self.pattern = self.reString = pattern.pattern
             self.flags = flags
 
@@ -2949,34 +2947,17 @@ class Regex(Token):
                 "Regex may only be constructed with a string or a compiled RE object"
             )
 
+        self.re_match = self.re.match
+
         self.errmsg = "Expected " + self.name
         self.mayIndexError = False
+        self.mayReturnEmpty = self.re_match("") is not None
         self.asGroupList = asGroupList
         self.asMatch = asMatch
         if self.asGroupList:
             self.parseImpl = self.parseImplAsGroupList
         if self.asMatch:
             self.parseImpl = self.parseImplAsMatch
-
-    @cached_property
-    def re(self):
-        if self._re:
-            return self._re
-        else:
-            try:
-                return re.compile(self.pattern, self.flags)
-            except re.error:
-                raise ValueError(
-                    "invalid pattern ({!r}) passed to Regex".format(self.pattern)
-                )
-
-    @cached_property
-    def re_match(self):
-        return self.re.match
-
-    @cached_property
-    def mayReturnEmpty(self):
-        return self.re_match("") is not None
 
     def _generateDefaultName(self):
         return "Re:({})".format(repr(self.pattern).replace("\\\\", "\\"))
@@ -3086,18 +3067,18 @@ class QuotedString(Token):
     def __init__(
         self,
         quote_char: str = "",
-        esc_char: typing.Optional[str] = None,
-        esc_quote: typing.Optional[str] = None,
+        esc_char: OptionalType[str] = None,
+        esc_quote: OptionalType[str] = None,
         multiline: bool = False,
         unquote_results: bool = True,
-        end_quote_char: typing.Optional[str] = None,
+        end_quote_char: OptionalType[str] = None,
         convert_whitespace_escapes: bool = True,
         *,
         quoteChar: str = "",
-        escChar: typing.Optional[str] = None,
-        escQuote: typing.Optional[str] = None,
+        escChar: OptionalType[str] = None,
+        escQuote: OptionalType[str] = None,
         unquoteResults: bool = True,
-        endQuoteChar: typing.Optional[str] = None,
+        endQuoteChar: OptionalType[str] = None,
         convertWhitespaceEscapes: bool = True,
     ):
         super().__init__()
@@ -3187,7 +3168,7 @@ class QuotedString(Token):
             self.re = re.compile(self.pattern, self.flags)
             self.reString = self.pattern
             self.re_match = self.re.match
-        except re.error:
+        except sre_constants.error:
             raise ValueError(
                 "invalid pattern {!r} passed to Regex".format(self.pattern)
             )
@@ -3598,7 +3579,7 @@ class ParseExpression(ParserElement):
     post-processing parsed tokens.
     """
 
-    def __init__(self, exprs: typing.Iterable[ParserElement], savelist: bool = False):
+    def __init__(self, exprs: IterableType[ParserElement], savelist: bool = False):
         super().__init__(savelist)
         self.exprs: List[ParserElement]
         if isinstance(exprs, _generatorType):
@@ -3765,7 +3746,7 @@ class And(ParseExpression):
     Example::
 
         integer = Word(nums)
-        name_expr = Word(alphas)[1, ...]
+        name_expr = OneOrMore(Word(alphas))
 
         expr = And([integer("id"), name_expr("name"), integer("age")])
         # more easily written as:
@@ -3780,9 +3761,7 @@ class And(ParseExpression):
         def _generateDefaultName(self):
             return "-"
 
-    def __init__(
-        self, exprs_arg: typing.Iterable[ParserElement], savelist: bool = True
-    ):
+    def __init__(self, exprs_arg: IterableType[ParserElement], savelist: bool = True):
         exprs: List[ParserElement] = list(exprs_arg)
         if exprs and Ellipsis in exprs:
             tmp = []
@@ -3847,9 +3826,7 @@ class And(ParseExpression):
                 seen.add(id(cur))
                 if isinstance(cur, IndentedBlock):
                     prev.add_parse_action(
-                        lambda s, l, t, cur_=cur: setattr(
-                            cur_, "parent_anchor", col(l, s)
-                        )
+                        lambda s, l, t, cur_=cur: setattr(cur_, "parent_anchor", col(l, s))
                     )
                     break
                 subs = cur.recurse()
@@ -3926,7 +3903,7 @@ class Or(ParseExpression):
         [['123'], ['3.1416'], ['789']]
     """
 
-    def __init__(self, exprs: typing.Iterable[ParserElement], savelist: bool = False):
+    def __init__(self, exprs: IterableType[ParserElement], savelist: bool = False):
         super().__init__(exprs, savelist)
         if self.exprs:
             self.mayReturnEmpty = any(e.mayReturnEmpty for e in self.exprs)
@@ -4081,7 +4058,7 @@ class MatchFirst(ParseExpression):
         print(number.search_string("123 3.1416 789")) #  Better -> [['123'], ['3.1416'], ['789']]
     """
 
-    def __init__(self, exprs: typing.Iterable[ParserElement], savelist: bool = False):
+    def __init__(self, exprs: IterableType[ParserElement], savelist: bool = False):
         super().__init__(exprs, savelist)
         if self.exprs:
             self.mayReturnEmpty = any(e.mayReturnEmpty for e in self.exprs)
@@ -4232,7 +4209,7 @@ class Each(ParseExpression):
         - size: 20
     """
 
-    def __init__(self, exprs: typing.Iterable[ParserElement], savelist: bool = True):
+    def __init__(self, exprs: IterableType[ParserElement], savelist: bool = True):
         super().__init__(exprs, savelist)
         if self.exprs:
             self.mayReturnEmpty = all(e.mayReturnEmpty for e in self.exprs)
@@ -4568,7 +4545,7 @@ class FollowedBy(ParseElementEnhance):
         label = data_word + FollowedBy(':')
         attr_expr = Group(label + Suppress(':') + OneOrMore(data_word, stop_on=label).set_parse_action(' '.join))
 
-        attr_expr[1, ...].parse_string("shape: SQUARE color: BLACK posn: upper left").pprint()
+        OneOrMore(attr_expr).parse_string("shape: SQUARE color: BLACK posn: upper left").pprint()
 
     prints::
 
@@ -4619,7 +4596,7 @@ class PrecededBy(ParseElementEnhance):
     """
 
     def __init__(
-        self, expr: Union[ParserElement, str], retreat: typing.Optional[int] = None
+        self, expr: Union[ParserElement, str], retreat: OptionalType[int] = None
     ):
         super().__init__(expr)
         self.expr = self.expr().leave_whitespace()
@@ -4730,7 +4707,7 @@ class NotAny(ParseElementEnhance):
 
         # very crude boolean expression - to support parenthesis groups and
         # operation hierarchy, use infix_notation
-        boolean_expr = boolean_term + ((AND | OR) + boolean_term)[...]
+        boolean_expr = boolean_term + ZeroOrMore((AND | OR) + boolean_term)
 
         # integers that are followed by "." are actually floats
         integer = Word(nums) + ~Char(".")
@@ -4758,9 +4735,9 @@ class _MultipleMatch(ParseElementEnhance):
     def __init__(
         self,
         expr: ParserElement,
-        stop_on: typing.Optional[Union[ParserElement, str]] = None,
+        stop_on: OptionalType[Union[ParserElement, str]] = None,
         *,
-        stopOn: typing.Optional[Union[ParserElement, str]] = None,
+        stopOn: OptionalType[Union[ParserElement, str]] = None,
     ):
         super().__init__(expr)
         stopOn = stopOn or stop_on
@@ -4849,7 +4826,7 @@ class OneOrMore(_MultipleMatch):
         attr_expr = Group(label + Suppress(':') + OneOrMore(data_word).set_parse_action(' '.join))
 
         text = "shape: SQUARE posn: upper left color: BLACK"
-        attr_expr[1, ...].parse_string(text).pprint()  # Fail! read 'color' as data instead of next label -> [['shape', 'SQUARE color']]
+        OneOrMore(attr_expr).parse_string(text).pprint()  # Fail! read 'color' as data instead of next label -> [['shape', 'SQUARE color']]
 
         # use stop_on attribute for OneOrMore to avoid reading label string as part of the data
         attr_expr = Group(label + Suppress(':') + OneOrMore(data_word, stop_on=label).set_parse_action(' '.join))
@@ -4879,9 +4856,9 @@ class ZeroOrMore(_MultipleMatch):
     def __init__(
         self,
         expr: ParserElement,
-        stop_on: typing.Optional[Union[ParserElement, str]] = None,
+        stop_on: OptionalType[Union[ParserElement, str]] = None,
         *,
-        stopOn: typing.Optional[Union[ParserElement, str]] = None,
+        stopOn: OptionalType[Union[ParserElement, str]] = None,
     ):
         super().__init__(expr, stopOn=stopOn or stop_on)
         self.mayReturnEmpty = True
@@ -5025,20 +5002,20 @@ class SkipTo(ParseElementEnhance):
     prints::
 
         ['101', 'Critical', 'Intermittent system crash', '6']
-        - days_open: '6'
-        - desc: 'Intermittent system crash'
-        - issue_num: '101'
-        - sev: 'Critical'
+        - days_open: 6
+        - desc: Intermittent system crash
+        - issue_num: 101
+        - sev: Critical
         ['94', 'Cosmetic', "Spelling error on Login ('log|n')", '14']
-        - days_open: '14'
-        - desc: "Spelling error on Login ('log|n')"
-        - issue_num: '94'
-        - sev: 'Cosmetic'
+        - days_open: 14
+        - desc: Spelling error on Login ('log|n')
+        - issue_num: 94
+        - sev: Cosmetic
         ['79', 'Minor', 'System slow when running too many reports', '47']
-        - days_open: '47'
-        - desc: 'System slow when running too many reports'
-        - issue_num: '79'
-        - sev: 'Minor'
+        - days_open: 47
+        - desc: System slow when running too many reports
+        - issue_num: 79
+        - sev: Minor
     """
 
     def __init__(
@@ -5046,7 +5023,7 @@ class SkipTo(ParseElementEnhance):
         other: Union[ParserElement, str],
         include: bool = False,
         ignore: bool = None,
-        fail_on: typing.Optional[Union[ParserElement, str]] = None,
+        fail_on: OptionalType[Union[ParserElement, str]] = None,
         *,
         failOn: Union[ParserElement, str] = None,
     ):
@@ -5143,7 +5120,7 @@ class Forward(ParseElementEnhance):
     parser created using ``Forward``.
     """
 
-    def __init__(self, other: typing.Optional[Union[ParserElement, str]] = None):
+    def __init__(self, other: OptionalType[Union[ParserElement, str]] = None):
         self.caller_frame = traceback.extract_stack(limit=2)[0]
         super().__init__(other, savelist=False)
         self.lshift_line = None
@@ -5395,7 +5372,7 @@ class Combine(TokenConverter):
         join_string: str = "",
         adjacent: bool = True,
         *,
-        joinString: typing.Optional[str] = None,
+        joinString: OptionalType[str] = None,
     ):
         super().__init__(expr)
         joinString = joinString if joinString is not None else join_string
@@ -5482,10 +5459,10 @@ class Dict(TokenConverter):
         attr_expr = (label + Suppress(':') + OneOrMore(data_word, stop_on=label).set_parse_action(' '.join))
 
         # print attributes as plain groups
-        print(attr_expr[1, ...].parse_string(text).dump())
+        print(OneOrMore(attr_expr).parse_string(text).dump())
 
-        # instead of OneOrMore(expr), parse using Dict(Group(expr)[1, ...]) - Dict will auto-assign names
-        result = Dict(Group(attr_expr)[1, ...]).parse_string(text)
+        # instead of OneOrMore(expr), parse using Dict(OneOrMore(Group(expr))) - Dict will auto-assign names
+        result = Dict(OneOrMore(Group(attr_expr))).parse_string(text)
         print(result.dump())
 
         # access named fields as dict entries, or output as dict
@@ -5496,10 +5473,10 @@ class Dict(TokenConverter):
 
         ['shape', 'SQUARE', 'posn', 'upper left', 'color', 'light blue', 'texture', 'burlap']
         [['shape', 'SQUARE'], ['posn', 'upper left'], ['color', 'light blue'], ['texture', 'burlap']]
-        - color: 'light blue'
-        - posn: 'upper left'
-        - shape: 'SQUARE'
-        - texture: 'burlap'
+        - color: light blue
+        - posn: upper left
+        - shape: SQUARE
+        - texture: burlap
         SQUARE
         {'color': 'light blue', 'posn': 'upper left', 'texture': 'burlap', 'shape': 'SQUARE'}
 
@@ -5558,12 +5535,12 @@ class Suppress(TokenConverter):
 
         source = "a, b, c,d"
         wd = Word(alphas)
-        wd_list1 = wd + (',' + wd)[...]
+        wd_list1 = wd + ZeroOrMore(',' + wd)
         print(wd_list1.parse_string(source))
 
         # often, delimiters that are useful during parsing are just in the
         # way afterward - use Suppress to keep them out of the parsed output
-        wd_list2 = wd + (Suppress(',') + wd)[...]
+        wd_list2 = wd + ZeroOrMore(Suppress(',') + wd)
         print(wd_list2.parse_string(source))
 
         # Skipped text (using '...') can be suppressed as well
@@ -5587,13 +5564,13 @@ class Suppress(TokenConverter):
             expr = _PendingSkip(NoMatch())
         super().__init__(expr)
 
-    def __add__(self, other) -> "ParserElement":
+    def __add__(self, other):
         if isinstance(self.expr, _PendingSkip):
             return Suppress(SkipTo(other)) + other
         else:
             return super().__add__(other)
 
-    def __sub__(self, other) -> "ParserElement":
+    def __sub__(self, other):
         if isinstance(self.expr, _PendingSkip):
             return Suppress(SkipTo(other)) - other
         else:
@@ -5622,7 +5599,7 @@ def trace_parse_action(f: ParseAction) -> ParseAction:
         def remove_duplicate_chars(tokens):
             return ''.join(sorted(set(''.join(tokens))))
 
-        wds = wd[1, ...].set_parse_action(remove_duplicate_chars)
+        wds = OneOrMore(wd).set_parse_action(remove_duplicate_chars)
         print(wds.parse_string("slkdjs sld sldd sdlf sdljf"))
 
     prints::
@@ -5728,18 +5705,18 @@ def token_map(func, *args) -> ParseAction:
 
     Example (compare the last to example in :class:`ParserElement.transform_string`::
 
-        hex_ints = Word(hexnums)[1, ...].set_parse_action(token_map(int, 16))
+        hex_ints = OneOrMore(Word(hexnums)).set_parse_action(token_map(int, 16))
         hex_ints.run_tests('''
             00 11 22 aa FF 0a 0d 1a
             ''')
 
         upperword = Word(alphas).set_parse_action(token_map(str.upper))
-        upperword[1, ...].run_tests('''
+        OneOrMore(upperword).run_tests('''
             my kingdom for a horse
             ''')
 
         wd = Word(alphas).set_parse_action(token_map(str.title))
-        wd[1, ...].set_parse_action(' '.join).run_tests('''
+        OneOrMore(wd).set_parse_action(' '.join).run_tests('''
             now is the winter of our discontent made glorious summer by this sun of york
             ''')
 
@@ -5795,9 +5772,7 @@ punc8bit = srange(r"[\0xa1-\0xbf\0xd7\0xf7]")
 
 # build list of built-in expressions, for future reference if a global default value
 # gets updated
-_builtin_exprs: List[ParserElement] = [
-    v for v in vars().values() if isinstance(v, ParserElement)
-]
+_builtin_exprs = [v for v in vars().values() if isinstance(v, ParserElement)]
 
 # backward compatibility names
 tokenMap = token_map

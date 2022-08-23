@@ -11,7 +11,7 @@ from itertools import chain
 
 import pipenv.vendor.attr as attr
 import pipenv.vendor.six as six
-from pipenv.vendor.pyparsing.core import cached_property
+from pipenv.patched.pip._vendor.distlib.util import cached_property
 
 from ..compat import Path, fs_str
 from ..environment import (

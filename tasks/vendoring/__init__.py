@@ -62,6 +62,7 @@ LIBRARY_RENAMES = {
     "requests": "pipenv.patched.pip._vendor.requests",
     "packaging": "pipenv.patched.pip._vendor.packaging",
     "urllib3": "pipenv.patched.pip._vendor.urllib3",
+    "zipp": "pipenv.vendor.zipp",
 }
 
 GLOBAL_REPLACEMENT = [
@@ -78,7 +79,7 @@ GLOBAL_REPLACEMENT = [
     ),
     (
         r"from cached_property import cached_property",
-        r"from pipenv.vendor.pyparsing.core import cached_property",
+        r"from pipenv.patched.pip._vendor.distlib.util import cached_property",
     ),
     (r"(?<!\.)pep517\.envbuild", r"envbuild"),
     (r"(?<!\.)pep517\.wrappers", r"wrappers"),

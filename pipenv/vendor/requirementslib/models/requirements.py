@@ -15,7 +15,7 @@ from urllib.parse import unquote
 
 import pipenv.vendor.attr as attr
 import pipenv.vendor.pip_shims as pip_shims
-from pipenv.vendor.pyparsing.core import cached_property
+from pipenv.patched.pip._vendor.distlib.util import cached_property
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import (
