@@ -171,8 +171,8 @@ pytz = "*"
 
 @pytest.mark.run
 @pytest.mark.install
-def test_normalize_name_install(PipenvInstance):
-    with PipenvInstance() as p:
+def test_normalize_name_install(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 # Pre comment
@@ -205,14 +205,14 @@ Requests = "==2.14.0"   # Inline comment
 @pytest.mark.files
 @pytest.mark.local
 @pytest.mark.resolver
-def test_local_package(PipenvInstance, pip_src_dir, testsroot):
+def test_local_package(PipenvInstance_NoPyPI, pip_src_dir, testsroot):
     """This test ensures that local packages (directories with a setup.py)
     installed in editable mode have their dependencies resolved as well"""
     file_name = "requests-2.19.1.tar.gz"
     package = "requests-2.19.1"
     # Not sure where travis/appveyor run tests from
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         # This tests for a bug when installing a zipfile in the current dir
         copy_to = os.path.join(p.path, file_name)
         shutil.copy(source_path, copy_to)
@@ -231,12 +231,12 @@ def test_local_package(PipenvInstance, pip_src_dir, testsroot):
 @pytest.mark.files
 @pytest.mark.local
 @flaky
-def test_local_zipfiles(PipenvInstance, testsroot):
+def test_local_zipfiles(PipenvInstance_NoPyPI, testsroot):
     file_name = "requests-2.19.1.tar.gz"
     # Not sure where travis/appveyor run tests from
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
 
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         # This tests for a bug when installing a zipfile in the current dir
         shutil.copy(source_path, os.path.join(p.path, file_name))
 
@@ -257,11 +257,11 @@ def test_local_zipfiles(PipenvInstance, testsroot):
 @pytest.mark.local
 @pytest.mark.files
 @flaky
-def test_relative_paths(PipenvInstance, testsroot):
+def test_relative_paths(PipenvInstance_NoPyPI, testsroot):
     file_name = "requests-2.19.1.tar.gz"
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
 
-    with PipenvInstance() as p:
+    with PipenvInstance_NoPyPI() as p:
         artifact_dir = "artifacts"
         artifact_path = os.path.join(p.path, artifact_dir)
         mkdir_p(artifact_path)
@@ -281,8 +281,8 @@ def test_relative_paths(PipenvInstance, testsroot):
 @pytest.mark.local
 @pytest.mark.local_file
 @flaky
-def test_install_local_file_collision(PipenvInstance):
-    with PipenvInstance() as p:
+def test_install_local_file_collision(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         target_package = "alembic"
         fake_file = os.path.join(p.path, target_package)
         with open(fake_file, "w") as f:
@@ -321,7 +321,7 @@ six = {{path = "./artifacts/{}"}}
 @pytest.mark.run
 @pytest.mark.files
 @pytest.mark.install
-def test_multiple_editable_packages_should_not_race(PipenvInstance, testsroot):
+def test_multiple_editable_packages_should_not_race(PipenvInstance_NoPyPI, testsroot):
     """Test for a race condition that can occur when installing multiple 'editable' packages at
     once, and which causes some of them to not be importable.
 
@@ -338,7 +338,7 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, testsroot):
 [packages]
 """
 
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         for pkg_name in pkgs:
             source_path = p._pipfile.get_fixture_path(f"git/{pkg_name}/").as_posix()
             shutil.copytree(source_path, pkg_name)
@@ -356,8 +356,8 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, testsroot):
 
 
 @pytest.mark.outdated
-def test_outdated_should_compare_postreleases_without_failing(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_outdated_should_compare_postreleases_without_failing(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         c = p.pipenv("install ibm-db-sa-py3==0.3.0")
         assert c.returncode == 0
         c = p.pipenv("update --outdated")

@@ -6,6 +6,7 @@ import os
 import shlex
 import shutil
 import traceback
+import threading
 import sys
 import warnings
 from pathlib import Path
@@ -17,6 +18,7 @@ import requests
 from click.testing import CliRunner
 from pytest_pypi.app import prepare_fixtures
 from pytest_pypi.app import prepare_packages as prepare_pypi_packages
+import pypiserver
 
 from pipenv.cli import cli
 from pipenv.exceptions import VirtualenvActivationException
@@ -125,6 +127,15 @@ def pytest_runtest_setup(item):
         pytest.skip('test is skipped on python 3.6')
     if item.get_closest_marker('skip_windows') is not None and (os.name == 'nt'):
         pytest.skip('test does not run on windows')
+
+
+@pytest.fixture(scope='session')
+def pypi_server(request):
+    server = pypiserver.app(roots=[PYPI_VENDOR_DIR], disable_fallback=True)
+    thread = threading.Thread(name=server.__class__, target=server.run)
+    thread.start()
+    request.addfinalizer(functools.partial(thread.join, timeout=2))
+    return server
 
 
 @pytest.fixture
@@ -278,9 +289,9 @@ class _Pipfile:
         fixture_pypi = os.getenv("ARTIFACT_PYPI_URL")
         if fixture_pypi:
             if pkg and not filename:
-                url = f"{fixture_pypi}/artifacts/{pkg}"
+                url = f"{fixture_pypi}/{pkg}"
             else:
-                url = f"{fixture_pypi}/artifacts/{pkg}/{filename}"
+                url = f"{fixture_pypi}/{pkg}/{filename}"
             return url
         if pkg and not filename:
             return cls.get_fixture_path(file_path).as_uri()
@@ -439,17 +450,17 @@ def pip_src_dir(request, vistir_tmpdir):
 
 
 @pytest.fixture()
-def PipenvInstance(pip_src_dir, monkeypatch, pypi, capfdbinary):
+def PipenvInstance(pip_src_dir, monkeypatch, pypi_server, capfdbinary):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
         m.setenv("PIPENV_NOSPIN", "1")
         m.setenv("CI", "1")
         m.setenv('PIPENV_DONT_USE_PYENV', '1')
-        m.setenv("PIPENV_TEST_INDEX", f"{pypi.url}/simple")
+        m.setenv("PIPENV_TEST_INDEX", "https://pypi.org/simple")
         m.setenv("PIPENV_PYPI_INDEX", "simple")
-        m.setenv("ARTIFACT_PYPI_URL", pypi.url)
-        m.setenv("PIPENV_PYPI_URL", pypi.url)
+        m.setenv("ARTIFACT_PYPI_URL", "https://pypi.org/")
+        m.setenv("PIPENV_PYPI_URL", "https://pypi.org/")
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         try:
@@ -459,15 +470,15 @@ def PipenvInstance(pip_src_dir, monkeypatch, pypi, capfdbinary):
 
 
 @pytest.fixture()
-def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir, pypi, capfdbinary):
+def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir, pypi_server, capfdbinary):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
         m.setenv("PIPENV_NOSPIN", "1")
         m.setenv("CI", "1")
         m.setenv('PIPENV_DONT_USE_PYENV', '1')
-        m.setenv("PIPENV_TEST_INDEX", f"{pypi.url}/simple")
-        m.setenv("ARTIFACT_PYPI_URL", pypi.url)
+        m.setenv("PIPENV_TEST_INDEX", "http://127.0.0.1:8080/simple")
+        m.setenv("ARTIFACT_PYPI_URL", "http://127.0.0.1:8080/simple")
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         try:

@@ -14,9 +14,9 @@ from pipenv.utils.shell import temp_environ
 @pytest.mark.setup
 @pytest.mark.basic
 @pytest.mark.install
-def test_basic_setup(PipenvInstance):
-    with PipenvInstance() as p:
-        with PipenvInstance(pipfile=False) as p:
+def test_basic_setup(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
+        with PipenvInstance_NoPyPI(pipfile=False) as p:
             c = p.pipenv("install requests")
             assert c.returncode == 0
 
@@ -31,8 +31,8 @@ def test_basic_setup(PipenvInstance):
 @flaky
 @pytest.mark.basic
 @pytest.mark.install
-def test_basic_install(PipenvInstance):
-    with PipenvInstance() as p:
+def test_basic_install(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         c = p.pipenv("install requests")
         assert c.returncode == 0
         assert "requests" in p.pipfile["packages"]
@@ -46,8 +46,8 @@ def test_basic_install(PipenvInstance):
 @flaky
 @pytest.mark.basic
 @pytest.mark.install
-def test_mirror_install(PipenvInstance):
-    with temp_environ(), PipenvInstance(chdir=True) as p:
+def test_mirror_install(PipenvInstance_NoPyPI):
+    with temp_environ(), PipenvInstance_NoPyPI(chdir=True) as p:
         mirror_url = os.environ.pop(
             "PIPENV_TEST_INDEX", "https://pypi.python.org/simple"
         )
@@ -85,8 +85,8 @@ def test_bad_mirror_install(PipenvInstance):
 @flaky
 @pytest.mark.dev
 @pytest.mark.run
-def test_basic_dev_install(PipenvInstance):
-    with PipenvInstance() as p:
+def test_basic_dev_install(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         c = p.pipenv("install requests --dev")
         assert c.returncode == 0
         assert "requests" in p.pipfile["dev-packages"]
@@ -104,9 +104,9 @@ def test_basic_dev_install(PipenvInstance):
 @pytest.mark.dev
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_without_dev(PipenvInstance):
+def test_install_without_dev(PipenvInstance_NoPyPI):
     """Ensure that running `pipenv install` doesn't install dev packages"""
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [packages]
@@ -153,8 +153,8 @@ six = "*"
 @pytest.mark.lock
 @pytest.mark.extras
 @pytest.mark.install
-def test_extras_install(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_extras_install(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         c = p.pipenv("install requests[socks]")
         assert c.returncode == 0
         assert "requests" in p.pipfile["packages"]
@@ -171,8 +171,8 @@ def test_extras_install(PipenvInstance):
 @pytest.mark.pin
 @pytest.mark.basic
 @pytest.mark.install
-def test_windows_pinned_pipfile(PipenvInstance):
-    with PipenvInstance() as p:
+def test_windows_pinned_pipfile(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [packages]
@@ -190,8 +190,8 @@ requests = "==2.19.1"
 @pytest.mark.install
 @pytest.mark.resolver
 @pytest.mark.backup_resolver
-def test_backup_resolver(PipenvInstance):
-    with PipenvInstance() as p:
+def test_backup_resolver(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [packages]
@@ -207,8 +207,8 @@ def test_backup_resolver(PipenvInstance):
 @flaky
 @pytest.mark.run
 @pytest.mark.alt
-def test_alternative_version_specifier(PipenvInstance):
-    with PipenvInstance() as p:
+def test_alternative_version_specifier(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [packages]
@@ -232,8 +232,8 @@ requests = {version = "*"}
 @flaky
 @pytest.mark.run
 @pytest.mark.alt
-def test_outline_table_specifier(PipenvInstance):
-    with PipenvInstance() as p:
+def test_outline_table_specifier(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [packages.requests]
@@ -257,8 +257,8 @@ version = "*"
 @pytest.mark.bad
 @pytest.mark.basic
 @pytest.mark.install
-def test_bad_packages(PipenvInstance):
-    with PipenvInstance() as p:
+def test_bad_packages(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         c = p.pipenv("install NotAPackage")
         assert c.returncode > 0
 
@@ -267,15 +267,14 @@ def test_bad_packages(PipenvInstance):
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.requirements
-def test_requirements_to_pipfile(PipenvInstance, pypi):
+def test_requirements_to_pipfile(PipenvInstance_NoPyPI):
 
-    with PipenvInstance(pipfile=False, chdir=True) as p:
+    with PipenvInstance_NoPyPI(pipfile=False, chdir=True) as p:
 
         # Write a requirements file
         with open("requirements.txt", "w") as f:
             f.write(
-                f"-i {pypi.url}\n"
-                "# -i https://private.pypi.org/simple\n"
+                f"-i {os.environ['PIPENV_TEST_INDEX']}\n"
                 "requests[socks]==2.19.1\n"
             )
 
@@ -316,13 +315,10 @@ def test_skip_requirements_when_pipfile(PipenvInstance):
             contents = """
 [packages]
 six = "*"
-fake_package = "<0.12"
             """.strip()
             f.write(contents)
         c = p.pipenv("install")
         assert c.returncode == 0
-        assert "fake_package" in p.pipfile["packages"]
-        assert "fake-package" in p.lockfile["default"]
         assert "six" in p.pipfile["packages"]
         assert "six" in p.lockfile["default"]
         assert "requests" not in p.pipfile["packages"]
@@ -343,7 +339,6 @@ def test_install_does_not_extrapolate_environ(PipenvInstance):
     """Ensure environment variables are not expanded in lock file.
     """
     with temp_environ(), PipenvInstance(chdir=True) as p:
-        # os.environ["PYPI_URL"] = pypi.url
         os.environ["PYPI_URL"] = p.pypi
 
         with open(p.pipfile_path, "w") as f:
@@ -406,8 +401,8 @@ def test_install_venv_project_directory(PipenvInstance):
 @pytest.mark.cli
 @pytest.mark.deploy
 @pytest.mark.system
-def test_system_and_deploy_work(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_system_and_deploy_work(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         c = p.pipenv("install tablib")
         assert c.returncode == 0
         c = p.pipenv("--rm")
@@ -453,8 +448,8 @@ def test_install_non_exist_dep(PipenvInstance):
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_package_with_dots(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_install_package_with_dots(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         c = p.pipenv("install backports.html")
         assert c.returncode == 0
         assert "backports.html" in p.pipfile["packages"]
@@ -512,10 +507,10 @@ requests = {version="*", index="pypi"}
 
 @pytest.mark.dev
 @pytest.mark.install
-def test_install_dev_use_default_constraints(PipenvInstance):
+def test_install_dev_use_default_constraints(PipenvInstance_NoPyPI):
     # See https://github.com/pypa/pipenv/issues/4371
     # See https://github.com/pypa/pipenv/issues/2987
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance_NoPyPI(chdir=True) as p:
 
         c = p.pipenv("install requests==2.14.0")
         assert c.returncode == 0

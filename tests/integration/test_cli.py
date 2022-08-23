@@ -97,8 +97,8 @@ def test_pipenv_graph(PipenvInstance):
 
 
 @pytest.mark.cli
-def test_pipenv_graph_reverse(PipenvInstance):
-    with PipenvInstance() as p:
+def test_pipenv_graph_reverse(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         c = p.pipenv('install tablib==0.13.0')
         assert c.returncode == 0
         c = p.pipenv('graph --reverse')
@@ -141,8 +141,8 @@ def test_pipenv_graph_reverse(PipenvInstance):
 @pytest.mark.cli
 @pytest.mark.needs_internet(reason='required by check')
 @flaky
-def test_pipenv_check(PipenvInstance):
-    with PipenvInstance() as p:
+def test_pipenv_check(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         c = p.pipenv('install pyyaml')
         assert c.returncode == 0
         c = p.pipenv('check')

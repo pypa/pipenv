@@ -8,12 +8,12 @@ from pipenv.utils.shell import temp_environ
 
 @pytest.mark.uninstall
 @pytest.mark.install
-def test_uninstall_requests(PipenvInstance):
+def test_uninstall_requests(PipenvInstance_NoPyPI):
     # Uninstalling requests can fail even when uninstall Django below
     # succeeds, if requests was de-vendored.
     # See https://github.com/pypa/pipenv/issues/3644 for problems
     # caused by devendoring
-    with PipenvInstance() as p:
+    with PipenvInstance_NoPyPI() as p:
         c = p.pipenv("install requests")
         assert c.returncode == 0
         assert "requests" in p.pipfile["packages"]
@@ -30,8 +30,8 @@ def test_uninstall_requests(PipenvInstance):
 
 
 @pytest.mark.uninstall
-def test_uninstall_django(PipenvInstance):
-    with PipenvInstance() as p:
+def test_uninstall_django(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         c = p.pipenv("install Django")
         assert c.returncode == 0
         assert "django" in p.pipfile["packages"]
@@ -53,8 +53,8 @@ def test_uninstall_django(PipenvInstance):
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_mirror_uninstall(PipenvInstance):
-    with temp_environ(), PipenvInstance(chdir=True) as p:
+def test_mirror_uninstall(PipenvInstance_NoPyPI):
+    with temp_environ(), PipenvInstance_NoPyPI(chdir=True) as p:
 
         mirror_url = os.environ.pop(
             "PIPENV_TEST_INDEX", "https://pypi.python.org/simple"
@@ -93,12 +93,12 @@ def test_mirror_uninstall(PipenvInstance):
 @pytest.mark.files
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_all_local_files(PipenvInstance, testsroot):
+def test_uninstall_all_local_files(PipenvInstance_NoPyPI, testsroot):
     file_name = "tablib-0.12.1.tar.gz"
     # Not sure where travis/appveyor run tests from
     source_path = os.path.abspath(os.path.join(testsroot, "pypi", "tablib", file_name))
 
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         shutil.copy(source_path, os.path.join(p.path, file_name))
         os.mkdir(os.path.join(p.path, "tablib"))
         c = p.pipenv(f"install {file_name}")
@@ -113,8 +113,8 @@ def test_uninstall_all_local_files(PipenvInstance, testsroot):
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_all_dev(PipenvInstance):
-    with PipenvInstance() as p:
+def test_uninstall_all_dev(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         c = p.pipenv("install --dev Django==1.11.13 six")
         assert c.returncode == 0
 
@@ -173,7 +173,7 @@ python_DateUtil = "*"
 @pytest.mark.uninstall
 def test_uninstall_all_dev_with_shared_dependencies(PipenvInstance):
     with PipenvInstance() as p:
-        c = p.pipenv("install pytest")
+        c = p.pipenv("install pytest==4.6.11")
         assert c.returncode == 0
 
         c = p.pipenv("install --dev six")

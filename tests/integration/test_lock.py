@@ -13,10 +13,10 @@ from pipenv.utils.shell import temp_environ
 
 @pytest.mark.lock
 @pytest.mark.requirements
-def test_lock_handle_eggs(PipenvInstance):
+def test_lock_handle_eggs(PipenvInstance_NoPyPI):
     """Ensure locking works with packages providing egg formats.
     """
-    with PipenvInstance() as p:
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
@@ -30,9 +30,9 @@ RandomWords = "*"
 
 @pytest.mark.lock
 @pytest.mark.requirements
-def test_lock_requirements_file(PipenvInstance):
+def test_lock_requirements_file(PipenvInstance_NoPyPI):
 
-    with PipenvInstance() as p:
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -61,7 +61,7 @@ flask = "==0.12.2"
 
 
 @pytest.mark.lock
-def test_lock_includes_hashes_for_all_platforms(PipenvInstance):
+def test_lock_includes_hashes_for_all_platforms(PipenvInstance_NoPyPI):
     """ Locking should include hashes for *all* platforms, not just the
     platform we're running lock on. """
 
@@ -72,7 +72,7 @@ def test_lock_includes_hashes_for_all_platforms(PipenvInstance):
         # 'yarl-1.3.0-cp35-cp35m-manylinux1_x86_64.whl' -> 'sha256:3890ab952d508523ef4881457c4099056546593fa05e93da84c7250516e632eb'
         return f"sha256:{releases[release_name].hash}"
 
-    with PipenvInstance() as p:
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -376,9 +376,9 @@ requests = "*"
 @pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.requirements
 @pytest.mark.needs_internet
-def test_private_index_mirror_lock_requirements(PipenvInstance_NoPyPI):
+def test_private_index_mirror_lock_requirements(PipenvInstance):
     # Don't use the local fake pypi
-    with temp_environ(), PipenvInstance_NoPyPI(chdir=True) as p:
+    with temp_environ(), PipenvInstance(chdir=True) as p:
         # Using pypi.python.org as pipenv-test-public-package is not
         # included in the local pypi mirror
         mirror_url = os.environ.pop('PIPENV_TEST_INDEX', "https://pypi.kennethreitz.org/simple")
@@ -402,6 +402,7 @@ fake-package = "*"
             f.write(contents)
         c = p.pipenv(f'install -v --pypi-mirror {mirror_url}')
         assert c.returncode == 0
+
 
 @pytest.mark.lock
 @pytest.mark.install
@@ -535,8 +536,8 @@ requests = {git = "%s@883caaf", editable = true}
 @pytest.mark.lock
 @pytest.mark.extras
 @pytest.mark.needs_internet
-def test_lock_editable_vcs_with_extras_without_install(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_lock_editable_vcs_with_extras_without_install(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
@@ -559,8 +560,8 @@ requests = {git = "%s", editable = true, extras = ["socks"]}
 @pytest.mark.vcs
 @pytest.mark.lock
 @pytest.mark.needs_internet
-def test_lock_editable_vcs_with_markers_without_install(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_lock_editable_vcs_with_markers_without_install(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
@@ -699,13 +700,13 @@ six = "*"
 
 
 @pytest.mark.lock
-def test_lock_nested_direct_url(PipenvInstance):
+def test_lock_nested_direct_url(PipenvInstance_NoPyPI):
     """
     The dependency 'test_package' has a declared dependency on
     a PEP508 style VCS URL. This ensures that we capture the dependency
     here along with its own dependencies.
     """
-    with PipenvInstance() as p:
+    with PipenvInstance_NoPyPI() as p:
         c = p.pipenv("install -v test_package")
         assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]
@@ -760,8 +761,8 @@ def test_default_lock_overwrite_dev_lock(PipenvInstance):
 @pytest.mark.lock
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_pipenv_respects_package_index_restrictions(PipenvInstance):
-    with PipenvInstance() as p:
+def test_pipenv_respects_package_index_restrictions(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]

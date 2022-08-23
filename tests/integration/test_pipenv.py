@@ -47,8 +47,8 @@ requests = "==2.19.1"
 
 @pytest.mark.update
 @pytest.mark.lock
-def test_update_locks(PipenvInstance):
-    with PipenvInstance() as p:
+def test_update_locks(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         c = p.pipenv('install jdcal==1.3')
         assert c.returncode == 0
         assert p.lockfile['default']['jdcal']['version'] == '==1.3'

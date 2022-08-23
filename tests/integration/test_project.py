@@ -36,8 +36,8 @@ pytz = "*"
 @pytest.mark.project
 @pytest.mark.sources
 @pytest.mark.parametrize('lock_first', [True, False])
-def test_get_source(PipenvInstance, lock_first):
-    with PipenvInstance(chdir=True) as p:
+def test_get_source(PipenvInstance_NoPyPI, lock_first):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]

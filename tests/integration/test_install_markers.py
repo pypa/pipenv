@@ -32,11 +32,11 @@ fake_package = {version = "*", markers="os_name=='splashwear'"}
 
 @flaky
 @pytest.mark.markers
-def test_platform_python_implementation_marker(PipenvInstance):
+def test_platform_python_implementation_marker(PipenvInstance_NoPyPI):
     """Markers should be converted during locking to help users who input this
     incorrectly.
     """
-    with PipenvInstance() as p:
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -65,7 +65,7 @@ def test_specific_package_environment_markers(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
-fake-package = {version = "*", os_name = "== 'splashwear'"}
+six = {version = "*", os_name = "== 'splashwear'"}
             """.strip()
             f.write(contents)
 
@@ -73,9 +73,9 @@ fake-package = {version = "*", os_name = "== 'splashwear'"}
         assert c.returncode == 0
 
         assert 'Ignoring' in c.stdout
-        assert 'markers' in p.lockfile['default']['fake-package']
+        assert 'markers' in p.lockfile['default']['six']
 
-        c = p.pipenv('run python -c "import fake_package;"')
+        c = p.pipenv('run python -c "import six;"')
         assert c.returncode == 1
 
 

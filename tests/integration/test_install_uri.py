@@ -72,9 +72,9 @@ def test_ssh_vcs_install(PipenvInstance):
 def test_urls_work(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         # the library this installs is "django-cms"
-        path = p._pipfile.get_url("django", "3.4.x.zip")
+        url = "https://github.com/lidatong/dataclasses-json/archive/refs/tags/v0.5.7.zip"
         c = p.pipenv(
-            "install {0}".format(path)
+            "install {0}".format(url)
         )
         assert c.returncode == 0
 
@@ -82,7 +82,7 @@ def test_urls_work(PipenvInstance):
         assert "file" in dep, p.pipfile
 
         # now that we handle resolution with requirementslib, this will resolve to a name
-        dep = p.lockfile["default"]["django-cms"]
+        dep = p.lockfile["default"]["dataclasses-json"]
         assert "file" in dep, p.lockfile
 
 
