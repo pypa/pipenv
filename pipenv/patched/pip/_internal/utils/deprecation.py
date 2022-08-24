@@ -13,7 +13,7 @@ from pipenv.patched.pip import __version__ as current_version  # NOTE: tests pat
 DEPRECATION_MSG_PREFIX = "DEPRECATION: "
 
 
-class PipDeprecationWarning(DeprecationWarning):
+class PipDeprecationWarning(Warning):
     pass
 
 

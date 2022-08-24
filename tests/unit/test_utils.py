@@ -1,6 +1,7 @@
 import os
 from unittest import mock
 
+from flaky import flaky
 import pytest
 
 import pipenv.utils.shell
@@ -81,6 +82,7 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
     return
 
 
+@flaky
 @pytest.mark.utils
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
 @pytest.mark.needs_internet
@@ -90,6 +92,7 @@ def test_convert_deps_to_pip(deps, expected):
     assert dependencies.convert_deps_to_pip(deps, r=False) == [expected]
 
 
+@flaky
 @pytest.mark.utils
 @pytest.mark.parametrize(
     "deps, expected",
@@ -131,6 +134,21 @@ def test_convert_deps_to_pip(deps, expected):
 def test_convert_deps_to_pip_one_way(deps, expected):
     assert dependencies.convert_deps_to_pip(deps, r=False) == [expected.lower()]
 
+@pytest.mark.utils
+@pytest.mark.parametrize(
+    "deps, expected",
+    [
+        ({"requests": {}}, ["requests"]),
+        ({"FooProject": {"path": ".", "editable" : "true"}}, []),
+        ({"FooProject": {"version": "==1.2"}}, ["fooproject==1.2"]),
+        ({"requests": {"extras": ["security"]}}, []),
+        ({"requests": {"extras": []}}, ["requests"]),
+        ({"extras" : {}}, ["extras"]),
+        ({"uvicorn[standard]" : {}}, [])
+    ],
+)
+def test_get_constraints_from_deps(deps, expected):
+    assert dependencies.get_constraints_from_deps(deps) == expected
 
 @pytest.mark.parametrize("line,result", [
     ("-i https://example.com/simple/", ("https://example.com/simple/", None, None, [])),

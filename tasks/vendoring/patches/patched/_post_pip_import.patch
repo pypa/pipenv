@@ -1,12 +1,18 @@
 diff --git a/pipenv/patched/pip/__main__.py b/pipenv/patched/pip/__main__.py
-index 204a8ca2..546caab1 100644
+index 24d42002b..b424ab203 100644
 --- a/pipenv/patched/pip/__main__.py
 +++ b/pipenv/patched/pip/__main__.py
-@@ -26,6 +26,7 @@ if __name__ == "__main__":
+@@ -26,6 +26,13 @@ if __name__ == "__main__":
      warnings.filterwarnings(
          "ignore", category=DeprecationWarning, module=".*packaging\\.version"
      )
-+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
++    import importlib.util
++    import sys
++    spec = importlib.util.spec_from_file_location(
++        "pipenv", location=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "__init__.py"))
++    pipenv = importlib.util.module_from_spec(spec)
++    sys.modules["pipenv"] = pipenv
++    spec.loader.exec_module(pipenv)
      from pipenv.patched.pip._internal.cli.main import main as _main
 
      sys.exit(_main())
@@ -34,3 +40,16 @@ index 0ba06c52..6fdb59b7 100644
 
 
  class LinkCandidate(_InstallRequirementBackedCandidate):
+diff --git a/pipenv/patched/pip/_internal/locations/__init__.py b/pipenv/patched/pip/_internal/locations/__init__.py
+index 23eaea64..fe5dd5b4 100644
+--- a/pipenv/patched/pip/_internal/locations/__init__.py
++++ b/pipenv/patched/pip/_internal/locations/__init__.py
+@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
+
+ _PLATLIBDIR: str = getattr(sys, "platlibdir", "lib")
+
+-_USE_SYSCONFIG_DEFAULT = sys.version_info >= (3, 10)
++_USE_SYSCONFIG_DEFAULT = sys.version_info >= (3, 7)
+
+
+ def _should_use_sysconfig() -> bool:

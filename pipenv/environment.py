@@ -23,7 +23,14 @@ from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import make_posix, normalize_path
 from pipenv.vendor import click, vistir
-from pipenv.vendor.cached_property import cached_property
+
+try:
+    # this is only in Python3.8 and later
+    from functools import cached_property
+except ImportError:
+    # eventually distlib will remove cached property when they drop Python3.7
+    from pipenv.patched.pip._vendor.distlib.util import cached_property
+
 
 if is_type_checking():
     from types import ModuleType

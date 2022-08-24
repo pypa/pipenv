@@ -30,7 +30,6 @@ class PipImportRedirectingFinder:
         return spec
 
 
-# TODO https://github.com/pypa/pip/issues/11294
 sys.meta_path.insert(0, PipImportRedirectingFinder())
 
 assert __name__ == "__main__", "Cannot run __pip-runner__.py as a non-main module"

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import json as simplejson
 import logging
 import os
@@ -10,6 +8,7 @@ import time
 import warnings
 from pathlib import Path
 from posixpath import expandvars
+from typing import Dict, List, Optional, Union
 
 import dotenv
 import pipfile
@@ -24,14 +23,17 @@ from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_parsed_requirement,
 )
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
+from pipenv.project import Project
 from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
     convert_deps_to_pip,
     get_canonical_names,
+    get_constraints_from_deps,
     is_pinned,
     is_required_version,
     is_star,
     pep423_name,
+    prepare_constraint_file,
     python_version,
 )
 from pipenv.utils.indexes import get_source_list, parse_indexes, prepare_pip_source_args
@@ -41,18 +43,16 @@ from pipenv.utils.shell import (
     cmd_list_to_shell,
     find_python,
     is_python_command,
+    normalize_path,
     project_python,
     subprocess_run,
     system_which,
 )
 from pipenv.utils.spinner import create_spinner
 from pipenv.vendor import click
+from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 if MYPY_RUNNING:
-    from typing import Dict, List, Optional, Union
-
-    from pipenv.project import Project
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     TSourceDict = Dict[str, Union[str, bool]]
 
@@ -60,7 +60,6 @@ if MYPY_RUNNING:
 # Packages that should be ignored later.
 BAD_PACKAGES = (
     "distribute",
-    "packaging",
     "pip",
     "pkg-resources",
     "setuptools",
@@ -146,7 +145,8 @@ def load_dot_env(project, as_dict=False, quiet=False):
                     err=True,
                 )
             dotenv.load_dotenv(dotenv_file, override=True)
-        project.s.initialize()
+
+            project.s = environments.Setting()
 
 
 def cleanup_virtualenv(project, bare=True):
@@ -730,9 +730,7 @@ def batch_install(
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
     deps_to_install = [
-        dep
-        for dep in deps_to_install
-        if not project.environment.is_satisfied(dep) and dep.name not in BAD_PACKAGES
+        dep for dep in deps_to_install if not project.environment.is_satisfied(dep)
     ]
     sequential_dep_names = [d.name for d in sequential_deps]
 
@@ -788,6 +786,7 @@ def batch_install(
                 trusted_hosts=trusted_hosts,
                 extra_indexes=extra_indexes,
                 use_pep517=use_pep517,
+                use_constraint=False,  # no need to use constraints, it's written in lockfile
             )
             c.dep = dep
 
@@ -1095,8 +1094,9 @@ def do_lock(
         for k, v in lockfile[section].copy().items():
             if not hasattr(v, "keys"):
                 del lockfile[section][k]
-    # Resolve dev-package dependencies followed by packages dependencies.
-    for is_dev in [True, False]:
+
+    # Resolve package to generate constraints before resolving dev-packages
+    for is_dev in [False, True]:
         pipfile_section = "dev-packages" if is_dev else "packages"
         if project.pipfile_exists:
             packages = project.parsed_pipfile.get(pipfile_section, {})
@@ -1206,7 +1206,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
         click.echo(fix_utf8(f"Found {len(to_remove)} installed package(s), purging..."))
 
     command = [
-        project_python(project),
+        project_python(project, system=allow_global),
         _get_runnable_pip(),
         "uninstall",
         "-y",
@@ -1371,7 +1371,7 @@ def get_pip_args(
         "upgrade": ["--upgrade"],
         "require_hashes": ["--require-hashes"],
         "no_build_isolation": ["--no-build-isolation"],
-        "no_use_pep517": [],
+        "no_use_pep517": ["--no-use-pep517"],
         "no_deps": ["--no-deps"],
         "selective_upgrade": [
             "--upgrade-strategy=only-if-needed",
@@ -1379,8 +1379,6 @@ def get_pip_args(
         ],
         "src_dir": src_dir,
     }
-    # TODO: Why do we use no pep517?
-    arg_map["no_use_pep517"].append("--no-use-pep517")
     arg_set = []
     for key in arg_map.keys():
         if key in locals() and locals().get(key):
@@ -1452,12 +1450,14 @@ def pip_install(
     block=True,
     index=None,
     pre=False,
+    dev=False,
     selective_upgrade=False,
     requirements_dir=None,
     extra_indexes=None,
     pypi_mirror=None,
     trusted_hosts=None,
     use_pep517=True,
+    use_constraint=False,
 ):
     piplogger = logging.getLogger("pipenv.patched.pip._internal.commands.install")
     if not trusted_hosts:
@@ -1522,7 +1522,7 @@ def pip_install(
             )
 
     pip_command = [
-        project._which("python", allow_global=allow_global),
+        project_python(project, system=allow_global),
         _get_runnable_pip(),
         "install",
     ]
@@ -1538,9 +1538,18 @@ def pip_install(
     )
     pip_command.extend(pip_args)
     if r:
-        pip_command.extend(["-r", vistir.path.normalize_path(r)])
+        pip_command.extend(["-r", normalize_path(r)])
     elif line:
         pip_command.extend(line)
+    if dev and use_constraint:
+        default_constraints = get_constraints_from_deps(project.packages)
+        constraint_filename = prepare_constraint_file(
+            default_constraints,
+            directory=requirements_dir,
+            sources=None,
+            pip_args=None,
+        )
+        pip_command.extend(["-c", normalize_path(constraint_filename)])
     pip_command.extend(prepare_pip_source_args(sources))
     if project.s.is_verbose():
         click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
@@ -2126,9 +2135,11 @@ def do_install(
                         selective_upgrade=selective_upgrade,
                         no_deps=False,
                         pre=pre,
+                        dev=dev,
                         requirements_dir=requirements_directory,
                         index=index_url,
                         pypi_mirror=pypi_mirror,
+                        use_constraint=True,
                     )
                     if c.returncode:
                         sp.write_err(
@@ -2342,7 +2353,7 @@ def do_uninstall(
         if package_name in packages_to_remove:
             with project.environment.activated():
                 cmd = [
-                    project_python(project),
+                    project_python(project, system=system),
                     _get_runnable_pip(),
                     "uninstall",
                     package_name,
@@ -2644,7 +2655,7 @@ def do_check(
     safety_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "patched", "safety"
     )
-    _cmd = [project_python(project)]
+    _cmd = [project_python(project, system=system)]
     # Run the PEP 508 checker in the virtualenv.
     cmd = _cmd + [Path(pep508checker_path).as_posix()]
     c = run_command(cmd, is_verbose=project.s.is_verbose())
@@ -2992,7 +3003,7 @@ def do_clean(
                 )
             # Uninstall the package.
             cmd = [
-                project_python(project),
+                project_python(project, system=system),
                 _get_runnable_pip(),
                 "uninstall",
                 apparent_bad_package,

@@ -402,9 +402,7 @@ production environments for reproducible builds.
 
 .. note::
 
-    If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv lock -r``.
-    This will not include hashes, however. To get a ``requirements.txt``
-    you can also use ``$ pipenv run pip freeze``.
+    If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv requirements``.
 
 
 ☤ Pipenv and Docker Containers
@@ -470,7 +468,7 @@ doing a multi stage build for your application::
    it is done never the less. A calculated risk, since the intermediatiary image
    is discarded.
    The runtime image later shows that you should create a user and user it to
-   run your applicaion.
+   run your application.
    **Once again, you should not run pipenv as root (or Admin on Windows) normally.
    This could lead to breakage of your Python installation, or even your complete
    OS.**

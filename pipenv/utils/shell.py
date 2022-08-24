@@ -48,16 +48,6 @@ def make_posix(path: str) -> str:
     return path
 
 
-def get_pipenv_dist(pkg="pipenv", pipenv_site=None):
-    from pipenv.resolver import find_site_path
-
-    pipenv_libdir = os.path.dirname(os.path.abspath(__file__))
-    if pipenv_site is None:
-        pipenv_site = os.path.dirname(pipenv_libdir)
-    pipenv_dist, _ = find_site_path(pkg, site_dir=pipenv_site)
-    return pipenv_dist
-
-
 @contextmanager
 def chdir(path):
     """Context manager to change working directories."""
@@ -456,6 +446,7 @@ def project_python(project, system=False):
         python = project._which("python")
     else:
         interpreters = [system_which(p) for p in ("python", "python3")]
+        interpreters = [i for i in interpreters if i]  # filter out not found interpreters
         python = interpreters[0] if interpreters else None
     if not python:
         click.secho("The Python interpreter can't be found.", fg="red", err=True)
