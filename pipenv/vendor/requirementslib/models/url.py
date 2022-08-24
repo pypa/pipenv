@@ -7,7 +7,8 @@ from urllib.parse import unquote_plus
 
 import pipenv.vendor.attr as attr
 from pipenv.vendor.orderedmultidict import omdict
-from pipenv.vendor.pip_shims import shims
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.req.constructors import _strip_extras
 from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
 from pipenv.patched.pip._vendor.urllib3.util.url import Url
 
@@ -17,8 +18,6 @@ from .utils import extras_to_string, parse_extras
 
 if MYPY_RUNNING:
     from typing import Dict, Optional, Text, Tuple, TypeVar, Union
-
-    from shims import Link
 
     _T = TypeVar("_T")
     STRING_TYPE = Union[bytes, str, Text]
@@ -139,7 +138,7 @@ class URI(object):
             if key == "egg":
                 from .utils import parse_extras
 
-                name, stripped_extras = shims._strip_extras(val)
+                name, stripped_extras = _strip_extras(val)
                 if stripped_extras:
                     extras = tuple(parse_extras(stripped_extras))
             elif key == "subdirectory":
@@ -370,9 +369,7 @@ class URI(object):
     @property
     def as_link(self):
         # type: () -> Link
-        link = shims.Link(
-            self.to_string(escape_password=False, strip_ssh=False, direct=False)
-        )
+        link = Link(self.to_string(escape_password=False, strip_ssh=False, direct=False))
         return link
 
     @property
@@ -480,14 +477,14 @@ def update_url_name_and_fragment(name_with_extras, ref, parsed_dict):
     if name_with_extras:
         fragment = ""  # type: Optional[str]
         parsed_extras = ()
-        name, extras = shims._strip_extras(name_with_extras)
+        name, extras = _strip_extras(name_with_extras)
         if extras:
             parsed_extras = parsed_extras + tuple(parse_extras(extras))
         if parsed_dict["fragment"] is not None:
             fragment = "{0}".format(parsed_dict["fragment"])
             if fragment.startswith("egg="):
                 _, _, fragment_part = fragment.partition("=")
-                fragment_name, fragment_extras = shims._strip_extras(fragment_part)
+                fragment_name, fragment_extras = _strip_extras(fragment_part)
                 name = name if name else fragment_name
                 if fragment_extras:
                     parsed_extras = parsed_extras + tuple(parse_extras(fragment_extras))

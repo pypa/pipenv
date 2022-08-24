@@ -61,7 +61,7 @@ DEP_PIP_PAIRS = [
                 "extras": ["voice"],
             }
         },
-        "https://github.com/Rapptz/discord.py/archive/async.zip#egg=discord.py[voice]",
+        "https://github.com/Rapptz/discord.py/archive/async.zip#egg=[voice]",
     ),
     (
         {
