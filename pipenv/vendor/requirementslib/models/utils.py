@@ -1018,12 +1018,3 @@ def expand_env_variables(line):
         return value if value else match.group()
 
     return re.sub(r"\$\{([A-Z0-9_]+)\}", replace_with_env, line)
-
-
-SETUPTOOLS_SHIM = (
-    "import setuptools, tokenize;__file__=%r;"
-    "f=getattr(tokenize, 'open', open)(__file__);"
-    "code=f.read().replace('\\r\\n', '\\n');"
-    "f.close();"
-    "exec(compile(code, __file__, 'exec'))"
-)
