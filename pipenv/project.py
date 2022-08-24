@@ -35,7 +35,6 @@ from pipenv.utils.internet import get_url_name, is_valid_url, proper_case
 from pipenv.utils.shell import (
     find_requirements,
     find_windows_executable,
-    get_pipenv_dist,
     get_workon_home,
     is_virtual_environment,
     looks_like_dir,
@@ -43,8 +42,15 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
-from pipenv.vendor.cached_property import cached_property
 from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
+
+try:
+    # this is only in Python3.8 and later
+    from functools import cached_property
+except ImportError:
+    # eventually distlib will remove cached property when they drop Python3.7
+    from pipenv.patched.pip._vendor.distlib.util import cached_property
+
 
 if is_type_checking():
     from typing import Dict, List, Optional, Set, Text, Tuple, Union
@@ -289,11 +295,6 @@ class Project:
             pipfile=self.parsed_pipfile,
             project=self,
         )
-        pipenv_dist = get_pipenv_dist(pkg="pipenv")
-        if pipenv_dist:
-            environment.extend_dists(pipenv_dist)
-        else:
-            environment.add_dist("pipenv")
         return environment
 
     @property
@@ -578,7 +579,7 @@ class Project:
     def lockfile_content(self):
         return self.load_lockfile()
 
-    def _get_editable_packages(self, dev=False):
+    def get_editable_packages(self, dev=False):
         section = "dev-packages" if dev else "packages"
         packages = {
             k: v
@@ -600,11 +601,11 @@ class Project:
 
     @property
     def editable_packages(self):
-        return self._get_editable_packages(dev=False)
+        return self.get_editable_packages(dev=False)
 
     @property
     def editable_dev_packages(self):
-        return self._get_editable_packages(dev=True)
+        return self.get_editable_packages(dev=True)
 
     @property
     def vcs_packages(self):

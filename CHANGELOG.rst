@@ -1,5 +1,78 @@
-2022.7.24 (2022-08-05)
+2022.8.19 (2022-08-19)
 ======================
+
+
+Bug Fixes
+---------
+
+- Fix issue where resolver is provided with ``install_requires`` constraints from ``setup.py`` that depend on editable dependencies and could not resolve them.  `#5271 <https://github.com/pypa/pipenv/issues/5271>`_
+- Fix for ``pipenv lock`` fails for packages with extras as of ``2022.8.13``.  `#5274 <https://github.com/pypa/pipenv/issues/5274>`_
+- Revert the exclusion of ``BAD_PACKAGES`` from ``batch_install`` in order for ``pipenv`` to install specific versions of ``setuptools``.
+  To prevent issue upgrading ``setuptools`` this patches ``_USE_SYSCONFIG_DEFAULT`` to use ``sysconfig`` for ``3.7`` and above whereas ``pip`` default behavior was ``3.10`` and above.  `#5275 <https://github.com/pypa/pipenv/issues/5275>`_
+
+
+2022.8.17 (2022-08-17)
+======================
+
+
+Bug Fixes
+---------
+
+- Fix "The Python interpreter can't be found" error when running ``pipenv install --system`` with a python3 but no python.  `#5261 <https://github.com/pypa/pipenv/issues/5261>`_
+- Revise pip import patch to include only ``pipenv`` from site-packages and removed ``--ignore-installed`` argument from pip install in order to fix regressions with ``--use-site-packages``.  `#5265 <https://github.com/pypa/pipenv/issues/5265>`_
+
+
+2022.8.15 (2022-08-15)
+======================
+
+
+Bug Fixes
+---------
+
+- ``pip_install`` method was using a different way of finding the python executable than other ``pipenv`` commands, which caused an issue with skipping package installation if it was already installed in site-packages.  `#5254 <https://github.com/pypa/pipenv/issues/5254>`_
+
+
+2022.8.14 (2022-08-14)
+======================
+
+
+Bug Fixes
+---------
+
+- Removed ``packaging`` library from ``BAD_PACKAGES`` constant to allow it to be installed, which fixes regression from ``pipenv==2022.8.13``.  `#5247 <https://github.com/pypa/pipenv/issues/5247>`_
+
+
+2022.8.13 (2022-08-13)
+======================
+
+
+Bug Fixes
+---------
+
+- If environment variable ``CI`` or ``TF_BUILD`` is set but does not evaluate to ``False`` it is now treated as ``True``.  `#5128 <https://github.com/pypa/pipenv/issues/5128>`_
+- Fix auto-complete crashing on 'install' and 'uninstall' keywords  `#5214 <https://github.com/pypa/pipenv/issues/5214>`_
+- Address remaining ``pipenv`` commands that were still referencing the user or system installed ``pip`` to use the vendored ``pip`` internal to ``pipenv``.  `#5229 <https://github.com/pypa/pipenv/issues/5229>`_
+- Use ``packages`` as contraints when locking ``dev-packages`` in Pipfile.
+  Use ``packages`` as contraints when installing new ``dev-packages``.  `#5234 <https://github.com/pypa/pipenv/issues/5234>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in minor ``pip`` update ``22.2.2``  `#5230 <https://github.com/pypa/pipenv/issues/5230>`_
+
+Improved Documentation
+----------------------
+
+- Add documentation for environment variables the configure pipenv.  `#5235 <https://github.com/pypa/pipenv/issues/5235>`_
+
+Removals and Deprecations
+-------------------------
+
+- The deprecated way of generating requirements ``install -r`` or ``lock -r`` has been removed in favor of the ``pipenv requirements`` command.  `#5200 <https://github.com/pypa/pipenv/issues/5200>`_
+
+
+2022.8.5 (2022-08-05)
+=====================
 
 
 Features & Improvements

@@ -278,6 +278,59 @@ def convert_deps_to_pip(
     return f.name
 
 
+def get_constraints_from_deps(deps):
+    """Get contraints from Pipfile-formatted dependency"""
+    from pipenv.patched.pip._internal.req.req_install import (
+        check_invalid_constraint_type,
+    )
+    from pipenv.vendor.requirementslib.models.requirements import Requirement
+
+    constraints = []
+    for dep_name, dep in deps.items():
+        new_dep = Requirement.from_pipfile(dep_name, dep)
+        problem = check_invalid_constraint_type(new_dep.as_ireq())
+        if not problem:
+            c = new_dep.as_line().strip()
+            constraints.append(c)
+    return constraints
+
+
+def prepare_constraint_file(
+    constraints,
+    directory=None,
+    sources=None,
+    pip_args=None,
+):
+    from pipenv.vendor.vistir.path import (
+        create_tracked_tempdir,
+        create_tracked_tempfile,
+    )
+
+    if not directory:
+        directory = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
+
+    constraints_file = create_tracked_tempfile(
+        mode="w",
+        prefix="pipenv-",
+        suffix="-constraints.txt",
+        dir=directory,
+        delete=False,
+    )
+
+    if sources and pip_args:
+        skip_args = ("build-isolation", "use-pep517", "cache-dir")
+        args_to_add = [
+            arg for arg in pip_args if not any(bad_arg in arg for bad_arg in skip_args)
+        ]
+        requirementstxt_sources = " ".join(args_to_add) if args_to_add else ""
+        requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
+        constraints_file.write(f"{requirementstxt_sources}\n")
+
+    constraints_file.write("\n".join([c for c in constraints]))
+    constraints_file.close()
+    return constraints_file.name
+
+
 def is_required_version(version, specified_version):
     """Check to see if there's a hard requirement for version
     number provided in the Pipfile.

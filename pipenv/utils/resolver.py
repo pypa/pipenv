@@ -17,24 +17,36 @@ from pipenv.patched.pip._internal.network.cache import SafeFileCache
 from pipenv.patched.pip._internal.operations.build.build_tracker import (
     get_build_tracker,
 )
+from pipenv.patched.pip._internal.req.constructors import (
+    install_req_from_parsed_requirement,
+)
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.project import Project
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib import Pipfile, Requirement
+from pipenv.vendor.requirementslib import Requirement
 from pipenv.vendor.requirementslib.models.requirements import Line
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
 from pipenv.vendor.vistir import TemporaryDirectory, open_file
 from pipenv.vendor.vistir.path import create_tracked_tempdir
 
+try:
+    # this is only in Python3.8 and later
+    from functools import cached_property
+except ImportError:
+    # eventually distlib will remove cached property when they drop Python3.7
+    from pipenv.patched.pip._vendor.distlib.util import cached_property
+
 from .dependencies import (
     HackedPythonVersion,
     clean_pkg_version,
     convert_deps_to_pip,
+    get_constraints_from_deps,
     get_vcs_deps,
     is_pinned_requirement,
     pep423_name,
+    prepare_constraint_file,
     translate_markers,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
@@ -117,6 +129,7 @@ class Resolver:
         skipped=None,
         clear=False,
         pre=False,
+        dev=False,
     ):
         self.initial_constraints = constraints
         self.req_dir = req_dir
@@ -126,6 +139,7 @@ class Resolver:
         self.hashes = {}
         self.clear = clear
         self.pre = pre
+        self.dev = dev
         self.results = None
         self.markers_lookup = markers_lookup if markers_lookup is not None else {}
         self.index_lookup = index_lookup if index_lookup is not None else {}
@@ -164,9 +178,8 @@ class Resolver:
             )
         return self._hash_cache
 
-    @classmethod
     def get_metadata(
-        cls,
+        self,
         deps: List[str],
         index_lookup: Dict[str, str],
         markers_lookup: Dict[str, str],
@@ -189,7 +202,7 @@ class Resolver:
             markers_lookup = {}
         if not req_dir:
             req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-reqdir")
-        transient_resolver = cls(
+        transient_resolver = Resolver(
             [],
             req_dir,
             project,
@@ -202,7 +215,7 @@ class Resolver:
         for dep in deps:
             if not dep:
                 continue
-            req, req_idx, markers_idx = cls.parse_line(
+            req, req_idx, markers_idx = self.parse_line(
                 dep,
                 index_lookup=index_lookup,
                 markers_lookup=markers_lookup,
@@ -221,7 +234,7 @@ class Resolver:
                 )
             if not use_sources:
                 use_sources = sources
-            transient_resolver = cls(
+            transient_resolver = Resolver(
                 [],
                 req_dir,
                 project,
@@ -231,16 +244,15 @@ class Resolver:
                 clear=clear,
                 pre=pre,
             )
-            constraint_update, lockfile_update = cls.get_deps_from_req(
+            constraint_update, lockfile_update = self.get_deps_from_req(
                 req, resolver=transient_resolver, resolve_vcs=project.s.PIPENV_RESOLVE_VCS
             )
             constraints |= constraint_update
             skipped.update(lockfile_update)
         return constraints, skipped, index_lookup, markers_lookup
 
-    @classmethod
     def parse_line(
-        cls,
+        self,
         line: str,
         index_lookup: Dict[str, str] = None,
         markers_lookup: Dict[str, str] = None,
@@ -292,9 +304,8 @@ class Resolver:
             markers_lookup[req.normalized_name] = req.markers.replace('"', "'")
         return req, index_lookup, markers_lookup
 
-    @classmethod
     def get_deps_from_req(
-        cls,
+        self,
         req: Requirement,
         resolver: Optional["Resolver"] = None,
         resolve_vcs: bool = True,
@@ -308,6 +319,7 @@ class Resolver:
         # TODO: this is way too complex, refactor this
         constraints: Set[str] = set()
         locked_deps: Dict[str, Dict[str, Union[str, bool, List[str]]]] = {}
+        editable_packages = self.project.get_editable_packages(dev=self.dev)
         if (req.is_file_or_url or req.is_vcs) and not req.is_wheel:
             # for local packages with setup.py files and potential direct url deps:
             if req.is_vcs:
@@ -343,21 +355,22 @@ class Resolver:
                         if not r.url:
                             continue
                         line = _requirement_to_str_lowercase_name(r)
-                        new_req, _, _ = cls.parse_line(line)
+                        new_req, _, _ = self.parse_line(line)
                         if r.marker and not r.marker.evaluate():
                             new_constraints = {}
                             _, new_entry = req.pipfile_entry
                             new_lock = {pep423_name(new_req.normalized_name): new_entry}
                         else:
-                            new_constraints, new_lock = cls.get_deps_from_req(
+                            new_constraints, new_lock = self.get_deps_from_req(
                                 new_req, resolver
                             )
                         locked_deps.update(new_lock)
                         constraints |= new_constraints
                 # if there is no marker or there is a valid marker, add the constraint line
                 elif r and (not r.marker or (r.marker and r.marker.evaluate())):
-                    line = _requirement_to_str_lowercase_name(r)
-                    constraints.add(line)
+                    if r.name not in editable_packages:
+                        line = _requirement_to_str_lowercase_name(r)
+                        constraints.add(line)
             # ensure the top level entry remains as provided
             # note that we shouldn't pin versions for editable vcs deps
             if not req.is_vcs:
@@ -420,6 +433,7 @@ class Resolver:
         req_dir: str = None,
         clear: bool = False,
         pre: bool = False,
+        dev: bool = False,
     ) -> "Resolver":
 
         if not req_dir:
@@ -430,7 +444,18 @@ class Resolver:
             markers_lookup = {}
         if sources is None:
             sources = project.sources
-        constraints, skipped, index_lookup, markers_lookup = cls.get_metadata(
+        resolver = Resolver(
+            [],
+            req_dir,
+            project,
+            sources,
+            index_lookup=index_lookup,
+            markers_lookup=markers_lookup,
+            clear=clear,
+            pre=pre,
+            dev=dev,
+        )
+        constraints, skipped, index_lookup, markers_lookup = resolver.get_metadata(
             deps,
             index_lookup,
             markers_lookup,
@@ -439,58 +464,12 @@ class Resolver:
             req_dir=req_dir,
             pre=pre,
             clear=clear,
-        )
-        return Resolver(
-            constraints,
-            req_dir,
-            project,
-            sources,
-            index_lookup=index_lookup,
-            markers_lookup=markers_lookup,
-            skipped=skipped,
-            clear=clear,
-            pre=pre,
-        )
-
-    @classmethod
-    def from_pipfile(
-        cls,
-        project: Optional[Project],
-        pipfile: Optional[Pipfile] = None,
-        dev: bool = False,
-        pre: bool = False,
-        clear: bool = False,
-    ) -> "Resolver":
-
-        if not pipfile:
-            pipfile = project._pipfile
-        req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
-        index_lookup, markers_lookup = {}, {}
-        deps = set()
-        if dev:
-            deps.update({req.as_line() for req in pipfile.dev_packages})
-        deps.update({req.as_line() for req in pipfile.packages})
-        constraints, skipped, index_lookup, markers_lookup = cls.get_metadata(
-            list(deps),
-            index_lookup,
-            markers_lookup,
-            project,
-            project.sources,
-            req_dir=req_dir,
-            pre=pre,
-            clear=clear,
-        )
-        return Resolver(
-            constraints,
-            req_dir,
-            project,
-            project.sources,
-            index_lookup=index_lookup,
-            markers_lookup=markers_lookup,
-            skipped=skipped,
-            clear=clear,
-            pre=pre,
-        )
+        )  # Workaround to the fact `get_metadata` instantiates a transient Resolver
+        resolver.initial_constraints = constraints
+        resolver.skipped = skipped
+        resolver.index_lookup = index_lookup
+        resolver.markers_lookup = markers_lookup
+        return resolver
 
     @property
     def pip_command(self):
@@ -522,35 +501,30 @@ class Resolver:
         return self._pip_args
 
     def prepare_constraint_file(self):
-        from pipenv.vendor.vistir.path import create_tracked_tempfile
-
-        constraints_file = create_tracked_tempfile(
-            mode="w",
-            prefix="pipenv-",
-            suffix="-constraints.txt",
-            dir=self.req_dir,
-            delete=False,
+        constraint_filename = prepare_constraint_file(
+            self.initial_constraints,
+            directory=self.req_dir,
+            sources=self.sources,
+            pip_args=self.pip_args,
         )
-        skip_args = ("build-isolation", "use-pep517", "cache-dir")
-        args_to_add = [
-            arg
-            for arg in self.pip_args
-            if not any(bad_arg in arg for bad_arg in skip_args)
-        ]
-        if self.sources:
-            requirementstxt_sources = " ".join(args_to_add) if args_to_add else ""
-            requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
-            constraints_file.write(f"{requirementstxt_sources}\n")
-        constraints = self.initial_constraints
-        constraints_file.write("\n".join([c for c in constraints]))
-        constraints_file.close()
-        return constraints_file.name
+        return constraint_filename
 
     @property
     def constraint_file(self):
         if self._constraint_file is None:
             self._constraint_file = self.prepare_constraint_file()
         return self._constraint_file
+
+    @cached_property
+    def default_constraint_file(self):
+        default_constraints = get_constraints_from_deps(self.project.packages)
+        default_constraint_filename = prepare_constraint_file(
+            default_constraints,
+            directory=self.req_dir,
+            sources=None,
+            pip_args=None,
+        )
+        return default_constraint_filename
 
     @property
     def pip_options(self):
@@ -630,12 +604,33 @@ class Resolver:
             )
         return self._parsed_constraints
 
+    @cached_property
+    def parsed_default_constraints(self):
+        pip_options = self.pip_options
+        pip_options.extra_index_urls = []
+        parsed_default_constraints = parse_requirements(
+            self.default_constraint_file,
+            constraint=True,
+            finder=self.finder,
+            session=self.session,
+            options=pip_options,
+        )
+        return parsed_default_constraints
+
+    @cached_property
+    def default_constraints(self):
+        default_constraints = [
+            install_req_from_parsed_requirement(
+                c,
+                isolated=self.pip_options.build_isolation,
+                user_supplied=False,
+            )
+            for c in self.parsed_default_constraints
+        ]
+        return default_constraints
+
     @property
     def constraints(self):
-        from pipenv.patched.pip._internal.req.constructors import (
-            install_req_from_parsed_requirement,
-        )
-
         if self._constraints is None:
             self._constraints = [
                 install_req_from_parsed_requirement(
@@ -646,6 +641,9 @@ class Resolver:
                 )
                 for c in self.parsed_constraints
             ]
+            # Only use default_constraints when installing dev-packages
+            if self.dev:
+                self._constraints += self.default_constraints
         return self._constraints
 
     @contextlib.contextmanager
@@ -870,6 +868,7 @@ def actually_resolve_deps(
     sources,
     clear,
     pre,
+    dev,
     req_dir=None,
 ):
     if not req_dir:
@@ -878,7 +877,7 @@ def actually_resolve_deps(
 
     with warnings.catch_warnings(record=True) as warning_list:
         resolver = Resolver.create(
-            deps, project, index_lookup, markers_lookup, sources, req_dir, clear, pre
+            deps, project, index_lookup, markers_lookup, sources, req_dir, clear, pre, dev
         )
         resolver.resolve()
         hashes = resolver.resolve_hashes()
@@ -1064,6 +1063,7 @@ def resolve_deps(
     python=False,
     clear=False,
     pre=False,
+    dev=False,
     allow_global=False,
     req_dir=None,
 ):
@@ -1094,6 +1094,7 @@ def resolve_deps(
                 sources,
                 clear,
                 pre,
+                dev,
                 req_dir=req_dir,
             )
         except RuntimeError:
@@ -1122,6 +1123,7 @@ def resolve_deps(
                     sources,
                     clear,
                     pre,
+                    dev,
                     req_dir=req_dir,
                 )
             except RuntimeError:
