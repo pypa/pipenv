@@ -1,6 +1,3 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
-
 import atexit
 import copy
 import hashlib
@@ -11,7 +8,9 @@ import sys
 
 import pipenv.vendor.vistir as vistir
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
-from pipenv.vendor.pip_shims.shims import FAVORITE_HASH, SafeFileCache
+from pipenv.patched.pip._internal.network.cache import SafeFileCache
+from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
+from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
 from pipenv.vendor.platformdirs import user_cache_dir
 
 from .utils import as_tuple, get_pinned_version, key_from_req, lookup_table
@@ -205,8 +204,6 @@ class HashCache(SafeFileCache):
         super(HashCache, self).__init__(*args, **kwargs)
 
     def get_hash(self, location):
-        from pipenv.vendor.pip_shims import VcsSupport
-
         # if there is no location hash (i.e., md5 / sha256 / etc) we on't want to store it
         hash_value = None
         vcs = VcsSupport()
