@@ -8,32 +8,25 @@ from .pythonfinder import Finder
 
 
 @click.command()
-@click.option("--find", default=False, nargs=1, help="Find a specific python version.")
-@click.option("--which", default=False, nargs=1, help="Run the which command.")
+@click.option("--find", nargs=1, help="Find a specific python version.")
+@click.option("--which", nargs=1, help="Run the which command.")
 @click.option("--findall", is_flag=True, default=False, help="Find all python versions.")
 @click.option(
-    "--version", is_flag=True, default=False, help="Display PythonFinder version."
-)
-@click.option(
-    "--ignore-unsupported/--no-unsupported",
+    "--ignore-unsupported",
+    "--no-unsupported",
     is_flag=True,
     default=True,
     envvar="PYTHONFINDER_IGNORE_UNSUPPORTED",
     help="Ignore unsupported python versions.",
 )
-@click.version_option(prog_name="pyfinder", version=__version__)
+@click.version_option(
+    prog_name=click.style("PythonFinder", bold=True),
+    version=click.style(__version__, fg="yellow"),
+)
 @click.pass_context
 def cli(
     ctx, find=False, which=False, findall=False, version=False, ignore_unsupported=True
 ):
-    if version:
-        click.echo(
-            "{0} version {1}".format(
-                click.style("PythonFinder", fg="white", bold=True),
-                click.style(str(__version__), fg="yellow"),
-            )
-        )
-        ctx.exit()
     finder = Finder(ignore_unsupported=ignore_unsupported)
     if findall:
         versions = [v for v in finder.find_all_python_versions()]
