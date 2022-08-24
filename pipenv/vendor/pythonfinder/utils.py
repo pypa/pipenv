@@ -1,6 +1,4 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function
-
 import io
 import itertools
 import os
@@ -11,23 +9,13 @@ from fnmatch import fnmatch
 from threading import Timer
 
 import pipenv.vendor.attr as attr
-import pipenv.vendor.six as six
 from pipenv.patched.pip._vendor.packaging.version import LegacyVersion, Version
 
 from .compat import Path, TimeoutError, lru_cache  # noqa
 from .environment import MYPY_RUNNING, PYENV_ROOT, SUBPROCESS_TIMEOUT
 from .exceptions import InvalidPythonVersion
 
-six.add_move(
-    six.MovedAttribute("Iterable", "collections", "collections.abc")
-)  # type: ignore  # noqa
-six.add_move(
-    six.MovedAttribute("Sequence", "collections", "collections.abc")
-)  # type: ignore  # noqa
-# fmt: off
-from pipenv.vendor.six.moves import Iterable  # type: ignore  # noqa  # isort:skip
-from pipenv.vendor.six.moves import Sequence  # type: ignore  # noqa  # isort:skip
-# fmt: on
+from collections.abc import Iterable, Sequence
 
 if MYPY_RUNNING:
     from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple, Union
@@ -332,13 +320,13 @@ def filter_pythons(path):
 def unnest(item):
     # type: (Any) -> Iterable[Any]
     target = None  # type: Optional[Iterable]
-    if isinstance(item, Iterable) and not isinstance(item, six.string_types):
+    if isinstance(item, Iterable) and not isinstance(item, str):
         item, target = itertools.tee(item, 2)
     else:
         target = item
     if getattr(target, "__iter__", None):
         for el in target:
-            if isinstance(el, Iterable) and not isinstance(el, six.string_types):
+            if isinstance(el, Iterable) and not isinstance(el, str):
                 el, el_copy = itertools.tee(el, 2)
                 for sub in unnest(el_copy):
                     yield sub
@@ -384,7 +372,7 @@ def split_version_and_name(
     name=None,  # type: Optional[str]
 ):
     # type: (...) -> Tuple[Optional[Union[str, int]], Optional[Union[str, int]], Optional[Union[str, int]], Optional[str]]  # noqa
-    if isinstance(major, six.string_types) and not minor and not patch:
+    if isinstance(major, str) and not minor and not patch:
         # Only proceed if this is in the format "x.y.z" or similar
         if major.isdigit() or (major.count(".") > 0 and major[0].isdigit()):
             version = major.split(".", 2)
