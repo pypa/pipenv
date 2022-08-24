@@ -1,2 +1,0 @@
-Remove eager and unnecessary importing of ``setuptools`` and ``pkg_resources`` to avoid conflict upgrading ``setuptools``.
-Roll back ``sysconfig`` patch of ``pip`` because it was problematic for some ``--system`` commands.

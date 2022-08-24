@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Aug 19, 2022" "2022.8.19" "pipenv"
+.TH "PIPENV" "1" "Aug 24, 2022" "2022.8.24" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -453,6 +453,20 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.8.24 (2022\-08\-24)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Remove eager and unnecessary importing of \fBsetuptools\fP and \fBpkg_resources\fP to avoid conflict upgrading \fBsetuptools\fP\&.
+Roll back \fBsysconfig\fP patch of \fBpip\fP because it was problematic for some \fB\-\-system\fP commands.  \fI\%#5228\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Vendor in \fBrequirementslib==2.0.0\fP and drop \fBpip\-shims\fP entirely.  \fI\%#5228\fP
+.IP \(bu 2
+Vendor in \fBpythonfinder==1.3.1\fP  \fI\%#5292\fP
+.UNINDENT
 .SS 2022.8.19 (2022\-08\-19)
 .SS Bug Fixes
 .INDENT 0.0
@@ -3033,7 +3047,7 @@ Pipenv is not meant to run as root. However, in the multi stage build above
 it is done never the less. A calculated risk, since the intermediatiary image
 is discarded.
 The runtime image later shows that you should create a user and user it to
-run your applicaion.
+run your application.
 \fBOnce again, you should not run pipenv as root (or Admin on Windows) normally.
 This could lead to breakage of your Python installation, or even your complete
 OS.\fP

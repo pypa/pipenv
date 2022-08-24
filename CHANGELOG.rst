@@ -1,3 +1,20 @@
+2022.8.24 (2022-08-24)
+======================
+
+
+Bug Fixes
+---------
+
+- Remove eager and unnecessary importing of ``setuptools`` and ``pkg_resources`` to avoid conflict upgrading ``setuptools``.
+  Roll back ``sysconfig`` patch of ``pip`` because it was problematic for some ``--system`` commands.  `#5228 <https://github.com/pypa/pipenv/issues/5228>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in ``requirementslib==2.0.0`` and drop ``pip-shims`` entirely.  `#5228 <https://github.com/pypa/pipenv/issues/5228>`_
+- Vendor in ``pythonfinder==1.3.1``  `#5292 <https://github.com/pypa/pipenv/issues/5292>`_
+
+
 2022.8.19 (2022-08-19)
 ======================
 

@@ -1,1 +1,0 @@
-Vendor in ``requirementslib==2.0.0`` and drop ``pip-shims`` entirely.
