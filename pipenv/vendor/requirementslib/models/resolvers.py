@@ -1,8 +1,8 @@
-# -*- coding=utf-8 -*-
 from contextlib import contextmanager
 
 import pipenv.vendor.attr as attr
-from pipenv.vendor.pip_shims.shims import Wheel
+from pipenv.patched.pip._internal.models.wheel import Wheel
+from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
 
 from .cache import HashCache
 from .utils import format_requirement, is_pinned_requirement, version_from_ireq
@@ -198,8 +198,6 @@ class DependencyResolver(object):
 
         if ireq.editable:
             return set()
-
-        from pipenv.vendor.pip_shims import VcsSupport
 
         vcs = VcsSupport()
         if (

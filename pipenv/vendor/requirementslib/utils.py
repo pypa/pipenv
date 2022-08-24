@@ -10,8 +10,10 @@ from urllib.parse import urlparse, urlsplit, urlunparse
 
 import pipenv.vendor.tomlkit as tomlkit
 import pipenv.vendor.vistir as vistir
-from pipenv.vendor.pip_shims import shims
-from pipenv.vendor.vistir.compat import fs_decode
+from pipenv.patched.pip._internal.commands.install import InstallCommand
+from pipenv.patched.pip._internal.models.target_python import TargetPython
+from pipenv.patched.pip._internal.utils.filetypes import is_archive_file
+from pipenv.patched.pip._internal.utils.misc import is_installable_dir
 from pipenv.vendor.vistir.path import ensure_mkdir_p, is_valid_url
 
 from .environment import MYPY_RUNNING
@@ -69,20 +71,6 @@ VCS_SCHEMES = [
     "bzr+ftp",
     "bzr+lp",
 ]
-
-
-def is_installable_dir(path):
-    # type: (STRING_TYPE) -> bool
-    if shims.is_installable_dir(path):
-        return True
-    pyproject_path = os.path.join(path, "pyproject.toml")
-    if os.path.exists(pyproject_path):
-        pyproject = Path(pyproject_path)
-        pyproject_toml = tomlkit.loads(pyproject.read_text())
-        build_system = pyproject_toml.get("build-system", {}).get("build-backend", "")
-        if build_system:
-            return True
-    return False
 
 
 def strip_ssh_from_git_uri(uri):
@@ -164,8 +152,8 @@ def convert_entry_to_path(path):
     elif "path" in path:
         path = path["path"]
     if not os.name == "nt":
-        return fs_decode(path)
-    return Path(fs_decode(path)).as_posix()
+        return os.fsdecode(path)
+    return Path(os.fsdecode(path)).as_posix()
 
 
 def is_installable_file(path):
@@ -194,19 +182,19 @@ def is_installable_file(path):
         or (len(parsed.scheme) == 1 and os.name == "nt")
     )
     if parsed.scheme and parsed.scheme == "file":
-        path = fs_decode(vistir.path.url_to_path(path))
+        path = os.fsdecode(vistir.path.url_to_path(path))
     normalized_path = vistir.path.normalize_path(path)
     if is_local and not os.path.exists(normalized_path):
         return False
 
-    is_archive = shims.is_archive_file(normalized_path)
+    is_archive = is_archive_file(normalized_path)
     is_local_project = os.path.isdir(normalized_path) and is_installable_dir(
         normalized_path
     )
     if is_local and is_local_project or is_archive:
         return True
 
-    if not is_local and shims.is_archive_file(parsed.path):
+    if not is_local and is_archive_file(parsed.path):
         return True
 
     return False
@@ -278,6 +266,35 @@ def prepare_pip_source_args(sources, pip_args=None):
                         ["--trusted-host", urlparse(source["url"]).hostname]
                     )  # type: ignore
     return pip_args
+
+
+def get_package_finder(
+    install_cmd=None,
+    options=None,
+    session=None,
+    platform=None,
+    python_versions=None,
+    abi=None,
+    implementation=None,
+    ignore_requires_python=None,
+):
+    """Reduced Shim for compatibility to generate package finders."""
+    py_version_info = None
+    if python_versions:
+        py_version_info_python = max(python_versions)
+        py_version_info = tuple([int(part) for part in py_version_info_python])
+    target_python = TargetPython(
+        platforms=[platform] if platform else None,
+        py_version_info=py_version_info,
+        abis=[abi] if abi else None,
+        implementation=implementation,
+    )
+    return install_cmd._build_package_finder(
+        options=options,
+        session=session,
+        target_python=target_python,
+        ignore_requires_python=ignore_requires_python,
+    )
 
 
 @ensure_mkdir_p(mode=0o777)
@@ -656,3 +673,13 @@ def merge_items(target_list, sourced=False):
     if not sourced:
         return ret
     return ret, source_map
+
+
+def get_pip_command() -> InstallCommand:
+    # Use pip's parser for pip.conf management and defaults.
+    # General options (find_links, index_url, extra_index_url, trusted_host,
+    # and pre) are deferred to pip.
+    pip_command = InstallCommand(
+        name="InstallCommand", summary="requirementslib pip Install command."
+    )
+    return pip_command

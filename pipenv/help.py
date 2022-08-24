@@ -8,15 +8,11 @@ from pipenv.vendor import pythonfinder
 
 
 def get_pipenv_diagnostics(project):
-    import setuptools
-
     print("<details><summary>$ pipenv --support</summary>")
     print("")
     print(f"Pipenv version: `{pipenv.__version__!r}`")
     print("")
     print(f"Pipenv location: `{os.path.dirname(pipenv.__file__)!r}`")
-    print("")
-    print(f"setuptools version: `{setuptools.__version__!r}`")
     print("")
     print(f"Python location: `{sys.executable!r}`")
     print("")

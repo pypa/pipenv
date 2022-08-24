@@ -1,12 +1,10 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function
-
 import importlib
 import os
 import sys
 
 import pipenv.vendor.attr as attr
-import pipenv.vendor.pip_shims as pip_shims
+from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
+from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
 
 from ..environment import MYPY_RUNNING
 from .url import URI
@@ -41,7 +39,6 @@ class VCSRepository(object):
             default_run_args = self.monkeypatch_pip()
         else:
             default_run_args = self.DEFAULT_RUN_ARGS
-        from pipenv.vendor.pip_shims.shims import VcsSupport
 
         VCS_SUPPORT = VcsSupport()
         backend = VCS_SUPPORT.get_backend(self.vcs_type)
@@ -58,29 +55,13 @@ class VCSRepository(object):
             url = url.split("+")[1]
         return url.startswith("file")
 
-    def obtain(self, verbosity=1):
-        # type: () -> None
-        lt_pip_19_2 = (
-            pip_shims.parsed_pip_version.parsed_version < pip_shims.parse_version("19.2")
-        )
-        gte_pip_22_0 = (
-            pip_shims.parsed_pip_version.parsed_version >= pip_shims.parse_version("22.0")
-        )
-        if lt_pip_19_2:
-            self.repo_backend = self.repo_backend(self.url)
+    def obtain(self, verbosity=1) -> None:
         if os.path.exists(
             self.checkout_directory
         ) and not self.repo_backend.is_repository_directory(self.checkout_directory):
             self.repo_backend.unpack(self.checkout_directory)
         elif not os.path.exists(self.checkout_directory):
-            if lt_pip_19_2:
-                self.repo_backend.obtain(self.checkout_directory)
-            elif gte_pip_22_0:
-                self.repo_backend.obtain(
-                    self.checkout_directory, self.parsed_url, verbosity
-                )
-            else:  # at least Pip 19.2 but not quite pip 22.x
-                self.repo_backend.obtain(self.checkout_directory, self.parsed_url)
+            self.repo_backend.obtain(self.checkout_directory, self.parsed_url, verbosity)
         else:
             if self.ref:
                 self.checkout_ref(self.ref)
@@ -102,39 +83,24 @@ class VCSRepository(object):
     def update(self, ref):
         # type: (str) -> None
         target_ref = self.repo_backend.make_rev_options(ref)
-        if pip_shims.parse_version(pip_shims.pip_version) > pip_shims.parse_version(
-            "18.0"
-        ):
-            self.repo_backend.update(self.checkout_directory, self.url, target_ref)
-        else:
-            self.repo_backend.update(self.checkout_directory, target_ref)
+        self.repo_backend.update(self.checkout_directory, self.url, target_ref)
         self.commit_sha = self.get_commit_hash()
 
     def get_commit_hash(self, ref=None):
         # type: (Optional[str]) -> str
-        with pip_shims.shims.global_tempdir_manager():
+        with global_tempdir_manager():
             return self.repo_backend.get_revision(self.checkout_directory)
 
     @classmethod
     def monkeypatch_pip(cls):
         # type: () -> Tuple[Any, ...]
-        from pipenv.vendor.pip_shims.compat import get_allowed_args
-
-        target_module = pip_shims.shims.VcsSupport.__module__
+        target_module = VcsSupport.__module__
         pip_vcs = importlib.import_module(target_module)
-        args, kwargs = get_allowed_args(pip_vcs.VersionControl.run_command)
-        run_command_defaults = pip_vcs.VersionControl.run_command.__defaults__
-        if "show_stdout" not in args and "show_stdout" not in kwargs:
-            new_defaults = run_command_defaults
-        else:
-            # set the default to not write stdout, the first option sets this value
-            new_defaults = [False] + list(run_command_defaults)[1:]
-            new_defaults = tuple(new_defaults)
-        try:
-            pip_vcs.VersionControl.run_command.__defaults__ = new_defaults
-        except AttributeError:
-            pip_vcs.VersionControl.run_command.__func__.__defaults__ = new_defaults
-
+        run_command_defaults = pip_vcs.VersionControl.run_command.__func__.__defaults__
+        # set the default to not write stdout, the first option sets this value
+        new_defaults = [False] + list(run_command_defaults)[1:]
+        new_defaults = tuple(new_defaults)
+        pip_vcs.VersionControl.run_command.__func__.__defaults__ = new_defaults
         sys.modules[target_module] = pip_vcs
         cls.DEFAULT_RUN_ARGS = new_defaults
         return new_defaults
