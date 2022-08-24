@@ -1,1 +1,0 @@
-Vendor in ``pythonfinder==1.3.1``
