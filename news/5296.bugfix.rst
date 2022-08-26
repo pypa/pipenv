@@ -1,0 +1,1 @@
+Fix an issue when using ``pipenv install --system`` on systems that having the ``python`` executable pointing to Python 2 and a Python 3 executable being ``python3``.
