@@ -445,7 +445,7 @@ def project_python(project, system=False):
     if not system:
         python = project._which("python")
     else:
-        interpreters = [system_which(p) for p in ("python", "python3")]
+        interpreters = [system_which(p) for p in ("python3", "python")]
         interpreters = [i for i in interpreters if i]  # filter out not found interpreters
         python = interpreters[0] if interpreters else None
     if not python:

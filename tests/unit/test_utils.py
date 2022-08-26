@@ -458,3 +458,17 @@ twine = "*"
         sources = [{}]
         with pytest.raises(PipenvUsageError):
             indexes.prepare_pip_source_args(sources, pip_args=None)
+
+    @pytest.mark.utils
+    def test_project_python_tries_python3_before_python_if_system_is_true(self):
+        def mock_shutil_which(command, path=None):
+            if command != "python3":
+                return f"/usr/bin/{command}"
+            return "/usr/local/bin/python3"
+
+        with mock.patch("pipenv.utils.shell.shutil.which", wraps=mock_shutil_which):
+            # Setting project to None as system=True doesn't use it
+            project = None
+            python = shell.project_python(project, system=True)
+
+        assert python == "/usr/local/bin/python3"
