@@ -335,6 +335,7 @@ name = "testpypi"
 
 [packages]
 pipenv-test-private-package = {version = "*", index = "testpypi"}
+pipenv-test-public-package = {version = "*", index = "pypi"}
 requests = "*"
             """.strip()
             f.write(contents)
