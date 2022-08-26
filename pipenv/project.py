@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import base64
@@ -23,6 +22,8 @@ from pipenv.cmdparse import Script
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
 from pipenv.patched.pip._internal.commands.install import InstallCommand
+from pipenv.patched.pip._internal.configuration import Configuration
+from pipenv.patched.pip._internal.exceptions import ConfigurationError
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
@@ -129,7 +130,22 @@ class Project:
         self._build_system = {"requires": ["setuptools", "wheel"]}
         self.python_version = python_version
         self.s = Setting()
-        if self.s.PIPENV_TEST_INDEX:
+        # Load Pip configuration
+        self.configuration = Configuration(isolated=False, load_only=None)
+        self.configuration.load()
+        print(f"Configuration: {self.configuration}")
+        print(f"Configuration Dictionary: {self.configuration._dictionary}")
+        try:
+            pip_configured_index = self.configuration.get_value("global.index-url")
+        except ConfigurationError:
+            pip_configured_index = None
+        if pip_configured_index:
+            self.default_source = {
+                "url": pip_configured_index,
+                "verify_ssl": True,
+                "name": "pip_conf_index",
+            }
+        elif self.s.PIPENV_TEST_INDEX:
             self.default_source = {
                 "url": self.s.PIPENV_TEST_INDEX,
                 "verify_ssl": True,
