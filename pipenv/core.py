@@ -197,7 +197,7 @@ def import_requirements(project, r=None, dev=False):
         if package.name not in BAD_PACKAGES:
             if package.link is not None:
                 package_string = (
-                    f"-e {package.link}" if package.editable else str(package.link)
+                    f"-e {package.link}" if package.editable else str(package.link._url)
                 )
                 project.add_package_to_pipfile(package_string, dev=dev)
             else:
