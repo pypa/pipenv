@@ -10,12 +10,9 @@ from pathlib import Path
 from posixpath import expandvars
 from typing import Dict, List, Optional, Union
 
-import dotenv
-import pipfile
-import vistir
-
 from pipenv import environments, exceptions, pep508checker, progress
 from pipenv._compat import decode_for_output, fix_utf8
+from pipenv.patched import pipfile
 from pipenv.patched.pip._internal.build_env import _get_runnable_pip
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._internal.network.session import PipSession
@@ -49,7 +46,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.spinner import create_spinner
-from pipenv.vendor import click
+from pipenv.vendor import click, dotenv, vistir
 from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 if MYPY_RUNNING:
@@ -658,6 +655,7 @@ def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
             click.secho(out.strip() or err.strip(), fg="cyan")
         # The Installation failed...
         if failed:
+            dep = c.dep.copy() if hasattr(c, "dep") else None
             # If there is a mismatch in installed locations or the install fails
             # due to wrongful disabling of pep517, we should allow for
             # additional passes at installation
@@ -673,11 +671,11 @@ def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
                         )
                     )
                 )
-                dep = c.dep.copy()
-                dep.use_pep517 = True
+                if dep:
+                    dep.use_pep517 = True
             elif "Disabling PEP 517 processing is invalid" in err:
-                dep = c.dep.copy()
-                dep.use_pep517 = True
+                if dep:
+                    dep.use_pep517 = True
             elif not retry:
                 # The Installation failed...
                 # We echo both c.stdout and c.stderr because pip returns error details on out.
@@ -688,17 +686,18 @@ def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
                 raise exceptions.InstallError(c.dep.name, extra=err_lines)
             else:
                 # Alert the user.
-                dep = c.dep.copy()
-                dep.use_pep517 = False
+                if dep:
+                    dep.use_pep517 = False
                 click.echo(
                     "{} {}! Will try again.".format(
                         click.style("An error occurred while installing", fg="red"),
-                        click.style(dep.as_line(), fg="green"),
+                        click.style(dep.as_line() if dep else "", fg="green"),
                     ),
                     err=True,
                 )
             # Save the Failed Dependency for later.
-            failed_deps_queue.put(dep)
+            if dep:
+                failed_deps_queue.put(dep)
 
 
 def batch_install(
@@ -739,15 +738,13 @@ def batch_install(
     )
 
     trusted_hosts = []
-    # Install these because
+    is_artifact = False
     for dep in deps_list_bar:
-        extra_indexes = []
         if dep.req.req:
             dep.req.req = strip_extras_markers_from_requirement(dep.req.req)
         if dep.markers:
             dep.markers = str(strip_extras_markers_from_requirement(dep.get_markers()))
         # Install the module.
-        is_artifact = False
         if dep.is_file_or_url and (
             dep.is_direct_url
             or any(dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"])
@@ -755,44 +752,35 @@ def batch_install(
             is_artifact = True
         elif dep.is_vcs:
             is_artifact = True
-        if not project.s.PIPENV_RESOLVE_VCS and is_artifact and not dep.editable:
-            skip_dependencies = False
-        else:
-            skip_dependencies = no_deps
 
-        with vistir.contextmanagers.temp_environ():
-            if not allow_global:
-                os.environ["PIP_USER"] = "0"
-                if "PYTHONHOME" in os.environ:
-                    del os.environ["PYTHONHOME"]
-            if "GIT_CONFIG" in os.environ and dep.is_vcs:
-                del os.environ["GIT_CONFIG"]
-            use_pep517 = True
-            if failed and not dep.is_vcs:
-                use_pep517 = getattr(dep, "use_pep517", False)
+    with vistir.contextmanagers.temp_environ():
+        if not allow_global:
+            os.environ["PIP_USER"] = "0"
+            if "PYTHONHOME" in os.environ:
+                del os.environ["PYTHONHOME"]
+        if "GIT_CONFIG" in os.environ:
+            del os.environ["GIT_CONFIG"]
+        use_pep517 = True
+        if failed and not is_artifact:
+            use_pep517 = False
 
-            is_sequential = sequential_deps and dep.name in sequential_dep_names
-            is_blocking = any([dep.editable, dep.is_vcs, blocking, is_sequential])
-            c = pip_install(
-                project,
-                dep,
-                ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
-                allow_global=allow_global,
-                no_deps=skip_dependencies,
-                block=is_blocking,
-                index=dep.index,
-                requirements_dir=requirements_dir,
-                pypi_mirror=pypi_mirror,
-                trusted_hosts=trusted_hosts,
-                extra_indexes=extra_indexes,
-                use_pep517=use_pep517,
-                use_constraint=False,  # no need to use constraints, it's written in lockfile
-            )
-            c.dep = dep
+        cmds = pip_install_deps(
+            project,
+            deps=deps_to_install,
+            allow_global=allow_global,
+            no_deps=True,
+            block=True,
+            requirements_dir=requirements_dir,
+            pypi_mirror=pypi_mirror,
+            trusted_hosts=trusted_hosts,
+            use_pep517=use_pep517,
+            use_constraint=False,  # no need to use constraints, it's written in lockfile
+        )
 
+        for c in cmds:
             procs.put(c)
-            if procs.full() or procs.qsize() == len(deps_list) or is_sequential:
-                _cleanup_procs(project, procs, failed_deps_queue, retry=retry)
+        if procs.full() or sequential_dep_names:
+            _cleanup_procs(project, procs, failed_deps_queue, retry=retry)
 
 
 def do_install_dependencies(
@@ -1416,7 +1404,6 @@ def write_requirement_to_file(
     project: Project,
     requirement: Requirement,
     requirements_dir: Optional[str] = None,
-    src_dir: Optional[str] = None,
     include_hashes: bool = True,
 ) -> str:
     if not requirements_dir:
@@ -1497,7 +1484,6 @@ def pip_install(
         project,
         requirement,
         requirements_dir=requirements_dir,
-        src_dir=src_dir,
         include_hashes=not ignore_hashes,
     )
     sources = get_source_list(
@@ -1572,6 +1558,144 @@ def pip_install(
     c = subprocess_run(pip_command, block=block, env=pip_config)
     c.env = pip_config
     return c
+
+
+def pip_install_deps(
+    project,
+    deps=None,
+    allow_global=False,
+    no_deps=False,
+    block=True,
+    pre=False,
+    dev=False,
+    selective_upgrade=False,
+    requirements_dir=None,
+    pypi_mirror=None,
+    trusted_hosts=None,
+    use_pep517=True,
+    use_constraint=False,
+):
+    piplogger = logging.getLogger("pipenv.patched.pip._internal.commands.install")
+    if not trusted_hosts:
+        trusted_hosts = []
+    trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
+    if not allow_global:
+        src_dir = os.getenv(
+            "PIP_SRC", os.getenv("PIP_SRC_DIR", project.virtualenv_src_location)
+        )
+    else:
+        src_dir = os.getenv("PIP_SRC", os.getenv("PIP_SRC_DIR"))
+    if not requirements_dir:
+        requirements_dir = vistir.path.create_tracked_tempdir(
+            prefix="pipenv", suffix="requirements"
+        )
+
+    hashed_requirements = vistir.compat.NamedTemporaryFile(
+        prefix="pipenv-", suffix="-hashed-reqs.txt", dir=requirements_dir, delete=False
+    )
+    not_hashed_requirements = vistir.compat.NamedTemporaryFile(
+        prefix="pipenv-", suffix="-reqs.txt", dir=requirements_dir, delete=False
+    )
+    for requirement in deps:
+        ignore_hashes = False
+        if (
+            requirement.is_vcs
+            or requirement.vcs
+            or requirement.editable
+            or not requirement.hashes
+        ):
+            ignore_hashes = True
+        # Try installing for each source in project.sources.
+        search_all_sources = project.settings.get("install_search_all_sources", False)
+        if requirement and requirement.vcs or requirement.editable:
+            requirement.index = None
+
+        line = requirement.line_instance.get_line(
+            with_prefix=True,
+            with_hashes=not ignore_hashes,
+            with_markers=True,
+            as_list=False,
+        )
+        sources = get_source_list(
+            project,
+            requirement.index,
+            extra_indexes=list(project.sources),
+            trusted_hosts=trusted_hosts,
+            pypi_mirror=pypi_mirror,
+        )
+        if not search_all_sources and requirement.index in sources:
+            sources = list(filter(lambda d: d.get("name") == requirement.index, sources))
+        if sources:
+            line = f"{line} -i {sources[0]['url']}"
+            for source in sources[1:]:
+                line = f"{line} --extra-index-url {source['url']}"
+        if project.s.is_verbose():
+            click.echo(
+                f"Writing supplied requirement line to temporary file: {line!r}", err=True
+            )
+        target = not_hashed_requirements if ignore_hashes else hashed_requirements
+        target.write(vistir.misc.to_bytes(line))
+        target.write(vistir.misc.to_bytes("\n"))
+    hashed_requirements.close()
+    not_hashed_requirements.close()
+
+    if project.s.is_verbose():
+        piplogger.setLevel(logging.WARN)
+        for requirement in deps:
+            click.echo(
+                click.style(f"Installing {requirement.name!r}", bold=True),
+                err=True,
+            )
+
+    cmds = []
+    for file in [hashed_requirements, not_hashed_requirements]:
+        pip_command = [
+            project_python(project, system=allow_global),
+            _get_runnable_pip(),
+            "install",
+        ]
+        pip_args = get_pip_args(
+            project,
+            pre=pre,
+            verbose=project.s.is_verbose(),
+            upgrade=True,
+            selective_upgrade=selective_upgrade,
+            no_use_pep517=not use_pep517,
+            no_deps=no_deps,
+        )
+        pip_command.extend(pip_args)
+        pip_command.extend(["-r", normalize_path(file.name)])
+        if dev and use_constraint:
+            default_constraints = get_constraints_from_deps(project.packages)
+            constraint_filename = prepare_constraint_file(
+                default_constraints,
+                directory=requirements_dir,
+                sources=None,
+                pip_args=None,
+            )
+            pip_command.extend(["-c", normalize_path(constraint_filename)])
+        if project.s.is_verbose():
+            click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
+        cache_dir = Path(project.s.PIPENV_CACHE_DIR)
+        default_exists_action = "w"
+        if selective_upgrade:
+            default_exists_action = "i"
+        exists_action = project.s.PIP_EXISTS_ACTION or default_exists_action
+        pip_config = {
+            "PIP_CACHE_DIR": cache_dir.as_posix(),
+            "PIP_WHEEL_DIR": cache_dir.joinpath("wheels").as_posix(),
+            "PIP_DESTINATION_DIR": cache_dir.joinpath("pkgs").as_posix(),
+            "PIP_EXISTS_ACTION": exists_action,
+            "PATH": os.environ.get("PATH"),
+        }
+        if src_dir:
+            if project.s.is_verbose():
+                click.echo(f"Using source directory: {src_dir!r}", err=True)
+            pip_config.update({"PIP_SRC": src_dir})
+        c = subprocess_run(pip_command, block=block, capture_output=True, env=pip_config)
+        c.env = pip_config
+        cmds.append(c)
+    return cmds
 
 
 def pip_download(project, package_name):
