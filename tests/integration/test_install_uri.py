@@ -16,10 +16,10 @@ from pipenv.utils.processes import subprocess_run
 @pytest.mark.needs_internet
 def test_basic_vcs_install(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
-        c = p.pipenv("install git+https://github.com/benjaminp/six.git@1.11.0#egg=six")
+        c = p.pipenv("install -v git+https://github.com/benjaminp/six.git@1.11.0#egg=six")
         assert c.returncode == 0
         # edge case where normal package starts with VCS name shouldn't be flagged as vcs
-        c = p.pipenv("install gitdb2")
+        c = p.pipenv("install -v gitdb2")
         assert c.returncode == 0
         assert all(package in p.pipfile["packages"] for package in ["six", "gitdb2"])
         assert "git" in p.pipfile["packages"]["six"]

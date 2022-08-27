@@ -2,6 +2,7 @@ import json as simplejson
 import logging
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -655,48 +656,48 @@ def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
             click.secho(out.strip() or err.strip(), fg="cyan")
         # The Installation failed...
         if failed:
-            dep = c.dep.copy() if hasattr(c, "dep") else None
-            # If there is a mismatch in installed locations or the install fails
-            # due to wrongful disabling of pep517, we should allow for
-            # additional passes at installation
-            if "does not match installed location" in err:
-                project.environment.expand_egg_links()
-                click.echo(
-                    "{}".format(
-                        click.style(
-                            "Failed initial installation: Failed to overwrite existing "
-                            "package, likely due to path aliasing. Expanding and trying "
-                            "again!",
-                            fg="yellow",
+            deps = c.deps.copy() if hasattr(c, "deps") else None
+            for dep in deps:
+                # If there is a mismatch in installed locations or the install fails
+                # due to wrongful disabling of pep517, we should allow for
+                # additional passes at installation
+                if "does not match installed location" in err:
+                    project.environment.expand_egg_links()
+                    click.echo(
+                        "{}".format(
+                            click.style(
+                                "Failed initial installation: Failed to overwrite existing "
+                                "package, likely due to path aliasing. Expanding and trying "
+                                "again!",
+                                fg="yellow",
+                            )
                         )
                     )
-                )
-                if dep:
-                    dep.use_pep517 = True
-            elif "Disabling PEP 517 processing is invalid" in err:
-                if dep:
-                    dep.use_pep517 = True
-            elif not retry:
-                # The Installation failed...
-                # We echo both c.stdout and c.stderr because pip returns error details on out.
-                err = err.strip().splitlines() if err else []
-                out = out.strip().splitlines() if out else []
-                err_lines = [line for message in [out, err] for line in message]
-                # Return the subprocess' return code.
-                raise exceptions.InstallError(c.dep.name, extra=err_lines)
-            else:
-                # Alert the user.
-                if dep:
-                    dep.use_pep517 = False
-                click.echo(
-                    "{} {}! Will try again.".format(
-                        click.style("An error occurred while installing", fg="red"),
-                        click.style(dep.as_line() if dep else "", fg="green"),
-                    ),
-                    err=True,
-                )
-            # Save the Failed Dependency for later.
-            if dep:
+                    if dep:
+                        dep.use_pep517 = True
+                elif "Disabling PEP 517 processing is invalid" in err:
+                    if dep:
+                        dep.use_pep517 = True
+                elif not retry:
+                    # The Installation failed...
+                    # We echo both c.stdout and c.stderr because pip returns error details on out.
+                    err = err.strip().splitlines() if err else []
+                    out = out.strip().splitlines() if out else []
+                    err_lines = [line for message in [out, err] for line in message]
+                    # Return the subprocess' return code.
+                    raise exceptions.InstallError(deps, extra=err_lines)
+                else:
+                    # Alert the user.
+                    if dep:
+                        dep.use_pep517 = False
+                    click.echo(
+                        "{} {}! Will try again.".format(
+                            click.style("An error occurred while installing", fg="red"),
+                            click.style(dep.as_line() if dep else "", fg="green"),
+                        ),
+                        err=True,
+                    )
+                # Save the Failed Dependency for later.
                 failed_deps_queue.put(dep)
 
 
@@ -779,8 +780,8 @@ def batch_install(
 
         for c in cmds:
             procs.put(c)
-        if procs.full() or sequential_dep_names:
-            _cleanup_procs(project, procs, failed_deps_queue, retry=retry)
+            if procs.full() or sequential_dep_names:
+                _cleanup_procs(project, procs, failed_deps_queue, retry=retry)
 
 
 def do_install_dependencies(
@@ -1367,7 +1368,7 @@ def get_pip_args(
         ],
         "src_dir": src_dir,
     }
-    arg_set = []
+    arg_set = ["--no-input"]
     for key in arg_map.keys():
         if key in locals() and locals().get(key):
             arg_set.extend(arg_map.get(key))
@@ -1590,24 +1591,20 @@ def pip_install_deps(
             prefix="pipenv", suffix="requirements"
         )
 
-    hashed_requirements = vistir.compat.NamedTemporaryFile(
+    hashed_requirements = tempfile.NamedTemporaryFile(
         prefix="pipenv-", suffix="-hashed-reqs.txt", dir=requirements_dir, delete=False
     )
-    not_hashed_requirements = vistir.compat.NamedTemporaryFile(
+    not_hashed_requirements = tempfile.NamedTemporaryFile(
         prefix="pipenv-", suffix="-reqs.txt", dir=requirements_dir, delete=False
     )
     for requirement in deps:
         ignore_hashes = False
-        if (
-            requirement.is_vcs
-            or requirement.vcs
-            or requirement.editable
-            or not requirement.hashes
-        ):
+        vcs_or_editable = requirement.is_vcs or requirement.vcs or requirement.editable
+        if vcs_or_editable:
             ignore_hashes = True
         # Try installing for each source in project.sources.
         search_all_sources = project.settings.get("install_search_all_sources", False)
-        if requirement and requirement.vcs or requirement.editable:
+        if requirement and vcs_or_editable:
             requirement.index = None
 
         line = requirement.line_instance.get_line(
@@ -1623,9 +1620,10 @@ def pip_install_deps(
             trusted_hosts=trusted_hosts,
             pypi_mirror=pypi_mirror,
         )
-        if not search_all_sources and requirement.index in sources:
+        source_names = {src.get("name") for src in sources}
+        if not search_all_sources and requirement.index in source_names:
             sources = list(filter(lambda d: d.get("name") == requirement.index, sources))
-        if sources:
+        if sources and not vcs_or_editable:
             line = f"{line} -i {sources[0]['url']}"
             for source in sources[1:]:
                 line = f"{line} --extra-index-url {source['url']}"
@@ -1633,7 +1631,11 @@ def pip_install_deps(
             click.echo(
                 f"Writing supplied requirement line to temporary file: {line!r}", err=True
             )
-        target = not_hashed_requirements if ignore_hashes else hashed_requirements
+        target = (
+            not_hashed_requirements
+            if (ignore_hashes or "--hash" not in line)
+            else hashed_requirements
+        )
         target.write(vistir.misc.to_bytes(line))
         target.write(vistir.misc.to_bytes("\n"))
     hashed_requirements.close()
@@ -1692,7 +1694,11 @@ def pip_install_deps(
             if project.s.is_verbose():
                 click.echo(f"Using source directory: {src_dir!r}", err=True)
             pip_config.update({"PIP_SRC": src_dir})
-        c = subprocess_run(pip_command, block=block, capture_output=True, env=pip_config)
+        c = subprocess_run(pip_command, block=False, capture_output=True, env=pip_config)
+        if file == hashed_requirements:
+            c.deps = list(filter(lambda d: not (d.is_vcs or d.vcs or d.editable), deps))
+        else:
+            c.deps = list(filter(lambda d: d.is_vcs or d.vcs or d.editable, deps))
         c.env = pip_config
         cmds.append(c)
     return cmds
@@ -2625,8 +2631,6 @@ def inline_activate_virtual_environment(project):
 
 
 def _launch_windows_subprocess(script, env):
-    import subprocess
-
     path = env.get("PATH", "")
     command = system_which(script.command, path=path)
 

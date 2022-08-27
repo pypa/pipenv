@@ -36,14 +36,7 @@ def test_platform_python_implementation_marker(PipenvInstance):
     incorrectly.
     """
     with PipenvInstance() as p:
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
-[packages]
-depends-on-marked-package = "*"
-            """.strip()
-            f.write(contents)
-
-        c = p.pipenv('install')
+        c = p.pipenv('install depends-on-marked-package')
         assert c.returncode == 0
 
         # depends-on-marked-package has an install_requires of
