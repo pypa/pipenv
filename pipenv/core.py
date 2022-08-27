@@ -1632,26 +1632,6 @@ def fallback_which(command, location=None, allow_global=False, system=False):
     return ""
 
 
-def which_pip(project):
-    """Prefers to utilize the vendor'd version of pip, falls back to the location of virtualenv-installed pip."""
-
-    location = None
-    if "VIRTUAL_ENV" in os.environ:
-        location = os.environ["VIRTUAL_ENV"]
-
-    pip = project._which("python", location=location)
-    if pip:
-        return pip
-    if not pip:
-        for p in ("pip", "pip3", "pip2"):
-            where = system_which(p)
-            if where:
-                return where
-
-    pip = fallback_which("pip", allow_global=True, location=location)
-    return pip
-
-
 def format_help(help):
     """Formats the help string."""
     help = help.replace("Options:", str(click.style("Options:", bold=True)))
