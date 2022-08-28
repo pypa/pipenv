@@ -650,13 +650,11 @@ def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
         except AttributeError:
             out, err = c.stdout, c.stderr
         failed = c.returncode != 0
-        if "Ignoring" in out:
-            click.secho(out.strip(), fg="yellow")
-        elif project.s.is_verbose():
-            click.secho(out.strip() or err.strip(), fg="cyan")
+        if project.s.is_verbose():
+            click.secho(out.strip() or err.strip(), fg="yellow")
         # The Installation failed...
         if failed:
-            deps = c.deps.copy() if hasattr(c, "deps") else None
+            deps = c.deps.copy() if hasattr(c, "deps") else []
             for dep in deps:
                 # If there is a mismatch in installed locations or the install fails
                 # due to wrongful disabling of pep517, we should allow for
@@ -758,6 +756,7 @@ def batch_install(
             project,
             deps=deps_to_install,
             allow_global=allow_global,
+            ignore_hashes=ignore_hashes,
             no_deps=True,
             requirements_dir=requirements_dir,
             pypi_mirror=pypi_mirror,
@@ -1552,6 +1551,7 @@ def pip_install_deps(
     project,
     deps=None,
     allow_global=False,
+    ignore_hashes=False,
     no_deps=False,
     pre=False,
     dev=False,
@@ -1576,23 +1576,23 @@ def pip_install_deps(
             prefix="pipenv", suffix="requirements"
         )
 
-    hashed_requirements = tempfile.NamedTemporaryFile(
+    standard_requirements = tempfile.NamedTemporaryFile(
         prefix="pipenv-", suffix="-hashed-reqs.txt", dir=requirements_dir, delete=False
     )
-    not_hashed_requirements = tempfile.NamedTemporaryFile(
+    editable_requirements = tempfile.NamedTemporaryFile(
         prefix="pipenv-", suffix="-reqs.txt", dir=requirements_dir, delete=False
     )
     for requirement in deps:
-        ignore_hashes = False
+        ignore_hash = ignore_hashes
         vcs_or_editable = requirement.is_vcs or requirement.vcs or requirement.editable
         if vcs_or_editable:
-            ignore_hashes = True
+            ignore_hash = True
         if requirement and vcs_or_editable:
             requirement.index = None
 
         line = requirement.line_instance.get_line(
             with_prefix=True,
-            with_hashes=not ignore_hashes,
+            with_hashes=not ignore_hash,
             with_markers=True,
             as_list=False,
         )
@@ -1600,24 +1600,20 @@ def pip_install_deps(
             click.echo(
                 f"Writing supplied requirement line to temporary file: {line!r}", err=True
             )
-        target = (
-            not_hashed_requirements
-            if (ignore_hashes or "--hash" not in line)
-            else hashed_requirements
-        )
+        target = editable_requirements if vcs_or_editable else standard_requirements
         target.write(vistir.misc.to_bytes(line))
         target.write(vistir.misc.to_bytes("\n"))
-    hashed_requirements.close()
-    not_hashed_requirements.close()
+    standard_requirements.close()
+    editable_requirements.close()
 
     cmds = []
     files = []
-    hashed_deps = list(filter(lambda d: not (d.is_vcs or d.vcs or d.editable), deps))
-    if hashed_deps:
-        files.append(hashed_requirements)
-    not_hashed_deps = list(filter(lambda d: d.is_vcs or d.vcs or d.editable, deps))
-    if not_hashed_deps:
-        files.append(not_hashed_requirements)
+    standard_deps = list(filter(lambda d: not (d.is_vcs or d.vcs or d.editable), deps))
+    if standard_deps:
+        files.append(standard_requirements)
+    editable_deps = list(filter(lambda d: d.is_vcs or d.vcs or d.editable, deps))
+    if editable_deps:
+        files.append(editable_requirements)
     for file in files:
         pip_command = [
             project_python(project, system=allow_global),
@@ -1653,13 +1649,13 @@ def pip_install_deps(
             )
             pip_command.extend(["-c", normalize_path(constraint_filename)])
         if project.s.is_verbose():
-            msg = f"Install Phase: {'Requirements with Hashes' if file == hashed_requirements else 'Requirements without Hashes'}"
+            msg = f"Install Phase: {'Standard Requirements' if file == standard_requirements else 'Editable Requirements'}"
             click.echo(
                 click.style(msg, bold=True),
                 err=True,
             )
             for requirement in (
-                hashed_deps if file == hashed_requirements else not_hashed_deps
+                standard_deps if file == standard_requirements else editable_deps
             ):
                 click.echo(
                     click.style(
@@ -1667,7 +1663,7 @@ def pip_install_deps(
                     ),
                     err=True,
                 )
-            click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
+            click.secho(f"$ {cmd_list_to_shell(pip_command)}", fg="cyan", err=True)
         cache_dir = Path(project.s.PIPENV_CACHE_DIR)
         default_exists_action = "w"
         if selective_upgrade:
@@ -1685,18 +1681,21 @@ def pip_install_deps(
                 click.echo(f"Using source directory: {src_dir!r}", err=True)
             pip_config.update({"PIP_SRC": src_dir})
         c = subprocess_run(pip_command, block=False, capture_output=True, env=pip_config)
-        if file == hashed_requirements:
-            c.deps = hashed_deps
+        if file == standard_requirements:
+            c.deps = standard_deps
         else:
-            c.deps = not_hashed_deps
+            c.deps = editable_deps
         c.env = pip_config
         cmds.append(c)
-        while True:
-            line = c.stdout.readline()
-            if line == "":
-                break
-            if line and project.s.is_verbose():
-                click.secho(line, err=True)
+        if project.s.is_verbose():
+            while True:
+                line = c.stdout.readline()
+                if line == "":
+                    break
+                if "Ignoring" in line:
+                    click.secho(line, fg="red", err=True)
+                elif line:
+                    click.secho(line, fg="yellow", err=True)
     return cmds
 
 
