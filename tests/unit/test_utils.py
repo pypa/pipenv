@@ -15,8 +15,6 @@ from pipenv.exceptions import PipenvUsageError
 
 # Pipfile format <-> requirements.txt format.
 DEP_PIP_PAIRS = [
-    ({"requests": "*"}, "requests"),
-    ({"requests": {"extras": ["socks"], "version": "*"}}, "requests[socks]"),
     ({"django": ">1.10"}, "django>1.10"),
     ({"Django": ">1.10"}, "Django>1.10"),
     ({"requests": {"extras": ["socks"], "version": ">1.10"}}, "requests[socks]>1.10"),
@@ -89,7 +87,25 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
 def test_convert_deps_to_pip(deps, expected):
     if expected.startswith("Django"):
         expected = expected.lower()
-    assert dependencies.convert_deps_to_pip(deps, r=False) == [expected]
+    assert dependencies.convert_deps_to_pip(deps) == [expected]
+
+
+@flaky
+@pytest.mark.utils
+@pytest.mark.needs_internet
+def test_convert_deps_to_pip_flaky():
+    deps = {"requests": "*"}
+    expected = "requests"
+    assert dependencies.convert_deps_to_pip(deps) == [expected]
+
+
+@flaky
+@pytest.mark.utils
+@pytest.mark.needs_internet
+def test_convert_deps_to_pip_flaky2():
+    deps = {"requests": {"extras": ["socks"], "version": "*"}}
+    expected = "requests[socks]"
+    assert dependencies.convert_deps_to_pip(deps) == [expected]
 
 
 @flaky
@@ -97,8 +113,6 @@ def test_convert_deps_to_pip(deps, expected):
 @pytest.mark.parametrize(
     "deps, expected",
     [
-        # This one should be collapsed and treated as {'requests': '*'}.
-        ({"requests": {}}, "requests"),
         # Hash value should be passed into the result.
         (
             {
@@ -132,23 +146,33 @@ def test_convert_deps_to_pip(deps, expected):
     ],
 )
 def test_convert_deps_to_pip_one_way(deps, expected):
-    assert dependencies.convert_deps_to_pip(deps, r=False) == [expected.lower()]
+    assert dependencies.convert_deps_to_pip(deps) == [expected.lower()]
+
+
+@flaky
+@pytest.mark.utils
+def test_convert_deps_to_pip_one_way_flaky():
+    deps = {"requests": dict()}
+    expected = "requests"
+    assert dependencies.convert_deps_to_pip(deps) == [expected.lower()]
+
 
 @pytest.mark.utils
 @pytest.mark.parametrize(
     "deps, expected",
     [
         ({"requests": {}}, ["requests"]),
-        ({"FooProject": {"path": ".", "editable" : "true"}}, []),
+        ({"FooProject": {"path": ".", "editable": "true"}}, []),
         ({"FooProject": {"version": "==1.2"}}, ["fooproject==1.2"]),
         ({"requests": {"extras": ["security"]}}, []),
         ({"requests": {"extras": []}}, ["requests"]),
-        ({"extras" : {}}, ["extras"]),
-        ({"uvicorn[standard]" : {}}, [])
+        ({"extras": {}}, ["extras"]),
+        ({"uvicorn[standard]": {}}, [])
     ],
 )
 def test_get_constraints_from_deps(deps, expected):
     assert dependencies.get_constraints_from_deps(deps) == expected
+
 
 @pytest.mark.parametrize("line,result", [
     ("-i https://example.com/simple/", ("https://example.com/simple/", None, None, [])),

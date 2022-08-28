@@ -1027,7 +1027,7 @@ def venv_resolve_deps(
             # dependency resolution on them, so we are including this step inside the
             # spinner context manager for the UX improvement
             sp.write(decode_for_output("Building requirements..."))
-            deps = convert_deps_to_pip(deps, project, r=False, include_index=True)
+            deps = convert_deps_to_pip(deps, project, include_index=True)
             constraints = set(deps)
             os.environ["PIPENV_PACKAGES"] = str("\n".join(constraints))
             sp.write(decode_for_output("Resolving dependencies..."))
