@@ -1,10 +1,10 @@
 import os
 from contextlib import contextmanager
-from tempfile import NamedTemporaryFile
 from typing import Mapping, Sequence
 
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
@@ -245,14 +245,11 @@ def is_pinned_requirement(ireq):
 def convert_deps_to_pip(
     deps,
     project=None,
-    r=True,
     include_index=True,
     include_hashes=True,
     include_markers=True,
 ):
     """ "Converts a Pipfile-formatted dependency to a pip-formatted one."""
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
-
     dependencies = []
     for dep_name, dep in deps.items():
         if project:
@@ -268,14 +265,7 @@ def convert_deps_to_pip(
             include_markers=include_markers,
         ).strip()
         dependencies.append(req)
-    if not r:
-        return dependencies
-
-    # Write requirements.txt to tmp directory.
-    f = NamedTemporaryFile(suffix="-requirements.txt", delete=False)
-    f.write("\n".join(dependencies).encode("utf-8"))
-    f.close()
-    return f.name
+    return dependencies
 
 
 def get_constraints_from_deps(deps):
