@@ -708,7 +708,6 @@ def batch_install(
     no_deps=True,
     ignore_hashes=False,
     allow_global=False,
-    blocking=False,
     pypi_mirror=None,
     retry=True,
     sequential_deps=None,
@@ -828,7 +827,6 @@ def do_install_dependencies(
         "no_deps": not skip_lock,
         "ignore_hashes": ignore_hashes,
         "allow_global": allow_global,
-        "blocking": not concurrent,
         "pypi_mirror": pypi_mirror,
         "sequential_deps": editable_or_vcs_deps,
     }
