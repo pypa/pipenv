@@ -756,7 +756,6 @@ def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=F
     pip_deps = convert_deps_to_pip(
         deps,
         project=None,
-        r=False,
         include_index=False,
         include_hashes=hash,
         include_markers=not exclude_markers,
