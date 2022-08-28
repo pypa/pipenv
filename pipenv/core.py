@@ -757,7 +757,7 @@ def batch_install(
             deps=deps_to_install,
             allow_global=allow_global,
             ignore_hashes=ignore_hashes,
-            no_deps=True,
+            no_deps=no_deps,
             requirements_dir=requirements_dir,
             pypi_mirror=pypi_mirror,
             trusted_hosts=trusted_hosts,
