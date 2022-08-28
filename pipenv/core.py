@@ -11,7 +11,7 @@ from pathlib import Path
 from posixpath import expandvars
 from typing import Dict, List, Optional, Union
 
-from pipenv import environments, exceptions, pep508checker, progress
+from pipenv import environments, exceptions, pep508checker
 from pipenv._compat import decode_for_output, fix_utf8
 from pipenv.patched import pipfile
 from pipenv.patched.pip._internal.build_env import _get_runnable_pip
@@ -722,25 +722,14 @@ def batch_install(
     if sequential_deps is None:
         sequential_deps = []
     failed = not retry
-    if not failed:
-        label = INSTALL_LABEL if not environments.PIPENV_HIDE_EMOJIS else ""
-    else:
-        label = INSTALL_LABEL2
-
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
     deps_to_install = [
         dep for dep in deps_to_install if not project.environment.is_satisfied(dep)
     ]
-    sequential_dep_names = [d.name for d in sequential_deps]
-
-    deps_list_bar = progress.bar(
-        deps_to_install, width=32, label=label, hide=environments.PIPENV_IS_CI
-    )
-
     trusted_hosts = []
     is_artifact = False
-    for dep in deps_list_bar:
+    for dep in deps_to_install:
         if dep.req.req:
             dep.req.req = strip_extras_markers_from_requirement(dep.req.req)
         if dep.markers:
@@ -770,7 +759,6 @@ def batch_install(
             deps=deps_to_install,
             allow_global=allow_global,
             no_deps=True,
-            block=True,
             requirements_dir=requirements_dir,
             pypi_mirror=pypi_mirror,
             trusted_hosts=trusted_hosts,
@@ -780,8 +768,7 @@ def batch_install(
 
         for c in cmds:
             procs.put(c)
-            if procs.full() or sequential_dep_names:
-                _cleanup_procs(project, procs, failed_deps_queue, retry=retry)
+            _cleanup_procs(project, procs, failed_deps_queue, retry=retry)
 
 
 def do_install_dependencies(
@@ -1566,7 +1553,6 @@ def pip_install_deps(
     deps=None,
     allow_global=False,
     no_deps=False,
-    block=True,
     pre=False,
     dev=False,
     selective_upgrade=False,
@@ -1576,7 +1562,6 @@ def pip_install_deps(
     use_pep517=True,
     use_constraint=False,
 ):
-    piplogger = logging.getLogger("pipenv.patched.pip._internal.commands.install")
     if not trusted_hosts:
         trusted_hosts = []
     trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
@@ -1641,16 +1626,15 @@ def pip_install_deps(
     hashed_requirements.close()
     not_hashed_requirements.close()
 
-    if project.s.is_verbose():
-        piplogger.setLevel(logging.WARN)
-        for requirement in deps:
-            click.echo(
-                click.style(f"Installing {requirement.name!r}", bold=True),
-                err=True,
-            )
-
     cmds = []
-    for file in [hashed_requirements, not_hashed_requirements]:
+    files = []
+    hashed_deps = list(filter(lambda d: not (d.is_vcs or d.vcs or d.editable), deps))
+    if hashed_deps:
+        files.append(hashed_requirements)
+    not_hashed_deps = list(filter(lambda d: d.is_vcs or d.vcs or d.editable, deps))
+    if not_hashed_requirements:
+        files.append(not_hashed_requirements)
+    for file in files:
         pip_command = [
             project_python(project, system=allow_global),
             _get_runnable_pip(),
@@ -1659,7 +1643,7 @@ def pip_install_deps(
         pip_args = get_pip_args(
             project,
             pre=pre,
-            verbose=project.s.is_verbose(),
+            verbose=False,  # When True, the subprocess fails to recognize the EOF when reading stdout.
             upgrade=True,
             selective_upgrade=selective_upgrade,
             no_use_pep517=not use_pep517,
@@ -1677,6 +1661,20 @@ def pip_install_deps(
             )
             pip_command.extend(["-c", normalize_path(constraint_filename)])
         if project.s.is_verbose():
+            msg = f"Install Phase: {'Requirements with Hashes' if file == hashed_requirements else 'Requirements without Hashes'}"
+            click.echo(
+                click.style(msg, bold=True),
+                err=True,
+            )
+            for requirement in (
+                hashed_deps if file == hashed_requirements else not_hashed_deps
+            ):
+                click.echo(
+                    click.style(
+                        f"Preparing Installation of {requirement.name!r}", bold=True
+                    ),
+                    err=True,
+                )
             click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
         cache_dir = Path(project.s.PIPENV_CACHE_DIR)
         default_exists_action = "w"
@@ -1696,11 +1694,17 @@ def pip_install_deps(
             pip_config.update({"PIP_SRC": src_dir})
         c = subprocess_run(pip_command, block=False, capture_output=True, env=pip_config)
         if file == hashed_requirements:
-            c.deps = list(filter(lambda d: not (d.is_vcs or d.vcs or d.editable), deps))
+            c.deps = hashed_deps
         else:
-            c.deps = list(filter(lambda d: d.is_vcs or d.vcs or d.editable, deps))
+            c.deps = not_hashed_deps
         c.env = pip_config
         cmds.append(c)
+        while True:
+            line = c.stdout.readline()
+            if line == "":
+                break
+            if line and project.s.is_verbose():
+                click.secho(line, err=True)
     return cmds
 
 
