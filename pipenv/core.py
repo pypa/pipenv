@@ -1587,8 +1587,6 @@ def pip_install_deps(
         vcs_or_editable = requirement.is_vcs or requirement.vcs or requirement.editable
         if vcs_or_editable:
             ignore_hashes = True
-        # Try installing for each source in project.sources.
-        search_all_sources = project.settings.get("install_search_all_sources", False)
         if requirement and vcs_or_editable:
             requirement.index = None
 
@@ -1598,20 +1596,6 @@ def pip_install_deps(
             with_markers=True,
             as_list=False,
         )
-        sources = get_source_list(
-            project,
-            requirement.index,
-            extra_indexes=list(project.sources),
-            trusted_hosts=trusted_hosts,
-            pypi_mirror=pypi_mirror,
-        )
-        source_names = {src.get("name") for src in sources}
-        if not search_all_sources and requirement.index in source_names:
-            sources = list(filter(lambda d: d.get("name") == requirement.index, sources))
-        if sources and not vcs_or_editable:
-            line = f"{line} -i {sources[0]['url']}"
-            for source in sources[1:]:
-                line = f"{line} --extra-index-url {source['url']}"
         if project.s.is_verbose():
             click.echo(
                 f"Writing supplied requirement line to temporary file: {line!r}", err=True
@@ -1632,7 +1616,7 @@ def pip_install_deps(
     if hashed_deps:
         files.append(hashed_requirements)
     not_hashed_deps = list(filter(lambda d: d.is_vcs or d.vcs or d.editable, deps))
-    if not_hashed_requirements:
+    if not_hashed_deps:
         files.append(not_hashed_requirements)
     for file in files:
         pip_command = [
@@ -1649,6 +1633,14 @@ def pip_install_deps(
             no_use_pep517=not use_pep517,
             no_deps=no_deps,
         )
+        sources = get_source_list(
+            project,
+            index=None,
+            extra_indexes=None,
+            trusted_hosts=trusted_hosts,
+            pypi_mirror=pypi_mirror,
+        )
+        pip_command.extend(prepare_pip_source_args(sources))
         pip_command.extend(pip_args)
         pip_command.extend(["-r", normalize_path(file.name)])
         if dev and use_constraint:
