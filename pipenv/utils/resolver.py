@@ -5,7 +5,7 @@ import subprocess
 import sys
 import warnings
 from functools import lru_cache
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 from pipenv import environments
 from pipenv.exceptions import RequirementError, ResolutionFailure
@@ -86,6 +86,7 @@ def get_package_finder(
 
 
 class HashCacheMixin:
+
     """Caches hashes of PyPI artifacts so we do not need to re-download them.
 
     Hashes are only cached when the URL appears to contain a hash in it and the
@@ -188,14 +189,12 @@ class Resolver:
         pre: bool = False,
         clear: bool = False,
     ) -> Tuple[
-        List[str],
+        Set[str],
         Dict[str, Dict[str, Union[str, bool, List[str]]]],
         Dict[str, str],
         Dict[str, str],
     ]:
-        constraints: Dict[
-            str, None
-        ] = {}  # Used Dict instead of Set because Dict is ordered and is hence stable
+        constraints: Set[str] = set()
         skipped: Dict[str, Dict[str, Union[str, bool, List[str]]]] = {}
         if index_lookup is None:
             index_lookup = {}
@@ -248,9 +247,9 @@ class Resolver:
             constraint_update, lockfile_update = self.get_deps_from_req(
                 req, resolver=transient_resolver, resolve_vcs=project.s.PIPENV_RESOLVE_VCS
             )
-            constraints.update(constraint_update)
+            constraints |= constraint_update
             skipped.update(lockfile_update)
-        return list(constraints.keys()), skipped, index_lookup, markers_lookup
+        return constraints, skipped, index_lookup, markers_lookup
 
     def parse_line(
         self,
@@ -310,7 +309,7 @@ class Resolver:
         req: Requirement,
         resolver: Optional["Resolver"] = None,
         resolve_vcs: bool = True,
-    ) -> Tuple[Dict[str, None], Dict[str, Dict[str, Union[str, bool, List[str]]]]]:
+    ) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]:
         from pipenv.vendor.requirementslib.models.requirements import Requirement
         from pipenv.vendor.requirementslib.models.utils import (
             _requirement_to_str_lowercase_name,
@@ -318,9 +317,7 @@ class Resolver:
         from pipenv.vendor.requirementslib.utils import is_installable_dir
 
         # TODO: this is way too complex, refactor this
-        constraints: Dict[
-            str, None
-        ] = {}  # Used Dict instead of Set because Dict is ordered and is hence stable
+        constraints: Set[str] = set()
         locked_deps: Dict[str, Dict[str, Union[str, bool, List[str]]]] = {}
         editable_packages = self.project.get_editable_packages(dev=self.dev)
         if (req.is_file_or_url or req.is_vcs) and not req.is_wheel:
@@ -368,12 +365,12 @@ class Resolver:
                                 new_req, resolver
                             )
                         locked_deps.update(new_lock)
-                        constraints.update(new_constraints)
+                        constraints |= new_constraints
                 # if there is no marker or there is a valid marker, add the constraint line
                 elif r and (not r.marker or (r.marker and r.marker.evaluate())):
                     if r.name not in editable_packages:
                         line = _requirement_to_str_lowercase_name(r)
-                        constraints[line] = None
+                        constraints.add(line)
             # ensure the top level entry remains as provided
             # note that we shouldn't pin versions for editable vcs deps
             if not req.is_vcs:
@@ -421,7 +418,7 @@ class Resolver:
                         err=True,
                     )
                 return constraints, locked_deps
-            constraints[req.constraint_line] = None
+            constraints.add(req.constraint_line)
             return constraints, locked_deps
         return constraints, locked_deps
 
