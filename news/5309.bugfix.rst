@@ -1,1 +1,1 @@
-Fix 5273, use our own method for checking if a package is a valid constraint.
+Fix #5273, use our own method for checking if a package is a valid constraint.
