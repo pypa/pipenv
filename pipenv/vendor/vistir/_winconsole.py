@@ -64,7 +64,6 @@ from ctypes.wintypes import HANDLE, LPCWSTR, LPWSTR
 from itertools import count
 
 import msvcrt
-from pipenv.vendor.six import PY2, text_type
 
 from .compat import IS_TYPE_CHECKING
 from .misc import StreamWrapper, run, to_text
@@ -135,9 +134,6 @@ class Py_buffer(Structure):
         ("suboffsets", c_ssize_p),
         ("internal", c_void_p),
     ]
-
-    if PY2:
-        _fields_.insert(-1, ("smalltable", c_ssize_t * 2))
 
 
 # XXX: This was added for the use of cursors
@@ -253,7 +249,7 @@ class ConsoleStream(object):
         return self.buffer.fileno
 
     def write(self, x):
-        if isinstance(x, text_type):
+        if isinstance(x, str):
             return self._text_stream.write(x)
         try:
             self.flush()
@@ -306,13 +302,6 @@ class WindowsChunkedWriter(object):
 _wrapped_std_streams = set()
 
 
-def _wrap_std_stream(name):
-    # Python 2 & Windows 7 and below
-    if PY2 and sys.getwindowsversion()[:2] <= (6, 1) and name not in _wrapped_std_streams:
-        setattr(sys, name, WindowsChunkedWriter(getattr(sys, name)))
-        _wrapped_std_streams.add(name)
-
-
 def _get_text_stdin(buffer_stream):
     text_stream = StreamWrapper(
         io.BufferedReader(_WindowsConsoleReader(STDIN_HANDLE)),
@@ -343,35 +332,6 @@ def _get_text_stderr(buffer_stream):
     return ConsoleStream(text_stream, buffer_stream)
 
 
-if PY2:
-
-    def _hash_py_argv():
-        return zlib.crc32("\x00".join(sys.argv[1:]))
-
-    _initial_argv_hash = _hash_py_argv()
-
-    def _get_windows_argv():
-        argc = c_int(0)
-        argv_unicode = CommandLineToArgvW(GetCommandLineW(), byref(argc))
-        try:
-            argv = [argv_unicode[i] for i in range(0, argc.value)]
-        finally:
-            LocalFree(argv_unicode)
-            del argv_unicode
-
-        if not hasattr(sys, "frozen"):
-            argv = argv[1:]
-            while len(argv) > 0:
-                arg = argv[0]
-                if not arg.startswith("-") or arg == "-":
-                    break
-                argv = argv[1:]
-                if arg.startswith(("-c", "-m")):
-                    break
-
-        return argv[1:]
-
-
 _stream_factories = {0: _get_text_stdin, 1: _get_text_stdout, 2: _get_text_stderr}
 
 
@@ -387,10 +347,9 @@ def _get_windows_console_stream(f, encoding, errors):
             return f
         func = _stream_factories.get(f.fileno())
         if func is not None:
-            if not PY2:
-                f = getattr(f, "buffer", None)
-                if f is None:
-                    return None
+            f = getattr(f, "buffer", None)
+            if f is None:
+                return None
             else:
                 # If we are on Python 2 we need to set the stream that we
                 # deal with to binary mode as otherwise the exercise if a

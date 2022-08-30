@@ -8,10 +8,6 @@ import sys
 import warnings
 from tempfile import mkdtemp
 
-import pipenv.vendor.six as six
-
-from .backports.tempfile import NamedTemporaryFile as _NamedTemporaryFile
-
 __all__ = [
     "Path",
     "get_terminal_size",
@@ -52,140 +48,44 @@ __all__ = [
     "_fs_decode_errors",
 ]
 
-if sys.version_info >= (3, 5):  # pragma: no cover
-    from pathlib import Path
-else:  # pragma: no cover
-    from pathlib2 import Path
+from pathlib import Path
 
-if sys.version_info >= (3, 4):  # pragma: no cover
-    # Only Python 3.4+ is supported
-    from functools import lru_cache, partialmethod
-    from tempfile import NamedTemporaryFile
-    from shutil import get_terminal_size
-    from weakref import finalize
-    from collections.abc import (
-        Mapping,
-        Hashable,
-        MutableMapping,
-        Container,
-        Iterator,
-        KeysView,
-        ItemsView,
-        MappingView,
-        Iterable,
-        Set,
-        Sequence,
-        Sized,
-        ValuesView,
-        MutableSet,
-        MutableSequence,
-        Callable,
-    )
-    from os.path import samefile
-
-else:  # pragma: no cover
-    # Only Python 2.7 is supported
-    from backports.functools_lru_cache import lru_cache
-    from backports.shutil_get_terminal_size import get_terminal_size
-    from .backports.functools import partialmethod  # type: ignore
-    from .backports.surrogateescape import register_surrogateescape
-    from collections import (
-        Mapping,
-        Hashable,
-        MutableMapping,
-        Container,
-        Iterator,
-        KeysView,
-        ItemsView,
-        MappingView,
-        Iterable,
-        Set,
-        Sequence,
-        Sized,
-        ValuesView,
-        MutableSet,
-        MutableSequence,
-        Callable,
-    )
-
-    register_surrogateescape()
-    NamedTemporaryFile = _NamedTemporaryFile
-    from backports.weakref import finalize  # type: ignore
-
-    try:
-        from os.path import samefile
-    except ImportError:
-
-        def samestat(s1, s2):
-            """Test whether two stat buffers reference the same file."""
-            return s1.st_ino == s2.st_ino and s1.st_dev == s2.st_dev
-
-        def samefile(f1, f2):
-            """Test whether two pathnames reference the same actual file or
-            directory This is determined by the device number and i-node number
-            and raises an exception if an os.stat() call on either pathname
-            fails."""
-            s1 = os.stat(f1)
-            s2 = os.stat(f2)
-            return samestat(s1, s2)
+from functools import lru_cache, partialmethod
+from tempfile import NamedTemporaryFile
+from shutil import get_terminal_size
+from weakref import finalize
+from collections.abc import (
+    Mapping,
+    Hashable,
+    MutableMapping,
+    Container,
+    Iterator,
+    KeysView,
+    ItemsView,
+    MappingView,
+    Iterable,
+    Set,
+    Sequence,
+    Sized,
+    ValuesView,
+    MutableSet,
+    MutableSequence,
+    Callable,
+)
+from os.path import samefile
 
 
-try:
-    # Introduced Python 3.5
-    from json import JSONDecodeError
-except ImportError:  # pragma: no cover
-    JSONDecodeError = ValueError  # type: ignore
+from json import JSONDecodeError
 
-if six.PY2:  # pragma: no cover
-
-    from io import BytesIO as StringIO
-
-    class ResourceWarning(Warning):
-        pass
-
-    class FileNotFoundError(IOError):
-        """No such file or directory."""
-
-        def __init__(self, *args, **kwargs):
-            self.errno = errno.ENOENT
-            super(FileNotFoundError, self).__init__(*args, **kwargs)
-
-    class PermissionError(OSError):
-        def __init__(self, *args, **kwargs):
-            self.errno = errno.EACCES
-            super(PermissionError, self).__init__(*args, **kwargs)
-
-    class TimeoutError(OSError):
-        """Timeout expired."""
-
-        def __init__(self, *args, **kwargs):
-            self.errno = errno.ETIMEDOUT
-            super(TimeoutError, self).__init__(*args, **kwargs)
-
-    class IsADirectoryError(OSError):
-        """The command does not work on directories."""
-
-        def __init__(self, *args, **kwargs):
-            self.errno = errno.EISDIR
-            super(IsADirectoryError, self).__init__(*args, **kwargs)
-
-    class FileExistsError(OSError):
-        def __init__(self, *args, **kwargs):
-            self.errno = errno.EEXIST
-            super(FileExistsError, self).__init__(*args, **kwargs)
-
-
-else:  # pragma: no cover
-    from builtins import (
-        ResourceWarning,
-        FileNotFoundError,
-        PermissionError,
-        IsADirectoryError,
-        FileExistsError,
-        TimeoutError,
-    )
-    from io import StringIO
-
+from builtins import (
+    ResourceWarning,
+    FileNotFoundError,
+    PermissionError,
+    IsADirectoryError,
+    FileExistsError,
+    TimeoutError,
+)
+from io import StringIO
 
 if not sys.warnoptions:
     warnings.simplefilter("default", ResourceWarning)
@@ -269,9 +169,7 @@ def is_bytes(string):
     :return: Whether the provided string is a bytes type or not
     :rtype: bool
     """
-    if six.PY3 and isinstance(string, (bytes, memoryview, bytearray)):  # noqa
-        return True
-    elif six.PY2 and isinstance(string, (buffer, bytearray)):  # noqa
+    if isinstance(string, (bytes, memoryview, bytearray)):  # noqa
         return True
     return False
 
@@ -294,14 +192,14 @@ def _get_path(path):
     Returns **None** if there is no string value.
     """
 
-    if isinstance(path, (six.string_types, bytes)):
+    if isinstance(path, (str, bytes)):
         return path
     path_type = type(path)
     try:
         path_repr = path_type.__fspath__(path)
     except AttributeError:
         return
-    if isinstance(path_repr, (six.string_types, bytes)):
+    if isinstance(path_repr, (str, bytes)):
         return path_repr
     return
 
@@ -362,16 +260,6 @@ def _invalid_utf8_indexes(bytes):
     return skips
 
 
-# XXX backport: Another helper to support the Python 2 UTF-8 decoding hack.
-def _chunks(b, indexes):
-    i = 0
-    for j in indexes:
-        yield b[i:j]
-        yield b[j : j + 1]
-        i = j + 1
-    yield b[i:]
-
-
 def fs_encode(path):
     """Encode a filesystem path to the proper filesystem encoding.
 
@@ -382,16 +270,7 @@ def fs_encode(path):
     path = _get_path(path)
     if path is None:
         raise TypeError("expected a valid path to encode")
-    if isinstance(path, six.text_type):
-        if six.PY2:
-            return b"".join(
-                (
-                    _byte(ord(c) - 0xDC00)
-                    if 0xDC00 <= ord(c) <= 0xDCFF
-                    else c.encode(_fs_encoding, _fs_encode_errors)
-                )
-                for c in path
-            )
+    if isinstance(path, str):
         return path.encode(_fs_encoding, _fs_encode_errors)
     return path
 
@@ -407,40 +286,30 @@ def fs_decode(path):
     path = _get_path(path)
     if path is None:
         raise TypeError("expected a valid path to decode")
-    if isinstance(path, six.binary_type):
+    if isinstance(path, bytes):
         import array
 
         indexes = _invalid_utf8_indexes(array.array(str("B"), path))
-        if six.PY2:
-            return "".join(
-                chunk.decode(_fs_encoding, _fs_decode_errors)
-                for chunk in _chunks(path, indexes)
-            )
         if indexes and os.name == "nt":
             return path.decode(_fs_encoding, "surrogateescape")
         return path.decode(_fs_encoding, _fs_decode_errors)
     return path
 
 
-if sys.version_info[0] < 3:  # pragma: no cover
-    _fs_encode_errors = "surrogatepass" if sys.platform == "win32" else "surrogateescape"
-    _fs_decode_errors = "surrogateescape"
-    _fs_encoding = "utf-8"
-else:  # pragma: no cover
-    _fs_encoding = "utf-8"
-    _fs_decode_errors = "surrogateescape"
-    if sys.platform.startswith("win"):
-        _fs_error_fn = None
-        _fs_encode_errors = "surrogatepass"
-    else:
-        if sys.version_info >= (3, 3):
-            _fs_encoding = sys.getfilesystemencoding()
-            if not _fs_encoding:
-                _fs_encoding = sys.getdefaultencoding()
-        alt_strategy = "surrogateescape"
-        _fs_error_fn = getattr(sys, "getfilesystemencodeerrors", None)
-        _fs_encode_errors = _fs_error_fn() if _fs_error_fn else alt_strategy
-        _fs_decode_errors = _fs_error_fn() if _fs_error_fn else _fs_decode_errors
+_fs_encoding = "utf-8"
+_fs_decode_errors = "surrogateescape"
+if sys.platform.startswith("win"):
+    _fs_error_fn = None
+    _fs_encode_errors = "surrogatepass"
+else:
+    if sys.version_info >= (3, 3):
+        _fs_encoding = sys.getfilesystemencoding()
+        if not _fs_encoding:
+            _fs_encoding = sys.getdefaultencoding()
+    alt_strategy = "surrogateescape"
+    _fs_error_fn = getattr(sys, "getfilesystemencodeerrors", None)
+    _fs_encode_errors = _fs_error_fn() if _fs_error_fn else alt_strategy
+    _fs_decode_errors = _fs_error_fn() if _fs_error_fn else _fs_decode_errors
 
 _byte = chr if sys.version_info < (3,) else lambda i: bytes([i])
 
@@ -448,6 +317,4 @@ _byte = chr if sys.version_info < (3,) else lambda i: bytes([i])
 def to_native_string(string):
     from .misc import to_text, to_bytes
 
-    if six.PY2:
-        return to_bytes(string)
     return to_text(string)

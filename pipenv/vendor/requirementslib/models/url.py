@@ -6,7 +6,6 @@ from urllib.parse import unquote as url_unquote
 from urllib.parse import unquote_plus
 
 import pipenv.vendor.attr as attr
-from pipenv.vendor.orderedmultidict import omdict
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.constructors import _strip_extras
 from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
@@ -87,8 +86,8 @@ class URI(object):
     username = attr.ib(default="", type=str)
     #: Password parsed from `user:password@hostname`
     password = attr.ib(default="", type=str, repr=False)
-    #: An orderedmultidict representing query fragments
-    query_dict = attr.ib(factory=omdict, type=omdict)
+    #: A dictionary representing query fragments
+    query_dict = attr.ib(factory=dict, type=dict)
     #: The name of the specified package in case it is a VCS URI with an egg fragment
     name = attr.ib(default="", type=str)
     #: Any extras requested from the requirement
@@ -105,7 +104,7 @@ class URI(object):
     def _parse_query(self):
         # type: () -> URI
         query = self.query if self.query is not None else ""
-        query_dict = omdict()
+        query_dict = dict()
         queries = query.split("&")
         query_items = []
         subdirectory = self.subdirectory if self.subdirectory else None
@@ -116,7 +115,7 @@ class URI(object):
                 subdirectory = val
             else:
                 query_items.append((key, val))
-        query_dict.load(query_items)
+        query_dict.update(query_items)
         return attr.evolve(
             self, query_dict=query_dict, subdirectory=subdirectory, query=query
         )

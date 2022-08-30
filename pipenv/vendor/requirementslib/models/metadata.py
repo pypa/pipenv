@@ -12,7 +12,6 @@ from functools import reduce
 from typing import Sequence
 
 import pipenv.vendor.attr as attr
-import dateutil.parser
 import distlib.metadata
 import distlib.wheel
 import pipenv.patched.pip._vendor.requests as requests
@@ -501,12 +500,17 @@ class ReleaseUrl(object):
     #: The upload timestamp from the package
     upload_time = attr.ib(
         type=datetime.datetime,
-        converter=instance_check_converter(datetime.datetime, dateutil.parser.parse),  # type: ignore
+        converter=instance_check_converter(
+            datetime.datetime, datetime.datetime.fromisoformat
+        ),  # type: ignore
     )
     #: The ISO8601 formatted upload timestamp of the package
     upload_time_iso_8601 = attr.ib(
         type=datetime.datetime,
-        converter=instance_check_converter(datetime.datetime, dateutil.parser.parse),  # type: ignore
+        converter=instance_check_converter(
+            datetime.datetime,
+            lambda t_str: datetime.datetime.strptime(t_str, "%Y-%m-%dT%H:%M:%S.%fZ"),
+        ),  # type: ignore
     )
     #: The size in bytes of the package
     size = attr.ib(type=int)

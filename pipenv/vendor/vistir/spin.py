@@ -10,7 +10,6 @@ import time
 from io import StringIO
 
 import pipenv.vendor.colorama as colorama
-import pipenv.vendor.six as six
 
 from .compat import IS_TYPE_CHECKING, to_native_string
 from .cursor import hide_cursor, show_cursor
@@ -151,7 +150,7 @@ class DummySpinner(object):
         # type: (str, Optional[str]) -> None
         if not target:
             target = self.stdout
-        if text is None or isinstance(text, six.string_types) and text == "None":
+        if text is None or isinstance(text, str) and text == "None":
             pass
         target.write(decode_output(u"\r", target_stream=target))
         self._hide_cursor(target=target)
@@ -163,7 +162,7 @@ class DummySpinner(object):
         # type: (Optional[str]) -> None
         if not self.write_to_stdout:
             return self.write_err(text)
-        if text is None or isinstance(text, six.string_types) and text == "None":
+        if text is None or isinstance(text, str) and text == "None":
             pass
         if not self.stdout.closed:
             stdout = self.stdout
@@ -177,7 +176,7 @@ class DummySpinner(object):
 
     def write_err(self, text=None):
         # type: (Optional[str]) -> None
-        if text is None or isinstance(text, six.string_types) and text == "None":
+        if text is None or isinstance(text, str) and text == "None":
             pass
         text = to_text(text)
         if not self.stderr.closed:
@@ -278,7 +277,7 @@ class VistirSpinner(SpinBase):
         # type: (str, Optional[str]) -> None
         if not target:
             target = self.stdout
-        if text is None or isinstance(text, six.string_types) and text == u"None":
+        if text is None or isinstance(text, str) and text == u"None":
             pass
         target.write(decode_output(u"\r"))
         self._hide_cursor(target=target)
