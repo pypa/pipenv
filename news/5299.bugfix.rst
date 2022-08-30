@@ -1,1 +1,0 @@
-Sorting ``constraints`` before resolving, which fixes ``pipenv lock`` generates nondeterminism environment markers.

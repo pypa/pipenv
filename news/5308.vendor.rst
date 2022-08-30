@@ -1,2 +1,0 @@
-Vendor in ``requirementslib==2.0.1`` which fixes issue with local install not marked editable, and vendor in ``vistir==0.6.1`` which drops python2 support.
-Drops ``orderedmultidict`` from vendoring.
