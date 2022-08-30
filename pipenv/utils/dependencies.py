@@ -4,7 +4,10 @@ from typing import Mapping, Sequence
 
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.version import parse
-from pipenv.vendor.requirementslib.models.requirements import Requirement
+from pipenv.vendor.requirementslib.models.requirements import (
+    InstallRequirement,
+    Requirement,
+)
 
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
@@ -270,16 +273,14 @@ def convert_deps_to_pip(
 
 def get_constraints_from_deps(deps):
     """Get contraints from Pipfile-formatted dependency"""
-    from pipenv.patched.pip._internal.req.req_install import (
-        check_invalid_constraint_type,
-    )
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
+
+    def is_constraints(dep: InstallRequirement) -> bool:
+        return dep.name and not dep.editable and not dep.extras
 
     constraints = []
     for dep_name, dep in deps.items():
         new_dep = Requirement.from_pipfile(dep_name, dep)
-        problem = check_invalid_constraint_type(new_dep.as_ireq())
-        if not problem:
+        if is_constraints(new_dep.as_ireq()):
             c = new_dep.as_line().strip()
             constraints.append(c)
     return constraints
