@@ -18,8 +18,8 @@ def test_auth_with_pw_redacted(PipenvInstance):
         requirements_file = tempfile.NamedTemporaryFile(mode="w+", delete=False)
         requirements_file.write("""git+https://${AUTH_USER}:mypw1@github.com/user/myproject.git#egg=myproject""")
         requirements_file.close()
-        print(requirements_file.name)
         import_requirements(project, r=requirements_file.name)
+        os.unlink(requirements_file.name)
         assert p.pipfile["packages"]["myproject"] == {'git': 'https://${AUTH_USER}:****@github.com/user/myproject.git'}
 
 
@@ -33,8 +33,8 @@ def test_auth_with_username_redacted(PipenvInstance):
         requirements_file = tempfile.NamedTemporaryFile(mode="w+", delete=False)
         requirements_file.write("""git+https://username@github.com/user/myproject.git#egg=myproject""")
         requirements_file.close()
-        print(requirements_file.name)
         import_requirements(project, r=requirements_file.name)
+        os.unlink(requirements_file.name)
         assert p.pipfile["packages"]["myproject"] == {'git': 'https://****@github.com/user/myproject.git'}
 
 
@@ -48,8 +48,8 @@ def test_auth_with_pw_are_variables_passed_to_pipfile(PipenvInstance):
         requirements_file = tempfile.NamedTemporaryFile(mode="w+", delete=False)
         requirements_file.write("""git+https://${AUTH_USER}:${AUTH_PW}@github.com/user/myproject.git#egg=myproject""")
         requirements_file.close()
-        print(requirements_file.name)
         import_requirements(project, r=requirements_file.name)
+        os.unlink(requirements_file.name)
         assert p.pipfile["packages"]["myproject"] == {'git': 'https://${AUTH_USER}:${AUTH_PW}@github.com/user/myproject.git'}
 
 @pytest.mark.cli
@@ -62,6 +62,6 @@ def test_auth_with_only_username_variable_passed_to_pipfile(PipenvInstance):
         requirements_file = tempfile.NamedTemporaryFile(mode="w+", delete=False)
         requirements_file.write("""git+https://${AUTH_USER}@github.com/user/myproject.git#egg=myproject""")
         requirements_file.close()
-        print(requirements_file.name)
         import_requirements(project, r=requirements_file.name)
+        os.unlink(requirements_file.name)
         assert p.pipfile["packages"]["myproject"] == {'git': 'https://${AUTH_USER}@github.com/user/myproject.git'}
