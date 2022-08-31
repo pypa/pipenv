@@ -495,15 +495,6 @@ def deploy_option(f):
 def setup_verbosity(ctx, param, value):
     if not value:
         return
-    import logging
-
-    loggers = ("pip",)
-    if value == 1:
-        for logger in loggers:
-            logging.getLogger(logger).setLevel(logging.INFO)
-    elif value == -1:
-        for logger in loggers:
-            logging.getLogger(logger).setLevel(logging.CRITICAL)
     ctx.ensure_object(State).project.s.PIPENV_VERBOSITY = value
 
 
