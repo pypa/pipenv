@@ -131,7 +131,6 @@ def handle_parsed_args(parsed):
         file_constraints = constraints.read().strip().split("\n")
         constraints.close()
         os.unlink(parsed.constraints_file)
-        print(sorted(file_constraints))
         parsed.packages += sorted(file_constraints)
     return parsed
 
