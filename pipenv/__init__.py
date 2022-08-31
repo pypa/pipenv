@@ -27,7 +27,6 @@ sys.path.insert(0, PIPENV_PATCHED)
 
 
 # Load patched pip instead of system pip
-os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.pip"
 os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
 
 # Hack to make things work better.

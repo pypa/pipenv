@@ -1255,9 +1255,7 @@ def do_init(
     if not system and not project.s.PIPENV_USE_SYSTEM:
         if not project.virtualenv_exists:
             try:
-                do_create_virtualenv(
-                    project, python=python, three=None, pypi_mirror=pypi_mirror
-                )
+                do_create_virtualenv(project, python=python, pypi_mirror=pypi_mirror)
             except KeyboardInterrupt:
                 cleanup_virtualenv(project, bare=False)
                 sys.exit(1)
@@ -2062,7 +2060,7 @@ def do_install(
                 if not is_star(section[package__name]) and is_star(package__val):
                     # Support for VCS dependencies.
                     package_args[i] = convert_deps_to_pip(
-                        {package__name: section[package__name]}, project=project, r=False
+                        {package__name: section[package__name]}, project=project
                     )[0]
             except KeyError:
                 pass
@@ -2109,7 +2107,6 @@ def do_install(
                 skip_lock=skip_lock,
                 extra_pip_args=extra_pip_args,
             )
-        pip_shims_module = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
         for pkg_line in pkg_list:
             click.secho(
                 fix_utf8(f"Installing {pkg_line}..."),
@@ -2247,8 +2244,6 @@ def do_install(
             # Update project settings with pre preference.
             if pre:
                 project.update_settings({"allow_prereleases": pre})
-        if pip_shims_module:
-            os.environ["PIP_SHIMS_BASE_MODULE"] = pip_shims_module
         do_init(
             project,
             dev=dev,
@@ -2455,8 +2450,6 @@ def do_shell(
     # otherwise its value will be changed
     os.environ["PIPENV_ACTIVE"] = "1"
 
-    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-
     if fancy:
         shell.fork(*fork_args)
         return
@@ -2607,7 +2600,6 @@ def do_run(
 
     load_dot_env(project, quiet=quiet)
     env = os.environ.copy()
-    env.pop("PIP_SHIMS_BASE_MODULE", None)
 
     path = env.get("PATH", "")
     if project.virtualenv_location:
@@ -2625,7 +2617,6 @@ def do_run(
     # such as in inline_activate_virtual_environment
     # otherwise its value will be changed
     env["PIPENV_ACTIVE"] = "1"
-    env.pop("PIP_SHIMS_BASE_MODULE", None)
 
     try:
         script = project.build_script(command, args)

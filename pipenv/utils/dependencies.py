@@ -1,9 +1,13 @@
 import os
 from contextlib import contextmanager
-from tempfile import NamedTemporaryFile
 from typing import Mapping, Sequence
 
 from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.vendor.requirementslib.models.requirements import (
+    InstallRequirement,
+    Requirement,
+)
 
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
@@ -61,10 +65,7 @@ def get_canonical_names(packages):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    # Use pip built-in version parser.
-    from pipenv.vendor.pip_shims import shims
-
-    return str(shims.parse_version(version))
+    return str(parse(version))
 
 
 def pep423_name(name):
@@ -247,14 +248,11 @@ def is_pinned_requirement(ireq):
 def convert_deps_to_pip(
     deps,
     project=None,
-    r=True,
     include_index=True,
     include_hashes=True,
     include_markers=True,
 ):
     """ "Converts a Pipfile-formatted dependency to a pip-formatted one."""
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
-
     dependencies = []
     for dep_name, dep in deps.items():
         if project:
@@ -270,28 +268,19 @@ def convert_deps_to_pip(
             include_markers=include_markers,
         ).strip()
         dependencies.append(req)
-    if not r:
-        return dependencies
-
-    # Write requirements.txt to tmp directory.
-    f = NamedTemporaryFile(suffix="-requirements.txt", delete=False)
-    f.write("\n".join(dependencies).encode("utf-8"))
-    f.close()
-    return f.name
+    return dependencies
 
 
 def get_constraints_from_deps(deps):
     """Get contraints from Pipfile-formatted dependency"""
-    from pipenv.patched.pip._internal.req.req_install import (
-        check_invalid_constraint_type,
-    )
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
+
+    def is_constraints(dep: InstallRequirement) -> bool:
+        return dep.name and not dep.editable and not dep.extras
 
     constraints = []
     for dep_name, dep in deps.items():
         new_dep = Requirement.from_pipfile(dep_name, dep)
-        problem = check_invalid_constraint_type(new_dep.as_ireq())
-        if not problem:
+        if is_constraints(new_dep.as_ireq()):
             c = new_dep.as_line().strip()
             constraints.append(c)
     return constraints
@@ -360,12 +349,6 @@ def locked_repository(requirement):
 
     if not requirement.is_vcs:
         return
-    original_base = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-    os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.pip"
     src_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-src")
-    try:
-        with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
-            yield repo
-    finally:
-        if original_base:
-            os.environ["PIP_SHIMS_BASE_MODULE"] = original_base
+    with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
+        yield repo

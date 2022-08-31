@@ -1,3 +1,38 @@
+2022.8.30 (2022-08-30)
+======================
+
+
+Bug Fixes
+---------
+
+- Fix an issue when using ``pipenv install --system`` on systems that having the ``python`` executable pointing to Python 2 and a Python 3 executable being ``python3``.  `#5296 <https://github.com/pypa/pipenv/issues/5296>`_
+- Sorting ``constraints`` before resolving, which fixes ``pipenv lock`` generates nondeterminism environment markers.  `#5299 <https://github.com/pypa/pipenv/issues/5299>`_
+- Fix #5273, use our own method for checking if a package is a valid constraint.  `#5309 <https://github.com/pypa/pipenv/issues/5309>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in ``requirementslib==2.0.1`` which fixes issue with local install not marked editable, and vendor in ``vistir==0.6.1`` which drops python2 support.
+  Drops ``orderedmultidict`` from vendoring.  `#5308 <https://github.com/pypa/pipenv/issues/5308>`_
+
+
+2022.8.24 (2022-08-24)
+======================
+
+
+Bug Fixes
+---------
+
+- Remove eager and unnecessary importing of ``setuptools`` and ``pkg_resources`` to avoid conflict upgrading ``setuptools``.
+  Roll back ``sysconfig`` patch of ``pip`` because it was problematic for some ``--system`` commands.  `#5228 <https://github.com/pypa/pipenv/issues/5228>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in ``requirementslib==2.0.0`` and drop ``pip-shims`` entirely.  `#5228 <https://github.com/pypa/pipenv/issues/5228>`_
+- Vendor in ``pythonfinder==1.3.1``  `#5292 <https://github.com/pypa/pipenv/issues/5292>`_
+
+
 2022.8.19 (2022-08-19)
 ======================
 
