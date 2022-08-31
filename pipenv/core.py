@@ -654,7 +654,7 @@ def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
             click.secho(out.strip() or err.strip(), fg="yellow")
         # The Installation failed...
         if failed:
-            deps = c.deps.copy() if hasattr(c, "deps") else []
+            deps = getattr(c, "deps", {}).copy()
             for dep in deps:
                 # If there is a mismatch in installed locations or the install fails
                 # due to wrongful disabling of pep517, we should allow for
