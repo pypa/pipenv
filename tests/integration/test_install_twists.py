@@ -242,7 +242,7 @@ def test_local_zipfiles(PipenvInstance, testsroot):
         destination = os.path.join(p.path, file_name)
         shutil.copy(source_path, destination)
 
-        c = p.pipenv(f"install {source_path}")
+        c = p.pipenv(f"install {file_name}")
         os.unlink(destination)
         assert c.returncode == 0
         key = [k for k in p.pipfile["packages"].keys()][0]
