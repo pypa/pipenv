@@ -2525,7 +2525,11 @@ class Requirement(object):
             else:
                 line_parts.append(self.req.line_part)
         if not self.is_vcs and not self.vcs and self.extras_as_pip:
-            if self.is_file_or_url and not local_editable:
+            if (
+                self.is_file_or_url
+                and not local_editable
+                and not self.req.get_uri().startswith("file://")
+            ):
                 line_parts.append(f"#egg={self.extras_as_pip}")
             else:
                 line_parts.append(self.extras_as_pip)

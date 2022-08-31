@@ -1250,9 +1250,7 @@ def do_init(
     if not system and not project.s.PIPENV_USE_SYSTEM:
         if not project.virtualenv_exists:
             try:
-                do_create_virtualenv(
-                    project, python=python, three=None, pypi_mirror=pypi_mirror
-                )
+                do_create_virtualenv(project, python=python, pypi_mirror=pypi_mirror)
             except KeyboardInterrupt:
                 cleanup_virtualenv(project, bare=False)
                 sys.exit(1)
@@ -2050,7 +2048,7 @@ def do_install(
                 if not is_star(section[package__name]) and is_star(package__val):
                     # Support for VCS dependencies.
                     package_args[i] = convert_deps_to_pip(
-                        {package__name: section[package__name]}, project=project, r=False
+                        {package__name: section[package__name]}, project=project
                     )[0]
             except KeyError:
                 pass
