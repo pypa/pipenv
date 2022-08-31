@@ -316,13 +316,10 @@ def test_skip_requirements_when_pipfile(PipenvInstance):
             contents = """
 [packages]
 six = "*"
-fake_package = "<0.12"
             """.strip()
             f.write(contents)
         c = p.pipenv("install")
         assert c.returncode == 0
-        assert "fake_package" in p.pipfile["packages"]
-        assert "fake-package" in p.lockfile["default"]
         assert "six" in p.pipfile["packages"]
         assert "six" in p.lockfile["default"]
         assert "requests" not in p.pipfile["packages"]
