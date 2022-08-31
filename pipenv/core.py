@@ -1,6 +1,7 @@
 import json as simplejson
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -21,6 +22,7 @@ from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_parsed_requirement,
 )
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
+from pipenv.patched.pip._internal.utils.misc import split_auth_from_netloc
 from pipenv.project import Project
 from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
@@ -196,9 +198,19 @@ def import_requirements(project, r=None, dev=False):
     for package in reqs:
         if package.name not in BAD_PACKAGES:
             if package.link is not None:
-                package_string = (
-                    f"-e {package.link}" if package.editable else str(package.link._url)
-                )
+                if package.editable:
+                    package_string = f"-e {package.link}"
+                else:
+                    netloc, (user, pw) = split_auth_from_netloc(package.link.netloc)
+                    safe = True
+                    if user and not re.match(r"\${[\W\w]+}", user):
+                        safe = False
+                    if pw and not re.match(r"\${[\W\w]+}", pw):
+                        safe = False
+                    if safe:
+                        package_string = str(package.link._url)
+                    else:
+                        package_string = str(package.link)
                 project.add_package_to_pipfile(package_string, dev=dev)
             else:
                 project.add_package_to_pipfile(str(package.req), dev=dev)
