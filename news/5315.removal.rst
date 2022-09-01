@@ -1,0 +1,2 @@
+Drop progress bar file due to recent performance optimization to combine ``batch_install`` requirements in at most two invocations of ``pip install``.
+To see progress of install pass ``--verbose`` flag and ``pip`` progress will be output in realtime.
