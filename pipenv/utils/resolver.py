@@ -644,7 +644,6 @@ class Resolver:
             # Only use default_constraints when installing dev-packages
             if self.dev:
                 self._constraints += self.default_constraints
-            self._constraints.sort(key=lambda ireq: ireq.name)
         return self._constraints
 
     @contextlib.contextmanager
