@@ -1,1 +1,0 @@
-Remove no longer used method ``which_pip``.

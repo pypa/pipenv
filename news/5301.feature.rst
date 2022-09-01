@@ -1,1 +1,0 @@
-Performance optimization to ``batch_install`` results in a faster and less CPU intensive ``pipenv sync`` or ``pipenv install``  experience.
