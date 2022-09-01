@@ -1,1 +1,0 @@
-``pipenv`` now uses a  ``NamedTemporaryFile`` for rsolver constraints and drops internal env var ``PIPENV_PACKAGES``.

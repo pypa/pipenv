@@ -1,3 +1,25 @@
+2022.8.31 (2022-08-31)
+======================
+
+
+Features & Improvements
+-----------------------
+
+- Performance optimization to ``batch_install`` results in a faster and less CPU intensive ``pipenv sync`` or ``pipenv install``  experience.  `#5301 <https://github.com/pypa/pipenv/issues/5301>`_
+
+Bug Fixes
+---------
+
+- ``pipenv`` now uses a  ``NamedTemporaryFile`` for rsolver constraints and drops internal env var ``PIPENV_PACKAGES``.  `#4925 <https://github.com/pypa/pipenv/issues/4925>`_
+
+Removals and Deprecations
+-------------------------
+
+- Remove no longer used method ``which_pip``.  `#5314 <https://github.com/pypa/pipenv/issues/5314>`_
+- Drop progress bar file due to recent performance optimization to combine ``batch_install`` requirements in at most two invocations of ``pip install``.
+  To see progress of install pass ``--verbose`` flag and ``pip`` progress will be output in realtime.  `#5315 <https://github.com/pypa/pipenv/issues/5315>`_
+
+
 2022.8.30 (2022-08-30)
 ======================
 

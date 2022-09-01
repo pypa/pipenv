@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Aug 30, 2022" "2022.8.30" "pipenv"
+.TH "PIPENV" "1" "Aug 31, 2022" "2022.8.31" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -453,6 +453,25 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.8.31 (2022\-08\-31)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+Performance optimization to \fBbatch_install\fP results in a faster and less CPU intensive \fBpipenv sync\fP or \fBpipenv install\fP  experience.  \fI\%#5301\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+\fBpipenv\fP now uses a  \fBNamedTemporaryFile\fP for rsolver constraints and drops internal env var \fBPIPENV_PACKAGES\fP\&.  \fI\%#4925\fP
+.UNINDENT
+.SS Removals and Deprecations
+.INDENT 0.0
+.IP \(bu 2
+Remove no longer used method \fBwhich_pip\fP\&.  \fI\%#5314\fP
+.IP \(bu 2
+Drop progress bar file due to recent performance optimization to combine \fBbatch_install\fP requirements in at most two invocations of \fBpip install\fP\&.
+To see progress of install pass \fB\-\-verbose\fP flag and \fBpip\fP progress will be output in realtime.  \fI\%#5315\fP
+.UNINDENT
 .SS 2022.8.30 (2022\-08\-30)
 .SS Bug Fixes
 .INDENT 0.0
