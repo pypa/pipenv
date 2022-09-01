@@ -1592,7 +1592,12 @@ def pip_install_deps(
     )
     for requirement in deps:
         ignore_hash = ignore_hashes
-        vcs_or_editable = requirement.is_vcs or requirement.vcs or requirement.editable
+        vcs_or_editable = (
+            requirement.is_vcs
+            or requirement.vcs
+            or requirement.editable
+            or requirement.is_file_or_url
+        )
         if vcs_or_editable:
             ignore_hash = True
         if requirement and vcs_or_editable:
