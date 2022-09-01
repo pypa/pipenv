@@ -127,9 +127,8 @@ def handle_parsed_args(parsed):
         os.environ["PIP_RESOLVER_DEBUG"] = ""
     os.environ["PIPENV_VERBOSITY"] = str(parsed.verbose)
     if parsed.constraints_file:
-        constraints = open(parsed.constraints_file)
-        file_constraints = constraints.read().strip().split("\n")
-        constraints.close()
+        with open(parsed.constraints_file) as constraints:
+            file_constraints = constraints.read().strip().split("\n")
         os.unlink(parsed.constraints_file)
         parsed.packages += sorted(file_constraints)
     return parsed

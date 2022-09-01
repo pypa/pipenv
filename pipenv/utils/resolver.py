@@ -1026,11 +1026,10 @@ def venv_resolve_deps(
             sp.write(decode_for_output("Building requirements..."))
             deps = convert_deps_to_pip(deps, project, include_index=True)
             constraints = set(deps)
-            constraints_file = tempfile.NamedTemporaryFile(
+            with tempfile.NamedTemporaryFile(
                 mode="w+", prefix="pipenv", suffix="constraints.txt", delete=False
-            )
-            constraints_file.write(str("\n".join(constraints)))
-            constraints_file.close()
+            ) as constraints_file:
+                constraints_file.write(str("\n".join(constraints)))
             cmd.append("--constraints-file")
             cmd.append(constraints_file.name)
             sp.write(decode_for_output("Resolving dependencies..."))
