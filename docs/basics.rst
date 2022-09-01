@@ -427,7 +427,7 @@ doing a multi stage build for your application::
   # Tell pipenv to create venv in the current directory
   ENV PIPENV_VENV_IN_PROJECT=1
 
-  # Pipefile contains requests
+  # Pipfile contains requests
   ADD Pipfile.lock Pipfile /usr/src/
 
   WORKDIR /usr/src
@@ -445,22 +445,23 @@ doing a multi stage build for your application::
 
   FROM docker.io/python:3.9 AS runtime
 
-  RUN mkdir -v /usr/src/venv
+  RUN mkdir -v /usr/src/.venv
 
-  COPY --from=builder /usr/src/.venv/ /usr/src/venv/
+  COPY --from=builder /usr/src/.venv/ /usr/src/.venv/
 
-  RUN /usr/src/venv/bin/python -c "import requests; print(requests.__version__)"
+  RUN /usr/src/.venv/bin/python -c "import requests; print(requests.__version__)"
 
   # HERE GOES ANY CODE YOU NEED TO ADD TO CREATE YOUR APPLICATION'S IMAGE
   # For example
   # RUN apt install -y libcurl3-gnutls
   # RUN adduser --uid 123123 coolio
+  # ADD run.py /usr/src/
 
   WORKDIR /usr/src/
 
   USER coolio
 
-  CMD ["./venv/bin/python", "-m", "run.py"]
+  CMD ["./.venv/bin/python", "-m", "run.py"]
 
 .. Note::
 
