@@ -844,7 +844,12 @@ def do_install_dependencies(
     }
 
     batch_install(
-        project, normal_deps, procs, failed_deps_queue, requirements_dir, **install_kwargs
+        project,
+        normal_deps,
+        procs,
+        failed_deps_queue,
+        requirements_dir,
+        **install_kwargs,
     )
 
     if not procs.empty():
@@ -1362,7 +1367,7 @@ def get_pip_args(
         ],
         "src_dir": src_dir,
     }
-    arg_set = ["--no-input"]
+    arg_set = ["--no-input"] if project.settings.get("disable_pip_input", True) else []
     for key in arg_map.keys():
         if key in locals() and locals().get(key):
             arg_set.extend(arg_map.get(key))
@@ -1611,7 +1616,8 @@ def pip_install_deps(
         )
         if project.s.is_verbose():
             click.echo(
-                f"Writing supplied requirement line to temporary file: {line!r}", err=True
+                f"Writing supplied requirement line to temporary file: {line!r}",
+                err=True,
             )
         target = editable_requirements if vcs_or_editable else standard_requirements
         target.write(vistir.misc.to_bytes(line))
