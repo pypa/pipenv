@@ -1,3 +1,13 @@
+2022.9.2 (2022-09-02)
+=====================
+
+
+Bug Fixes
+---------
+
+- Fix issue where unnamed constraints were provided but which are not allowed by ``pip`` resolver.  `#5273 <https://github.com/pypa/pipenv/issues/5273>`_
+
+
 2022.8.31 (2022-08-31)
 ======================
 
