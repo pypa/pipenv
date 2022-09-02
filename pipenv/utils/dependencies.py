@@ -280,7 +280,7 @@ def get_constraints_from_deps(deps):
     constraints = []
     for dep_name, dep in deps.items():
         new_dep = Requirement.from_pipfile(dep_name, dep)
-        if is_constraints(new_dep.as_ireq()):
+        if new_dep.is_named and is_constraints(new_dep.as_ireq()):
             c = new_dep.as_line().strip()
             constraints.append(c)
     return constraints
