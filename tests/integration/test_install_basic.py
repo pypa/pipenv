@@ -545,3 +545,25 @@ def test_install_does_not_exclude_packaging(PipenvInstance):
         assert c.returncode == 0
         c = p.pipenv("run python -c 'from dataclasses_json import DataClassJsonMixin'")
         assert c.returncode == 0
+
+
+def test_install_tarball_is_actually_installed(PipenvInstance):
+    """ Test case for Issue 5326"""
+    with PipenvInstance(chdir=True) as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+six = {file = "https://files.pythonhosted.org/packages/71/39/171f1c67cd00715f190ba0b100d606d440a28c93c7714febeca8b79af85e/six-1.16.0.tar.gz"}
+                    """.strip()
+            f.write(contents)
+        c = p.pipenv("lock")
+        assert c.returncode == 0
+        c = p.pipenv("sync")
+        assert c.returncode == 0
+        c = p.pipenv("run python -c 'import six'")
+        assert c.returncode == 0
