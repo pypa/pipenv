@@ -157,12 +157,12 @@ Above example will install ``flask`` and a private package ``private-test-packag
 ------------------------------------------------
 
 There may be cases where you wish to supply additional arguments to pip to be used during the install phase.
-For example, you may want to enable the new pip experimental feature for using
+For example, you may want to enable the pip feature for using
 `system certificate stores <https://pip.pypa.io/en/latest/topics/https-certificates/#using-system-certificate-stores>`_
 
 In this case you can supply these additional arguments to ``pipenv sync`` or ``pipenv install`` by passing additional
-argument ``--extra-pip-args="--use-feature=truststore"``.   It is possible to supply multiple arguments in the ``--extra-pip-args``,
-for example::
+argument ``--extra-pip-args="--use-feature=truststore"``.   It is possible to supply multiple arguments in the ``--extra-pip-args``.
+Example usage::
 
     pipenv sync --extra-pip-args="--use-feature=truststore --proxy=127.0.0.1"
 
