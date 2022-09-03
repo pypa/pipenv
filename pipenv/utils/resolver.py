@@ -704,11 +704,20 @@ class Resolver:
                 if candidate:
                     requires_python = candidate.link.requires_python
                     if requires_python:
-                        marker = marker_from_specifier(requires_python)
-                        self.markers[result.name] = marker
-                        result.markers = marker
-                        if result.req:
-                            result.req.marker = marker
+                        try:
+
+                            marker = marker_from_specifier(requires_python)
+                            self.markers[result.name] = marker
+                            result.markers = marker
+                            if result.req:
+                                result.req.marker = marker
+                        except TypeError as e:
+                            click.echo(
+                                f"Error generating python marker for {candidate}.  "
+                                f"Is the specifier {requires_python} incorrectly quoted or otherwise wrong?"
+                                f"Full error: {e}",
+                                err=True,
+                            )
             new_tree.add(result)
         self.resolved_tree = new_tree
 
