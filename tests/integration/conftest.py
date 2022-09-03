@@ -349,6 +349,8 @@ class _PipenvInstance:
             self.chdir = False or chdir
             self.pipfile_path = p_path
             self._pipfile = _Pipfile(Path(p_path))
+        else:
+            self._pipfile = None
 
     def __enter__(self):
         if self.chdir:
