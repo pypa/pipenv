@@ -123,7 +123,7 @@ Keep in mind that environment variables are expanded in runtime, leaving the ent
 ☤ Injecting credentials through keychain support
 ------------------------------------------------
 
-Private regirstries on Google Cloud, Azure and AWS support dynamic credentials using
+Private registries on Google Cloud, Azure and AWS support dynamic credentials using
 the keychain implementation. Due to the way the keychain is structured, it might ask
 the user for input. Asking the user for input is disabled. This will disable the keychain
 support completely, unfortunately.
@@ -152,6 +152,20 @@ input. Otherwise the process will hang forever!::
     disable_pip_input = false
 
 Above example will install ``flask`` and a private package ``private-test-package`` from GCP.
+
+☤ Supplying additional arguments to pip
+------------------------------------------------
+
+There may be cases where you wish to supply additional arguments to pip to be used during the install phase.
+For example, you may want to enable the new pip experimental feature for using
+`system certificate stores <https://pip.pypa.io/en/latest/topics/https-certificates/#using-system-certificate-stores>`_
+
+In this case you can supply these additional arguments to ``pipenv sync`` or ``pipenv install`` by passing additional
+argument ``--extra-pip-args="--use-feature=truststore"``.   It is possible to supply multiple arguments in the ``--extra-pip-args``,
+for example::
+
+    pipenv sync --extra-pip-args="--use-feature=truststore --proxy=127.0.0.1"
+
 
 ☤ Specifying Basically Anything
 -------------------------------
