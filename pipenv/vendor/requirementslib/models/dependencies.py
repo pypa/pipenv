@@ -13,13 +13,24 @@ import pipenv.patched.pip._vendor.requests as requests
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
-from pipenv.vendor.pip_shims import shims
+from pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pip._internal.models.format_control import FormatControl
+from pipenv.patched.pip._internal.operations.build.build_tracker import get_build_tracker
+from pipenv.patched.pip._internal.req.constructors import install_req_from_line
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.req.req_set import RequirementSet
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, global_tempdir_manager
 from pipenv.vendor.vistir.compat import fs_str
-from pipenv.vendor.vistir.contextmanagers import cd, temp_environ
+from pipenv.vendor.vistir.contextmanagers import temp_environ
 from pipenv.vendor.vistir.path import create_tracked_tempdir
 
 from ..environment import MYPY_RUNNING
-from ..utils import _ensure_dir, prepare_pip_source_args
+from ..utils import (
+    _ensure_dir,
+    get_package_finder,
+    get_pip_command,
+    prepare_pip_source_args,
+)
 from .cache import CACHE_DIR, DependencyCache
 from .setup_info import SetupInfo
 from .utils import (
@@ -49,7 +60,9 @@ if MYPY_RUNNING:
     )
 
     from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
-    from shims import Command, InstallationCandidate, InstallRequirement, PackageFinder
+    from pipenv.patched.pip._internal.commands.base_command import Command
+    from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
 
     TRequirement = TypeVar("TRequirement")
     RequirementType = TypeVar(
@@ -68,8 +81,8 @@ DEPENDENCY_CACHE = DependencyCache()
 
 @contextlib.contextmanager
 def _get_wheel_cache():
-    with shims.global_tempdir_manager():
-        yield shims.WheelCache(CACHE_DIR, shims.FormatControl(set(), set()))
+    with global_tempdir_manager():
+        yield WheelCache(CACHE_DIR, FormatControl(set(), set()))
 
 
 def _get_filtered_versions(ireq, versions, prereleases):
@@ -96,15 +109,6 @@ def find_all_matches(finder, ireq, pre=False):
         allowed_versions = _get_filtered_versions(ireq, versions, True)
     candidates = {c for c in candidates if c.version in allowed_versions}
     return candidates
-
-
-def get_pip_command():
-    # type: () -> Command
-    # Use pip's parser for pip.conf management and defaults.
-    # General options (find_links, index_url, extra_index_url, trusted_host,
-    # and pre) are deferred to pip.
-    pip_command = shims.InstallCommand()
-    return pip_command
 
 
 @attr.s
@@ -214,7 +218,7 @@ class AbstractDependency(object):
 
             req = Requirement.from_line(key)
             req = req.merge_markers(self.markers)
-            self.dep_dict[key] = req.get_abstract_dependencies()
+            self.dep_dict[key] = req.abstract_dependencies()
         return self.dep_dict[key]
 
     @classmethod
@@ -274,26 +278,23 @@ class AbstractDependency(object):
         return abstract_dep
 
 
-def get_abstract_dependencies(reqs, sources=None, parent=None):
+def get_abstract_dependencies(reqs, parent=None):
     """Get all abstract dependencies for a given list of requirements.
 
     Given a set of requirements, convert each requirement to an Abstract Dependency.
 
     :param reqs: A list of Requirements
     :type reqs: list[:class:`~requirementslib.models.requirements.Requirement`]
-    :param sources: Pipfile-formatted sources, defaults to None
-    :param sources: list[dict], optional
     :param parent: The parent of this list of dependencies, defaults to None
     :param parent: :class:`~requirementslib.models.requirements.Requirement`, optional
     :return: A list of Abstract Dependencies
     :rtype: list[:class:`~requirementslib.models.dependency.AbstractDependency`]
     """
-
     deps = []
     from .requirements import Requirement
 
     for req in reqs:
-        if isinstance(req, shims.InstallRequirement):
+        if isinstance(req, InstallRequirement):
             requirement = Requirement.from_line("{0}{1}".format(req.name, req.specifier))
             if req.link:
                 requirement.req.link = req.link
@@ -323,19 +324,18 @@ def get_dependencies(ireq, sources=None, parent=None):
     :return: A set of dependency lines for generating new InstallRequirements.
     :rtype: set(str)
     """
-    if not isinstance(ireq, shims.InstallRequirement):
+    if not isinstance(ireq, InstallRequirement):
         name = getattr(ireq, "project_name", getattr(ireq, "project", ireq.name))
         version = getattr(ireq, "version", None)
         if not version:
-            ireq = shims.InstallRequirement.from_line("{0}".format(name))
+            ireq = install_req_from_line("{0}".format(name))
         else:
-            ireq = shims.InstallRequirement.from_line("{0}=={1}".format(name, version))
-    pip_options = get_pip_options(sources=sources)
+            ireq = install_req_from_line("{0}=={1}".format(name, version))
     getters = [
         get_dependencies_from_cache,
         get_dependencies_from_wheel_cache,
         get_dependencies_from_json,
-        functools.partial(get_dependencies_from_index, pip_options=pip_options),
+        functools.partial(get_dependencies_from_index, sources=sources),
     ]
     for getter in getters:
         deps = getter(ireq)
@@ -345,7 +345,7 @@ def get_dependencies(ireq, sources=None, parent=None):
 
 
 def get_dependencies_from_wheel_cache(ireq):
-    # type: (shims.InstallRequirement) -> Optional[Set[shims.InstallRequirement]]
+    # type: (InstallRequirement) -> Optional[Set[InstallRequirement]]
     """Retrieves dependencies for the given install requirement from the wheel
     cache.
 
@@ -358,7 +358,7 @@ def get_dependencies_from_wheel_cache(ireq):
     if ireq.editable or not is_pinned_requirement(ireq):
         return
     with _get_wheel_cache() as wheel_cache:
-        matches = wheel_cache.get(ireq.link, name_from_req(ireq.req))
+        matches = wheel_cache.get(ireq.link, name_from_req(ireq.req), ireq.markers)
         if matches:
             matches = set(matches)
             if not DEPENDENCY_CACHE.get(ireq):
@@ -406,7 +406,7 @@ def get_dependencies_from_json(ireq):
         if not requires_dist:  # The API can return None for this.
             return
         for requires in requires_dist:
-            i = shims.InstallRequirement.from_line(requires)
+            i = install_req_from_line(requires)
             # See above, we don't handle requirements with extras.
             if not _marker_contains_extra(i):
                 yield format_requirement(i)
@@ -442,7 +442,7 @@ def get_dependencies_from_cache(ireq):
     try:
         broken = False
         for line in cached:
-            dep_ireq = shims.InstallRequirement.from_line(line)
+            dep_ireq = install_req_from_line(line)
             name = canonicalize_name(dep_ireq.name)
             if _marker_contains_extra(dep_ireq):
                 broken = True  # The "extra =" marker breaks everything.
@@ -464,6 +464,68 @@ def is_python(section):
     return section.startswith("[") and ":" in section
 
 
+def get_resolver(
+    finder, build_tracker, pip_options, session, directory, install_command=None
+):
+    wheel_cache = WheelCache(pip_options.cache_dir, pip_options.format_control)
+    if install_command is None:
+        install_command = get_pip_command()
+    preparer = install_command.make_requirement_preparer(
+        temp_build_dir=directory,
+        options=pip_options,
+        build_tracker=build_tracker,
+        session=session,
+        finder=finder,
+        use_user_site=False,
+    )
+    resolver = install_command.make_resolver(
+        preparer=preparer,
+        finder=finder,
+        options=pip_options,
+        wheel_cache=wheel_cache,
+        use_user_site=False,
+        ignore_installed=True,
+        ignore_requires_python=pip_options.ignore_requires_python,
+        force_reinstall=pip_options.force_reinstall,
+        upgrade_strategy="to-satisfy-only",
+        use_pep517=pip_options.use_pep517,
+    )
+    return resolver
+
+
+def resolve(ireq, sources, install_command, pip_options):
+    with global_tempdir_manager(), get_build_tracker() as build_tracker, TempDirectory() as directory:
+        session, finder = get_finder(
+            sources=sources, pip_command=install_command, pip_options=pip_options
+        )
+        resolver = get_resolver(
+            finder=finder,
+            build_tracker=build_tracker,
+            pip_options=pip_options,
+            session=session,
+            directory=directory,
+            install_command=install_command,
+        )
+        reqset = RequirementSet(install_command)
+        reqset.add_named_requirement(ireq)
+        resolver_args = []
+        resolver_args.append([ireq])
+        resolver_args.append(True)  # check_supported_wheels
+        if getattr(reqset, "prepare_files", None):
+            reqset.prepare_files(finder)
+            result = reqset.requirements
+            reqset.cleanup_files()
+            return result
+        result_reqset = resolver.resolve(*resolver_args)
+        if result_reqset is None:
+            result_reqset = reqset
+        results = result_reqset.requirements
+        cleanup_fn = getattr(reqset, "cleanup_files", None)
+        if cleanup_fn is not None:
+            cleanup_fn()
+        return results
+
+
 def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache=None):
     """Retrieves dependencies for the given install requirement from the pip
     resolver.
@@ -475,14 +537,12 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
     :return: A set of dependency lines for generating new InstallRequirements.
     :rtype: set(str) or None
     """
-
-    session, finder = get_finder(sources=sources, pip_options=pip_options)
+    install_command = get_pip_command()
+    if pip_options is None:
+        pip_options = get_pip_options(sources=sources, pip_command=install_command)
     dep.is_direct = True
-    requirements = None
     setup_requires = {}
-    with temp_environ(), ExitStack() as stack:
-        if not wheel_cache:
-            wheel_cache = stack.enter_context(_get_wheel_cache())
+    with temp_environ():
         os.environ["PIP_EXISTS_ACTION"] = "i"
         if dep.editable and not dep.prepared and not dep.req:
             setup_info = SetupInfo.from_ireq(dep)
@@ -490,7 +550,12 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
             setup_requires.update(results["setup_requires"])
             requirements = set(results["requires"].values())
         else:
-            results = shims.resolve(dep)
+            results = resolve(
+                dep,
+                sources=sources,
+                install_command=install_command,
+                pip_options=pip_options,
+            )
             requirements = [v for v in results.values() if v.name != dep.name]
         requirements = set([format_requirement(r) for r in requirements])
     if not dep.editable and is_pinned_requirement(dep) and requirements is not None:
@@ -537,16 +602,14 @@ def get_finder(sources=None, pip_command=None, pip_options=None):
     """
 
     if not pip_command:
-        pip_command = shims.InstallCommand()
+        pip_command = get_pip_command()
     if not sources:
         sources = [{"url": "https://pypi.org/simple", "name": "pypi", "verify_ssl": True}]
     if not pip_options:
         pip_options = get_pip_options(sources=sources, pip_command=pip_command)
     session = pip_command._build_session(pip_options)
     atexit.register(session.close)
-    finder = shims.get_package_finder(
-        shims.InstallCommand(), options=pip_options, session=session
-    )
+    finder = get_package_finder(get_pip_command(), options=pip_options, session=session)
     return session, finder
 
 
@@ -576,40 +639,31 @@ def start_resolver(finder=None, session=None, wheel_cache=None):
 
     _build_dir = create_tracked_tempdir(fs_str("build"))
     _source_dir = create_tracked_tempdir(fs_str("source"))
+    pip_options.src_dir = _source_dir
     try:
-        with ExitStack() as ctx:
-            ctx.enter_context(shims.global_tempdir_manager())
+        with global_tempdir_manager(), get_build_tracker() as build_tracker:
             if not wheel_cache:
-                wheel_cache = ctx.enter_context(_get_wheel_cache())
-            _ensure_dir(fs_str(os.path.join(wheel_cache.cache_dir, "wheels")))
-            preparer = ctx.enter_context(
-                shims.make_preparer(
-                    options=pip_options,
-                    finder=finder,
-                    session=session,
-                    build_dir=_build_dir,
-                    src_dir=_source_dir,
-                    download_dir=download_dir,
-                    wheel_download_dir=WHEEL_DOWNLOAD_DIR,
-                    progress_bar="off",
-                    build_isolation=False,
-                    install_cmd=pip_command,
-                )
-            )
-            resolver = shims.get_resolver(
-                finder=finder,
-                ignore_dependencies=False,
-                ignore_requires_python=True,
-                preparer=preparer,
-                session=session,
+                wheel_cache = _get_wheel_cache()
+            _ensure_dir(str(os.path.join(wheel_cache.cache_dir, "wheels")))
+            preparer = pip_command.make_requirement_preparer(
+                temp_build_dir=_build_dir,
                 options=pip_options,
-                install_cmd=pip_command,
-                wheel_cache=wheel_cache,
-                force_reinstall=True,
-                ignore_installed=True,
-                upgrade_strategy="to-satisfy-only",
-                isolated=False,
+                build_tracker=build_tracker,
+                session=session,
+                finder=finder,
                 use_user_site=False,
+            )
+            resolver = pip_command.make_resolver(
+                preparer=preparer,
+                finder=finder,
+                options=pip_options,
+                wheel_cache=wheel_cache,
+                use_user_site=False,
+                ignore_installed=True,
+                ignore_requires_python=pip_options.ignore_requires_python,
+                force_reinstall=pip_options.force_reinstall,
+                upgrade_strategy="to-satisfy-only",
+                use_pep517=pip_options.use_pep517,
             )
             yield resolver
     finally:

@@ -23,7 +23,6 @@ fake_package = {version = "*", markers="os_name=='splashwear'"}
 
         c = p.pipenv('install')
         assert c.returncode == 0
-        assert 'Ignoring' in c.stdout
         assert 'markers' in p.lockfile['default']['fake-package'], p.lockfile["default"]
 
         c = p.pipenv('run python -c "import fake_package;"')
@@ -37,14 +36,7 @@ def test_platform_python_implementation_marker(PipenvInstance_NoPyPI):
     incorrectly.
     """
     with PipenvInstance_NoPyPI() as p:
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
-[packages]
-depends-on-marked-package = "*"
-            """.strip()
-            f.write(contents)
-
-        c = p.pipenv('install')
+        c = p.pipenv('install depends-on-marked-package')
         assert c.returncode == 0
 
         # depends-on-marked-package has an install_requires of
@@ -71,8 +63,6 @@ six = {version = "*", os_name = "== 'splashwear'"}
 
         c = p.pipenv('install')
         assert c.returncode == 0
-
-        assert 'Ignoring' in c.stdout
         assert 'markers' in p.lockfile['default']['six']
 
         c = p.pipenv('run python -c "import six;"')

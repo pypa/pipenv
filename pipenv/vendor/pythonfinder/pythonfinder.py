@@ -1,12 +1,7 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function
-
 import importlib
 import operator
 import os
-
-import pipenv.vendor.six as six
-from pipenv.vendor.click import secho
 
 from . import environment
 from .compat import lru_cache
@@ -98,7 +93,7 @@ class Finder(object):
             self._system_path = self._system_path.clear_caches()
             self._system_path = None
         pyfinder_path = importlib.import_module("pythonfinder.models.path")
-        six.moves.reload_module(pyfinder_path)
+        importlib.reload(pyfinder_path)
         self._system_path = self.create_system_path()
 
     def rehash(self):
@@ -146,7 +141,7 @@ class Finder(object):
         # type: (...) -> Dict[str, Union[int, str, bool, None]]
         from .models import PythonVersion
 
-        major_is_str = major and isinstance(major, six.string_types)
+        major_is_str = major and isinstance(major, str)
         is_num = (
             major
             and major_is_str
@@ -253,7 +248,7 @@ class Finder(object):
         }  # type: Dict[str, Union[str, int, Any]]
 
         if (
-            isinstance(major, six.string_types)
+            isinstance(major, str)
             and pre is None
             and minor is None
             and dev is None
@@ -270,7 +265,7 @@ class Finder(object):
             _dev = version_dict.get("is_devrelease", dev)
             dev = bool(_dev) if _dev is not None else dev
             if "architecture" in version_dict and isinstance(
-                version_dict["architecture"], six.string_types
+                version_dict["architecture"], str
             ):
                 arch = version_dict["architecture"]  # type: ignore
         if os.name == "nt" and self.windows_finder is not None:

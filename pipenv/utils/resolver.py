@@ -645,6 +645,7 @@ class Resolver:
             # Only use default_constraints when installing dev-packages
             if self.dev:
                 self._constraints += self.default_constraints
+            self._constraints.sort(key=lambda ireq: ireq.name)
         return self._constraints
 
     @contextlib.contextmanager
@@ -1033,12 +1034,16 @@ def venv_resolve_deps(
             # dependency resolution on them, so we are including this step inside the
             # spinner context manager for the UX improvement
             sp.write(decode_for_output("Building requirements..."))
-            deps = convert_deps_to_pip(deps, project, r=False, include_index=True)
+            deps = convert_deps_to_pip(deps, project, include_index=True)
             constraints = set(deps)
-            os.environ["PIPENV_PACKAGES"] = str("\n".join(constraints))
+            with tempfile.NamedTemporaryFile(
+                mode="w+", prefix="pipenv", suffix="constraints.txt", delete=False
+            ) as constraints_file:
+                constraints_file.write(str("\n".join(constraints)))
+            cmd.append("--constraints-file")
+            cmd.append(constraints_file.name)
             sp.write(decode_for_output("Resolving dependencies..."))
             c = resolve(cmd, sp, project=project)
-            results = c.stdout.strip()
             if c.returncode == 0:
                 sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                 if not project.s.is_verbose() and c.stderr.strip():

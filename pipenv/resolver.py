@@ -96,6 +96,12 @@ def get_parser():
         action="store",
         default=os.environ.get("PIPENV_RESOLVER_FILE"),
     )
+    parser.add_argument(
+        "--constraints-file",
+        metavar="constraints_file",
+        action="store",
+        default=None,
+    )
     parser.add_argument("packages", nargs="*")
     return parser
 
@@ -120,8 +126,11 @@ def handle_parsed_args(parsed):
         logger.setLevel(logging.INFO)
         os.environ["PIP_RESOLVER_DEBUG"] = ""
     os.environ["PIPENV_VERBOSITY"] = str(parsed.verbose)
-    if "PIPENV_PACKAGES" in os.environ:
-        parsed.packages += os.environ.get("PIPENV_PACKAGES", "").strip().split("\n")
+    if parsed.constraints_file:
+        with open(parsed.constraints_file) as constraints:
+            file_constraints = constraints.read().strip().split("\n")
+        os.unlink(parsed.constraints_file)
+        parsed.packages += sorted(file_constraints)
     return parsed
 
 
