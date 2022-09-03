@@ -343,6 +343,10 @@ class _PipenvInstance:
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
+            try:
+                os.remove(p_path)
+            except FileNotFoundError:
+                pass
             with open(p_path, 'a'):
                 os.utime(p_path, None)
 
