@@ -1601,7 +1601,7 @@ def pip_install_deps(
             requirement.is_vcs
             or requirement.vcs
             or requirement.editable
-            or requirement.is_file_or_url
+            or (requirement.is_file_or_url and not requirement.hashes)
         )
         if vcs_or_editable:
             ignore_hash = True
@@ -1627,10 +1627,25 @@ def pip_install_deps(
 
     cmds = []
     files = []
-    standard_deps = list(filter(lambda d: not (d.is_vcs or d.vcs or d.editable), deps))
+    standard_deps = list(
+        filter(
+            lambda d: not (
+                d.is_vcs or d.vcs or d.editable or (d.is_file_or_url and not d.hashes)
+            ),
+            deps,
+        )
+    )
     if standard_deps:
         files.append(standard_requirements)
-    editable_deps = list(filter(lambda d: d.is_vcs or d.vcs or d.editable, deps))
+    editable_deps = list(
+        filter(
+            lambda d: d.is_vcs
+            or d.vcs
+            or d.editable
+            or (d.is_file_or_url and not d.hashes),
+            deps,
+        )
+    )
     if editable_deps:
         files.append(editable_requirements)
     for file in files:
