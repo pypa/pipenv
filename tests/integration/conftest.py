@@ -357,6 +357,8 @@ class _PipenvInstance:
 
     def __exit__(self, *args):
         warn_msg = 'Failed to remove resource: {!r}'
+        if self.pipfile_path:
+            os.remove(self.pipfile_path)
         if self.chdir:
             os.chdir(self.original_dir)
         self.path = None
