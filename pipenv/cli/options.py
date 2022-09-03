@@ -11,6 +11,7 @@ from pipenv.vendor.click import (
     echo,
     make_pass_decorator,
     option,
+    secho,
 )
 from pipenv.vendor.click import types as click_types
 from pipenv.vendor.click_didyoumean import DYMMixin
@@ -290,6 +291,11 @@ def three_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value is not None:
+            secho(
+                "WARNING: --three is deprecated! pipenv uses python3 by default",
+                err=True,
+                fg="yellow",
+            )
             state.three = value
         return value
 
@@ -297,7 +303,7 @@ def three_option(f):
         "--three",
         is_flag=True,
         default=None,
-        help="Use Python 3 when creating virtualenv.",
+        help="Use Python 3 when creating virtualenv. Deprecated",
         callback=callback,
         expose_value=False,
     )(f)
