@@ -1,0 +1,1 @@
+Add error handling for when the installed package setup.py does not contain valid markers.
