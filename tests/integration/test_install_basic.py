@@ -535,7 +535,6 @@ def test_install_dev_use_default_constraints(PipenvInstance):
         assert c.returncode != 0
 
 
-@pytest.mark.dev
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.needs_internet
@@ -548,7 +547,6 @@ def test_install_does_not_exclude_packaging(PipenvInstance):
         assert c.returncode == 0
 
 
-@pytest.mark.dev
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.needs_internet
@@ -557,3 +555,28 @@ def test_install_will_supply_extra_pip_args(PipenvInstance):
         c = p.pipenv("""install requests --extra-pip-args=""--use-feature=truststore --proxy=test""")
         assert c.returncode == 1
         assert "truststore feature" in c.stderr
+
+
+@pytest.mark.basic
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_install_tarball_is_actually_installed(PipenvInstance):
+    """ Test case for Issue 5326"""
+    with PipenvInstance(chdir=True) as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+dataclasses-json = {file = "https://files.pythonhosted.org/packages/85/94/1b30216f84c48b9e0646833f6f2dd75f1169cc04dc45c48fe39e644c89d5/dataclasses-json-0.5.7.tar.gz"}
+                    """.strip()
+            f.write(contents)
+        c = p.pipenv("lock")
+        assert c.returncode == 0
+        c = p.pipenv("sync")
+        assert c.returncode == 0
+        c = p.pipenv("run python -c 'from dataclasses_json import dataclass_json'")
+        assert c.returncode == 0
