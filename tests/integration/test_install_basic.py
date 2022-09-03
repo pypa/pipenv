@@ -1,4 +1,5 @@
 import os
+import mock
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -545,3 +546,14 @@ def test_install_does_not_exclude_packaging(PipenvInstance):
         assert c.returncode == 0
         c = p.pipenv("run python -c 'from dataclasses_json import DataClassJsonMixin'")
         assert c.returncode == 0
+
+
+@pytest.mark.dev
+@pytest.mark.basic
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_install_will_supply_extra_pip_args(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv("""install requests --extra-pip-args=""--use-feature=truststore --proxy=test""")
+        assert c.returncode == 1
+        assert "To use the truststore feature" in c.stderr
