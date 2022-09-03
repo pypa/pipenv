@@ -558,12 +558,12 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-six = {file = "https://files.pythonhosted.org/packages/71/39/171f1c67cd00715f190ba0b100d606d440a28c93c7714febeca8b79af85e/six-1.16.0.tar.gz"}
+dataclasses-json = {file = "https://files.pythonhosted.org/packages/85/94/1b30216f84c48b9e0646833f6f2dd75f1169cc04dc45c48fe39e644c89d5/dataclasses-json-0.5.7.tar.gz"}
                     """.strip()
             f.write(contents)
         c = p.pipenv("lock")
         assert c.returncode == 0
         c = p.pipenv("sync")
         assert c.returncode == 0
-        c = p.pipenv("run python -c 'import six'")
+        c = p.pipenv("run python -c 'from dataclasses_json import dataclass_json'")
         assert c.returncode == 0
