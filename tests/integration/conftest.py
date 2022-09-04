@@ -314,28 +314,16 @@ class _PipenvInstance:
             self.env.pop("PIPENV_VENV_IN_PROJECT", None)
 
         self.original_dir = Path(__file__).parent.parent.parent
-        path = path if path else os.environ.get("PIPENV_PROJECT_DIR", None)
         if name is not None:
             path = Path(os.environ["HOME"]) / "projects" / name
             path.mkdir(exist_ok=True)
-        if not path:
-            path = TemporaryDirectory(prefix='pipenv-', suffix='-project')
-        if isinstance(path, TemporaryDirectory):
-            self._path = path
-            path = Path(self._path.name)
-            try:
-                self.path = str(path.resolve())
-            except OSError:
-                self.path = str(path.absolute())
-        elif isinstance(path, Path):
-            self._path = path
-            try:
-                self.path = str(path.resolve())
-            except OSError:
-                self.path = str(path.absolute())
-        else:
-            self._path = path
-            self.path = path
+        self._path = path = TemporaryDirectory(prefix='pipenv-', suffix='-project')
+        path = Path(self._path.name)
+        try:
+            self.path = str(path.resolve())
+        except OSError:
+            self.path = str(path.absolute())
+
         # set file creation perms
         self.pipfile_path = None
         self.chdir = chdir
@@ -369,8 +357,8 @@ class _PipenvInstance:
             os.remove(self.pipfile_path)
         if self.chdir:
             os.chdir(self.original_dir)
-        if self.path:
-            self.path.cleanup()
+        if self._path:
+            self._path.cleanup()
         self.path = None
         if self._path and getattr(self._path, "cleanup", None):
             try:
