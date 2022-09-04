@@ -477,8 +477,8 @@ def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir, capfdbinary):
         m.setenv("PIPENV_NOSPIN", "1")
         m.setenv("CI", "1")
         m.setenv('PIPENV_DONT_USE_PYENV', '1')
-        m.setenv("PIPENV_TEST_INDEX", "http://127.0.0.1:8080/simple")
-        m.setenv("ARTIFACT_PYPI_URL", "http://127.0.0.1:8080/simple")
+        m.setenv("PIPENV_TEST_INDEX", "http://localhost:8080/simple")
+        m.setenv("ARTIFACT_PYPI_URL", "http://localhost:8080/simple")
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         try:
