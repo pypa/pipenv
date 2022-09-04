@@ -354,12 +354,18 @@ class _PipenvInstance:
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
+            try:
+                os.remove(p_path)
+            except FileNotFoundError:
+                pass
             with open(p_path, 'a'):
                 os.utime(p_path, None)
 
             self.chdir = False or chdir
             self.pipfile_path = p_path
             self._pipfile = _Pipfile(Path(p_path))
+        else:
+            self._pipfile = None
 
     def __enter__(self):
         if self.chdir:
@@ -368,6 +374,8 @@ class _PipenvInstance:
 
     def __exit__(self, *args):
         warn_msg = 'Failed to remove resource: {!r}'
+        if self.pipfile_path:
+            os.remove(self.pipfile_path)
         if self.chdir:
             os.chdir(self.original_dir)
         self.path = None

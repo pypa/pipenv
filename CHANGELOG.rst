@@ -1,3 +1,13 @@
+2022.9.4 (2022-09-04)
+=====================
+
+
+Bug Fixes
+---------
+
+- Fix the issue from ``2022.9.2`` where tarball URL packages were being skipped on batch_install.  `#5306 <https://github.com/pypa/pipenv/issues/5306>`_
+
+
 2022.9.2 (2022-09-02)
 =====================
 
