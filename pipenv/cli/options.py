@@ -87,6 +87,7 @@ class InstallState:
         self.deploy = False
         self.packages = []
         self.editables = []
+        self.extra_pip_args = []
 
 
 class LockOptions:
@@ -280,6 +281,24 @@ def package_arg(f):
     return argument(
         "packages",
         nargs=-1,
+        callback=callback,
+        expose_value=True,
+        type=click_types.STRING,
+    )(f)
+
+
+def extra_pip_args(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        if value:
+            for opt in value.split(" "):
+                state.installstate.extra_pip_args.append(opt)
+        return value
+
+    return option(
+        "--extra-pip-args",
+        nargs=1,
+        required=False,
         callback=callback,
         expose_value=True,
         type=click_types.STRING,
@@ -570,6 +589,7 @@ def install_options(f):
     f = ignore_pipfile_option(f)
     f = editable_option(f)
     f = package_arg(f)
+    f = extra_pip_args(f)
     return f
 
 
