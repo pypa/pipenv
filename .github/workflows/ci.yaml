@@ -99,13 +99,13 @@ jobs:
           pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
       - name: Run pypiserver Windows
         run: |
-          [[ "${{matrix.os}}" == "Windows" ]] && cmd /c pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
+          [[ "${{matrix.os}}" == "Windows" ]] && cmd /c pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures || true
       - name: Run pypiserver Mac
         run: |
-          [[ "${{matrix.os}}" == "MacOS" ]] && pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+          [[ "${{matrix.os}}" == "MacOS" ]] && pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures & || true
       - name: Run pypiserver Ubuntu
         run: |
-          [[ "${{matrix.os}}" == 'Ubuntu' ]] && pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+          [[ "${{matrix.os}}" == 'Ubuntu' ]] && pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures & || true
       - name: Run tests
         env:
           PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
