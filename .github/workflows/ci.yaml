@@ -97,9 +97,18 @@ jobs:
           git submodule update --init --recursive
           python -m pip install -e . --upgrade
           pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
-      - name: Run pypiserver
+      - name: Run pypiserver Windows
+        if: ${{matrix.os}} == 'Windows'
         run: |
-          pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
+          cmd /c pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+      - name: Run pypiserver Mac
+        if: ${{matrix.os}} == 'MacOS'
+        run: |
+          pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+      - name: Run pypiserver Linux
+        if: ${{matrix.os}} == 'Ubuntu'
+        run: |
+          pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
       - name: Run tests
         env:
           PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
