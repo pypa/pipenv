@@ -72,8 +72,8 @@ six = "*"
 
 @pytest.mark.sync
 @pytest.mark.lock
-def test_sync_sequential_detect_errors(PipenvInstance):
-    with PipenvInstance() as p:
+def test_sync_sequential_detect_errors(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]

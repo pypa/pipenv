@@ -135,8 +135,8 @@ pytest = "*"
 
 @pytest.mark.lock
 @pytest.mark.keep_outdated
-def test_keep_outdated_doesnt_remove_lockfile_entries(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_keep_outdated_doesnt_remove_lockfile_entries(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         p._pipfile.add("requests", "==2.18.4")
         p._pipfile.add("colorama", {"version": "*", "markers": "os_name=='FakeOS'"})
         c = p.pipenv("install")
@@ -162,8 +162,8 @@ def test_resolve_skip_unmatched_requirements(PipenvInstance):
 
 @pytest.mark.lock
 @pytest.mark.keep_outdated
-def test_keep_outdated_doesnt_upgrade_pipfile_pins(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_keep_outdated_doesnt_upgrade_pipfile_pins(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         p._pipfile.add("urllib3", "==1.21.1")
         c = p.pipenv("install")
         assert c.returncode == 0
@@ -194,8 +194,8 @@ def test_keep_outdated_keeps_markers_not_removed(PipenvInstance):
 
 @pytest.mark.lock
 @pytest.mark.keep_outdated
-def test_keep_outdated_doesnt_update_satisfied_constraints(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_keep_outdated_doesnt_update_satisfied_constraints(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         p._pipfile.add("requests", "==2.18.4")
         c = p.pipenv("install")
         assert c.returncode == 0
@@ -251,9 +251,9 @@ requests = {git = "%s"}
 
 @pytest.mark.lock
 @pytest.mark.requirements
-def test_lock_with_prereleases(PipenvInstance):
+def test_lock_with_prereleases(PipenvInstance_NoPyPI):
 
-    with PipenvInstance() as p:
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -293,8 +293,8 @@ maya = "*"
 
 @pytest.mark.lock
 @pytest.mark.extras
-def test_lock_extras_without_install(PipenvInstance):
-    with PipenvInstance() as p:
+def test_lock_extras_without_install(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -348,7 +348,6 @@ requests = "*"
 @pytest.mark.requirements
 @pytest.mark.needs_internet
 def test_private_index_lock_requirements(PipenvInstance_NoPyPI):
-    # Don't use the local fake pypi
     with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
@@ -485,9 +484,9 @@ cython-import-package = {version = "*", index = "testpypi"}
 
 @pytest.mark.index
 @pytest.mark.install
-def test_lock_updated_source(PipenvInstance):
+def test_lock_updated_source(PipenvInstance_NoPyPI):
 
-    with PipenvInstance() as p:
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -630,8 +629,8 @@ def test_lockfile_with_empty_dict(PipenvInstance):
 @pytest.mark.lock
 @pytest.mark.install
 @pytest.mark.skip_lock
-def test_lock_with_incomplete_source(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_lock_with_incomplete_source(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [[source]]
@@ -823,10 +822,10 @@ requests = {requirement}
 @pytest.mark.dev
 @pytest.mark.lock
 @pytest.mark.install
-def test_dev_lock_use_default_packages_as_constraint(PipenvInstance):
+def test_dev_lock_use_default_packages_as_constraint(PipenvInstance_NoPyPI):
     # See https://github.com/pypa/pipenv/issues/4371
     # See https://github.com/pypa/pipenv/issues/2987
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]

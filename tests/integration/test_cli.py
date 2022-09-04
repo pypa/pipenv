@@ -225,8 +225,8 @@ def test_man(PipenvInstance):
 
 
 @pytest.mark.cli
-def test_install_parse_error(PipenvInstance):
-    with PipenvInstance() as p:
+def test_install_parse_error(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
 
         # Make sure unparseable packages don't wind up in the pipfile
         # Escape $ for shell input
@@ -297,8 +297,8 @@ def test_pipenv_verify_locked_passing(PipenvInstance):
 
 
 @pytest.mark.cli
-def test_pipenv_verify_locked_outdated_failing(PipenvInstance):
-    with PipenvInstance() as p:
+def test_pipenv_verify_locked_outdated_failing(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         p.pipenv('lock')
 
         # modify the Pipfile

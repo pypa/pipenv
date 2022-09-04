@@ -54,7 +54,7 @@ def test_mirror_install(PipenvInstance_NoPyPI):
         assert "pypi.org" not in mirror_url
         # This should sufficiently demonstrate the mirror functionality
         # since pypi.org is the default when PIPENV_TEST_INDEX is unset.
-        c = p.pipenv(f"install requests --pypi-mirror {mirror_url}")
+        c = p.pipenv(f"install dataclasses-json --pypi-mirror {mirror_url}")
         assert c.returncode == 0
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
@@ -62,12 +62,8 @@ def test_mirror_install(PipenvInstance_NoPyPI):
         assert "https://pypi.org/simple" == p.pipfile["source"][0]["url"]
         assert "https://pypi.org/simple" == p.lockfile["_meta"]["sources"][0]["url"]
 
-        assert "requests" in p.pipfile["packages"]
-        assert "requests" in p.lockfile["default"]
-        assert "chardet" in p.lockfile["default"]
-        assert "idna" in p.lockfile["default"]
-        assert "urllib3" in p.lockfile["default"]
-        assert "certifi" in p.lockfile["default"]
+        assert "dataclasses-json" in p.pipfile["packages"]
+        assert "dataclasses-json" in p.lockfile["default"]
 
 
 @flaky
@@ -78,7 +74,7 @@ def test_bad_mirror_install(PipenvInstance):
     with temp_environ(), PipenvInstance(chdir=True) as p:
         # This demonstrates that the mirror parameter is being used
         os.environ.pop("PIPENV_TEST_INDEX", None)
-        c = p.pipenv("install requests --pypi-mirror https://pypi.example.org")
+        c = p.pipenv("install dataclasses-json --pypi-mirror https://pypi.example.org")
         assert c.returncode != 0
 
 
@@ -300,13 +296,13 @@ def test_requirements_to_pipfile(PipenvInstance_NoPyPI):
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.requirements
-def test_skip_requirements_when_pipfile(PipenvInstance):
+def test_skip_requirements_when_pipfile(PipenvInstance_NoPyPI):
     """Ensure requirements.txt is NOT imported when
 
     1. We do `pipenv install [package]`
     2. A Pipfile already exists when we run `pipenv install`.
     """
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         with open("requirements.txt", "w") as f:
             f.write("requests==2.18.1\n")
         c = p.pipenv("install six")
@@ -457,8 +453,8 @@ def test_install_package_with_dots(PipenvInstance_NoPyPI):
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_rewrite_outline_table(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_rewrite_outline_table(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -499,11 +495,12 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-requests = {version="*", index="pypi"}
+dataclasses-json = {version="*", index="pypi"}
             """.strip()
             f.write(contents)
         c = p.pipenv("install")
         assert c.returncode == 0
+
 
 @pytest.mark.dev
 @pytest.mark.install

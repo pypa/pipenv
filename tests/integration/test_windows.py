@@ -71,7 +71,7 @@ def test_local_path_windows_forward_slash(PipenvInstance):
 @pytest.mark.cli
 def test_pipenv_clean_windows(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
-        c = p.pipenv('install requests')
+        c = p.pipenv('install dataclasses-json')
         assert c.returncode == 0
         c = p.pipenv(f'run pip install -i {p.index_url} click')
         assert c.returncode == 0
@@ -79,6 +79,7 @@ def test_pipenv_clean_windows(PipenvInstance):
         c = p.pipenv('clean --dry-run')
         assert c.returncode == 0
         assert 'click' in c.stdout.strip()
+
 
 @pytest.mark.cli
 def test_pipenv_run_with_special_chars_windows(PipenvInstance):

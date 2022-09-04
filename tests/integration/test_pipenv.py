@@ -14,9 +14,9 @@ from pipenv.utils.shell import temp_environ
 
 @pytest.mark.lock
 @pytest.mark.deploy
-def test_deploy_works(PipenvInstance):
+def test_deploy_works(PipenvInstance_NoPyPI):
 
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]

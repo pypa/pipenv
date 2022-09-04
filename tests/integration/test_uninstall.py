@@ -147,8 +147,8 @@ def test_uninstall_all_dev(PipenvInstance_NoPyPI):
 
 
 @pytest.mark.uninstall
-def test_normalize_name_uninstall(PipenvInstance):
-    with PipenvInstance() as p:
+def test_normalize_name_uninstall(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 # Pre comment
@@ -188,7 +188,7 @@ def test_uninstall_all_dev_with_shared_dependencies(PipenvInstance):
 @pytest.mark.uninstall
 def test_uninstall_missing_parameters(PipenvInstance):
     with PipenvInstance() as p:
-        c = p.pipenv("install requests")
+        c = p.pipenv("install dataclasses-json")
         assert c.returncode == 0
 
         c = p.pipenv("uninstall")

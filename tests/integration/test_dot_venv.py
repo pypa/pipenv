@@ -17,7 +17,7 @@ def test_venv_in_project(true_value, PipenvInstance):
     with temp_environ():
         os.environ['PIPENV_VENV_IN_PROJECT'] = true_value
         with PipenvInstance() as p:
-            c = p.pipenv('install requests')
+            c = p.pipenv('install dataclasses-json')
             assert c.returncode == 0
             assert normalize_drive(p.path) in p.pipenv('--venv').stdout
 
@@ -37,7 +37,7 @@ def test_venv_in_project_disabled_ignores_venv(false_value, PipenvInstance):
                 prefix='pipenv-', suffix='temp_workon_home'
             ) as workon_home:
                 os.environ['WORKON_HOME'] = workon_home
-                c = p.pipenv('install requests')
+                c = p.pipenv('install dataclasses-json')
                 assert c.returncode == 0
                 c = p.pipenv('--venv')
                 assert c.returncode == 0
@@ -69,7 +69,7 @@ def test_venv_at_project_root(true_value, PipenvInstance):
 def test_reuse_previous_venv(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         os.mkdir('.venv')
-        c = p.pipenv('install requests')
+        c = p.pipenv('install dataclasses-json')
         assert c.returncode == 0
         assert normalize_drive(p.path) in p.pipenv('--venv').stdout
 

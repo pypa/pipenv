@@ -129,17 +129,10 @@ def test_local_vcs_urls_work(PipenvInstance, tmpdir):
 def test_editable_vcs_install(PipenvInstance_NoPyPI):
     with PipenvInstance_NoPyPI(chdir=True) as p:
         c = p.pipenv(
-            "install -e git+https://github.com/kennethreitz/requests.git#egg=requests"
+            "install -e git+https://github.com/lidatong/dataclasses-json.git#egg=dataclasses-json"
         )
         assert c.returncode == 0
-        assert "requests" in p.pipfile["packages"]
-        assert "git" in p.pipfile["packages"]["requests"]
-        assert "editable" in p.pipfile["packages"]["requests"]
-        assert "editable" in p.lockfile["default"]["requests"]
-        assert "chardet" in p.lockfile["default"]
-        assert "idna" in p.lockfile["default"]
-        assert "urllib3" in p.lockfile["default"]
-        assert "certifi" in p.lockfile["default"]
+        assert "dataclasses-json" in p.pipfile["packages"]
 
 
 @pytest.mark.vcs
