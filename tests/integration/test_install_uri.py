@@ -126,8 +126,8 @@ def test_local_vcs_urls_work(PipenvInstance, tmpdir):
 @pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_editable_vcs_install(PipenvInstance_NoPyPI):
-    with PipenvInstance_NoPyPI(chdir=True) as p:
+def test_editable_vcs_install(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
         c = p.pipenv(
             "install -e git+https://github.com/lidatong/dataclasses-json.git#egg=dataclasses-json"
         )

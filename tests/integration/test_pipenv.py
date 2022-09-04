@@ -14,13 +14,13 @@ from pipenv.utils.shell import temp_environ
 
 @pytest.mark.lock
 @pytest.mark.deploy
-def test_deploy_works(PipenvInstance_NoPyPI):
+def test_deploy_works(PipenvInstance):
 
-    with PipenvInstance_NoPyPI(chdir=True) as p:
+    with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
-requests = "==2.19.1"
+dataclasses-json = "==0.5.7"
 flask = "==1.1.2"
 
 [dev-packages]
@@ -37,7 +37,7 @@ pytest = "==4.6.9"
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
-requests = "==2.19.1"
+dataclasses-json = "==0.5.7"
             """.strip()
             f.write(contents)
 
