@@ -22,4 +22,3 @@ test = "pytest -vvs"
 
 [pipenv]
 allow_prereleases = true
-
