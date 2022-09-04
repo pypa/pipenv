@@ -99,7 +99,7 @@ jobs:
           pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
       - name: Run pypiserver
         run: |
-          pipenv run pypi-server run --hash-algo=sha256 --disable-fallback ./tests/pypi/ &
+          pipenv run pypi-server run --host=127.0.0.1 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
       - name: Run tests
         env:
           PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
