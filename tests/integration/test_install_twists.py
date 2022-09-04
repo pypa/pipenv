@@ -205,7 +205,7 @@ Requests = "==2.14.0"   # Inline comment
 @pytest.mark.files
 @pytest.mark.local
 @pytest.mark.resolver
-@pytest.mark.skip  # extracting this package where it does mamy be causing the pip_to_deps failures
+@pytest.mark.skip  # extracting this package may be where its causing the pip_to_deps failures
 def test_local_package(pipenv_instance_private_pypi, pip_src_dir, testsroot):
     """This test ensures that local packages (directories with a setup.py)
     installed in editable mode have their dependencies resolved as well"""
