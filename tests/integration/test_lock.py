@@ -406,8 +406,7 @@ pipenv-test-public-package = "*"
 @pytest.mark.install
 @pytest.mark.skip_windows
 @pytest.mark.skipif(sys.version_info >= (3, 9), reason="old setuptools doesn't work")
-@pytest.mark.needs_internet
-def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInstance):
+def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInstance_NoPyPI):
     """
     This test ensures we are using build isolation and a pep517 backend
     because the package in question includes ``pyproject.toml`` but lacks
@@ -420,7 +419,7 @@ def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInst
     matter and the test will still pass as pip will by default install a more
     recent version of ``setuptools``.
     """
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         c = p.pipenv('run pip install "setuptools<=40.2"')
         assert c.returncode == 0
         c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
@@ -435,8 +434,7 @@ def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInst
 @pytest.mark.install
 @pytest.mark.skip_windows
 @pytest.mark.skipif(sys.version_info >= (3, 9), reason="old setuptools doesn't work")
-@pytest.mark.needs_internet
-def test_outdated_setuptools_with_pep517_cython_import_in_setuppy(PipenvInstance):
+def test_outdated_setuptools_with_pep517_cython_import_in_setuppy(PipenvInstance_NoPyPI):
     """
     This test ensures we are using build isolation and a pep517 backend
     because the package in question declares 'cython' as a build dependency
@@ -444,7 +442,7 @@ def test_outdated_setuptools_with_pep517_cython_import_in_setuppy(PipenvInstance
     backend will have to install it first, so this will only pass if the
     resolver is buliding with a proper backend.
     """
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         c = p.pipenv('run pip install "setuptools<=40.2"')
         assert c.returncode == 0
         c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
