@@ -420,7 +420,7 @@ def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInst
     recent version of ``setuptools``.
     """
     with PipenvInstance_NoPyPI(chdir=True) as p:
-        c = p.pipenv('run pip install "setuptools<=40.2"')
+        c = p.pipenv('run pip install "setuptools<=40.2" --index https://pypi.org/simple/')
         assert c.returncode == 0
         c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
         assert c.returncode == 0
@@ -443,7 +443,7 @@ def test_outdated_setuptools_with_pep517_cython_import_in_setuppy(PipenvInstance
     resolver is buliding with a proper backend.
     """
     with PipenvInstance_NoPyPI(chdir=True) as p:
-        c = p.pipenv('run pip install "setuptools<=40.2"')
+        c = p.pipenv('run pip install "setuptools<=40.2" --index https://pypi.org/simple/')
         assert c.returncode == 0
         c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
         assert c.returncode == 0
