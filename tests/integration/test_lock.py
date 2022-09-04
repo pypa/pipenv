@@ -215,10 +215,10 @@ def test_keep_outdated_doesnt_update_satisfied_constraints(PipenvInstance):
 @pytest.mark.lock
 @pytest.mark.complex
 @pytest.mark.needs_internet
-def test_complex_lock_with_vcs_deps(local_tempdir, PipenvInstance, pip_src_dir):
+def test_complex_lock_with_vcs_deps(local_tempdir, PipenvInstance_NoPyPI, pip_src_dir):
     # This uses the real PyPI since we need Internet to access the Git
     # dependency anyway.
-    with PipenvInstance() as p, local_tempdir:
+    with PipenvInstance_NoPyPI() as p, local_tempdir:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         dateutil_uri = p._pipfile.get_fixture_path("git/dateutil").as_uri()
         with open(p.pipfile_path, 'w') as f:
@@ -492,8 +492,8 @@ requests = "==2.14.0"
 @pytest.mark.vcs
 @pytest.mark.lock
 @pytest.mark.needs_internet
-def test_lock_editable_vcs_without_install(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_lock_editable_vcs_without_install(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
@@ -512,8 +512,8 @@ requests = {git = "%s", editable = true}
 @pytest.mark.vcs
 @pytest.mark.lock
 @pytest.mark.needs_internet
-def test_lock_editable_vcs_with_ref_in_git(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_lock_editable_vcs_with_ref_in_git(PipenvInstance_NoPyPI):
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
@@ -652,10 +652,10 @@ def test_lock_missing_cache_entries_gets_all_hashes(PipenvInstance, tmpdir):
 
 @pytest.mark.vcs
 @pytest.mark.lock
-def test_vcs_lock_respects_top_level_pins(PipenvInstance):
+def test_vcs_lock_respects_top_level_pins(PipenvInstance_NoPyPI):
     """Test that locking VCS dependencies respects top level packages pinned in Pipfiles"""
 
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance_NoPyPI(chdir=True) as p:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         p._pipfile.add("requests", {
             "editable": True, "git": f"{requests_uri}",

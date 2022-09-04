@@ -12,7 +12,7 @@ pre-commit = "==2.*"
 atomicwrites = {version = "*", markers="sys_platform == 'win32'"}
 pytest-cov = "==3.*"
 typing-extensions = "==4.*"
-waitress = "*"
+waitress = {version = "*", markers="sys_platform == 'win32'"}
 
 [packages]
 
