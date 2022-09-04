@@ -319,7 +319,7 @@ class _PipenvInstance:
             path = Path(os.environ["HOME"]) / "projects" / name
             path.mkdir(exist_ok=True)
         if not path:
-            path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
+            path = TemporaryDirectory(prefix='pipenv-', suffix='-project')
         if isinstance(path, TemporaryDirectory):
             self._path = path
             path = Path(self._path.name)
@@ -369,6 +369,8 @@ class _PipenvInstance:
             os.remove(self.pipfile_path)
         if self.chdir:
             os.chdir(self.original_dir)
+        if self.path:
+            self.path.cleanup()
         self.path = None
         if self._path and getattr(self._path, "cleanup", None):
             try:
