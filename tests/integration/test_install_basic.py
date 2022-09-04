@@ -46,11 +46,9 @@ def test_basic_install(PipenvInstance_NoPyPI):
 @flaky
 @pytest.mark.basic
 @pytest.mark.install
-def test_mirror_install(PipenvInstance_NoPyPI):
-    with temp_environ(), PipenvInstance_NoPyPI(chdir=True) as p:
-        mirror_url = os.environ.pop(
-            "PIPENV_TEST_INDEX", "https://pypi.python.org/simple"
-        )
+def test_mirror_install(PipenvInstance):
+    with temp_environ(), PipenvInstance(chdir=True) as p:
+        mirror_url = "https://pypi.python.org/simple"
         assert "pypi.org" not in mirror_url
         # This should sufficiently demonstrate the mirror functionality
         # since pypi.org is the default when PIPENV_TEST_INDEX is unset.
