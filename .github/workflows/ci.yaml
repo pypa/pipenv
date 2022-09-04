@@ -97,6 +97,9 @@ jobs:
           git submodule update --init --recursive
           python -m pip install -e . --upgrade
           pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
+      - name: Run pypiserver
+        run: |
+          pipenv run pypi-server run --hash-algo=sha256 --disable-fallback ./tests/pypi/ &
       - name: Run tests
         env:
           PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
