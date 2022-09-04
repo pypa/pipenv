@@ -541,7 +541,7 @@ def test_install_does_not_exclude_packaging(pipenv_instance_pypi):
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_install_will_supply_extra_pip_args(pipenv_instance_pypi):
-    with PipenvInstance(chdir=True) as p:
+    with pipenv_instance_pypi(chdir=True) as p:
         c = p.pipenv("""install dataclasses-json --extra-pip-args=""--use-feature=truststore --proxy=test""")
         assert c.returncode == 1
         assert "truststore feature" in c.stderr
