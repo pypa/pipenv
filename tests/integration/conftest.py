@@ -358,14 +358,13 @@ class _PipenvInstance:
         if self.chdir:
             os.chdir(self.original_dir)
         if self._path:
-            self._path.cleanup()
-        self.path = None
-        if self._path and getattr(self._path, "cleanup", None):
             try:
                 self._path.cleanup()
             except OSError as e:
                 _warn_msg = warn_msg.format(e)
                 warnings.warn(_warn_msg, ResourceWarning)
+        self.path = None
+        self._path = None
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path and os.path.isfile(self.pipfile_path):
