@@ -129,15 +129,6 @@ def pytest_runtest_setup(item):
         pytest.skip('test does not run on windows')
 
 
-# @pytest.fixture(scope='session')
-# def pypi_server(request):
-#     server = pypiserver.app(roots=[PYPI_VENDOR_DIR], disable_fallback=True)
-#     thread = threading.Thread(name=server.__class__, target=server.run)
-#     thread.start()
-#     request.addfinalizer(functools.partial(thread.join, timeout=2))
-#     return server
-
-
 @pytest.fixture
 def pathlib_tmpdir(request, tmpdir):
     yield Path(str(tmpdir))
@@ -458,7 +449,7 @@ def pip_src_dir(request, vistir_tmpdir):
 
 
 @pytest.fixture()
-def PipenvInstance(pip_src_dir, monkeypatch, capfdbinary):
+def pipenv_instance_pypi(pip_src_dir, monkeypatch, capfdbinary):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
@@ -478,7 +469,7 @@ def PipenvInstance(pip_src_dir, monkeypatch, capfdbinary):
 
 
 @pytest.fixture()
-def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir, capfdbinary):
+def pipenv_instance_private_pypi(monkeypatch, pip_src_dir, capfdbinary):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)

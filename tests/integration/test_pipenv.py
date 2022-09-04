@@ -14,9 +14,9 @@ from pipenv.utils.shell import temp_environ
 
 @pytest.mark.lock
 @pytest.mark.deploy
-def test_deploy_works(PipenvInstance):
+def test_deploy_works(pipenv_instance_pypi):
 
-    with PipenvInstance(chdir=True) as p:
+    with pipenv_instance_pypi(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -47,8 +47,8 @@ dataclasses-json = "==0.5.7"
 
 @pytest.mark.update
 @pytest.mark.lock
-def test_update_locks(PipenvInstance_NoPyPI):
-    with PipenvInstance_NoPyPI() as p:
+def test_update_locks(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
         c = p.pipenv('install jdcal==1.3')
         assert c.returncode == 0
         assert p.lockfile['default']['jdcal']['version'] == '==1.3'
@@ -69,8 +69,8 @@ def test_update_locks(PipenvInstance_NoPyPI):
 
 @pytest.mark.project
 @pytest.mark.proper_names
-def test_proper_names_unamanged_virtualenv(PipenvInstance):
-    with PipenvInstance(chdir=True):
+def test_proper_names_unmanaged_virtualenv(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True):
         c = subprocess_run(['python', '-m', 'virtualenv', '.venv'])
         assert c.returncode == 0
         project = Project()
@@ -78,9 +78,9 @@ def test_proper_names_unamanged_virtualenv(PipenvInstance):
 
 
 @pytest.mark.cli
-def test_directory_with_leading_dash(raw_venv, PipenvInstance):
+def test_directory_with_leading_dash(raw_venv, pipenv_instance_pypi):
     with temp_environ():
-        with PipenvInstance(chdir=True, venv_in_project=False, name="-project-with-dash") as p:
+        with pipenv_instance_pypi(chdir=True, venv_in_project=False, name="-project-with-dash") as p:
             c = p.pipenv('run pip freeze')
             assert c.returncode == 0
             c = p.pipenv('--venv')
