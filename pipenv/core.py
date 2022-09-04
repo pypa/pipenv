@@ -723,6 +723,7 @@ def batch_install(
     pypi_mirror=None,
     retry=True,
     sequential_deps=None,
+    extra_pip_args=None,
 ):
     from .vendor.requirementslib.models.utils import (
         strip_extras_markers_from_requirement,
@@ -774,6 +775,7 @@ def batch_install(
             trusted_hosts=trusted_hosts,
             use_pep517=use_pep517,
             use_constraint=False,  # no need to use constraints, it's written in lockfile
+            extra_pip_args=extra_pip_args,
         )
 
         for c in cmds:
@@ -792,6 +794,7 @@ def do_install_dependencies(
     concurrent=True,
     requirements_dir=None,
     pypi_mirror=None,
+    extra_pip_args=None,
 ):
     """
     Executes the installation functionality.
@@ -841,6 +844,7 @@ def do_install_dependencies(
         "allow_global": allow_global,
         "pypi_mirror": pypi_mirror,
         "sequential_deps": editable_or_vcs_deps,
+        "extra_pip_args": extra_pip_args,
     }
 
     batch_install(
@@ -1228,6 +1232,7 @@ def do_init(
     keep_outdated=False,
     requirements_dir=None,
     pypi_mirror=None,
+    extra_pip_args=None,
 ):
     """Executes the init functionality."""
 
@@ -1327,6 +1332,7 @@ def do_init(
         concurrent=concurrent,
         requirements_dir=requirements_dir,
         pypi_mirror=pypi_mirror,
+        extra_pip_args=extra_pip_args,
     )
 
     # Hint the user what to do to activate the virtualenv.
@@ -1352,6 +1358,7 @@ def get_pip_args(
     no_deps: bool = False,
     selective_upgrade: bool = False,
     src_dir: Optional[str] = None,
+    extra_pip_args: Optional[List] = None,
 ) -> List[str]:
     arg_map = {
         "pre": ["--pre"],
@@ -1373,6 +1380,8 @@ def get_pip_args(
             arg_set.extend(arg_map.get(key))
         elif key == "selective_upgrade" and not locals().get(key):
             arg_set.append("--exists-action=i")
+    for extra_pip_arg in extra_pip_args:
+        arg_set.append(extra_pip_arg)
     return list(dict.fromkeys(arg_set))
 
 
@@ -1445,6 +1454,7 @@ def pip_install(
     trusted_hosts=None,
     use_pep517=True,
     use_constraint=False,
+    extra_pip_args: Optional[List] = None,
 ):
     piplogger = logging.getLogger("pipenv.patched.pip._internal.commands.install")
     if not trusted_hosts:
@@ -1521,6 +1531,7 @@ def pip_install(
         no_use_pep517=not use_pep517,
         no_deps=no_deps,
         require_hashes=not ignore_hashes,
+        extra_pip_args=extra_pip_args,
     )
     pip_command.extend(pip_args)
     if r:
@@ -1574,6 +1585,7 @@ def pip_install_deps(
     trusted_hosts=None,
     use_pep517=True,
     use_constraint=False,
+    extra_pip_args: Optional[List] = None,
 ):
     if not trusted_hosts:
         trusted_hosts = []
@@ -1662,6 +1674,7 @@ def pip_install_deps(
             selective_upgrade=selective_upgrade,
             no_use_pep517=not use_pep517,
             no_deps=no_deps,
+            extra_pip_args=extra_pip_args,
         )
         sources = get_source_list(
             project,
@@ -2058,6 +2071,7 @@ def do_install(
     keep_outdated=False,
     selective_upgrade=False,
     site_packages=None,
+    extra_pip_args=None,
 ):
     requirements_directory = vistir.path.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
@@ -2213,6 +2227,7 @@ def do_install(
             requirements_dir=requirements_directory,
             pypi_mirror=pypi_mirror,
             keep_outdated=keep_outdated,
+            extra_pip_args=extra_pip_args,
         )
 
     # This is for if the user passed in dependencies, then we want to make sure we
@@ -2233,6 +2248,7 @@ def do_install(
                 deploy=deploy,
                 pypi_mirror=pypi_mirror,
                 skip_lock=skip_lock,
+                extra_pip_args=extra_pip_args,
             )
         for pkg_line in pkg_list:
             click.secho(
@@ -2279,6 +2295,7 @@ def do_install(
                         index=index_url,
                         pypi_mirror=pypi_mirror,
                         use_constraint=True,
+                        extra_pip_args=extra_pip_args,
                     )
                     if c.returncode:
                         sp.write_err(
@@ -2381,6 +2398,7 @@ def do_install(
             deploy=deploy,
             pypi_mirror=pypi_mirror,
             skip_lock=skip_lock,
+            extra_pip_args=extra_pip_args,
         )
     sys.exit(0)
 
@@ -3056,6 +3074,7 @@ def do_sync(
     pypi_mirror=None,
     system=False,
     deploy=False,
+    extra_pip_args=None,
 ):
     # The lock file needs to exist because sync won't write to it.
     if not project.lockfile_exists:
@@ -3090,6 +3109,7 @@ def do_sync(
         pypi_mirror=pypi_mirror,
         deploy=deploy,
         system=system,
+        extra_pip_args=extra_pip_args,
     )
     if not bare:
         click.echo(click.style("All dependencies are now up-to-date!", fg="green"))
