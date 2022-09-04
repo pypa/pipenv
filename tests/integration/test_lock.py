@@ -420,13 +420,28 @@ def test_outdated_setuptools_with_pep517_legacy_build_meta_is_updated(PipenvInst
     recent version of ``setuptools``.
     """
     with PipenvInstance_NoPyPI(chdir=True) as p:
-        c = p.pipenv('run pip install "setuptools<=40.2" --index https://pypi.org/simple/')
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "{url}/simple"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+setuptools = {version <= "40.2", index = "testpypi"}
+legacy-backend-package = {version = "*", index = "testpypi"}
+                            """.strip().format(url=p.pypi)
+            f.write(contents)
+        c = p.pipenv('run pip install')
         assert c.returncode == 0
         c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
         assert c.returncode == 0
         assert c.stdout.strip() == "40.2.0"
-        c = p.pipenv("install legacy-backend-package")
-        assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]
 
 
@@ -443,13 +458,28 @@ def test_outdated_setuptools_with_pep517_cython_import_in_setuppy(PipenvInstance
     resolver is buliding with a proper backend.
     """
     with PipenvInstance_NoPyPI(chdir=True) as p:
-        c = p.pipenv('run pip install "setuptools<=40.2" --index https://pypi.org/simple/')
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "{url}/simple"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+setuptools = {version <= "40.2", index = "testpypi"}
+cython-import-package = {version = "*", index = "testpypi"}
+                    """.strip().format(url=p.pypi)
+            f.write(contents)
+        c = p.pipenv('run install')
         assert c.returncode == 0
         c = p.pipenv("run python -c 'import setuptools; print(setuptools.__version__)'")
         assert c.returncode == 0
         assert c.stdout.strip() == "40.2.0"
-        c = p.pipenv("install cython-import-package")
-        assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]
 
 
