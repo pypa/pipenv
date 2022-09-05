@@ -11,8 +11,8 @@ from pipenv.project import Project
 @pytest.mark.cli
 @pytest.mark.deploy
 @pytest.mark.system
-def test_auth_with_pw_redacted(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_auth_with_pw_redacted(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
         p.pipenv("run shell")
         project = Project()
         requirements_file = tempfile.NamedTemporaryFile(mode="w+", delete=False)
@@ -26,8 +26,8 @@ def test_auth_with_pw_redacted(PipenvInstance):
 @pytest.mark.cli
 @pytest.mark.deploy
 @pytest.mark.system
-def test_auth_with_username_redacted(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_auth_with_username_redacted(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
         p.pipenv("run shell")
         project = Project()
         requirements_file = tempfile.NamedTemporaryFile(mode="w+", delete=False)
@@ -41,8 +41,8 @@ def test_auth_with_username_redacted(PipenvInstance):
 @pytest.mark.cli
 @pytest.mark.deploy
 @pytest.mark.system
-def test_auth_with_pw_are_variables_passed_to_pipfile(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_auth_with_pw_are_variables_passed_to_pipfile(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
         p.pipenv("run shell")
         project = Project()
         requirements_file = tempfile.NamedTemporaryFile(mode="w+", delete=False)
@@ -55,8 +55,8 @@ def test_auth_with_pw_are_variables_passed_to_pipfile(PipenvInstance):
 @pytest.mark.cli
 @pytest.mark.deploy
 @pytest.mark.system
-def test_auth_with_only_username_variable_passed_to_pipfile(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_auth_with_only_username_variable_passed_to_pipfile(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
         p.pipenv("run shell")
         project = Project()
         requirements_file = tempfile.NamedTemporaryFile(mode="w+", delete=False)

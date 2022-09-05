@@ -8,8 +8,8 @@ from pipenv.utils.shell import temp_environ
 
 @pytest.mark.lock
 @pytest.mark.sync
-def test_sync_error_without_lockfile(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_sync_error_without_lockfile(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
@@ -22,9 +22,9 @@ def test_sync_error_without_lockfile(PipenvInstance):
 
 @pytest.mark.sync
 @pytest.mark.lock
-def test_mirror_lock_sync(PipenvInstance):
-    with temp_environ(), PipenvInstance(chdir=True) as p:
-        mirror_url = os.environ.pop('PIPENV_TEST_INDEX', "https://pypi.kennethreitz.org/simple")
+def test_mirror_lock_sync(pipenv_instance_private_pypi):
+    with temp_environ(), pipenv_instance_private_pypi(chdir=True) as p:
+        mirror_url = os.environ.get('PIPENV_TEST_INDEX')
         assert 'pypi.org' not in mirror_url
         with open(p.pipfile_path, 'w') as f:
             f.write("""
@@ -44,10 +44,10 @@ six = "*"
 
 @pytest.mark.sync
 @pytest.mark.lock
-def test_sync_should_not_lock(PipenvInstance):
+def test_sync_should_not_lock(pipenv_instance_pypi):
     """Sync should not touch the lock file, even if Pipfile is changed.
     """
-    with PipenvInstance(chdir=True) as p:
+    with pipenv_instance_pypi(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
@@ -72,8 +72,8 @@ six = "*"
 
 @pytest.mark.sync
 @pytest.mark.lock
-def test_sync_sequential_detect_errors(PipenvInstance):
-    with PipenvInstance() as p:
+def test_sync_sequential_detect_errors(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -95,10 +95,10 @@ requests = "*"
 
 
 @pytest.mark.sync
-def test_sync_consider_pip_target(PipenvInstance):
+def test_sync_consider_pip_target(pipenv_instance_pypi):
     """
     """
-    with PipenvInstance(chdir=True) as p:
+    with pipenv_instance_pypi(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]

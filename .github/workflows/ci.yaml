@@ -85,7 +85,7 @@ jobs:
           echo ::set-output name=path::$(python -c "import sys; print(sys.executable)")
       - name: Install latest pip, setuptools, wheel
         run: |
-          python -m pip install --upgrade pip setuptools wheel --upgrade
+          python -m pip install --upgrade pip setuptools wheel
       - name: Install dependencies
         env:
           PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
@@ -97,6 +97,18 @@ jobs:
           git submodule update --init --recursive
           python -m pip install -e . --upgrade
           pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
+      - name: Run pypiserver Windows
+        run: |
+         cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
+        if: ${{matrix.os  == 'Windows' }}
+      - name: Run pypiserver Mac
+        run: |
+          pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+        if: ${{matrix.os  == 'MacOS' }}
+      - name: Run pypiserver Ubuntu
+        run: |
+          pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+        if: ${{matrix.os  == 'Ubuntu' }}
       - name: Run tests
         env:
           PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
