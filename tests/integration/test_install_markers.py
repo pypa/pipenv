@@ -11,9 +11,9 @@ from pipenv.utils.shell import temp_environ
 
 @flaky
 @pytest.mark.markers
-def test_package_environment_markers(PipenvInstance):
+def test_package_environment_markers(pipenv_instance_pypi):
 
-    with PipenvInstance() as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -31,11 +31,11 @@ fake_package = {version = "*", markers="os_name=='splashwear'"}
 
 @flaky
 @pytest.mark.markers
-def test_platform_python_implementation_marker(PipenvInstance):
+def test_platform_python_implementation_marker(pipenv_instance_private_pypi):
     """Markers should be converted during locking to help users who input this
     incorrectly.
     """
-    with PipenvInstance() as p:
+    with pipenv_instance_private_pypi() as p:
         c = p.pipenv('install depends-on-marked-package')
         assert c.returncode == 0
 
@@ -51,30 +51,30 @@ def test_platform_python_implementation_marker(PipenvInstance):
 @pytest.mark.alt
 @pytest.mark.markers
 @pytest.mark.install
-def test_specific_package_environment_markers(PipenvInstance):
+def test_specific_package_environment_markers(pipenv_instance_pypi):
 
-    with PipenvInstance() as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
-fake-package = {version = "*", os_name = "== 'splashwear'"}
+six = {version = "*", os_name = "== 'splashwear'"}
             """.strip()
             f.write(contents)
 
         c = p.pipenv('install')
         assert c.returncode == 0
-        assert 'markers' in p.lockfile['default']['fake-package']
+        assert 'markers' in p.lockfile['default']['six']
 
-        c = p.pipenv('run python -c "import fake_package;"')
+        c = p.pipenv('run python -c "import six;"')
         assert c.returncode == 1
 
 
 @flaky
 @pytest.mark.markers
-def test_top_level_overrides_environment_markers(PipenvInstance):
+def test_top_level_overrides_environment_markers(pipenv_instance_pypi):
     """Top-level environment markers should take precedence.
     """
-    with PipenvInstance() as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -92,14 +92,14 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
 @flaky
 @pytest.mark.markers
 @pytest.mark.install
-def test_global_overrides_environment_markers(PipenvInstance):
+def test_global_overrides_environment_markers(pipenv_instance_pypi):
     """Empty (unconditional) dependency should take precedence.
     If a dependency is specified without environment markers, it should
     override dependencies with environment markers. In this example,
     APScheduler requires funcsigs only on Python 2, but since funcsigs is
     also specified as an unconditional dep, its markers should be empty.
     """
-    with PipenvInstance() as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -117,7 +117,7 @@ funcsigs = "*"
 @flaky
 @pytest.mark.markers
 @pytest.mark.complex
-def test_resolver_unique_markers(PipenvInstance):
+def test_resolver_unique_markers(pipenv_instance_pypi):
     """vcrpy has a dependency on `yarl` which comes with a marker
     of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
 
@@ -125,7 +125,7 @@ def test_resolver_unique_markers(PipenvInstance):
 
     This verifies that we clean that successfully.
     """
-    with PipenvInstance(chdir=True) as p:
+    with pipenv_instance_pypi(chdir=True) as p:
         c = p.pipenv('install vcrpy==2.0.1')
         assert c.returncode == 0
         assert 'yarl' in p.lockfile['default']
@@ -142,8 +142,8 @@ def test_resolver_unique_markers(PipenvInstance):
 @flaky
 @pytest.mark.project
 @pytest.mark.needs_internet
-def test_environment_variable_value_does_not_change_hash(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_environment_variable_value_does_not_change_hash(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi(chdir=True) as p:
         with temp_environ():
             with open(p.pipfile_path, 'w') as f:
                 f.write("""
