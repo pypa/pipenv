@@ -87,7 +87,7 @@ When contributing code, you'll want to follow this checklist:
 #. Make your change.
 #. Run the entire test suite again, confirming that all tests pass *including
    the ones you just added*.
-#. Send a GitHub Pull Request to the main repository's ``master`` branch.
+#. Send a GitHub Pull Request to the main repository's ``main`` branch.
    GitHub Pull Requests are the expected method of code collaboration on this
    project.
 
@@ -129,6 +129,18 @@ Tests are written in ``pytest`` style and can be run very simply:
 .. code-block:: sh
 
   pytest
+
+However many tests depend on running a private pypi server on localhost:8080.
+This can be accomplished by using either the ``run-tests.sh`` or ``run-tests.bat`
+which will start the ``pypiserver`` process ahead of invoking pytest.
+
+You may also manually perform this step and then invoke pytest as you would normally.  Example::
+
+    # Linux or MacOS
+    pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+
+    # Windows
+    cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
 
 
 This will run all Pipenv tests, which can take awhile. To run a subset of the
