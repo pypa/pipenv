@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 from pathlib import Path
 
 import pytest
@@ -36,15 +35,15 @@ def test_lock_requirements_file(pipenv_instance_private_pypi):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
-requests = "==2.14.0"
+urllib3 = "==1.23"
 [dev-packages]
-flask = "==0.12.2"
+colorama = "==0.3.9"
             """.strip()
             f.write(contents)
 
-        req_list = ("requests==2.14.0",)
+        req_list = ("urllib3==1.23",)
 
-        dev_req_list = ("flask==0.12.2",)
+        dev_req_list = ("colorama==0.3.9",)
 
         c = p.pipenv('lock')
         assert c.returncode == 0
@@ -137,15 +136,15 @@ pytest = "*"
 @pytest.mark.keep_outdated
 def test_keep_outdated_doesnt_remove_lockfile_entries(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi(chdir=True) as p:
-        p._pipfile.add("requests", "==2.18.4")
-        p._pipfile.add("colorama", {"version": "*", "markers": "os_name=='FakeOS'"})
+        p._pipfile.add("requests", {"version": "*", "markers": "os_name=='FakeOS'"})
+        p._pipfile.add("colorama", {"version": "*"})
         c = p.pipenv("install")
         assert c.returncode == 0
         assert "doesn't match your environment, its dependencies won't be resolved." in c.stderr
         p._pipfile.add("six", "*")
         p.pipenv("lock --keep-outdated")
-        assert "colorama" in p.lockfile["default"]
-        assert p.lockfile["default"]["colorama"]["markers"] == "os_name == 'FakeOS'"
+        assert "requests" in p.lockfile["default"]
+        assert p.lockfile["default"]["requests"]["markers"] == "os_name == 'FakeOS'"
 
 
 @pytest.mark.lock
@@ -312,7 +311,7 @@ requests = {version = "*", extras = ["socks"]}
 
 
 @pytest.mark.index
-@pytest.mark.install  # private indexes need to be uncached for resolution
+@pytest.mark.install
 @pytest.mark.skip_lock
 @pytest.mark.needs_internet
 def test_private_index_skip_lock(pipenv_instance_private_pypi):
@@ -331,7 +330,6 @@ name = "testpypi"
 
 [packages]
 pipenv-test-private-package = {version = "*", index = "testpypi"}
-requests = "*"
             """.strip()
             f.write(contents)
         c = p.pipenv('install --skip-lock')
@@ -340,7 +338,7 @@ requests = "*"
 
 @pytest.mark.lock
 @pytest.mark.index
-@pytest.mark.install  # private indexes need to be uncached for resolution
+@pytest.mark.install
 @pytest.mark.requirements
 @pytest.mark.needs_internet
 def test_private_index_lock_requirements(pipenv_instance_private_pypi):
@@ -359,7 +357,6 @@ name = "testpypi"
 
 [packages]
 pipenv-test-private-package = {version = "*", index = "testpypi"}
-requests = "*"
             """.strip()
             f.write(contents)
         c = p.pipenv('lock')
@@ -540,7 +537,7 @@ def test_lock_with_incomplete_source(pipenv_instance_private_pypi):
 url = "{}"
 
 [packages]
-requests = "*"
+six = "*"
             """.format(p.index_url))
         c = p.pipenv('install')
         assert c.returncode == 0
@@ -731,7 +728,3 @@ requests = "*"
         assert "certifi" not in p.lockfile["develop"]
         assert "urllib3" not in p.lockfile["develop"]
         assert "chardet" not in p.lockfile["develop"]
-
-        c = p.pipenv("install --dev")
-        c = p.pipenv("run python -c 'import urllib3'")
-        assert c.returncode != 0
