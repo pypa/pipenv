@@ -609,7 +609,13 @@ def test_lock_nested_direct_url(pipenv_instance_private_pypi):
     here along with its own dependencies.
     """
     with pipenv_instance_private_pypi() as p:
-        c = p.pipenv("install -v test_package")
+        contents = """
+        [packages]
+        test_package = "*"
+                """.strip()
+        with open(p.pipfile_path, 'w') as f:
+            f.write(contents)
+        c = p.pipenv("lock")
         assert c.returncode == 0
         assert "vistir" in p.lockfile["default"]
         assert "colorama" in p.lockfile["default"]

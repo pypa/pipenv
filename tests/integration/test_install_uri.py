@@ -62,23 +62,6 @@ def test_file_urls_work(pipenv_instance_pypi, pip_src_dir):
         assert "file" in p.pipfile["packages"]["six"]
 
 
-@pytest.mark.urls
-@pytest.mark.files
-@pytest.mark.needs_internet
-def test_local_vcs_urls_work(pipenv_instance_pypi, tmpdir):
-    six_dir = tmpdir.join("six")
-    six_path = Path(six_dir.strpath)
-    with pipenv_instance_pypi(chdir=True) as p:
-        c = subprocess_run(
-            ["git", "clone", "https://github.com/benjaminp/six.git", six_dir.strpath]
-        )
-        assert c.returncode == 0
-
-        c = p.pipenv("install git+{0}#egg=six".format(six_path.as_uri()))
-        assert c.returncode == 0
-        assert "six" in p.pipfile["packages"]
-
-
 @pytest.mark.e
 @pytest.mark.vcs
 @pytest.mark.urls

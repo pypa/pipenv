@@ -395,7 +395,7 @@ def test_install_venv_project_directory(pipenv_instance_pypi):
 @pytest.mark.system
 def test_system_and_deploy_work(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi(chdir=True) as p:
-        c = p.pipenv("install tablib")
+        c = p.pipenv("install urllib3")
         assert c.returncode == 0
         c = p.pipenv("--rm")
         assert c.returncode == 0
@@ -403,17 +403,6 @@ def test_system_and_deploy_work(pipenv_instance_private_pypi):
         assert c.returncode == 0
         c = p.pipenv("install --system --deploy")
         assert c.returncode == 0
-        c = p.pipenv("--rm")
-        assert c.returncode == 0
-        Path(p.pipfile_path).write_text(
-            """
-[packages]
-tablib = "*"
-        """.strip()
-        )
-        c = p.pipenv("install --system")
-        assert c.returncode == 0
-
 
 @pytest.mark.basic
 @pytest.mark.install

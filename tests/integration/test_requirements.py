@@ -43,10 +43,10 @@ def test_requirements_generates_requirements_from_lockfile(pipenv_instance_pypi)
 
 
 @pytest.mark.requirements
-def test_requirements_generates_requirements_from_lockfile_multiple_sources(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
-        packages = ('requests', '2.14.0')
-        dev_packages = ('flask', '0.12.2')
+def test_requirements_generates_requirements_from_lockfile_multiple_sources(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi(chdir=True) as p:
+        packages = ('six', '1.12.0')
+        dev_packages = ('itsdangerous', '1.1.0')
         with open(p.pipfile_path, 'w') as f:
             contents = f"""
             [[source]]

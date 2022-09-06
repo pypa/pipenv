@@ -27,11 +27,6 @@ flask = "==1.1.2"
 pytest = "==4.6.9"
             """.strip()
             f.write(contents)
-        c = p.pipenv('install --verbose')
-        if c.returncode != 0:
-            assert c.stderr == '' or c.stderr is None
-            assert c.stdout == ''
-        assert c.returncode == 0
         c = p.pipenv('lock')
         assert c.returncode == 0
         with open(p.pipfile_path, 'w') as f:
