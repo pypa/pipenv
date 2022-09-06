@@ -158,31 +158,17 @@ def test_pipenv_check(pipenv_instance_private_pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_clean_pip_no_warnings(pipenv_instance_pypi):
+def test_pipenv_clean(pipenv_instance_pypi):
     with pipenv_instance_pypi(chdir=True) as p:
         with open('setup.py', 'w') as f:
             f.write('from setuptools import setup; setup(name="empty")')
         c = p.pipenv('install -e .')
         assert c.returncode == 0
-        c = p.pipenv(f'run pip install -i {p.index_url} pytz')
+        c = p.pipenv(f'run pip install -i {p.index_url} six')
         assert c.returncode == 0
         c = p.pipenv('clean')
         assert c.returncode == 0
-        assert c.stdout, f"{c.stdout} -- STDERR: {c.stderr}"
-
-
-@pytest.mark.cli
-def test_pipenv_clean_pip_warnings(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
-        with open('setup.py', 'w') as f:
-            f.write('from setuptools import setup; setup(name="empty")')
-        # create a fake git repo to trigger a pip freeze warning
-        os.mkdir('.git')
-        c = p.pipenv(f"run pip install -i {p.index_url} -e .")
-        assert c.returncode == 0
-        c = p.pipenv('clean')
-        assert c.returncode == 0
-        assert c.stderr
+        assert 'six' in c.stdout, f"{c.stdout} -- STDERR: {c.stderr}"
 
 
 @pytest.mark.cli

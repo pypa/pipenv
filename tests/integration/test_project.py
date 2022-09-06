@@ -150,24 +150,6 @@ six = {{version = "*", index = "pypi"}}
         assert c.returncode == 0
 
 
-@pytest.mark.install
-@pytest.mark.project
-def test_include_editable_packages(pipenv_instance_pypi, testsroot, pathlib_tmpdir):
-    file_name = "tablib-0.12.1.tar.gz"
-    package = pathlib_tmpdir.joinpath("tablib-0.12.1")
-    source_path = os.path.abspath(os.path.join(testsroot, "pypi", "tablib", file_name))
-    with pipenv_instance_pypi(chdir=True) as p:
-        with tarfile.open(source_path, "r:gz") as tarinfo:
-            tarinfo.extractall(path=str(pathlib_tmpdir))
-        c = p.pipenv(f'install -e {package.as_posix()}')
-        assert c.returncode == 0
-        project = Project()
-        assert "tablib" in [
-            package.project_name
-            for package in project.environment.get_installed_packages()
-        ]
-
-
 @pytest.mark.project
 @pytest.mark.virtualenv
 def test_run_in_virtualenv_with_global_context(pipenv_instance_pypi, virtualenv):

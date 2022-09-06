@@ -1,71 +1,29 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function
-
 import os
 from pathlib import Path
 
 import pytest
-from flaky import flaky
 
 from pipenv.utils.processes import subprocess_run
 
 
-@flaky
-@pytest.mark.vcs
-@pytest.mark.install
-@pytest.mark.needs_internet
-def test_basic_vcs_install(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
-        c = p.pipenv("install git+https://github.com/benjaminp/six.git@1.11.0#egg=six")
-        assert c.returncode == 0
-        # edge case where normal package starts with VCS name shouldn't be flagged as vcs
-        c = p.pipenv("install gitdb2")
-        assert c.returncode == 0
-        assert all(package in p.pipfile["packages"] for package in ["six", "gitdb2"])
-        assert "git" in p.pipfile["packages"]["six"]
-        assert p.lockfile["default"]["six"] == {
-            "git": "https://github.com/benjaminp/six.git",
-            "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
-        }
-        assert "gitdb2" in p.lockfile["default"]
-
-
-@flaky
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_basic_vcs_install_with_env_var(pipenv_instance_pypi):
     with pipenv_instance_pypi(chdir=True) as p:
-        p._pipfile.add("six", {"git": "https://${GIT_HOST}/benjaminp/six.git", "ref": "1.11.0"})
+        # edge case where normal package starts with VCS name shouldn't be flagged as vcs
         os.environ["GIT_HOST"] = "github.com"
-        c = p.pipenv("install")
+        c = p.pipenv("install git+https://${GIT_HOST}/benjaminp/six.git@1.11.0#egg=six gitdb2")
         assert c.returncode == 0
-        assert "six" in p.pipfile["packages"]
+        assert all(package in p.pipfile["packages"] for package in ["six", "gitdb2"])
         assert "git" in p.pipfile["packages"]["six"]
         assert p.lockfile["default"]["six"] == {
             "git": "https://${GIT_HOST}/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
         }
+        assert "gitdb2" in p.lockfile["default"]
 
 
-@flaky
-@pytest.mark.vcs
-@pytest.mark.install
-@pytest.mark.needs_internet
-@pytest.mark.needs_github_ssh
-def test_ssh_vcs_install(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
-        c = p.pipenv("install git+ssh://git@github.com/benjaminp/six.git@1.11.0#egg=six")
-        assert c.returncode == 0
-        assert "six" in p.pipfile["packages"]
-        assert "git" in p.pipfile["packages"]["six"]
-        assert p.lockfile["default"]["six"] == {
-            "git": "ssh://git@github.com/benjaminp/six.git",
-            "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
-        }
-
-
-@flaky
 @pytest.mark.urls
 @pytest.mark.files
 @pytest.mark.needs_internet
@@ -140,8 +98,6 @@ def test_editable_vcs_install(pipenv_instance_pypi):
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_install_editable_git_tag(pipenv_instance_private_pypi):
-    # This uses the real PyPI since we need Internet to access the Git
-    # dependency anyway.
     with pipenv_instance_private_pypi(chdir=True) as p:
         c = p.pipenv(
             "install -e git+https://github.com/benjaminp/six.git@1.11.0#egg=six"
