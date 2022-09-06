@@ -167,12 +167,6 @@ Requests = "==2.14.0"   # Inline comment
 """
             f.write(contents)
 
-        c = p.pipenv("install")
-        assert c.returncode == 0
-
-        c = p.pipenv("install requests")
-        assert c.returncode == 0
-        assert "requests" not in p.pipfile["packages"]
         assert p.pipfile["packages"]["Requests"] == "==2.14.0"
         c = p.pipenv("install requests==2.18.4")
         assert c.returncode == 0
@@ -235,22 +229,6 @@ def test_local_zip_file(pipenv_instance_private_pypi, testsroot):
         dep = p.lockfile["default"]["requests"]
 
         assert "file" in dep or "path" in dep
-
-
-@pytest.mark.install
-@pytest.mark.local
-@pytest.mark.local_file
-def test_install_local_file_collision(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
-        target_package = "alembic"
-        fake_file = os.path.join(p.path, target_package)
-        with open(fake_file, "w") as f:
-            f.write("")
-        c = p.pipenv(f"install {target_package}")
-        assert c.returncode == 0
-        assert target_package in p.pipfile["packages"]
-        assert p.pipfile["packages"][target_package] == "*"
-        assert target_package in p.lockfile["default"]
 
 
 @pytest.mark.urls
