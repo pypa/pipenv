@@ -512,7 +512,7 @@ def test_lockfile_corrupted(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         with open(p.lockfile_path, 'w') as f:
             f.write('{corrupted}')
-        c = p.pipenv('lock')
+        c = p.pipenv('install')
         assert c.returncode == 0
         assert 'Pipfile.lock is corrupted' in c.stderr
         assert p.lockfile['_meta']
@@ -523,7 +523,7 @@ def test_lockfile_with_empty_dict(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         with open(p.lockfile_path, 'w') as f:
             f.write('{}')
-        c = p.pipenv('lock')
+        c = p.pipenv('install')
         assert c.returncode == 0
         assert 'Pipfile.lock is corrupted' in c.stderr
         assert p.lockfile['_meta']
