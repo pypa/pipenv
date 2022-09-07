@@ -27,7 +27,7 @@ def _iter_process_args(mapping, pid, max_depth):
             proc = mapping[pid]
         except KeyError:  # We've reached the root process. Give up.
             break
-        if proc.args:  # Persumably the process should always have a name?
+        if proc.args:  # Presumably the process should always have a name?
             yield proc.args
         pid = proc.ppid  # Go up one level.
 
