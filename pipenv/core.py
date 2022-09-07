@@ -49,7 +49,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.spinner import create_spinner
-from pipenv.vendor import click, dotenv, vistir
+from pipenv.vendor import click, vistir
 from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 if MYPY_RUNNING:
@@ -111,42 +111,6 @@ def do_clear(project):
         if e.errno == errno.ENOENT:
             pass
         raise
-
-
-def load_dot_env(project, as_dict=False, quiet=False):
-    """Loads .env file into sys.environ."""
-    if not project.s.PIPENV_DONT_LOAD_ENV:
-        # If the project doesn't exist yet, check current directory for a .env file
-        project_directory = project.project_directory or "."
-        dotenv_file = project.s.PIPENV_DOTENV_LOCATION or os.sep.join(
-            [project_directory, ".env"]
-        )
-
-        if not os.path.isfile(dotenv_file) and project.s.PIPENV_DOTENV_LOCATION:
-            click.echo(
-                "{}: file {}={} does not exist!!\n{}".format(
-                    click.style("Warning", fg="red", bold=True),
-                    click.style("PIPENV_DOTENV_LOCATION", bold=True),
-                    click.style(project.s.PIPENV_DOTENV_LOCATION, bold=True),
-                    click.style(
-                        "Not loading environment variables.", fg="red", bold=True
-                    ),
-                ),
-                err=True,
-            )
-        if as_dict:
-            return dotenv.dotenv_values(dotenv_file)
-        elif os.path.isfile(dotenv_file):
-            if not quiet:
-                click.echo(
-                    click.style(
-                        fix_utf8("Loading .env environment variables..."), bold=True
-                    ),
-                    err=True,
-                )
-            dotenv.load_dotenv(dotenv_file, override=True)
-
-            project.s = environments.Setting()
 
 
 def cleanup_virtualenv(project, bare=True):
@@ -2722,16 +2686,13 @@ def do_run_posix(project, script, command, env):
     )
 
 
-def do_run(
-    project, command, args, three=None, python=False, pypi_mirror=None, quiet=False
-):
+def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
     """Attempt to run command either pulling from project or interpreting as executable.
 
     Args are appended to the command in [scripts] section of project if found.
     """
     from .cmdparse import ScriptEmptyError
 
-    load_dot_env(project, quiet=quiet)
     env = os.environ.copy()
 
     # Ensure that virtualenv is available.

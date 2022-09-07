@@ -23,6 +23,7 @@ from pipenv.cli.options import (
     uninstall_options,
     verbose_option,
 )
+from pipenv.utils.environment import load_dot_env
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor.click import (
     Choice,
@@ -81,6 +82,8 @@ def cli(
 ):
     from pipenv.utils.shell import system_which
     from pipenv.utils.spinner import create_spinner
+
+    load_dot_env(state.project, quiet=state.quiet)
 
     from ..core import (
         cleanup_virtualenv,
@@ -371,7 +374,7 @@ def shell(
     anyway=False,
 ):
     """Spawns a shell within the virtualenv."""
-    from ..core import do_shell, load_dot_env
+    from ..core import do_shell
 
     # Prevent user from activating nested environments.
     if "PIPENV_ACTIVE" in os.environ:
@@ -421,7 +424,6 @@ def run(state, command, args):
         three=state.three,
         python=state.python,
         pypi_mirror=state.pypi_mirror,
-        quiet=state.quiet,
     )
 
 
