@@ -436,12 +436,15 @@ class Project:
 
     @property
     def pipfile_location(self) -> str:
+
+        from pipenv.utils.pipfile import find_pipfile
+
         if self.s.PIPENV_PIPFILE:
             return self.s.PIPENV_PIPFILE
 
         if self._pipfile_location is None:
             try:
-                loc = pipfile.Pipfile.find(max_depth=self.s.PIPENV_MAX_DEPTH)
+                loc = find_pipfile(max_depth=self.s.PIPENV_MAX_DEPTH)
             except RuntimeError:
                 loc = "Pipfile"
             self._pipfile_location = normalize_pipfile_path(loc)
