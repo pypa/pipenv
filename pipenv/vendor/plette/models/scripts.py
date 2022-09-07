@@ -1,8 +1,6 @@
 import re
 import shlex
 
-import pipenv.vendor.six as six
-
 from .base import DataView
 
 
@@ -23,7 +21,7 @@ class Script(DataView):
 
     def __init__(self, data):
         super(Script, self).__init__(data)
-        if isinstance(data, six.string_types):
+        if isinstance(data, str):
             data = shlex.split(data)
         self._parts = [data[0]]
         self._parts.extend(data[1:])
