@@ -1,5 +1,3 @@
-import pipenv.vendor.six as six
-
 from .base import DataView
 
 
@@ -26,7 +24,7 @@ class Package(DataView):
         return super(Package, cls).validate({"__package__": data})
 
     def __getattr__(self, key):
-        if isinstance(self._data, six.string_types):
+        if isinstance(self._data, str):
             if key == "version":
                 return self._data
             raise AttributeError(key)
@@ -39,7 +37,7 @@ class Package(DataView):
     def __setattr__(self, key, value):
         if key == "_data":
             super(Package, self).__setattr__(key, value)
-        elif key == "version" and isinstance(self._data, six.string_types):
+        elif key == "version" and isinstance(self._data, str):
             self._data = value
         else:
             self._data[key] = value

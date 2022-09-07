@@ -1,14 +1,8 @@
-from __future__ import unicode_literals
-
 import json
 import numbers
 
-try:
-    import collections.abc as collections_abc
-except ImportError:
-    import collections as collections_abc
+import collections.abc as collections_abc
 
-import pipenv.vendor.six as six
 
 from .models import DataView, Meta, PackageCollection
 
@@ -28,14 +22,14 @@ class _LockFileEncoder(json.JSONEncoder):
 
     def encode(self, obj):
         content = super(_LockFileEncoder, self).encode(obj)
-        if not isinstance(content, six.text_type):
+        if not isinstance(content, str):
             content = content.decode("utf-8")
         content += "\n"
         return content
 
     def iterencode(self, obj):
         for chunk in super(_LockFileEncoder, self).iterencode(obj):
-            if not isinstance(chunk, six.text_type):
+            if not isinstance(chunk, str):
                 chunk = chunk.decode("utf-8")
             yield chunk
         yield "\n"
@@ -53,15 +47,15 @@ PIPFILE_SPEC_CURRENT = 6
 def _copy_jsonsafe(value):
     """Deep-copy a value into JSON-safe types.
     """
-    if isinstance(value, six.string_types + (numbers.Number,)):
+    if isinstance(value, (str, numbers.Number)):
         return value
     if isinstance(value, collections_abc.Mapping):
-        return {six.text_type(k): _copy_jsonsafe(v) for k, v in value.items()}
+        return {str(k): _copy_jsonsafe(v) for k, v in value.items()}
     if isinstance(value, collections_abc.Iterable):
         return [_copy_jsonsafe(v) for v in value]
     if value is None:   # This doesn't happen often for us.
         return None
-    return six.text_type(value)
+    return str(value)
 
 
 class Lockfile(DataView):

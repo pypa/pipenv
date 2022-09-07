@@ -1,9 +1,6 @@
-from __future__ import unicode_literals
-
 import hashlib
 import json
 
-import pipenv.vendor.six as six
 import pipenv.vendor.tomlkit as tomlkit
 
 from .models import (
@@ -84,7 +81,7 @@ class Pipfile(DataView):
             "develop": self._data.get("dev-packages", {}),
         }
         content = json.dumps(data, sort_keys=True, separators=(",", ":"))
-        if isinstance(content, six.text_type):
+        if isinstance(content, str):
             content = content.encode("utf-8")
         return Hash.from_hash(hashlib.sha256(content))
 
