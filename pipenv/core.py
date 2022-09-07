@@ -2731,6 +2731,9 @@ def do_run(
     """
     from .cmdparse import ScriptEmptyError
 
+    load_dot_env(project, quiet=quiet)
+    env = os.environ.copy()
+
     # Ensure that virtualenv is available.
     ensure_project(
         project,
@@ -2739,9 +2742,6 @@ def do_run(
         validate=False,
         pypi_mirror=pypi_mirror,
     )
-
-    load_dot_env(project, quiet=quiet)
-    env = os.environ.copy()
 
     path = env.get("PATH", "")
     if project.virtualenv_location:
