@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -311,7 +312,7 @@ requests = {version = "*", extras = ["socks"]}
 
 
 @pytest.mark.index
-@pytest.mark.install
+@pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.skip_lock
 @pytest.mark.needs_internet
 def test_private_index_skip_lock(pipenv_instance_private_pypi):
@@ -338,7 +339,7 @@ pipenv-test-private-package = {version = "*", index = "testpypi"}
 
 @pytest.mark.lock
 @pytest.mark.index
-@pytest.mark.install
+@pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.requirements
 @pytest.mark.needs_internet
 def test_private_index_lock_requirements(pipenv_instance_private_pypi):
@@ -551,6 +552,7 @@ def test_lock_no_warnings(pipenv_instance_pypi, recwarn):
         c = p.pipenv("install six")
         assert c.returncode == 0
         assert len(recwarn) == 0
+
 
 
 @pytest.mark.vcs

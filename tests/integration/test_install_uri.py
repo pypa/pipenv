@@ -141,6 +141,9 @@ name = "pypi"
 six = "*"
 
 [dev-packages]
+
+[pipenv]
+install_search_all_sources = true
             """.strip()
             f.write(contents)
         c = p.pipenv("install pipenv-test-private-package --index https://test.pypi.org/simple")
