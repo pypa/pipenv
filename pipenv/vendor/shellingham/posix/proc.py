@@ -16,7 +16,7 @@ def detect_proc():
     """Detect /proc filesystem style.
 
     This checks the /proc/{pid} directory for possible formats. Returns one of
-    the followings as str:
+    the following as str:
 
     * `stat`: Linux-style, i.e. ``/proc/{pid}/stat``.
     * `status`: BSD-style, i.e. ``/proc/{pid}/status``.
