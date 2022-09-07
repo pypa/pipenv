@@ -1,50 +1,23 @@
 import os
-import mock
-
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
 
-from flaky import flaky
-
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
 
 
-@pytest.mark.setup
-@pytest.mark.basic
-@pytest.mark.install
-def test_basic_setup(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
-        with pipenv_instance_private_pypi(pipfile=False) as p:
-            c = p.pipenv("install requests")
-            assert c.returncode == 0
-
-            assert "requests" in p.pipfile["packages"]
-            assert "requests" in p.lockfile["default"]
-            assert "chardet" in p.lockfile["default"]
-            assert "idna" in p.lockfile["default"]
-            assert "urllib3" in p.lockfile["default"]
-            assert "certifi" in p.lockfile["default"]
-
-
-@flaky
 @pytest.mark.basic
 @pytest.mark.install
 def test_basic_install(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
-        c = p.pipenv("install requests")
+        c = p.pipenv("install six")
         assert c.returncode == 0
-        assert "requests" in p.pipfile["packages"]
-        assert "requests" in p.lockfile["default"]
-        assert "chardet" in p.lockfile["default"]
-        assert "idna" in p.lockfile["default"]
-        assert "urllib3" in p.lockfile["default"]
-        assert "certifi" in p.lockfile["default"]
+        assert "six" in p.pipfile["packages"]
+        assert "six" in p.lockfile["default"]
 
 
-@flaky
 @pytest.mark.basic
 @pytest.mark.install
 def test_mirror_install(pipenv_instance_pypi):
@@ -65,7 +38,6 @@ def test_mirror_install(pipenv_instance_pypi):
         assert "dataclasses-json" in p.lockfile["default"]
 
 
-@flaky
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.needs_internet
@@ -77,7 +49,6 @@ def test_bad_mirror_install(pipenv_instance_pypi):
         assert c.returncode != 0
 
 
-@flaky
 @pytest.mark.dev
 @pytest.mark.run
 def test_basic_dev_install(pipenv_instance_pypi):
@@ -91,7 +62,6 @@ def test_basic_dev_install(pipenv_instance_pypi):
         assert c.returncode == 0
 
 
-@flaky
 @pytest.mark.dev
 @pytest.mark.basic
 @pytest.mark.install
@@ -119,7 +89,6 @@ tablib = "*"
         assert c.returncode == 0
 
 
-@flaky
 @pytest.mark.basic
 @pytest.mark.install
 def test_install_without_dev_section(pipenv_instance_pypi):
@@ -140,7 +109,6 @@ six = "*"
         assert c.returncode == 0
 
 
-@flaky
 @pytest.mark.lock
 @pytest.mark.extras
 @pytest.mark.install
@@ -158,7 +126,6 @@ def test_extras_install(pipenv_instance_private_pypi):
         assert "pysocks" in p.lockfile["default"]
 
 
-@flaky
 @pytest.mark.pin
 @pytest.mark.basic
 @pytest.mark.install
@@ -176,7 +143,6 @@ dataclasses-json = "==0.5.7"
         assert "dataclasses-json" in p.lockfile["default"]
 
 
-@flaky
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.resolver
@@ -195,7 +161,6 @@ def test_backup_resolver(pipenv_instance_private_pypi):
         assert "ibm-db-sa-py3" in p.lockfile["default"]
 
 
-@flaky
 @pytest.mark.run
 @pytest.mark.alt
 def test_alternative_version_specifier(pipenv_instance_private_pypi):
@@ -203,31 +168,26 @@ def test_alternative_version_specifier(pipenv_instance_private_pypi):
         with open(p.pipfile_path, "w") as f:
             contents = """
 [packages]
-requests = {version = "*"}
+six = {version = "*"}
             """.strip()
             f.write(contents)
 
         c = p.pipenv("install")
         assert c.returncode == 0
 
-        assert "requests" in p.lockfile["default"]
-        assert "idna" in p.lockfile["default"]
-        assert "urllib3" in p.lockfile["default"]
-        assert "certifi" in p.lockfile["default"]
-        assert "chardet" in p.lockfile["default"]
+        assert "six" in p.lockfile["default"]
 
-        c = p.pipenv('run python -c "import requests; import idna; import certifi;"')
+        c = p.pipenv('run python -c "import six;"')
         assert c.returncode == 0
 
 
-@flaky
 @pytest.mark.run
 @pytest.mark.alt
 def test_outline_table_specifier(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
-[packages.requests]
+[packages.six]
 version = "*"
             """.strip()
             f.write(contents)
@@ -235,13 +195,9 @@ version = "*"
         c = p.pipenv("install")
         assert c.returncode == 0
 
-        assert "requests" in p.lockfile["default"]
-        assert "idna" in p.lockfile["default"]
-        assert "urllib3" in p.lockfile["default"]
-        assert "certifi" in p.lockfile["default"]
-        assert "chardet" in p.lockfile["default"]
+        assert "six" in p.lockfile["default"]
 
-        c = p.pipenv('run python -c "import requests; import idna; import certifi;"')
+        c = p.pipenv('run python -c "import six;"')
         assert c.returncode == 0
 
 
@@ -395,7 +351,7 @@ def test_install_venv_project_directory(pipenv_instance_pypi):
 @pytest.mark.system
 def test_system_and_deploy_work(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi(chdir=True) as p:
-        c = p.pipenv("install tablib")
+        c = p.pipenv("install urllib3")
         assert c.returncode == 0
         c = p.pipenv("--rm")
         assert c.returncode == 0
@@ -403,17 +359,6 @@ def test_system_and_deploy_work(pipenv_instance_private_pypi):
         assert c.returncode == 0
         c = p.pipenv("install --system --deploy")
         assert c.returncode == 0
-        c = p.pipenv("--rm")
-        assert c.returncode == 0
-        Path(p.pipfile_path).write_text(
-            """
-[packages]
-tablib = "*"
-        """.strip()
-        )
-        c = p.pipenv("install --system")
-        assert c.returncode == 0
-
 
 @pytest.mark.basic
 @pytest.mark.install
@@ -461,17 +406,16 @@ version = "*"
 extras = ["socks"]
             """.strip()
             f.write(contents)
-        c = p.pipenv("install flask")
+        c = p.pipenv("install colorama")
         assert c.returncode == 0
         with open(p.pipfile_path) as f:
             contents = f.read()
         assert "[packages.requests]" not in contents
         assert 'six = {version = "*"}' in contents
         assert 'requests = {version = "*"' in contents
-        assert 'flask = "*"' in contents
+        assert 'colorama = "*"' in contents
 
 
-@flaky
 @pytest.mark.dev
 @pytest.mark.basic
 @pytest.mark.install

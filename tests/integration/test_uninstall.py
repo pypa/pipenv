@@ -94,14 +94,9 @@ def test_mirror_uninstall(pipenv_instance_private_pypi):
 @pytest.mark.install
 @pytest.mark.uninstall
 def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
-    file_name = "tablib-0.12.1.tar.gz"
-    # Not sure where travis/appveyor run tests from
-    source_path = os.path.abspath(os.path.join(testsroot, "pypi", "tablib", file_name))
-
     with pipenv_instance_private_pypi(chdir=True) as p:
-        shutil.copy(source_path, os.path.join(p.path, file_name))
-        os.mkdir(os.path.join(p.path, "tablib"))
-        c = p.pipenv(f"install {file_name}")
+        file_uri = p._pipfile.get_fixture_path("tablib/tablib-0.12.1.tar.gz", fixtures="pypi").as_uri()
+        c = p.pipenv(f"install {file_uri}")
         assert c.returncode == 0
         c = p.pipenv("uninstall --all")
         assert c.returncode == 0
@@ -115,31 +110,39 @@ def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
 @pytest.mark.uninstall
 def test_uninstall_all_dev(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
-        c = p.pipenv("install --dev Django==1.11.13 six")
-        assert c.returncode == 0
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+        [packages]
+        tablib = "*"
 
-        c = p.pipenv("install tablib")
+        [dev-packages]
+        jinja2 = "==2.11.1"
+        six = "*"
+        """
+            f.write(contents)
+
+        c = p.pipenv("install --dev")
         assert c.returncode == 0
 
         assert "tablib" in p.pipfile["packages"]
-        assert "django" in p.pipfile["dev-packages"]
+        assert "jinja2" in p.pipfile["dev-packages"]
         assert "six" in p.pipfile["dev-packages"]
         assert "tablib" in p.lockfile["default"]
-        assert "django" in p.lockfile["develop"]
+        assert "jinja2" in p.lockfile["develop"]
         assert "six" in p.lockfile["develop"]
 
-        c = p.pipenv('run python -c "import django"')
+        c = p.pipenv('run python -c "import jinja2"')
         assert c.returncode == 0
 
         c = p.pipenv("uninstall --all-dev")
         assert c.returncode == 0
         assert p.pipfile["dev-packages"] == {}
-        assert "django" not in p.lockfile["develop"]
+        assert "jinja2" not in p.lockfile["develop"]
         assert "six" not in p.lockfile["develop"]
         assert "tablib" in p.pipfile["packages"]
         assert "tablib" in p.lockfile["default"]
 
-        c = p.pipenv('run python -c "import django"')
+        c = p.pipenv('run python -c "import jinja2"')
         assert c.returncode > 0
 
         c = p.pipenv('run python -c "import tablib"')
@@ -173,10 +176,16 @@ python_DateUtil = "*"
 @pytest.mark.uninstall
 def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv("install pytest==4.6.11")
-        assert c.returncode == 0
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+        [packages]
+        pytest = "==4.6.11"
 
-        c = p.pipenv("install --dev six")
+        [dev-packages]
+        six = "*"
+        """
+            f.write(contents)
+        c = p.pipenv("install")
         assert c.returncode == 0
 
         c = p.pipenv("uninstall --all-dev")
