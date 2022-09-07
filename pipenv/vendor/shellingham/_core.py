@@ -3,7 +3,7 @@ SHELL_NAMES = (
     | {"csh", "tcsh"}  # C.
     | {"ksh", "zsh", "fish"}  # Common alternatives.
     | {"cmd", "powershell", "pwsh"}  # Microsoft.
-    | {"elvish", "xonsh"}  # More exotic.
+    | {"elvish", "xonsh", "nu"}  # More exotic.
 )
 
 
