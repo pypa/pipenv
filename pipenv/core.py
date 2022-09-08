@@ -23,6 +23,9 @@ from pipenv.patched.pip._internal.req.constructors import (
 )
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.misc import split_auth_from_netloc
+from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
+from pipenv.patched.pip._vendor.packaging.version import Version
+from pipenv.utils.dependencies import python_version
 from pipenv.project import Project
 from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
@@ -50,6 +53,7 @@ from pipenv.utils.shell import (
 )
 from pipenv.utils.spinner import create_spinner
 from pipenv.vendor import click, vistir
+from pipenv.vendor.pythonfinder import Finder
 from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 if MYPY_RUNNING:
@@ -298,6 +302,18 @@ def find_a_system_python(line):
     from .vendor.pythonfinder import Finder
 
     finder = Finder(system=False, global_search=True)
+    try:
+        specifier = SpecifierSet(line)
+        available_versions = dict()
+        for py_path in finder.find_all_python_versions():
+            version = Version(python_version(py_path.path.as_posix()))
+            available_versions[version] = py_path
+        suitable_versions = list(specifier.filter(available_versions))
+        if suitable_versions:
+            return available_versions[suitable_versions[0]]
+    except InvalidSpecifier:
+        pass
+
     if not line:
         return next(iter(finder.find_all_python_versions()), None)
     # Use the windows finder executable
