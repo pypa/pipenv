@@ -337,7 +337,7 @@ def is_required_version(version, specified_version):
 
 def is_editable(pipfile_entry):
     if hasattr(pipfile_entry, "get"):
-        return pipfile_entry.get("editable", False) and any(
+        return pipfile_entry.get("editable", False) or any(
             pipfile_entry.get(key) for key in ("file", "path") + VCS_LIST
         )
     return False
