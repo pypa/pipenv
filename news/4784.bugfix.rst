@@ -1,1 +1,0 @@
-Make editable detection better because not everyone specifies editable entry in the Pipfile for local editable installs.
