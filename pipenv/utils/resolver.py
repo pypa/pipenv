@@ -39,7 +39,6 @@ except ImportError:
     from pipenv.patched.pip._vendor.distlib.util import cached_property
 
 from .dependencies import (
-    HackedPythonVersion,
     clean_pkg_version,
     convert_deps_to_pip,
     get_constraints_from_deps,
@@ -1074,7 +1073,6 @@ def resolve_deps(
     which,
     project,
     sources=None,
-    python=False,
     clear=False,
     pre=False,
     dev=False,
@@ -1086,62 +1084,29 @@ def resolve_deps(
     """
     index_lookup = {}
     markers_lookup = {}
-    python_path = which("python", allow_global=allow_global)
     if not os.environ.get("PIP_SRC"):
         os.environ["PIP_SRC"] = project.virtualenv_src_location
-    backup_python_path = sys.executable
     results = []
     resolver = None
     if not deps:
         return results, resolver
-    # First (proper) attempt:
     req_dir = req_dir if req_dir else os.environ.get("req_dir", None)
     if not req_dir:
         req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-requirements")
-    with HackedPythonVersion(python_version=python, python_path=python_path):
-        try:
-            results, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
-                deps,
-                index_lookup,
-                markers_lookup,
-                project,
-                sources,
-                clear,
-                pre,
-                dev,
-                req_dir=req_dir,
-            )
-        except RuntimeError:
-            # Don't exit here, like usual.
-            results = None
-    # Second (last-resort) attempt:
-    if results is None:
-        with HackedPythonVersion(
-            python_version=".".join([str(s) for s in sys.version_info[:3]]),
-            python_path=backup_python_path,
-        ):
-            try:
-                # Attempt to resolve again, with different Python version information,
-                # particularly for particularly particular packages.
-                (
-                    results,
-                    hashes,
-                    markers_lookup,
-                    resolver,
-                    skipped,
-                ) = actually_resolve_deps(
-                    deps,
-                    index_lookup,
-                    markers_lookup,
-                    project,
-                    sources,
-                    clear,
-                    pre,
-                    dev,
-                    req_dir=req_dir,
-                )
-            except RuntimeError:
-                sys.exit(1)
+    try:
+        results, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
+            deps,
+            index_lookup,
+            markers_lookup,
+            project,
+            sources,
+            clear,
+            pre,
+            dev,
+            req_dir=req_dir,
+        )
+    except RuntimeError:
+        sys.exit(1)
     return results, resolver
 
 

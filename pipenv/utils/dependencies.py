@@ -1,4 +1,3 @@
-import os
 from contextlib import contextmanager
 from typing import Mapping, Sequence
 
@@ -28,22 +27,6 @@ def python_version(path_to_python):
 def clean_pkg_version(version):
     """Uses pip to prepare a package version string, from our internal version."""
     return pep440_version(str(version).replace("==", ""))
-
-
-class HackedPythonVersion:
-    """A Beautiful hack, which allows us to tell pip which version of Python we're using."""
-
-    def __init__(self, python_version, python_path):
-        self.python_version = python_version
-        self.python_path = python_path
-
-    def __enter__(self):
-        # Only inject when the value is valid
-        if self.python_path:
-            os.environ["PIP_PYTHON_PATH"] = str(self.python_path)
-
-    def __exit__(self, *args):
-        pass
 
 
 def get_canonical_names(packages):
