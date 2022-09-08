@@ -23,9 +23,11 @@ from pipenv.patched.pip._internal.req.constructors import (
 )
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.misc import split_auth_from_netloc
-from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
+from pipenv.patched.pip._vendor.packaging.specifiers import (
+    InvalidSpecifier,
+    SpecifierSet,
+)
 from pipenv.patched.pip._vendor.packaging.version import Version
-from pipenv.utils.dependencies import python_version
 from pipenv.project import Project
 from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
@@ -291,6 +293,7 @@ def find_a_system_python(line):
 
     This tries to parse the line in various of ways:
 
+    * Is a Specifier?  Go with the max available user installed python.
     * Looks like an absolute path? Use it directly.
     * Looks like a py.exe call? Use py.exe to get the executable.
     * Starts with "py" something? Looks like a python command. Try to find it
@@ -298,14 +301,16 @@ def find_a_system_python(line):
     * Search for "python" and "pythonX.Y" executables in PATH to find a match.
     * Nothing fits, return None.
     """
-
-    from .vendor.pythonfinder import Finder
-
     finder = Finder(system=False, global_search=True)
+    if not line:
+        return next(iter(finder.find_all_python_versions()), None)
     try:
+        relevant_finder = finder
+        if finder.windows_finder:
+            relevant_finder = finder.windows_finder
         specifier = SpecifierSet(line)
-        available_versions = dict()
-        for py_path in finder.find_all_python_versions():
+        available_versions = {}
+        for py_path in relevant_finder.find_all_python_versions():
             version = Version(python_version(py_path.path.as_posix()))
             available_versions[version] = py_path
         suitable_versions = list(specifier.filter(available_versions))
@@ -314,8 +319,6 @@ def find_a_system_python(line):
     except InvalidSpecifier:
         pass
 
-    if not line:
-        return next(iter(finder.find_all_python_versions()), None)
     # Use the windows finder executable
     if (line.startswith("py ") or line.startswith("py.exe ")) and os.name == "nt":
         line = line.split(" ", 1)[1].lstrip("-")
