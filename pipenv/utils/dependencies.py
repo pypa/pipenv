@@ -39,17 +39,11 @@ class HackedPythonVersion:
 
     def __enter__(self):
         # Only inject when the value is valid
-        if self.python_version:
-            os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = str(self.python_version)
         if self.python_path:
             os.environ["PIP_PYTHON_PATH"] = str(self.python_path)
 
     def __exit__(self, *args):
-        # Restore original Python version information.
-        try:
-            del os.environ["PIPENV_REQUESTED_PYTHON_VERSION"]
-        except KeyError:
-            pass
+        pass
 
 
 def get_canonical_names(packages):

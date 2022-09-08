@@ -817,9 +817,6 @@ def _main(
     parse_only=False,
     dev=False,
 ):
-    os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = ".".join(
-        [str(s) for s in sys.version_info[:3]]
-    )
     os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
     if parse_only:
         parse_packages(
