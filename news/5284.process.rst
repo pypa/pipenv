@@ -1,2 +1,0 @@
-Convert the test runner to use ``pypiserver`` as a standalone process for all tests that referencce internal ``pypi`` artifacts.
-General refactoring of some test cases to create more variety in packages selected--preferring lighter weight packages--in existing test cases.

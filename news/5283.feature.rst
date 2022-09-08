@@ -1,2 +1,0 @@
-It is now possible to supply additional arguments to ``pip`` install by supplying ``--extra-pip-args="<arg1> <arg2>"``
-See the updated documentation ``Supplying additional arguments to pip`` for more details.

@@ -1,3 +1,41 @@
+2022.9.8 (2022-09-08)
+=====================
+Pipenv 2022.9.8 (2022-09-08)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- It is now possible to supply additional arguments to ``pip`` install by supplying ``--extra-pip-args="<arg1> <arg2>"``
+  See the updated documentation ``Supplying additional arguments to pip`` for more details.  `#5283 <https://github.com/pypa/pipenv/issues/5283>`_
+
+Bug Fixes
+---------
+
+- Make editable detection better because not everyone specifies editable entry in the Pipfile for local editable installs.  `#4784 <https://github.com/pypa/pipenv/issues/4784>`_
+- Add error handling for when the installed package setup.py does not contain valid markers.  `#5329 <https://github.com/pypa/pipenv/issues/5329>`_
+- Load the dot env earlier so that ``PIPENV_CUSTOM_VENV_NAME`` is more useful across projects.  `#5334 <https://github.com/pypa/pipenv/issues/5334>`_
+
+Vendored Libraries
+------------------
+
+- Bump version of shellingham to support nushell.  `#5336 <https://github.com/pypa/pipenv/issues/5336>`_
+- Bump plette to version v0.3.0  `#5337 <https://github.com/pypa/pipenv/issues/5337>`_
+- Bump version of pipdeptree  `#5343 <https://github.com/pypa/pipenv/issues/5343>`_
+
+Removals and Deprecations
+-------------------------
+
+- Add deprecation warning to the --three flag. Pipenv now uses python3 by default.  `#5328 <https://github.com/pypa/pipenv/issues/5328>`_
+
+Relates to dev process changes
+------------------------------
+
+- Convert the test runner to use ``pypiserver`` as a standalone process for all tests that referencce internal ``pypi`` artifacts.
+  General refactoring of some test cases to create more variety in packages selected--preferring lighter weight packages--in existing test cases.
+
+
 2022.9.4 (2022-09-04)
 =====================
 

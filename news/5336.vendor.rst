@@ -1,1 +1,0 @@
-Bump version of shellingham to support nushell.

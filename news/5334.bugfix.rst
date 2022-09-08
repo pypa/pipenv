@@ -1,1 +1,0 @@
-Load the dot env earlier so that ``PIPENV_CUSTOM_VENV_NAME`` is more useful across projects.
