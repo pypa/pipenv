@@ -39,6 +39,7 @@ HARDCODED_LICENSE_URLS = {
     "requirementslib": "https://github.com/techalchemy/requirementslib/raw/master/LICENSE",
     "distlib": "https://github.com/vsajip/distlib/raw/master/LICENSE.txt",
     "pythonfinder": "https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt",
+    "pipdeptree": "https://raw.githubusercontent.com/tox-dev/pipdeptree/main/LICENSE",
 }
 
 FILE_WHITE_LIST = (

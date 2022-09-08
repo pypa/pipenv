@@ -689,7 +689,11 @@ class Environment:
         return d
 
     def get_package_requirements(self, pkg=None):
-        from .vendor.pipdeptree import PackageDAG, flatten
+        from itertools import chain
+
+        from pipenv.vendor.pipdeptree import PackageDAG
+
+        flatten = chain.from_iterable
 
         packages = self.get_installed_packages()
         if pkg:
