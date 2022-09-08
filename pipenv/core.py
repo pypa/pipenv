@@ -2887,7 +2887,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
     from pipenv.vendor import pipdeptree
 
-    pipdeptree_path = pipdeptree.__file__.rstrip("cdo")
+    pipdeptree_path = os.path.dirname(pipdeptree.__file__.rstrip("cdo"))
     try:
         python_path = project._which("python")
     except AttributeError:
