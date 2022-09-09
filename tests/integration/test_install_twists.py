@@ -103,58 +103,6 @@ setup(
             )
 
 
-@pytest.mark.install
-@pytest.mark.multiprocessing
-def test_multiprocess_bug_and_install(pipenv_instance_pypi):
-    with temp_environ():
-        os.environ["PIPENV_MAX_SUBPROCESS"] = "2"
-
-        with pipenv_instance_pypi(chdir=True) as p:
-            with open(p.pipfile_path, "w") as f:
-                contents = """
-[packages]
-pytz = "*"
-six = "*"
-dataclasses-json = "*"
-                """.strip()
-                f.write(contents)
-
-            c = p.pipenv("install")
-            assert c.returncode == 0
-
-            assert "pytz" in p.lockfile["default"]
-            assert "six" in p.lockfile["default"]
-            assert "dataclasses-json" in p.lockfile["default"]
-
-            c = p.pipenv('run python -c "import six; import pytz; import dataclasses_json;"')
-            assert c.returncode == 0
-
-
-@pytest.mark.install
-@pytest.mark.sequential
-def test_sequential_mode(pipenv_instance_pypi):
-
-    with pipenv_instance_pypi(chdir=True) as p:
-        with open(p.pipfile_path, "w") as f:
-            contents = """
-[packages]
-six = "*"
-urllib3 = "*"
-pytz = "*"
-            """.strip()
-            f.write(contents)
-
-        c = p.pipenv("install --sequential")
-        assert c.returncode == 0
-
-        assert "six" in p.lockfile["default"]
-        assert "pytz" in p.lockfile["default"]
-        assert "urllib3" in p.lockfile["default"]
-
-        c = p.pipenv('run python -c "import six; import urllib3; import pytz;"')
-        assert c.returncode == 0
-
-
 @pytest.mark.run
 @pytest.mark.install
 def test_normalize_name_install(pipenv_instance_private_pypi):
