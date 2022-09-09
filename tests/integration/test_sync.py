@@ -71,30 +71,6 @@ six = "*"
 
 
 @pytest.mark.sync
-@pytest.mark.lock
-def test_sync_sequential_detect_errors(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
-[packages]
-requests = "*"
-        """.strip()
-            f.write(contents)
-
-        c = p.pipenv('lock')
-        assert c.returncode == 0
-
-        # Force hash mismatch when installing `requests`
-        lock = p.lockfile
-        lock['default']['requests']['hashes'] = ['sha256:' + '0' * 64]
-        with open(p.lockfile_path, 'w') as f:
-            json.dump(lock, f)
-
-        c = p.pipenv('sync --sequential')
-        assert c.returncode != 0
-
-
-@pytest.mark.sync
 def test_sync_consider_pip_target(pipenv_instance_pypi):
     """
     """
