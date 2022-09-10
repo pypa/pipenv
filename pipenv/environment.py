@@ -12,7 +12,6 @@ import sys
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
 
-import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.req.req_uninstall import UninstallPathSet
@@ -33,7 +32,6 @@ except ImportError:
 
 
 if is_type_checking():
-    from types import ModuleType
     from typing import ContextManager, Dict, Generator, List, Optional, Set, Union
 
     import tomlkit
@@ -55,7 +53,6 @@ class Environment:
         project: Optional[Project] = None,
     ):
         super().__init__()
-        self._modules = {"pkg_resources": pkg_resources, "pipenv": pipenv}
         self.base_working_set = base_working_set if base_working_set else BASE_WORKING_SET
         prefix = normalize_path(prefix)
         self._python = None
@@ -78,22 +75,6 @@ class Environment:
         if self.is_venv:
             self._base_paths = self.get_paths()
         self.sys_paths = get_paths()
-
-    def safe_import(self, name: str) -> ModuleType:
-        """Helper utility for reimporting previously imported modules while inside the env"""
-        module = None
-        if name not in self._modules:
-            self._modules[name] = importlib.import_module(name)
-        module = self._modules[name]
-        if not module:
-            dist = next(
-                iter(dist for dist in self.base_working_set if dist.project_name == name),
-                None,
-            )
-            if dist:
-                dist.activate()
-            module = importlib.import_module(name)
-        return module
 
     @classmethod
     def resolve_dist(
@@ -139,7 +120,7 @@ class Environment:
     @cached_property
     def python_version(self) -> str:
         with self.activated():
-            sysconfig = self.safe_import("sysconfig")
+            sysconfig = importlib.import_module("sysconfig")
             py_version = sysconfig.get_python_version()
             return py_version
 
