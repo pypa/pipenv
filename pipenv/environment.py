@@ -32,7 +32,7 @@ except ImportError:
 
 
 if is_type_checking():
-    from typing import ContextManager, Dict, Generator, List, Optional, Set, Union
+    from typing import ContextManager, Dict, Generator, List, Optional, Union
 
     import tomlkit
 
@@ -68,54 +68,12 @@ class Environment:
         if project and not pipfile:
             pipfile = project.parsed_pipfile
         self.pipfile = pipfile
-        self.extra_dists = []
         prefix = prefix if prefix else sys.prefix
         self.prefix = Path(prefix)
         self._base_paths = {}
         if self.is_venv:
             self._base_paths = self.get_paths()
         self.sys_paths = get_paths()
-
-    @classmethod
-    def resolve_dist(
-        cls, dist: pkg_resources.Distribution, working_set: pkg_resources.WorkingSet
-    ) -> Set[pkg_resources.Distribution]:
-        """Given a local distribution and a working set, returns all dependencies from the set.
-
-        :param dist: A single distribution to find the dependencies of
-        :type dist: :class:`pkg_resources.Distribution`
-        :param working_set: A working set to search for all packages
-        :type working_set: :class:`pkg_resources.WorkingSet`
-        :return: A set of distributions which the package depends on, including the package
-        :rtype: set(:class:`pkg_resources.Distribution`)
-        """
-
-        deps = set()
-        deps.add(dist)
-        try:
-            reqs = dist.requires()
-        # KeyError = limited metadata can be found
-        except (KeyError, AttributeError, OSError):  # The METADATA file can't be found
-            return deps
-        for req in reqs:
-            try:
-                dist = working_set.find(req)
-            except pkg_resources.VersionConflict:
-                # https://github.com/pypa/pipenv/issues/4549
-                # The requirement is already present with incompatible version.
-                continue
-            deps |= cls.resolve_dist(dist, working_set)
-        return deps
-
-    def extend_dists(self, dist: pkg_resources.Distribution) -> None:
-        extras = self.resolve_dist(dist, self.base_working_set)
-        self.extra_dists.append(dist)
-        if extras:
-            self.extra_dists.extend(extras)
-
-    def add_dist(self, dist_name: str) -> None:
-        dist = pkg_resources.get_distribution(pkg_resources.Requirement(dist_name))
-        self.extend_dists(dist)
 
     @cached_property
     def python_version(self) -> str:
@@ -527,7 +485,6 @@ class Environment:
         :return: A set of distributions found on the library path
         :rtype: iterator
         """
-
         pip_target_dir = os.environ.get("PIP_TARGET")
         libdirs = (
             [pip_target_dir]

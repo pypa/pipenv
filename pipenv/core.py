@@ -968,7 +968,6 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         pipfile=project.parsed_pipfile,
         project=project,
     )
-    project._environment.add_dist("pipenv")
     # Say where the virtualenv is.
     do_where(project, virtualenv=True, bare=False)
 
