@@ -21,6 +21,7 @@ LIBRARY_DIRNAMES = {
     "requirements-parser": "requirements",
     "backports.shutil_get_terminal_size": "backports/shutil_get_terminal_size",
     "python-dotenv": "dotenv",
+    "setuptools": "pkg_resources",
     "msgpack-python": "msgpack",
     "attrs": "attr",
 }
