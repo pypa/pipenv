@@ -7,7 +7,7 @@ import sys
 os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 
-def _ensure_pipenv_module():
+def _ensure_modules():
     spec = importlib.util.spec_from_file_location(
         "pipenv", location=os.path.join(os.path.dirname(__file__), "__init__.py")
     )
@@ -787,7 +787,7 @@ def _main(
 def main(argv=None):
     parser = get_parser()
     parsed, remaining = parser.parse_known_args(argv)
-    _ensure_pipenv_module()
+    _ensure_modules()
     import warnings
 
     from pipenv.vendor.vistir.misc import replace_with_text_stream
