@@ -43,7 +43,7 @@ from .utils import (
 )
 
 try:
-    import pkg_resources.extern.packaging.requirements as pkg_resources_requirements
+    import pipenv.patched.pip._vendor.pkg_resources.extern.packaging.requirements as pkg_resources_requirements
 except ModuleNotFoundError:
     pkg_resources_requirements = None
 
@@ -70,8 +70,8 @@ if MYPY_RUNNING:
     from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
     from pipenv.patched.pip._internal.index.package_finder import PackageFinder
     from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-    from pkg_resources import DistInfoDistribution, EggInfoDistribution, PathMetadata
-    from pkg_resources import Requirement as PkgResourcesRequirement
+    from pipenv.patched.pip._vendor.pkg_resources import DistInfoDistribution, EggInfoDistribution, PathMetadata
+    from pipenv.patched.pip._vendor.pkg_resources import Requirement as PkgResourcesRequirement
 
     try:
         from setuptools.dist import Distribution
@@ -586,7 +586,7 @@ def _get_src_dir(root):
 @lru_cache()
 def ensure_reqs(reqs):
     # type: (List[Union[S, PkgResourcesRequirement]]) -> List[PkgResourcesRequirement]
-    import pkg_resources
+    import pipenv.patched.pip._vendor.pkg_resources as pkg_resources
 
     if not isinstance(reqs, Iterable):
         raise TypeError("Expecting an Iterable, got %r" % reqs)
@@ -731,7 +731,7 @@ def find_distinfo(target, pkg_name=None):
 
 def get_distinfo_dist(path, pkg_name=None):
     # type: (S, Optional[S]) -> Optional[DistInfoDistribution]
-    import pkg_resources
+    import pipenv.patched.pip._vendor.pkg_resources as pkg_resources
 
     dist_dir = next(iter(find_distinfo(path, pkg_name=pkg_name)), None)
     if dist_dir is not None:
@@ -745,7 +745,7 @@ def get_distinfo_dist(path, pkg_name=None):
 
 def get_egginfo_dist(path, pkg_name=None):
     # type: (S, Optional[S]) -> Optional[EggInfoDistribution]
-    import pkg_resources
+    import pipenv.patched.pip._vendor.pkg_resources as pkg_resources
 
     egg_dir = next(iter(find_egginfo(path, pkg_name=pkg_name)), None)
     if egg_dir is not None:

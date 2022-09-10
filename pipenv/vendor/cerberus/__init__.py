@@ -10,7 +10,7 @@
 
 from __future__ import absolute_import
 
-from pkg_resources import get_distribution, DistributionNotFound
+from pipenv.patched.pip._vendor.pkg_resources import get_distribution, DistributionNotFound
 
 from pipenv.vendor.cerberus.validator import DocumentError, Validator
 from pipenv.vendor.cerberus.schema import rules_set_registry, schema_registry, SchemaError

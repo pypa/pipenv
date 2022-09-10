@@ -49,7 +49,7 @@ if MYPY_RUNNING:
     from pipenv.patched.pip._vendor.packaging.markers import Value as PkgResourcesValue
     from pipenv.patched.pip._vendor.packaging.markers import Variable as PkgResourcesVariable
     from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
-    from pkg_resources import Requirement as PkgResourcesRequirement
+    from pipenv.patched.pip._vendor.pkg_resources import Requirement as PkgResourcesRequirement
     from pipenv.patched.pip._vendor.urllib3.util.url import Url
 
     _T = TypeVar("_T")
@@ -189,7 +189,7 @@ def init_requirement(name):
 
     if not isinstance(name, str):
         raise TypeError("must supply a name to generate a requirement")
-    from pkg_resources import Requirement
+    from pipenv.patched.pip._vendor.pkg_resources import Requirement
 
     req = Requirement.parse(name)
     req.vcs = None
@@ -226,7 +226,7 @@ def parse_extras(extras_str):
     :rtype: List[str]
     """
 
-    from pkg_resources import Requirement
+    from pipenv.patched.pip._vendor.pkg_resources import Requirement
 
     extras = Requirement.parse("fakepkg{0}".format(extras_to_string(extras_str))).extras
     return sorted(dedup([extra.lower() for extra in extras]))
@@ -456,7 +456,7 @@ def _strip_extras_markers(marker):
 @lru_cache()
 def get_setuptools_version():
     # type: () -> Optional[STRING_TYPE]
-    import pkg_resources
+    import pipenv.patched.pip._vendor.pkg_resources as pkg_resources
 
     setuptools_dist = pkg_resources.get_distribution(
         pkg_resources.Requirement("setuptools")
@@ -982,7 +982,7 @@ def get_name_variants(pkg):
     if not isinstance(pkg, str):
         raise TypeError("must provide a string to derive package names")
     from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-    from pkg_resources import safe_name
+    from pipenv.patched.pip._vendor.pkg_resources import safe_name
 
     pkg = pkg.lower()
     names = {safe_name(pkg), canonicalize_name(pkg), pkg.replace("-", "_")}

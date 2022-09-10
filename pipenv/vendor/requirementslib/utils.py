@@ -203,7 +203,7 @@ def is_installable_file(path):
 def get_dist_metadata(dist):
     from email.parser import FeedParser
 
-    import pkg_resources
+    import pipenv.patched.pip._vendor.pkg_resources as pkg_resources
 
     if isinstance(dist, pkg_resources.DistInfoDistribution) and dist.has_metadata(
         "METADATA"

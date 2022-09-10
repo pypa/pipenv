@@ -5,7 +5,7 @@ Tools for converting old- to new-style metadata.
 import os.path
 import textwrap
 
-import pkg_resources
+import pipenv.patched.pip._vendor.pkg_resources as pkg_resources
 
 from .pkginfo import read_pkg_info
 

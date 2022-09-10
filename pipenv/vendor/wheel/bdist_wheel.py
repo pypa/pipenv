@@ -20,7 +20,7 @@ from shutil import rmtree
 from sysconfig import get_config_var
 from zipfile import ZIP_DEFLATED, ZIP_STORED
 
-import pkg_resources
+import pipenv.patched.pip._vendor.pkg_resources as pkg_resources
 
 from .pkginfo import write_pkg_info
 from .macosx_libfile import calculate_macosx_platform_tag
