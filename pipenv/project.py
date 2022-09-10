@@ -256,7 +256,7 @@ class Project:
 
     @property
     def installed_package_names(self) -> List[str]:
-        return get_canonical_names([pkg.key for pkg in self.installed_packages])
+        return get_canonical_names([pkg.name for pkg in self.installed_packages])
 
     @property
     def lockfile_package_names(self) -> Dict[str, Set[str]]:

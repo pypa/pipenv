@@ -1946,8 +1946,8 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
 
     installed_packages = project.environment.get_installed_packages()
     outdated_packages = {
-        canonicalize_name(pkg.project_name): package_info(
-            pkg.project_name, pkg.parsed_version, pkg.latest_version
+        canonicalize_name(pkg.name): package_info(
+            pkg.name, pkg.parsed_version, pkg.latest_version
         )
         for pkg in project.environment.get_outdated_packages()
     }

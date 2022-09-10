@@ -9,9 +9,11 @@ import tempfile
 from collections import defaultdict, deque
 from collections.abc import Mapping
 from importlib import import_module
+from importlib.metadata import distribution
 from itertools import chain
 
 from pipenv.patched.pip._vendor import pkg_resources
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
 from .version import version as __version__
 
@@ -268,9 +270,18 @@ class PackageDAG(Mapping):
 
     @classmethod
     def from_pkgs(cls, pkgs):
-        pkgs = [DistPackage(p) for p in pkgs]
+        m = {}
         idx = {p.key: p for p in pkgs}
-        m = {p: [ReqPackage(r, idx.get(r.key)) for r in p.requires()] for p in pkgs}
+        for p in pkgs:
+            install_requires = []
+            for r in p.requires or []:
+                req = pkg_resources.Requirement.parse(r)
+                dist = distribution(req.key)
+                dist.parsed_version = parse_version(dist.version)
+                dist.key = dist.name.lower()  # Backwards pkg_resources compatability for `pipdeptree`
+                dist.project_name = dist.name
+                install_requires.append(ReqPackage(req, dist))
+            m[p] = install_requires
         return cls(m)
 
     def __init__(self, m):
