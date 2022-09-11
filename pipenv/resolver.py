@@ -3,8 +3,6 @@ import logging
 import os
 import sys
 
-from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
-
 os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 
@@ -148,6 +146,9 @@ class Entry:
         self, name, entry_dict, project, resolver, reverse_deps=None, category=None
     ):
         super().__init__()
+        from pipenv.utils.dependencies import (
+            get_lockfile_section_using_pipfile_category,
+        )
         from pipenv.vendor.requirementslib.models.utils import tomlkit_value_to_python
 
         self.name = name
@@ -341,6 +342,10 @@ class Entry:
 
     @property
     def pipfile_packages(self):
+        from pipenv.utils.dependencies import (
+            get_lockfile_section_using_pipfile_category,
+        )
+
         lockfile_section = get_lockfile_section_using_pipfile_category(self.category)
         return self.project.pipfile_package_names[lockfile_section]
 
@@ -677,6 +682,8 @@ def clean_results(results, resolver, project, category):
 
 
 def clean_outdated(results, resolver, project, category):
+    from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
+
     if not project.lockfile_exists:
         return results
     lockfile = project.lockfile_content
