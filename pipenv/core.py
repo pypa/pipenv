@@ -1047,26 +1047,26 @@ def do_lock(
     # Create the lockfile.
     lockfile = project._lockfile
     # Cleanup lockfile.
-    for section in ("default", "develop"):
-        for k, v in lockfile[section].copy().items():
+    for category in ("default", "develop"):
+        for k, v in lockfile[category].copy().items():
             if not hasattr(v, "keys"):
-                del lockfile[section][k]
+                del lockfile[category][k]
 
     # Resolve package to generate constraints before resolving other categories
     pipfile_categories = project.get_package_categories()
-    for section in pipfile_categories:
-        is_dev = section != "packages"
+    for category in pipfile_categories:
+        is_dev = category != "packages"
         if project.pipfile_exists:
-            packages = project.parsed_pipfile.get(section, {})
+            packages = project.parsed_pipfile.get(category, {})
         else:
-            packages = getattr(project, section.replace("-", "_"))
+            packages = getattr(project, category.replace("-", "_"))
 
         if write:
             # Alert the user of progress.
             click.echo(
                 "{} {} {}".format(
                     click.style("Locking"),
-                    click.style("[{}]".format(section.replace("_", "-")), fg="yellow"),
+                    click.style("[{}]".format(category.replace("_", "-")), fg="yellow"),
                     click.style(fix_utf8("dependencies...")),
                 ),
                 err=True,
@@ -1093,12 +1093,12 @@ def do_lock(
     if keep_outdated:
         from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-        for section_name, section in (
+        for section_name, category in (
             ("default", project.packages),
             ("develop", project.dev_packages),
         ):
-            for package_specified in section.keys():
-                if not is_pinned(section[package_specified]):
+            for package_specified in category.keys():
+                if not is_pinned(category[package_specified]):
                     canonical_name = canonicalize_name(package_specified)
                     if canonical_name in cached_lockfile[section_name]:
                         lockfile[section_name][canonical_name] = cached_lockfile[
