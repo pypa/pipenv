@@ -128,7 +128,7 @@ def editable_option(f):
         expose_value=False,
         multiple=True,
         callback=callback,
-        type=click_types.STRING,
+        type=click_types.Path(file_okay=False),
         help="An editable Python package URL or path, often to a VCS repository.",
     )(f)
 
@@ -479,7 +479,7 @@ def requirementstxt_option(f):
         expose_value=False,
         help="Import a requirements.txt file.",
         callback=callback,
-        type=click_types.STRING,
+        type=click_types.Path(dir_okay=False),
     )(f)
 
 
