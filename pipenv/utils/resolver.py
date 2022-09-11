@@ -192,6 +192,7 @@ class Resolver:
         req_dir: Optional[str] = None,
         pre: bool = False,
         clear: bool = False,
+        category: str = None,
     ) -> Tuple[
         Set[str],
         Dict[str, Dict[str, Union[str, bool, List[str]]]],
@@ -237,6 +238,7 @@ class Resolver:
                 markers_lookup=markers_lookup,
                 clear=clear,
                 pre=pre,
+                category=category,
             )
             constraint_update, lockfile_update = self.get_deps_from_req(
                 req, resolver=transient_resolver, resolve_vcs=project.s.PIPENV_RESOLVE_VCS
@@ -458,6 +460,7 @@ class Resolver:
             req_dir=req_dir,
             pre=pre,
             clear=clear,
+            category=category,
         )  # Workaround to the fact `get_metadata` instantiates a transient Resolver
         resolver.initial_constraints = constraints
         resolver.skipped = skipped
@@ -1006,6 +1009,9 @@ def venv_resolve_deps(
         cmd.append("--system")
     if dev:
         cmd.append("--dev")
+    if category:
+        cmd.append("--category")
+        cmd.append(category)
     target_file = tempfile.NamedTemporaryFile(
         prefix="resolver", suffix=".json", delete=False
     )
