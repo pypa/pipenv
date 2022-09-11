@@ -2039,6 +2039,7 @@ def do_install(
     selective_upgrade=False,
     site_packages=None,
     extra_pip_args=None,
+    categories=None,
 ):
     requirements_directory = vistir.path.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
@@ -2313,13 +2314,21 @@ def do_install(
                             click.style("$ pipenv lock", fg="yellow"),
                         )
                     )
+                if categories:
+                    pipfile_sections = ""
+                    for c in categories:
+                        pipfile_sections += f"[{c}]"
+                elif dev:
+                    pipfile_sections = "[dev-packages]"
+                else:
+                    pipfile_sections = "[packages]"
                 sp.write(
                     "{} {} {} {}{}".format(
                         click.style("Adding", bold=True),
                         click.style(f"{pkg_requirement.name}", fg="green", bold=True),
                         click.style("to Pipfile's", bold=True),
                         click.style(
-                            "[dev-packages]" if dev else "[packages]",
+                            pipfile_sections,
                             fg="yellow",
                             bold=True,
                         ),
@@ -2333,7 +2342,11 @@ def do_install(
                     )
                     pkg_requirement.index = index_name
                 try:
-                    project.add_package_to_pipfile(pkg_requirement, dev)
+                    if categories:
+                        for category in categories:
+                            project.add_package_to_pipfile(pkg_requirement, dev, category)
+                    else:
+                        project.add_package_to_pipfile(pkg_requirement, dev)
                 except ValueError:
                     import traceback
 

@@ -229,7 +229,7 @@ def cli(
 @skip_lock_option
 @install_options
 @pass_state
-def install(state, categories=None, **kwargs):
+def install(state, **kwargs):
     """Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile."""
     from ..core import do_install
 
@@ -254,6 +254,7 @@ def install(state, categories=None, **kwargs):
         editable_packages=state.installstate.editables,
         site_packages=state.site_packages,
         extra_pip_args=state.installstate.extra_pip_args,
+        categories=state.installstate.categories,
     )
 
 

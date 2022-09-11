@@ -870,10 +870,9 @@ class Project:
 
     def get_package_name_in_pipfile(self, package_name, category=None, dev=False):
         """Get the equivalent package name in pipfile"""
-        if category:
-            section = self.parsed_pipfile.get(category, {})
-        else:  # TODO this branch will go away
+        if not category:
             category = "dev-packages" if dev else "packages"
+        section = self.parsed_pipfile.get(category, {})
         package_name = pep423_name(package_name)
         for name in section.keys():
             if pep423_name(name) == package_name:
@@ -905,7 +904,7 @@ class Project:
                 del parsed[section][pkg_name]
         self.write_toml(parsed)
 
-    def add_package_to_pipfile(self, package, dev=False):
+    def add_package_to_pipfile(self, package, dev=False, category=None):
         from .vendor.requirementslib import Requirement
 
         # Read and append Pipfile.
@@ -914,11 +913,11 @@ class Project:
         if not isinstance(package, Requirement):
             package = Requirement.from_line(package.strip())
         req_name, converted = package.pipfile_entry
-        key = "dev-packages" if dev else "packages"
+        key = category if category else "dev-packages" if dev else "packages"
         # Set empty group if it doesn't exist yet.
         if key not in p:
             p[key] = {}
-        name = self.get_package_name_in_pipfile(req_name, dev)
+        name = self.get_package_name_in_pipfile(req_name, category=category, dev=dev)
         if name and is_star(converted):
             # Skip for wildcard version
             return
