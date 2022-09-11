@@ -112,13 +112,18 @@ def test_uninstall_all_dev(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
+        [[source]]
+        name = "pypi"
+        url = "{0}"
+        verify_ssl = true
+            
         [packages]
         tablib = "*"
 
         [dev-packages]
         jinja2 = "==2.11.1"
         six = "*"
-        """
+        """.format(os.environ.get('PIPENV_TEST_INDEX'))
             f.write(contents)
 
         c = p.pipenv("install --dev")

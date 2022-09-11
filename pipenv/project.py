@@ -901,7 +901,7 @@ class Project:
 
     def remove_package_from_pipfile(self, package_name, dev=False):
         # Read and append Pipfile.
-        name = self.get_package_name_in_pipfile(package_name, dev)
+        name = self.get_package_name_in_pipfile(package_name, dev=dev)
         key = "dev-packages" if dev else "packages"
         p = self.parsed_pipfile
         if name:

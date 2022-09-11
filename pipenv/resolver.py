@@ -336,7 +336,7 @@ class Entry:
 
     @property
     def pipfile_name(self):
-        return self.project.get_package_name_in_pipfile(self.name, self.category)
+        return self.project.get_package_name_in_pipfile(self.name, category=self.category)
 
     @property
     def is_in_pipfile(self):
