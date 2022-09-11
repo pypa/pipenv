@@ -39,6 +39,7 @@ HARDCODED_LICENSE_URLS = {
     "requirementslib": "https://github.com/techalchemy/requirementslib/raw/master/LICENSE",
     "distlib": "https://github.com/vsajip/distlib/raw/master/LICENSE.txt",
     "pythonfinder": "https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt",
+    "pipdeptree": "https://raw.githubusercontent.com/tox-dev/pipdeptree/main/LICENSE",
 }
 
 FILE_WHITE_LIST = (
@@ -485,6 +486,7 @@ def download_licenses(
     log(requirements)
     tmp_dir = vendor_dir / "__tmp__"
     # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
+
     cmd = "pip download --no-binary :all: --only-binary requests_download --no-deps"
     ctx.run("pip install flit")  # needed for the next step
     for req in requirements:
@@ -492,20 +494,34 @@ def download_licenses(
         try:
             ctx.run(exe_cmd)
         except invoke.exceptions.UnexpectedExit as e:
-            if "Disabling PEP 517 processing is invalid" not in e.result.stderr:
+            if "ModuleNotFoundErr" in e.result.stderr.strip():
+
+                target = parse.parse(
+                    "ModuleNotFoundError: No module named '{backend}'",
+                    e.result.stderr.strip().split("\n")[-1],
+                )
+                backend = target.named.get("backend")
+                if backend is not None:
+                    if "." in backend:
+                        backend, _, _ = backend.partition(".")
+                    ctx.run(f"pip install {backend}")
+                    ctx.run("pip install hatch-vcs")
+            elif "Disabling PEP 517 processing is invalid" not in e.result.stderr:
                 log(f"WARNING: Failed to download license for {req}")
                 continue
-            parse_target = (
-                "Disabling PEP 517 processing is invalid: project specifies a build "
-                "backend of {backend} in pyproject.toml"
-            )
-            target = parse.parse(parse_target, e.result.stderr.strip())
-            backend = target.named.get("backend")
-            if backend is not None:
-                if "." in backend:
-                    backend, _, _ = backend.partition(".")
-                ctx.run(f"pip install {backend}")
+            else:
+                parse_target = (
+                    "Disabling PEP 517 processing is invalid: project specifies a build "
+                    "backend of {backend} in pyproject.toml"
+                )
+                target = parse.parse(parse_target, e.result.stderr.strip())
+                backend = target.named.get("backend")
+                if backend is not None:
+                    if "." in backend:
+                        backend, _, _ = backend.partition(".")
+                    ctx.run(f"pip install {backend}")
             ctx.run(f"{cmd} --no-build-isolation -d {tmp_dir.as_posix()} {req}")
+
     for sdist in tmp_dir.iterdir():
         extract_license(vendor_dir, sdist)
     drop_dir(tmp_dir)

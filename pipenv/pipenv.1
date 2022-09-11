@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Sep 04, 2022" "2022.9.4" "pipenv"
+.TH "PIPENV" "1" "Sep 08, 2022" "2022.9.8" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -453,6 +453,43 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.9.8 (2022\-09\-08)
+.SS Pipenv 2022.9.8 (2022\-09\-08)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+It is now possible to supply additional arguments to \fBpip\fP install by supplying \fB\-\-extra\-pip\-args="<arg1> <arg2>"\fP
+See the updated documentation \fBSupplying additional arguments to pip\fP for more details.  \fI\%#5283\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Make editable detection better because not everyone specifies editable entry in the Pipfile for local editable installs.  \fI\%#4784\fP
+.IP \(bu 2
+Add error handling for when the installed package setup.py does not contain valid markers.  \fI\%#5329\fP
+.IP \(bu 2
+Load the dot env earlier so that \fBPIPENV_CUSTOM_VENV_NAME\fP is more useful across projects.  \fI\%#5334\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Bump version of shellingham to support nushell.  \fI\%#5336\fP
+.IP \(bu 2
+Bump plette to version v0.3.0  \fI\%#5337\fP
+.IP \(bu 2
+Bump version of pipdeptree  \fI\%#5343\fP
+.UNINDENT
+.SS Removals and Deprecations
+.INDENT 0.0
+.IP \(bu 2
+Add deprecation warning to the \-\-three flag. Pipenv now uses python3 by default.  \fI\%#5328\fP
+.UNINDENT
+.SS Relates to dev process changes
+.INDENT 0.0
+.IP \(bu 2
+Convert the test runner to use \fBpypiserver\fP as a standalone process for all tests that referencce internal \fBpypi\fP artifacts.
+General refactoring of some test cases to create more variety in packages selected\-\-preferring lighter weight packages\-\-in existing test cases.
+.UNINDENT
 .SS 2022.9.4 (2022\-09\-04)
 .SS Bug Fixes
 .INDENT 0.0
@@ -2486,9 +2523,8 @@ This document covers some of Pipenv\(aqs more basic features.
 .sp
 Pipfiles contain information for the dependencies of the project, and supersedes
 the requirements.txt file used in most Python projects. You should add a Pipfile in the
-Git repository letting users who clone the repository know the only thing required would be
+Git repository. The only thing required for users who clone the repository would be
 installing Pipenv in the machine and typing \fBpipenv install\fP\&. Pipenv is a reference
-.sp
 implementation for using Pipfile.
 .sp
 Here is a simple example of a \fBPipfile\fP and the resulting \fBPipfile.lock\fP\&.
@@ -2979,7 +3015,7 @@ You can install packages with pipenv from git and other version control systems 
 .sp
 The only optional section is the \fB@<branch_or_tag>\fP section.  When using git over SSH, you may use the shorthand vcs and scheme alias \fBgit+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#egg=<package_name>\fP\&. Note that this is translated to \fBgit+ssh://git@<location>\fP when parsed.
 .sp
-Note that it is \fBstrongly recommended\fP that you install any version\-controlled dependencies in editable mode, using \fBpipenv install \-e\fP, in order to ensure that dependency resolution can be performed with an up to date copy of the repository each time it is performed, and that it includes all known dependencies.
+Note that it is \fBstrongly recommended\fP that you install any version\-controlled dependencies in editable mode, using \fBpipenv install \-e\fP, in order to ensure that dependency resolution can be performed with an up\-to\-date copy of the repository each time it is performed, and that it includes all known dependencies.
 .sp
 Below is an example usage which installs the git repository located at \fBhttps://github.com/requests/requests.git\fP from tag \fBv2.20.1\fP as package name \fBrequests\fP:
 .INDENT 0.0
@@ -3027,7 +3063,7 @@ If you\(aqd like a \fBrequirements.txt\fP output of the lockfile, run \fB$ pipen
 .sp
 In general, you should not have Pipenv inside a linux container image, since
 it is a build tool. If you want to use it to build, and install the run time
-dependencies for your application, you can use a multi stage build for creating
+dependencies for your application, you can use a multistage build for creating
 a virtual environment with your dependencies. In this approach,
 Pipenv in installed in the base layer, it is then used to create the virtual
 environment. In a later stage, in a \fBruntime\fP layer the virtual environment
@@ -3035,7 +3071,7 @@ is copied from the base layer, the layer containing pipenv and other build
 dependencies is discarded.
 This results in a smaller image, which can still run your application.
 Here is an example \fBDockerfile\fP, which you can use as a starting point for
-doing a multi stage build for your application:
+doing a multistage build for your application:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -3091,8 +3127,8 @@ CMD ["./.venv/bin/python", "\-m", "run.py"]
 \fBNOTE:\fP
 .INDENT 0.0
 .INDENT 3.5
-Pipenv is not meant to run as root. However, in the multi stage build above
-it is done never the less. A calculated risk, since the intermediatiary image
+Pipenv is not meant to run as root. However, in the multistage build above
+it is done nevertheless. A calculated risk, since the intermediate image
 is discarded.
 The runtime image later shows that you should create a user and user it to
 run your application.
@@ -3102,7 +3138,7 @@ OS.\fP
 .UNINDENT
 .UNINDENT
 .sp
-When you build an image with this example (assuming requests is found in Pipefile), you
+When you build an image with this example (assuming requests is found in Pipfile), you
 will see that \fBrequests\fP is installed in the \fBruntime\fP image:
 .INDENT 0.0
 .INDENT 3.5
@@ -3312,7 +3348,7 @@ requests = {git = "git://${USERNAME}:${PASSWORD}@private.git.com/psf/requests.gi
 Keep in mind that environment variables are expanded in runtime, leaving the entries in \fBPipfile\fP or \fBPipfile.lock\fP untouched. This is to avoid the accidental leakage of credentials in the source code.
 .SS ☤ Injecting credentials through keychain support
 .sp
-Private regirstries on Google Cloud, Azure and AWS support dynamic credentials using
+Private registries on Google Cloud, Azure and AWS support dynamic credentials using
 the keychain implementation. Due to the way the keychain is structured, it might ask
 the user for input. Asking the user for input is disabled. This will disable the keychain
 support completely, unfortunately.
@@ -3349,6 +3385,25 @@ disable_pip_input = false
 .UNINDENT
 .sp
 Above example will install \fBflask\fP and a private package \fBprivate\-test\-package\fP from GCP.
+.SS ☤ Supplying additional arguments to pip
+.sp
+There may be cases where you wish to supply additional arguments to pip to be used during the install phase.
+For example, you may want to enable the pip feature for using
+\fI\%system certificate stores\fP
+.sp
+In this case you can supply these additional arguments to \fBpipenv sync\fP or \fBpipenv install\fP by passing additional
+argument \fB\-\-extra\-pip\-args="\-\-use\-feature=truststore"\fP\&.   It is possible to supply multiple arguments in the \fB\-\-extra\-pip\-args\fP\&.
+Example usage:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+pipenv sync \-\-extra\-pip\-args="\-\-use\-feature=truststore \-\-proxy=127.0.0.1"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
 .SS ☤ Specifying Basically Anything
 .sp
 If you\(aqd like to specify that a specific package only be installed on certain systems,
@@ -4907,7 +4962,7 @@ Make your change.
 Run the entire test suite again, confirming that all tests pass \fIincluding
 the ones you just added\fP\&.
 .IP 8. 3
-Send a GitHub Pull Request to the main repository\(aqs \fBmaster\fP branch.
+Send a GitHub Pull Request to the main repository\(aqs \fBmain\fP branch.
 GitHub Pull Requests are the expected method of code collaboration on this
 project.
 .UNINDENT
@@ -4942,6 +4997,26 @@ Tests are written in \fBpytest\fP style and can be run very simply:
 .nf
 .ft C
 pytest
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+However many tests depend on running a private pypi server on localhost:8080.
+This can be accomplished by using either the \fBrun\-tests.sh\fP or \fBrun\-tests.bat\(ga
+which will start the \(ga\(gapypiserver\fP process ahead of invoking pytest.
+.sp
+You may also manually perform this step and then invoke pytest as you would normally.  Example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+# Linux or MacOS
+pipenv run pypi\-server run \-v \-\-host=0.0.0.0 \-\-port=8080 \-\-hash\-algo=sha256 \-\-disable\-fallback ./tests/pypi/ ./tests/fixtures &
+
+# Windows
+cmd /c start pipenv run pypi\-server run \-v \-\-host=0.0.0.0 \-\-port=8080 \-\-hash\-algo=sha256 \-\-disable\-fallback ./tests/pypi/ ./tests/fixtures
 .ft P
 .fi
 .UNINDENT
