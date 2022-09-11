@@ -167,8 +167,11 @@ class Project:
         return self.parsed_pipfile.get(section, {})
 
     def get_package_categories(self):
+        """Ensure we get only package categories and that the default packages section is first."""
         categories = set(self.parsed_pipfile.keys())
-        return categories - NON_CATEGORY_SECTIONS
+        package_categories = categories - NON_CATEGORY_SECTIONS - {"packages"}
+        package_categories = ["packages"] + list(package_categories)
+        return package_categories
 
     @property
     def name(self) -> str:

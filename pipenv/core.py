@@ -1033,7 +1033,6 @@ def do_lock(
     pypi_mirror=None,
 ):
     """Executes the freeze functionality."""
-
     cached_lockfile = {}
     if not pre:
         pre = project.settings.get("allow_prereleases")
@@ -1053,22 +1052,21 @@ def do_lock(
             if not hasattr(v, "keys"):
                 del lockfile[section][k]
 
-    # Resolve package to generate constraints before resolving dev-packages
-    for is_dev in [False, True]:
-        pipfile_section = "dev-packages" if is_dev else "packages"
+    # Resolve package to generate constraints before resolving other categories
+    pipfile_categories = project.get_package_categories()
+    for section in pipfile_categories:
+        is_dev = section != "packages"
         if project.pipfile_exists:
-            packages = project.parsed_pipfile.get(pipfile_section, {})
+            packages = project.parsed_pipfile.get(section, {})
         else:
-            packages = getattr(project, pipfile_section.replace("-", "_"))
+            packages = getattr(project, section.replace("-", "_"))
 
         if write:
             # Alert the user of progress.
             click.echo(
                 "{} {} {}".format(
                     click.style("Locking"),
-                    click.style(
-                        "[{}]".format(pipfile_section.replace("_", "-")), fg="yellow"
-                    ),
+                    click.style("[{}]".format(section.replace("_", "-")), fg="yellow"),
                     click.style(fix_utf8("dependencies...")),
                 ),
                 err=True,

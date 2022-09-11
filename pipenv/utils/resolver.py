@@ -1,13 +1,17 @@
 import contextlib
 import hashlib
+import json
 import os
 import subprocess
 import sys
+import tempfile
 import warnings
 from functools import lru_cache
+from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from pipenv import environments
+from pipenv._compat import decode_for_output
 from pipenv.exceptions import RequirementError, ResolutionFailure
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.commands.install import InstallCommand
@@ -971,13 +975,7 @@ def venv_resolve_deps(
     :return: Nothing
     :rtype: None
     """
-
-    import json
-    import tempfile
-    from pathlib import Path
-
     from pipenv import resolver
-    from pipenv._compat import decode_for_output
 
     results = []
     pipfile_section = "dev-packages" if dev else "packages"
