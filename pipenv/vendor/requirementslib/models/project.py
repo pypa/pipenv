@@ -135,7 +135,7 @@ class Project(object):
         )
 
     def add_line_to_pipfile(self, line, develop):
-        from pipenv.vendor.requirementslib import Requirement
+        from requirementslib import Requirement
 
         requirement = Requirement.from_line(line)
         section = self._get_pipfile_section(develop=develop)
