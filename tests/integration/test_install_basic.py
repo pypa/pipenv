@@ -300,7 +300,7 @@ name = 'mockpi'
             )
 
         # Ensure simple install does not extrapolate.
-        c = p.pipenv("install")
+        c = p.pipenv("install -v")
         assert c.returncode == 0
         assert p.pipfile["source"][0]["url"] == "${PYPI_URL}/simple"
         assert p.lockfile["_meta"]["sources"][0]["url"] == "${PYPI_URL}/simple"

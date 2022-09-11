@@ -77,10 +77,10 @@ class PipfileParser(object):
 
         if not d:
             return d
-        if isinstance(d, six.string_types):
+        if isinstance(d, str):
             return os.path.expandvars(d)
         for k, v in d.items():
-            if isinstance(v, six.string_types):
+            if isinstance(v, str):
                 d[k] = os.path.expandvars(v)
             elif isinstance(v, dict):
                 d[k] = self.inject_environment_variables(v)

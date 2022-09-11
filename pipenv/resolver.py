@@ -807,9 +807,9 @@ def resolve_packages(
 
     project = Project()
     sources = (
-        replace_pypi_sources(project.pipfile_sources, pypi_mirror_source)
+        replace_pypi_sources(project.pipfile_sources(), pypi_mirror_source)
         if pypi_mirror_source
-        else project.pipfile_sources
+        else project.pipfile_sources()
     )
     keep_outdated = os.environ.get("PIPENV_KEEP_OUTDATED", False)
     results, resolver = resolve(
