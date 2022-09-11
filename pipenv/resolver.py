@@ -668,7 +668,9 @@ def clean_results(results, resolver, project, category):
     lockfile = project.lockfile_content
     lockfile_section = get_lockfile_section_using_pipfile_category(category)
     reverse_deps = project.environment.reverse_dependencies()
-    new_results = [r for r in results if r["name"] not in lockfile[lockfile_section]]
+    new_results = [
+        r for r in results if r["name"] not in lockfile.get(lockfile_section, {})
+    ]
     for result in results:
         name = result.get("name")
         entry_dict = result.copy()
