@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import base64
@@ -66,6 +65,12 @@ if is_type_checking():
 
 
 DEFAULT_NEWLINES = "\n"
+NON_CATEGORY_SECTIONS = {
+    "pipenv",
+    "requires",
+    "scripts",
+    "source",
+}
 
 
 class _LockFileEncoder(json.JSONEncoder):
@@ -157,9 +162,13 @@ class Project:
 
         return os.sep.join([self._original_dir, p])
 
-    def _build_package_list(self, package_section):
-        """Returns the list of packages from the Project's Pipfile."""
-        return self.parsed_pipfile.get(package_section, {})
+    def get_pipfile_section(self, section):
+        """Returns the details from the section of the Project's Pipfile."""
+        return self.parsed_pipfile.get(section, {})
+
+    def get_package_categories(self):
+        categories = set(self.parsed_pipfile.keys())
+        return categories - NON_CATEGORY_SECTIONS
 
     @property
     def name(self) -> str:
@@ -600,24 +609,6 @@ class Project:
         return packages or {}
 
     @property
-    def editable_packages(self):
-        return self.get_editable_packages(dev=False)
-
-    @property
-    def editable_dev_packages(self):
-        return self.get_editable_packages(dev=True)
-
-    @property
-    def vcs_packages(self):
-        """Returns a list of VCS packages."""
-        return self._get_vcs_packages(dev=False)
-
-    @property
-    def vcs_dev_packages(self):
-        """Returns a list of VCS packages."""
-        return self._get_vcs_packages(dev=True)
-
-    @property
     def all_packages(self):
         """Returns a list of all packages."""
         p = dict(self.parsed_pipfile.get("dev-packages", {}))
@@ -627,12 +618,12 @@ class Project:
     @property
     def packages(self):
         """Returns a list of packages."""
-        return self._build_package_list("packages")
+        return self.get_pipfile_section("packages")
 
     @property
     def dev_packages(self):
         """Returns a list of dev-packages."""
-        return self._build_package_list("dev-packages")
+        return self.get_pipfile_section("dev-packages")
 
     @property
     def pipfile_is_empty(self):
