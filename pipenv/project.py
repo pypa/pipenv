@@ -591,11 +591,10 @@ class Project:
     def lockfile_content(self):
         return self.load_lockfile()
 
-    def get_editable_packages(self, dev=False):
-        section = "dev-packages" if dev else "packages"
+    def get_editable_packages(self, category):
         packages = {
             k: v
-            for k, v in self.parsed_pipfile.get(section, {}).items()
+            for k, v in self.parsed_pipfile.get(category, {}).items()
             if is_editable(v)
         }
         return packages

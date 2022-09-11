@@ -75,6 +75,12 @@ def get_parser():
     parser.add_argument("--clear", action="store_true", default=False)
     parser.add_argument("--verbose", "-v", action="count", default=False)
     parser.add_argument("--dev", action="store_true", default=False)
+    parser.add_argument(
+        "--category",
+        metavar="category",
+        action="store",
+        default=None,
+    )
     parser.add_argument("--debug", action="store_true", default=False)
     parser.add_argument("--system", action="store_true", default=False)
     parser.add_argument("--parse-only", action="store_true", default=False)
@@ -744,7 +750,9 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
         print(json.dumps([]))
 
 
-def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages, dev):
+def resolve_packages(
+    pre, clear, verbose, system, write, requirements_dir, packages, dev, category
+):
     from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
     from pipenv.utils.resolver import resolve_deps
 
@@ -755,14 +763,14 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
     )
 
     def resolve(
-        packages, pre, project, sources, clear, system, dev, requirements_dir=None
+        packages, pre, project, sources, clear, system, category, requirements_dir=None
     ):
         return resolve_deps(
             packages,
             which,
             project=project,
             pre=pre,
-            dev=dev,
+            category=category,
             sources=sources,
             clear=clear,
             allow_global=system,
@@ -781,7 +789,7 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
     results, resolver = resolve(
         packages,
         pre=pre,
-        dev=dev,
+        category=category,
         project=project,
         sources=sources,
         clear=clear,
@@ -816,6 +824,7 @@ def _main(
     packages,
     parse_only=False,
     dev=False,
+    category=None,
 ):
     os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = ".".join(
         [str(s) for s in sys.version_info[:3]]
@@ -831,7 +840,7 @@ def _main(
         )
     else:
         resolve_packages(
-            pre, clear, verbose, system, write, requirements_dir, packages, dev
+            pre, clear, verbose, system, write, requirements_dir, packages, dev, category
         )
 
 
@@ -860,6 +869,7 @@ def main(argv=None):
         parsed.packages,
         parse_only=parsed.parse_only,
         dev=parsed.dev,
+        category=parsed.category,
     )
 
 
