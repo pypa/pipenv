@@ -162,7 +162,9 @@ class Entry:
         self.pipfile = tomlkit_value_to_python(project.parsed_pipfile.get(category, {}))
         self.lockfile = project.lockfile_content.get(self.lockfile_section, {})
         self.pipfile_dict = self.pipfile.get(self.pipfile_name, {})
-        if self.dev and self.name in project.lockfile_content.get("default", {}):
+        if self.category != "packages" and self.name in project.lockfile_content.get(
+            "default", {}
+        ):
             self.lockfile_dict = project.lockfile_content["default"][name]
         else:
             self.lockfile_dict = self.lockfile.get(name, entry_dict)
@@ -351,7 +353,7 @@ class Entry:
 
     def create_parent(self, name, specifier="*"):
         parent = self.create(
-            name, specifier, self.project, self.resolver, self.reverse_deps, self.dev
+            name, specifier, self.project, self.resolver, self.reverse_deps, self.category
         )
         parent._deptree = self.deptree
         return parent
@@ -363,8 +365,10 @@ class Entry:
         return self._deptree
 
     @classmethod
-    def create(cls, name, entry_dict, project, resolver, reverse_deps=None, dev=False):
-        return cls(name, entry_dict, project, resolver, reverse_deps, dev)
+    def create(
+        cls, name, entry_dict, project, resolver, reverse_deps=None, category=None
+    ):
+        return cls(name, entry_dict, project, resolver, reverse_deps, category)
 
     @staticmethod
     def clean_specifier(specifier):
