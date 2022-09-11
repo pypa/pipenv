@@ -1055,7 +1055,6 @@ def do_lock(
     # Resolve package to generate constraints before resolving other categories
     pipfile_categories = project.get_package_categories()
     for category in pipfile_categories:
-        is_dev = category != "packages"
         if project.pipfile_exists:
             packages = project.parsed_pipfile.get(category, {})
         else:
@@ -1080,7 +1079,6 @@ def do_lock(
             which=project._which,
             project=project,
             category=category,
-            dev=is_dev,
             clear=clear,
             pre=pre,
             allow_global=system,

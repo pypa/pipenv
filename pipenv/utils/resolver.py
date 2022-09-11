@@ -47,6 +47,7 @@ from .dependencies import (
     clean_pkg_version,
     convert_deps_to_pip,
     get_constraints_from_deps,
+    get_lockfile_section_using_pipfile_category,
     get_vcs_deps,
     is_pinned_requirement,
     pep423_name,
@@ -947,7 +948,6 @@ def venv_resolve_deps(
     clear=False,
     allow_global=False,
     pypi_mirror=None,
-    dev=False,
     pipfile=None,
     lockfile=None,
     keep_outdated=False,
@@ -978,12 +978,7 @@ def venv_resolve_deps(
     """
     from pipenv import resolver
 
-    if category == "dev-packages":
-        lockfile_section = "develop"
-    elif category == "packages":
-        lockfile_section = "default"
-    else:
-        lockfile_section = category
+    lockfile_section = get_lockfile_section_using_pipfile_category(category)
 
     if not deps:
         if not project.pipfile_exists:
@@ -1007,8 +1002,6 @@ def venv_resolve_deps(
         cmd.append("--clear")
     if allow_global:
         cmd.append("--system")
-    if dev:
-        cmd.append("--dev")
     if category:
         cmd.append("--category")
         cmd.append(category)

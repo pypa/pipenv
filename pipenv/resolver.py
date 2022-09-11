@@ -3,6 +3,8 @@ import logging
 import os
 import sys
 
+from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
+
 os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 
@@ -74,7 +76,6 @@ def get_parser():
     parser.add_argument("--pre", action="store_true", default=False)
     parser.add_argument("--clear", action="store_true", default=False)
     parser.add_argument("--verbose", "-v", action="count", default=False)
-    parser.add_argument("--dev", action="store_true", default=False)
     parser.add_argument(
         "--category",
         metavar="category",
@@ -143,7 +144,9 @@ def handle_parsed_args(parsed):
 class Entry:
     """A resolved entry from a resolver run"""
 
-    def __init__(self, name, entry_dict, project, resolver, reverse_deps=None, dev=False):
+    def __init__(
+        self, name, entry_dict, project, resolver, reverse_deps=None, category=None
+    ):
         super().__init__()
         from pipenv.vendor.requirementslib.models.utils import tomlkit_value_to_python
 
@@ -153,13 +156,10 @@ class Entry:
         else:
             self.entry_dict = entry_dict
         self.project = project
-        section = "develop" if dev else "default"
-        pipfile_section = "dev-packages" if dev else "packages"
-        self.dev = dev
-        self.pipfile = tomlkit_value_to_python(
-            project.parsed_pipfile.get(pipfile_section, {})
-        )
-        self.lockfile = project.lockfile_content.get(section, {})
+        self.category = category
+        self.lockfile_section = get_lockfile_section_using_pipfile_category(category)
+        self.pipfile = tomlkit_value_to_python(project.parsed_pipfile.get(category, {}))
+        self.lockfile = project.lockfile_content.get(self.lockfile_section, {})
         self.pipfile_dict = self.pipfile.get(self.pipfile_name, {})
         if self.dev and self.name in project.lockfile_content.get("default", {}):
             self.lockfile_dict = project.lockfile_content["default"][name]
@@ -333,7 +333,7 @@ class Entry:
 
     @property
     def pipfile_name(self):
-        return self.project.get_package_name_in_pipfile(self.name, dev=self.dev)
+        return self.project.get_package_name_in_pipfile(self.name, self.category)
 
     @property
     def is_in_pipfile(self):
@@ -341,7 +341,8 @@ class Entry:
 
     @property
     def pipfile_packages(self):
-        return self.project.pipfile_package_names["dev" if self.dev else "default"]
+        lockfile_section = get_lockfile_section_using_pipfile_category(self.category)
+        return self.project.pipfile_package_names[lockfile_section]
 
     def create_parent(self, name, specifier="*"):
         parent = self.create(
@@ -647,48 +648,60 @@ class Entry:
         return super().__getattribute__(key)
 
 
-def clean_results(results, resolver, project, dev=False):
-    from pipenv.utils.dependencies import translate_markers
+def clean_results(results, resolver, project, category):
+    from pipenv.utils.dependencies import (
+        get_lockfile_section_using_pipfile_category,
+        translate_markers,
+    )
 
     if not project.lockfile_exists:
         return results
     lockfile = project.lockfile_content
-    section = "develop" if dev else "default"
+    lockfile_section = get_lockfile_section_using_pipfile_category(category)
     reverse_deps = project.environment.reverse_dependencies()
-    new_results = [r for r in results if r["name"] not in lockfile[section]]
+    new_results = [r for r in results if r["name"] not in lockfile[lockfile_section]]
     for result in results:
         name = result.get("name")
         entry_dict = result.copy()
         entry = Entry(
-            name, entry_dict, project, resolver, reverse_deps=reverse_deps, dev=dev
+            name,
+            entry_dict,
+            project,
+            resolver,
+            reverse_deps=reverse_deps,
+            category=category,
         )
         entry_dict = translate_markers(entry.get_cleaned_dict(keep_outdated=False))
         new_results.append(entry_dict)
     return new_results
 
 
-def clean_outdated(results, resolver, project, dev=False):
+def clean_outdated(results, resolver, project, category):
     if not project.lockfile_exists:
         return results
     lockfile = project.lockfile_content
-    section = "develop" if dev else "default"
+    lockfile_section = get_lockfile_section_using_pipfile_category(category)
     reverse_deps = project.environment.reverse_dependencies()
-    new_results = [r for r in results if r["name"] not in lockfile[section]]
+    new_results = [r for r in results if r["name"] not in lockfile[lockfile_section]]
     for result in results:
         name = result.get("name")
         entry_dict = result.copy()
         entry = Entry(
-            name, entry_dict, project, resolver, reverse_deps=reverse_deps, dev=dev
+            name,
+            entry_dict,
+            project,
+            resolver,
+            reverse_deps=reverse_deps,
+            category=category,
         )
         # The old entry was editable but this one isnt; prefer the old one
         # TODO: Should this be the case for all locking?
         if entry.was_editable and not entry.is_editable:
             continue
-        lockfile_entry = lockfile[section].get(name, None)
+        lockfile_entry = lockfile[lockfile_section].get(name, None)
         if not lockfile_entry:
-            alternate_section = "develop" if not dev else "default"
-            if name in lockfile[alternate_section]:
-                lockfile_entry = lockfile[alternate_section][name]
+            if name in lockfile[lockfile_section]:
+                lockfile_entry = lockfile[lockfile_section][name]
         if lockfile_entry and not entry.is_updated:
             old_markers = next(
                 iter(
@@ -751,7 +764,7 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
 
 
 def resolve_packages(
-    pre, clear, verbose, system, write, requirements_dir, packages, dev, category
+    pre, clear, verbose, system, write, requirements_dir, packages, category
 ):
     from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
     from pipenv.utils.resolver import resolve_deps
@@ -797,9 +810,9 @@ def resolve_packages(
         requirements_dir=requirements_dir,
     )
     if keep_outdated:
-        results = clean_outdated(results, resolver, project, dev)
+        results = clean_outdated(results, resolver, project, category)
     else:
-        results = clean_results(results, resolver, project, dev)
+        results = clean_results(results, resolver, project, category)
     if write:
         with open(write, "w") as fh:
             if not results:
@@ -823,7 +836,6 @@ def _main(
     requirements_dir,
     packages,
     parse_only=False,
-    dev=False,
     category=None,
 ):
     os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = ".".join(
@@ -840,7 +852,7 @@ def _main(
         )
     else:
         resolve_packages(
-            pre, clear, verbose, system, write, requirements_dir, packages, dev, category
+            pre, clear, verbose, system, write, requirements_dir, packages, category
         )
 
 
@@ -868,7 +880,6 @@ def main(argv=None):
         parsed.requirements_dir,
         parsed.packages,
         parse_only=parsed.parse_only,
-        dev=parsed.dev,
         category=parsed.category,
     )
 

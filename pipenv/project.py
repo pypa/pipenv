@@ -25,6 +25,7 @@ from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
+    get_lockfile_section_using_pipfile_category,
     is_editable,
     is_star,
     pep423_name,
@@ -282,13 +283,16 @@ class Project:
 
     @property
     def pipfile_package_names(self) -> Dict[str, Set[str]]:
-        dev_keys = get_canonical_names(self.dev_packages.keys())
-        default_keys = get_canonical_names(self.packages.keys())
-        return {
-            "dev": dev_keys,
-            "default": default_keys,
-            "combined": dev_keys | default_keys,
-        }
+        result = {}
+        combined = set()
+        for category in self.get_package_categories():
+            lockfile_section = get_lockfile_section_using_pipfile_category(category)
+            packages = self.get_pipfile_section(category)
+            keys = get_canonical_names(packages.keys())
+            combined |= keys
+            result[lockfile_section] = keys
+        result["combined"] = combined
+        return result
 
     def get_environment(self, allow_global: bool = False) -> Environment:
         is_venv = is_in_virtualenv()
@@ -864,10 +868,12 @@ class Project:
             raise SourceNotFound(target)
         return found
 
-    def get_package_name_in_pipfile(self, package_name, dev=False):
+    def get_package_name_in_pipfile(self, package_name, category=None, dev=False):
         """Get the equivalent package name in pipfile"""
-        key = "dev-packages" if dev else "packages"
-        section = self.parsed_pipfile.get(key, {})
+        if category:
+            section = self.parsed_pipfile.get(category, {})
+        else:  # TODO this branch will go away
+            category = "dev-packages" if dev else "packages"
         package_name = pep423_name(package_name)
         for name in section.keys():
             if pep423_name(name) == package_name:

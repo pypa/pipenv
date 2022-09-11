@@ -30,6 +30,16 @@ def clean_pkg_version(version):
     return pep440_version(str(version).replace("==", ""))
 
 
+def get_lockfile_section_using_pipfile_category(category):
+    if category == "dev-packages":
+        lockfile_section = "develop"
+    elif category == "packages":
+        lockfile_section = "default"
+    else:
+        lockfile_section = category
+    return lockfile_section
+
+
 class HackedPythonVersion:
     """A Beautiful hack, which allows us to tell pip which version of Python we're using."""
 
