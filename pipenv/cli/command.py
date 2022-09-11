@@ -240,7 +240,6 @@ def install(state, **kwargs):
         python=state.python,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
-        lock=not state.installstate.skip_lock,
         ignore_pipfile=state.installstate.ignore_pipfile,
         skip_lock=state.installstate.skip_lock,
         requirementstxt=state.installstate.requirementstxt,
@@ -721,7 +720,10 @@ def verify(state):
     if not state.project.pipfile_exists:
         echo("No Pipfile present at project home.", err=True)
         sys.exit(1)
-    if state.project.get_lockfile_hash() != state.project.calculate_pipfile_hash():
+    if (
+        state.project.get_lockfile_hash()
+        != state.project.calculate_pipfile_hash()["sha256"]
+    ):
         echo(
             "Pipfile.lock is out-of-date. Run {} to update.".format(
                 style("$ pipenv lock", fg="yellow", bold=True)

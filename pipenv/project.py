@@ -12,7 +12,6 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-import pipfile
 import pipfile.api
 import toml
 import tomlkit
@@ -21,6 +20,7 @@ import vistir
 from pipenv.cmdparse import Script
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
+from pipenv.patched import pipfile
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
@@ -42,6 +42,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
+from pipenv.vendor import plette
 from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 
 try:
@@ -567,14 +568,36 @@ class Project:
     @property
     def _lockfile(self):
         """Pipfile.lock divided by PyPI and external dependencies."""
-        pfile = pipfile.load(self.pipfile_location, inject_env=False)
-        lockfile = json.loads(pfile.lock())
-        for section in ("default", "develop"):
-            lock_section = lockfile.get(section, {})
-            for key in list(lock_section.keys()):
-                norm_key = pep423_name(key)
-                lockfile[section][norm_key] = lock_section.pop(key)
-        return lockfile
+        from pipenv.vendor.tomlkit.exceptions import EmptyKeyError
+
+        with open(self.lockfile_location, mode="r") as f:
+            try:
+                lockfile = plette.Pipfile.load(f)
+            except EmptyKeyError:
+                lockfile = plette.Pipfile({})
+            lockfile = lockfile._data
+            lockfile["_meta"] = lockfile.get("_meta", {})
+            lockfile["_meta"]["hash"] = {
+                "sha256": self.calculate_pipfile_hash()["sha256"]
+            }
+            lockfile["_meta"]["pipfile-spec"] = 6
+            lockfile["_meta"]["requires"] = lockfile["_meta"].get("requires", {})
+            sources = self.pipfile_sources
+            if not isinstance(sources, list):
+                sources = [sources]
+            lockfile["_meta"]["sources"] = [self.populate_source(s) for s in sources]
+            for category in self.get_package_categories():
+                if category == "packages":
+                    category = "default"
+                elif category == "dev-packages":
+                    category = "develop"
+                lock_section = lockfile.get(category)
+                if lock_section is None:
+                    lockfile[category] = lock_section = {}
+                for key in list(lock_section.keys()):
+                    norm_key = pep423_name(key)
+                    lockfile[category][norm_key] = lock_section.pop(key)
+            return lockfile
 
     @property
     def _pipfile(self):
@@ -690,7 +713,6 @@ class Project:
             Lockfile as Req_Lockfile,
         )
 
-        lockfile = None
         if from_pipfile and self.pipfile_exists:
             lockfile_dict = {
                 "default": self._lockfile["default"].copy(),
@@ -741,7 +763,7 @@ class Project:
         if not isinstance(sources, list):
             sources = [sources]
         return {
-            "hash": {"sha256": self.calculate_pipfile_hash()},
+            "hash": self.calculate_pipfile_hash()["sha256"],
             "pipfile-spec": PIPFILE_SPEC_CURRENT,
             "sources": [self.populate_source(s) for s in sources],
             "requires": self.parsed_pipfile.get("requires", {}),
@@ -1001,8 +1023,9 @@ class Project:
 
     def calculate_pipfile_hash(self):
         # Update the lockfile if it is out-of-date.
-        p = pipfile.load(self.pipfile_location, inject_env=False)
-        return p.hash
+        with open(self.pipfile_location) as f:
+            pfile = plette.Pipfile.load(f)
+            return pfile.get_hash()
 
     def ensure_proper_casing(self):
         """Ensures proper casing of Pipfile packages"""

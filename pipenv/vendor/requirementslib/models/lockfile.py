@@ -272,7 +272,11 @@ class Lockfile(object):
         if categories:
             deps = {}
             for category in categories:
-                category_deps = self[category]
+                try:
+                    category_deps = self[category]
+                except KeyError:
+                    category_deps = {}
+                    self._lockfile[category] = category_deps
                 deps = merge_items([deps, category_deps])
         else:
             deps = self.get_deps(dev=dev, only=only)

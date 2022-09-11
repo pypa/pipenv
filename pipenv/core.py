@@ -1034,6 +1034,7 @@ def do_lock(
     keep_outdated=False,
     write=True,
     pypi_mirror=None,
+    categories=None,
 ):
     """Executes the freeze functionality."""
     cached_lockfile = {}
@@ -1050,8 +1051,9 @@ def do_lock(
     # Create the lockfile.
     lockfile = project._lockfile
     # Cleanup lockfile.
-    for category in ("default", "develop"):
-        for k, v in lockfile[category].copy().items():
+    categories = project.get_package_categories()
+    for category in categories:
+        for k, v in lockfile.get(category, {}).copy().items():
             if not hasattr(v, "keys"):
                 del lockfile[category][k]
 
@@ -1224,7 +1226,7 @@ def do_init(
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
         old_hash = project.get_lockfile_hash()
-        new_hash = project.calculate_pipfile_hash()
+        new_hash = project.calculate_pipfile_hash()["sha256"]
         if new_hash != old_hash:
             if deploy:
                 click.secho(
@@ -1263,6 +1265,7 @@ def do_init(
                     keep_outdated=keep_outdated,
                     write=True,
                     pypi_mirror=pypi_mirror,
+                    categories=categories,
                 )
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
@@ -1287,6 +1290,7 @@ def do_init(
                 keep_outdated=keep_outdated,
                 write=True,
                 pypi_mirror=pypi_mirror,
+                categories=categories,
             )
     do_install_dependencies(
         project,
@@ -1897,7 +1901,7 @@ def ensure_lockfile(project, keep_outdated=False, pypi_mirror=None):
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if project.lockfile_exists:
         old_hash = project.get_lockfile_hash()
-        new_hash = project.calculate_pipfile_hash()
+        new_hash = project.calculate_pipfile_hash()["sha256"]
         if new_hash != old_hash:
             click.echo(
                 click.style(
@@ -2028,7 +2032,6 @@ def do_install(
     python=False,
     pypi_mirror=None,
     system=False,
-    lock=True,
     ignore_pipfile=False,
     skip_lock=False,
     requirementstxt=False,
@@ -2196,6 +2199,7 @@ def do_install(
             pypi_mirror=pypi_mirror,
             keep_outdated=keep_outdated,
             extra_pip_args=extra_pip_args,
+            categories=categories,
         )
 
     # This is for if the user passed in dependencies, then we want to make sure we
@@ -2217,6 +2221,7 @@ def do_install(
                 pypi_mirror=pypi_mirror,
                 skip_lock=skip_lock,
                 extra_pip_args=extra_pip_args,
+                categories=categories,
             )
         for pkg_line in pkg_list:
             click.secho(
@@ -2379,6 +2384,7 @@ def do_install(
             pypi_mirror=pypi_mirror,
             skip_lock=skip_lock,
             extra_pip_args=extra_pip_args,
+            categories=categories,
         )
     sys.exit(0)
 
