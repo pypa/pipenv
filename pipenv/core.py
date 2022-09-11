@@ -1079,6 +1079,7 @@ def do_lock(
             packages,
             which=project._which,
             project=project,
+            category=category,
             dev=is_dev,
             clear=clear,
             pre=pre,

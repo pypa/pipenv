@@ -942,6 +942,7 @@ def venv_resolve_deps(
     deps,
     which,
     project,
+    category,
     pre=False,
     clear=False,
     allow_global=False,
@@ -977,18 +978,22 @@ def venv_resolve_deps(
     """
     from pipenv import resolver
 
-    results = []
-    pipfile_section = "dev-packages" if dev else "packages"
-    lockfile_section = "develop" if dev else "default"
+    if category == "dev-packages":
+        lockfile_section = "develop"
+    elif category == "packages":
+        lockfile_section = "default"
+    else:
+        lockfile_section = category
+
     if not deps:
         if not project.pipfile_exists:
             return None
-        deps = project.parsed_pipfile.get(pipfile_section, {})
+        deps = project.parsed_pipfile.get(category, {})
     if not deps:
         return None
 
     if not pipfile:
-        pipfile = getattr(project, pipfile_section, {})
+        pipfile = getattr(project, category, {})
     if not lockfile:
         lockfile = project._lockfile
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
