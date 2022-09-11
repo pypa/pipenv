@@ -47,7 +47,7 @@ name = "testindex"
 
 [[source]]
 url = "https://pypi.org/simple"
-verify_ssl = "true"
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -131,12 +131,12 @@ name = "testindex"
 
 [[source]]
 url = "https://pypi.org/simple"
-verify_ssl = "true"
+verify_ssl = true
 name = "pypi"
 
 [[source]]
 url = "https://pypi.python.org/simple"
-verify_ssl = "true"
+verify_ssl = true
 name = "legacy"
 
 [packages]

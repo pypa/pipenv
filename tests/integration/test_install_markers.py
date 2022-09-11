@@ -11,17 +11,24 @@ from pipenv.utils.shell import temp_environ
 
 @flaky
 @pytest.mark.markers
-def test_package_environment_markers(pipenv_instance_pypi):
+def test_package_environment_markers(pipenv_instance_private_pypi):
 
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
+[[source]]
+url = "{0}"
+verify_ssl = false
+name = "testindex"
+
 [packages]
-fake_package = {version = "*", markers="os_name=='splashwear'"}
-            """.strip()
+fake_package = {1}
+
+[dev-packages]
+            """.format(os.environ['PIPENV_TEST_INDEX'], "{version = \"*\", markers=\"os_name=='splashwear'\", index=\"testindex\"}").strip()
             f.write(contents)
 
-        c = p.pipenv('install')
+        c = p.pipenv('install -v')
         assert c.returncode == 0
         assert 'markers' in p.lockfile['default']['fake-package'], p.lockfile["default"]
 

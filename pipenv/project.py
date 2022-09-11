@@ -12,16 +12,12 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-import pipfile.api
-import toml
-import tomlkit
-import vistir
-
 from pipenv.cmdparse import Script
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
 from pipenv.patched import pipfile
 from pipenv.patched.pip._internal.commands.install import InstallCommand
+from pipenv.patched.pipfile import api as pipfile_api
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
@@ -42,7 +38,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
-from pipenv.vendor import plette
+from pipenv.vendor import plette, toml, tomlkit, vistir
 from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 
 try:
@@ -148,7 +144,7 @@ class Project:
                 "verify_ssl": True,
                 "name": "pypi",
             }
-        pipfile.api.DEFAULT_SOURCE = self.default_source
+        pipfile_api.DEFAULT_SOURCE = self.default_source
 
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
@@ -171,8 +167,10 @@ class Project:
     def get_package_categories(self):
         """Ensure we get only package categories and that the default packages section is first."""
         categories = set(self.parsed_pipfile.keys())
-        package_categories = categories - NON_CATEGORY_SECTIONS - {"packages"}
-        package_categories = ["packages"] + list(package_categories)
+        package_categories = (
+            categories - NON_CATEGORY_SECTIONS - {"packages", "dev-packages"}
+        )
+        package_categories = ["packages", "dev-packages"] + list(package_categories)
         return package_categories
 
     @property
@@ -570,34 +568,35 @@ class Project:
         """Pipfile.lock divided by PyPI and external dependencies."""
         from pipenv.vendor.tomlkit.exceptions import EmptyKeyError
 
-        with open(self.lockfile_location, mode="r") as f:
-            try:
-                lockfile = plette.Pipfile.load(f)
-            except EmptyKeyError:
-                lockfile = plette.Pipfile({})
-            lockfile = lockfile._data
-            lockfile["_meta"] = lockfile.get("_meta", {})
-            lockfile["_meta"]["hash"] = {
-                "sha256": self.calculate_pipfile_hash()["sha256"]
-            }
-            lockfile["_meta"]["pipfile-spec"] = 6
-            lockfile["_meta"]["requires"] = lockfile["_meta"].get("requires", {})
-            sources = self.pipfile_sources
-            if not isinstance(sources, list):
-                sources = [sources]
-            lockfile["_meta"]["sources"] = [self.populate_source(s) for s in sources]
-            for category in self.get_package_categories():
-                if category == "packages":
-                    category = "default"
-                elif category == "dev-packages":
-                    category = "develop"
-                lock_section = lockfile.get(category)
-                if lock_section is None:
-                    lockfile[category] = lock_section = {}
-                for key in list(lock_section.keys()):
-                    norm_key = pep423_name(key)
-                    lockfile[category][norm_key] = lock_section.pop(key)
-            return lockfile
+        lockfile = plette.Pipfile({})
+        if self.lockfile_exists:
+            with open(self.lockfile_location, mode="r") as f:
+                try:
+                    lockfile = plette.Pipfile.load(f)
+                except EmptyKeyError:
+                    pass
+
+        lockfile = lockfile._data
+        lockfile["_meta"] = lockfile.get("_meta", {})
+        lockfile["_meta"]["hash"] = {"sha256": self.calculate_pipfile_hash()["sha256"]}
+        lockfile["_meta"]["pipfile-spec"] = 6
+        lockfile["_meta"]["requires"] = lockfile["_meta"].get("requires", {})
+        sources = self.pipfile_sources
+        if not isinstance(sources, list):
+            sources = [sources]
+        lockfile["_meta"]["sources"] = [self.populate_source(s) for s in sources]
+        for category in self.get_package_categories():
+            if category == "packages":
+                category = "default"
+            elif category == "dev-packages":
+                category = "develop"
+            lock_section = lockfile.get(category)
+            if lock_section is None:
+                lockfile[category] = lock_section = {}
+            for key in list(lock_section.keys()):
+                norm_key = pep423_name(key)
+                lockfile[category][norm_key] = lock_section.pop(key)
+        return lockfile
 
     @property
     def _pipfile(self):
@@ -699,7 +698,7 @@ class Project:
     @classmethod
     def populate_source(cls, source):
         """Derive missing values of source from the existing fields."""
-        # Only URL pararemter is mandatory, let the KeyError be thrown.
+        # Only URL parameter is mandatory, let the KeyError be thrown.
         if "name" not in source:
             source["name"] = get_url_name(source["url"])
         if "verify_ssl" not in source:
@@ -763,7 +762,7 @@ class Project:
         if not isinstance(sources, list):
             sources = [sources]
         return {
-            "hash": self.calculate_pipfile_hash()["sha256"],
+            "hash": {"sha256": self.calculate_pipfile_hash()["sha256"]},
             "pipfile-spec": PIPFILE_SPEC_CURRENT,
             "sources": [self.populate_source(s) for s in sources],
             "requires": self.parsed_pipfile.get("requires", {}),
@@ -773,7 +772,7 @@ class Project:
         """Writes the given data structure out as TOML."""
         if path is None:
             path = self.pipfile_location
-        data = convert_toml_outline_tables(data)
+        data = convert_toml_outline_tables(data, self)
         try:
             formatted_data = tomlkit.dumps(data).rstrip()
         except Exception:

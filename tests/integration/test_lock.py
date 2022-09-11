@@ -404,6 +404,8 @@ def test_lock_updated_source(pipenv_instance_private_pypi):
             contents = """
 [[source]]
 url = "{url}/${{MY_ENV_VAR}}"
+name = "localpypi"
+verify_ssl = false
 
 [packages]
 requests = "==2.14.0"
@@ -420,6 +422,8 @@ requests = "==2.14.0"
             contents = """
 [[source]]
 url = "{url}/simple"
+name = "localpypi"
+verify_ssl = false
 
 [packages]
 requests = "==2.14.0"
@@ -525,24 +529,6 @@ def test_lockfile_with_empty_dict(pipenv_instance_pypi):
         assert c.returncode == 0
         assert 'Pipfile.lock is corrupted' in c.stderr
         assert p.lockfile['_meta']
-
-
-@pytest.mark.lock
-@pytest.mark.install
-@pytest.mark.skip_lock
-def test_lock_with_incomplete_source(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
-            f.write("""
-[[source]]
-url = "{}"
-
-[packages]
-six = "*"
-            """.format(p.index_url))
-        c = p.pipenv('install')
-        assert c.returncode == 0
-        assert p.lockfile['_meta']['sources']
 
 
 @pytest.mark.lock
