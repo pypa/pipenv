@@ -1,6 +1,3 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function
-
 import logging
 import os
 import sys
@@ -14,6 +11,7 @@ from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.models.target_python import TargetPython
 from pipenv.patched.pip._internal.utils.filetypes import is_archive_file
 from pipenv.patched.pip._internal.utils.misc import is_installable_dir
+from pipenv.patched.pip._vendor.packaging import specifiers
 from pipenv.vendor.vistir.path import ensure_mkdir_p, is_valid_url
 
 from .environment import MYPY_RUNNING
@@ -159,7 +157,6 @@ def convert_entry_to_path(path):
 def is_installable_file(path):
     # type: (PipfileType) -> bool
     """Determine if a path can potentially be installed."""
-    from pipenv.patched.pip._vendor.packaging import specifiers
 
     if isinstance(path, Mapping):
         path = convert_entry_to_path(path)
@@ -203,11 +200,9 @@ def is_installable_file(path):
 def get_dist_metadata(dist):
     from email.parser import FeedParser
 
-    import pipenv.patched.pip._vendor.pkg_resources as pkg_resources
+    from pipenv.patched.pip._vendor.pkg_resources import DistInfoDistribution
 
-    if isinstance(dist, pkg_resources.DistInfoDistribution) and dist.has_metadata(
-        "METADATA"
-    ):
+    if isinstance(dist, DistInfoDistribution) and dist.has_metadata("METADATA"):
         metadata = dist.get_metadata("METADATA")
     elif dist.has_metadata("PKG-INFO"):
         metadata = dist.get_metadata("PKG-INFO")
