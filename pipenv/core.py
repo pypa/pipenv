@@ -759,6 +759,7 @@ def do_install_dependencies(
     requirements_dir=None,
     pypi_mirror=None,
     extra_pip_args=None,
+    categories=None,
 ):
     """
     Executes the installation functionality.
@@ -791,7 +792,9 @@ def do_install_dependencies(
                 )
             )
     dev = dev or dev_only
-    deps_list = list(lockfile.get_requirements(dev=dev, only=dev_only))
+    deps_list = list(
+        lockfile.get_requirements(dev=dev, only=dev_only, categories=categories)
+    )
     if concurrent:
         nprocs = project.s.PIPENV_MAX_SUBPROCESS
     else:
@@ -1194,6 +1197,7 @@ def do_init(
     requirements_dir=None,
     pypi_mirror=None,
     extra_pip_args=None,
+    categories=None,
 ):
     """Executes the init functionality."""
 
@@ -1294,6 +1298,7 @@ def do_init(
         requirements_dir=requirements_dir,
         pypi_mirror=pypi_mirror,
         extra_pip_args=extra_pip_args,
+        categories=categories,
     )
 
     # Hint the user what to do to activate the virtualenv.
@@ -3034,6 +3039,7 @@ def do_sync(
     system=False,
     deploy=False,
     extra_pip_args=None,
+    categories=None,
 ):
     # The lock file needs to exist because sync won't write to it.
     if not project.lockfile_exists:
@@ -3069,6 +3075,7 @@ def do_sync(
         deploy=deploy,
         system=system,
         extra_pip_args=extra_pip_args,
+        categories=categories,
     )
     if not bare:
         click.echo(click.style("All dependencies are now up-to-date!", fg="green"))

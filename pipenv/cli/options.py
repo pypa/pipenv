@@ -89,6 +89,7 @@ class InstallState:
         self.packages = []
         self.editables = []
         self.extra_pip_args = []
+        self.categories = []
 
 
 class LockOptions:
@@ -239,6 +240,24 @@ def _dev_option(f, help_text):
         callback=callback,
         expose_value=False,
         show_envvar=True,
+    )(f)
+
+
+def categories_option(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        if value:
+            for opt in value.split(" "):
+                state.installstate.categories.append(opt)
+        return value
+
+    return option(
+        "--categories",
+        nargs=1,
+        required=False,
+        callback=callback,
+        expose_value=True,
+        type=click_types.STRING,
     )(f)
 
 
@@ -583,6 +602,7 @@ def lock_options(f):
 def sync_options(f):
     f = install_base_options(f)
     f = install_dev_option(f)
+    f = categories_option(f)
     f = sequential_option(f)
     return f
 

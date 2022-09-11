@@ -229,7 +229,7 @@ def cli(
 @skip_lock_option
 @install_options
 @pass_state
-def install(state, **kwargs):
+def install(state, categories=None, **kwargs):
     """Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile."""
     from ..core import do_install
 
@@ -643,6 +643,7 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
     """Installs all packages specified in Pipfile.lock."""
     from ..core import do_sync
 
+    print(state.installstate.categories)
     retcode = do_sync(
         state.project,
         dev=state.installstate.dev,
@@ -657,6 +658,7 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
         pypi_mirror=state.pypi_mirror,
         system=state.system,
         extra_pip_args=state.installstate.extra_pip_args,
+        categories=state.installstate.categories,
     )
     if retcode:
         ctx.abort()

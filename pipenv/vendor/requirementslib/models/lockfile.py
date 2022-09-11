@@ -261,7 +261,7 @@ class Lockfile(object):
     def default(self):
         return self._lockfile.default
 
-    def get_requirements(self, dev=True, only=False):
+    def get_requirements(self, dev=True, only=False, categories=None):
         """Produces a generator which generates requirements from the desired
         section.
 
@@ -269,8 +269,13 @@ class Lockfile(object):
         :return: Requirements from the relevant the relevant pipfile
         :rtype: :class:`~requirementslib.models.requirements.Requirement`
         """
-
-        deps = self.get_deps(dev=dev, only=only)
+        if categories:
+            deps = {}
+            for category in categories:
+                category_deps = self[category]
+                deps = merge_items([deps, category_deps])
+        else:
+            deps = self.get_deps(dev=dev, only=only)
         for k, v in deps.items():
             yield Requirement.from_pipfile(k, v)
 
