@@ -154,7 +154,7 @@ class LinkEvaluator:
         self._ignore_requires_python = ignore_requires_python
         self._formats = formats
         self._target_python = target_python
-        self._ignore_compatibility = ignore_compatibility
+        self._ignore_compatibility = True
 
         self.project_name = project_name
 
@@ -610,7 +610,7 @@ class PackageFinder:
         format_control: Optional[FormatControl] = None,
         candidate_prefs: Optional[CandidatePreferences] = None,
         ignore_requires_python: Optional[bool] = None,
-        ignore_compatibility: Optional[bool] = False
+        ignore_compatibility: Optional[bool] = True
     ) -> None:
         """
         This constructor is primarily meant to be used by the create() class

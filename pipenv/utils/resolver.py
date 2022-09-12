@@ -384,43 +384,8 @@ class Resolver:
             # if not req.is_vcs:
             locked_deps.update({name: entry})
         else:
-            # if the dependency isn't installable, don't add it to constraints
-            # and instead add it directly to the lock
-            if (
-                req
-                and req.requirement
-                and (req.requirement.marker and not req.requirement.marker.evaluate())
-            ):
-                pypi = resolver.finder if resolver else None
-                ireq = req.ireq
-                best_match = (
-                    pypi.find_best_candidate(ireq.name, ireq.specifier).best_candidate
-                    if pypi
-                    else None
-                )
-                if best_match:
-                    ireq.req.specifier = ireq.specifier.__class__(
-                        f"=={best_match.version}"
-                    )
-                    hashes = resolver.collect_hashes(ireq) if resolver else []
-                    new_req = Requirement.from_ireq(ireq)
-                    new_req = new_req.add_hashes(hashes)
-                    name, entry = new_req.pipfile_entry
-                    locked_deps[pep423_name(name)] = translate_markers(entry)
-                    click.echo(
-                        "{} doesn't match your environment, "
-                        "its dependencies won't be resolved.".format(req.as_line()),
-                        err=True,
-                    )
-                else:
-                    click.echo(
-                        "Could not find a version of {} that matches your environment, "
-                        "it will be skipped.".format(req.as_line()),
-                        err=True,
-                    )
-                return constraints, locked_deps
             constraints.add(req.constraint_line)
-            return constraints, locked_deps
+        print(f"CONSTRAINTS: {constraints}") 
         return constraints, locked_deps
 
     @classmethod

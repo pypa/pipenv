@@ -252,16 +252,7 @@ class InstallRequirement:
         return len(specifiers) == 1 and next(iter(specifiers)).operator in {"==", "==="}
 
     def match_markers(self, extras_requested: Optional[Iterable[str]] = None) -> bool:
-        if not extras_requested:
-            # Provide an extra to safely evaluate the markers
-            # without matching any extra
-            extras_requested = ("",)
-        if self.markers is not None:
-            return any(
-                self.markers.evaluate({"extra": extra}) for extra in extras_requested
-            )
-        else:
-            return True
+        return True
 
     @property
     def has_hash_options(self) -> bool:

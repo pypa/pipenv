@@ -309,6 +309,7 @@ class Resolution(object):
                     if not candidates:
                         return False
                     incompatibilities.extend(criterion.incompatibilities)
+                    print(f"INCOMPATIBILITIES: {incompatibilities}")
                     self.state.criteria[k] = Criterion(
                         candidates=candidates,
                         information=list(criterion.information),
@@ -344,6 +345,7 @@ class Resolution(object):
             )
         ]
         for r in requirements:
+            print(f"for r in reqs: {r}")
             try:
                 self._add_to_criteria(self.state.criteria, r, parent=None)
             except RequirementsConflicted as e:

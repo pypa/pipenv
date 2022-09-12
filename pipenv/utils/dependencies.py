@@ -134,6 +134,7 @@ def translate_markers(pipfile_entry):
         raise TypeError("Entry is not a pipfile formatted mapping.")
     from pipenv.patched.pip._vendor.packaging.markers import default_environment
 
+    return pipfile_entry
     allowed_marker_keys = ["markers"] + list(default_environment().keys())
     provided_keys = list(pipfile_entry.keys()) if hasattr(pipfile_entry, "keys") else []
     pipfile_markers = set(provided_keys) & set(allowed_marker_keys)
@@ -198,26 +199,6 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
         lockfile[pipfile_fs_key] = pipfile_entry[pipfile_fs_key]
     elif fs_key is not None:
         lockfile[fs_key] = dep[fs_key]
-
-    # If a package is **PRESENT** in the pipfile but has no markers, make sure we
-    # **NEVER** include markers in the lockfile
-    if "markers" in dep and dep.get("markers", "").strip():
-        # First, handle the case where there is no top level dependency in the pipfile
-        if not is_top_level:
-            translated = translate_markers(dep).get("markers", "").strip()
-            if translated:
-                try:
-                    lockfile["markers"] = translated
-                except TypeError:
-                    pass
-        # otherwise make sure we are prioritizing whatever the pipfile says about the markers
-        # If the pipfile says nothing, then we should put nothing in the lockfile
-        else:
-            try:
-                pipfile_entry = translate_markers(pipfile_entry)
-                lockfile["markers"] = pipfile_entry.get("markers")
-            except TypeError:
-                pass
     return {name: lockfile}
 
 

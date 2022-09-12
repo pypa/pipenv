@@ -165,12 +165,12 @@ class BuildEnvironment:
                 req = Requirement(req_str)
                 # We're explicitly evaluating with an empty extra value, since build
                 # environments are not provided any mechanism to select specific extras.
-                if req.marker is not None and not req.marker.evaluate({"extra": ""}):
-                    continue
-                dist = env.get_distribution(req.name)
-                if not dist:
-                    missing.add(req_str)
-                    continue
+                #if req.marker is not None and not req.marker.evaluate({"extra": ""}):
+                #    continue
+                #dist = env.get_distribution(req.name)
+                #if not dist:
+                #    missing.add(req_str)
+                #    continue
                 if isinstance(dist.version, Version):
                     installed_req_str = f"{req.name}=={dist.version}"
                 else:

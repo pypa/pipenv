@@ -129,6 +129,7 @@ class Factory:
         return self._force_reinstall
 
     def _fail_if_link_is_unsupported_wheel(self, link: Link) -> None:
+        return
         if not link.is_wheel:
             return
         wheel = Wheel(link.filename)
@@ -335,6 +336,7 @@ class Factory:
             candidates.
         """
         for req in base_requirements:
+            print(f"REQ: {req}")
             lookup_cand, _ = req.get_candidate_lookup()
             if lookup_cand is None:  # Not explicit.
                 continue
@@ -356,7 +358,8 @@ class Factory:
         of what "should" be the template, but with original_link set to link.
         """
         for link in constraint.links:
-            self._fail_if_link_is_unsupported_wheel(link)
+            print(f"LINK: {link}")
+            #self._fail_if_link_is_unsupported_wheel(link)
             candidate = self._make_candidate_from_link(
                 link,
                 extras=frozenset(),
@@ -388,6 +391,7 @@ class Factory:
         # If the current identifier contains extras, add explicit candidates
         # from entries from extra-less identifier.
         with contextlib.suppress(InvalidRequirement):
+            print(f"IDENTIFIER: {identifier}")
             parsed_requirement = get_requirement(identifier)
             explicit_candidates.update(
                 self._iter_explicit_candidates_from_base(
@@ -440,13 +444,6 @@ class Factory:
     def _make_requirement_from_install_req(
         self, ireq: InstallRequirement, requested_extras: Iterable[str]
     ) -> Optional[Requirement]:
-        if not ireq.match_markers(requested_extras):
-            logger.info(
-                "Ignoring %s: markers '%s' don't match your environment",
-                ireq.name,
-                ireq.markers,
-            )
-            return None
         if not ireq.link:
             return SpecifierRequirement(ireq)
         self._fail_if_link_is_unsupported_wheel(ireq.link)
@@ -479,8 +476,6 @@ class Factory:
                 problem = check_invalid_constraint_type(ireq)
                 if problem:
                     raise InstallationError(problem)
-                if not ireq.match_markers():
-                    continue
                 assert ireq.name, "Constraint must be named"
                 name = canonicalize_name(ireq.name)
                 if name in collected.constraints:

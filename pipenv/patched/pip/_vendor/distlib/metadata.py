@@ -870,7 +870,8 @@ class Metadata(object):
                         # Not excluded because of extras, check environment
                         marker = d.get('environment')
                         if marker:
-                            include = interpret(marker, env)
+                            #include = interpret(marker, env)
+                            include = True
                 if include:
                     result.extend(d['requires'])
             for key in ('build', 'dev', 'test'):

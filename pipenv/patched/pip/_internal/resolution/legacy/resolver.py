@@ -214,13 +214,13 @@ class Resolver(BaseResolver):
             requirement is applicable and has just been added.
         """
         # If the markers do not match, ignore this requirement.
-        if not install_req.match_markers(extras_requested):
-            logger.info(
-                "Ignoring %s: markers '%s' don't match your environment",
-                install_req.name,
-                install_req.markers,
-            )
-            return [], None
+        #if not install_req.match_markers(extras_requested):
+        #    logger.info(
+        #        "Ignoring %s: markers '%s' don't match your environment",
+        #        install_req.name,
+        #        install_req.markers,
+        #    )
+        #    return [], None
 
         # If the wheel is not supported, raise an error.
         # Should check this after filtering out based on environment markers to

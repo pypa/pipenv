@@ -147,6 +147,7 @@ class HookCaller(wrappers.Pep517HookCaller):
 def make_base_requirements(reqs):
     # type: (Sequence[STRING_TYPE]) -> Set[BaseRequirement]
     requirements = set()
+    print(reqs)
     if not isinstance(reqs, (list, tuple, set)):
         reqs = [reqs]
     for req in reqs:
@@ -156,6 +157,9 @@ def make_base_requirements(reqs):
             requirements.add(BaseRequirement.from_req(req))
         elif req and isinstance(req, str) and not req.startswith("#"):
             requirements.add(BaseRequirement.from_string(req))
+        else:
+            print("make_base_requirements unhandled case!")
+    print(f"THE REQUIREMENTS: {requirements}")
     return requirements
 
 

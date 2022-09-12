@@ -457,8 +457,8 @@ def parse_tag(tag):
         platform_system = "Linux"
     elif tag.platform.startswith("win32"):
         platform_system = "Windows"
-    if platform_system:
-        marker_str = 'platform_system == "{}"'.format(platform_system)
+    #if platform_system:
+    #    marker_str = 'platform_system == "{}"'.format(platform_system)
     if tag.interpreter:
         version = tag.interpreter[2:]
         py_version_str = ""

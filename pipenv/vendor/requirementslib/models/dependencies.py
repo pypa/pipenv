@@ -162,7 +162,7 @@ class AbstractDependency(object):
             new_markers = Marker(" or ".join(str(m) for m in sorted(markers)))
         new_ireq = copy.deepcopy(self.requirement.ireq)
         new_ireq.req.specifier = new_specifiers
-        new_ireq.req.marker = new_markers
+        #new_ireq.req.marker = new_markers
         new_requirement = Requirement.from_line(format_requirement(new_ireq))
         compatible_versions = self.compatible_versions(other)
         if isinstance(compatible_versions, AbstractDependency):
@@ -180,7 +180,7 @@ class AbstractDependency(object):
         return AbstractDependency(
             name=self.name,
             specifiers=new_specifiers,
-            markers=new_markers,
+            #markers=new_markers,
             candidates=candidates,
             requirement=new_requirement,
             parent=self.parent,
@@ -202,7 +202,7 @@ class AbstractDependency(object):
             from .requirements import Requirement
 
             req = Requirement.from_line(key)
-            req = req.merge_markers(self.markers)
+            #req = req.merge_markers(self.markers)
             self.dep_dict[key] = req.abstract_dependencies()
         return self.dep_dict[key]
 
@@ -220,7 +220,7 @@ class AbstractDependency(object):
         """
         name = requirement.normalized_name
         specifiers = requirement.ireq.specifier if not requirement.editable else ""
-        markers = requirement.ireq.markers
+        #markers = requirement.ireq.markers
         extras = requirement.ireq.extras
         is_pinned = is_pinned_requirement(requirement.ireq)
         is_constraint = bool(parent)
@@ -232,7 +232,7 @@ class AbstractDependency(object):
                     name,
                     r.version,
                     extras=extras,
-                    markers=markers,
+                    #markers=markers,
                     constraint=is_constraint,
                 )
                 req.req.link = getattr(r, "location", getattr(r, "link", None))
@@ -247,7 +247,7 @@ class AbstractDependency(object):
         return cls(
             name=name,
             specifiers=specifiers,
-            markers=markers,
+            #markers=markers,
             candidates=candidates,
             requirement=requirement,
             parent=parent,
@@ -283,8 +283,8 @@ def get_abstract_dependencies(reqs, parent=None):
             requirement = Requirement.from_line("{0}{1}".format(req.name, req.specifier))
             if req.link:
                 requirement.req.link = req.link
-                requirement.markers = req.markers
-                requirement.req.markers = req.markers
+                #requirement.markers = req.markers
+                #requirement.req.markers = req.markers
                 requirement.extras = req.extras
                 requirement.req.extras = req.extras
         elif isinstance(req, Requirement):
@@ -532,6 +532,7 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
         if dep.editable and not dep.prepared and not dep.req:
             setup_info = SetupInfo.from_ireq(dep)
             results = setup_info.get_info()
+            print(f"RESULTS: {results}")
             setup_requires.update(results["setup_requires"])
             requirements = set(results["requires"].values())
         else:
@@ -541,6 +542,7 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
                 install_command=install_command,
                 pip_options=pip_options,
             )
+            print(f"RESULTS: {results}")
             requirements = [v for v in results.values() if v.name != dep.name]
         requirements = set([format_requirement(r) for r in requirements])
     if not dep.editable and is_pinned_requirement(dep) and requirements is not None:
@@ -678,16 +680,16 @@ def get_grouped_dependencies(constraints):
                 if ireq.req.specifier._specs and not combined_ireq.req.specifier._specs:
                     combined_ireq.req.specifier._specs = ireq.req.specifier._specs
             combined_ireq.constraint &= ireq.constraint
-            if not combined_ireq.markers:
-                combined_ireq.markers = ireq.markers
-            else:
-                _markers = combined_ireq.markers._markers
-                if not isinstance(_markers[0], (tuple, list)):
-                    combined_ireq.markers._markers = [
-                        _markers,
-                        "and",
-                        ireq.markers._markers,
-                    ]
+            #if not combined_ireq.markers:
+            #    combined_ireq.markers = ireq.markers
+            #else:
+            #    _markers = combined_ireq.markers._markers
+            #    if not isinstance(_markers[0], (tuple, list)):
+            #        combined_ireq.markers._markers = [
+            #            _markers,
+            #            "and",
+            #            ireq.markers._markers,
+            #        ]
             # Return a sorted, de-duped tuple of extras
             combined_ireq.extras = tuple(
                 sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras)))

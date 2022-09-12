@@ -714,7 +714,7 @@ class SimpleScrapingLocator(Locator):
             result = False
         elif scheme not in ('http', 'https', 'ftp'):
             result = False
-        elif self._is_platform_dependent(link):
+        elif self.platform_check and self._is_platform_dependent(link):
             result = False
         else:
             host = netloc.split(':', 1)[0]

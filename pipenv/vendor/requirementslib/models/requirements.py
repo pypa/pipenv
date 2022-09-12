@@ -2849,7 +2849,7 @@ class Requirement(object):
 
     @property
     def constraint_line(self):
-        return self.as_line()
+        return self.as_line(include_markers=False)
 
     @property
     def is_direct_url(self):
