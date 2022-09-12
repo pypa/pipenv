@@ -48,7 +48,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.spinner import create_spinner
-from pipenv.vendor import click, dotenv, plette, vistir
+from pipenv.vendor import click, plette, vistir
 from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 if MYPY_RUNNING:
