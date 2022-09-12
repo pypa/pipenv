@@ -13,8 +13,6 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-import pipfile
-import pipfile.api
 import toml
 import tomlkit
 import vistir
@@ -42,6 +40,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
+from pipenv.vendor import plette
 from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 
 try:
@@ -141,7 +140,10 @@ class Project:
                 "verify_ssl": True,
                 "name": "pypi",
             }
-        pipfile.api.DEFAULT_SOURCE = self.default_source
+
+        plette.pipfiles.DEFAULT_SOURCE_TOML = (
+            f"[[source]]\n{toml.dumps(self.default_source)}"
+        )
 
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
@@ -554,7 +556,7 @@ class Project:
     @property
     def _lockfile(self):
         """Pipfile.lock divided by PyPI and external dependencies."""
-        pfile = pipfile.load(self.pipfile_location, inject_env=False)
+        pfile = plette.Pipfile.load(self.pipfile_location)
         lockfile = json.loads(pfile.lock())
         for section in ("default", "develop"):
             lock_section = lockfile.get(section, {})
@@ -1006,7 +1008,7 @@ class Project:
 
     def calculate_pipfile_hash(self):
         # Update the lockfile if it is out-of-date.
-        p = pipfile.load(self.pipfile_location, inject_env=False)
+        p = plette.Pipfile.load(self.pipfile_location, inject_env=False)
         return p.hash
 
     def ensure_proper_casing(self):
