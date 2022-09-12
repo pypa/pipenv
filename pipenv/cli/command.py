@@ -23,6 +23,7 @@ from pipenv.cli.options import (
     uninstall_options,
     verbose_option,
 )
+from pipenv.utils.environment import load_dot_env
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor.click import (
     Choice,
@@ -81,6 +82,8 @@ def cli(
 ):
     from pipenv.utils.shell import system_which
     from pipenv.utils.spinner import create_spinner
+
+    load_dot_env(state.project, quiet=state.quiet)
 
     from ..core import (
         cleanup_virtualenv,
@@ -241,7 +244,6 @@ def install(state, **kwargs):
         ignore_pipfile=state.installstate.ignore_pipfile,
         skip_lock=state.installstate.skip_lock,
         requirementstxt=state.installstate.requirementstxt,
-        sequential=state.installstate.sequential,
         pre=state.installstate.pre,
         deploy=state.installstate.deploy,
         keep_outdated=state.installstate.keep_outdated,
@@ -371,7 +373,7 @@ def shell(
     anyway=False,
 ):
     """Spawns a shell within the virtualenv."""
-    from ..core import do_shell, load_dot_env
+    from ..core import do_shell
 
     # Prevent user from activating nested environments.
     if "PIPENV_ACTIVE" in os.environ:
@@ -421,7 +423,6 @@ def run(state, command, args):
         three=state.three,
         python=state.python,
         pypi_mirror=state.pypi_mirror,
-        quiet=state.quiet,
     )
 
 
@@ -560,7 +561,6 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
         user=False,
         clear=state.clear,
         unused=False,
-        sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
         extra_pip_args=state.installstate.extra_pip_args,
     )
@@ -651,7 +651,6 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
         user=user,
         clear=state.clear,
         unused=unused,
-        sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
         extra_pip_args=state.installstate.extra_pip_args,

@@ -587,7 +587,7 @@ class Project:
         packages = {
             k: v
             for k, v in self.parsed_pipfile.get(section, {}).items()
-            if is_editable(k) or is_editable(v)
+            if is_editable(v)
         }
         return packages
 

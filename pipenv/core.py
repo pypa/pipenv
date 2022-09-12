@@ -112,42 +112,6 @@ def do_clear(project):
         raise
 
 
-def load_dot_env(project, as_dict=False, quiet=False):
-    """Loads .env file into sys.environ."""
-    if not project.s.PIPENV_DONT_LOAD_ENV:
-        # If the project doesn't exist yet, check current directory for a .env file
-        project_directory = project.project_directory or "."
-        dotenv_file = project.s.PIPENV_DOTENV_LOCATION or os.sep.join(
-            [project_directory, ".env"]
-        )
-
-        if not os.path.isfile(dotenv_file) and project.s.PIPENV_DOTENV_LOCATION:
-            click.echo(
-                "{}: file {}={} does not exist!!\n{}".format(
-                    click.style("Warning", fg="red", bold=True),
-                    click.style("PIPENV_DOTENV_LOCATION", bold=True),
-                    click.style(project.s.PIPENV_DOTENV_LOCATION, bold=True),
-                    click.style(
-                        "Not loading environment variables.", fg="red", bold=True
-                    ),
-                ),
-                err=True,
-            )
-        if as_dict:
-            return dotenv.dotenv_values(dotenv_file)
-        elif os.path.isfile(dotenv_file):
-            if not quiet:
-                click.echo(
-                    click.style(
-                        fix_utf8("Loading .env environment variables..."), bold=True
-                    ),
-                    err=True,
-                )
-            dotenv.load_dotenv(dotenv_file, override=True)
-
-            project.s = environments.Setting()
-
-
 def cleanup_virtualenv(project, bare=True):
     """Removes the virtualenv directory from the system."""
     if not bare:
@@ -790,7 +754,6 @@ def do_install_dependencies(
     allow_global=False,
     ignore_hashes=False,
     skip_lock=False,
-    concurrent=True,
     requirements_dir=None,
     pypi_mirror=None,
     extra_pip_args=None,
@@ -827,10 +790,7 @@ def do_install_dependencies(
             )
     dev = dev or dev_only
     deps_list = list(lockfile.get_requirements(dev=dev, only=dev_only))
-    if concurrent:
-        nprocs = project.s.PIPENV_MAX_SUBPROCESS
-    else:
-        nprocs = 1
+    nprocs = 2
     procs = queue.Queue(maxsize=nprocs)
     failed_deps_queue = queue.Queue()
     if skip_lock:
@@ -1225,7 +1185,6 @@ def do_init(
     ignore_pipfile=False,
     skip_lock=False,
     system=False,
-    concurrent=True,
     deploy=False,
     pre=False,
     keep_outdated=False,
@@ -1328,7 +1287,6 @@ def do_init(
         dev_only=dev_only,
         allow_global=allow_global,
         skip_lock=skip_lock,
-        concurrent=concurrent,
         requirements_dir=requirements_dir,
         pypi_mirror=pypi_mirror,
         extra_pip_args=extra_pip_args,
@@ -2065,7 +2023,6 @@ def do_install(
     ignore_pipfile=False,
     skip_lock=False,
     requirementstxt=False,
-    sequential=False,
     pre=False,
     deploy=False,
     keep_outdated=False,
@@ -2086,7 +2043,6 @@ def do_install(
     # Don't search for requirements.txt files if the user provides one
     if requirementstxt or package_args or project.pipfile_exists:
         skip_requirements = True
-    concurrent = not sequential
     # Ensure that virtualenv is available and pipfile are available
     ensure_project(
         project,
@@ -2221,7 +2177,6 @@ def do_install(
             ignore_pipfile=ignore_pipfile,
             system=system,
             skip_lock=skip_lock,
-            concurrent=concurrent,
             deploy=deploy,
             pre=pre,
             requirements_dir=requirements_directory,
@@ -2242,7 +2197,6 @@ def do_install(
                 dev=dev,
                 system=system,
                 allow_global=system,
-                concurrent=concurrent,
                 keep_outdated=keep_outdated,
                 requirements_dir=requirements_directory,
                 deploy=deploy,
@@ -2392,7 +2346,6 @@ def do_install(
             dev=dev,
             system=system,
             allow_global=system,
-            concurrent=concurrent,
             keep_outdated=keep_outdated,
             requirements_dir=requirements_directory,
             deploy=deploy,
@@ -2721,16 +2674,13 @@ def do_run_posix(project, script, command, env):
     )
 
 
-def do_run(
-    project, command, args, three=None, python=False, pypi_mirror=None, quiet=False
-):
+def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
     """Attempt to run command either pulling from project or interpreting as executable.
 
     Args are appended to the command in [scripts] section of project if found.
     """
     from .cmdparse import ScriptEmptyError
 
-    load_dot_env(project, quiet=quiet)
     env = os.environ.copy()
 
     # Ensure that virtualenv is available.
@@ -2925,7 +2875,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
     from pipenv.vendor import pipdeptree
 
-    pipdeptree_path = pipdeptree.__file__.rstrip("cdo")
+    pipdeptree_path = os.path.dirname(pipdeptree.__file__.rstrip("cdo"))
     try:
         python_path = project._which("python")
     except AttributeError:
@@ -3070,7 +3020,6 @@ def do_sync(
     user=False,
     clear=False,
     unused=False,
-    sequential=False,
     pypi_mirror=None,
     system=False,
     deploy=False,
@@ -3103,7 +3052,6 @@ def do_sync(
         project,
         dev=dev,
         allow_global=system,
-        concurrent=(not sequential),
         requirements_dir=requirements_dir,
         ignore_pipfile=True,  # Don't check if Pipfile and lock match.
         pypi_mirror=pypi_mirror,
