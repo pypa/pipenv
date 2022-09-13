@@ -1028,7 +1028,6 @@ def do_lock(
     pypi_mirror=None,
 ):
     """Executes the freeze functionality."""
-
     cached_lockfile = {}
     if not pre:
         pre = project.settings.get("allow_prereleases")

@@ -556,9 +556,8 @@ class Project:
     @property
     def _lockfile(self):
         """Pipfile.lock divided by PyPI and external dependencies."""
-        lockfile = plette.Lockfile.with_meta_from(
-            plette.Pipfile.load(open(self.pipfile_location))
-        )
+        with open(self.pipfile_location) as pf:
+            lockfile = plette.Lockfile.with_meta_from(plette.Pipfile.load(pf))
         for section in ("default", "develop"):
             lock_section = lockfile.get(section, {})
             for key in list(lock_section.keys()):
