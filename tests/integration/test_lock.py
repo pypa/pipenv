@@ -404,6 +404,7 @@ def test_lock_updated_source(pipenv_instance_private_pypi):
             contents = """
 [[source]]
 url = "{url}/${{MY_ENV_VAR}}"
+name = source_with_env_expanded
 
 [packages]
 requests = "==2.14.0"
