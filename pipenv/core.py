@@ -2782,9 +2782,10 @@ def do_check(
             sys.exit(1)
     # Load the pipfile.
     p = plette.Pipfile.load(open(project.pipfile_location))
+    p = plette.Lockfile.with_meta_from(p)
     failed = False
     # Assert each specified requirement.
-    for marker, specifier in p.data["_meta"]["requires"].items():
+    for marker, specifier in p._data["_meta"]["requires"].items():
         if marker in results:
             try:
                 assert results[marker] == specifier
