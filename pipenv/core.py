@@ -1244,7 +1244,7 @@ def do_init(
                 else:
                     msg = fix_utf8("Pipfile.lock is corrupted, replaced with ({1})...")
                 click.secho(
-                    msg.format(old_hash[-6:], new_hash.value[-6:]),
+                    msg.format(old_hash[-6:], new_hash[-6:]),
                     fg="yellow",
                     bold=True,
                     err=True,
