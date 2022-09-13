@@ -1218,7 +1218,7 @@ def do_init(
     if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
-        if new_hash.value != old_hash:
+        if new_hash != old_hash:
             if deploy:
                 click.secho(
                     "Your Pipfile.lock ({}) is out of date. Expected: ({}).".format(

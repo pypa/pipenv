@@ -1011,7 +1011,7 @@ class Project:
     def calculate_pipfile_hash(self):
         # Update the lockfile if it is out-of-date.
         p = plette.Pipfile.load(open(self.pipfile_location))
-        return p.get_hash()
+        return p.get_hash().value
 
     def ensure_proper_casing(self):
         """Ensures proper casing of Pipfile packages"""
