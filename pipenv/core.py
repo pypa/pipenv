@@ -1218,7 +1218,7 @@ def do_init(
     if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
-        if new_hash != old_hash:
+        if new_hash.value != old_hash:
             if deploy:
                 click.secho(
                     "Your Pipfile.lock ({}) is out of date. Expected: ({}).".format(
@@ -1244,7 +1244,7 @@ def do_init(
                 else:
                     msg = fix_utf8("Pipfile.lock is corrupted, replaced with ({1})...")
                 click.secho(
-                    msg.format(old_hash[-6:], new_hash[-6:]),
+                    msg.format(old_hash[-6:], new_hash.value[-6:]),
                     fg="yellow",
                     bold=True,
                     err=True,

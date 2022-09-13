@@ -556,14 +556,16 @@ class Project:
     @property
     def _lockfile(self):
         """Pipfile.lock divided by PyPI and external dependencies."""
-        pfile = plette.Pipfile.load(self.pipfile_location)
-        lockfile = json.loads(pfile.lock())
+        lockfile = plette.Lockfile.with_meta_from(
+            plette.Pipfile.load(open(self.pipfile_location))
+        )
         for section in ("default", "develop"):
             lock_section = lockfile.get(section, {})
             for key in list(lock_section.keys()):
                 norm_key = pep423_name(key)
                 lockfile[section][norm_key] = lock_section.pop(key)
-        return lockfile
+
+        return lockfile._data
 
     @property
     def _pipfile(self):
@@ -1008,8 +1010,8 @@ class Project:
 
     def calculate_pipfile_hash(self):
         # Update the lockfile if it is out-of-date.
-        p = plette.Pipfile.load(self.pipfile_location)
-        return p.hash
+        p = plette.Pipfile.load(open(self.pipfile_location))
+        return p.get_hash()
 
     def ensure_proper_casing(self):
         """Ensures proper casing of Pipfile packages"""
