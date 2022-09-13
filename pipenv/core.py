@@ -2781,7 +2781,7 @@ def do_check(
             )
             sys.exit(1)
     # Load the pipfile.
-    p = plette.Pipfile.load(project.pipfile_location)
+    p = plette.Pipfile.load(open(project.pipfile_location))
     failed = False
     # Assert each specified requirement.
     for marker, specifier in p.data["_meta"]["requires"].items():
