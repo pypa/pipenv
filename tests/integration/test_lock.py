@@ -391,7 +391,7 @@ six = {version = "*", index = "testpypi"}
 pipenv-test-public-package = "*"
             """.strip()
             f.write(contents)
-        c = p.pipenv(f'install -v')
+        c = p.pipenv('install -v')
         assert c.returncode == 0
 
 
@@ -404,7 +404,7 @@ def test_lock_updated_source(pipenv_instance_private_pypi):
             contents = """
 [[source]]
 url = "{url}/${{MY_ENV_VAR}}"
-name = expanded
+name = "expanded"
 verify_ssl = false
 
 [packages]
@@ -422,6 +422,8 @@ requests = "==2.14.0"
             contents = """
 [[source]]
 url = "{url}/simple"
+name = "expanded"
+verify_ssl = false
 
 [packages]
 requests = "==2.14.0"
