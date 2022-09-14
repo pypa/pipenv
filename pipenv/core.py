@@ -2657,9 +2657,14 @@ def do_check(
     system=False,
     db=None,
     ignore=None,
-    output="default",
+    output="screen",
     key=None,
     quiet=False,
+    exit_code=True,
+    policy_file="",
+    save_json="",
+    audit_and_monitor=True,
+    safety_project=None,
     pypi_mirror=None,
 ):
     import json
@@ -2747,7 +2752,8 @@ def do_check(
         ignored = [["--ignore", cve] for cve in ignore]
         if not quiet and not project.s.is_quiet():
             click.echo(
-                "Notice: Ignoring CVE(s) {}".format(
+                "Notice: Ignoring Vulnerabilit{} {}".format(
+                    'ies' if len(ignored) > 1 else 'y',
                     click.style(", ".join(ignore), fg="yellow")
                 ),
                 err=True,
@@ -2755,49 +2761,63 @@ def do_check(
     else:
         ignored = []
 
-    switch = output
-    if output == "default":
-        switch = "json"
+    options = [
+        "--audit-and-monitor" if audit_and_monitor else
+        "--disable-audit-and-monitor",
+        "--exit-code" if exit_code else "--continue-on-error"
+    ]
 
-    cmd = _cmd + [safety_path, "check", f"--{switch}"]
+    if output == 'full-report':
+        options.append("--full-report")
+    elif output not in ['screen', 'default']:
+        options.append(f"--output={output}")
+
+    if save_json:
+        options.append(f'--save-json={save_json}')
+
+    if policy_file:
+        options.append(f"--policy-file={policy_file}")
+
+    if safety_project:
+        options.append(f'--project={safety_project}')
+
+    cmd = _cmd + [safety_path, "--debug", "check"] + options
+
     if db:
         if not quiet and not project.s.is_quiet():
-            click.echo(click.style(f"Using local database {db}"))
+            click.echo(click.style(f"Using {db} database"))
         cmd.append(f"--db={db}")
     elif key or project.s.PIPENV_PYUP_API_KEY:
         cmd = cmd + [f"--key={key or project.s.PIPENV_PYUP_API_KEY}"]
+    else:
+        # TODO: Define the source
+        PIPENV_SAFETY_DB = "https://raw.githubusercontent.com/" \
+                           "pyupio/safety-db/master/data/"
+        cmd.append(f"--db={PIPENV_SAFETY_DB}")
+
     if ignored:
         for cve in ignored:
             cmd += cve
-    c = run_command(cmd, catch_exceptions=False, is_verbose=project.s.is_verbose())
-    if output == "default":
-        try:
-            results = simplejson.loads(c.stdout)
-        except (ValueError, json.JSONDecodeError):
-            raise exceptions.JSONParseError(c.stdout, c.stderr)
-        except Exception:
-            raise exceptions.PipenvCmdError(
-                cmd_list_to_shell(c.args), c.stdout, c.stderr, c.returncode
-            )
-        for (package, resolved, installed, description, vuln, *_) in results:
-            click.echo(
-                "{}: {} {} resolved ({} installed)!".format(
-                    click.style(vuln, bold=True),
-                    click.style(package, fg="green"),
-                    click.style(resolved, fg="yellow", bold=False),
-                    click.style(installed, fg="yellow", bold=True),
-                )
-            )
-            click.echo(f"{description}")
-            click.echo()
-        if c.returncode == 0:
-            click.echo(click.style("All good!", fg="green"))
-            sys.exit(0)
-        else:
-            sys.exit(1)
-    else:
+    click.secho("Running the command", fg="red")
+
+    safety_env = os.environ.copy()
+    safety_env["SAFETY_CUSTOM_INTEGRATION"] = 'True'
+    safety_env["SAFETY_ANNOUNCEMENTS_URL"] = 'https://foo-bar'  # TODO: Define the source
+    safety_env["SAFETY_SOURCE"] = 'pipenv'
+
+    c = run_command(cmd, catch_exceptions=False,
+                    is_verbose=project.s.is_verbose(),
+                    env=safety_env)
+
+    if c.stdout:
         click.echo(c.stdout)
-        sys.exit(c.returncode)
+    elif c.stderr:
+        raise exceptions.PipenvCmdError(
+            cmd_list_to_shell(c.args), c.stdout, c.stderr, c.returncode
+        )
+
+    # Let to Safety handles the exit code behavior
+    sys.exit(c.returncode)
 
 
 def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
