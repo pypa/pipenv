@@ -840,7 +840,7 @@ def name_from_req(req):
 def make_install_requirement(
     name, version=None, extras=None, markers=None, constraint=False
 ):
-    """Generates an :class:`~pip._internal.req.req_install.InstallRequirement`.
+    """Generates an :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`.
 
     Create an InstallRequirement from the supplied metadata.
 
@@ -855,7 +855,7 @@ def make_install_requirement(
     :param constraint: Whether to flag the requirement as a constraint, defaults to False.
     :param constraint: bool, optional
     :return: A generated InstallRequirement
-    :rtype: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :rtype: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
     """
     requirement_string = "{0}".format(name)
     if extras:
@@ -871,10 +871,10 @@ def make_install_requirement(
 
 def version_from_ireq(ireq):
     """version_from_ireq Extract the version from a supplied
-    :class:`~pip._internal.req.req_install.InstallRequirement`
+    :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
 
     :param ireq: An InstallRequirement
-    :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :type ireq: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
     :return: The version of the InstallRequirement.
     :rtype: str
     """
@@ -896,7 +896,7 @@ def clean_requires_python(candidates):
     `requires_python` attributes."""
     all_candidates = []
     sys_version = ".".join(map(str, sys.version_info[:3]))
-    from pip._vendor.packaging.version import parse as parse_version
+    from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
     py_version = parse_version(os.environ.get("PIP_PYTHON_VERSION", sys_version))
     for c in candidates:

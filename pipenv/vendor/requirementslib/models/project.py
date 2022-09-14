@@ -1,7 +1,3 @@
-# -*- coding=utf-8 -*-
-
-from __future__ import absolute_import, print_function, unicode_literals
-
 import collections
 import io
 import os
@@ -135,7 +131,7 @@ class Project(object):
         )
 
     def add_line_to_pipfile(self, line, develop):
-        from requirementslib import Requirement
+        from pipenv.vendor.requirementslib import Requirement
 
         requirement = Requirement.from_line(line)
         section = self._get_pipfile_section(develop=develop)

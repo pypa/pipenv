@@ -57,7 +57,7 @@ if MYPY_RUNNING:
         Union,
     )
 
-    from attr import Attribute  # noqa
+    from pipenv.vendor.attr import Attribute  # noqa
 
     from .setup_info import SetupInfo
 
