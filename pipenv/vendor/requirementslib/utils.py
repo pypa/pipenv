@@ -17,7 +17,7 @@ from pipenv.vendor.vistir.path import ensure_mkdir_p, is_valid_url
 from .environment import MYPY_RUNNING
 
 if MYPY_RUNNING:
-    from typing import Any, Dict, Iterable, List, Optional, Text, Tuple, TypeVar, Union
+    from typing import Dict, List, Optional, Text, Tuple, TypeVar, Union
 
     STRING_TYPE = Union[bytes, str, Text]
     S = TypeVar("S", bytes, str, Text)
