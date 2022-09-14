@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from decimal import Decimal
-from pkg_resources import Distribution, DistributionNotFound
+from pipenv.patched.pip._vendor.pkg_resources import Distribution, DistributionNotFound
 
 from pytest import mark
 
