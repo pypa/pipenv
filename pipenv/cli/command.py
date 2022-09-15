@@ -474,7 +474,7 @@ def run(state, command, args):
     "--db",
     nargs=1,
     default=lambda: os.environ.get("PIPENV_SAFETY_DB"),
-    help="Path to a local PyUp Safety vulnerabilities database."
+    help="Path or URL to a PyUp Safety vulnerabilities database."
     " Default: ENV PIPENV_SAFETY_DB or None.",
 )
 @option(
@@ -485,7 +485,7 @@ def run(state, command, args):
 )
 @option(
     "--output",
-    type=Choice(["default", "json", "full-report", "bare"]),
+    type=Choice(["default", "json", "full-report", "bare", 'screen', 'text']),
     default="default",
     help="Translates to --json, --full-report or --bare from PyUp Safety check",
 )
@@ -498,6 +498,16 @@ def run(state, command, args):
 @option(
     "--quiet", is_flag=True, help="Quiet standard output, except vulnerability report."
 )
+@option("--policy-file", default='',
+              help="Define the policy file to be used")
+@option("--exit-code/--continue-on-error", default=True,
+              help="Output standard exit codes. Default: --exit-code")
+@option("--audit-and-monitor/--disable-audit-and-monitor", default=True,
+              help="Send results back to pyup.io for viewing on your dashboard. Requires an API key.")
+@option("--project", default=None,
+              help="Project to associate this scan with on pyup.io. Defaults to a canonicalized github style name if available, otherwise unknown")
+@option("--save-json", default="", help="Path to where output file will be placed, if the path is a directory, "
+                                              "Safety will use safety-report.json as filename. Default: empty")
 @common_options
 @system_option
 @pass_state
@@ -506,9 +516,14 @@ def check(
     db=None,
     style=False,
     ignore=None,
-    output="default",
+    output="screen",
     key=None,
     quiet=False,
+    exit_code=True,
+    policy_file="",
+    save_json="",
+    audit_and_monitor=True,
+    project=None,
     **kwargs,
 ):
     """Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile."""
@@ -524,6 +539,11 @@ def check(
         output=output,
         key=key,
         quiet=quiet,
+        exit_code=exit_code,
+        policy_file=policy_file,
+        save_json=save_json,
+        audit_and_monitor=audit_and_monitor,
+        safety_project=project,
         pypi_mirror=state.pypi_mirror,
     )
 
