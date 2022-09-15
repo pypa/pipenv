@@ -566,7 +566,7 @@ def get_packages(files=False, stdin=False):
     if stdin:
         return list(read_requirements(sys.stdin))
 
-    import pkg_resources
+    import pipenv.patched.pip._vendor.pkg_resources as pkg_resources
 
     return [
         Package(name=d.key, version=d.version, found=d.location, insecure_versions=[], secure_versions=[],
