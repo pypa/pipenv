@@ -14,7 +14,7 @@ except ImportError:
 try:
     from zipfile import Path
 except ImportError:
-    from pipenv.vendor.zipp import Path
+    from zipp import Path
 
 from .envbuild import BuildEnvironment
 from .wrappers import Pep517HookCaller, quiet_subprocess_runner

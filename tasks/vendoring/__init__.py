@@ -63,6 +63,7 @@ LIBRARY_RENAMES = {
     "packaging": "pipenv.patched.pip._vendor.packaging",
     "pep517": "pipenv.patched.pip._vendor.pep517",
     "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
+    "ruamel.yaml": "pipenv.vendor.ruamel",
     "urllib3": "pipenv.patched.pip._vendor.urllib3",
 }
 
@@ -593,10 +594,10 @@ def license_destination(vendor_dir, libname, filename):
     lowercase = vendor_dir / libname.lower().replace("-", "_")
     if lowercase.is_dir():
         return lowercase / filename
-    rename_dict = LIBRARY_RENAMES if vendor_dir.name != "patched" else PATCHED_RENAMES
-    # Short circuit all logic if we are renaming the whole library
-    if libname in rename_dict:
-        return vendor_dir / rename_dict[libname] / filename
+    #rename_dict = LIBRARY_RENAMES if vendor_dir.name != "patched" else PATCHED_RENAMES
+    ## Short circuit all logic if we are renaming the whole library
+    #if libname in rename_dict:
+    #    return vendor_dir / rename_dict[libname] / filename
     if libname in LIBRARY_DIRNAMES:
         override = vendor_dir / LIBRARY_DIRNAMES[libname]
         if not override.exists() and override.parent.exists():
@@ -739,7 +740,7 @@ def main(ctx, package=None, type=None):
         if package_dir == patched_dir:
             vendor(ctx, patched_dir, rewrite=True)
         else:
-            vendor(ctx, package_dir)
+            vendor(ctx, package_dir, rewrite=True)
         req_txt = "vendor.txt" if package_dir == vendor_dir else "patched.txt"
         download_licenses(ctx, package_dir, req_txt)
         if package_dir == patched_dir:

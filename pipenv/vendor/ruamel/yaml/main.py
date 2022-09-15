@@ -7,7 +7,7 @@ import glob
 from importlib import import_module
 
 
-import ruamel.yaml
+import pipenv.vendor.ruamel as ruamel.yaml
 from pipenv.vendor.ruamel.yaml.error import UnsafeLoaderWarning, YAMLError  # NOQA
 
 from pipenv.vendor.ruamel.yaml.tokens import *  # NOQA
