@@ -356,7 +356,9 @@ class SetupReader:
             variable = cls._find_variable_in_body(body, value.id)
 
             if variable is not None and isinstance(variable, ast.List):
-                return [el.s for el in variable.elts]
+                r = [el.s for el in variable.elts if hasattr(el, 's')]
+                if r:
+                    return r
 
         raise Unparsable()
 
