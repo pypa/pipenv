@@ -165,9 +165,6 @@ six = "*"
             assert lock_hash is not None
             assert lock_hash == project.calculate_pipfile_hash()
 
-            # This line seems wrong. Why would pipenv install expand the variable and
-            # write it to Pipfile?
-            # assert 'PYPI_USERNAME' not in str(Pipfile.load(open(p.pipfile_path)))
             assert c.returncode == 0
             assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
 
