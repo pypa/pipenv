@@ -531,25 +531,6 @@ def test_lockfile_with_empty_dict(pipenv_instance_pypi):
         assert p.lockfile['_meta']
 
 
-@pytest.mark.skip(reason="Plette is more strict then pipfile ...")
-@pytest.mark.lock
-@pytest.mark.install
-@pytest.mark.skip_lock
-def test_lock_with_incomplete_source(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
-            f.write("""
-[[source]]
-url = "{}"
-
-[packages]
-six = "*"
-            """.format(p.index_url))
-        c = p.pipenv('install')
-        assert c.returncode == 0
-        assert p.lockfile['_meta']['sources']
-
-
 @pytest.mark.lock
 @pytest.mark.install
 def test_lock_no_warnings(pipenv_instance_pypi, recwarn):
@@ -557,7 +538,6 @@ def test_lock_no_warnings(pipenv_instance_pypi, recwarn):
         c = p.pipenv("install six")
         assert c.returncode == 0
         assert len(recwarn) == 0
-
 
 
 @pytest.mark.vcs
