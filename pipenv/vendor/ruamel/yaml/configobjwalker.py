@@ -10,5 +10,5 @@ if False:  # MYPY
 
 def configobj_walker(cfg):
     # type: (Any) -> Any
-    warnings.warn('configobj_walker has moved to ruamel.yaml.util, please update your code')
+    warnings.warn('configobj_walker has moved to ruamel.util, please update your code')
     return new_configobj_walker(cfg)

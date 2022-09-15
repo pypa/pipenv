@@ -63,7 +63,7 @@ LIBRARY_RENAMES = {
     "packaging": "pipenv.patched.pip._vendor.packaging",
     "pep517": "pipenv.patched.pip._vendor.pep517",
     "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
-    "ruamel.yaml": "pipenv.vendor.ruamel",
+    "ruamel.yaml": "pipenv.vendor.ruamel.yaml",
     "urllib3": "pipenv.patched.pip._vendor.urllib3",
 }
 
@@ -85,6 +85,7 @@ GLOBAL_REPLACEMENT = [
     ),
     (r"(?<!\.)pep517\.envbuild", r"envbuild"),
     (r"(?<!\.)pep517\.wrappers", r"wrappers"),
+    (r" ruamel\.yaml", r" ruamel"),
 ]
 
 

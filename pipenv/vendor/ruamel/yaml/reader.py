@@ -27,7 +27,7 @@ from pipenv.vendor.ruamel.yaml.util import RegExp
 
 if False:  # MYPY
     from typing import Any, Dict, Optional, List, Union, Text, Tuple, Optional  # NOQA
-#    from ruamel.yaml.compat import StreamTextType  # NOQA
+#    from ruamel.compat import StreamTextType  # NOQA
 
 __all__ = ['Reader', 'ReaderError']
 

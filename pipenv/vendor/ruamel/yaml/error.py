@@ -244,7 +244,7 @@ Use 'load(stream, Loader=ruamel.yaml.Loader)' explicitly if that is OK.
 Alternatively include the following in your code:
 
   import warnings
-  warnings.simplefilter('ignore', ruamel.yaml.error.UnsafeLoaderWarning)
+  warnings.simplefilter('ignore', ruamel.error.UnsafeLoaderWarning)
 
 In most other cases you should consider using 'safe_load(stream)'"""
     pass
@@ -273,7 +273,7 @@ Correct your float: "{}" on line: {}, column: {}
 or alternatively include the following in your code:
 
   import warnings
-  warnings.simplefilter('ignore', ruamel.yaml.error.MantissaNoDotYAML1_1Warning)
+  warnings.simplefilter('ignore', ruamel.error.MantissaNoDotYAML1_1Warning)
 
 """.format(
             self.flt, line, col

@@ -121,7 +121,7 @@ def walk_tree(base, map=None):
 
     You can also provide an explicit (ordered) mapping for multiple transforms
     (first of which is executed):
-        map = ruamel.yaml.compat.ordereddict
+        map = ruamel.compat.ordereddict
         map['\n'] = preserve_literal
         map[':'] = SingleQuotedScalarString
         walk_tree(data, map=map)
