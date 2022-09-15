@@ -405,6 +405,7 @@ class Resolver:
                     hashes = resolver.collect_hashes(ireq) if resolver else []
                     new_req = Requirement.from_ireq(ireq)
                     new_req = new_req.add_hashes(hashes)
+                    new_req = new_req.merge_markers(req.markers)
                     name, entry = new_req.pipfile_entry
                     locked_deps[pep423_name(name)] = translate_markers(entry)
                     click.echo(
