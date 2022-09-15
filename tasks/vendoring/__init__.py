@@ -64,7 +64,6 @@ LIBRARY_RENAMES = {
     "pep517": "pipenv.patched.pip._vendor.pep517",
     "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
     "urllib3": "pipenv.patched.pip._vendor.urllib3",
-    "zipp": "pipenv.vendor.zipp",
 }
 
 GLOBAL_REPLACEMENT = [
