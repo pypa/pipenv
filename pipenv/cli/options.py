@@ -11,6 +11,7 @@ from pipenv.vendor.click import (
     echo,
     make_pass_decorator,
     option,
+    secho,
 )
 from pipenv.vendor.click import types as click_types
 from pipenv.vendor.click_didyoumean import DYMMixin
@@ -81,19 +82,17 @@ class InstallState:
         self.keep_outdated = False
         self.skip_lock = False
         self.ignore_pipfile = False
-        self.sequential = False
         self.code = False
         self.requirementstxt = None
         self.deploy = False
         self.packages = []
         self.editables = []
+        self.extra_pip_args = []
 
 
 class LockOptions:
     def __init__(self):
         self.dev_only = False
-        self.emit_requirements = False
-        self.emit_requirements_header = False
 
 
 pass_state = make_pass_decorator(State, ensure=True)
@@ -130,24 +129,6 @@ def editable_option(f):
         callback=callback,
         type=click_types.STRING,
         help="An editable Python package URL or path, often to a VCS repository.",
-    )(f)
-
-
-def sequential_option(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        state.installstate.sequential = value
-        return value
-
-    return option(
-        "--sequential",
-        is_flag=True,
-        default=False,
-        expose_value=False,
-        help="Install dependencies one-at-a-time, instead of concurrently.",
-        callback=callback,
-        type=click_types.BOOL,
-        show_envvar=True,
     )(f)
 
 
@@ -283,7 +264,25 @@ def package_arg(f):
         "packages",
         nargs=-1,
         callback=callback,
-        expose_value=False,
+        expose_value=True,
+        type=click_types.STRING,
+    )(f)
+
+
+def extra_pip_args(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        if value:
+            for opt in value.split(" "):
+                state.installstate.extra_pip_args.append(opt)
+        return value
+
+    return option(
+        "--extra-pip-args",
+        nargs=1,
+        required=False,
+        callback=callback,
+        expose_value=True,
         type=click_types.STRING,
     )(f)
 
@@ -292,6 +291,11 @@ def three_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value is not None:
+            secho(
+                "WARNING: --three is deprecated! pipenv uses python3 by default",
+                err=True,
+                fg="yellow",
+            )
             state.three = value
         return value
 
@@ -299,7 +303,7 @@ def three_option(f):
         "--three",
         is_flag=True,
         default=None,
-        help="Use Python 3 when creating virtualenv.",
+        help="Use Python 3 when creating virtualenv. Deprecated",
         callback=callback,
         expose_value=False,
     )(f)
@@ -460,41 +464,6 @@ def requirementstxt_option(f):
     )(f)
 
 
-def emit_requirements_flag(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        if value:
-            state.lockoptions.emit_requirements = value
-        return value
-
-    return option(
-        "--requirements",
-        "-r",
-        default=False,
-        is_flag=True,
-        expose_value=False,
-        help="Generate output in requirements.txt format.",
-        callback=callback,
-    )(f)
-
-
-def emit_requirements_header_flag(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        if value:
-            state.lockoptions.emit_requirements_header = value
-        return value
-
-    return option(
-        "--header/--no-header",
-        default=True,
-        is_flag=True,
-        expose_value=False,
-        help="Add header to generated requirements",
-        callback=callback,
-    )(f)
-
-
 def dev_only_flag(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
@@ -532,15 +501,6 @@ def deploy_option(f):
 def setup_verbosity(ctx, param, value):
     if not value:
         return
-    import logging
-
-    loggers = ("pip",)
-    if value == 1:
-        for logger in loggers:
-            logging.getLogger(logger).setLevel(logging.INFO)
-    elif value == -1:
-        for logger in loggers:
-            logging.getLogger(logger).setLevel(logging.CRITICAL)
     ctx.ensure_object(State).project.s.PIPENV_VERBOSITY = value
 
 
@@ -597,8 +557,6 @@ def uninstall_options(f):
 def lock_options(f):
     f = install_base_options(f)
     f = lock_dev_option(f)
-    f = emit_requirements_flag(f)
-    f = emit_requirements_header_flag(f)
     f = dev_only_flag(f)
     return f
 
@@ -606,7 +564,6 @@ def lock_options(f):
 def sync_options(f):
     f = install_base_options(f)
     f = install_dev_option(f)
-    f = sequential_option(f)
     return f
 
 
@@ -618,6 +575,7 @@ def install_options(f):
     f = ignore_pipfile_option(f)
     f = editable_option(f)
     f = package_arg(f)
+    f = extra_pip_args(f)
     return f
 
 

@@ -8,8 +8,8 @@ from pipenv.utils.shell import subprocess_run, temp_environ
 
 @pytest.mark.run
 @pytest.mark.dotenv
-def test_env(PipenvInstance):
-    with PipenvInstance(pipfile=False, chdir=True) as p:
+def test_env(pipenv_instance_pypi):
+    with pipenv_instance_pypi(pipfile=False, chdir=True) as p:
         with open(os.path.join(p.path, ".env"), "w") as f:
             f.write("HELLO=WORLD")
         c = subprocess_run(['pipenv', 'run', 'python', '-c', "import os; print(os.environ['HELLO'])"], env=p.env)
@@ -18,8 +18,8 @@ def test_env(PipenvInstance):
 
 
 @pytest.mark.run
-def test_scripts(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_scripts(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write(r"""
 [scripts]
@@ -65,8 +65,8 @@ multicommand = "bash -c \"cd docs && make html\""
 
 @pytest.mark.run
 @pytest.mark.skip_windows
-def test_run_with_usr_env_shebang(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_run_with_usr_env_shebang(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
         p.pipenv('install')
         script_path = os.path.join(p.path, "test_script")
         with open(script_path, "w") as f:
@@ -86,8 +86,8 @@ def test_run_with_usr_env_shebang(PipenvInstance):
 
 @pytest.mark.run
 @pytest.mark.parametrize('quiet', [True, False])
-def test_scripts_resolve_dot_env_vars(quiet, PipenvInstance):
-    with PipenvInstance() as p:
+def test_scripts_resolve_dot_env_vars(quiet, pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
         with open(".env", "w") as f:
             contents = """
 HELLO_VAR=WORLD
@@ -110,8 +110,8 @@ hello = "echo $HELLO_VAR"
 
 @pytest.mark.run
 @pytest.mark.parametrize('quiet', [True, False])
-def test_pipenv_run_pip_freeze_has_expected_output(quiet, PipenvInstance):
-    with PipenvInstance() as p:
+def test_pipenv_run_pip_freeze_has_expected_output(quiet, pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
     [packages]

@@ -1,17 +1,15 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function
 
+import errno
 import operator
 import os
 import stat
 import sys
-import errno
 from collections import defaultdict
 from itertools import chain
 
 import pipenv.vendor.attr as attr
-import pipenv.vendor.six as six
-from pipenv.vendor.cached_property import cached_property
+from pipenv.vendor.pyparsing.core import cached_property
 
 from ..compat import Path, fs_str
 from ..environment import (
@@ -64,14 +62,16 @@ if MYPY_RUNNING:
     ChildType = Union[PythonFinder, "PathEntry"]
     PathType = Union[PythonFinder, "PathEntry"]
 
+
 def exists_and_is_accessible(path):
     try:
         return path.exists()
     except PermissionError as pe:
-        if pe.errno == errno.EACCES: # Permission denied
+        if pe.errno == errno.EACCES:  # Permission denied
             return False
         else:
             raise
+
 
 @attr.s
 class SystemPath(object):
@@ -238,7 +238,9 @@ class SystemPath(object):
         )
         new_instance = attr.evolve(
             new_instance,
-            path_order=[p.as_posix() for p in path_instances if p.exists()],
+            path_order=[
+                p.as_posix() for p in path_instances if exists_and_is_accessible(p)
+            ],
             paths=path_entries,
         )
         if os.name == "nt" and "windows" not in self.finders:
@@ -736,9 +738,9 @@ class PathEntry(BasePath):
         pass_name = self.name != self.path.name
         pass_args = {"is_root": False, "only_python": self.only_python}
         if pass_name:
-            if self.name is not None and isinstance(self.name, six.string_types):
+            if self.name is not None and isinstance(self.name, str):
                 pass_args["name"] = self.name  # type: ignore
-            elif self.path is not None and isinstance(self.path.name, six.string_types):
+            elif self.path is not None and isinstance(self.path.name, str):
                 pass_args["name"] = self.path.name  # type: ignore
 
         if not self.is_dir:

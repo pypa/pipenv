@@ -14,8 +14,8 @@ from pipenv.vendor.vistir.path import is_in_path, normalize_path
 @pytest.mark.project
 @pytest.mark.sources
 @pytest.mark.environ
-def test_pipfile_envvar_expansion(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_pipfile_envvar_expansion(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
         with temp_environ():
             with open(p.pipfile_path, 'w') as f:
                 f.write("""
@@ -36,8 +36,8 @@ pytz = "*"
 @pytest.mark.project
 @pytest.mark.sources
 @pytest.mark.parametrize('lock_first', [True, False])
-def test_get_source(PipenvInstance, lock_first):
-    with PipenvInstance(chdir=True) as p:
+def test_get_source(pipenv_instance_private_pypi, lock_first):
+    with pipenv_instance_private_pypi(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -83,8 +83,8 @@ six = {{version = "*", index = "pypi"}}
 @pytest.mark.install
 @pytest.mark.project
 @pytest.mark.parametrize('newlines', ['\n', '\r\n'])
-def test_maintain_file_line_endings(PipenvInstance, newlines):
-    with PipenvInstance(chdir=True) as p:
+def test_maintain_file_line_endings(pipenv_instance_pypi, newlines):
+    with pipenv_instance_pypi(chdir=True) as p:
         # Initial pipfile + lockfile generation
         c = p.pipenv('install pytz')
         assert c.returncode == 0
@@ -120,8 +120,8 @@ def test_maintain_file_line_endings(PipenvInstance, newlines):
 @pytest.mark.project
 @pytest.mark.sources
 @pytest.mark.needs_internet
-def test_many_indexes(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_many_indexes(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -150,28 +150,10 @@ six = {{version = "*", index = "pypi"}}
         assert c.returncode == 0
 
 
-@pytest.mark.install
-@pytest.mark.project
-def test_include_editable_packages(PipenvInstance, testsroot, pathlib_tmpdir):
-    file_name = "tablib-0.12.1.tar.gz"
-    package = pathlib_tmpdir.joinpath("tablib-0.12.1")
-    source_path = os.path.abspath(os.path.join(testsroot, "pypi", "tablib", file_name))
-    with PipenvInstance(chdir=True) as p:
-        with tarfile.open(source_path, "r:gz") as tarinfo:
-            tarinfo.extractall(path=str(pathlib_tmpdir))
-        c = p.pipenv(f'install -e {package.as_posix()}')
-        assert c.returncode == 0
-        project = Project()
-        assert "tablib" in [
-            package.project_name
-            for package in project.environment.get_installed_packages()
-        ]
-
-
 @pytest.mark.project
 @pytest.mark.virtualenv
-def test_run_in_virtualenv_with_global_context(PipenvInstance, virtualenv):
-    with PipenvInstance(chdir=True, venv_root=virtualenv.as_posix(), ignore_virtualenvs=False, venv_in_project=False) as p:
+def test_run_in_virtualenv_with_global_context(pipenv_instance_pypi, virtualenv):
+    with pipenv_instance_pypi(chdir=True, venv_root=virtualenv.as_posix(), ignore_virtualenvs=False, venv_in_project=False) as p:
         c = p.pipenv("run pip freeze")
         assert c.returncode == 0, (c.stdout, c.stderr)
         assert 'Creating a virtualenv' not in c.stderr, c.stderr
@@ -198,8 +180,8 @@ def test_run_in_virtualenv_with_global_context(PipenvInstance, virtualenv):
 
 @pytest.mark.project
 @pytest.mark.virtualenv
-def test_run_in_virtualenv(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_run_in_virtualenv(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
         c = p.pipenv('run pip freeze')
         assert c.returncode == 0
         assert 'Creating a virtualenv' in c.stderr
@@ -220,8 +202,8 @@ def test_run_in_virtualenv(PipenvInstance):
 
 @pytest.mark.project
 @pytest.mark.sources
-def test_no_sources_in_pipfile(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_no_sources_in_pipfile(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]

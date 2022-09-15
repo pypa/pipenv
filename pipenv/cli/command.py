@@ -23,7 +23,7 @@ from pipenv.cli.options import (
     uninstall_options,
     verbose_option,
 )
-from pipenv.exceptions import PipenvOptionsError
+from pipenv.utils.environment import load_dot_env
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor.click import (
     Choice,
@@ -80,7 +80,10 @@ def cli(
     site_packages=None,
     **kwargs,
 ):
+    from pipenv.utils.shell import system_which
     from pipenv.utils.spinner import create_spinner
+
+    load_dot_env(state.project, quiet=state.quiet)
 
     from ..core import (
         cleanup_virtualenv,
@@ -89,7 +92,6 @@ def cli(
         do_where,
         ensure_project,
         format_help,
-        system_which,
         warn_in_virtualenv,
     )
 
@@ -242,7 +244,6 @@ def install(state, **kwargs):
         ignore_pipfile=state.installstate.ignore_pipfile,
         skip_lock=state.installstate.skip_lock,
         requirementstxt=state.installstate.requirementstxt,
-        sequential=state.installstate.sequential,
         pre=state.installstate.pre,
         deploy=state.installstate.deploy,
         keep_outdated=state.installstate.keep_outdated,
@@ -251,6 +252,7 @@ def install(state, **kwargs):
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
         site_packages=state.site_packages,
+        extra_pip_args=state.installstate.extra_pip_args,
     )
 
 
@@ -317,7 +319,7 @@ LOCK_DEV_NOTE = """\
 @pass_context
 def lock(ctx, state, **kwargs):
     """Generates Pipfile.lock."""
-    from ..core import do_init, do_lock, ensure_project
+    from ..core import do_lock, ensure_project
 
     # Ensure that virtualenv is available.
     # Note that we don't pass clear on to ensure_project as it is also
@@ -330,47 +332,7 @@ def lock(ctx, state, **kwargs):
         warn=(not state.quiet),
         site_packages=state.site_packages,
     )
-    emit_requirements = state.lockoptions.emit_requirements
-    dev = state.installstate.dev
-    dev_only = state.lockoptions.dev_only
     pre = state.installstate.pre
-    if emit_requirements:
-        secho(
-            "Warning: The lock flag -r/--requirements will be deprecated in a future version\n"
-            "of pipenv in favor of the new requirements command. For more info see\n"
-            "https://pipenv.pypa.io/en/latest/advanced/#generating-a-requirements-txt\n"
-            "NOTE: the requirements command parses Pipfile.lock directly without performing any\n"
-            "locking operations. Updating packages should be done by running pipenv lock.",
-            fg="yellow",
-            err=True,
-        )
-        # Emit requirements file header (unless turned off with --no-header)
-        if state.lockoptions.emit_requirements_header:
-            header_options = ["--requirements"]
-            if dev_only:
-                header_options.append("--dev-only")
-            elif dev:
-                header_options.append("--dev")
-            echo(LOCK_HEADER.format(options=" ".join(header_options)))
-            # TODO: Emit pip-compile style header
-            if dev and not dev_only:
-                echo(LOCK_DEV_NOTE)
-        # Setting "emit_requirements=True" means do_init() just emits the
-        # install requirements file to stdout, it doesn't install anything
-        do_init(
-            state.project,
-            dev=dev,
-            dev_only=dev_only,
-            emit_requirements=emit_requirements,
-            pypi_mirror=state.pypi_mirror,
-            pre=pre,
-        )
-    elif state.lockoptions.dev_only:
-        raise PipenvOptionsError(
-            "--dev-only",
-            "--dev-only is only permitted in combination with --requirements. "
-            "Aborting.",
-        )
     do_lock(
         state.project,
         ctx=ctx,
@@ -411,7 +373,7 @@ def shell(
     anyway=False,
 ):
     """Spawns a shell within the virtualenv."""
-    from ..core import do_shell, load_dot_env
+    from ..core import do_shell
 
     # Prevent user from activating nested environments.
     if "PIPENV_ACTIVE" in os.environ:
@@ -461,7 +423,6 @@ def run(state, command, args):
         three=state.three,
         python=state.python,
         pypi_mirror=state.pypi_mirror,
-        quiet=state.quiet,
     )
 
 
@@ -485,7 +446,7 @@ def run(state, command, args):
 )
 @option(
     "--output",
-    type=Choice(["default", "json", "full-report", "bare", 'screen', 'text']),
+    type=Choice(["default", "json", "full-report", "bare", "screen", "text"]),
     default="default",
     help="Translates to --json, --full-report or --bare from PyUp Safety check",
 )
@@ -498,16 +459,28 @@ def run(state, command, args):
 @option(
     "--quiet", is_flag=True, help="Quiet standard output, except vulnerability report."
 )
-@option("--policy-file", default='',
-              help="Define the policy file to be used")
-@option("--exit-code/--continue-on-error", default=True,
-              help="Output standard exit codes. Default: --exit-code")
-@option("--audit-and-monitor/--disable-audit-and-monitor", default=True,
-              help="Send results back to pyup.io for viewing on your dashboard. Requires an API key.")
-@option("--project", default=None,
-              help="Project to associate this scan with on pyup.io. Defaults to a canonicalized github style name if available, otherwise unknown")
-@option("--save-json", default="", help="Path to where output file will be placed, if the path is a directory, "
-                                              "Safety will use safety-report.json as filename. Default: empty")
+@option("--policy-file", default="", help="Define the policy file to be used")
+@option(
+    "--exit-code/--continue-on-error",
+    default=True,
+    help="Output standard exit codes. Default: --exit-code",
+)
+@option(
+    "--audit-and-monitor/--disable-audit-and-monitor",
+    default=True,
+    help="Send results back to pyup.io for viewing on your dashboard. Requires an API key.",
+)
+@option(
+    "--project",
+    default=None,
+    help="Project to associate this scan with on pyup.io. Defaults to a canonicalized github style name if available, otherwise unknown",
+)
+@option(
+    "--save-json",
+    default="",
+    help="Path to where output file will be placed, if the path is a directory, "
+    "Safety will use safety-report.json as filename. Default: empty",
+)
 @common_options
 @system_option
 @pass_state
@@ -620,8 +593,8 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
         user=False,
         clear=state.clear,
         unused=False,
-        sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
+        extra_pip_args=state.installstate.extra_pip_args,
     )
 
 
@@ -710,9 +683,9 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
         user=user,
         clear=state.clear,
         unused=unused,
-        sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
+        extra_pip_args=state.installstate.extra_pip_args,
     )
     if retcode:
         ctx.abort()
@@ -817,7 +790,6 @@ def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=F
     pip_deps = convert_deps_to_pip(
         deps,
         project=None,
-        r=False,
         include_index=False,
         include_hashes=hash,
         include_markers=not exclude_markers,

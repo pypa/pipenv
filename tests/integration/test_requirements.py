@@ -6,8 +6,8 @@ from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.requirements
-def test_requirements_generates_requirements_from_lockfile(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_requirements_generates_requirements_from_lockfile(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
         packages = ('requests', '2.14.0')
         dev_packages = ('flask', '0.12.2')
         with open(p.pipfile_path, 'w') as f:
@@ -43,10 +43,10 @@ def test_requirements_generates_requirements_from_lockfile(PipenvInstance):
 
 
 @pytest.mark.requirements
-def test_requirements_generates_requirements_from_lockfile_multiple_sources(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
-        packages = ('requests', '2.14.0')
-        dev_packages = ('flask', '0.12.2')
+def test_requirements_generates_requirements_from_lockfile_multiple_sources(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi(chdir=True) as p:
+        packages = ('six', '1.12.0')
+        dev_packages = ('itsdangerous', '1.1.0')
         with open(p.pipfile_path, 'w') as f:
             contents = f"""
             [[source]]
@@ -73,7 +73,7 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(Pipe
 
 
 @pytest.mark.requirements
-def test_requirements_with_git_requirements(PipenvInstance):
+def test_requirements_with_git_requirements(pipenv_instance_pypi):
     req_name, req_hash = 'example-repo', 'cc858e89f19bc0dbd70983f86b811ab625dc9292'
     lockfile = {
         "_meta": {"sources": []},
@@ -87,7 +87,7 @@ def test_requirements_with_git_requirements(PipenvInstance):
         "develop": {}
     }
 
-    with PipenvInstance(chdir=True) as p:
+    with pipenv_instance_pypi(chdir=True) as p:
         with open(p.lockfile_path, 'w') as f:
             json.dump(lockfile, f)
 
@@ -98,7 +98,7 @@ def test_requirements_with_git_requirements(PipenvInstance):
 
 
 @pytest.mark.requirements
-def test_requirements_markers_get_included(PipenvInstance):
+def test_requirements_markers_get_included(pipenv_instance_pypi):
     package, version, markers = "werkzeug", "==2.1.2", "python_version >= '3.7'"
     lockfile = {
         "_meta": {"sources": []},
@@ -115,17 +115,17 @@ def test_requirements_markers_get_included(PipenvInstance):
         "develop": {}
     }
 
-    with PipenvInstance(chdir=True) as p:
+    with pipenv_instance_pypi(chdir=True) as p:
         with open(p.lockfile_path, 'w') as f:
             json.dump(lockfile, f)
 
         c = p.pipenv('requirements')
         assert c.returncode == 0
-        assert f'{package}{version}; {markers}' in c.stdout
+        assert f'{package}{version} ; {markers}' in c.stdout
 
 
 @pytest.mark.requirements
-def test_requirements_markers_get_excluded(PipenvInstance):
+def test_requirements_markers_get_excluded(pipenv_instance_pypi):
     package, version, markers = "werkzeug", "==2.1.2", "python_version >= '3.7'"
     lockfile = {
         "_meta": {"sources": []},
@@ -142,7 +142,7 @@ def test_requirements_markers_get_excluded(PipenvInstance):
         "develop": {}
     }
 
-    with PipenvInstance(chdir=True) as p:
+    with pipenv_instance_pypi(chdir=True) as p:
         with open(p.lockfile_path, 'w') as f:
             json.dump(lockfile, f)
 
@@ -152,7 +152,7 @@ def test_requirements_markers_get_excluded(PipenvInstance):
 
 
 def test_requirements_generates_requirements_from_lockfile_without_env_var_expansion(
-    PipenvInstance,
+        pipenv_instance_pypi,
 ):
     lockfile = {
         "_meta": {
@@ -167,7 +167,7 @@ def test_requirements_generates_requirements_from_lockfile_without_env_var_expan
         "default": {},
     }
 
-    with PipenvInstance(chdir=True) as p:
+    with pipenv_instance_pypi(chdir=True) as p:
         with open(p.lockfile_path, "w") as f:
             json.dump(lockfile, f)
 

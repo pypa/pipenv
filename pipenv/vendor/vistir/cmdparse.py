@@ -5,8 +5,6 @@ import itertools
 import re
 import shlex
 
-import pipenv.vendor.six as six
-
 __all__ = ["ScriptEmptyError", "Script"]
 
 
@@ -33,7 +31,7 @@ class Script(object):
 
     @classmethod
     def parse(cls, value):
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             value = shlex.split(value)
         if not value:
             raise ScriptEmptyError(value)

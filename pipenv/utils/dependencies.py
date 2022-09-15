@@ -3,6 +3,11 @@ from contextlib import contextmanager
 from typing import Mapping, Sequence
 
 from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.vendor.requirementslib.models.requirements import (
+    InstallRequirement,
+    Requirement,
+)
 
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
@@ -60,10 +65,7 @@ def get_canonical_names(packages):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    # Use pip built-in version parser.
-    from pipenv.vendor.pip_shims import shims
-
-    return str(shims.parse_version(version))
+    return str(parse(version))
 
 
 def pep423_name(name):
@@ -246,14 +248,11 @@ def is_pinned_requirement(ireq):
 def convert_deps_to_pip(
     deps,
     project=None,
-    r=True,
     include_index=True,
     include_hashes=True,
     include_markers=True,
 ):
     """ "Converts a Pipfile-formatted dependency to a pip-formatted one."""
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
-
     dependencies = []
     for dep_name, dep in deps.items():
         if project:
@@ -269,16 +268,58 @@ def convert_deps_to_pip(
             include_markers=include_markers,
         ).strip()
         dependencies.append(req)
-    if not r:
-        return dependencies
+    return dependencies
 
-    # Write requirements.txt to tmp directory.
-    from pipenv.vendor.vistir.path import create_tracked_tempfile
 
-    f = create_tracked_tempfile(suffix="-requirements.txt", delete=False)
-    f.write("\n".join(dependencies).encode("utf-8"))
-    f.close()
-    return f.name
+def get_constraints_from_deps(deps):
+    """Get contraints from Pipfile-formatted dependency"""
+
+    def is_constraints(dep: InstallRequirement) -> bool:
+        return dep.name and not dep.editable and not dep.extras
+
+    constraints = []
+    for dep_name, dep in deps.items():
+        new_dep = Requirement.from_pipfile(dep_name, dep)
+        if new_dep.is_named and is_constraints(new_dep.as_ireq()):
+            c = new_dep.as_line().strip()
+            constraints.append(c)
+    return constraints
+
+
+def prepare_constraint_file(
+    constraints,
+    directory=None,
+    sources=None,
+    pip_args=None,
+):
+    from pipenv.vendor.vistir.path import (
+        create_tracked_tempdir,
+        create_tracked_tempfile,
+    )
+
+    if not directory:
+        directory = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
+
+    constraints_file = create_tracked_tempfile(
+        mode="w",
+        prefix="pipenv-",
+        suffix="-constraints.txt",
+        dir=directory,
+        delete=False,
+    )
+
+    if sources and pip_args:
+        skip_args = ("build-isolation", "use-pep517", "cache-dir")
+        args_to_add = [
+            arg for arg in pip_args if not any(bad_arg in arg for bad_arg in skip_args)
+        ]
+        requirementstxt_sources = " ".join(args_to_add) if args_to_add else ""
+        requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
+        constraints_file.write(f"{requirementstxt_sources}\n")
+
+    constraints_file.write("\n".join([c for c in constraints]))
+    constraints_file.close()
+    return constraints_file.name
 
 
 def is_required_version(version, specified_version):
@@ -296,7 +337,7 @@ def is_required_version(version, specified_version):
 
 def is_editable(pipfile_entry):
     if hasattr(pipfile_entry, "get"):
-        return pipfile_entry.get("editable", False) and any(
+        return pipfile_entry.get("editable", False) or any(
             pipfile_entry.get(key) for key in ("file", "path") + VCS_LIST
         )
     return False
@@ -308,12 +349,6 @@ def locked_repository(requirement):
 
     if not requirement.is_vcs:
         return
-    original_base = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-    os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.pip"
     src_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-src")
-    try:
-        with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
-            yield repo
-    finally:
-        if original_base:
-            os.environ["PIP_SHIMS_BASE_MODULE"] = original_base
+    with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
+        yield repo

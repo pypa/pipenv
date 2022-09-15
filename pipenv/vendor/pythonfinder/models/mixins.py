@@ -6,7 +6,6 @@ import operator
 from collections import defaultdict
 
 import pipenv.vendor.attr as attr
-import pipenv.vendor.six as six
 
 from ..compat import fs_str
 from ..environment import MYPY_RUNNING
@@ -378,8 +377,7 @@ class BasePath(object):
         return next(iter(r[0] for r in results if r is not None), None)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BaseFinder(object):
+class BaseFinder(object, metaclass=abc.ABCMeta):
     def __init__(self):
         #: Maps executable paths to PathEntries
         from .path import PathEntry

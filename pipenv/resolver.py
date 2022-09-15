@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import logging
 import os
@@ -6,65 +7,13 @@ import sys
 os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 
-def find_site_path(pkg, site_dir=None):
-    import pkg_resources
-
-    if site_dir is None:
-        site_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    working_set = pkg_resources.WorkingSet([site_dir] + sys.path[:])
-    for dist in working_set:
-        root = dist.location
-        base_name = dist.project_name if dist.project_name else dist.key
-        name = None
-        if "top_level.txt" in dist.metadata_listdir(""):
-            name = next(
-                iter(
-                    [
-                        line.strip()
-                        for line in dist.get_metadata_lines("top_level.txt")
-                        if line is not None
-                    ]
-                ),
-                None,
-            )
-        if name is None:
-            name = pkg_resources.safe_name(base_name).replace("-", "_")
-        if not any(pkg == _ for _ in [base_name, name]):
-            continue
-        path_options = [name, f"{name}.py"]
-        path_options = [os.path.join(root, p) for p in path_options if p is not None]
-        path = next(iter(p for p in path_options if os.path.exists(p)), None)
-        if path is not None:
-            return dist, path
-    return None, None
-
-
-def _patch_path(pipenv_site=None):
-    import site
-
-    pipenv_libdir = os.path.dirname(os.path.abspath(__file__))
-    pipenv_site_dir = os.path.dirname(pipenv_libdir)
-    if pipenv_site is not None:
-        pipenv_dist, pipenv_path = find_site_path("pipenv", site_dir=pipenv_site)
-    else:
-        pipenv_dist, pipenv_path = find_site_path("pipenv", site_dir=pipenv_site_dir)
-    if pipenv_dist is not None:
-        pipenv_dist.activate()
-    else:
-        site.addsitedir(
-            next(
-                iter(
-                    sitedir
-                    for sitedir in (pipenv_site, pipenv_site_dir)
-                    if sitedir is not None
-                ),
-                None,
-            )
-        )
-    if pipenv_path is not None:
-        pipenv_libdir = pipenv_path
-    for _dir in ("vendor", "patched", pipenv_libdir):
-        sys.path.insert(0, os.path.join(pipenv_libdir, _dir))
+def _ensure_modules():
+    spec = importlib.util.spec_from_file_location(
+        "pipenv", location=os.path.join(os.path.dirname(__file__), "__init__.py")
+    )
+    pipenv = importlib.util.module_from_spec(spec)
+    sys.modules["pipenv"] = pipenv
+    spec.loader.exec_module(pipenv)
 
 
 def get_parser():
@@ -96,6 +45,12 @@ def get_parser():
         action="store",
         default=os.environ.get("PIPENV_RESOLVER_FILE"),
     )
+    parser.add_argument(
+        "--constraints-file",
+        metavar="constraints_file",
+        action="store",
+        default=None,
+    )
     parser.add_argument("packages", nargs="*")
     return parser
 
@@ -120,8 +75,11 @@ def handle_parsed_args(parsed):
         logger.setLevel(logging.INFO)
         os.environ["PIP_RESOLVER_DEBUG"] = ""
     os.environ["PIPENV_VERBOSITY"] = str(parsed.verbose)
-    if "PIPENV_PACKAGES" in os.environ:
-        parsed.packages += os.environ.get("PIPENV_PACKAGES", "").strip().split("\n")
+    if parsed.constraints_file:
+        with open(parsed.constraints_file) as constraints:
+            file_constraints = constraints.read().strip().split("\n")
+        os.unlink(parsed.constraints_file)
+        parsed.packages += sorted(file_constraints)
     return parsed
 
 
@@ -745,12 +703,15 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
         else None
     )
 
-    def resolve(packages, pre, project, sources, clear, system, requirements_dir=None):
+    def resolve(
+        packages, pre, project, sources, clear, system, dev, requirements_dir=None
+    ):
         return resolve_deps(
             packages,
             which,
             project=project,
             pre=pre,
+            dev=dev,
             sources=sources,
             clear=clear,
             allow_global=system,
@@ -769,6 +730,7 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
     results, resolver = resolve(
         packages,
         pre=pre,
+        dev=dev,
         project=project,
         sources=sources,
         clear=clear,
@@ -825,7 +787,7 @@ def _main(
 def main(argv=None):
     parser = get_parser()
     parsed, remaining = parser.parse_known_args(argv)
-    _patch_path(pipenv_site=parsed.pipenv_site)
+    _ensure_modules()
     import warnings
 
     from pipenv.vendor.vistir.misc import replace_with_text_stream

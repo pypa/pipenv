@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import importlib.util
 import itertools
 import json
 import operator
@@ -11,18 +12,25 @@ import sys
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
 
-import pkg_resources
-
 import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.req.req_uninstall import UninstallPathSet
+from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import make_posix, normalize_path
 from pipenv.vendor import click, vistir
-from pipenv.vendor.cached_property import cached_property
+
+try:
+    # this is only in Python3.8 and later
+    from functools import cached_property
+except ImportError:
+    # eventually distlib will remove cached property when they drop Python3.7
+    from pipenv.patched.pip._vendor.distlib.util import cached_property
+
 
 if is_type_checking():
     from types import ModuleType
@@ -33,7 +41,6 @@ if is_type_checking():
     from pipenv.project import Project, TPipfile, TSource
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
-# TODO: Unittests for this class
 
 
 class Environment:
@@ -342,36 +349,28 @@ class Environment:
         pylib_lines = []
         pyinc_lines = []
         py_command = (
-            "import sysconfig, distutils.sysconfig, io, json, sys; paths = {{"
-            "%s }}; value = u'{{0}}'.format(json.dumps(paths));"
-            "fh = io.open('{0}', 'w'); fh.write(value); fh.close()"
+            "import sysconfig, json; paths = {%s};"
+            "value = u'{0}'.format(json.dumps(paths)); print(value)"
         )
-        distutils_line = "distutils.sysconfig.get_python_{0}(plat_specific={1})"
         sysconfig_line = "sysconfig.get_path('{0}')"
         if python_lib:
-            for key, var, val in (("pure", "lib", "0"), ("plat", "lib", "1")):
-                dist_prefix = f"{key}lib"
-                # XXX: We need to get 'stdlib' or 'platstdlib'
-                sys_prefix = "{}stdlib".format("" if key == "pure" else key)
+            for key in ("purelib", "platlib", "stdlib", "platstdlib"):
                 pylib_lines.append(
-                    f"u'{dist_prefix}': u'{{{{0}}}}'.format({distutils_line.format(var, val)})"
-                )
-                pylib_lines.append(
-                    f"u'{sys_prefix}': u'{{{{0}}}}'.format({sysconfig_line.format(sys_prefix)})"
+                    f"u'{key}': u'{{0}}'.format({sysconfig_line.format(key)})"
                 )
         if python_inc:
-            for key, var, val in (("include", "inc", "0"), ("platinclude", "inc", "1")):
-                pylib_lines.append(
-                    f"u'{key}': u'{{{{0}}}}'.format({distutils_line.format(var, val)})"
+            for key in ("include", "platinclude"):
+                pyinc_lines.append(
+                    f"u'{key}': u'{{0}}'.format({sysconfig_line.format(key)})"
                 )
         lines = pylib_lines + pyinc_lines
         if scripts:
             lines.append(
-                "u'scripts': u'{{0}}'.format(%s)" % sysconfig_line.format("scripts")
+                "u'scripts': u'{0}'.format(%s)" % sysconfig_line.format("scripts")
             )
         if py_version:
             lines.append(
-                "u'py_version_short': u'{{0}}'.format(distutils.sysconfig.get_python_version()),"
+                "u'py_version_short': u'{0}'.format(sysconfig.get_python_version()),"
             )
         lines_as_str = ",".join(lines)
         py_command = py_command % lines_as_str
@@ -384,18 +383,13 @@ class Environment:
         :return: The python paths for the environment
         :rtype: Dict[str, str]
         """
-        tmpfile = vistir.path.create_tracked_tempfile(suffix=".json")
-        tmpfile.close()
-        tmpfile_path = make_posix(tmpfile.name)
         py_command = self.build_command(
             python_lib=True, python_inc=True, scripts=True, py_version=True
         )
-        command = [self.python, "-c", py_command.format(tmpfile_path)]
+        command = [self.python, "-c", py_command]
         c = subprocess_run(command)
         if c.returncode == 0:
-            paths = {}
-            with open(tmpfile_path, "r", encoding="utf-8") as fh:
-                paths = json.load(fh)
+            paths = json.loads(c.stdout)
             if "purelib" in paths:
                 paths["libdir"] = paths["purelib"] = make_posix(paths["purelib"])
             for key in (
@@ -420,17 +414,12 @@ class Environment:
         :return: The python include path for the environment
         :rtype: Dict[str, str]
         """
-        tmpfile = vistir.path.create_tracked_tempfile(suffix=".json")
-        tmpfile.close()
-        tmpfile_path = make_posix(tmpfile.name)
         py_command = self.build_command(python_lib=True)
-        command = [self.python, "-c", py_command.format(tmpfile_path)]
+        command = [self.python, "-c", py_command]
         c = subprocess_run(command)
         paths = None
         if c.returncode == 0:
-            paths = {}
-            with open(tmpfile_path, "r", encoding="utf-8") as fh:
-                paths = json.load(fh)
+            paths = json.loads(c.stdout)
             if "purelib" in paths:
                 paths["libdir"] = paths["purelib"] = make_posix(paths["purelib"])
             for key in ("platlib", "platstdlib", "stdlib"):
@@ -476,22 +465,11 @@ class Environment:
         :return: The python include path for the environment
         :rtype: Dict[str, str]
         """
-        tmpfile = vistir.path.create_tracked_tempfile(suffix=".json")
-        tmpfile.close()
-        tmpfile_path = make_posix(tmpfile.name)
-        py_command = (
-            "import distutils.sysconfig, io, json, sys; paths = {{u'include': "
-            "u'{{0}}'.format(distutils.sysconfig.get_python_inc(plat_specific=0)), "
-            "u'platinclude': u'{{0}}'.format(distutils.sysconfig.get_python_inc("
-            "plat_specific=1)) }}; value = u'{{0}}'.format(json.dumps(paths));"
-            "fh = io.open('{0}', 'w'); fh.write(value); fh.close()"
-        )
-        command = [self.python, "-c", py_command.format(tmpfile_path)]
+        py_command = self.build_command(python_inc=True)
+        command = [self.python, "-c", py_command]
         c = subprocess_run(command)
         if c.returncode == 0:
-            paths = []
-            with open(tmpfile_path, "r", encoding="utf-8") as fh:
-                paths = json.load(fh)
+            paths = json.loads(c.stdout)
             for key in ("include", "platinclude"):
                 if key in paths:
                     paths[key] = make_posix(paths[key])
@@ -710,7 +688,11 @@ class Environment:
         return d
 
     def get_package_requirements(self, pkg=None):
-        from .vendor.pipdeptree import PackageDAG, flatten
+        from itertools import chain
+
+        from pipenv.vendor.pipdeptree import PackageDAG
+
+        flatten = chain.from_iterable
 
         packages = self.get_installed_packages()
         if pkg:
@@ -880,7 +862,7 @@ class Environment:
                 exec(code, dict(__file__=activate_this))
 
     @contextlib.contextmanager
-    def activated(self, include_extras=True, extra_dists=None):
+    def activated(self):
         """Helper context manager to activate the environment.
 
         This context manager will set the following variables for the duration
@@ -899,16 +881,8 @@ class Environment:
         to `os.environ["PATH"]` to ensure that calls to `~Environment.run()` use the
         environment's path preferentially.
         """
-
-        if not extra_dists:
-            extra_dists = []
         original_path = sys.path
         original_prefix = sys.prefix
-        parent_path = Path(__file__).absolute().parent
-        vendor_dir = parent_path.joinpath("vendor").as_posix()
-        patched_dir = parent_path.joinpath("patched").as_posix()
-        parent_path = parent_path.as_posix()
-        self.add_dist("pip")
         prefix = self.prefix.as_posix()
         with vistir.contextmanagers.temp_environ(), vistir.contextmanagers.temp_path():
             os.environ["PATH"] = os.pathsep.join(
@@ -931,21 +905,6 @@ class Environment:
                     os.environ.pop("PYTHONHOME", None)
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
-            site.addsitedir(self.base_paths["purelib"])
-            pip = self.safe_import("pip")  # noqa
-            pip_vendor = self.safe_import("pip._vendor")
-            pep517_dir = os.path.join(os.path.dirname(pip_vendor.__file__), "pep517")
-            site.addsitedir(pep517_dir)
-            os.environ["PYTHONPATH"] = os.pathsep.join(
-                [os.environ.get("PYTHONPATH", self.base_paths["PYTHONPATH"]), pep517_dir]
-            )
-            if include_extras:
-                site.addsitedir(parent_path)
-                sys.path.extend([parent_path, patched_dir, vendor_dir])
-                extra_dists = list(self.extra_dists) + extra_dists
-                for extra_dist in extra_dists:
-                    if extra_dist not in self.get_working_set():
-                        extra_dist.activate(self.sys_path)
             try:
                 yield
             finally:
@@ -975,24 +934,6 @@ class Environment:
             if as_path:
                 result = str(result.path)
         return result
-
-    def get_install_args(self, editable=False, setup_path=None):
-        install_arg = "install" if not editable else "develop"
-        install_keys = ["headers", "purelib", "platlib", "scripts", "data"]
-        install_args = [
-            self.environment.python,
-            "-u",
-            "-c",
-            SETUPTOOLS_SHIM % setup_path,
-            install_arg,
-            "--single-version-externally-managed",
-            "--no-deps",
-            "--prefix={}".format(self.base_paths["prefix"]),
-            "--no-warn-script-location",
-        ]
-        for key in install_keys:
-            install_args.append(f"--install-{key}={self.base_paths[key]}")
-        return install_args
 
     def install(self, requirements):
         if not isinstance(requirements, (tuple, list)):
@@ -1053,36 +994,19 @@ class Environment:
             )
             if monkey_patch:
                 monkey_patch.activate()
-            pip_shims = self.safe_import("pip_shims")
-            pathset_base = pip_shims.UninstallPathSet
-            pathset_base._permitted = PatchedUninstaller._permitted
             dist = next(
                 iter(d for d in self.get_working_set() if d.project_name == pkgname), None
             )
-            pathset = pathset_base.from_dist(dist)
-            if pathset is not None:
-                pathset.remove(auto_confirm=auto_confirm, verbose=verbose)
+            path_set = UninstallPathSet.from_dist(dist)
+            if path_set is not None:
+                path_set.remove(auto_confirm=auto_confirm, verbose=verbose)
             try:
-                yield pathset
+                yield path_set
             except Exception:
-                if pathset is not None:
-                    pathset.rollback()
+                if path_set is not None:
+                    path_set.rollback()
             else:
-                if pathset is not None:
-                    pathset.commit()
-            if pathset is None:
+                if path_set is not None:
+                    path_set.commit()
+            if path_set is None:
                 return
-
-
-class PatchedUninstaller:
-    def _permitted(self, path):
-        return True
-
-
-SETUPTOOLS_SHIM = (
-    "import setuptools, tokenize;__file__=%r;"
-    "f=getattr(tokenize, 'open', open)(__file__);"
-    "code=f.read().replace('\\r\\n', '\\n');"
-    "f.close();"
-    "exec(compile(code, __file__, 'exec'))"
-)

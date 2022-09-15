@@ -1,4 +1,5 @@
 import os
+from unittest import mock
 
 import pytest
 
@@ -13,8 +14,6 @@ from pipenv.exceptions import PipenvUsageError
 
 # Pipfile format <-> requirements.txt format.
 DEP_PIP_PAIRS = [
-    ({"requests": "*"}, "requests"),
-    ({"requests": {"extras": ["socks"], "version": "*"}}, "requests[socks]"),
     ({"django": ">1.10"}, "django>1.10"),
     ({"Django": ">1.10"}, "Django>1.10"),
     ({"requests": {"extras": ["socks"], "version": ">1.10"}}, "requests[socks]>1.10"),
@@ -59,7 +58,7 @@ DEP_PIP_PAIRS = [
                 "extras": ["voice"],
             }
         },
-        "https://github.com/Rapptz/discord.py/archive/async.zip#egg=discord.py[voice]",
+        "https://github.com/Rapptz/discord.py/archive/async.zip#egg=[voice]",
     ),
     (
         {
@@ -83,21 +82,32 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
 @pytest.mark.utils
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
 @pytest.mark.needs_internet
-def test_convert_deps_to_pip(monkeypatch, deps, expected):
-    with monkeypatch.context() as m:
-        from pipenv.vendor import pip_shims
-        m.setattr(pip_shims.shims, "unpack_url", mock_unpack)
-        if expected.startswith("Django"):
-            expected = expected.lower()
-        assert dependencies.convert_deps_to_pip(deps, r=False) == [expected]
+def test_convert_deps_to_pip(deps, expected):
+    if expected.startswith("Django"):
+        expected = expected.lower()
+    assert dependencies.convert_deps_to_pip(deps) == [expected]
+
+
+@pytest.mark.utils
+@pytest.mark.needs_internet
+def test_convert_deps_to_pip_star_specifier():
+    deps = {"six": "*"}
+    expected = "six"
+    assert dependencies.convert_deps_to_pip(deps) == [expected]
+
+
+@pytest.mark.utils
+@pytest.mark.needs_internet
+def test_convert_deps_to_pip_extras_no_version():
+    deps = {"uvicorn": {"extras": ["standard"], "version": "*"}}
+    expected = "uvicorn[standard]"
+    assert dependencies.convert_deps_to_pip(deps) == [expected]
 
 
 @pytest.mark.utils
 @pytest.mark.parametrize(
     "deps, expected",
     [
-        # This one should be collapsed and treated as {'requests': '*'}.
-        ({"requests": {}}, "requests"),
         # Hash value should be passed into the result.
         (
             {
@@ -120,26 +130,42 @@ def test_convert_deps_to_pip(monkeypatch, deps, expected):
         ),
         (
             {
-                "requests": {
-                    "git": "https://github.com/requests/requests.git",
+                "uvicorn": {
+                    "git": "https://github.com/encode/uvicorn.git",
                     "ref": "master",
-                    "extras": ["security"],
+                    "extras": ["standard"],
                 }
             },
-            "git+https://github.com/requests/requests.git@master#egg=requests[security]",
+            "git+https://github.com/encode/uvicorn.git@master#egg=uvicorn[standard]",
         ),
     ],
 )
 def test_convert_deps_to_pip_one_way(deps, expected):
-    assert dependencies.convert_deps_to_pip(deps, r=False) == [expected.lower()]
+    assert dependencies.convert_deps_to_pip(deps) == [expected.lower()]
 
 
-@pytest.mark.skipif(isinstance("", str), reason="don't need to test if unicode is str")
 @pytest.mark.utils
-def test_convert_deps_to_pip_unicode():
-    deps = {"django": "==1.10"}
-    deps = dependencies.convert_deps_to_pip(deps, r=False)
-    assert deps[0] == "django==1.10"
+def test_convert_deps_to_pip_one_way():
+    deps = {"uvicorn": dict()}
+    expected = "uvicorn"
+    assert dependencies.convert_deps_to_pip(deps) == [expected.lower()]
+
+
+@pytest.mark.utils
+@pytest.mark.parametrize(
+    "deps, expected",
+    [
+        ({"uvicorn": {}}, ["uvicorn"]),
+        ({"FooProject": {"path": ".", "editable": "true"}}, []),
+        ({"FooProject": {"version": "==1.2"}}, ["fooproject==1.2"]),
+        ({"uvicorn": {"extras": ["standard"]}}, []),
+        ({"uvicorn": {"extras": []}}, ["uvicorn"]),
+        ({"extras": {}}, ["extras"]),
+        ({"uvicorn[standard]": {}}, [])
+    ],
+)
+def test_get_constraints_from_deps(deps, expected):
+    assert dependencies.get_constraints_from_deps(deps) == expected
 
 
 @pytest.mark.parametrize("line,result", [
@@ -450,3 +476,17 @@ twine = "*"
         sources = [{}]
         with pytest.raises(PipenvUsageError):
             indexes.prepare_pip_source_args(sources, pip_args=None)
+
+    @pytest.mark.utils
+    def test_project_python_tries_python3_before_python_if_system_is_true(self):
+        def mock_shutil_which(command, path=None):
+            if command != "python3":
+                return f"/usr/bin/{command}"
+            return "/usr/local/bin/python3"
+
+        with mock.patch("pipenv.utils.shell.shutil.which", wraps=mock_shutil_which):
+            # Setting project to None as system=True doesn't use it
+            project = None
+            python = shell.project_python(project, system=True)
+
+        assert python == "/usr/local/bin/python3"

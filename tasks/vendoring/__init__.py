@@ -39,6 +39,7 @@ HARDCODED_LICENSE_URLS = {
     "requirementslib": "https://github.com/techalchemy/requirementslib/raw/master/LICENSE",
     "distlib": "https://github.com/vsajip/distlib/raw/master/LICENSE.txt",
     "pythonfinder": "https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt",
+    "pipdeptree": "https://raw.githubusercontent.com/tox-dev/pipdeptree/main/LICENSE",
 }
 
 FILE_WHITE_LIST = (
@@ -58,16 +59,32 @@ PATCHED_RENAMES = {}
 
 LIBRARY_RENAMES = {
     "pip": "pipenv.patched.pip",
-    "pip_shims:": "pipenv.vendor.pip_shims",
     "requests": "pipenv.patched.pip._vendor.requests",
     "packaging": "pipenv.patched.pip._vendor.packaging",
+    "pep517": "pipenv.patched.pip._vendor.pep517",
+    "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
     "urllib3": "pipenv.patched.pip._vendor.urllib3",
+    "zipp": "pipenv.vendor.zipp",
 }
 
 GLOBAL_REPLACEMENT = [
     (r"(?<!\.)\bpip\._vendor", r"pipenv.patched.pip._vendor"),
     (r"(?<!\.)\bpip\._internal", r"pipenv.patched.pip._internal"),
     (r"(?<!\.)\bpippipenv\.patched\.notpip", r"pipenv.patched.pip"),
+    (
+        r"(?<!\.)import pep517\.envbuild",
+        r"from pipenv.patched.pip._vendor.pep517 import envbuild",
+    ),
+    (
+        r"(?<!\.)import pep517\.wrappers",
+        r"from pipenv.patched.pip._vendor.pep517 import wrappers",
+    ),
+    (
+        r"from cached_property import cached_property",
+        r"from pipenv.vendor.pyparsing.core import cached_property",
+    ),
+    (r"(?<!\.)pep517\.envbuild", r"envbuild"),
+    (r"(?<!\.)pep517\.wrappers", r"wrappers"),
 ]
 
 
@@ -224,21 +241,6 @@ def rename_if_needed(ctx, vendor_dir, item):
                 child.rename(str(new_path / child.name))
 
 
-def write_backport_imports(ctx, vendor_dir):
-    backport_dir = vendor_dir / "backports"
-    if not backport_dir.exists():
-        return
-    backport_init = backport_dir / "__init__.py"
-    backport_libs = detect_vendored_libs(backport_dir)
-    init_py_lines = backport_init.read_text().splitlines()
-    for lib in backport_libs:
-        lib_line = f"from . import {lib}"
-        if lib_line not in init_py_lines:
-            log("Adding backport %s to __init__.py exports" % lib)
-            init_py_lines.append(lib_line)
-    backport_init.write_text("\n".join(init_py_lines) + "\n")
-
-
 def _ensure_package_in_requirements(ctx, requirements_file, package):
     requirement = None
     log("using requirements file: %s" % requirements_file)
@@ -363,7 +365,6 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
         elif item.name not in FILE_WHITE_LIST:
             if rewrite and not package or (package and item.stem.lower() in package):
                 rewrite_file_imports(item, vendored_libs)
-    write_backport_imports(ctx, vendor_dir)
     if not package:
         apply_patches(ctx, patched=is_patched, pre=False)
         if is_patched:
@@ -486,6 +487,7 @@ def download_licenses(
     log(requirements)
     tmp_dir = vendor_dir / "__tmp__"
     # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
+
     cmd = "pip download --no-binary :all: --only-binary requests_download --no-deps"
     ctx.run("pip install flit")  # needed for the next step
     for req in requirements:
@@ -493,20 +495,34 @@ def download_licenses(
         try:
             ctx.run(exe_cmd)
         except invoke.exceptions.UnexpectedExit as e:
-            if "Disabling PEP 517 processing is invalid" not in e.result.stderr:
+            if "ModuleNotFoundErr" in e.result.stderr.strip():
+
+                target = parse.parse(
+                    "ModuleNotFoundError: No module named '{backend}'",
+                    e.result.stderr.strip().split("\n")[-1],
+                )
+                backend = target.named.get("backend")
+                if backend is not None:
+                    if "." in backend:
+                        backend, _, _ = backend.partition(".")
+                    ctx.run(f"pip install {backend}")
+                    ctx.run("pip install hatch-vcs")
+            elif "Disabling PEP 517 processing is invalid" not in e.result.stderr:
                 log(f"WARNING: Failed to download license for {req}")
                 continue
-            parse_target = (
-                "Disabling PEP 517 processing is invalid: project specifies a build "
-                "backend of {backend} in pyproject.toml"
-            )
-            target = parse.parse(parse_target, e.result.stderr.strip())
-            backend = target.named.get("backend")
-            if backend is not None:
-                if "." in backend:
-                    backend, _, _ = backend.partition(".")
-                ctx.run(f"pip install {backend}")
+            else:
+                parse_target = (
+                    "Disabling PEP 517 processing is invalid: project specifies a build "
+                    "backend of {backend} in pyproject.toml"
+                )
+                target = parse.parse(parse_target, e.result.stderr.strip())
+                backend = target.named.get("backend")
+                if backend is not None:
+                    if "." in backend:
+                        backend, _, _ = backend.partition(".")
+                    ctx.run(f"pip install {backend}")
             ctx.run(f"{cmd} --no-build-isolation -d {tmp_dir.as_posix()} {req}")
+
     for sdist in tmp_dir.iterdir():
         extract_license(vendor_dir, sdist)
     drop_dir(tmp_dir)

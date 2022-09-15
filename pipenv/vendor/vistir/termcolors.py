@@ -5,7 +5,6 @@ import os
 import re
 
 import pipenv.vendor.colorama as colorama
-import pipenv.vendor.six as six
 
 from .compat import to_native_string
 
@@ -79,7 +78,7 @@ def colorize(text, fg=None, bg=None, attrs=None):
         style = "NORMAL"
         if attrs is not None and not isinstance(attrs, list):
             _attrs = []
-            if isinstance(attrs, six.string_types):
+            if isinstance(attrs, str):
                 _attrs.append(attrs)
             else:
                 _attrs = list(attrs)

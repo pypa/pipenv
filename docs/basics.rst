@@ -12,9 +12,8 @@ This document covers some of Pipenv's more basic features.
 
 Pipfiles contain information for the dependencies of the project, and supersedes
 the requirements.txt file used in most Python projects. You should add a Pipfile in the
-Git repository letting users who clone the repository know the only thing required would be
+Git repository. The only thing required for users who clone the repository would be
 installing Pipenv in the machine and typing ``pipenv install``. Pipenv is a reference
-
 implementation for using Pipfile.
 
 .. _example_files:
@@ -313,12 +312,6 @@ The user can provide these additional parameters:
                  **destructive** and will delete your current virtualenv before replacing
                  it with an appropriately versioned one.
 
-    .. note:: The virtualenv created by Pipenv may be different from what you were expecting.
-              Dangerous characters (i.e. ``$`!*@"`` as well as space, line feed, carriage return,
-              and tab) are converted to underscores. Additionally, the full path to the current
-              folder is encoded into a "slug value" and appended to ensure the virtualenv name
-              is unique.
-
     - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile``.
     - ``--system`` — Use the system ``pip`` command rather than the one from your virtualenv.
     - ``--deploy`` — Make sure the packages are properly locked in Pipfile.lock, and abort if the lock file is out-of-date.
@@ -373,7 +366,7 @@ You can install packages with pipenv from git and other version control systems 
 
 The only optional section is the ``@<branch_or_tag>`` section.  When using git over SSH, you may use the shorthand vcs and scheme alias ``git+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#egg=<package_name>``. Note that this is translated to ``git+ssh://git@<location>`` when parsed.
 
-Note that it is **strongly recommended** that you install any version-controlled dependencies in editable mode, using ``pipenv install -e``, in order to ensure that dependency resolution can be performed with an up to date copy of the repository each time it is performed, and that it includes all known dependencies.
+Note that it is **strongly recommended** that you install any version-controlled dependencies in editable mode, using ``pipenv install -e``, in order to ensure that dependency resolution can be performed with an up-to-date copy of the repository each time it is performed, and that it includes all known dependencies.
 
 Below is an example usage which installs the git repository located at ``https://github.com/requests/requests.git`` from tag ``v2.20.1`` as package name ``requests``::
 
@@ -408,9 +401,7 @@ production environments for reproducible builds.
 
 .. note::
 
-    If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv lock -r``.
-    This will not include hashes, however. To get a ``requirements.txt``
-    you can also use ``$ pipenv run pip freeze``.
+    If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv requirements``.
 
 
 ☤ Pipenv and Docker Containers
@@ -418,7 +409,7 @@ production environments for reproducible builds.
 
 In general, you should not have Pipenv inside a linux container image, since
 it is a build tool. If you want to use it to build, and install the run time
-dependencies for your application, you can use a multi stage build for creating
+dependencies for your application, you can use a multistage build for creating
 a virtual environment with your dependencies. In this approach,
 Pipenv in installed in the base layer, it is then used to create the virtual
 environment. In a later stage, in a ``runtime`` layer the virtual environment
@@ -426,7 +417,7 @@ is copied from the base layer, the layer containing pipenv and other build
 dependencies is discarded.
 This results in a smaller image, which can still run your application.
 Here is an example ``Dockerfile``, which you can use as a starting point for
-doing a multi stage build for your application::
+doing a multistage build for your application::
 
   FROM docker.io/python:3.9 AS builder
 
@@ -435,7 +426,7 @@ doing a multi stage build for your application::
   # Tell pipenv to create venv in the current directory
   ENV PIPENV_VENV_IN_PROJECT=1
 
-  # Pipefile contains requests
+  # Pipfile contains requests
   ADD Pipfile.lock Pipfile /usr/src/
 
   WORKDIR /usr/src
@@ -453,35 +444,36 @@ doing a multi stage build for your application::
 
   FROM docker.io/python:3.9 AS runtime
 
-  RUN mkdir -v /usr/src/venv
+  RUN mkdir -v /usr/src/.venv
 
-  COPY --from=builder /usr/src/.venv/ /usr/src/venv/
+  COPY --from=builder /usr/src/.venv/ /usr/src/.venv/
 
-  RUN /usr/src/venv/bin/python -c "import requests; print(requests.__version__)"
+  RUN /usr/src/.venv/bin/python -c "import requests; print(requests.__version__)"
 
   # HERE GOES ANY CODE YOU NEED TO ADD TO CREATE YOUR APPLICATION'S IMAGE
   # For example
   # RUN apt install -y libcurl3-gnutls
   # RUN adduser --uid 123123 coolio
+  # ADD run.py /usr/src/
 
   WORKDIR /usr/src/
 
   USER coolio
 
-  CMD ["./venv/bin/python", "-m", "run.py"]
+  CMD ["./.venv/bin/python", "-m", "run.py"]
 
 .. Note::
 
-   Pipenv is not meant to run as root. However, in the multi stage build above
-   it is done never the less. A calculated risk, since the intermediatiary image
+   Pipenv is not meant to run as root. However, in the multistage build above
+   it is done nevertheless. A calculated risk, since the intermediate image
    is discarded.
    The runtime image later shows that you should create a user and user it to
-   run your applicaion.
+   run your application.
    **Once again, you should not run pipenv as root (or Admin on Windows) normally.
    This could lead to breakage of your Python installation, or even your complete
    OS.**
 
-When you build an image with this example (assuming requests is found in Pipefile), you
+When you build an image with this example (assuming requests is found in Pipfile), you
 will see that ``requests`` is installed in the ``runtime`` image::
 
   $ sudo docker build --no-cache -t oz/123:0.1 .

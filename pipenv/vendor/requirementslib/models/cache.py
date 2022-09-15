@@ -1,17 +1,14 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
-
 import atexit
 import copy
 import hashlib
 import json
 import os
-import pathlib
-import sys
 
 import pipenv.vendor.vistir as vistir
+from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
+from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
+from pipenv.patched.pip._vendor.cachecontrol.cache import DictCache
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
-from pipenv.vendor.pip_shims.shims import FAVORITE_HASH, SafeFileCache
 from pipenv.vendor.platformdirs import user_cache_dir
 
 from .utils import as_tuple, get_pinned_version, key_from_req, lookup_table
@@ -19,66 +16,12 @@ from .utils import as_tuple, get_pinned_version, key_from_req, lookup_table
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
 
 
-# Pip-tools cache implementation
-class CorruptCacheError(Exception):
-    def __init__(self, path):
-        self.path = path
-
-    def __str__(self):
-        lines = [
-            "The dependency cache seems to have been corrupted.",
-            "Inspect, or delete, the following file:",
-            "  {}".format(self.path),
-        ]
-        return os.linesep.join(lines)
-
-
-def read_cache_file(cache_file_path):
-    with open(cache_file_path, "r") as cache_file:
-        try:
-            doc = json.load(cache_file)
-        except ValueError:
-            raise CorruptCacheError(cache_file_path)
-
-        # Check version and load the contents
-        assert doc["__format__"] == 1, "Unknown cache file format"
-        return doc["dependencies"]
-
-
 class DependencyCache(object):
-    """Creates a new persistent dependency cache for the current Python
-    version. The cache file is written to the appropriate user cache dir for
-    the current platform, i.e.
+    """Creates a new in memory dependency cache for the current Python
+    version."""
 
-        ~/.cache/pip-tools/depcache-pyX.Y.json
-
-    Where X.Y indicates the Python version.
-    """
-
-    def __init__(self, cache_dir=None):
-        if cache_dir is None:
-            cache_dir = CACHE_DIR
-        if not pathlib.Path(CACHE_DIR).absolute().is_dir():
-            try:
-                vistir.path.mkdir_p(os.path.abspath(cache_dir))
-            except OSError:
-                pass
-
-        py_version = ".".join(str(digit) for digit in sys.version_info[:2])
-        cache_filename = "depcache-py{}.json".format(py_version)
-
-        self._cache_file = os.path.join(cache_dir, cache_filename)
-        self._cache = None
-
-    @property
-    def cache(self):
-        """The dictionary that is the actual in-memory cache.
-
-        This property lazily loads the cache from disk.
-        """
-        if self._cache is None:
-            self.read_cache()
-        return self._cache
+    def __init__(self):
+        self.cache = {}
 
     def as_cache_key(self, ireq):
         """Given a requirement, return its cache key. This behavior is a little
@@ -99,13 +42,6 @@ class DependencyCache(object):
             extras_string = "[{}]".format(",".join(extras))
         return name, "{}{}".format(version, extras_string)
 
-    def read_cache(self):
-        """Reads the cached contents into memory."""
-        if os.path.exists(self._cache_file):
-            self._cache = read_cache_file(self._cache_file)
-        else:
-            self._cache = {}
-
     def write_cache(self):
         """Writes the cache to disk as JSON."""
         doc = {
@@ -117,7 +53,6 @@ class DependencyCache(object):
 
     def clear(self):
         self._cache = {}
-        self.write_cache()
 
     def __contains__(self, ireq):
         pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
@@ -131,7 +66,6 @@ class DependencyCache(object):
         pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
         self.cache.setdefault(pkgname, {})
         self.cache[pkgname][pkgversion_and_extras] = values
-        self.write_cache()
 
     def __delitem__(self, ireq):
         pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
@@ -139,7 +73,6 @@ class DependencyCache(object):
             del self.cache[pkgname][pkgversion_and_extras]
         except KeyError:
             return
-        self.write_cache()
 
     def get(self, ireq, default=None):
         pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
@@ -184,7 +117,7 @@ class DependencyCache(object):
         )
 
 
-class HashCache(SafeFileCache):
+class HashCache(DictCache):
     """Caches hashes of PyPI artifacts so we do not need to re-download them.
 
     Hashes are only cached when the URL appears to contain a hash in it
@@ -199,15 +132,11 @@ class HashCache(SafeFileCache):
 
             session = requests.session()
             atexit.register(session.close)
-        cache_dir = kwargs.pop("cache_dir", CACHE_DIR)
         self.session = session
-        kwargs.setdefault("directory", os.path.join(cache_dir, "hash-cache"))
         super(HashCache, self).__init__(*args, **kwargs)
 
     def get_hash(self, location):
-        from pipenv.vendor.pip_shims import VcsSupport
-
-        # if there is no location hash (i.e., md5 / sha256 / etc) we on't want to store it
+        # if there is no location hash (i.e., md5 / sha256 / etc) we don't want to store it
         hash_value = None
         vcs = VcsSupport()
         orig_scheme = location.scheme
@@ -235,111 +164,3 @@ class HashCache(SafeFileCache):
             for chunk in iter(lambda: fp.read(8096), b""):
                 h.update(chunk)
         return ":".join([FAVORITE_HASH, h.hexdigest()])
-
-
-class _JSONCache(object):
-    """A persistent cache backed by a JSON file.
-
-    The cache file is written to the appropriate user cache dir for the
-    current platform, i.e.
-
-        ~/.cache/pip-tools/depcache-pyX.Y.json
-
-    Where X.Y indicates the Python version.
-    """
-
-    filename_format = None
-
-    def __init__(self, cache_dir=CACHE_DIR):
-        vistir.mkdir_p(cache_dir)
-        python_version = ".".join(str(digit) for digit in sys.version_info[:2])
-        cache_filename = self.filename_format.format(
-            python_version=python_version,
-        )
-        self._cache_file = os.path.join(cache_dir, cache_filename)
-        self._cache = None
-
-    @property
-    def cache(self):
-        """The dictionary that is the actual in-memory cache.
-
-        This property lazily loads the cache from disk.
-        """
-        if self._cache is None:
-            self.read_cache()
-        return self._cache
-
-    def as_cache_key(self, ireq):
-        """Given a requirement, return its cache key.
-
-        This behavior is a little weird in order to allow backwards
-        compatibility with cache files. For a requirement without extras, this
-        will return, for example::
-
-            ("ipython", "2.1.0")
-
-        For a requirement with extras, the extras will be comma-separated and
-        appended to the version, inside brackets, like so::
-
-            ("ipython", "2.1.0[nbconvert,notebook]")
-        """
-        extras = tuple(sorted(ireq.extras))
-        if not extras:
-            extras_string = ""
-        else:
-            extras_string = "[{}]".format(",".join(extras))
-        name = key_from_req(ireq.req)
-        version = get_pinned_version(ireq)
-        return name, "{}{}".format(version, extras_string)
-
-    def read_cache(self):
-        """Reads the cached contents into memory."""
-        if os.path.exists(self._cache_file):
-            self._cache = read_cache_file(self._cache_file)
-        else:
-            self._cache = {}
-
-    def write_cache(self):
-        """Writes the cache to disk as JSON."""
-        doc = {
-            "__format__": 1,
-            "dependencies": self._cache,
-        }
-        with open(self._cache_file, "w") as f:
-            json.dump(doc, f, sort_keys=True)
-
-    def clear(self):
-        self._cache = {}
-        self.write_cache()
-
-    def __contains__(self, ireq):
-        pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
-        return pkgversion_and_extras in self.cache.get(pkgname, {})
-
-    def __getitem__(self, ireq):
-        pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
-        return self.cache[pkgname][pkgversion_and_extras]
-
-    def __setitem__(self, ireq, values):
-        pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
-        self.cache.setdefault(pkgname, {})
-        self.cache[pkgname][pkgversion_and_extras] = values
-        self.write_cache()
-
-    def __delitem__(self, ireq):
-        pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
-        try:
-            del self.cache[pkgname][pkgversion_and_extras]
-        except KeyError:
-            return
-        self.write_cache()
-
-    def get(self, ireq, default=None):
-        pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
-        return self.cache.get(pkgname, {}).get(pkgversion_and_extras, default)
-
-
-class RequiresPythonCache(_JSONCache):
-    """Cache a candidate's Requires-Python information."""
-
-    filename_format = "pyreqcache-py{python_version}.json"

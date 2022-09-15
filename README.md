@@ -39,7 +39,7 @@ You can quickly play with Pipenv right in your browser:
 Installation
 ------------
 
-**Pipenv can be installed with Python 3.6 and above.**
+**Pipenv can be installed with Python 3.7 and above.**
 
 If you\'re using Debian Buster+:
 
@@ -51,7 +51,15 @@ Or, if you\'re using Fedora:
 
 Or, if you\'re using FreeBSD:
 
-    pkg install py36-pipenv
+    pkg install py39-pipenv
+
+Or, if you\'re using Gentoo:
+
+    sudo emerge pipenv
+
+Or, if you\'re using Void Linux:
+
+    sudo xbps-install -S python3-pipenv
 
 Or, if you\'re using Windows:
 
@@ -142,68 +150,79 @@ Magic shell completions are now enabled!
 ☤ Usage
 -------
 
-    $ pipenv
+    $ pipenv --help
     Usage: pipenv [OPTIONS] COMMAND [ARGS]...
 
     Options:
-      --where          Output project home information.
-      --venv           Output virtualenv information.
-      --py             Output Python interpreter information.
-      --envs           Output Environment Variable options.
-      --rm             Remove the virtualenv.
-      --bare           Minimal output.
-      --man            Display manpage.
-      --three          Use Python 3 when creating virtualenv.
-      --python TEXT    Specify which version of Python virtualenv should use.
-      --site-packages  Enable site-packages for the virtualenv.
-      --version        Show the version and exit.
-      -h, --help       Show this message and exit.
+      --where                         Output project home information.
+      --venv                          Output virtualenv information.
+      --py                            Output Python interpreter information.
+      --envs                          Output Environment Variable options.
+      --rm                            Remove the virtualenv.
+      --bare                          Minimal output.
+      --man                           Display manpage.
+      --support                       Output diagnostic information for use in
+                                      GitHub issues.
+      --site-packages / --no-site-packages
+                                      Enable site-packages for the virtualenv.
+                                      [env var: PIPENV_SITE_PACKAGES]
+      --python TEXT                   Specify which version of Python virtualenv
+                                      should use.
+      --three                         Use Python 3 when creating virtualenv.
+      --clear                         Clears caches (pipenv, pip).  [env var:
+                                      PIPENV_CLEAR]
+      -q, --quiet                     Quiet mode.
+      -v, --verbose                   Verbose mode.
+      --pypi-mirror TEXT              Specify a PyPI mirror.
+      --version                       Show the version and exit.
+      -h, --help                      Show this message and exit.
 
 
-    Usage Examples:
-       Create a new project using Python 3.9, specifically:
-       $ pipenv --python 3.9
+   Usage Examples:
 
-       Remove project virtualenv (inferred from current directory):
-       $ pipenv --rm
+      Create a new project using Python 3.7, specifically:
+      $ pipenv --python 3.7
 
-       Install all dependencies for a project (including dev):
-       $ pipenv install --dev
+      Remove project virtualenv (inferred from current directory):
+      $ pipenv --rm
 
-       Create a lockfile containing pre-releases:
-       $ pipenv lock --pre
+      Install all dependencies for a project (including dev):
+      $ pipenv install --dev
 
-       Show a graph of your installed dependencies:
-       $ pipenv graph
+      Create a lockfile containing pre-releases:
+      $ pipenv lock --pre
 
-       Check your installed dependencies for security vulnerabilities:
-       $ pipenv check
+      Show a graph of your installed dependencies:
+      $ pipenv graph
 
-       Install a local setup.py into your virtual environment/Pipfile:
-       $ pipenv install -e .
+      Check your installed dependencies for security vulnerabilities:
+      $ pipenv check
 
-       Use a lower-level pip command:
-       $ pipenv run pip freeze
+      Install a local setup.py into your virtual environment/Pipfile:
+      $ pipenv install -e .
 
-       Generate a requirements.txt file (including dev):
-       $ pipenv requirements --dev > requirements.txt
+      Use a lower-level pip command:
+      $ pipenv run pip freeze
 
-    Commands:
-      check         Checks for security vulnerabilities and against PEP 508 markers
-                    provided in Pipfile.
+   Commands:
+
+      check         Checks for PyUp Safety security vulnerabilities and against
+                    PEP 508 markers provided in Pipfile.
       clean         Uninstalls all packages not specified in Pipfile.lock.
-      graph         Displays currently–installed dependency graph information.
+      graph         Displays currently-installed dependency graph information.
       install       Installs provided packages and adds them to Pipfile, or (if no
                     packages are given), installs all packages from Pipfile.
       lock          Generates Pipfile.lock.
       open          View a given module in your editor.
+      requirements  Generate a requirements.txt from Pipfile.lock.
       run           Spawns a command installed into the virtualenv.
-      scripts       Displays the shortcuts in the (optional) [scripts] section of
-                    Pipfile.
+      scripts       Lists scripts in current environment config.
       shell         Spawns a shell within the virtualenv.
       sync          Installs all packages specified in Pipfile.lock.
-      requirements  Generates a requirements.txt compatible output directly from Pipfile.lock
-      uninstall     Un-installs a provided package and removes it from Pipfile.
+      uninstall     Uninstalls a provided package and removes it from Pipfile.
+      update        Runs lock, then sync.
+      verify        Verify the hash in Pipfile.lock is up-to-date.
+
 
 Locate the project:
 

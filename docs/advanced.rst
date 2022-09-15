@@ -12,7 +12,7 @@ This document covers some of Pipenv's more glorious and advanced features.
 
 - Dependencies of wheels provided in a ``Pipfile`` will not be captured by ``$ pipenv lock``.
 - There are some known issues with using private indexes, related to hashing. We're actively working to solve this problem. You may have great luck with this, however.
-- Installation is intended to be as deterministic as possible — use the ``--sequential`` flag to increase this, if experiencing issues.
+- Installation is intended to be as deterministic as possible.
 
 ☤ Specifying Package Indexes
 ----------------------------
@@ -123,7 +123,7 @@ Keep in mind that environment variables are expanded in runtime, leaving the ent
 ☤ Injecting credentials through keychain support
 ------------------------------------------------
 
-Private regirstries on Google Cloud, Azure and AWS support dynamic credentials using
+Private registries on Google Cloud, Azure and AWS support dynamic credentials using
 the keychain implementation. Due to the way the keychain is structured, it might ask
 the user for input. Asking the user for input is disabled. This will disable the keychain
 support completely, unfortunately.
@@ -152,6 +152,20 @@ input. Otherwise the process will hang forever!::
     disable_pip_input = false
 
 Above example will install ``flask`` and a private package ``private-test-package`` from GCP.
+
+☤ Supplying additional arguments to pip
+------------------------------------------------
+
+There may be cases where you wish to supply additional arguments to pip to be used during the install phase.
+For example, you may want to enable the pip feature for using
+`system certificate stores <https://pip.pypa.io/en/latest/topics/https-certificates/#using-system-certificate-stores>`_
+
+In this case you can supply these additional arguments to ``pipenv sync`` or ``pipenv install`` by passing additional
+argument ``--extra-pip-args="--use-feature=truststore"``.   It is possible to supply multiple arguments in the ``--extra-pip-args``.
+Example usage::
+
+    pipenv sync --extra-pip-args="--use-feature=truststore --proxy=127.0.0.1"
+
 
 ☤ Specifying Basically Anything
 -------------------------------
@@ -557,6 +571,19 @@ wherever you want, e.g.::
     export WORKON_HOME=~/.venvs
 
 In addition, you can also have Pipenv stick the virtualenv in ``project/.venv`` by setting the ``PIPENV_VENV_IN_PROJECT`` environment variable.
+
+☤ Virtual Environment Name
+-------------------------------------
+
+The virtualenv name created by Pipenv may be different from what you were expecting.
+Dangerous characters (i.e. ``$`!*@"`` as well as space, line feed, carriage return,
+and tab) are converted to underscores. Additionally, the full path to the current
+folder is encoded into a "slug value" and appended to ensure the virtualenv name
+is unique.
+
+Pipenv supports a arbitrary custom name for the virtual environment set at ``PIPENV_CUSTOM_VENV_NAME``.
+
+The logical place to specify this would be in a user's ``.env`` file in the root of the project, which gets loaded by pipenv when it is invoked.
 
 
 ☤ Testing Projects

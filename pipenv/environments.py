@@ -81,7 +81,11 @@ def normalize_pipfile_path(p):
 os.environ.pop("__PYVENV_LAUNCHER__", None)
 # Internal, to tell whether the command line session is interactive.
 SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
-PIPENV_IS_CI = env_to_bool(os.environ.get("CI") or os.environ.get("TF_BUILD") or False)
+
+# TF_BUILD indicates to Azure pipelines it is a build step
+PIPENV_IS_CI = _is_env_truthy("CI") or _is_env_truthy("TF_BUILD")
+
+
 NO_COLOR = False
 if os.getenv("NO_COLOR") or os.getenv("PIPENV_COLORBLIND"):
     NO_COLOR = True
@@ -103,19 +107,20 @@ Default is to show emojis. This is automatically set on Windows.
 
 
 class Setting:
+    """
+    Control various settings of pipenv via environment variables.
+    """
+
     def __init__(self) -> None:
+
         self.USING_DEFAULT_PYTHON = True
-        self.initialize()
+        """Use the default Python"""
 
-    def initialize(self):
-
+        #: Location for Pipenv to store it's package cache.
+        #: Default is to use appdir's user cache directory.
         self.PIPENV_CACHE_DIR = os.environ.get(
             "PIPENV_CACHE_DIR", user_cache_dir("pipenv")
         )
-        """Location for Pipenv to store it's package cache.
-
-        Default is to use appdir's user cache directory.
-        """
 
         # Tells Pipenv which Python to default to, when none is provided.
         self.PIPENV_DEFAULT_PYTHON_VERSION = os.environ.get(
@@ -189,12 +194,6 @@ class Setting:
         """Specify how many retries Pipenv should attempt for network requests.
 
         Default is 0. Automatically set to 1 on CI environments for robust testing.
-        """
-
-        self.PIPENV_MAX_SUBPROCESS = int(os.environ.get("PIPENV_MAX_SUBPROCESS", "8"))
-        """How many subprocesses should Pipenv use when installing.
-
-        Default is 16, an arbitrary number that seems to work.
         """
 
         self.PIPENV_NO_INHERIT = "PIPENV_NO_INHERIT" in os.environ
@@ -334,6 +333,9 @@ class Setting:
         To retain this behavior and avoid handling any conflicts that arise from the new
         approach, you may set this to '0', 'off', or 'false'.
         """
+
+        self.PIPENV_CUSTOM_VENV_NAME = os.getenv("PIPENV_CUSTOM_VENV_NAME", None)
+        """Tells Pipenv whether to name the venv something other than the default dir name."""
 
         self.PIPENV_PYUP_API_KEY = os.environ.get("PIPENV_PYUP_API_KEY", None)
 
