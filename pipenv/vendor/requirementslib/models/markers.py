@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import itertools
 import operator
 import re
@@ -6,7 +5,7 @@ from collections.abc import Mapping, Set
 from functools import lru_cache, reduce
 
 import pipenv.vendor.attr as attr
-import distlib.markers
+from pipenv.vendor.distlib import markers
 from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker
 from pipenv.patched.pip._vendor.packaging.specifiers import LegacySpecifier, Specifier, SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import parse
@@ -514,7 +513,7 @@ def get_contained_pyversions(marker):
         return set()
     # Use the distlib dictionary parser to create a dictionary 'trie' which is a bit
     # easier to reason about
-    marker_dict = distlib.markers.parse_marker(marker_str)[0]
+    marker_dict = markers.parse_marker(marker_str)[0]
     version_set = set()
     pyversions, _ = parse_marker_dict(marker_dict)
     if isinstance(pyversions, set):

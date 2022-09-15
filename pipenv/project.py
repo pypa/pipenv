@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import base64
@@ -21,6 +20,7 @@ from pipenv.cmdparse import Script
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
 from pipenv.patched.pip._internal.commands.install import InstallCommand
+from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
@@ -35,6 +35,7 @@ from pipenv.utils.shell import (
     find_windows_executable,
     get_workon_home,
     is_virtual_environment,
+    load_path,
     looks_like_dir,
     safe_expandvars,
     system_which,
@@ -53,8 +54,6 @@ except ImportError:
 
 if is_type_checking():
     from typing import Dict, List, Optional, Set, Text, Tuple, Union
-
-    import pkg_resources
 
     TSource = Dict[Text, Union[Text, bool]]
     TPackageEntry = Dict[str, Union[bool, str, List[str]]]
@@ -245,11 +244,7 @@ class Project:
 
     @property
     def working_set(self) -> pkg_resources.WorkingSet:
-        from pipenv.utils.shell import load_path
-
         sys_path = load_path(self.which("python"))
-        import pkg_resources
-
         return pkg_resources.WorkingSet(sys_path)
 
     @property

@@ -11,16 +11,6 @@ from urllib.parse import unquote
 
 import pipenv.vendor.attr as attr
 from pipenv.vendor.pyparsing.core import cached_property
-from pipenv.patched.pip._vendor.packaging.markers import Marker
-from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
-from pipenv.patched.pip._vendor.packaging.specifiers import (
-    InvalidSpecifier,
-    LegacySpecifier,
-    Specifier,
-    SpecifierSet,
-)
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.req.constructors import (
@@ -31,6 +21,16 @@ from pipenv.patched.pip._internal.req.constructors import (
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
+from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
+from pipenv.patched.pip._vendor.packaging.specifiers import (
+    InvalidSpecifier,
+    LegacySpecifier,
+    Specifier,
+    SpecifierSet,
+)
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.vendor.vistir.contextmanagers import temp_path
 from pipenv.vendor.vistir.misc import dedup
 from pipenv.vendor.vistir.path import (
@@ -60,7 +60,6 @@ from .setup_info import (
     _prepare_wheel_building_kwargs,
     ast_parse_setup_py,
     get_metadata,
-    parse_setup_cfg,
 )
 from .url import URI
 from .utils import (
@@ -205,7 +204,7 @@ class Line(object):
     def __str__(self):
         # type: () -> str
         if self.markers:
-            return "{0}; {1}".format(self.get_line(), self.markers)
+            return "{0} ; {1}".format(self.get_line(), self.markers)
         return self.get_line()
 
     def get_line(
@@ -237,7 +236,7 @@ class Line(object):
         # we anticipate this will be used if passing directly to the command line
         # for pip.
         if with_markers and self.markers:
-            line = "{0}; {1}".format(line, self.markers)
+            line = "{0} ; {1}".format(line, self.markers)
             if with_prefix and self.editable and not as_list:
                 line = '"{0}"'.format(line)
         if as_list:
@@ -1182,8 +1181,7 @@ class Line(object):
     def parse_markers(self):
         # type: () -> None
         if self.markers:
-            marker_str = self.markers.replace('"', "'")
-            markers = PackagingRequirement("fakepkg; {0}".format(marker_str)).marker
+            pkg_name, markers = split_markers_from_line(self.line)
             self.parsed_marker = markers
 
     @property
@@ -1287,7 +1285,6 @@ class Line(object):
         if self.markers:
             self.markers = self.markers.replace('"', "'")
         self.parse_extras()
-        self.line = self.line.strip('"').strip("'").strip()
         if self.line.startswith("git+file:/") and not self.line.startswith(
             "git+file:///"
         ):
@@ -2536,7 +2533,7 @@ class Requirement(object):
         if self._specifiers and not (self.is_file_or_url or self.is_vcs):
             line_parts.append(self._specifiers)
         if self.markers:
-            line_parts.append("; {0}".format(self.markers.replace('"', "'")))
+            line_parts.append(" ; {0}".format(self.markers.replace('"', "'")))
         if self.hashes_as_pip and not (self.editable or self.vcs or self.is_vcs):
             line_parts.append(self.hashes_as_pip)
         if self.editable:
@@ -2695,7 +2692,9 @@ class Requirement(object):
             r = named_req_from_parsed_line(parsed_line)
         req_markers = None
         if parsed_line.markers:
-            req_markers = PackagingRequirement("fakepkg; {0}".format(parsed_line.markers))
+            req_markers = PackagingRequirement(
+                "fakepkg ; {0}".format(parsed_line.markers)
+            )
         if r is not None and r.req is not None:
             r.req.marker = getattr(req_markers, "marker", None) if req_markers else None
         args = {}  # type: Dict[STRING_TYPE, CREATION_ARG_TYPES]
@@ -2754,7 +2753,7 @@ class Requirement(object):
         req_markers = None
         if markers:
             markers = str(markers)
-            req_markers = PackagingRequirement("fakepkg; {0}".format(markers))
+            req_markers = PackagingRequirement("fakepkg ; {0}".format(markers))
             if r.req is not None:
                 r.req.marker = req_markers.marker
         extras = _pipfile.get("extras")
@@ -2821,7 +2820,7 @@ class Requirement(object):
         # type: () -> Marker
         markers = self.markers
         if markers:
-            fake_pkg = PackagingRequirement("fakepkg; {0}".format(markers))
+            fake_pkg = PackagingRequirement("fakepkg ; {0}".format(markers))
             markers = fake_pkg.marker
         return markers
 

@@ -1,18 +1,12 @@
-# -*- coding=utf-8 -*-
-
 import atexit
 import contextlib
 import copy
 import functools
 import os
-from contextlib import ExitStack
 from json import JSONDecodeError
 
 import pipenv.vendor.attr as attr
 import pipenv.patched.pip._vendor.requests as requests
-from pipenv.patched.pip._vendor.packaging.markers import Marker
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.models.format_control import FormatControl
 from pipenv.patched.pip._internal.operations.build.build_tracker import get_build_tracker
@@ -20,6 +14,9 @@ from pipenv.patched.pip._internal.req.constructors import install_req_from_line
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.req.req_set import RequirementSet
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, global_tempdir_manager
+from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.vendor.vistir.compat import fs_str
 from pipenv.vendor.vistir.contextmanagers import temp_environ
 from pipenv.vendor.vistir.path import create_tracked_tempdir
@@ -35,7 +32,6 @@ from .cache import CACHE_DIR, DependencyCache
 from .setup_info import SetupInfo
 from .utils import (
     clean_requires_python,
-    fix_requires_python_marker,
     format_requirement,
     full_groupby,
     is_pinned_requirement,
@@ -46,23 +42,12 @@ from .utils import (
 )
 
 if MYPY_RUNNING:
-    from typing import (
-        Any,
-        Dict,
-        Generator,
-        List,
-        Optional,
-        Set,
-        Text,
-        Tuple,
-        TypeVar,
-        Union,
-    )
+    from typing import Any, Dict, List, Optional, Set, Text, TypeVar, Union
 
-    from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
-    from pipenv.patched.pip._internal.commands.base_command import Command
+    from pipenv.patched.pip._internal.commands import Command
     from pipenv.patched.pip._internal.index.package_finder import PackageFinder
     from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
+    from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 
     TRequirement = TypeVar("TRequirement")
     RequirementType = TypeVar(

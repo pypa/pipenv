@@ -1,4 +1,3 @@
-# -*- coding=utf-8 -*-
 import datetime
 import functools
 import io
@@ -12,10 +11,10 @@ from functools import reduce
 from typing import Sequence
 
 import pipenv.vendor.attr as attr
-import distlib.metadata
-import distlib.wheel
 import pipenv.patched.pip._vendor.requests as requests
 import pipenv.vendor.vistir as vistir
+from pipenv.vendor.distlib import wheel
+from pipenv.vendor.distlib.metadata import Metadata
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import Specifier, SpecifierSet
@@ -47,7 +46,6 @@ if MYPY_RUNNING:
         Any,
         Callable,
         Dict,
-        Generator,
         Generic,
         Iterator,
         List,
@@ -137,7 +135,7 @@ def validate_digest(inst, attrib, value):
 
 
 def get_local_wheel_metadata(wheel_file):
-    # type: (str) -> Optional[distlib.metadata.Metadata]
+    # type: (str) -> Optional[Metadata]
     parsed_metadata = None
     with io.open(wheel_file, "rb") as fh:
         with zipfile.ZipFile(fh, mode="r", compression=zipfile.ZIP_DEFLATED) as zf:
@@ -149,7 +147,7 @@ def get_local_wheel_metadata(wheel_file):
             if metadata is None:
                 raise RuntimeError("No metadata found in wheel: {0}".format(wheel_file))
             with zf.open(metadata, "r") as metadata_fh:
-                parsed_metadata = distlib.metadata.Metadata(fileobj=metadata_fh)
+                parsed_metadata = Metadata(fileobj=metadata_fh)
     return parsed_metadata
 
 
@@ -165,7 +163,7 @@ def get_remote_sdist_metadata(line):
 
 
 def get_remote_wheel_metadata(whl_file):
-    # type: (str) -> Optional[distlib.metadata.Metadata]
+    # type: (str) -> Optional[Metadata]
     parsed_metadata = None
     data = io.BytesIO()
     with vistir.contextmanagers.open_file(whl_file) as fp:
@@ -180,7 +178,7 @@ def get_remote_wheel_metadata(whl_file):
         if metadata is None:
             raise RuntimeError("No metadata found in wheel: {0}".format(whl_file))
         with zf.open(metadata, "r") as metadata_fh:
-            parsed_metadata = distlib.metadata.Metadata(fileobj=metadata_fh)
+            parsed_metadata = Metadata(fileobj=metadata_fh)
     return parsed_metadata
 
 
@@ -258,11 +256,11 @@ class Dependency(object):
                 markers = [marker_from_specifier(str(s)) for s in specifiers]
             py_version_part = reduce(merge_markers, markers)
         if self.markers:
-            line_str = "{0}; {1}".format(line_str, str(self.markers))
+            line_str = "{0} ; {1}".format(line_str, str(self.markers))
             if py_version_part:
                 line_str = "{0} and {1}".format(line_str, py_version_part)
         elif py_version_part and not self.markers:
-            line_str = "{0}; {1}".format(line_str, py_version_part)
+            line_str = "{0} ; {1}".format(line_str, py_version_part)
         return line_str
 
     def pin(self):
@@ -350,7 +348,7 @@ class Dependency(object):
                     marker_str = "{0!s}".format(marker)
         req_str = "{0}=={1}".format(info.name, info.version)
         if marker_str:
-            req_str = "{0}; {1}".format(req_str, marker_str)
+            req_str = "{0} ; {1}".format(req_str, marker_str)
         req = PackagingRequirement(req_str)
         requires_python_str = (
             info.requires_python if info.requires_python is not None else ""
@@ -570,7 +568,7 @@ class ReleaseUrl(object):
         markers = self.markers
         req_str = "{0} @ {1}#egg={0}".format(self.name, self.url)
         if markers:
-            req_str = "{0}; {1}".format(req_str, markers)
+            req_str = "{0} ; {1}".format(req_str, markers)
         return req_str
 
     def get_markers_from_wheel(self):
@@ -644,7 +642,7 @@ class ReleaseUrl(object):
         release_url = cls(**filter_dict(creation_kwargs))  # type: ignore
         if release_url.is_wheel:
             supported_tags = [
-                parse_tag(Tag(*tag)) for tag in distlib.wheel.Wheel(release_url.url).tags
+                parse_tag(Tag(*tag)) for tag in wheel.Wheel(release_url.url).tags
             ]
             release_url = attr.evolve(release_url, tags=supported_tags)
         return release_url
@@ -858,8 +856,8 @@ class ReleaseCollection(object):
     def wheels(self):
         # type: () -> Iterator[ReleaseUrl]
         for release in self.sort_releases():
-            for wheel in release.wheels:
-                yield wheel
+            for w in release.wheels:
+                yield w
 
     def sdists(self):
         # type: () -> Iterator[ReleaseUrl]
@@ -1060,8 +1058,8 @@ class Package(object):
     @property
     def latest_wheels(self):
         # type: () -> Iterator[ReleaseUrl]
-        for wheel in self.urls.wheels:
-            yield wheel
+        for w in self.urls.wheels:
+            yield w
 
     @property
     def dependencies(self):
