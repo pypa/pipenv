@@ -4,16 +4,14 @@ import pytest
 
 from flaky import flaky
 
-from pipenv.patched import pipfile
 from pipenv.project import Project
+from pipenv.vendor.plette import Pipfile
 from pipenv.utils.shell import temp_environ
 
 
-@flaky
 @pytest.mark.markers
-def test_package_environment_markers(pipenv_instance_pypi):
-
-    with pipenv_instance_pypi() as p:
+def test_package_environment_markers(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -167,8 +165,6 @@ six = "*"
             assert lock_hash is not None
             assert lock_hash == project.calculate_pipfile_hash()
 
-            # sanity check on pytest
-            assert 'PYPI_USERNAME' not in str(pipfile.load(p.pipfile_path))
             assert c.returncode == 0
             assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
 

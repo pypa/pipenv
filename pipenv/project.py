@@ -12,8 +12,6 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-import pipfile
-import pipfile.api
 import toml
 import tomlkit
 import vistir
@@ -43,6 +41,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
+from pipenv.vendor import plette
 from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 
 try:
@@ -140,7 +139,10 @@ class Project:
                 "verify_ssl": True,
                 "name": "pypi",
             }
-        pipfile.api.DEFAULT_SOURCE = self.default_source
+
+        plette.pipfiles.DEFAULT_SOURCE_TOML = (
+            f"[[source]]\n{toml.dumps(self.default_source)}"
+        )
 
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
@@ -431,12 +433,15 @@ class Project:
 
     @property
     def pipfile_location(self) -> str:
+
+        from pipenv.utils.pipfile import find_pipfile
+
         if self.s.PIPENV_PIPFILE:
             return self.s.PIPENV_PIPFILE
 
         if self._pipfile_location is None:
             try:
-                loc = pipfile.Pipfile.find(max_depth=self.s.PIPENV_MAX_DEPTH)
+                loc = find_pipfile(max_depth=self.s.PIPENV_MAX_DEPTH)
             except RuntimeError:
                 loc = "Pipfile"
             self._pipfile_location = normalize_pipfile_path(loc)
@@ -546,14 +551,15 @@ class Project:
     @property
     def _lockfile(self):
         """Pipfile.lock divided by PyPI and external dependencies."""
-        pfile = pipfile.load(self.pipfile_location, inject_env=False)
-        lockfile = json.loads(pfile.lock())
+        with open(self.pipfile_location) as pf:
+            lockfile = plette.Lockfile.with_meta_from(plette.Pipfile.load(pf))
         for section in ("default", "develop"):
             lock_section = lockfile.get(section, {})
             for key in list(lock_section.keys()):
                 norm_key = pep423_name(key)
                 lockfile[section][norm_key] = lock_section.pop(key)
-        return lockfile
+
+        return lockfile._data
 
     @property
     def _pipfile(self):
@@ -998,8 +1004,9 @@ class Project:
 
     def calculate_pipfile_hash(self):
         # Update the lockfile if it is out-of-date.
-        p = pipfile.load(self.pipfile_location, inject_env=False)
-        return p.hash
+        with open(self.pipfile_location) as pf:
+            p = plette.Pipfile.load(pf)
+        return p.get_hash().value
 
     def ensure_proper_casing(self):
         """Ensures proper casing of Pipfile packages"""

@@ -1,0 +1,17 @@
+Remove usage of pipfile module in favour of Plette.
+pipfile is not actively maintained anymore. Plette is actively maintained,
+and has stricter checking of the Pipefile and Pipefile.lock. As a result,
+Pipefile with unnamed package indecies will fail to lock. If a Pipefile
+was hand crafeted, and the source is anonymous an error will be thrown.
+The solution is simple, add a name to your index, e.g, replace::
+
+   [[source]]
+   url = "https://pypi.acme.com/simple"
+   verify_ssl = true
+
+With::
+
+   [[source]]
+   url = "https://pypi.acme.com/simple"
+   verify_ssl = true
+   name = acmes_private_index

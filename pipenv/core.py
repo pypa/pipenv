@@ -14,7 +14,6 @@ from typing import Dict, List, Optional, Union
 
 from pipenv import environments, exceptions, pep508checker
 from pipenv._compat import decode_for_output, fix_utf8
-from pipenv.patched import pipfile
 from pipenv.patched.pip._internal.build_env import _get_runnable_pip
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._internal.network.session import PipSession
@@ -49,7 +48,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.spinner import create_spinner
-from pipenv.vendor import click, vistir
+from pipenv.vendor import click, plette, vistir
 from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 if MYPY_RUNNING:
@@ -1029,7 +1028,6 @@ def do_lock(
     pypi_mirror=None,
 ):
     """Executes the freeze functionality."""
-
     cached_lockfile = {}
     if not pre:
         pre = project.settings.get("allow_prereleases")
@@ -2782,10 +2780,11 @@ def do_check(
             )
             sys.exit(1)
     # Load the pipfile.
-    p = pipfile.Pipfile.load(project.pipfile_location)
+    p = plette.Pipfile.load(open(project.pipfile_location))
+    p = plette.Lockfile.with_meta_from(p)
     failed = False
     # Assert each specified requirement.
-    for marker, specifier in p.data["_meta"]["requires"].items():
+    for marker, specifier in p._data["_meta"]["requires"].items():
         if marker in results:
             try:
                 assert results[marker] == specifier

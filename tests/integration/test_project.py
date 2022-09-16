@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.utils.shell import temp_environ
 from pipenv.vendor.vistir.path import is_in_path, normalize_path
+from pipenv.vendor.plette import Pipfile
 
 
 @pytest.mark.project
@@ -30,7 +30,8 @@ pytz = "*"
             os.environ['TEST_HOST'] = 'localhost:5000'
             project = Project()
             assert project.sources[0]['url'] == 'https://localhost:5000/simple'
-            assert 'localhost:5000' not in str(pipfile.load(p.pipfile_path))
+            assert 'localhost:5000' not in str(Pipfile.load(open(p.pipfile_path)))
+            print(str(Pipfile.load(open(p.pipfile_path))))
 
 
 @pytest.mark.project
@@ -47,7 +48,7 @@ name = "testindex"
 
 [[source]]
 url = "https://pypi.org/simple"
-verify_ssl = "true"
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -131,12 +132,12 @@ name = "testindex"
 
 [[source]]
 url = "https://pypi.org/simple"
-verify_ssl = "true"
+verify_ssl = true
 name = "pypi"
 
 [[source]]
 url = "https://pypi.python.org/simple"
-verify_ssl = "true"
+verify_ssl = true
 name = "legacy"
 
 [packages]

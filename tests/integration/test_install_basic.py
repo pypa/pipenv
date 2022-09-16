@@ -417,32 +417,6 @@ extras = ["socks"]
 
 
 @pytest.mark.dev
-@pytest.mark.basic
-@pytest.mark.install
-@pytest.mark.needs_internet
-def test_install_with_unnamed_source(pipenv_instance_pypi):
-    """Ensure that running `pipenv install` doesn't break with an unamed index"""
-    with pipenv_instance_pypi(chdir=True) as p:
-        with open(p.pipfile_path, "w") as f:
-            contents = """
-[[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
-name = "pypi"
-
-[[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
-
-[packages]
-dataclasses-json = {version="*", index="pypi"}
-            """.strip()
-            f.write(contents)
-        c = p.pipenv("install")
-        assert c.returncode == 0
-
-
-@pytest.mark.dev
 @pytest.mark.install
 def test_install_dev_use_default_constraints(pipenv_instance_private_pypi):
     # See https://github.com/pypa/pipenv/issues/4371
