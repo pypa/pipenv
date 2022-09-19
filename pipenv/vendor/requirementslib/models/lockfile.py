@@ -268,6 +268,10 @@ class Lockfile(object):
         if categories:
             deps = {}
             for category in categories:
+                if category == "packages":
+                    category = "default"
+                elif category == "dev-packages":
+                    category = "develop"
                 try:
                     category_deps = self[category]
                 except KeyError:

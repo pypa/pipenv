@@ -1031,7 +1031,7 @@ def do_lock(
     keep_outdated=False,
     write=True,
     pypi_mirror=None,
-    lockfile_categories=None,
+    categories=None,
 ):
     """Executes the freeze functionality."""
     cached_lockfile = {}
@@ -1048,39 +1048,39 @@ def do_lock(
     # Create the lockfile.
     lockfile = project._lockfile
     # Cleanup lockfile.
-    print(lockfile_categories)
-    if lockfile_categories is None:
+    if not categories:
         lockfile_categories = project.get_package_categories(for_lockfile=True)
+    else:
+        lockfile_categories = categories.copy()
+        if "dev-packages" in categories:
+            lockfile_categories.remove("dev-packages")
+            lockfile_categories.insert(0, "develop")
+        if "packages" in categories:
+            lockfile_categories.remove("packages")
+            lockfile_categories.insert(0, "default")
     for category in lockfile_categories:
         for k, v in lockfile.get(category, {}).copy().items():
             if not hasattr(v, "keys"):
                 del lockfile[category][k]
 
     # Resolve package to generate constraints before resolving other categories
-    pipfile_categories = lockfile_categories
-    if lockfile_categories is None:
-        pipfile_categories = project.get_package_categories()
-    else:
-        pipfile_categories = lockfile_categories.copy()
-        if "develop" in lockfile_categories:
-            pipfile_categories.remove("develop")
-            pipfile_categories.insert(0, "dev-packages")
-        if "default" in lockfile_categories:
-            pipfile_categories.remove("default")
-            pipfile_categories.insert(0, "packages")
-
-    for category in pipfile_categories:
+    for category in lockfile_categories:
+        pipfile_category = category
+        if pipfile_category == "develop":
+            pipfile_category = "dev-packages"
+        if pipfile_category == "default":
+            pipfile_category = "packages"
         if project.pipfile_exists:
-            packages = project.parsed_pipfile.get(category, {})
+            packages = project.parsed_pipfile.get(pipfile_category, {})
         else:
-            packages = getattr(project, category.replace("-", "_"))
+            packages = project.get_pipfile_section(pipfile_category)
 
         if write:
             # Alert the user of progress.
             click.echo(
                 "{} {} {}".format(
                     click.style("Locking"),
-                    click.style("[{}]".format(category.replace("_", "-")), fg="yellow"),
+                    click.style("[{}]".format(pipfile_category), fg="yellow"),
                     click.style(fix_utf8("dependencies...")),
                 ),
                 err=True,
@@ -1093,7 +1093,7 @@ def do_lock(
             packages,
             which=project._which,
             project=project,
-            category=category,
+            category=pipfile_category,
             clear=clear,
             pre=pre,
             allow_global=system,
@@ -1123,7 +1123,7 @@ def do_lock(
                 lockfile[lockfile_section][missing_pkg] = cached_lockfile[
                     lockfile_section
                 ][missing_pkg].copy()
-    # Overwrite any develop packages with default packages.
+    # Overwrite any category packages with default packages.
     for category in lockfile_categories:
         if category == "default":
             pass
@@ -1277,7 +1277,7 @@ def do_init(
                     keep_outdated=keep_outdated,
                     write=True,
                     pypi_mirror=pypi_mirror,
-                    lockfile_categories=categories,
+                    categories=categories,
                 )
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
@@ -1302,7 +1302,7 @@ def do_init(
                 keep_outdated=keep_outdated,
                 write=True,
                 pypi_mirror=pypi_mirror,
-                lockfile_categories=categories,
+                categories=categories,
             )
     do_install_dependencies(
         project,
@@ -2096,6 +2096,14 @@ def do_install(
     if not keep_outdated:
         keep_outdated = project.settings.get("keep_outdated")
     remote = requirementstxt and is_valid_url(requirementstxt)
+    if "default" in categories:
+        raise exceptions.PipenvUsageError(
+            message="Cannot install to category `default`-- did you mean `packages`?"
+        )
+    if "develop" in categories:
+        raise exceptions.PipenvUsageError(
+            message="Cannot install to category `develop`-- did you mean `dev-packages`?"
+        )
     # Warn and exit if --system is used without a pipfile.
     if (system and package_args) and not project.s.PIPENV_VIRTUALENV:
         raise exceptions.SystemUsageError
@@ -2413,6 +2421,7 @@ def do_uninstall(
     keep_outdated=False,
     pypi_mirror=None,
     ctx=None,
+    categories=None,
 ):
     from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 

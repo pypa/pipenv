@@ -566,6 +566,7 @@ def install_base_options(f):
 
 def uninstall_options(f):
     f = install_base_options(f)
+    f = categories_option(f)
     f = uninstall_dev_option(f)
     f = skip_lock_option(f)
     f = editable_option(f)

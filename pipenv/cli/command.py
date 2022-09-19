@@ -341,7 +341,7 @@ def lock(ctx, state, **kwargs):
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
         write=not state.quiet,
-        lockfile_categories=state.installstate.categories,
+        categories=state.installstate.categories,
     )
 
 
