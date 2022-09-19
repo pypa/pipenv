@@ -5,7 +5,7 @@ from json import JSONDecodeError
 from pathlib import Path
 
 import pipenv.vendor.attr as attr
-import pipenv.vendor.plette.lockfiles
+from pipenv.vendor.plette import lockfiles
 
 from ..exceptions import LockfileCorruptException, MissingParameter, PipfileNotFound
 from ..utils import is_editable, is_vcs, merge_items
@@ -22,7 +22,7 @@ def preferred_newlines(f):
     return DEFAULT_NEWLINES
 
 
-is_lockfile = optional_instance_of(plette.lockfiles.Lockfile)
+is_lockfile = optional_instance_of(lockfiles.Lockfile)
 is_projectfile = optional_instance_of(ProjectFile)
 
 
@@ -32,7 +32,7 @@ class Lockfile(object):
     _requirements = attr.ib(default=attr.Factory(list), type=list)
     _dev_requirements = attr.ib(default=attr.Factory(list), type=list)
     projectfile = attr.ib(validator=is_projectfile, type=ProjectFile)
-    _lockfile = attr.ib(validator=is_lockfile, type=plette.lockfiles.Lockfile)
+    _lockfile = attr.ib(validator=is_lockfile, type=lockfiles.Lockfile)
     newlines = attr.ib(default=DEFAULT_NEWLINES, type=str)
 
     @path.default
@@ -123,7 +123,7 @@ class Lockfile(object):
         :rtype: :class:`~requirementslib.models.project.ProjectFile`
         """
 
-        pf = ProjectFile.read(path, plette.lockfiles.Lockfile, invalid_ok=True)
+        pf = ProjectFile.read(path, lockfiles.Lockfile, invalid_ok=True)
         return pf
 
     @classmethod
@@ -134,7 +134,7 @@ class Lockfile(object):
             if not os.path.isabs(pipfile_path):
                 pipfile_path = os.path.abspath(pipfile_path)
             pipfile = Pipfile.load(os.path.dirname(pipfile_path))
-            return plette.lockfiles.Lockfile.with_meta_from(pipfile._pipfile)
+            return lockfiles.Lockfile.with_meta_from(pipfile._pipfile)
         raise PipfileNotFound(pipfile_path)
 
     @classmethod
@@ -170,7 +170,7 @@ class Lockfile(object):
                     pipfile = project_path.joinpath("Pipfile")
                 lf = cls.lockfile_from_pipfile(pipfile)
             else:
-                lf = plette.lockfiles.Lockfile(data)
+                lf = lockfiles.Lockfile(data)
             projectfile.model = lf
         return projectfile
 
@@ -201,7 +201,7 @@ class Lockfile(object):
             lockfile = cls.lockfile_from_pipfile(pipfile_path)
             lockfile.update(data)
         else:
-            lockfile = plette.lockfiles.Lockfile(data)
+            lockfile = lockfiles.Lockfile(data)
         projectfile = ProjectFile(
             line_ending=DEFAULT_NEWLINES, location=lockfile_path, model=lockfile
         )
