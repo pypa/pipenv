@@ -22,12 +22,14 @@ from pipenv.patched.pip._internal.req.constructors import (
 )
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.misc import split_auth_from_netloc
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.project import Project
 from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.utils.dependencies import (
     convert_deps_to_pip,
     get_canonical_names,
     get_constraints_from_deps,
+    get_lockfile_section_using_pipfile_category,
     is_pinned,
     is_required_version,
     is_star,
@@ -1090,25 +1092,24 @@ def do_lock(
 
     # Support for --keep-outdated...
     if keep_outdated:
-        from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+        for category_name in project.get_package_categories():
+            category = project.get_pipfile_section(category_name)
+            lockfile_section = get_lockfile_section_using_pipfile_category(category_name)
 
-        for section_name, category in (
-            ("default", project.packages),
-            ("develop", project.dev_packages),
-        ):
             for package_specified in category.keys():
                 if not is_pinned(category[package_specified]):
                     canonical_name = canonicalize_name(package_specified)
-                    if canonical_name in cached_lockfile[section_name]:
-                        lockfile[section_name][canonical_name] = cached_lockfile[
-                            section_name
+                    if canonical_name in cached_lockfile[lockfile_section]:
+                        lockfile[lockfile_section][canonical_name] = cached_lockfile[
+                            lockfile_section
                         ][canonical_name].copy()
-            for key in ["default", "develop"]:
-                packages = set(cached_lockfile[key].keys())
-                new_lockfile = set(lockfile[key].keys())
-                missing = packages - new_lockfile
-                for missing_pkg in missing:
-                    lockfile[key][missing_pkg] = cached_lockfile[key][missing_pkg].copy()
+            packages = set(cached_lockfile[lockfile_section].keys())
+            new_lockfile = set(lockfile[lockfile_section].keys())
+            missing = packages - new_lockfile
+            for missing_pkg in missing:
+                lockfile[lockfile_section][missing_pkg] = cached_lockfile[
+                    lockfile_section
+                ][missing_pkg].copy()
     # Overwrite any develop packages with default packages.
     for category in lockfile_categories:
         if category == "default":

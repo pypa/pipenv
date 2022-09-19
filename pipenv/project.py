@@ -695,10 +695,9 @@ class Project:
         )
 
         if from_pipfile and self.pipfile_exists:
-            lockfile_dict = {
-                "default": self._lockfile["default"].copy(),
-                "develop": self._lockfile["develop"].copy(),
-            }
+            lockfile_dict = {}
+            for category in self.get_package_categories(for_lockfile=True):
+                lockfile_dict[category] = self._lockfile.get(category, {}).copy()
             lockfile_dict.update({"_meta": self.get_lockfile_meta()})
             lockfile = Req_Lockfile.from_data(
                 path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
