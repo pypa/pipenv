@@ -4,8 +4,7 @@ import os
 from pathlib import Path
 
 import pipenv.vendor.attr as attr
-import plette.models.base
-import plette.pipfiles
+from pipenv.vendor.plette import pipfiles
 import pipenv.vendor.tomlkit as tomlkit
 
 from ..environment import MYPY_RUNNING
@@ -16,7 +15,7 @@ from .requirements import Requirement
 from .utils import get_url_name, optional_instance_of, tomlkit_value_to_python
 
 if MYPY_RUNNING:
-    from typing import Any, Dict, Iterable, List, Mapping, Text, Union
+    from typing import Any, Dict, Iterable, List, Text, Union
 
     package_type = Dict[Text, Dict[Text, Union[List[Text], Text]]]
     source_type = Dict[Text, Union[Text, bool]]
@@ -25,7 +24,7 @@ if MYPY_RUNNING:
     lockfile_type = Dict[Text, Union[package_type, meta_type]]
 
 
-is_pipfile = optional_instance_of(plette.pipfiles.Pipfile)
+is_pipfile = optional_instance_of(pipfiles.Pipfile)
 is_path = optional_instance_of(Path)
 is_projectfile = optional_instance_of(ProjectFile)
 
@@ -48,11 +47,11 @@ def reorder_source_keys(data):
     return data
 
 
-class PipfileLoader(plette.pipfiles.Pipfile):
+class PipfileLoader(pipfiles.Pipfile):
     @classmethod
     def validate(cls, data):
         # type: (tomlkit.toml_document.TOMLDocument) -> None
-        for key, klass in plette.pipfiles.PIPFILE_SECTIONS.items():
+        for key, klass in pipfiles.PIPFILE_SECTIONS.items():
             if key not in data or key == "sources":
                 continue
             try:
@@ -73,7 +72,7 @@ class PipfileLoader(plette.pipfiles.Pipfile):
         :rtype: :class:`~tomlkit.toml_document.TOMLDocument`
         """
         package_keys = (
-            k for k in plette.pipfiles.PIPFILE_SECTIONS.keys() if k.endswith("packages")
+            k for k in pipfiles.PIPFILE_SECTIONS.keys() if k.endswith("packages")
         )
         for key in package_keys:
             if key not in data:
@@ -110,7 +109,7 @@ class PipfileLoader(plette.pipfiles.Pipfile):
                 # content from one TOML document to another either. Modify the
                 # TOML content directly, and load the new in-memory document.
                 sep = "" if content.startswith("\n") else "\n"
-                content = plette.pipfiles.DEFAULT_SOURCE_TOML + sep + content
+                content = pipfiles.DEFAULT_SOURCE_TOML + sep + content
         data = tomlkit.loads(content)
         data = cls.ensure_package_sections(data)
         instance = cls(data)
@@ -156,7 +155,7 @@ class Pipfile(object):
 
     @_pipfile.default
     def _get_pipfile(self):
-        # type: () -> Union[plette.pipfiles.Pipfile, PipfileLoader]
+        # type: () -> Union[pipfiles.Pipfile, PipfileLoader]
         return self.projectfile.model
 
     @property
@@ -174,7 +173,7 @@ class Pipfile(object):
 
     @property
     def pipfile(self):
-        # type: () -> Union[PipfileLoader, plette.pipfiles.Pipfile]
+        # type: () -> Union[PipfileLoader, pipfiles.Pipfile]
         return self._pipfile
 
     def get_deps(self, dev=False, only=True):

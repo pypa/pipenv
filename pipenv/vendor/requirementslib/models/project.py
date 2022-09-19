@@ -4,7 +4,7 @@ import os
 
 import pipenv.vendor.attr as attr
 import pipenv.vendor.plette as plette
-import plette.models
+import pipenv.vendor.plette.models as models
 import pipenv.vendor.tomlkit as tomlkit
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
@@ -114,7 +114,7 @@ class Project(object):
         try:
             section = self.pipfile[name]
         except KeyError:
-            section = plette.models.PackageCollection(tomlkit.table())
+            section = models.PackageCollection(tomlkit.table())
             if insert:
                 self.pipfile[name] = section
         return section
@@ -181,7 +181,7 @@ class Project(object):
         if removed:
             # HACK: The lock file no longer represents the Pipfile at this
             # point. Set the hash to an arbitrary invalid value.
-            self.lockfile.meta.hash = plette.models.Hash({"__invalid__": ""})
+            self.lockfile.meta.hash = models.Hash({"__invalid__": ""})
 
     def difference_lockfile(self, lockfile):
         """Generate a difference between the current and given lockfiles.
