@@ -196,7 +196,7 @@ def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_pypi):
         c = p.pipenv("uninstall --all-dev")
         assert c.returncode == 0
 
-        assert "six" in p.lockfile["develop"]
+        assert "six" in p.lockfile["default"]
 
 
 @pytest.mark.uninstall
