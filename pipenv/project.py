@@ -872,10 +872,8 @@ class Project:
             raise SourceNotFound(target)
         return found
 
-    def get_package_name_in_pipfile(self, package_name, category=None, dev=False):
+    def get_package_name_in_pipfile(self, package_name, category):
         """Get the equivalent package name in pipfile"""
-        if not category:
-            category = "dev-packages" if dev else "packages"
         section = self.parsed_pipfile.get(category, {})
         package_name = pep423_name(package_name)
         for name in section.keys():
@@ -896,17 +894,15 @@ class Project:
     def remove_packages_from_pipfile(self, packages):
         parsed = self.parsed_pipfile
         packages = set([pep423_name(pkg) for pkg in packages])
-        for section in ("dev-packages", "packages"):
-            pipfile_section = parsed.get(section, {})
+        for category in self.get_package_categories():
+            pipfile_section = parsed.get(category, {})
             pipfile_packages = set(
                 [pep423_name(pkg_name) for pkg_name in pipfile_section.keys()]
             )
             to_remove = packages & pipfile_packages
-            # The normal toml parser can't handle deleting packages with preceding newlines
-            is_dev = section == "dev-packages"
             for pkg in to_remove:
-                pkg_name = self.get_package_name_in_pipfile(pkg, dev=is_dev)
-                del parsed[section][pkg_name]
+                pkg_name = self.get_package_name_in_pipfile(pkg, category=category)
+                del parsed[category][pkg_name]
         self.write_toml(parsed)
 
     def add_package_to_pipfile(self, package, dev=False, category=None):
