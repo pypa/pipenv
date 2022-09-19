@@ -2426,7 +2426,10 @@ def do_uninstall(
     pipfile_remove = True
     # Uninstall [dev-packages], if --dev was provided.
     if all_dev:
-        if "dev-packages" not in project.parsed_pipfile and not project_pkg_names["dev"]:
+        if (
+            "dev-packages" not in project.parsed_pipfile
+            and not project_pkg_names["develop"]
+        ):
             click.echo(
                 click.style(
                     "No {} to uninstall.".format(
@@ -2446,7 +2449,9 @@ def do_uninstall(
                 bold=True,
             )
         )
-        package_names = set(project_pkg_names["dev"]) - set(project_pkg_names["default"])
+        package_names = set(project_pkg_names["develop"]) - set(
+            project_pkg_names["default"]
+        )
 
     # Remove known "bad packages" from the list.
     bad_pkgs = get_canonical_names(BAD_PACKAGES)

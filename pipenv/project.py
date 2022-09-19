@@ -271,13 +271,16 @@ class Project:
 
     @property
     def lockfile_package_names(self) -> Dict[str, Set[str]]:
-        dev_keys = get_canonical_names(self.lockfile_content["develop"].keys())
-        default_keys = get_canonical_names(self.lockfile_content["default"].keys())
-        return {
-            "dev": dev_keys,
-            "default": default_keys,
-            "combined": dev_keys | default_keys,
+        results = {
+            "combined": {},
         }
+        for category in self.get_package_categories(for_lockfile=True):
+            category_packages = get_canonical_names(
+                self.lockfile_content[category].keys()
+            )
+            results[category] = category_packages
+            results["combined"] = results["combined"] | category_packages
+        return results
 
     @property
     def pipfile_package_names(self) -> Dict[str, Set[str]]:
