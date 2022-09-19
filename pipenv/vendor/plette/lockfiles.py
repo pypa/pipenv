@@ -35,12 +35,6 @@ class _LockFileEncoder(json.JSONEncoder):
         yield "\n"
 
 
-LOCKFILE_SECTIONS = {
-    "_meta": Meta,
-    "default": PackageCollection,
-    "develop": PackageCollection,
-}
-
 PIPFILE_SPEC_CURRENT = 6
 
 
@@ -70,8 +64,11 @@ class Lockfile(DataView):
     @classmethod
     def validate(cls, data):
         super(Lockfile, cls).validate(data)
-        for key, klass in LOCKFILE_SECTIONS.items():
-            klass.validate(data[key])
+        for key, value in data.items():
+            if key == "_meta":
+                Meta.validate(value)
+            else:
+                PackageCollection.validate(value)
 
     @classmethod
     def load(cls, f, encoding=None):
@@ -98,7 +95,10 @@ class Lockfile(DataView):
     def __getitem__(self, key):
         value = self._data[key]
         try:
-            return LOCKFILE_SECTIONS[key](value)
+            if key == "_meta":
+                return Meta(value)
+            else:
+                return PackageCollection(value)
         except KeyError:
             return value
 

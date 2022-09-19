@@ -53,7 +53,7 @@ class Lockfile(object):
 
     @property
     def section_keys(self):
-        return ["default", "develop"]
+        return set(self.lockfile.keys()) - {"_meta"}
 
     @property
     def extended_keys(self):
@@ -75,8 +75,6 @@ class Lockfile(object):
     def __getitem__(self, k, *args, **kwargs):
         retval = None
         lockfile = self._lockfile
-        section = None
-        pkg_type = None
         try:
             retval = lockfile[k]
         except KeyError:
@@ -94,7 +92,6 @@ class Lockfile(object):
         return retval
 
     def __getattr__(self, k, *args, **kwargs):
-        retval = None
         lockfile = super(Lockfile, self).__getattribute__("_lockfile")
         try:
             return super(Lockfile, self).__getattribute__(k)
@@ -122,7 +119,6 @@ class Lockfile(object):
         :return: A project file with the model and location for interaction
         :rtype: :class:`~requirementslib.models.project.ProjectFile`
         """
-
         pf = ProjectFile.read(path, lockfiles.Lockfile, invalid_ok=True)
         return pf
 
@@ -250,6 +246,9 @@ class Lockfile(object):
     def create(cls, path, create=True):
         return cls.load(path, create=create)
 
+    def get_section(self, name):
+        return self._lockfile.get(name)
+
     @property
     def develop(self):
         return self._lockfile.develop
@@ -280,38 +279,12 @@ class Lockfile(object):
         for k, v in deps.items():
             yield Requirement.from_pipfile(k, v)
 
-    @property
-    def dev_requirements(self):
-        if not self._dev_requirements:
-            self._dev_requirements = list(self.get_requirements(dev=True, only=True))
-        return self._dev_requirements
-
-    @property
-    def requirements(self):
-        if not self._requirements:
-            self._requirements = list(self.get_requirements(dev=False, only=True))
-        return self._requirements
-
-    @property
-    def dev_requirements_list(self):
-        return [{name: entry._data} for name, entry in self._lockfile.develop.items()]
-
-    @property
-    def requirements_list(self):
-        return [{name: entry._data} for name, entry in self._lockfile.default.items()]
+    def requirements_list(self, category):
+        if self._lockfile.get(category):
+            return [{name: entry._data} for name, entry in self._lockfile[category].items()]
+        return []
 
     def write(self):
         self.projectfile.model = copy.deepcopy(self._lockfile)
         self.projectfile.write()
 
-    def as_requirements(self, include_hashes=False, dev=False):
-        """Returns a list of requirements in pip-style format."""
-        lines = []
-        section = self.dev_requirements if dev else self.requirements
-        for req in section:
-            kwargs = {"include_hashes": include_hashes}
-            if req.editable:
-                kwargs["include_markers"] = False
-            r = req.as_line(**kwargs)
-            lines.append(r.strip())
-        return lines
