@@ -721,3 +721,26 @@ requests = "*"
         assert "certifi" not in p.lockfile["develop"]
         assert "urllib3" not in p.lockfile["develop"]
         assert "chardet" not in p.lockfile["develop"]
+
+
+@pytest.mark.lock
+def test_lock_specific_named_category(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi(chdir=True) as p:
+        contents = """
+[[source]]
+url = "{}"
+verify_ssl = true
+name = "test"
+
+[packages]
+requests = "*"
+
+[prereq]
+six = "*"
+        """.format(p.index_url).strip()
+        with open(p.pipfile_path, 'w') as f:
+            f.write(contents)
+        c = p.pipenv("lock --categories prereq")
+        assert c.returncode == 0
+        assert p.lockfile["prereq"]["six"]["index"] == "test"
+        assert p.lockfile["default"] == dict()
