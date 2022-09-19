@@ -1048,14 +1048,27 @@ def do_lock(
     # Create the lockfile.
     lockfile = project._lockfile
     # Cleanup lockfile.
-    lockfile_categories = project.get_package_categories(for_lockfile=True)
+    print(lockfile_categories)
+    if lockfile_categories is None:
+        lockfile_categories = project.get_package_categories(for_lockfile=True)
     for category in lockfile_categories:
         for k, v in lockfile.get(category, {}).copy().items():
             if not hasattr(v, "keys"):
                 del lockfile[category][k]
 
     # Resolve package to generate constraints before resolving other categories
-    pipfile_categories = project.get_package_categories()
+    pipfile_categories = lockfile_categories
+    if lockfile_categories is None:
+        pipfile_categories = project.get_package_categories()
+    else:
+        pipfile_categories = lockfile_categories.copy()
+        if "develop" in lockfile_categories:
+            pipfile_categories.remove("develop")
+            pipfile_categories.insert(0, "dev-packages")
+        if "default" in lockfile_categories:
+            pipfile_categories.remove("default")
+            pipfile_categories.insert(0, "packages")
+
     for category in pipfile_categories:
         if project.pipfile_exists:
             packages = project.parsed_pipfile.get(category, {})

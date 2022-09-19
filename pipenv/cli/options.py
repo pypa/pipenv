@@ -577,6 +577,7 @@ def lock_options(f):
     f = install_base_options(f)
     f = lock_dev_option(f)
     f = dev_only_flag(f)
+    f = categories_option(f)
     return f
 
 
