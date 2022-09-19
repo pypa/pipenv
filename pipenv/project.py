@@ -883,14 +883,15 @@ class Project:
                 return name
         return None
 
-    def remove_package_from_pipfile(self, package_name, dev=False):
+    def remove_package_from_pipfile(self, package_name, category):
         # Read and append Pipfile.
-        name = self.get_package_name_in_pipfile(package_name, dev=dev)
-        key = "dev-packages" if dev else "packages"
+        name = self.get_package_name_in_pipfile(package_name, category=category)
         p = self.parsed_pipfile
         if name:
-            del p[key][name]
+            del p[category][name]
             self.write_toml(p)
+            return True
+        return False
 
     def remove_packages_from_pipfile(self, packages):
         parsed = self.parsed_pipfile
@@ -921,7 +922,7 @@ class Project:
         # Set empty group if it doesn't exist yet.
         if key not in p:
             p[key] = {}
-        name = self.get_package_name_in_pipfile(req_name, category=category, dev=dev)
+        name = self.get_package_name_in_pipfile(req_name, category=category)
         if name and is_star(converted):
             # Skip for wildcard version
             return

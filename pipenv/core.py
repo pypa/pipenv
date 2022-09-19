@@ -2449,9 +2449,12 @@ def do_uninstall(
                 bold=True,
             )
         )
-        package_names = set(project_pkg_names["develop"]) - set(
-            project_pkg_names["default"]
-        )
+        preserve_packages = set()
+        for category in project.get_package_categories(for_lockfile=True):
+            if category == "develop":
+                continue
+            preserve_packages &= set(project_pkg_names[category])
+        package_names = set(project_pkg_names["develop"]) - preserve_packages
 
     # Remove known "bad packages" from the list.
     bad_pkgs = get_canonical_names(BAD_PACKAGES)
@@ -2505,39 +2508,41 @@ def do_uninstall(
                 if c.returncode != 0:
                     failure = True
         if not failure and pipfile_remove:
-            in_packages = project.get_package_name_in_pipfile(package_name, dev=False)
-            in_dev_packages = project.get_package_name_in_pipfile(package_name, dev=True)
-            if normalized in lockfile_packages:
-                click.echo(
-                    "{} {} {} {}".format(
-                        click.style("Removing", fg="cyan"),
-                        click.style(package_name, fg="green"),
-                        click.style("from", fg="cyan"),
-                        click.style(fix_utf8("Pipfile.lock..."), fg="white"),
-                    )
-                )
-                lockfile = project.get_or_create_lockfile()
-                if normalized in lockfile.default:
-                    del lockfile.default[normalized]
-                if normalized in lockfile.develop:
-                    del lockfile.develop[normalized]
-                lockfile.write()
-            if not (in_dev_packages or in_packages):
+            found_package = False
+            for category in project.get_package_categories():
                 if normalized in lockfile_packages:
-                    continue
+                    click.echo(
+                        "{} {} {} {}".format(
+                            click.style("Removing", fg="cyan"),
+                            click.style(package_name, fg="green"),
+                            click.style("from", fg="cyan"),
+                            click.style(fix_utf8("Pipfile.lock..."), fg="white"),
+                        )
+                    )
+                    lockfile = project.get_or_create_lockfile()
+                    if normalized in lockfile.default:
+                        del lockfile.default[normalized]
+                    if normalized in lockfile.develop:
+                        del lockfile.develop[normalized]
+                    lockfile.write()
+                if normalized in lockfile_packages:
+                    found_package = True
+
+                if project.remove_package_from_pipfile(package_name, category=category):
+                    click.secho(
+                        fix_utf8(
+                            f"Removed {package_name} from Pipfile category {category}"
+                        ),
+                        fg="green",
+                    )
+
+            if not found_package:
                 click.echo(
                     "No package {} to remove from Pipfile.".format(
                         click.style(package_name, fg="green")
                     )
                 )
-                continue
 
-            click.secho(fix_utf8(f"Removing {package_name} from Pipfile..."), fg="green")
-            # Remove package from both packages and dev-packages.
-            if in_dev_packages:
-                project.remove_package_from_pipfile(package_name, dev=True)
-            if in_packages:
-                project.remove_package_from_pipfile(package_name, dev=False)
     if lock:
         do_lock(
             project, system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror
