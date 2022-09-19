@@ -1967,10 +1967,10 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
     lockfile = do_lock(
         project, clear=clear, pre=pre, write=False, pypi_mirror=pypi_mirror
     )
-    for section in ("develop", "default"):
-        for package in lockfile[section]:
+    for category in project.get_package_categories(for_lockfile=True):
+        for package in lockfile[category]:
             try:
-                updated_packages[package] = lockfile[section][package]["version"]
+                updated_packages[package] = lockfile[category][package]["version"]
             except KeyError:
                 pass
     outdated = []
@@ -1985,29 +1985,34 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
             elif canonicalize_name(package) in outdated_packages:
                 skipped.append(outdated_packages[canonicalize_name(package)])
     for package, old_version, new_version in skipped:
-        name_in_pipfile = project.get_package_name_in_pipfile(package)
-        pipfile_version_text = ""
-        required = ""
-        version = None
-        if name_in_pipfile:
-            version = get_version(project.packages[name_in_pipfile])
-            rdeps = reverse_deps.get(canonicalize_name(package))
-            if isinstance(rdeps, Mapping) and "required" in rdeps:
-                required = " {} required".format(rdeps["required"])
-            if version:
-                pipfile_version_text = f" ({version} set in Pipfile)"
-            else:
-                pipfile_version_text = " (Unpinned in Pipfile)"
-        click.echo(
-            click.style(
-                "Skipped Update of Package {!s}: {!s} installed,{!s}{!s}, "
-                "{!s} available.".format(
-                    package, old_version, required, pipfile_version_text, new_version
-                ),
-                fg="yellow",
-            ),
-            err=True,
-        )
+        for category in project.get_package_categories():
+            name_in_pipfile = project.get_package_name_in_pipfile(
+                package, category=category
+            )
+            if name_in_pipfile:
+                required = ""
+                version = get_version(project.packages[name_in_pipfile])
+                rdeps = reverse_deps.get(canonicalize_name(package))
+                if isinstance(rdeps, Mapping) and "required" in rdeps:
+                    required = " {} required".format(rdeps["required"])
+                if version:
+                    pipfile_version_text = f" ({version} set in Pipfile)"
+                else:
+                    pipfile_version_text = " (Unpinned in Pipfile)"
+                click.echo(
+                    click.style(
+                        "Skipped Update of Package {!s}: {!s} installed,{!s}{!s}, "
+                        "{!s} available.".format(
+                            package,
+                            old_version,
+                            required,
+                            pipfile_version_text,
+                            new_version,
+                        ),
+                        fg="yellow",
+                    ),
+                    err=True,
+                )
     if not outdated:
         click.echo(click.style("All packages are up to date!", fg="green", bold=True))
         sys.exit(0)
