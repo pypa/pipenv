@@ -1017,11 +1017,11 @@ def get_downloads_info(project, names_map, section):
     return info
 
 
-def overwrite_dev(prod, dev):
+def overwrite_with_default(default, dev):
     dev_keys = set(list(dev.keys()))
-    prod_keys = set(list(prod.keys()))
+    prod_keys = set(list(default.keys()))
     for pkg in dev_keys & prod_keys:
-        dev[pkg] = prod[pkg]
+        dev[pkg] = default[pkg]
     return dev
 
 
@@ -1034,7 +1034,7 @@ def do_lock(
     keep_outdated=False,
     write=True,
     pypi_mirror=None,
-    categories=None,
+    lockfile_categories=None,
 ):
     """Executes the freeze functionality."""
     cached_lockfile = {}
@@ -1051,8 +1051,8 @@ def do_lock(
     # Create the lockfile.
     lockfile = project._lockfile
     # Cleanup lockfile.
-    categories = project.get_package_categories()
-    for category in categories:
+    lockfile_categories = project.get_package_categories(for_lockfile=True)
+    for category in lockfile_categories:
         for k, v in lockfile.get(category, {}).copy().items():
             if not hasattr(v, "keys"):
                 del lockfile[category][k]
@@ -1115,9 +1115,13 @@ def do_lock(
                 for missing_pkg in missing:
                     lockfile[key][missing_pkg] = cached_lockfile[key][missing_pkg].copy()
     # Overwrite any develop packages with default packages.
-    lockfile["develop"].update(
-        overwrite_dev(lockfile.get("default", {}), lockfile["develop"])
-    )
+    for category in lockfile_categories:
+        if category == "default":
+            pass
+        if lockfile.get(category):
+            lockfile[category].update(
+                overwrite_with_default(lockfile.get("default", {}), lockfile[category])
+            )
     if write:
         project.write_lockfile(lockfile)
         click.echo(
@@ -1265,7 +1269,7 @@ def do_init(
                     keep_outdated=keep_outdated,
                     write=True,
                     pypi_mirror=pypi_mirror,
-                    categories=categories,
+                    lockfile_categories=categories,
                 )
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
@@ -1290,7 +1294,7 @@ def do_init(
                 keep_outdated=keep_outdated,
                 write=True,
                 pypi_mirror=pypi_mirror,
-                categories=categories,
+                lockfile_categories=categories,
             )
     do_install_dependencies(
         project,

@@ -164,14 +164,16 @@ class Project:
         """Returns the details from the section of the Project's Pipfile."""
         return self.parsed_pipfile.get(section, {})
 
-    def get_package_categories(self):
+    def get_package_categories(self, for_lockfile=False):
         """Ensure we get only package categories and that the default packages section is first."""
         categories = set(self.parsed_pipfile.keys())
         package_categories = (
             categories - NON_CATEGORY_SECTIONS - {"packages", "dev-packages"}
         )
-        package_categories = ["packages", "dev-packages"] + list(package_categories)
-        return package_categories
+        if for_lockfile:
+            return ["default", "develop"] + list(package_categories)
+        else:
+            return ["packages", "dev-packages"] + list(package_categories)
 
     @property
     def name(self) -> str:
@@ -585,11 +587,7 @@ class Project:
         if not isinstance(sources, list):
             sources = [sources]
         lockfile["_meta"]["sources"] = [self.populate_source(s) for s in sources]
-        for category in self.get_package_categories():
-            if category == "packages":
-                category = "default"
-            elif category == "dev-packages":
-                category = "develop"
+        for category in self.get_package_categories(for_lockfile=True):
             lock_section = lockfile.get(category)
             if lock_section is None:
                 lockfile[category] = lock_section = {}
