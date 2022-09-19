@@ -243,7 +243,6 @@ def install(state, **kwargs):
         ignore_pipfile=state.installstate.ignore_pipfile,
         skip_lock=state.installstate.skip_lock,
         requirementstxt=state.installstate.requirementstxt,
-        sequential=state.installstate.sequential,
         pre=state.installstate.pre,
         deploy=state.installstate.deploy,
         keep_outdated=state.installstate.keep_outdated,
@@ -562,7 +561,6 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
         user=False,
         clear=state.clear,
         unused=False,
-        sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
         extra_pip_args=state.installstate.extra_pip_args,
     )
@@ -654,7 +652,6 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
         user=user,
         clear=state.clear,
         unused=unused,
-        sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
         extra_pip_args=state.installstate.extra_pip_args,
@@ -720,10 +717,7 @@ def verify(state):
     if not state.project.pipfile_exists:
         echo("No Pipfile present at project home.", err=True)
         sys.exit(1)
-    if (
-        state.project.get_lockfile_hash()
-        != state.project.calculate_pipfile_hash()["sha256"]
-    ):
+    if state.project.get_lockfile_hash() != state.project.calculate_pipfile_hash():
         echo(
             "Pipfile.lock is out-of-date. Run {} to update.".format(
                 style("$ pipenv lock", fg="yellow", bold=True)

@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import logging
 import os
@@ -6,65 +7,13 @@ import sys
 os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 
-def find_site_path(pkg, site_dir=None):
-    import pkg_resources
-
-    if site_dir is None:
-        site_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    working_set = pkg_resources.WorkingSet([site_dir] + sys.path[:])
-    for dist in working_set:
-        root = dist.location
-        base_name = dist.project_name if dist.project_name else dist.key
-        name = None
-        if "top_level.txt" in dist.metadata_listdir(""):
-            name = next(
-                iter(
-                    [
-                        line.strip()
-                        for line in dist.get_metadata_lines("top_level.txt")
-                        if line is not None
-                    ]
-                ),
-                None,
-            )
-        if name is None:
-            name = pkg_resources.safe_name(base_name).replace("-", "_")
-        if not any(pkg == _ for _ in [base_name, name]):
-            continue
-        path_options = [name, f"{name}.py"]
-        path_options = [os.path.join(root, p) for p in path_options if p is not None]
-        path = next(iter(p for p in path_options if os.path.exists(p)), None)
-        if path is not None:
-            return dist, path
-    return None, None
-
-
-def _patch_path(pipenv_site=None):
-    import site
-
-    pipenv_libdir = os.path.dirname(os.path.abspath(__file__))
-    pipenv_site_dir = os.path.dirname(pipenv_libdir)
-    if pipenv_site is not None:
-        pipenv_dist, pipenv_path = find_site_path("pipenv", site_dir=pipenv_site)
-    else:
-        pipenv_dist, pipenv_path = find_site_path("pipenv", site_dir=pipenv_site_dir)
-    if pipenv_dist is not None:
-        pipenv_dist.activate()
-    else:
-        site.addsitedir(
-            next(
-                iter(
-                    sitedir
-                    for sitedir in (pipenv_site, pipenv_site_dir)
-                    if sitedir is not None
-                ),
-                None,
-            )
-        )
-    if pipenv_path is not None:
-        pipenv_libdir = pipenv_path
-    for _dir in ("vendor", "patched", pipenv_libdir):
-        sys.path.insert(0, os.path.join(pipenv_libdir, _dir))
+def _ensure_modules():
+    spec = importlib.util.spec_from_file_location(
+        "pipenv", location=os.path.join(os.path.dirname(__file__), "__init__.py")
+    )
+    pipenv = importlib.util.module_from_spec(spec)
+    sys.modules["pipenv"] = pipenv
+    spec.loader.exec_module(pipenv)
 
 
 def get_parser():
@@ -872,7 +821,7 @@ def _main(
 def main(argv=None):
     parser = get_parser()
     parsed, remaining = parser.parse_known_args(argv)
-    _patch_path(pipenv_site=parsed.pipenv_site)
+    _ensure_modules()
     import warnings
 
     from pipenv.vendor.vistir.misc import replace_with_text_stream

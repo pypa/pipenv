@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import importlib.util
 import itertools
 import json
 import operator
@@ -11,12 +12,11 @@ import sys
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
 
-import pkg_resources
-
 import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.req.req_uninstall import UninstallPathSet
+from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.indexes import prepare_pip_source_args
@@ -40,7 +40,6 @@ if is_type_checking():
     from pipenv.vendor import tomlkit
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
-# TODO: Unittests for this class
 
 
 class Environment:
@@ -862,7 +861,7 @@ class Environment:
                 exec(code, dict(__file__=activate_this))
 
     @contextlib.contextmanager
-    def activated(self, include_extras=True, extra_dists=None):
+    def activated(self):
         """Helper context manager to activate the environment.
 
         This context manager will set the following variables for the duration
@@ -881,16 +880,8 @@ class Environment:
         to `os.environ["PATH"]` to ensure that calls to `~Environment.run()` use the
         environment's path preferentially.
         """
-
-        if not extra_dists:
-            extra_dists = []
         original_path = sys.path
         original_prefix = sys.prefix
-        parent_path = Path(__file__).absolute().parent
-        vendor_dir = parent_path.joinpath("vendor").as_posix()
-        patched_dir = parent_path.joinpath("patched").as_posix()
-        parent_path = parent_path.as_posix()
-        self.add_dist("pip")
         prefix = self.prefix.as_posix()
         with vistir.contextmanagers.temp_environ(), vistir.contextmanagers.temp_path():
             os.environ["PATH"] = os.pathsep.join(
@@ -913,21 +904,6 @@ class Environment:
                     os.environ.pop("PYTHONHOME", None)
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
-            site.addsitedir(self.base_paths["purelib"])
-            pip = self.safe_import("pip")  # noqa
-            pip_vendor = self.safe_import("pip._vendor")
-            pep517_dir = os.path.join(os.path.dirname(pip_vendor.__file__), "pep517")
-            site.addsitedir(pep517_dir)
-            os.environ["PYTHONPATH"] = os.pathsep.join(
-                [os.environ.get("PYTHONPATH", self.base_paths["PYTHONPATH"]), pep517_dir]
-            )
-            if include_extras:
-                site.addsitedir(parent_path)
-                sys.path.extend([parent_path, patched_dir, vendor_dir])
-                extra_dists = list(self.extra_dists) + extra_dists
-                for extra_dist in extra_dists:
-                    if extra_dist not in self.get_working_set():
-                        extra_dist.activate(self.sys_path)
             try:
                 yield
             finally:

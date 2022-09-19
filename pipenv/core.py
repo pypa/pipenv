@@ -14,7 +14,6 @@ from typing import Dict, List, Optional, Union
 
 from pipenv import environments, exceptions, pep508checker
 from pipenv._compat import decode_for_output, fix_utf8
-from pipenv.patched import pipfile
 from pipenv.patched.pip._internal.build_env import _get_runnable_pip
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._internal.network.session import PipSession
@@ -49,7 +48,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.spinner import create_spinner
-from pipenv.vendor import click, vistir
+from pipenv.vendor import click, plette, vistir
 from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 if MYPY_RUNNING:
@@ -755,7 +754,6 @@ def do_install_dependencies(
     allow_global=False,
     ignore_hashes=False,
     skip_lock=False,
-    concurrent=True,
     requirements_dir=None,
     pypi_mirror=None,
     extra_pip_args=None,
@@ -795,10 +793,7 @@ def do_install_dependencies(
     deps_list = list(
         lockfile.get_requirements(dev=dev, only=dev_only, categories=categories)
     )
-    if concurrent:
-        nprocs = project.s.PIPENV_MAX_SUBPROCESS
-    else:
-        nprocs = 1
+    nprocs = 2
     procs = queue.Queue(maxsize=nprocs)
     failed_deps_queue = queue.Queue()
     if skip_lock:
@@ -1196,7 +1191,6 @@ def do_init(
     ignore_pipfile=False,
     skip_lock=False,
     system=False,
-    concurrent=True,
     deploy=False,
     pre=False,
     keep_outdated=False,
@@ -1230,7 +1224,7 @@ def do_init(
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
         old_hash = project.get_lockfile_hash()
-        new_hash = project.calculate_pipfile_hash()["sha256"]
+        new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
             if deploy:
                 click.secho(
@@ -1302,7 +1296,6 @@ def do_init(
         dev_only=dev_only,
         allow_global=allow_global,
         skip_lock=skip_lock,
-        concurrent=concurrent,
         requirements_dir=requirements_dir,
         pypi_mirror=pypi_mirror,
         extra_pip_args=extra_pip_args,
@@ -1905,7 +1898,7 @@ def ensure_lockfile(project, keep_outdated=False, pypi_mirror=None):
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if project.lockfile_exists:
         old_hash = project.get_lockfile_hash()
-        new_hash = project.calculate_pipfile_hash()["sha256"]
+        new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
             click.echo(
                 click.style(
@@ -2039,7 +2032,6 @@ def do_install(
     ignore_pipfile=False,
     skip_lock=False,
     requirementstxt=False,
-    sequential=False,
     pre=False,
     deploy=False,
     keep_outdated=False,
@@ -2061,7 +2053,6 @@ def do_install(
     # Don't search for requirements.txt files if the user provides one
     if requirementstxt or package_args or project.pipfile_exists:
         skip_requirements = True
-    concurrent = not sequential
     # Ensure that virtualenv is available and pipfile are available
     ensure_project(
         project,
@@ -2196,7 +2187,6 @@ def do_install(
             ignore_pipfile=ignore_pipfile,
             system=system,
             skip_lock=skip_lock,
-            concurrent=concurrent,
             deploy=deploy,
             pre=pre,
             requirements_dir=requirements_directory,
@@ -2218,7 +2208,6 @@ def do_install(
                 dev=dev,
                 system=system,
                 allow_global=system,
-                concurrent=concurrent,
                 keep_outdated=keep_outdated,
                 requirements_dir=requirements_directory,
                 deploy=deploy,
@@ -2381,7 +2370,6 @@ def do_install(
             dev=dev,
             system=system,
             allow_global=system,
-            concurrent=concurrent,
             keep_outdated=keep_outdated,
             requirements_dir=requirements_directory,
             deploy=deploy,
@@ -2818,10 +2806,11 @@ def do_check(
             )
             sys.exit(1)
     # Load the pipfile.
-    p = pipfile.Pipfile.load(project.pipfile_location)
+    p = plette.Pipfile.load(open(project.pipfile_location))
+    p = plette.Lockfile.with_meta_from(p)
     failed = False
     # Assert each specified requirement.
-    for marker, specifier in p.data["_meta"]["requires"].items():
+    for marker, specifier in p._data["_meta"]["requires"].items():
         if marker in results:
             try:
                 assert results[marker] == specifier
@@ -3057,7 +3046,6 @@ def do_sync(
     user=False,
     clear=False,
     unused=False,
-    sequential=False,
     pypi_mirror=None,
     system=False,
     deploy=False,
@@ -3091,7 +3079,6 @@ def do_sync(
         project,
         dev=dev,
         allow_global=system,
-        concurrent=(not sequential),
         requirements_dir=requirements_dir,
         ignore_pipfile=True,  # Don't check if Pipfile and lock match.
         pypi_mirror=pypi_mirror,

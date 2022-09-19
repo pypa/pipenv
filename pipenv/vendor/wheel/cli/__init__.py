@@ -11,7 +11,7 @@ import sys
 
 def require_pkgresources(name):
     try:
-        import pkg_resources  # noqa: F401
+        import pipenv.patched.pip._vendor.pkg_resources as pkg_resources  # noqa: F401
     except ImportError:
         raise RuntimeError("'{0}' needs pkg_resources (part of setuptools).".format(name))
 

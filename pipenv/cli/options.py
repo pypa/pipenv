@@ -82,7 +82,6 @@ class InstallState:
         self.keep_outdated = False
         self.skip_lock = False
         self.ignore_pipfile = False
-        self.sequential = False
         self.code = False
         self.requirementstxt = None
         self.deploy = False
@@ -131,24 +130,6 @@ def editable_option(f):
         callback=callback,
         type=click_types.STRING,
         help="An editable Python package URL or path, often to a VCS repository.",
-    )(f)
-
-
-def sequential_option(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        state.installstate.sequential = value
-        return value
-
-    return option(
-        "--sequential",
-        is_flag=True,
-        default=False,
-        expose_value=False,
-        help="Install dependencies one-at-a-time, instead of concurrently.",
-        callback=callback,
-        type=click_types.BOOL,
-        show_envvar=True,
     )(f)
 
 
@@ -603,7 +584,6 @@ def sync_options(f):
     f = install_base_options(f)
     f = install_dev_option(f)
     f = categories_option(f)
-    f = sequential_option(f)
     return f
 
 

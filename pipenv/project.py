@@ -15,9 +15,8 @@ from pathlib import Path
 from pipenv.cmdparse import Script
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
-from pipenv.patched import pipfile
 from pipenv.patched.pip._internal.commands.install import InstallCommand
-from pipenv.patched.pipfile import api as pipfile_api
+from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
@@ -33,6 +32,7 @@ from pipenv.utils.shell import (
     find_windows_executable,
     get_workon_home,
     is_virtual_environment,
+    load_path,
     looks_like_dir,
     safe_expandvars,
     system_which,
@@ -51,8 +51,6 @@ except ImportError:
 
 if is_type_checking():
     from typing import Dict, List, Optional, Set, Text, Tuple, Union
-
-    import pkg_resources
 
     TSource = Dict[Text, Union[Text, bool]]
     TPackageEntry = Dict[str, Union[bool, str, List[str]]]
@@ -144,7 +142,10 @@ class Project:
                 "verify_ssl": True,
                 "name": "pypi",
             }
-        pipfile_api.DEFAULT_SOURCE = self.default_source
+
+        plette.pipfiles.DEFAULT_SOURCE_TOML = (
+            f"[[source]]\n{toml.dumps(self.default_source)}"
+        )
 
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
@@ -257,11 +258,7 @@ class Project:
 
     @property
     def working_set(self) -> pkg_resources.WorkingSet:
-        from pipenv.utils.shell import load_path
-
         sys_path = load_path(self.which("python"))
-        import pkg_resources
-
         return pkg_resources.WorkingSet(sys_path)
 
     @property
@@ -453,12 +450,15 @@ class Project:
 
     @property
     def pipfile_location(self) -> str:
+
+        from pipenv.utils.pipfile import find_pipfile
+
         if self.s.PIPENV_PIPFILE:
             return self.s.PIPENV_PIPFILE
 
         if self._pipfile_location is None:
             try:
-                loc = pipfile.Pipfile.find(max_depth=self.s.PIPENV_MAX_DEPTH)
+                loc = find_pipfile(max_depth=self.s.PIPENV_MAX_DEPTH)
             except RuntimeError:
                 loc = "Pipfile"
             self._pipfile_location = normalize_pipfile_path(loc)
@@ -568,25 +568,8 @@ class Project:
     @property
     def _lockfile(self):
         """Pipfile.lock divided by PyPI and external dependencies."""
-        from pipenv.vendor.tomlkit.exceptions import EmptyKeyError
-
-        lockfile = plette.Pipfile({})
-        if self.lockfile_exists:
-            with open(self.lockfile_location, mode="r") as f:
-                try:
-                    lockfile = plette.Pipfile.load(f)
-                except EmptyKeyError:
-                    pass
-
-        lockfile = lockfile._data
-        lockfile["_meta"] = lockfile.get("_meta", {})
-        lockfile["_meta"]["hash"] = {"sha256": self.calculate_pipfile_hash()["sha256"]}
-        lockfile["_meta"]["pipfile-spec"] = 6
-        lockfile["_meta"]["requires"] = lockfile["_meta"].get("requires", {})
-        sources = self.pipfile_sources(expand_vars=False)
-        if not isinstance(sources, list):
-            sources = [sources]
-        lockfile["_meta"]["sources"] = [self.populate_source(s) for s in sources]
+        with open(self.pipfile_location) as pf:
+            lockfile = plette.Lockfile.with_meta_from(plette.Pipfile.load(pf))
         for category in self.get_package_categories(for_lockfile=True):
             lock_section = lockfile.get(category)
             if lock_section is None:
@@ -594,7 +577,8 @@ class Project:
             for key in list(lock_section.keys()):
                 norm_key = pep423_name(key)
                 lockfile[category][norm_key] = lock_section.pop(key)
-        return lockfile
+
+        return lockfile._data
 
     @property
     def _pipfile(self):
@@ -760,7 +744,7 @@ class Project:
         if not isinstance(sources, list):
             sources = [sources]
         return {
-            "hash": {"sha256": self.calculate_pipfile_hash()["sha256"]},
+            "hash": {"sha256": self.calculate_pipfile_hash()},
             "pipfile-spec": PIPFILE_SPEC_CURRENT,
             "sources": [self.populate_source(s) for s in sources],
             "requires": self.parsed_pipfile.get("requires", {}),
@@ -1019,9 +1003,9 @@ class Project:
 
     def calculate_pipfile_hash(self):
         # Update the lockfile if it is out-of-date.
-        with open(self.pipfile_location) as f:
-            pfile = plette.Pipfile.load(f)
-            return pfile.get_hash()
+        with open(self.pipfile_location) as pf:
+            p = plette.Pipfile.load(pf)
+        return p.get_hash().value
 
     def ensure_proper_casing(self):
         """Ensures proper casing of Pipfile packages"""

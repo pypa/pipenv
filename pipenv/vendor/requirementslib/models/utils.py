@@ -1,4 +1,3 @@
-import io
 import os
 import re
 import string
@@ -10,11 +9,14 @@ from pathlib import Path
 
 import pipenv.vendor.tomlkit as tomlkit
 from pipenv.vendor.attr import validators
-from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker, Op, Value, Variable
-from pipenv.patched.pip._vendor.packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
-from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.constructors import install_req_from_line
+from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker, Op, Value, Variable
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
+from pipenv.patched.pip._vendor.packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.pip._vendor.pkg_resources import Requirement, get_distribution, safe_name
 from pipenv.vendor.plette.models import Package, PackageCollection
 from pipenv.vendor.tomlkit.container import Container
 from pipenv.vendor.tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
@@ -35,7 +37,6 @@ if MYPY_RUNNING:
         List,
         Match,
         Optional,
-        Sequence,
         Set,
         Text,
         Tuple,
@@ -48,8 +49,6 @@ if MYPY_RUNNING:
     from pipenv.patched.pip._vendor.packaging.markers import Op as PkgResourcesOp
     from pipenv.patched.pip._vendor.packaging.markers import Value as PkgResourcesValue
     from pipenv.patched.pip._vendor.packaging.markers import Variable as PkgResourcesVariable
-    from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
-    from pkg_resources import Requirement as PkgResourcesRequirement
     from pipenv.patched.pip._vendor.urllib3.util.url import Url
 
     _T = TypeVar("_T")
@@ -58,7 +57,7 @@ if MYPY_RUNNING:
     TValue = TypeVar("TValue", PkgResourcesValue, Value)
     TOp = TypeVar("TOp", PkgResourcesOp, Op)
     MarkerTuple = Tuple[TVariable, TOp, TValue]
-    TRequirement = Union[PackagingRequirement, PkgResourcesRequirement]
+    TRequirement = Union[PackagingRequirement, Requirement]
     STRING_TYPE = Union[bytes, str, Text]
     TOML_DICT_TYPES = Union[Container, Package, PackageCollection, Table, InlineTable]
     S = TypeVar("S", bytes, str, Text)
@@ -189,7 +188,6 @@ def init_requirement(name):
 
     if not isinstance(name, str):
         raise TypeError("must supply a name to generate a requirement")
-    from pkg_resources import Requirement
 
     req = Requirement.parse(name)
     req.vcs = None
@@ -225,9 +223,6 @@ def parse_extras(extras_str):
     :return: A sorted list of extras
     :rtype: List[str]
     """
-
-    from pkg_resources import Requirement
-
     extras = Requirement.parse("fakepkg{0}".format(extras_to_string(extras_str))).extras
     return sorted(dedup([extra.lower() for extra in extras]))
 
@@ -456,11 +451,8 @@ def _strip_extras_markers(marker):
 @lru_cache()
 def get_setuptools_version():
     # type: () -> Optional[STRING_TYPE]
-    import pkg_resources
 
-    setuptools_dist = pkg_resources.get_distribution(
-        pkg_resources.Requirement("setuptools")
-    )
+    setuptools_dist = get_distribution(Requirement("setuptools"))
     return getattr(setuptools_dist, "version", None)
 
 
@@ -526,10 +518,7 @@ def split_markers_from_line(line):
     )
     if line_quote and line.endswith(line_quote):
         line = line.strip(line_quote)
-    if not any(line.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
-        marker_sep = ";"
-    else:
-        marker_sep = "; "
+    marker_sep = " ; "
     markers = None
     if marker_sep in line:
         line, markers = line.split(marker_sep, 1)
@@ -644,7 +633,7 @@ def _requirement_to_str_lowercase_name(requirement):
         parts.append("@ {0}".format(requirement.url))
 
     if requirement.marker:
-        parts.append("; {0}".format(requirement.marker))
+        parts.append(" ; {0}".format(requirement.marker))
 
     return "".join(parts)
 
@@ -666,11 +655,11 @@ def format_requirement(ireq):
 
     if str(ireq.req.marker) != str(ireq.markers):
         if not ireq.req.marker:
-            line = "{}; {}".format(line, ireq.markers)
+            line = "{} ; {}".format(line, ireq.markers)
         else:
             name, markers = line.split(";", 1)
             markers = markers.strip()
-            line = "{}; ({}) and ({})".format(name, markers, ireq.markers)
+            line = "{} ; ({}) and ({})".format(name, markers, ireq.markers)
 
     return line
 
@@ -876,7 +865,7 @@ def make_install_requirement(
     if version:
         requirement_string = "{0}=={1}".format(requirement_string, str(version))
     if markers:
-        requirement_string = "{0}; {1}".format(requirement_string, str(markers))
+        requirement_string = "{0} ; {1}".format(requirement_string, str(markers))
     return install_req_from_line(requirement_string, constraint=constraint)
 
 
@@ -931,8 +920,6 @@ def clean_requires_python(candidates):
 
 
 def fix_requires_python_marker(requires_python):
-    from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
-
     marker_str = ""
     if any(requires_python.startswith(op) for op in Specifier._operators.keys()):
         spec_dict = defaultdict(set)
@@ -952,7 +939,7 @@ def fix_requires_python_marker(requires_python):
                 for op, vals in spec_dict.items()
             ]
         )
-    marker_to_add = PackagingRequirement("fakepkg; {0}".format(marker_str)).marker
+    marker_to_add = PackagingRequirement("fakepkg ; {0}".format(marker_str)).marker
     return marker_to_add
 
 
@@ -981,8 +968,6 @@ def get_name_variants(pkg):
 
     if not isinstance(pkg, str):
         raise TypeError("must provide a string to derive package names")
-    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-    from pkg_resources import safe_name
 
     pkg = pkg.lower()
     names = {safe_name(pkg), canonicalize_name(pkg), pkg.replace("-", "_")}

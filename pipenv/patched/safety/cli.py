@@ -61,7 +61,7 @@ def check(key, db, json, full_report, bare, stdin, files, cache, ignore, output,
     elif stdin:
         packages = list(read_requirements(sys.stdin))
     else:
-        import pkg_resources
+        import pipenv.patched.pip._vendor.pkg_resources as pkg_resources
         packages = [
             d for d in pkg_resources.working_set
             if d.key not in {"python", "wsgiref", "argparse"}
@@ -150,7 +150,7 @@ def license(key, db, json, bare, cache, files, proxyprotocol, proxyhost, proxypo
     if files:
         packages = list(itertools.chain.from_iterable(read_requirements(f, resolve=True) for f in files))
     else:
-        import pkg_resources
+        import pipenv.patched.pip._vendor.pkg_resources as pkg_resources
         packages = [
             d for d in pkg_resources.working_set
             if d.key not in {"python", "wsgiref", "argparse"}

@@ -27,6 +27,7 @@ from pipenv.patched.pip._internal.req.constructors import (
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
+from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.project import Project
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib import Requirement
@@ -401,6 +402,7 @@ class Resolver:
                     hashes = resolver.collect_hashes(ireq) if resolver else []
                     new_req = Requirement.from_ireq(ireq)
                     new_req = new_req.add_hashes(hashes)
+                    new_req = new_req.merge_markers(req.markers)
                     name, entry = new_req.pipfile_entry
                     locked_deps[pep423_name(name)] = translate_markers(entry)
                     click.echo(
@@ -1146,8 +1148,6 @@ def resolve_deps(
 
 @lru_cache()
 def get_pipenv_sitedir() -> Optional[str]:
-    import pkg_resources
-
     site_dir = next(
         iter(d for d in pkg_resources.working_set if d.key.lower() == "pipenv"), None
     )

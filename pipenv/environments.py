@@ -196,12 +196,6 @@ class Setting:
         Default is 0. Automatically set to 1 on CI environments for robust testing.
         """
 
-        self.PIPENV_MAX_SUBPROCESS = int(os.environ.get("PIPENV_MAX_SUBPROCESS", "8"))
-        """How many subprocesses should Pipenv use when installing.
-
-        Default is 16, an arbitrary number that seems to work.
-        """
-
         self.PIPENV_NO_INHERIT = "PIPENV_NO_INHERIT" in os.environ
         """Tell Pipenv not to inherit parent directories.
 

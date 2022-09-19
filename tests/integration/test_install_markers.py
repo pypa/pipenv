@@ -4,12 +4,10 @@ import pytest
 
 from flaky import flaky
 
-from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.utils.shell import temp_environ
 
 
-@flaky
 @pytest.mark.markers
 def test_package_environment_markers(pipenv_instance_private_pypi):
 
@@ -172,16 +170,14 @@ six = "*"
             assert c.returncode == 0
             lock_hash = project.get_lockfile_hash()
             assert lock_hash is not None
-            assert lock_hash == project.calculate_pipfile_hash()['sha256']
+            assert lock_hash == project.calculate_pipfile_hash()
 
-            # sanity check on pytest
-            assert 'PYPI_USERNAME' not in str(pipfile.load(p.pipfile_path))
             assert c.returncode == 0
-            assert project.get_lockfile_hash() == project.calculate_pipfile_hash()['sha256']
+            assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
 
             os.environ['PYPI_PASSWORD'] = 'pass2'
-            assert project.get_lockfile_hash() == project.calculate_pipfile_hash()['sha256']
+            assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
 
             with open(p.pipfile_path, 'a') as f:
                 f.write('requests = "==2.14.0"\n')
-            assert project.get_lockfile_hash() != project.calculate_pipfile_hash()['sha256']
+            assert project.get_lockfile_hash() != project.calculate_pipfile_hash()
