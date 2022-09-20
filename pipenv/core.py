@@ -30,6 +30,7 @@ from pipenv.utils.dependencies import (
     get_canonical_names,
     get_constraints_from_deps,
     get_lockfile_section_using_pipfile_category,
+    get_pipfile_category_using_lockfile_section,
     is_pinned,
     is_required_version,
     is_star,
@@ -1065,11 +1066,7 @@ def do_lock(
 
     # Resolve package to generate constraints before resolving other categories
     for category in lockfile_categories:
-        pipfile_category = category
-        if pipfile_category == "develop":
-            pipfile_category = "dev-packages"
-        if pipfile_category == "default":
-            pipfile_category = "packages"
+        pipfile_category = get_pipfile_category_using_lockfile_section(category)
         if project.pipfile_exists:
             packages = project.parsed_pipfile.get(pipfile_category, {})
         else:
@@ -2426,13 +2423,13 @@ def do_uninstall(
     # Automatically use an activated virtualenv.
     if project.s.PIPENV_USE_SYSTEM:
         system = True
-    if categories is None:
-        categories = project.get_package_categories()
     # Ensure that virtualenv is available.
     ensure_project(project, three=three, python=python, pypi_mirror=pypi_mirror)
     # Uninstall all dependencies, if --all was provided.
-    if not any([packages, editable_packages, all_dev, all, categories]):
+    if not any([packages, editable_packages, all_dev, all]):
         raise exceptions.PipenvUsageError("No package provided!", ctx=ctx)
+    if not categories:
+        categories = project.get_package_categories(for_lockfile=True)
     editable_pkgs = [
         Requirement.from_line(f"-e {p}").name for p in editable_packages if p
     ]
@@ -2440,8 +2437,6 @@ def do_uninstall(
     package_names = {p for p in packages if p}
     package_map = {canonicalize_name(p): p for p in packages if p}
     installed_package_names = project.installed_package_names
-    # Intelligently detect if --dev should be used or not.
-    lockfile_packages = set()
     if project.lockfile_exists:
         project_pkg_names = project.lockfile_package_names
     else:
@@ -2472,16 +2467,19 @@ def do_uninstall(
             )
         )
         preserve_packages = set()
+        dev_packages = set()
         for category in project.get_package_categories(for_lockfile=True):
             if category == "develop":
-                continue
-            preserve_packages &= set(project_pkg_names[category])
-        package_names = set(project_pkg_names["develop"]) - preserve_packages
+                dev_packages |= set(project_pkg_names[category])
+            else:
+                preserve_packages |= set(project_pkg_names[category])
+
+        package_names = dev_packages - preserve_packages
 
     # Remove known "bad packages" from the list.
     bad_pkgs = get_canonical_names(BAD_PACKAGES)
     ignored_packages = bad_pkgs & set(list(package_map.keys()))
-    for ignored_pkg in ignored_packages:
+    for ignored_pkg in get_canonical_names(ignored_packages):
         if project.s.is_verbose():
             click.echo(f"Ignoring {ignored_pkg}.", err=True)
         package_names.discard(package_map[ignored_pkg])
@@ -2509,15 +2507,10 @@ def do_uninstall(
         for normalized, package_name in selected_pkg_map.items()
         if normalized in (used_packages - bad_pkgs)
     ]
-    for normalized_name, package_name in selected_pkg_map.items():
-        click.secho(
-            fix_utf8(f"Uninstalling {click.style(package_name)}..."),
-            fg="green",
-            bold=True,
-        )
-        found_package = False
-        for category in categories:
-            if normalized_name in lockfile_packages:
+    for category in categories:
+        category = get_lockfile_section_using_pipfile_category(category)
+        for normalized_name, package_name in selected_pkg_map.items():
+            if normalized_name in project.lockfile_content[category]:
                 click.echo(
                     "{} {} {} {}".format(
                         click.style("Removing", fg="cyan"),
@@ -2527,25 +2520,22 @@ def do_uninstall(
                     )
                 )
                 lockfile = project.get_or_create_lockfile()
-                if normalized_name in lockfile.default:
-                    del lockfile.default[normalized_name]
-                if normalized_name in lockfile.develop:
-                    del lockfile.develop[normalized_name]
+                if normalized_name in lockfile[category]:
+                    del lockfile[category][normalized_name]
                 lockfile.write()
 
-            if project.remove_package_from_pipfile(package_name, category=category):
+            pipfile_category = get_pipfile_category_using_lockfile_section(category)
+            if project.remove_package_from_pipfile(
+                package_name, category=pipfile_category
+            ):
                 click.secho(
-                    fix_utf8(f"Removed {package_name} from Pipfile category {category}"),
+                    fix_utf8(
+                        f"Removed {package_name} from Pipfile category {pipfile_category}"
+                    ),
                     fg="green",
                 )
-                found_package = True
 
-            if not found_package:
-                click.echo(
-                    "No package {} to remove from Pipfile.".format(
-                        click.style(package_name, fg="green")
-                    )
-                )
+    for normalized_name, package_name in selected_pkg_map.items():
         still_remains = False
         for category in project.get_package_categories():
             if project.get_package_name_in_pipfile(normalized_name, category=category):
@@ -2553,6 +2543,11 @@ def do_uninstall(
         if not still_remains:
             # Uninstall the package.
             if package_name in packages_to_remove:
+                click.secho(
+                    fix_utf8(f"Uninstalling {click.style(package_name)}..."),
+                    fg="green",
+                    bold=True,
+                )
                 with project.environment.activated():
                     cmd = [
                         project_python(project, system=system),

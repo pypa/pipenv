@@ -20,7 +20,6 @@ from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
-    get_lockfile_section_using_pipfile_category,
     is_editable,
     is_star,
     pep423_name,
@@ -278,7 +277,7 @@ class Project:
             category_packages = get_canonical_names(
                 self.lockfile_content[category].keys()
             )
-            results[category] = category_packages
+            results[category] = set(category_packages)
             results["combined"] = results["combined"] | category_packages
         return results
 
@@ -287,11 +286,10 @@ class Project:
         result = {}
         combined = set()
         for category in self.get_package_categories():
-            lockfile_section = get_lockfile_section_using_pipfile_category(category)
             packages = self.get_pipfile_section(category)
             keys = get_canonical_names(packages.keys())
             combined |= keys
-            result[lockfile_section] = keys
+            result[category] = keys
         result["combined"] = combined
         return result
 
@@ -624,9 +622,10 @@ class Project:
     @property
     def all_packages(self):
         """Returns a list of all packages."""
-        p = dict(self.parsed_pipfile.get("dev-packages", {}))
-        p.update(self.parsed_pipfile.get("packages", {}))
-        return p
+        packages = {}
+        for category in self.get_package_categories():
+            packages.update(self.parsed_pipfile.get(category, {}))
+        return packages
 
     @property
     def packages(self):
@@ -761,17 +760,17 @@ class Project:
             formatted_data = tomlkit.dumps(data).rstrip()
         except Exception:
             document = tomlkit.document()
-            for section in ("packages", "dev-packages"):
-                document[section] = tomlkit.table()
+            for category in self.get_package_categories():
+                document[category] = tomlkit.table()
                 # Convert things to inline tables — fancy :)
-                for package in data.get(section, {}):
-                    if hasattr(data[section][package], "keys"):
+                for package in data.get(category, {}):
+                    if hasattr(data[category][package], "keys"):
                         table = tomlkit.inline_table()
-                        table.update(data[section][package])
-                        document[section][package] = table
+                        table.update(data[category][package])
+                        document[category][package] = table
                     else:
-                        document[section][package] = tomlkit.string(
-                            data[section][package]
+                        document[category][package] = tomlkit.string(
+                            data[category][package]
                         )
             formatted_data = tomlkit.dumps(document).rstrip()
 

@@ -40,6 +40,16 @@ def get_lockfile_section_using_pipfile_category(category):
     return lockfile_section
 
 
+def get_pipfile_category_using_lockfile_section(category):
+    if category == "develop":
+        lockfile_section = "dev-packages"
+    elif category == "default":
+        lockfile_section = "packages"
+    else:
+        lockfile_section = category
+    return lockfile_section
+
+
 class HackedPythonVersion:
     """A Beautiful hack, which allows us to tell pip which version of Python we're using."""
 

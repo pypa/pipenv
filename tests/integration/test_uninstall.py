@@ -200,11 +200,34 @@ def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_pypi):
 
 
 @pytest.mark.uninstall
-def test_uninstall_missing_parameters(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
-        c = p.pipenv("install dataclasses-json")
+def test_uninstall_missing_parameters(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        c = p.pipenv("install six")
         assert c.returncode == 0
 
         c = p.pipenv("uninstall")
         assert c.returncode != 0
         assert "No package provided!" in c.stderr
+
+
+@pytest.mark.install
+@pytest.mark.uninstall
+def test_uninstall_category_with_shared_requirement(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+        [packages]
+        six = "*"
+
+        [prereq]
+        six = "*"
+        """
+            f.write(contents)
+        c = p.pipenv("install")
+        assert c.returncode == 0
+
+        c = p.pipenv("uninstall six --categories packages")
+        assert c.returncode == 0
+
+        assert "six" in p.lockfile["prereq"]
+        assert "six" not in p.lockfile["default"]

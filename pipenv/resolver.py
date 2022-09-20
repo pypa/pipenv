@@ -293,12 +293,7 @@ class Entry:
 
     @property
     def pipfile_packages(self):
-        from pipenv.utils.dependencies import (
-            get_lockfile_section_using_pipfile_category,
-        )
-
-        lockfile_section = get_lockfile_section_using_pipfile_category(self.category)
-        return self.project.pipfile_package_names[lockfile_section]
+        return self.project.pipfile_package_names[self.category]
 
     def create_parent(self, name, specifier="*"):
         parent = self.create(
