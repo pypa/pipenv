@@ -1056,7 +1056,7 @@ def do_lock(
     if not project.lockfile_exists:
         lockfile = project.get_or_create_lockfile()
         project.write_lockfile(lockfile._lockfile._data)
-    lockfile = project.lockfile_content
+    lockfile = project.load_lockfile(expand_env_vars=False)
     # Cleanup lockfile.
     if not categories:
         lockfile_categories = project.get_package_categories(for_lockfile=True)
