@@ -32,6 +32,8 @@ on:
       - ".gitmodules"
       - ".gitattributes"
       - ".editorconfig"
+permissions:
+  contents: read # to fetch code (actions/checkout)
 jobs:
   lint:
     name: Check code linting
