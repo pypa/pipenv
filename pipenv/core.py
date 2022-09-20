@@ -1053,7 +1053,10 @@ def do_lock(
             )
         cached_lockfile = project.lockfile_content
     # Create the lockfile.
-    lockfile = project._lockfile
+    if not project.lockfile_exists:
+        lockfile = project.get_or_create_lockfile()
+        project.write_lockfile(lockfile._lockfile._data)
+    lockfile = project.lockfile_content
     # Cleanup lockfile.
     if not categories:
         lockfile_categories = project.get_package_categories(for_lockfile=True)
