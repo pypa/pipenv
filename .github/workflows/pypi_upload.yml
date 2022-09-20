@@ -6,8 +6,12 @@ on:
     tags:
       - v[0-9]+.[0-9]+.*  # add .* to allow dev releases
 
+permissions: {}
 jobs:
   deploy:
+    permissions:
+      contents: write # to create a release (actions/create-release)
+
     name: pipenv PyPI Upload
     runs-on: ubuntu-latest
     env:
