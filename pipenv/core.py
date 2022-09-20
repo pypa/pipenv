@@ -2410,8 +2410,8 @@ def do_install(
 
 def do_uninstall(
     project,
-    packages=False,
-    editable_packages=False,
+    packages=None,
+    editable_packages=None,
     three=None,
     python=False,
     system=False,
@@ -2423,19 +2423,15 @@ def do_uninstall(
     ctx=None,
     categories=None,
 ):
-    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-
-    from .vendor.requirementslib.models.requirements import Requirement
-
     # Automatically use an activated virtualenv.
     if project.s.PIPENV_USE_SYSTEM:
         system = True
+    if categories is None:
+        categories = project.get_package_categories()
     # Ensure that virtualenv is available.
-    # TODO: We probably shouldn't ensure a project exists if the outcome will be to just
-    # install things in order to remove them... maybe tell the user to install first?
     ensure_project(project, three=three, python=python, pypi_mirror=pypi_mirror)
-    # Un-install all dependencies, if --all was provided.
-    if not any([packages, editable_packages, all_dev, all]):
+    # Uninstall all dependencies, if --all was provided.
+    if not any([packages, editable_packages, all_dev, all, categories]):
         raise exceptions.PipenvUsageError("No package provided!", ctx=ctx)
     editable_pkgs = [
         Requirement.from_line(f"-e {p}").name for p in editable_packages if p
@@ -2450,7 +2446,6 @@ def do_uninstall(
         project_pkg_names = project.lockfile_package_names
     else:
         project_pkg_names = project.pipfile_package_names
-    pipfile_remove = True
     # Uninstall [dev-packages], if --dev was provided.
     if all_dev:
         if (
@@ -2510,58 +2505,40 @@ def do_uninstall(
 
     selected_pkg_map = {canonicalize_name(p): p for p in package_names}
     packages_to_remove = [
-        p
-        for normalized, p in selected_pkg_map.items()
+        package_name
+        for normalized, package_name in selected_pkg_map.items()
         if normalized in (used_packages - bad_pkgs)
     ]
-    for normalized, package_name in selected_pkg_map.items():
+    for normalized_name, package_name in selected_pkg_map.items():
         click.secho(
             fix_utf8(f"Uninstalling {click.style(package_name)}..."),
             fg="green",
             bold=True,
         )
-        # Uninstall the package.
-        if package_name in packages_to_remove:
-            with project.environment.activated():
-                cmd = [
-                    project_python(project, system=system),
-                    _get_runnable_pip(),
-                    "uninstall",
-                    package_name,
-                    "-y",
-                ]
-                c = run_command(cmd, is_verbose=project.s.is_verbose())
-                click.secho(c.stdout, fg="cyan")
-                if c.returncode != 0:
-                    failure = True
-        if not failure and pipfile_remove:
-            found_package = False
-            for category in project.get_package_categories():
-                if normalized in lockfile_packages:
-                    click.echo(
-                        "{} {} {} {}".format(
-                            click.style("Removing", fg="cyan"),
-                            click.style(package_name, fg="green"),
-                            click.style("from", fg="cyan"),
-                            click.style(fix_utf8("Pipfile.lock..."), fg="white"),
-                        )
+        found_package = False
+        for category in categories:
+            if normalized_name in lockfile_packages:
+                click.echo(
+                    "{} {} {} {}".format(
+                        click.style("Removing", fg="cyan"),
+                        click.style(package_name, fg="green"),
+                        click.style("from", fg="cyan"),
+                        click.style(fix_utf8("Pipfile.lock..."), fg="white"),
                     )
-                    lockfile = project.get_or_create_lockfile()
-                    if normalized in lockfile.default:
-                        del lockfile.default[normalized]
-                    if normalized in lockfile.develop:
-                        del lockfile.develop[normalized]
-                    lockfile.write()
-                if normalized in lockfile_packages:
-                    found_package = True
+                )
+                lockfile = project.get_or_create_lockfile()
+                if normalized_name in lockfile.default:
+                    del lockfile.default[normalized_name]
+                if normalized_name in lockfile.develop:
+                    del lockfile.develop[normalized_name]
+                lockfile.write()
 
-                if project.remove_package_from_pipfile(package_name, category=category):
-                    click.secho(
-                        fix_utf8(
-                            f"Removed {package_name} from Pipfile category {category}"
-                        ),
-                        fg="green",
-                    )
+            if project.remove_package_from_pipfile(package_name, category=category):
+                click.secho(
+                    fix_utf8(f"Removed {package_name} from Pipfile category {category}"),
+                    fg="green",
+                )
+                found_package = True
 
             if not found_package:
                 click.echo(
@@ -2569,6 +2546,25 @@ def do_uninstall(
                         click.style(package_name, fg="green")
                     )
                 )
+        still_remains = False
+        for category in project.get_package_categories():
+            if project.get_package_name_in_pipfile(normalized_name, category=category):
+                still_remains = True
+        if not still_remains:
+            # Uninstall the package.
+            if package_name in packages_to_remove:
+                with project.environment.activated():
+                    cmd = [
+                        project_python(project, system=system),
+                        _get_runnable_pip(),
+                        "uninstall",
+                        package_name,
+                        "-y",
+                    ]
+                    c = run_command(cmd, is_verbose=project.s.is_verbose())
+                    click.secho(c.stdout, fg="cyan")
+                    if c.returncode != 0:
+                        failure = True
 
     if lock:
         do_lock(

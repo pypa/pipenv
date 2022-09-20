@@ -291,6 +291,7 @@ def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
         all=all,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
+        categories=state.installstate.categories,
         ctx=ctx,
     )
     if retcode:
