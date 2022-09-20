@@ -1,6 +1,7 @@
 import json as simplejson
 import logging
 import os
+import queue
 import re
 import shutil
 import subprocess
@@ -766,100 +767,105 @@ def do_install_dependencies(
     Executes the installation functionality.
 
     """
+    procs = queue.Queue(maxsize=1)
+    if not categories:
+        if dev and dev_only:
+            categories = ["dev-packages"]
+        elif dev:
+            categories = ["packages", "dev-packages"]
+        else:
+            categories = ["packages"]
 
-    import queue
-
-    # Load the lockfile if it exists, or if dev_only is being used.
-    if skip_lock or not project.lockfile_exists:
-        if not bare:
-            click.echo(
-                click.style(
-                    fix_utf8("Installing dependencies from Pipfile..."), bold=True
+    for category in categories:
+        # Load the lockfile if it exists, or if dev_only is being used.
+        if skip_lock or not project.lockfile_exists:
+            if not bare:
+                click.echo(
+                    click.style(
+                        fix_utf8("Installing dependencies from Pipfile..."), bold=True
+                    )
                 )
-            )
-        # skip_lock should completely bypass the lockfile (broken in 4dac1676)
-        lockfile = project.get_or_create_lockfile(from_pipfile=True)
-    else:
-        lockfile = project.get_or_create_lockfile()
-        if not bare:
-            click.echo(
-                click.style(
-                    fix_utf8(
-                        "Installing dependencies from Pipfile.lock ({})...".format(
-                            lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
-                        )
-                    ),
-                    bold=True,
+            # skip_lock should completely bypass the lockfile (broken in 4dac1676)
+            lockfile = project.get_or_create_lockfile(from_pipfile=True)
+        else:
+            lockfile = project.get_or_create_lockfile()
+            if not bare:
+                click.echo(
+                    click.style(
+                        fix_utf8(
+                            "Installing dependencies from Pipfile.lock ({})...".format(
+                                lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
+                            )
+                        ),
+                        bold=True,
+                    )
                 )
-            )
-    dev = dev or dev_only
-    deps_list = list(
-        lockfile.get_requirements(dev=dev, only=dev_only, categories=categories)
-    )
-    nprocs = 2
-    procs = queue.Queue(maxsize=nprocs)
-    failed_deps_queue = queue.Queue()
-    if skip_lock:
-        ignore_hashes = True
-    editable_or_vcs_deps = [dep for dep in deps_list if (dep.editable or dep.vcs)]
-    normal_deps = [dep for dep in deps_list if not (dep.editable or dep.vcs)]
-    install_kwargs = {
-        "no_deps": not skip_lock,
-        "ignore_hashes": ignore_hashes,
-        "allow_global": allow_global,
-        "pypi_mirror": pypi_mirror,
-        "sequential_deps": editable_or_vcs_deps,
-        "extra_pip_args": extra_pip_args,
-    }
-
-    batch_install(
-        project,
-        normal_deps,
-        procs,
-        failed_deps_queue,
-        requirements_dir,
-        **install_kwargs,
-    )
-
-    if not procs.empty():
-        _cleanup_procs(project, procs, failed_deps_queue)
-
-    # Iterate over the hopefully-poorly-packaged dependencies...
-    if not failed_deps_queue.empty():
-        click.echo(
-            click.style(
-                fix_utf8("Installing initially failed dependencies..."), bold=True
-            )
+        dev = dev or dev_only
+        deps_list = list(
+            lockfile.get_requirements(dev=dev, only=dev_only, categories=[category])
         )
-        retry_list = []
-        while not failed_deps_queue.empty():
-            failed_dep = failed_deps_queue.get()
-            retry_list.append(failed_dep)
-        install_kwargs.update({"retry": False})
+        failed_deps_queue = queue.Queue()
+        if skip_lock:
+            ignore_hashes = True
+        editable_or_vcs_deps = [dep for dep in deps_list if (dep.editable or dep.vcs)]
+        normal_deps = [dep for dep in deps_list if not (dep.editable or dep.vcs)]
+        install_kwargs = {
+            "no_deps": not skip_lock,
+            "ignore_hashes": ignore_hashes,
+            "allow_global": allow_global,
+            "pypi_mirror": pypi_mirror,
+            "sequential_deps": editable_or_vcs_deps,
+            "extra_pip_args": extra_pip_args,
+        }
+
         batch_install(
             project,
-            retry_list,
+            normal_deps,
             procs,
             failed_deps_queue,
             requirements_dir,
             **install_kwargs,
         )
-    if not procs.empty():
-        _cleanup_procs(project, procs, failed_deps_queue, retry=False)
-    if not failed_deps_queue.empty():
-        failed_list = []
-        while not failed_deps_queue.empty():
-            failed_dep = failed_deps_queue.get()
-            failed_list.append(failed_dep)
-        click.echo(
-            click.style(
-                f"Failed to install some dependency or packages.  "
-                f"The following have failed installation and attempted retry: {failed_list}",
-                fg="red",
-            ),
-            err=True,
-        )
-        sys.exit(1)
+
+        if not procs.empty():
+            _cleanup_procs(project, procs, failed_deps_queue)
+
+        # Iterate over the hopefully-poorly-packaged dependencies...
+        if not failed_deps_queue.empty():
+            click.echo(
+                click.style(
+                    fix_utf8("Installing initially failed dependencies..."), bold=True
+                )
+            )
+            retry_list = []
+            while not failed_deps_queue.empty():
+                failed_dep = failed_deps_queue.get()
+                retry_list.append(failed_dep)
+            install_kwargs.update({"retry": False})
+            batch_install(
+                project,
+                retry_list,
+                procs,
+                failed_deps_queue,
+                requirements_dir,
+                **install_kwargs,
+            )
+        if not procs.empty():
+            _cleanup_procs(project, procs, failed_deps_queue, retry=False)
+        if not failed_deps_queue.empty():
+            failed_list = []
+            while not failed_deps_queue.empty():
+                failed_dep = failed_deps_queue.get()
+                failed_list.append(failed_dep)
+            click.echo(
+                click.style(
+                    f"Failed to install some dependency or packages.  "
+                    f"The following have failed installation and attempted retry: {failed_list}",
+                    fg="red",
+                ),
+                err=True,
+            )
+            sys.exit(1)
 
 
 def convert_three_to_python(three, python):
@@ -1211,12 +1217,13 @@ def do_init(
     categories=None,
 ):
     """Executes the init functionality."""
-
     python = None
     if project.s.PIPENV_PYTHON is not None:
         python = project.s.PIPENV_PYTHON
     elif project.s.PIPENV_DEFAULT_PYTHON_VERSION is not None:
         python = project.s.PIPENV_DEFAULT_PYTHON_VERSION
+    if categories is None:
+        categories = []
 
     if not system and not project.s.PIPENV_USE_SYSTEM:
         if not project.virtualenv_exists:
@@ -1331,7 +1338,7 @@ def get_pip_args(
     verbose: bool = False,
     upgrade: bool = False,
     require_hashes: bool = False,
-    no_build_isolation: bool = False,
+    no_build_isolation: bool = True,
     no_use_pep517: bool = False,
     no_deps: bool = False,
     selective_upgrade: bool = False,

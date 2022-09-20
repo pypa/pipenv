@@ -210,7 +210,7 @@ def test_uninstall_missing_parameters(pipenv_instance_private_pypi):
         assert "No package provided!" in c.stderr
 
 
-@pytest.mark.install
+@pytest.mark.categories
 @pytest.mark.uninstall
 def test_uninstall_category_with_shared_requirement(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
@@ -230,4 +230,27 @@ def test_uninstall_category_with_shared_requirement(pipenv_instance_pypi):
         assert c.returncode == 0
 
         assert "six" in p.lockfile["prereq"]
+        assert "six" not in p.lockfile["default"]
+
+
+@pytest.mark.categories
+@pytest.mark.uninstall
+def test_uninstall_multiple_categories(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+        [after]
+        six = "*"
+
+        [prereq]
+        six = "*"
+        """
+            f.write(contents)
+        c = p.pipenv("install")
+        assert c.returncode == 0
+
+        c = p.pipenv('uninstall six --categories="prereq after"')
+        assert c.returncode == 0
+
+        assert "six" not in p.lockfile["prereq"]
         assert "six" not in p.lockfile["default"]
