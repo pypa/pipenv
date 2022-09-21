@@ -741,7 +741,7 @@ def main(ctx, package=None, type=None):
         if package_dir == patched_dir:
             vendor(ctx, patched_dir, rewrite=True)
         else:
-            vendor(ctx, package_dir)
+            vendor(ctx, package_dir, rewrite=True)
         req_txt = "vendor.txt" if package_dir == vendor_dir else "patched.txt"
         download_licenses(ctx, package_dir, req_txt)
         if package_dir == patched_dir:
