@@ -557,7 +557,9 @@ class Project:
             lock_section = lockfile.get(section, {})
             for key in list(lock_section.keys()):
                 norm_key = pep423_name(key)
-                lockfile[section][norm_key] = lock_section.pop(key)
+                specifier = lock_section[key]
+                del lock_section[key]
+                lockfile[section][norm_key] = specifier
 
         return lockfile._data
 
