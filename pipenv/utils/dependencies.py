@@ -257,7 +257,10 @@ def convert_deps_to_pip(
     for dep_name, dep in deps.items():
         if project:
             project.clear_pipfile_cache()
-        indexes = getattr(project, "pipfile_sources", []) if project is not None else []
+        if project:
+            indexes = project.pipfile_sources()
+        else:
+            indexes = []
         new_dep = Requirement.from_pipfile(dep_name, dep)
         if new_dep.index:
             include_index = True

@@ -721,7 +721,7 @@ class Project:
             lockfile_dict = self.lockfile_content.copy()
             sources = lockfile_dict.get("_meta", {}).get("sources", [])
             if not sources:
-                sources = self.pipfile_sources
+                sources = self.pipfile_sources()
             elif not isinstance(sources, list):
                 sources = [sources]
             lockfile_dict["_meta"]["sources"] = [self.populate_source(s) for s in sources]
@@ -741,7 +741,7 @@ class Project:
         elif "source" in self.parsed_pipfile:
             sources = [dict(source) for source in self.parsed_pipfile["source"]]
         else:
-            sources = self.pipfile_sources
+            sources = self.pipfile_sources(expandvars=False)
         if not isinstance(sources, list):
             sources = [sources]
         return {
@@ -797,15 +797,14 @@ class Project:
             if not s.endswith("\n"):
                 f.write("\n")
 
-    @property
-    def pipfile_sources(self):
+    def pipfile_sources(self, expandvars=True):
         if self.pipfile_is_empty or "source" not in self.parsed_pipfile:
             return [self.default_source]
         # We need to make copies of the source info so we don't
         # accidentally modify the cache. See #2100 where values are
         # written after the os.path.expandvars() call.
         return [
-            {k: safe_expandvars(v) for k, v in source.items()}
+            {k: safe_expandvars(v) if expandvars else v for k, v in source.items()}
             for source in self.parsed_pipfile["source"]
         ]
 
@@ -818,7 +817,7 @@ class Project:
                 return sources_
 
         else:
-            return self.pipfile_sources
+            return self.pipfile_sources()
 
     @property
     def index_urls(self):
@@ -860,7 +859,7 @@ class Project:
             if source is not None:
                 return source
 
-        sources = (self.sources, self.pipfile_sources)
+        sources = (self.sources, self.pipfile_sources())
         if refresh:
             self.clear_pipfile_cache()
             sources = reversed(sources)
