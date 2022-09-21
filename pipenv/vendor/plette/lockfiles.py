@@ -90,8 +90,8 @@ class Lockfile(DataView):
                 "requires": _copy_jsonsafe(pipfile._data.get("requires", {})),
                 "sources": _copy_jsonsafe(pipfile.sources._data),
             },
-            "default": {},
-            "develop": {},
+            "default": _copy_jsonsafe(pipfile._data.get("packages", {})),
+            "develop": _copy_jsonsafe(pipfile._data.get("dev-packages", {})),
         }
         return cls(data)
 

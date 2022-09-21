@@ -1,0 +1,1 @@
+Fix regression to ``install --skip-lock`` with update to ``plette``.
