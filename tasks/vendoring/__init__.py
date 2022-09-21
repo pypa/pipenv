@@ -53,6 +53,7 @@ FILE_WHITE_LIST = (
     "safety.zip",
     "cacert.pem",
     "vendor_pip.txt",
+    "plette",
 )
 
 PATCHED_RENAMES = {}
