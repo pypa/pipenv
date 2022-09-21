@@ -1,1 +1,0 @@
-emit file-based shell completions for -r and -e options

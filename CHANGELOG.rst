@@ -1,3 +1,15 @@
+2022.9.21 (2022-09-21)
+======================
+Pipenv 2022.9.21 (2022-09-21)
+=============================
+
+
+Bug Fixes
+---------
+
+- Fix regression to ``install --skip-lock`` with update to ``plette``.  `#5368 <https://github.com/pypa/pipenv/issues/5368>`_
+
+
 2022.9.20 (2022-09-20)
 ======================
 Pipenv 2022.9.20 (2022-09-20)
