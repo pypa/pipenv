@@ -79,7 +79,7 @@ class Lockfile(DataView):
         return cls(data)
 
     @classmethod
-    def with_meta_from(cls, pipfile):
+    def with_meta_from(cls, pipfile, categories=None):
         data = {
             "_meta": {
                 "hash": _copy_jsonsafe(pipfile.get_hash()._data),
@@ -87,9 +87,22 @@ class Lockfile(DataView):
                 "requires": _copy_jsonsafe(pipfile._data.get("requires", {})),
                 "sources": _copy_jsonsafe(pipfile.sources._data),
             },
-            "default": _copy_jsonsafe(pipfile._data.get("packages", {})),
-            "develop": _copy_jsonsafe(pipfile._data.get("dev-packages", {})),
         }
+        if categories is None:
+            data["default"] = _copy_jsonsafe(pipfile._data.get("packages", {}))
+            data["develop"] = _copy_jsonsafe(pipfile._data.get("dev-packages", {}))
+        else:
+            for category in categories:
+                if category == "default" or category == "packages":
+                    data["default"] = _copy_jsonsafe(pipfile._data.get("packages", {}))
+                elif category == "develop" or category == "dev-packages":
+                    data["develop"] = _copy_jsonsafe(pipfile._data.get("dev-packages", {}))
+                else:
+                    data[category] = _copy_jsonsafe(pipfile._data.get(category, {}))
+        if "default" not in data:
+            data["default"]  = {}
+        if "develop" not in data:
+            data["develop"] = {}
         return cls(data)
 
     def __getitem__(self, key):

@@ -566,12 +566,27 @@ class Project:
             # Write the changes to disk.
             self.write_toml(p)
 
-    @property
-    def _lockfile(self):
+    def _lockfile(self, categories=None):
         """Pipfile.lock divided by PyPI and external dependencies."""
-        with open(self.pipfile_location) as pf:
-            lockfile = plette.Lockfile.with_meta_from(plette.Pipfile.load(pf))
-        for category in self.get_package_categories(for_lockfile=True):
+        lockfile_loaded = False
+        if self.lockfile_exists:
+            try:
+                lockfile = self.load_lockfile(expand_env_vars=False)
+                lockfile_loaded = True
+            except Exception:
+                pass
+        if not lockfile_loaded:
+            with open(self.pipfile_location) as pf:
+                lockfile = plette.Lockfile.with_meta_from(
+                    plette.Pipfile.load(pf), categories=categories
+                )
+                lockfile = lockfile._data
+
+        # with open(self.pipfile_location) as pf:
+        #     lockfile = plette.Lockfile.with_meta_from(plette.Pipfile.load(pf))
+        if categories is None:
+            categories = self.get_package_categories(for_lockfile=True)
+        for category in categories:
             lock_section = lockfile.get(category)
             if lock_section is None:
                 lockfile[category] = lock_section = {}
@@ -581,7 +596,7 @@ class Project:
                 del lock_section[key]
                 lockfile[category][norm_key] = specifier
 
-        return lockfile._data
+        return lockfile
 
     @property
     def _pipfile(self):
@@ -693,15 +708,17 @@ class Project:
             source["verify_ssl"] = str(source["verify_ssl"]).lower() == "true"
         return source
 
-    def get_or_create_lockfile(self, from_pipfile=False):
+    def get_or_create_lockfile(self, categories, from_pipfile=False):
         from pipenv.vendor.requirementslib.models.lockfile import (
             Lockfile as Req_Lockfile,
         )
 
         if from_pipfile and self.pipfile_exists:
             lockfile_dict = {}
-            for category in self.get_package_categories(for_lockfile=True):
-                lockfile_dict[category] = self._lockfile.get(category, {}).copy()
+            categories = self.get_package_categories(for_lockfile=True)
+            _lockfile = self._lockfile(categories=categories)
+            for category in categories:
+                lockfile_dict[category] = _lockfile.get(category, {}).copy()
             lockfile_dict.update({"_meta": self.get_lockfile_meta()})
             lockfile = Req_Lockfile.from_data(
                 path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
@@ -715,7 +732,9 @@ class Project:
                 )
         else:
             lockfile = Req_Lockfile.from_data(
-                path=self.lockfile_location, data=self._lockfile, meta_from_project=False
+                path=self.lockfile_location,
+                data=self._lockfile(),
+                meta_from_project=False,
             )
         if lockfile._lockfile is not None:
             return lockfile
@@ -733,7 +752,7 @@ class Project:
             lockfile._lockfile = lockfile.projectfile.model = _created_lockfile
             return lockfile
         else:
-            return self.get_or_create_lockfile(from_pipfile=True)
+            return self.get_or_create_lockfile(categories=categories, from_pipfile=True)
 
     def get_lockfile_meta(self):
         from .vendor.plette.lockfiles import PIPFILE_SPEC_CURRENT
@@ -974,13 +993,20 @@ class Project:
         with io.open(self.lockfile_location, encoding="utf-8") as lock:
             j = json.load(lock)
             self._lockfile_newlines = preferred_newlines(lock)
-        # lockfile is just a string
-        if not j or not hasattr(j, "keys"):
-            return j
+        if not j.get("_meta"):
+            with open(self.pipfile_location) as pf:
+                default_lockfile = plette.Lockfile.with_meta_from(
+                    plette.Pipfile.load(pf), categories=[]
+                )
+                j["_meta"] = default_lockfile._data["_meta"]
+        if j.get("default") is None:
+            j["default"] = {}
+        if j.get("develop") is None:
+            j["develop"] = {}
 
         if expand_env_vars:
             # Expand environment variables in Pipfile.lock at runtime.
-            for i, _ in enumerate(j["_meta"]["sources"][:]):
+            for i, _ in enumerate(j["_meta"].get("sources", {})):
                 j["_meta"]["sources"][i]["url"] = os.path.expandvars(
                     j["_meta"]["sources"][i]["url"]
                 )
@@ -997,7 +1023,7 @@ class Project:
             # Lockfile corrupted
             return ""
         if "_meta" in lockfile and hasattr(lockfile, "keys"):
-            return lockfile["_meta"].get("hash", {}).get("sha256")
+            return lockfile["_meta"].get("hash", {}).get("sha256") or ""
         # Lockfile exists but has no hash at all
         return ""
 

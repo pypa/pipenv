@@ -786,9 +786,11 @@ def do_install_dependencies(
                     )
                 )
             # skip_lock should completely bypass the lockfile (broken in 4dac1676)
-            lockfile = project.get_or_create_lockfile(from_pipfile=True)
+            lockfile = project.get_or_create_lockfile(
+                categories=categories, from_pipfile=True
+            )
         else:
-            lockfile = project.get_or_create_lockfile()
+            lockfile = project.get_or_create_lockfile(categories=categories)
             if not bare:
                 click.echo(
                     click.style(
@@ -1052,11 +1054,6 @@ def do_lock(
                 message="Pipfile.lock must exist to use --keep-outdated!",
             )
         cached_lockfile = project.lockfile_content
-    # Create the lockfile.
-    if not project.lockfile_exists:
-        lockfile = project.get_or_create_lockfile()
-        project.write_lockfile(lockfile._lockfile._data)
-    lockfile = project.load_lockfile(expand_env_vars=False)
     # Cleanup lockfile.
     if not categories:
         lockfile_categories = project.get_package_categories(for_lockfile=True)
@@ -1068,6 +1065,8 @@ def do_lock(
         if "packages" in categories:
             lockfile_categories.remove("packages")
             lockfile_categories.insert(0, "default")
+    # Create the lockfile.
+    lockfile = project._lockfile(categories=lockfile_categories)
     for category in lockfile_categories:
         for k, v in lockfile.get(category, {}).copy().items():
             if not hasattr(v, "keys"):
@@ -1142,9 +1141,7 @@ def do_lock(
         click.echo(
             "{}".format(
                 click.style(
-                    "Updated Pipfile.lock ({})!".format(
-                        lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
-                    ),
+                    "Updated Pipfile.lock ({})!".format(project.get_lockfile_hash()),
                     bold=True,
                 )
             ),
@@ -2517,6 +2514,7 @@ def do_uninstall(
         for normalized, package_name in selected_pkg_map.items()
         if normalized in (used_packages - bad_pkgs)
     ]
+    lockfile = project.get_or_create_lockfile(categories=categories)
     for category in categories:
         category = get_lockfile_section_using_pipfile_category(category)
         for normalized_name, package_name in selected_pkg_map.items():
@@ -2529,7 +2527,6 @@ def do_uninstall(
                         click.style(fix_utf8("Pipfile.lock..."), fg="white"),
                     )
                 )
-                lockfile = project.get_or_create_lockfile()
                 if normalized_name in lockfile[category]:
                     del lockfile[category][normalized_name]
                 lockfile.write()
