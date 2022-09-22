@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Sep 08, 2022" "2022.9.8" "pipenv"
+.TH "PIPENV" "1" "Sep 21, 2022" "2022.9.21" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -453,6 +453,62 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.9.21 (2022\-09\-21)
+.SS Pipenv 2022.9.21 (2022\-09\-21)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fix regression to \fBinstall \-\-skip\-lock\fP with update to \fBplette\fP\&.  \fI\%#5368\fP
+.UNINDENT
+.SS 2022.9.20 (2022\-09\-20)
+.SS Pipenv 2022.9.20 (2022\-09\-20)
+.SS Behavior Changes
+.INDENT 0.0
+.IP \(bu 2
+Remove usage of pipfile module in favour of Plette.
+pipfile is not actively maintained anymore. Plette is actively maintained,
+and has stricter checking of the Pipefile and Pipefile.lock. As a result,
+Pipefile with unnamed package indecies will fail to lock. If a Pipefile
+was hand crafeted, and the source is anonymous an error will be thrown.
+The solution is simple, add a name to your index, e.g, replace:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+[[source]]
+url = "https://pypi.acme.com/simple"
+verify_ssl = true
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+With:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+[[source]]
+url = "https://pypi.acme.com/simple"
+verify_ssl = true
+name = acmes_private_index  \(ga#5339 <https://github.com/pypa/pipenv/issues/5339>\(ga_
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Modernize \fBpipenv\fP path patch with \fBimportlib.util\fP to eliminate import of \fBpkg_resources\fP  \fI\%#5349\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Remove iso8601 from vendored packages since it was not used.  \fI\%#5346\fP
+.UNINDENT
 .SS 2022.9.8 (2022\-09\-08)
 .SS Pipenv 2022.9.8 (2022\-09\-08)
 .SS Features & Improvements
@@ -3200,7 +3256,7 @@ Dependencies of wheels provided in a \fBPipfile\fP will not be captured by \fB$ 
 .IP \(bu 2
 There are some known issues with using private indexes, related to hashing. We\(aqre actively working to solve this problem. You may have great luck with this, however.
 .IP \(bu 2
-Installation is intended to be as deterministic as possible —\ use the \fB\-\-sequential\fP flag to increase this, if experiencing issues.
+Installation is intended to be as deterministic as possible.
 .UNINDENT
 .SS ☤ Specifying Package Indexes
 .sp
@@ -4067,13 +4123,6 @@ Default is 3. See also \fBPIPENV_NO_INHERIT\fP\&.
 Specify how many retries Pipenv should attempt for network requests.
 .sp
 Default is 0. Automatically set to 1 on CI environments for robust testing.
-.UNINDENT
-.INDENT 7.0
-.TP
-.B PIPENV_MAX_SUBPROCESS
-How many subprocesses should Pipenv use when installing.
-.sp
-Default is 16, an arbitrary number that seems to work.
 .UNINDENT
 .INDENT 7.0
 .TP

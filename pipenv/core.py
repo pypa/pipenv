@@ -2828,6 +2828,7 @@ def do_check(
     # Run the PEP 508 checker in the virtualenv.
     cmd = _cmd + [Path(pep508checker_path).as_posix()]
     c = run_command(cmd, is_verbose=project.s.is_verbose())
+    results = []
     if c.returncode is not None:
         try:
             results = simplejson.loads(c.stdout.strip())

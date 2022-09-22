@@ -1,3 +1,53 @@
+2022.9.21 (2022-09-21)
+======================
+Pipenv 2022.9.21 (2022-09-21)
+=============================
+
+
+Bug Fixes
+---------
+
+- Fix regression to ``install --skip-lock`` with update to ``plette``.  `#5368 <https://github.com/pypa/pipenv/issues/5368>`_
+
+
+2022.9.20 (2022-09-20)
+======================
+Pipenv 2022.9.20 (2022-09-20)
+=============================
+
+
+Behavior Changes
+----------------
+
+- Remove usage of pipfile module in favour of Plette.
+  pipfile is not actively maintained anymore. Plette is actively maintained,
+  and has stricter checking of the Pipefile and Pipefile.lock. As a result,
+  Pipefile with unnamed package indecies will fail to lock. If a Pipefile
+  was hand crafeted, and the source is anonymous an error will be thrown.
+  The solution is simple, add a name to your index, e.g, replace::
+
+     [[source]]
+     url = "https://pypi.acme.com/simple"
+     verify_ssl = true
+
+  With::
+
+     [[source]]
+     url = "https://pypi.acme.com/simple"
+     verify_ssl = true
+     name = acmes_private_index  `#5339 <https://github.com/pypa/pipenv/issues/5339>`_
+
+Bug Fixes
+---------
+
+- Modernize ``pipenv`` path patch with ``importlib.util`` to eliminate import of ``pkg_resources``  `#5349 <https://github.com/pypa/pipenv/issues/5349>`_
+
+Vendored Libraries
+------------------
+
+- Remove iso8601 from vendored packages since it was not used.  `#5346 <https://github.com/pypa/pipenv/issues/5346>`_
+
+
 2022.9.8 (2022-09-08)
 =====================
 Pipenv 2022.9.8 (2022-09-08)
