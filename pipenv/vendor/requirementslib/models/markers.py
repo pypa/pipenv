@@ -2,7 +2,7 @@ import itertools
 import operator
 import re
 from collections.abc import Mapping, Set
-from functools import lru_cache, reduce
+from functools import reduce
 
 import pipenv.vendor.attr as attr
 from pipenv.vendor.distlib import markers
@@ -116,7 +116,6 @@ class PipenvMarkers(object):
             return combined_marker
 
 
-@lru_cache(maxsize=1024)
 def _tuplize_version(version):
     # type: (STRING_TYPE) -> Union[Tuple[()], Tuple[int, ...], Tuple[int, int, str]]
     output = []
@@ -131,7 +130,6 @@ def _tuplize_version(version):
     return tuple(output)
 
 
-@lru_cache(maxsize=1024)
 def _format_version(version):
     # type: (Tuple[int, ...]) -> STRING_TYPE
     if not isinstance(version, str):
@@ -143,7 +141,6 @@ def _format_version(version):
 REPLACE_RANGES = {">": ">=", "<=": "<"}
 
 
-@lru_cache(maxsize=1024)
 def _format_pyspec(specifier):
     # type: (Union[STRING_TYPE, Specifier]) -> Specifier
     if isinstance(specifier, str):
@@ -179,7 +176,6 @@ def _format_pyspec(specifier):
     return specifier
 
 
-@lru_cache(maxsize=1024)
 def _get_specs(specset):
     if specset is None:
         return
@@ -263,7 +259,6 @@ def get_sorted_version_string(version_set):
 # TODO: Rename this to something meaningful
 # TODO: Add a deprecation decorator and deprecate this -- i'm sure it's used
 # in other libraries
-@lru_cache(maxsize=1024)
 def cleanup_pyspecs(specs, joiner="or"):
     specs = normalize_specifier_set(specs)
     # for != operator we want to group by version
@@ -309,7 +304,6 @@ def cleanup_pyspecs(specs, joiner="or"):
 
 
 # TODO: Rename this to something meaningful
-@lru_cache(maxsize=1024)
 def fix_version_tuple(version_tuple):
     # type: (Tuple[AnyStr, AnyStr]) -> Tuple[AnyStr, AnyStr]
     op, version = version_tuple
@@ -324,7 +318,6 @@ def fix_version_tuple(version_tuple):
 
 
 # TODO: Rename this to something meaningful, deprecate it (See prior function)
-@lru_cache(maxsize=128)
 def get_versions(specset, group_by_operator=True):
     # type: (Union[Set[Specifier], SpecifierSet], bool) -> List[Tuple[STRING_TYPE, STRING_TYPE]]
     specs = [_get_specs(x) for x in list(tuple(specset))]
@@ -484,7 +477,6 @@ def _markers_contains_key(markers, key):
     return False
 
 
-@lru_cache(maxsize=128)
 def get_contained_extras(marker):
     """Collect "extra == ..." operands from a marker.
 
@@ -498,7 +490,6 @@ def get_contained_extras(marker):
     return extras
 
 
-@lru_cache(maxsize=1024)
 def get_contained_pyversions(marker):
     """Collect all `python_version` operands from a marker."""
 
@@ -529,7 +520,6 @@ def get_contained_pyversions(marker):
     return versions
 
 
-@lru_cache(maxsize=128)
 def contains_extra(marker):
     """Check whether a marker contains an "extra == ..." operand."""
     if not marker:
@@ -538,7 +528,6 @@ def contains_extra(marker):
     return _markers_contains_extra(marker._markers)
 
 
-@lru_cache(maxsize=128)
 def contains_pyversion(marker):
     """Check whether a marker contains a python_version operand."""
 
@@ -710,7 +699,6 @@ def normalize_marker_str(marker):
     return marker_str.replace('"', "'")
 
 
-@lru_cache(maxsize=1024)
 def marker_from_specifier(spec):
     # type: (STRING_TYPE) -> Marker
     if not any(spec.startswith(k) for k in Specifier._operators.keys()):
