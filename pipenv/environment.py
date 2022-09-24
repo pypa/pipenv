@@ -183,6 +183,8 @@ class Environment:
             return "venv"
         elif os.name == "nt":
             return "nt"
+        elif "posix_local" in get_scheme_names():
+            return "posix_local"
         else:
             return "posix_prefix"
 
