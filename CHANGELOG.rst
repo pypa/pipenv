@@ -1,3 +1,15 @@
+2022.9.24 (2022-09-24)
+======================
+Pipenv 2022.9.24 (2022-09-24)
+=============================
+
+
+Bug Fixes
+---------
+
+- Update ``requirementslib==2.0.3`` to always evaluate the requirement markers fresh (without lru_cache) to fix marker determinism issue.  `#4660 <https://github.com/pypa/pipenv/issues/4660>`_
+
+
 2022.9.21 (2022-09-21)
 ======================
 Pipenv 2022.9.21 (2022-09-21)
