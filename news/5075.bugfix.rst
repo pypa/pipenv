@@ -1,0 +1,1 @@
+Use ``--creator=venv`` when creating virtual environments to avoid issue with sysconfig ``posix_prefix`` on some systems.
