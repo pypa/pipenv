@@ -990,6 +990,7 @@ class Project:
             self.write_toml(self.parsed_pipfile)
 
     def load_lockfile(self, expand_env_vars=True):
+        lockfile_modified = False
         with io.open(self.lockfile_location, encoding="utf-8") as lock:
             j = json.load(lock)
             self._lockfile_newlines = preferred_newlines(lock)
@@ -999,10 +1000,16 @@ class Project:
                     plette.Pipfile.load(pf), categories=[]
                 )
                 j["_meta"] = default_lockfile._data["_meta"]
+                lockfile_modified = True
         if j.get("default") is None:
             j["default"] = {}
+            lockfile_modified = True
         if j.get("develop") is None:
             j["develop"] = {}
+            lockfile_modified = True
+
+        if lockfile_modified:
+            self.write_lockfile(j)
 
         if expand_env_vars:
             # Expand environment variables in Pipfile.lock at runtime.
