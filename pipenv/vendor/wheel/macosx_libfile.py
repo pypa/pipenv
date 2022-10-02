@@ -28,7 +28,7 @@ because them contains information about minimal system version.
 
 Important remarks:
 - For fat files this implementation looks for maximum number version.
-  It not check if it is 32 or 64 and do not compare it with currently builded package.
+  It not check if it is 32 or 64 and do not compare it with currently built package.
   So it is possible to false report higher version that needed.
 - All structures signatures are taken form macosx header files.
 - I think that binary format will be more stable than `otool` output.
@@ -279,7 +279,7 @@ def extract_macosx_min_system_version(path_to_lib):
                             # Xcode will not set the deployment target below 11.0.0
                             # for the arm64 architecture. Ignore the arm64 deployment
                             # in fat binaries when the target is 11.0.0, that way
-                            # the other architetures can select a lower deployment
+                            # the other architectures can select a lower deployment
                             # target.
                             # This is safe because there is no arm64 variant for
                             # macOS 10.15 or earlier.

@@ -57,9 +57,12 @@ def pack(directory, dest_dir, build_number):
             replacement = ('Build: %s\r\n' % build_number).encode('ascii') if build_number else b''
             with open(wheel_file_path, 'rb+') as f:
                 wheel_file_content = f.read()
-                if not BUILD_NUM_RE.subn(replacement, wheel_file_content)[1]:
+                wheel_file_content, num_replaced = BUILD_NUM_RE.subn(replacement,
+                                                                     wheel_file_content)
+                if not num_replaced:
                     wheel_file_content += replacement
 
+                f.seek(0)
                 f.truncate()
                 f.write(wheel_file_content)
 
