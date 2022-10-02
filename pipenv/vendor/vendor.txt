@@ -5,7 +5,7 @@ click-didyoumean==0.0.3
 click==8.0.3
 colorama==0.4.4
 distlib==0.3.2
-dparse==0.5.1
+dparse==0.6.2
 idna==3.2
 markupsafe==2.0.1
 parse==1.19.0

@@ -16,9 +16,6 @@ from tempfile import TemporaryDirectory
 import pytest
 import requests
 from click.testing import CliRunner
-from pytest_pypi.app import prepare_fixtures
-from pytest_pypi.app import prepare_packages as prepare_pypi_packages
-import pypiserver
 
 from pipenv.cli import cli
 from pipenv.exceptions import VirtualenvActivationException
@@ -31,6 +28,9 @@ from pipenv.vendor.vistir.path import (
     create_tracked_tempdir, handle_remove_readonly, mkdir_p
 )
 
+from pytest_pypi.app import prepare_fixtures
+from pytest_pypi.app import prepare_packages as prepare_pypi_packages
+import pypiserver
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)

@@ -8,24 +8,26 @@ import os
 
 
 class RequirementsTXTUpdater(object):
-
     SUB_REGEX = r"^{}(?=\s*\r?\n?$)"
 
     @classmethod
     def update(cls, content, dependency, version, spec="==", hashes=()):
         """
-        Updates the requirement to the latest version for the given content and adds hashes
-        if neccessary.
+        Updates the requirement to the latest version for the given content
+        and adds hashes if necessary.
         :param content: str, content
         :return: str, updated content
         """
-        new_line = "{name}{spec}{version}".format(name=dependency.full_name, spec=spec, version=version)
+        new_line = "{name}{spec}{version}".format(name=dependency.full_name,
+                                                  spec=spec, version=version)
         appendix = ''
         # leave environment markers intact
         if ";" in dependency.line:
-            # condense multiline, split out the env marker, strip comments and --hashes
-            new_line += ";" + dependency.line.splitlines()[0].split(";", 1)[1] \
-                .split("#")[0].split("--hash")[0].rstrip()
+            # condense multiline, split out the env marker, strip comments
+            # and --hashes
+            new_line += ";" + \
+                        dependency.line.splitlines()[0].split(";", 1)[1] \
+                            .split("#")[0].split("--hash")[0].rstrip()
         # add the comment
         if "#" in dependency.line:
             # split the line into parts: requirement and comment
@@ -40,7 +42,8 @@ class RequirementsTXTUpdater(object):
                 else:
                     break
             appendix += trailing_whitespace + "#" + comment
-        # if this is a hashed requirement, add a multiline break before the comment
+        # if this is a hashed requirement, add a multiline break before the
+        # comment
         if dependency.hashes and not new_line.endswith("\\"):
             new_line += " \\"
         # if this is a hashed requirement, add the hashes
@@ -81,14 +84,16 @@ class PipfileUpdater(object):
             for package_type in ['packages', 'dev-packages']:
                 if package_type in data:
                     if dependency.full_name in data[package_type]:
-                        data[package_type][dependency.full_name] = "{spec}{version}".format(
+                        data[package_type][
+                            dependency.full_name] = "{spec}{version}".format(
                             spec=spec, version=version
                         )
         try:
             from pipenv.project import Project
         except ImportError:
-            raise ImportError("Updating a Pipfile requires the pipenv extra to be installed. Install it with "
-                              "pip install dparse[pipenv]")
+            raise ImportError(
+                "Updating a Pipfile requires the pipenv extra to be installed."
+                " Install it with pip install dparse[pipenv]")
         pipfile = tempfile.NamedTemporaryFile(delete=False)
         p = Project(chdir=False)
         p.write_toml(data=data, path=pipfile.name)
