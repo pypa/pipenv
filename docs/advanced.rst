@@ -263,7 +263,7 @@ Let's take this ``Pipfile``::
     [dev-packages]
     pytest = {version="==3.2.3"}
 
-Which generates the following ``Pipfile.lock``::
+Which generated the following ``Pipfile.lock`` upon completion of running ``pipenv lock```::
 
     {
 		"_meta": {
