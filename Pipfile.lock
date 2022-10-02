@@ -547,10 +547,6 @@
             "markers": "python_version >= '3.6'",
             "version": "==1.4.0"
         },
-        "pytest-pypi": {
-            "editable": true,
-            "path": "./tests/pytest-pypi"
-        },
         "pytest-timeout": {
             "hashes": [
                 "sha256:c07ca07404c612f8abbe22294b23c368e2e5104b521c1790195561f37e1ac3d9",
