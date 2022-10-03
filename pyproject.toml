@@ -74,6 +74,33 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
 ]
+# These are not all the custom markers, but most of the ones with repeat uses
+# `pipenv run pytest --markers` will list all markers inlcuding these
+markers = [
+    "install: tests having to do with `pipenv install`",
+    "needs_internet: integration tests that require internet to pass",
+    "basic: basic pipenv tests grouping",
+    "dev: tests having to do with dev and dev packages",
+    "system: related or interacting with the os",
+    "utils: grouping of pipenv utility functions",
+    "cli: test grouping that relate to command line like `pipenv --flag args`",
+    "requirements: tests that save and alter pip requirements",
+    "run: tests that run or execute python through pipenv",
+    "script: grouping of tests that execute scripts",
+    "keep_outdated: when an activity is supposed to keep something out of date",
+    "lock: tests that interact with pipenv lock",
+    "markers: pipenv environment markers",
+    "vcs: tests integration with pipenv and vertsion control systems",
+    "project: tests with the project object",
+    "sync: related to `pipenv sync`",
+    "rrule: relating to rrules (as in recurring time)",
+    "tzoffset: timezone offset",
+    "gettz: tests with gettz (get timezone) from dateutil lib",
+    "tzstr: timezone string",
+    "extras",
+    "extended",
+    "ext: extra non-categorized tests",
+]
 
 [tool.towncrier]
 package = "pipenv"
