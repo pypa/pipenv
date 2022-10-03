@@ -5,6 +5,7 @@ import hashlib
 import os.path
 import re
 import stat
+import sys
 import time
 from collections import OrderedDict
 from distutils import log as logger
@@ -12,6 +13,16 @@ from zipfile import ZIP_DEFLATED, ZipInfo, ZipFile
 
 from pipenv.vendor.wheel.cli import WheelError
 from pipenv.vendor.wheel.util import urlsafe_b64decode, as_unicode, native, urlsafe_b64encode, as_bytes, StringIO
+
+if sys.version_info >= (3,):
+    from io import TextIOWrapper
+
+    def read_csv(fp):
+        return csv.reader(TextIOWrapper(fp, newline='', encoding='utf-8'))
+else:
+    def read_csv(fp):
+        for line in csv.reader(fp):
+            yield [column.decode('utf-8') for column in line]
 
 # Non-greedy matching of an optional build number may be too clever (more
 # invalid wheel filenames will match). Separate regex for .dist-info?
@@ -60,23 +71,24 @@ class WheelFile(ZipFile):
                 raise WheelError('Missing {} file'.format(self.record_path))
 
             with record:
-                for line in record:
-                    line = line.decode('utf-8')
-                    path, hash_sum, size = line.rsplit(u',', 2)
-                    if hash_sum:
-                        algorithm, hash_sum = hash_sum.split(u'=')
-                        try:
-                            hashlib.new(algorithm)
-                        except ValueError:
-                            raise WheelError('Unsupported hash algorithm: {}'.format(algorithm))
+                for line in read_csv(record):
+                    path, hash_sum, size = line
+                    if not hash_sum:
+                        continue
 
-                        if algorithm.lower() in {'md5', 'sha1'}:
-                            raise WheelError(
-                                'Weak hash algorithm ({}) is not permitted by PEP 427'
-                                .format(algorithm))
+                    algorithm, hash_sum = hash_sum.split(u'=')
+                    try:
+                        hashlib.new(algorithm)
+                    except ValueError:
+                        raise WheelError('Unsupported hash algorithm: {}'.format(algorithm))
 
-                        self._file_hashes[path] = (
-                            algorithm, urlsafe_b64decode(hash_sum.encode('ascii')))
+                    if algorithm.lower() in {'md5', 'sha1'}:
+                        raise WheelError(
+                            'Weak hash algorithm ({}) is not permitted by PEP 427'
+                            .format(algorithm))
+
+                    self._file_hashes[path] = (
+                        algorithm, urlsafe_b64decode(hash_sum.encode('ascii')))
 
     def open(self, name_or_info, mode="r", pwd=None):
         def _update_crc(newdata, eof=None):
