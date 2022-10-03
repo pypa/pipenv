@@ -4,6 +4,6 @@ from __future__ import unicode_literals, absolute_import
 
 __author__ = """Jannis Gebauer"""
 __email__ = 'support@pyup.io'
-__version__ = '0.5.1'
+__version__ = '0.6.2'
 
 from .parser import parse  # noqa

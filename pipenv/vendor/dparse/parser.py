@@ -1,20 +1,25 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals, absolute_import
+
+import os
 from collections import OrderedDict
 import re
 
 from io import StringIO
 
-from configparser import SafeConfigParser, NoOptionError
+from configparser import ConfigParser, NoOptionError
+from pathlib import PurePath
 
-
-from .regex import URL_REGEX, HASH_REGEX
+from .errors import MalformedDependencyFileError
+from .regex import HASH_REGEX
 
 from .dependencies import DependencyFile, Dependency
-from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement, InvalidRequirement
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement,\
+    InvalidRequirement
 from . import filetypes
 import pipenv.vendor.toml as toml
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.pip._vendor.packaging.version import Version, InvalidVersion
 import json
 
 
@@ -22,23 +27,24 @@ import json
 def setuptools_parse_requirements_backport(strs):  # pragma: no cover
     # Copyright (C) 2016 Jason R Coombs <jaraco@jaraco.com>
     #
-    # Permission is hereby granted, free of charge, to any person obtaining a copy of
-    # this software and associated documentation files (the "Software"), to deal in
-    # the Software without restriction, including without limitation the rights to
-    # use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-    # of the Software, and to permit persons to whom the Software is furnished to do
-    # so, subject to the following conditions:
+    # Permission is hereby granted, free of charge, to any person obtaining a
+    # copy of this software and associated documentation files
+    # (the "Software"), to deal in the Software without restriction, including
+    # without limitation the rights to use, copy, modify, merge, publish,
+    # distribute, sublicense, and/or sell copies of the Software, and to permit
+    # persons to whom the Software is furnished to do so, subject to the
+    # following conditions:
     #
-    # The above copyright notice and this permission notice shall be included in all
-    # copies or substantial portions of the Software.
+    # The above copyright notice and this permission notice shall be included
+    # in all copies or substantial portions of the Software.
     #
-    # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    # SOFTWARE.
+    # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    # OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     """Yield ``Requirement`` objects for each specification in `strs`
 
     `strs` must be a string, or a (possibly-nested) iterable thereof.
@@ -82,9 +88,11 @@ class RequirementsTXTLineParser(object):
         :return:
         """
         try:
-            # setuptools requires a space before the comment. If this isn't the case, add it.
+            # setuptools requires a space before the comment.
+            # If this isn't the case, add it.
             if "\t#" in line:
-                parsed, = setuptools_parse_requirements_backport(line.replace("\t#", "\t #"))
+                parsed, = setuptools_parse_requirements_backport(
+                    line.replace("\t#", "\t #"))
             else:
                 parsed, = setuptools_parse_requirements_backport(line)
         except InvalidRequirement:
@@ -104,13 +112,14 @@ class Parser(object):
 
     """
 
-    def __init__(self, obj):
+    def __init__(self, obj, resolve=False):
         """
 
         :param obj:
         """
         self.obj = obj
         self._lines = None
+        self.resolve = resolve
 
     def iter_lines(self, lineno=0):
         """
@@ -175,10 +184,11 @@ class Parser(object):
         :param line:
         :return:
         """
-        matches = URL_REGEX.findall(line)
-        if matches:
-            url = matches[0]
-            return url if url.endswith("/") else url + "/"
+        groups = re.split(pattern=r"[=\s]+", string=line.strip(), maxsplit=100)
+
+        if len(groups) >= 2:
+            return groups[1] if groups[1].endswith("/") else groups[1] + "/"
+
         return None
 
     @classmethod
@@ -190,12 +200,10 @@ class Parser(object):
         :return:
         """
         line = line.replace("-r ", "").replace("--requirement ", "")
-        parts = file_path.split("/")
+        normalized_path = PurePath(file_path)
         if " #" in line:
             line = line.split("#")[0].strip()
-        if len(parts) == 1:
-            return line
-        return "/".join(parts[:-1]) + "/" + line
+        return str(normalized_path.parent.joinpath(line))
 
 
 class RequirementsTXTParser(Parser):
@@ -216,17 +224,37 @@ class RequirementsTXTParser(Parser):
                 # comments are lines that start with # only
                 continue
             if line.startswith('-i') or \
-                line.startswith('--index-url') or \
-                line.startswith('--extra-index-url'):
+               line.startswith('--index-url') or \
+               line.startswith('--extra-index-url'):
                 # this file is using a private index server, try to parse it
                 index_server = self.parse_index_server(line)
                 continue
-            elif self.obj.path and (line.startswith('-r') or line.startswith('--requirement')):
-                self.obj.resolved_files.append(self.resolve_file(self.obj.path, line))
+            elif self.obj.path and \
+                    (line.startswith('-r') or
+                     line.startswith('--requirement')):
+
+                req_file_path = self.resolve_file(self.obj.path, line)
+
+                if self.resolve and os.path.exists(req_file_path):
+                    with open(req_file_path, 'r') as f:
+                        content = f.read()
+
+                        dep_file = DependencyFile(
+                            content=content,
+                            path=req_file_path,
+                            resolve=True
+                        )
+                        dep_file.parse()
+                        self.obj.resolved_files.append(dep_file)
+                else:
+                    self.obj.resolved_files.append(req_file_path)
+
             elif line.startswith('-f') or line.startswith('--find-links') or \
-                line.startswith('--no-index') or line.startswith('--allow-external') or \
-                line.startswith('--allow-unverified') or line.startswith('-Z') or \
-                line.startswith('--always-unzip'):
+                line.startswith('--no-index') or \
+                line.startswith('--allow-external') or \
+                line.startswith('--allow-unverified') or \
+                line.startswith('-Z') or \
+                    line.startswith('--always-unzip'):
                 continue
             elif self.is_marked_line(line):
                 continue
@@ -239,7 +267,8 @@ class RequirementsTXTParser(Parser):
                     if "\\" in line:
                         parseable_line = line.replace("\\", "")
                         for next_line in self.iter_lines(num + 1):
-                            parseable_line += next_line.strip().replace("\\", "")
+                            parseable_line += next_line.strip().replace("\\",
+                                                                        "")
                             line += "\n" + next_line
                             if "\\" in next_line:
                                 continue
@@ -250,7 +279,8 @@ class RequirementsTXTParser(Parser):
 
                     hashes = []
                     if "--hash" in parseable_line:
-                        parseable_line, hashes = Parser.parse_hashes(parseable_line)
+                        parseable_line, hashes = Parser.parse_hashes(
+                            parseable_line)
 
                     req = RequirementsTXTLineParser.parse(parseable_line)
                     if req:
@@ -273,7 +303,7 @@ class ToxINIParser(Parser):
 
         :return:
         """
-        parser = SafeConfigParser()
+        parser = ConfigParser()
         parser.readfp(StringIO(self.obj.content))
         for section in parser.sections():
             try:
@@ -303,7 +333,8 @@ class CondaYMLParser(Parser):
         import yaml
         try:
             data = yaml.safe_load(self.obj.content)
-            if data and 'dependencies' in data and isinstance(data['dependencies'], list):
+            if data and 'dependencies' in data and \
+                    isinstance(data['dependencies'], list):
                 for dep in data['dependencies']:
                     if isinstance(dep, dict) and 'pip' in dep:
                         for n, line in enumerate(dep['pip']):
@@ -343,8 +374,9 @@ class PipfileParser(Parser):
                                     section=package_type
                                 )
                             )
-        except (toml.TomlDecodeError, IndexError) as e:
+        except (toml.TomlDecodeError, IndexError):
             pass
+
 
 class PipfileLockParser(Parser):
 
@@ -373,13 +405,13 @@ class PipfileLockParser(Parser):
                                     section=package_type
                                 )
                             )
-        except ValueError:
-            pass
+        except ValueError as e:
+            raise MalformedDependencyFileError(info=str(e))
 
 
 class SetupCfgParser(Parser):
     def parse(self):
-        parser = SafeConfigParser()
+        parser = ConfigParser()
         parser.readfp(StringIO(self.obj.content))
         for section in parser.values():
             if section.name == 'options':
@@ -404,7 +436,47 @@ class SetupCfgParser(Parser):
                     self.obj.dependencies.append(req)
 
 
-def parse(content, file_type=None, path=None, sha=None, marker=((), ()), parser=None):
+class PoetryLockParser(Parser):
+
+    def parse(self):
+        """
+        Parse a poetry.lock
+        """
+        try:
+            data = toml.loads(self.obj.content, _dict=OrderedDict)
+            pkg_key = 'package'
+            if data:
+                try:
+                    dependencies = data[pkg_key]
+                except KeyError:
+                    raise KeyError(
+                        "Poetry lock file is missing the package section")
+
+                for dep in dependencies:
+                    try:
+                        name = dep['name']
+                        spec = "=={version}".format(
+                            version=Version(dep['version']))
+                        section = dep['category']
+                    except KeyError:
+                        raise KeyError("Malformed poetry lock file")
+                    except InvalidVersion:
+                        continue
+
+                    self.obj.dependencies.append(
+                        Dependency(
+                            name=name, specs=SpecifierSet(spec),
+                            dependency_type=filetypes.poetry_lock,
+                            line=''.join([name, spec]),
+                            section=section
+                        )
+                    )
+        except (toml.TomlDecodeError, IndexError) as e:
+            raise MalformedDependencyFileError(info=str(e))
+
+
+def parse(content, file_type=None, path=None, sha=None, marker=((), ()),
+          parser=None, resolve=False):
     """
 
     :param content:
@@ -415,13 +487,15 @@ def parse(content, file_type=None, path=None, sha=None, marker=((), ()), parser=
     :param parser:
     :return:
     """
+
     dep_file = DependencyFile(
         content=content,
         path=path,
         sha=sha,
         marker=marker,
         file_type=file_type,
-        parser=parser
+        parser=parser,
+        resolve=resolve
     )
 
     return dep_file.parse()
