@@ -1,0 +1,1 @@
+Drop vendored six - we no longer depend on this library, as we migrated from pipfile to plette.
