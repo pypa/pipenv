@@ -2017,18 +2017,12 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
                     pipfile_version_text = f" ({version} set in Pipfile)"
                 else:
                     pipfile_version_text = " (Unpinned in Pipfile)"
-                click.echo(
-                    click.style(
-                        "Skipped Update of Package {!s}: {!s} installed,{!s}{!s}, "
-                        "{!s} available.".format(
-                            package,
-                            old_version,
-                            required,
-                            pipfile_version_text,
-                            new_version,
-                        ),
-                        fg="yellow",
+                click.secho(
+                    "Skipped Update of Package {!s}: {!s} installed,{!s}{!s}, "
+                    "{!s} available.".format(
+                        package, old_version, required, pipfile_version_text, new_version
                     ),
+                    fg="yellow",
                     err=True,
                 )
     if not outdated:
@@ -2120,10 +2114,9 @@ def do_install(
         os.environ["PIPENV_USE_SYSTEM"] = "1"
     # Check if the file is remote or not
     if remote:
-        click.echo(
-            click.style(
-                fix_utf8("Remote requirements file provided! Downloading..."), bold=True
-            ),
+        click.secho(
+            fix_utf8("Remote requirements file provided! Downloading..."),
+            bold=True,
             err=True,
         )
         fd = vistir.path.create_tracked_tempfile(
@@ -2138,9 +2131,7 @@ def do_install(
             fd.close()
             os.unlink(temp_reqs)
             click.secho(
-                "Unable to find requirements file at {}.".format(
-                    click.style(requirements_url)
-                ),
+                f"Unable to find requirements file at {requirements_url}.",
                 fg="red",
                 err=True,
             )
@@ -2152,11 +2143,9 @@ def do_install(
         remote = True
     if requirementstxt:
         error, traceback = None, None
-        click.echo(
-            click.style(
-                fix_utf8("Requirements file provided! Importing into Pipfile..."),
-                bold=True,
-            ),
+        click.secho(
+            fix_utf8("Requirements file provided! Importing into Pipfile..."),
+            bold=True,
             err=True,
         )
         try:
@@ -2182,7 +2171,7 @@ def do_install(
                 os.remove(temp_reqs)
             if error and traceback:
                 click.secho(error, fg="red")
-                click.secho(click.style(str(traceback)), fg="yellow", err=True)
+                click.secho(str(traceback), fg="yellow", err=True)
                 sys.exit(1)
 
     # Allow more than one package to be provided.
