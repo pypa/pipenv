@@ -1,0 +1,1 @@
+Prefer to use the lockfile sources if available during the install phase.

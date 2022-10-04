@@ -2,6 +2,7 @@
 from __future__ import unicode_literals, absolute_import
 
 import json
+from json import JSONEncoder
 
 from . import filetypes, errors
 
@@ -11,7 +12,9 @@ class Dependency(object):
 
     """
 
-    def __init__(self, name, specs, line, source="pypi", meta={}, extras=[], line_numbers=None, index_server=None, hashes=(), dependency_type=None, section=None):
+    def __init__(self, name, specs, line, source="pypi", meta={}, extras=[],
+                 line_numbers=None, index_server=None, hashes=(),
+                 dependency_type=None, section=None):
         """
 
         :param name:
@@ -87,12 +90,25 @@ class Dependency(object):
         return self.name
 
 
+class DparseJSONEncoder(JSONEncoder):
+    def default(self, o):
+        from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+
+        if isinstance(o, SpecifierSet):
+            return str(o)
+        if isinstance(o, set):
+            return list(o)
+
+        return JSONEncoder.default(self, o)
+
+
 class DependencyFile(object):
     """
 
     """
 
-    def __init__(self, content, path=None, sha=None, file_type=None, marker=((), ()), parser=None):
+    def __init__(self, content, path=None, sha=None, file_type=None,
+                 marker=((), ()), parser=None, resolve=False):
         """
 
         :param content:
@@ -130,9 +146,11 @@ class DependencyFile(object):
                     self.parser = parser_class.PipfileLockParser
                 elif file_type == filetypes.setup_cfg:
                     self.parser = parser_class.SetupCfgParser
+                elif file_type == filetypes.poetry_lock:
+                    self.parser = parser_class.PoetryLockParser
 
             elif path is not None:
-                if path.endswith(".txt"):
+                if path.endswith((".txt", ".in")):
                     self.parser = parser_class.RequirementsTXTParser
                 elif path.endswith(".yml"):
                     self.parser = parser_class.CondaYMLParser
@@ -144,11 +162,23 @@ class DependencyFile(object):
                     self.parser = parser_class.PipfileLockParser
                 elif path.endswith("setup.cfg"):
                     self.parser = parser_class.SetupCfgParser
+                elif path.endswith(filetypes.poetry_lock):
+                    self.parser = parser_class.PoetryLockParser
 
         if not hasattr(self, "parser"):
             raise errors.UnknownDependencyFileError
 
-        self.parser = self.parser(self)
+        self.parser = self.parser(self, resolve=resolve)
+
+    @property
+    def resolved_dependencies(self):
+        deps = self.dependencies.copy()
+
+        for d in self.resolved_files:
+            if isinstance(d, DependencyFile):
+                deps.extend(d.resolved_dependencies)
+
+        return deps
 
     def serialize(self):
         """
@@ -160,7 +190,9 @@ class DependencyFile(object):
             "content": self.content,
             "path": self.path,
             "sha": self.sha,
-            "dependencies": [dep.serialize() for dep in self.dependencies]
+            "dependencies": [dep.serialize() for dep in self.dependencies],
+            "resolved_dependencies": [dep.serialize() for dep in
+                                      self.resolved_dependencies]
         }
 
     @classmethod
@@ -170,7 +202,8 @@ class DependencyFile(object):
         :param d:
         :return:
         """
-        dependencies = [Dependency.deserialize(dep) for dep in d.pop("dependencies", [])]
+        dependencies = [Dependency.deserialize(dep) for dep in
+                        d.pop("dependencies", [])]
         instance = cls(**d)
         instance.dependencies = dependencies
         return instance
@@ -180,7 +213,7 @@ class DependencyFile(object):
 
         :return:
         """
-        return json.dumps(self.serialize(), indent=2)
+        return json.dumps(self.serialize(), indent=2, cls=DparseJSONEncoder)
 
     def parse(self):
         """
@@ -192,5 +225,6 @@ class DependencyFile(object):
             return self
         self.parser.parse()
 
-        self.is_valid = len(self.dependencies) > 0 or len(self.resolved_files) > 0
+        self.is_valid = len(self.dependencies) > 0 or len(
+            self.resolved_files) > 0
         return self
