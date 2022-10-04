@@ -1,0 +1,1 @@
+Silence majority of pytest.mark warnings by registering custom marks. Can view a list of custom marks by running `pipenv run pytest --markers`
