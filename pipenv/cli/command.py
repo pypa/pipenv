@@ -643,7 +643,6 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
     """Installs all packages specified in Pipfile.lock."""
     from ..core import do_sync
 
-    print(state.installstate.categories)
     retcode = do_sync(
         state.project,
         dev=state.installstate.dev,
