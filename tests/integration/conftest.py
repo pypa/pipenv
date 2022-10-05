@@ -6,7 +6,6 @@ import os
 import shlex
 import shutil
 import traceback
-import threading
 import sys
 import warnings
 from pathlib import Path
