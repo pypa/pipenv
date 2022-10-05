@@ -392,15 +392,6 @@ def test_create_pipfile_requires_python_full_version(pipenv_instance_pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_create_pipfile_requires_python_full_version(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
-        c = p.pipenv("--python 3.10.7")
-        assert c.returncode == 0
-        assert p.pipfile["requires"] == {'python__full_version': '3.10.7'}
-
-
-@pytest.mark.basic
-@pytest.mark.install
 def test_install_non_exist_dep(pipenv_instance_pypi):
     with pipenv_instance_pypi(chdir=True) as p:
         c = p.pipenv("install dateutil")
