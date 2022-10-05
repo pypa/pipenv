@@ -675,8 +675,10 @@ class Project:
             else:
                 required_python = self.which("python")
         version = python_version(required_python) or self.s.PIPENV_DEFAULT_PYTHON_VERSION
-        if version and len(version.split(".")) > 2:
+        if version:
             data["requires"] = {"python_version": ".".join(version.split(".")[:2])}
+        if python and version and len(version.split(".")) > 2:
+            data["requires"].update({"python_full_version": version})
         self.write_toml(data)
 
     @classmethod

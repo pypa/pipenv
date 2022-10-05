@@ -1,4 +1,4 @@
-import os
+import os, sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -372,6 +372,22 @@ def test_install_creates_pipfile(pipenv_instance_pypi):
         c = p.pipenv("install")
         assert c.returncode == 0
         assert os.path.isfile(p.pipfile_path)
+        python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
+        assert p.pipfile["requires"] == {'python_version': python_version}
+
+
+@pytest.mark.basic
+@pytest.mark.install
+def test_create_pipfile_requires_python_full_version(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
+        python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
+        python_full_version = python_version + "." + str(sys.version_info.micro)
+        c = p.pipenv(f"--python {python_full_version}")
+        assert c.returncode == 0
+        assert p.pipfile["requires"] == {
+            'python_full_version': python_full_version,
+            'python_version': python_version
+            }
 
 
 @pytest.mark.basic
