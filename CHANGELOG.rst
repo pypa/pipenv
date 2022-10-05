@@ -1,3 +1,21 @@
+2022.10.4 (2022-10-04)
+======================
+Pipenv 2022.10.4 (2022-10-04)
+=============================
+
+
+Bug Fixes
+---------
+
+- Use ``--creator=venv`` when creating virtual environments to avoid issue with sysconfig ``posix_prefix`` on some systems.  `#5075 <https://github.com/pypa/pipenv/issues/5075>`_
+- Prefer to use the lockfile sources if available during the install phase.  `#5380 <https://github.com/pypa/pipenv/issues/5380>`_
+
+Vendored Libraries
+------------------
+
+- Drop vendored six - we no longer depend on this library, as we migrated from pipfile to plette.  `#5187 <https://github.com/pypa/pipenv/issues/5187>`_
+
+
 2022.9.24 (2022-09-24)
 ======================
 Pipenv 2022.9.24 (2022-09-24)
