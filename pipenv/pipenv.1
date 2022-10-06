@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Sep 24, 2022" "2022.9.24" "pipenv"
+.TH "PIPENV" "1" "Oct 04, 2022" "2022.10.4" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -453,6 +453,20 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.10.4 (2022\-10\-04)
+.SS Pipenv 2022.10.4 (2022\-10\-04)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Use \fB\-\-creator=venv\fP when creating virtual environments to avoid issue with sysconfig \fBposix_prefix\fP on some systems.  \fI\%#5075\fP
+.IP \(bu 2
+Prefer to use the lockfile sources if available during the install phase.  \fI\%#5380\fP
+.UNINDENT
+.SS Vendored Libraries
+.INDENT 0.0
+.IP \(bu 2
+Drop vendored six \- we no longer depend on this library, as we migrated from pipfile to plette.  \fI\%#5187\fP
+.UNINDENT
 .SS 2022.9.24 (2022\-09\-24)
 .SS Pipenv 2022.9.24 (2022\-09\-24)
 .SS Bug Fixes

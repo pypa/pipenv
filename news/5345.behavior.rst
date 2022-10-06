@@ -1,0 +1,1 @@
+New pipfiles show python_full_version under [requires] if specified. Previously creating a new pipenv project would only specify in the Pipfile the major and minor version, i.e. "python_version = 3.7". Now if you create a new project with a fully named python version it will record both in the Pipfile. So: "python_version = 3.7" and "python_full_version = 3.7.2"

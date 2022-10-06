@@ -247,7 +247,7 @@ Anaconda uses Conda to manage packages. To reuse Conda–installed Python packag
 
 Sometimes, you would want to generate a requirements file based on your current
 environment, for example to include tooling that only supports requirements.txt.
-You can convert a ``Pipfile`` and ``Pipfile.lock`` into a ``requirements.txt``
+You can convert a ``Pipfile.lock`` into a ``requirements.txt``
 file very easily.
 
 Let's take this ``Pipfile``::
@@ -255,44 +255,91 @@ Let's take this ``Pipfile``::
     [[source]]
     url = "https://pypi.python.org/simple"
     verify_ssl = true
+    name = "pypi"
 
     [packages]
-    requests = {version="*"}
+    requests = {version="==2.18.4"}
 
     [dev-packages]
-    pytest = {version="*"}
+    pytest = {version="==3.2.3"}
 
-And generate a set of requirements out of it with only the default dependencies::
+Which generates a ``Pipfile.lock`` upon completion of running ``pipenv lock``` similar to::
+
+    {
+            "_meta": {
+                    "hash": {
+                            "sha256": "4b81df812babd4e54ba5a4086714d7d303c1c3f00d725c76e38dd58cbd360f4e"
+                    },
+                    "pipfile-spec": 6,
+                    "requires": {},
+                    "sources": [
+                            {
+                                    "name": "pypi",
+                                    "url": "https://pypi.python.org/simple",
+                                    "verify_ssl": true
+                            }
+                    ]
+            },
+            "default": {
+			... snipped ...
+                    "requests": {
+                            "hashes": [
+                                    "sha256:6a1b267aa90cac58ac3a765d067950e7dbbf75b1da07e895d1f594193a40a38b",
+                                    "sha256:9c443e7324ba5b85070c4a818ade28bfabedf16ea10206da1132edaa6dda237e"
+                            ],
+                            "index": "pypi",
+                            "version": "==2.18.4"
+                    },
+			... snipped ...
+            },
+            "develop": {
+                    ... snipped ...
+                    "pytest": {
+                            "hashes": [
+                                    "sha256:27fa6617efc2869d3e969a3e75ec060375bfb28831ade8b5cdd68da3a741dc3c",
+                                    "sha256:81a25f36a97da3313e1125fce9e7bbbba565bc7fec3c5beb14c262ddab238ac1"
+                            ],
+                            "index": "pypi",
+                            "version": "==3.2.3"
+                    }
+                    ... snipped ...
+    }
+
+Given the ``Pipfile.lock`` exists, you may generate a set of requirements out of it with the default dependencies::
 
     $ pipenv requirements
-    -i https://pypi.org/simple
+    -i https://pypi.python.org/simple
+    certifi==2022.9.24 ; python_version >= '3.6'
     chardet==3.0.4
-    requests==2.18.4
-    certifi==2017.7.27.1
     idna==2.6
+    requests==2.18.4
     urllib3==1.22
 
 As with other commands, passing ``--dev`` will include both the default and
 development dependencies::
 
     $ pipenv requirements --dev
-    -i https://pypi.org/simple
-    chardet==3.0.4
-    requests==2.18.4
-    certifi==2017.7.27.1
-    idna==2.6
-    urllib3==1.22
-    py==1.4.34
+    -i https://pypi.python.org/simple
+    colorama==0.4.5 ; sys_platform == 'win32'
+    py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
     pytest==3.2.3
+    setuptools==65.4.1 ; python_version >= '3.7'
+    certifi==2022.9.24 ; python_version >= '3.6'
+    chardet==3.0.4
+    idna==2.6
+    requests==2.18.4
+    urllib3==1.22
 
 If you wish to generate a requirements file with only the
 development requirements you can do that too, using the ``--dev-only``
 flag::
 
     $ pipenv requirements --dev-only
-    -i https://pypi.org/simple
-    py==1.4.34
+    -i https://pypi.python.org/simple
+    colorama==0.4.5 ; sys_platform == 'win32'
+    py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
     pytest==3.2.3
+    setuptools==65.4.1 ; python_version >= '3.7'
 
 Adding the ``--hash`` flag adds package hashes to the output for extra security.
 Adding the ``--exclude-markers`` flag excludes the markers from the output.
@@ -303,16 +350,18 @@ used to write them to a file::
     $ pipenv requirements > requirements.txt
     $ pipenv requirements --dev-only > dev-requirements.txt
     $ cat requirements.txt
-    -i https://pypi.org/simple
+    -i https://pypi.python.org/simple
+    certifi==2022.9.24 ; python_version >= '3.6'
     chardet==3.0.4
-    requests==2.18.4
-    certifi==2017.7.27.1
     idna==2.6
+    requests==2.18.4
     urllib3==1.22
     $ cat dev-requirements.txt
-    -i https://pypi.org/simple
-    py==1.4.34
+    -i https://pypi.python.org/simple
+    colorama==0.4.5 ; sys_platform == 'win32'
+    py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
     pytest==3.2.3
+    setuptools==65.4.1 ; python_version >= '3.7'
 
 ☤ Detection of Security Vulnerabilities
 ---------------------------------------
