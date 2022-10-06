@@ -6,7 +6,6 @@ import os
 import shlex
 import shutil
 import traceback
-import threading
 import sys
 import warnings
 from pathlib import Path
@@ -21,7 +20,6 @@ from pipenv.cli import cli
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor import toml, tomlkit
-from pipenv.vendor.vistir.compat import fs_encode
 from pipenv.vendor.vistir.contextmanagers import temp_environ
 from pipenv.vendor.vistir.misc import run
 from pipenv.vendor.vistir.path import (
@@ -413,12 +411,11 @@ class _PipenvInstance:
 
 
 def _rmtree_func(path, ignore_errors=True, onerror=None):
-    directory = fs_encode(path)
     shutil_rmtree = _rmtree
     if onerror is None:
         onerror = handle_remove_readonly
     try:
-        shutil_rmtree(directory, ignore_errors=ignore_errors, onerror=onerror)
+        shutil_rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
     except (OSError, FileNotFoundError, PermissionError) as exc:
         # Ignore removal failures where the file doesn't exist
         if exc.errno != errno.ENOENT:
