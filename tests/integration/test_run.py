@@ -4,6 +4,7 @@ import pytest
 
 from pipenv.project import Project
 from pipenv.utils.shell import subprocess_run, temp_environ
+from pipenv.utils.shell import mkdir_p
 
 
 @pytest.mark.run
@@ -61,6 +62,36 @@ multicommand = "bash -c \"cd docs && make html\""
             assert c.returncode == 0
             if os.name != "nt":  # This doesn't work on CI windows.
                 assert c.stdout.strip() == "WORLD"
+
+
+@pytest.mark.run
+def test_scripts_with_package_functions(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
+        p.pipenv('install')
+        pkg_path = os.path.join(p.path, "pkg")
+        mkdir_p(pkg_path)
+        file_path = os.path.join(pkg_path, "mod.py")
+        with open(file_path, "w+") as f:
+            f.write("""
+def test_func():
+    print("success")
+
+def arg_func(s, i):
+    print(f"{s.upper()}. Easy as {i}")
+""")
+
+        with open(p.pipfile_path, 'w') as f:
+            f.write(r"""
+[scripts]
+pkgfunc = {call = "pkg.mod:test_func"}
+argfunc = {call = "pkg.mod:arg_func('abc', 123)"}
+            """)
+
+        c = p.pipenv('run pkgfunc')
+        assert c.stdout.strip() == "success"
+
+        c = p.pipenv('run argfunc')
+        assert c.stdout.strip() == "ABC. Easy as 123"
 
 
 @pytest.mark.run
