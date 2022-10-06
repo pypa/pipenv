@@ -1,6 +1,7 @@
 import itertools
 import re
 import shlex
+
 import tomlkit
 
 
@@ -19,21 +20,22 @@ def _quote_if_contains(value, pattern):
 
 
 def _parse_toml_inline_table(value: tomlkit.items.InlineTable) -> str:
-    """parses the [scripts] in pipfile and converts: `{call = "package.module:func('arg')"}` into an executable command
-    """
+    """parses the [scripts] in pipfile and converts: `{call = "package.module:func('arg')"}` into an executable command"""
     keys_list = list(value.keys())
     if len(keys_list) > 1:
         raise ScriptParseError("More than 1 key in toml script line")
     cmd_key = keys_list[0]
     if cmd_key not in Script.script_types:
-        raise ScriptParseError(f"Not an accepted script callabale, options are: {Script.script_types}")
+        raise ScriptParseError(
+            f"Not an accepted script callabale, options are: {Script.script_types}"
+        )
     if cmd_key == "call":
         module, _, func = str(value["call"]).partition(":")
         if not module or not func:
             raise ScriptParseError("Callable must be like: <pathed.module>:<func>")
         if re.search(r"\(.*?\)", func) is None:
             func += "()"
-        return f"python -c \"import {module} as _m; _m.{func}\""
+        return f'python -c "import {module} as _m; _m.{func}"'
 
 
 class Script(object):
@@ -41,6 +43,7 @@ class Script(object):
 
     This always works in POSIX mode, even on Windows.
     """
+
     script_types = ["call"]
 
     def __init__(self, command, args=None):
