@@ -2,7 +2,7 @@ import itertools
 import re
 import shlex
 
-import tomlkit
+from pipenv.vendor import tomlkit
 
 
 class ScriptEmptyError(ValueError):
