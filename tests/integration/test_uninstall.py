@@ -112,13 +112,18 @@ def test_uninstall_all_dev(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
+        [[source]]
+        name = "pypi"
+        url = "{0}"
+        verify_ssl = true
+            
         [packages]
         tablib = "*"
 
         [dev-packages]
         jinja2 = "==2.11.1"
         six = "*"
-        """
+        """.format(os.environ.get('PIPENV_TEST_INDEX'))
             f.write(contents)
 
         c = p.pipenv("install --dev")
@@ -191,15 +196,61 @@ def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_pypi):
         c = p.pipenv("uninstall --all-dev")
         assert c.returncode == 0
 
-        assert "six" in p.lockfile["develop"]
+        assert "six" in p.lockfile["default"]
 
 
 @pytest.mark.uninstall
-def test_uninstall_missing_parameters(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
-        c = p.pipenv("install dataclasses-json")
+def test_uninstall_missing_parameters(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        c = p.pipenv("install six")
         assert c.returncode == 0
 
         c = p.pipenv("uninstall")
         assert c.returncode != 0
         assert "No package provided!" in c.stderr
+
+
+@pytest.mark.categories
+@pytest.mark.uninstall
+def test_uninstall_category_with_shared_requirement(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+        [packages]
+        six = "*"
+
+        [prereq]
+        six = "*"
+        """
+            f.write(contents)
+        c = p.pipenv("install")
+        assert c.returncode == 0
+
+        c = p.pipenv("uninstall six --categories packages")
+        assert c.returncode == 0
+
+        assert "six" in p.lockfile["prereq"]
+        assert "six" not in p.lockfile["default"]
+
+
+@pytest.mark.categories
+@pytest.mark.uninstall
+def test_uninstall_multiple_categories(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+        [after]
+        six = "*"
+
+        [prereq]
+        six = "*"
+        """
+            f.write(contents)
+        c = p.pipenv("install")
+        assert c.returncode == 0
+
+        c = p.pipenv('uninstall six --categories="prereq after"')
+        assert c.returncode == 0
+
+        assert "six" not in p.lockfile["prereq"]
+        assert "six" not in p.lockfile["default"]

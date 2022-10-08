@@ -404,7 +404,7 @@ def test_lock_updated_source(pipenv_instance_private_pypi):
             contents = """
 [[source]]
 url = "{url}/${{MY_ENV_VAR}}"
-name = "expanded"
+name = "localpypi"
 verify_ssl = false
 
 [packages]
@@ -422,7 +422,7 @@ requests = "==2.14.0"
             contents = """
 [[source]]
 url = "{url}/simple"
-name = "expanded"
+name = "localpypi"
 verify_ssl = false
 
 [packages]
@@ -527,7 +527,6 @@ def test_lockfile_with_empty_dict(pipenv_instance_pypi):
             f.write('{}')
         c = p.pipenv('install')
         assert c.returncode == 0
-        assert 'Pipfile.lock is corrupted' in c.stderr
         assert p.lockfile['_meta']
 
 
@@ -721,3 +720,30 @@ requests = "*"
         assert "certifi" not in p.lockfile["develop"]
         assert "urllib3" not in p.lockfile["develop"]
         assert "chardet" not in p.lockfile["develop"]
+
+
+@pytest.mark.lock
+def test_lock_specific_named_category(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi(chdir=True) as p:
+        contents = """
+[[source]]
+url = "{}"
+verify_ssl = true
+name = "test"
+
+[packages]
+requests = "*"
+
+[prereq]
+six = "*"
+        """.format(p.index_url).strip()
+        with open(p.pipfile_path, 'w') as f:
+            f.write(contents)
+        c = p.pipenv("lock --categories prereq")
+        assert c.returncode == 0
+        assert p.lockfile["prereq"]["six"]["index"] == "test"
+        assert p.lockfile["default"] == dict()
+        c = p.pipenv("lock --categories packages")
+        assert c.returncode == 0
+        assert p.lockfile["prereq"]["six"]["index"] == "test"
+        assert p.lockfile["default"]["requests"]["index"] == "test"

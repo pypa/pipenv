@@ -70,7 +70,7 @@ six = {{version = "*", index = "pypi"}}
         ]
         for src in sources:
             name, url = src
-            source = [s for s in project.pipfile_sources if s.get('name') == name]
+            source = [s for s in project.pipfile_sources() if s.get('name') == name]
             assert source
             source = source[0]
             assert source['name'] == name

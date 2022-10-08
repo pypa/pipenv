@@ -181,10 +181,10 @@ def test_local_zip_file(pipenv_instance_private_pypi, testsroot):
 
 @pytest.mark.urls
 @pytest.mark.install
-def test_install_local_uri_special_character(pipenv_instance_pypi, testsroot):
+def test_install_local_uri_special_character(pipenv_instance_private_pypi, testsroot):
     file_name = "six-1.11.0+mkl-py2.py3-none-any.whl"
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_private_pypi() as p:
         artifact_dir = "artifacts"
         artifact_path = os.path.join(p.path, artifact_dir)
         mkdir_p(artifact_path)

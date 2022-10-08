@@ -63,6 +63,7 @@ LIBRARY_RENAMES = {
     "packaging": "pipenv.patched.pip._vendor.packaging",
     "pep517": "pipenv.patched.pip._vendor.pep517",
     "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
+    "plette": "pipenv.vendor.plette",
     "urllib3": "pipenv.patched.pip._vendor.urllib3",
     "zipp": "pipenv.vendor.zipp",
 }

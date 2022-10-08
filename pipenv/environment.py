@@ -36,9 +36,8 @@ if is_type_checking():
     from types import ModuleType
     from typing import ContextManager, Dict, Generator, List, Optional, Set, Union
 
-    import tomlkit
-
     from pipenv.project import Project, TPipfile, TSource
+    from pipenv.vendor import tomlkit
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
 

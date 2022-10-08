@@ -240,7 +240,6 @@ def install(state, **kwargs):
         python=state.python,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
-        lock=not state.installstate.skip_lock,
         ignore_pipfile=state.installstate.ignore_pipfile,
         skip_lock=state.installstate.skip_lock,
         requirementstxt=state.installstate.requirementstxt,
@@ -253,6 +252,7 @@ def install(state, **kwargs):
         editable_packages=state.installstate.editables,
         site_packages=state.site_packages,
         extra_pip_args=state.installstate.extra_pip_args,
+        categories=state.installstate.categories,
     )
 
 
@@ -291,6 +291,7 @@ def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
         all=all,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
+        categories=state.installstate.categories,
         ctx=ctx,
     )
     if retcode:
@@ -341,6 +342,7 @@ def lock(ctx, state, **kwargs):
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
         write=not state.quiet,
+        categories=state.installstate.categories,
     )
 
 
@@ -654,6 +656,7 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
         pypi_mirror=state.pypi_mirror,
         system=state.system,
         extra_pip_args=state.installstate.extra_pip_args,
+        categories=state.installstate.categories,
     )
     if retcode:
         ctx.abort()

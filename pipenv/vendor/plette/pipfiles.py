@@ -80,6 +80,10 @@ class Pipfile(DataView):
             "default": self._data.get("packages", {}),
             "develop": self._data.get("dev-packages", {}),
         }
+        for category, values in self._data.items():
+            if category in PIPFILE_SECTIONS or category in ("default", "develop"):
+                continue
+            data[category] = values
         content = json.dumps(data, sort_keys=True, separators=(",", ":"))
         if isinstance(content, str):
             content = content.encode("utf-8")

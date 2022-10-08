@@ -283,6 +283,32 @@ the current working directory when working on packages::
           ``Pipfile.lock`` if you leave the ``-e`` option out.
 
 
+☤ Specifying Package Categories
+-------------------------------
+
+Originally pipenv supported only two package groups:  ``packages`` and ``dev-packages`` in the ``Pipfile`` which mapped to ``default`` and ``develop`` in the ``Pipfile.lock``.   Support for additional named categories has been added such that arbitrary named groups can utilized across the available pipenv commands.
+
+.. note:: The name will be the same between ``Pipfile`` and lock file, however to support the legacy naming convention it is not possible to have an additional group named ``default`` or ``develop`` in the ``Pipfile``.
+
+By default ``pipenv lock`` will lock all known package categorises; to specify locking only specific groups use the ``--categories`` argument.
+The command should process the package groups in the order specified.
+
+Example usages::
+
+	# single category
+	pipenv install six --catetgories prereq
+
+	# multiple categories
+	pipenv sync --categories="prereq packages"
+
+	# lock and uninstall examples
+	pipenv lock --categories="prereq dev-packages"
+	pipenv uninstall six --categories prereq
+
+
+
+.. note:: The ``packages``/``default`` specifiers are used to constrain all other categories just as they have done for ``dev-packages``/``develop`` category.  However this is the only way constraints are applied -- the presence of other named groups do not constraint each other, which means it is possible to define conflicting package versions across groups.  This may be desired in some use cases where users only are installing groups specific to their system platform.
+
 .. _environment_management:
 
 ☤ Environment Management with Pipenv

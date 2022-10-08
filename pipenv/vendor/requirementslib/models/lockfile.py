@@ -5,7 +5,7 @@ from json import JSONDecodeError
 from pathlib import Path
 
 import pipenv.vendor.attr as attr
-import plette.lockfiles
+from pipenv.vendor.plette import lockfiles
 
 from ..exceptions import LockfileCorruptException, MissingParameter, PipfileNotFound
 from ..utils import is_editable, is_vcs, merge_items
@@ -22,7 +22,7 @@ def preferred_newlines(f):
     return DEFAULT_NEWLINES
 
 
-is_lockfile = optional_instance_of(plette.lockfiles.Lockfile)
+is_lockfile = optional_instance_of(lockfiles.Lockfile)
 is_projectfile = optional_instance_of(ProjectFile)
 
 
@@ -32,7 +32,7 @@ class Lockfile(object):
     _requirements = attr.ib(default=attr.Factory(list), type=list)
     _dev_requirements = attr.ib(default=attr.Factory(list), type=list)
     projectfile = attr.ib(validator=is_projectfile, type=ProjectFile)
-    _lockfile = attr.ib(validator=is_lockfile, type=plette.lockfiles.Lockfile)
+    _lockfile = attr.ib(validator=is_lockfile, type=lockfiles.Lockfile)
     newlines = attr.ib(default=DEFAULT_NEWLINES, type=str)
 
     @path.default
@@ -53,7 +53,7 @@ class Lockfile(object):
 
     @property
     def section_keys(self):
-        return ["default", "develop"]
+        return set(self.lockfile.keys()) - {"_meta"}
 
     @property
     def extended_keys(self):
@@ -75,8 +75,6 @@ class Lockfile(object):
     def __getitem__(self, k, *args, **kwargs):
         retval = None
         lockfile = self._lockfile
-        section = None
-        pkg_type = None
         try:
             retval = lockfile[k]
         except KeyError:
@@ -94,7 +92,6 @@ class Lockfile(object):
         return retval
 
     def __getattr__(self, k, *args, **kwargs):
-        retval = None
         lockfile = super(Lockfile, self).__getattribute__("_lockfile")
         try:
             return super(Lockfile, self).__getattribute__(k)
@@ -122,8 +119,7 @@ class Lockfile(object):
         :return: A project file with the model and location for interaction
         :rtype: :class:`~requirementslib.models.project.ProjectFile`
         """
-
-        pf = ProjectFile.read(path, plette.lockfiles.Lockfile, invalid_ok=True)
+        pf = ProjectFile.read(path, lockfiles.Lockfile, invalid_ok=True)
         return pf
 
     @classmethod
@@ -134,7 +130,7 @@ class Lockfile(object):
             if not os.path.isabs(pipfile_path):
                 pipfile_path = os.path.abspath(pipfile_path)
             pipfile = Pipfile.load(os.path.dirname(pipfile_path))
-            return plette.lockfiles.Lockfile.with_meta_from(pipfile._pipfile)
+            return lockfiles.Lockfile.with_meta_from(pipfile._pipfile)
         raise PipfileNotFound(pipfile_path)
 
     @classmethod
@@ -170,7 +166,7 @@ class Lockfile(object):
                     pipfile = project_path.joinpath("Pipfile")
                 lf = cls.lockfile_from_pipfile(pipfile)
             else:
-                lf = plette.lockfiles.Lockfile(data)
+                lf = lockfiles.Lockfile(data)
             projectfile.model = lf
         return projectfile
 
@@ -201,7 +197,7 @@ class Lockfile(object):
             lockfile = cls.lockfile_from_pipfile(pipfile_path)
             lockfile.update(data)
         else:
-            lockfile = plette.lockfiles.Lockfile(data)
+            lockfile = lockfiles.Lockfile(data)
         projectfile = ProjectFile(
             line_ending=DEFAULT_NEWLINES, location=lockfile_path, model=lockfile
         )
@@ -250,6 +246,9 @@ class Lockfile(object):
     def create(cls, path, create=True):
         return cls.load(path, create=create)
 
+    def get_section(self, name):
+        return self._lockfile.get(name)
+
     @property
     def develop(self):
         return self._lockfile.develop
@@ -258,7 +257,7 @@ class Lockfile(object):
     def default(self):
         return self._lockfile.default
 
-    def get_requirements(self, dev=True, only=False):
+    def get_requirements(self, dev=True, only=False, categories=None):
         """Produces a generator which generates requirements from the desired
         section.
 
@@ -266,43 +265,30 @@ class Lockfile(object):
         :return: Requirements from the relevant the relevant pipfile
         :rtype: :class:`~requirementslib.models.requirements.Requirement`
         """
-
-        deps = self.get_deps(dev=dev, only=only)
+        if categories:
+            deps = {}
+            for category in categories:
+                if category == "packages":
+                    category = "default"
+                elif category == "dev-packages":
+                    category = "develop"
+                try:
+                    category_deps = self[category]
+                except KeyError:
+                    category_deps = {}
+                    self._lockfile[category] = category_deps
+                deps = merge_items([deps, category_deps])
+        else:
+            deps = self.get_deps(dev=dev, only=only)
         for k, v in deps.items():
             yield Requirement.from_pipfile(k, v)
 
-    @property
-    def dev_requirements(self):
-        if not self._dev_requirements:
-            self._dev_requirements = list(self.get_requirements(dev=True, only=True))
-        return self._dev_requirements
-
-    @property
-    def requirements(self):
-        if not self._requirements:
-            self._requirements = list(self.get_requirements(dev=False, only=True))
-        return self._requirements
-
-    @property
-    def dev_requirements_list(self):
-        return [{name: entry._data} for name, entry in self._lockfile.develop.items()]
-
-    @property
-    def requirements_list(self):
-        return [{name: entry._data} for name, entry in self._lockfile.default.items()]
+    def requirements_list(self, category):
+        if self._lockfile.get(category):
+            return [{name: entry._data} for name, entry in self._lockfile[category].items()]
+        return []
 
     def write(self):
         self.projectfile.model = copy.deepcopy(self._lockfile)
         self.projectfile.write()
 
-    def as_requirements(self, include_hashes=False, dev=False):
-        """Returns a list of requirements in pip-style format."""
-        lines = []
-        section = self.dev_requirements if dev else self.requirements
-        for req in section:
-            kwargs = {"include_hashes": include_hashes}
-            if req.editable:
-                kwargs["include_markers"] = False
-            r = req.as_line(**kwargs)
-            lines.append(r.strip())
-        return lines
