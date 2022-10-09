@@ -31,7 +31,7 @@ from pipenv.patched.pip._vendor.pkg_resources import (
 from pipenv.vendor.platformdirs import user_cache_dir
 from pipenv.vendor.vistir.contextmanagers import cd, temp_path
 from pipenv.vendor.vistir.misc import run
-from pipenv.vendor.vistir.path import create_tracked_tempdir, ensure_mkdir_p, mkdir_p, rmtree
+from pipenv.vendor.vistir.path import create_tracked_tempdir, rmtree
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
@@ -559,7 +559,6 @@ def build_pep517(source_dir, build_dir, config_settings=None, dist_type="wheel")
         return build_fn(build_dir, config_settings)
 
 
-@ensure_mkdir_p(mode=0o775)
 def _get_src_dir(root):
     # type: (AnyStr) -> AnyStr
     src = os.environ.get("PIP_SRC")
@@ -573,6 +572,8 @@ def _get_src_dir(root):
         src_dir = create_tracked_tempdir(prefix="requirementslib-", suffix="-src")
     else:
         src_dir = os.path.join(root, "src")
+
+    os.makedirs(src_dir, mode=0o775)
     return src_dir
 
 
@@ -613,10 +614,10 @@ def _prepare_wheel_building_kwargs(
 ):
     # type: (...) -> Dict[STRING_TYPE, STRING_TYPE]
     download_dir = os.path.join(CACHE_DIR, "pkgs")  # type: STRING_TYPE
-    mkdir_p(download_dir)
+    os.makedirs(download_dir, exist_ok=True)
 
     wheel_download_dir = os.path.join(CACHE_DIR, "wheels")  # type: STRING_TYPE
-    mkdir_p(wheel_download_dir)
+    os.makedirs(wheel_download_dir, exist_ok=True)
     if src_dir is None:
         if editable and src_root is not None:
             src_dir = src_root

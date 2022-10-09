@@ -4,8 +4,8 @@ import os
 from pathlib import Path
 
 import pipenv.vendor.attr as attr
-from pipenv.vendor.plette import pipfiles
 import pipenv.vendor.tomlkit as tomlkit
+from pipenv.vendor.plette import pipfiles
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError

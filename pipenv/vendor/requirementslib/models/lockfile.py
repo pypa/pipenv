@@ -262,8 +262,8 @@ class Lockfile(object):
         section.
 
         :param bool dev: Indicates whether to use dev requirements, defaults to False
-        :return: Requirements from the relevant the relevant pipfile
-        :rtype: :class:`~requirementslib.models.requirements.Requirement`
+        :return: Requirements from the relevant pipfile
+        :rtype: :class:`Iterator[~requirementslib.models.requirements.Requirement]`
         """
         if categories:
             deps = {}
@@ -285,10 +285,23 @@ class Lockfile(object):
 
     def requirements_list(self, category):
         if self._lockfile.get(category):
-            return [{name: entry._data} for name, entry in self._lockfile[category].items()]
+            return [
+                {name: entry._data} for name, entry in self._lockfile[category].items()
+            ]
         return []
+
+    def as_requirements(self, category, include_hashes=False):
+        """Returns a list of requirements in pip-style format."""
+        lines = []
+        section = list(self.get_requirements(categories=[category]))
+        for req in section:
+            kwargs = {"include_hashes": include_hashes}
+            if req.editable:
+                kwargs["include_markers"] = False
+            r = req.as_line(**kwargs)
+            lines.append(r.strip())
+        return lines
 
     def write(self):
         self.projectfile.model = copy.deepcopy(self._lockfile)
         self.projectfile.write()
-
