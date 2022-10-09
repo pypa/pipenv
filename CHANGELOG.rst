@@ -1,3 +1,20 @@
+2022.10.9 (2022-10-09)
+======================
+Pipenv 2022.10.9 (2022-10-09)
+=============================
+
+
+Behavior Changes
+----------------
+
+- New pipfiles show python_full_version under [requires] if specified. Previously creating a new pipenv project would only specify in the Pipfile the major and minor version, i.e. "python_version = 3.7". Now if you create a new project with a fully named python version it will record both in the Pipfile. So: "python_version = 3.7" and "python_full_version = 3.7.2"  `#5345 <https://github.com/pypa/pipenv/issues/5345>`_
+
+Relates to dev process changes
+------------------------------
+
+- Silence majority of pytest.mark warnings by registering custom marks. Can view a list of custom marks by running ``pipenv run pytest --markers``
+
+
 2022.10.4 (2022-10-04)
 ======================
 Pipenv 2022.10.4 (2022-10-04)
