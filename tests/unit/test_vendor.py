@@ -7,7 +7,7 @@ import os
 
 import pytest
 import pytz
-import tomlkit
+from pipenv.vendor import tomlkit
 
 
 @pytest.mark.parametrize('dt, content', [
