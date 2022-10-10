@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Oct 09, 2022" "2022.10.9" "pipenv"
+.TH "PIPENV" "1" "Oct 10, 2022" "2022.10.10" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -453,6 +453,19 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.10.10 (2022\-10\-10)
+.SS Pipenv 2022.10.10 (2022\-10\-10)
+.SS Features & Improvements
+.INDENT 0.0
+.IP \(bu 2
+Add ability for callable scripts in Pipfile under [scripts]. Callables can now be added like: \fB<pathed.module>:<func>\fP and can also take arguments. For exaple: \fBfunc = {call = "package.module:func(\(aqarg1\(aq, \(aqarg2\(aq)"}\fP then this can be activated in the shell with \fBpipenv run func\fP  \fI\%#5294\fP
+.UNINDENT
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Fixes regression from \fB2022.10.9\fP where \fBPipfile\fP with \fBpipenv\fP section began generating new hash,
+and also fix regression where lock phase did not update the hash value.  \fI\%#5394\fP
+.UNINDENT
 .SS 2022.10.9 (2022\-10\-09)
 .SS Pipenv 2022.10.9 (2022\-10\-09)
 .SS Behavior Changes

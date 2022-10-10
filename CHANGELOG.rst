@@ -1,3 +1,21 @@
+2022.10.10 (2022-10-10)
+=======================
+Pipenv 2022.10.10 (2022-10-10)
+==============================
+
+
+Features & Improvements
+-----------------------
+
+- Add ability for callable scripts in Pipfile under [scripts]. Callables can now be added like: ``<pathed.module>:<func>`` and can also take arguments. For exaple: ``func = {call = "package.module:func('arg1', 'arg2')"}`` then this can be activated in the shell with ``pipenv run func``  `#5294 <https://github.com/pypa/pipenv/issues/5294>`_
+
+Bug Fixes
+---------
+
+- Fixes regression from ``2022.10.9`` where ``Pipfile`` with ``pipenv`` section began generating new hash,
+  and also fix regression where lock phase did not update the hash value.  `#5394 <https://github.com/pypa/pipenv/issues/5394>`_
+
+
 2022.10.9 (2022-10-09)
 ======================
 Pipenv 2022.10.9 (2022-10-09)

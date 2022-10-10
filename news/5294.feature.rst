@@ -1,1 +1,0 @@
-Add ability for callable scripts in Pipfile under [scripts]. Callables can now be added like: ``<pathed.module>:<func>`` and can also take arguments. For exaple: ``func = {call = "package.module:func('arg1', 'arg2')"}`` then this can be activated in the shell with ``pipenv run func``
