@@ -1,0 +1,2 @@
+Fixes regression from ``2022.10.9`` where ``Pipfile`` with ``pipenv`` section began generating new hash,
+and also fix regression where lock phase did not update the hash value.
