@@ -582,8 +582,6 @@ class Project:
                 )
                 lockfile = lockfile._data
 
-        # with open(self.pipfile_location) as pf:
-        #     lockfile = plette.Lockfile.with_meta_from(plette.Pipfile.load(pf))
         if categories is None:
             categories = self.get_package_categories(for_lockfile=True)
         for category in categories:

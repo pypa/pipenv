@@ -1138,6 +1138,7 @@ def do_lock(
                 overwrite_with_default(lockfile.get("default", {}), lockfile[category])
             )
     if write:
+        lockfile.update({"_meta": project.get_lockfile_meta()})
         project.write_lockfile(lockfile)
         click.echo(
             "{}".format(
