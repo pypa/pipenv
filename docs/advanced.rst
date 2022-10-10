@@ -581,8 +581,8 @@ For example:
     $ pipenv run echospam "indeed"
     I am really a very silly example indeed
 
-You can also specify pacakge functions as callables such as: ``<pathed.module>:<func>``. These can also take arguments. 
-For exaple: 
+You can also specify pacakge functions as callables such as: ``<pathed.module>:<func>``. These can also take arguments.
+For exaple:
 
 .. code-block:: toml
 
@@ -592,8 +592,8 @@ For exaple:
 
 ::
     $ pipenv run my_func_with_args
-    $ pipenv run my_func_no_args  
-    
+    $ pipenv run my_func_no_args
+
 You can display the names and commands of your shortcuts by running ``pipenv scripts`` in your terminal.
 
 ::
