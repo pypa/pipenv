@@ -32,7 +32,7 @@ def _parse_toml_inline_table(value: tomlkit.items.InlineTable) -> str:
     if cmd_key == "call":
         module, _, func = str(value["call"]).partition(":")
         if not module or not func:
-            raise ScriptParseError("Callable must be like: <pathed.module>:<func>")
+            raise ScriptParseError("Callable must be like: name = {call = \"package.module:func('arg')\"}")
         if re.search(r"\(.*?\)", func) is None:
             func += "()"
         return f'python -c "import {module} as _m; _m.{func}"'
