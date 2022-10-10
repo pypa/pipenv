@@ -81,7 +81,7 @@ class Pipfile(DataView):
             "develop": self._data.get("dev-packages", {}),
         }
         for category, values in self._data.items():
-            if category in PIPFILE_SECTIONS or category in ("default", "develop"):
+            if category in PIPFILE_SECTIONS or category in ("default", "develop", "pipenv"):
                 continue
             data[category] = values
         content = json.dumps(data, sort_keys=True, separators=(",", ":"))
