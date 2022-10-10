@@ -10,7 +10,10 @@ import os
 import re
 import sys
 import urllib.parse
+from json.decoder import JSONDecodeError
 from pathlib import Path
+
+import click
 
 from pipenv.cmdparse import Script
 from pipenv.environment import Environment
@@ -582,8 +585,6 @@ class Project:
                 )
                 lockfile = lockfile._data
 
-        # with open(self.pipfile_location) as pf:
-        #     lockfile = plette.Lockfile.with_meta_from(plette.Pipfile.load(pf))
         if categories is None:
             categories = self.get_package_categories(for_lockfile=True)
         for category in categories:
@@ -760,7 +761,11 @@ class Project:
         from .vendor.plette.lockfiles import PIPFILE_SPEC_CURRENT
 
         if self.lockfile_exists:
-            sources = self.lockfile_content.get("_meta", {}).get("sources", [])
+            sources = (
+                self.load_lockfile(expand_env_vars=False)
+                .get("_meta", {})
+                .get("sources", [])
+            )
         elif "source" in self.parsed_pipfile:
             sources = [dict(source) for source in self.parsed_pipfile["source"]]
         else:
@@ -994,8 +999,17 @@ class Project:
     def load_lockfile(self, expand_env_vars=True):
         lockfile_modified = False
         with io.open(self.lockfile_location, encoding="utf-8") as lock:
-            j = json.load(lock)
-            self._lockfile_newlines = preferred_newlines(lock)
+            try:
+                j = json.load(lock)
+                self._lockfile_newlines = preferred_newlines(lock)
+            except JSONDecodeError:
+                click.secho(
+                    "Pipfile.lock is corrupted; ignoring contents.",
+                    fg="yellow",
+                    bold=True,
+                    err=True,
+                )
+                j = {}
         if not j.get("_meta"):
             with open(self.pipfile_location) as pf:
                 default_lockfile = plette.Lockfile.with_meta_from(
