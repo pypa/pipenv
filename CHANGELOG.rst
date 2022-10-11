@@ -1,3 +1,15 @@
+2022.10.11 (2022-10-11)
+=======================
+Pipenv 2022.10.11 (2022-10-11)
+==============================
+
+
+Bug Fixes
+---------
+
+- Revert decision to change the default isolation level because it caused problems with existing workflows; solution is to recommend users that have issues requiring pre-requisites to pass --extra-pip-args="--no-build-isolation" in their install or sync commands.  `#5399 <https://github.com/pypa/pipenv/issues/5399>`_
+
+
 2022.10.10 (2022-10-10)
 =======================
 Pipenv 2022.10.10 (2022-10-10)

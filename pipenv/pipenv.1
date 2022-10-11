@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Oct 10, 2022" "2022.10.10" "pipenv"
+.TH "PIPENV" "1" "Oct 11, 2022" "2022.10.11" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -453,6 +453,13 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.10.11 (2022\-10\-11)
+.SS Pipenv 2022.10.11 (2022\-10\-11)
+.SS Bug Fixes
+.INDENT 0.0
+.IP \(bu 2
+Revert decision to change the default isolation level because it caused problems with existing workflows; solution is to recommend users that have issues requiring pre\-requisites to pass \-\-extra\-pip\-args="\-\-no\-build\-isolation" in their install or sync commands.  \fI\%#5399\fP
+.UNINDENT
 .SS 2022.10.10 (2022\-10\-10)
 .SS Pipenv 2022.10.10 (2022\-10\-10)
 .SS Features & Improvements
