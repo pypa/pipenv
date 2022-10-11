@@ -1,0 +1,1 @@
+Revert decision to change the default isolation level because it caused problems with existing workflows; solution is to recommend users that have issues requiring pre-requisites to pass --extra-pip-args="--no-build-isolation" in their install or sync commands.
