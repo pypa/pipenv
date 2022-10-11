@@ -1340,7 +1340,7 @@ def get_pip_args(
     verbose: bool = False,
     upgrade: bool = False,
     require_hashes: bool = False,
-    no_build_isolation: bool = True,
+    no_build_isolation: bool = False,
     no_use_pep517: bool = False,
     no_deps: bool = False,
     selective_upgrade: bool = False,
