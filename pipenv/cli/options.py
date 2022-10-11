@@ -561,6 +561,7 @@ def install_base_options(f):
     f = common_options(f)
     f = pre_option(f)
     f = keep_outdated_option(f)
+    f = extra_pip_args(f)
     return f
 
 
@@ -597,7 +598,6 @@ def install_options(f):
     f = ignore_pipfile_option(f)
     f = editable_option(f)
     f = package_arg(f)
-    f = extra_pip_args(f)
     return f
 
 

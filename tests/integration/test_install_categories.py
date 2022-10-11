@@ -69,5 +69,5 @@ six = "*"
         assert "testpipenv" in p.lockfile["default"]
         assert "testpipenv" not in p.lockfile["prereq"]
         assert "six" in p.lockfile["prereq"]
-        c = p.pipenv('sync --categories="prereq packages" -v')
+        c = p.pipenv('sync --categories="prereq packages" --extra-pip-args="--no-build-isolation" -v')
         assert c.returncode == 0
