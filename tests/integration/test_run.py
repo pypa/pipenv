@@ -4,7 +4,6 @@ import pytest
 
 from pipenv.project import Project
 from pipenv.utils.shell import subprocess_run, temp_environ
-from pipenv.utils.shell import mkdir_p
 
 
 @pytest.mark.run
@@ -69,7 +68,7 @@ def test_scripts_with_package_functions(pipenv_instance_pypi):
     with pipenv_instance_pypi(chdir=True) as p:
         p.pipenv('install')
         pkg_path = os.path.join(p.path, "pkg")
-        mkdir_p(pkg_path)
+        os.makedirs(pkg_path, exist_ok=True)
         file_path = os.path.join(pkg_path, "mod.py")
         with open(file_path, "w+") as f:
             f.write("""

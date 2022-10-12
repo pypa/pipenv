@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import base64
 import fnmatch
 import hashlib
@@ -421,7 +419,7 @@ class Project:
             loc = os.sep.join([self.virtualenv_location, "src"])
         else:
             loc = os.sep.join([self.project_directory, "src"])
-        vistir.path.mkdir_p(loc)
+        os.makedirs(loc, exist_ok=True)
         return loc
 
     @property
@@ -430,7 +428,7 @@ class Project:
             loc = os.sep.join([self.virtualenv_location, "downloads"])
             self._download_location = loc
         # Create the directory, if it doesn't exist.
-        vistir.path.mkdir_p(self._download_location)
+        os.makedirs(self._download_location, exist_ok=True)
         return self._download_location
 
     @property
