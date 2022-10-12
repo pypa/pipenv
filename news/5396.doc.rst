@@ -1,1 +1,0 @@
-Update pipenv docs for with example for callabale package functions in Pipfile scripts

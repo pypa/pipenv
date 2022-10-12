@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Oct 11, 2022" "2022.10.11" "pipenv"
+.TH "PIPENV" "1" "Oct 12, 2022" "2022.10.12" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 \fI\%\fP\fI\%\fP\fI\%\fP
@@ -453,6 +453,13 @@ You might want to set \fBexport PIPENV_VENV_IN_PROJECT=1\fP in your .bashrc/.zsh
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
 .SS Release and Version History
+.SS 2022.10.12 (2022\-10\-12)
+.SS Pipenv 2022.10.12 (2022\-10\-12)
+.SS Improved Documentation
+.INDENT 0.0
+.IP \(bu 2
+Update pipenv docs for with example for callabale package functions in Pipfile scripts  \fI\%#5396\fP
+.UNINDENT
 .SS 2022.10.11 (2022\-10\-11)
 .SS Pipenv 2022.10.11 (2022\-10\-11)
 .SS Bug Fixes
@@ -4158,7 +4165,28 @@ I am really a very silly example indeed
 .UNINDENT
 .UNINDENT
 .sp
-You can then display the names and commands of your shortcuts by running \fBpipenv scripts\fP in your terminal.
+You can also specify pacakge functions as callables such as: \fB<pathed.module>:<func>\fP\&. These can also take arguments.
+For exaple:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+[scripts]
+my_func_with_args = {call = "package.module:func(\(aqarg1\(aq, \(aqarg2\(aq)"}
+my_func_no_args = {call = "package.module:func()"}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B ::
+$ pipenv run my_func_with_args
+$ pipenv run my_func_no_args
+.UNINDENT
+.sp
+You can display the names and commands of your shortcuts by running \fBpipenv scripts\fP in your terminal.
 .INDENT 0.0
 .INDENT 3.5
 .sp

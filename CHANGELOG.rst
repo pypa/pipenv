@@ -1,3 +1,15 @@
+2022.10.12 (2022-10-12)
+=======================
+Pipenv 2022.10.12 (2022-10-12)
+==============================
+
+
+Improved Documentation
+----------------------
+
+- Update pipenv docs for with example for callabale package functions in Pipfile scripts  `#5396 <https://github.com/pypa/pipenv/issues/5396>`_
+
+
 2022.10.11 (2022-10-11)
 =======================
 Pipenv 2022.10.11 (2022-10-11)
