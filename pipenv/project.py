@@ -18,7 +18,6 @@ from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._vendor import pkg_resources
-from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
     is_editable,
@@ -48,16 +47,14 @@ except ImportError:
     # eventually distlib will remove cached property when they drop Python3.7
     from pipenv.patched.pip._vendor.distlib.util import cached_property
 
+from typing import Dict, List, Optional, Set, Text, Tuple, Union
 
-if is_type_checking():
-    from typing import Dict, List, Optional, Set, Text, Tuple, Union
-
-    TSource = Dict[Text, Union[Text, bool]]
-    TPackageEntry = Dict[str, Union[bool, str, List[str]]]
-    TPackage = Dict[str, TPackageEntry]
-    TScripts = Dict[str, str]
-    TPipenv = Dict[str, bool]
-    TPipfile = Dict[str, Union[TPackage, TScripts, TPipenv, List[TSource]]]
+TSource = Dict[Text, Union[Text, bool]]
+TPackageEntry = Dict[str, Union[bool, str, List[str]]]
+TPackage = Dict[str, TPackageEntry]
+TScripts = Dict[str, str]
+TPipenv = Dict[str, bool]
+TPipfile = Dict[str, Union[TPackage, TScripts, TPipenv, List[TSource]]]
 
 
 DEFAULT_NEWLINES = "\n"
