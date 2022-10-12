@@ -18,16 +18,14 @@ class SourceCollection(DataViewSequence):
 
 
 class Requires(DataView):
-    """Representation of the `[requires]` section in a Pipfile.
-    """
+    """Representation of the `[requires]` section in a Pipfile."""
+
     __SCHEMA__ = {
         "python_version": {
             "type": "string",
-            "excludes": ["python_full_version"],
         },
         "python_full_version": {
             "type": "string",
-            "excludes": ["python_version"],
         },
     }
 
@@ -54,8 +52,8 @@ META_SECTIONS = {
 
 
 class Meta(DataView):
-    """Representation of the `_meta` section in a Pipfile.lock.
-    """
+    """Representation of the `_meta` section in a Pipfile.lock."""
+
     __SCHEMA__ = {
         "hash": {"type": "dict", "required": True},
         "pipfile-spec": {"type": "integer", "required": True, "min": 0},
