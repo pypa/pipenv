@@ -131,7 +131,7 @@ Tests are written in ``pytest`` style and can be run very simply:
   pytest
 
 However many tests depend on running a private pypi server on localhost:8080.
-This can be accomplished by using either the ``run-tests.sh`` or ``run-tests.bat`
+This can be accomplished by using either the ``run-tests.sh`` or ``run-tests.bat``
 which will start the ``pypiserver`` process ahead of invoking pytest.
 
 You may also manually perform this step and then invoke pytest as you would normally.  Example::
