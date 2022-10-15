@@ -273,7 +273,7 @@ Below is an example usage which installs the git repository located at `https://
     Adding -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests to Pipfile's [packages]...
     [...]
 
-You can read more about [pip's implementation of vcs support here](https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support).
+You can read more about [pip's implementation of vcs support here](https://pip.pypa.io/en/stable/topics/vcs-support/).
 
 Install a dev dependency:
 
