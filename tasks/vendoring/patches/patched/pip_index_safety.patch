@@ -1,5 +1,5 @@
 diff --git a/pipenv/patched/pip/_internal/index/collector.py b/pipenv/patched/pip/_internal/index/collector.py
-index 89a09d1b..f10ca8ed 100644
+index 0120610c..ead5227e 100644
 --- a/pipenv/patched/pip/_internal/index/collector.py
 +++ b/pipenv/patched/pip/_internal/index/collector.py
 @@ -412,9 +412,11 @@ class LinkCollector:
@@ -36,7 +36,7 @@ index 89a09d1b..f10ca8ed 100644
          return link_collector
 
 diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patched/pip/_internal/models/search_scope.py
-index 75dccec2..4f531e7e 100644
+index a64af738..0674ed07 100644
 --- a/pipenv/patched/pip/_internal/models/search_scope.py
 +++ b/pipenv/patched/pip/_internal/models/search_scope.py
 @@ -3,7 +3,7 @@ import logging
@@ -46,7 +46,7 @@ index 75dccec2..4f531e7e 100644
 -from typing import List
 +from typing import Dict, List, Optional
 
- from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+ from pip._vendor.packaging.utils import canonicalize_name
 
 @@ -20,7 +20,7 @@ class SearchScope:
      Encapsulates the locations that pip is configured to search.
