@@ -20,13 +20,14 @@ class SearchScope:
     Encapsulates the locations that pip is configured to search.
     """
 
-    __slots__ = ["find_links", "index_urls", "index_lookup"]
+    __slots__ = ["find_links", "index_urls", "no_index", "index_lookup"]
 
     @classmethod
     def create(
         cls,
         find_links: List[str],
         index_urls: List[str],
+        no_index: bool,
         index_lookup: Optional[Dict[str, List[str]]] = None,
     ) -> "SearchScope":
         """
@@ -61,17 +62,20 @@ class SearchScope:
         return cls(
             find_links=built_find_links,
             index_urls=index_urls,
-            index_lookup=index_lookup
+            no_index=no_index,
+            index_lookup=index_lookup,
         )
 
     def __init__(
         self,
         find_links: List[str],
         index_urls: List[str],
+        no_index: bool,
         index_lookup: Optional[Dict[str, List[str]]] = None,
     ) -> None:
         self.find_links = find_links
         self.index_urls = index_urls
+        self.no_index = no_index
         self.index_lookup = index_lookup if index_lookup else {}
 
     def get_formatted_locations(self) -> str:
@@ -132,5 +136,5 @@ class SearchScope:
 
         index_urls = self.index_urls
         if project_name in self.index_lookup:
-            index_urls = [self.index_lookup[project_name]]
+            index_urls = list(self.index_lookup[project_name])
         return [mkurl_pypi_url(url) for url in index_urls]

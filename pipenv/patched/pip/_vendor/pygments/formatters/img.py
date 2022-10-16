@@ -206,13 +206,17 @@ class FontManager:
         """
         Get the character size.
         """
-        return self.fonts['NORMAL'].getsize('M')
+        return self.get_text_size('M')
 
     def get_text_size(self, text):
         """
-        Get the text size(width, height).
+        Get the text size (width, height).
         """
-        return self.fonts['NORMAL'].getsize(text)
+        font = self.fonts['NORMAL']
+        if hasattr(font, 'getbbox'):  # Pillow >= 9.2.0
+            return font.getbbox(text)[2:4]
+        else:
+            return font.getsize(text)
 
     def get_font(self, bold, oblique):
         """
@@ -520,7 +524,7 @@ class ImageFormatter(Formatter):
                         text_fg = self._get_text_color(style),
                         text_bg = self._get_text_bg_color(style),
                     )
-                    temp_width, temp_hight = self.fonts.get_text_size(temp)
+                    temp_width, _ = self.fonts.get_text_size(temp)
                     linelength += temp_width
                     maxlinelength = max(maxlinelength, linelength)
                     charno += len(temp)

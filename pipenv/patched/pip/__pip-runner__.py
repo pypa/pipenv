@@ -4,24 +4,38 @@ This file is named as it is, to ensure that this module can't be imported via
 an import statement.
 """
 
-import runpy
+# /!\ This version compatibility check section must be Python 2 compatible. /!\
+
 import sys
-import types
-from importlib.machinery import ModuleSpec, PathFinder
-from os.path import dirname
-from typing import Optional, Sequence, Union
+
+# Copied from setup.py
+PYTHON_REQUIRES = (3, 7)
+
+
+def version_str(version):  # type: ignore
+    return ".".join(str(v) for v in version)
+
+
+if sys.version_info[:2] < PYTHON_REQUIRES:
+    raise SystemExit(
+        "This version of pip does not support python {} (requires >={}).".format(
+            version_str(sys.version_info[:2]), version_str(PYTHON_REQUIRES)
+        )
+    )
+
+# From here on, we can use Python 3 features, but the syntax must remain
+# Python 2 compatible.
+
+import runpy  # noqa: E402
+from importlib.machinery import PathFinder  # noqa: E402
+from os.path import dirname  # noqa: E402
 
 PIP_SOURCES_ROOT = dirname(dirname(__file__))
 
 
 class PipImportRedirectingFinder:
     @classmethod
-    def find_spec(
-        self,
-        fullname: str,
-        path: Optional[Sequence[Union[bytes, str]]] = None,
-        target: Optional[types.ModuleType] = None,
-    ) -> Optional[ModuleSpec]:
+    def find_spec(self, fullname, path=None, target=None):  # type: ignore
         if fullname != "pip":
             return None
 

@@ -59,31 +59,6 @@ def make_option_group(group: Dict[str, Any], parser: ConfigOptionParser) -> Opti
     return option_group
 
 
-def check_install_build_global(
-    options: Values, check_options: Optional[Values] = None
-) -> None:
-    """Disable wheels if per-setup.py call options are set.
-
-    :param options: The OptionParser options to update.
-    :param check_options: The options to check, if not supplied defaults to
-        options.
-    """
-    if check_options is None:
-        check_options = options
-
-    def getname(n: str) -> Optional[Any]:
-        return getattr(check_options, n, None)
-
-    names = ["build_options", "global_options", "install_options"]
-    if any(map(getname, names)):
-        control = options.format_control
-        control.disallow_binaries()
-        logger.warning(
-            "Disabling all use of wheels due to the use of --build-option "
-            "/ --global-option / --install-option.",
-        )
-
-
 def check_dist_restriction(options: Values, check_target: bool = False) -> None:
     """Function for determining if custom platform options are allowed.
 
@@ -187,6 +162,13 @@ require_virtualenv: Callable[..., Option] = partial(
         "Allow pip to only run in a virtual environment; "
         "exit with an error otherwise."
     ),
+)
+
+python: Callable[..., Option] = partial(
+    Option,
+    "--python",
+    dest="python",
+    help="Run pip with the specified Python interpreter.",
 )
 
 verbose: Callable[..., Option] = partial(
@@ -1000,7 +982,11 @@ use_new_feature: Callable[..., Option] = partial(
     metavar="feature",
     action="append",
     default=[],
-    choices=["2020-resolver", "fast-deps", "truststore"],
+    choices=[
+        "fast-deps",
+        "truststore",
+        "no-binary-enable-wheel-cache",
+    ],
     help="Enable new functionality, that may be backward incompatible.",
 )
 
@@ -1029,6 +1015,7 @@ general_group: Dict[str, Any] = {
         debug_mode,
         isolated_mode,
         require_virtualenv,
+        python,
         verbose,
         version,
         quiet,

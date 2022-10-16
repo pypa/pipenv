@@ -4,6 +4,7 @@
 import logging
 import os
 import pathlib
+import site
 import sys
 import textwrap
 from collections import OrderedDict
@@ -39,7 +40,7 @@ class _Prefix:
         self.lib_dirs = get_prefixed_libs(path)
 
 
-def _get_runnable_pip() -> str:
+def get_runnable_pip() -> str:
     """Get a file to pass to a Python executable, to run the currently-running pip.
 
     This is used to run a pip subprocess, for installing requirements into the build
@@ -53,6 +54,26 @@ def _get_runnable_pip() -> str:
         return str(source)
 
     return os.fsdecode(source / "__pip-runner__.py")
+
+
+def _get_system_sitepackages() -> Set[str]:
+    """Get system site packages
+
+    Usually from site.getsitepackages,
+    but fallback on `get_purelib()/get_platlib()` if unavailable
+    (e.g. in a virtualenv created by virtualenv<20)
+
+    Returns normalized set of strings.
+    """
+    if hasattr(site, "getsitepackages"):
+        system_sites = site.getsitepackages()
+    else:
+        # virtualenv < 20 overwrites site.py without getsitepackages
+        # fallback on get_purelib/get_platlib.
+        # this is known to miss things, but shouldn't in the cases
+        # where getsitepackages() has been removed (inside a virtualenv)
+        system_sites = [get_purelib(), get_platlib()]
+    return {os.path.normcase(path) for path in system_sites}
 
 
 class BuildEnvironment:
@@ -75,9 +96,8 @@ class BuildEnvironment:
         # Customize site to:
         # - ensure .pth files are honored
         # - prevent access to system site packages
-        system_sites = {
-            os.path.normcase(site) for site in (get_purelib(), get_platlib())
-        }
+        system_sites = _get_system_sitepackages()
+
         self._site_dir = os.path.join(temp_dir.path, "site")
         if not os.path.exists(self._site_dir):
             os.mkdir(self._site_dir)
@@ -194,7 +214,7 @@ class BuildEnvironment:
         if not requirements:
             return
         self._install_requirements(
-            _get_runnable_pip(),
+            get_runnable_pip(),
             finder,
             requirements,
             prefix,

@@ -1,13 +1,13 @@
+import json
+import os
+import sys
+import tempfile
 import threading
 from contextlib import contextmanager
-import os
-from os.path import abspath, join as pjoin
-import shutil
-from subprocess import check_call, check_output, STDOUT
-import sys
-from tempfile import mkdtemp
+from os.path import abspath
+from os.path import join as pjoin
+from subprocess import STDOUT, check_call, check_output
 
-from . import compat
 from .in_process import _in_proc_script_path
 
 __all__ = [
@@ -21,13 +21,14 @@ __all__ = [
 ]
 
 
-@contextmanager
-def tempdir():
-    td = mkdtemp()
-    try:
-        yield td
-    finally:
-        shutil.rmtree(td)
+def write_json(obj, path, **kwargs):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, **kwargs)
+
+
+def read_json(path):
+    with open(path, encoding='utf-8') as f:
+        return json.load(f)
 
 
 class BackendUnavailable(Exception):
@@ -47,7 +48,7 @@ class BackendInvalid(Exception):
 class HookMissing(Exception):
     """Will be raised on missing hooks."""
     def __init__(self, hook_name):
-        super(HookMissing, self).__init__(hook_name)
+        super().__init__(hook_name)
         self.hook_name = hook_name
 
 
@@ -99,7 +100,7 @@ def norm_and_check(source_tree, requested):
     return abs_requested
 
 
-class Pep517HookCaller(object):
+class Pep517HookCaller:
     """A wrapper around a source directory to be built with a PEP 517 backend.
 
     :param source_dir: The path to the source directory, containing
@@ -292,29 +293,15 @@ class Pep517HookCaller(object):
         })
 
     def _call_hook(self, hook_name, kwargs):
-        # On Python 2, pytoml returns Unicode values (which is correct) but the
-        # environment passed to check_call needs to contain string values. We
-        # convert here by encoding using ASCII (the backend can only contain
-        # letters, digits and _, . and : characters, and will be used as a
-        # Python identifier, so non-ASCII content is wrong on Python 2 in
-        # any case).
-        # For backend_path, we use sys.getfilesystemencoding.
-        if sys.version_info[0] == 2:
-            build_backend = self.build_backend.encode('ASCII')
-        else:
-            build_backend = self.build_backend
-        extra_environ = {'PEP517_BUILD_BACKEND': build_backend}
+        extra_environ = {'PEP517_BUILD_BACKEND': self.build_backend}
 
         if self.backend_path:
             backend_path = os.pathsep.join(self.backend_path)
-            if sys.version_info[0] == 2:
-                backend_path = backend_path.encode(sys.getfilesystemencoding())
             extra_environ['PEP517_BACKEND_PATH'] = backend_path
 
-        with tempdir() as td:
+        with tempfile.TemporaryDirectory() as td:
             hook_input = {'kwargs': kwargs}
-            compat.write_json(hook_input, pjoin(td, 'input.json'),
-                              indent=2)
+            write_json(hook_input, pjoin(td, 'input.json'), indent=2)
 
             # Run the hook in a subprocess
             with _in_proc_script_path() as script:
@@ -325,7 +312,7 @@ class Pep517HookCaller(object):
                     extra_environ=extra_environ
                 )
 
-            data = compat.read_json(pjoin(td, 'output.json'))
+            data = read_json(pjoin(td, 'output.json'))
             if data.get('unsupported'):
                 raise UnsupportedOperation(data.get('traceback', ''))
             if data.get('no_backend'):

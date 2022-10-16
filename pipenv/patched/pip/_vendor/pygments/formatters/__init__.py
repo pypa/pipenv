@@ -11,7 +11,7 @@
 import re
 import sys
 import types
-import fnmatch
+from fnmatch import fnmatch
 from os.path import basename
 
 from pipenv.patched.pip._vendor.pygments.formatters._mapping import FORMATTERS
@@ -22,16 +22,6 @@ __all__ = ['get_formatter_by_name', 'get_formatter_for_filename',
            'get_all_formatters', 'load_formatter_from_file'] + list(FORMATTERS)
 
 _formatter_cache = {}  # classes by name
-_pattern_cache = {}
-
-
-def _fn_matches(fn, glob):
-    """Return whether the supplied file name fn matches pattern filename."""
-    if glob not in _pattern_cache:
-        pattern = _pattern_cache[glob] = re.compile(fnmatch.translate(glob))
-        return pattern.match(fn)
-    return _pattern_cache[glob].match(fn)
-
 
 def _load_formatters(module_name):
     """Load a formatter (and all others in the module too)."""
@@ -122,13 +112,13 @@ def get_formatter_for_filename(fn, **options):
     fn = basename(fn)
     for modname, name, _, filenames, _ in FORMATTERS.values():
         for filename in filenames:
-            if _fn_matches(fn, filename):
+            if fnmatch(fn, filename):
                 if name not in _formatter_cache:
                     _load_formatters(modname)
                 return _formatter_cache[name](**options)
     for cls in find_plugin_formatters():
         for filename in cls.filenames:
-            if _fn_matches(fn, filename):
+            if fnmatch(fn, filename):
                 return cls(**options)
     raise ClassNotFound("no formatter found for file name %r" % fn)
 

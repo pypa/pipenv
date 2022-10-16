@@ -2,6 +2,15 @@ import importlib.metadata
 from typing import Any, Optional, Protocol, cast
 
 
+class BadMetadata(ValueError):
+    def __init__(self, dist: importlib.metadata.Distribution, *, reason: str) -> None:
+        self.dist = dist
+        self.reason = reason
+
+    def __str__(self) -> str:
+        return f"Bad metadata in {self.dist} ({self.reason})"
+
+
 class BasePath(Protocol):
     """A protocol that various path objects conform.
 
@@ -40,4 +49,7 @@ def get_dist_name(dist: importlib.metadata.Distribution) -> str:
     The ``name`` attribute is only available in Python 3.10 or later. We are
     targeting exactly that, but Mypy does not know this.
     """
-    return cast(Any, dist).name
+    name = cast(Any, dist).name
+    if not isinstance(name, str):
+        raise BadMetadata(dist, reason="invalid metadata entry 'name'")
+    return name

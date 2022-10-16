@@ -28,6 +28,7 @@ from pipenv.patched.pip._internal.metadata.base import (
 )
 from pipenv.patched.pip._internal.utils.misc import normalize_path
 from pipenv.patched.pip._internal.utils.packaging import safe_extra
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.pip._internal.utils.wheel import parse_wheel, read_wheel_metadata_file
 
 from ._compat import BasePath, get_dist_name
@@ -108,6 +109,23 @@ class Distribution(BaseDistribution):
         info_location = pathlib.Path(directory)
         dist = importlib.metadata.Distribution.at(info_location)
         return cls(dist, info_location, info_location.parent)
+
+    @classmethod
+    def from_metadata_file_contents(
+        cls,
+        metadata_contents: bytes,
+        filename: str,
+        project_name: str,
+    ) -> BaseDistribution:
+        # Generate temp dir to contain the metadata file, and write the file contents.
+        temp_dir = pathlib.Path(
+            TempDirectory(kind="metadata", globally_managed=True).path
+        )
+        metadata_path = temp_dir / "METADATA"
+        metadata_path.write_bytes(metadata_contents)
+        # Construct dist pointing to the newly created directory.
+        dist = importlib.metadata.Distribution.at(metadata_path.parent)
+        return cls(dist, metadata_path.parent, None)
 
     @classmethod
     def from_wheel(cls, wheel: Wheel, name: str) -> BaseDistribution:

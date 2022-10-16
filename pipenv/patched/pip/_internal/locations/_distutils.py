@@ -35,10 +35,10 @@ logger = logging.getLogger(__name__)
 def distutils_scheme(
     dist_name: str,
     user: bool = False,
-    home: str = None,
-    root: str = None,
+    home: Optional[str] = None,
+    root: Optional[str] = None,
     isolated: bool = False,
-    prefix: str = None,
+    prefix: Optional[str] = None,
     *,
     ignore_config_files: bool = False,
 ) -> Dict[str, str]:
