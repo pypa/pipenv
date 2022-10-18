@@ -4,10 +4,10 @@ import pathlib
 import re
 import sys
 
-from appdirs import user_cache_dir
 from vistir.path import normalize_drive
 
 from pipenv._compat import fix_utf8
+from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 from pipenv.utils.constants import FALSE_VALUES, TRUE_VALUES
 from pipenv.utils.shell import env_to_bool
 from pipenv.vendor.vistir.misc import _isatty
