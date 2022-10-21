@@ -21,6 +21,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Collect Workflow Telemetry
+      uses: runforesight/foresight-workflow-kit-action@v1
+      if: ${{ always() }}
+      with:
+        api_key: ${{ secrets.FORESIGHT_API_KEY }}
+
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
