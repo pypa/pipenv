@@ -819,11 +819,11 @@ def main(argv=None):
     _ensure_modules()
     import warnings
 
-    from pipenv.vendor.vistir.misc import replace_with_text_stream
+    from pipenv.vendor.click.utils import get_text_stream
 
     warnings.simplefilter("ignore", category=ResourceWarning)
-    replace_with_text_stream("stdout")
-    replace_with_text_stream("stderr")
+    sys.stdout = get_text_stream("stdout")
+    sys.stderr = get_text_stream("stderr")
     os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
     os.environ["PYTHONIOENCODING"] = "utf-8"
     os.environ["PYTHONUNBUFFERED"] = "1"
