@@ -90,9 +90,9 @@ def test_requirements_generates_requirements_from_lockfile_from_categories(pipen
             {packages[0]}= "=={packages[1]}"
             [dev-packages]
             {dev_packages[0]}= "=={dev_packages[1]}"
-            [test-packages]
+            [test]
             {test_packages[0]}= "=={test_packages[1]}"
-            [doc-packages]
+            [doc]
             {doc_packages[0]}= "=={doc_packages[1]}"
             """.strip()
             f.write(contents)
@@ -105,7 +105,7 @@ def test_requirements_generates_requirements_from_lockfile_from_categories(pipen
         assert f'{test_packages[0]}=={test_packages[1]}' not in c.stdout
         assert f'{dev_packages[0]}=={dev_packages[1]}' in c.stdout
 
-        d = p.pipenv('requirements --category test,doc')
+        d = p.pipenv('requirements --categories="test, doc"')
         assert d.returncode == 0
         assert f'{packages[0]}=={packages[1]}' not in d.stdout
         assert f'{dev_packages[0]}=={dev_packages[1]}' not in c.stdout
