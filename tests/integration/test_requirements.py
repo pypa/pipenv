@@ -73,6 +73,41 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(pipe
 
 
 @pytest.mark.requirements
+def test_requirements_generates_requirements_from_lockfile_from_a_category(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi(chdir=True) as p:
+        packages = ('six', '1.12.0')
+        dev_packages = ('itsdangerous', '1.1.0')
+        test_packages = ('pytest', '7.1.3')
+        with open(p.pipfile_path, 'w') as f:
+            contents = f"""
+            [[source]]
+            name = "pypi"
+            url = "https://pypi.org/simple"
+            verify_ssl = true
+            [packages]
+            {packages[0]}= "=={packages[1]}"
+            [dev-packages]
+            {dev_packages[0]}= "=={dev_packages[1]}"
+            [test-packages]
+            {test_packages[0]}= "=={test_packages[1]}"
+            """.strip()
+            f.write(contents)
+        l = p.pipenv('lock')
+        assert l.returncode == 0
+        
+        c = p.pipenv('requirements --dev-only')
+        assert c.returncode == 0
+        assert f'{packages[0]}=={packages[1]}' not in c.stdout
+        assert f'{test_packages[0]}=={test_packages[1]}' not in c.stdout
+        assert f'{dev_packages[0]}=={dev_packages[1]}' in c.stdout
+
+        d = p.pipenv('requirements --category test')
+        assert d.returncode == 0
+        assert f'{packages[0]}=={packages[1]}' not in d.stdout
+        assert f'{dev_packages[0]}=={dev_packages[1]}' not in c.stdout
+        assert f'{test_packages[0]}=={test_packages[1]}' in d.stdout
+
+@pytest.mark.requirements
 def test_requirements_with_git_requirements(pipenv_instance_pypi):
     req_name, req_hash = 'example-repo', 'cc858e89f19bc0dbd70983f86b811ab625dc9292'
     lockfile = {

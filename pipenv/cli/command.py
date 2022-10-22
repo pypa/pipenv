@@ -1,3 +1,4 @@
+from gc import is_finalized
 import os
 import sys
 
@@ -85,7 +86,7 @@ def cli(
 
     load_dot_env(state.project, quiet=state.quiet)
 
-    from ..core import (
+    from pipenv.core import (
         cleanup_virtualenv,
         do_clear,
         do_py,
@@ -740,8 +741,9 @@ def verify(state):
 )
 @option("--hash", is_flag=True, default=False, help="Add package hashes.")
 @option("--exclude-markers", is_flag=True, default=False, help="Exclude markers.")
+@option("--category", is_flag=False, default='', help="Only add requirement of the specified category.")
 @pass_state
-def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=False):
+def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=False, category=''):
 
     from pipenv.utils.dependencies import convert_deps_to_pip
 
@@ -753,10 +755,13 @@ def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=F
 
     deps = {}
 
-    if dev or dev_only:
-        deps.update(lockfile["develop"])
-    if not dev_only:
-        deps.update(lockfile["default"])
+    if category:
+        deps.update(lockfile.get(category, {}))
+    else:
+        if dev or dev_only:
+            deps.update(lockfile["develop"])
+        if not dev_only:
+            deps.update(lockfile["default"])
 
     pip_deps = convert_deps_to_pip(
         deps,
