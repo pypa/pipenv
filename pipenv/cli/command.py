@@ -740,9 +740,9 @@ def verify(state):
 )
 @option("--hash", is_flag=True, default=False, help="Add package hashes.")
 @option("--exclude-markers", is_flag=True, default=False, help="Exclude markers.")
-@option("--category", is_flag=False, default='', help="Only add requirement of the specified category.")
+@option("--categories", is_flag=False, default='', help="Only add requirement of the specified categories.")
 @pass_state
-def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=False, category=''):
+def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=False, categories=''):
 
     from pipenv.utils.dependencies import convert_deps_to_pip
 
@@ -753,9 +753,11 @@ def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=F
         echo(" ".join([prefix, package_index["url"]]))
 
     deps = {}
+    categories_list = categories.split(',') if categories else []
 
-    if category:
-        deps.update(lockfile.get(category, {}))
+    if categories_list:
+        for category in categories_list:
+            deps.update(lockfile.get(category, {}))
     else:
         if dev or dev_only:
             deps.update(lockfile["develop"])

@@ -73,11 +73,13 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(pipe
 
 
 @pytest.mark.requirements
-def test_requirements_generates_requirements_from_lockfile_from_a_category(pipenv_instance_private_pypi):
+def test_requirements_generates_requirements_from_lockfile_from_categories(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi(chdir=True) as p:
         packages = ('six', '1.12.0')
         dev_packages = ('itsdangerous', '1.1.0')
         test_packages = ('pytest', '7.1.3')
+        doc_packages = ('Sphinx', '5.3.0')
+
         with open(p.pipfile_path, 'w') as f:
             contents = f"""
             [[source]]
@@ -90,6 +92,8 @@ def test_requirements_generates_requirements_from_lockfile_from_a_category(pipen
             {dev_packages[0]}= "=={dev_packages[1]}"
             [test-packages]
             {test_packages[0]}= "=={test_packages[1]}"
+            [doc-packages]
+            {doc_packages[0]}= "=={doc_packages[1]}"
             """.strip()
             f.write(contents)
         l = p.pipenv('lock')
@@ -101,11 +105,12 @@ def test_requirements_generates_requirements_from_lockfile_from_a_category(pipen
         assert f'{test_packages[0]}=={test_packages[1]}' not in c.stdout
         assert f'{dev_packages[0]}=={dev_packages[1]}' in c.stdout
 
-        d = p.pipenv('requirements --category test')
+        d = p.pipenv('requirements --category test,doc')
         assert d.returncode == 0
         assert f'{packages[0]}=={packages[1]}' not in d.stdout
         assert f'{dev_packages[0]}=={dev_packages[1]}' not in c.stdout
         assert f'{test_packages[0]}=={test_packages[1]}' in d.stdout
+        assert f'{doc_packages[0]}=={doc_packages[1]}' in d.stdout
 
 @pytest.mark.requirements
 def test_requirements_with_git_requirements(pipenv_instance_pypi):
