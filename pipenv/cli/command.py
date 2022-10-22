@@ -764,6 +764,7 @@ def requirements(
 
     if categories_list:
         for category in categories_list:
+            category = category.strip()
             deps.update(lockfile.get(category, {}))
     else:
         if dev or dev_only:
