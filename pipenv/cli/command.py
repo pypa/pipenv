@@ -1,4 +1,3 @@
-from gc import is_finalized
 import os
 import sys
 
@@ -86,7 +85,7 @@ def cli(
 
     load_dot_env(state.project, quiet=state.quiet)
 
-    from pipenv.core import (
+    from ..core import (
         cleanup_virtualenv,
         do_clear,
         do_py,
