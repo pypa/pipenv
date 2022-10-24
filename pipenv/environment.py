@@ -311,19 +311,12 @@ class Environment:
             return sys.path
         elif any([sys.prefix == self.prefix, not self.is_venv]):
             return sys.path
-        cmd_args = [self.python, "-c", "import json, sys; print(json.dumps(sys.path))"]
-        path, _ = vistir.misc.run(
-            cmd_args,
-            return_object=False,
-            nospin=True,
-            block=True,
-            combine_stderr=False,
-            write_to_stdout=False,
-        )
+
         try:
-            path = json.loads(path.strip())
-        except json.JSONDecodeError:
+            path = pipenv.utils.shell.load_path(self.python)
+        except json.decoder.JSONDecodeError:
             path = sys.path
+
         return path
 
     def build_command(

@@ -73,8 +73,7 @@ def load_path(python):
     from pathlib import Path
 
     python = Path(python).as_posix()
-    json_dump_commmand = '"import json, sys; print(json.dumps(sys.path));"'
-    c = subprocess_run([python, "-c", json_dump_commmand])
+    c = subprocess_run([python, "-c", "import json, sys; print(json.dumps(sys.path))"])
     if c.returncode == 0:
         return json.loads(c.stdout.strip())
     else:
