@@ -36,6 +36,53 @@ You can quickly play with Pipenv right in your browser:
 
 [![Try in browser](https://cdn.rawgit.com/rootnroll/library/assets/try.svg)](https://rootnroll.com/d/pipenv/)
 
+Table Of Contents
+------------------
+
+- [Pipenv](#pipenv-python-development-workflow-for-humans)
+
+- [Installation](#installation)
+
+- [User Testimonals](#☤-user-testimonials)
+
+- [Features](#☤-features)
+
+- [Basic Concepts](#basic-concepts)
+
+- [Other Commands](#other-commands)
+
+- [Shell Completion](#shell-completion)
+
+- [Usage](#☤-usage)
+
+    - [Usage Examples](#usage-examples)
+
+    - [Commands](#commands)
+
+    - [Locate the Project](#locate-the-project)
+
+    - [Locate the virtualenv](#locate-the-virtualenv)
+
+    - [Locate the Python Interpreter](#locate-the-python-interpreter)
+
+    - [Install Packages](#install-packages)
+
+    - [Installing from git](#installing-from-git)
+
+    - [Install a dev dependency](#install-a-dev-dependency)
+
+    - [Show a dependency graph](#show-a-dependency-graph)
+
+    - [Generate a lockfile](#generate-a-lockfile)
+
+    - [Install all dev dependencies](#install-all-dev-dependencies)
+
+    - [Uninstall everything](#uninstall-everything)
+
+    - [Use the shell](#use-the-shell)
+
+- [Documentation](#☤-documentation)
+
 Installation
 ------------
 
@@ -178,7 +225,7 @@ Magic shell completions are now enabled!
       -h, --help                      Show this message and exit.
 
 
-   Usage Examples:
+   ### Usage Examples:
 
       Create a new project using Python 3.7, specifically:
       $ pipenv --python 3.7
@@ -204,7 +251,7 @@ Magic shell completions are now enabled!
       Use a lower-level pip command:
       $ pipenv run pip freeze
 
-   Commands:
+   ### Commands:
 
       check         Checks for PyUp Safety security vulnerabilities and against
                     PEP 508 markers provided in Pipfile.
@@ -224,22 +271,22 @@ Magic shell completions are now enabled!
       verify        Verify the hash in Pipfile.lock is up-to-date.
 
 
-Locate the project:
+### Locate the project:
 
     $ pipenv --where
     /Users/kennethreitz/Library/Mobile Documents/com~apple~CloudDocs/repos/kr/pipenv/test
 
-Locate the virtualenv:
+### Locate the virtualenv:
 
     $ pipenv --venv
     /Users/kennethreitz/.local/share/virtualenvs/test-Skyy4vre
 
-Locate the Python interpreter:
+### Locate the Python interpreter:
 
     $ pipenv --py
     /Users/kennethreitz/.local/share/virtualenvs/test-Skyy4vre/bin/python
 
-Install packages:
+### Install packages:
 
     $ pipenv install
     Creating a virtualenv for this project...
@@ -252,7 +299,7 @@ Install packages:
     To activate this project's virtualenv, run the following:
     $ pipenv shell
 
-Installing from git:
+### Installing from git:
 
 You can install packages with pipenv from git and other version control systems using URLs formatted according to the following rule:
 
@@ -275,14 +322,14 @@ Below is an example usage which installs the git repository located at `https://
 
 You can read more about [pip's implementation of vcs support here](https://pip.pypa.io/en/stable/topics/vcs-support/).
 
-Install a dev dependency:
+### Install a dev dependency:
 
     $ pipenv install pytest --dev
     Installing pytest...
     ...
     Adding pytest to Pipfile's [dev-packages]...
 
-Show a dependency graph:
+### Show a dependency graph:
 
     $ pipenv graph
     requests==2.18.4
@@ -291,7 +338,7 @@ Show a dependency graph:
       - idna [required: >=2.5,<2.7, installed: 2.6]
       - urllib3 [required: <1.23,>=1.21.1, installed: 1.22]
 
-Generate a lockfile:
+### Generate a lockfile:
 
     $ pipenv lock
     Assuring all dependencies from Pipfile are installed...
@@ -300,7 +347,7 @@ Generate a lockfile:
     Note: your project now has only default [packages] installed.
     To install [dev-packages], run: $ pipenv install --dev
 
-Install all dev dependencies:
+### Install all dev dependencies:
 
     $ pipenv install --dev
     Pipfile found at /Users/kennethreitz/repos/kr/pip2/test/Pipfile. Considering this to be the project home.
@@ -309,7 +356,7 @@ Install all dev dependencies:
     Locking [dev-packages] dependencies...
     Locking [packages] dependencies...
 
-Uninstall everything:
+### Uninstall everything:
 
     $ pipenv uninstall --all
     No package provided, un-installing all dependencies.
@@ -317,7 +364,7 @@ Uninstall everything:
     ...
     Environment now purged and fresh!
 
-Use the shell:
+### Use the shell:
 
     $ pipenv shell
     Loading .env environment variables...
