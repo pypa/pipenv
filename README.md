@@ -5,6 +5,7 @@ Pipenv: Python Development Workflow for Humans
 [![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv)
 [![CI](https://github.com/pypa/pipenv/actions/workflows/ci.yaml/badge.svg)](https://github.com/pypa/pipenv/actions/workflows/ci.yaml)
 [![image](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://python.org/pypi/pipenv)
+[![image](https://api-public.service.runforesight.com/api/v1/badge/test?repoId=a9acfd31-fca9-4ebb-a449-c7bf0f85a481)](https://pypa.app.runforesight.com)
 
 ------------------------------------------------------------------------
 
