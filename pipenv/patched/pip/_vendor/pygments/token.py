@@ -189,6 +189,7 @@ STANDARD_TYPES = {
     Operator.Word:                 'ow',
 
     Punctuation:                   'p',
+    Punctuation.Marker:            'pm',
 
     Comment:                       'c',
     Comment.Hashbang:              'ch',

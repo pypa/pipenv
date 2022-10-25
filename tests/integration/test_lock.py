@@ -364,37 +364,6 @@ pipenv-test-private-package = {version = "*", index = "testpypi"}
         assert c.returncode == 0
 
 
-@pytest.mark.lock
-@pytest.mark.index
-@pytest.mark.install  # private indexes need to be uncached for resolution
-@pytest.mark.requirements
-@pytest.mark.needs_internet
-def test_private_index_lock_requirements(pipenv_instance_pypi):
-    # Don't use the local fake pypi
-    with temp_environ(), pipenv_instance_pypi(chdir=True) as p:
-        # Using pypi.python.org as pipenv-test-public-package is not
-        # included in the local pypi mirror
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
-[[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
-name = "pypi"
-
-[[source]]
-url = "https://test.pypi.org/simple"
-verify_ssl = true
-name = "testpypi"
-
-[packages]
-six = {version = "*", index = "testpypi"}
-pipenv-test-public-package = "*"
-            """.strip()
-            f.write(contents)
-        c = p.pipenv('install -v')
-        assert c.returncode == 0
-
-
 @pytest.mark.index
 @pytest.mark.install
 def test_lock_updated_source(pipenv_instance_private_pypi):

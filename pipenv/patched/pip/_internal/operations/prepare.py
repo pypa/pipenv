@@ -19,12 +19,13 @@ from pipenv.patched.pip._internal.exceptions import (
     HashMismatch,
     HashUnpinned,
     InstallationError,
+    MetadataInconsistent,
     NetworkConnectionError,
     PreviousBuildDirError,
     VcsHashUnsupported,
 )
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._internal.metadata import BaseDistribution
+from pipenv.patched.pip._internal.metadata import BaseDistribution, get_metadata_distribution
 from pipenv.patched.pip._internal.models.direct_url import ArchiveInfo
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
@@ -346,19 +347,72 @@ class RequirementPreparer:
         # showing the user what the hash should be.
         return req.hashes(trust_internet=False) or MissingHashes()
 
+    def _fetch_metadata_only(
+        self,
+        req: InstallRequirement,
+    ) -> Optional[BaseDistribution]:
+        if self.require_hashes:
+            logger.debug(
+                "Metadata-only fetching is not used as hash checking is required",
+            )
+            return None
+        # Try PEP 658 metadata first, then fall back to lazy wheel if unavailable.
+        return self._fetch_metadata_using_link_data_attr(
+            req
+        ) or self._fetch_metadata_using_lazy_wheel(req.link)
+
+    def _fetch_metadata_using_link_data_attr(
+        self,
+        req: InstallRequirement,
+    ) -> Optional[BaseDistribution]:
+        """Fetch metadata from the data-dist-info-metadata attribute, if possible."""
+        # (1) Get the link to the metadata file, if provided by the backend.
+        metadata_link = req.link.metadata_link()
+        if metadata_link is None:
+            return None
+        assert req.req is not None
+        logger.info(
+            "Obtaining dependency information for %s from %s",
+            req.req,
+            metadata_link,
+        )
+        # (2) Download the contents of the METADATA file, separate from the dist itself.
+        metadata_file = get_http_url(
+            metadata_link,
+            self._download,
+            hashes=metadata_link.as_hashes(),
+        )
+        with open(metadata_file.path, "rb") as f:
+            metadata_contents = f.read()
+        # (3) Generate a dist just from those file contents.
+        metadata_dist = get_metadata_distribution(
+            metadata_contents,
+            req.link.filename,
+            req.req.name,
+        )
+        # (4) Ensure the Name: field from the METADATA file matches the name from the
+        #     install requirement.
+        #
+        #     NB: raw_name will fall back to the name from the install requirement if
+        #     the Name: field is not present, but it's noted in the raw_name docstring
+        #     that that should NEVER happen anyway.
+        if metadata_dist.raw_name != req.req.name:
+            raise MetadataInconsistent(
+                req, "Name", req.req.name, metadata_dist.raw_name
+            )
+        return metadata_dist
+
     def _fetch_metadata_using_lazy_wheel(
         self,
         link: Link,
     ) -> Optional[BaseDistribution]:
         """Fetch metadata using lazy wheel, if possible."""
+        # --use-feature=fast-deps must be provided.
         if not self.use_lazy_wheel:
-            return None
-        if self.require_hashes:
-            logger.debug("Lazy wheel is not used as hash checking is required")
             return None
         if link.is_file or not link.is_wheel:
             logger.debug(
-                "Lazy wheel is not used as %r does not points to a remote wheel",
+                "Lazy wheel is not used as %r does not point to a remote wheel",
                 link,
             )
             return None
@@ -414,13 +468,12 @@ class RequirementPreparer:
     ) -> BaseDistribution:
         """Prepare a requirement to be obtained from req.link."""
         assert req.link
-        link = req.link
         self._log_preparing_link(req)
         with indent_log():
             # Check if the relevant file is already available
             # in the download directory
             file_path = None
-            if self.download_dir is not None and link.is_wheel:
+            if self.download_dir is not None and req.link.is_wheel:
                 hashes = self._get_linked_req_hashes(req)
                 file_path = _check_download_dir(req.link, self.download_dir, hashes)
 
@@ -429,10 +482,10 @@ class RequirementPreparer:
                 self._downloaded[req.link.url] = file_path
             else:
                 # The file is not available, attempt to fetch only metadata
-                wheel_dist = self._fetch_metadata_using_lazy_wheel(link)
-                if wheel_dist is not None:
+                metadata_dist = self._fetch_metadata_only(req)
+                if metadata_dist is not None:
                     req.needs_more_preparation = True
-                    return wheel_dist
+                    return metadata_dist
 
             # None of the optimizations worked, fully prepare the requirement
             return self._prepare_linked_requirement(req, parallel_builds)

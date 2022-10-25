@@ -12,41 +12,29 @@ Results:
 - control_dir/output.json
   - {"return_val": ...}
 """
-from glob import glob
-from importlib import import_module
 import json
 import os
 import os.path
-from os.path import join as pjoin
 import re
 import shutil
 import sys
 import traceback
+from glob import glob
+from importlib import import_module
+from os.path import join as pjoin
 
-# This file is run as a script, and `import compat` is not zip-safe, so we
-# include write_json() and read_json() from compat.py.
-#
-# Handle reading and writing JSON in UTF-8, on Python 3 and 2.
+# This file is run as a script, and `import wrappers` is not zip-safe, so we
+# include write_json() and read_json() from wrappers.py.
 
-if sys.version_info[0] >= 3:
-    # Python 3
-    def write_json(obj, path, **kwargs):
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(obj, f, **kwargs)
 
-    def read_json(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+def write_json(obj, path, **kwargs):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, **kwargs)
 
-else:
-    # Python 2
-    def write_json(obj, path, **kwargs):
-        with open(path, 'wb') as f:
-            json.dump(obj, f, encoding='utf-8', **kwargs)
 
-    def read_json(path):
-        with open(path, 'rb') as f:
-            return json.load(f)
+def read_json(path):
+    with open(path, encoding='utf-8') as f:
+        return json.load(f)
 
 
 class BackendUnavailable(Exception):
@@ -64,7 +52,7 @@ class BackendInvalid(Exception):
 class HookMissing(Exception):
     """Raised if a hook is missing and we are not executing the fallback"""
     def __init__(self, hook_name=None):
-        super(HookMissing, self).__init__(hook_name)
+        super().__init__(hook_name)
         self.hook_name = hook_name
 
 

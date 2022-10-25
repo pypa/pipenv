@@ -228,9 +228,15 @@ class ConfigurationCommand(Command):
         fname = self.configuration.get_file_to_edit()
         if fname is None:
             raise PipError("Could not determine appropriate file.")
+        elif '"' in fname:
+            # This shouldn't happen, unless we see a username like that.
+            # If that happens, we'd appreciate a pull request fixing this.
+            raise PipError(
+                f'Can not open an editor for a file name containing "\n{fname}'
+            )
 
         try:
-            subprocess.check_call([editor, fname])
+            subprocess.check_call(f'{editor} "{fname}"', shell=True)
         except FileNotFoundError as e:
             if not e.filename:
                 e.filename = editor

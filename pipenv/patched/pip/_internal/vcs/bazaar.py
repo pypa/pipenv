@@ -49,14 +49,25 @@ class Bazaar(VersionControl):
             flag = ""
         else:
             flag = f"-{'v'*verbosity}"
-        cmd_args = make_command("branch", flag, rev_options.to_args(), url, dest)
+        cmd_args = make_command(
+            "checkout", "--lightweight", flag, rev_options.to_args(), url, dest
+        )
         self.run_command(cmd_args)
 
     def switch(self, dest: str, url: HiddenText, rev_options: RevOptions) -> None:
         self.run_command(make_command("switch", url), cwd=dest)
 
     def update(self, dest: str, url: HiddenText, rev_options: RevOptions) -> None:
-        cmd_args = make_command("pull", "-q", rev_options.to_args())
+        output = self.run_command(
+            make_command("info"), show_stdout=False, stdout_only=True, cwd=dest
+        )
+        if output.startswith("Standalone "):
+            # Older versions of pip used to create standalone branches.
+            # Convert the standalone branch to a checkout by calling "bzr bind".
+            cmd_args = make_command("bind", "-q", url)
+            self.run_command(cmd_args, cwd=dest)
+
+        cmd_args = make_command("update", "-q", rev_options.to_args())
         self.run_command(cmd_args, cwd=dest)
 
     @classmethod

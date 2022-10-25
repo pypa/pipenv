@@ -1,8 +1,8 @@
 diff --git a/pipenv/patched/pip/_internal/index/collector.py b/pipenv/patched/pip/_internal/index/collector.py
-index e6e9469af..fe8b8c19d 100644
+index 0120610c..ead5227e 100644
 --- a/pipenv/patched/pip/_internal/index/collector.py
 +++ b/pipenv/patched/pip/_internal/index/collector.py
-@@ -518,9 +518,11 @@ class LinkCollector:
+@@ -412,9 +412,11 @@ class LinkCollector:
          self,
          session: PipSession,
          search_scope: SearchScope,
@@ -14,7 +14,7 @@ index e6e9469af..fe8b8c19d 100644
 
      @classmethod
      def create(
-@@ -528,6 +530,7 @@ class LinkCollector:
+@@ -422,6 +424,7 @@ class LinkCollector:
          session: PipSession,
          options: Values,
          suppress_no_index: bool = False,
@@ -22,23 +22,21 @@ index e6e9469af..fe8b8c19d 100644
      ) -> "LinkCollector":
          """
          :param session: The Session to use to make requests.
-@@ -546,12 +549,10 @@ class LinkCollector:
-         find_links = options.find_links or []
-
-         search_scope = SearchScope.create(
--            find_links=find_links,
--            index_urls=index_urls,
-+            find_links=find_links, index_urls=index_urls, index_lookup=index_lookup
+@@ -443,10 +446,12 @@ class LinkCollector:
+             find_links=find_links,
+             index_urls=index_urls,
+             no_index=options.no_index,
++            index_lookup=index_lookup,
          )
          link_collector = LinkCollector(
--            session=session,
--            search_scope=search_scope,
-+            session=session, search_scope=search_scope, index_lookup=index_lookup
+             session=session,
+             search_scope=search_scope,
++            index_lookup=index_lookup,
          )
          return link_collector
 
 diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patched/pip/_internal/models/search_scope.py
-index e4e54c2f4..23baf19ed 100644
+index a64af738..0674ed07 100644
 --- a/pipenv/patched/pip/_internal/models/search_scope.py
 +++ b/pipenv/patched/pip/_internal/models/search_scope.py
 @@ -3,7 +3,7 @@ import logging
@@ -50,45 +48,45 @@ index e4e54c2f4..23baf19ed 100644
 
  from pip._vendor.packaging.utils import canonicalize_name
 
-index e4e54c2f4..8cf4f1e6e 100644
---- a/pipenv/patched/pip/_internal/models/search_scope.py
-+++ b/pipenv/patched/pip/_internal/models/search_scope.py
-@@ -20,13 +20,14 @@ class SearchScope:
+@@ -20,7 +20,7 @@ class SearchScope:
      Encapsulates the locations that pip is configured to search.
      """
 
--    __slots__ = ["find_links", "index_urls"]
-+    __slots__ = ["find_links", "index_urls", "index_lookup"]
+-    __slots__ = ["find_links", "index_urls", "no_index"]
++    __slots__ = ["find_links", "index_urls", "no_index", "index_lookup"]
 
      @classmethod
      def create(
-         cls,
+@@ -28,6 +28,7 @@ class SearchScope:
          find_links: List[str],
          index_urls: List[str],
+         no_index: bool,
 +        index_lookup: Optional[Dict[str, List[str]]] = None,
      ) -> "SearchScope":
          """
          Create a SearchScope object after normalizing the `find_links`.
-@@ -60,15 +61,18 @@ class SearchScope:
-         return cls(
+@@ -62,6 +63,7 @@ class SearchScope:
              find_links=built_find_links,
              index_urls=index_urls,
-+            index_lookup=index_lookup
+             no_index=no_index,
++            index_lookup=index_lookup,
          )
 
      def __init__(
-         self,
+@@ -69,10 +71,12 @@ class SearchScope:
          find_links: List[str],
          index_urls: List[str],
+         no_index: bool,
 +        index_lookup: Optional[Dict[str, List[str]]] = None,
      ) -> None:
          self.find_links = find_links
          self.index_urls = index_urls
+         self.no_index = no_index
 +        self.index_lookup = index_lookup if index_lookup else {}
 
      def get_formatted_locations(self) -> str:
          lines = []
-@@ -126,4 +130,7 @@ class SearchScope:
+@@ -130,4 +134,7 @@ class SearchScope:
                  loc = loc + "/"
              return loc
 

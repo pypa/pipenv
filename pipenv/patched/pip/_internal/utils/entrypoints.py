@@ -55,9 +55,14 @@ def get_best_invocation_for_this_pip() -> str:
     if exe_are_in_PATH:
         for exe_name in _EXECUTABLE_NAMES:
             found_executable = shutil.which(exe_name)
-            if found_executable and os.path.samefile(
-                found_executable,
-                os.path.join(binary_prefix, exe_name),
+            binary_executable = os.path.join(binary_prefix, exe_name)
+            if (
+                found_executable
+                and os.path.exists(binary_executable)
+                and os.path.samefile(
+                    found_executable,
+                    binary_executable,
+                )
             ):
                 return exe_name
 

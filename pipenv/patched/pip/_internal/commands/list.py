@@ -155,6 +155,11 @@ class ListCommand(IndexGroupCommand):
         if options.outdated and options.uptodate:
             raise CommandError("Options --outdated and --uptodate cannot be combined.")
 
+        if options.outdated and options.list_format == "freeze":
+            raise CommandError(
+                "List format 'freeze' can not be used with the --outdated option."
+            )
+
         cmdoptions.check_list_path_option(options)
 
         skip = set(stdlib_pkgs)

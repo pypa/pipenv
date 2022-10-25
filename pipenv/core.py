@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Union
 
 from pipenv import environments, exceptions, pep508checker
 from pipenv._compat import decode_for_output, fix_utf8
-from pipenv.patched.pip._internal.build_env import _get_runnable_pip
+from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._internal.network.session import PipSession
 from pipenv.patched.pip._internal.req.constructors import (
@@ -1010,7 +1010,7 @@ def get_downloads_info(project, names_map, section):
         # Get the hash of each file.
         cmd = [
             project_python(project),
-            _get_runnable_pip(),
+            get_runnable_pip(),
             "hash",
             os.sep.join([project.download_location, fname]),
         ]
@@ -1185,7 +1185,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
 
     command = [
         project_python(project, system=allow_global),
-        _get_runnable_pip(),
+        get_runnable_pip(),
         "uninstall",
         "-y",
     ] + list(to_remove)
@@ -1507,7 +1507,7 @@ def pip_install(
 
     pip_command = [
         project_python(project, system=allow_global),
-        _get_runnable_pip(),
+        get_runnable_pip(),
         "install",
     ]
     pip_args = get_pip_args(
@@ -1651,7 +1651,7 @@ def pip_install_deps(
     for file in files:
         pip_command = [
             project_python(project, system=allow_global),
-            _get_runnable_pip(),
+            get_runnable_pip(),
             "install",
         ]
         pip_args = get_pip_args(
@@ -1744,7 +1744,7 @@ def pip_download(project, package_name):
     for source in project.sources:
         cmd = [
             project_python(project),
-            _get_runnable_pip(),
+            get_runnable_pip(),
             "download",
             package_name,
             "-i",
@@ -2549,7 +2549,7 @@ def do_uninstall(
                 with project.environment.activated():
                     cmd = [
                         project_python(project, system=system),
-                        _get_runnable_pip(),
+                        get_runnable_pip(),
                         "uninstall",
                         package_name,
                         "-y",
@@ -3165,7 +3165,7 @@ def do_clean(
             # Uninstall the package.
             cmd = [
                 project_python(project, system=system),
-                _get_runnable_pip(),
+                get_runnable_pip(),
                 "uninstall",
                 apparent_bad_package,
                 "-y",

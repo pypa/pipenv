@@ -3,7 +3,7 @@ import itertools
 import logging
 import sys
 import time
-from typing import IO, Generator
+from typing import IO, Generator, Optional
 
 from pipenv.patched.pip._internal.utils.compat import WINDOWS
 from pipenv.patched.pip._internal.utils.logging import get_indentation
@@ -23,7 +23,7 @@ class InteractiveSpinner(SpinnerInterface):
     def __init__(
         self,
         message: str,
-        file: IO[str] = None,
+        file: Optional[IO[str]] = None,
         spin_chars: str = "-\\|/",
         # Empirically, 8 updates/second looks nice
         min_update_interval_seconds: float = 0.125,
