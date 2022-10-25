@@ -25,7 +25,7 @@ def _is_env_truthy(name):
     return os.environ.get(name).lower() not in FALSE_VALUES
 
 
-def get_from_env(arg, prefix="PIPENV", check_for_negation=True):
+def get_from_env(arg, prefix="PIPENV", check_for_negation=True, default=None):
     """
     Check the environment for a variable, returning its truthy or stringified value
 
@@ -36,6 +36,8 @@ def get_from_env(arg, prefix="PIPENV", check_for_negation=True):
     :param str prefix: The prefix to attach to the variable, defaults to "PIPENV"
     :param bool check_for_negation: Whether to check for ``<PREFIX>_NO_<arg>``, defaults
         to True
+    :param Optional[Union[str, bool]] default: The value to return if the environment variable does
+        not exist, defaults to None
     :return: The value from the environment if available
     :rtype: Optional[Union[str, bool]]
     """
@@ -56,7 +58,7 @@ def get_from_env(arg, prefix="PIPENV", check_for_negation=True):
             return not env_to_bool(value)
         except ValueError:
             return value
-    return None
+    return default
 
 
 def normalize_pipfile_path(p):
