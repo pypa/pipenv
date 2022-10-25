@@ -23,7 +23,7 @@ from pipenv.vendor import toml, tomlkit
 from pipenv.vendor.vistir.contextmanagers import temp_environ
 from pipenv.vendor.vistir.misc import run
 from pipenv.vendor.vistir.path import (
-    create_tracked_tempdir, handle_remove_readonly, mkdir_p
+    create_tracked_tempdir, handle_remove_readonly
 )
 
 from pytest_pypi.app import prepare_fixtures
@@ -186,7 +186,7 @@ def isolate(create_tmpdir):
     # Create a directory to use as our home location.
     home_dir = os.path.join(str(create_tmpdir()), "home")
     os.makedirs(home_dir)
-    mkdir_p(os.path.join(home_dir, ".config", "git"))
+    os.makedirs(os.path.join(home_dir, ".config", "git"), exist_ok=True)
     git_config_file = os.path.join(home_dir, ".config", "git", "config")
     with open(git_config_file, "wb") as fp:
         fp.write(
@@ -199,7 +199,7 @@ def isolate(create_tmpdir):
     workon_home = create_tmpdir()
     os.environ["WORKON_HOME"] = str(workon_home)
     os.environ["HOME"] = os.path.abspath(home_dir)
-    mkdir_p(os.path.join(home_dir, "projects"))
+    os.makedirs(os.path.join(home_dir, "projects"), exist_ok=True)
     # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
     os.environ.pop("PIPENV_ACTIVE", None)
     os.environ.pop("VIRTUAL_ENV", None)

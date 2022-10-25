@@ -47,7 +47,12 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: 3.x
+      - name: Collect Workflow Telemetry
+        uses: runforesight/foresight-workflow-kit-action@v1
+        if: ${{ always() }}
+        with:
+          api_key: ${{ secrets.FORESIGHT_API_KEY }}
       - run: |
           python -m pip install pre-commit
           pre-commit run --all-files --verbose --show-diff-on-failure
@@ -59,7 +64,13 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+
+          python-version: 3.x
+      - name: Collect Workflow Telemetry
+        uses: runforesight/foresight-workflow-kit-action@v1
+        if: ${{ always() }}
+        with:
+          api_key: ${{ secrets.FORESIGHT_API_KEY }}
       - run: |
           python -m pip install --upgrade wheel invoke parver bs4 vistir towncrier requests
           python -m invoke vendoring.update
@@ -80,6 +91,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Collect Workflow Telemetry
+        uses: runforesight/foresight-workflow-kit-action@v1
+        if: ${{ always() }}
+        with:
+          api_key: ${{ secrets.FORESIGHT_API_KEY }}
 
       - name: Get python path
         id: python-path
@@ -122,7 +139,15 @@ jobs:
           PYTHONIOENCODING: "utf-8"
           GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
         run: |
-          pipenv run pytest -ra -n auto -v --fulltrace tests
+          pipenv run pytest --junitxml=./reports/results.xml -ra -n auto -v --fulltrace tests
+      - name: Analyze Test and/or Coverage Results
+        uses: runforesight/foresight-test-kit-action@v1
+        if: ${{ always() }}
+        with:
+          api_key: ${{ secrets.FORESIGHT_API_KEY }}
+          test_format: JUNIT
+          test_framework: PYTEST
+          test_path: ./reports/**
 
   build:
     name: Build Package
@@ -133,6 +158,11 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: 3.x
+      - name: Collect Workflow Telemetry
+        uses: runforesight/foresight-workflow-kit-action@v1
+        if: ${{ always() }}
+        with:
+          api_key: ${{ secrets.FORESIGHT_API_KEY }}
       - run: pip install -U build twine
       - run: |
           python -m build

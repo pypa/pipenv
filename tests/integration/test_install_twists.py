@@ -1,11 +1,10 @@
 import os
 import shutil
 import sys
-from pathlib import Path
 
 import pytest
 
-from pipenv.utils.shell import mkdir_p, temp_environ
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.extras
@@ -187,7 +186,7 @@ def test_install_local_uri_special_character(pipenv_instance_private_pypi, tests
     with pipenv_instance_private_pypi() as p:
         artifact_dir = "artifacts"
         artifact_path = os.path.join(p.path, artifact_dir)
-        mkdir_p(artifact_path)
+        os.makedirs(artifact_path, exist_ok=True)
         shutil.copy(source_path, os.path.join(artifact_path, file_name))
         with open(p.pipfile_path, "w") as f:
             contents = """

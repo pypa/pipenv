@@ -363,6 +363,27 @@ used to write them to a file::
     pytest==3.2.3
     setuptools==65.4.1 ; python_version >= '3.7'
 
+If you have multiple categories in your Pipfile and wish to generate
+a requirements file for only some categories, you can do that too,
+using the ``--categories`` option::
+
+    $ pipenv requirements --categories="tests" > requirements-tests.txt
+    $ pipenv requirements --categories="docs" > requirements-docs.txt
+    $ cat requirements-tests.txt
+    -i https://pypi.org/simple
+    attrs==22.1.0 ; python_version >= '3.5'
+    iniconfig==1.1.1
+    packaging==21.3 ; python_version >= '3.6'
+    pluggy==1.0.0 ; python_version >= '3.6'
+    py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
+    pyparsing==3.0.9 ; python_full_version >= '3.6.8'
+    pytest==7.1.3
+    tomli==2.0.1 ; python_version >= '3.7'
+
+It can be used to specify multiple categories also.
+
+    $ pipenv requirements --categories="tests,docs"
+
 ☤ Detection of Security Vulnerabilities
 ---------------------------------------
 

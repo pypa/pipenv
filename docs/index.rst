@@ -65,10 +65,6 @@ More detailed installation instructions can be found in the :ref:`installing-pip
 ✨🍰✨
 
 .. toctree::
-   :maxdepth: 2
-
-   install
-   changelog
 
 User Testimonials
 -----------------
@@ -91,26 +87,8 @@ User Testimonials
 - Automatically adds/removes packages to a ``Pipfile`` when they are installed or uninstalled.
 - Automatically loads ``.env`` files, if they exist.
 
-The main commands are ``install``, ``uninstall``, and ``lock``, which generates a ``Pipfile.lock``. These are intended to replace ``$ pip install`` usage, as well as manual virtualenv management (to activate a virtualenv, run ``$ pipenv shell``).
 
-Basic Concepts
-//////////////
-
-- A virtualenv will automatically be created, when one doesn't exist.
-- When no parameters are passed to ``install``, all packages ``[packages]`` specified will be installed.
-- To initialize a Python 3 virtual environment, run ``$ pipenv --three``.
-- Otherwise, whatever virtualenv defaults to will be the default.
-
-
-
-Other Commands
-//////////////
-
-- ``graph`` will show you a dependency graph of your installed dependencies.
-- ``shell`` will spawn a shell with the virtualenv activated. This shell can be deactivated by using ``exit``.
-- ``run`` will run a given command from the virtualenv, with any arguments forwarded (e.g. ``$ pipenv run python`` or ``$ pipenv run pip freeze``).
-- ``check`` checks for security vulnerabilities and asserts that `PEP 508 <https://www.python.org/dev/peps/pep-0508/>`_ requirements are being met by the current environment.
-
+.. include:: quickstart.rst
 
 Further Documentation Guides
 ----------------------------
@@ -118,10 +96,12 @@ Further Documentation Guides
 .. toctree::
    :maxdepth: 2
 
+   install
    basics
    advanced
    cli
    diagnose
+   changelog
 
 Contribution Guides
 -------------------

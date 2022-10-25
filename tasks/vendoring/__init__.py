@@ -49,7 +49,6 @@ FILE_WHITE_LIST = (
     "__init__.py",
     "README.rst",
     "README.md",
-    "appdirs.py",
     "safety.zip",
     "cacert.pem",
     "vendor_pip.txt",
