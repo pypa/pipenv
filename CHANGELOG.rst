@@ -1,3 +1,25 @@
+2022.10.25 (2022-10-25)
+=======================
+Pipenv 2022.10.25 (2022-10-25)
+==============================
+
+
+Features & Improvements
+-----------------------
+
+- Add support to export requirements file for a specified set of categories.  `#5431 <https://github.com/pypa/pipenv/issues/5431>`_
+
+Vendored Libraries
+------------------
+
+- Remove appdirs.py in favor of platformdirs.  `#5420 <https://github.com/pypa/pipenv/issues/5420>`_
+
+Removals and Deprecations
+-------------------------
+
+- Remove usage of vistir.cmdparse in favor of pipenv.cmdparse  `#5419 <https://github.com/pypa/pipenv/issues/5419>`_
+
+
 2022.10.12 (2022-10-12)
 =======================
 Pipenv 2022.10.12 (2022-10-12)
