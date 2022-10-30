@@ -1,0 +1,2 @@
+Provide an install iteration per index when ``install_search_all_sources`` is ``false`` (default behavior).   
+This fixes regression where install phase was using unexpected index after updating ``pip==22.3``
