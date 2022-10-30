@@ -28,7 +28,7 @@ from pipenv.patched.pip._vendor.pkg_resources import (
     distributions_from_metadata,
     find_distributions,
 )
-from pipenv.vendor.platformdirs import user_cache_dir
+from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 from pipenv.vendor.vistir.contextmanagers import cd, temp_path
 from pipenv.vendor.vistir.misc import run
 from pipenv.vendor.vistir.path import create_tracked_tempdir, rmtree

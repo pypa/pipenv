@@ -10,7 +10,6 @@ markupsafe==2.0.1
 parse==1.19.0
 pexpect==4.8.0
 pipdeptree==2.3.1
-platformdirs==2.4.0
 plette[validation]==0.4.2
 ptyprocess==0.7.0
 pyparsing==3.0.9

@@ -84,6 +84,10 @@ GLOBAL_REPLACEMENT = [
     ),
     (r"(?<!\.)pep517\.envbuild", r"envbuild"),
     (r"(?<!\.)pep517\.wrappers", r"wrappers"),
+    (
+        "from platformdirs import user_cache_dir",
+        "from pipenv.patched.pip._vendor.platformdirs import user_cache_dir",
+    ),
 ]
 
 
