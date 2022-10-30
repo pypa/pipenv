@@ -1,4 +1,5 @@
 import json as simplejson
+from collections import defaultdict
 import logging
 import os
 import queue
@@ -678,6 +679,12 @@ def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
                 failed_deps_queue.put(dep)
 
 
+def get_trusted_hosts():
+    trusted_hosts = []
+    trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
+    return trusted_hosts
+
+
 def batch_install(
     project,
     deps_list,
@@ -692,19 +699,78 @@ def batch_install(
     sequential_deps=None,
     extra_pip_args=None,
 ):
-    from .vendor.requirementslib.models.utils import (
-        strip_extras_markers_from_requirement,
-    )
-
     if sequential_deps is None:
         sequential_deps = []
-    failed = not retry
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
     deps_to_install = [
         dep for dep in deps_to_install if not project.environment.is_satisfied(dep)
     ]
-    trusted_hosts = []
+    search_all_sources = project.settings.get("install_search_all_sources", False)
+    sources = get_source_list(
+        project,
+        index=None,
+        extra_indexes=None,
+        trusted_hosts=get_trusted_hosts(),
+        pypi_mirror=pypi_mirror,
+    )
+    if search_all_sources:
+        batch_install_iteration(
+            project,
+            deps_to_install,
+            sources,
+            procs,
+            failed_deps_queue,
+            requirements_dir,
+            no_deps=no_deps,
+            ignore_hashes=ignore_hashes,
+            allow_global=allow_global,
+            retry=retry,
+            extra_pip_args=extra_pip_args,
+        )
+    else:
+        # Sort the dependencies out by index -- include editable/vcs in the default group
+        deps_by_index = defaultdict(list)
+        for dependency in deps_to_install:
+            if dependency.index:
+                deps_by_index[dependency.index].append(dependency)
+            else:
+                deps_by_index[project.sources_default["name"]].append(dependency)
+        # Treat each index as its own pip install phase
+        for index_name, dependencies in deps_by_index.items():
+            install_source = next(filter(lambda s: s["name"] == index_name, sources))
+            batch_install_iteration(
+                project,
+                dependencies,
+                [install_source],
+                procs,
+                failed_deps_queue,
+                requirements_dir,
+                no_deps=no_deps,
+                ignore_hashes=ignore_hashes,
+                allow_global=allow_global,
+                retry=retry,
+                extra_pip_args=extra_pip_args,
+            )
+
+
+def batch_install_iteration(
+        project,
+        deps_to_install,
+        sources,
+        procs,
+        failed_deps_queue,
+        requirements_dir,
+        no_deps=True,
+        ignore_hashes=False,
+        allow_global=False,
+        retry=True,
+        extra_pip_args=None,
+):
+    from .vendor.requirementslib.models.utils import (
+        strip_extras_markers_from_requirement,
+    )
+
     is_artifact = False
     for dep in deps_to_install:
         if dep.req.req:
@@ -728,20 +794,18 @@ def batch_install(
         if "GIT_CONFIG" in os.environ:
             del os.environ["GIT_CONFIG"]
         use_pep517 = True
-        if failed and not is_artifact:
+        if not retry and not is_artifact:
             use_pep517 = False
 
         cmds = pip_install_deps(
             project,
             deps=deps_to_install,
+            sources=sources,
             allow_global=allow_global,
             ignore_hashes=ignore_hashes,
             no_deps=no_deps,
             requirements_dir=requirements_dir,
-            pypi_mirror=pypi_mirror,
-            trusted_hosts=trusted_hosts,
             use_pep517=use_pep517,
-            use_constraint=False,  # no need to use constraints, it's written in lockfile
             extra_pip_args=extra_pip_args,
         )
 
@@ -1438,15 +1502,12 @@ def pip_install(
     requirements_dir=None,
     extra_indexes=None,
     pypi_mirror=None,
-    trusted_hosts=None,
     use_pep517=True,
     use_constraint=False,
     extra_pip_args: Optional[List] = None,
 ):
     piplogger = logging.getLogger("pipenv.patched.pip._internal.commands.install")
-    if not trusted_hosts:
-        trusted_hosts = []
-    trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
+    trusted_hosts = get_trusted_hosts()
     if not allow_global:
         src_dir = os.getenv(
             "PIP_SRC", os.getenv("PIP_SRC_DIR", project.virtualenv_src_location)
@@ -1561,23 +1622,16 @@ def pip_install(
 
 def pip_install_deps(
     project,
-    deps=None,
+    deps,
+    sources,
     allow_global=False,
     ignore_hashes=False,
     no_deps=False,
-    pre=False,
-    dev=False,
     selective_upgrade=False,
     requirements_dir=None,
-    pypi_mirror=None,
-    trusted_hosts=None,
     use_pep517=True,
-    use_constraint=False,
     extra_pip_args: Optional[List] = None,
 ):
-    if not trusted_hosts:
-        trusted_hosts = []
-    trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
     if not allow_global:
         src_dir = os.getenv(
             "PIP_SRC", os.getenv("PIP_SRC_DIR", project.virtualenv_src_location)
@@ -1656,33 +1710,17 @@ def pip_install_deps(
         ]
         pip_args = get_pip_args(
             project,
-            pre=pre,
+            pre=project.settings.get("allow_prereleases", False),
             verbose=False,  # When True, the subprocess fails to recognize the EOF when reading stdout.
             upgrade=True,
-            selective_upgrade=selective_upgrade,
+            selective_upgrade=False,
             no_use_pep517=not use_pep517,
             no_deps=no_deps,
             extra_pip_args=extra_pip_args,
         )
-        sources = get_source_list(
-            project,
-            index=None,
-            extra_indexes=None,
-            trusted_hosts=trusted_hosts,
-            pypi_mirror=pypi_mirror,
-        )
         pip_command.extend(prepare_pip_source_args(sources))
         pip_command.extend(pip_args)
         pip_command.extend(["-r", normalize_path(file.name)])
-        if dev and use_constraint:
-            default_constraints = get_constraints_from_deps(project.packages)
-            constraint_filename = prepare_constraint_file(
-                default_constraints,
-                directory=requirements_dir,
-                sources=None,
-                pip_args=None,
-            )
-            pip_command.extend(["-c", normalize_path(constraint_filename)])
         if project.s.is_verbose():
             msg = f"Install Phase: {'Standard Requirements' if file == standard_requirements else 'Editable Requirements'}"
             click.echo(

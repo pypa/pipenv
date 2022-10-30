@@ -727,7 +727,7 @@ def resolve_packages(
     from pipenv.utils.resolver import resolve_deps
 
     pypi_mirror_source = (
-        create_mirror_source(os.environ["PIPENV_PYPI_MIRROR"])
+        create_mirror_source(os.environ["PIPENV_PYPI_MIRROR"], "pypi_mirror")
         if "PIPENV_PYPI_MIRROR" in os.environ
         else None
     )

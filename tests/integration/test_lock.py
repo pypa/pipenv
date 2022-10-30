@@ -331,6 +331,9 @@ name = "testpypi"
 
 [packages]
 pipenv-test-private-package = {version = "*", index = "testpypi"}
+
+[pipenv]
+install_search_all_sources = true
             """.strip()
             f.write(contents)
         c = p.pipenv('install --skip-lock')

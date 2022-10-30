@@ -36,11 +36,11 @@ def replace_pypi_sources(sources, pypi_replacement_source):
     ]
 
 
-def create_mirror_source(url):
+def create_mirror_source(url, name):
     return {
         "url": url,
         "verify_ssl": url.startswith("https://"),
-        "name": urlparse(url).hostname,
+        "name": name,
     }
 
 

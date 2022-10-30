@@ -847,6 +847,10 @@ class Project:
             return self.pipfile_sources()
 
     @property
+    def sources_default(self):
+        return self.sources[0]
+
+    @property
     def index_urls(self):
         return [src.get("url") for src in self.sources]
 
