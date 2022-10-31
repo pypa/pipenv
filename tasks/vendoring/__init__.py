@@ -88,6 +88,14 @@ GLOBAL_REPLACEMENT = [
         "from platformdirs import user_cache_dir",
         "from pipenv.patched.pip._vendor.platformdirs import user_cache_dir",
     ),
+    (   
+        "from distlib import",
+        "from pipenv.patched.pip._vendor.distlib import"
+    ),
+    (   
+        "from distlib.metadata",
+        "from pipenv.patched.pip._vendor.distlib.metadata import"
+    )
 ]
 
 

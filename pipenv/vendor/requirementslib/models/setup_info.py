@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urlparse, urlunparse
 from weakref import finalize
 
 import pipenv.vendor.attr as attr
-from pipenv.vendor.distlib.wheel import Wheel
+from pipenv.patched.pip._vendor.distlib.wheel import Wheel
 from pipenv.patched.pip._vendor.pep517 import envbuild, wrappers
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
