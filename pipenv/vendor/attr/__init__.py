@@ -1,70 +1,79 @@
 # SPDX-License-Identifier: MIT
 
-from pipenv.vendor.attr import (
+
+import sys
+
+from functools import partial
+
+from . import converters, exceptions, filters, setters, validators
+from ._cmp import cmp_using
+from ._config import get_run_validators, set_run_validators
+from ._funcs import asdict, assoc, astuple, evolve, has, resolve_types
+from ._make import (
     NOTHING,
     Attribute,
     Factory,
-    __author__,
-    __copyright__,
-    __description__,
-    __doc__,
-    __email__,
-    __license__,
-    __title__,
-    __url__,
-    __version__,
-    __version_info__,
-    assoc,
-    cmp_using,
-    define,
-    evolve,
-    field,
+    attrib,
+    attrs,
     fields,
     fields_dict,
-    frozen,
-    has,
     make_class,
-    mutable,
-    resolve_types,
     validate,
 )
-from pipenv.vendor.attr._next_gen import asdict, astuple
+from ._version_info import VersionInfo
 
-from . import converters, exceptions, filters, setters, validators
 
+__version__ = "22.1.0"
+__version_info__ = VersionInfo._from_version_string(__version__)
+
+__title__ = "attrs"
+__description__ = "Classes Without Boilerplate"
+__url__ = "https://www.attrs.org/"
+__uri__ = __url__
+__doc__ = __description__ + " <" + __uri__ + ">"
+
+__author__ = "Hynek Schlawack"
+__email__ = "hs@ox.cx"
+
+__license__ = "MIT"
+__copyright__ = "Copyright (c) 2015 Hynek Schlawack"
+
+
+s = attributes = attrs
+ib = attr = attrib
+dataclass = partial(attrs, auto_attribs=True)  # happy Easter ;)
 
 __all__ = [
-    "__author__",
-    "__copyright__",
-    "__description__",
-    "__doc__",
-    "__email__",
-    "__license__",
-    "__title__",
-    "__url__",
-    "__version__",
-    "__version_info__",
+    "Attribute",
+    "Factory",
+    "NOTHING",
     "asdict",
     "assoc",
     "astuple",
-    "Attribute",
+    "attr",
+    "attrib",
+    "attributes",
+    "attrs",
     "cmp_using",
     "converters",
-    "define",
     "evolve",
     "exceptions",
-    "Factory",
-    "field",
-    "fields_dict",
     "fields",
+    "fields_dict",
     "filters",
-    "frozen",
+    "get_run_validators",
     "has",
+    "ib",
     "make_class",
-    "mutable",
-    "NOTHING",
     "resolve_types",
+    "s",
+    "set_run_validators",
     "setters",
     "validate",
     "validators",
 ]
+
+if sys.version_info[:2] >= (3, 6):
+    from ._next_gen import define, field, frozen, mutable  # noqa: F401
+
+    __all__.extend(("define", "field", "frozen", "mutable"))
