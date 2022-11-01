@@ -17,7 +17,6 @@ requirementslib==2.1.0
 shellingham==1.5.0
 termcolor==1.1.0
 toml==0.10.2
-tomli==1.1.0
 tomlkit==0.9.2
 vistir==0.6.1
 wheel==0.37.1
