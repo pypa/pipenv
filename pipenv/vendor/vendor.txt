@@ -1,4 +1,4 @@
-attrs==21.2.0
+attrs==22.1.0
 cerberus==1.3.4
 click-didyoumean==0.0.3
 click==8.0.3
