@@ -174,3 +174,10 @@ reimport-pip-patch:
 	@sed -i -r 's:([a-b]\/)src/:\1pipenv/patched/:g' $(pip-checkout-dir)/pip*.patch
 	@find $(pip-checkout-dir) -maxdepth 1 -regex ".*/pip[0-9]+.patch" -exec cp {} $(CURDIR)/tasks/vendoring/patches/patched/ \;
 	@find $(pip-checkout-dir) -maxdepth 1 -regex ".*/_post-pip-[^/\.]*.patch" -exec cp {} $(CURDIR)/tasks/vendoring/patches/patched/ \;
+
+
+.PHONY: pypi-server
+pypi-server: SERVER ?= gunicorn
+pypi-server:
+	pipenv run pypi-server run --server $(SERVER) -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
+
