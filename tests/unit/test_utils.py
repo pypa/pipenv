@@ -3,7 +3,6 @@ from unittest import mock
 
 import pytest
 
-import pipenv.utils.shell
 from pipenv.utils import dependencies
 from pipenv.utils import indexes
 from pipenv.utils import internet
@@ -338,7 +337,7 @@ twine = "*"
     )
     @pytest.mark.skipif(os.name != "nt", reason="Windows file paths tested")
     def test_win_normalize_drive(self, input_path, expected):
-        assert pipenv.utils.shell.normalize_drive(input_path) == expected
+        assert shell.normalize_drive(input_path) == expected
 
     @pytest.mark.utils
     @pytest.mark.parametrize(
@@ -352,7 +351,7 @@ twine = "*"
     )
     @pytest.mark.skipif(os.name == "nt", reason="*nix file paths tested")
     def test_nix_normalize_drive(self, input_path, expected):
-        assert pipenv.utils.shell.normalize_drive(input_path) == expected
+        assert shell.normalize_drive(input_path) == expected
 
     @pytest.mark.utils
     @pytest.mark.parametrize(
@@ -490,3 +489,37 @@ twine = "*"
             python = shell.project_python(project, system=True)
 
         assert python == "/usr/local/bin/python3"
+
+    @pytest.mark.utils
+    @pytest.mark.parametrize(
+        "val, expected",
+        (
+            (True, True),
+            (False, False),
+            ("true", True),
+            ("1", True),
+            ("off", False),
+            ("0", False),
+        )
+    )
+    def test_env_to_bool(self, val, expected):
+        actual = shell.env_to_bool(val)
+        assert actual == expected
+
+    @pytest.mark.utils
+    def test_is_env_truthy_exists_true(self, monkeypatch):
+        name = "ZZZ"
+        monkeypatch.setenv(name, "1")
+        assert shell.is_env_truthy(name) is True
+
+    @pytest.mark.utils
+    def test_is_env_truthy_exists_false(self, monkeypatch):
+        name = "ZZZ"
+        monkeypatch.setenv(name, "0")
+        assert shell.is_env_truthy(name) is False
+
+    @pytest.mark.utils
+    def test_is_env_truthy_does_not_exisxt(self, monkeypatch):
+        name = "ZZZ"
+        monkeypatch.delenv(name, raising=False)
+        assert shell.is_env_truthy(name) is False

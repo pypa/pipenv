@@ -636,7 +636,7 @@ truthy value (i.e. ``"1"``)::
 
     $ PIPENV_IGNORE_VIRTUALENVS=1
 
-To explicitly disable a boolean option, assign to it a falsy value (i.e. ``"0"``).
+To explicitly disable a boolean option, assign to it a falsey value (i.e. ``"0"``).
 
 .. autoclass:: pipenv.environments.Setting
     :members:
