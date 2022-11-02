@@ -8,7 +8,7 @@ from vistir.path import normalize_drive
 
 from pipenv._compat import fix_utf8
 from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
-from pipenv.utils.constants import FALSE_VALUES, TRUE_VALUES
+from pipenv.utils.constants import FALSE_VALUES
 from pipenv.utils.shell import env_to_bool
 from pipenv.vendor.vistir.misc import _isatty
 
@@ -18,6 +18,7 @@ from pipenv.vendor.vistir.misc import _isatty
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 
+# TODO(micahjsmith) refactor to use env2bool
 def _is_env_truthy(name):
     """An environment variable is truthy if it exists and isn't one of (0, false, no, off)"""
     if name not in os.environ:
@@ -279,13 +280,6 @@ class Setting:
         """
 
         self.PIPENV_VENV_IN_PROJECT = get_from_env("VENV_IN_PROJECT")
-        if self.PIPENV_VENV_IN_PROJECT is not None:
-            if self.PIPENV_VENV_IN_PROJECT.lower() in TRUE_VALUES:
-                self.PIPENV_VENV_IN_PROJECT = True
-            elif self.PIPENV_VENV_IN_PROJECT.lower() in FALSE_VALUES:
-                self.PIPENV_VENV_IN_PROJECT = False
-            else:
-                self.PIPENV_VENV_IN_PROJECT = None
         """ When set True, will create or use the ``.venv`` in your project directory.
         When Set False, will ignore the .venv in your project directory even if it exists.
         If unset (default), will use the .venv of project directory should it exist, otherwise

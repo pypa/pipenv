@@ -86,3 +86,18 @@ def test_get_from_env_default(check_for_negation, default):
             )
             == default
         )
+
+
+def test_pipenv_venv_in_project_set_true(monkeypatch):
+    monkeypatch.setenv("PIPENV_VENV_IN_PROJECT", "1")
+    assert environments.Setting().PIPENV_VENV_IN_PROJECT is True
+
+
+def test_pipenv_venv_in_project_set_false(monkeypatch):
+    monkeypatch.setenv("PIPENV_VENV_IN_PROJECT", "0")
+    assert environments.Setting().PIPENV_VENV_IN_PROJECT is False
+
+
+def test_pipenv_venv_in_project_unset(monkeypatch):
+    monkeypatch.delenv("PIPENV_VENV_IN_PROJECT", raising=False)
+    assert environments.Setting().PIPENV_VENV_IN_PROJECT is None
