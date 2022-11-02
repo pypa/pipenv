@@ -1,0 +1,1 @@
+Allow pipenv settings to be explicitly disabled more easily by assigning to the environment variable a falsy value.
