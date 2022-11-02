@@ -113,11 +113,13 @@ class Setting:
         #: Location for Pipenv to store it's package cache.
         #: Default is to use appdir's user cache directory.
         self.PIPENV_CACHE_DIR = get_from_env(
-            "CACHE_DIR", default=user_cache_dir("pipenv")
+            "CACHE_DIR", check_for_negation=False, default=user_cache_dir("pipenv")
         )
 
         # Tells Pipenv which Python to default to, when none is provided.
-        self.PIPENV_DEFAULT_PYTHON_VERSION = get_from_env("DEFAULT_PYTHON_VERSION")
+        self.PIPENV_DEFAULT_PYTHON_VERSION = get_from_env(
+            "DEFAULT_PYTHON_VERSION", check_for_negation=False
+        )
         """Use this Python version when creating new virtual environments by default.
 
         This can be set to a version string, e.g. ``3.9``, or a path. Default is to use
@@ -126,25 +128,33 @@ class Setting:
         this configuration.
         """
 
-        self.PIPENV_DONT_LOAD_ENV = bool(get_from_env("DONT_LOAD_ENV"))
+        self.PIPENV_DONT_LOAD_ENV = bool(
+            get_from_env("DONT_LOAD_ENV", check_for_negation=False)
+        )
         """If set, Pipenv does not load the ``.env`` file.
 
         Default is to load ``.env`` for ``run`` and ``shell`` commands.
         """
 
-        self.PIPENV_DONT_USE_PYENV = bool(get_from_env("DONT_USE_PYENV"))
+        self.PIPENV_DONT_USE_PYENV = bool(
+            get_from_env("DONT_USE_PYENV", check_for_negation=False)
+        )
         """If set, Pipenv does not attempt to install Python with pyenv.
 
         Default is to install Python automatically via pyenv when needed, if possible.
         """
 
-        self.PIPENV_DONT_USE_ASDF = bool(get_from_env("DONT_USE_ASDF"))
+        self.PIPENV_DONT_USE_ASDF = bool(
+            get_from_env("DONT_USE_ASDF", check_for_negation=False)
+        )
         """If set, Pipenv does not attempt to install Python with asdf.
 
         Default is to install Python automatically via asdf when needed, if possible.
         """
 
-        self.PIPENV_DOTENV_LOCATION = get_from_env("DOTENV_LOCATION")
+        self.PIPENV_DOTENV_LOCATION = get_from_env(
+            "DOTENV_LOCATION", check_for_negation=False
+        )
         """If set, Pipenv loads the ``.env`` file at the specified location.
 
         Default is to load ``.env`` from the project root, if found.
@@ -188,7 +198,9 @@ class Setting:
         Default is 0. Automatically set to 1 on CI environments for robust testing.
         """
 
-        self.PIPENV_NO_INHERIT = "PIPENV_NO_INHERIT" in os.environ
+        self.PIPENV_NO_INHERIT = bool(
+            get_from_env("NO_INHERIT", check_for_negation=False)
+        )
         """Tell Pipenv not to inherit parent directories.
 
         This is useful for deployment to avoid using the wrong current directory.
@@ -264,7 +276,9 @@ class Setting:
         Default is to use the compatibility shell if possible.
         """
 
-        self.PIPENV_TIMEOUT = int(get_from_env("TIMEOUT", default=120))
+        self.PIPENV_TIMEOUT = int(
+            get_from_env("TIMEOUT", check_for_negation=False, default=120)
+        )
         """Max number of seconds Pipenv will wait for virtualenv creation to complete.
 
         Default is 120 seconds, an arbitrary number that seems to work.
@@ -320,16 +334,18 @@ class Setting:
         approach, you may disable this.
         """
 
-        self.PIPENV_CUSTOM_VENV_NAME = get_from_env("CUSTOM_VENV_NAME")
+        self.PIPENV_CUSTOM_VENV_NAME = get_from_env(
+            "CUSTOM_VENV_NAME", check_for_negation=False
+        )
         """Tells Pipenv whether to name the venv something other than the default dir name."""
 
-        self.PIPENV_PYUP_API_KEY = get_from_env("PYUP_API_KEY")
+        self.PIPENV_PYUP_API_KEY = get_from_env("PYUP_API_KEY", check_for_negation=False)
 
         # Internal, support running in a different Python from sys.executable.
-        self.PIPENV_PYTHON = get_from_env("PYTHON")
+        self.PIPENV_PYTHON = get_from_env("PYTHON", check_for_negation=False)
 
         # Internal, overwrite all index funcitonality.
-        self.PIPENV_TEST_INDEX = get_from_env("TEST_INDEX")
+        self.PIPENV_TEST_INDEX = get_from_env("TEST_INDEX", check_for_negation=False)
 
         # Internal, tells Pipenv about the surrounding environment.
         self.PIPENV_USE_SYSTEM = False
