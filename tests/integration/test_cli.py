@@ -152,7 +152,14 @@ def test_pipenv_check(pipenv_instance_private_pypi):
         assert c.returncode == 0
         c = p.pipenv('install six')
         assert c.returncode == 0
-        c = p.pipenv('check --ignore 35015')
+        # Note: added
+        # 51457: py <=1.11.0 resolved (1.11.0 installed)!
+        # this is install via pytest, and causes a false positive
+        # https://github.com/pytest-dev/py/issues/287
+        # the issue above is still not resolved.
+        # added also 51499
+        # https://github.com/pypa/wheel/issues/481
+        c = p.pipenv('check --ignore 35015 -i 51457 -i 51499')
         assert c.returncode == 0
         assert 'Ignoring' in c.stderr
 
