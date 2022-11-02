@@ -8,22 +8,13 @@ from vistir.path import normalize_drive
 
 from pipenv._compat import fix_utf8
 from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
-from pipenv.utils.constants import FALSE_VALUES
-from pipenv.utils.shell import env_to_bool
+from pipenv.utils.shell import env_to_bool, is_env_truthy
 from pipenv.vendor.vistir.misc import _isatty
 
 # HACK: avoid resolver.py uses the wrong byte code files.
 # I hope I can remove this one day.
 
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
-
-
-# TODO(micahjsmith) refactor to use env2bool
-def _is_env_truthy(name):
-    """An environment variable is truthy if it exists and isn't one of (0, false, no, off)"""
-    if name not in os.environ:
-        return False
-    return os.environ.get(name).lower() not in FALSE_VALUES
 
 
 def get_from_env(arg, prefix="PIPENV", check_for_negation=True, default=None):
@@ -86,7 +77,7 @@ os.environ.pop("__PYVENV_LAUNCHER__", None)
 SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
 
 # TF_BUILD indicates to Azure pipelines it is a build step
-PIPENV_IS_CI = _is_env_truthy("CI") or _is_env_truthy("TF_BUILD")
+PIPENV_IS_CI = is_env_truthy("CI") or is_env_truthy("TF_BUILD")
 
 
 NO_COLOR = False
@@ -101,7 +92,7 @@ if os.getenv("NO_COLOR") or os.getenv("PIPENV_COLORBLIND"):
 PIPENV_HIDE_EMOJIS = (
     os.environ.get("PIPENV_HIDE_EMOJIS") is None
     and (os.name == "nt" or PIPENV_IS_CI)
-    or _is_env_truthy("PIPENV_HIDE_EMOJIS")
+    or is_env_truthy("PIPENV_HIDE_EMOJIS")
 )
 """Disable emojis in output.
 

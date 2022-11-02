@@ -407,6 +407,11 @@ def env_to_bool(val):
     raise ValueError(f"Value is not a valid boolean-like: {val}")
 
 
+def is_env_truthy(name):
+    """An environment variable is truthy if it exists and isn't one of (0, false, no, off)"""
+    return env_to_bool(os.getenv(name))
+
+
 def project_python(project, system=False):
     if not system:
         python = project._which("python")
