@@ -1,5 +1,4 @@
 import json as simplejson
-from collections import defaultdict
 import logging
 import os
 import queue
@@ -10,6 +9,7 @@ import sys
 import tempfile
 import time
 import warnings
+from collections import defaultdict
 from pathlib import Path
 from posixpath import expandvars
 from typing import Dict, List, Optional, Union
@@ -756,17 +756,17 @@ def batch_install(
 
 
 def batch_install_iteration(
-        project,
-        deps_to_install,
-        sources,
-        procs,
-        failed_deps_queue,
-        requirements_dir,
-        no_deps=True,
-        ignore_hashes=False,
-        allow_global=False,
-        retry=True,
-        extra_pip_args=None,
+    project,
+    deps_to_install,
+    sources,
+    procs,
+    failed_deps_queue,
+    requirements_dir,
+    no_deps=True,
+    ignore_hashes=False,
+    allow_global=False,
+    retry=True,
+    extra_pip_args=None,
 ):
     from .vendor.requirementslib.models.utils import (
         strip_extras_markers_from_requirement,
