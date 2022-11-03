@@ -680,9 +680,10 @@ def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
 
 
 def get_trusted_hosts():
-    trusted_hosts = []
-    trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
-    return trusted_hosts
+    try:
+        return os.environ.get("PIP_TRUSTED_HOSTS", []).split(" ")
+    except AttributeError:
+        return []
 
 
 def batch_install(
