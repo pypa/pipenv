@@ -1,3 +1,3 @@
-Drop tomli, which is not used anymore
+Drop tomli, which is not used anymore.
 Bump attrs version see #5449.
 Drop distlib, colorama and platformdirs - use the ones from pip._vendor.
