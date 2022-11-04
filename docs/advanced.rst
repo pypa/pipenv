@@ -628,11 +628,17 @@ You can display the names and commands of your shortcuts by running ``pipenv scr
 ☤ Configuration With Environment Variables
 ------------------------------------------
 
-Pipenv comes with a handful of options that can be enabled via shell environment
-variables. To activate them, simply create the variable in your shell and pipenv
-will detect it.
+Pipenv comes with a handful of options that can be set via shell environment
+variables.
 
-.. automodule:: pipenv.environments
+To enable boolean options, create the variable in your shell and assign to it a
+truthy value (i.e. ``"1"``)::
+
+    $ PIPENV_IGNORE_VIRTUALENVS=1
+
+To explicitly disable a boolean option, assign to it a falsey value (i.e. ``"0"``).
+
+.. autoclass:: pipenv.environments.Setting
     :members:
 
 If you'd like to set these environment variables on a per-project basis, I recommend utilizing the fantastic `direnv <https://direnv.net>`_ project, in order to do so.

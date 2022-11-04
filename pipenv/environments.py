@@ -8,8 +8,7 @@ from vistir.path import normalize_drive
 
 from pipenv._compat import fix_utf8
 from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
-from pipenv.utils.constants import FALSE_VALUES, TRUE_VALUES
-from pipenv.utils.shell import env_to_bool
+from pipenv.utils.shell import env_to_bool, is_env_truthy
 from pipenv.vendor.vistir.misc import _isatty
 
 # HACK: avoid resolver.py uses the wrong byte code files.
@@ -18,14 +17,7 @@ from pipenv.vendor.vistir.misc import _isatty
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 
-def _is_env_truthy(name):
-    """An environment variable is truthy if it exists and isn't one of (0, false, no, off)"""
-    if name not in os.environ:
-        return False
-    return os.environ.get(name).lower() not in FALSE_VALUES
-
-
-def get_from_env(arg, prefix="PIPENV", check_for_negation=True):
+def get_from_env(arg, prefix="PIPENV", check_for_negation=True, default=None):
     """
     Check the environment for a variable, returning its truthy or stringified value
 
@@ -36,6 +28,8 @@ def get_from_env(arg, prefix="PIPENV", check_for_negation=True):
     :param str prefix: The prefix to attach to the variable, defaults to "PIPENV"
     :param bool check_for_negation: Whether to check for ``<PREFIX>_NO_<arg>``, defaults
         to True
+    :param Optional[Union[str, bool]] default: The value to return if the environment variable does
+        not exist, defaults to None
     :return: The value from the environment if available
     :rtype: Optional[Union[str, bool]]
     """
@@ -56,7 +50,7 @@ def get_from_env(arg, prefix="PIPENV", check_for_negation=True):
             return not env_to_bool(value)
         except ValueError:
             return value
-    return None
+    return default
 
 
 def normalize_pipfile_path(p):
@@ -83,7 +77,7 @@ os.environ.pop("__PYVENV_LAUNCHER__", None)
 SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
 
 # TF_BUILD indicates to Azure pipelines it is a build step
-PIPENV_IS_CI = _is_env_truthy("CI") or _is_env_truthy("TF_BUILD")
+PIPENV_IS_CI = is_env_truthy("CI") or is_env_truthy("TF_BUILD")
 
 
 NO_COLOR = False
@@ -98,7 +92,7 @@ if os.getenv("NO_COLOR") or os.getenv("PIPENV_COLORBLIND"):
 PIPENV_HIDE_EMOJIS = (
     os.environ.get("PIPENV_HIDE_EMOJIS") is None
     and (os.name == "nt" or PIPENV_IS_CI)
-    or _is_env_truthy("PIPENV_HIDE_EMOJIS")
+    or is_env_truthy("PIPENV_HIDE_EMOJIS")
 )
 """Disable emojis in output.
 
@@ -118,13 +112,13 @@ class Setting:
 
         #: Location for Pipenv to store it's package cache.
         #: Default is to use appdir's user cache directory.
-        self.PIPENV_CACHE_DIR = os.environ.get(
-            "PIPENV_CACHE_DIR", user_cache_dir("pipenv")
+        self.PIPENV_CACHE_DIR = get_from_env(
+            "CACHE_DIR", check_for_negation=False, default=user_cache_dir("pipenv")
         )
 
         # Tells Pipenv which Python to default to, when none is provided.
-        self.PIPENV_DEFAULT_PYTHON_VERSION = os.environ.get(
-            "PIPENV_DEFAULT_PYTHON_VERSION"
+        self.PIPENV_DEFAULT_PYTHON_VERSION = get_from_env(
+            "DEFAULT_PYTHON_VERSION", check_for_negation=False
         )
         """Use this Python version when creating new virtual environments by default.
 
@@ -134,38 +128,46 @@ class Setting:
         this configuration.
         """
 
-        self.PIPENV_DONT_LOAD_ENV = bool(os.environ.get("PIPENV_DONT_LOAD_ENV"))
+        self.PIPENV_DONT_LOAD_ENV = bool(
+            get_from_env("DONT_LOAD_ENV", check_for_negation=False)
+        )
         """If set, Pipenv does not load the ``.env`` file.
 
         Default is to load ``.env`` for ``run`` and ``shell`` commands.
         """
 
-        self.PIPENV_DONT_USE_PYENV = bool(os.environ.get("PIPENV_DONT_USE_PYENV"))
+        self.PIPENV_DONT_USE_PYENV = bool(
+            get_from_env("DONT_USE_PYENV", check_for_negation=False)
+        )
         """If set, Pipenv does not attempt to install Python with pyenv.
 
         Default is to install Python automatically via pyenv when needed, if possible.
         """
 
-        self.PIPENV_DONT_USE_ASDF = bool(os.environ.get("PIPENV_DONT_USE_ASDF"))
+        self.PIPENV_DONT_USE_ASDF = bool(
+            get_from_env("DONT_USE_ASDF", check_for_negation=False)
+        )
         """If set, Pipenv does not attempt to install Python with asdf.
 
         Default is to install Python automatically via asdf when needed, if possible.
         """
 
-        self.PIPENV_DOTENV_LOCATION = os.environ.get("PIPENV_DOTENV_LOCATION")
+        self.PIPENV_DOTENV_LOCATION = get_from_env(
+            "DOTENV_LOCATION", check_for_negation=False
+        )
         """If set, Pipenv loads the ``.env`` file at the specified location.
 
         Default is to load ``.env`` from the project root, if found.
         """
 
-        self.PIPENV_EMULATOR = os.environ.get("PIPENV_EMULATOR", "")
+        self.PIPENV_EMULATOR = get_from_env("EMULATOR", default="")
         """If set, the terminal emulator's name for ``pipenv shell`` to use.
 
         Default is to detect emulators automatically. This should be set if your
         emulator, e.g. Cmder, cannot be detected correctly.
         """
 
-        self.PIPENV_IGNORE_VIRTUALENVS = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS"))
+        self.PIPENV_IGNORE_VIRTUALENVS = bool(get_from_env("IGNORE_VIRTUALENVS"))
         """If set, Pipenv will always assign a virtual environment for this project.
 
         By default, Pipenv tries to detect whether it is run inside a virtual
@@ -174,7 +176,7 @@ class Setting:
         """
 
         self.PIPENV_INSTALL_TIMEOUT = int(
-            os.environ.get("PIPENV_INSTALL_TIMEOUT", 60 * 15)
+            get_from_env("INSTALL_TIMEOUT", default=60 * 15)
         )
         """Max number of seconds to wait for package installation.
 
@@ -182,21 +184,23 @@ class Setting:
         """
 
         # NOTE: +1 because of a temporary bug in Pipenv.
-        self.PIPENV_MAX_DEPTH = int(os.environ.get("PIPENV_MAX_DEPTH", "3")) + 1
+        self.PIPENV_MAX_DEPTH = int(get_from_env("PIPENV_MAX_DEPTH", default=3)) + 1
         """Maximum number of directories to recursively search for a Pipfile.
 
         Default is 3. See also ``PIPENV_NO_INHERIT``.
         """
 
-        self.PIPENV_MAX_RETRIES = int(
-            os.environ.get("PIPENV_MAX_RETRIES", "1" if PIPENV_IS_CI else "0")
+        self.PIPENV_MAX_RETRIES = (
+            int(get_from_env("MAX_RETRIES", default=1)) if PIPENV_IS_CI else 0
         )
         """Specify how many retries Pipenv should attempt for network requests.
 
         Default is 0. Automatically set to 1 on CI environments for robust testing.
         """
 
-        self.PIPENV_NO_INHERIT = "PIPENV_NO_INHERIT" in os.environ
+        self.PIPENV_NO_INHERIT = bool(
+            get_from_env("NO_INHERIT", check_for_negation=False)
+        )
         """Tell Pipenv not to inherit parent directories.
 
         This is useful for deployment to avoid using the wrong current directory.
@@ -205,7 +209,7 @@ class Setting:
         if self.PIPENV_NO_INHERIT:
             self.PIPENV_MAX_DEPTH = 2
 
-        self.PIPENV_NOSPIN = bool(os.environ.get("PIPENV_NOSPIN"))
+        self.PIPENV_NOSPIN = bool(get_from_env("NOSPIN", check_for_negation=False))
         """If set, disable terminal spinner.
 
         This can make the logs cleaner. Automatically set on Windows, and in CI
@@ -215,14 +219,16 @@ class Setting:
             self.PIPENV_NOSPIN = True
 
         pipenv_spinner = "dots" if not os.name == "nt" else "bouncingBar"
-        self.PIPENV_SPINNER = os.environ.get("PIPENV_SPINNER", pipenv_spinner)
+        self.PIPENV_SPINNER = get_from_env(
+            "SPINNER", check_for_negation=False, default=pipenv_spinner
+        )
         """Sets the default spinner type.
 
         Spinners are identical to the ``node.js`` spinners and can be found at
         https://github.com/sindresorhus/cli-spinners
         """
 
-        pipenv_pipfile = os.environ.get("PIPENV_PIPFILE")
+        pipenv_pipfile = get_from_env("PIPFILE", check_for_negation=False)
         if pipenv_pipfile:
             if not os.path.isfile(pipenv_pipfile):
                 raise RuntimeError("Given PIPENV_PIPFILE is not found!")
@@ -243,20 +249,20 @@ class Setting:
         See also ``PIPENV_MAX_DEPTH``.
         """
 
-        self.PIPENV_PYPI_MIRROR = os.environ.get("PIPENV_PYPI_MIRROR")
+        self.PIPENV_PYPI_MIRROR = get_from_env("PYPI_MIRROR", check_for_negation=False)
         """If set, tells pipenv to override PyPI index urls with a mirror.
 
         Default is to not mirror PyPI, i.e. use the real one, pypi.org. The
         ``--pypi-mirror`` command line flag overwrites this.
         """
 
-        self.PIPENV_QUIET = bool(os.environ.get("PIPENV_QUIET"))
+        self.PIPENV_QUIET = bool(get_from_env("QUIET", check_for_negation=False))
         """If set, makes Pipenv quieter.
 
         Default is unset, for normal verbosity. ``PIPENV_VERBOSE`` overrides this.
         """
 
-        self.PIPENV_SHELL_EXPLICIT = os.environ.get("PIPENV_SHELL")
+        self.PIPENV_SHELL_EXPLICIT = get_from_env("SHELL", check_for_negation=False)
         """An absolute path to the preferred shell for ``pipenv shell``.
 
         Default is to detect automatically what shell is currently in use.
@@ -264,47 +270,42 @@ class Setting:
         # Hack because PIPENV_SHELL is actually something else. Internally this
         # variable is called PIPENV_SHELL_EXPLICIT instead.
 
-        self.PIPENV_SHELL_FANCY = bool(os.environ.get("PIPENV_SHELL_FANCY"))
+        self.PIPENV_SHELL_FANCY = bool(get_from_env("SHELL_FANCY"))
         """If set, always use fancy mode when invoking ``pipenv shell``.
 
         Default is to use the compatibility shell if possible.
         """
 
-        self.PIPENV_TIMEOUT = int(os.environ.get("PIPENV_TIMEOUT", 120))
+        self.PIPENV_TIMEOUT = int(
+            get_from_env("TIMEOUT", check_for_negation=False, default=120)
+        )
         """Max number of seconds Pipenv will wait for virtualenv creation to complete.
 
         Default is 120 seconds, an arbitrary number that seems to work.
         """
 
-        self.PIPENV_VENV_IN_PROJECT = os.environ.get("PIPENV_VENV_IN_PROJECT")
-        if self.PIPENV_VENV_IN_PROJECT is not None:
-            if self.PIPENV_VENV_IN_PROJECT.lower() in TRUE_VALUES:
-                self.PIPENV_VENV_IN_PROJECT = True
-            elif self.PIPENV_VENV_IN_PROJECT.lower() in FALSE_VALUES:
-                self.PIPENV_VENV_IN_PROJECT = False
-            else:
-                self.PIPENV_VENV_IN_PROJECT = None
+        self.PIPENV_VENV_IN_PROJECT = get_from_env("VENV_IN_PROJECT")
         """ When set True, will create or use the ``.venv`` in your project directory.
         When Set False, will ignore the .venv in your project directory even if it exists.
-        Default is None will use the .venv of project directory should it exist, otherwise
+        If unset (default), will use the .venv of project directory should it exist, otherwise
           will create new virtual environments in a global location.
         """
 
-        self.PIPENV_VERBOSE = bool(os.environ.get("PIPENV_VERBOSE"))
+        self.PIPENV_VERBOSE = bool(get_from_env("VERBOSE", check_for_negation=False))
         """If set, makes Pipenv more wordy.
 
         Default is unset, for normal verbosity. This takes precedence over
         ``PIPENV_QUIET``.
         """
 
-        self.PIPENV_YES = bool(os.environ.get("PIPENV_YES"))
+        self.PIPENV_YES = bool(get_from_env("YES"))
         """If set, Pipenv automatically assumes "yes" at all prompts.
 
         Default is to prompt the user for an answer if the current command line session
         if interactive.
         """
 
-        self.PIPENV_SKIP_LOCK = bool(os.environ.get("PIPENV_SKIP_LOCK", False))
+        self.PIPENV_SKIP_LOCK = bool(get_from_env("SKIP_LOCK"))
         """If set, Pipenv won't lock dependencies automatically.
 
         This might be desirable if a project has large number of dependencies,
@@ -317,33 +318,34 @@ class Setting:
         NOTE: This only affects the ``install`` and ``uninstall`` commands.
         """
 
-        self.PIP_EXISTS_ACTION = os.environ.get("PIP_EXISTS_ACTION", "w")
+        self.PIP_EXISTS_ACTION = get_from_env(
+            "EXISTS_ACTION", prefix="PIP", check_for_negation=False, default="w"
+        )
         """Specifies the value for pip's --exists-action option
 
         Defaults to ``(w)ipe``
         """
 
-        self.PIPENV_RESOLVE_VCS = os.environ.get(
-            "PIPENV_RESOLVE_VCS"
-        ) is None or _is_env_truthy("PIPENV_RESOLVE_VCS")
-
+        self.PIPENV_RESOLVE_VCS = bool(get_from_env("RESOLVE_VCS", default=True))
         """Tells Pipenv whether to resolve all VCS dependencies in full.
 
         As of Pipenv 2018.11.26, only editable VCS dependencies were resolved in full.
         To retain this behavior and avoid handling any conflicts that arise from the new
-        approach, you may set this to '0', 'off', or 'false'.
+        approach, you may disable this.
         """
 
-        self.PIPENV_CUSTOM_VENV_NAME = os.getenv("PIPENV_CUSTOM_VENV_NAME", None)
+        self.PIPENV_CUSTOM_VENV_NAME = get_from_env(
+            "CUSTOM_VENV_NAME", check_for_negation=False
+        )
         """Tells Pipenv whether to name the venv something other than the default dir name."""
 
-        self.PIPENV_PYUP_API_KEY = os.environ.get("PIPENV_PYUP_API_KEY", None)
+        self.PIPENV_PYUP_API_KEY = get_from_env("PYUP_API_KEY", check_for_negation=False)
 
         # Internal, support running in a different Python from sys.executable.
-        self.PIPENV_PYTHON = os.environ.get("PIPENV_PYTHON")
+        self.PIPENV_PYTHON = get_from_env("PYTHON", check_for_negation=False)
 
         # Internal, overwrite all index funcitonality.
-        self.PIPENV_TEST_INDEX = os.environ.get("PIPENV_TEST_INDEX")
+        self.PIPENV_TEST_INDEX = get_from_env("TEST_INDEX", check_for_negation=False)
 
         # Internal, tells Pipenv about the surrounding environment.
         self.PIPENV_USE_SYSTEM = False
@@ -364,9 +366,8 @@ class Setting:
 
         # Internal, consolidated verbosity representation as an integer. The default
         # level is 0, increased for wordiness and decreased for terseness.
-        verbosity = os.environ.get("PIPENV_VERBOSITY", "")
         try:
-            self.PIPENV_VERBOSITY = int(verbosity)
+            self.PIPENV_VERBOSITY = int(get_from_env("VERBOSITY"))
         except (ValueError, TypeError):
             if self.PIPENV_VERBOSE:
                 self.PIPENV_VERBOSITY = 1
@@ -405,7 +406,7 @@ def is_in_virtualenv():
 
     pipenv_active = os.environ.get("PIPENV_ACTIVE", False)
     virtual_env = bool(os.environ.get("VIRTUAL_ENV"))
-    ignore_virtualenvs = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS", False))
+    ignore_virtualenvs = bool(get_from_env("IGNORE_VIRTUALENVS"))
     return virtual_env and not (pipenv_active or ignore_virtualenvs)
 
 

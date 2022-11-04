@@ -395,16 +395,28 @@ def env_to_bool(val):
     Convert **val** to boolean, returning True if truthy or False if falsey
 
     :param Any val: The value to convert
-    :return: False if Falsey, True if truthy
+    :return: False if falsey, True if truthy
     :rtype: bool
+    :raises:
+        ValueError: if val is not a valid boolean-like
     """
     if isinstance(val, bool):
         return val
-    if val.lower() in FALSE_VALUES:
-        return False
-    if val.lower() in TRUE_VALUES:
-        return True
+
+    try:
+        if val.lower() in FALSE_VALUES:
+            return False
+        if val.lower() in TRUE_VALUES:
+            return True
+    except AttributeError:
+        pass
+
     raise ValueError(f"Value is not a valid boolean-like: {val}")
+
+
+def is_env_truthy(name):
+    """An environment variable is truthy if it exists and isn't one of (0, false, no, off)"""
+    return env_to_bool(os.getenv(name, False))
 
 
 def project_python(project, system=False):
