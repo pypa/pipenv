@@ -1,6 +1,6 @@
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
-""""Vendoring script, python 3.5 needed"""
+""""Vendoring script, python 3.6>= needed"""
 
 import itertools
 import re
@@ -23,7 +23,6 @@ LIBRARY_DIRNAMES = {
     "python-dotenv": "dotenv",
     "setuptools": "pkg_resources",
     "msgpack-python": "msgpack",
-    "attrs": "attr",
 }
 
 # from time to time, remove the no longer needed ones
@@ -63,7 +62,6 @@ LIBRARY_RENAMES = {
     "pep517": "pipenv.patched.pip._vendor.pep517",
     "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
     "urllib3": "pipenv.patched.pip._vendor.urllib3",
-    "zipp": "pipenv.vendor.zipp",
 }
 
 GLOBAL_REPLACEMENT = [
@@ -84,6 +82,14 @@ GLOBAL_REPLACEMENT = [
     ),
     (r"(?<!\.)pep517\.envbuild", r"envbuild"),
     (r"(?<!\.)pep517\.wrappers", r"wrappers"),
+    (
+        "from platformdirs import user_cache_dir",
+        "from pipenv.patched.pip._vendor.platformdirs import user_cache_dir",
+    ),
+    ("from distlib import", "from pipenv.patched.pip._vendor.distlib import"),
+    ("from distlib.metadata", "from pipenv.patched.pip._vendor.distlib.metadata import"),
+    ("from distlib.wheel import", "from pipenv.patched.pip._vendor.distlib.wheel import"),
+    ("import colorama", "from pipenv.patched.pip._vendor import colorama"),
 ]
 
 

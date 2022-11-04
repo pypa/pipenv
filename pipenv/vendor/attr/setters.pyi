@@ -2,7 +2,6 @@ from typing import Any, NewType, NoReturn, TypeVar, cast
 
 from . import Attribute, _OnSetAttrType
 
-
 _T = TypeVar("_T")
 
 def frozen(

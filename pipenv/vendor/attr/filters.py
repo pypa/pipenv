@@ -1,10 +1,9 @@
+# SPDX-License-Identifier: MIT
+
 """
 Commonly useful filters for `attr.asdict`.
 """
 
-from __future__ import absolute_import, division, print_function
-
-from ._compat import isclass
 from ._make import Attribute
 
 
@@ -13,17 +12,17 @@ def _split_what(what):
     Returns a tuple of `frozenset`s of classes and attributes.
     """
     return (
-        frozenset(cls for cls in what if isclass(cls)),
+        frozenset(cls for cls in what if isinstance(cls, type)),
         frozenset(cls for cls in what if isinstance(cls, Attribute)),
     )
 
 
 def include(*what):
     """
-    Whitelist *what*.
+    Include *what*.
 
-    :param what: What to whitelist.
-    :type what: `list` of `type` or `attr.Attribute`\\ s
+    :param what: What to include.
+    :type what: `list` of `type` or `attrs.Attribute`\\ s
 
     :rtype: `callable`
     """
@@ -37,10 +36,10 @@ def include(*what):
 
 def exclude(*what):
     """
-    Blacklist *what*.
+    Exclude *what*.
 
-    :param what: What to blacklist.
-    :type what: `list` of classes or `attr.Attribute`\\ s.
+    :param what: What to exclude.
+    :type what: `list` of classes or `attrs.Attribute`\\ s.
 
     :rtype: `callable`
     """

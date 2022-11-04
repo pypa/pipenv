@@ -1,22 +1,21 @@
+# SPDX-License-Identifier: MIT
+
 """
 Commonly useful converters.
 """
 
-from __future__ import absolute_import, division, print_function
 
-from ._compat import PY2
+import typing
+
+from ._compat import _AnnotationExtractor
 from ._make import NOTHING, Factory, pipe
 
 
-if not PY2:
-    import inspect
-    import typing
-
-
 __all__ = [
-    "pipe",
-    "optional",
     "default_if_none",
+    "optional",
+    "pipe",
+    "to_bool",
 ]
 
 
@@ -39,22 +38,15 @@ def optional(converter):
             return None
         return converter(val)
 
-    if not PY2:
-        sig = None
-        try:
-            sig = inspect.signature(converter)
-        except (ValueError, TypeError):  # inspect failed
-            pass
-        if sig:
-            params = list(sig.parameters.values())
-            if params and params[0].annotation is not inspect.Parameter.empty:
-                optional_converter.__annotations__["val"] = typing.Optional[
-                    params[0].annotation
-                ]
-            if sig.return_annotation is not inspect.Signature.empty:
-                optional_converter.__annotations__["return"] = typing.Optional[
-                    sig.return_annotation
-                ]
+    xtr = _AnnotationExtractor(converter)
+
+    t = xtr.get_first_param_type()
+    if t:
+        optional_converter.__annotations__["val"] = typing.Optional[t]
+
+    rt = xtr.get_return_type()
+    if rt:
+        optional_converter.__annotations__["return"] = typing.Optional[rt]
 
     return optional_converter
 
@@ -65,14 +57,14 @@ def default_if_none(default=NOTHING, factory=None):
     result of *factory*.
 
     :param default: Value to be used if ``None`` is passed. Passing an instance
-       of `attr.Factory` is supported, however the ``takes_self`` option
+       of `attrs.Factory` is supported, however the ``takes_self`` option
        is *not*.
     :param callable factory: A callable that takes no parameters whose result
        is used if ``None`` is passed.
 
     :raises TypeError: If **neither** *default* or *factory* is passed.
     :raises TypeError: If **both** *default* and *factory* are passed.
-    :raises ValueError: If an instance of `attr.Factory` is passed with
+    :raises ValueError: If an instance of `attrs.Factory` is passed with
        ``takes_self=True``.
 
     .. versionadded:: 18.2.0
@@ -109,3 +101,44 @@ def default_if_none(default=NOTHING, factory=None):
             return default
 
     return default_if_none_converter
+
+
+def to_bool(val):
+    """
+    Convert "boolean" strings (e.g., from env. vars.) to real booleans.
+
+    Values mapping to :code:`True`:
+
+    - :code:`True`
+    - :code:`"true"` / :code:`"t"`
+    - :code:`"yes"` / :code:`"y"`
+    - :code:`"on"`
+    - :code:`"1"`
+    - :code:`1`
+
+    Values mapping to :code:`False`:
+
+    - :code:`False`
+    - :code:`"false"` / :code:`"f"`
+    - :code:`"no"` / :code:`"n"`
+    - :code:`"off"`
+    - :code:`"0"`
+    - :code:`0`
+
+    :raises ValueError: for any other value.
+
+    .. versionadded:: 21.3.0
+    """
+    if isinstance(val, str):
+        val = val.lower()
+    truthy = {True, "true", "t", "yes", "y", "on", "1", 1}
+    falsy = {False, "false", "f", "no", "n", "off", "0", 0}
+    try:
+        if val in truthy:
+            return True
+        if val in falsy:
+            return False
+    except TypeError:
+        # Raised when "val" is not hashable (e.g., lists)
+        pass
+    raise ValueError("Cannot convert value to bool: {}".format(val))

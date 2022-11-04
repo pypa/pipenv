@@ -1,3 +1,4 @@
+SHELL := bash
 get_venv_dir:=$(shell mktemp -d 2>/dev/null || mktemp -d -t 'tmpvenv')
 venv_dir := $(get_venv_dir)/pipenv_venv
 venv_file := $(CURDIR)/.test_venv
@@ -18,6 +19,7 @@ write_git_tmpdir = $(file > $(GITDIR_STAMPFILE),$(create_git_tmpdir))
 get_checkout_dir = $(file < $(GITDIR_STAMPFILE))
 get_checkout_subdir = $(addprefix $(get_checkout_dir), $(1))
 pip-checkout-dir = $(get_checkout_dir)/patch-pip
+PY ?= python
 
 format:
 	black pipenv/*.py
@@ -47,7 +49,7 @@ ramdisk:
 .PHONY: ramdisk-virtualenv
 ramdisk-virtualenv: ramdisk
 	[ ! -e "/mnt/ramdisk/.venv/bin/activate" ] && \
-		python -m venv /mnt/ramdisk/.venv
+		$(PY) -m venv /mnt/ramdisk/.venv
 	echo "/mnt/ramdisk/.venv" > $(venv_file)
 
 .PHONY: virtualenv
@@ -172,3 +174,9 @@ reimport-pip-patch:
 	@sed -i -r 's:([a-b]\/)src/:\1pipenv/patched/:g' $(pip-checkout-dir)/pip*.patch
 	@find $(pip-checkout-dir) -maxdepth 1 -regex ".*/pip[0-9]+.patch" -exec cp {} $(CURDIR)/tasks/vendoring/patches/patched/ \;
 	@find $(pip-checkout-dir) -maxdepth 1 -regex ".*/_post-pip-[^/\.]*.patch" -exec cp {} $(CURDIR)/tasks/vendoring/patches/patched/ \;
+
+
+.PHONY: pypi-server
+pypi-server: SERVER ?= gunicorn
+pypi-server:
+	pipenv run pypi-server run --server $(SERVER) -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures

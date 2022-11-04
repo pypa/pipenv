@@ -538,7 +538,7 @@ if sys.platform.startswith("win") and WIN:
         if cached is not None:
             return cached
 
-        import pipenv.vendor.colorama as colorama
+        from pipenv.patched.pip._vendor import colorama
 
         strip = should_strip_ansi(stream, color)
         ansi_wrapper = colorama.AnsiToWin32(stream, strip=strip)

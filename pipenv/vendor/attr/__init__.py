@@ -1,4 +1,5 @@
-from __future__ import absolute_import, division, print_function
+# SPDX-License-Identifier: MIT
+
 
 import sys
 
@@ -22,7 +23,7 @@ from ._make import (
 from ._version_info import VersionInfo
 
 
-__version__ = "21.2.0"
+__version__ = "22.1.0"
 __version_info__ = VersionInfo._from_version_string(__version__)
 
 __title__ = "attrs"
@@ -73,6 +74,6 @@ __all__ = [
 ]
 
 if sys.version_info[:2] >= (3, 6):
-    from ._next_gen import define, field, frozen, mutable
+    from ._next_gen import define, field, frozen, mutable  # noqa: F401
 
-    __all__.extend((define, field, frozen, mutable))
+    __all__.extend(("define", "field", "frozen", "mutable"))

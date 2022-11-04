@@ -9,7 +9,7 @@ import threading
 import time
 from io import StringIO
 
-import pipenv.vendor.colorama as colorama
+from pipenv.patched.pip._vendor import colorama
 
 from .compat import IS_TYPE_CHECKING, to_native_string
 from .cursor import hide_cursor, show_cursor

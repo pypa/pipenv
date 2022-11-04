@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urlparse, urlunparse
 from weakref import finalize
 
 import pipenv.vendor.attr as attr
-from pipenv.vendor.distlib.wheel import Wheel
+from pipenv.patched.pip._vendor.distlib.wheel import Wheel
 from pipenv.patched.pip._vendor.pep517 import envbuild, wrappers
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
@@ -28,7 +28,7 @@ from pipenv.patched.pip._vendor.pkg_resources import (
     distributions_from_metadata,
     find_distributions,
 )
-from pipenv.vendor.platformdirs import user_cache_dir
+from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 from pipenv.vendor.vistir.contextmanagers import cd, temp_path
 from pipenv.vendor.vistir.misc import run
 from pipenv.vendor.vistir.path import create_tracked_tempdir, rmtree

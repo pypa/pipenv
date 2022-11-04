@@ -15,7 +15,7 @@ except ImportError:
 try:
     from zipfile import Path
 except ImportError:
-    from pipenv.vendor.zipp import Path
+    from zipp import Path
 
 from .build import compat_system, load_system, validate_system
 from .dirtools import dir_to_zipfile

@@ -5,7 +5,7 @@ from collections.abc import Mapping, Set
 from functools import reduce
 
 import pipenv.vendor.attr as attr
-from pipenv.vendor.distlib import markers
+from pipenv.patched.pip._vendor.distlib import markers
 from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker
 from pipenv.patched.pip._vendor.packaging.specifiers import LegacySpecifier, Specifier, SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import parse
