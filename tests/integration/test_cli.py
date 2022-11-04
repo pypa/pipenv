@@ -152,7 +152,7 @@ def test_pipenv_check(pipenv_instance_private_pypi):
         assert c.returncode == 0
         c = p.pipenv('install six')
         assert c.returncode == 0
-        c = p.pipenv('check --ignore 35015')
+        c = p.pipenv('check --ignore 35015 --ignore 51499')
         assert c.returncode == 0
         assert 'Ignoring' in c.stderr
 
