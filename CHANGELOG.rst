@@ -1,3 +1,28 @@
+2022.11.4 (2022-11-04)
+======================
+Pipenv 2022.11.4 (2022-11-04)
+=============================
+
+
+Features & Improvements
+-----------------------
+
+- Allow pipenv settings to be explicitly disabled more easily by assigning to the environment variable a falsy value.  `#5451 <https://github.com/pypa/pipenv/issues/5451>`_
+
+Bug Fixes
+---------
+
+- Provide an install iteration per index when ``install_search_all_sources`` is ``false`` (default behavior).
+  This fixes regression where install phase was using unexpected index after updating ``pip==22.3``  `#5444 <https://github.com/pypa/pipenv/issues/5444>`_
+
+Vendored Libraries
+------------------
+
+- Drop tomli, which is not used anymore.
+  Bump attrs version see #5449.
+  Drop distlib, colorama and platformdirs - use the ones from pip._vendor.  `#5450 <https://github.com/pypa/pipenv/issues/5450>`_
+
+
 2022.10.25 (2022-10-25)
 =======================
 Pipenv 2022.10.25 (2022-10-25)
