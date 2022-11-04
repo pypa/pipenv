@@ -31,19 +31,17 @@ def test_get_from_env(arg, prefix, use_negation):
                 main_expected_value = False
             # use negation means if the normal variable isnt set we will check
             # for the negated version
-            negative_expected_value = (
-                True if is_negative else None
-            )
+            negative_expected_value = True if is_negative else None
             if is_positive:
                 assert (
                     environments.get_from_env(
-                        var_to_set, prefix, check_for_negation=use_negation
+                        var_to_set, prefix=prefix, check_for_negation=use_negation
                     )
                     is main_expected_value
                 )
                 assert (
                     environments.get_from_env(
-                        opposite_var, prefix, check_for_negation=use_negation
+                        opposite_var, prefix=prefix, check_for_negation=use_negation
                     )
                     is negative_expected_value
                 )
@@ -54,7 +52,7 @@ def test_get_from_env(arg, prefix, use_negation):
                 # get NO_BLAH -- expecting this to be True
                 assert (
                     environments.get_from_env(
-                        var_to_set, prefix, check_for_negation=use_negation
+                        var_to_set, prefix=prefix, check_for_negation=use_negation
                     )
                     is negative_expected_value
                 )
@@ -62,7 +60,44 @@ def test_get_from_env(arg, prefix, use_negation):
                 # but otherwise should be None
                 assert (
                     environments.get_from_env(
-                        opposite_var, prefix, check_for_negation=use_negation
+                        opposite_var, prefix=prefix, check_for_negation=use_negation
                     )
                     is main_expected_value
                 )
+
+
+@pytest.mark.environments
+@pytest.mark.parametrize(
+    "check_for_negation, default",
+    list(itertools.product((True, False), (None, "default", 1))),
+)
+def test_get_from_env_default(check_for_negation, default):
+    """When the desired env var does"""
+    arg = "ENABLE_SOMETHING"
+    prefix = "FAKEPREFIX"
+    envvar = f"{prefix}_{arg}"
+    negated_envvar = f"{prefix}_NO_{arg}"
+    with temp_environ():
+        os.environ.pop(envvar, None)
+        os.environ.pop(negated_envvar, None)
+        assert (
+            environments.get_from_env(
+                arg, prefix=prefix, check_for_negation=check_for_negation, default=default
+            )
+            == default
+        )
+
+
+def test_pipenv_venv_in_project_set_true(monkeypatch):
+    monkeypatch.setenv("PIPENV_VENV_IN_PROJECT", "1")
+    assert environments.Setting().PIPENV_VENV_IN_PROJECT is True
+
+
+def test_pipenv_venv_in_project_set_false(monkeypatch):
+    monkeypatch.setenv("PIPENV_VENV_IN_PROJECT", "0")
+    assert environments.Setting().PIPENV_VENV_IN_PROJECT is False
+
+
+def test_pipenv_venv_in_project_unset(monkeypatch):
+    monkeypatch.delenv("PIPENV_VENV_IN_PROJECT", raising=False)
+    assert environments.Setting().PIPENV_VENV_IN_PROJECT is None

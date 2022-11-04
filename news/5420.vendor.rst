@@ -1,1 +1,0 @@
-Remove appdirs.py in favor of platformdirs.
