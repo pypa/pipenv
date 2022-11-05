@@ -1,0 +1,1 @@
+Rollback the change in version of ``colorama`` due to regressions in core functionality.
