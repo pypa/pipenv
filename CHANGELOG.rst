@@ -1,3 +1,15 @@
+2022.11.5 (2022-11-05)
+======================
+Pipenv 2022.11.5 (2022-11-05)
+=============================
+
+
+Bug Fixes
+---------
+
+- Rollback the change in version of ``colorama`` due to regressions in core functionality.  `#5459 <https://github.com/pypa/pipenv/issues/5459>`_
+
+
 2022.11.4 (2022-11-04)
 ======================
 Pipenv 2022.11.4 (2022-11-04)
