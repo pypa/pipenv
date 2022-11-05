@@ -89,7 +89,6 @@ GLOBAL_REPLACEMENT = [
     ("from distlib import", "from pipenv.patched.pip._vendor.distlib import"),
     ("from distlib.metadata", "from pipenv.patched.pip._vendor.distlib.metadata import"),
     ("from distlib.wheel import", "from pipenv.patched.pip._vendor.distlib.wheel import"),
-    ("import colorama", "from pipenv.patched.pip._vendor import colorama"),
 ]
 
 
