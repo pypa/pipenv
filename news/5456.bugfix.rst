@@ -1,0 +1,2 @@
+Fix regression of lock generation that caused the keep-outdated behavior to be default.
+
