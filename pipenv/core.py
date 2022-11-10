@@ -1157,6 +1157,13 @@ def do_lock(
                 err=True,
             )
 
+        # Prune old lockfile category as new one will be created.
+        if not keep_outdated:
+            try:
+                del lockfile[category]
+            except KeyError:
+                pass
+
         from pipenv.utils.resolver import venv_resolve_deps
 
         # Mutates the lockfile
@@ -2026,7 +2033,7 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         project, clear=clear, pre=pre, write=False, pypi_mirror=pypi_mirror
     )
     for category in project.get_package_categories(for_lockfile=True):
-        for package in lockfile[category]:
+        for package in lockfile.get(category, []):
             try:
                 updated_packages[package] = lockfile[category][package]["version"]
             except KeyError:
