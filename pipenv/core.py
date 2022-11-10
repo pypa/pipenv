@@ -1157,6 +1157,13 @@ def do_lock(
                 err=True,
             )
 
+        # Prune old lockfile category as new one will be created.
+        if not keep_outdated:
+            try:
+                del lockfile[category]
+            except KeyError:
+                pass
+
         from pipenv.utils.resolver import venv_resolve_deps
 
         # Mutates the lockfile
