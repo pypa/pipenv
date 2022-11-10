@@ -219,11 +219,11 @@ class _Pipfile:
         self.document["source"] = self.document.get("source", tomlkit.aot())
         self.document["requires"] = self.document.get("requires", tomlkit.table())
         self.document["packages"] = self.document.get("packages", tomlkit.table())
-        self.document["dev_packages"] = self.document.get("dev_packages", tomlkit.table())
+        self.document["dev-packages"] = self.document.get("dev-packages", tomlkit.table())
         super().__init__()
 
     def install(self, package, value, dev=False):
-        section = "packages" if not dev else "dev_packages"
+        section = "packages" if not dev else "dev-packages"
         if isinstance(value, dict):
             table = tomlkit.inline_table()
             table.update(value)
@@ -233,10 +233,10 @@ class _Pipfile:
         self.write()
 
     def remove(self, package, dev=False):
-        section = "packages" if not dev else "dev_packages"
+        section = "packages" if not dev else "dev-packages"
         if not dev and package not in self.document[section]:
-            if package in self.document["dev_packages"]:
-                section = "dev_packages"
+            if package in self.document["dev-packages"]:
+                section = "dev-packages"
         del self.document[section][package]
         self.write()
 

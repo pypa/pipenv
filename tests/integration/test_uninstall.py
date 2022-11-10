@@ -252,5 +252,5 @@ def test_uninstall_multiple_categories(pipenv_instance_private_pypi):
         c = p.pipenv('uninstall six --categories="prereq after"')
         assert c.returncode == 0
 
-        assert "six" not in p.lockfile["prereq"]
+        assert "six" not in p.lockfile.get("prereq", {})
         assert "six" not in p.lockfile["default"]
