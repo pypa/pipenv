@@ -1,3 +1,15 @@
+2022.11.11 (2022-11-11)
+=======================
+Pipenv 2022.11.11 (2022-11-11)
+==============================
+
+
+Bug Fixes
+---------
+
+- Fix regression of lock generation that caused the keep-outdated behavior to be default.  `#5456 <https://github.com/pypa/pipenv/issues/5456>`_
+
+
 2022.11.5 (2022-11-05)
 ======================
 Pipenv 2022.11.5 (2022-11-05)
