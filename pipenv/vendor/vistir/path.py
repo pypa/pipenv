@@ -10,43 +10,28 @@ import posixpath
 import shutil
 import stat
 import sys
+import typing
 import time
 import unicodedata
 import warnings
 
+from pathlib import Path
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import Optional, Callable
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 
-from .compat import (
-    IS_TYPE_CHECKING,
-    FileNotFoundError,
-    Path,
-    PermissionError,
-    ResourceWarning,
-    TemporaryDirectory,
-    _fs_encoding,
-    NamedTemporaryFile,
-    finalize,
-    fs_decode,
-    fs_encode,
-)
+from urllib.parse import quote
 
-# fmt: off
-from urllib.parse import quote_from_bytes as quote
-# fmt: on
-
-
-if IS_TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     from types import TracebackType
     from typing import (
         Any,
         AnyStr,
         ByteString,
-        Callable,
         Generator,
         Iterator,
         List,
-        Optional,
         Text,
         Tuple,
         Type,
@@ -55,6 +40,7 @@ if IS_TYPE_CHECKING:
 
     TPath = os.PathLike
     TFunc = Callable[..., Any]
+
 
 __all__ = [
     "check_for_unc_path",
@@ -188,13 +174,13 @@ def path_to_url(path):
         # XXX: This enables us to handle half-surrogates that were never
         # XXX: actually part of a surrogate pair, but were just incidentally
         # XXX: passed in as a piece of a filename
-        quoted_path = quote(fs_encode(path))
-        return fs_decode("file:///{}:{}".format(drive, quoted_path))
+        quoted_path = quote(path, errors="backslashreplace")
+        return "file:///{}:{}".format(drive, quoted_path)
     # XXX: This is also here to help deal with incidental dangling surrogates
     # XXX: on linux, by making sure they are preserved during encoding so that
     # XXX: we can urlencode the backslash correctly
-    bytes_path = to_bytes(normalized_path, errors="backslashreplace")
-    return fs_decode("file://{}".format(quote(bytes_path)))
+    # bytes_path = to_bytes(normalized_path, errors="backslashreplace")
+    return "file://{}".format(quote(path, errors="backslashreplace"))
 
 
 def url_to_path(url):
@@ -248,8 +234,6 @@ def is_readonly_path(fn):
     Permissions check is `bool(path.stat & stat.S_IREAD)` or `not
     os.access(path, os.W_OK)`
     """
-
-    fn = fs_decode(fs_encode(fn))
     if os.path.exists(fn):
         file_stat = os.stat(fn).st_mode
         return not bool(file_stat & stat.S_IWRITE) or not os.access(fn, os.W_OK)
@@ -257,6 +241,10 @@ def is_readonly_path(fn):
 
 
 def mkdir_p(newdir, mode=0o777):
+    warnings.warn(
+        ('This function is deprecated and will be removed in version 0.8.'
+         'Use os.makedirs instead'), DeprecationWarning, stacklevel=2)
+    # This exists in shutil already
     # type: (TPath, int) -> None
     """Recursively creates the target directory and all of its parents if they
     do not already exist.  Fails silently if they do.
@@ -264,12 +252,11 @@ def mkdir_p(newdir, mode=0o777):
     :param str newdir: The directory path to ensure
     :raises: OSError if a file is encountered along the way
     """
-    newdir = fs_decode(fs_encode(newdir))
     if os.path.exists(newdir):
         if not os.path.isdir(newdir):
             raise OSError(
                 "a file with the same name as the desired dir, '{}', already exists.".format(
-                    fs_decode(newdir)
+                    newdir
                 )
             )
         return None
@@ -280,7 +267,10 @@ def ensure_mkdir_p(mode=0o777):
     # type: (int) -> Callable[Callable[..., Any], Callable[..., Any]]
     """Decorator to ensure `mkdir_p` is called to the function's return
     value."""
+    warnings.warn('This function is deprecated and will be removed in version 0.8.',
+                  DeprecationWarning, stacklevel=2)
 
+    # This exists in shutil already
     def decorator(f):
         # type: (Callable[..., Any]) -> Callable[..., Any]
         @functools.wraps(f)
@@ -289,9 +279,7 @@ def ensure_mkdir_p(mode=0o777):
             path = f(*args, **kwargs)
             mkdir_p(path, mode=mode)
             return path
-
         return decorated
-
     return decorator
 
 
@@ -346,16 +334,13 @@ def _find_icacls_exe():
     return None
 
 
-def set_write_bit(fn):
-    # type: (str) -> None
+def set_write_bit(fn: str) -> None:
     """Set read-write permissions for the current user on the target path. Fail
     silently if the path doesn't exist.
 
     :param str fn: The target filename or path
     :return: None
     """
-
-    fn = fs_decode(fs_encode(fn))
     if not os.path.exists(fn):
         return
     file_stat = os.stat(fn).st_mode
@@ -411,8 +396,9 @@ def set_write_bit(fn):
             set_write_bit(file_)
 
 
-def rmtree(directory, ignore_errors=False, onerror=None):
-    # type: (str, bool, Optional[Callable]) -> None
+def rmtree(directory: str,
+           ignore_errors: bool = False,
+           onerror: Optional[Callable] = None) -> None :
     """Stand-in for :func:`~shutil.rmtree` with additional error-handling.
 
     This version of `rmtree` handles read-only paths, especially in the case of index
@@ -427,7 +413,6 @@ def rmtree(directory, ignore_errors=False, onerror=None):
        Setting `ignore_errors=True` may cause this to silently fail to delete the path
     """
 
-    directory = fs_decode(fs_encode(directory))
     if onerror is None:
         onerror = handle_remove_readonly
     try:
@@ -485,8 +470,6 @@ def handle_remove_readonly(func, path, exc):
     This function will call check :func:`is_readonly_path` before attempting to call
     :func:`set_write_bit` on the target path and try again.
     """
-    # Check for read-only attribute
-    from .compat import ResourceWarning, FileNotFoundError, PermissionError
 
     PERM_ERRORS = (errno.EACCES, errno.EPERM, errno.ENOENT)
     default_warning_message = "Unable to remove file due to permissions restriction: {!r}"
