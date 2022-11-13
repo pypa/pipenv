@@ -315,6 +315,9 @@ def post_install_cleanup(ctx, vendor_dir):
     drop_dir(vendor_dir / "bin")
     drop_dir(vendor_dir / "tests")
     drop_dir(vendor_dir / "shutil_backports")
+    drop_dir(vendor_dir / "cerberus" / "tests")
+    drop_dir(vendor_dir / "cerberus" / "benchmarks")
+
     remove_all(vendor_dir.glob("toml.py"))
 
 
