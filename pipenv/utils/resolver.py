@@ -1027,8 +1027,7 @@ def venv_resolve_deps(
             os.environ.pop("PIPENV_SITE_DIR", None)
         if keep_outdated:
             os.environ["PIPENV_KEEP_OUTDATED"] = "1"
-        # TODO: add settings to console.status
-        with console.status("Locking...") as st:
+        with console.status("Locking...", spinner=project.s.PIPENV_SPINNER) as st:
             # This conversion is somewhat slow on local and file-type requirements since
             # we now download those requirements / make temporary folders to perform
             # dependency resolution on them, so we are including this step inside the

@@ -218,14 +218,21 @@ class Setting:
         if PIPENV_IS_CI:
             self.PIPENV_NOSPIN = True
 
-        pipenv_spinner = "dots" if not os.name == "nt" else "bouncingBar"
-        self.PIPENV_SPINNER = get_from_env(
-            "SPINNER", check_for_negation=False, default=pipenv_spinner
-        )
+        if self.PIPENV_NOSPIN:
+            from pipenv.patched.pip._vendor.rich import _spinners
+
+            _spinners.SPINNERS[None] = {"interval": 80, "frames": "   "}
+            self.PIPENV_SPINNER = None
+        else:
+            pipenv_spinner = "dots" if not os.name == "nt" else "bouncingBar"
+            self.PIPENV_SPINNER = get_from_env(
+                "SPINNER", check_for_negation=False, default=pipenv_spinner
+            )
         """Sets the default spinner type.
 
-        Spinners are identical to the ``node.js`` spinners and can be found at
-        https://github.com/sindresorhus/cli-spinners
+        You can see which spinners are available by running::
+
+            $ python -m pipenv.patched.pip._vendor.rich.spinner
         """
 
         pipenv_pipfile = get_from_env("PIPFILE", check_for_negation=False)

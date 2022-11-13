@@ -249,8 +249,9 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
             )
             # Create a Pipfile...
             project.create_pipfile(python=python)
-            # TODO: pass project settings to status here
-            with console.status("Importing requirements...") as st:
+            with console.status(
+                "Importing requirements...", spinner=project.s.PIPENV_SPINNER
+            ) as st:
                 # Import requirements.txt.
                 try:
                     import_requirements(project)
@@ -1009,8 +1010,9 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
 
     # Actually create the virtualenv.
     error = None
-    # TODO: update project setting here
-    with console.status("Creating virtual environment..."):
+    with console.status(
+        "Creating virtual environment...", spinner=project.s.PIPENV_SPINNER
+    ):
         c = subprocess_run(cmd, env=pip_config)
         click.secho(f"{c.stdout}", fg="cyan", err=True)
         if c.returncode != 0:
@@ -2292,11 +2294,8 @@ def do_install(
                 bold=True,
             )
             # pip install:
-            # TODO: console.status() accepts:
-            # spinner='dots', spinner_style='status.spinner'
-            # we should use pipenv.project.settings to configure these.
             with vistir.contextmanagers.temp_environ(), console.status(
-                "Installing..."
+                "Installing...", spinner=project.s.PIPENV_SPINNER
             ) as st:
                 if not system:
                     os.environ["PIP_USER"] = "0"
