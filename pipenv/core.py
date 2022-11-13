@@ -1010,7 +1010,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
     # Actually create the virtualenv.
     error = None
     # TODO: update project setting here
-    with console.status("Creating virtual environment...") as st:
+    with console.status("Creating virtual environment..."):
         c = subprocess_run(cmd, env=pip_config)
         click.secho(f"{c.stdout}", fg="cyan", err=True)
         if c.returncode != 0:
@@ -1023,7 +1023,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
                 )
             )
         else:
-            st.update(
+            console.print(
                 environments.PIPENV_SPINNER_OK_TEXT.format(
                     "Successfully created virtual environment!"
                 )
