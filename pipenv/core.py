@@ -2336,32 +2336,32 @@ def do_install(
                         extra_pip_args=extra_pip_args,
                     )
                     if c.returncode:
-                        err(
+                        err.print(
                             "{} An error occurred while installing {}!".format(
                                 click.style("Error: ", fg="red", bold=True),
                                 click.style(pkg_line, fg="green"),
                             ),
                         )
-                        err(f"Error text: {c.stdout}")
-                        err(click.style(format_pip_error(c.stderr), fg="cyan"))
+                        err.print(f"Error text: {c.stdout}")
+                        err.print(click.style(format_pip_error(c.stderr), fg="cyan"))
                         if project.s.is_verbose():
-                            err(click.style(format_pip_output(c.stdout), fg="cyan"))
+                            err.print(click.style(format_pip_output(c.stdout), fg="cyan"))
                         if "setup.py egg_info" in c.stderr:
-                            err(
+                            err.print(
                                 "This is likely caused by a bug in {}. "
                                 "Report this to its maintainers.".format(
                                     click.style(pkg_requirement.name, fg="green")
                                 )
                             )
-                        err(
+                        err.print(
                             environments.PIPENV_SPINNER_FAIL_TEXT.format(
                                 "Installation Failed"
                             )
                         )
                         sys.exit(1)
                 except (ValueError, RuntimeError) as e:
-                    err("{}: {}".format(click.style("WARNING", fg="red"), e))
-                    err(
+                    err.print("{}: {}".format(click.style("WARNING", fg="red"), e))
+                    err.print(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format(
                             "Installation Failed",
                         )
@@ -2373,7 +2373,7 @@ def do_install(
                     and not pkg_requirement.editable
                     and not project.s.PIPENV_RESOLVE_VCS
                 ):
-                    err(
+                    err.print(
                         "{}: You installed a VCS dependency in non-editable mode. "
                         "This will work fine, but sub-dependencies will not be resolved by {}."
                         "\n  To enable this sub-dependency functionality, specify that this dependency is editable."
@@ -2418,13 +2418,13 @@ def do_install(
                 except ValueError:
                     import traceback
 
-                    err(
+                    err.print(
                         "{} {}".format(
                             click.style("Error:", fg="red", bold=True),
                             traceback.format_exc(),
                         )
                     )
-                    err(
+                    err.print(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format(
                             "Failed adding package to Pipfile"
                         )
