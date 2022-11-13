@@ -24,6 +24,7 @@ from pipenv.patched.pip._internal.req.constructors import (
 )
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.misc import split_auth_from_netloc
+from pipenv.patched.pip._vendor import rich
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.project import Project
 from pipenv.utils.constants import MYPY_RUNNING
@@ -92,6 +93,10 @@ else:
     INSTALL_LABEL = "   "
     INSTALL_LABEL2 = "   "
     STARTING_LABEL = "   "
+
+
+console = rich.console.Console()
+err = rich.console.Console(stderr=True)
 
 
 def do_clear(project):
@@ -245,14 +250,15 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
             )
             # Create a Pipfile...
             project.create_pipfile(python=python)
-            with create_spinner("Importing requirements...", project.s) as sp:
+            # TODO: pass project settings to status here
+            with console.status("Importing requirements...") as st:
                 # Import requirements.txt.
                 try:
                     import_requirements(project)
                 except Exception:
-                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed..."))
+                    err.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed..."))
                 else:
-                    sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                    st.update(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
             # Warn the user of side-effects.
             click.echo(
                 "{0}: Your {1} now contains pinned versions, if your {2} did. \n"
@@ -2277,10 +2283,7 @@ def do_install(
                 extra_pip_args=extra_pip_args,
                 categories=categories,
             )
-        from pipenv.patched.pip._vendor import rich
 
-        console = rich.console.Console()
-        err = rich.console.Console(stderr=True).print
         for pkg_line in pkg_list:
             click.secho(
                 fix_utf8(f"Installing {pkg_line}..."),
@@ -2302,8 +2305,8 @@ def do_install(
                 try:
                     pkg_requirement = Requirement.from_line(pkg_line)
                 except ValueError as e:
-                    err("{}: {}".format(click.style("WARNING", fg="red"), e))
-                    err(
+                    err.print("{}: {}".format(click.style("WARNING", fg="red"), e))
+                    err.print(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format(
                             "Installation Failed"
                         )
