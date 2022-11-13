@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from pipenv import environments
-from pipenv._compat import decode_for_output
 from pipenv.exceptions import RequirementError, ResolutionFailure
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.commands.install import InstallCommand
@@ -27,7 +26,7 @@ from pipenv.patched.pip._internal.req.constructors import (
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
-from pipenv.patched.pip._vendor import pkg_resources
+from pipenv.patched.pip._vendor import pkg_resources, rich
 from pipenv.project import Project
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib import Requirement
@@ -59,7 +58,9 @@ from .indexes import parse_indexes, prepare_pip_source_args
 from .internet import _get_requests_session, is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
-from .spinner import create_spinner
+
+console = rich.console.Console()
+err = rich.console.Console(stderr=True)
 
 
 def get_package_finder(
@@ -911,7 +912,7 @@ def actually_resolve_deps(
     return (results, hashes, resolver.markers_lookup, resolver, resolver.skipped)
 
 
-def resolve(cmd, sp, project):
+def resolve(cmd, st, project):
     from pipenv._compat import decode_output
     from pipenv.cmdparse import Script
     from pipenv.vendor.vistir.misc import echo
@@ -925,13 +926,13 @@ def resolve(cmd, sp, project):
             continue
         err += line
         if is_verbose:
-            sp.hide_and_write(line.rstrip())
+            st.update(line.rstrip())
 
     c.wait()
     returncode = c.poll()
     out = c.stdout.read()
     if returncode != 0:
-        sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
+        st.update(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
         echo(out.strip(), err=True)
         if not is_verbose:
             echo(err, err=True)
@@ -1026,14 +1027,13 @@ def venv_resolve_deps(
             os.environ.pop("PIPENV_SITE_DIR", None)
         if keep_outdated:
             os.environ["PIPENV_KEEP_OUTDATED"] = "1"
-        with create_spinner(
-            text=decode_for_output("Locking..."), setting=project.s
-        ) as sp:
+        # TODO: add settings to console.status
+        with console.status("Locking...") as st:
             # This conversion is somewhat slow on local and file-type requirements since
             # we now download those requirements / make temporary folders to perform
             # dependency resolution on them, so we are including this step inside the
             # spinner context manager for the UX improvement
-            sp.write(decode_for_output("Building requirements..."))
+            st.update("Building requirements...")
             deps = convert_deps_to_pip(deps, project, include_index=True)
             constraints = set(deps)
             with tempfile.NamedTemporaryFile(
@@ -1042,16 +1042,14 @@ def venv_resolve_deps(
                 constraints_file.write(str("\n".join(constraints)))
             cmd.append("--constraints-file")
             cmd.append(constraints_file.name)
-            sp.write(decode_for_output("Resolving dependencies..."))
-            c = resolve(cmd, sp, project=project)
+            st.update("Resolving dependencies...")
+            c = resolve(cmd, st, project=project)
             if c.returncode == 0:
-                sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                st.update(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                 if not project.s.is_verbose() and c.stderr.strip():
                     click.echo(click.style(f"Warning: {c.stderr.strip()}"), err=True)
             else:
-                sp.red.fail(
-                    environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
-                )
+                st.update(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
                 click.echo(f"Output: {c.stdout.strip()}", err=True)
                 click.echo(f"Error: {c.stderr.strip()}", err=True)
     try:
