@@ -404,17 +404,18 @@ def ensure_python(project, three=None, python=None):
                             click.style("...", bold=True),
                         )
                     )
-                    with create_spinner("Installing python...", project.s) as sp:
+                    # TOOD: pass project settings to console.status
+                    with console.status("Installing python...") as st:
                         try:
                             c = installer.install(version)
                         except InstallerError as e:
-                            sp.fail(
+                            err.print(
                                 environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed...")
                             )
                             click.echo(fix_utf8("Something went wrong..."), err=True)
                             click.secho(e.err, fg="cyan", err=True)
                         else:
-                            sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                            st(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                             # Print the results, in a beautiful blue...
                             click.secho(c.stdout, fg="cyan", err=True)
                             # Clear the pythonfinder caches
