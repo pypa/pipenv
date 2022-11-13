@@ -53,7 +53,6 @@ from pipenv.utils.shell import (
     subprocess_run,
     system_which,
 )
-from pipenv.utils.spinner import create_spinner
 from pipenv.vendor import click, plette, vistir
 from pipenv.vendor.requirementslib.models.requirements import Requirement
 
@@ -1010,20 +1009,20 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
 
     # Actually create the virtualenv.
     error = None
-    with create_spinner("Creating virtual environment...", project.s) as sp:
+    with console.status("Creating virtual environment...", project.s) as st:
         c = subprocess_run(cmd, env=pip_config)
         click.secho(f"{c.stdout}", fg="cyan", err=True)
         if c.returncode != 0:
             error = (
                 c.stderr if project.s.is_verbose() else exceptions.prettify_exc(c.stderr)
             )
-            sp.fail(
+            err.print(
                 environments.PIPENV_SPINNER_FAIL_TEXT.format(
                     "Failed creating virtual environment"
                 )
             )
         else:
-            sp.green.ok(
+            st.update(
                 environments.PIPENV_SPINNER_OK_TEXT.format(
                     "Successfully created virtual environment!"
                 )
