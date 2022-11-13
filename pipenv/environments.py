@@ -184,7 +184,7 @@ class Setting:
         """
 
         # NOTE: +1 because of a temporary bug in Pipenv.
-        self.PIPENV_MAX_DEPTH = int(get_from_env("PIPENV_MAX_DEPTH", default=3)) + 1
+        self.PIPENV_MAX_DEPTH = int(get_from_env("MAX_DEPTH", default=3)) + 1
         """Maximum number of directories to recursively search for a Pipfile.
 
         Default is 3. See also ``PIPENV_NO_INHERIT``.
