@@ -1,0 +1,1 @@
+Find nushell activate scripts.
