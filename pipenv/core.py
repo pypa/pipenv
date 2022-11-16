@@ -2882,7 +2882,7 @@ def do_check(
     sys.argv = cmd[1:]
 
     if output == 'minimal':
-        from contextlib import redirect_stdout, redirect_stderr
+        from contextlib import redirect_stderr, redirect_stdout
         code = 0
 
         with redirect_stdout(io.StringIO()) as out, redirect_stderr(io.StringIO()) as err:
