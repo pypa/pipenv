@@ -2815,7 +2815,7 @@ def do_check(
     if not quiet and not project.s.is_quiet():
         click.echo(
             click.style(
-                decode_for_output("Checking installed package safety..."), bold=True
+                decode_for_output("Checking installed packages for vulnerabilities..."), bold=True
             )
         )
     if ignore:
@@ -2873,7 +2873,6 @@ def do_check(
     if ignored:
         for cve in ignored:
             cmd += cve
-    click.secho("Running the command", fg="red")
 
     os.environ['SAFETY_CUSTOM_INTEGRATION'] = "True"
     os.environ["SAFETY_SOURCE"] = "pipenv"
@@ -2897,21 +2896,20 @@ def do_check(
 
         try:
             json_report = simplejson.loads(report)
-        except (ValueError, json.JSONDecodeError):
-            raise exceptions.JSONParseError(report, error)
         except Exception:
             raise exceptions.PipenvCmdError(
-                cmd_list_to_shell(cmd), report, error
+                cmd_list_to_shell(cmd), report, error, exit_code=code
             )
         meta = json_report.get('report_meta')
         vulnerabilities_found = meta.get('vulnerabilities_found')
 
         fg = 'green'
         message = 'All good!'
+        db_type = 'commercial' if meta.get('api_key', False) else 'free'
 
         if vulnerabilities_found >= 0:
             fg = 'red'
-            message = 'Please, review all of them.'
+            message = f'Scan was complete using Safety’s {db_type} vulnerability database.'
 
         click.echo()
         click.secho(f"{vulnerabilities_found} vulnerabilities found.", fg=fg)
@@ -2921,18 +2919,19 @@ def do_check(
 
         for vuln in vulnerabilities:
             click.echo(
-                "{}: {} {} resolved ({} installed)! More info: {}".format(
-                    click.style(vuln['vulnerability_id'], bold=True),
+                "{}: {} {} open to vulnerability {} ({}). More info: {}".format(
+                    click.style(vuln['vulnerability_id'], bold=True, fg='red'),
                     click.style(vuln['package_name'], fg="green"),
-                    click.style(vuln['vulnerable_spec'], fg="yellow", bold=False),
                     click.style(vuln['analyzed_version'], fg="yellow", bold=True),
+                    click.style(vuln['vulnerability_id'], bold=True),
+                    click.style(vuln['vulnerable_spec'], fg="yellow", bold=False),
                     click.style(vuln['more_info_url'], bold=True)
                 )
             )
             click.echo(f"{vuln['advisory']}")
             click.echo()
 
-        click.echo(click.style(message, fg=fg))
+        click.echo(click.style(message, fg='white', bold=True))
         sys.exit(code)
 
     cli(prog_name="pipenv")
