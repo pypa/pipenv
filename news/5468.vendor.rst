@@ -1,0 +1,2 @@
+ * Replace yaspin spinner with rich spinner.
+ * Bump vistir version to 0.7.4

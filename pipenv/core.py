@@ -24,6 +24,7 @@ from pipenv.patched.pip._internal.req.constructors import (
 )
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.misc import split_auth_from_netloc
+from pipenv.patched.pip._vendor import rich
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.project import Project
 from pipenv.utils.constants import MYPY_RUNNING
@@ -52,7 +53,6 @@ from pipenv.utils.shell import (
     subprocess_run,
     system_which,
 )
-from pipenv.utils.spinner import create_spinner
 from pipenv.vendor import click, plette, vistir
 from pipenv.vendor.requirementslib.models.requirements import Requirement
 
@@ -92,6 +92,10 @@ else:
     INSTALL_LABEL = "   "
     INSTALL_LABEL2 = "   "
     STARTING_LABEL = "   "
+
+
+console = rich.console.Console()
+err = rich.console.Console(stderr=True)
 
 
 def do_clear(project):
@@ -245,14 +249,16 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
             )
             # Create a Pipfile...
             project.create_pipfile(python=python)
-            with create_spinner("Importing requirements...", project.s) as sp:
+            with console.status(
+                "Importing requirements...", spinner=project.s.PIPENV_SPINNER
+            ) as st:
                 # Import requirements.txt.
                 try:
                     import_requirements(project)
                 except Exception:
-                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed..."))
+                    err.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed..."))
                 else:
-                    sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                    st.update(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
             # Warn the user of side-effects.
             click.echo(
                 "{0}: Your {1} now contains pinned versions, if your {2} did. \n"
@@ -398,17 +404,18 @@ def ensure_python(project, three=None, python=None):
                             click.style("...", bold=True),
                         )
                     )
-                    with create_spinner("Installing python...", project.s) as sp:
+                    # TOOD: pass project settings to console.status
+                    with console.status("Installing python...") as st:
                         try:
                             c = installer.install(version)
                         except InstallerError as e:
-                            sp.fail(
+                            err.print(
                                 environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed...")
                             )
                             click.echo(fix_utf8("Something went wrong..."), err=True)
                             click.secho(e.err, fg="cyan", err=True)
                         else:
-                            sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                            st(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                             # Print the results, in a beautiful blue...
                             click.secho(c.stdout, fg="cyan", err=True)
                             # Clear the pythonfinder caches
@@ -1003,20 +1010,22 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
 
     # Actually create the virtualenv.
     error = None
-    with create_spinner("Creating virtual environment...", project.s) as sp:
+    with console.status(
+        "Creating virtual environment...", spinner=project.s.PIPENV_SPINNER
+    ):
         c = subprocess_run(cmd, env=pip_config)
         click.secho(f"{c.stdout}", fg="cyan", err=True)
         if c.returncode != 0:
             error = (
                 c.stderr if project.s.is_verbose() else exceptions.prettify_exc(c.stderr)
             )
-            sp.fail(
+            err.print(
                 environments.PIPENV_SPINNER_FAIL_TEXT.format(
                     "Failed creating virtual environment"
                 )
             )
         else:
-            sp.green.ok(
+            console.print(
                 environments.PIPENV_SPINNER_OK_TEXT.format(
                     "Successfully created virtual environment!"
                 )
@@ -2284,6 +2293,7 @@ def do_install(
                 extra_pip_args=extra_pip_args,
                 categories=categories,
             )
+
         for pkg_line in pkg_list:
             click.secho(
                 fix_utf8(f"Installing {pkg_line}..."),
@@ -2291,29 +2301,29 @@ def do_install(
                 bold=True,
             )
             # pip install:
-            with vistir.contextmanagers.temp_environ(), create_spinner(
-                "Installing...", project.s
-            ) as sp:
+            with vistir.contextmanagers.temp_environ(), console.status(
+                "Installing...", spinner=project.s.PIPENV_SPINNER
+            ) as st:
                 if not system:
                     os.environ["PIP_USER"] = "0"
                     if "PYTHONHOME" in os.environ:
                         del os.environ["PYTHONHOME"]
-                sp.text = f"Resolving {pkg_line}..."
+                st.update(f"Resolving {pkg_line}...")
                 try:
                     pkg_requirement = Requirement.from_line(pkg_line)
                 except ValueError as e:
-                    sp.write_err("{}: {}".format(click.style("WARNING", fg="red"), e))
-                    sp.red.fail(
+                    err.print("{}: {}".format(click.style("WARNING", fg="red"), e))
+                    err.print(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format(
                             "Installation Failed"
                         )
                     )
                     sys.exit(1)
-                sp.text = "Installing..."
+                st.update("Installing...")
                 try:
-                    sp.text = f"Installing {pkg_requirement.name}..."
+                    st.update(f"Installing {pkg_requirement.name}...")
                     if project.s.is_verbose():
-                        sp.hide_and_write(
+                        st.update(
                             f"Installing package: {pkg_requirement.as_line(include_hashes=False)}"
                         )
                     c = pip_install(
@@ -2332,34 +2342,32 @@ def do_install(
                         extra_pip_args=extra_pip_args,
                     )
                     if c.returncode:
-                        sp.write_err(
+                        err.print(
                             "{} An error occurred while installing {}!".format(
                                 click.style("Error: ", fg="red", bold=True),
                                 click.style(pkg_line, fg="green"),
                             ),
                         )
-                        sp.write_err(f"Error text: {c.stdout}")
-                        sp.write_err(click.style(format_pip_error(c.stderr), fg="cyan"))
+                        err.print(f"Error text: {c.stdout}")
+                        err.print(click.style(format_pip_error(c.stderr), fg="cyan"))
                         if project.s.is_verbose():
-                            sp.write_err(
-                                click.style(format_pip_output(c.stdout), fg="cyan")
-                            )
+                            err.print(click.style(format_pip_output(c.stdout), fg="cyan"))
                         if "setup.py egg_info" in c.stderr:
-                            sp.write_err(
+                            err.print(
                                 "This is likely caused by a bug in {}. "
                                 "Report this to its maintainers.".format(
                                     click.style(pkg_requirement.name, fg="green")
                                 )
                             )
-                        sp.red.fail(
+                        err.print(
                             environments.PIPENV_SPINNER_FAIL_TEXT.format(
                                 "Installation Failed"
                             )
                         )
                         sys.exit(1)
                 except (ValueError, RuntimeError) as e:
-                    sp.write_err("{}: {}".format(click.style("WARNING", fg="red"), e))
-                    sp.red.fail(
+                    err.print("{}: {}".format(click.style("WARNING", fg="red"), e))
+                    err.print(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format(
                             "Installation Failed",
                         )
@@ -2371,7 +2379,7 @@ def do_install(
                     and not pkg_requirement.editable
                     and not project.s.PIPENV_RESOLVE_VCS
                 ):
-                    sp.write_err(
+                    err.print(
                         "{}: You installed a VCS dependency in non-editable mode. "
                         "This will work fine, but sub-dependencies will not be resolved by {}."
                         "\n  To enable this sub-dependency functionality, specify that this dependency is editable."
@@ -2388,7 +2396,7 @@ def do_install(
                     pipfile_sections = "[dev-packages]"
                 else:
                     pipfile_sections = "[packages]"
-                sp.write(
+                st.update(
                     "{} {} {} {}{}".format(
                         click.style("Adding", bold=True),
                         click.style(f"{pkg_requirement.name}", fg="green", bold=True),
@@ -2416,18 +2424,19 @@ def do_install(
                 except ValueError:
                     import traceback
 
-                    sp.write_err(
+                    err.print(
                         "{} {}".format(
                             click.style("Error:", fg="red", bold=True),
                             traceback.format_exc(),
                         )
                     )
-                    sp.fail(
+                    err.print(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format(
                             "Failed adding package to Pipfile"
                         )
                     )
-                sp.ok(
+                # ok has a nice v in front, should do something similir with rich
+                st.update(
                     environments.PIPENV_SPINNER_OK_TEXT.format("Installation Succeeded")
                 )
             # Update project settings with pre preference.

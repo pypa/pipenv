@@ -184,7 +184,7 @@ class Setting:
         """
 
         # NOTE: +1 because of a temporary bug in Pipenv.
-        self.PIPENV_MAX_DEPTH = int(get_from_env("PIPENV_MAX_DEPTH", default=3)) + 1
+        self.PIPENV_MAX_DEPTH = int(get_from_env("MAX_DEPTH", default=3)) + 1
         """Maximum number of directories to recursively search for a Pipfile.
 
         Default is 3. See also ``PIPENV_NO_INHERIT``.
@@ -218,14 +218,21 @@ class Setting:
         if PIPENV_IS_CI:
             self.PIPENV_NOSPIN = True
 
-        pipenv_spinner = "dots" if not os.name == "nt" else "bouncingBar"
-        self.PIPENV_SPINNER = get_from_env(
-            "SPINNER", check_for_negation=False, default=pipenv_spinner
-        )
+        if self.PIPENV_NOSPIN:
+            from pipenv.patched.pip._vendor.rich import _spinners
+
+            _spinners.SPINNERS[None] = {"interval": 80, "frames": "   "}
+            self.PIPENV_SPINNER = None
+        else:
+            pipenv_spinner = "dots" if not os.name == "nt" else "bouncingBar"
+            self.PIPENV_SPINNER = get_from_env(
+                "SPINNER", check_for_negation=False, default=pipenv_spinner
+            )
         """Sets the default spinner type.
 
-        Spinners are identical to the ``node.js`` spinners and can be found at
-        https://github.com/sindresorhus/cli-spinners
+        You can see which spinners are available by running::
+
+            $ python -m pipenv.patched.pip._vendor.rich.spinner
         """
 
         pipenv_pipfile = get_from_env("PIPFILE", check_for_negation=False)
