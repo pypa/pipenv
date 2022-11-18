@@ -6,6 +6,13 @@ concurrency:
     ${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 on:
+  name: Manual Inputs
+  on:
+    workflow_dispatch:
+      inputs:
+        git-ref:
+          description: Git Ref (Optional)
+          required: false
   push:
     paths-ignore:
       - "news/**"
