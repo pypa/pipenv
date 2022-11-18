@@ -44,7 +44,6 @@ import io
 import os
 import sys
 import time
-import typing
 import zlib
 from ctypes import (
     POINTER,
@@ -66,6 +65,7 @@ from itertools import count
 
 import msvcrt
 
+from .compat import IS_TYPE_CHECKING
 from .misc import StreamWrapper, run, to_text
 
 try:
@@ -77,7 +77,7 @@ except ImportError:
     pythonapi = None
 
 
-if typing.TYPE_CHECKING:
+if IS_TYPE_CHECKING:
     from typing import Text
 
 

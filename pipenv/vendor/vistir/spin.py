@@ -1,22 +1,22 @@
 # -*- coding=utf-8 -*-
+from __future__ import absolute_import, print_function
+
 import functools
 import os
 import signal
 import sys
 import threading
 import time
-import typing
-import warnings
-
 from io import StringIO
 
 import pipenv.vendor.colorama as colorama
 
+from .compat import IS_TYPE_CHECKING, to_native_string
 from .cursor import hide_cursor, show_cursor
 from .misc import decode_for_output, to_text
 from .termcolors import COLOR_MAP, COLORS, DISABLE_COLORS, colored
 
-if typing.TYPE_CHECKING:
+if IS_TYPE_CHECKING:
     from typing import (
         Any,
         Callable,
@@ -38,16 +38,16 @@ if typing.TYPE_CHECKING:
 
 try:
     import pipenv.vendor.yaspin as yaspin
+except ImportError:  # pragma: no cover
+    yaspin = None
+    Spinners = None
+    SpinBase = None
+else:  # pragma: no cover
     import yaspin.spinners
     import yaspin.core
 
     Spinners = yaspin.spinners.Spinners
     SpinBase = yaspin.core.Yaspin
-
-except ImportError:  # pragma: no cover
-    yaspin = None
-    Spinners = None
-    SpinBase = None
 
 if os.name == "nt":  # pragma: no cover
 
@@ -88,7 +88,7 @@ class DummySpinner(object):
         # type: (str, Any) -> None
         if DISABLE_COLORS:
             colorama.init()
-        self.text = decode_output(text) if text else ""
+        self.text = to_native_string(decode_output(text)) if text else ""
         self.stdout = kwargs.get("stdout", sys.stdout)
         self.stderr = kwargs.get("stderr", sys.stderr)
         self.out_buff = StringIO()
@@ -484,10 +484,6 @@ class VistirSpinner(SpinBase):
 
 
 def create_spinner(*args, **kwargs):
-    warnings.warn(
-        ('This function is deprecated and will be removed in version 0.8.'
-         'Consider using yaspin directly instead, or user rich.status'),
-        DeprecationWarning, stacklevel=2)
     # type: (Any, Any) -> Union[DummySpinner, VistirSpinner]
     nospin = kwargs.pop("nospin", False)
     use_yaspin = kwargs.pop("use_yaspin", not nospin)
