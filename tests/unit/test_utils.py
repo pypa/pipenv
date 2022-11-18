@@ -52,12 +52,12 @@ DEP_PIP_PAIRS = [
     (
         # Extras in url
         {
-            "discord.py": {
-                "file": "https://github.com/Rapptz/discord.py/archive/async.zip",
-                "extras": ["voice"],
+            "dparse": {
+                "file": "https://github.com/oz123/dparse/archive/refs/heads/master.zip",
+                "extras": ["pipenv"],
             }
         },
-        "https://github.com/oz123/dparse/zipball/master#egg=dparse[pipenv]"
+        "https://github.com/oz123/dparse/archive/refs/heads/master.zip#egg=dparse[pipenv]"
     ),
     (
         {
