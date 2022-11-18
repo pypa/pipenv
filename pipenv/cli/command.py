@@ -80,8 +80,8 @@ def cli(
     site_packages=None,
     **kwargs,
 ):
+    from pipenv.patched.pip._vendor import rich
     from pipenv.utils.shell import system_which
-    from pipenv.utils.spinner import create_spinner
 
     load_dot_env(state.project, quiet=state.quiet)
 
@@ -188,7 +188,10 @@ def cli(
                         )
                     )
                 )
-                with create_spinner(text="Running...", setting=state.project.s):
+
+                console = rich.console.Console()
+                # TODO: add state.project.s to spinner status
+                with console.status("Running..."):
                     # Remove the virtualenv.
                     cleanup_virtualenv(state.project, bare=True)
                 return 0

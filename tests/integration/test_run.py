@@ -135,7 +135,7 @@ hello = "echo $HELLO_VAR"
         else:
             c = p.pipenv('run hello')
         assert c.returncode == 0
-        assert 'WORLD\n' == c.stdout
+        assert 'WORLD\n' in c.stdout
 
 
 @pytest.mark.run

@@ -11,29 +11,21 @@ import os
 import subprocess
 import sys
 import threading
+import typing
+import warnings
+
 from collections import OrderedDict
 from functools import partial
 from itertools import islice, tee
 from weakref import WeakKeyDictionary
 
 from queue import Empty, Queue
+from typing import Iterable
 
 from .cmdparse import Script
-from .compat import (
-    Iterable,
-    Path,
-    StringIO,
-    TimeoutError,
-    _fs_decode_errors,
-    _fs_encode_errors,
-    fs_str,
-    is_bytes,
-    partialmethod,
-    to_native_string,
-)
 from .contextmanagers import spinner as spinner
-from .environment import MYPY_RUNNING
-from .termcolors import ANSI_REMOVAL_RE, colorize
+
+_fs_encode_errors = "surrogatepass"
 
 if os.name != "nt":
 
@@ -62,7 +54,7 @@ __all__ = [
 ]
 
 
-if MYPY_RUNNING:
+if typing.TYPE_CHECKING:
     from typing import Any, Dict, Generator, IO, List, Optional, Text, Tuple, Union
     from .spin import VistirSpinner
 
@@ -145,6 +137,11 @@ def dedup(iterable):
     # type: (Iterable) -> Iterable
     """Deduplicate an iterable object like iter(set(iterable)) but order-
     preserved."""
+    warnings.warn(
+        ('This function is deprecated and will be removed in version 0.8.'
+         'Use instead: sorted(iter(dict.fromkeys(iterable)))'),
+        DeprecationWarning, stacklevel=2)
+
     return iter(OrderedDict.fromkeys(iterable))
 
 
@@ -381,7 +378,7 @@ class SubprocessStreamWrapper(object):
         if self.display_line:
             if new_line != self.display_line:
                 self.display_line_loops_displayed = 0
-                new_line = fs_str("{}".format(new_line))
+                new_line = "{}".format(new_line)
                 if len(new_line) > self.display_line_max_len:
                     new_line = "{}...".format(new_line[: self.display_line_max_len])
                 self.display_line = new_line
@@ -447,9 +444,7 @@ class SubprocessStreamWrapper(object):
                     line, "stderr", spinner=spinner, stdout_allowed=stdout_allowed
                 )
             if spinner:
-                spinner.text = to_native_string(
-                    "{} {}".format(spinner.text, self.display_line)
-                )
+                spinner.text = "{} {}".format(spinner.text, self.display_line)
         self.out = self.out.strip()
         self.err = self.err.strip()
 
@@ -486,11 +481,11 @@ def _handle_nonblocking_subprocess(c, spinner=None):
         c.wait()
     if spinner:
         if c.returncode != 0:
-            spinner.fail(to_native_string("Failed...cleaning up..."))
+            spinner.fail("Failed...cleaning up...")
         elif c.returncode == 0 and not os.name == "nt":
-            spinner.ok(to_native_string("✔ Complete"))
+            spinner.ok("✔ Complete")
         else:
-            spinner.ok(to_native_string("Complete"))
+            spinner.ok("Complete")
     return c
 
 
@@ -524,7 +519,7 @@ def _create_subprocess(
 
         formatted_tb = "".join(traceback.format_exception(*sys.exc_info()))
         sys.stderr.write(
-            "Error while executing command %s:" % to_native_string(" ".join(cmd._parts))
+            "Error while executing command %s:" % " ".join(cmd._parts)
         )
         sys.stderr.write(formatted_tb)
         raise exc
@@ -600,7 +595,7 @@ def run(
     if env:
         _env.update(env)
 
-    _env = {k: fs_str(v) for k, v in _env.items()}
+    _env = {k: v for k, v in _env.items()}
     if not spinner_name:
         spinner_name = "bouncingBar"
 
@@ -647,7 +642,10 @@ def load_path(python):
      '/home/user/.virtualenvs/requirementslib-5MhGuG3C/lib/python3.7/site-packages',
      '/home/user/git/requirementslib/src']
     """
-
+    warnings.warn(
+        'This function is deprecated and will be removed in version 0.8.',
+        DeprecationWarning, stacklevel=2)
+    from pathlib import Path
     python = Path(python).as_posix()
     out, err = run(
         [python, "-c", "import json, sys; print(json.dumps(sys.path))"], nospin=True
@@ -684,7 +682,7 @@ def partialclass(cls, *args, **kwargs):
     >>> new_source.__dict__
     {'url': 'https://pypi.org/simple', 'verify_ssl': True, 'name': 'pypi'}
     """
-
+    from functools import partialmethod
     name_attrs = [
         n
         for n in (getattr(cls, name, str(cls)) for name in ("__name__", "__qualname__"))
@@ -787,7 +785,10 @@ def divide(n, iterable):
     :return: a list of new iterables derived from the original iterable
     :rtype: list
     """
-
+    warnings.warn(
+        ('This function is deprecated and will be removed in version 0.8.'
+         'Use instead: more_itertools.divide(n, iterable)))'),
+        DeprecationWarning, stacklevel=2)
     seq = tuple(iterable)
     q, r = divmod(len(seq), n)
 
@@ -809,6 +810,11 @@ def take(n, iterable):
     from https://github.com/erikrose/more-itertools/blob/master/more_itertools/recipes.py
     """
 
+    warnings.warn(
+        ('This function is deprecated and will be removed in version 0.8.'
+         'Use instead: list(islice(iterable, n))'),
+        DeprecationWarning, stacklevel=2)
+
     return list(islice(iterable, n))
 
 
@@ -820,6 +826,10 @@ def chunked(n, iterable):
 
     from https://github.com/erikrose/more-itertools/blob/master/more_itertools/more.py
     """
+    warnings.warn(
+        ('This function is deprecated and will be removed in version 0.8.'
+         'Use instead: more_itertools.chunked(iterable, n)))'),
+        DeprecationWarning, stacklevel=2)
 
     return iter(partial(take, n, iter(iterable)), [])
 
@@ -893,7 +903,6 @@ def decode_for_output(output, target_stream=None, translation_map=None):
     try:
         output = _encode(output, encoding=encoding, translation_map=translation_map)
     except (UnicodeDecodeError, UnicodeEncodeError):
-        output = to_native_string(output)
         output = _encode(
             output, encoding=encoding, errors="replace", translation_map=translation_map
         )
@@ -1205,56 +1214,3 @@ def _can_use_color(stream=None, color=None):
             stream = sys.stdin
         return _isatty(stream)
     return bool(color)
-
-
-def echo(text, fg=None, bg=None, style=None, file=None, err=False, color=None):
-    """Write the given text to the provided stream or **sys.stdout** by
-    default.
-
-    Provides optional foreground and background colors from the ansi defaults:
-    **grey**, **red**, **green**, **yellow**, **blue**, **magenta**, **cyan**
-    or **white**.
-
-    Available styles include **bold**, **dark**, **underline**, **blink**, **reverse**,
-    **concealed**
-
-    :param str text: Text to write
-    :param str fg: Foreground color to use (default: None)
-    :param str bg: Foreground color to use (default: None)
-    :param str style: Style to use (default: None)
-    :param stream file: File to write to (default: None)
-    :param bool color: Whether to force color (i.e. ANSI codes are in the text)
-    """
-
-    if file and not hasattr(file, "write"):
-        raise TypeError("Expected a writable stream, received {!r}".format(file))
-    if not file:
-        if err:
-            file = _text_stderr()
-        else:
-            file = _text_stdout()
-    if text and not isinstance(text, (str, bytes, bytearray)):
-        text = str(text)
-    text = "" if not text else text
-    if isinstance(text, str):
-        text += "\n"
-    else:
-        text += b"\n"
-    if text and is_bytes(text):
-        buffer = _get_binary_buffer(file)
-        if buffer is not None:
-            file.flush()
-            buffer.write(text)
-            buffer.flush()
-            return
-    if text and not is_bytes(text):
-        can_use_color = _can_use_color(file, color=color)
-        if any([fg, bg, style]):
-            text = colorize(text, fg=fg, bg=bg, attrs=style)
-        if not can_use_color or (os.name == "nt" and not _wrap_for_color):
-            text = ANSI_REMOVAL_RE.sub("", text)
-        elif os.name == "nt" and _wrap_for_color and not _is_wrapped_for_color(file):
-            file = _wrap_for_color(file, color=color)
-    if text:
-        file.write(text)
-    file.flush()
