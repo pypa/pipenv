@@ -1,16 +1,16 @@
 name: CI
-on:
-  workflow_dispatch:
-    inputs:
-      git-ref:
-        description: Git Ref (Optional)
-        required: false
 concurrency:
   group: >-
     ${{ github.workflow }}-
     ${{ github.ref_type }}-
     ${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
+on:
+  workflow_dispatch:
+    inputs:
+      git-ref:
+        description: Git Ref (Optional)
+        required: false
   push:
     paths-ignore:
       - "news/**"
