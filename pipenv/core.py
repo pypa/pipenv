@@ -2866,7 +2866,7 @@ def do_check(
             pypi_mirror=pypi_mirror,
         )
     if not quiet and not project.s.is_quiet():
-        click.echo(click.style("Checking PEP 508 requirements...", bold=True))
+        click.secho("Checking PEP 508 requirements...", bold=True)
     pep508checker_path = pep508checker.__file__.rstrip("cdo")
     safety_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "patched", "safety"
@@ -2917,13 +2917,11 @@ def do_check(
         sys.exit(1)
     else:
         if not quiet and not project.s.is_quiet():
-            click.echo(click.style("Passed!", fg="green"))
+            click.secho("Passed!", fg="green")
     if not quiet and not project.s.is_quiet():
-        click.echo(
-            click.style(
-                "Checking installed packages for vulnerabilities...",
-                bold=True,
-            )
+        click.secho(
+            "Checking installed packages for vulnerabilities...",
+            bold=True,
         )
     if ignore:
         if not isinstance(ignore, (tuple, list)):
@@ -2965,7 +2963,7 @@ def do_check(
 
     if db:
         if not quiet and not project.s.is_quiet():
-            click.echo(click.style(f"Using {db} database"))
+            click.echo(f"Using {db} database")
         cmd.append(f"--db={db}")
     elif key or project.s.PIPENV_PYUP_API_KEY:
         cmd = cmd + [f"--key={key or project.s.PIPENV_PYUP_API_KEY}"]
@@ -3041,7 +3039,7 @@ def do_check(
             click.echo(f"{vuln['advisory']}")
             click.echo()
 
-        click.echo(click.style(message, fg="white", bold=True))
+        click.secho(message, fg="white", bold=True)
         sys.exit(code)
 
     cli(prog_name="pipenv")
