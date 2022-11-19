@@ -5,7 +5,6 @@ click==8.0.3
 colorama==0.4.4
 dparse==0.6.2
 markupsafe==2.0.1
-parse==1.19.0
 pexpect==4.8.0
 pipdeptree==2.3.1
 plette[validation]==0.4.2
