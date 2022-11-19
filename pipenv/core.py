@@ -16,7 +16,7 @@ from posixpath import expandvars
 from typing import Dict, List, Optional, Union
 
 from pipenv import environments, exceptions, pep508checker
-from pipenv._compat import decode_for_output, fix_utf8
+from pipenv._compat import fix_utf8
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._internal.network.session import PipSession
@@ -2866,9 +2866,7 @@ def do_check(
             pypi_mirror=pypi_mirror,
         )
     if not quiet and not project.s.is_quiet():
-        click.echo(
-            click.style(decode_for_output("Checking PEP 508 requirements..."), bold=True)
-        )
+        click.echo(click.style("Checking PEP 508 requirements...", bold=True))
     pep508checker_path = pep508checker.__file__.rstrip("cdo")
     safety_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "patched", "safety"
@@ -2885,7 +2883,7 @@ def do_check(
             click.echo(
                 "{}\n{}\n{}".format(
                     click.style(
-                        decode_for_output("Failed parsing pep508 results: "),
+                        "Failed parsing pep508 results: ",
                         fg="white",
                         bold=True,
                     ),
@@ -2923,7 +2921,7 @@ def do_check(
     if not quiet and not project.s.is_quiet():
         click.echo(
             click.style(
-                decode_for_output("Checking installed packages for vulnerabilities..."),
+                "Checking installed packages for vulnerabilities...",
                 bold=True,
             )
         )
