@@ -1,13 +1,5 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, unicode_literals
 
-from .compat import (
-    NamedTemporaryFile,
-    StringIO,
-    TemporaryDirectory,
-    partialmethod,
-    to_native_string,
-)
 from .contextmanagers import (
     atomic_open_for_write,
     cd,
@@ -36,7 +28,7 @@ from .misc import (
 from .path import create_tracked_tempdir, create_tracked_tempfile, mkdir_p, rmtree
 from .spin import create_spinner
 
-__version__ = "0.6.1"
+__version__ = "0.7.4"
 
 
 __all__ = [
@@ -58,7 +50,6 @@ __all__ = [
     "create_spinner",
     "create_tracked_tempdir",
     "create_tracked_tempfile",
-    "to_native_string",
     "decode_for_output",
     "to_text",
     "to_bytes",
