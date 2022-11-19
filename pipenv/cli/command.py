@@ -451,7 +451,7 @@ def run(state, command, args):
 )
 @option(
     "--output",
-    type=Choice(["default", "json", "full-report", "bare", "screen", "text"]),
+    type=Choice(["default", "json", "full-report", "bare", "screen", "text", "minimal"]),
     default="default",
     help="Translates to --json, --full-report or --bare from PyUp Safety check",
 )
