@@ -19,6 +19,23 @@ from .util.retry import Retry
 from .util.timeout import Timeout
 from .util.url import get_host
 
+# === NOTE TO REPACKAGERS AND VENDORS ===
+# Please delete this block, this logic is only
+# for urllib3 being distributed via PyPI.
+# See: https://github.com/urllib3/urllib3/issues/2680
+try:
+    import urllib3_secure_extra  # type: ignore # noqa: F401
+except ImportError:
+    pass
+else:
+    warnings.warn(
+        "'urllib3[secure]' extra is deprecated and will be removed "
+        "in a future release of urllib3 2.x. Read more in this issue: "
+        "https://github.com/urllib3/urllib3/issues/2680",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
+
 __author__ = "Andrey Petrov (andrey.petrov@shazow.net)"
 __license__ = "MIT"
 __version__ = __version__

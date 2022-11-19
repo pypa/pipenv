@@ -12,7 +12,7 @@ from pipenv.patched.pip._internal.models.target_python import TargetPython
 from pipenv.patched.pip._internal.utils.filetypes import is_archive_file
 from pipenv.patched.pip._internal.utils.misc import is_installable_dir
 from pipenv.patched.pip._vendor.packaging import specifiers
-from pipenv.vendor.vistir.path import ensure_mkdir_p, is_valid_url
+from pipenv.vendor.vistir.path import is_valid_url
 
 from .environment import MYPY_RUNNING
 
@@ -290,11 +290,6 @@ def get_package_finder(
         target_python=target_python,
         ignore_requires_python=ignore_requires_python,
     )
-
-
-@ensure_mkdir_p(mode=0o777)
-def _ensure_dir(path):
-    return path
 
 
 _UNSET = object()

@@ -1,4 +1,4 @@
-import os
+import os, sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -300,7 +300,7 @@ name = 'mockpi'
             )
 
         # Ensure simple install does not extrapolate.
-        c = p.pipenv("install")
+        c = p.pipenv("install -v")
         assert c.returncode == 0
         assert p.pipfile["source"][0]["url"] == "${PYPI_URL}/simple"
         assert p.lockfile["_meta"]["sources"][0]["url"] == "${PYPI_URL}/simple"
@@ -372,6 +372,22 @@ def test_install_creates_pipfile(pipenv_instance_pypi):
         c = p.pipenv("install")
         assert c.returncode == 0
         assert os.path.isfile(p.pipfile_path)
+        python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
+        assert p.pipfile["requires"] == {'python_version': python_version}
+
+
+@pytest.mark.basic
+@pytest.mark.install
+def test_create_pipfile_requires_python_full_version(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
+        python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
+        python_full_version = python_version + "." + str(sys.version_info.micro)
+        c = p.pipenv(f"--python {python_full_version}")
+        assert c.returncode == 0
+        assert p.pipfile["requires"] == {
+            'python_full_version': python_full_version,
+            'python_version': python_version
+            }
 
 
 @pytest.mark.basic
@@ -398,13 +414,18 @@ def test_rewrite_outline_table(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
+[[source]]
+url = "{0}"
+verify_ssl = false
+name = "testindex"
+            
 [packages]
-six = {version = "*"}
+six = {1}
 
 [packages.requests]
 version = "*"
 extras = ["socks"]
-            """.strip()
+            """.format(os.environ['PIPENV_TEST_INDEX'], "{version = \"*\"}").strip()
             f.write(contents)
         c = p.pipenv("install colorama")
         assert c.returncode == 0
@@ -414,32 +435,6 @@ extras = ["socks"]
         assert 'six = {version = "*"}' in contents
         assert 'requests = {version = "*"' in contents
         assert 'colorama = "*"' in contents
-
-
-@pytest.mark.dev
-@pytest.mark.basic
-@pytest.mark.install
-@pytest.mark.needs_internet
-def test_install_with_unnamed_source(pipenv_instance_pypi):
-    """Ensure that running `pipenv install` doesn't break with an unamed index"""
-    with pipenv_instance_pypi(chdir=True) as p:
-        with open(p.pipfile_path, "w") as f:
-            contents = """
-[[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
-name = "pypi"
-
-[[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
-
-[packages]
-dataclasses-json = {version="*", index="pypi"}
-            """.strip()
-            f.write(contents)
-        c = p.pipenv("install")
-        assert c.returncode == 0
 
 
 @pytest.mark.dev

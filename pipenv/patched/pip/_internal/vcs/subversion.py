@@ -184,7 +184,7 @@ class Subversion(VersionControl):
         """Always assume the versions don't match"""
         return False
 
-    def __init__(self, use_interactive: bool = None) -> None:
+    def __init__(self, use_interactive: Optional[bool] = None) -> None:
         if use_interactive is None:
             use_interactive = is_console_interactive()
         self.use_interactive = use_interactive

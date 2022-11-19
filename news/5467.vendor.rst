@@ -1,0 +1,2 @@
+ * Drop unused code from cerberus
+ * Drop unused module wheel

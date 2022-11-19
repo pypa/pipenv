@@ -1,11 +1,10 @@
 import os
 import shutil
 import sys
-from pathlib import Path
 
 import pytest
 
-from pipenv.utils.shell import mkdir_p, temp_environ
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.extras
@@ -181,13 +180,13 @@ def test_local_zip_file(pipenv_instance_private_pypi, testsroot):
 
 @pytest.mark.urls
 @pytest.mark.install
-def test_install_local_uri_special_character(pipenv_instance_pypi, testsroot):
+def test_install_local_uri_special_character(pipenv_instance_private_pypi, testsroot):
     file_name = "six-1.11.0+mkl-py2.py3-none-any.whl"
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_private_pypi() as p:
         artifact_dir = "artifacts"
         artifact_path = os.path.join(p.path, artifact_dir)
-        mkdir_p(artifact_path)
+        os.makedirs(artifact_path, exist_ok=True)
         shutil.copy(source_path, os.path.join(artifact_path, file_name))
         with open(p.pipfile_path, "w") as f:
             contents = """
@@ -252,3 +251,25 @@ def test_outdated_should_compare_postreleases_without_failing(pipenv_instance_pr
         c = p.pipenv("update --outdated")
         assert c.returncode != 0
         assert "out-of-date" in c.stdout
+
+
+@pytest.mark.install
+@pytest.mark.skip_lock
+@pytest.mark.needs_internet
+def test_install_skip_lock(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "{0}"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+six = {1}
+            """.format(os.environ['PIPENV_TEST_INDEX'], '{version = "*", index = "pypi"}').strip()
+            f.write(contents)
+        c = p.pipenv('install --skip-lock')
+        assert c.returncode == 0
+        c = p.pipenv('run python -c "import six"')
+        assert c.returncode == 0

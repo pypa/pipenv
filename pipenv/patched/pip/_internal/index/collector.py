@@ -9,10 +9,8 @@ import itertools
 import json
 import logging
 import os
-import re
 import urllib.parse
 import urllib.request
-import xml.etree.ElementTree
 from html.parser import HTMLParser
 from optparse import Values
 from typing import (
@@ -39,7 +37,7 @@ from pipenv.patched.pip._internal.models.search_scope import SearchScope
 from pipenv.patched.pip._internal.network.session import PipSession
 from pipenv.patched.pip._internal.network.utils import raise_for_status
 from pipenv.patched.pip._internal.utils.filetypes import is_archive_file
-from pipenv.patched.pip._internal.utils.misc import pairwise, redact_auth_from_url
+from pipenv.patched.pip._internal.utils.misc import redact_auth_from_url
 from pipenv.patched.pip._internal.vcs import vcs
 
 from .sources import CandidatesFromPage, LinkSource, build_source
@@ -51,7 +49,6 @@ else:
 
 logger = logging.getLogger(__name__)
 
-HTMLElement = xml.etree.ElementTree.Element
 ResponseHeaders = MutableMapping[str, str]
 
 
@@ -191,94 +188,6 @@ def _get_encoding_from_headers(headers: ResponseHeaders) -> Optional[str]:
     return None
 
 
-def _clean_url_path_part(part: str) -> str:
-    """
-    Clean a "part" of a URL path (i.e. after splitting on "@" characters).
-    """
-    # We unquote prior to quoting to make sure nothing is double quoted.
-    return urllib.parse.quote(urllib.parse.unquote(part))
-
-
-def _clean_file_url_path(part: str) -> str:
-    """
-    Clean the first part of a URL path that corresponds to a local
-    filesystem path (i.e. the first part after splitting on "@" characters).
-    """
-    # We unquote prior to quoting to make sure nothing is double quoted.
-    # Also, on Windows the path part might contain a drive letter which
-    # should not be quoted. On Linux where drive letters do not
-    # exist, the colon should be quoted. We rely on urllib.request
-    # to do the right thing here.
-    return urllib.request.pathname2url(urllib.request.url2pathname(part))
-
-
-# percent-encoded:                   /
-_reserved_chars_re = re.compile("(@|%2F)", re.IGNORECASE)
-
-
-def _clean_url_path(path: str, is_local_path: bool) -> str:
-    """
-    Clean the path portion of a URL.
-    """
-    if is_local_path:
-        clean_func = _clean_file_url_path
-    else:
-        clean_func = _clean_url_path_part
-
-    # Split on the reserved characters prior to cleaning so that
-    # revision strings in VCS URLs are properly preserved.
-    parts = _reserved_chars_re.split(path)
-
-    cleaned_parts = []
-    for to_clean, reserved in pairwise(itertools.chain(parts, [""])):
-        cleaned_parts.append(clean_func(to_clean))
-        # Normalize %xx escapes (e.g. %2f -> %2F)
-        cleaned_parts.append(reserved.upper())
-
-    return "".join(cleaned_parts)
-
-
-def _clean_link(url: str) -> str:
-    """
-    Make sure a link is fully quoted.
-    For example, if ' ' occurs in the URL, it will be replaced with "%20",
-    and without double-quoting other characters.
-    """
-    # Split the URL into parts according to the general structure
-    # `scheme://netloc/path;parameters?query#fragment`.
-    result = urllib.parse.urlparse(url)
-    # If the netloc is empty, then the URL refers to a local filesystem path.
-    is_local_path = not result.netloc
-    path = _clean_url_path(result.path, is_local_path=is_local_path)
-    return urllib.parse.urlunparse(result._replace(path=path))
-
-
-def _create_link_from_element(
-    element_attribs: Dict[str, Optional[str]],
-    page_url: str,
-    base_url: str,
-) -> Optional[Link]:
-    """
-    Convert an anchor element's attributes in a simple repository page to a Link.
-    """
-    href = element_attribs.get("href")
-    if not href:
-        return None
-
-    url = _clean_link(urllib.parse.urljoin(base_url, href))
-    pyrequire = element_attribs.get("data-requires-python")
-    yanked_reason = element_attribs.get("data-yanked")
-
-    link = Link(
-        url,
-        comes_from=page_url,
-        requires_python=pyrequire,
-        yanked_reason=yanked_reason,
-    )
-
-    return link
-
-
 class CacheablePageContent:
     def __init__(self, page: "IndexContent") -> None:
         assert page.cache_link_parsing
@@ -326,25 +235,10 @@ def parse_links(page: "IndexContent") -> Iterable[Link]:
     if content_type_l.startswith("application/vnd.pypi.simple.v1+json"):
         data = json.loads(page.content)
         for file in data.get("files", []):
-            file_url = file.get("url")
-            if file_url is None:
+            link = Link.from_json(file, page.url)
+            if link is None:
                 continue
-
-            # The Link.yanked_reason expects an empty string instead of a boolean.
-            yanked_reason = file.get("yanked")
-            if yanked_reason and not isinstance(yanked_reason, str):
-                yanked_reason = ""
-            # The Link.yanked_reason expects None instead of False
-            elif not yanked_reason:
-                yanked_reason = None
-
-            yield Link(
-                _clean_link(urllib.parse.urljoin(page.url, file_url)),
-                comes_from=page.url,
-                requires_python=file.get("requires-python"),
-                yanked_reason=yanked_reason,
-                hashes=file.get("hashes", {}),
-            )
+            yield link
         return
 
     parser = HTMLLinkParser(page.url)
@@ -354,11 +248,7 @@ def parse_links(page: "IndexContent") -> Iterable[Link]:
     url = page.url
     base_url = parser.base_url or url
     for anchor in parser.anchors:
-        link = _create_link_from_element(
-            anchor,
-            page_url=url,
-            base_url=base_url,
-        )
+        link = Link.from_element(anchor, page_url=url, base_url=base_url)
         if link is None:
             continue
         yield link
@@ -443,14 +333,7 @@ def _make_index_content(
     )
 
 
-def _get_index_content(
-    link: Link, session: Optional[PipSession] = None
-) -> Optional["IndexContent"]:
-    if session is None:
-        raise TypeError(
-            "_get_html_page() missing 1 required keyword argument: 'session'"
-        )
-
+def _get_index_content(link: Link, *, session: PipSession) -> Optional["IndexContent"]:
     url = link.url.split("#", 1)[0]
 
     # Check for VCS schemes that do not support lookup as web pages.
@@ -560,10 +443,15 @@ class LinkCollector:
         find_links = options.find_links or []
 
         search_scope = SearchScope.create(
-            find_links=find_links, index_urls=index_urls, index_lookup=index_lookup
+            find_links=find_links,
+            index_urls=index_urls,
+            no_index=options.no_index,
+            index_lookup=index_lookup,
         )
         link_collector = LinkCollector(
-            session=session, search_scope=search_scope, index_lookup=index_lookup
+            session=session,
+            search_scope=search_scope,
+            index_lookup=index_lookup,
         )
         return link_collector
 

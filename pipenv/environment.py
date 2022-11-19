@@ -13,6 +13,7 @@ from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
 
 import pipenv
+from pipenv import cmdparse
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.req.req_uninstall import UninstallPathSet
@@ -36,9 +37,8 @@ if is_type_checking():
     from types import ModuleType
     from typing import ContextManager, Dict, Generator, List, Optional, Set, Union
 
-    import tomlkit
-
     from pipenv.project import Project, TPipfile, TSource
+    from pipenv.vendor import tomlkit
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
 
@@ -312,19 +312,12 @@ class Environment:
             return sys.path
         elif any([sys.prefix == self.prefix, not self.is_venv]):
             return sys.path
-        cmd_args = [self.python, "-c", "import json, sys; print(json.dumps(sys.path))"]
-        path, _ = vistir.misc.run(
-            cmd_args,
-            return_object=False,
-            nospin=True,
-            block=True,
-            combine_stderr=False,
-            write_to_stdout=False,
-        )
+
         try:
-            path = json.loads(path.strip())
-        except json.JSONDecodeError:
+            path = pipenv.utils.shell.load_path(self.python)
+        except json.decoder.JSONDecodeError:
             path = sys.path
+
         return path
 
     def build_command(
@@ -816,7 +809,7 @@ class Environment:
 
         c = None
         with self.activated():
-            script = vistir.cmdparse.Script.parse(cmd)
+            script = cmdparse.Script.parse(cmd)
             c = vistir.misc.run(
                 script._parts,
                 return_object=True,
@@ -838,9 +831,9 @@ class Environment:
 
         c = None
         if isinstance(cmd, str):
-            script = vistir.cmdparse.Script.parse(f"{self.python} -c {cmd}")
+            script = cmdparse.Script.parse(f"{self.python} -c {cmd}")
         else:
-            script = vistir.cmdparse.Script.parse([self.python, "-c"] + list(cmd))
+            script = cmdparse.Script.parse([self.python, "-c"] + list(cmd))
         with self.activated():
             c = vistir.misc.run(
                 script._parts,

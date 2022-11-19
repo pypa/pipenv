@@ -339,7 +339,10 @@ def uts46_remap(domain: str, std3_rules: bool = True, transitional: bool = False
 
 def encode(s: Union[str, bytes, bytearray], strict: bool = False, uts46: bool = False, std3_rules: bool = False, transitional: bool = False) -> bytes:
     if isinstance(s, (bytes, bytearray)):
-        s = s.decode('ascii')
+        try:
+            s = s.decode('ascii')
+        except UnicodeDecodeError:
+            raise IDNAError('should pass a unicode string to the function rather than a byte string.')
     if uts46:
         s = uts46_remap(s, std3_rules, transitional)
     trailing_dot = False

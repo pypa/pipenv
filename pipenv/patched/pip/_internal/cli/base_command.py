@@ -151,13 +151,6 @@ class Command(CommandContextMixIn):
                 )
                 options.cache_dir = None
 
-        if "2020-resolver" in options.features_enabled:
-            logger.warning(
-                "--use-feature=2020-resolver no longer has any effect, "
-                "since it is now the default dependency resolver in pip. "
-                "This will become an error in pip 21.0."
-            )
-
         def intercepts_unhandled_exc(
             run_func: Callable[..., int]
         ) -> Callable[..., int]:

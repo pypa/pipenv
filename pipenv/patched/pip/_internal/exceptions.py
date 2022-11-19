@@ -288,7 +288,10 @@ class NetworkConnectionError(PipError):
     """HTTP connection error"""
 
     def __init__(
-        self, error_msg: str, response: Response = None, request: Request = None
+        self,
+        error_msg: str,
+        response: Optional[Response] = None,
+        request: Optional[Request] = None,
     ) -> None:
         """
         Initialize NetworkConnectionError with  `request` and `response`
@@ -332,8 +335,8 @@ class MetadataInconsistent(InstallationError):
     """Built metadata contains inconsistent information.
 
     This is raised when the metadata contains values (e.g. name and version)
-    that do not match the information previously obtained from sdist filename
-    or user-supplied ``#egg=`` value.
+    that do not match the information previously obtained from sdist filename,
+    user-supplied ``#egg=`` value, or an install requirement name.
     """
 
     def __init__(
@@ -345,11 +348,10 @@ class MetadataInconsistent(InstallationError):
         self.m_val = m_val
 
     def __str__(self) -> str:
-        template = (
-            "Requested {} has inconsistent {}: "
-            "filename has {!r}, but metadata has {!r}"
+        return (
+            f"Requested {self.ireq} has inconsistent {self.field}: "
+            f"expected {self.f_val!r}, but metadata has {self.m_val!r}"
         )
-        return template.format(self.ireq, self.field, self.f_val, self.m_val)
 
 
 class LegacyInstallFailure(DiagnosticPipError):

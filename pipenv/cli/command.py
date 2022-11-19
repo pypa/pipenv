@@ -80,8 +80,8 @@ def cli(
     site_packages=None,
     **kwargs,
 ):
+    from pipenv.patched.pip._vendor import rich
     from pipenv.utils.shell import system_which
-    from pipenv.utils.spinner import create_spinner
 
     load_dot_env(state.project, quiet=state.quiet)
 
@@ -188,7 +188,10 @@ def cli(
                         )
                     )
                 )
-                with create_spinner(text="Running...", setting=state.project.s):
+
+                console = rich.console.Console()
+                # TODO: add state.project.s to spinner status
+                with console.status("Running..."):
                     # Remove the virtualenv.
                     cleanup_virtualenv(state.project, bare=True)
                 return 0
@@ -240,7 +243,6 @@ def install(state, **kwargs):
         python=state.python,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
-        lock=not state.installstate.skip_lock,
         ignore_pipfile=state.installstate.ignore_pipfile,
         skip_lock=state.installstate.skip_lock,
         requirementstxt=state.installstate.requirementstxt,
@@ -253,6 +255,7 @@ def install(state, **kwargs):
         editable_packages=state.installstate.editables,
         site_packages=state.site_packages,
         extra_pip_args=state.installstate.extra_pip_args,
+        categories=state.installstate.categories,
     )
 
 
@@ -291,6 +294,7 @@ def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
         all=all,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
+        categories=state.installstate.categories,
         ctx=ctx,
     )
     if retcode:
@@ -341,6 +345,7 @@ def lock(ctx, state, **kwargs):
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
         write=not state.quiet,
+        categories=state.installstate.categories,
     )
 
 
@@ -686,6 +691,7 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
         pypi_mirror=state.pypi_mirror,
         system=state.system,
         extra_pip_args=state.installstate.extra_pip_args,
+        categories=state.installstate.categories,
     )
     if retcode:
         ctx.abort()
@@ -769,8 +775,16 @@ def verify(state):
 )
 @option("--hash", is_flag=True, default=False, help="Add package hashes.")
 @option("--exclude-markers", is_flag=True, default=False, help="Exclude markers.")
+@option(
+    "--categories",
+    is_flag=False,
+    default="",
+    help="Only add requirement of the specified categories.",
+)
 @pass_state
-def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=False):
+def requirements(
+    state, dev=False, dev_only=False, hash=False, exclude_markers=False, categories=""
+):
 
     from pipenv.utils.dependencies import convert_deps_to_pip
 
@@ -781,11 +795,17 @@ def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=F
         echo(" ".join([prefix, package_index["url"]]))
 
     deps = {}
+    categories_list = categories.split(",") if categories else []
 
-    if dev or dev_only:
-        deps.update(lockfile["develop"])
-    if not dev_only:
-        deps.update(lockfile["default"])
+    if categories_list:
+        for category in categories_list:
+            category = category.strip()
+            deps.update(lockfile.get(category, {}))
+    else:
+        if dev or dev_only:
+            deps.update(lockfile["develop"])
+        if not dev_only:
+            deps.update(lockfile["default"])
 
     pip_deps = convert_deps_to_pip(
         deps,

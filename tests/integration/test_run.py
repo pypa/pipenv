@@ -64,6 +64,36 @@ multicommand = "bash -c \"cd docs && make html\""
 
 
 @pytest.mark.run
+def test_scripts_with_package_functions(pipenv_instance_pypi):
+    with pipenv_instance_pypi(chdir=True) as p:
+        p.pipenv('install')
+        pkg_path = os.path.join(p.path, "pkg")
+        os.makedirs(pkg_path, exist_ok=True)
+        file_path = os.path.join(pkg_path, "mod.py")
+        with open(file_path, "w+") as f:
+            f.write("""
+def test_func():
+    print("success")
+
+def arg_func(s, i):
+    print(f"{s.upper()}. Easy as {i}")
+""")
+
+        with open(p.pipfile_path, 'w') as f:
+            f.write(r"""
+[scripts]
+pkgfunc = {call = "pkg.mod:test_func"}
+argfunc = {call = "pkg.mod:arg_func('abc', 123)"}
+            """)
+
+        c = p.pipenv('run pkgfunc')
+        assert c.stdout.strip() == "success"
+
+        c = p.pipenv('run argfunc')
+        assert c.stdout.strip() == "ABC. Easy as 123"
+
+
+@pytest.mark.run
 @pytest.mark.skip_windows
 def test_run_with_usr_env_shebang(pipenv_instance_pypi):
     with pipenv_instance_pypi(chdir=True) as p:
@@ -105,7 +135,7 @@ hello = "echo $HELLO_VAR"
         else:
             c = p.pipenv('run hello')
         assert c.returncode == 0
-        assert 'WORLD\n' == c.stdout
+        assert 'WORLD\n' in c.stdout
 
 
 @pytest.mark.run

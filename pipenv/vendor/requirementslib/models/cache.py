@@ -9,7 +9,7 @@ from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
 from pipenv.patched.pip._vendor.cachecontrol.cache import DictCache
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
-from pipenv.vendor.platformdirs import user_cache_dir
+from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 
 from .utils import as_tuple, get_pinned_version, key_from_req, lookup_table
 

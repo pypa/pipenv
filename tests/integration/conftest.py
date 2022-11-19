@@ -6,7 +6,6 @@ import os
 import shlex
 import shutil
 import traceback
-import threading
 import sys
 import warnings
 from pathlib import Path
@@ -16,21 +15,20 @@ from tempfile import TemporaryDirectory
 import pytest
 import requests
 from click.testing import CliRunner
-from pytest_pypi.app import prepare_fixtures
-from pytest_pypi.app import prepare_packages as prepare_pypi_packages
-import pypiserver
 
 from pipenv.cli import cli
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor import toml, tomlkit
-from pipenv.vendor.vistir.compat import fs_encode
 from pipenv.vendor.vistir.contextmanagers import temp_environ
 from pipenv.vendor.vistir.misc import run
 from pipenv.vendor.vistir.path import (
-    create_tracked_tempdir, handle_remove_readonly, mkdir_p
+    create_tracked_tempdir, handle_remove_readonly
 )
 
+from pytest_pypi.app import prepare_fixtures
+from pytest_pypi.app import prepare_packages as prepare_pypi_packages
+import pypiserver
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
@@ -188,7 +186,7 @@ def isolate(create_tmpdir):
     # Create a directory to use as our home location.
     home_dir = os.path.join(str(create_tmpdir()), "home")
     os.makedirs(home_dir)
-    mkdir_p(os.path.join(home_dir, ".config", "git"))
+    os.makedirs(os.path.join(home_dir, ".config", "git"), exist_ok=True)
     git_config_file = os.path.join(home_dir, ".config", "git", "config")
     with open(git_config_file, "wb") as fp:
         fp.write(
@@ -201,7 +199,7 @@ def isolate(create_tmpdir):
     workon_home = create_tmpdir()
     os.environ["WORKON_HOME"] = str(workon_home)
     os.environ["HOME"] = os.path.abspath(home_dir)
-    mkdir_p(os.path.join(home_dir, "projects"))
+    os.makedirs(os.path.join(home_dir, "projects"), exist_ok=True)
     # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
     os.environ.pop("PIPENV_ACTIVE", None)
     os.environ.pop("VIRTUAL_ENV", None)
@@ -221,11 +219,11 @@ class _Pipfile:
         self.document["source"] = self.document.get("source", tomlkit.aot())
         self.document["requires"] = self.document.get("requires", tomlkit.table())
         self.document["packages"] = self.document.get("packages", tomlkit.table())
-        self.document["dev_packages"] = self.document.get("dev_packages", tomlkit.table())
+        self.document["dev-packages"] = self.document.get("dev-packages", tomlkit.table())
         super().__init__()
 
     def install(self, package, value, dev=False):
-        section = "packages" if not dev else "dev_packages"
+        section = "packages" if not dev else "dev-packages"
         if isinstance(value, dict):
             table = tomlkit.inline_table()
             table.update(value)
@@ -235,10 +233,10 @@ class _Pipfile:
         self.write()
 
     def remove(self, package, dev=False):
-        section = "packages" if not dev else "dev_packages"
+        section = "packages" if not dev else "dev-packages"
         if not dev and package not in self.document[section]:
-            if package in self.document["dev_packages"]:
-                section = "dev_packages"
+            if package in self.document["dev-packages"]:
+                section = "dev-packages"
         del self.document[section][package]
         self.write()
 
@@ -413,12 +411,11 @@ class _PipenvInstance:
 
 
 def _rmtree_func(path, ignore_errors=True, onerror=None):
-    directory = fs_encode(path)
     shutil_rmtree = _rmtree
     if onerror is None:
         onerror = handle_remove_readonly
     try:
-        shutil_rmtree(directory, ignore_errors=ignore_errors, onerror=onerror)
+        shutil_rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
     except (OSError, FileNotFoundError, PermissionError) as exc:
         # Ignore removal failures where the file doesn't exist
         if exc.errno != errno.ENOENT:

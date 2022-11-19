@@ -142,7 +142,7 @@ class PythonLexer(RegexLexer):
              combined('fstringescape', 'dqf')),
             ("([fF])(')", bygroups(String.Affix, String.Single),
              combined('fstringescape', 'sqf')),
-            # raw strings
+            # raw bytes and strings
             ('(?i)(rb|br|r)(""")',
              bygroups(String.Affix, String.Double), 'tdqs'),
             ("(?i)(rb|br|r)(''')",
@@ -152,14 +152,24 @@ class PythonLexer(RegexLexer):
             ("(?i)(rb|br|r)(')",
              bygroups(String.Affix, String.Single), 'sqs'),
             # non-raw strings
-            ('([uUbB]?)(""")', bygroups(String.Affix, String.Double),
+            ('([uU]?)(""")', bygroups(String.Affix, String.Double),
              combined('stringescape', 'tdqs')),
-            ("([uUbB]?)(''')", bygroups(String.Affix, String.Single),
+            ("([uU]?)(''')", bygroups(String.Affix, String.Single),
              combined('stringescape', 'tsqs')),
-            ('([uUbB]?)(")', bygroups(String.Affix, String.Double),
+            ('([uU]?)(")', bygroups(String.Affix, String.Double),
              combined('stringescape', 'dqs')),
-            ("([uUbB]?)(')", bygroups(String.Affix, String.Single),
+            ("([uU]?)(')", bygroups(String.Affix, String.Single),
              combined('stringescape', 'sqs')),
+            # non-raw bytes
+            ('([bB])(""")', bygroups(String.Affix, String.Double),
+             combined('bytesescape', 'tdqs')),
+            ("([bB])(''')", bygroups(String.Affix, String.Single),
+             combined('bytesescape', 'tsqs')),
+            ('([bB])(")', bygroups(String.Affix, String.Double),
+             combined('bytesescape', 'dqs')),
+            ("([bB])(')", bygroups(String.Affix, String.Single),
+             combined('bytesescape', 'sqs')),
+            
             (r'[^\S\n]+', Text),
             include('numbers'),
             (r'!=|==|<<|>>|:=|[-~+/*%=<>&^|.]', Operator),
@@ -343,9 +353,12 @@ class PythonLexer(RegexLexer):
             include('rfstringescape'),
             include('stringescape'),
         ],
+        'bytesescape': [
+            (r'\\([\\abfnrtv"\']|\n|x[a-fA-F0-9]{2}|[0-7]{1,3})', String.Escape)
+        ],
         'stringescape': [
-            (r'\\([\\abfnrtv"\']|\n|N\{.*?\}|u[a-fA-F0-9]{4}|'
-             r'U[a-fA-F0-9]{8}|x[a-fA-F0-9]{2}|[0-7]{1,3})', String.Escape)
+            (r'\\(N\{.*?\}|u[a-fA-F0-9]{4}|U[a-fA-F0-9]{8})', String.Escape),
+            include('bytesescape')
         ],
         'fstrings-single': fstring_rules(String.Single),
         'fstrings-double': fstring_rules(String.Double),

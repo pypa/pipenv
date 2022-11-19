@@ -6,8 +6,12 @@ on:
     tags:
       - v[0-9]+.[0-9]+.*  # add .* to allow dev releases
 
+permissions: {}
 jobs:
   deploy:
+    permissions:
+      contents: write # to create a release (actions/create-release)
+
     name: pipenv PyPI Upload
     runs-on: ubuntu-latest
     env:
@@ -16,6 +20,12 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+
+    - name: Collect Workflow Telemetry
+      uses: runforesight/foresight-workflow-kit-action@v1
+      if: ${{ always() }}
+      with:
+        api_key: ${{ secrets.FORESIGHT_API_KEY }}
 
     - name: Create Release
       id: create_release

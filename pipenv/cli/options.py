@@ -88,6 +88,7 @@ class InstallState:
         self.packages = []
         self.editables = []
         self.extra_pip_args = []
+        self.categories = []
 
 
 class LockOptions:
@@ -127,7 +128,7 @@ def editable_option(f):
         expose_value=False,
         multiple=True,
         callback=callback,
-        type=click_types.STRING,
+        type=click_types.Path(file_okay=False),
         help="An editable Python package URL or path, often to a VCS repository.",
     )(f)
 
@@ -220,6 +221,24 @@ def _dev_option(f, help_text):
         callback=callback,
         expose_value=False,
         show_envvar=True,
+    )(f)
+
+
+def categories_option(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        if value:
+            for opt in value.split(" "):
+                state.installstate.categories.append(opt)
+        return value
+
+    return option(
+        "--categories",
+        nargs=1,
+        required=False,
+        callback=callback,
+        expose_value=True,
+        type=click_types.STRING,
     )(f)
 
 
@@ -460,7 +479,7 @@ def requirementstxt_option(f):
         expose_value=False,
         help="Import a requirements.txt file.",
         callback=callback,
-        type=click_types.STRING,
+        type=click_types.Path(dir_okay=False),
     )(f)
 
 
@@ -542,11 +561,13 @@ def install_base_options(f):
     f = common_options(f)
     f = pre_option(f)
     f = keep_outdated_option(f)
+    f = extra_pip_args(f)
     return f
 
 
 def uninstall_options(f):
     f = install_base_options(f)
+    f = categories_option(f)
     f = uninstall_dev_option(f)
     f = skip_lock_option(f)
     f = editable_option(f)
@@ -558,12 +579,14 @@ def lock_options(f):
     f = install_base_options(f)
     f = lock_dev_option(f)
     f = dev_only_flag(f)
+    f = categories_option(f)
     return f
 
 
 def sync_options(f):
     f = install_base_options(f)
     f = install_dev_option(f)
+    f = categories_option(f)
     return f
 
 
@@ -575,7 +598,6 @@ def install_options(f):
     f = ignore_pipfile_option(f)
     f = editable_option(f)
     f = package_arg(f)
-    f = extra_pip_args(f)
     return f
 
 

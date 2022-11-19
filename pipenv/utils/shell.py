@@ -73,8 +73,7 @@ def load_path(python):
     from pathlib import Path
 
     python = Path(python).as_posix()
-    json_dump_commmand = '"import json, sys; print(json.dumps(sys.path));"'
-    c = subprocess_run([python, "-c", json_dump_commmand])
+    c = subprocess_run([python, "-c", "import json, sys; print(json.dumps(sys.path))"])
     if c.returncode == 0:
         return json.loads(c.stdout.strip())
     else:
@@ -200,7 +199,7 @@ def get_workon_home():
             )
     # Create directory if it does not already exist
     expanded_path = Path(os.path.expandvars(workon_home)).expanduser()
-    mkdir_p(str(expanded_path))
+    os.makedirs(expanded_path, exist_ok=True)
     return expanded_path
 
 
@@ -237,39 +236,6 @@ def is_virtual_environment(path):
             if exeness:
                 return True
     return False
-
-
-def mkdir_p(newdir):
-    """works the way a good mkdir should :)
-    - already exists, silently complete
-    - regular file in the way, raise an exception
-    - parent directory(ies) does not exist, make them as well
-    From: http://code.activestate.com/recipes/82465-a-friendly-mkdir/
-    """
-    if os.path.isdir(newdir):
-        pass
-    elif os.path.isfile(newdir):
-        raise OSError(
-            "a file with the same name as the desired dir, '{}', already exists.".format(
-                newdir
-            )
-        )
-
-    else:
-        head, tail = os.path.split(newdir)
-        if head and not os.path.isdir(head):
-            mkdir_p(head)
-        if tail:
-            # Even though we've checked that the directory doesn't exist above, it might exist
-            # now if some other process has created it between now and the time we checked it.
-            try:
-                os.mkdir(newdir)
-            except OSError as exn:
-                # If we failed because the directory does exist, that's not a problem -
-                # that's what we were trying to do anyway. Only re-raise the exception
-                # if we failed for some other reason.
-                if exn.errno != errno.EEXIST:
-                    raise
 
 
 def find_python(finder, line=None):
@@ -429,16 +395,28 @@ def env_to_bool(val):
     Convert **val** to boolean, returning True if truthy or False if falsey
 
     :param Any val: The value to convert
-    :return: False if Falsey, True if truthy
+    :return: False if falsey, True if truthy
     :rtype: bool
+    :raises:
+        ValueError: if val is not a valid boolean-like
     """
     if isinstance(val, bool):
         return val
-    if val.lower() in FALSE_VALUES:
-        return False
-    if val.lower() in TRUE_VALUES:
-        return True
+
+    try:
+        if val.lower() in FALSE_VALUES:
+            return False
+        if val.lower() in TRUE_VALUES:
+            return True
+    except AttributeError:
+        pass
+
     raise ValueError(f"Value is not a valid boolean-like: {val}")
+
+
+def is_env_truthy(name):
+    """An environment variable is truthy if it exists and isn't one of (0, false, no, off)"""
+    return env_to_bool(os.getenv(name, False))
 
 
 def project_python(project, system=False):

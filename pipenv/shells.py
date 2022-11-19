@@ -44,6 +44,9 @@ def _get_activate_script(cmd, venv):
     elif "csh" in cmd:
         suffix = ".csh"
         command = "source"
+    elif "nu" in cmd:
+        suffix = ".nu"
+        command = "source"
     else:
         suffix = ""
         command = "."

@@ -331,6 +331,9 @@ name = "testpypi"
 
 [packages]
 pipenv-test-private-package = {version = "*", index = "testpypi"}
+
+[pipenv]
+install_search_all_sources = true
             """.strip()
             f.write(contents)
         c = p.pipenv('install --skip-lock')
@@ -364,37 +367,6 @@ pipenv-test-private-package = {version = "*", index = "testpypi"}
         assert c.returncode == 0
 
 
-@pytest.mark.lock
-@pytest.mark.index
-@pytest.mark.install  # private indexes need to be uncached for resolution
-@pytest.mark.requirements
-@pytest.mark.needs_internet
-def test_private_index_lock_requirements(pipenv_instance_pypi):
-    # Don't use the local fake pypi
-    with temp_environ(), pipenv_instance_pypi(chdir=True) as p:
-        # Using pypi.python.org as pipenv-test-public-package is not
-        # included in the local pypi mirror
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
-[[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
-name = "pypi"
-
-[[source]]
-url = "https://test.pypi.org/simple"
-verify_ssl = true
-name = "testpypi"
-
-[packages]
-six = {version = "*", index = "testpypi"}
-pipenv-test-public-package = "*"
-            """.strip()
-            f.write(contents)
-        c = p.pipenv(f'install -v')
-        assert c.returncode == 0
-
-
 @pytest.mark.index
 @pytest.mark.install
 def test_lock_updated_source(pipenv_instance_private_pypi):
@@ -404,6 +376,8 @@ def test_lock_updated_source(pipenv_instance_private_pypi):
             contents = """
 [[source]]
 url = "{url}/${{MY_ENV_VAR}}"
+name = "localpypi"
+verify_ssl = false
 
 [packages]
 requests = "==2.14.0"
@@ -420,6 +394,8 @@ requests = "==2.14.0"
             contents = """
 [[source]]
 url = "{url}/simple"
+name = "localpypi"
+verify_ssl = false
 
 [packages]
 requests = "==2.14.0"
@@ -523,26 +499,7 @@ def test_lockfile_with_empty_dict(pipenv_instance_pypi):
             f.write('{}')
         c = p.pipenv('install')
         assert c.returncode == 0
-        assert 'Pipfile.lock is corrupted' in c.stderr
         assert p.lockfile['_meta']
-
-
-@pytest.mark.lock
-@pytest.mark.install
-@pytest.mark.skip_lock
-def test_lock_with_incomplete_source(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
-            f.write("""
-[[source]]
-url = "{}"
-
-[packages]
-six = "*"
-            """.format(p.index_url))
-        c = p.pipenv('install')
-        assert c.returncode == 0
-        assert p.lockfile['_meta']['sources']
 
 
 @pytest.mark.lock
@@ -735,3 +692,30 @@ requests = "*"
         assert "certifi" not in p.lockfile["develop"]
         assert "urllib3" not in p.lockfile["develop"]
         assert "chardet" not in p.lockfile["develop"]
+
+
+@pytest.mark.lock
+def test_lock_specific_named_category(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi(chdir=True) as p:
+        contents = """
+[[source]]
+url = "{}"
+verify_ssl = true
+name = "test"
+
+[packages]
+requests = "*"
+
+[prereq]
+six = "*"
+        """.format(p.index_url).strip()
+        with open(p.pipfile_path, 'w') as f:
+            f.write(contents)
+        c = p.pipenv("lock --categories prereq")
+        assert c.returncode == 0
+        assert p.lockfile["prereq"]["six"]["index"] == "test"
+        assert p.lockfile["default"] == dict()
+        c = p.pipenv("lock --categories packages")
+        assert c.returncode == 0
+        assert p.lockfile["prereq"]["six"]["index"] == "test"
+        assert p.lockfile["default"]["requests"]["index"] == "test"

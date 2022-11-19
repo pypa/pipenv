@@ -221,7 +221,11 @@ class WheelCache(Cache):
     when a certain link is not found in the simple wheel cache first.
     """
 
-    def __init__(self, cache_dir: str, format_control: FormatControl) -> None:
+    def __init__(
+        self, cache_dir: str, format_control: Optional[FormatControl] = None
+    ) -> None:
+        if format_control is None:
+            format_control = FormatControl()
         super().__init__(cache_dir, format_control, {"binary"})
         self._wheel_cache = SimpleWheelCache(cache_dir, format_control)
         self._ephem_cache = EphemWheelCache(format_control)

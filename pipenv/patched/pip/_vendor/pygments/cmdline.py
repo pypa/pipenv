@@ -25,7 +25,7 @@ from pipenv.patched.pip._vendor.pygments.formatters.latex import LatexEmbeddedLe
 from pipenv.patched.pip._vendor.pygments.formatters import get_all_formatters, get_formatter_by_name, \
     load_formatter_from_file, get_formatter_for_filename, find_formatter_class
 from pipenv.patched.pip._vendor.pygments.formatters.terminal import TerminalFormatter
-from pipenv.patched.pip._vendor.pygments.formatters.terminal256 import Terminal256Formatter
+from pipenv.patched.pip._vendor.pygments.formatters.terminal256 import Terminal256Formatter, TerminalTrueColorFormatter
 from pipenv.patched.pip._vendor.pygments.filters import get_all_filters, find_filter_class
 from pipenv.patched.pip._vendor.pygments.styles import get_all_styles, get_style_by_name
 
@@ -445,7 +445,9 @@ def main_inner(parser, argns):
             return 1
     else:
         if not fmter:
-            if '256' in os.environ.get('TERM', ''):
+            if os.environ.get('COLORTERM','') in ('truecolor', '24bit'):
+                fmter = TerminalTrueColorFormatter(**parsed_opts)
+            elif '256' in os.environ.get('TERM', ''):
                 fmter = Terminal256Formatter(**parsed_opts)
             else:
                 fmter = TerminalFormatter(**parsed_opts)
@@ -636,6 +638,9 @@ def main(args=sys.argv):
 
     try:
         return main_inner(parser, argns)
+    except BrokenPipeError:
+        # someone closed our stdout, e.g. by quitting a pager.
+        return 0
     except Exception:
         if argns.v:
             print(file=sys.stderr)

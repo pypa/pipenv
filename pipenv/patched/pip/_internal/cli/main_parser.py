@@ -2,9 +2,11 @@
 """
 
 import os
+import subprocess
 import sys
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
+from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.patched.pip._internal.cli import cmdoptions
 from pipenv.patched.pip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
 from pipenv.patched.pip._internal.commands import commands_dict, get_similar_commands
@@ -45,6 +47,25 @@ def create_main_parser() -> ConfigOptionParser:
     return parser
 
 
+def identify_python_interpreter(python: str) -> Optional[str]:
+    # If the named file exists, use it.
+    # If it's a directory, assume it's a virtual environment and
+    # look for the environment's Python executable.
+    if os.path.exists(python):
+        if os.path.isdir(python):
+            # bin/python for Unix, Scripts/python.exe for Windows
+            # Try both in case of odd cases like cygwin.
+            for exe in ("bin/python", "Scripts/python.exe"):
+                py = os.path.join(python, exe)
+                if os.path.exists(py):
+                    return py
+        else:
+            return python
+
+    # Could not find the interpreter specified
+    return None
+
+
 def parse_command(args: List[str]) -> Tuple[str, List[str]]:
     parser = create_main_parser()
 
@@ -56,6 +77,32 @@ def parse_command(args: List[str]) -> Tuple[str, List[str]]:
     #  general_options: ['--timeout==5']
     #  args_else: ['install', '--user', 'INITools']
     general_options, args_else = parser.parse_args(args)
+
+    # --python
+    if general_options.python and "_PIP_RUNNING_IN_SUBPROCESS" not in os.environ:
+        # Re-invoke pip using the specified Python interpreter
+        interpreter = identify_python_interpreter(general_options.python)
+        if interpreter is None:
+            raise CommandError(
+                f"Could not locate Python interpreter {general_options.python}"
+            )
+
+        pip_cmd = [
+            interpreter,
+            get_runnable_pip(),
+        ]
+        pip_cmd.extend(args)
+
+        # Set a flag so the child doesn't re-invoke itself, causing
+        # an infinite loop.
+        os.environ["_PIP_RUNNING_IN_SUBPROCESS"] = "1"
+        returncode = 0
+        try:
+            proc = subprocess.run(pip_cmd)
+            returncode = proc.returncode
+        except (subprocess.SubprocessError, OSError) as exc:
+            raise CommandError(f"Failed to run pip under {interpreter}: {exc}")
+        sys.exit(returncode)
 
     # --version
     if general_options.version:

@@ -30,6 +30,26 @@ def clean_pkg_version(version):
     return pep440_version(str(version).replace("==", ""))
 
 
+def get_lockfile_section_using_pipfile_category(category):
+    if category == "dev-packages":
+        lockfile_section = "develop"
+    elif category == "packages":
+        lockfile_section = "default"
+    else:
+        lockfile_section = category
+    return lockfile_section
+
+
+def get_pipfile_category_using_lockfile_section(category):
+    if category == "develop":
+        lockfile_section = "dev-packages"
+    elif category == "default":
+        lockfile_section = "packages"
+    else:
+        lockfile_section = category
+    return lockfile_section
+
+
 class HackedPythonVersion:
     """A Beautiful hack, which allows us to tell pip which version of Python we're using."""
 
@@ -257,7 +277,9 @@ def convert_deps_to_pip(
     for dep_name, dep in deps.items():
         if project:
             project.clear_pipfile_cache()
-        indexes = getattr(project, "pipfile_sources", []) if project is not None else []
+        indexes = []
+        if project:
+            indexes = project.pipfile_sources()
         new_dep = Requirement.from_pipfile(dep_name, dep)
         if new_dep.index:
             include_index = True

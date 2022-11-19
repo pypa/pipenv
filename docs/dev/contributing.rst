@@ -110,7 +110,7 @@ Pipenv now uses pre-commit hooks similar to Pip in order to apply linting and
 code formatting automatically!  The build now also checks that these linting rules
 have been applied to the code before running the tests.
 The build will fail when linting changes are detected so be sure to sync dev requirements
-and install the pre-commit hooks locally:
+and install the pre-commit hooks locally::
 
    $ ``pipenv install --dev``
    # This will configure running the pre-commit checks at start of each commit
@@ -131,7 +131,7 @@ Tests are written in ``pytest`` style and can be run very simply:
   pytest
 
 However many tests depend on running a private pypi server on localhost:8080.
-This can be accomplished by using either the ``run-tests.sh`` or ``run-tests.bat`
+This can be accomplished by using either the ``run-tests.sh`` or ``run-tests.bat``
 which will start the ``pypiserver`` process ahead of invoking pytest.
 
 You may also manually perform this step and then invoke pytest as you would normally.  Example::

@@ -4,24 +4,29 @@ import pytest
 
 from flaky import flaky
 
-from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.utils.shell import temp_environ
 
 
-@flaky
 @pytest.mark.markers
-def test_package_environment_markers(pipenv_instance_pypi):
+def test_package_environment_markers(pipenv_instance_private_pypi):
 
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
+[[source]]
+url = "{0}"
+verify_ssl = false
+name = "testindex"
+
 [packages]
-fake_package = {version = "*", markers="os_name=='splashwear'"}
-            """.strip()
+fake_package = {1}
+
+[dev-packages]
+            """.format(os.environ['PIPENV_TEST_INDEX'], "{version = \"*\", markers=\"os_name=='splashwear'\", index=\"testindex\"}").strip()
             f.write(contents)
 
-        c = p.pipenv('install')
+        c = p.pipenv('install -v')
         assert c.returncode == 0
         assert 'markers' in p.lockfile['default']['fake-package'], p.lockfile["default"]
 
@@ -167,8 +172,6 @@ six = "*"
             assert lock_hash is not None
             assert lock_hash == project.calculate_pipfile_hash()
 
-            # sanity check on pytest
-            assert 'PYPI_USERNAME' not in str(pipfile.load(p.pipfile_path))
             assert c.returncode == 0
             assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
 
