@@ -32,7 +32,7 @@ from pipenv.vendor import click
 from pipenv.vendor.requirementslib import Requirement
 from pipenv.vendor.requirementslib.models.requirements import Line
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
-from pipenv.vendor.vistir import TemporaryDirectory, open_file
+from pipenv.vendor.vistir import open_file
 from pipenv.vendor.vistir.path import create_tracked_tempdir
 
 try:
@@ -61,6 +61,16 @@ from .shell import make_posix, subprocess_run, temp_environ
 
 console = rich.console.Console()
 err = rich.console.Console(stderr=True)
+
+
+class FakePipTempDirdirectory:
+    """A fake pip temp directory that is only used to pass path.
+
+    We add this because we can't monkeypatch a string instance.
+    """
+
+    def __init__(self, path):
+        self.path = path
 
 
 def get_package_finder(
@@ -650,15 +660,16 @@ class Resolver:
 
     @contextlib.contextmanager
     def get_resolver(self, clear=False):
+        from tempfile import TemporaryDirectory
+
         with global_tempdir_manager(), get_build_tracker() as build_tracker, TemporaryDirectory(
             suffix="-build", prefix="pipenv-"
         ) as directory:
             pip_options = self.pip_options
             finder = self.finder
             wheel_cache = WheelCache(pip_options.cache_dir, pip_options.format_control)
-            directory.path = directory.name
             preparer = self.pip_command.make_requirement_preparer(
-                temp_build_dir=directory,
+                temp_build_dir=FakePipTempDirdirectory(path=directory),
                 options=pip_options,
                 build_tracker=build_tracker,
                 session=self.session,
@@ -915,7 +926,7 @@ def actually_resolve_deps(
 def resolve(cmd, st, project):
     from pipenv._compat import decode_output
     from pipenv.cmdparse import Script
-    from pipenv.vendor.vistir.misc import echo
+    from pipenv.vendor.click import echo
 
     c = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())
     is_verbose = project.s.is_verbose()
