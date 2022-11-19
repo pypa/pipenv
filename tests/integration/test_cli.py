@@ -145,7 +145,7 @@ def test_pipenv_check(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv('install pyyaml')
         assert c.returncode == 0
-        c = p.pipenv('check')
+        c = p.pipenv('check --output bare --quiet')
         assert c.returncode != 0
         assert 'pyyaml' in c.stdout
         c = p.pipenv('uninstall pyyaml')

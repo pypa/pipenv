@@ -459,16 +459,28 @@ def run(state, command, args):
 @option(
     "--quiet", is_flag=True, help="Quiet standard output, except vulnerability report."
 )
-@option("--policy-file", default='',
-              help="Define the policy file to be used")
-@option("--exit-code/--continue-on-error", default=True,
-              help="Output standard exit codes. Default: --exit-code")
-@option("--audit-and-monitor/--disable-audit-and-monitor", default=True,
-              help="Send results back to pyup.io for viewing on your dashboard. Requires an API key.")
-@option("--project", default=None,
-              help="Project to associate this scan with on pyup.io. Defaults to a canonicalized github style name if available, otherwise unknown")
-@option("--save-json", default="", help="Path to where output file will be placed, if the path is a directory, "
-                                              "Safety will use safety-report.json as filename. Default: empty")
+@option("--policy-file", default="", help="Define the policy file to be used")
+@option(
+    "--exit-code/--continue-on-error",
+    default=True,
+    help="Output standard exit codes. Default: --exit-code",
+)
+@option(
+    "--audit-and-monitor/--disable-audit-and-monitor",
+    default=True,
+    help="Send results back to pyup.io for viewing on your dashboard. Requires an API key.",
+)
+@option(
+    "--project",
+    default=None,
+    help="Project to associate this scan with on pyup.io. Defaults to a canonicalized github style name if available, otherwise unknown",
+)
+@option(
+    "--save-json",
+    default="",
+    help="Path to where output file will be placed, if the path is a directory, "
+    "Safety will use safety-report.json as filename. Default: empty",
+)
 @common_options
 @system_option
 @pass_state

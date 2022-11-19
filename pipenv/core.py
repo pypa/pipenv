@@ -2826,8 +2826,8 @@ def do_check(
         if not quiet and not project.s.is_quiet():
             click.echo(
                 "Notice: Ignoring Vulnerabilit{} {}".format(
-                    'ies' if len(ignored) > 1 else 'y',
-                    click.style(", ".join(ignore), fg="yellow")
+                    "ies" if len(ignored) > 1 else "y",
+                    click.style(", ".join(ignore), fg="yellow"),
                 ),
                 err=True,
             )
@@ -2835,12 +2835,11 @@ def do_check(
         ignored = []
 
     options = [
-        "--audit-and-monitor" if audit_and_monitor else
-        "--disable-audit-and-monitor",
-        "--exit-code" if exit_code else "--continue-on-error"
+        "--audit-and-monitor" if audit_and_monitor else "--disable-audit-and-monitor",
+        "--exit-code" if exit_code else "--continue-on-error",
     ]
 
-    if output == 'full-report':
+    if output == "full-report":
         options.append("--full-report")
     elif output == "minimal":
         options.append("--json")
@@ -2848,13 +2847,13 @@ def do_check(
         options.append(f"--output={output}")
 
     if save_json:
-        options.append(f'--save-json={save_json}')
+        options.append(f"--save-json={save_json}")
 
     if policy_file:
         options.append(f"--policy-file={policy_file}")
 
     if safety_project:
-        options.append(f'--project={safety_project}')
+        options.append(f"--project={safety_project}")
 
     cmd = _cmd + [safety_path, "check"] + options
 
