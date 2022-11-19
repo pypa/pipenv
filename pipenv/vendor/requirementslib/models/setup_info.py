@@ -67,11 +67,7 @@ if MYPY_RUNNING:
     from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
     from pipenv.patched.pip._vendor.pkg_resources import DistInfoDistribution, EggInfoDistribution
     from pipenv.patched.pip._vendor.requests import Session
-
-    try:
-        from setuptools.dist import Distribution
-    except ImportError:
-        from distutils.core import Distribution
+    from setuptools.dist import Distribution
 
     TRequirement = TypeVar("TRequirement")
     RequirementType = TypeVar(

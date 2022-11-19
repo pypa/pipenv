@@ -22,7 +22,6 @@ from pipenv.vendor.tomlkit.container import Container
 from pipenv.vendor.tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
 from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
 from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
-from pipenv.vendor.vistir.misc import dedup
 from pipenv.vendor.vistir.path import is_valid_url
 
 from ..environment import MYPY_RUNNING
@@ -224,7 +223,7 @@ def parse_extras(extras_str):
     :rtype: List[str]
     """
     extras = Requirement.parse("fakepkg{0}".format(extras_to_string(extras_str))).extras
-    return sorted(dedup([extra.lower() for extra in extras]))
+    return sorted(dict.fromkeys([extra.lower() for extra in extras]))
 
 
 def specs_to_string(specs):
