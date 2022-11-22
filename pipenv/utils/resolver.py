@@ -63,7 +63,7 @@ console = rich.console.Console()
 err = rich.console.Console(stderr=True)
 
 
-class FakePipTempDirdirectory:
+class QuasiPipTempDirectory:
     """A fake pip temp directory that is only used to pass path.
 
     We add this because we can't monkeypatch a string instance.
@@ -669,7 +669,7 @@ class Resolver:
             finder = self.finder
             wheel_cache = WheelCache(pip_options.cache_dir, pip_options.format_control)
             preparer = self.pip_command.make_requirement_preparer(
-                temp_build_dir=FakePipTempDirdirectory(path=directory),
+                temp_build_dir=QuasiPipTempDirectory(path=directory),
                 options=pip_options,
                 build_tracker=build_tracker,
                 session=self.session,
