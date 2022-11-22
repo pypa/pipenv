@@ -1,0 +1,6 @@
+Bump version of requirementslib to 2.2.0
+Drop yaspin which is no longer used.
+Bump vistir to version 0.7.4
+Remove parse.
+Remove termcolor.
+Remove idna.
