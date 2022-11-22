@@ -1,3 +1,4 @@
+import io
 import json as simplejson
 import logging
 import os
@@ -15,7 +16,7 @@ from posixpath import expandvars
 from typing import Dict, List, Optional, Union
 
 from pipenv import environments, exceptions, pep508checker
-from pipenv._compat import decode_for_output, fix_utf8
+from pipenv._compat import fix_utf8
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._internal.network.session import PipSession
@@ -2865,9 +2866,7 @@ def do_check(
             pypi_mirror=pypi_mirror,
         )
     if not quiet and not project.s.is_quiet():
-        click.echo(
-            click.style(decode_for_output("Checking PEP 508 requirements..."), bold=True)
-        )
+        click.secho("Checking PEP 508 requirements...", bold=True)
     pep508checker_path = pep508checker.__file__.rstrip("cdo")
     safety_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "patched", "safety"
@@ -2884,7 +2883,7 @@ def do_check(
             click.echo(
                 "{}\n{}\n{}".format(
                     click.style(
-                        decode_for_output("Failed parsing pep508 results: "),
+                        "Failed parsing pep508 results: ",
                         fg="white",
                         bold=True,
                     ),
@@ -2918,12 +2917,11 @@ def do_check(
         sys.exit(1)
     else:
         if not quiet and not project.s.is_quiet():
-            click.echo(click.style("Passed!", fg="green"))
+            click.secho("Passed!", fg="green")
     if not quiet and not project.s.is_quiet():
-        click.echo(
-            click.style(
-                decode_for_output("Checking installed package safety..."), bold=True
-            )
+        click.secho(
+            "Checking installed packages for vulnerabilities...",
+            bold=True,
         )
     if ignore:
         if not isinstance(ignore, (tuple, list)):
@@ -2947,6 +2945,8 @@ def do_check(
 
     if output == "full-report":
         options.append("--full-report")
+    elif output == "minimal":
+        options.append("--json")
     elif output not in ["screen", "default"]:
         options.append(f"--output={output}")
 
@@ -2959,44 +2959,90 @@ def do_check(
     if safety_project:
         options.append(f"--project={safety_project}")
 
-    cmd = _cmd + [safety_path, "--debug", "check"] + options
+    cmd = _cmd + [safety_path, "check"] + options
 
     if db:
         if not quiet and not project.s.is_quiet():
-            click.echo(click.style(f"Using {db} database"))
+            click.echo(f"Using {db} database")
         cmd.append(f"--db={db}")
     elif key or project.s.PIPENV_PYUP_API_KEY:
         cmd = cmd + [f"--key={key or project.s.PIPENV_PYUP_API_KEY}"]
     else:
-        # TODO: Define the source
         PIPENV_SAFETY_DB = (
-            "https://raw.githubusercontent.com/pyupio/safety-db/master/data/"
+            "https://d2qjmgddvqvu75.cloudfront.net/aws/safety/pipenv/1.0.0/"
         )
+        os.environ["SAFETY_ANNOUNCEMENTS_URL"] = f"{PIPENV_SAFETY_DB}announcements.json"
         cmd.append(f"--db={PIPENV_SAFETY_DB}")
 
     if ignored:
         for cve in ignored:
             cmd += cve
-    click.secho("Running the command", fg="red")
 
-    safety_env = os.environ.copy()
-    safety_env["SAFETY_CUSTOM_INTEGRATION"] = "True"
-    safety_env["SAFETY_ANNOUNCEMENTS_URL"] = "https://foo-bar"  # TODO: Define the source
-    safety_env["SAFETY_SOURCE"] = "pipenv"
+    os.environ["SAFETY_CUSTOM_INTEGRATION"] = "True"
+    os.environ["SAFETY_SOURCE"] = "pipenv"
+    os.environ["SAFETY_PURE_YAML"] = "True"
 
-    c = run_command(
-        cmd, catch_exceptions=False, is_verbose=project.s.is_verbose(), env=safety_env
-    )
+    from pipenv.patched.safety.cli import cli
 
-    if c.stdout:
-        click.echo(c.stdout)
-    elif c.stderr:
-        raise exceptions.PipenvCmdError(
-            cmd_list_to_shell(c.args), c.stdout, c.stderr, c.returncode
-        )
+    sys.argv = cmd[1:]
 
-    # Let to Safety handles the exit code behavior
-    sys.exit(c.returncode)
+    if output == "minimal":
+        from contextlib import redirect_stderr, redirect_stdout
+
+        code = 0
+
+        with redirect_stdout(io.StringIO()) as out, redirect_stderr(io.StringIO()) as err:
+            try:
+                cli(prog_name="pipenv")
+            except SystemExit as exit_signal:
+                code = exit_signal.code
+
+        report = out.getvalue()
+        error = err.getvalue()
+
+        try:
+            json_report = simplejson.loads(report)
+        except Exception:
+            raise exceptions.PipenvCmdError(
+                cmd_list_to_shell(cmd), report, error, exit_code=code
+            )
+        meta = json_report.get("report_meta")
+        vulnerabilities_found = meta.get("vulnerabilities_found")
+
+        fg = "green"
+        message = "All good!"
+        db_type = "commercial" if meta.get("api_key", False) else "free"
+
+        if vulnerabilities_found >= 0:
+            fg = "red"
+            message = (
+                f"Scan was complete using Safety’s {db_type} vulnerability database."
+            )
+
+        click.echo()
+        click.secho(f"{vulnerabilities_found} vulnerabilities found.", fg=fg)
+        click.echo()
+
+        vulnerabilities = json_report.get("vulnerabilities", [])
+
+        for vuln in vulnerabilities:
+            click.echo(
+                "{}: {} {} open to vulnerability {} ({}). More info: {}".format(
+                    click.style(vuln["vulnerability_id"], bold=True, fg="red"),
+                    click.style(vuln["package_name"], fg="green"),
+                    click.style(vuln["analyzed_version"], fg="yellow", bold=True),
+                    click.style(vuln["vulnerability_id"], bold=True),
+                    click.style(vuln["vulnerable_spec"], fg="yellow", bold=False),
+                    click.style(vuln["more_info_url"], bold=True),
+                )
+            )
+            click.echo(f"{vuln['advisory']}")
+            click.echo()
+
+        click.secho(message, fg="white", bold=True)
+        sys.exit(code)
+
+    cli(prog_name="pipenv")
 
 
 def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
