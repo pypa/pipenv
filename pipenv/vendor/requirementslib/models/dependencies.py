@@ -17,7 +17,6 @@ from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, global_te
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
-from pipenv.vendor.vistir.compat import fs_str
 from pipenv.vendor.vistir.contextmanagers import temp_environ
 from pipenv.vendor.vistir.path import create_tracked_tempdir
 
@@ -53,8 +52,8 @@ if MYPY_RUNNING:
     S = TypeVar("S", bytes, str, Text)
 
 
-PKGS_DOWNLOAD_DIR = fs_str(os.path.join(CACHE_DIR, "pkgs"))
-WHEEL_DOWNLOAD_DIR = fs_str(os.path.join(CACHE_DIR, "wheels"))
+PKGS_DOWNLOAD_DIR = os.path.join(CACHE_DIR, "pkgs")
+WHEEL_DOWNLOAD_DIR = os.path.join(CACHE_DIR, "wheels")
 
 DEPENDENCY_CACHE = DependencyCache()
 
@@ -617,8 +616,8 @@ def start_resolver(finder=None, session=None, wheel_cache=None):
     download_dir = PKGS_DOWNLOAD_DIR
     os.makedir(download_dir, mode=0o777)
 
-    _build_dir = create_tracked_tempdir(fs_str("build"))
-    _source_dir = create_tracked_tempdir(fs_str("source"))
+    _build_dir = create_tracked_tempdir("build")
+    _source_dir = create_tracked_tempdir("source")
     pip_options.src_dir = _source_dir
     try:
         with global_tempdir_manager(), get_build_tracker() as build_tracker:

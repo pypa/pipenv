@@ -14,7 +14,7 @@ import pipenv.vendor.attr as attr
 import pipenv.patched.pip._vendor.requests as requests
 import pipenv.vendor.vistir as vistir
 from pipenv.patched.pip._vendor.distlib import wheel
-from pipenv.patched.pip._vendor.distlib.metadata import import Metadata
+from pipenv.patched.pip._vendor.distlib.metadata import Metadata
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import Specifier, SpecifierSet

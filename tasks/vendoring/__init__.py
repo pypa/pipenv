@@ -31,7 +31,6 @@ HARDCODED_LICENSE_URLS = {
     "CacheControl": "https://raw.githubusercontent.com/ionrock/cachecontrol/master/LICENSE.txt",
     "click-didyoumean": "https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE",
     "click-completion": "https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE",
-    "parse": "https://raw.githubusercontent.com/techalchemy/parse/master/LICENSE",
     "pytoml": "https://github.com/avakar/pytoml/raw/master/LICENSE",
     "webencodings": "https://github.com/SimonSapin/python-webencodings/raw/"
     "master/LICENSE",
@@ -89,7 +88,10 @@ GLOBAL_REPLACEMENT = [
         "from pipenv.patched.pip._vendor.platformdirs import user_cache_dir",
     ),
     ("from distlib import", "from pipenv.patched.pip._vendor.distlib import"),
-    ("from distlib.metadata", "from pipenv.patched.pip._vendor.distlib.metadata import"),
+    (
+        "from distlib.metadata import",
+        "from pipenv.patched.pip._vendor.distlib.metadata import",
+    ),
     ("from distlib.wheel import", "from pipenv.patched.pip._vendor.distlib.wheel import"),
 ]
 
@@ -480,7 +482,7 @@ def download_licenses(
     only=False,
     patched=False,
 ):
-    import pipenv.vendor.parse as parse
+    import parse
 
     log("Downloading licenses")
     if not vendor_dir:

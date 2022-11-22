@@ -1,18 +1,19 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
-
 import io
 import os
+
 import stat
 import sys
+import typing
 
 from contextlib import closing, contextmanager
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 from urllib import request
 
-from .compat import IS_TYPE_CHECKING, NamedTemporaryFile, Path
 from .path import is_file_url, is_valid_url, path_to_url, url_to_path
 
-if IS_TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     from typing import (
         Any,
         Bytes,

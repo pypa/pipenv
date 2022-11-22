@@ -1,12 +1,10 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
-
 import os
 import re
 
 import pipenv.vendor.colorama as colorama
 
-from .compat import to_native_string
+from .misc import to_text as to_native_string
 
 DISABLE_COLORS = os.getenv("CI", False) or os.getenv(
     "ANSI_COLORS_DISABLED", os.getenv("VISTIR_DISABLE_COLORS", False)
