@@ -177,7 +177,7 @@ def spinner(
 
     has_yaspin = None
     try:
-        import pipenv.vendor.yaspin as yaspin
+        import yaspin
     except (ImportError, ModuleNotFoundError):  # noqa
         has_yaspin = False
         if not nospin:

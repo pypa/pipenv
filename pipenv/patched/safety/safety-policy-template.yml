@@ -12,3 +12,70 @@ security: # configuration for the `safety check` command
             reason: we don't use the vulnerable function # optional, for internal note purposes to communicate with your team. This reason will be reported in the Safety reports
             expires: '2022-10-21' # datetime string - date this ignore will expire, best practice to use this variable
     continue-on-vulnerability-error: False # Suppress non-zero exit codes when vulnerabilities are found. Enable this in pipelines and CI/CD processes if you want to pass builds that have vulnerabilities. We recommend you set this to False.
+alert: # configuration for the `safety alert` command
+    security:
+        # Configuration specific to Safety's GitHub Issue alerting
+        github-issue:
+            # Same as for security - these allow controlling if this alert will fire based
+            # on severity information.
+            # default: not set
+            # ignore-cvss-severity-below: 6
+            # ignore-cvss-unknown-severity: False
+
+            # Add a label to pull requests with the cvss severity, if available
+            # default: true
+            # label-severity: True
+
+            # Add a label to pull requests, default is 'security'
+            # requires private repo permissions, even on public repos
+            # default: security
+            # labels:
+            #  - security
+
+            # Assign users to pull requests, default is not set
+            # requires private repo permissions, even on public repos
+            # default: empty
+            # assignees:
+            #  - example-user
+
+            # Prefix to give issues when creating them. Note that changing
+            # this might cause duplicate issues to be created.
+            # default: "[PyUp] "
+            # issue-prefix: "[PyUp] "
+
+        # Configuration specific to Safety's GitHub PR alerting
+        github-pr:
+            # Same as for security - these allow controlling if this alert will fire based
+            # on severity information.
+            # default: not set
+            # ignore-cvss-severity-below: 6
+            # ignore-cvss-unknown-severity: False
+
+            # Set the default branch (ie, main, master)
+            # default: empty, the default branch on GitHub
+            branch: ''
+
+            # Add a label to pull requests with the cvss severity, if available
+            # default: true
+            # label-severity: True
+
+            # Add a label to pull requests, default is 'security'
+            # requires private repo permissions, even on public repos
+            # default: security
+            # labels:
+            #  - security
+
+            # Assign users to pull requests, default is not set
+            # requires private repo permissions, even on public repos
+            # default: empty
+            # assignees:
+            #  - example-user
+
+            # Configure the branch prefix for PRs created by this alert.
+            # NB: Changing this will likely cause duplicate PRs.
+            # default: pyup/
+            branch-prefix: pyup/
+
+            # Set a global prefix for PRs
+            # default: "[PyUp] "
+            pr-prefix: "[PyUp] "

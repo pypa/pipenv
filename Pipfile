@@ -19,6 +19,7 @@ pytest-cov = "==3.*"
 typing-extensions = "==4.*"
 waitress = {version = "*", markers="sys_platform == 'win32'"}
 gunicorn = {version = "*", markers="sys_platform == 'linux'"}
+parse = "*"
 
 [packages]
 

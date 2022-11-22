@@ -10,6 +10,7 @@ import tempfile
 import pipenv.vendor.click as click
 
 from pipenv.patched.safety import safety
+from pipenv.patched.safety.alerts import alert
 from pipenv.patched.safety.constants import EXIT_CODE_VULNERABILITIES_FOUND, EXIT_CODE_OK, EXIT_CODE_FAILURE
 from pipenv.patched.safety.errors import SafetyException, SafetyError
 from pipenv.patched.safety.formatter import SafetyFormatter
@@ -17,7 +18,8 @@ from pipenv.patched.safety.output_utils import should_add_nl
 from pipenv.patched.safety.safety import get_packages, read_vulnerabilities, fetch_policy, post_results
 from pipenv.patched.safety.util import get_proxy_dict, get_packages_licenses, output_exception, \
     MutuallyExclusiveOption, DependentOption, transform_ignore, SafetyPolicyFile, active_color_if_needed, \
-    get_processed_options, get_safety_version, json_alias, bare_alias, SafetyContext
+    get_processed_options, get_safety_version, json_alias, bare_alias, SafetyContext, is_a_remote_mirror, \
+    filter_announcements
 
 LOG = logging.getLogger(__name__)
 
@@ -45,13 +47,18 @@ def cli(ctx, debug, telemetry, disable_optional_telemetry_data):
 
     LOG.info(f'Telemetry enabled: {ctx.telemetry}')
 
+    @ctx.call_on_close
+    def clean_up_on_close():
+        LOG.debug('Calling clean up on close function.')
+        safety.close_session()
+
 
 @cli.command()
 @click.option("--key", default="", envvar="SAFETY_API_KEY",
               help="API Key for pyup.io's vulnerability database. Can be set as SAFETY_API_KEY "
                    "environment variable. Default: empty")
 @click.option("--db", default="",
-              help="Path to a local vulnerability database. Default: empty")
+              help="Path to a local or remote vulnerability database. Default: empty")
 @click.option("--full-report/--short-report", default=False, cls=MutuallyExclusiveOption,
               mutually_exclusive=["output", "json", "bare"],
               with_values={"output": ['json', 'bare'], "json": [True, False], "bare": [True, False]},
@@ -104,11 +111,6 @@ def check(ctx, key, db, full_report, stdin, files, cache, ignore, output, json, 
         packages = get_packages(files, stdin)
         proxy_dictionary = get_proxy_dict(proxy_protocol, proxy_host, proxy_port)
 
-        announcements = []
-        if not db:
-            LOG.info('Not local DB used, Getting announcements')
-            announcements = safety.get_announcements(key=key, proxy=proxy_dictionary, telemetry=ctx.parent.telemetry)
-
         if key:
             server_policies = fetch_policy(key=key, proxy=proxy_dictionary)
             server_audit_and_monitor = server_policies["audit_and_monitor"]
@@ -150,6 +152,11 @@ def check(ctx, key, db, full_report, stdin, files, cache, ignore, output, json, 
         LOG.info('Safety is going to calculate remediations')
         remediations = safety.calculate_remediations(vulns, db_full)
 
+        announcements = []
+        if not db or is_a_remote_mirror(db):
+            LOG.info('Not local DB used, Getting announcements')
+            announcements = safety.get_announcements(key=key, proxy=proxy_dictionary, telemetry=ctx.parent.telemetry)
+
         json_report = None
         if save_json or (server_audit_and_monitor and audit_and_monitor):
             default_name = 'safety-report.json'
@@ -176,12 +183,14 @@ def check(ctx, key, db, full_report, stdin, files, cache, ignore, output, json, 
             output_report = json_report
         else:
             output_report = SafetyFormatter(output=output).render_vulnerabilities(announcements, vulns, remediations,
-                                                                              full_report, packages)
+                                                                                  full_report, packages)
 
         # Announcements are send to stderr if not terminal, it doesn't depend on "exit_code" value
-        if announcements and (not sys.stdout.isatty() and os.environ.get("SAFETY_OS_DESCRIPTION", None) != 'run'):
-            LOG.info('sys.stdout is not a tty, announcements are going to be send to stderr')
-            click.secho(SafetyFormatter(output='text').render_announcements(announcements), fg="red", file=sys.stderr)
+        stderr_announcements = filter_announcements(announcements=announcements, by_type='error')
+        if stderr_announcements and (not sys.stdout.isatty() and os.environ.get("SAFETY_OS_DESCRIPTION", None) != 'run'):
+            LOG.info('sys.stdout is not a tty, error announcements are going to be send to stderr')
+            click.secho(SafetyFormatter(output='text').render_announcements(stderr_announcements), fg="red",
+                        file=sys.stderr)
 
         found_vulns = list(filter(lambda v: not v.ignored, vulns))
         LOG.info('Vulnerabilities found (Not ignored): %s', len(found_vulns))
@@ -218,7 +227,6 @@ def review(ctx, full_report, output, file):
     Show an output from a previous exported JSON report.
     """
     LOG.info('Running check command')
-    announcements = safety.get_announcements(key=None, proxy=None, telemetry=ctx.parent.telemetry)
     report = {}
 
     try:
@@ -234,6 +242,7 @@ def review(ctx, full_report, output, file):
     params = {'file': file}
     vulns, remediations, packages = safety.review(report, params=params)
 
+    announcements = safety.get_announcements(key=None, proxy=None, telemetry=ctx.parent.telemetry)
     output_report = SafetyFormatter(output=output).render_vulnerabilities(announcements, vulns, remediations,
                                                                           full_report, packages)
 
@@ -270,14 +279,11 @@ def license(ctx, key, db, output, cache, files, proxyprotocol, proxyhost, proxyp
     packages = get_packages(files, False)
 
     proxy_dictionary = get_proxy_dict(proxyprotocol, proxyhost, proxyport)
-    announcements = []
-    if not db:
-        announcements = safety.get_announcements(key=key, proxy=proxy_dictionary, telemetry=ctx.parent.telemetry)
-
     licenses_db = {}
 
     try:
-        licenses_db = safety.get_licenses(key, db, cache, proxy_dictionary, telemetry=ctx.parent.telemetry)
+        licenses_db = safety.get_licenses(key=key, db_mirror=db, cached=cache, proxy=proxy_dictionary,
+                                          telemetry=ctx.parent.telemetry)
     except SafetyError as e:
         LOG.exception('Expected SafetyError happened: %s', e)
         output_exception(e, exit_code_output=False)
@@ -287,6 +293,10 @@ def license(ctx, key, db, output, cache, files, proxyprotocol, proxyhost, proxyp
         output_exception(exception, exit_code_output=False)
 
     filtered_packages_licenses = get_packages_licenses(packages=packages, licenses_db=licenses_db)
+
+    announcements = []
+    if not db:
+        announcements = safety.get_announcements(key=key, proxy=proxy_dictionary, telemetry=ctx.parent.telemetry)
 
     output_report = SafetyFormatter(output=output).render_licenses(announcements, filtered_packages_licenses)
 
@@ -363,6 +373,8 @@ def validate(ctx, name, path):
 
     click.secho(f'The Safety policy file was successfully parsed with the following values:', fg='green')
     click.secho(json.dumps(values, indent=4, default=str))
+
+cli.add_command(alert)
 
 
 if __name__ == "__main__":

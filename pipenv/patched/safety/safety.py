@@ -19,7 +19,7 @@ from .errors import (DatabaseFetchError, DatabaseFileNotFoundError,
                      RequestTimeoutError, ServerError, MalformedDatabase)
 from .models import Vulnerability, CVE, Severity
 from .util import RequirementFile, read_requirements, Package, build_telemetry_data, sync_safety_context, SafetyContext, \
-    validate_expiration_date
+    validate_expiration_date, is_a_remote_mirror
 
 session = requests.session()
 
@@ -208,15 +208,17 @@ def fetch_database_file(path, db_name):
 
 
 def fetch_database(full=False, key=False, db=False, cached=0, proxy=None, telemetry=True):
-    if db:
+    if key:
+        mirrors = API_MIRRORS
+    elif db:
         mirrors = [db]
     else:
-        mirrors = API_MIRRORS if key else OPEN_MIRRORS
+        mirrors = OPEN_MIRRORS
 
     db_name = "insecure_full.json" if full else "insecure.json"
     for mirror in mirrors:
         # mirror can either be a local path or a URL
-        if mirror.startswith("http://") or mirror.startswith("https://"):
+        if is_a_remote_mirror(mirror):
             data = fetch_database_url(mirror, db_name=db_name, key=key, cached=cached, proxy=proxy, telemetry=telemetry)
         else:
             data = fetch_database_file(mirror, db_name=db_name)
@@ -249,7 +251,7 @@ def get_vulnerability_from(vuln_id, cve, data, specifier, db, name, pkg, ignore_
     more_info_url = f"{base_domain}{data.get('more_info_path', '')}"
     severity = None
 
-    if cve and cve.cvssv2 or cve.cvssv3:
+    if cve and (cve.cvssv2 or cve.cvssv3):
         severity = Severity(source=cve.name, cvssv2=cve.cvssv2, cvssv3=cve.cvssv3)
 
     return Vulnerability(
@@ -276,9 +278,15 @@ def get_vulnerability_from(vuln_id, cve, data, specifier, db, name, pkg, ignore_
 
 
 def get_cve_from(data, db_full):
-    cve_id = data.get("cve", '').split(",")[0].strip()
+    cve_data = data.get("cve", '')
+
+    if not cve_data:
+        return None
+
+    cve_id = cve_data.split(",")[0].strip()
     cve_meta = db_full.get("$meta", {}).get("cve", {}).get(cve_id, {})
-    return CVE(name=cve_id, cvssv2=cve_meta.get("cvssv2", None), cvssv3=cve_meta.get("cvssv3", None))
+    return CVE(name=cve_id, cvssv2=cve_meta.get("cvssv2", None),
+               cvssv3=cve_meta.get("cvssv3", None))
 
 
 def ignore_vuln_if_needed(vuln_id, cve, ignore_vulns, ignore_severity_rules):
@@ -288,11 +296,12 @@ def ignore_vuln_if_needed(vuln_id, cve, ignore_vulns, ignore_severity_rules):
 
     severity = None
 
-    if cve.cvssv2 and cve.cvssv2.get("base_score", None):
-        severity = cve.cvssv2.get("base_score", None)
+    if cve:
+        if cve.cvssv2 and cve.cvssv2.get("base_score", None):
+            severity = cve.cvssv2.get("base_score", None)
 
-    if cve.cvssv3 and cve.cvssv3.get("base_score", None):
-        severity = cve.cvssv3.get("base_score", None)
+        if cve.cvssv3 and cve.cvssv3.get("base_score", None):
+            severity = cve.cvssv3.get("base_score", None)
 
     ignore_severity_below = float(ignore_severity_rules.get('ignore-cvss-severity-below', 0.0))
     ignore_unknown_severity = bool(ignore_severity_rules.get('ignore-cvss-unknown-severity', False))
@@ -339,7 +348,7 @@ def check(packages, key=False, db_mirror=False, cached=0, ignore_vulns=None, ign
 
                         ignore_vuln_if_needed(vuln_id, cve, ignore_vulns, ignore_severity_rules)
 
-                        vulnerability = get_vulnerability_from(vuln_id, cve, data, specifier, db, name, pkg,
+                        vulnerability = get_vulnerability_from(vuln_id, cve, data, specifier, db_full, name, pkg,
                                                                ignore_vulns)
 
                         should_add_vuln = not (vulnerability.is_transitive and is_env_scan)
@@ -509,7 +518,7 @@ def get_licenses(key=False, db_mirror=False, cached=0, proxy=None, telemetry=Tru
 
     for mirror in mirrors:
         # mirror can either be a local path or a URL
-        if mirror.startswith("http://") or mirror.startswith("https://"):
+        if is_a_remote_mirror(mirror):
             licenses = fetch_database_url(mirror, db_name=db_name, key=key, cached=cached, proxy=proxy,
                                           telemetry=telemetry)
         else:
@@ -522,8 +531,6 @@ def get_licenses(key=False, db_mirror=False, cached=0, proxy=None, telemetry=Tru
 def get_announcements(key, proxy, telemetry=True):
     LOG.info('Getting announcements')
 
-    body = build_telemetry_data(telemetry=telemetry)
-
     announcements = []
     headers = {}
 
@@ -531,11 +538,29 @@ def get_announcements(key, proxy, telemetry=True):
         headers["X-Api-Key"] = key
 
     url = f"{API_BASE_URL}announcements/"
+    method = 'post'
+    data = build_telemetry_data(telemetry=telemetry)
+    request_kwargs = {'headers': headers, 'proxies': proxy, 'timeout': 3}
+    data_keyword = 'json'
 
-    LOG.debug(f'Telemetry body sent: {body}')
+    source = os.environ.get('SAFETY_ANNOUNCEMENTS_URL', None)
+
+    if source:
+        LOG.debug(f'Getting the announcement from a different source: {source}')
+        url = source
+        method = 'get'
+        data = {
+            'telemetry': json.dumps(data)}
+        data_keyword = 'params'
+
+    request_kwargs[data_keyword] = data
+    request_kwargs['url'] = url
+
+    LOG.debug(f'Telemetry data sent: {data}')
 
     try:
-        r = session.post(url=url, json=body, headers=headers, timeout=2, proxies=proxy)
+        request_func = getattr(session, method)
+        r = request_func(**request_kwargs)
         LOG.debug(r.text)
     except Exception as e:
         LOG.info('Unexpected but HANDLED Exception happened getting the announcements: %s', e)
@@ -585,3 +610,8 @@ def read_vulnerabilities(fh):
         raise MalformedDatabase(reason=e, fetched_from=fh.name)
 
     return data
+
+
+def close_session():
+    LOG.debug('Closing requests session.')
+    session.close()

@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import platform
@@ -10,33 +11,29 @@ from typing import List
 
 import pipenv.vendor.click as click
 from pipenv.vendor.click import BadParameter
-from pipenv.vendor.dparse.parser import setuptools_parse_requirements_backport as _parse_requirements
+from pipenv.vendor.dparse import parse, filetypes
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.vendor.ruamel.yaml import YAML
 from pipenv.vendor.ruamel.yaml.error import MarkedYAMLError
-import pipenv.patched.safety as safety
 
 from pipenv.patched.safety.constants import EXIT_CODE_FAILURE, EXIT_CODE_OK
 from pipenv.patched.safety.models import Package, RequirementFile
 
 LOG = logging.getLogger(__name__)
 
-def iter_lines(fh, lineno=0):
-    for line in fh.readlines()[lineno:]:
-        yield line
+
+def is_a_remote_mirror(mirror):
+    return mirror.startswith("http://") or mirror.startswith("https://")
 
 
-def parse_line(line):
-    if line.startswith('-e') or line.startswith('http://') or line.startswith('https://'):
-        if "#egg=" in line:
-            line = line.split("#egg=")[-1]
-    if ' --hash' in line:
-        line = line.split(" --hash")[0]
-    return _parse_requirements(line)
+def is_supported_by_parser(path):
+    supported_types = (".txt", ".in", ".yml", ".ini", "Pipfile",
+                       "Pipfile.lock", "setup.cfg", "poetry.lock")
+    return path.endswith(supported_types)
 
 
-def read_requirements(fh, resolve=False):
+def read_requirements(fh, resolve=True):
     """
     Reads requirements from a file like object and (optionally) from referenced files.
     :param fh: file like object to read from
@@ -44,80 +41,45 @@ def read_requirements(fh, resolve=False):
     :return: generator
     """
     is_temp_file = not hasattr(fh, 'name')
-    for num, line in enumerate(iter_lines(fh)):
-        line = line.strip()
-        if not line:
-            # skip empty lines
-            continue
-        if line.startswith('#') or \
-            line.startswith('-i') or \
-            line.startswith('--index-url') or \
-            line.startswith('--extra-index-url') or \
-            line.startswith('-f') or line.startswith('--find-links') or \
-            line.startswith('--no-index') or line.startswith('--allow-external') or \
-            line.startswith('--allow-unverified') or line.startswith('-Z') or \
-            line.startswith('--always-unzip'):
-            # skip unsupported lines
-            continue
-        elif line.startswith('-r') or line.startswith('--requirement'):
-            # got a referenced file here, try to resolve the path
-            # if this is a tempfile, skip
-            if is_temp_file:
-                continue
+    path = None
+    found = 'temp_file'
+    file_type = filetypes.requirements_txt
 
-            # strip away the recursive flag
-            prefixes = ["-r", "--requirement"]
-            filename = line.strip()
-            for prefix in prefixes:
-                if filename.startswith(prefix):
-                    filename = filename[len(prefix):].strip()
+    if not is_temp_file and is_supported_by_parser(fh.name):
+        LOG.debug('not temp and a compatible file')
+        path = fh.name
+        found = path
+        file_type = None
 
-            # if there is a comment, remove it
-            if " #" in filename:
-                filename = filename.split(" #")[0].strip()
-            req_file_path = os.path.join(os.path.dirname(fh.name), filename)
-            if resolve:
-                # recursively yield the resolved requirements
-                if os.path.exists(req_file_path):
-                    with open(req_file_path) as _fh:
-                        for req in read_requirements(_fh, resolve=True):
-                            yield req
-            else:
-                yield RequirementFile(path=req_file_path)
-        else:
-            try:
-                parseable_line = line
-                # multiline requirements are not parseable
-                if "\\" in line:
-                    parseable_line = line.replace("\\", "")
-                    for next_line in iter_lines(fh, num + 1):
-                        parseable_line += next_line.strip().replace("\\", "")
-                        line += "\n" + next_line
-                        if "\\" in next_line:
-                            continue
-                        break
-                req, = parse_line(parseable_line)
-                if len(req.specifier._specs) == 1 and \
-                        next(iter(req.specifier._specs))._spec[0] == "==":
-                    yield Package(name=req.name, version=next(iter(req.specifier._specs))._spec[1],
-                                  found='temp_file' if is_temp_file else fh.name, insecure_versions=[],
-                                  secure_versions=[], latest_version=None,
-                                  latest_version_without_known_vulnerabilities=None, more_info_url=None)
-                else:
-                    try:
-                        fname = fh.name
-                    except AttributeError:
-                        fname = line
+    LOG.debug(f'Path: {path}')
+    LOG.debug(f'File Type: {file_type}')
+    LOG.debug('Trying to parse file using dparse...')
+    content = fh.read()
+    LOG.debug(f'Content: {content}')
+    dependency_file = parse(content, path=path, resolve=resolve,
+                            file_type=file_type)
+    LOG.debug(f'Dependency file: {dependency_file.serialize()}')
+    LOG.debug(f'Parsed, dependencies: {[dep.serialize() for dep in dependency_file.resolved_dependencies]}')
+    for dep in dependency_file.resolved_dependencies:
+        try:
+            spec = next(iter(dep.specs))._spec
+        except StopIteration:
+            click.secho(
+                f"Warning: unpinned requirement '{dep.name}' found in {path}, "
+                "unable to check.",
+                fg="yellow",
+                file=sys.stderr
+            )
+            return
 
-                    click.secho(
-                        "Warning: unpinned requirement '{req}' found in {fname}, "
-                        "unable to check.".format(req=req.name,
-                                                  fname=fname),
-                        fg="yellow",
-                        file=sys.stderr
-                    )
-            except ValueError:
-                continue
+        version = spec[1]
+        if spec[0] == '==':
+            yield Package(name=dep.name, version=version,
+                          found=found,
+                          insecure_versions=[],
+                          secure_versions=[], latest_version=None,
+                          latest_version_without_known_vulnerabilities=None,
+                          more_info_url=None)
 
 
 def get_proxy_dict(proxy_protocol, proxy_host, proxy_port):
@@ -190,6 +152,11 @@ def get_basic_announcements(announcements):
             announcement.get('type', '').lower() != 'primary_announcement']
 
 
+def filter_announcements(announcements, by_type='error'):
+    return [announcement for announcement in announcements if
+            announcement.get('type', '').lower() == by_type]
+
+
 def build_telemetry_data(telemetry=True):
     context = SafetyContext()
 
@@ -213,8 +180,11 @@ def build_telemetry_data(telemetry=True):
 def build_git_data():
     import subprocess
 
+    def git_command(commandline):
+        return subprocess.run(commandline, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode('utf-8').strip()
+
     try:
-        is_git = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
+        is_git = git_command(["git", "rev-parse", "--is-inside-work-tree"])
     except Exception:
         is_git = False
 
@@ -228,14 +198,14 @@ def build_git_data():
         }
 
         try:
-            result['branch'] = subprocess.run(["git", "symbolic-ref", "--short", "-q", "HEAD"], stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
-            result['tag'] = subprocess.run(["git", "describe", "--tags", "--exact-match"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode('utf-8').strip()
+            result['branch'] = git_command(["git", "symbolic-ref", "--short", "-q", "HEAD"])
+            result['tag'] = git_command(["git", "describe", "--tags", "--exact-match"])
 
-            commit = subprocess.run(["git", "describe", '--match=""', '--always', '--abbrev=40', '--dirty'], stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
+            commit = git_command(["git", "describe", '--match=""', '--always', '--abbrev=40', '--dirty'])
             result['dirty'] = commit.endswith('-dirty')
             result['commit'] = commit.split("-dirty")[0]
 
-            result['origin'] = subprocess.run(["git", "remote", "get-url", "origin"], stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
+            result['origin'] = git_command(["git", "remote", "get-url", "origin"])
         except Exception:
             pass
 
@@ -361,7 +331,12 @@ def active_color_if_needed(ctx, param, value):
     color = os.environ.get("SAFETY_COLOR", None)
 
     if color is not None:
-        ctx.color = bool(color)
+        color = color.lower()
+
+        if color == '1' or color == 'true':
+            ctx.color = True
+        elif color == '0' or color == 'false':
+            ctx.color = False
 
     return value
 
@@ -418,11 +393,13 @@ class SafetyPolicyFile(click.ParamType):
         mode: str = "r",
         encoding: str = None,
         errors: str = "strict",
+        pure: bool = os.environ.get('SAFETY_PURE_YAML', 'false').lower() == 'true'
     ) -> None:
         self.mode = mode
         self.encoding = encoding
         self.errors = errors
         self.basic_msg = '\n' + click.style('Unable to load the Safety Policy file "{name}".', fg='red')
+        self.pure = pure
 
     def to_info_dict(self):
         info_dict = super().to_info_dict()
@@ -459,16 +436,17 @@ class SafetyPolicyFile(click.ParamType):
 
             msg = self.basic_msg.format(name=value) + '\n' + click.style('HINT:', fg='yellow') + ' {hint}'
 
-            f, should_close = click.types.open_stream(
+            f, _ = click.types.open_stream(
                 value, self.mode, self.encoding, self.errors, atomic=False
             )
             filename = ''
 
             try:
                 raw = f.read()
-                yaml = YAML(typ='safe', pure=False)
+                yaml = YAML(typ='safe', pure=self.pure)
                 safety_policy = yaml.load(raw)
                 filename = f.name
+                f.close()
             except Exception as e:
                 show_parsed_hint = isinstance(e, MarkedYAMLError)
                 hint = str(e)
