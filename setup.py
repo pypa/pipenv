@@ -57,6 +57,7 @@ setup(
     },
     package_data={
         "": ["LICENSE", "NOTICES"],
+        "pipenv.patched.safety": ["VERSION", "safety-policy-template.yml"],
         "pipenv.patched.pip._vendor.certifi": ["*.pem"],
         "pipenv.patched.pip._vendor.requests": ["*.pem"],
         "pipenv.patched.pip._vendor.distlib._backport": ["sysconfig.cfg"],
