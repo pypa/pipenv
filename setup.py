@@ -67,6 +67,7 @@ setup(
             "w32.exe",
             "w64.exe",
         ],
+        "pipenv.vendor.ruamel": ["yaml"],
     },
     python_requires=">=3.7",
     zip_safe=True,
