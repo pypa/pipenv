@@ -1,3 +1,29 @@
+2022.11.23 (2022-11-23)
+=======================
+Pipenv 2022.11.23 (2022-11-23)
+==============================
+
+
+Features & Improvements
+-----------------------
+
+- Find nushell activate scripts.  `#5470 <https://github.com/pypa/pipenv/issues/5470>`_
+
+Vendored Libraries
+------------------
+
+- * Drop unused code from cerberus
+   * Drop unused module wheel  `#5467 <https://github.com/pypa/pipenv/issues/5467>`_
+- * Replace yaspin spinner with rich spinner.
+   * Bump vistir version to 0.7.4  `#5468 <https://github.com/pypa/pipenv/issues/5468>`_
+- Bump version of requirementslib to 2.2.0
+  Drop yaspin which is no longer used.
+  Bump vistir to version 0.7.4
+  Remove parse.
+  Remove termcolor.
+  Remove idna.  `#5481 <https://github.com/pypa/pipenv/issues/5481>`_
+
+
 2022.11.11 (2022-11-11)
 =======================
 Pipenv 2022.11.11 (2022-11-11)
