@@ -1,0 +1,1 @@
+Stop building universal wheels since Python 2 is no longer supported.
