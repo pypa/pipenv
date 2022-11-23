@@ -48,7 +48,7 @@ You can quickly play with Pipenv right in your browser:
 Install Pipenv Today!
 ---------------------
 
-If you already have Python and pip, you can easily install Pipenv into your home directory::
+The recommended way to install pipenv on most platforms is to install from pypi using ``pip``::
 
     $ pip install --user pipenv
 
@@ -56,9 +56,6 @@ Or, if you're using Fedora 28::
 
     $ sudo dnf install pipenv
 
-It's possible to install Pipenv with Homebrew on MacOS, or with Linuxbrew on Linux systems. However, **this is now discouraged**, because updates to the brewed Python distribution will break Pipenv, and perhaps all virtual environments managed by it. You'll then need to re-install Pipenv at least. If you want to give it a try despite this warning, use::
-
-    $ brew install pipenv
 
 More detailed installation instructions can be found in the :ref:`installing-pipenv` chapter.
 
@@ -66,26 +63,17 @@ More detailed installation instructions can be found in the :ref:`installing-pip
 
 .. toctree::
 
-User Testimonials
------------------
-
-**David Gang**—
-    *This package manager is really awesome. For the first time I know exactly what my dependencies are which I installed and what the transitive dependencies are. Combined with the fact that installs are deterministic, makes this package manager first class, like cargo*.
-
-**Justin Myles Holmes**—
-    *Pipenv is finally an abstraction meant to engage the mind instead of merely the filesystem.*
-
-☤ Pipenv Features
+Pipenv Features
 -----------------
 
 - Enables truly *deterministic builds*, while easily specifying *only what you want*.
-- Generates and checks file hashes for locked dependencies.
-- Automatically install required Pythons, if ``pyenv`` is available.
+- Generates and checks file hashes for locked dependencies when installing from ``Pipfile.lock``.
+- Automatically install required Python version when ``pyenv`` is available.
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
 - Automatically generates a ``Pipfile``, if one doesn't exist.
-- Automatically creates a virtualenv in a standard location.
+- Automatically creates a virtualenv in a standard customizable location.
 - Automatically adds/removes packages to a ``Pipfile`` when they are installed or uninstalled.
-- Automatically loads ``.env`` files, if they exist.
+- Automatically loads ``.env`` files to support customization and overrides.
 
 
 .. include:: quickstart.rst
