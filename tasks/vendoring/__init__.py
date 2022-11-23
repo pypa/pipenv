@@ -60,6 +60,7 @@ LIBRARY_RENAMES = {
     "packaging": "pipenv.patched.pip._vendor.packaging",
     "pep517": "pipenv.patched.pip._vendor.pep517",
     "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
+    "ruamel.yaml": "pipenv.vendor.ruamel.yaml",
     "urllib3": "pipenv.patched.pip._vendor.urllib3",
 }
 
@@ -81,6 +82,7 @@ GLOBAL_REPLACEMENT = [
     ),
     (r"(?<!\.)pep517\.envbuild", r"envbuild"),
     (r"(?<!\.)pep517\.wrappers", r"wrappers"),
+    (r" ruamel\.yaml", r" ruamel"),
     (
         "from platformdirs import user_cache_dir",
         "from pipenv.patched.pip._vendor.platformdirs import user_cache_dir",
@@ -603,10 +605,10 @@ def license_destination(vendor_dir, libname, filename):
     lowercase = vendor_dir / libname.lower().replace("-", "_")
     if lowercase.is_dir():
         return lowercase / filename
-    rename_dict = LIBRARY_RENAMES if vendor_dir.name != "patched" else PATCHED_RENAMES
+    # rename_dict = LIBRARY_RENAMES if vendor_dir.name != "patched" else PATCHED_RENAMES
     # Short circuit all logic if we are renaming the whole library
-    if libname in rename_dict:
-        return vendor_dir / rename_dict[libname] / filename
+    # if libname in rename_dict:
+    #    return vendor_dir / rename_dict[libname] / filename
     if libname in LIBRARY_DIRNAMES:
         override = vendor_dir / LIBRARY_DIRNAMES[libname]
         if not override.exists() and override.parent.exists():

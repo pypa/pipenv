@@ -140,7 +140,7 @@ def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
 
 @pytest.mark.cli
 @pytest.mark.needs_internet(reason='required by check')
-@flaky
+@pytest.mark.skip("Safety 2 ends up scanning the project virtualenv and not the instance created by this test.")
 def test_pipenv_check(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv('install pyyaml')
@@ -154,7 +154,7 @@ def test_pipenv_check(pipenv_instance_private_pypi):
         assert c.returncode == 0
         # Note: added
         # 51457: py <=1.11.0 resolved (1.11.0 installed)!
-        # this is install via pytest, and causes a false positive
+        # this is installed via pytest, and causes a false positive
         # https://github.com/pytest-dev/py/issues/287
         # the issue above is still not resolved.
         # added also 51499

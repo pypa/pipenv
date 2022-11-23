@@ -37,7 +37,7 @@ if typing.TYPE_CHECKING:
     _T = TypeVar("_T", covariant=True)
 
 try:
-    import pipenv.vendor.yaspin as yaspin
+    import yaspin
     import yaspin.spinners
     import yaspin.core
 
