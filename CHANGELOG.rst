@@ -1,3 +1,15 @@
+2022.11.24 (2022-11-24)
+=======================
+Pipenv 2022.11.24 (2022-11-24)
+==============================
+
+
+Bug Fixes
+---------
+
+- Stop building universal wheels since Python 2 is no longer supported.  `#5496 <https://github.com/pypa/pipenv/issues/5496>`_
+
+
 2022.11.23 (2022-11-23)
 =======================
 Pipenv 2022.11.23 (2022-11-23)
