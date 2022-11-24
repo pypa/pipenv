@@ -1,3 +1,15 @@
+2022.11.25 (2022-11-24)
+=======================
+Pipenv 2022.11.25 (2022-11-24)
+==============================
+
+
+Bug Fixes
+---------
+
+- Solving issue where ``pipenv check`` command has been broken in the published wheel distribution.  `#5493 <https://github.com/pypa/pipenv/issues/5493>`_
+
+
 2022.11.24 (2022-11-24)
 =======================
 Pipenv 2022.11.24 (2022-11-24)
