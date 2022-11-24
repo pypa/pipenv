@@ -1,0 +1,1 @@
+Solving issue where ``pipenv check`` command has been broken in the published wheel distribution.
