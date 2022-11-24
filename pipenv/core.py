@@ -2959,6 +2959,16 @@ def do_check(
     if safety_project:
         options.append(f"--project={safety_project}")
 
+    target_venv_packages = run_command(
+        _cmd + ["-m", "pip", "list", "--format=freeze"], is_verbose=project.s.is_verbose()
+    )
+
+    temp_requirements = tempfile.NamedTemporaryFile(prefix=f"{project.virtualenv_name}_")
+    temp_requirements.write(target_venv_packages.stdout.strip().encode("utf-8"))
+    temp_requirements.seek(0)
+
+    options.extend(["--file", temp_requirements.name])
+
     cmd = _cmd + [safety_path, "check"] + options
 
     if db:
@@ -3043,6 +3053,8 @@ def do_check(
         sys.exit(code)
 
     cli(prog_name="pipenv")
+
+    temp_requirements.close()
 
 
 def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
