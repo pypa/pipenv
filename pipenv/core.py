@@ -2963,9 +2963,14 @@ def do_check(
         _cmd + ["-m", "pip", "list", "--format=freeze"], is_verbose=project.s.is_verbose()
     )
 
-    temp_requirements = tempfile.NamedTemporaryFile(prefix=f"{project.virtualenv_name}_")
-    temp_requirements.write(target_venv_packages.stdout.strip().encode("utf-8"))
-    temp_requirements.seek(0)
+    temp_requirements = tempfile.NamedTemporaryFile(
+        mode="w+",
+        prefix=f"{project.virtualenv_name}",
+        suffix="_requirements.txt",
+        delete=False,
+    )
+    temp_requirements.write(target_venv_packages.stdout.strip())
+    temp_requirements.close()
 
     options.extend(["--file", temp_requirements.name])
 
@@ -3054,7 +3059,7 @@ def do_check(
 
     cli(prog_name="pipenv")
 
-    temp_requirements.close()
+    temp_requirements.remove()
 
 
 def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
