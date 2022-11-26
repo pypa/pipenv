@@ -28,7 +28,7 @@ from your command line. You can check this by simply running::
 
     $ python --version
 
-You should get some output like ``3.6.2``. If you do not have Python, please
+You should get some output like ``3.10.8``. If you do not have Python, please
 install the latest 3.x version from `python.org`_ or refer to the
 `Installing Python`_ section of *The Hitchhiker's Guide to Python*.
 
@@ -50,7 +50,7 @@ Additionally, you'll need to make sure you have pip available. You can
 check this by running::
 
     $ pip --version
-    pip 9.0.1
+    pip 22.3.1
 
 If you installed Python from source, with an installer from `python.org`_, via `Homebrew`_ or via `Linuxbrew`_ you should already have pip. If you're on Linux and installed
 using your OS package manager, you may have to `install pip <https://pip.pypa.io/en/stable/installing/>`_ separately.
@@ -70,14 +70,7 @@ Homebrew/Linuxbrew installer takes care of pip for you.
 ☤ Installing Pipenv
 ===================
 
-Pipenv is a dependency manager for Python projects. If you're familiar
-with Node\.js's `npm`_ or Ruby's `bundler`_, it is similar in spirit to those
-tools. While pip can install Python packages, Pipenv is recommended as
-it's a higher-level tool that simplifies dependency management for common use
-cases.
-
-.. _npm: https://www.npmjs.com/
-.. _bundler: http://bundler.io/
+It is recommended that users on most platforms should install pipenv from pypi.org using ``pip install pipenv``.
 
 
 ☤ Isolated Installation of Pipenv with Pipx
@@ -252,12 +245,13 @@ have access to your installed packages with ``$ pipenv shell``.
 ===========================
 
 - Pipenv automatically maps projects to their specific virtualenvs.
-- The virtualenv is stored globally with the name of the project’s root directory plus the hash of the full path to the project's root (e.g., ``my_project-a3de50``).
-- If you change your project's path, you break such a default mapping and pipenv will no longer be able to find and to use the project's virtualenv.
-- You might want to set ``export PIPENV_VENV_IN_PROJECT=1`` in your .bashrc/.zshrc (or any shell configuration file) for creating the virtualenv inside your project's directory, avoiding problems with subsequent path changes.
+- By default, the virtualenv is stored globally with the name of the project’s root directory plus the hash of the full path to the project's root (e.g., ``my_project-a3de50``).
+- Should you change your project's path, you break such a default mapping and pipenv will no longer be able to find and to use the project's virtualenv.
+- Customize this behavior with ``PIPENV_CUSTOM_VENV_NAME`` environment variable.
+- You might also prefer to set ``PIPENV_VENV_IN_PROJECT=1`` in your .env or .bashrc/.zshrc (or other shell configuration file) for creating the virtualenv inside your project's directory.
 
 
 ☤ Next steps
 ============
 
-Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
+Congratulations, you now know how to get started with pipenv, for additional details refer to the basic and advanced documentation.  ✨ 🍰 ✨
