@@ -1026,7 +1026,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
                 )
             )
         else:
-            console.print(
+            err.print(
                 environments.PIPENV_SPINNER_OK_TEXT.format(
                     "Successfully created virtual environment!"
                 )
