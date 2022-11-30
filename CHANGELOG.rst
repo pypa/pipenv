@@ -1,3 +1,15 @@
+2022.11.30 (2022-11-30)
+=======================
+Pipenv 2022.11.30 (2022-11-30)
+==============================
+
+
+Bug Fixes
+---------
+
+- Fix regression: pipenv does not sync indexes to lockfile.  `#5508 <https://github.com/pypa/pipenv/issues/5508>`_
+
+
 2022.11.25 (2022-11-24)
 =======================
 Pipenv 2022.11.25 (2022-11-24)

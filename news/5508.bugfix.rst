@@ -1,1 +1,0 @@
-Fix regression: pipenv does not sync indexes to lockfile.
