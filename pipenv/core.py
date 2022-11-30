@@ -405,8 +405,9 @@ def ensure_python(project, three=None, python=None):
                             click.style("...", bold=True),
                         )
                     )
-                    # TOOD: pass project settings to console.status
-                    with console.status("Installing python...") as st:
+                    with console.status(
+                        "Installing python...", spinner=project.s.PIPENV_SPINNER
+                    ):
                         try:
                             c = installer.install(version)
                         except InstallerError as e:
@@ -416,7 +417,9 @@ def ensure_python(project, three=None, python=None):
                             click.echo(fix_utf8("Something went wrong..."), err=True)
                             click.secho(e.err, fg="cyan", err=True)
                         else:
-                            st(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                            console.print(
+                                environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
+                            )
                             # Print the results, in a beautiful blue...
                             click.secho(c.stdout, fg="cyan", err=True)
                             # Clear the pythonfinder caches
