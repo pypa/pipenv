@@ -990,7 +990,8 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
     )
 
     try:
-        import venv
+        import venv  # noqa
+
         cmd = [
             Path(sys.executable).absolute().as_posix(),
             "-m",
@@ -1000,7 +1001,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
             f"--python={python}",
             project.get_location_for_virtualenv(),
         ]
-    except (ImportError, ModuleNotFoundError) as error:
+    except ImportError:
         cmd = [
             Path(sys.executable).absolute().as_posix(),
             "-m",
