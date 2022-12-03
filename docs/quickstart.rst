@@ -21,7 +21,7 @@ The main commands are:
 
 - ``uninstall`` - Will remove the dependency
 
-- ``lock`` - Regenarate ``Pipfile.lock`` and updates the dependencies inside it.
+- ``lock`` - Regenerate ``Pipfile.lock`` and updates the dependencies inside it.
 
 These are intended to replace ``$ pip install`` usage, as well as manual virtualenv management.
 
