@@ -1,0 +1,1 @@
+Check if ``venv`` module is available and fallback to prior logic when it is not.

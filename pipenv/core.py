@@ -989,15 +989,27 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         err=True,
     )
 
-    cmd = [
-        Path(sys.executable).absolute().as_posix(),
-        "-m",
-        "virtualenv",
-        "--creator=venv",
-        f"--prompt={project.name}",
-        f"--python={python}",
-        project.get_location_for_virtualenv(),
-    ]
+    try:
+        import venv  # noqa
+
+        cmd = [
+            Path(sys.executable).absolute().as_posix(),
+            "-m",
+            "virtualenv",
+            "--creator=venv",
+            f"--prompt={project.name}",
+            f"--python={python}",
+            project.get_location_for_virtualenv(),
+        ]
+    except ImportError:
+        cmd = [
+            Path(sys.executable).absolute().as_posix(),
+            "-m",
+            "virtualenv",
+            f"--prompt={project.name}",
+            f"--python={python}",
+            project.get_location_for_virtualenv(),
+        ]
 
     # Pass site-packages flag to virtualenv, if desired...
     if site_packages:
