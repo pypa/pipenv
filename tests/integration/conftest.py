@@ -498,7 +498,7 @@ class VirtualEnv:
         cmd = [
             python, "-m", "virtualenv", self.path.absolute().as_posix()
         ]
-        c = sp.run(cmd, shell=True)
+        c = sp.run(cmd)
         assert c.returncode == 0
 
     def activate(self):
