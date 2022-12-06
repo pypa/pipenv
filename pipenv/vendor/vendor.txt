@@ -2,7 +2,7 @@ attrs==22.1.0
 cerberus==1.3.4
 click-didyoumean==0.0.3
 click==8.0.3
-colorama==0.4.4
+colorama==0.4.6
 dparse==0.6.2
 markupsafe==2.0.1
 pexpect==4.8.0

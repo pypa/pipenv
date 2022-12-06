@@ -322,6 +322,7 @@ def post_install_cleanup(ctx, vendor_dir):
     drop_dir(vendor_dir / "shutil_backports")
     drop_dir(vendor_dir / "cerberus" / "tests")
     drop_dir(vendor_dir / "cerberus" / "benchmarks")
+    drop_dir(vendor_dir / "colorama" / "tests")
 
     remove_all(vendor_dir.glob("toml.py"))
     # this function is called twice hence try ... except ...
