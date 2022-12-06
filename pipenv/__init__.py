@@ -38,21 +38,26 @@ except Exception:
 if "urllib3" in sys.modules:
     del sys.modules["urllib3"]
 
-from pipenv.vendor.vistir.misc import get_text_stream
-
-stdout = get_text_stream("stdout")
-stderr = get_text_stream("stderr")
 
 if os.name == "nt":
-    from pipenv.vendor.vistir.misc import _can_use_color, _wrap_for_color
+    from pipenv.vendor import colorama
 
-    if _can_use_color(stdout):
-        stdout = _wrap_for_color(stdout)
-    if _can_use_color(stderr):
-        stderr = _wrap_for_color(stderr)
+    # Backward compatability with vistir
+    no_color = False
+    for item in ("ANSI_COLORS_DISABLED", "VISTIR_DISABLE_COLORS", "CI"):
+        warnings.warn(
+            (
+                f"Please do not use {item}, as it will be removed in future versions."
+                "\nUse NO_COLOR instead."
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if os.getenv(item):
+            no_color = True
 
-sys.stdout = stdout
-sys.stderr = stderr
+    if not os.getenv("NO_COLOR") or no_color:
+        colorama.just_fix_windows_console()
 
 from . import resolver  # noqa
 from .cli import cli
