@@ -4,6 +4,7 @@ import configparser
 import contextlib
 import os
 import shutil
+import subprocess as sp
 import sys
 from collections.abc import Iterable, Mapping
 from contextlib import ExitStack
@@ -30,7 +31,6 @@ from pipenv.patched.pip._vendor.pkg_resources import (
 )
 from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 from pipenv.vendor.vistir.contextmanagers import cd, temp_path
-from pipenv.vendor.vistir.misc import run
 from pipenv.vendor.vistir.path import create_tracked_tempdir, rmtree
 
 from ..environment import MYPY_RUNNING
@@ -94,16 +94,8 @@ def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None):
     if extra_environ:
         env.update(extra_environ)
 
-    run(
-        cmd,
-        cwd=cwd,
-        env=env,
-        block=True,
-        combine_stderr=True,
-        return_object=False,
-        write_to_stdout=False,
-        nospin=True,
-    )
+    cmd_as_str = " ".join(cmd)
+    sp.run(cmd_as_str, cwd=cwd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT, shell=True)
 
 
 class BuildEnv(envbuild.BuildEnvironment):
@@ -117,14 +109,8 @@ class BuildEnv(envbuild.BuildEnvironment):
             "--prefix",
             self.path,
         ] + list(reqs)
-        run(
-            cmd,
-            block=True,
-            combine_stderr=True,
-            return_object=False,
-            write_to_stdout=False,
-            nospin=True,
-        )
+
+        sp.run(cmd, shell=True, stderr=sp.PIPE, stdout=sp.PIPE)
 
 
 class HookCaller(wrappers.Pep517HookCaller):
@@ -892,13 +878,12 @@ def run_setup(script_path, egg_base=None):
         # We couldn't import everything needed to run setup
         except Exception:
             python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
-            out, _ = run(
+
+            sp.run(
                 [python, "setup.py"] + args,
                 cwd=target_cwd,
-                block=True,
-                combine_stderr=False,
-                return_object=False,
-                nospin=True,
+                stdout=sp.PIPE,
+                stderr=sp.PIPE,
             )
         finally:
             _setup_stop_after = None
