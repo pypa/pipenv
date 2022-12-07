@@ -76,7 +76,6 @@ Steps for Submitting Code
 
 When contributing code, you'll want to follow this checklist:
 
-#. Understand our `development philosophy`_.
 #. Fork the repository on GitHub.
 #. Set up your :ref:`dev-setup`
 #. Run the tests (:ref:`testing`) to confirm they all pass on your system.
@@ -92,8 +91,6 @@ When contributing code, you'll want to follow this checklist:
    project.
 
 The following sub-sections go into more detail on some of the points above.
-
-.. _development philosophy: https://pipenv.pypa.io/en/latest/dev/philosophy/
 
 .. _dev-setup:
 
