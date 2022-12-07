@@ -1,66 +1,42 @@
 # -*- coding=utf-8 -*-
+import importlib
 
-from .contextmanagers import (
-    atomic_open_for_write,
-    cd,
-    open_file,
-    replaced_stream,
-    replaced_streams,
-    spinner,
-    temp_environ,
-    temp_path,
-)
-from .cursor import hide_cursor, show_cursor
-from .misc import (
-    StreamWrapper,
-    chunked,
-    decode_for_output,
-    divide,
-    get_wrapped_stream,
-    load_path,
-    partialclass,
-    run,
-    shell_escape,
-    take,
-    to_bytes,
-    to_text,
-)
-from .path import create_tracked_tempdir, create_tracked_tempfile, mkdir_p, rmtree
-from .spin import create_spinner
+__newpaths = {
+    'create_spinner': 'vistir.spin',
+    'cd': 'vistir.contextmanagers',
+    'atomic_open_for_write': 'vistir.contextmanagers',
+    'open_file': 'vistir.contextmanagers',
+    'replaced_stream': 'vistir.contextmanagers',
+    'replaced_streams': 'vistir.contextmanagers',
+    'spinner': 'vistir.contextmanagers',
+    'temp_environ': 'vistir.contextmanagers',
+    'temp_path': 'vistir.contextmanagers',
+    'hide_cursor': 'vistir.cursor',
+    'show_cursor': 'vistir.cursor',
+    'StreamWrapper': 'vistir.misc',
+    'chunked':'vistir.misc',
+    'decode_for_output': 'vistir.misc',
+    'divide': 'vistir.misc',
+    'get_wrapped_stream': 'vistir.misc',
+    'load_path': 'vistir.misc',
+    'partialclass': 'vistir.misc',
+    'run': 'vistir.misc',
+    'shell_escape': 'vistir.misc',
+    'take': 'vistir.misc',
+    'to_bytes': 'vistir.misc',
+    'to_text': 'vistir.misc',
+    'create_tracked_tempdir': 'vistir.path',
+    'create_tracked_tempfile': 'vistir.path',
+    'mkdir_p': 'vistir.path',
+    'rmtree': 'vistir.path',
+}
 
-__version__ = "0.7.4"
+from warnings import warn
 
+def __getattr__(name):
+    warn((f"Importing {name} directly from vistir is deprecated.\nUse 'from {__newpaths[name]} import {name}' instead.\n"
+          "This import path will be removed in vistir 0.8"),
+         DeprecationWarning)
+    return getattr(importlib.import_module(__newpaths[name]), name)
 
-__all__ = [
-    "shell_escape",
-    "load_path",
-    "run",
-    "partialclass",
-    "temp_environ",
-    "temp_path",
-    "cd",
-    "atomic_open_for_write",
-    "open_file",
-    "rmtree",
-    "mkdir_p",
-    "TemporaryDirectory",
-    "NamedTemporaryFile",
-    "partialmethod",
-    "spinner",
-    "create_spinner",
-    "create_tracked_tempdir",
-    "create_tracked_tempfile",
-    "decode_for_output",
-    "to_text",
-    "to_bytes",
-    "take",
-    "chunked",
-    "divide",
-    "StringIO",
-    "get_wrapped_stream",
-    "StreamWrapper",
-    "replaced_stream",
-    "replaced_streams",
-    "show_cursor",
-    "hide_cursor",
-]
+__version__ = "0.7.5"

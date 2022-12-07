@@ -312,6 +312,7 @@ def install(ctx, vendor_dir, package=None):
 
 
 def post_install_cleanup(ctx, vendor_dir):
+    log("Removing unused modules and files ...")
     remove_all(vendor_dir.glob("*.dist-info"))
     remove_all(vendor_dir.glob("*.egg-info"))
 
@@ -321,8 +322,14 @@ def post_install_cleanup(ctx, vendor_dir):
     drop_dir(vendor_dir / "shutil_backports")
     drop_dir(vendor_dir / "cerberus" / "tests")
     drop_dir(vendor_dir / "cerberus" / "benchmarks")
+    drop_dir(vendor_dir / "colorama" / "tests")
 
     remove_all(vendor_dir.glob("toml.py"))
+    # this function is called twice hence try ... except ...
+    try:
+        (vendor_dir / "vistir" / "spin.py").unlink()
+    except FileNotFoundError:
+        pass
 
 
 @invoke.task

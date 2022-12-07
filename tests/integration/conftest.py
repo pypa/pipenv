@@ -6,6 +6,7 @@ import os
 import shlex
 import shutil
 import traceback
+import subprocess as sp
 import sys
 import warnings
 from pathlib import Path
@@ -21,7 +22,6 @@ from pipenv.exceptions import VirtualenvActivationException
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor import toml, tomlkit
 from pipenv.vendor.vistir.contextmanagers import temp_environ
-from pipenv.vendor.vistir.misc import run
 from pipenv.vendor.vistir.path import (
     create_tracked_tempdir, handle_remove_readonly
 )
@@ -498,10 +498,7 @@ class VirtualEnv:
         cmd = [
             python, "-m", "virtualenv", self.path.absolute().as_posix()
         ]
-        c = run(
-            cmd, verbose=False, return_object=True, write_to_stdout=False,
-            combine_stderr=False, block=True, nospin=True,
-        )
+        c = sp.run(cmd)
         assert c.returncode == 0
 
     def activate(self):
