@@ -45,12 +45,11 @@ def get_locked_dep(dep, pipfile_section, prefer_pipfile=True):
     # TODO: Is this implementation clear? How can it be improved?
     entry = None
     cleaner_kwargs = {"is_top_level": False, "pipfile_entry": None}
-    if isinstance(dep, Mapping) and dep.get("name", ""):
+    if isinstance(dep, Mapping) and dep.get("name"):
         dep_name = pep423_name(dep["name"])
-        name = next(
-            iter(k for k in pipfile_section.keys() if pep423_name(k) == dep_name), None
-        )
-        entry = pipfile_section[name] if name else None
+        for pipfile_key, pipfile_entry in pipfile_section.items():
+            if pep423_name(pipfile_key) == dep_name:
+                entry = pipfile_entry
 
     if entry:
         cleaner_kwargs.update({"is_top_level": True, "pipfile_entry": entry})
