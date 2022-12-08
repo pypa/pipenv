@@ -208,17 +208,16 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
             lockfile[key] = dep[key]
     # In case we lock a uri or a file when the user supplied a path
     # remove the uri or file keys from the entry and keep the path
-    fs_key = next(iter(k for k in ["path", "file"] if k in dep), None)
-    pipfile_fs_key = None
-    if pipfile_entry:
-        pipfile_fs_key = next(
-            iter(k for k in ["path", "file"] if k in pipfile_entry), None
-        )
-    if fs_key and pipfile_fs_key and fs_key != pipfile_fs_key:
-        lockfile[pipfile_fs_key] = pipfile_entry[pipfile_fs_key]
-    elif fs_key is not None:
-        lockfile[fs_key] = dep[fs_key]
-
+    preferred_file_keys = ["path", "file"]
+    dependency_file_key = next(iter(k for k in preferred_file_keys if k in dep), None)
+    if dependency_file_key:
+        lockfile[dependency_file_key] = dep[dependency_file_key]
+    # Pipfile entry overrides path/file from resolver
+    if pipfile_entry and isinstance(pipfile_entry, dict):
+        for k in preferred_file_keys:
+            if k in pipfile_entry.keys():
+                lockfile[k] = pipfile_entry[k]
+                break
     # If a package is **PRESENT** in the pipfile but has no markers, make sure we
     # **NEVER** include markers in the lockfile
     if "markers" in dep and dep.get("markers", "").strip():
