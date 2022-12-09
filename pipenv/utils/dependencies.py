@@ -234,7 +234,8 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
         else:
             try:
                 pipfile_entry = translate_markers(pipfile_entry)
-                lockfile["markers"] = pipfile_entry.get("markers")
+                if pipfile_entry.get("markers"):
+                    lockfile["markers"] = pipfile_entry.get("markers")
             except TypeError:
                 pass
     return {name: lockfile}

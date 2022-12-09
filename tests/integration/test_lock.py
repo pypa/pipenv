@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 from pathlib import Path
 
 import pytest
@@ -719,3 +718,17 @@ six = "*"
         assert c.returncode == 0
         assert p.lockfile["prereq"]["six"]["index"] == "test"
         assert p.lockfile["default"]["requests"]["index"] == "test"
+
+def test_pinned_pipfile_no_null_markers_when_extras(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+dataclasses-json = {extras = ["dev"], version = "==0.5.7"}
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("lock")
+        assert c.returncode == 0
+        assert "dataclasses-json" in p.pipfile["packages"]
+        assert "dataclasses-json" in p.lockfile["default"]
+        assert "markers" not in p.lockfile["default"]["dataclasses-json"]
