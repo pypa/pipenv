@@ -961,35 +961,6 @@ def convert_three_to_python(three, python):
         return python
 
 
-def _create_virtualenv_helper(project, cmd, pip_config):
-    # Actually create the virtualenv.
-    error = None
-    with console.status(
-        "Creating virtual environment...", spinner=project.s.PIPENV_SPINNER
-    ):
-        c = subprocess_run(cmd, env=pip_config)
-        click.secho(f"{c.stdout}", fg="cyan", err=True)
-        if c.returncode != 0:
-            error = (
-                c.stderr if project.s.is_verbose() else exceptions.prettify_exc(c.stderr)
-            )
-            err.print(
-                environments.PIPENV_SPINNER_FAIL_TEXT.format(
-                    "Failed creating virtual environment"
-                )
-            )
-        else:
-            err.print(
-                environments.PIPENV_SPINNER_OK_TEXT.format(
-                    "Successfully created virtual environment!"
-                )
-            )
-    if error is not None:
-        raise exceptions.VirtualenvCreationException(
-            extra=click.style(f"{error}", fg="red")
-        )
-
-
 def _create_virtualenv_cmd(project, python, creator_venv=True, site_packages=False):
     cmd = [
         Path(sys.executable).absolute().as_posix(),
@@ -1048,12 +1019,37 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
     else:
         pip_config = {}
 
-    try:
-        cmd = _create_virtualenv_cmd(project, python, creator_venv=True, site_packages=site_packages)
-        _create_virtualenv_helper(project, cmd, pip_config)
-    except (ImportError, FileNotFoundError, exceptions.VirtualenvCreationException):
-        cmd = _create_virtualenv_cmd(project, python, creator_venv=False, site_packages=site_packages)
-        _create_virtualenv_helper(project, cmd, pip_config)
+    error = None
+    with console.status(
+        "Creating virtual environment...", spinner=project.s.PIPENV_SPINNER
+    ):
+        try:
+            cmd = _create_virtualenv_cmd(project, python, creator_venv=True, site_packages=site_packages)
+            c = subprocess_run(cmd, env=pip_config)
+        except (ImportError, FileNotFoundError, exceptions.VirtualenvCreationException):
+            cmd = _create_virtualenv_cmd(project, python, creator_venv=False, site_packages=site_packages)
+            c = subprocess_run(cmd, env=pip_config)
+
+        click.secho(f"{c.stdout}", fg="cyan", err=True)
+        if c.returncode != 0:
+            error = (
+                c.stderr if project.s.is_verbose() else exceptions.prettify_exc(c.stderr)
+            )
+            err.print(
+                environments.PIPENV_SPINNER_FAIL_TEXT.format(
+                    "Failed creating virtual environment"
+                )
+            )
+        else:
+            err.print(
+                environments.PIPENV_SPINNER_OK_TEXT.format(
+                    "Successfully created virtual environment!"
+                )
+            )
+    if error is not None:
+        raise exceptions.VirtualenvCreationException(
+            extra=click.style(f"{error}", fg="red")
+        )
 
     # Associate project directory with the environment.
     project_file_name = os.path.join(project.virtualenv_location, ".project")
