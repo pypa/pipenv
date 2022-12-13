@@ -44,16 +44,16 @@ if os.name == "nt":
 
     # Backward compatability with vistir
     no_color = False
-    for item in ("ANSI_COLORS_DISABLED", "VISTIR_DISABLE_COLORS", "CI"):
-        warnings.warn(
-            (
-                f"Please do not use {item}, as it will be removed in future versions."
-                "\nUse NO_COLOR instead."
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
+    for item in ("ANSI_COLORS_DISABLED", "VISTIR_DISABLE_COLORS"):
         if os.getenv(item):
+            warnings.warn(
+                (
+                    f"Please do not use {item}, as it will be removed in future versions."
+                    "\nUse NO_COLOR instead."
+                ),
+                DeprecationWarning,
+                stacklevel=2,
+            )
             no_color = True
 
     if not os.getenv("NO_COLOR") or no_color:
