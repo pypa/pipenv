@@ -961,17 +961,19 @@ def convert_three_to_python(three, python):
         return python
 
 
-def _create_virtualenv_cmd(project, python, creator_venv=True, site_packages=False):
+def _create_virtualenv_cmd(project, python, site_packages=False):
     cmd = [
         Path(sys.executable).absolute().as_posix(),
         "-m",
         "virtualenv",
     ]
-    if creator_venv:
-        cmd.append("--creator=venv")
+    if project.s.PIPENV_VIRTUALENV_CREATOR:
+         cmd.append(f"--creator={project.s.PIPENV_VIRTUALENV_CREATOR}")
     cmd.append(f"--prompt={project.name}")
     cmd.append(f"--python={python}")
     cmd.append(project.get_location_for_virtualenv())
+    if project.s.PIPENV_VIRTUALENV_COPIES:
+        cmd.append("--copies")
 
     # Pass site-packages flag to virtualenv, if desired...
     if site_packages:
@@ -1023,13 +1025,8 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
     with console.status(
         "Creating virtual environment...", spinner=project.s.PIPENV_SPINNER
     ):
-        try:
-            cmd = _create_virtualenv_cmd(project, python, creator_venv=True, site_packages=site_packages)
-            c = subprocess_run(cmd, env=pip_config)
-        except (ImportError, FileNotFoundError, exceptions.VirtualenvCreationException):
-            cmd = _create_virtualenv_cmd(project, python, creator_venv=False, site_packages=site_packages)
-            c = subprocess_run(cmd, env=pip_config)
-
+        cmd = _create_virtualenv_cmd(project, python, site_packages=site_packages)
+        c = subprocess_run(cmd, env=pip_config)
         click.secho(f"{c.stdout}", fg="cyan", err=True)
         if c.returncode != 0:
             error = (
