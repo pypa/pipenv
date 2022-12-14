@@ -296,7 +296,7 @@ The command should process the package groups in the order specified.
 Example usages::
 
 	# single category
-	pipenv install six --catetgories prereq
+	pipenv install six --categories prereq
 
 	# multiple categories
 	pipenv sync --categories="prereq packages"
