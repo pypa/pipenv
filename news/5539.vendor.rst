@@ -1,0 +1,1 @@
+Bump plette version to 0.4.4

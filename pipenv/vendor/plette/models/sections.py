@@ -50,6 +50,16 @@ META_SECTIONS = {
     "sources": SourceCollection,
 }
 
+class PipfileSection(DataView):
+
+    """
+    Dummy pipfile validator that needs to be completed in a future PR
+    Hint: many pipfile features are undocumented in  pipenv/project.py
+    """
+
+    @classmethod
+    def validate(cls, data):
+        pass
 
 class Meta(DataView):
     """Representation of the `_meta` section in a Pipfile.lock."""
@@ -119,3 +129,11 @@ class Meta(DataView):
     @sources.setter
     def sources(self, value):
         self["sources"] = value
+
+
+class Pipenv(DataView):
+    """Represent the [pipenv] section in Pipfile"""
+
+    __SCHEMA__ = {
+        "allow_prereleases": {"type": "boolean", "required": False},
+    }
