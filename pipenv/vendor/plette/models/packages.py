@@ -21,7 +21,9 @@ class Package(DataView):
     def validate(cls, data):
         # HACK: Make this validatable for Cerberus. See comments in validation
         # side for more information.
-        return super(Package, cls).validate({"__package__": data})
+        super(Package, cls).validate({"__package__": data})
+        if isinstance(data, dict):
+            PackageSpecfiers.validate({"__specifiers__": data})
 
     def __getattr__(self, key):
         if isinstance(self._data, str):
@@ -41,3 +43,16 @@ class Package(DataView):
             self._data = value
         else:
             self._data[key] = value
+
+class PackageSpecfiers(DataView):
+    # TODO: one could add here more validation for path editable
+    # and more stuff which is currently allowed and undocumented
+    __SCHEMA__ = {
+        "__specifiers__": {
+            "type": "dict",
+            "schema":{
+                "version": {"type": "string"},
+                "extras": {"type": "list"},
+                }
+            }
+        }
