@@ -78,6 +78,7 @@ filterwarnings = [
 # `pipenv run pytest --markers` will list all markers inlcuding these
 markers = [
     "install: tests having to do with `pipenv install`",
+    "update: tests having to do with `pipenv update`",
     "needs_internet: integration tests that require internet to pass",
     "basic: basic pipenv tests grouping",
     "dev: tests having to do with dev and dev packages",
