@@ -968,7 +968,7 @@ def _create_virtualenv_cmd(project, python, site_packages=False):
         "virtualenv",
     ]
     if project.s.PIPENV_VIRTUALENV_CREATOR:
-         cmd.append(f"--creator={project.s.PIPENV_VIRTUALENV_CREATOR}")
+        cmd.append(f"--creator={project.s.PIPENV_VIRTUALENV_CREATOR}")
     cmd.append(f"--prompt={project.name}")
     cmd.append(f"--python={python}")
     cmd.append(project.get_location_for_virtualenv())
