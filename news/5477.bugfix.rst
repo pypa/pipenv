@@ -1,1 +1,3 @@
-Check if ``venv`` module is available and fallback to prior logic when it is not.
+virtualenv creation no longer uses ``--creator=venv`` by default; introduced two environment variables:
+``PIPENV_VIRTUALENV_CREATOR`` -- May be specified to instruct virtualenv which ``--creator=`` to use.
+``PIPENV_VIRTUALENV_COPIES`` -- When specified as truthy, instructs virtualenv to not use symlinks.

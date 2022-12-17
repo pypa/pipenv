@@ -346,6 +346,16 @@ class Setting:
         )
         """Tells Pipenv whether to name the venv something other than the default dir name."""
 
+        self.PIPENV_VIRTUALENV_CREATOR = get_from_env(
+            "VIRTUALENV_CREATOR", check_for_negation=False
+        )
+        """Tells Pipenv to use the virtualenv --creator= argument with the user specified value."""
+
+        self.PIPENV_VIRTUALENV_COPIES = get_from_env(
+            "VIRTUALENV_COPIES", check_for_negation=True
+        )
+        """Tells Pipenv to use the virtualenv --copies to prevent symlinks when specified as Truthy."""
+
         self.PIPENV_PYUP_API_KEY = get_from_env("PYUP_API_KEY", check_for_negation=False)
 
         # Internal, support running in a different Python from sys.executable.

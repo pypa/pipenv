@@ -961,6 +961,27 @@ def convert_three_to_python(three, python):
         return python
 
 
+def _create_virtualenv_cmd(project, python, site_packages=False):
+    cmd = [
+        Path(sys.executable).absolute().as_posix(),
+        "-m",
+        "virtualenv",
+    ]
+    if project.s.PIPENV_VIRTUALENV_CREATOR:
+        cmd.append(f"--creator={project.s.PIPENV_VIRTUALENV_CREATOR}")
+    cmd.append(f"--prompt={project.name}")
+    cmd.append(f"--python={python}")
+    cmd.append(project.get_location_for_virtualenv())
+    if project.s.PIPENV_VIRTUALENV_COPIES:
+        cmd.append("--copies")
+
+    # Pass site-packages flag to virtualenv, if desired...
+    if site_packages:
+        cmd.append("--system-site-packages")
+
+    return cmd
+
+
 def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=None):
     """Creates a virtualenv."""
 
@@ -989,46 +1010,22 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         err=True,
     )
 
-    try:
-        import venv  # noqa
-
-        cmd = [
-            Path(sys.executable).absolute().as_posix(),
-            "-m",
-            "virtualenv",
-            "--creator=venv",
-            f"--prompt={project.name}",
-            f"--python={python}",
-            project.get_location_for_virtualenv(),
-        ]
-    except ImportError:
-        cmd = [
-            Path(sys.executable).absolute().as_posix(),
-            "-m",
-            "virtualenv",
-            f"--prompt={project.name}",
-            f"--python={python}",
-            project.get_location_for_virtualenv(),
-        ]
-
-    # Pass site-packages flag to virtualenv, if desired...
     if site_packages:
         click.echo(
             click.style(fix_utf8("Making site-packages available..."), bold=True),
             err=True,
         )
-        cmd.append("--system-site-packages")
 
     if pypi_mirror:
         pip_config = {"PIP_INDEX_URL": pypi_mirror}
     else:
         pip_config = {}
 
-    # Actually create the virtualenv.
     error = None
     with console.status(
         "Creating virtual environment...", spinner=project.s.PIPENV_SPINNER
     ):
+        cmd = _create_virtualenv_cmd(project, python, site_packages=site_packages)
         c = subprocess_run(cmd, env=pip_config)
         click.secho(f"{c.stdout}", fg="cyan", err=True)
         if c.returncode != 0:
@@ -1052,7 +1049,6 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         )
 
     # Associate project directory with the environment.
-    # This mimics Pew's "setproject".
     project_file_name = os.path.join(project.virtualenv_location, ".project")
     with open(project_file_name, "w") as f:
         f.write(project.project_directory)
@@ -1068,7 +1064,6 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         pipfile=project.parsed_pipfile,
         project=project,
     )
-    project._environment.add_dist("pipenv")
     # Say where the virtualenv is.
     do_where(project, virtualenv=True, bare=False)
 
