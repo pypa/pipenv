@@ -2081,7 +2081,9 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
             )
             if name_in_pipfile:
                 required = ""
-                version = get_version(project.packages[name_in_pipfile])
+                version = get_version(
+                    project.get_pipfile_section(category)[name_in_pipfile]
+                )
                 rdeps = reverse_deps.get(canonicalize_name(package))
                 if isinstance(rdeps, Mapping) and "required" in rdeps:
                     required = " {} required".format(rdeps["required"])
