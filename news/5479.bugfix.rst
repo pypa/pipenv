@@ -1,1 +1,0 @@
-Fix regression where ``path`` is not propagated to the ``Pipfile.lock``.

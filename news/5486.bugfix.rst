@@ -1,1 +1,0 @@
-Solve issue where null markers were getting added to lock file when extras were provided.

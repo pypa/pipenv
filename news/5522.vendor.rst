@@ -1,3 +1,0 @@
- * Bump version of requirementslib to 2.2.1
- * Bump version of vistir to 0.7.5
- * Bump version of colorama to 0.4.6

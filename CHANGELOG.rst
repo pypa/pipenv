@@ -1,3 +1,29 @@
+2022.12.17 (2022-12-17)
+=======================
+Pipenv 2022.12.17 (2022-12-17)
+==============================
+
+
+Bug Fixes
+---------
+
+- virtualenv creation no longer uses ``--creator=venv`` by default; introduced two environment variables:
+  ``PIPENV_VIRTUALENV_CREATOR`` -- May be specified to instruct virtualenv which ``--creator=`` to use.
+  ``PIPENV_VIRTUALENV_COPIES`` -- When specified as truthy, instructs virtualenv to not use symlinks.  `#5477 <https://github.com/pypa/pipenv/issues/5477>`_
+- Fix regression where ``path`` is not propagated to the ``Pipfile.lock``.  `#5479 <https://github.com/pypa/pipenv/issues/5479>`_
+- Solve issue where null markers were getting added to lock file when extras were provided.  `#5486 <https://github.com/pypa/pipenv/issues/5486>`_
+- Fix: ``update --outdated`` raises NonExistentKey with outdated dev packages  `#5540 <https://github.com/pypa/pipenv/issues/5540>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in ``pip==22.3.1`` which is currently the latest version of ``pip``.  `#5520 <https://github.com/pypa/pipenv/issues/5520>`_
+- * Bump version of requirementslib to 2.2.1
+   * Bump version of vistir to 0.7.5
+   * Bump version of colorama to 0.4.6  `#5522 <https://github.com/pypa/pipenv/issues/5522>`_
+- Bump plette version to 0.4.4  `#5539 <https://github.com/pypa/pipenv/issues/5539>`_
+
+
 2022.11.30 (2022-11-30)
 =======================
 Pipenv 2022.11.30 (2022-11-30)
