@@ -1,1 +1,1 @@
-Fix: `update --outdated` raises NonExistentKey with outdated dev packages
+Fix: ``update --outdated`` raises NonExistentKey with outdated dev packages
