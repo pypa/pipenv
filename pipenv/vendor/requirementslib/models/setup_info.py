@@ -94,8 +94,7 @@ def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None):
     if extra_environ:
         env.update(extra_environ)
 
-    cmd_as_str = " ".join(cmd)
-    sp.run(cmd_as_str, cwd=cwd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT, shell=True)
+    sp.run(cmd, cwd=cwd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
 
 
 class BuildEnv(envbuild.BuildEnvironment):
@@ -110,7 +109,7 @@ class BuildEnv(envbuild.BuildEnvironment):
             self.path,
         ] + list(reqs)
 
-        sp.run(cmd, shell=True, stderr=sp.PIPE, stdout=sp.PIPE)
+        sp.run(cmd, stderr=sp.PIPE, stdout=sp.PIPE)
 
 
 class HookCaller(wrappers.Pep517HookCaller):
