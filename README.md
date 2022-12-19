@@ -44,9 +44,7 @@ Table Of Contents
 
 - [Installation](#installation)
 
-- [User Testimonals](#☤-user-testimonials)
-
-- [Features](#☤-features)
+- [Features](#features)
 
 - [Basic Concepts](#basic-concepts)
 
@@ -54,7 +52,7 @@ Table Of Contents
 
 - [Shell Completion](#shell-completion)
 
-- [Usage](#☤-usage)
+- [Usage](#usage)
 
     - [Usage Examples](#usage-examples)
 
@@ -82,7 +80,7 @@ Table Of Contents
 
     - [Use the shell](#use-the-shell)
 
-- [Documentation](#☤-documentation)
+- [Documentation](#documentation)
 
 Installation
 ------------
@@ -121,23 +119,7 @@ Otherwise, refer to the [documentation](https://pipenv.pypa.io/en/latest/#instal
 
 ✨🍰✨
 
-☤ User Testimonials
--------------------
-
-**David Gang**---
-
-:   *This package manager is really awesome. For the first time I know
-    exactly what my dependencies are which I installed and what the
-    transitive dependencies are. Combined with the fact that installs
-    are deterministic, makes this package manager first class, like
-    cargo*.
-
-**Justin Myles Holmes**---
-
-:   *Pipenv is finally an abstraction meant to engage the mind instead
-    of merely the filesystem.*
-
-☤ Features
+Features
 ----------
 
 -   Enables truly *deterministic builds*, while easily specifying *only
@@ -195,7 +177,7 @@ Alternatively, with bash, add this to your configuration `~/.bashrc` or `~/.bash
 
 Magic shell completions are now enabled!
 
-☤ Usage
+Usage
 -------
 
     $ pipenv --help
@@ -372,7 +354,7 @@ You can read more about [pip's implementation of vcs support here](https://pip.p
     Launching subshell in virtual environment. Type 'exit' or 'Ctrl+D' to return.
     $ ▯
 
-☤ Documentation
+Documentation
 ---------------
 
 Documentation resides over at [pipenv.pypa.io](https://pipenv.pypa.io/en/latest/).
