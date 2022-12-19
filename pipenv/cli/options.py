@@ -2,6 +2,7 @@ import os
 
 from pipenv.project import Project
 from pipenv.utils.internet import is_valid_url
+from pipenv.vendor import click
 from pipenv.vendor.click import (
     BadArgumentUsage,
     BadParameter,
@@ -13,7 +14,6 @@ from pipenv.vendor.click import (
     option,
     secho,
 )
-from pipenv.vendor import click
 from pipenv.vendor.click import types as click_types
 from pipenv.vendor.click_didyoumean import DYMMixin
 
@@ -158,11 +158,16 @@ def keep_outdated_option(f):
         state = ctx.ensure_object(State)
         state.installstate.keep_outdated = value
         if value:
-            click.echo(click.style(
-                "Use of --keep-outdated has been deprecated for removal."
-                "The flag does not respect package resolver results and leads to inconsistent lock files.  "
-                "Please pin relevant requirements in your Pipfile and discontinue use of this flag.",
-                fg="yellow", bold=True), err=True)
+            click.echo(
+                click.style(
+                    "Use of --keep-outdated has been deprecated for removal."
+                    "The flag does not respect package resolver results and leads to inconsistent lock files.  "
+                    "Please pin relevant requirements in your Pipfile and discontinue use of this flag.",
+                    fg="yellow",
+                    bold=True,
+                ),
+                err=True,
+            )
         return value
 
     return option(
