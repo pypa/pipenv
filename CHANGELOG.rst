@@ -1,3 +1,15 @@
+2022.12.19 (2022-12-19)
+=======================
+Pipenv 2022.12.19 (2022-12-19)
+==============================
+
+
+Bug Fixes
+---------
+
+- Fix for ``requirementslib`` hanging during install of remote wheels files.  `#5546 <https://github.com/pypa/pipenv/issues/5546>`_
+
+
 2022.12.17 (2022-12-17)
 =======================
 Pipenv 2022.12.17 (2022-12-17)
