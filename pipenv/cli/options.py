@@ -158,14 +158,12 @@ def keep_outdated_option(f):
         state = ctx.ensure_object(State)
         state.installstate.keep_outdated = value
         if value:
-            click.echo(
-                click.style(
-                    "Use of --keep-outdated has been deprecated for removal."
-                    "The flag does not respect package resolver results and leads to inconsistent lock files.  "
-                    "Please pin relevant requirements in your Pipfile and discontinue use of this flag.",
-                    fg="yellow",
-                    bold=True,
-                ),
+            click.secho(
+                "The flag --keep-outdated has been deprecated for removal."
+                "The flag does not respect package resolver results and leads to inconsistent lock files.  "
+                "Please pin relevant requirements in your Pipfile and discontinue use of this flag.",
+                fg="yellow",
+                bold=True,
                 err=True,
             )
         return value
