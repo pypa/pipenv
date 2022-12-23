@@ -766,8 +766,11 @@ def batch_install(
                     extra_pip_args=extra_pip_args,
                 )
             except StopIteration:
-                click.secho(f"Unable to find {index_name} in sources, please check dependencies: {dependencies}",
-                            fg="red", bold=True)
+                click.secho(
+                    f"Unable to find {index_name} in sources, please check dependencies: {dependencies}",
+                    fg="red",
+                    bold=True,
+                )
                 sys.exit(1)
 
 
