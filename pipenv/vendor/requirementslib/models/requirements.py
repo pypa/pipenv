@@ -1833,7 +1833,6 @@ class FileRequirement(object):
             line = "-e {0}".format(line)
         arg_dict["parsed_line"] = Line(line, extras=extras)
         arg_dict["setup_info"] = arg_dict["parsed_line"].setup_info
-
         return cls(**arg_dict)  # type: ignore
 
     @property
