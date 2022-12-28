@@ -750,20 +750,28 @@ def batch_install(
                 deps_by_index[project.sources_default["name"]].append(dependency)
         # Treat each index as its own pip install phase
         for index_name, dependencies in deps_by_index.items():
-            install_source = next(filter(lambda s: s["name"] == index_name, sources))
-            batch_install_iteration(
-                project,
-                dependencies,
-                [install_source],
-                procs,
-                failed_deps_queue,
-                requirements_dir,
-                no_deps=no_deps,
-                ignore_hashes=ignore_hashes,
-                allow_global=allow_global,
-                retry=retry,
-                extra_pip_args=extra_pip_args,
-            )
+            try:
+                install_source = next(filter(lambda s: s["name"] == index_name, sources))
+                batch_install_iteration(
+                    project,
+                    dependencies,
+                    [install_source],
+                    procs,
+                    failed_deps_queue,
+                    requirements_dir,
+                    no_deps=no_deps,
+                    ignore_hashes=ignore_hashes,
+                    allow_global=allow_global,
+                    retry=retry,
+                    extra_pip_args=extra_pip_args,
+                )
+            except StopIteration:
+                click.secho(
+                    f"Unable to find {index_name} in sources, please check dependencies: {dependencies}",
+                    fg="red",
+                    bold=True,
+                )
+                sys.exit(1)
 
 
 def batch_install_iteration(
