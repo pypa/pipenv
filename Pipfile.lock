@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "42f7852372a846c5d3f6d85caccec1879efc14c996bbd456f70ac72a7e9648ff"
+            "sha256": "35fe714759cd47204e63163ba7d20b295d62fe8ba403482ff773a68cd801a6a4"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -269,6 +269,14 @@
             ],
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
             "version": "==1.4.1"
+        },
+        "importlib-metadata": {
+            "hashes": [
+                "sha256:0eafa39ba42bf225fc00e67f701d71f85aead9f878569caf13c3724f704b970f",
+                "sha256:404d48d62bba0b7a77ff9d405efd91501bef2e67ff4ace0bed40a0cf28c3c7cd"
+            ],
+            "markers": "python_version < '3.8'",
+            "version": "==5.2.0"
         },
         "incremental": {
             "hashes": [
