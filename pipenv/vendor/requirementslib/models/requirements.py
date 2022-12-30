@@ -1831,7 +1831,7 @@ class FileRequirement(object):
                 line = "{0}&subdirectory={1}".format(line, pipfile["subdirectory"])
         if editable:
             line = "-e {0}".format(line)
-        arg_dict["parsed_line"] = Line(line)
+        arg_dict["parsed_line"] = Line(line, extras=extras)
         arg_dict["setup_info"] = arg_dict["parsed_line"].setup_info
         return cls(**arg_dict)  # type: ignore
 
@@ -2525,6 +2525,8 @@ class Requirement(object):
                 self.is_file_or_url
                 and not local_editable
                 and not self.req.get_uri().startswith("file://")
+                # fix for file uri with egg names and extras
+                and not len(self.req.line_part.split("#")) > 1
             ):
                 line_parts.append(f"#egg={self._name}{self.extras_as_pip}")
             else:
