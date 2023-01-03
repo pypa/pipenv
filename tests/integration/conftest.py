@@ -26,10 +26,6 @@ from pipenv.vendor.vistir.path import (
     create_tracked_tempdir, handle_remove_readonly
 )
 
-from pytest_pypi.app import prepare_fixtures
-from pytest_pypi.app import prepare_packages as prepare_pypi_packages
-import pypiserver
-
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
 cli_runner = CliRunner(mix_stderr=False)
@@ -98,8 +94,6 @@ def check_for_mercurial():
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
 WE_HAVE_HG = check_for_mercurial()
-prepare_fixtures(os.path.join(PYPI_VENDOR_DIR, "fixtures"))
-prepare_pypi_packages(PYPI_VENDOR_DIR)
 
 
 def pytest_runtest_setup(item):

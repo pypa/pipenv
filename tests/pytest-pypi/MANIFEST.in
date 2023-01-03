@@ -1,4 +1,0 @@
-# If using Python 2.6 or less, then have to include package data, even though
-# it's already declared in setup.py
-include pytest_httpbin/certs/*
-include DESCRIPTION.rst

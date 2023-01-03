@@ -1,0 +1,1 @@
+Remove pytest-pypi package since it's not used anymore
