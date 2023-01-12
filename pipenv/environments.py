@@ -152,6 +152,14 @@ class Setting:
         Default is to install Python automatically via asdf when needed, if possible.
         """
 
+        self.PIPENV_DONT_USE_HOMEBREW = bool(
+            get_from_env("DONT_USE_HOMEBREW", check_for_negation=False)
+        )
+        """If set, Pipenv does not attempt to install Python with Homebrew.
+
+        Default is to install Python automatically via Homebrew when needed, if possible.
+        """
+
         self.PIPENV_DOTENV_LOCATION = get_from_env(
             "DOTENV_LOCATION", check_for_negation=False
         )

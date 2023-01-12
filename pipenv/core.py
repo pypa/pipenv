@@ -359,9 +359,9 @@ def ensure_python(project, three=None, python=None):
             err=True,
         )
         # check for python installers
-        from .installers import Asdf, InstallerError, InstallerNotFound, Pyenv
+        from .installers import Asdf, Homebrew, InstallerError, InstallerNotFound, Pyenv
 
-        # prefer pyenv if both pyenv and asdf are installed as it's
+        # prefer pyenv over asdf and Homebrew as it's
         # dedicated to python installs so probably the preferred
         # method of the user for new python installs.
         installer = None
@@ -375,9 +375,16 @@ def ensure_python(project, three=None, python=None):
                 installer = Asdf(project)
             except InstallerNotFound:
                 pass
+        if installer is None and not project.s.PIPENV_DONT_USE_HOMEBREW:
+            try:
+                installer = Homebrew(project)
+            except InstallerNotFound:
+                pass
 
         if not installer:
-            abort("Neither 'pyenv' nor 'asdf' could be found to install Python.")
+            abort(
+                "Neither 'pyenv', 'asdf' nor 'Homebrew (brew)' could be found to install Python."
+            )
         else:
             if environments.SESSION_IS_INTERACTIVE or project.s.PIPENV_YES:
                 try:
@@ -432,7 +439,13 @@ def ensure_python(project, three=None, python=None):
                     version = str(version)
                     path_to_python = find_a_system_python(version)
                     try:
-                        assert python_version(path_to_python) == version
+                        installed_python_version = python_version(path_to_python)
+                        if isinstance(installer, Homebrew):
+                            # Versions specified for Homebrew,
+                            # do not contain a patch version
+                            assert installed_python_version.startswith(version)
+                        else:
+                            assert installed_python_version == version
                     except AssertionError:
                         click.echo(
                             "{}: The Python you just installed is not available on your {}, apparently."
