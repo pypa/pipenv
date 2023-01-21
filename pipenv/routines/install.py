@@ -10,7 +10,7 @@ from pipenv.patched.pip._vendor import rich
 from pipenv.routines.lock import do_lock
 from pipenv.utils.dependencies import convert_deps_to_pip, is_star
 from pipenv.utils.indexes import get_source_list
-from pipenv.utils.internet import download_file, is_valid_url
+from pipenv.utils.internet import download_file, get_host_and_port, is_valid_url
 from pipenv.utils.pip import (
     format_pip_error,
     format_pip_output,
@@ -334,8 +334,21 @@ def do_install(
                 )
                 # Add the package to the Pipfile.
                 if index_url:
+                    trusted_hosts = get_trusted_hosts()
+                    host_and_port = get_host_and_port(index_url)
+                    require_valid_https = not any(
+                        (
+                            v in trusted_hosts
+                            for v in (
+                                host_and_port,
+                                host_and_port.partition(":")[
+                                    0
+                                ],  # also check if hostname without port is in trusted_hosts
+                            )
+                        )
+                    )
                     index_name = project.add_index_to_pipfile(
-                        index_url, verify_ssl=index_url.startswith("https:")
+                        index_url, verify_ssl=require_valid_https
                     )
                     pkg_requirement.index = index_name
                 try:
