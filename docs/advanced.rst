@@ -787,7 +787,7 @@ package manager, and hence unavailable for installation into virtual
 environments with ``pip``. In these cases, the virtual environment can
 be created with access to the system ``site-packages`` directory::
 
-    $ pipenv --three --site-packages
+    $ pipenv --site-packages
 
 To ensure that all ``pip``-installable components actually are installed
 into the virtual environment and system packages are only used for
@@ -829,4 +829,4 @@ You can force Pipenv to use a different cache location by setting the environmen
 ☤ Changing Default Python Versions
 ----------------------------------
 
-By default, Pipenv will initialize a project using whatever version of python the system has as default. Besides starting a project with the ``--python`` or ``--three`` flags, you can also use ``PIPENV_DEFAULT_PYTHON_VERSION`` to specify what version to use when starting a project when ``--python`` or ``--three`` aren't used.
+By default, Pipenv will initialize a project using whatever version of python the system has as default. Besides starting a project with the ``--python`` flag, you can also use ``PIPENV_DEFAULT_PYTHON_VERSION`` to specify what version to use when starting a project when ``--python`` isn't used.
