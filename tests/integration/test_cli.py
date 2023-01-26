@@ -242,14 +242,6 @@ def test_pipenv_clear(pipenv_instance_pypi):
         assert 'Clearing caches' in c.stdout
 
 
-@pytest.mark.cli
-def test_pipenv_three(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
-        c = p.pipenv('--three')
-        assert c.returncode == 0
-        assert 'Successfully created virtual environment' in c.stderr
-
-
 @pytest.mark.outdated
 def test_pipenv_outdated_prerelease(pipenv_instance_pypi):
     with pipenv_instance_pypi(chdir=True) as p:

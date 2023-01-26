@@ -124,7 +124,7 @@ class Setting:
 
         This can be set to a version string, e.g. ``3.9``, or a path. Default is to use
         whatever Python Pipenv is installed under (i.e. ``sys.executable``). Command
-        line flags (e.g. ``--python`` and ``--three``) are prioritized over
+        line flags (e.g. ``--python``) are prioritized over
         this configuration.
         """
 

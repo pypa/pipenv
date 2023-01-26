@@ -331,7 +331,6 @@ Along with the basic install command, which takes the form::
 
 The user can provide these additional parameters:
 
-    - ``--three`` — Performs the installation in a virtualenv using the system ``python3`` link.
     - ``--python`` — Performs the installation in a virtualenv using the provided Python interpreter.
 
     .. warning:: None of the above commands should be used together. They are also
