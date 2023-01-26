@@ -5,6 +5,7 @@ Pipenv: Python Development Workflow for Humans
 [![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv)
 [![CI](https://github.com/pypa/pipenv/actions/workflows/ci.yaml/badge.svg)](https://github.com/pypa/pipenv/actions/workflows/ci.yaml)
 [![image](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://python.org/pypi/pipenv)
+[![image](https://api-public.service.runforesight.com/api/v1/badge/test?repoId=a9acfd31-fca9-4ebb-a449-c7bf0f85a481)](https://pypa.app.runforesight.com)
 
 ------------------------------------------------------------------------
 
@@ -35,6 +36,51 @@ The problems that Pipenv seeks to solve are multi-faceted:
 You can quickly play with Pipenv right in your browser:
 
 [![Try in browser](https://cdn.rawgit.com/rootnroll/library/assets/try.svg)](https://rootnroll.com/d/pipenv/)
+
+Table Of Contents
+------------------
+
+- [Pipenv](#pipenv-python-development-workflow-for-humans)
+
+- [Installation](#installation)
+
+- [Features](#features)
+
+- [Basic Concepts](#basic-concepts)
+
+- [Other Commands](#other-commands)
+
+- [Shell Completion](#shell-completion)
+
+- [Usage](#usage)
+
+    - [Usage Examples](#usage-examples)
+
+    - [Commands](#commands)
+
+    - [Locate the Project](#locate-the-project)
+
+    - [Locate the virtualenv](#locate-the-virtualenv)
+
+    - [Locate the Python Interpreter](#locate-the-python-interpreter)
+
+    - [Install Packages](#install-packages)
+
+    - [Installing from git](#installing-from-git)
+
+    - [Install a dev dependency](#install-a-dev-dependency)
+
+    - [Show a dependency graph](#show-a-dependency-graph)
+
+    - [Generate a lockfile](#generate-a-lockfile)
+
+    - [Install all dev dependencies](#install-all-dev-dependencies)
+
+    - [Uninstall everything](#uninstall-everything)
+
+    - [Use the shell](#use-the-shell)
+
+- [Documentation](#documentation)
 
 Installation
 ------------
@@ -73,23 +119,7 @@ Otherwise, refer to the [documentation](https://pipenv.pypa.io/en/latest/#instal
 
 ✨🍰✨
 
-☤ User Testimonials
--------------------
-
-**David Gang**---
-
-:   *This package manager is really awesome. For the first time I know
-    exactly what my dependencies are which I installed and what the
-    transitive dependencies are. Combined with the fact that installs
-    are deterministic, makes this package manager first class, like
-    cargo*.
-
-**Justin Myles Holmes**---
-
-:   *Pipenv is finally an abstraction meant to engage the mind instead
-    of merely the filesystem.*
-
-☤ Features
+Features
 ----------
 
 -   Enables truly *deterministic builds*, while easily specifying *only
@@ -147,38 +177,39 @@ Alternatively, with bash, add this to your configuration `~/.bashrc` or `~/.bash
 
 Magic shell completions are now enabled!
 
-☤ Usage
+Usage
 -------
 
-   $ pipenv --help
-   Usage: pipenv [OPTIONS] COMMAND [ARGS]...
+    $ pipenv --help
+    Usage: pipenv [OPTIONS] COMMAND [ARGS]...
 
-   Options:
-     --where                         Output project home information.
-     --venv                          Output virtualenv information.
-     --py                            Output Python interpreter information.
-     --envs                          Output Environment Variable options.
-     --rm                            Remove the virtualenv.
-     --bare                          Minimal output.
-     --man                           Display manpage.
-     --support                       Output diagnostic information for use in
-                                     GitHub issues.
-     --site-packages / --no-site-packages
-                                     Enable site-packages for the virtualenv.
-                                     [env var: PIPENV_SITE_PACKAGES]
-     --python TEXT                   Specify which version of Python virtualenv
-                                     should use.
-     --three                         Use Python 3 when creating virtualenv.
-     --clear                         Clears caches (pipenv, pip).  [env var:
-                                     PIPENV_CLEAR]
-     -q, --quiet                     Quiet mode.
-     -v, --verbose                   Verbose mode.
-     --pypi-mirror TEXT              Specify a PyPI mirror.
-     --version                       Show the version and exit.
-     -h, --help                      Show this message and exit.
+    Options:
+      --where                         Output project home information.
+      --venv                          Output virtualenv information.
+      --py                            Output Python interpreter information.
+      --envs                          Output Environment Variable options.
+      --rm                            Remove the virtualenv.
+      --bare                          Minimal output.
+      --man                           Display manpage.
+      --support                       Output diagnostic information for use in
+                                      GitHub issues.
+      --site-packages / --no-site-packages
+                                      Enable site-packages for the virtualenv.
+                                      [env var: PIPENV_SITE_PACKAGES]
+      --python TEXT                   Specify which version of Python virtualenv
+                                      should use.
+      --three                         Use Python 3 when creating virtualenv.
+      --clear                         Clears caches (pipenv, pip).  [env var:
+                                      PIPENV_CLEAR]
+      -q, --quiet                     Quiet mode.
+      -v, --verbose                   Verbose mode.
+      --pypi-mirror TEXT              Specify a PyPI mirror.
+      --version                       Show the version and exit.
+      -h, --help                      Show this message and exit.
 
 
-   Usage Examples:
+   ### Usage Examples:
+
       Create a new project using Python 3.7, specifically:
       $ pipenv --python 3.7
 
@@ -203,41 +234,42 @@ Magic shell completions are now enabled!
       Use a lower-level pip command:
       $ pipenv run pip freeze
 
-   Commands:
-     check         Checks for PyUp Safety security vulnerabilities and against
-                   PEP 508 markers provided in Pipfile.
-     clean         Uninstalls all packages not specified in Pipfile.lock.
-     graph         Displays currently-installed dependency graph information.
-     install       Installs provided packages and adds them to Pipfile, or (if no
-                   packages are given), installs all packages from Pipfile.
-     lock          Generates Pipfile.lock.
-     open          View a given module in your editor.
-     requirements  Generate a requirements.txt from Pipfile.lock.
-     run           Spawns a command installed into the virtualenv.
-     scripts       Lists scripts in current environment config.
-     shell         Spawns a shell within the virtualenv.
-     sync          Installs all packages specified in Pipfile.lock.
-     uninstall     Uninstalls a provided package and removes it from Pipfile.
-     update        Runs lock, then sync.
-     verify        Verify the hash in Pipfile.lock is up-to-date.
+   ### Commands:
+
+      check         Checks for PyUp Safety security vulnerabilities and against
+                    PEP 508 markers provided in Pipfile.
+      clean         Uninstalls all packages not specified in Pipfile.lock.
+      graph         Displays currently-installed dependency graph information.
+      install       Installs provided packages and adds them to Pipfile, or (if no
+                    packages are given), installs all packages from Pipfile.
+      lock          Generates Pipfile.lock.
+      open          View a given module in your editor.
+      requirements  Generate a requirements.txt from Pipfile.lock.
+      run           Spawns a command installed into the virtualenv.
+      scripts       Lists scripts in current environment config.
+      shell         Spawns a shell within the virtualenv.
+      sync          Installs all packages specified in Pipfile.lock.
+      uninstall     Uninstalls a provided package and removes it from Pipfile.
+      update        Runs lock, then sync.
+      verify        Verify the hash in Pipfile.lock is up-to-date.
 
 
-Locate the project:
+### Locate the project:
 
     $ pipenv --where
     /Users/kennethreitz/Library/Mobile Documents/com~apple~CloudDocs/repos/kr/pipenv/test
 
-Locate the virtualenv:
+### Locate the virtualenv:
 
     $ pipenv --venv
     /Users/kennethreitz/.local/share/virtualenvs/test-Skyy4vre
 
-Locate the Python interpreter:
+### Locate the Python interpreter:
 
     $ pipenv --py
     /Users/kennethreitz/.local/share/virtualenvs/test-Skyy4vre/bin/python
 
-Install packages:
+### Install packages:
 
     $ pipenv install
     Creating a virtualenv for this project...
@@ -250,7 +282,7 @@ Install packages:
     To activate this project's virtualenv, run the following:
     $ pipenv shell
 
-Installing from git:
+### Installing from git:
 
 You can install packages with pipenv from git and other version control systems using URLs formatted according to the following rule:
 
@@ -271,16 +303,16 @@ Below is an example usage which installs the git repository located at `https://
     Adding -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests to Pipfile's [packages]...
     [...]
 
-You can read more about [pip's implementation of vcs support here](https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support).
+You can read more about [pip's implementation of vcs support here](https://pip.pypa.io/en/stable/topics/vcs-support/).
 
-Install a dev dependency:
+### Install a dev dependency:
 
     $ pipenv install pytest --dev
     Installing pytest...
     ...
     Adding pytest to Pipfile's [dev-packages]...
 
-Show a dependency graph:
+### Show a dependency graph:
 
     $ pipenv graph
     requests==2.18.4
@@ -289,7 +321,7 @@ Show a dependency graph:
       - idna [required: >=2.5,<2.7, installed: 2.6]
       - urllib3 [required: <1.23,>=1.21.1, installed: 1.22]
 
-Generate a lockfile:
+### Generate a lockfile:
 
     $ pipenv lock
     Assuring all dependencies from Pipfile are installed...
@@ -298,7 +330,7 @@ Generate a lockfile:
     Note: your project now has only default [packages] installed.
     To install [dev-packages], run: $ pipenv install --dev
 
-Install all dev dependencies:
+### Install all dev dependencies:
 
     $ pipenv install --dev
     Pipfile found at /Users/kennethreitz/repos/kr/pip2/test/Pipfile. Considering this to be the project home.
@@ -307,7 +339,7 @@ Install all dev dependencies:
     Locking [dev-packages] dependencies...
     Locking [packages] dependencies...
 
-Uninstall everything:
+### Uninstall everything:
 
     $ pipenv uninstall --all
     No package provided, un-installing all dependencies.
@@ -315,14 +347,14 @@ Uninstall everything:
     ...
     Environment now purged and fresh!
 
-Use the shell:
+### Use the shell:
 
     $ pipenv shell
     Loading .env environment variables...
     Launching subshell in virtual environment. Type 'exit' or 'Ctrl+D' to return.
     $ ▯
 
-☤ Documentation
+Documentation
 ---------------
 
 Documentation resides over at [pipenv.pypa.io](https://pipenv.pypa.io/en/latest/).

@@ -1,10 +1,13 @@
 import os
 from contextlib import contextmanager
-from tempfile import NamedTemporaryFile
 from typing import Mapping, Sequence
 
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.vendor.requirementslib.models.requirements import (
+    InstallRequirement,
+    Requirement,
+)
 
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
@@ -25,6 +28,26 @@ def python_version(path_to_python):
 def clean_pkg_version(version):
     """Uses pip to prepare a package version string, from our internal version."""
     return pep440_version(str(version).replace("==", ""))
+
+
+def get_lockfile_section_using_pipfile_category(category):
+    if category == "dev-packages":
+        lockfile_section = "develop"
+    elif category == "packages":
+        lockfile_section = "default"
+    else:
+        lockfile_section = category
+    return lockfile_section
+
+
+def get_pipfile_category_using_lockfile_section(category):
+    if category == "develop":
+        lockfile_section = "dev-packages"
+    elif category == "default":
+        lockfile_section = "packages"
+    else:
+        lockfile_section = category
+    return lockfile_section
 
 
 class HackedPythonVersion:
@@ -185,17 +208,16 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
             lockfile[key] = dep[key]
     # In case we lock a uri or a file when the user supplied a path
     # remove the uri or file keys from the entry and keep the path
-    fs_key = next(iter(k for k in ["path", "file"] if k in dep), None)
-    pipfile_fs_key = None
-    if pipfile_entry:
-        pipfile_fs_key = next(
-            iter(k for k in ["path", "file"] if k in pipfile_entry), None
-        )
-    if fs_key and pipfile_fs_key and fs_key != pipfile_fs_key:
-        lockfile[pipfile_fs_key] = pipfile_entry[pipfile_fs_key]
-    elif fs_key is not None:
-        lockfile[fs_key] = dep[fs_key]
-
+    preferred_file_keys = ["path", "file"]
+    dependency_file_key = next(iter(k for k in preferred_file_keys if k in dep), None)
+    if dependency_file_key:
+        lockfile[dependency_file_key] = dep[dependency_file_key]
+    # Pipfile entry overrides path/file from resolver
+    if pipfile_entry and isinstance(pipfile_entry, dict):
+        for k in preferred_file_keys:
+            if k in pipfile_entry.keys():
+                lockfile[k] = pipfile_entry[k]
+                break
     # If a package is **PRESENT** in the pipfile but has no markers, make sure we
     # **NEVER** include markers in the lockfile
     if "markers" in dep and dep.get("markers", "").strip():
@@ -212,7 +234,8 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
         else:
             try:
                 pipfile_entry = translate_markers(pipfile_entry)
-                lockfile["markers"] = pipfile_entry.get("markers")
+                if pipfile_entry.get("markers"):
+                    lockfile["markers"] = pipfile_entry.get("markers")
             except TypeError:
                 pass
     return {name: lockfile}
@@ -245,19 +268,18 @@ def is_pinned_requirement(ireq):
 def convert_deps_to_pip(
     deps,
     project=None,
-    r=True,
     include_index=True,
     include_hashes=True,
     include_markers=True,
 ):
     """ "Converts a Pipfile-formatted dependency to a pip-formatted one."""
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
-
     dependencies = []
     for dep_name, dep in deps.items():
         if project:
             project.clear_pipfile_cache()
-        indexes = getattr(project, "pipfile_sources", []) if project is not None else []
+        indexes = []
+        if project:
+            indexes = project.pipfile_sources()
         new_dep = Requirement.from_pipfile(dep_name, dep)
         if new_dep.index:
             include_index = True
@@ -268,28 +290,19 @@ def convert_deps_to_pip(
             include_markers=include_markers,
         ).strip()
         dependencies.append(req)
-    if not r:
-        return dependencies
-
-    # Write requirements.txt to tmp directory.
-    f = NamedTemporaryFile(suffix="-requirements.txt", delete=False)
-    f.write("\n".join(dependencies).encode("utf-8"))
-    f.close()
-    return f.name
+    return dependencies
 
 
 def get_constraints_from_deps(deps):
     """Get contraints from Pipfile-formatted dependency"""
-    from pipenv.patched.pip._internal.req.req_install import (
-        check_invalid_constraint_type,
-    )
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
+
+    def is_constraints(dep: InstallRequirement) -> bool:
+        return dep.name and not dep.editable and not dep.extras
 
     constraints = []
     for dep_name, dep in deps.items():
         new_dep = Requirement.from_pipfile(dep_name, dep)
-        problem = check_invalid_constraint_type(new_dep.as_ireq())
-        if not problem:
+        if new_dep.is_named and is_constraints(new_dep.as_ireq()):
             c = new_dep.as_line().strip()
             constraints.append(c)
     return constraints
@@ -346,7 +359,7 @@ def is_required_version(version, specified_version):
 
 def is_editable(pipfile_entry):
     if hasattr(pipfile_entry, "get"):
-        return pipfile_entry.get("editable", False) and any(
+        return pipfile_entry.get("editable", False) or any(
             pipfile_entry.get(key) for key in ("file", "path") + VCS_LIST
         )
     return False

@@ -1,13 +1,18 @@
-diff --git a/pipenv/vendor/pipdeptree.py b/pipenv/vendor/pipdeptree.py
-index 250366ec..af4be292 100644
---- a/pipenv/vendor/pipdeptree.py
-+++ b/pipenv/vendor/pipdeptree.py
-@@ -20,6 +20,8 @@ try:
- except ImportError:
-     from collections import Mapping
-
-+pardir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+diff --git a/pipenv/vendor/pipdeptree/__main__.py b/pipenv/vendor/pipdeptree/__main__.py
+index 85cca3c..a002019 100644
+--- a/pipenv/vendor/pipdeptree/__main__.py
++++ b/pipenv/vendor/pipdeptree/__main__.py
+@@ -1,5 +1,13 @@
++import os
+ import sys
+ 
++pardir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++# for finding pipdeptree itself
 +sys.path.append(pardir)
- from pipenv.patched.pip._vendor import pkg_resources
- try:
-     from pipenv.patched.pip._internal.operations.freeze import FrozenRequirement
++# for finding stuff in vendor and patched
++sys.path.append(os.path.dirname(os.path.dirname(pardir)))
++
++
+ from pipenv.vendor.pipdeptree import main
+ 
+ if __name__ == "__main__":

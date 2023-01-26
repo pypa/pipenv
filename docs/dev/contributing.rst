@@ -76,7 +76,6 @@ Steps for Submitting Code
 
 When contributing code, you'll want to follow this checklist:
 
-#. Understand our `development philosophy`_.
 #. Fork the repository on GitHub.
 #. Set up your :ref:`dev-setup`
 #. Run the tests (:ref:`testing`) to confirm they all pass on your system.
@@ -87,13 +86,11 @@ When contributing code, you'll want to follow this checklist:
 #. Make your change.
 #. Run the entire test suite again, confirming that all tests pass *including
    the ones you just added*.
-#. Send a GitHub Pull Request to the main repository's ``master`` branch.
+#. Send a GitHub Pull Request to the main repository's ``main`` branch.
    GitHub Pull Requests are the expected method of code collaboration on this
    project.
 
 The following sub-sections go into more detail on some of the points above.
-
-.. _development philosophy: https://pipenv.pypa.io/en/latest/dev/philosophy/
 
 .. _dev-setup:
 
@@ -110,7 +107,7 @@ Pipenv now uses pre-commit hooks similar to Pip in order to apply linting and
 code formatting automatically!  The build now also checks that these linting rules
 have been applied to the code before running the tests.
 The build will fail when linting changes are detected so be sure to sync dev requirements
-and install the pre-commit hooks locally:
+and install the pre-commit hooks locally::
 
    $ ``pipenv install --dev``
    # This will configure running the pre-commit checks at start of each commit
@@ -129,6 +126,18 @@ Tests are written in ``pytest`` style and can be run very simply:
 .. code-block:: sh
 
   pytest
+
+However many tests depend on running a private pypi server on localhost:8080.
+This can be accomplished by using either the ``run-tests.sh`` or ``run-tests.bat``
+which will start the ``pypiserver`` process ahead of invoking pytest.
+
+You may also manually perform this step and then invoke pytest as you would normally.  Example::
+
+    # Linux or MacOS
+    pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+
+    # Windows
+    cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
 
 
 This will run all Pipenv tests, which can take awhile. To run a subset of the

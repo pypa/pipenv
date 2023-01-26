@@ -48,6 +48,7 @@ STYLE_MAP = {
     'solarized-dark': 'solarized::SolarizedDarkStyle',
     'solarized-light': 'solarized::SolarizedLightStyle',
     'sas':         'sas::SasStyle',
+    'staroffice' : 'staroffice::StarofficeStyle',
     'stata':       'stata_light::StataLightStyle',
     'stata-light': 'stata_light::StataLightStyle',
     'stata-dark':  'stata_dark::StataDarkStyle',
@@ -58,6 +59,9 @@ STYLE_MAP = {
     'dracula': 'dracula::DraculaStyle',
     'one-dark': 'onedark::OneDarkStyle',
     'lilypond' : 'lilypond::LilyPondStyle',
+    'nord': 'nord::NordStyle',
+    'nord-darker': 'nord::NordDarkerStyle',
+    'github-dark': 'gh_dark::GhDarkStyle'
 }
 
 

@@ -8,6 +8,8 @@ import shutil
 import sys
 import uuid
 import zipfile
+from enum import Enum
+from optparse import Values
 from typing import Any, Collection, Dict, Iterable, List, Optional, Sequence, Union
 
 from pipenv.patched.pip._vendor.packaging.markers import Marker
@@ -42,7 +44,7 @@ from pipenv.patched.pip._internal.operations.install.legacy import install as in
 from pipenv.patched.pip._internal.operations.install.wheel import install_wheel
 from pipenv.patched.pip._internal.pyproject import load_pyproject_toml, make_pyproject_path
 from pipenv.patched.pip._internal.req.req_uninstall import UninstallPathSet
-from pipenv.patched.pip._internal.utils.deprecation import deprecated
+from pipenv.patched.pip._internal.utils.deprecation import LegacyInstallReason, deprecated
 from pipenv.patched.pip._internal.utils.direct_url_helpers import (
     direct_url_for_editable,
     direct_url_from_link,
@@ -96,7 +98,7 @@ class InstallRequirement:
         self.constraint = constraint
         self.editable = editable
         self.permit_editable_wheels = permit_editable_wheels
-        self.legacy_install_reason: Optional[int] = None
+        self.legacy_install_reason: Optional[LegacyInstallReason] = None
 
         # source_dir is the local directory where the linked requirement is
         # located, or unpacked. In case unpacking is needed, creating and
@@ -812,6 +814,11 @@ class InstallRequirement:
         install_options = list(install_options) + self.install_options
 
         try:
+            if (
+                self.legacy_install_reason is not None
+                and self.legacy_install_reason.emit_before_install
+            ):
+                self.legacy_install_reason.emit_deprecation(self.name)
             success = install_legacy(
                 install_options=install_options,
                 global_options=global_options,
@@ -837,18 +844,12 @@ class InstallRequirement:
 
         self.install_succeeded = success
 
-        if success and self.legacy_install_reason == 8368:
-            deprecated(
-                reason=(
-                    "{} was installed using the legacy 'setup.py install' "
-                    "method, because a wheel could not be built for it.".format(
-                        self.name
-                    )
-                ),
-                replacement="to fix the wheel build issue reported above",
-                gone_in=None,
-                issue=8368,
-            )
+        if (
+            success
+            and self.legacy_install_reason is not None
+            and self.legacy_install_reason.emit_after_success
+        ):
+            self.legacy_install_reason.emit_deprecation(self.name)
 
 
 def check_invalid_constraint_type(req: InstallRequirement) -> str:
@@ -878,3 +879,65 @@ def check_invalid_constraint_type(req: InstallRequirement) -> str:
         )
 
     return problem
+
+
+def _has_option(options: Values, reqs: List[InstallRequirement], option: str) -> bool:
+    if getattr(options, option, None):
+        return True
+    for req in reqs:
+        if getattr(req, option, None):
+            return True
+    return False
+
+
+def _install_option_ignored(
+    install_options: List[str], reqs: List[InstallRequirement]
+) -> bool:
+    for req in reqs:
+        if (install_options or req.install_options) and not req.use_pep517:
+            return False
+    return True
+
+
+class LegacySetupPyOptionsCheckMode(Enum):
+    INSTALL = 1
+    WHEEL = 2
+    DOWNLOAD = 3
+
+
+def check_legacy_setup_py_options(
+    options: Values,
+    reqs: List[InstallRequirement],
+    mode: LegacySetupPyOptionsCheckMode,
+) -> None:
+    has_install_options = _has_option(options, reqs, "install_options")
+    has_build_options = _has_option(options, reqs, "build_options")
+    has_global_options = _has_option(options, reqs, "global_options")
+    legacy_setup_py_options_present = (
+        has_install_options or has_build_options or has_global_options
+    )
+    if not legacy_setup_py_options_present:
+        return
+
+    options.format_control.disallow_binaries()
+    logger.warning(
+        "Implying --no-binary=:all: due to the presence of "
+        "--build-option / --global-option / --install-option. "
+        "Consider using --config-settings for more flexibility.",
+    )
+    if mode == LegacySetupPyOptionsCheckMode.INSTALL and has_install_options:
+        if _install_option_ignored(options.install_options, reqs):
+            logger.warning(
+                "Ignoring --install-option when building using PEP 517",
+            )
+        else:
+            deprecated(
+                reason=(
+                    "--install-option is deprecated because "
+                    "it forces pip to use the 'setup.py install' "
+                    "command which is itself deprecated."
+                ),
+                issue=11358,
+                replacement="to use --config-settings",
+                gone_in="23.1",
+            )

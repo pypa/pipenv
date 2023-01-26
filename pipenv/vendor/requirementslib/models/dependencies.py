@@ -1,18 +1,12 @@
-# -*- coding=utf-8 -*-
-
 import atexit
 import contextlib
 import copy
 import functools
 import os
-from contextlib import ExitStack
 from json import JSONDecodeError
 
 import pipenv.vendor.attr as attr
 import pipenv.patched.pip._vendor.requests as requests
-from pipenv.patched.pip._vendor.packaging.markers import Marker
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.models.format_control import FormatControl
 from pipenv.patched.pip._internal.operations.build.build_tracker import get_build_tracker
@@ -20,22 +14,18 @@ from pipenv.patched.pip._internal.req.constructors import install_req_from_line
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.req.req_set import RequirementSet
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, global_tempdir_manager
-from pipenv.vendor.vistir.compat import fs_str
+from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.vendor.vistir.contextmanagers import temp_environ
 from pipenv.vendor.vistir.path import create_tracked_tempdir
 
 from ..environment import MYPY_RUNNING
-from ..utils import (
-    _ensure_dir,
-    get_package_finder,
-    get_pip_command,
-    prepare_pip_source_args,
-)
+from ..utils import get_package_finder, get_pip_command, prepare_pip_source_args
 from .cache import CACHE_DIR, DependencyCache
 from .setup_info import SetupInfo
 from .utils import (
     clean_requires_python,
-    fix_requires_python_marker,
     format_requirement,
     full_groupby,
     is_pinned_requirement,
@@ -46,23 +36,12 @@ from .utils import (
 )
 
 if MYPY_RUNNING:
-    from typing import (
-        Any,
-        Dict,
-        Generator,
-        List,
-        Optional,
-        Set,
-        Text,
-        Tuple,
-        TypeVar,
-        Union,
-    )
+    from typing import Any, Dict, List, Optional, Set, Text, TypeVar, Union
 
-    from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
-    from pipenv.patched.pip._internal.commands.base_command import Command
+    from pipenv.patched.pip._internal.commands import Command
     from pipenv.patched.pip._internal.index.package_finder import PackageFinder
     from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
+    from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 
     TRequirement = TypeVar("TRequirement")
     RequirementType = TypeVar(
@@ -73,8 +52,8 @@ if MYPY_RUNNING:
     S = TypeVar("S", bytes, str, Text)
 
 
-PKGS_DOWNLOAD_DIR = fs_str(os.path.join(CACHE_DIR, "pkgs"))
-WHEEL_DOWNLOAD_DIR = fs_str(os.path.join(CACHE_DIR, "wheels"))
+PKGS_DOWNLOAD_DIR = os.path.join(CACHE_DIR, "pkgs")
+WHEEL_DOWNLOAD_DIR = os.path.join(CACHE_DIR, "wheels")
 
 DEPENDENCY_CACHE = DependencyCache()
 
@@ -579,7 +558,7 @@ def get_pip_options(args=None, sources=None, pip_command=None):
         pip_command = get_pip_command()
     if not sources:
         sources = [{"url": "https://pypi.org/simple", "name": "pypi", "verify_ssl": True}]
-    _ensure_dir(CACHE_DIR)
+    os.makedirs(CACHE_DIR, mode=0o777, exist_ok=True)
     pip_args = args or []
     pip_args = prepare_pip_source_args(sources, pip_args)
     pip_options, _ = pip_command.parser.parse_args(pip_args)
@@ -635,16 +614,16 @@ def start_resolver(finder=None, session=None, wheel_cache=None):
         session = pip_command._build_session(pip_options)
 
     download_dir = PKGS_DOWNLOAD_DIR
-    _ensure_dir(download_dir)
+    os.makedir(download_dir, mode=0o777)
 
-    _build_dir = create_tracked_tempdir(fs_str("build"))
-    _source_dir = create_tracked_tempdir(fs_str("source"))
+    _build_dir = create_tracked_tempdir("build")
+    _source_dir = create_tracked_tempdir("source")
     pip_options.src_dir = _source_dir
     try:
         with global_tempdir_manager(), get_build_tracker() as build_tracker:
             if not wheel_cache:
                 wheel_cache = _get_wheel_cache()
-            _ensure_dir(str(os.path.join(wheel_cache.cache_dir, "wheels")))
+            os.makdirs(os.path.join(wheel_cache.cache_dir, "wheels"))
             preparer = pip_command.make_requirement_preparer(
                 temp_build_dir=_build_dir,
                 options=pip_options,

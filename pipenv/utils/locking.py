@@ -39,18 +39,14 @@ def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=No
     return name, entry
 
 
-def get_locked_dep(dep, pipfile_section, prefer_pipfile=True):
-    # the prefer pipfile flag is not used yet, but we are introducing
-    # it now for development purposes
-    # TODO: Is this implementation clear? How can it be improved?
+def get_locked_dep(dep, pipfile_section):
     entry = None
     cleaner_kwargs = {"is_top_level": False, "pipfile_entry": None}
-    if isinstance(dep, Mapping) and dep.get("name", ""):
+    if isinstance(dep, Mapping) and dep.get("name"):
         dep_name = pep423_name(dep["name"])
-        name = next(
-            iter(k for k in pipfile_section.keys() if pep423_name(k) == dep_name), None
-        )
-        entry = pipfile_section[name] if name else None
+        for pipfile_key, pipfile_entry in pipfile_section.items():
+            if pep423_name(pipfile_key) == dep_name:
+                entry = pipfile_entry
 
     if entry:
         cleaner_kwargs.update({"is_top_level": True, "pipfile_entry": entry})
@@ -62,12 +58,7 @@ def get_locked_dep(dep, pipfile_section, prefer_pipfile=True):
     lockfile_name, lockfile_dict = lockfile_entry.copy().popitem()
     lockfile_version = lockfile_dict.get("version", "")
     # Keep pins from the lockfile
-    if (
-        prefer_pipfile
-        and lockfile_version != version
-        and version.startswith("==")
-        and "*" not in version
-    ):
+    if lockfile_version != version and version.startswith("==") and "*" not in version:
         lockfile_dict["version"] = version
     lockfile_entry[lockfile_name] = lockfile_dict
     return lockfile_entry

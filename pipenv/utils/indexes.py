@@ -45,9 +45,9 @@ def prepare_pip_source_args(sources, pip_args=None):
 
 
 def get_project_index(
-    project: Optional[Union[str, TSource]],
-    index: Optional[List[str]] = None,
-    trusted_hosts: Optional[Project] = None,
+    project: Project,
+    index: Optional[Union[str, TSource]] = None,
+    trusted_hosts: Optional[List[str]] = None,
 ) -> TSource:
     from pipenv.project import SourceNotFound
 
@@ -68,7 +68,7 @@ def get_project_index(
 def get_source_list(
     project: Project,
     index: Optional[Union[str, TSource]] = None,
-    extra_indexes: Optional[List[str]] = None,
+    extra_indexes: Optional[Union[str, List[str]]] = None,
     trusted_hosts: Optional[List[str]] = None,
     pypi_mirror: Optional[str] = None,
 ) -> List[TSource]:
@@ -78,19 +78,23 @@ def get_source_list(
     if extra_indexes:
         if isinstance(extra_indexes, str):
             extra_indexes = [extra_indexes]
+
         for source in extra_indexes:
             extra_src = get_project_index(project, source)
             if not sources or extra_src["url"] != sources[0]["url"]:
                 sources.append(extra_src)
-        else:
-            for source in project.pipfile_sources:
-                if not sources or source["url"] != sources[0]["url"]:
-                    sources.append(source)
+
+        for source in project.sources:
+            if not sources or source["url"] != sources[0]["url"]:
+                sources.append(source)
+
     if not sources:
-        sources = project.pipfile_sources[:]
+        sources = project.sources[:]
     if pypi_mirror:
         sources = [
-            create_mirror_source(pypi_mirror) if is_pypi_url(source["url"]) else source
+            create_mirror_source(pypi_mirror, source["name"])
+            if is_pypi_url(source["url"])
+            else source
             for source in sources
         ]
     return sources

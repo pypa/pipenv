@@ -1,10 +1,13 @@
 import contextlib
 import hashlib
+import json
 import os
 import subprocess
 import sys
+import tempfile
 import warnings
 from functools import lru_cache
+from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from pipenv import environments
@@ -23,12 +26,13 @@ from pipenv.patched.pip._internal.req.constructors import (
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
+from pipenv.patched.pip._vendor import pkg_resources, rich
 from pipenv.project import Project
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib import Requirement
 from pipenv.vendor.requirementslib.models.requirements import Line
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
-from pipenv.vendor.vistir import TemporaryDirectory, open_file
+from pipenv.vendor.vistir import open_file
 from pipenv.vendor.vistir.path import create_tracked_tempdir
 
 try:
@@ -43,6 +47,7 @@ from .dependencies import (
     clean_pkg_version,
     convert_deps_to_pip,
     get_constraints_from_deps,
+    get_lockfile_section_using_pipfile_category,
     get_vcs_deps,
     is_pinned_requirement,
     pep423_name,
@@ -53,7 +58,9 @@ from .indexes import parse_indexes, prepare_pip_source_args
 from .internet import _get_requests_session, is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
-from .spinner import create_spinner
+
+console = rich.console.Console()
+err = rich.console.Console(stderr=True)
 
 
 def get_package_finder(
@@ -129,7 +136,7 @@ class Resolver:
         skipped=None,
         clear=False,
         pre=False,
-        dev=False,
+        category=None,
     ):
         self.initial_constraints = constraints
         self.req_dir = req_dir
@@ -139,7 +146,7 @@ class Resolver:
         self.hashes = {}
         self.clear = clear
         self.pre = pre
-        self.dev = dev
+        self.category = category
         self.results = None
         self.markers_lookup = markers_lookup if markers_lookup is not None else {}
         self.index_lookup = index_lookup if index_lookup is not None else {}
@@ -188,6 +195,7 @@ class Resolver:
         req_dir: Optional[str] = None,
         pre: bool = False,
         clear: bool = False,
+        category: str = None,
     ) -> Tuple[
         Set[str],
         Dict[str, Dict[str, Union[str, bool, List[str]]]],
@@ -202,16 +210,6 @@ class Resolver:
             markers_lookup = {}
         if not req_dir:
             req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-reqdir")
-        transient_resolver = Resolver(
-            [],
-            req_dir,
-            project,
-            sources,
-            index_lookup=index_lookup,
-            markers_lookup=markers_lookup,
-            clear=clear,
-            pre=pre,
-        )
         for dep in deps:
             if not dep:
                 continue
@@ -243,6 +241,7 @@ class Resolver:
                 markers_lookup=markers_lookup,
                 clear=clear,
                 pre=pre,
+                category=category,
             )
             constraint_update, lockfile_update = self.get_deps_from_req(
                 req, resolver=transient_resolver, resolve_vcs=project.s.PIPENV_RESOLVE_VCS
@@ -319,7 +318,7 @@ class Resolver:
         # TODO: this is way too complex, refactor this
         constraints: Set[str] = set()
         locked_deps: Dict[str, Dict[str, Union[str, bool, List[str]]]] = {}
-        editable_packages = self.project.get_editable_packages(dev=self.dev)
+        editable_packages = self.project.get_editable_packages(category=self.category)
         if (req.is_file_or_url or req.is_vcs) and not req.is_wheel:
             # for local packages with setup.py files and potential direct url deps:
             if req.is_vcs:
@@ -404,6 +403,7 @@ class Resolver:
                     hashes = resolver.collect_hashes(ireq) if resolver else []
                     new_req = Requirement.from_ireq(ireq)
                     new_req = new_req.add_hashes(hashes)
+                    new_req = new_req.merge_markers(req.markers)
                     name, entry = new_req.pipfile_entry
                     locked_deps[pep423_name(name)] = translate_markers(entry)
                     click.echo(
@@ -433,7 +433,7 @@ class Resolver:
         req_dir: str = None,
         clear: bool = False,
         pre: bool = False,
-        dev: bool = False,
+        category: str = None,
     ) -> "Resolver":
 
         if not req_dir:
@@ -453,7 +453,7 @@ class Resolver:
             markers_lookup=markers_lookup,
             clear=clear,
             pre=pre,
-            dev=dev,
+            category=category,
         )
         constraints, skipped, index_lookup, markers_lookup = resolver.get_metadata(
             deps,
@@ -464,6 +464,7 @@ class Resolver:
             req_dir=req_dir,
             pre=pre,
             clear=clear,
+            category=category,
         )  # Workaround to the fact `get_metadata` instantiates a transient Resolver
         resolver.initial_constraints = constraints
         resolver.skipped = skipped
@@ -642,19 +643,19 @@ class Resolver:
                 for c in self.parsed_constraints
             ]
             # Only use default_constraints when installing dev-packages
-            if self.dev:
+            if self.category != "packages":
                 self._constraints += self.default_constraints
+            self._constraints.sort(key=lambda ireq: ireq.name)
         return self._constraints
 
     @contextlib.contextmanager
     def get_resolver(self, clear=False):
-        with global_tempdir_manager(), get_build_tracker() as build_tracker, TemporaryDirectory(
-            suffix="-build", prefix="pipenv-"
-        ) as directory:
+        from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
+
+        with global_tempdir_manager(), get_build_tracker() as build_tracker, TempDirectory() as directory:
             pip_options = self.pip_options
             finder = self.finder
             wheel_cache = WheelCache(pip_options.cache_dir, pip_options.format_control)
-            directory.path = directory.name
             preparer = self.pip_command.make_requirement_preparer(
                 temp_build_dir=directory,
                 options=pip_options,
@@ -703,11 +704,20 @@ class Resolver:
                 if candidate:
                     requires_python = candidate.link.requires_python
                     if requires_python:
-                        marker = marker_from_specifier(requires_python)
-                        self.markers[result.name] = marker
-                        result.markers = marker
-                        if result.req:
-                            result.req.marker = marker
+                        try:
+
+                            marker = marker_from_specifier(requires_python)
+                            self.markers[result.name] = marker
+                            result.markers = marker
+                            if result.req:
+                                result.req.marker = marker
+                        except TypeError as e:
+                            click.echo(
+                                f"Error generating python marker for {candidate}.  "
+                                f"Is the specifier {requires_python} incorrectly quoted or otherwise wrong?"
+                                f"Full error: {e}",
+                                err=True,
+                            )
             new_tree.add(result)
         self.resolved_tree = new_tree
 
@@ -868,16 +878,23 @@ def actually_resolve_deps(
     sources,
     clear,
     pre,
-    dev,
+    category,
     req_dir=None,
 ):
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
-    warning_list = []
 
     with warnings.catch_warnings(record=True) as warning_list:
         resolver = Resolver.create(
-            deps, project, index_lookup, markers_lookup, sources, req_dir, clear, pre, dev
+            deps,
+            project,
+            index_lookup,
+            markers_lookup,
+            sources,
+            req_dir,
+            clear,
+            pre,
+            category,
         )
         resolver.resolve()
         hashes = resolver.resolve_hashes()
@@ -894,10 +911,10 @@ def actually_resolve_deps(
     return (results, hashes, resolver.markers_lookup, resolver, resolver.skipped)
 
 
-def resolve(cmd, sp, project):
+def resolve(cmd, st, project):
     from pipenv._compat import decode_output
     from pipenv.cmdparse import Script
-    from pipenv.vendor.vistir.misc import echo
+    from pipenv.vendor.click import echo
 
     c = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())
     is_verbose = project.s.is_verbose()
@@ -908,13 +925,13 @@ def resolve(cmd, sp, project):
             continue
         err += line
         if is_verbose:
-            sp.hide_and_write(line.rstrip())
+            st.update(line.rstrip())
 
     c.wait()
     returncode = c.poll()
     out = c.stdout.read()
     if returncode != 0:
-        sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
+        st.update(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
         echo(out.strip(), err=True)
         if not is_verbose:
             echo(err, err=True)
@@ -928,11 +945,11 @@ def venv_resolve_deps(
     deps,
     which,
     project,
+    category,
     pre=False,
     clear=False,
     allow_global=False,
     pypi_mirror=None,
-    dev=False,
     pipfile=None,
     lockfile=None,
     keep_outdated=False,
@@ -961,28 +978,21 @@ def venv_resolve_deps(
     :return: Nothing
     :rtype: None
     """
-
-    import json
-    import tempfile
-    from pathlib import Path
-
     from pipenv import resolver
-    from pipenv._compat import decode_for_output
 
-    results = []
-    pipfile_section = "dev-packages" if dev else "packages"
-    lockfile_section = "develop" if dev else "default"
+    lockfile_section = get_lockfile_section_using_pipfile_category(category)
+
     if not deps:
         if not project.pipfile_exists:
             return None
-        deps = project.parsed_pipfile.get(pipfile_section, {})
+        deps = project.parsed_pipfile.get(category, {})
     if not deps:
         return None
 
     if not pipfile:
-        pipfile = getattr(project, pipfile_section, {})
+        pipfile = getattr(project, category, {})
     if not lockfile:
-        lockfile = project._lockfile
+        lockfile = project._lockfile(categories=[category])
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
     cmd = [
         which("python", allow_global=allow_global),
@@ -994,8 +1004,9 @@ def venv_resolve_deps(
         cmd.append("--clear")
     if allow_global:
         cmd.append("--system")
-    if dev:
-        cmd.append("--dev")
+    if category:
+        cmd.append("--category")
+        cmd.append(category)
     target_file = tempfile.NamedTemporaryFile(
         prefix="resolver", suffix=".json", delete=False
     )
@@ -1015,28 +1026,28 @@ def venv_resolve_deps(
             os.environ.pop("PIPENV_SITE_DIR", None)
         if keep_outdated:
             os.environ["PIPENV_KEEP_OUTDATED"] = "1"
-        with create_spinner(
-            text=decode_for_output("Locking..."), setting=project.s
-        ) as sp:
+        with console.status("Locking...", spinner=project.s.PIPENV_SPINNER) as st:
             # This conversion is somewhat slow on local and file-type requirements since
             # we now download those requirements / make temporary folders to perform
             # dependency resolution on them, so we are including this step inside the
             # spinner context manager for the UX improvement
-            sp.write(decode_for_output("Building requirements..."))
-            deps = convert_deps_to_pip(deps, project, r=False, include_index=True)
+            st.update("Building requirements...")
+            deps = convert_deps_to_pip(deps, project, include_index=True)
             constraints = set(deps)
-            os.environ["PIPENV_PACKAGES"] = str("\n".join(constraints))
-            sp.write(decode_for_output("Resolving dependencies..."))
-            c = resolve(cmd, sp, project=project)
-            results = c.stdout.strip()
+            with tempfile.NamedTemporaryFile(
+                mode="w+", prefix="pipenv", suffix="constraints.txt", delete=False
+            ) as constraints_file:
+                constraints_file.write(str("\n".join(constraints)))
+            cmd.append("--constraints-file")
+            cmd.append(constraints_file.name)
+            st.update("Resolving dependencies...")
+            c = resolve(cmd, st, project=project)
             if c.returncode == 0:
-                sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                st.update(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                 if not project.s.is_verbose() and c.stderr.strip():
                     click.echo(click.style(f"Warning: {c.stderr.strip()}"), err=True)
             else:
-                sp.red.fail(
-                    environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
-                )
+                st.update(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
                 click.echo(f"Output: {c.stdout.strip()}", err=True)
                 click.echo(f"Error: {c.stderr.strip()}", err=True)
     try:
@@ -1063,7 +1074,7 @@ def resolve_deps(
     python=False,
     clear=False,
     pre=False,
-    dev=False,
+    category=None,
     allow_global=False,
     req_dir=None,
 ):
@@ -1094,7 +1105,7 @@ def resolve_deps(
                 sources,
                 clear,
                 pre,
-                dev,
+                category,
                 req_dir=req_dir,
             )
         except RuntimeError:
@@ -1123,7 +1134,7 @@ def resolve_deps(
                     sources,
                     clear,
                     pre,
-                    dev,
+                    category,
                     req_dir=req_dir,
                 )
             except RuntimeError:
@@ -1133,8 +1144,6 @@ def resolve_deps(
 
 @lru_cache()
 def get_pipenv_sitedir() -> Optional[str]:
-    import pkg_resources
-
     site_dir = next(
         iter(d for d in pkg_resources.working_set if d.key.lower() == "pipenv"), None
     )

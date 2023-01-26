@@ -57,6 +57,7 @@ setup(
     },
     package_data={
         "": ["LICENSE", "NOTICES"],
+        "pipenv.patched.safety": ["VERSION", "safety-policy-template.yml"],
         "pipenv.patched.pip._vendor.certifi": ["*.pem"],
         "pipenv.patched.pip._vendor.requests": ["*.pem"],
         "pipenv.patched.pip._vendor.distlib._backport": ["sysconfig.cfg"],
@@ -66,6 +67,7 @@ setup(
             "w32.exe",
             "w64.exe",
         ],
+        "pipenv.vendor.ruamel": ["yaml"],
     },
     python_requires=">=3.7",
     zip_safe=True,
@@ -82,6 +84,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: Implementation :: PyPy",
     ],

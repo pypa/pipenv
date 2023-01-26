@@ -1,19 +1,19 @@
 """Check a project and backend by attempting to build using PEP 517 hooks.
 """
 import argparse
-import io
 import logging
 import os
-from os.path import isfile, join as pjoin
 import shutil
-from subprocess import CalledProcessError
 import sys
 import tarfile
-from tempfile import mkdtemp
 import zipfile
+from os.path import isfile
+from os.path import join as pjoin
+from subprocess import CalledProcessError
+from tempfile import mkdtemp
 
+from ._compat import tomllib
 from .colorlog import enable_colourful_output
-from .compat import TOMLDecodeError, toml_load
 from .envbuild import BuildEnvironment
 from .wrappers import Pep517HookCaller
 
@@ -142,15 +142,15 @@ def check(source_dir):
         return False
 
     try:
-        with io.open(pyproject, 'rb') as f:
-            pyproject_data = toml_load(f)
+        with open(pyproject, 'rb') as f:
+            pyproject_data = tomllib.load(f)
         # Ensure the mandatory data can be loaded
         buildsys = pyproject_data['build-system']
         requires = buildsys['requires']
         backend = buildsys['build-backend']
         backend_path = buildsys.get('backend-path')
         log.info('Loaded pyproject.toml')
-    except (TOMLDecodeError, KeyError):
+    except (tomllib.TOMLDecodeError, KeyError):
         log.error("Invalid pyproject.toml", exc_info=True)
         return False
 

@@ -1,14 +1,8 @@
-from __future__ import unicode_literals
-
 import json
 import numbers
 
-try:
-    import collections.abc as collections_abc
-except ImportError:
-    import collections as collections_abc
+import collections.abc as collections_abc
 
-import pipenv.vendor.six as six
 
 from .models import DataView, Meta, PackageCollection
 
@@ -28,24 +22,18 @@ class _LockFileEncoder(json.JSONEncoder):
 
     def encode(self, obj):
         content = super(_LockFileEncoder, self).encode(obj)
-        if not isinstance(content, six.text_type):
+        if not isinstance(content, str):
             content = content.decode("utf-8")
         content += "\n"
         return content
 
     def iterencode(self, obj):
         for chunk in super(_LockFileEncoder, self).iterencode(obj):
-            if not isinstance(chunk, six.text_type):
+            if not isinstance(chunk, str):
                 chunk = chunk.decode("utf-8")
             yield chunk
         yield "\n"
 
-
-LOCKFILE_SECTIONS = {
-    "_meta": Meta,
-    "default": PackageCollection,
-    "develop": PackageCollection,
-}
 
 PIPFILE_SPEC_CURRENT = 6
 
@@ -53,15 +41,15 @@ PIPFILE_SPEC_CURRENT = 6
 def _copy_jsonsafe(value):
     """Deep-copy a value into JSON-safe types.
     """
-    if isinstance(value, six.string_types + (numbers.Number,)):
+    if isinstance(value, (str, numbers.Number)):
         return value
     if isinstance(value, collections_abc.Mapping):
-        return {six.text_type(k): _copy_jsonsafe(v) for k, v in value.items()}
+        return {str(k): _copy_jsonsafe(v) for k, v in value.items()}
     if isinstance(value, collections_abc.Iterable):
         return [_copy_jsonsafe(v) for v in value]
     if value is None:   # This doesn't happen often for us.
         return None
-    return six.text_type(value)
+    return str(value)
 
 
 class Lockfile(DataView):
@@ -76,8 +64,11 @@ class Lockfile(DataView):
     @classmethod
     def validate(cls, data):
         super(Lockfile, cls).validate(data)
-        for key, klass in LOCKFILE_SECTIONS.items():
-            klass.validate(data[key])
+        for key, value in data.items():
+            if key == "_meta":
+                Meta.validate(value)
+            else:
+                PackageCollection.validate(value)
 
     @classmethod
     def load(cls, f, encoding=None):
@@ -88,7 +79,7 @@ class Lockfile(DataView):
         return cls(data)
 
     @classmethod
-    def with_meta_from(cls, pipfile):
+    def with_meta_from(cls, pipfile, categories=None):
         data = {
             "_meta": {
                 "hash": _copy_jsonsafe(pipfile.get_hash()._data),
@@ -96,15 +87,31 @@ class Lockfile(DataView):
                 "requires": _copy_jsonsafe(pipfile._data.get("requires", {})),
                 "sources": _copy_jsonsafe(pipfile.sources._data),
             },
-            "default": {},
-            "develop": {},
         }
+        if categories is None:
+            data["default"] = _copy_jsonsafe(pipfile._data.get("packages", {}))
+            data["develop"] = _copy_jsonsafe(pipfile._data.get("dev-packages", {}))
+        else:
+            for category in categories:
+                if category == "default" or category == "packages":
+                    data["default"] = _copy_jsonsafe(pipfile._data.get("packages", {}))
+                elif category == "develop" or category == "dev-packages":
+                    data["develop"] = _copy_jsonsafe(pipfile._data.get("dev-packages", {}))
+                else:
+                    data[category] = _copy_jsonsafe(pipfile._data.get(category, {}))
+        if "default" not in data:
+            data["default"]  = {}
+        if "develop" not in data:
+            data["develop"] = {}
         return cls(data)
 
     def __getitem__(self, key):
         value = self._data[key]
         try:
-            return LOCKFILE_SECTIONS[key](value)
+            if key == "_meta":
+                return Meta(value)
+            else:
+                return PackageCollection(value)
         except KeyError:
             return value
 

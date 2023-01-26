@@ -1,3 +1,411 @@
+2022.12.19 (2022-12-19)
+=======================
+Pipenv 2022.12.19 (2022-12-19)
+==============================
+
+
+Bug Fixes
+---------
+
+- Fix for ``requirementslib`` hanging during install of remote wheels files.  `#5546 <https://github.com/pypa/pipenv/issues/5546>`_
+
+
+2022.12.17 (2022-12-17)
+=======================
+Pipenv 2022.12.17 (2022-12-17)
+==============================
+
+
+Bug Fixes
+---------
+
+- virtualenv creation no longer uses ``--creator=venv`` by default; introduced two environment variables:
+  ``PIPENV_VIRTUALENV_CREATOR`` -- May be specified to instruct virtualenv which ``--creator=`` to use.
+  ``PIPENV_VIRTUALENV_COPIES`` -- When specified as truthy, instructs virtualenv to not use symlinks.  `#5477 <https://github.com/pypa/pipenv/issues/5477>`_
+- Fix regression where ``path`` is not propagated to the ``Pipfile.lock``.  `#5479 <https://github.com/pypa/pipenv/issues/5479>`_
+- Solve issue where null markers were getting added to lock file when extras were provided.  `#5486 <https://github.com/pypa/pipenv/issues/5486>`_
+- Fix: ``update --outdated`` raises NonExistentKey with outdated dev packages  `#5540 <https://github.com/pypa/pipenv/issues/5540>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in ``pip==22.3.1`` which is currently the latest version of ``pip``.  `#5520 <https://github.com/pypa/pipenv/issues/5520>`_
+- * Bump version of requirementslib to 2.2.1
+   * Bump version of vistir to 0.7.5
+   * Bump version of colorama to 0.4.6  `#5522 <https://github.com/pypa/pipenv/issues/5522>`_
+- Bump plette version to 0.4.4  `#5539 <https://github.com/pypa/pipenv/issues/5539>`_
+
+
+2022.11.30 (2022-11-30)
+=======================
+Pipenv 2022.11.30 (2022-11-30)
+==============================
+
+
+Bug Fixes
+---------
+
+- Fix regression: pipenv does not sync indexes to lockfile.  `#5508 <https://github.com/pypa/pipenv/issues/5508>`_
+
+
+2022.11.25 (2022-11-24)
+=======================
+Pipenv 2022.11.25 (2022-11-24)
+==============================
+
+
+Bug Fixes
+---------
+
+- Solving issue where ``pipenv check`` command has been broken in the published wheel distribution.  `#5493 <https://github.com/pypa/pipenv/issues/5493>`_
+
+
+2022.11.24 (2022-11-24)
+=======================
+Pipenv 2022.11.24 (2022-11-24)
+==============================
+
+
+Bug Fixes
+---------
+
+- Stop building universal wheels since Python 2 is no longer supported.  `#5496 <https://github.com/pypa/pipenv/issues/5496>`_
+
+
+2022.11.23 (2022-11-23)
+=======================
+Pipenv 2022.11.23 (2022-11-23)
+==============================
+
+
+Features & Improvements
+-----------------------
+
+- Find nushell activate scripts.  `#5470 <https://github.com/pypa/pipenv/issues/5470>`_
+
+Vendored Libraries
+------------------
+
+- * Drop unused code from cerberus
+   * Drop unused module wheel  `#5467 <https://github.com/pypa/pipenv/issues/5467>`_
+- * Replace yaspin spinner with rich spinner.
+   * Bump vistir version to 0.7.4  `#5468 <https://github.com/pypa/pipenv/issues/5468>`_
+- Bump version of requirementslib to 2.2.0
+  Drop yaspin which is no longer used.
+  Bump vistir to version 0.7.4
+  Remove parse.
+  Remove termcolor.
+  Remove idna.  `#5481 <https://github.com/pypa/pipenv/issues/5481>`_
+
+
+2022.11.11 (2022-11-11)
+=======================
+Pipenv 2022.11.11 (2022-11-11)
+==============================
+
+
+Bug Fixes
+---------
+
+- Fix regression of lock generation that caused the keep-outdated behavior to be default.  `#5456 <https://github.com/pypa/pipenv/issues/5456>`_
+
+
+2022.11.5 (2022-11-05)
+======================
+Pipenv 2022.11.5 (2022-11-05)
+=============================
+
+
+Bug Fixes
+---------
+
+- Rollback the change in version of ``colorama`` due to regressions in core functionality.  `#5459 <https://github.com/pypa/pipenv/issues/5459>`_
+
+
+2022.11.4 (2022-11-04)
+======================
+Pipenv 2022.11.4 (2022-11-04)
+=============================
+
+
+Features & Improvements
+-----------------------
+
+- Allow pipenv settings to be explicitly disabled more easily by assigning to the environment variable a falsy value.  `#5451 <https://github.com/pypa/pipenv/issues/5451>`_
+
+Bug Fixes
+---------
+
+- Provide an install iteration per index when ``install_search_all_sources`` is ``false`` (default behavior).
+  This fixes regression where install phase was using unexpected index after updating ``pip==22.3``  `#5444 <https://github.com/pypa/pipenv/issues/5444>`_
+
+Vendored Libraries
+------------------
+
+- Drop tomli, which is not used anymore.
+  Bump attrs version see #5449.
+  Drop distlib, colorama and platformdirs - use the ones from pip._vendor.  `#5450 <https://github.com/pypa/pipenv/issues/5450>`_
+
+
+2022.10.25 (2022-10-25)
+=======================
+Pipenv 2022.10.25 (2022-10-25)
+==============================
+
+
+Features & Improvements
+-----------------------
+
+- Add support to export requirements file for a specified set of categories.  `#5431 <https://github.com/pypa/pipenv/issues/5431>`_
+
+Vendored Libraries
+------------------
+
+- Remove appdirs.py in favor of platformdirs.  `#5420 <https://github.com/pypa/pipenv/issues/5420>`_
+
+Removals and Deprecations
+-------------------------
+
+- Remove usage of vistir.cmdparse in favor of pipenv.cmdparse  `#5419 <https://github.com/pypa/pipenv/issues/5419>`_
+
+
+2022.10.12 (2022-10-12)
+=======================
+Pipenv 2022.10.12 (2022-10-12)
+==============================
+
+
+Improved Documentation
+----------------------
+
+- Update pipenv docs for with example for callabale package functions in Pipfile scripts  `#5396 <https://github.com/pypa/pipenv/issues/5396>`_
+
+
+2022.10.11 (2022-10-11)
+=======================
+Pipenv 2022.10.11 (2022-10-11)
+==============================
+
+
+Bug Fixes
+---------
+
+- Revert decision to change the default isolation level because it caused problems with existing workflows; solution is to recommend users that have issues requiring pre-requisites to pass --extra-pip-args="--no-build-isolation" in their install or sync commands.  `#5399 <https://github.com/pypa/pipenv/issues/5399>`_
+
+
+2022.10.10 (2022-10-10)
+=======================
+Pipenv 2022.10.10 (2022-10-10)
+==============================
+
+
+Features & Improvements
+-----------------------
+
+- Add ability for callable scripts in Pipfile under [scripts]. Callables can now be added like: ``<pathed.module>:<func>`` and can also take arguments. For exaple: ``func = {call = "package.module:func('arg1', 'arg2')"}`` then this can be activated in the shell with ``pipenv run func``  `#5294 <https://github.com/pypa/pipenv/issues/5294>`_
+
+Bug Fixes
+---------
+
+- Fixes regression from ``2022.10.9`` where ``Pipfile`` with ``pipenv`` section began generating new hash,
+  and also fix regression where lock phase did not update the hash value.  `#5394 <https://github.com/pypa/pipenv/issues/5394>`_
+
+
+2022.10.9 (2022-10-09)
+======================
+Pipenv 2022.10.9 (2022-10-09)
+=============================
+
+
+Behavior Changes
+----------------
+
+- New pipfiles show python_full_version under [requires] if specified. Previously creating a new pipenv project would only specify in the Pipfile the major and minor version, i.e. "python_version = 3.7". Now if you create a new project with a fully named python version it will record both in the Pipfile. So: "python_version = 3.7" and "python_full_version = 3.7.2"  `#5345 <https://github.com/pypa/pipenv/issues/5345>`_
+
+Relates to dev process changes
+------------------------------
+
+- Silence majority of pytest.mark warnings by registering custom marks. Can view a list of custom marks by running ``pipenv run pytest --markers``
+
+
+2022.10.4 (2022-10-04)
+======================
+Pipenv 2022.10.4 (2022-10-04)
+=============================
+
+
+Bug Fixes
+---------
+
+- Use ``--creator=venv`` when creating virtual environments to avoid issue with sysconfig ``posix_prefix`` on some systems.  `#5075 <https://github.com/pypa/pipenv/issues/5075>`_
+- Prefer to use the lockfile sources if available during the install phase.  `#5380 <https://github.com/pypa/pipenv/issues/5380>`_
+
+Vendored Libraries
+------------------
+
+- Drop vendored six - we no longer depend on this library, as we migrated from pipfile to plette.  `#5187 <https://github.com/pypa/pipenv/issues/5187>`_
+
+
+2022.9.24 (2022-09-24)
+======================
+Pipenv 2022.9.24 (2022-09-24)
+=============================
+
+
+Bug Fixes
+---------
+
+- Update ``requirementslib==2.0.3`` to always evaluate the requirement markers fresh (without lru_cache) to fix marker determinism issue.  `#4660 <https://github.com/pypa/pipenv/issues/4660>`_
+
+
+2022.9.21 (2022-09-21)
+======================
+Pipenv 2022.9.21 (2022-09-21)
+=============================
+
+
+Bug Fixes
+---------
+
+- Fix regression to ``install --skip-lock`` with update to ``plette``.  `#5368 <https://github.com/pypa/pipenv/issues/5368>`_
+
+
+2022.9.20 (2022-09-20)
+======================
+Pipenv 2022.9.20 (2022-09-20)
+=============================
+
+
+Behavior Changes
+----------------
+
+- Remove usage of pipfile module in favour of Plette.
+  pipfile is not actively maintained anymore. Plette is actively maintained,
+  and has stricter checking of the Pipefile and Pipefile.lock. As a result,
+  Pipefile with unnamed package indecies will fail to lock. If a Pipefile
+  was hand crafeted, and the source is anonymous an error will be thrown.
+  The solution is simple, add a name to your index, e.g, replace::
+
+     [[source]]
+     url = "https://pypi.acme.com/simple"
+     verify_ssl = true
+
+  With::
+
+     [[source]]
+     url = "https://pypi.acme.com/simple"
+     verify_ssl = true
+     name = acmes_private_index  `#5339 <https://github.com/pypa/pipenv/issues/5339>`_
+
+Bug Fixes
+---------
+
+- Modernize ``pipenv`` path patch with ``importlib.util`` to eliminate import of ``pkg_resources``  `#5349 <https://github.com/pypa/pipenv/issues/5349>`_
+
+Vendored Libraries
+------------------
+
+- Remove iso8601 from vendored packages since it was not used.  `#5346 <https://github.com/pypa/pipenv/issues/5346>`_
+
+
+2022.9.8 (2022-09-08)
+=====================
+Pipenv 2022.9.8 (2022-09-08)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- It is now possible to supply additional arguments to ``pip`` install by supplying ``--extra-pip-args="<arg1> <arg2>"``
+  See the updated documentation ``Supplying additional arguments to pip`` for more details.  `#5283 <https://github.com/pypa/pipenv/issues/5283>`_
+
+Bug Fixes
+---------
+
+- Make editable detection better because not everyone specifies editable entry in the Pipfile for local editable installs.  `#4784 <https://github.com/pypa/pipenv/issues/4784>`_
+- Add error handling for when the installed package setup.py does not contain valid markers.  `#5329 <https://github.com/pypa/pipenv/issues/5329>`_
+- Load the dot env earlier so that ``PIPENV_CUSTOM_VENV_NAME`` is more useful across projects.  `#5334 <https://github.com/pypa/pipenv/issues/5334>`_
+
+Vendored Libraries
+------------------
+
+- Bump version of shellingham to support nushell.  `#5336 <https://github.com/pypa/pipenv/issues/5336>`_
+- Bump plette to version v0.3.0  `#5337 <https://github.com/pypa/pipenv/issues/5337>`_
+- Bump version of pipdeptree  `#5343 <https://github.com/pypa/pipenv/issues/5343>`_
+
+Removals and Deprecations
+-------------------------
+
+- Add deprecation warning to the --three flag. Pipenv now uses python3 by default.  `#5328 <https://github.com/pypa/pipenv/issues/5328>`_
+
+Relates to dev process changes
+------------------------------
+
+- Convert the test runner to use ``pypiserver`` as a standalone process for all tests that referencce internal ``pypi`` artifacts.
+  General refactoring of some test cases to create more variety in packages selected--preferring lighter weight packages--in existing test cases.
+
+
+2022.9.4 (2022-09-04)
+=====================
+
+
+Bug Fixes
+---------
+
+- Fix the issue from ``2022.9.2`` where tarball URL packages were being skipped on batch_install.  `#5306 <https://github.com/pypa/pipenv/issues/5306>`_
+
+
+2022.9.2 (2022-09-02)
+=====================
+
+
+Bug Fixes
+---------
+
+- Fix issue where unnamed constraints were provided but which are not allowed by ``pip`` resolver.  `#5273 <https://github.com/pypa/pipenv/issues/5273>`_
+
+
+2022.8.31 (2022-08-31)
+======================
+
+
+Features & Improvements
+-----------------------
+
+- Performance optimization to ``batch_install`` results in a faster and less CPU intensive ``pipenv sync`` or ``pipenv install``  experience.  `#5301 <https://github.com/pypa/pipenv/issues/5301>`_
+
+Bug Fixes
+---------
+
+- ``pipenv`` now uses a  ``NamedTemporaryFile`` for rsolver constraints and drops internal env var ``PIPENV_PACKAGES``.  `#4925 <https://github.com/pypa/pipenv/issues/4925>`_
+
+Removals and Deprecations
+-------------------------
+
+- Remove no longer used method ``which_pip``.  `#5314 <https://github.com/pypa/pipenv/issues/5314>`_
+- Drop progress bar file due to recent performance optimization to combine ``batch_install`` requirements in at most two invocations of ``pip install``.
+  To see progress of install pass ``--verbose`` flag and ``pip`` progress will be output in realtime.  `#5315 <https://github.com/pypa/pipenv/issues/5315>`_
+
+
+2022.8.30 (2022-08-30)
+======================
+
+
+Bug Fixes
+---------
+
+- Fix an issue when using ``pipenv install --system`` on systems that having the ``python`` executable pointing to Python 2 and a Python 3 executable being ``python3``.  `#5296 <https://github.com/pypa/pipenv/issues/5296>`_
+- Sorting ``constraints`` before resolving, which fixes ``pipenv lock`` generates nondeterminism environment markers.  `#5299 <https://github.com/pypa/pipenv/issues/5299>`_
+- Fix #5273, use our own method for checking if a package is a valid constraint.  `#5309 <https://github.com/pypa/pipenv/issues/5309>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in ``requirementslib==2.0.1`` which fixes issue with local install not marked editable, and vendor in ``vistir==0.6.1`` which drops python2 support.
+  Drops ``orderedmultidict`` from vendoring.  `#5308 <https://github.com/pypa/pipenv/issues/5308>`_
+
+
 2022.8.24 (2022-08-24)
 ======================
 

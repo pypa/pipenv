@@ -33,6 +33,7 @@ from .retry import retry_always  # noqa
 from .retry import retry_any  # noqa
 from .retry import retry_if_exception  # noqa
 from .retry import retry_if_exception_type  # noqa
+from .retry import retry_if_exception_cause_type  # noqa
 from .retry import retry_if_not_exception_type  # noqa
 from .retry import retry_if_not_result  # noqa
 from .retry import retry_if_result  # noqa
@@ -63,6 +64,7 @@ from .wait import wait_none  # noqa
 from .wait import wait_random  # noqa
 from .wait import wait_random_exponential  # noqa
 from .wait import wait_random_exponential as wait_full_jitter  # noqa
+from .wait import wait_exponential_jitter  # noqa
 
 # Import all built-in before strategies for easier usage.
 from .before import before_log  # noqa

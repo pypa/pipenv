@@ -325,7 +325,7 @@ def get_console_script_specs(console: Dict[str, str]) -> List[str]:
 
         scripts_to_generate.append(f"pip{get_major_minor_version()} = {pip_script}")
         # Delete any other versioned pip entry points
-        pip_ep = [k for k in console if re.match(r"pip(\d(\.\d)?)?$", k)]
+        pip_ep = [k for k in console if re.match(r"pip(\d+(\.\d+)?)?$", k)]
         for k in pip_ep:
             del console[k]
     easy_install_script = console.pop("easy_install", None)
@@ -340,7 +340,7 @@ def get_console_script_specs(console: Dict[str, str]) -> List[str]:
         )
         # Delete any other versioned easy_install entry points
         easy_install_ep = [
-            k for k in console if re.match(r"easy_install(-\d\.\d)?$", k)
+            k for k in console if re.match(r"easy_install(-\d+\.\d+)?$", k)
         ]
         for k in easy_install_ep:
             del console[k]
@@ -420,7 +420,9 @@ def _raise_for_invalid_entrypoint(specification: str) -> None:
 
 
 class PipScriptMaker(ScriptMaker):
-    def make(self, specification: str, options: Dict[str, Any] = None) -> List[str]:
+    def make(
+        self, specification: str, options: Optional[Dict[str, Any]] = None
+    ) -> List[str]:
         _raise_for_invalid_entrypoint(specification)
         return super().make(specification, options)
 

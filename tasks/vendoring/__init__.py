@@ -1,6 +1,6 @@
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
-""""Vendoring script, python 3.5 needed"""
+""""Vendoring script, python 3.6>= needed"""
 
 import itertools
 import re
@@ -23,7 +23,6 @@ LIBRARY_DIRNAMES = {
     "python-dotenv": "dotenv",
     "setuptools": "pkg_resources",
     "msgpack-python": "msgpack",
-    "attrs": "attr",
 }
 
 # from time to time, remove the no longer needed ones
@@ -32,13 +31,13 @@ HARDCODED_LICENSE_URLS = {
     "CacheControl": "https://raw.githubusercontent.com/ionrock/cachecontrol/master/LICENSE.txt",
     "click-didyoumean": "https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE",
     "click-completion": "https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE",
-    "parse": "https://raw.githubusercontent.com/techalchemy/parse/master/LICENSE",
     "pytoml": "https://github.com/avakar/pytoml/raw/master/LICENSE",
     "webencodings": "https://github.com/SimonSapin/python-webencodings/raw/"
     "master/LICENSE",
     "requirementslib": "https://github.com/techalchemy/requirementslib/raw/master/LICENSE",
     "distlib": "https://github.com/vsajip/distlib/raw/master/LICENSE.txt",
     "pythonfinder": "https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt",
+    "pipdeptree": "https://raw.githubusercontent.com/tox-dev/pipdeptree/main/LICENSE",
 }
 
 FILE_WHITE_LIST = (
@@ -48,7 +47,6 @@ FILE_WHITE_LIST = (
     "__init__.py",
     "README.rst",
     "README.md",
-    "appdirs.py",
     "safety.zip",
     "cacert.pem",
     "vendor_pip.txt",
@@ -58,11 +56,12 @@ PATCHED_RENAMES = {}
 
 LIBRARY_RENAMES = {
     "pip": "pipenv.patched.pip",
-    "pip_shims:": "pipenv.vendor.pip_shims",
     "requests": "pipenv.patched.pip._vendor.requests",
     "packaging": "pipenv.patched.pip._vendor.packaging",
+    "pep517": "pipenv.patched.pip._vendor.pep517",
+    "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
+    "ruamel.yaml": "pipenv.vendor.ruamel.yaml",
     "urllib3": "pipenv.patched.pip._vendor.urllib3",
-    "zipp": "pipenv.vendor.zipp",
 }
 
 GLOBAL_REPLACEMENT = [
@@ -83,6 +82,17 @@ GLOBAL_REPLACEMENT = [
     ),
     (r"(?<!\.)pep517\.envbuild", r"envbuild"),
     (r"(?<!\.)pep517\.wrappers", r"wrappers"),
+    (r" ruamel\.yaml", r" ruamel"),
+    (
+        "from platformdirs import user_cache_dir",
+        "from pipenv.patched.pip._vendor.platformdirs import user_cache_dir",
+    ),
+    ("from distlib import", "from pipenv.patched.pip._vendor.distlib import"),
+    (
+        "from distlib.metadata import",
+        "from pipenv.patched.pip._vendor.distlib.metadata import",
+    ),
+    ("from distlib.wheel import", "from pipenv.patched.pip._vendor.distlib.wheel import"),
 ]
 
 
@@ -302,6 +312,7 @@ def install(ctx, vendor_dir, package=None):
 
 
 def post_install_cleanup(ctx, vendor_dir):
+    log("Removing unused modules and files ...")
     remove_all(vendor_dir.glob("*.dist-info"))
     remove_all(vendor_dir.glob("*.egg-info"))
 
@@ -309,7 +320,16 @@ def post_install_cleanup(ctx, vendor_dir):
     drop_dir(vendor_dir / "bin")
     drop_dir(vendor_dir / "tests")
     drop_dir(vendor_dir / "shutil_backports")
+    drop_dir(vendor_dir / "cerberus" / "tests")
+    drop_dir(vendor_dir / "cerberus" / "benchmarks")
+    drop_dir(vendor_dir / "colorama" / "tests")
+
     remove_all(vendor_dir.glob("toml.py"))
+    # this function is called twice hence try ... except ...
+    try:
+        (vendor_dir / "vistir" / "spin.py").unlink()
+    except FileNotFoundError:
+        pass
 
 
 @invoke.task
@@ -469,7 +489,7 @@ def download_licenses(
     only=False,
     patched=False,
 ):
-    import pipenv.vendor.parse as parse
+    import parse
 
     log("Downloading licenses")
     if not vendor_dir:
@@ -485,6 +505,7 @@ def download_licenses(
     log(requirements)
     tmp_dir = vendor_dir / "__tmp__"
     # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
+
     cmd = "pip download --no-binary :all: --only-binary requests_download --no-deps"
     ctx.run("pip install flit")  # needed for the next step
     for req in requirements:
@@ -492,20 +513,34 @@ def download_licenses(
         try:
             ctx.run(exe_cmd)
         except invoke.exceptions.UnexpectedExit as e:
-            if "Disabling PEP 517 processing is invalid" not in e.result.stderr:
+            if "ModuleNotFoundErr" in e.result.stderr.strip():
+
+                target = parse.parse(
+                    "ModuleNotFoundError: No module named '{backend}'",
+                    e.result.stderr.strip().split("\n")[-1],
+                )
+                backend = target.named.get("backend")
+                if backend is not None:
+                    if "." in backend:
+                        backend, _, _ = backend.partition(".")
+                    ctx.run(f"pip install {backend}")
+                    ctx.run("pip install hatch-vcs")
+            elif "Disabling PEP 517 processing is invalid" not in e.result.stderr:
                 log(f"WARNING: Failed to download license for {req}")
                 continue
-            parse_target = (
-                "Disabling PEP 517 processing is invalid: project specifies a build "
-                "backend of {backend} in pyproject.toml"
-            )
-            target = parse.parse(parse_target, e.result.stderr.strip())
-            backend = target.named.get("backend")
-            if backend is not None:
-                if "." in backend:
-                    backend, _, _ = backend.partition(".")
-                ctx.run(f"pip install {backend}")
+            else:
+                parse_target = (
+                    "Disabling PEP 517 processing is invalid: project specifies a build "
+                    "backend of {backend} in pyproject.toml"
+                )
+                target = parse.parse(parse_target, e.result.stderr.strip())
+                backend = target.named.get("backend")
+                if backend is not None:
+                    if "." in backend:
+                        backend, _, _ = backend.partition(".")
+                    ctx.run(f"pip install {backend}")
             ctx.run(f"{cmd} --no-build-isolation -d {tmp_dir.as_posix()} {req}")
+
     for sdist in tmp_dir.iterdir():
         extract_license(vendor_dir, sdist)
     drop_dir(tmp_dir)
@@ -577,10 +612,10 @@ def license_destination(vendor_dir, libname, filename):
     lowercase = vendor_dir / libname.lower().replace("-", "_")
     if lowercase.is_dir():
         return lowercase / filename
-    rename_dict = LIBRARY_RENAMES if vendor_dir.name != "patched" else PATCHED_RENAMES
+    # rename_dict = LIBRARY_RENAMES if vendor_dir.name != "patched" else PATCHED_RENAMES
     # Short circuit all logic if we are renaming the whole library
-    if libname in rename_dict:
-        return vendor_dir / rename_dict[libname] / filename
+    # if libname in rename_dict:
+    #    return vendor_dir / rename_dict[libname] / filename
     if libname in LIBRARY_DIRNAMES:
         override = vendor_dir / LIBRARY_DIRNAMES[libname]
         if not override.exists() and override.parent.exists():
@@ -723,7 +758,7 @@ def main(ctx, package=None, type=None):
         if package_dir == patched_dir:
             vendor(ctx, patched_dir, rewrite=True)
         else:
-            vendor(ctx, package_dir)
+            vendor(ctx, package_dir, rewrite=True)
         req_txt = "vendor.txt" if package_dir == vendor_dir else "patched.txt"
         download_licenses(ctx, package_dir, req_txt)
         if package_dir == patched_dir:

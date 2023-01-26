@@ -1,10 +1,8 @@
 import os
 from unittest import mock
 
-from flaky import flaky
 import pytest
 
-import pipenv.utils.shell
 from pipenv.utils import dependencies
 from pipenv.utils import indexes
 from pipenv.utils import internet
@@ -15,8 +13,6 @@ from pipenv.exceptions import PipenvUsageError
 
 # Pipfile format <-> requirements.txt format.
 DEP_PIP_PAIRS = [
-    ({"requests": "*"}, "requests"),
-    ({"requests": {"extras": ["socks"], "version": "*"}}, "requests[socks]"),
     ({"django": ">1.10"}, "django>1.10"),
     ({"Django": ">1.10"}, "Django>1.10"),
     ({"requests": {"extras": ["socks"], "version": ">1.10"}}, "requests[socks]>1.10"),
@@ -56,12 +52,12 @@ DEP_PIP_PAIRS = [
     (
         # Extras in url
         {
-            "discord.py": {
-                "file": "https://github.com/Rapptz/discord.py/archive/async.zip",
-                "extras": ["voice"],
+            "dparse": {
+                "file": "https://github.com/oz123/dparse/archive/refs/heads/master.zip",
+                "extras": ["pipenv"],
             }
         },
-        "https://github.com/Rapptz/discord.py/archive/async.zip#egg=[voice]",
+        "https://github.com/oz123/dparse/archive/refs/heads/master.zip#egg=dparse[pipenv]"
     ),
     (
         {
@@ -82,23 +78,35 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
     return
 
 
-@flaky
 @pytest.mark.utils
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
 @pytest.mark.needs_internet
 def test_convert_deps_to_pip(deps, expected):
     if expected.startswith("Django"):
         expected = expected.lower()
-    assert dependencies.convert_deps_to_pip(deps, r=False) == [expected]
+    assert dependencies.convert_deps_to_pip(deps) == [expected]
 
 
-@flaky
+@pytest.mark.utils
+@pytest.mark.needs_internet
+def test_convert_deps_to_pip_star_specifier():
+    deps = {"six": "*"}
+    expected = "six"
+    assert dependencies.convert_deps_to_pip(deps) == [expected]
+
+
+@pytest.mark.utils
+@pytest.mark.needs_internet
+def test_convert_deps_to_pip_extras_no_version():
+    deps = {"uvicorn": {"extras": ["standard"], "version": "*"}}
+    expected = "uvicorn[standard]"
+    assert dependencies.convert_deps_to_pip(deps) == [expected]
+
+
 @pytest.mark.utils
 @pytest.mark.parametrize(
     "deps, expected",
     [
-        # This one should be collapsed and treated as {'requests': '*'}.
-        ({"requests": {}}, "requests"),
         # Hash value should be passed into the result.
         (
             {
@@ -121,34 +129,43 @@ def test_convert_deps_to_pip(deps, expected):
         ),
         (
             {
-                "requests": {
-                    "git": "https://github.com/requests/requests.git",
+                "uvicorn": {
+                    "git": "https://github.com/encode/uvicorn.git",
                     "ref": "master",
-                    "extras": ["security"],
+                    "extras": ["standard"],
                 }
             },
-            "git+https://github.com/requests/requests.git@master#egg=requests[security]",
+            "git+https://github.com/encode/uvicorn.git@master#egg=uvicorn[standard]",
         ),
     ],
 )
 def test_convert_deps_to_pip_one_way(deps, expected):
-    assert dependencies.convert_deps_to_pip(deps, r=False) == [expected.lower()]
+    assert dependencies.convert_deps_to_pip(deps) == [expected.lower()]
+
+
+@pytest.mark.utils
+def test_convert_deps_to_pip_one_way():
+    deps = {"uvicorn": dict()}
+    expected = "uvicorn"
+    assert dependencies.convert_deps_to_pip(deps) == [expected.lower()]
+
 
 @pytest.mark.utils
 @pytest.mark.parametrize(
     "deps, expected",
     [
-        ({"requests": {}}, ["requests"]),
-        ({"FooProject": {"path": ".", "editable" : "true"}}, []),
+        ({"uvicorn": {}}, ["uvicorn"]),
+        ({"FooProject": {"path": ".", "editable": "true"}}, []),
         ({"FooProject": {"version": "==1.2"}}, ["fooproject==1.2"]),
-        ({"requests": {"extras": ["security"]}}, []),
-        ({"requests": {"extras": []}}, ["requests"]),
-        ({"extras" : {}}, ["extras"]),
-        ({"uvicorn[standard]" : {}}, [])
+        ({"uvicorn": {"extras": ["standard"]}}, []),
+        ({"uvicorn": {"extras": []}}, ["uvicorn"]),
+        ({"extras": {}}, ["extras"]),
+        ({"uvicorn[standard]": {}}, [])
     ],
 )
 def test_get_constraints_from_deps(deps, expected):
     assert dependencies.get_constraints_from_deps(deps) == expected
+
 
 @pytest.mark.parametrize("line,result", [
     ("-i https://example.com/simple/", ("https://example.com/simple/", None, None, [])),
@@ -320,7 +337,7 @@ twine = "*"
     )
     @pytest.mark.skipif(os.name != "nt", reason="Windows file paths tested")
     def test_win_normalize_drive(self, input_path, expected):
-        assert pipenv.utils.shell.normalize_drive(input_path) == expected
+        assert shell.normalize_drive(input_path) == expected
 
     @pytest.mark.utils
     @pytest.mark.parametrize(
@@ -334,7 +351,7 @@ twine = "*"
     )
     @pytest.mark.skipif(os.name == "nt", reason="*nix file paths tested")
     def test_nix_normalize_drive(self, input_path, expected):
-        assert pipenv.utils.shell.normalize_drive(input_path) == expected
+        assert shell.normalize_drive(input_path) == expected
 
     @pytest.mark.utils
     @pytest.mark.parametrize(
@@ -458,3 +475,51 @@ twine = "*"
         sources = [{}]
         with pytest.raises(PipenvUsageError):
             indexes.prepare_pip_source_args(sources, pip_args=None)
+
+    @pytest.mark.utils
+    def test_project_python_tries_python3_before_python_if_system_is_true(self):
+        def mock_shutil_which(command, path=None):
+            if command != "python3":
+                return f"/usr/bin/{command}"
+            return "/usr/local/bin/python3"
+
+        with mock.patch("pipenv.utils.shell.shutil.which", wraps=mock_shutil_which):
+            # Setting project to None as system=True doesn't use it
+            project = None
+            python = shell.project_python(project, system=True)
+
+        assert python == "/usr/local/bin/python3"
+
+    @pytest.mark.utils
+    @pytest.mark.parametrize(
+        "val, expected",
+        (
+            (True, True),
+            (False, False),
+            ("true", True),
+            ("1", True),
+            ("off", False),
+            ("0", False),
+        )
+    )
+    def test_env_to_bool(self, val, expected):
+        actual = shell.env_to_bool(val)
+        assert actual == expected
+
+    @pytest.mark.utils
+    def test_is_env_truthy_exists_true(self, monkeypatch):
+        name = "ZZZ"
+        monkeypatch.setenv(name, "1")
+        assert shell.is_env_truthy(name) is True
+
+    @pytest.mark.utils
+    def test_is_env_truthy_exists_false(self, monkeypatch):
+        name = "ZZZ"
+        monkeypatch.setenv(name, "0")
+        assert shell.is_env_truthy(name) is False
+
+    @pytest.mark.utils
+    def test_is_env_truthy_does_not_exisxt(self, monkeypatch):
+        name = "ZZZ"
+        monkeypatch.delenv(name, raising=False)
+        assert shell.is_env_truthy(name) is False

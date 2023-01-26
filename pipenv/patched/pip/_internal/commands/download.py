@@ -8,6 +8,10 @@ from pipenv.patched.pip._internal.cli.cmdoptions import make_target_python
 from pipenv.patched.pip._internal.cli.req_command import RequirementCommand, with_cleanup
 from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
 from pipenv.patched.pip._internal.operations.build.build_tracker import get_build_tracker
+from pipenv.patched.pip._internal.req.req_install import (
+    LegacySetupPyOptionsCheckMode,
+    check_legacy_setup_py_options,
+)
 from pipenv.patched.pip._internal.utils.misc import ensure_dir, normalize_path, write_output
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 
@@ -105,6 +109,9 @@ class DownloadCommand(RequirementCommand):
         )
 
         reqs = self.get_requirements(args, options, finder, session)
+        check_legacy_setup_py_options(
+            options, reqs, LegacySetupPyOptionsCheckMode.DOWNLOAD
+        )
 
         preparer = self.make_requirement_preparer(
             temp_build_dir=directory,

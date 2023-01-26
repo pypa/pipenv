@@ -5,7 +5,7 @@ import logging
 import os.path
 import re
 import shutil
-from typing import Any, Callable, Iterable, List, Optional, Tuple
+from typing import Callable, Iterable, List, Optional, Tuple
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name, canonicalize_version
 from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
@@ -19,6 +19,10 @@ from pipenv.patched.pip._internal.operations.build.wheel import build_wheel_pep5
 from pipenv.patched.pip._internal.operations.build.wheel_editable import build_wheel_editable
 from pipenv.patched.pip._internal.operations.build.wheel_legacy import build_wheel_legacy
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.deprecation import (
+    LegacyInstallReasonMissingWheelPackage,
+    LegacyInstallReasonNoBinaryForcesSetuptoolsInstall,
+)
 from pipenv.patched.pip._internal.utils.logging import indent_log
 from pipenv.patched.pip._internal.utils.misc import ensure_dir, hash_file, is_wheel_installed
 from pipenv.patched.pip._internal.utils.setuptools_build import make_setuptools_clean_args
@@ -31,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 _egg_info_re = re.compile(r"([a-z0-9_.]+)-([a-z0-9_.!+-]+)", re.IGNORECASE)
 
-BinaryAllowedPredicate = Callable[[InstallRequirement], bool]
+BdistWheelAllowedPredicate = Callable[[InstallRequirement], bool]
 BuildResult = Tuple[List[InstallRequirement], List[InstallRequirement]]
 
 
@@ -46,7 +50,7 @@ def _contains_egg_info(s: str) -> bool:
 def _should_build(
     req: InstallRequirement,
     need_wheel: bool,
-    check_binary_allowed: BinaryAllowedPredicate,
+    check_bdist_wheel: Optional[BdistWheelAllowedPredicate] = None,
 ) -> bool:
     """Return whether an InstallRequirement should be built into a wheel."""
     if req.constraint:
@@ -77,20 +81,19 @@ def _should_build(
     if req.use_pep517:
         return True
 
-    if not check_binary_allowed(req):
-        logger.info(
-            "Skipping wheel build for %s, due to binaries being disabled for it.",
-            req.name,
-        )
+    assert check_bdist_wheel is not None
+    if not check_bdist_wheel(req):
+        # /!\ When we change this to unconditionally return True, we must also remove
+        # support for `--install-option`. Indeed, `--install-option` implies
+        # `--no-binary` so we can return False here and run `setup.py install`.
+        # `--global-option` and `--build-option` can remain until we drop support for
+        # building with `setup.py bdist_wheel`.
+        req.legacy_install_reason = LegacyInstallReasonNoBinaryForcesSetuptoolsInstall
         return False
 
     if not is_wheel_installed():
         # we don't build legacy requirements if wheel is not installed
-        logger.info(
-            "Using legacy 'setup.py install' for %s, "
-            "since package 'wheel' is not installed.",
-            req.name,
-        )
+        req.legacy_install_reason = LegacyInstallReasonMissingWheelPackage
         return False
 
     return True
@@ -99,15 +102,15 @@ def _should_build(
 def should_build_for_wheel_command(
     req: InstallRequirement,
 ) -> bool:
-    return _should_build(req, need_wheel=True, check_binary_allowed=_always_true)
+    return _should_build(req, need_wheel=True)
 
 
 def should_build_for_install_command(
     req: InstallRequirement,
-    check_binary_allowed: BinaryAllowedPredicate,
+    check_bdist_wheel_allowed: BdistWheelAllowedPredicate,
 ) -> bool:
     return _should_build(
-        req, need_wheel=False, check_binary_allowed=check_binary_allowed
+        req, need_wheel=False, check_bdist_wheel=check_bdist_wheel_allowed
     )
 
 
@@ -157,10 +160,6 @@ def _get_cache_dir(
     else:
         cache_dir = wheel_cache.get_ephem_path_for_link(req.link)
     return cache_dir
-
-
-def _always_true(_: Any) -> bool:
-    return True
 
 
 def _verify_one(req: InstallRequirement, wheel_path: str) -> None:

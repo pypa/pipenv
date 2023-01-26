@@ -4,6 +4,8 @@
 STDOUT = -11
 STDERR = -12
 
+ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+
 try:
     import ctypes
     from ctypes import LibraryLoader
@@ -89,6 +91,20 @@ else:
     ]
     _SetConsoleTitleW.restype = wintypes.BOOL
 
+    _GetConsoleMode = windll.kernel32.GetConsoleMode
+    _GetConsoleMode.argtypes = [
+        wintypes.HANDLE,
+        POINTER(wintypes.DWORD)
+    ]
+    _GetConsoleMode.restype = wintypes.BOOL
+
+    _SetConsoleMode = windll.kernel32.SetConsoleMode
+    _SetConsoleMode.argtypes = [
+        wintypes.HANDLE,
+        wintypes.DWORD
+    ]
+    _SetConsoleMode.restype = wintypes.BOOL
+
     def _winapi_test(handle):
         csbi = CONSOLE_SCREEN_BUFFER_INFO()
         success = _GetConsoleScreenBufferInfo(
@@ -150,3 +166,15 @@ else:
 
     def SetConsoleTitle(title):
         return _SetConsoleTitleW(title)
+
+    def GetConsoleMode(handle):
+        mode = wintypes.DWORD()
+        success = _GetConsoleMode(handle, byref(mode))
+        if not success:
+            raise ctypes.WinError()
+        return mode.value
+
+    def SetConsoleMode(handle, mode):
+        success = _SetConsoleMode(handle, mode)
+        if not success:
+            raise ctypes.WinError()

@@ -1,13 +1,10 @@
-from __future__ import unicode_literals
-
 import hashlib
 import json
 
-import pipenv.vendor.six as six
 import pipenv.vendor.tomlkit as tomlkit
 
 from .models import (
-    DataView, Hash, Requires,
+    DataView, Hash, Requires, PipfileSection, Pipenv,
     PackageCollection, ScriptCollection, SourceCollection,
 )
 
@@ -18,6 +15,8 @@ PIPFILE_SECTIONS = {
     "dev-packages": PackageCollection,
     "requires": Requires,
     "scripts": ScriptCollection,
+    "pipfile":  PipfileSection,
+    "pipenv": Pipenv
 }
 
 DEFAULT_SOURCE_TOML = """\
@@ -26,7 +25,6 @@ name = "pypi"
 url = "https://pypi.org/simple"
 verify_ssl = true
 """
-
 
 class Pipfile(DataView):
     """Representation of a Pipfile.
@@ -44,6 +42,11 @@ class Pipfile(DataView):
             if key not in data:
                 continue
             klass.validate(data[key])
+
+        package_categories = set(data.keys()) - set(PIPFILE_SECTIONS.keys())        
+
+        for category in package_categories:
+            PackageCollection.validate(data[category])
 
     @classmethod
     def load(cls, f, encoding=None):
@@ -83,8 +86,12 @@ class Pipfile(DataView):
             "default": self._data.get("packages", {}),
             "develop": self._data.get("dev-packages", {}),
         }
+        for category, values in self._data.items():
+            if category in PIPFILE_SECTIONS or category in ("default", "develop", "pipenv"):
+                continue
+            data[category] = values
         content = json.dumps(data, sort_keys=True, separators=(",", ":"))
-        if isinstance(content, six.text_type):
+        if isinstance(content, str):
             content = content.encode("utf-8")
         return Hash.from_hash(hashlib.sha256(content))
 

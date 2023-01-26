@@ -2,32 +2,36 @@ import ast
 import atexit
 import configparser
 import contextlib
-import importlib
-import operator
 import os
 import shutil
+import subprocess as sp
 import sys
 from collections.abc import Iterable, Mapping
-from functools import lru_cache, partial
+from contextlib import ExitStack
+from functools import lru_cache
+from os import scandir
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, urlunparse
 from weakref import finalize
 
 import pipenv.vendor.attr as attr
-from pipenv.patched.pip._vendor.pep517 import envbuild
-from pipenv.patched.pip._vendor.pep517 import wrappers
-from pipenv.vendor.distlib.wheel import Wheel
-from pipenv.patched.pip._vendor.packaging.markers import Marker
-from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
-from pipenv.patched.pip._vendor.packaging.version import parse
-from pipenv.patched.pip._internal.commands.install import InstallCommand
+from pipenv.patched.pip._vendor.distlib.wheel import Wheel
+from pipenv.patched.pip._vendor.pep517 import envbuild, wrappers
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._internal.utils.urls import url_to_path
-from pipenv.vendor.platformdirs import user_cache_dir
+from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.patched.pip._vendor.pkg_resources import (
+    PathMetadata,
+    Requirement,
+    distributions_from_metadata,
+    find_distributions,
+)
+from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 from pipenv.vendor.vistir.contextmanagers import cd, temp_path
-from pipenv.vendor.vistir.misc import run
-from pipenv.vendor.vistir.path import create_tracked_tempdir, ensure_mkdir_p, mkdir_p, rmtree
+from pipenv.vendor.vistir.path import create_tracked_tempdir, rmtree
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
@@ -41,14 +45,6 @@ from .utils import (
     split_vcs_method_from_uri,
     strip_extras_markers_from_requirement,
 )
-
-try:
-    import pkg_resources.extern.packaging.requirements as pkg_resources_requirements
-except ModuleNotFoundError:
-    pkg_resources_requirements = None
-
-from contextlib import ExitStack
-from os import scandir
 
 if MYPY_RUNNING:
     from typing import (
@@ -66,17 +62,12 @@ if MYPY_RUNNING:
         Union,
     )
 
-    import pipenv.patched.pip._vendor.requests as requests
-    from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
     from pipenv.patched.pip._internal.index.package_finder import PackageFinder
     from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-    from pkg_resources import DistInfoDistribution, EggInfoDistribution, PathMetadata
-    from pkg_resources import Requirement as PkgResourcesRequirement
-
-    try:
-        from setuptools.dist import Distribution
-    except ImportError:
-        from distutils.core import Distribution
+    from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
+    from pipenv.patched.pip._vendor.pkg_resources import DistInfoDistribution, EggInfoDistribution
+    from pipenv.patched.pip._vendor.requests import Session
+    from setuptools.dist import Distribution
 
     TRequirement = TypeVar("TRequirement")
     RequirementType = TypeVar(
@@ -103,16 +94,7 @@ def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None):
     if extra_environ:
         env.update(extra_environ)
 
-    run(
-        cmd,
-        cwd=cwd,
-        env=env,
-        block=True,
-        combine_stderr=True,
-        return_object=False,
-        write_to_stdout=False,
-        nospin=True,
-    )
+    sp.run(cmd, cwd=cwd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
 
 
 class BuildEnv(envbuild.BuildEnvironment):
@@ -126,14 +108,8 @@ class BuildEnv(envbuild.BuildEnvironment):
             "--prefix",
             self.path,
         ] + list(reqs)
-        run(
-            cmd,
-            block=True,
-            combine_stderr=True,
-            return_object=False,
-            write_to_stdout=False,
-            nospin=True,
-        )
+
+        sp.run(cmd, stderr=sp.PIPE, stdout=sp.PIPE)
 
 
 class HookCaller(wrappers.Pep517HookCaller):
@@ -157,9 +133,7 @@ def make_base_requirements(reqs):
     for req in reqs:
         if isinstance(req, BaseRequirement):
             requirements.add(req)
-        elif pkg_resources_requirements is not None and isinstance(
-            req, pkg_resources_requirements.Requirement
-        ):
+        elif isinstance(req, Requirement):
             requirements.add(BaseRequirement.from_req(req))
         elif req and isinstance(req, str) and not req.startswith("#"):
             requirements.add(BaseRequirement.from_string(req))
@@ -566,7 +540,6 @@ def build_pep517(source_dir, build_dir, config_settings=None, dist_type="wheel")
         return build_fn(build_dir, config_settings)
 
 
-@ensure_mkdir_p(mode=0o775)
 def _get_src_dir(root):
     # type: (AnyStr) -> AnyStr
     src = os.environ.get("PIP_SRC")
@@ -580,13 +553,14 @@ def _get_src_dir(root):
         src_dir = create_tracked_tempdir(prefix="requirementslib-", suffix="-src")
     else:
         src_dir = os.path.join(root, "src")
+
+    os.makedirs(src_dir, mode=0o775)
     return src_dir
 
 
 @lru_cache()
 def ensure_reqs(reqs):
-    # type: (List[Union[S, PkgResourcesRequirement]]) -> List[PkgResourcesRequirement]
-    import pkg_resources
+    # type: (List[Union[S, Requirement]]) -> List[Requirement]
 
     if not isinstance(reqs, Iterable):
         raise TypeError("Expecting an Iterable, got %r" % reqs)
@@ -595,7 +569,7 @@ def ensure_reqs(reqs):
         if not req:
             continue
         if isinstance(req, str):
-            req = pkg_resources.Requirement.parse("{0}".format(str(req)))
+            req = Requirement.parse("{0}".format(str(req)))
         # req = strip_extras_markers_from_requirement(req)
         new_reqs.append(req)
     return new_reqs
@@ -621,10 +595,10 @@ def _prepare_wheel_building_kwargs(
 ):
     # type: (...) -> Dict[STRING_TYPE, STRING_TYPE]
     download_dir = os.path.join(CACHE_DIR, "pkgs")  # type: STRING_TYPE
-    mkdir_p(download_dir)
+    os.makedirs(download_dir, exist_ok=True)
 
     wheel_download_dir = os.path.join(CACHE_DIR, "wheels")  # type: STRING_TYPE
-    mkdir_p(wheel_download_dir)
+    os.makedirs(wheel_download_dir, exist_ok=True)
     if src_dir is None:
         if editable and src_root is not None:
             src_dir = src_root
@@ -731,13 +705,12 @@ def find_distinfo(target, pkg_name=None):
 
 def get_distinfo_dist(path, pkg_name=None):
     # type: (S, Optional[S]) -> Optional[DistInfoDistribution]
-    import pkg_resources
 
     dist_dir = next(iter(find_distinfo(path, pkg_name=pkg_name)), None)
     if dist_dir is not None:
         metadata_dir = dist_dir.path
         base_dir = os.path.dirname(metadata_dir)
-        dist = next(iter(pkg_resources.find_distributions(base_dir)), None)
+        dist = next(iter(find_distributions(base_dir)), None)
         if dist is not None:
             return dist
     return None
@@ -745,14 +718,13 @@ def get_distinfo_dist(path, pkg_name=None):
 
 def get_egginfo_dist(path, pkg_name=None):
     # type: (S, Optional[S]) -> Optional[EggInfoDistribution]
-    import pkg_resources
 
     egg_dir = next(iter(find_egginfo(path, pkg_name=pkg_name)), None)
     if egg_dir is not None:
         metadata_dir = egg_dir.path
         base_dir = os.path.dirname(metadata_dir)
-        path_metadata = pkg_resources.PathMetadata(base_dir, metadata_dir)
-        dist_iter = pkg_resources.distributions_from_metadata(path_metadata.egg_info)
+        path_metadata = PathMetadata(base_dir, metadata_dir)
+        dist_iter = distributions_from_metadata(path_metadata.egg_info)
         dist = next(iter(dist_iter), None)
         if dist is not None:
             return dist
@@ -829,7 +801,7 @@ def get_metadata_from_dist(dist):
         dep_map = dist._build_dep_map()
     except Exception:
         dep_map = {}
-    deps = []  # type: List[PkgResourcesRequirement]
+    deps = []  # type: List[Requirement]
     extras = {}
     for k in dep_map.keys():
         if k is None:
@@ -905,13 +877,12 @@ def run_setup(script_path, egg_base=None):
         # We couldn't import everything needed to run setup
         except Exception:
             python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
-            out, _ = run(
+
+            sp.run(
                 [python, "setup.py"] + args,
                 cwd=target_cwd,
-                block=True,
-                combine_stderr=False,
-                return_object=False,
-                nospin=True,
+                stdout=sp.PIPE,
+                stderr=sp.PIPE,
             )
         finally:
             _setup_stop_after = None
@@ -926,18 +897,18 @@ class BaseRequirement(object):
     name = attr.ib(default="", eq=True, order=True)  # type: STRING_TYPE
     requirement = attr.ib(
         default=None, eq=True, order=True
-    )  # type: Optional[PkgResourcesRequirement]
+    )  # type: Optional[Requirement]
 
     def __str__(self):
         # type: () -> S
         return "{0}".format(str(self.requirement))
 
     def as_dict(self):
-        # type: () -> Dict[STRING_TYPE, Optional[PkgResourcesRequirement]]
+        # type: () -> Dict[STRING_TYPE, Optional[Requirement]]
         return {self.name: self.requirement}
 
     def as_tuple(self):
-        # type: () -> Tuple[STRING_TYPE, Optional[PkgResourcesRequirement]]
+        # type: () -> Tuple[STRING_TYPE, Optional[Requirement]]
         return (self.name, self.requirement)
 
     @classmethod
@@ -951,7 +922,7 @@ class BaseRequirement(object):
     @classmethod
     @lru_cache()
     def from_req(cls, req):
-        # type: (PkgResourcesRequirement) -> BaseRequirement
+        # type: (Requirement) -> BaseRequirement
         name = None
         key = getattr(req, "key", None)
         name = getattr(req, "name", None)
@@ -1484,7 +1455,7 @@ build-backend = "{1}"
     @classmethod
     @lru_cache()
     def from_ireq(cls, ireq, subdir=None, finder=None, session=None):
-        # type: (InstallRequirement, Optional[AnyStr], Optional[PackageFinder], Optional[requests.Session]) -> Optional[SetupInfo]
+        # type: (InstallRequirement, Optional[AnyStr], Optional[PackageFinder], Optional[Session]) -> Optional[SetupInfo]
         if not ireq.link:
             return None
         if ireq.link.is_wheel:

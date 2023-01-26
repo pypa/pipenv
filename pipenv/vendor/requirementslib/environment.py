@@ -1,9 +1,6 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function
-
 import os
 
-from pipenv.vendor.platformdirs import user_cache_dir
+from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 
 
 def is_type_checking():

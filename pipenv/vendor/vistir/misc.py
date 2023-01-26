@@ -11,30 +11,21 @@ import os
 import subprocess
 import sys
 import threading
+import typing
+import warnings
+
 from collections import OrderedDict
 from functools import partial
 from itertools import islice, tee
 from weakref import WeakKeyDictionary
 
-import pipenv.vendor.six as six
-from pipenv.vendor.six.moves.queue import Empty, Queue
+from queue import Empty, Queue
+from typing import Iterable
 
 from .cmdparse import Script
-from .compat import (
-    Iterable,
-    Path,
-    StringIO,
-    TimeoutError,
-    _fs_decode_errors,
-    _fs_encode_errors,
-    fs_str,
-    is_bytes,
-    partialmethod,
-    to_native_string,
-)
 from .contextmanagers import spinner as spinner
-from .environment import MYPY_RUNNING
-from .termcolors import ANSI_REMOVAL_RE, colorize
+
+_fs_encode_errors = "surrogatepass"
 
 if os.name != "nt":
 
@@ -63,7 +54,7 @@ __all__ = [
 ]
 
 
-if MYPY_RUNNING:
+if typing.TYPE_CHECKING:
     from typing import Any, Dict, Generator, IO, List, Optional, Text, Tuple, Union
     from .spin import VistirSpinner
 
@@ -119,7 +110,7 @@ def unnest(elem):
      2347, 2098, 7987, 27599]
     """
 
-    if isinstance(elem, Iterable) and not isinstance(elem, six.string_types):
+    if isinstance(elem, Iterable) and not isinstance(elem, str):
         elem, target = tee(elem, 2)
     else:
         target = elem
@@ -127,7 +118,7 @@ def unnest(elem):
         yield target
     else:
         for el in target:
-            if isinstance(el, Iterable) and not isinstance(el, six.string_types):
+            if isinstance(el, Iterable) and not isinstance(el, str):
                 el, el_copy = tee(el, 2)
                 for sub in unnest(el_copy):
                     yield sub
@@ -146,6 +137,11 @@ def dedup(iterable):
     # type: (Iterable) -> Iterable
     """Deduplicate an iterable object like iter(set(iterable)) but order-
     preserved."""
+    warnings.warn(
+        ('This function is deprecated and will be removed in version 0.8.'
+         'Use instead: sorted(iter(dict.fromkeys(iterable)))'),
+        DeprecationWarning, stacklevel=2)
+
     return iter(OrderedDict.fromkeys(iterable))
 
 
@@ -286,7 +282,7 @@ class SubprocessStreamWrapper(object):
 
     def _decode_line(self, line, encoding):
         # type: (Union[str, bytes], str) -> str
-        if isinstance(line, six.binary_type):
+        if isinstance(line, bytes):
             line = to_text(
                 line.decode(encoding, errors=_fs_decode_errors).encode(
                     "utf-8", errors=_fs_encode_errors
@@ -382,7 +378,7 @@ class SubprocessStreamWrapper(object):
         if self.display_line:
             if new_line != self.display_line:
                 self.display_line_loops_displayed = 0
-                new_line = fs_str("{}".format(new_line))
+                new_line = "{}".format(new_line)
                 if len(new_line) > self.display_line_max_len:
                     new_line = "{}...".format(new_line[: self.display_line_max_len])
                 self.display_line = new_line
@@ -448,9 +444,7 @@ class SubprocessStreamWrapper(object):
                     line, "stderr", spinner=spinner, stdout_allowed=stdout_allowed
                 )
             if spinner:
-                spinner.text = to_native_string(
-                    "{} {}".format(spinner.text, self.display_line)
-                )
+                spinner.text = "{} {}".format(spinner.text, self.display_line)
         self.out = self.out.strip()
         self.err = self.err.strip()
 
@@ -487,11 +481,11 @@ def _handle_nonblocking_subprocess(c, spinner=None):
         c.wait()
     if spinner:
         if c.returncode != 0:
-            spinner.fail(to_native_string("Failed...cleaning up..."))
+            spinner.fail("Failed...cleaning up...")
         elif c.returncode == 0 and not os.name == "nt":
-            spinner.ok(to_native_string("✔ Complete"))
+            spinner.ok("✔ Complete")
         else:
-            spinner.ok(to_native_string("Complete"))
+            spinner.ok("Complete")
     return c
 
 
@@ -525,7 +519,7 @@ def _create_subprocess(
 
         formatted_tb = "".join(traceback.format_exception(*sys.exc_info()))
         sys.stderr.write(
-            "Error while executing command %s:" % to_native_string(" ".join(cmd._parts))
+            "Error while executing command %s:" % " ".join(cmd._parts)
         )
         sys.stderr.write(formatted_tb)
         raise exc
@@ -600,18 +594,11 @@ def run(
     _env["PYTHONUTF8"] = str("1")
     if env:
         _env.update(env)
-    if six.PY2:
-        _fs_encode = partial(to_bytes, encoding=locale_encoding)
-        _env = {_fs_encode(k): _fs_encode(v) for k, v in _env.items()}
-    else:
-        _env = {k: fs_str(v) for k, v in _env.items()}
+
+    _env = {k: v for k, v in _env.items()}
     if not spinner_name:
         spinner_name = "bouncingBar"
-    if six.PY2:
-        if isinstance(cmd, six.string_types):
-            cmd = cmd.encode("utf-8")
-        elif isinstance(cmd, (list, tuple)):
-            cmd = [c.encode("utf-8") for c in cmd]
+
     if not isinstance(cmd, Script):
         cmd = Script.parse(cmd)
     if block or not return_object:
@@ -655,7 +642,10 @@ def load_path(python):
      '/home/user/.virtualenvs/requirementslib-5MhGuG3C/lib/python3.7/site-packages',
      '/home/user/git/requirementslib/src']
     """
-
+    warnings.warn(
+        'This function is deprecated and will be removed in version 0.8.',
+        DeprecationWarning, stacklevel=2)
+    from pathlib import Path
     python = Path(python).as_posix()
     out, err = run(
         [python, "-c", "import json, sys; print(json.dumps(sys.path))"], nospin=True
@@ -692,7 +682,7 @@ def partialclass(cls, *args, **kwargs):
     >>> new_source.__dict__
     {'url': 'https://pypi.org/simple', 'verify_ssl': True, 'name': 'pypi'}
     """
-
+    from functools import partialmethod
     name_attrs = [
         n
         for n in (getattr(cls, name, str(cls)) for name in ("__name__", "__qualname__"))
@@ -726,10 +716,10 @@ def to_bytes(string, encoding="utf-8", errors=None):
     unicode_name = get_canonical_encoding_name("utf-8")
     if not errors:
         if get_canonical_encoding_name(encoding) == unicode_name:
-            if six.PY3 and os.name == "nt":
+            if os.name == "nt":
                 errors = "surrogatepass"
             else:
-                errors = "surrogateescape" if six.PY3 else "ignore"
+                errors = "surrogateescape"
         else:
             errors = "strict"
     if isinstance(string, bytes):
@@ -739,16 +729,13 @@ def to_bytes(string, encoding="utf-8", errors=None):
             return string.decode(unicode_name).encode(encoding, errors)
     elif isinstance(string, memoryview):
         return string.tobytes()
-    elif not isinstance(string, six.string_types):  # pragma: no cover
+    elif not isinstance(string, str):  # pragma: no cover
         try:
-            if six.PY3:
-                return six.text_type(string).encode(encoding, errors)
-            else:
-                return bytes(string)
+            return str(string).encode(encoding, errors)
         except UnicodeEncodeError:
             if isinstance(string, Exception):
                 return b" ".join(to_bytes(arg, encoding, errors) for arg in string)
-            return six.text_type(string).encode(encoding, errors)
+            return str(string).encode(encoding, errors)
     else:
         return string.encode(encoding, errors)
 
@@ -767,25 +754,21 @@ def to_text(string, encoding="utf-8", errors=None):
     unicode_name = get_canonical_encoding_name("utf-8")
     if not errors:
         if get_canonical_encoding_name(encoding) == unicode_name:
-            if six.PY3 and os.name == "nt":
+            if os.name == "nt":
                 errors = "surrogatepass"
             else:
-                errors = "surrogateescape" if six.PY3 else "ignore"
+                errors = "surrogateescape"
         else:
             errors = "strict"
-    if issubclass(type(string), six.text_type):
+    if issubclass(type(string), str):
         return string
     try:
-        if not issubclass(type(string), six.string_types):
-            if six.PY3:
-                if isinstance(string, bytes):
-                    string = six.text_type(string, encoding, errors)
-                else:
-                    string = six.text_type(string)
-            elif hasattr(string, "__unicode__"):  # pragma: no cover
-                string = six.text_type(string)
+        if not issubclass(type(string), str):
+            if isinstance(string, bytes):
+                string = str(string, encoding, errors)
             else:
-                string = six.text_type(bytes(string), encoding, errors)
+                string = str(string)
+
         else:
             string = string.decode(encoding, errors)
     except UnicodeDecodeError:  # pragma: no cover
@@ -802,7 +785,10 @@ def divide(n, iterable):
     :return: a list of new iterables derived from the original iterable
     :rtype: list
     """
-
+    warnings.warn(
+        ('This function is deprecated and will be removed in version 0.8.'
+         'Use instead: more_itertools.divide(n, iterable)))'),
+        DeprecationWarning, stacklevel=2)
     seq = tuple(iterable)
     q, r = divmod(len(seq), n)
 
@@ -824,6 +810,11 @@ def take(n, iterable):
     from https://github.com/erikrose/more-itertools/blob/master/more_itertools/recipes.py
     """
 
+    warnings.warn(
+        ('This function is deprecated and will be removed in version 0.8.'
+         'Use instead: list(islice(iterable, n))'),
+        DeprecationWarning, stacklevel=2)
+
     return list(islice(iterable, n))
 
 
@@ -835,6 +826,10 @@ def chunked(n, iterable):
 
     from https://github.com/erikrose/more-itertools/blob/master/more_itertools/more.py
     """
+    warnings.warn(
+        ('This function is deprecated and will be removed in version 0.8.'
+         'Use instead: more_itertools.chunked(iterable, n)))'),
+        DeprecationWarning, stacklevel=2)
 
     return iter(partial(take, n, iter(iterable)), [])
 
@@ -851,10 +846,6 @@ def getpreferredencoding():
     # Borrowed from Invoke
     # (see https://github.com/pyinvoke/invoke/blob/93af29d/invoke/runners.py#L881)
     _encoding = sys.getdefaultencoding() or locale.getpreferredencoding(False)
-    if six.PY2 and not sys.platform == "win32":
-        _default_encoding = locale.getdefaultlocale()[1]
-        if _default_encoding is not None:
-            _encoding = _default_encoding
     return _encoding
 
 
@@ -883,12 +874,7 @@ def _encode(output, encoding=None, errors=None, translation_map=None):
         output = output.encode(encoding)
     except (UnicodeDecodeError, UnicodeEncodeError):
         if translation_map is not None:
-            if six.PY2:
-                output = unicode.translate(  # noqa: F821
-                    to_text(output, encoding=encoding, errors=errors), translation_map
-                )
-            else:
-                output = output.translate(translation_map)
+            output = output.translate(translation_map)
         else:
             output = to_text(output, encoding=encoding, errors=errors)
     except AttributeError:
@@ -908,7 +894,7 @@ def decode_for_output(output, target_stream=None, translation_map=None):
     :rtype: str
     """
 
-    if not isinstance(output, six.string_types):
+    if not isinstance(output, str):
         return output
     encoding = None
     if target_stream is not None:
@@ -917,7 +903,6 @@ def decode_for_output(output, target_stream=None, translation_map=None):
     try:
         output = _encode(output, encoding=encoding, translation_map=translation_map)
     except (UnicodeDecodeError, UnicodeEncodeError):
-        output = to_native_string(output)
         output = _encode(
             output, encoding=encoding, errors="replace", translation_map=translation_map
         )
@@ -956,7 +941,7 @@ def _is_binary_buffer(stream):
 
 
 def _get_binary_buffer(stream):
-    if six.PY3 and not _is_binary_buffer(stream):
+    if not _is_binary_buffer(stream):
         stream = getattr(stream, "buffer", None)
         if stream is not None and _is_binary_buffer(stream):
             return stream
@@ -999,39 +984,24 @@ class StreamWrapper(io.TextIOWrapper):
 
     # borrowed from click's implementation of stream wrappers, see
     # https://github.com/pallets/click/blob/6cafd32/click/_compat.py#L64
-    if six.PY2:
 
-        def write(self, x):
-            if isinstance(x, (str, buffer, bytearray)):  # noqa: F821
-                try:
-                    self.flush()
-                except Exception:
-                    pass
-                # This is modified from the initial implementation to rely on
-                # our own decoding functionality to preserve unicode strings where
-                # possible
-                return self.buffer.write(str(x))
-            return io.TextIOWrapper.write(self, x)
+    def write(self, x):
+        # try to use backslash and surrogate escape strategies before failing
+        self._errors = (
+            "backslashescape" if self.encoding != "mbcs" else "surrogateescape"
+        )
+        try:
+            return io.TextIOWrapper.write(self, to_text(x, errors=self._errors))
+        except UnicodeDecodeError:
+            if self._errors != "surrogateescape":
+                self._errors = "surrogateescape"
+            else:
+                self._errors = "replace"
+            return io.TextIOWrapper.write(self, to_text(x, errors=self._errors))
 
-    else:
-
-        def write(self, x):
-            # try to use backslash and surrogate escape strategies before failing
-            self._errors = (
-                "backslashescape" if self.encoding != "mbcs" else "surrogateescape"
-            )
-            try:
-                return io.TextIOWrapper.write(self, to_text(x, errors=self._errors))
-            except UnicodeDecodeError:
-                if self._errors != "surrogateescape":
-                    self._errors = "surrogateescape"
-                else:
-                    self._errors = "replace"
-                return io.TextIOWrapper.write(self, to_text(x, errors=self._errors))
-
-        def writelines(self, lines):
-            for line in lines:
-                self.write(line)
+    def writelines(self, lines):
+        for line in lines:
+            self.write(line)
 
     def __del__(self):
         try:
@@ -1057,8 +1027,6 @@ class _StreamProvider(object):
         fn = getattr(self._stream, "read1", None)
         if fn is not None:
             return fn(size)
-        if six.PY2:
-            return self._stream.readline(size)
         return self._stream.read(size)
 
     def readable(self):
@@ -1183,14 +1151,12 @@ def get_text_stream(stream="stdout", encoding=None):
 
     stream_map = {"stdin": sys.stdin, "stdout": sys.stdout, "stderr": sys.stderr}
     if os.name == "nt" or sys.platform.startswith("win"):
-        from ._winconsole import _get_windows_console_stream, _wrap_std_stream
+        from ._winconsole import _get_windows_console_stream
 
     else:
         _get_windows_console_stream = lambda *args: None  # noqa
         _wrap_std_stream = lambda *args: None  # noqa
 
-    if six.PY2 and stream != "stdin":
-        _wrap_std_stream(stream)
     sys_stream = stream_map[stream]
     windows_console = _get_windows_console_stream(sys_stream, encoding, None)
     if windows_console is not None:
@@ -1248,56 +1214,3 @@ def _can_use_color(stream=None, color=None):
             stream = sys.stdin
         return _isatty(stream)
     return bool(color)
-
-
-def echo(text, fg=None, bg=None, style=None, file=None, err=False, color=None):
-    """Write the given text to the provided stream or **sys.stdout** by
-    default.
-
-    Provides optional foreground and background colors from the ansi defaults:
-    **grey**, **red**, **green**, **yellow**, **blue**, **magenta**, **cyan**
-    or **white**.
-
-    Available styles include **bold**, **dark**, **underline**, **blink**, **reverse**,
-    **concealed**
-
-    :param str text: Text to write
-    :param str fg: Foreground color to use (default: None)
-    :param str bg: Foreground color to use (default: None)
-    :param str style: Style to use (default: None)
-    :param stream file: File to write to (default: None)
-    :param bool color: Whether to force color (i.e. ANSI codes are in the text)
-    """
-
-    if file and not hasattr(file, "write"):
-        raise TypeError("Expected a writable stream, received {!r}".format(file))
-    if not file:
-        if err:
-            file = _text_stderr()
-        else:
-            file = _text_stdout()
-    if text and not isinstance(text, (six.string_types, bytes, bytearray)):
-        text = six.text_type(text)
-    text = "" if not text else text
-    if isinstance(text, six.text_type):
-        text += "\n"
-    else:
-        text += b"\n"
-    if text and six.PY3 and is_bytes(text):
-        buffer = _get_binary_buffer(file)
-        if buffer is not None:
-            file.flush()
-            buffer.write(text)
-            buffer.flush()
-            return
-    if text and not is_bytes(text):
-        can_use_color = _can_use_color(file, color=color)
-        if any([fg, bg, style]):
-            text = colorize(text, fg=fg, bg=bg, attrs=style)
-        if not can_use_color or (os.name == "nt" and not _wrap_for_color):
-            text = ANSI_REMOVAL_RE.sub("", text)
-        elif os.name == "nt" and _wrap_for_color and not _is_wrapped_for_color(file):
-            file = _wrap_for_color(file, color=color)
-    if text:
-        file.write(text)
-    file.flush()

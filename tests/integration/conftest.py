@@ -6,6 +6,7 @@ import os
 import shlex
 import shutil
 import traceback
+import subprocess as sp
 import sys
 import warnings
 from pathlib import Path
@@ -15,20 +16,15 @@ from tempfile import TemporaryDirectory
 import pytest
 import requests
 from click.testing import CliRunner
-from pytest_pypi.app import prepare_fixtures
-from pytest_pypi.app import prepare_packages as prepare_pypi_packages
 
 from pipenv.cli import cli
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor import toml, tomlkit
-from pipenv.vendor.vistir.compat import fs_encode
 from pipenv.vendor.vistir.contextmanagers import temp_environ
-from pipenv.vendor.vistir.misc import run
 from pipenv.vendor.vistir.path import (
-    create_tracked_tempdir, handle_remove_readonly, mkdir_p
+    create_tracked_tempdir, handle_remove_readonly
 )
-
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
@@ -98,8 +94,6 @@ def check_for_mercurial():
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
 WE_HAVE_HG = check_for_mercurial()
-prepare_fixtures(os.path.join(PYPI_VENDOR_DIR, "fixtures"))
-prepare_pypi_packages(PYPI_VENDOR_DIR)
 
 
 def pytest_runtest_setup(item):
@@ -186,7 +180,7 @@ def isolate(create_tmpdir):
     # Create a directory to use as our home location.
     home_dir = os.path.join(str(create_tmpdir()), "home")
     os.makedirs(home_dir)
-    mkdir_p(os.path.join(home_dir, ".config", "git"))
+    os.makedirs(os.path.join(home_dir, ".config", "git"), exist_ok=True)
     git_config_file = os.path.join(home_dir, ".config", "git", "config")
     with open(git_config_file, "wb") as fp:
         fp.write(
@@ -199,7 +193,7 @@ def isolate(create_tmpdir):
     workon_home = create_tmpdir()
     os.environ["WORKON_HOME"] = str(workon_home)
     os.environ["HOME"] = os.path.abspath(home_dir)
-    mkdir_p(os.path.join(home_dir, "projects"))
+    os.makedirs(os.path.join(home_dir, "projects"), exist_ok=True)
     # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
     os.environ.pop("PIPENV_ACTIVE", None)
     os.environ.pop("VIRTUAL_ENV", None)
@@ -219,11 +213,11 @@ class _Pipfile:
         self.document["source"] = self.document.get("source", tomlkit.aot())
         self.document["requires"] = self.document.get("requires", tomlkit.table())
         self.document["packages"] = self.document.get("packages", tomlkit.table())
-        self.document["dev_packages"] = self.document.get("dev_packages", tomlkit.table())
+        self.document["dev-packages"] = self.document.get("dev-packages", tomlkit.table())
         super().__init__()
 
     def install(self, package, value, dev=False):
-        section = "packages" if not dev else "dev_packages"
+        section = "packages" if not dev else "dev-packages"
         if isinstance(value, dict):
             table = tomlkit.inline_table()
             table.update(value)
@@ -233,10 +227,10 @@ class _Pipfile:
         self.write()
 
     def remove(self, package, dev=False):
-        section = "packages" if not dev else "dev_packages"
+        section = "packages" if not dev else "dev-packages"
         if not dev and package not in self.document[section]:
-            if package in self.document["dev_packages"]:
-                section = "dev_packages"
+            if package in self.document["dev-packages"]:
+                section = "dev-packages"
         del self.document[section][package]
         self.write()
 
@@ -262,8 +256,8 @@ class _Pipfile:
         self.path.write_text(self.dumps())
 
     @classmethod
-    def get_fixture_path(cls, path):
-        return Path(__file__).absolute().parent.parent / "test_artifacts" / path
+    def get_fixture_path(cls, path, fixtures="test_artifacts"):
+        return Path(__file__).absolute().parent.parent / fixtures / path
 
     @classmethod
     def get_url(cls, pkg=None, filename=None):
@@ -278,9 +272,9 @@ class _Pipfile:
         fixture_pypi = os.getenv("ARTIFACT_PYPI_URL")
         if fixture_pypi:
             if pkg and not filename:
-                url = f"{fixture_pypi}/artifacts/{pkg}"
+                url = f"{fixture_pypi}/{pkg}"
             else:
-                url = f"{fixture_pypi}/artifacts/{pkg}/{filename}"
+                url = f"{fixture_pypi}/{pkg}/{filename}"
             return url
         if pkg and not filename:
             return cls.get_fixture_path(file_path).as_uri()
@@ -312,28 +306,16 @@ class _PipenvInstance:
             self.env.pop("PIPENV_VENV_IN_PROJECT", None)
 
         self.original_dir = Path(__file__).parent.parent.parent
-        path = path if path else os.environ.get("PIPENV_PROJECT_DIR", None)
         if name is not None:
             path = Path(os.environ["HOME"]) / "projects" / name
             path.mkdir(exist_ok=True)
-        if not path:
-            path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
-        if isinstance(path, TemporaryDirectory):
-            self._path = path
-            path = Path(self._path.name)
-            try:
-                self.path = str(path.resolve())
-            except OSError:
-                self.path = str(path.absolute())
-        elif isinstance(path, Path):
-            self._path = path
-            try:
-                self.path = str(path.resolve())
-            except OSError:
-                self.path = str(path.absolute())
-        else:
-            self._path = path
-            self.path = path
+        self._path = path = TemporaryDirectory(prefix='pipenv-', suffix='-project')
+        path = Path(self._path.name)
+        try:
+            self.path = str(path.resolve())
+        except OSError:
+            self.path = str(path.absolute())
+
         # set file creation perms
         self.pipfile_path = None
         self.chdir = chdir
@@ -343,12 +325,18 @@ class _PipenvInstance:
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
+            try:
+                os.remove(p_path)
+            except FileNotFoundError:
+                pass
             with open(p_path, 'a'):
                 os.utime(p_path, None)
 
             self.chdir = False or chdir
             self.pipfile_path = p_path
             self._pipfile = _Pipfile(Path(p_path))
+        else:
+            self._pipfile = None
 
     def __enter__(self):
         if self.chdir:
@@ -357,15 +345,18 @@ class _PipenvInstance:
 
     def __exit__(self, *args):
         warn_msg = 'Failed to remove resource: {!r}'
+        if self.pipfile_path:
+            os.remove(self.pipfile_path)
         if self.chdir:
             os.chdir(self.original_dir)
-        self.path = None
-        if self._path and getattr(self._path, "cleanup", None):
+        if self._path:
             try:
                 self._path.cleanup()
             except OSError as e:
                 _warn_msg = warn_msg.format(e)
                 warnings.warn(_warn_msg, ResourceWarning)
+        self.path = None
+        self._path = None
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path and os.path.isfile(self.pipfile_path):
@@ -414,12 +405,11 @@ class _PipenvInstance:
 
 
 def _rmtree_func(path, ignore_errors=True, onerror=None):
-    directory = fs_encode(path)
     shutil_rmtree = _rmtree
     if onerror is None:
         onerror = handle_remove_readonly
     try:
-        shutil_rmtree(directory, ignore_errors=ignore_errors, onerror=onerror)
+        shutil_rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
     except (OSError, FileNotFoundError, PermissionError) as exc:
         # Ignore removal failures where the file doesn't exist
         if exc.errno != errno.ENOENT:
@@ -439,17 +429,17 @@ def pip_src_dir(request, vistir_tmpdir):
 
 
 @pytest.fixture()
-def PipenvInstance(pip_src_dir, monkeypatch, pypi, capfdbinary):
+def pipenv_instance_pypi(pip_src_dir, monkeypatch, capfdbinary):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
         m.setenv("PIPENV_NOSPIN", "1")
         m.setenv("CI", "1")
         m.setenv('PIPENV_DONT_USE_PYENV', '1')
-        m.setenv("PIPENV_TEST_INDEX", f"{pypi.url}/simple")
+        m.setenv("PIPENV_TEST_INDEX", "https://pypi.org/simple")
         m.setenv("PIPENV_PYPI_INDEX", "simple")
-        m.setenv("ARTIFACT_PYPI_URL", pypi.url)
-        m.setenv("PIPENV_PYPI_URL", pypi.url)
+        m.setenv("ARTIFACT_PYPI_URL", "https://pypi.org/")
+        m.setenv("PIPENV_PYPI_URL", "https://pypi.org/")
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         try:
@@ -459,15 +449,15 @@ def PipenvInstance(pip_src_dir, monkeypatch, pypi, capfdbinary):
 
 
 @pytest.fixture()
-def PipenvInstance_NoPyPI(monkeypatch, pip_src_dir, pypi, capfdbinary):
+def pipenv_instance_private_pypi(monkeypatch, pip_src_dir, capfdbinary):
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
         m.setenv("PIPENV_NOSPIN", "1")
         m.setenv("CI", "1")
         m.setenv('PIPENV_DONT_USE_PYENV', '1')
-        m.setenv("PIPENV_TEST_INDEX", f"{pypi.url}/simple")
-        m.setenv("ARTIFACT_PYPI_URL", pypi.url)
+        m.setenv("PIPENV_TEST_INDEX", "http://localhost:8080/simple")
+        m.setenv("ARTIFACT_PYPI_URL", "http://localhost:8080/simple")
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         try:
@@ -502,10 +492,7 @@ class VirtualEnv:
         cmd = [
             python, "-m", "virtualenv", self.path.absolute().as_posix()
         ]
-        c = run(
-            cmd, verbose=False, return_object=True, write_to_stdout=False,
-            combine_stderr=False, block=True, nospin=True,
-        )
+        c = sp.run(cmd)
         assert c.returncode == 0
 
     def activate(self):

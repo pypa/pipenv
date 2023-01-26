@@ -23,6 +23,7 @@ from pipenv.cli.options import (
     uninstall_options,
     verbose_option,
 )
+from pipenv.utils.environment import load_dot_env
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor.click import (
     Choice,
@@ -79,8 +80,10 @@ def cli(
     site_packages=None,
     **kwargs,
 ):
+    from pipenv.patched.pip._vendor import rich
     from pipenv.utils.shell import system_which
-    from pipenv.utils.spinner import create_spinner
+
+    load_dot_env(state.project, quiet=state.quiet)
 
     from ..core import (
         cleanup_virtualenv,
@@ -185,7 +188,10 @@ def cli(
                         )
                     )
                 )
-                with create_spinner(text="Running...", setting=state.project.s):
+
+                console = rich.console.Console()
+                # TODO: add state.project.s to spinner status
+                with console.status("Running..."):
                     # Remove the virtualenv.
                     cleanup_virtualenv(state.project, bare=True)
                 return 0
@@ -237,11 +243,9 @@ def install(state, **kwargs):
         python=state.python,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
-        lock=not state.installstate.skip_lock,
         ignore_pipfile=state.installstate.ignore_pipfile,
         skip_lock=state.installstate.skip_lock,
         requirementstxt=state.installstate.requirementstxt,
-        sequential=state.installstate.sequential,
         pre=state.installstate.pre,
         deploy=state.installstate.deploy,
         keep_outdated=state.installstate.keep_outdated,
@@ -250,6 +254,8 @@ def install(state, **kwargs):
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
         site_packages=state.site_packages,
+        extra_pip_args=state.installstate.extra_pip_args,
+        categories=state.installstate.categories,
     )
 
 
@@ -288,6 +294,7 @@ def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
         all=all,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
+        categories=state.installstate.categories,
         ctx=ctx,
     )
     if retcode:
@@ -338,6 +345,7 @@ def lock(ctx, state, **kwargs):
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
         write=not state.quiet,
+        categories=state.installstate.categories,
     )
 
 
@@ -370,7 +378,7 @@ def shell(
     anyway=False,
 ):
     """Spawns a shell within the virtualenv."""
-    from ..core import do_shell, load_dot_env
+    from ..core import do_shell
 
     # Prevent user from activating nested environments.
     if "PIPENV_ACTIVE" in os.environ:
@@ -420,7 +428,6 @@ def run(state, command, args):
         three=state.three,
         python=state.python,
         pypi_mirror=state.pypi_mirror,
-        quiet=state.quiet,
     )
 
 
@@ -433,7 +440,7 @@ def run(state, command, args):
     "--db",
     nargs=1,
     default=lambda: os.environ.get("PIPENV_SAFETY_DB"),
-    help="Path to a local PyUp Safety vulnerabilities database."
+    help="Path or URL to a PyUp Safety vulnerabilities database."
     " Default: ENV PIPENV_SAFETY_DB or None.",
 )
 @option(
@@ -444,7 +451,7 @@ def run(state, command, args):
 )
 @option(
     "--output",
-    type=Choice(["default", "json", "full-report", "bare"]),
+    type=Choice(["default", "json", "full-report", "bare", "screen", "text", "minimal"]),
     default="default",
     help="Translates to --json, --full-report or --bare from PyUp Safety check",
 )
@@ -457,6 +464,28 @@ def run(state, command, args):
 @option(
     "--quiet", is_flag=True, help="Quiet standard output, except vulnerability report."
 )
+@option("--policy-file", default="", help="Define the policy file to be used")
+@option(
+    "--exit-code/--continue-on-error",
+    default=True,
+    help="Output standard exit codes. Default: --exit-code",
+)
+@option(
+    "--audit-and-monitor/--disable-audit-and-monitor",
+    default=True,
+    help="Send results back to pyup.io for viewing on your dashboard. Requires an API key.",
+)
+@option(
+    "--project",
+    default=None,
+    help="Project to associate this scan with on pyup.io. Defaults to a canonicalized github style name if available, otherwise unknown",
+)
+@option(
+    "--save-json",
+    default="",
+    help="Path to where output file will be placed, if the path is a directory, "
+    "Safety will use safety-report.json as filename. Default: empty",
+)
 @common_options
 @system_option
 @pass_state
@@ -465,9 +494,14 @@ def check(
     db=None,
     style=False,
     ignore=None,
-    output="default",
+    output="screen",
     key=None,
     quiet=False,
+    exit_code=True,
+    policy_file="",
+    save_json="",
+    audit_and_monitor=True,
+    project=None,
     **kwargs,
 ):
     """Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile."""
@@ -483,6 +517,11 @@ def check(
         output=output,
         key=key,
         quiet=quiet,
+        exit_code=exit_code,
+        policy_file=policy_file,
+        save_json=save_json,
+        audit_and_monitor=audit_and_monitor,
+        safety_project=project,
         pypi_mirror=state.pypi_mirror,
     )
 
@@ -559,8 +598,8 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
         user=False,
         clear=state.clear,
         unused=False,
-        sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
+        extra_pip_args=state.installstate.extra_pip_args,
     )
 
 
@@ -649,9 +688,10 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
         user=user,
         clear=state.clear,
         unused=unused,
-        sequential=state.installstate.sequential,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
+        extra_pip_args=state.installstate.extra_pip_args,
+        categories=state.installstate.categories,
     )
     if retcode:
         ctx.abort()
@@ -735,8 +775,16 @@ def verify(state):
 )
 @option("--hash", is_flag=True, default=False, help="Add package hashes.")
 @option("--exclude-markers", is_flag=True, default=False, help="Exclude markers.")
+@option(
+    "--categories",
+    is_flag=False,
+    default="",
+    help="Only add requirement of the specified categories.",
+)
 @pass_state
-def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=False):
+def requirements(
+    state, dev=False, dev_only=False, hash=False, exclude_markers=False, categories=""
+):
 
     from pipenv.utils.dependencies import convert_deps_to_pip
 
@@ -747,16 +795,21 @@ def requirements(state, dev=False, dev_only=False, hash=False, exclude_markers=F
         echo(" ".join([prefix, package_index["url"]]))
 
     deps = {}
+    categories_list = categories.split(",") if categories else []
 
-    if dev or dev_only:
-        deps.update(lockfile["develop"])
-    if not dev_only:
-        deps.update(lockfile["default"])
+    if categories_list:
+        for category in categories_list:
+            category = category.strip()
+            deps.update(lockfile.get(category, {}))
+    else:
+        if dev or dev_only:
+            deps.update(lockfile["develop"])
+        if not dev_only:
+            deps.update(lockfile["default"])
 
     pip_deps = convert_deps_to_pip(
         deps,
         project=None,
-        r=False,
         include_index=False,
         include_hashes=hash,
         include_markers=not exclude_markers,

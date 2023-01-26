@@ -1,18 +1,19 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
-
 import io
 import os
+
 import stat
 import sys
+import typing
+
 from contextlib import closing, contextmanager
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from urllib import request
 
-import pipenv.vendor.six as six
-
-from .compat import IS_TYPE_CHECKING, NamedTemporaryFile, Path
 from .path import is_file_url, is_valid_url, path_to_url, url_to_path
 
-if IS_TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     from typing import (
         Any,
         Bytes,
@@ -29,7 +30,7 @@ if IS_TYPE_CHECKING:
     )
     from types import ModuleType
     from pipenv.patched.pip._vendor.requests import Session
-    from pipenv.vendor.six.moves.http_client import HTTPResponse as Urllib_HTTPResponse
+    from http.client import HTTPResponse as Urllib_HTTPResponse
     from pipenv.patched.pip._vendor.urllib3.response import HTTPResponse as Urllib3_HTTPResponse
     from .spin import VistirSpinner, DummySpinner
 
@@ -176,8 +177,8 @@ def spinner(
 
     has_yaspin = None
     try:
-        import pipenv.vendor.yaspin as yaspin
-    except ImportError:
+        import yaspin
+    except (ImportError, ModuleNotFoundError):  # noqa
         has_yaspin = False
         if not nospin:
             raise RuntimeError(
@@ -318,7 +319,7 @@ def open_file(
     :raises ValueError: If link points to a local directory.
     :return: a context manager to the opened file-like object
     """
-    if not isinstance(link, six.string_types):
+    if not isinstance(link, str):
         try:
             link = link.url_without_fragment
         except AttributeError:
@@ -346,7 +347,7 @@ def open_file(
             else:
                 session = Session()
         if session is None:
-            with closing(six.moves.urllib.request.urlopen(link)) as f:
+            with closing(request.urlopen(link)) as f:
                 yield f
         else:
             with session.get(link, headers=headers, stream=stream) as resp:
@@ -381,7 +382,7 @@ def replaced_stream(stream_name):
     """
 
     orig_stream = getattr(sys, stream_name)
-    new_stream = six.StringIO()
+    new_stream = io.StringIO()
     try:
         setattr(sys, stream_name, new_stream)
         yield getattr(sys, stream_name)

@@ -12,7 +12,7 @@ This document covers some of Pipenv's more glorious and advanced features.
 
 - Dependencies of wheels provided in a ``Pipfile`` will not be captured by ``$ pipenv lock``.
 - There are some known issues with using private indexes, related to hashing. We're actively working to solve this problem. You may have great luck with this, however.
-- Installation is intended to be as deterministic as possible — use the ``--sequential`` flag to increase this, if experiencing issues.
+- Installation is intended to be as deterministic as possible.
 
 ☤ Specifying Package Indexes
 ----------------------------
@@ -123,7 +123,7 @@ Keep in mind that environment variables are expanded in runtime, leaving the ent
 ☤ Injecting credentials through keychain support
 ------------------------------------------------
 
-Private regirstries on Google Cloud, Azure and AWS support dynamic credentials using
+Private registries on Google Cloud, Azure and AWS support dynamic credentials using
 the keychain implementation. Due to the way the keychain is structured, it might ask
 the user for input. Asking the user for input is disabled. This will disable the keychain
 support completely, unfortunately.
@@ -152,6 +152,20 @@ input. Otherwise the process will hang forever!::
     disable_pip_input = false
 
 Above example will install ``flask`` and a private package ``private-test-package`` from GCP.
+
+☤ Supplying additional arguments to pip
+------------------------------------------------
+
+There may be cases where you wish to supply additional arguments to pip to be used during the install phase.
+For example, you may want to enable the pip feature for using
+`system certificate stores <https://pip.pypa.io/en/latest/topics/https-certificates/#using-system-certificate-stores>`_
+
+In this case you can supply these additional arguments to ``pipenv sync`` or ``pipenv install`` by passing additional
+argument ``--extra-pip-args="--use-feature=truststore"``.   It is possible to supply multiple arguments in the ``--extra-pip-args``.
+Example usage::
+
+    pipenv sync --extra-pip-args="--use-feature=truststore --proxy=127.0.0.1"
+
 
 ☤ Specifying Basically Anything
 -------------------------------
@@ -233,7 +247,7 @@ Anaconda uses Conda to manage packages. To reuse Conda–installed Python packag
 
 Sometimes, you would want to generate a requirements file based on your current
 environment, for example to include tooling that only supports requirements.txt.
-You can convert a ``Pipfile`` and ``Pipfile.lock`` into a ``requirements.txt``
+You can convert a ``Pipfile.lock`` into a ``requirements.txt``
 file very easily.
 
 Let's take this ``Pipfile``::
@@ -241,44 +255,91 @@ Let's take this ``Pipfile``::
     [[source]]
     url = "https://pypi.python.org/simple"
     verify_ssl = true
+    name = "pypi"
 
     [packages]
-    requests = {version="*"}
+    requests = {version="==2.18.4"}
 
     [dev-packages]
-    pytest = {version="*"}
+    pytest = {version="==3.2.3"}
 
-And generate a set of requirements out of it with only the default dependencies::
+Which generates a ``Pipfile.lock`` upon completion of running ``pipenv lock``` similar to::
+
+    {
+            "_meta": {
+                    "hash": {
+                            "sha256": "4b81df812babd4e54ba5a4086714d7d303c1c3f00d725c76e38dd58cbd360f4e"
+                    },
+                    "pipfile-spec": 6,
+                    "requires": {},
+                    "sources": [
+                            {
+                                    "name": "pypi",
+                                    "url": "https://pypi.python.org/simple",
+                                    "verify_ssl": true
+                            }
+                    ]
+            },
+            "default": {
+			... snipped ...
+                    "requests": {
+                            "hashes": [
+                                    "sha256:6a1b267aa90cac58ac3a765d067950e7dbbf75b1da07e895d1f594193a40a38b",
+                                    "sha256:9c443e7324ba5b85070c4a818ade28bfabedf16ea10206da1132edaa6dda237e"
+                            ],
+                            "index": "pypi",
+                            "version": "==2.18.4"
+                    },
+			... snipped ...
+            },
+            "develop": {
+                    ... snipped ...
+                    "pytest": {
+                            "hashes": [
+                                    "sha256:27fa6617efc2869d3e969a3e75ec060375bfb28831ade8b5cdd68da3a741dc3c",
+                                    "sha256:81a25f36a97da3313e1125fce9e7bbbba565bc7fec3c5beb14c262ddab238ac1"
+                            ],
+                            "index": "pypi",
+                            "version": "==3.2.3"
+                    }
+                    ... snipped ...
+    }
+
+Given the ``Pipfile.lock`` exists, you may generate a set of requirements out of it with the default dependencies::
 
     $ pipenv requirements
-    -i https://pypi.org/simple
+    -i https://pypi.python.org/simple
+    certifi==2022.9.24 ; python_version >= '3.6'
     chardet==3.0.4
-    requests==2.18.4
-    certifi==2017.7.27.1
     idna==2.6
+    requests==2.18.4
     urllib3==1.22
 
 As with other commands, passing ``--dev`` will include both the default and
 development dependencies::
 
     $ pipenv requirements --dev
-    -i https://pypi.org/simple
-    chardet==3.0.4
-    requests==2.18.4
-    certifi==2017.7.27.1
-    idna==2.6
-    urllib3==1.22
-    py==1.4.34
+    -i https://pypi.python.org/simple
+    colorama==0.4.5 ; sys_platform == 'win32'
+    py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
     pytest==3.2.3
+    setuptools==65.4.1 ; python_version >= '3.7'
+    certifi==2022.9.24 ; python_version >= '3.6'
+    chardet==3.0.4
+    idna==2.6
+    requests==2.18.4
+    urllib3==1.22
 
 If you wish to generate a requirements file with only the
 development requirements you can do that too, using the ``--dev-only``
 flag::
 
     $ pipenv requirements --dev-only
-    -i https://pypi.org/simple
-    py==1.4.34
+    -i https://pypi.python.org/simple
+    colorama==0.4.5 ; sys_platform == 'win32'
+    py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
     pytest==3.2.3
+    setuptools==65.4.1 ; python_version >= '3.7'
 
 Adding the ``--hash`` flag adds package hashes to the output for extra security.
 Adding the ``--exclude-markers`` flag excludes the markers from the output.
@@ -289,16 +350,39 @@ used to write them to a file::
     $ pipenv requirements > requirements.txt
     $ pipenv requirements --dev-only > dev-requirements.txt
     $ cat requirements.txt
-    -i https://pypi.org/simple
+    -i https://pypi.python.org/simple
+    certifi==2022.9.24 ; python_version >= '3.6'
     chardet==3.0.4
-    requests==2.18.4
-    certifi==2017.7.27.1
     idna==2.6
+    requests==2.18.4
     urllib3==1.22
     $ cat dev-requirements.txt
-    -i https://pypi.org/simple
-    py==1.4.34
+    -i https://pypi.python.org/simple
+    colorama==0.4.5 ; sys_platform == 'win32'
+    py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
     pytest==3.2.3
+    setuptools==65.4.1 ; python_version >= '3.7'
+
+If you have multiple categories in your Pipfile and wish to generate
+a requirements file for only some categories, you can do that too,
+using the ``--categories`` option::
+
+    $ pipenv requirements --categories="tests" > requirements-tests.txt
+    $ pipenv requirements --categories="docs" > requirements-docs.txt
+    $ cat requirements-tests.txt
+    -i https://pypi.org/simple
+    attrs==22.1.0 ; python_version >= '3.5'
+    iniconfig==1.1.1
+    packaging==21.3 ; python_version >= '3.6'
+    pluggy==1.0.0 ; python_version >= '3.6'
+    py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
+    pyparsing==3.0.9 ; python_full_version >= '3.6.8'
+    pytest==7.1.3
+    tomli==2.0.1 ; python_version >= '3.7'
+
+It can be used to specify multiple categories also.
+
+    $ pipenv requirements --categories="tests,docs"
 
 ☤ Detection of Security Vulnerabilities
 ---------------------------------------
@@ -518,7 +602,20 @@ For example:
     $ pipenv run echospam "indeed"
     I am really a very silly example indeed
 
-You can then display the names and commands of your shortcuts by running ``pipenv scripts`` in your terminal.
+You can also specify pacakge functions as callables such as: ``<pathed.module>:<func>``. These can also take arguments.
+For exaple:
+
+.. code-block:: toml
+
+    [scripts]
+    my_func_with_args = {call = "package.module:func('arg1', 'arg2')"}
+    my_func_no_args = {call = "package.module:func()"}
+
+::
+    $ pipenv run my_func_with_args
+    $ pipenv run my_func_no_args
+
+You can display the names and commands of your shortcuts by running ``pipenv scripts`` in your terminal.
 
 ::
 
@@ -531,11 +628,17 @@ You can then display the names and commands of your shortcuts by running ``pipen
 ☤ Configuration With Environment Variables
 ------------------------------------------
 
-Pipenv comes with a handful of options that can be enabled via shell environment
-variables. To activate them, simply create the variable in your shell and pipenv
-will detect it.
+Pipenv comes with a handful of options that can be set via shell environment
+variables.
 
-.. automodule:: pipenv.environments
+To enable boolean options, create the variable in your shell and assign to it a
+truthy value (i.e. ``"1"``)::
+
+    $ PIPENV_IGNORE_VIRTUALENVS=1
+
+To explicitly disable a boolean option, assign to it a falsey value (i.e. ``"0"``).
+
+.. autoclass:: pipenv.environments.Setting
     :members:
 
 If you'd like to set these environment variables on a per-project basis, I recommend utilizing the fantastic `direnv <https://direnv.net>`_ project, in order to do so.

@@ -2,7 +2,6 @@ import re
 from urllib.parse import urlparse
 
 from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
-from pipenv.vendor import parse
 
 requests_session = None  # type: ignore
 
@@ -36,11 +35,11 @@ def replace_pypi_sources(sources, pypi_replacement_source):
     ]
 
 
-def create_mirror_source(url):
+def create_mirror_source(url, name):
     return {
         "url": url,
         "verify_ssl": url.startswith("https://"),
-        "name": urlparse(url).hostname,
+        "name": name,
     }
 
 
@@ -121,6 +120,8 @@ def proper_case(package_name):
     if not r.ok:
         raise OSError(f"Unable to find package {package_name} in PyPI repository.")
 
-    r = parse.parse("https://pypi.org/pypi/{name}/json", r.url)
-    good_name = r["name"]
+    regex = r"https://pypi\.org/pypi/(.*)/json$"
+    match = re.search(regex, r.url)
+    good_name = match.group(1)
+
     return good_name

@@ -10,13 +10,10 @@ import os
 import re
 import sys
 import urllib.parse
+from json.decoder import JSONDecodeError
 from pathlib import Path
 
-import pipfile
-import pipfile.api
-import toml
-import tomlkit
-import vistir
+import click
 
 from pipenv.cmdparse import Script
 from pipenv.environment import Environment
@@ -24,6 +21,7 @@ from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_pat
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.configuration import Configuration
 from pipenv.patched.pip._internal.exceptions import ConfigurationError
+from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
@@ -38,11 +36,13 @@ from pipenv.utils.shell import (
     find_windows_executable,
     get_workon_home,
     is_virtual_environment,
+    load_path,
     looks_like_dir,
     safe_expandvars,
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
+from pipenv.vendor import plette, toml, tomlkit, vistir
 from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 
 try:
@@ -52,11 +52,8 @@ except ImportError:
     # eventually distlib will remove cached property when they drop Python3.7
     from pipenv.patched.pip._vendor.distlib.util import cached_property
 
-
 if is_type_checking():
     from typing import Dict, List, Optional, Set, Text, Tuple, Union
-
-    import pkg_resources
 
     TSource = Dict[Text, Union[Text, bool]]
     TPackageEntry = Dict[str, Union[bool, str, List[str]]]
@@ -67,6 +64,12 @@ if is_type_checking():
 
 
 DEFAULT_NEWLINES = "\n"
+NON_CATEGORY_SECTIONS = {
+    "pipenv",
+    "requires",
+    "scripts",
+    "source",
+}
 
 
 class _LockFileEncoder(json.JSONEncoder):
@@ -157,7 +160,10 @@ class Project:
                 "verify_ssl": True,
                 "name": "pypi",
             }
-        pipfile.api.DEFAULT_SOURCE = self.default_source
+
+        plette.pipfiles.DEFAULT_SOURCE_TOML = (
+            f"[[source]]\n{toml.dumps(self.default_source)}"
+        )
 
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
@@ -173,9 +179,20 @@ class Project:
 
         return os.sep.join([self._original_dir, p])
 
-    def _build_package_list(self, package_section):
-        """Returns the list of packages from the Project's Pipfile."""
-        return self.parsed_pipfile.get(package_section, {})
+    def get_pipfile_section(self, section):
+        """Returns the details from the section of the Project's Pipfile."""
+        return self.parsed_pipfile.get(section, {})
+
+    def get_package_categories(self, for_lockfile=False):
+        """Ensure we get only package categories and that the default packages section is first."""
+        categories = set(self.parsed_pipfile.keys())
+        package_categories = (
+            categories - NON_CATEGORY_SECTIONS - {"packages", "dev-packages"}
+        )
+        if for_lockfile:
+            return ["default", "develop"] + list(package_categories)
+        else:
+            return ["packages", "dev-packages"] + list(package_categories)
 
     @property
     def name(self) -> str:
@@ -259,11 +276,7 @@ class Project:
 
     @property
     def working_set(self) -> pkg_resources.WorkingSet:
-        from pipenv.utils.shell import load_path
-
         sys_path = load_path(self.which("python"))
-        import pkg_resources
-
         return pkg_resources.WorkingSet(sys_path)
 
     @property
@@ -276,23 +289,28 @@ class Project:
 
     @property
     def lockfile_package_names(self) -> Dict[str, Set[str]]:
-        dev_keys = get_canonical_names(self.lockfile_content["develop"].keys())
-        default_keys = get_canonical_names(self.lockfile_content["default"].keys())
-        return {
-            "dev": dev_keys,
-            "default": default_keys,
-            "combined": dev_keys | default_keys,
+        results = {
+            "combined": {},
         }
+        for category in self.get_package_categories(for_lockfile=True):
+            category_packages = get_canonical_names(
+                self.lockfile_content[category].keys()
+            )
+            results[category] = set(category_packages)
+            results["combined"] = results["combined"] | category_packages
+        return results
 
     @property
     def pipfile_package_names(self) -> Dict[str, Set[str]]:
-        dev_keys = get_canonical_names(self.dev_packages.keys())
-        default_keys = get_canonical_names(self.packages.keys())
-        return {
-            "dev": dev_keys,
-            "default": default_keys,
-            "combined": dev_keys | default_keys,
-        }
+        result = {}
+        combined = set()
+        for category in self.get_package_categories():
+            packages = self.get_pipfile_section(category)
+            keys = get_canonical_names(packages.keys())
+            combined |= keys
+            result[category] = keys
+        result["combined"] = combined
+        return result
 
     def get_environment(self, allow_global: bool = False) -> Environment:
         is_venv = is_in_virtualenv()
@@ -419,7 +437,7 @@ class Project:
             loc = os.sep.join([self.virtualenv_location, "src"])
         else:
             loc = os.sep.join([self.project_directory, "src"])
-        vistir.path.mkdir_p(loc)
+        os.makedirs(loc, exist_ok=True)
         return loc
 
     @property
@@ -428,7 +446,7 @@ class Project:
             loc = os.sep.join([self.virtualenv_location, "downloads"])
             self._download_location = loc
         # Create the directory, if it doesn't exist.
-        vistir.path.mkdir_p(self._download_location)
+        os.makedirs(self._download_location, exist_ok=True)
         return self._download_location
 
     @property
@@ -452,12 +470,15 @@ class Project:
 
     @property
     def pipfile_location(self) -> str:
+
+        from pipenv.utils.pipfile import find_pipfile
+
         if self.s.PIPENV_PIPFILE:
             return self.s.PIPENV_PIPFILE
 
         if self._pipfile_location is None:
             try:
-                loc = pipfile.Pipfile.find(max_depth=self.s.PIPENV_MAX_DEPTH)
+                loc = find_pipfile(max_depth=self.s.PIPENV_MAX_DEPTH)
             except RuntimeError:
                 loc = "Pipfile"
             self._pipfile_location = normalize_pipfile_path(loc)
@@ -564,16 +585,34 @@ class Project:
             # Write the changes to disk.
             self.write_toml(p)
 
-    @property
-    def _lockfile(self):
+    def _lockfile(self, categories=None):
         """Pipfile.lock divided by PyPI and external dependencies."""
-        pfile = pipfile.load(self.pipfile_location, inject_env=False)
-        lockfile = json.loads(pfile.lock())
-        for section in ("default", "develop"):
-            lock_section = lockfile.get(section, {})
+        lockfile_loaded = False
+        if self.lockfile_exists:
+            try:
+                lockfile = self.load_lockfile(expand_env_vars=False)
+                lockfile_loaded = True
+            except Exception:
+                pass
+        if not lockfile_loaded:
+            with open(self.pipfile_location) as pf:
+                lockfile = plette.Lockfile.with_meta_from(
+                    plette.Pipfile.load(pf), categories=categories
+                )
+                lockfile = lockfile._data
+
+        if categories is None:
+            categories = self.get_package_categories(for_lockfile=True)
+        for category in categories:
+            lock_section = lockfile.get(category)
+            if lock_section is None:
+                lockfile[category] = lock_section = {}
             for key in list(lock_section.keys()):
                 norm_key = pep423_name(key)
-                lockfile[section][norm_key] = lock_section.pop(key)
+                specifier = lock_section[key]
+                del lock_section[key]
+                lockfile[category][norm_key] = specifier
+
         return lockfile
 
     @property
@@ -595,12 +634,11 @@ class Project:
     def lockfile_content(self):
         return self.load_lockfile()
 
-    def get_editable_packages(self, dev=False):
-        section = "dev-packages" if dev else "packages"
+    def get_editable_packages(self, category):
         packages = {
             k: v
-            for k, v in self.parsed_pipfile.get(section, {}).items()
-            if is_editable(k) or is_editable(v)
+            for k, v in self.parsed_pipfile.get(category, {}).items()
+            if is_editable(v)
         }
         return packages
 
@@ -616,39 +654,22 @@ class Project:
         return packages or {}
 
     @property
-    def editable_packages(self):
-        return self.get_editable_packages(dev=False)
-
-    @property
-    def editable_dev_packages(self):
-        return self.get_editable_packages(dev=True)
-
-    @property
-    def vcs_packages(self):
-        """Returns a list of VCS packages."""
-        return self._get_vcs_packages(dev=False)
-
-    @property
-    def vcs_dev_packages(self):
-        """Returns a list of VCS packages."""
-        return self._get_vcs_packages(dev=True)
-
-    @property
     def all_packages(self):
         """Returns a list of all packages."""
-        p = dict(self.parsed_pipfile.get("dev-packages", {}))
-        p.update(self.parsed_pipfile.get("packages", {}))
-        return p
+        packages = {}
+        for category in self.get_package_categories():
+            packages.update(self.parsed_pipfile.get(category, {}))
+        return packages
 
     @property
     def packages(self):
         """Returns a list of packages."""
-        return self._build_package_list("packages")
+        return self.get_pipfile_section("packages")
 
     @property
     def dev_packages(self):
         """Returns a list of dev-packages."""
-        return self._build_package_list("dev-packages")
+        return self.get_pipfile_section("dev-packages")
 
     @property
     def pipfile_is_empty(self):
@@ -688,14 +709,16 @@ class Project:
             else:
                 required_python = self.which("python")
         version = python_version(required_python) or self.s.PIPENV_DEFAULT_PYTHON_VERSION
-        if version and len(version.split(".")) > 2:
+        if version:
             data["requires"] = {"python_version": ".".join(version.split(".")[:2])}
+        if python and version and len(version.split(".")) > 2:
+            data["requires"].update({"python_full_version": version})
         self.write_toml(data)
 
     @classmethod
     def populate_source(cls, source):
         """Derive missing values of source from the existing fields."""
-        # Only URL pararemter is mandatory, let the KeyError be thrown.
+        # Only URL parameter is mandatory, let the KeyError be thrown.
         if "name" not in source:
             source["name"] = get_url_name(source["url"])
         if "verify_ssl" not in source:
@@ -704,17 +727,17 @@ class Project:
             source["verify_ssl"] = str(source["verify_ssl"]).lower() == "true"
         return source
 
-    def get_or_create_lockfile(self, from_pipfile=False):
+    def get_or_create_lockfile(self, categories, from_pipfile=False):
         from pipenv.vendor.requirementslib.models.lockfile import (
             Lockfile as Req_Lockfile,
         )
 
-        lockfile = None
         if from_pipfile and self.pipfile_exists:
-            lockfile_dict = {
-                "default": self._lockfile["default"].copy(),
-                "develop": self._lockfile["develop"].copy(),
-            }
+            lockfile_dict = {}
+            categories = self.get_package_categories(for_lockfile=True)
+            _lockfile = self._lockfile(categories=categories)
+            for category in categories:
+                lockfile_dict[category] = _lockfile.get(category, {}).copy()
             lockfile_dict.update({"_meta": self.get_lockfile_meta()})
             lockfile = Req_Lockfile.from_data(
                 path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
@@ -728,7 +751,9 @@ class Project:
                 )
         else:
             lockfile = Req_Lockfile.from_data(
-                path=self.lockfile_location, data=self._lockfile, meta_from_project=False
+                path=self.lockfile_location,
+                data=self._lockfile(),
+                meta_from_project=False,
             )
         if lockfile._lockfile is not None:
             return lockfile
@@ -736,7 +761,7 @@ class Project:
             lockfile_dict = self.lockfile_content.copy()
             sources = lockfile_dict.get("_meta", {}).get("sources", [])
             if not sources:
-                sources = self.pipfile_sources
+                sources = self.pipfile_sources(expand_vars=False)
             elif not isinstance(sources, list):
                 sources = [sources]
             lockfile_dict["_meta"]["sources"] = [self.populate_source(s) for s in sources]
@@ -746,17 +771,15 @@ class Project:
             lockfile._lockfile = lockfile.projectfile.model = _created_lockfile
             return lockfile
         else:
-            return self.get_or_create_lockfile(from_pipfile=True)
+            return self.get_or_create_lockfile(categories=categories, from_pipfile=True)
 
     def get_lockfile_meta(self):
         from .vendor.plette.lockfiles import PIPFILE_SPEC_CURRENT
 
-        if self.lockfile_exists:
-            sources = self.lockfile_content.get("_meta", {}).get("sources", [])
-        elif "source" in self.parsed_pipfile:
+        if "source" in self.parsed_pipfile:
             sources = [dict(source) for source in self.parsed_pipfile["source"]]
         else:
-            sources = self.pipfile_sources
+            sources = self.pipfile_sources(expand_vars=False)
         if not isinstance(sources, list):
             sources = [sources]
         return {
@@ -770,22 +793,22 @@ class Project:
         """Writes the given data structure out as TOML."""
         if path is None:
             path = self.pipfile_location
-        data = convert_toml_outline_tables(data)
+        data = convert_toml_outline_tables(data, self)
         try:
             formatted_data = tomlkit.dumps(data).rstrip()
         except Exception:
             document = tomlkit.document()
-            for section in ("packages", "dev-packages"):
-                document[section] = tomlkit.table()
+            for category in self.get_package_categories():
+                document[category] = tomlkit.table()
                 # Convert things to inline tables — fancy :)
-                for package in data.get(section, {}):
-                    if hasattr(data[section][package], "keys"):
+                for package in data.get(category, {}):
+                    if hasattr(data[category][package], "keys"):
                         table = tomlkit.inline_table()
-                        table.update(data[section][package])
-                        document[section][package] = table
+                        table.update(data[category][package])
+                        document[category][package] = table
                     else:
-                        document[section][package] = tomlkit.string(
-                            data[section][package]
+                        document[category][package] = tomlkit.string(
+                            data[category][package]
                         )
             formatted_data = tomlkit.dumps(document).rstrip()
 
@@ -812,15 +835,14 @@ class Project:
             if not s.endswith("\n"):
                 f.write("\n")
 
-    @property
-    def pipfile_sources(self):
+    def pipfile_sources(self, expand_vars=True):
         if self.pipfile_is_empty or "source" not in self.parsed_pipfile:
             return [self.default_source]
         # We need to make copies of the source info so we don't
         # accidentally modify the cache. See #2100 where values are
         # written after the os.path.expandvars() call.
         return [
-            {k: safe_expandvars(v) for k, v in source.items()}
+            {k: safe_expandvars(v) if expand_vars else v for k, v in source.items()}
             for source in self.parsed_pipfile["source"]
         ]
 
@@ -833,7 +855,11 @@ class Project:
                 return sources_
 
         else:
-            return self.pipfile_sources
+            return self.pipfile_sources()
+
+    @property
+    def sources_default(self):
+        return self.sources[0]
 
     @property
     def index_urls(self):
@@ -875,7 +901,7 @@ class Project:
             if source is not None:
                 return source
 
-        sources = (self.sources, self.pipfile_sources)
+        sources = (self.sources, self.pipfile_sources())
         if refresh:
             self.clear_pipfile_cache()
             sources = reversed(sources)
@@ -887,42 +913,40 @@ class Project:
             raise SourceNotFound(target)
         return found
 
-    def get_package_name_in_pipfile(self, package_name, dev=False):
+    def get_package_name_in_pipfile(self, package_name, category):
         """Get the equivalent package name in pipfile"""
-        key = "dev-packages" if dev else "packages"
-        section = self.parsed_pipfile.get(key, {})
+        section = self.parsed_pipfile.get(category, {})
         package_name = pep423_name(package_name)
         for name in section.keys():
             if pep423_name(name) == package_name:
                 return name
         return None
 
-    def remove_package_from_pipfile(self, package_name, dev=False):
+    def remove_package_from_pipfile(self, package_name, category):
         # Read and append Pipfile.
-        name = self.get_package_name_in_pipfile(package_name, dev)
-        key = "dev-packages" if dev else "packages"
+        name = self.get_package_name_in_pipfile(package_name, category=category)
         p = self.parsed_pipfile
         if name:
-            del p[key][name]
+            del p[category][name]
             self.write_toml(p)
+            return True
+        return False
 
     def remove_packages_from_pipfile(self, packages):
         parsed = self.parsed_pipfile
         packages = set([pep423_name(pkg) for pkg in packages])
-        for section in ("dev-packages", "packages"):
-            pipfile_section = parsed.get(section, {})
+        for category in self.get_package_categories():
+            pipfile_section = parsed.get(category, {})
             pipfile_packages = set(
                 [pep423_name(pkg_name) for pkg_name in pipfile_section.keys()]
             )
             to_remove = packages & pipfile_packages
-            # The normal toml parser can't handle deleting packages with preceding newlines
-            is_dev = section == "dev-packages"
             for pkg in to_remove:
-                pkg_name = self.get_package_name_in_pipfile(pkg, dev=is_dev)
-                del parsed[section][pkg_name]
+                pkg_name = self.get_package_name_in_pipfile(pkg, category=category)
+                del parsed[category][pkg_name]
         self.write_toml(parsed)
 
-    def add_package_to_pipfile(self, package, dev=False):
+    def add_package_to_pipfile(self, package, dev=False, category=None):
         from .vendor.requirementslib import Requirement
 
         # Read and append Pipfile.
@@ -931,16 +955,16 @@ class Project:
         if not isinstance(package, Requirement):
             package = Requirement.from_line(package.strip())
         req_name, converted = package.pipfile_entry
-        key = "dev-packages" if dev else "packages"
+        category = category if category else "dev-packages" if dev else "packages"
         # Set empty group if it doesn't exist yet.
-        if key not in p:
-            p[key] = {}
-        name = self.get_package_name_in_pipfile(req_name, dev)
+        if category not in p:
+            p[category] = {}
+        name = self.get_package_name_in_pipfile(req_name, category=category)
         if name and is_star(converted):
             # Skip for wildcard version
             return
         # Add the package to the group.
-        p[key][name or pep423_name(req_name)] = converted
+        p[category][name or pep423_name(req_name)] = converted
         # Write Pipfile.
         self.write_toml(p)
 
@@ -987,16 +1011,39 @@ class Project:
             self.write_toml(self.parsed_pipfile)
 
     def load_lockfile(self, expand_env_vars=True):
+        lockfile_modified = False
         with io.open(self.lockfile_location, encoding="utf-8") as lock:
-            j = json.load(lock)
-            self._lockfile_newlines = preferred_newlines(lock)
-        # lockfile is just a string
-        if not j or not hasattr(j, "keys"):
-            return j
+            try:
+                j = json.load(lock)
+                self._lockfile_newlines = preferred_newlines(lock)
+            except JSONDecodeError:
+                click.secho(
+                    "Pipfile.lock is corrupted; ignoring contents.",
+                    fg="yellow",
+                    bold=True,
+                    err=True,
+                )
+                j = {}
+        if not j.get("_meta"):
+            with open(self.pipfile_location) as pf:
+                default_lockfile = plette.Lockfile.with_meta_from(
+                    plette.Pipfile.load(pf), categories=[]
+                )
+                j["_meta"] = default_lockfile._data["_meta"]
+                lockfile_modified = True
+        if j.get("default") is None:
+            j["default"] = {}
+            lockfile_modified = True
+        if j.get("develop") is None:
+            j["develop"] = {}
+            lockfile_modified = True
+
+        if lockfile_modified:
+            self.write_lockfile(j)
 
         if expand_env_vars:
             # Expand environment variables in Pipfile.lock at runtime.
-            for i, _ in enumerate(j["_meta"]["sources"][:]):
+            for i, _ in enumerate(j["_meta"].get("sources", {})):
                 j["_meta"]["sources"][i]["url"] = os.path.expandvars(
                     j["_meta"]["sources"][i]["url"]
                 )
@@ -1013,14 +1060,15 @@ class Project:
             # Lockfile corrupted
             return ""
         if "_meta" in lockfile and hasattr(lockfile, "keys"):
-            return lockfile["_meta"].get("hash", {}).get("sha256")
+            return lockfile["_meta"].get("hash", {}).get("sha256") or ""
         # Lockfile exists but has no hash at all
         return ""
 
     def calculate_pipfile_hash(self):
         # Update the lockfile if it is out-of-date.
-        p = pipfile.load(self.pipfile_location, inject_env=False)
-        return p.hash
+        with open(self.pipfile_location) as pf:
+            p = plette.Pipfile.load(pf)
+        return p.get_hash().value
 
     def ensure_proper_casing(self):
         """Ensures proper casing of Pipfile packages"""

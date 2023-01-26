@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division, print_function
+# SPDX-License-Identifier: MIT
 
 
 class FrozenError(AttributeError):

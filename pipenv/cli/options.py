@@ -2,6 +2,7 @@ import os
 
 from pipenv.project import Project
 from pipenv.utils.internet import is_valid_url
+from pipenv.vendor import click
 from pipenv.vendor.click import (
     BadArgumentUsage,
     BadParameter,
@@ -11,6 +12,7 @@ from pipenv.vendor.click import (
     echo,
     make_pass_decorator,
     option,
+    secho,
 )
 from pipenv.vendor.click import types as click_types
 from pipenv.vendor.click_didyoumean import DYMMixin
@@ -81,12 +83,13 @@ class InstallState:
         self.keep_outdated = False
         self.skip_lock = False
         self.ignore_pipfile = False
-        self.sequential = False
         self.code = False
         self.requirementstxt = None
         self.deploy = False
         self.packages = []
         self.editables = []
+        self.extra_pip_args = []
+        self.categories = []
 
 
 class LockOptions:
@@ -126,26 +129,8 @@ def editable_option(f):
         expose_value=False,
         multiple=True,
         callback=callback,
-        type=click_types.STRING,
+        type=click_types.Path(file_okay=False),
         help="An editable Python package URL or path, often to a VCS repository.",
-    )(f)
-
-
-def sequential_option(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        state.installstate.sequential = value
-        return value
-
-    return option(
-        "--sequential",
-        is_flag=True,
-        default=False,
-        expose_value=False,
-        help="Install dependencies one-at-a-time, instead of concurrently.",
-        callback=callback,
-        type=click_types.BOOL,
-        show_envvar=True,
     )(f)
 
 
@@ -172,6 +157,15 @@ def keep_outdated_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.keep_outdated = value
+        if value:
+            click.secho(
+                "The flag --keep-outdated has been deprecated for removal."
+                "The flag does not respect package resolver results and leads to inconsistent lock files.  "
+                "Please pin relevant requirements in your Pipfile and discontinue use of this flag.",
+                fg="yellow",
+                bold=True,
+                err=True,
+            )
         return value
 
     return option(
@@ -240,6 +234,24 @@ def _dev_option(f, help_text):
     )(f)
 
 
+def categories_option(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        if value:
+            for opt in value.split(" "):
+                state.installstate.categories.append(opt)
+        return value
+
+    return option(
+        "--categories",
+        nargs=1,
+        required=False,
+        callback=callback,
+        expose_value=True,
+        type=click_types.STRING,
+    )(f)
+
+
 def install_dev_option(f):
     return _dev_option(f, "Install both develop and default packages")
 
@@ -286,10 +298,33 @@ def package_arg(f):
     )(f)
 
 
+def extra_pip_args(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        if value:
+            for opt in value.split(" "):
+                state.installstate.extra_pip_args.append(opt)
+        return value
+
+    return option(
+        "--extra-pip-args",
+        nargs=1,
+        required=False,
+        callback=callback,
+        expose_value=True,
+        type=click_types.STRING,
+    )(f)
+
+
 def three_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value is not None:
+            secho(
+                "WARNING: --three is deprecated! pipenv uses python3 by default",
+                err=True,
+                fg="yellow",
+            )
             state.three = value
         return value
 
@@ -297,7 +332,7 @@ def three_option(f):
         "--three",
         is_flag=True,
         default=None,
-        help="Use Python 3 when creating virtualenv.",
+        help="Use Python 3 when creating virtualenv. Deprecated",
         callback=callback,
         expose_value=False,
     )(f)
@@ -454,7 +489,7 @@ def requirementstxt_option(f):
         expose_value=False,
         help="Import a requirements.txt file.",
         callback=callback,
-        type=click_types.STRING,
+        type=click_types.Path(dir_okay=False),
     )(f)
 
 
@@ -495,15 +530,6 @@ def deploy_option(f):
 def setup_verbosity(ctx, param, value):
     if not value:
         return
-    import logging
-
-    loggers = ("pip",)
-    if value == 1:
-        for logger in loggers:
-            logging.getLogger(logger).setLevel(logging.INFO)
-    elif value == -1:
-        for logger in loggers:
-            logging.getLogger(logger).setLevel(logging.CRITICAL)
     ctx.ensure_object(State).project.s.PIPENV_VERBOSITY = value
 
 
@@ -545,11 +571,13 @@ def install_base_options(f):
     f = common_options(f)
     f = pre_option(f)
     f = keep_outdated_option(f)
+    f = extra_pip_args(f)
     return f
 
 
 def uninstall_options(f):
     f = install_base_options(f)
+    f = categories_option(f)
     f = uninstall_dev_option(f)
     f = skip_lock_option(f)
     f = editable_option(f)
@@ -561,13 +589,14 @@ def lock_options(f):
     f = install_base_options(f)
     f = lock_dev_option(f)
     f = dev_only_flag(f)
+    f = categories_option(f)
     return f
 
 
 def sync_options(f):
     f = install_base_options(f)
     f = install_dev_option(f)
-    f = sequential_option(f)
+    f = categories_option(f)
     return f
 
 
