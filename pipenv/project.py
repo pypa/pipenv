@@ -136,8 +136,6 @@ class Project:
         # Load Pip configuration
         self.configuration = Configuration(isolated=False, load_only=None)
         self.configuration.load()
-        print(f"Configuration: {self.configuration}")
-        print(f"Configuration Dictionary: {self.configuration._dictionary}")
         try:
             pip_configured_index = self.configuration.get_value("global.index-url")
         except ConfigurationError:
