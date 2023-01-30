@@ -925,13 +925,13 @@ def resolve(cmd, st, project):
             continue
         err += line
         if is_verbose:
-            st.update(line.rstrip())
+            st.console.print(line.rstrip())
 
     c.wait()
     returncode = c.poll()
     out = c.stdout.read()
     if returncode != 0:
-        st.update(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
+        st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
         echo(out.strip(), err=True)
         if not is_verbose:
             echo(err, err=True)
@@ -1031,7 +1031,7 @@ def venv_resolve_deps(
             # we now download those requirements / make temporary folders to perform
             # dependency resolution on them, so we are including this step inside the
             # spinner context manager for the UX improvement
-            st.update("Building requirements...")
+            st.console.print("Building requirements...")
             deps = convert_deps_to_pip(deps, project, include_index=True)
             constraints = set(deps)
             with tempfile.NamedTemporaryFile(
@@ -1040,14 +1040,16 @@ def venv_resolve_deps(
                 constraints_file.write(str("\n".join(constraints)))
             cmd.append("--constraints-file")
             cmd.append(constraints_file.name)
-            st.update("Resolving dependencies...")
+            st.console.print("Resolving dependencies...")
             c = resolve(cmd, st, project=project)
             if c.returncode == 0:
-                st.update(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                st.console.print(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                 if not project.s.is_verbose() and c.stderr.strip():
                     click.echo(click.style(f"Warning: {c.stderr.strip()}"), err=True)
             else:
-                st.update(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
+                st.console.print(
+                    environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
+                )
                 click.echo(f"Output: {c.stdout.strip()}", err=True)
                 click.echo(f"Error: {c.stderr.strip()}", err=True)
     try:

@@ -259,7 +259,9 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
                 except Exception:
                     err.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed..."))
                 else:
-                    st.update(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                    st.console.print(
+                        environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
+                    )
             # Warn the user of side-effects.
             click.echo(
                 "{0}: Your {1} now contains pinned versions, if your {2} did. \n"
@@ -2305,7 +2307,7 @@ def do_install(
                     os.environ["PIP_USER"] = "0"
                     if "PYTHONHOME" in os.environ:
                         del os.environ["PYTHONHOME"]
-                st.update(f"Resolving {pkg_line}...")
+                st.console.print(f"Resolving {pkg_line}...")
                 try:
                     pkg_requirement = Requirement.from_line(pkg_line)
                 except ValueError as e:
@@ -2316,11 +2318,11 @@ def do_install(
                         )
                     )
                     sys.exit(1)
-                st.update("Installing...")
+                st.console.print("Installing...")
                 try:
                     st.update(f"Installing {pkg_requirement.name}...")
                     if project.s.is_verbose():
-                        st.update(
+                        st.console.print(
                             f"Installing package: {pkg_requirement.as_line(include_hashes=False)}"
                         )
                     c = pip_install(
@@ -2393,18 +2395,8 @@ def do_install(
                     pipfile_sections = "[dev-packages]"
                 else:
                     pipfile_sections = "[packages]"
-                st.update(
-                    "{} {} {} {}{}".format(
-                        click.style("Adding", bold=True),
-                        click.style(f"{pkg_requirement.name}", fg="green", bold=True),
-                        click.style("to Pipfile's", bold=True),
-                        click.style(
-                            pipfile_sections,
-                            fg="yellow",
-                            bold=True,
-                        ),
-                        click.style(fix_utf8("..."), bold=True),
-                    )
+                st.console.print(
+                    f"[bold]Adding [green]{pkg_requirement.name}[/green][/bold] to Pipfile's [yellow]\\{pipfile_sections}[/yellow] ..."
                 )
                 # Add the package to the Pipfile.
                 if index_url:
@@ -2433,7 +2425,7 @@ def do_install(
                         )
                     )
                 # ok has a nice v in front, should do something similir with rich
-                st.update(
+                st.console.print(
                     environments.PIPENV_SPINNER_OK_TEXT.format("Installation Succeeded")
                 )
             # Update project settings with pre preference.

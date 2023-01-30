@@ -1,0 +1,1 @@
+Fix overwriting of output in verbose mode
