@@ -912,7 +912,6 @@ def actually_resolve_deps(
 
 
 def resolve(cmd, st, project):
-    from pipenv._compat import decode_output
     from pipenv.cmdparse import Script
     from pipenv.vendor.click import echo
 
@@ -920,7 +919,6 @@ def resolve(cmd, st, project):
     is_verbose = project.s.is_verbose()
     err = ""
     for line in iter(c.stderr.readline, ""):
-        line = decode_output(line)
         if not line.rstrip():
             continue
         err += line

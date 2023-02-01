@@ -6,7 +6,6 @@ import sys
 
 from vistir.path import normalize_drive
 
-from pipenv._compat import fix_utf8
 from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 from pipenv.utils.shell import env_to_bool, is_env_truthy
 from pipenv.vendor.vistir.misc import _isatty
@@ -427,5 +426,5 @@ def is_in_virtualenv():
     return virtual_env and not (pipenv_active or ignore_virtualenvs)
 
 
-PIPENV_SPINNER_FAIL_TEXT = fix_utf8("✘ {0}") if not PIPENV_HIDE_EMOJIS else "{0}"
-PIPENV_SPINNER_OK_TEXT = fix_utf8("✔ {0}") if not PIPENV_HIDE_EMOJIS else "{0}"
+PIPENV_SPINNER_FAIL_TEXT = "✘ {0}" if not PIPENV_HIDE_EMOJIS else "{0}"
+PIPENV_SPINNER_OK_TEXT = "✔ {0}" if not PIPENV_HIDE_EMOJIS else "{0}"

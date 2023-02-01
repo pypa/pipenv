@@ -4,7 +4,6 @@ from collections import namedtuple
 from traceback import format_tb
 
 from pipenv import environments
-from pipenv._compat import decode_for_output
 from pipenv.vendor import click, vistir
 from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
 
@@ -48,7 +47,7 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
             formatted_lines.append(line)
         # use new exception prettification rules to format exceptions according to
         # UX rules
-        click.echo(decode_for_output(prettify_exc("\n".join(formatted_lines))), err=True)
+        click.echo(prettify_exc("\n".join(formatted_lines)), err=True)
         exception.show()
 
 
@@ -124,14 +123,14 @@ class JSONParseError(PipenvException):
             file = vistir.misc.get_text_stderr()
         message = "{}\n{}".format(
             click.style("Failed parsing JSON results:", bold=True),
-            decode_for_output(self.message.strip(), file),
+            print(self.message.strip(), file=file),
         )
         click.echo(message, err=True)
         if self.error_text:
             click.echo(
                 "{} {}".format(
                     click.style("ERROR TEXT:", bold=True),
-                    decode_for_output(self.error_text, file),
+                    print(self.error_text, file=file),
                 ),
                 err=True,
             )
@@ -146,7 +145,7 @@ class PipenvUsageError(UsageError):
         message = formatted_message.format(msg_prefix, click.style(message, bold=True))
         self.message = message
         extra = kwargs.pop("extra", [])
-        UsageError.__init__(self, decode_for_output(message), ctx)
+        UsageError.__init__(self, message, ctx)
         self.extra = extra
 
     def show(self, file=None):
@@ -185,9 +184,7 @@ class PipenvFileError(FileError):
         message = self.formatted_message.format(
             click.style(f"{filename} not found!", bold=True), message
         )
-        FileError.__init__(
-            self, filename=filename, hint=decode_for_output(message), **kwargs
-        )
+        FileError.__init__(self, filename=filename, hint=message, **kwargs)
         self.extra = extra
 
     def show(self, file=None):
@@ -197,7 +194,7 @@ class PipenvFileError(FileError):
             if isinstance(self.extra, str):
                 self.extra = [self.extra]
             for extra in self.extra:
-                click.echo(decode_for_output(extra, file), file=file)
+                click.echo(extra, file=file)
         click.echo(self.message, file=file)
 
 
@@ -455,6 +452,6 @@ def prettify_exc(error):
                 _, error, info = error.rpartition(split_string)
             errors.append(f"{error} {info}")
     if not errors:
-        return f"{vistir.misc.decode_for_output(error)}"
+        return error
 
     return "\n".join(errors)

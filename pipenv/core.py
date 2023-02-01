@@ -16,7 +16,6 @@ from posixpath import expandvars
 from typing import Dict, List, Optional, Union
 
 from pipenv import environments, exceptions, pep508checker
-from pipenv._compat import fix_utf8
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._internal.network.session import PipSession
@@ -102,7 +101,7 @@ err = rich.console.Console(stderr=True)
 def do_clear(project):
     from pipenv.patched.pip._internal import locations
 
-    click.secho(fix_utf8("Clearing caches..."), bold=True)
+    click.secho("Clearing caches...", bold=True)
     try:
         shutil.rmtree(
             project.s.PIPENV_CACHE_DIR, onerror=vistir.path.handle_remove_readonly
@@ -274,12 +273,7 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
                 )
             )
         else:
-            click.echo(
-                click.style(
-                    fix_utf8("Creating a Pipfile for this project..."), bold=True
-                ),
-                err=True,
-            )
+            click.secho("Creating a Pipfile for this project...", bold=True, err=True)
             # Create the pipfile if it doesn't exist.
             project.create_pipfile(python=python)
     # Validate the Pipfile's contents.
@@ -354,7 +348,7 @@ def ensure_python(project, python=None):
             "{}: Python {} {}".format(
                 click.style("Warning", fg="red", bold=True),
                 click.style(python, fg="cyan"),
-                fix_utf8("was not found on your system..."),
+                "was not found on your system...",
             ),
             err=True,
         )
@@ -414,7 +408,7 @@ def ensure_python(project, python=None):
                             err.print(
                                 environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed...")
                             )
-                            click.echo(fix_utf8("Something went wrong..."), err=True)
+                            click.echo("Something went wrong...", err=True)
                             click.secho(e.err, fg="cyan", err=True)
                         else:
                             console.print(
@@ -497,9 +491,7 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
                 or click.confirm("Use existing virtualenv?", default=True)
             ):
                 abort()
-        click.echo(
-            click.style(fix_utf8("Using existing virtualenv..."), bold=True), err=True
-        )
+        click.echo(click.style("Using existing virtualenv...", bold=True), err=True)
         # Remove the virtualenv.
         cleanup_virtualenv(project, bare=True)
         # Call this function again.
@@ -859,11 +851,7 @@ def do_install_dependencies(
         # Load the lockfile if it exists, or if dev_only is being used.
         if skip_lock or not project.lockfile_exists:
             if not bare:
-                click.echo(
-                    click.style(
-                        fix_utf8("Installing dependencies from Pipfile..."), bold=True
-                    )
-                )
+                click.secho("Installing dependencies from Pipfile...", bold=True)
             # skip_lock should completely bypass the lockfile (broken in 4dac1676)
             lockfile = project.get_or_create_lockfile(
                 categories=categories, from_pipfile=True
@@ -871,15 +859,11 @@ def do_install_dependencies(
         else:
             lockfile = project.get_or_create_lockfile(categories=categories)
             if not bare:
-                click.echo(
-                    click.style(
-                        fix_utf8(
-                            "Installing dependencies from Pipfile.lock ({})...".format(
-                                lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
-                            )
-                        ),
-                        bold=True,
-                    )
+                click.secho(
+                    "Installing dependencies from Pipfile.lock ({})...".format(
+                        lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
+                    ),
+                    bold=True,
                 )
         dev = dev or dev_only
         deps_list = list(
@@ -913,11 +897,7 @@ def do_install_dependencies(
 
         # Iterate over the hopefully-poorly-packaged dependencies...
         if not failed_deps_queue.empty():
-            click.echo(
-                click.style(
-                    fix_utf8("Installing initially failed dependencies..."), bold=True
-                )
-            )
+            click.secho("Installing initially failed dependencies...", bold=True)
             retry_list = []
             while not failed_deps_queue.empty():
                 failed_dep = failed_deps_queue.get()
@@ -973,10 +953,7 @@ def _create_virtualenv_cmd(project, python, site_packages=False):
 def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=None):
     """Creates a virtualenv."""
 
-    click.echo(
-        click.style(fix_utf8("Creating a virtualenv for this project..."), bold=True),
-        err=True,
-    )
+    click.secho("Creating a virtualenv for this project...", bold=True, err=True)
 
     click.echo(
         "Pipfile: " + click.style(project.pipfile_location, fg="yellow", bold=True),
@@ -992,17 +969,14 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         "{0} {1} {3} {2}".format(
             click.style(using_string, bold=True),
             click.style(python, fg="yellow", bold=True),
-            click.style(fix_utf8("to create virtualenv..."), bold=True),
+            click.style("to create virtualenv...", bold=True),
             click.style(f"({python_version(python)})", fg="green"),
         ),
         err=True,
     )
 
     if site_packages:
-        click.echo(
-            click.style(fix_utf8("Making site-packages available..."), bold=True),
-            err=True,
-        )
+        click.secho("Making site-packages available...", bold=True, err=True)
 
     if pypi_mirror:
         pip_config = {"PIP_INDEX_URL": pypi_mirror}
@@ -1160,7 +1134,7 @@ def do_lock(
                 "{} {} {}".format(
                     click.style("Locking"),
                     click.style("[{}]".format(pipfile_category), fg="yellow"),
-                    click.style(fix_utf8("dependencies...")),
+                    click.style("dependencies..."),
                 ),
                 err=True,
             )
@@ -1238,9 +1212,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
 
     if downloads:
         if not bare:
-            click.echo(
-                click.style(fix_utf8("Clearing out downloads directory..."), bold=True)
-            )
+            click.secho("Clearing out downloads directory...", bold=True)
         shutil.rmtree(project.download_location)
         return
 
@@ -1261,7 +1233,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
         return installed
 
     if not bare:
-        click.echo(fix_utf8(f"Found {len(to_remove)} installed package(s), purging..."))
+        click.echo(f"Found {len(to_remove)} installed package(s), purging...")
 
     command = [
         project_python(project, system=allow_global),
@@ -1336,20 +1308,18 @@ def do_init(
                 raise exceptions.DeployException
             elif (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
                 click.secho(
-                    fix_utf8(
-                        "Pipfile.lock ({}) out of date, but installation "
-                        "uses {} re-building lockfile must happen in "
-                        "isolation. Please rebuild lockfile in a virtualenv. "
-                        "Continuing anyway...".format(old_hash[-6:], "--system")
-                    ),
+                    "Pipfile.lock ({}) out of date, but installation "
+                    "uses {} re-building lockfile must happen in "
+                    "isolation. Please rebuild lockfile in a virtualenv. "
+                    "Continuing anyway...".format(old_hash[-6:], "--system"),
                     fg="yellow",
                     err=True,
                 )
             else:
                 if old_hash:
-                    msg = fix_utf8("Pipfile.lock ({0}) out of date, updating to ({1})...")
+                    msg = "Pipfile.lock ({0}) out of date, updating to ({1})..."
                 else:
-                    msg = fix_utf8("Pipfile.lock is corrupted, replaced with ({1})...")
+                    msg = "Pipfile.lock is corrupt, replaced with ({1})..."
                 click.secho(
                     msg.format(old_hash[-6:], new_hash[-6:]),
                     fg="yellow",
@@ -1377,8 +1347,9 @@ def do_init(
                 "See also: --deploy flag.",
             )
         else:
-            click.echo(
-                click.style(fix_utf8("Pipfile.lock not found, creating..."), bold=True),
+            click.secho(
+                "Pipfile.lock not found, creating...",
+                bold=True,
                 err=True,
             )
             do_lock(
@@ -1974,16 +1945,12 @@ def ensure_lockfile(project, keep_outdated=False, pypi_mirror=None):
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
-            click.echo(
-                click.style(
-                    fix_utf8(
-                        "Pipfile.lock ({}) out of date, updating to ({})...".format(
-                            old_hash[-6:], new_hash[-6:]
-                        )
-                    ),
-                    fg="yellow",
-                    bold=True,
+            click.secho(
+                "Pipfile.lock ({}) out of date, updating to ({})...".format(
+                    old_hash[-6:], new_hash[-6:]
                 ),
+                fg="yellow",
+                bold=True,
                 err=True,
             )
             do_lock(project, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
@@ -2170,7 +2137,7 @@ def do_install(
     # Check if the file is remote or not
     if remote:
         click.secho(
-            fix_utf8("Remote requirements file provided! Downloading..."),
+            "Remote requirements file provided! Downloading...",
             bold=True,
             err=True,
         )
@@ -2199,7 +2166,7 @@ def do_install(
     if requirementstxt:
         error, traceback = None, None
         click.secho(
-            fix_utf8("Requirements file provided! Importing into Pipfile..."),
+            "Requirements file provided! Importing into Pipfile...",
             bold=True,
             err=True,
         )
@@ -2295,7 +2262,7 @@ def do_install(
 
         for pkg_line in pkg_list:
             click.secho(
-                fix_utf8(f"Installing {pkg_line}..."),
+                f"Installing {pkg_line}...",
                 fg="green",
                 bold=True,
             )
@@ -2497,13 +2464,9 @@ def do_uninstall(
                 )
             )
             return
-        click.echo(
+        click.secho(
             click.style(
-                fix_utf8(
-                    "Un-installing {}...".format(
-                        click.style("[dev-packages]", fg="yellow")
-                    )
-                ),
+                "Un-installing {}...".format(click.style("[dev-packages]", fg="yellow")),
                 bold=True,
             )
         )
@@ -2530,11 +2493,9 @@ def do_uninstall(
     if all:
         click.echo(
             click.style(
-                fix_utf8(
-                    "Un-installing all {} and {}...".format(
-                        click.style("[dev-packages]", fg="yellow"),
-                        click.style("[packages]", fg="yellow"),
-                    )
+                "Un-installing all {} and {}...".format(
+                    click.style("[dev-packages]", fg="yellow"),
+                    click.style("[packages]", fg="yellow"),
                 ),
                 bold=True,
             )
@@ -2558,7 +2519,7 @@ def do_uninstall(
                         click.style("Removing", fg="cyan"),
                         click.style(package_name, fg="green"),
                         click.style("from", fg="cyan"),
-                        click.style(fix_utf8("Pipfile.lock..."), fg="white"),
+                        click.style("Pipfile.lock...", fg="white"),
                     )
                 )
                 if normalized_name in lockfile[category]:
@@ -2570,9 +2531,7 @@ def do_uninstall(
                 package_name, category=pipfile_category
             ):
                 click.secho(
-                    fix_utf8(
-                        f"Removed {package_name} from Pipfile category {pipfile_category}"
-                    ),
+                    f"Removed {package_name} from Pipfile category {pipfile_category}",
                     fg="green",
                 )
 
@@ -2585,7 +2544,7 @@ def do_uninstall(
             # Uninstall the package.
             if package_name in packages_to_remove:
                 click.secho(
-                    fix_utf8(f"Uninstalling {click.style(package_name)}..."),
+                    f"Uninstalling {click.style(package_name)}...",
                     fg="green",
                     bold=True,
                 )
@@ -2625,7 +2584,7 @@ def do_shell(project, python=False, fancy=False, shell_args=None, pypi_mirror=No
     from .shells import choose_shell
 
     shell = choose_shell(project)
-    click.echo(fix_utf8("Launching subshell in virtual environment..."), err=True)
+    click.echo("Launching subshell in virtual environment...", err=True)
 
     fork_args = (
         project.virtualenv_location,
@@ -2646,10 +2605,8 @@ def do_shell(project, python=False, fancy=False, shell_args=None, pypi_mirror=No
         shell.fork_compat(*fork_args)
     except (AttributeError, ImportError):
         click.echo(
-            fix_utf8(
-                "Compatibility mode not supported. "
-                "Trying to continue as well-configured shell..."
-            ),
+            "Compatibility mode not supported. "
+            "Trying to continue as well-configured shell...",
             err=True,
         )
         shell.fork(*fork_args)
@@ -3272,7 +3229,7 @@ def do_clean(
         else:
             if not bare:
                 click.secho(
-                    fix_utf8(f"Uninstalling {apparent_bad_package}..."),
+                    f"Uninstalling {apparent_bad_package}...",
                     fg="white",
                     bold=True,
                 )
