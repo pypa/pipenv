@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import io
 import logging
 import sys
+import warnings
 import zlib
 from contextlib import contextmanager
 from socket import error as SocketError
@@ -657,9 +658,21 @@ class HTTPResponse(io.IOBase):
 
     # Backwards-compatibility methods for http.client.HTTPResponse
     def getheaders(self):
+        warnings.warn(
+            "HTTPResponse.getheaders() is deprecated and will be removed "
+            "in urllib3 v2.1.0. Instead access HTTPResponse.headers directly.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
         return self.headers
 
     def getheader(self, name, default=None):
+        warnings.warn(
+            "HTTPResponse.getheader() is deprecated and will be removed "
+            "in urllib3 v2.1.0. Instead use HTTPResponse.headers.get(name, default).",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
         return self.headers.get(name, default)
 
     # Backwards compatibility for http.cookiejar

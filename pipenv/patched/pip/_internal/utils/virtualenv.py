@@ -19,7 +19,7 @@ def _running_under_venv() -> bool:
     return sys.prefix != getattr(sys, "base_prefix", sys.prefix)
 
 
-def _running_under_regular_virtualenv() -> bool:
+def _running_under_legacy_virtualenv() -> bool:
     """Checks if sys.real_prefix is set.
 
     This handles virtual environments created with pypa's virtualenv.
@@ -29,8 +29,8 @@ def _running_under_regular_virtualenv() -> bool:
 
 
 def running_under_virtualenv() -> bool:
-    """Return True if we're running inside a virtualenv, False otherwise."""
-    return _running_under_venv() or _running_under_regular_virtualenv()
+    """True if we're running inside a virtual environment, False otherwise."""
+    return _running_under_venv() or _running_under_legacy_virtualenv()
 
 
 def _get_pyvenv_cfg_lines() -> Optional[List[str]]:
@@ -77,7 +77,7 @@ def _no_global_under_venv() -> bool:
     return False
 
 
-def _no_global_under_regular_virtualenv() -> bool:
+def _no_global_under_legacy_virtualenv() -> bool:
     """Check if "no-global-site-packages.txt" exists beside site.py
 
     This mirrors logic in pypa/virtualenv for determining whether system
@@ -98,7 +98,7 @@ def virtualenv_no_global() -> bool:
     if _running_under_venv():
         return _no_global_under_venv()
 
-    if _running_under_regular_virtualenv():
-        return _no_global_under_regular_virtualenv()
+    if _running_under_legacy_virtualenv():
+        return _no_global_under_legacy_virtualenv()
 
     return False

@@ -354,7 +354,7 @@ def _get_index_content(link: Link, *, session: PipSession) -> Optional["IndexCon
         if not url.endswith("/"):
             url += "/"
         # TODO: In the future, it would be nice if pip supported PEP 691
-        #       style respones in the file:// URLs, however there's no
+        #       style responses in the file:// URLs, however there's no
         #       standard file extension for application/vnd.pypi.simple.v1+json
         #       so we'll need to come up with something on our own.
         url = urllib.parse.urljoin(url, "index.html")

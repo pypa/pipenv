@@ -25,6 +25,7 @@
 # 02110-1301  USA
 ######################### END LICENSE BLOCK #########################
 
+from typing import List, Tuple, Union
 
 # This is hiragana 2-char sequence table, the number in each cell represents its frequency category
 # fmt: off
@@ -123,15 +124,15 @@ class JapaneseContextAnalysis:
     MAX_REL_THRESHOLD = 1000
     MINIMUM_DATA_THRESHOLD = 4
 
-    def __init__(self):
-        self._total_rel = None
-        self._rel_sample = None
-        self._need_to_skip_char_num = None
-        self._last_char_order = None
-        self._done = None
+    def __init__(self) -> None:
+        self._total_rel = 0
+        self._rel_sample: List[int] = []
+        self._need_to_skip_char_num = 0
+        self._last_char_order = -1
+        self._done = False
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         self._total_rel = 0  # total sequence received
         # category counters, each integer counts sequence in its category
         self._rel_sample = [0] * self.NUM_OF_CATEGORY
@@ -143,7 +144,7 @@ class JapaneseContextAnalysis:
         # been made
         self._done = False
 
-    def feed(self, byte_str, num_bytes):
+    def feed(self, byte_str: Union[bytes, bytearray], num_bytes: int) -> None:
         if self._done:
             return
 
@@ -172,29 +173,29 @@ class JapaneseContextAnalysis:
                     ] += 1
                 self._last_char_order = order
 
-    def got_enough_data(self):
+    def got_enough_data(self) -> bool:
         return self._total_rel > self.ENOUGH_REL_THRESHOLD
 
-    def get_confidence(self):
+    def get_confidence(self) -> float:
         # This is just one way to calculate confidence. It works well for me.
         if self._total_rel > self.MINIMUM_DATA_THRESHOLD:
             return (self._total_rel - self._rel_sample[0]) / self._total_rel
         return self.DONT_KNOW
 
-    def get_order(self, _):
+    def get_order(self, _: Union[bytes, bytearray]) -> Tuple[int, int]:
         return -1, 1
 
 
 class SJISContextAnalysis(JapaneseContextAnalysis):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._charset_name = "SHIFT_JIS"
 
     @property
-    def charset_name(self):
+    def charset_name(self) -> str:
         return self._charset_name
 
-    def get_order(self, byte_str):
+    def get_order(self, byte_str: Union[bytes, bytearray]) -> Tuple[int, int]:
         if not byte_str:
             return -1, 1
         # find out current char's byte length
@@ -216,7 +217,7 @@ class SJISContextAnalysis(JapaneseContextAnalysis):
 
 
 class EUCJPContextAnalysis(JapaneseContextAnalysis):
-    def get_order(self, byte_str):
+    def get_order(self, byte_str: Union[bytes, bytearray]) -> Tuple[int, int]:
         if not byte_str:
             return -1, 1
         # find out current char's byte length

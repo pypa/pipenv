@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ctypes
 import os
+import sys
 from functools import lru_cache
 from typing import Callable
 
@@ -132,7 +133,8 @@ def get_win_folder_from_registry(csidl_name: str) -> str:
     }.get(csidl_name)
     if shell_folder_name is None:
         raise ValueError(f"Unknown CSIDL name: {csidl_name}")
-
+    if sys.platform != "win32":  # only needed for mypy type checker to know that this code runs only on Windows
+        raise NotImplementedError
     import winreg
 
     key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders")

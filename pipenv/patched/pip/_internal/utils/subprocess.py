@@ -239,8 +239,8 @@ def call_subprocess(
 def runner_with_spinner_message(message: str) -> Callable[..., None]:
     """Provide a subprocess_runner that shows a spinner message.
 
-    Intended for use with for pep517's Pep517HookCaller. Thus, the runner has
-    an API that matches what's expected by Pep517HookCaller.subprocess_runner.
+    Intended for use with for BuildBackendHookCaller. Thus, the runner has
+    an API that matches what's expected by BuildBackendHookCaller.subprocess_runner.
     """
 
     def runner(

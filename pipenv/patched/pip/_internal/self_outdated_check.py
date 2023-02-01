@@ -133,7 +133,7 @@ class UpgradePrompt:
         return Group(
             Text(),
             Text.from_markup(
-                f"{notice} A new release of pip available: "
+                f"{notice} A new release of pip is available: "
                 f"[red]{self.old}[reset] -> [green]{self.new}[reset]"
             ),
             Text.from_markup(
@@ -155,7 +155,7 @@ def was_installed_by_pip(pkg: str) -> bool:
 
 def _get_current_remote_pip_version(
     session: PipSession, options: optparse.Values
-) -> str:
+) -> Optional[str]:
     # Lets use PackageFinder to see what the latest pip version is
     link_collector = LinkCollector.create(
         session,
@@ -176,7 +176,7 @@ def _get_current_remote_pip_version(
     )
     best_candidate = finder.find_best_candidate("pip").best_candidate
     if best_candidate is None:
-        return
+        return None
 
     return str(best_candidate.version)
 
@@ -186,11 +186,14 @@ def _self_version_check_logic(
     state: SelfCheckState,
     current_time: datetime.datetime,
     local_version: DistributionVersion,
-    get_remote_version: Callable[[], str],
+    get_remote_version: Callable[[], Optional[str]],
 ) -> Optional[UpgradePrompt]:
     remote_version_str = state.get(current_time)
     if remote_version_str is None:
         remote_version_str = get_remote_version()
+        if remote_version_str is None:
+            logger.debug("No remote pip version found")
+            return None
         state.set(remote_version_str, current_time)
 
     remote_version = parse_version(remote_version_str)

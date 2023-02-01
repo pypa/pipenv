@@ -25,6 +25,7 @@
 # 02110-1301  USA
 ######################### END LICENSE BLOCK #########################
 
+from .codingstatemachinedict import CodingStateMachineDict
 from .enums import MachineState
 
 # BIG5
@@ -74,7 +75,7 @@ BIG5_ST = (
 
 BIG5_CHAR_LEN_TABLE = (0, 1, 1, 2, 0)
 
-BIG5_SM_MODEL = {
+BIG5_SM_MODEL: CodingStateMachineDict = {
     "class_table": BIG5_CLS,
     "class_factor": 5,
     "state_table": BIG5_ST,
@@ -117,7 +118,7 @@ CP949_ST = (
 
 CP949_CHAR_LEN_TABLE = (0, 1, 2, 0, 1, 1, 2, 2, 0, 2)
 
-CP949_SM_MODEL = {
+CP949_SM_MODEL: CodingStateMachineDict = {
     "class_table": CP949_CLS,
     "class_factor": 10,
     "state_table": CP949_ST,
@@ -173,7 +174,7 @@ EUCJP_ST = (
 
 EUCJP_CHAR_LEN_TABLE = (2, 2, 2, 3, 1, 0)
 
-EUCJP_SM_MODEL = {
+EUCJP_SM_MODEL: CodingStateMachineDict = {
     "class_table": EUCJP_CLS,
     "class_factor": 6,
     "state_table": EUCJP_ST,
@@ -226,7 +227,7 @@ EUCKR_ST = (
 
 EUCKR_CHAR_LEN_TABLE = (0, 1, 2, 0)
 
-EUCKR_SM_MODEL = {
+EUCKR_SM_MODEL: CodingStateMachineDict = {
     "class_table": EUCKR_CLS,
     "class_factor": 4,
     "state_table": EUCKR_ST,
@@ -283,7 +284,7 @@ JOHAB_ST = (
 
 JOHAB_CHAR_LEN_TABLE = (0, 1, 1, 1, 1, 0, 0, 2, 2, 2)
 
-JOHAB_SM_MODEL = {
+JOHAB_SM_MODEL: CodingStateMachineDict = {
     "class_table": JOHAB_CLS,
     "class_factor": 10,
     "state_table": JOHAB_ST,
@@ -340,7 +341,7 @@ EUCTW_ST = (
 
 EUCTW_CHAR_LEN_TABLE = (0, 0, 1, 2, 2, 2, 3)
 
-EUCTW_SM_MODEL = {
+EUCTW_SM_MODEL: CodingStateMachineDict = {
     "class_table": EUCTW_CLS,
     "class_factor": 7,
     "state_table": EUCTW_ST,
@@ -402,7 +403,7 @@ GB2312_ST = (
 # 2 here.
 GB2312_CHAR_LEN_TABLE = (0, 1, 1, 1, 1, 1, 2)
 
-GB2312_SM_MODEL = {
+GB2312_SM_MODEL: CodingStateMachineDict = {
     "class_table": GB2312_CLS,
     "class_factor": 7,
     "state_table": GB2312_ST,
@@ -458,7 +459,7 @@ SJIS_ST = (
 
 SJIS_CHAR_LEN_TABLE = (0, 1, 1, 2, 0, 0)
 
-SJIS_SM_MODEL = {
+SJIS_SM_MODEL: CodingStateMachineDict = {
     "class_table": SJIS_CLS,
     "class_factor": 6,
     "state_table": SJIS_ST,
@@ -516,7 +517,7 @@ UCS2BE_ST  = (
 
 UCS2BE_CHAR_LEN_TABLE = (2, 2, 2, 0, 2, 2)
 
-UCS2BE_SM_MODEL = {
+UCS2BE_SM_MODEL: CodingStateMachineDict = {
     "class_table": UCS2BE_CLS,
     "class_factor": 6,
     "state_table": UCS2BE_ST,
@@ -574,7 +575,7 @@ UCS2LE_ST = (
 
 UCS2LE_CHAR_LEN_TABLE = (2, 2, 2, 2, 2, 2)
 
-UCS2LE_SM_MODEL = {
+UCS2LE_SM_MODEL: CodingStateMachineDict = {
     "class_table": UCS2LE_CLS,
     "class_factor": 6,
     "state_table": UCS2LE_ST,
@@ -651,7 +652,7 @@ UTF8_ST = (
 
 UTF8_CHAR_LEN_TABLE = (0, 1, 0, 0, 0, 0, 2, 3, 3, 3, 4, 4, 5, 5, 6, 6)
 
-UTF8_SM_MODEL = {
+UTF8_SM_MODEL: CodingStateMachineDict = {
     "class_table": UTF8_CLS,
     "class_factor": 16,
     "state_table": UTF8_ST,

@@ -38,7 +38,7 @@ class InstallationReport:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "version": "0",
+            "version": "1",
             "pip_version": __version__,
             "install": [
                 self._install_req_to_dict(ireq) for ireq in self._install_requirements

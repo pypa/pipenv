@@ -15,12 +15,18 @@ If no paths are provided, it takes its input from stdin.
 
 import argparse
 import sys
+from typing import Iterable, List, Optional
 
 from .. import __version__
 from ..universaldetector import UniversalDetector
 
 
-def description_of(lines, name="stdin"):
+def description_of(
+    lines: Iterable[bytes],
+    name: str = "stdin",
+    minimal: bool = False,
+    should_rename_legacy: bool = False,
+) -> Optional[str]:
     """
     Return a string describing the probable encoding of a file or
     list of strings.
@@ -29,8 +35,11 @@ def description_of(lines, name="stdin"):
     :type lines: Iterable of bytes
     :param name: Name of file or collection of lines
     :type name: str
+    :param should_rename_legacy:  Should we rename legacy encodings to
+                                  their more modern equivalents?
+    :type should_rename_legacy:   ``bool``
     """
-    u = UniversalDetector()
+    u = UniversalDetector(should_rename_legacy=should_rename_legacy)
     for line in lines:
         line = bytearray(line)
         u.feed(line)
@@ -39,12 +48,14 @@ def description_of(lines, name="stdin"):
             break
     u.close()
     result = u.result
+    if minimal:
+        return result["encoding"]
     if result["encoding"]:
         return f'{name}: {result["encoding"]} with confidence {result["confidence"]}'
     return f"{name}: no result"
 
 
-def main(argv=None):
+def main(argv: Optional[List[str]] = None) -> None:
     """
     Handles command line arguments and gets things started.
 
@@ -54,16 +65,27 @@ def main(argv=None):
     """
     # Get command line arguments
     parser = argparse.ArgumentParser(
-        description="Takes one or more file paths and reports their detected \
-                     encodings"
+        description=(
+            "Takes one or more file paths and reports their detected encodings"
+        )
     )
     parser.add_argument(
         "input",
-        help="File whose encoding we would like to determine. \
-                              (default: stdin)",
+        help="File whose encoding we would like to determine. (default: stdin)",
         type=argparse.FileType("rb"),
         nargs="*",
         default=[sys.stdin.buffer],
+    )
+    parser.add_argument(
+        "--minimal",
+        help="Print only the encoding to standard output",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-l",
+        "--legacy",
+        help="Rename legacy encodings to more modern ones.",
+        action="store_true",
     )
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
@@ -79,7 +101,11 @@ def main(argv=None):
                 "--help\n",
                 file=sys.stderr,
             )
-        print(description_of(f, f.name))
+        print(
+            description_of(
+                f, f.name, minimal=args.minimal, should_rename_legacy=args.legacy
+            )
+        )
 
 
 if __name__ == "__main__":

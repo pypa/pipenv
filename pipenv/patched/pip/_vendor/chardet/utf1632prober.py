@@ -18,6 +18,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301  USA
 ######################### END LICENSE BLOCK #########################
+from typing import List, Union
+
 from .charsetprober import CharSetProber
 from .enums import ProbingState
 
@@ -36,7 +38,7 @@ class UTF1632Prober(CharSetProber):
     # a fixed constant ratio of expected zeros or non-zeros in modulo-position.
     EXPECTED_RATIO = 0.94
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.position = 0
         self.zeros_at_mod = [0] * 4
@@ -51,7 +53,7 @@ class UTF1632Prober(CharSetProber):
         self.first_half_surrogate_pair_detected_16le = False
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         super().reset()
         self.position = 0
         self.zeros_at_mod = [0] * 4
@@ -66,7 +68,7 @@ class UTF1632Prober(CharSetProber):
         self.quad = [0, 0, 0, 0]
 
     @property
-    def charset_name(self):
+    def charset_name(self) -> str:
         if self.is_likely_utf32be():
             return "utf-32be"
         if self.is_likely_utf32le():
@@ -79,16 +81,16 @@ class UTF1632Prober(CharSetProber):
         return "utf-16"
 
     @property
-    def language(self):
+    def language(self) -> str:
         return ""
 
-    def approx_32bit_chars(self):
+    def approx_32bit_chars(self) -> float:
         return max(1.0, self.position / 4.0)
 
-    def approx_16bit_chars(self):
+    def approx_16bit_chars(self) -> float:
         return max(1.0, self.position / 2.0)
 
-    def is_likely_utf32be(self):
+    def is_likely_utf32be(self) -> bool:
         approx_chars = self.approx_32bit_chars()
         return approx_chars >= self.MIN_CHARS_FOR_DETECTION and (
             self.zeros_at_mod[0] / approx_chars > self.EXPECTED_RATIO
@@ -98,7 +100,7 @@ class UTF1632Prober(CharSetProber):
             and not self.invalid_utf32be
         )
 
-    def is_likely_utf32le(self):
+    def is_likely_utf32le(self) -> bool:
         approx_chars = self.approx_32bit_chars()
         return approx_chars >= self.MIN_CHARS_FOR_DETECTION and (
             self.nonzeros_at_mod[0] / approx_chars > self.EXPECTED_RATIO
@@ -108,7 +110,7 @@ class UTF1632Prober(CharSetProber):
             and not self.invalid_utf32le
         )
 
-    def is_likely_utf16be(self):
+    def is_likely_utf16be(self) -> bool:
         approx_chars = self.approx_16bit_chars()
         return approx_chars >= self.MIN_CHARS_FOR_DETECTION and (
             (self.nonzeros_at_mod[1] + self.nonzeros_at_mod[3]) / approx_chars
@@ -118,7 +120,7 @@ class UTF1632Prober(CharSetProber):
             and not self.invalid_utf16be
         )
 
-    def is_likely_utf16le(self):
+    def is_likely_utf16le(self) -> bool:
         approx_chars = self.approx_16bit_chars()
         return approx_chars >= self.MIN_CHARS_FOR_DETECTION and (
             (self.nonzeros_at_mod[0] + self.nonzeros_at_mod[2]) / approx_chars
@@ -128,7 +130,7 @@ class UTF1632Prober(CharSetProber):
             and not self.invalid_utf16le
         )
 
-    def validate_utf32_characters(self, quad):
+    def validate_utf32_characters(self, quad: List[int]) -> None:
         """
         Validate if the quad of bytes is valid UTF-32.
 
@@ -150,7 +152,7 @@ class UTF1632Prober(CharSetProber):
         ):
             self.invalid_utf32le = True
 
-    def validate_utf16_characters(self, pair):
+    def validate_utf16_characters(self, pair: List[int]) -> None:
         """
         Validate if the pair of bytes is  valid UTF-16.
 
@@ -182,7 +184,7 @@ class UTF1632Prober(CharSetProber):
             else:
                 self.invalid_utf16le = True
 
-    def feed(self, byte_str):
+    def feed(self, byte_str: Union[bytes, bytearray]) -> ProbingState:
         for c in byte_str:
             mod4 = self.position % 4
             self.quad[mod4] = c
@@ -198,7 +200,7 @@ class UTF1632Prober(CharSetProber):
         return self.state
 
     @property
-    def state(self):
+    def state(self) -> ProbingState:
         if self._state in {ProbingState.NOT_ME, ProbingState.FOUND_IT}:
             # terminal, decided states
             return self._state
@@ -210,7 +212,7 @@ class UTF1632Prober(CharSetProber):
             self._state = ProbingState.NOT_ME
         return self._state
 
-    def get_confidence(self):
+    def get_confidence(self) -> float:
         return (
             0.85
             if (

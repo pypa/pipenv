@@ -103,17 +103,28 @@ class ArchiveInfo:
     def __init__(
         self,
         hash: Optional[str] = None,
+        hashes: Optional[Dict[str, str]] = None,
     ) -> None:
+        if hash is not None:
+            # Auto-populate the hashes key to upgrade to the new format automatically.
+            # We don't back-populate the legacy hash key.
+            hash_name, hash_value = hash.split("=", 1)
+            if hashes is None:
+                hashes = {hash_name: hash_value}
+            elif hash_name not in hash:
+                hashes = hashes.copy()
+                hashes[hash_name] = hash_value
         self.hash = hash
+        self.hashes = hashes
 
     @classmethod
     def _from_dict(cls, d: Optional[Dict[str, Any]]) -> Optional["ArchiveInfo"]:
         if d is None:
             return None
-        return cls(hash=_get(d, str, "hash"))
+        return cls(hash=_get(d, str, "hash"), hashes=_get(d, dict, "hashes"))
 
     def _to_dict(self) -> Dict[str, Any]:
-        return _filter_none(hash=self.hash)
+        return _filter_none(hash=self.hash, hashes=self.hashes)
 
 
 class DirInfo:

@@ -3,7 +3,7 @@
 
 import os
 
-from pipenv.patched.pip._vendor.pep517.wrappers import Pep517HookCaller
+from pipenv.patched.pip._vendor.pyproject_hooks import BuildBackendHookCaller
 
 from pipenv.patched.pip._internal.build_env import BuildEnvironment
 from pipenv.patched.pip._internal.exceptions import (
@@ -15,7 +15,7 @@ from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 
 
 def generate_editable_metadata(
-    build_env: BuildEnvironment, backend: Pep517HookCaller, details: str
+    build_env: BuildEnvironment, backend: BuildBackendHookCaller, details: str
 ) -> str:
     """Generate metadata using mechanisms described in PEP 660.
 
@@ -26,7 +26,7 @@ def generate_editable_metadata(
     metadata_dir = metadata_tmpdir.path
 
     with build_env:
-        # Note that Pep517HookCaller implements a fallback for
+        # Note that BuildBackendHookCaller implements a fallback for
         # prepare_metadata_for_build_wheel/editable, so we don't have to
         # consider the possibility that this hook doesn't exist.
         runner = runner_with_spinner_message(

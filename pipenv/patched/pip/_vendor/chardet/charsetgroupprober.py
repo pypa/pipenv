@@ -25,29 +25,30 @@
 # 02110-1301  USA
 ######################### END LICENSE BLOCK #########################
 
+from typing import List, Optional, Union
+
 from .charsetprober import CharSetProber
-from .enums import ProbingState
+from .enums import LanguageFilter, ProbingState
 
 
 class CharSetGroupProber(CharSetProber):
-    def __init__(self, lang_filter=None):
+    def __init__(self, lang_filter: LanguageFilter = LanguageFilter.NONE) -> None:
         super().__init__(lang_filter=lang_filter)
         self._active_num = 0
-        self.probers = []
-        self._best_guess_prober = None
+        self.probers: List[CharSetProber] = []
+        self._best_guess_prober: Optional[CharSetProber] = None
 
-    def reset(self):
+    def reset(self) -> None:
         super().reset()
         self._active_num = 0
         for prober in self.probers:
-            if prober:
-                prober.reset()
-                prober.active = True
-                self._active_num += 1
+            prober.reset()
+            prober.active = True
+            self._active_num += 1
         self._best_guess_prober = None
 
     @property
-    def charset_name(self):
+    def charset_name(self) -> Optional[str]:
         if not self._best_guess_prober:
             self.get_confidence()
             if not self._best_guess_prober:
@@ -55,17 +56,15 @@ class CharSetGroupProber(CharSetProber):
         return self._best_guess_prober.charset_name
 
     @property
-    def language(self):
+    def language(self) -> Optional[str]:
         if not self._best_guess_prober:
             self.get_confidence()
             if not self._best_guess_prober:
                 return None
         return self._best_guess_prober.language
 
-    def feed(self, byte_str):
+    def feed(self, byte_str: Union[bytes, bytearray]) -> ProbingState:
         for prober in self.probers:
-            if not prober:
-                continue
             if not prober.active:
                 continue
             state = prober.feed(byte_str)
@@ -83,7 +82,7 @@ class CharSetGroupProber(CharSetProber):
                     return self.state
         return self.state
 
-    def get_confidence(self):
+    def get_confidence(self) -> float:
         state = self.state
         if state == ProbingState.FOUND_IT:
             return 0.99
@@ -92,8 +91,6 @@ class CharSetGroupProber(CharSetProber):
         best_conf = 0.0
         self._best_guess_prober = None
         for prober in self.probers:
-            if not prober:
-                continue
             if not prober.active:
                 self.logger.debug("%s not active", prober.charset_name)
                 continue

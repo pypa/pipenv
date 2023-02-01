@@ -25,6 +25,7 @@
 # 02110-1301  USA
 ######################### END LICENSE BLOCK #########################
 
+from .codingstatemachinedict import CodingStateMachineDict
 from .enums import MachineState
 
 # fmt: off
@@ -75,7 +76,7 @@ MachineState.ITS_ME, MachineState.ITS_ME, MachineState.ERROR, MachineState.ERROR
 
 HZ_CHAR_LEN_TABLE = (0, 0, 0, 0, 0, 0)
 
-HZ_SM_MODEL = {
+HZ_SM_MODEL: CodingStateMachineDict = {
     "class_table": HZ_CLS,
     "class_factor": 6,
     "state_table": HZ_ST,
@@ -134,7 +135,7 @@ ISO2022CN_ST = (
 
 ISO2022CN_CHAR_LEN_TABLE = (0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-ISO2022CN_SM_MODEL = {
+ISO2022CN_SM_MODEL: CodingStateMachineDict = {
     "class_table": ISO2022CN_CLS,
     "class_factor": 9,
     "state_table": ISO2022CN_ST,
@@ -194,7 +195,7 @@ ISO2022JP_ST = (
 
 ISO2022JP_CHAR_LEN_TABLE = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-ISO2022JP_SM_MODEL = {
+ISO2022JP_SM_MODEL: CodingStateMachineDict = {
     "class_table": ISO2022JP_CLS,
     "class_factor": 10,
     "state_table": ISO2022JP_ST,
@@ -250,7 +251,7 @@ ISO2022KR_ST = (
 
 ISO2022KR_CHAR_LEN_TABLE = (0, 0, 0, 0, 0, 0)
 
-ISO2022KR_SM_MODEL = {
+ISO2022KR_SM_MODEL: CodingStateMachineDict = {
     "class_table": ISO2022KR_CLS,
     "class_factor": 6,
     "state_table": ISO2022KR_ST,
