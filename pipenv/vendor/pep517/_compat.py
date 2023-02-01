@@ -5,4 +5,4 @@ import sys
 if sys.version_info >= (3, 11):
     import tomllib
 else:
-    import tomli as tomllib
+    from pipenv.patched.pip._vendor import tomli as tomllib
