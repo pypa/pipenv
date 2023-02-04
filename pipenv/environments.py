@@ -76,7 +76,9 @@ os.environ.pop("__PYVENV_LAUNCHER__", None)
 SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
 
 # TF_BUILD indicates to Azure pipelines it is a build step
-PIPENV_IS_CI = is_env_truthy("CI") or is_env_truthy("TF_BUILD")
+PIPENV_IS_CI = get_from_env("CI", prefix="", check_for_negation=False) or is_env_truthy(
+    "TF_BUILD"
+)
 
 
 NO_COLOR = False
