@@ -1468,7 +1468,7 @@ def write_requirement_to_file(
         click.echo(
             f"Writing supplied requirement line to temporary file: {line!r}", err=True
         )
-    f.write(line)
+    f.write(line.encode())
     r = f.name
     f.close()
     return r
@@ -1661,8 +1661,8 @@ def pip_install_deps(
                 err=True,
             )
         target = editable_requirements if vcs_or_editable else standard_requirements
-        target.write(line)
-        target.write("\n")
+        target.write(line.encode())
+        target.write(b"\n")
     standard_requirements.close()
     editable_requirements.close()
 

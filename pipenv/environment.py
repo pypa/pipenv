@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import importlib
 import importlib.util
@@ -7,6 +9,7 @@ import operator
 import os
 import site
 import sys
+import typing
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
 
@@ -17,7 +20,6 @@ from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.req.req_uninstall import UninstallPathSet
 from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.utils.constants import is_type_checking
 from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
@@ -32,7 +34,7 @@ except ImportError:
     from pipenv.patched.pip._vendor.distlib.util import cached_property
 
 
-if is_type_checking():
+if typing.TYPE_CHECKING:
     from types import ModuleType
     from typing import ContextManager, Dict, Generator, List, Optional, Set, Union
 

@@ -1,9 +1,12 @@
 """
 A small collection of useful functional tools for working with iterables.
-"""
-from functools import islice, partial, tee
 
-from typings import Any, Iterable
+This module should be in requirementslib. Once we release a new version of requirementslib
+we can remove this file and use the one in requirementslib.
+"""
+from functools import partial
+from itertools import islice, tee
+from typing import Any, Iterable
 
 
 def _is_iterable(elem: Any) -> bool:
