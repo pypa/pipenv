@@ -27,6 +27,7 @@
 
 import logging
 
+from .codingstatemachinedict import CodingStateMachineDict
 from .enums import MachineState
 
 
@@ -53,18 +54,19 @@ class CodingStateMachine:
                  encoding from consideration from here on.
     """
 
-    def __init__(self, sm):
+    def __init__(self, sm: CodingStateMachineDict) -> None:
         self._model = sm
         self._curr_byte_pos = 0
         self._curr_char_len = 0
-        self._curr_state = None
+        self._curr_state = MachineState.START
+        self.active = True
         self.logger = logging.getLogger(__name__)
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         self._curr_state = MachineState.START
 
-    def next_state(self, c):
+    def next_state(self, c: int) -> int:
         # for each byte we get its class
         # if it is first byte, we also get byte length
         byte_class = self._model["class_table"][c]
@@ -77,12 +79,12 @@ class CodingStateMachine:
         self._curr_byte_pos += 1
         return self._curr_state
 
-    def get_current_charlen(self):
+    def get_current_charlen(self) -> int:
         return self._curr_char_len
 
-    def get_coding_state_machine(self):
+    def get_coding_state_machine(self) -> str:
         return self._model["name"]
 
     @property
-    def language(self):
+    def language(self) -> str:
         return self._model["language"]

@@ -39,12 +39,16 @@ class a user of ``chardet`` should use.
 import codecs
 import logging
 import re
+from typing import List, Optional, Union
 
 from .charsetgroupprober import CharSetGroupProber
+from .charsetprober import CharSetProber
 from .enums import InputState, LanguageFilter, ProbingState
 from .escprober import EscCharSetProber
 from .latin1prober import Latin1Prober
+from .macromanprober import MacRomanProber
 from .mbcsgroupprober import MBCSGroupProber
+from .resultdict import ResultDict
 from .sbcsgroupprober import SBCSGroupProber
 from .utf1632prober import UTF1632Prober
 
@@ -80,34 +84,55 @@ class UniversalDetector:
         "iso-8859-9": "Windows-1254",
         "iso-8859-13": "Windows-1257",
     }
+    # Based on https://encoding.spec.whatwg.org/#names-and-labels
+    # but altered to match Python names for encodings and remove mappings
+    # that break tests.
+    LEGACY_MAP = {
+        "ascii": "Windows-1252",
+        "iso-8859-1": "Windows-1252",
+        "tis-620": "ISO-8859-11",
+        "iso-8859-9": "Windows-1254",
+        "gb2312": "GB18030",
+        "euc-kr": "CP949",
+        "utf-16le": "UTF-16",
+    }
 
-    def __init__(self, lang_filter=LanguageFilter.ALL):
-        self._esc_charset_prober = None
-        self._utf1632_prober = None
-        self._charset_probers = []
-        self.result = None
-        self.done = None
-        self._got_data = None
-        self._input_state = None
-        self._last_char = None
+    def __init__(
+        self,
+        lang_filter: LanguageFilter = LanguageFilter.ALL,
+        should_rename_legacy: bool = False,
+    ) -> None:
+        self._esc_charset_prober: Optional[EscCharSetProber] = None
+        self._utf1632_prober: Optional[UTF1632Prober] = None
+        self._charset_probers: List[CharSetProber] = []
+        self.result: ResultDict = {
+            "encoding": None,
+            "confidence": 0.0,
+            "language": None,
+        }
+        self.done = False
+        self._got_data = False
+        self._input_state = InputState.PURE_ASCII
+        self._last_char = b""
         self.lang_filter = lang_filter
         self.logger = logging.getLogger(__name__)
-        self._has_win_bytes = None
+        self._has_win_bytes = False
+        self.should_rename_legacy = should_rename_legacy
         self.reset()
 
     @property
-    def input_state(self):
+    def input_state(self) -> int:
         return self._input_state
 
     @property
-    def has_win_bytes(self):
+    def has_win_bytes(self) -> bool:
         return self._has_win_bytes
 
     @property
-    def charset_probers(self):
+    def charset_probers(self) -> List[CharSetProber]:
         return self._charset_probers
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Reset the UniversalDetector and all of its probers back to their
         initial states.  This is called by ``__init__``, so you only need to
@@ -126,7 +151,7 @@ class UniversalDetector:
         for prober in self._charset_probers:
             prober.reset()
 
-    def feed(self, byte_str):
+    def feed(self, byte_str: Union[bytes, bytearray]) -> None:
         """
         Takes a chunk of a document and feeds it through all of the relevant
         charset probers.
@@ -166,6 +191,7 @@ class UniversalDetector:
             elif byte_str.startswith(b"\xFE\xFF\x00\x00"):
                 # FE FF 00 00  UCS-4, unusual octet order BOM (3412)
                 self.result = {
+                    # TODO: This encoding is not supported by Python. Should remove?
                     "encoding": "X-ISO-10646-UCS-4-3412",
                     "confidence": 1.0,
                     "language": "",
@@ -173,6 +199,7 @@ class UniversalDetector:
             elif byte_str.startswith(b"\x00\x00\xFF\xFE"):
                 # 00 00 FF FE  UCS-4, unusual octet order BOM (2143)
                 self.result = {
+                    # TODO: This encoding is not supported by Python. Should remove?
                     "encoding": "X-ISO-10646-UCS-4-2143",
                     "confidence": 1.0,
                     "language": "",
@@ -242,6 +269,7 @@ class UniversalDetector:
                 if self.lang_filter & LanguageFilter.NON_CJK:
                     self._charset_probers.append(SBCSGroupProber())
                 self._charset_probers.append(Latin1Prober())
+                self._charset_probers.append(MacRomanProber())
             for prober in self._charset_probers:
                 if prober.feed(byte_str) == ProbingState.FOUND_IT:
                     self.result = {
@@ -254,7 +282,7 @@ class UniversalDetector:
             if self.WIN_BYTE_DETECTOR.search(byte_str):
                 self._has_win_bytes = True
 
-    def close(self):
+    def close(self) -> ResultDict:
         """
         Stop analyzing the current document and come up with a final
         prediction.
@@ -288,7 +316,8 @@ class UniversalDetector:
                     max_prober = prober
             if max_prober and (max_prober_confidence > self.MINIMUM_THRESHOLD):
                 charset_name = max_prober.charset_name
-                lower_charset_name = max_prober.charset_name.lower()
+                assert charset_name is not None
+                lower_charset_name = charset_name.lower()
                 confidence = max_prober.get_confidence()
                 # Use Windows encoding name instead of ISO-8859 if we saw any
                 # extra Windows-specific bytes
@@ -297,6 +326,11 @@ class UniversalDetector:
                         charset_name = self.ISO_WIN_MAP.get(
                             lower_charset_name, charset_name
                         )
+                # Rename legacy encodings with superset encodings if asked
+                if self.should_rename_legacy:
+                    charset_name = self.LEGACY_MAP.get(
+                        (charset_name or "").lower(), charset_name
+                    )
                 self.result = {
                     "encoding": charset_name,
                     "confidence": confidence,

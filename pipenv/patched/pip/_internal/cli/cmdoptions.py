@@ -825,11 +825,9 @@ install_options: Callable[..., Option] = partial(
     dest="install_options",
     action="append",
     metavar="options",
-    help="Extra arguments to be supplied to the setup.py install "
-    'command (use like --install-option="--install-scripts=/usr/local/'
-    'bin"). Use multiple --install-option options to pass multiple '
-    "options to setup.py install. If you are using an option with a "
-    "directory path, be sure to use absolute path.",
+    help="This option is deprecated. Using this option with location-changing "
+    "options may cause unexpected behavior. "
+    "Use pip-level options like --user, --prefix, --root, and --target.",
 )
 
 build_options: Callable[..., Option] = partial(

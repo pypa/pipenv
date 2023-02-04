@@ -28,8 +28,9 @@
 
 import logging
 import re
+from typing import Optional, Union
 
-from .enums import ProbingState
+from .enums import LanguageFilter, ProbingState
 
 INTERNATIONAL_WORDS_PATTERN = re.compile(
     b"[a-zA-Z]*[\x80-\xFF]+[a-zA-Z]*[^a-zA-Z\x80-\xFF]?"
@@ -40,35 +41,40 @@ class CharSetProber:
 
     SHORTCUT_THRESHOLD = 0.95
 
-    def __init__(self, lang_filter=None):
-        self._state = None
+    def __init__(self, lang_filter: LanguageFilter = LanguageFilter.NONE) -> None:
+        self._state = ProbingState.DETECTING
+        self.active = True
         self.lang_filter = lang_filter
         self.logger = logging.getLogger(__name__)
 
-    def reset(self):
+    def reset(self) -> None:
         self._state = ProbingState.DETECTING
 
     @property
-    def charset_name(self):
+    def charset_name(self) -> Optional[str]:
         return None
 
-    def feed(self, byte_str):
+    @property
+    def language(self) -> Optional[str]:
+        raise NotImplementedError
+
+    def feed(self, byte_str: Union[bytes, bytearray]) -> ProbingState:
         raise NotImplementedError
 
     @property
-    def state(self):
+    def state(self) -> ProbingState:
         return self._state
 
-    def get_confidence(self):
+    def get_confidence(self) -> float:
         return 0.0
 
     @staticmethod
-    def filter_high_byte_only(buf):
+    def filter_high_byte_only(buf: Union[bytes, bytearray]) -> bytes:
         buf = re.sub(b"([\x00-\x7F])+", b" ", buf)
         return buf
 
     @staticmethod
-    def filter_international_words(buf):
+    def filter_international_words(buf: Union[bytes, bytearray]) -> bytearray:
         """
         We define three types of bytes:
         alphabet: english alphabets [a-zA-Z]
@@ -102,7 +108,7 @@ class CharSetProber:
         return filtered
 
     @staticmethod
-    def remove_xml_tags(buf):
+    def remove_xml_tags(buf: Union[bytes, bytearray]) -> bytes:
         """
         Returns a copy of ``buf`` that retains only the sequences of English
         alphabet and high byte characters that are not between <> characters.
@@ -117,10 +123,13 @@ class CharSetProber:
 
         for curr, buf_char in enumerate(buf):
             # Check if we're coming out of or entering an XML tag
-            if buf_char == b">":
+
+            # https://github.com/python/typeshed/issues/8182
+            if buf_char == b">":  # type: ignore[comparison-overlap]
                 prev = curr + 1
                 in_tag = False
-            elif buf_char == b"<":
+            # https://github.com/python/typeshed/issues/8182
+            elif buf_char == b"<":  # type: ignore[comparison-overlap]
                 if curr > prev and not in_tag:
                     # Keep everything after last non-extended-ASCII,
                     # non-alphabetic character

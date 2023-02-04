@@ -4,7 +4,7 @@ import sys
 import os
 
 from .ansi import AnsiFore, AnsiBack, AnsiStyle, Style, BEL
-from .winterm import WinTerm, WinColor, WinStyle
+from .winterm import enable_vt_processing, WinTerm, WinColor, WinStyle
 from .win32 import windll, winapi_test
 
 
@@ -94,15 +94,22 @@ class AnsiToWin32(object):
         # (e.g. Cygwin Terminal). In this case it's up to the terminal
         # to support the ANSI codes.
         conversion_supported = on_windows and winapi_test()
+        try:
+            fd = wrapped.fileno()
+        except Exception:
+            fd = -1
+        system_has_native_ansi = not on_windows or enable_vt_processing(fd)
+        have_tty = not self.stream.closed and self.stream.isatty()
+        need_conversion = conversion_supported and not system_has_native_ansi
 
         # should we strip ANSI sequences from our output?
         if strip is None:
-            strip = conversion_supported or (not self.stream.closed and not self.stream.isatty())
+            strip = need_conversion or not have_tty
         self.strip = strip
 
         # should we should convert ANSI sequences into win32 calls?
         if convert is None:
-            convert = conversion_supported and not self.stream.closed and self.stream.isatty()
+            convert = need_conversion and have_tty
         self.convert = convert
 
         # dict of ansi codes to win32 functions and parameters
@@ -264,3 +271,7 @@ class AnsiToWin32(object):
                     if params[0] in '02':
                         winterm.set_title(params[1])
         return text
+
+
+    def flush(self):
+        self.wrapped.flush()

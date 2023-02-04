@@ -25,9 +25,10 @@ __all__ = [
     "USER_CACHE_DIR",
     "get_bin_prefix",
     "get_bin_user",
+    "get_isolated_environment_bin_path",
+    "get_isolated_environment_lib_paths",
     "get_major_minor_version",
     "get_platlib",
-    "get_prefixed_libs",
     "get_purelib",
     "get_scheme",
     "get_src_prefix",
@@ -482,13 +483,13 @@ def _looks_like_apple_library(path: str) -> bool:
     return path == f"/Library/Python/{get_major_minor_version()}/site-packages"
 
 
-def get_prefixed_libs(prefix: str) -> List[str]:
+def get_isolated_environment_lib_paths(prefix: str) -> List[str]:
     """Return the lib locations under ``prefix``."""
-    new_pure, new_plat = _sysconfig.get_prefixed_libs(prefix)
+    new_pure, new_plat = _sysconfig.get_isolated_environment_lib_paths(prefix)
     if _USE_SYSCONFIG:
         return _deduplicated(new_pure, new_plat)
 
-    old_pure, old_plat = _distutils.get_prefixed_libs(prefix)
+    old_pure, old_plat = _distutils.get_isolated_environment_lib_paths(prefix)
     old_lib_paths = _deduplicated(old_pure, old_plat)
 
     # Apple's Python (shipped with Xcode and Command Line Tools) hard-code
@@ -526,3 +527,7 @@ def get_prefixed_libs(prefix: str) -> List[str]:
         _log_context(prefix=prefix)
 
     return old_lib_paths
+
+
+def get_isolated_environment_bin_path(prefix: str) -> str:
+    return _sysconfig.get_isolated_environment_paths(prefix)["scripts"]

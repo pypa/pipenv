@@ -224,7 +224,7 @@ class AppEngineManager(RequestMethods):
                 )
 
         # Check if we should retry the HTTP response.
-        has_retry_after = bool(http_response.getheader("Retry-After"))
+        has_retry_after = bool(http_response.headers.get("Retry-After"))
         if retries.is_retry(method, http_response.status, has_retry_after):
             retries = retries.increment(method, url, response=http_response, _pool=self)
             log.debug("Retry: %s", url)

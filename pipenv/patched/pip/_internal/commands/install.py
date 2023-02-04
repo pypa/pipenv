@@ -41,6 +41,7 @@ from pipenv.patched.pip._internal.utils.distutils_args import parse_distutils_ar
 from pipenv.patched.pip._internal.utils.filesystem import test_writable_dir
 from pipenv.patched.pip._internal.utils.logging import getLogger
 from pipenv.patched.pip._internal.utils.misc import (
+    check_externally_managed,
     ensure_dir,
     get_pip_version,
     protect_pip_from_modification_on_windows,
@@ -284,6 +285,20 @@ class InstallCommand(RequirementCommand):
         if options.use_user_site and options.target_dir is not None:
             raise CommandError("Can not combine '--user' and '--target'")
 
+        # Check whether the environment we're installing into is externally
+        # managed, as specified in PEP 668. Specifying --root, --target, or
+        # --prefix disables the check, since there's no reliable way to locate
+        # the EXTERNALLY-MANAGED file for those cases. An exception is also
+        # made specifically for "--dry-run --report" for convenience.
+        installing_into_current_environment = (
+            not (options.dry_run and options.json_report_file)
+            and options.root_path is None
+            and options.target_dir is None
+            and options.prefix_path is None
+        )
+        if installing_into_current_environment:
+            check_externally_managed()
+
         upgrade_strategy = "to-satisfy-only"
         if options.upgrade:
             upgrade_strategy = options.upgrade_strategy
@@ -402,12 +417,6 @@ class InstallCommand(RequirementCommand):
             )
 
             if options.json_report_file:
-                logger.warning(
-                    "--report is currently an experimental option. "
-                    "The output format may change in a future release "
-                    "without prior warning."
-                )
-
                 report = InstallationReport(requirement_set.requirements_to_install)
                 if options.json_report_file == "-":
                     print_json(data=report.to_dict())

@@ -173,7 +173,7 @@ def get_platlib() -> str:
     return get_python_lib(plat_specific=True)
 
 
-def get_prefixed_libs(prefix: str) -> Tuple[str, str]:
+def get_isolated_environment_lib_paths(prefix: str) -> Tuple[str, str]:
     return (
         get_python_lib(plat_specific=False, prefix=prefix),
         get_python_lib(plat_specific=True, prefix=prefix),

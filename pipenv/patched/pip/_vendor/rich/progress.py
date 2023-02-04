@@ -129,7 +129,7 @@ def track(
         refresh_per_second (float): Number of times per second to refresh the progress information. Defaults to 10.
         style (StyleType, optional): Style for the bar background. Defaults to "bar.back".
         complete_style (StyleType, optional): Style for the completed bar. Defaults to "bar.complete".
-        finished_style (StyleType, optional): Style for a finished bar. Defaults to "bar.done".
+        finished_style (StyleType, optional): Style for a finished bar. Defaults to "bar.finished".
         pulse_style (StyleType, optional): Style for pulsing bars. Defaults to "bar.pulse".
         update_period (float, optional): Minimum time (in seconds) between calls to update(). Defaults to 0.1.
         disable (bool, optional): Disable display of progress.
@@ -215,6 +215,10 @@ class _Reader(RawIOBase, BinaryIO):
 
     def isatty(self) -> bool:
         return self.handle.isatty()
+
+    @property
+    def mode(self) -> str:
+        return self.handle.mode
 
     @property
     def name(self) -> str:
@@ -315,7 +319,7 @@ def wrap_file(
         refresh_per_second (float): Number of times per second to refresh the progress information. Defaults to 10.
         style (StyleType, optional): Style for the bar background. Defaults to "bar.back".
         complete_style (StyleType, optional): Style for the completed bar. Defaults to "bar.complete".
-        finished_style (StyleType, optional): Style for a finished bar. Defaults to "bar.done".
+        finished_style (StyleType, optional): Style for a finished bar. Defaults to "bar.finished".
         pulse_style (StyleType, optional): Style for pulsing bars. Defaults to "bar.pulse".
         disable (bool, optional): Disable display of progress.
     Returns:
@@ -440,7 +444,7 @@ def open(
         refresh_per_second (float): Number of times per second to refresh the progress information. Defaults to 10.
         style (StyleType, optional): Style for the bar background. Defaults to "bar.back".
         complete_style (StyleType, optional): Style for the completed bar. Defaults to "bar.complete".
-        finished_style (StyleType, optional): Style for a finished bar. Defaults to "bar.done".
+        finished_style (StyleType, optional): Style for a finished bar. Defaults to "bar.finished".
         pulse_style (StyleType, optional): Style for pulsing bars. Defaults to "bar.pulse".
         disable (bool, optional): Disable display of progress.
         encoding (str, optional): The encoding to use when reading in text mode.
@@ -634,7 +638,7 @@ class BarColumn(ProgressColumn):
         bar_width (Optional[int], optional): Width of bar or None for full width. Defaults to 40.
         style (StyleType, optional): Style for the bar background. Defaults to "bar.back".
         complete_style (StyleType, optional): Style for the completed bar. Defaults to "bar.complete".
-        finished_style (StyleType, optional): Style for a finished bar. Defaults to "bar.done".
+        finished_style (StyleType, optional): Style for a finished bar. Defaults to "bar.finished".
         pulse_style (StyleType, optional): Style for pulsing bars. Defaults to "bar.pulse".
     """
 
