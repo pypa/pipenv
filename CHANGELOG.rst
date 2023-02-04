@@ -1,3 +1,22 @@
+2023.2.4 (2023-02-04)
+=====================
+Pipenv 2023.2.4 (2023-02-04)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix overwriting of output in verbose mode  `#5530 <https://github.com/pypa/pipenv/issues/5530>`_
+- Fix for resolution error when direct url includes an extras.  `#5536 <https://github.com/pypa/pipenv/issues/5536>`_
+
+Removals and Deprecations
+-------------------------
+
+- Remove pytest-pypi package since it's not used anymore  `#5556 <https://github.com/pypa/pipenv/issues/5556>`_
+- Remove deprecated --three flag from the CLI.  `#5576 <https://github.com/pypa/pipenv/issues/5576>`_
+
+
 2022.12.19 (2022-12-19)
 =======================
 Pipenv 2022.12.19 (2022-12-19)

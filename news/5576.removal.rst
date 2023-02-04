@@ -1,1 +1,0 @@
-Remove deprecated --three flag from the CLI.
