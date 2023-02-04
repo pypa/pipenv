@@ -18,6 +18,7 @@ from pipenv.patched.pip._internal.req.req_uninstall import UninstallPathSet
 from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils.constants import is_type_checking
+from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import make_posix, normalize_path
@@ -714,8 +715,6 @@ class Environment:
         yield new_node
 
     def reverse_dependencies(self):
-        from vistir.misc import chunked, unnest
-
         rdeps = {}
         for req in self.get_package_requirements():
             for d in self.reverse_dependency(req):
