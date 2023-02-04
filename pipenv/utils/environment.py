@@ -1,7 +1,6 @@
 import os
 
 from pipenv import environments
-from pipenv._compat import fix_utf8
 from pipenv.vendor import click, dotenv
 
 
@@ -30,10 +29,9 @@ def load_dot_env(project, as_dict=False, quiet=False):
             return dotenv.dotenv_values(dotenv_file)
         elif os.path.isfile(dotenv_file):
             if not quiet:
-                click.echo(
-                    click.style(
-                        fix_utf8("Loading .env environment variables..."), bold=True
-                    ),
+                click.secho(
+                    "Loading .env environment variables...",
+                    bold=True,
                     err=True,
                 )
             dotenv.load_dotenv(dotenv_file, override=True)

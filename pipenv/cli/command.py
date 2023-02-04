@@ -3,7 +3,6 @@ import sys
 
 from pipenv import environments
 from pipenv.__version__ import __version__
-from pipenv._compat import fix_utf8
 from pipenv.cli.options import (
     CONTEXT_SETTINGS,
     PipenvGroup,
@@ -725,7 +724,7 @@ def scripts(state):
         "{0:<{width}}  {1}".format(name, script, width=first_column_width)
         for name, script in scripts.items()
     )
-    echo("\n".join(fix_utf8(line) for line in lines))
+    echo("\n".join(line for line in lines))
 
 
 @cli.command(
