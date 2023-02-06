@@ -70,3 +70,11 @@ def unnest(elem: Iterable) -> Any:
                     yield sub
             else:
                 yield el
+
+
+def dedup(iterable: Iterable) -> Iterable:
+    # type: (Iterable) -> Iterable
+    """Deduplicate an iterable object like iter(set(iterable)) but order-
+    preserved."""
+
+    return iter(dict.fromkeys(iterable))
