@@ -21,9 +21,9 @@ if sys.argv[-1] == "publish":
 
 required = [
     "certifi",
-    "setuptools>=36.2.1",
+    "setuptools>=67.0.0",
     "virtualenv-clone>=0.2.5",
-    "virtualenv",
+    "virtualenv>=20.17.1",
 ]
 extras = {
     "dev": [
