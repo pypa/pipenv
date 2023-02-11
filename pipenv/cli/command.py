@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 
 from pipenv import environments
@@ -21,6 +22,7 @@ from pipenv.cli.options import (
     uninstall_options,
     verbose_option,
 )
+from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
 from pipenv.utils.environment import load_dot_env
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor.click import (
@@ -779,11 +781,11 @@ def requirements(
         echo(" ".join([prefix, package_index["url"]]))
 
     deps = {}
-    categories_list = categories.split(",") if categories else []
+    categories_list = re.split(r', *| ', categories) if categories else []
 
     if categories_list:
         for category in categories_list:
-            category = category.strip()
+            category = get_lockfile_section_using_pipfile_category(category.strip())
             deps.update(lockfile.get(category, {}))
     else:
         if dev or dev_only:
