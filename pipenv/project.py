@@ -30,7 +30,7 @@ from pipenv.utils.dependencies import (
     pep423_name,
     python_version,
 )
-from pipenv.utils.internet import get_url_name, is_valid_url, proper_case, is_pypi_url
+from pipenv.utils.internet import get_url_name, is_pypi_url, is_valid_url, proper_case
 from pipenv.utils.shell import (
     find_requirements,
     find_windows_executable,
@@ -141,17 +141,21 @@ class Project:
             key_parts = section_key.split(".", 1)
             if key_parts[1] == "index-url":
                 try:
-                    trusted_hosts = self.configuration.get_value(f"{key_parts[0]}.trusted-host")
+                    trusted_hosts = self.configuration.get_value(
+                        f"{key_parts[0]}.trusted-host"
+                    )
                 except ConfigurationError:
                     trusted_hosts = []
-                pip_conf_indexes.append({
-                    "url": value,
-                    "verify_ssl": not any(
-                        trusted_host in value
-                        for trusted_host in trusted_hosts
-                    ) and "https://" in value,
-                    "name": f"pip_conf_index_{key_parts[0]}"
-                })
+                pip_conf_indexes.append(
+                    {
+                        "url": value,
+                        "verify_ssl": not any(
+                            trusted_host in value for trusted_host in trusted_hosts
+                        )
+                        and "https://" in value,
+                        "name": f"pip_conf_index_{key_parts[0]}",
+                    }
+                )
 
         if pip_conf_indexes:
             self.default_source = None
