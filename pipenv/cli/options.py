@@ -236,7 +236,7 @@ def categories_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
-            for opt in re.split(r', *| ', value):
+            for opt in re.split(r", *| ", value):
                 state.installstate.categories.append(opt)
         return value
 

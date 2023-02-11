@@ -781,7 +781,7 @@ def requirements(
         echo(" ".join([prefix, package_index["url"]]))
 
     deps = {}
-    categories_list = re.split(r', *| ', categories) if categories else []
+    categories_list = re.split(r", *| ", categories) if categories else []
 
     if categories_list:
         for category in categories_list:
