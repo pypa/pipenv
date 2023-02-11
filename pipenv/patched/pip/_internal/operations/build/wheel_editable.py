@@ -2,7 +2,7 @@ import logging
 import os
 from typing import Optional
 
-from pipenv.patched.pip._vendor.pep517.wrappers import HookMissing, Pep517HookCaller
+from pipenv.patched.pip._vendor.pyproject_hooks import BuildBackendHookCaller, HookMissing
 
 from pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def build_wheel_editable(
     name: str,
-    backend: Pep517HookCaller,
+    backend: BuildBackendHookCaller,
     metadata_directory: str,
     tempd: str,
 ) -> Optional[str]:

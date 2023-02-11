@@ -16,7 +16,6 @@ from posixpath import expandvars
 from typing import Dict, List, Optional, Union
 
 from pipenv import environments, exceptions, pep508checker
-from pipenv._compat import fix_utf8
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._internal.network.session import PipSession
@@ -102,7 +101,7 @@ err = rich.console.Console(stderr=True)
 def do_clear(project):
     from pipenv.patched.pip._internal import locations
 
-    click.secho(fix_utf8("Clearing caches..."), bold=True)
+    click.secho("Clearing caches...", bold=True)
     try:
         shutil.rmtree(
             project.s.PIPENV_CACHE_DIR, onerror=vistir.path.handle_remove_readonly
@@ -259,7 +258,9 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
                 except Exception:
                     err.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed..."))
                 else:
-                    st.update(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                    st.console.print(
+                        environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
+                    )
             # Warn the user of side-effects.
             click.echo(
                 "{0}: Your {1} now contains pinned versions, if your {2} did. \n"
@@ -272,12 +273,7 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
                 )
             )
         else:
-            click.echo(
-                click.style(
-                    fix_utf8("Creating a Pipfile for this project..."), bold=True
-                ),
-                err=True,
-            )
+            click.secho("Creating a Pipfile for this project...", bold=True, err=True)
             # Create the pipfile if it doesn't exist.
             project.create_pipfile(python=python)
     # Validate the Pipfile's contents.
@@ -318,9 +314,9 @@ def find_a_system_python(line):
     return python_entry
 
 
-def ensure_python(project, three=None, python=None):
+def ensure_python(project, python=None):
     # Runtime import is necessary due to the possibility that the environments module may have been reloaded.
-    if project.s.PIPENV_PYTHON and python is False and three is None:
+    if project.s.PIPENV_PYTHON and python is False:
         python = project.s.PIPENV_PYTHON
 
     def abort(msg=""):
@@ -336,10 +332,8 @@ def ensure_python(project, three=None, python=None):
         )
         sys.exit(1)
 
-    project.s.USING_DEFAULT_PYTHON = three is None and not python
+    project.s.USING_DEFAULT_PYTHON = not python
     # Find out which python is desired.
-    if not python:
-        python = convert_three_to_python(three, python)
     if not python:
         python = project.required_python_version
     if not python:
@@ -354,7 +348,7 @@ def ensure_python(project, three=None, python=None):
             "{}: Python {} {}".format(
                 click.style("Warning", fg="red", bold=True),
                 click.style(python, fg="cyan"),
-                fix_utf8("was not found on your system..."),
+                "was not found on your system...",
             ),
             err=True,
         )
@@ -414,7 +408,7 @@ def ensure_python(project, three=None, python=None):
                             err.print(
                                 environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed...")
                             )
-                            click.echo(fix_utf8("Something went wrong..."), err=True)
+                            click.echo("Something went wrong...", err=True)
                             click.secho(e.err, fg="cyan", err=True)
                         else:
                             console.print(
@@ -446,9 +440,7 @@ def ensure_python(project, three=None, python=None):
     return path_to_python
 
 
-def ensure_virtualenv(
-    project, three=None, python=None, site_packages=None, pypi_mirror=None
-):
+def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None):
     """Creates a virtualenv, if one doesn't exist."""
 
     def abort():
@@ -459,7 +451,7 @@ def ensure_virtualenv(
             # Ensure environment variables are set properly.
             ensure_environment()
             # Ensure Python is available.
-            python = ensure_python(project, three=three, python=python)
+            python = ensure_python(project, python=python)
             if python is not None and not isinstance(python, str):
                 python = python.path.as_posix()
             # Create the virtualenv.
@@ -481,11 +473,11 @@ def ensure_virtualenv(
             # If interrupted, cleanup the virtualenv.
             cleanup_virtualenv(project, bare=False)
             sys.exit(1)
-    # If --python or --three were passed...
-    elif (python) or (three is not None) or (site_packages is not None):
+    # If --python or was passed...
+    elif (python) or (site_packages is not None):
         project.s.USING_DEFAULT_PYTHON = False
         # Ensure python is installed before deleting existing virtual env
-        python = ensure_python(project, three=three, python=python)
+        python = ensure_python(project, python=python)
         if python is not None and not isinstance(python, str):
             python = python.path.as_posix()
 
@@ -499,15 +491,12 @@ def ensure_virtualenv(
                 or click.confirm("Use existing virtualenv?", default=True)
             ):
                 abort()
-        click.echo(
-            click.style(fix_utf8("Using existing virtualenv..."), bold=True), err=True
-        )
+        click.echo(click.style("Using existing virtualenv...", bold=True), err=True)
         # Remove the virtualenv.
         cleanup_virtualenv(project, bare=True)
         # Call this function again.
         ensure_virtualenv(
             project,
-            three=three,
             python=python,
             site_packages=site_packages,
             pypi_mirror=pypi_mirror,
@@ -516,7 +505,6 @@ def ensure_virtualenv(
 
 def ensure_project(
     project,
-    three=None,
     python=None,
     validate=True,
     system=False,
@@ -540,7 +528,6 @@ def ensure_project(
     if not system_or_exists:
         ensure_virtualenv(
             project,
-            three=three,
             python=python,
             site_packages=site_packages,
             pypi_mirror=pypi_mirror,
@@ -864,11 +851,7 @@ def do_install_dependencies(
         # Load the lockfile if it exists, or if dev_only is being used.
         if skip_lock or not project.lockfile_exists:
             if not bare:
-                click.echo(
-                    click.style(
-                        fix_utf8("Installing dependencies from Pipfile..."), bold=True
-                    )
-                )
+                click.secho("Installing dependencies from Pipfile...", bold=True)
             # skip_lock should completely bypass the lockfile (broken in 4dac1676)
             lockfile = project.get_or_create_lockfile(
                 categories=categories, from_pipfile=True
@@ -876,15 +859,11 @@ def do_install_dependencies(
         else:
             lockfile = project.get_or_create_lockfile(categories=categories)
             if not bare:
-                click.echo(
-                    click.style(
-                        fix_utf8(
-                            "Installing dependencies from Pipfile.lock ({})...".format(
-                                lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
-                            )
-                        ),
-                        bold=True,
-                    )
+                click.secho(
+                    "Installing dependencies from Pipfile.lock ({})...".format(
+                        lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
+                    ),
+                    bold=True,
                 )
         dev = dev or dev_only
         deps_list = list(
@@ -918,11 +897,7 @@ def do_install_dependencies(
 
         # Iterate over the hopefully-poorly-packaged dependencies...
         if not failed_deps_queue.empty():
-            click.echo(
-                click.style(
-                    fix_utf8("Installing initially failed dependencies..."), bold=True
-                )
-            )
+            click.secho("Installing initially failed dependencies...", bold=True)
             retry_list = []
             while not failed_deps_queue.empty():
                 failed_dep = failed_deps_queue.get()
@@ -954,21 +929,6 @@ def do_install_dependencies(
             sys.exit(1)
 
 
-def convert_three_to_python(three, python):
-    """Converts a Three flag into a Python flag, and raises customer warnings
-    in the process, if needed.
-    """
-    if not python:
-        if three is False:
-            return "2"
-
-        elif three is True:
-            return "3"
-
-    else:
-        return python
-
-
 def _create_virtualenv_cmd(project, python, site_packages=False):
     cmd = [
         Path(sys.executable).absolute().as_posix(),
@@ -993,10 +953,7 @@ def _create_virtualenv_cmd(project, python, site_packages=False):
 def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=None):
     """Creates a virtualenv."""
 
-    click.echo(
-        click.style(fix_utf8("Creating a virtualenv for this project..."), bold=True),
-        err=True,
-    )
+    click.secho("Creating a virtualenv for this project...", bold=True, err=True)
 
     click.echo(
         "Pipfile: " + click.style(project.pipfile_location, fg="yellow", bold=True),
@@ -1012,17 +969,14 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         "{0} {1} {3} {2}".format(
             click.style(using_string, bold=True),
             click.style(python, fg="yellow", bold=True),
-            click.style(fix_utf8("to create virtualenv..."), bold=True),
+            click.style("to create virtualenv...", bold=True),
             click.style(f"({python_version(python)})", fg="green"),
         ),
         err=True,
     )
 
     if site_packages:
-        click.echo(
-            click.style(fix_utf8("Making site-packages available..."), bold=True),
-            err=True,
-        )
+        click.secho("Making site-packages available...", bold=True, err=True)
 
     if pypi_mirror:
         pip_config = {"PIP_INDEX_URL": pypi_mirror}
@@ -1180,7 +1134,7 @@ def do_lock(
                 "{} {} {}".format(
                     click.style("Locking"),
                     click.style("[{}]".format(pipfile_category), fg="yellow"),
-                    click.style(fix_utf8("dependencies...")),
+                    click.style("dependencies..."),
                 ),
                 err=True,
             )
@@ -1258,9 +1212,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
 
     if downloads:
         if not bare:
-            click.echo(
-                click.style(fix_utf8("Clearing out downloads directory..."), bold=True)
-            )
+            click.secho("Clearing out downloads directory...", bold=True)
         shutil.rmtree(project.download_location)
         return
 
@@ -1281,7 +1233,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
         return installed
 
     if not bare:
-        click.echo(fix_utf8(f"Found {len(to_remove)} installed package(s), purging..."))
+        click.echo(f"Found {len(to_remove)} installed package(s), purging...")
 
     command = [
         project_python(project, system=allow_global),
@@ -1356,20 +1308,18 @@ def do_init(
                 raise exceptions.DeployException
             elif (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
                 click.secho(
-                    fix_utf8(
-                        "Pipfile.lock ({}) out of date, but installation "
-                        "uses {} re-building lockfile must happen in "
-                        "isolation. Please rebuild lockfile in a virtualenv. "
-                        "Continuing anyway...".format(old_hash[-6:], "--system")
-                    ),
+                    "Pipfile.lock ({}) out of date, but installation "
+                    "uses {} re-building lockfile must happen in "
+                    "isolation. Please rebuild lockfile in a virtualenv. "
+                    "Continuing anyway...".format(old_hash[-6:], "--system"),
                     fg="yellow",
                     err=True,
                 )
             else:
                 if old_hash:
-                    msg = fix_utf8("Pipfile.lock ({0}) out of date, updating to ({1})...")
+                    msg = "Pipfile.lock ({0}) out of date, updating to ({1})..."
                 else:
-                    msg = fix_utf8("Pipfile.lock is corrupted, replaced with ({1})...")
+                    msg = "Pipfile.lock is corrupt, replaced with ({1})..."
                 click.secho(
                     msg.format(old_hash[-6:], new_hash[-6:]),
                     fg="yellow",
@@ -1397,8 +1347,9 @@ def do_init(
                 "See also: --deploy flag.",
             )
         else:
-            click.echo(
-                click.style(fix_utf8("Pipfile.lock not found, creating..."), bold=True),
+            click.secho(
+                "Pipfile.lock not found, creating...",
+                bold=True,
                 err=True,
             )
             do_lock(
@@ -1994,16 +1945,12 @@ def ensure_lockfile(project, keep_outdated=False, pypi_mirror=None):
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
-            click.echo(
-                click.style(
-                    fix_utf8(
-                        "Pipfile.lock ({}) out of date, updating to ({})...".format(
-                            old_hash[-6:], new_hash[-6:]
-                        )
-                    ),
-                    fg="yellow",
-                    bold=True,
+            click.secho(
+                "Pipfile.lock ({}) out of date, updating to ({})...".format(
+                    old_hash[-6:], new_hash[-6:]
                 ),
+                fg="yellow",
+                bold=True,
                 err=True,
             )
             do_lock(project, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
@@ -2120,7 +2067,6 @@ def do_install(
     editable_packages=False,
     index_url=False,
     dev=False,
-    three=False,
     python=False,
     pypi_mirror=None,
     system=False,
@@ -2151,7 +2097,6 @@ def do_install(
     # Ensure that virtualenv is available and pipfile are available
     ensure_project(
         project,
-        three=three,
         python=python,
         system=system,
         warn=True,
@@ -2192,7 +2137,7 @@ def do_install(
     # Check if the file is remote or not
     if remote:
         click.secho(
-            fix_utf8("Remote requirements file provided! Downloading..."),
+            "Remote requirements file provided! Downloading...",
             bold=True,
             err=True,
         )
@@ -2221,7 +2166,7 @@ def do_install(
     if requirementstxt:
         error, traceback = None, None
         click.secho(
-            fix_utf8("Requirements file provided! Importing into Pipfile..."),
+            "Requirements file provided! Importing into Pipfile...",
             bold=True,
             err=True,
         )
@@ -2317,7 +2262,7 @@ def do_install(
 
         for pkg_line in pkg_list:
             click.secho(
-                fix_utf8(f"Installing {pkg_line}..."),
+                f"Installing {pkg_line}...",
                 fg="green",
                 bold=True,
             )
@@ -2329,7 +2274,7 @@ def do_install(
                     os.environ["PIP_USER"] = "0"
                     if "PYTHONHOME" in os.environ:
                         del os.environ["PYTHONHOME"]
-                st.update(f"Resolving {pkg_line}...")
+                st.console.print(f"Resolving {pkg_line}...")
                 try:
                     pkg_requirement = Requirement.from_line(pkg_line)
                 except ValueError as e:
@@ -2340,11 +2285,11 @@ def do_install(
                         )
                     )
                     sys.exit(1)
-                st.update("Installing...")
+                st.console.print("Installing...")
                 try:
                     st.update(f"Installing {pkg_requirement.name}...")
                     if project.s.is_verbose():
-                        st.update(
+                        st.console.print(
                             f"Installing package: {pkg_requirement.as_line(include_hashes=False)}"
                         )
                     c = pip_install(
@@ -2417,18 +2362,8 @@ def do_install(
                     pipfile_sections = "[dev-packages]"
                 else:
                     pipfile_sections = "[packages]"
-                st.update(
-                    "{} {} {} {}{}".format(
-                        click.style("Adding", bold=True),
-                        click.style(f"{pkg_requirement.name}", fg="green", bold=True),
-                        click.style("to Pipfile's", bold=True),
-                        click.style(
-                            pipfile_sections,
-                            fg="yellow",
-                            bold=True,
-                        ),
-                        click.style(fix_utf8("..."), bold=True),
-                    )
+                st.console.print(
+                    f"[bold]Adding [green]{pkg_requirement.name}[/green][/bold] to Pipfile's [yellow]\\{pipfile_sections}[/yellow] ..."
                 )
                 # Add the package to the Pipfile.
                 if index_url:
@@ -2457,7 +2392,7 @@ def do_install(
                         )
                     )
                 # ok has a nice v in front, should do something similir with rich
-                st.update(
+                st.console.print(
                     environments.PIPENV_SPINNER_OK_TEXT.format("Installation Succeeded")
                 )
             # Update project settings with pre preference.
@@ -2483,7 +2418,6 @@ def do_uninstall(
     project,
     packages=None,
     editable_packages=None,
-    three=None,
     python=False,
     system=False,
     lock=False,
@@ -2498,7 +2432,7 @@ def do_uninstall(
     if project.s.PIPENV_USE_SYSTEM:
         system = True
     # Ensure that virtualenv is available.
-    ensure_project(project, three=three, python=python, pypi_mirror=pypi_mirror)
+    ensure_project(project, python=python, pypi_mirror=pypi_mirror)
     # Uninstall all dependencies, if --all was provided.
     if not any([packages, editable_packages, all_dev, all]):
         raise exceptions.PipenvUsageError("No package provided!", ctx=ctx)
@@ -2530,13 +2464,9 @@ def do_uninstall(
                 )
             )
             return
-        click.echo(
+        click.secho(
             click.style(
-                fix_utf8(
-                    "Un-installing {}...".format(
-                        click.style("[dev-packages]", fg="yellow")
-                    )
-                ),
+                "Un-installing {}...".format(click.style("[dev-packages]", fg="yellow")),
                 bold=True,
             )
         )
@@ -2563,11 +2493,9 @@ def do_uninstall(
     if all:
         click.echo(
             click.style(
-                fix_utf8(
-                    "Un-installing all {} and {}...".format(
-                        click.style("[dev-packages]", fg="yellow"),
-                        click.style("[packages]", fg="yellow"),
-                    )
+                "Un-installing all {} and {}...".format(
+                    click.style("[dev-packages]", fg="yellow"),
+                    click.style("[packages]", fg="yellow"),
                 ),
                 bold=True,
             )
@@ -2591,7 +2519,7 @@ def do_uninstall(
                         click.style("Removing", fg="cyan"),
                         click.style(package_name, fg="green"),
                         click.style("from", fg="cyan"),
-                        click.style(fix_utf8("Pipfile.lock..."), fg="white"),
+                        click.style("Pipfile.lock...", fg="white"),
                     )
                 )
                 if normalized_name in lockfile[category]:
@@ -2603,9 +2531,7 @@ def do_uninstall(
                 package_name, category=pipfile_category
             ):
                 click.secho(
-                    fix_utf8(
-                        f"Removed {package_name} from Pipfile category {pipfile_category}"
-                    ),
+                    f"Removed {package_name} from Pipfile category {pipfile_category}",
                     fg="green",
                 )
 
@@ -2618,7 +2544,7 @@ def do_uninstall(
             # Uninstall the package.
             if package_name in packages_to_remove:
                 click.secho(
-                    fix_utf8(f"Uninstalling {click.style(package_name)}..."),
+                    f"Uninstalling {click.style(package_name)}...",
                     fg="green",
                     bold=True,
                 )
@@ -2642,13 +2568,10 @@ def do_uninstall(
     sys.exit(int(failure))
 
 
-def do_shell(
-    project, three=None, python=False, fancy=False, shell_args=None, pypi_mirror=None
-):
+def do_shell(project, python=False, fancy=False, shell_args=None, pypi_mirror=None):
     # Ensure that virtualenv is available.
     ensure_project(
         project,
-        three=three,
         python=python,
         validate=False,
         pypi_mirror=pypi_mirror,
@@ -2661,7 +2584,7 @@ def do_shell(
     from .shells import choose_shell
 
     shell = choose_shell(project)
-    click.echo(fix_utf8("Launching subshell in virtual environment..."), err=True)
+    click.echo("Launching subshell in virtual environment...", err=True)
 
     fork_args = (
         project.virtualenv_location,
@@ -2682,10 +2605,8 @@ def do_shell(
         shell.fork_compat(*fork_args)
     except (AttributeError, ImportError):
         click.echo(
-            fix_utf8(
-                "Compatibility mode not supported. "
-                "Trying to continue as well-configured shell..."
-            ),
+            "Compatibility mode not supported. "
+            "Trying to continue as well-configured shell...",
             err=True,
         )
         shell.fork(*fork_args)
@@ -2802,7 +2723,7 @@ def do_run_posix(project, script, command, env):
     )
 
 
-def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
+def do_run(project, command, args, python=False, pypi_mirror=None):
     """Attempt to run command either pulling from project or interpreting as executable.
 
     Args are appended to the command in [scripts] section of project if found.
@@ -2814,7 +2735,6 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
     # Ensure that virtualenv is available.
     ensure_project(
         project,
-        three=three,
         python=python,
         validate=False,
         pypi_mirror=pypi_mirror,
@@ -2858,7 +2778,6 @@ def do_run(project, command, args, three=None, python=False, pypi_mirror=None):
 
 def do_check(
     project,
-    three=None,
     python=False,
     system=False,
     db=None,
@@ -2879,7 +2798,6 @@ def do_check(
         # Ensure that virtualenv is available.
         ensure_project(
             project,
-            three=three,
             python=python,
             validate=False,
             warn=False,
@@ -3225,7 +3143,6 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 def do_sync(
     project,
     dev=False,
-    three=None,
     python=None,
     bare=False,
     dont_upgrade=False,
@@ -3245,7 +3162,6 @@ def do_sync(
     # Ensure that virtualenv is available if not system.
     ensure_project(
         project,
-        three=three,
         python=python,
         validate=False,
         system=system,
@@ -3279,7 +3195,6 @@ def do_sync(
 
 def do_clean(
     project,
-    three=None,
     python=None,
     dry_run=False,
     bare=False,
@@ -3289,9 +3204,7 @@ def do_clean(
     # Ensure that virtualenv is available.
     from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-    ensure_project(
-        project, three=three, python=python, validate=False, pypi_mirror=pypi_mirror
-    )
+    ensure_project(project, python=python, validate=False, pypi_mirror=pypi_mirror)
     ensure_lockfile(project, pypi_mirror=pypi_mirror)
     # Make sure that the virtualenv's site packages are configured correctly
     # otherwise we may end up removing from the global site packages directory
@@ -3316,7 +3229,7 @@ def do_clean(
         else:
             if not bare:
                 click.secho(
-                    fix_utf8(f"Uninstalling {apparent_bad_package}..."),
+                    f"Uninstalling {apparent_bad_package}...",
                     fg="white",
                     bold=True,
                 )

@@ -26,6 +26,8 @@
 # 02110-1301  USA
 ######################### END LICENSE BLOCK #########################
 
+from typing import List, Union
+
 from .charsetprober import CharSetProber
 from .enums import ProbingState
 
@@ -96,26 +98,26 @@ Latin1ClassModel = (
 
 
 class Latin1Prober(CharSetProber):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self._last_char_class = None
-        self._freq_counter = None
+        self._last_char_class = OTH
+        self._freq_counter: List[int] = []
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         self._last_char_class = OTH
         self._freq_counter = [0] * FREQ_CAT_NUM
         super().reset()
 
     @property
-    def charset_name(self):
+    def charset_name(self) -> str:
         return "ISO-8859-1"
 
     @property
-    def language(self):
+    def language(self) -> str:
         return ""
 
-    def feed(self, byte_str):
+    def feed(self, byte_str: Union[bytes, bytearray]) -> ProbingState:
         byte_str = self.remove_xml_tags(byte_str)
         for c in byte_str:
             char_class = Latin1_CharToClass[c]
@@ -128,7 +130,7 @@ class Latin1Prober(CharSetProber):
 
         return self.state
 
-    def get_confidence(self):
+    def get_confidence(self) -> float:
         if self.state == ProbingState.NOT_ME:
             return 0.01
 

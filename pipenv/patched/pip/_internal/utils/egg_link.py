@@ -1,10 +1,7 @@
-# The following comment should be removed at some point in the future.
-# mypy: strict-optional=False
-
 import os
 import re
 import sys
-from typing import Optional
+from typing import List, Optional
 
 from pipenv.patched.pip._internal.locations import site_packages, user_site
 from pipenv.patched.pip._internal.utils.virtualenv import (
@@ -57,7 +54,7 @@ def egg_link_path_from_location(raw_name: str) -> Optional[str]:
 
     This method will just return the first one found.
     """
-    sites = []
+    sites: List[str] = []
     if running_under_virtualenv():
         sites.append(site_packages)
         if not virtualenv_no_global() and user_site:

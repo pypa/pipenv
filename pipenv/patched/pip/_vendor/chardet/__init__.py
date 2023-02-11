@@ -15,19 +15,29 @@
 # 02110-1301  USA
 ######################### END LICENSE BLOCK #########################
 
+from typing import List, Union
+
+from .charsetgroupprober import CharSetGroupProber
+from .charsetprober import CharSetProber
 from .enums import InputState
+from .resultdict import ResultDict
 from .universaldetector import UniversalDetector
 from .version import VERSION, __version__
 
 __all__ = ["UniversalDetector", "detect", "detect_all", "__version__", "VERSION"]
 
 
-def detect(byte_str):
+def detect(
+    byte_str: Union[bytes, bytearray], should_rename_legacy: bool = False
+) -> ResultDict:
     """
     Detect the encoding of the given byte string.
 
     :param byte_str:     The byte sequence to examine.
     :type byte_str:      ``bytes`` or ``bytearray``
+    :param should_rename_legacy:  Should we rename legacy encodings
+                                  to their more modern equivalents?
+    :type should_rename_legacy:   ``bool``
     """
     if not isinstance(byte_str, bytearray):
         if not isinstance(byte_str, bytes):
@@ -35,12 +45,16 @@ def detect(byte_str):
                 f"Expected object of type bytes or bytearray, got: {type(byte_str)}"
             )
         byte_str = bytearray(byte_str)
-    detector = UniversalDetector()
+    detector = UniversalDetector(should_rename_legacy=should_rename_legacy)
     detector.feed(byte_str)
     return detector.close()
 
 
-def detect_all(byte_str, ignore_threshold=False):
+def detect_all(
+    byte_str: Union[bytes, bytearray],
+    ignore_threshold: bool = False,
+    should_rename_legacy: bool = False,
+) -> List[ResultDict]:
     """
     Detect all the possible encodings of the given byte string.
 
@@ -50,6 +64,9 @@ def detect_all(byte_str, ignore_threshold=False):
                               ``UniversalDetector.MINIMUM_THRESHOLD``
                               in results.
     :type ignore_threshold:   ``bool``
+    :param should_rename_legacy:  Should we rename legacy encodings
+                                  to their more modern equivalents?
+    :type should_rename_legacy:   ``bool``
     """
     if not isinstance(byte_str, bytearray):
         if not isinstance(byte_str, bytes):
@@ -58,15 +75,15 @@ def detect_all(byte_str, ignore_threshold=False):
             )
         byte_str = bytearray(byte_str)
 
-    detector = UniversalDetector()
+    detector = UniversalDetector(should_rename_legacy=should_rename_legacy)
     detector.feed(byte_str)
     detector.close()
 
     if detector.input_state == InputState.HIGH_BYTE:
-        results = []
-        probers = []
+        results: List[ResultDict] = []
+        probers: List[CharSetProber] = []
         for prober in detector.charset_probers:
-            if hasattr(prober, "probers"):
+            if isinstance(prober, CharSetGroupProber):
                 probers.extend(p for p in prober.probers)
             else:
                 probers.append(prober)
@@ -79,6 +96,11 @@ def detect_all(byte_str, ignore_threshold=False):
                 if lower_charset_name.startswith("iso-8859") and detector.has_win_bytes:
                     charset_name = detector.ISO_WIN_MAP.get(
                         lower_charset_name, charset_name
+                    )
+                # Rename legacy encodings with superset encodings if asked
+                if should_rename_legacy:
+                    charset_name = detector.LEGACY_MAP.get(
+                        charset_name.lower(), charset_name
                     )
                 results.append(
                     {

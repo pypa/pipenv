@@ -14,7 +14,10 @@ from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_line,
     install_req_from_parsed_requirement,
 )
-from pipenv.patched.pip._internal.utils.misc import protect_pip_from_modification_on_windows
+from pipenv.patched.pip._internal.utils.misc import (
+    check_externally_managed,
+    protect_pip_from_modification_on_windows,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +92,8 @@ class UninstallCommand(Command, SessionCommandMixin):
                 f"You must give at least one requirement to {self.name} (see "
                 f'"pip help {self.name}")'
             )
+
+        check_externally_managed()
 
         protect_pip_from_modification_on_windows(
             modifying_pip="pip" in reqs_to_uninstall

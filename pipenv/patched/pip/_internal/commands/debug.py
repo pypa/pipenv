@@ -48,7 +48,7 @@ def create_vendor_txt_map() -> Dict[str, str]:
 
 def get_module_from_module_name(module_name: str) -> ModuleType:
     # Module name can be uppercase in vendor.txt for some reason...
-    module_name = module_name.lower()
+    module_name = module_name.lower().replace("-", "_")
     # PATCH: setuptools is actually only pkg_resources.
     if module_name == "setuptools":
         module_name = "pkg_resources"

@@ -25,6 +25,8 @@
 # 02110-1301  USA
 ######################### END LICENSE BLOCK #########################
 
+from typing import Union
+
 from .chardistribution import EUCJPDistributionAnalysis
 from .codingstatemachine import CodingStateMachine
 from .enums import MachineState, ProbingState
@@ -34,26 +36,29 @@ from .mbcssm import EUCJP_SM_MODEL
 
 
 class EUCJPProber(MultiByteCharSetProber):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.coding_sm = CodingStateMachine(EUCJP_SM_MODEL)
         self.distribution_analyzer = EUCJPDistributionAnalysis()
         self.context_analyzer = EUCJPContextAnalysis()
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         super().reset()
         self.context_analyzer.reset()
 
     @property
-    def charset_name(self):
+    def charset_name(self) -> str:
         return "EUC-JP"
 
     @property
-    def language(self):
+    def language(self) -> str:
         return "Japanese"
 
-    def feed(self, byte_str):
+    def feed(self, byte_str: Union[bytes, bytearray]) -> ProbingState:
+        assert self.coding_sm is not None
+        assert self.distribution_analyzer is not None
+
         for i, byte in enumerate(byte_str):
             # PY3K: byte_str is a byte array, so byte is an int, not a byte
             coding_state = self.coding_sm.next_state(byte)
@@ -89,7 +94,9 @@ class EUCJPProber(MultiByteCharSetProber):
 
         return self.state
 
-    def get_confidence(self):
+    def get_confidence(self) -> float:
+        assert self.distribution_analyzer is not None
+
         context_conf = self.context_analyzer.get_confidence()
         distrib_conf = self.distribution_analyzer.get_confidence()
         return max(context_conf, distrib_conf)

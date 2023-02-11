@@ -26,23 +26,20 @@
 # 02110-1301  USA
 ######################### END LICENSE BLOCK #########################
 
-from collections import namedtuple
+from typing import Dict, List, NamedTuple, Optional, Union
 
 from .charsetprober import CharSetProber
 from .enums import CharacterCategory, ProbingState, SequenceLikelihood
 
-SingleByteCharSetModel = namedtuple(
-    "SingleByteCharSetModel",
-    [
-        "charset_name",
-        "language",
-        "char_to_order_map",
-        "language_model",
-        "typical_positive_ratio",
-        "keep_ascii_letters",
-        "alphabet",
-    ],
-)
+
+class SingleByteCharSetModel(NamedTuple):
+    charset_name: str
+    language: str
+    char_to_order_map: Dict[int, int]
+    language_model: Dict[int, Dict[int, int]]
+    typical_positive_ratio: float
+    keep_ascii_letters: bool
+    alphabet: str
 
 
 class SingleByteCharSetProber(CharSetProber):
@@ -51,22 +48,27 @@ class SingleByteCharSetProber(CharSetProber):
     POSITIVE_SHORTCUT_THRESHOLD = 0.95
     NEGATIVE_SHORTCUT_THRESHOLD = 0.05
 
-    def __init__(self, model, is_reversed=False, name_prober=None):
+    def __init__(
+        self,
+        model: SingleByteCharSetModel,
+        is_reversed: bool = False,
+        name_prober: Optional[CharSetProber] = None,
+    ) -> None:
         super().__init__()
         self._model = model
         # TRUE if we need to reverse every pair in the model lookup
         self._reversed = is_reversed
         # Optional auxiliary prober for name decision
         self._name_prober = name_prober
-        self._last_order = None
-        self._seq_counters = None
-        self._total_seqs = None
-        self._total_char = None
-        self._control_char = None
-        self._freq_char = None
+        self._last_order = 255
+        self._seq_counters: List[int] = []
+        self._total_seqs = 0
+        self._total_char = 0
+        self._control_char = 0
+        self._freq_char = 0
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         super().reset()
         # char order of last character
         self._last_order = 255
@@ -78,18 +80,18 @@ class SingleByteCharSetProber(CharSetProber):
         self._freq_char = 0
 
     @property
-    def charset_name(self):
+    def charset_name(self) -> Optional[str]:
         if self._name_prober:
             return self._name_prober.charset_name
         return self._model.charset_name
 
     @property
-    def language(self):
+    def language(self) -> Optional[str]:
         if self._name_prober:
             return self._name_prober.language
         return self._model.language
 
-    def feed(self, byte_str):
+    def feed(self, byte_str: Union[bytes, bytearray]) -> ProbingState:
         # TODO: Make filter_international_words keep things in self.alphabet
         if not self._model.keep_ascii_letters:
             byte_str = self.filter_international_words(byte_str)
@@ -139,7 +141,7 @@ class SingleByteCharSetProber(CharSetProber):
 
         return self.state
 
-    def get_confidence(self):
+    def get_confidence(self) -> float:
         r = 0.01
         if self._total_seqs > 0:
             r = (

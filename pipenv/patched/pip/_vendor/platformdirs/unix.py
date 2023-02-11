@@ -107,9 +107,9 @@ class Unix(PlatformDirsABC):
     @property
     def user_log_dir(self) -> str:
         """
-        :return: log directory tied to the user, same as `user_data_dir` if not opinionated else ``log`` in it
+        :return: log directory tied to the user, same as `user_state_dir` if not opinionated else ``log`` in it
         """
-        path = self.user_cache_dir
+        path = self.user_state_dir
         if self.opinion:
             path = os.path.join(path, "log")
         return path

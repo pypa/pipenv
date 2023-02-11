@@ -13,7 +13,7 @@ from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtuale
 USER_CACHE_DIR = appdirs.user_cache_dir("pip")
 
 # FIXME doesn't account for venv linked to global site-packages
-site_packages: typing.Optional[str] = sysconfig.get_path("purelib")
+site_packages: str = sysconfig.get_path("purelib")
 
 
 def get_major_minor_version() -> str:

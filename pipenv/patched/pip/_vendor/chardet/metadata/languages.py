@@ -6,6 +6,7 @@ This code is based on the language metadata from the uchardet project.
 """
 
 from string import ascii_letters
+from typing import List, Optional
 
 # TODO: Add Ukrainian (KOI8-U)
 
@@ -33,13 +34,13 @@ class Language:
 
     def __init__(
         self,
-        name=None,
-        iso_code=None,
-        use_ascii=True,
-        charsets=None,
-        alphabet=None,
-        wiki_start_pages=None,
-    ):
+        name: Optional[str] = None,
+        iso_code: Optional[str] = None,
+        use_ascii: bool = True,
+        charsets: Optional[List[str]] = None,
+        alphabet: Optional[str] = None,
+        wiki_start_pages: Optional[List[str]] = None,
+    ) -> None:
         super().__init__()
         self.name = name
         self.iso_code = iso_code
@@ -55,7 +56,7 @@ class Language:
         self.alphabet = "".join(sorted(set(alphabet))) if alphabet else None
         self.wiki_start_pages = wiki_start_pages
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         param_str = ", ".join(
             f"{k}={v!r}" for k, v in self.__dict__.items() if not k.startswith("_")
         )
@@ -103,7 +104,7 @@ LANGUAGES = {
         name="Danish",
         iso_code="da",
         use_ascii=True,
-        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252"],
+        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252", "MacRoman"],
         alphabet="æøåÆØÅ",
         wiki_start_pages=["Forside"],
     ),
@@ -111,8 +112,8 @@ LANGUAGES = {
         name="German",
         iso_code="de",
         use_ascii=True,
-        charsets=["ISO-8859-1", "WINDOWS-1252"],
-        alphabet="äöüßÄÖÜ",
+        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252", "MacRoman"],
+        alphabet="äöüßẞÄÖÜ",
         wiki_start_pages=["Wikipedia:Hauptseite"],
     ),
     "Greek": Language(
@@ -127,7 +128,7 @@ LANGUAGES = {
         name="English",
         iso_code="en",
         use_ascii=True,
-        charsets=["ISO-8859-1", "WINDOWS-1252"],
+        charsets=["ISO-8859-1", "WINDOWS-1252", "MacRoman"],
         wiki_start_pages=["Main_Page"],
     ),
     "Esperanto": Language(
@@ -143,7 +144,7 @@ LANGUAGES = {
         name="Spanish",
         iso_code="es",
         use_ascii=True,
-        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252"],
+        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252", "MacRoman"],
         alphabet="ñáéíóúüÑÁÉÍÓÚÜ",
         wiki_start_pages=["Wikipedia:Portada"],
     ),
@@ -161,7 +162,7 @@ LANGUAGES = {
         name="Finnish",
         iso_code="fi",
         use_ascii=True,
-        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252"],
+        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252", "MacRoman"],
         alphabet="ÅÄÖŠŽåäöšž",
         wiki_start_pages=["Wikipedia:Etusivu"],
     ),
@@ -169,7 +170,7 @@ LANGUAGES = {
         name="French",
         iso_code="fr",
         use_ascii=True,
-        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252"],
+        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252", "MacRoman"],
         alphabet="œàâçèéîïùûêŒÀÂÇÈÉÎÏÙÛÊ",
         wiki_start_pages=["Wikipédia:Accueil_principal", "Bœuf (animal)"],
     ),
@@ -203,7 +204,7 @@ LANGUAGES = {
         name="Italian",
         iso_code="it",
         use_ascii=True,
-        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252"],
+        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252", "MacRoman"],
         alphabet="ÀÈÉÌÒÓÙàèéìòóù",
         wiki_start_pages=["Pagina_principale"],
     ),
@@ -237,7 +238,7 @@ LANGUAGES = {
         name="Dutch",
         iso_code="nl",
         use_ascii=True,
-        charsets=["ISO-8859-1", "WINDOWS-1252"],
+        charsets=["ISO-8859-1", "WINDOWS-1252", "MacRoman"],
         wiki_start_pages=["Hoofdpagina"],
     ),
     "Polish": Language(
@@ -253,7 +254,7 @@ LANGUAGES = {
         name="Portuguese",
         iso_code="pt",
         use_ascii=True,
-        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252"],
+        charsets=["ISO-8859-1", "ISO-8859-15", "WINDOWS-1252", "MacRoman"],
         alphabet="ÁÂÃÀÇÉÊÍÓÔÕÚáâãàçéêíóôõú",
         wiki_start_pages=["Wikipédia:Página_principal"],
     ),

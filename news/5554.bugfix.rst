@@ -1,0 +1,1 @@
+Fix regression with detection of ``CI`` env variable being set to something other than a truthy value.

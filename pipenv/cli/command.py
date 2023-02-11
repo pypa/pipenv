@@ -3,7 +3,6 @@ import sys
 
 from pipenv import environments
 from pipenv.__version__ import __version__
-from pipenv._compat import fix_utf8
 from pipenv.cli.options import (
     CONTEXT_SETTINGS,
     PipenvGroup,
@@ -19,7 +18,6 @@ from pipenv.cli.options import (
     skip_lock_option,
     sync_options,
     system_option,
-    three_option,
     uninstall_options,
     verbose_option,
 )
@@ -205,11 +203,10 @@ def cli(
                     err=True,
                 )
                 ctx.abort()
-    # --python or --three was passed...
-    if (state.python or state.three is not None) or state.site_packages:
+    # --python was passed...
+    if (state.python) or state.site_packages:
         ensure_project(
             state.project,
-            three=state.three,
             python=state.python,
             warn=True,
             site_packages=state.site_packages,
@@ -239,7 +236,6 @@ def install(state, **kwargs):
     do_install(
         state.project,
         dev=state.installstate.dev,
-        three=state.three,
         python=state.python,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
@@ -286,7 +282,6 @@ def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
         state.project,
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
-        three=state.three,
         python=state.python,
         system=state.system,
         lock=not state.installstate.skip_lock,
@@ -330,7 +325,6 @@ def lock(ctx, state, **kwargs):
     # handled in do_lock
     ensure_project(
         state.project,
-        three=state.three,
         python=state.python,
         pypi_mirror=state.pypi_mirror,
         warn=(not state.quiet),
@@ -368,7 +362,6 @@ def lock(ctx, state, **kwargs):
 )
 @argument("shell_args", nargs=-1)
 @pypi_mirror_option
-@three_option
 @python_option
 @pass_state
 def shell(
@@ -401,7 +394,6 @@ def shell(
         fancy = True
     do_shell(
         state.project,
-        three=state.three,
         python=state.python,
         fancy=fancy,
         shell_args=shell_args,
@@ -425,7 +417,6 @@ def run(state, command, args):
         state.project,
         command=command,
         args=args,
-        three=state.three,
         python=state.python,
         pypi_mirror=state.pypi_mirror,
     )
@@ -509,7 +500,6 @@ def check(
 
     do_check(
         state.project,
-        three=state.three,
         python=state.python,
         system=state.system,
         db=db,
@@ -539,7 +529,6 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
 
     ensure_project(
         state.project,
-        three=state.three,
         python=state.python,
         pypi_mirror=state.pypi_mirror,
         warn=(not state.quiet),
@@ -591,7 +580,6 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
     do_sync(
         state.project,
         dev=state.installstate.dev,
-        three=state.three,
         python=state.python,
         bare=bare,
         dont_upgrade=not state.installstate.keep_outdated,
@@ -640,7 +628,6 @@ def run_open(state, module, *args, **kwargs):
     # Ensure that virtualenv is available.
     ensure_project(
         state.project,
-        three=state.three,
         python=state.python,
         validate=False,
         pypi_mirror=state.pypi_mirror,
@@ -681,7 +668,6 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
     retcode = do_sync(
         state.project,
         dev=state.installstate.dev,
-        three=state.three,
         python=state.python,
         bare=bare,
         dont_upgrade=(not state.installstate.keep_outdated),
@@ -704,7 +690,6 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--dry-run", is_flag=True, default=False, help="Just output unneeded packages.")
 @verbose_option
-@three_option
 @python_option
 @pass_state
 def clean(state, dry_run=False, bare=False, user=False):
@@ -713,7 +698,6 @@ def clean(state, dry_run=False, bare=False, user=False):
 
     do_clean(
         state.project,
-        three=state.three,
         python=state.python,
         dry_run=dry_run,
         system=state.system,
@@ -740,7 +724,7 @@ def scripts(state):
         "{0:<{width}}  {1}".format(name, script, width=first_column_width)
         for name, script in scripts.items()
     )
-    echo("\n".join(fix_utf8(line) for line in lines))
+    echo("\n".join(line for line in lines))
 
 
 @cli.command(

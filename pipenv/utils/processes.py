@@ -21,7 +21,6 @@ def run_command(cmd, *args, is_verbose=False, **kwargs):
     :raises: exceptions.PipenvCmdError
     """
 
-    from pipenv._compat import decode_for_output
     from pipenv.cmdparse import Script
 
     catch_exceptions = kwargs.pop("catch_exceptions", True)
@@ -38,9 +37,7 @@ def run_command(cmd, *args, is_verbose=False, **kwargs):
     c = subprocess_run(command, *args, **kwargs)
     if is_verbose:
         click.echo(
-            "Command output: {}".format(
-                click.style(decode_for_output(c.stdout), fg="cyan")
-            ),
+            "Command output: {}".format(click.style(c.stdout, fg="cyan")),
             err=True,
         )
     if c.returncode and catch_exceptions:

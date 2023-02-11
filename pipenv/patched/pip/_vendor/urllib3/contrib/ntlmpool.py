@@ -69,7 +69,7 @@ class NTLMConnectionPool(HTTPSConnectionPool):
         log.debug("Request headers: %s", headers)
         conn.request("GET", self.authurl, None, headers)
         res = conn.getresponse()
-        reshdr = dict(res.getheaders())
+        reshdr = dict(res.headers)
         log.debug("Response status: %s %s", res.status, res.reason)
         log.debug("Response headers: %s", reshdr)
         log.debug("Response data: %s [...]", res.read(100))
@@ -101,7 +101,7 @@ class NTLMConnectionPool(HTTPSConnectionPool):
         conn.request("GET", self.authurl, None, headers)
         res = conn.getresponse()
         log.debug("Response status: %s %s", res.status, res.reason)
-        log.debug("Response headers: %s", dict(res.getheaders()))
+        log.debug("Response headers: %s", dict(res.headers))
         log.debug("Response data: %s [...]", res.read()[:100])
         if res.status != 200:
             if res.status == 401:

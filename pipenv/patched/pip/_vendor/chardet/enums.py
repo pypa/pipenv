@@ -4,6 +4,8 @@ All of the Enums that are used throughout the chardet package.
 :author: Dan Blanchard (dan.blanchard@gmail.com)
 """
 
+from enum import Enum, Flag
+
 
 class InputState:
     """
@@ -15,12 +17,13 @@ class InputState:
     HIGH_BYTE = 2
 
 
-class LanguageFilter:
+class LanguageFilter(Flag):
     """
     This enum represents the different language filters we can apply to a
     ``UniversalDetector``.
     """
 
+    NONE = 0x00
     CHINESE_SIMPLIFIED = 0x01
     CHINESE_TRADITIONAL = 0x02
     JAPANESE = 0x04
@@ -31,7 +34,7 @@ class LanguageFilter:
     CJK = CHINESE | JAPANESE | KOREAN
 
 
-class ProbingState:
+class ProbingState(Enum):
     """
     This enum represents the different states a prober can be in.
     """
@@ -62,7 +65,7 @@ class SequenceLikelihood:
     POSITIVE = 3
 
     @classmethod
-    def get_num_categories(cls):
+    def get_num_categories(cls) -> int:
         """:returns: The number of likelihood categories in the enum."""
         return 4
 
