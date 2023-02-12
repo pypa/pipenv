@@ -1,0 +1,1 @@
+Passing ``--use-lock`` to ``pipenv check`` will check again lock file default packages, and specifies ``--categories`` allows specifying which lockfile categories to use.
