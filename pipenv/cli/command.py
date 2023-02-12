@@ -1,8 +1,6 @@
 import os
 import sys
 
-import click
-
 from pipenv import environments
 from pipenv.__version__ import __version__
 from pipenv.cli.options import (
@@ -482,7 +480,7 @@ def run(state, command, args):
 @option(
     "--use-lock",
     is_flag=True,
-    help="Whether to use the lockfile as input to check (instead of result from pip list)."
+    help="Whether to use the lockfile as input to check (instead of result from pip list).",
 )
 @option(
     "--categories",
@@ -785,7 +783,6 @@ def verify(state):
 def requirements(
     state, dev=False, dev_only=False, hash=False, exclude_markers=False, categories=""
 ):
-
     from pipenv.utils.dependencies import convert_deps_to_pip
 
     lockfile = state.project.load_lockfile(expand_env_vars=False)
