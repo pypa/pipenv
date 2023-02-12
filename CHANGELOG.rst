@@ -8,7 +8,7 @@ Bug Fixes
 ---------
 
 - Fix overwriting of output in verbose mode  `#5530 <https://github.com/pypa/pipenv/issues/5530>`_
-- Fix for resolution error when direct url includes an extras.  `#5536 <https://github.com/pypa/pipenv/issues/5536>`_
+- Fix for resolution error when direct url includes an extras.  `#5536 <https://github.com/pypa/pipenv/iossues/5536>`_
 
 Removals and Deprecations
 -------------------------
