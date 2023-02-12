@@ -2791,6 +2791,8 @@ def do_check(
     audit_and_monitor=True,
     safety_project=None,
     pypi_mirror=None,
+    use_lock=False,
+    categories="",
 ):
     import json
 
@@ -2897,9 +2899,18 @@ def do_check(
     if safety_project:
         options.append(f"--project={safety_project}")
 
-    target_venv_packages = run_command(
-        _cmd + ["-m", "pip", "list", "--format=freeze"], is_verbose=project.s.is_verbose()
-    )
+    if categories:
+        target_venv_packages = run_command(
+            _cmd + ["-m", "pipenv", "requirements", "--categories", f'"{categories}"'], is_verbose=project.s.is_verbose()
+        )
+    elif use_lock:
+        target_venv_packages = run_command(
+            _cmd + ["-m", "pipenv", "requirements"], is_verbose=project.s.is_verbose()
+        )
+    else:
+        target_venv_packages = run_command(
+            _cmd + ["-m", "pip", "list", "--format=freeze"], is_verbose=project.s.is_verbose()
+        )
 
     temp_requirements = tempfile.NamedTemporaryFile(
         mode="w+",

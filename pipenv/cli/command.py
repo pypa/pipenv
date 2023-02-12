@@ -1,6 +1,8 @@
 import os
 import sys
 
+import click
+
 from pipenv import environments
 from pipenv.__version__ import __version__
 from pipenv.cli.options import (
@@ -477,13 +479,23 @@ def run(state, command, args):
     help="Path to where output file will be placed, if the path is a directory, "
     "Safety will use safety-report.json as filename. Default: empty",
 )
+@option(
+    "--use-lock",
+    is_flag=True,
+    help="Whether to use the lockfile as input to check (instead of result from pip list)."
+)
+@option(
+    "--categories",
+    is_flag=False,
+    default="",
+    help="Use the specified categories from the lockfile as input to check.",
+)
 @common_options
 @system_option
 @pass_state
 def check(
     state,
     db=None,
-    style=False,
     ignore=None,
     output="screen",
     key=None,
@@ -493,6 +505,8 @@ def check(
     save_json="",
     audit_and_monitor=True,
     project=None,
+    use_lock=False,
+    categories="",
     **kwargs,
 ):
     """Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile."""
@@ -513,6 +527,8 @@ def check(
         audit_and_monitor=audit_and_monitor,
         safety_project=project,
         pypi_mirror=state.pypi_mirror,
+        use_lock=use_lock,
+        categories=categories,
     )
 
 
