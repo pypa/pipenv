@@ -1,0 +1,1 @@
+Fix ``--categories`` argument inconsistency between requirements command and install/sync by allowing comma seperated values or spaces.

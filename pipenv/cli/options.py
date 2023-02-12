@@ -1,4 +1,5 @@
 import os
+import re
 
 from pipenv.project import Project
 from pipenv.utils.internet import is_valid_url
@@ -235,7 +236,7 @@ def categories_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
-            for opt in value.split(" "):
+            for opt in re.split(r", *| ", value):
                 state.installstate.categories.append(opt)
         return value
 
