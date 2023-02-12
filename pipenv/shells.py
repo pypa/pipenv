@@ -46,7 +46,7 @@ def _get_activate_script(cmd, venv):
         command = "source"
     elif "nu" in cmd:
         suffix = ".nu"
-        command = "source"
+        command = "overlay use"
     else:
         suffix = ""
         command = "."
