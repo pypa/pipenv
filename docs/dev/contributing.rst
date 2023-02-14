@@ -78,7 +78,7 @@ When contributing code, you'll want to follow this checklist:
 
 #. Fork the repository on GitHub.
 #. Set up your :ref:`dev-setup`
-#. Run the tests (:ref:`testing`) to confirm they all pass on your system.
+#. Run the tests (:ref:`run-the-tests`) to confirm they all pass on your system.
    If they don't, you'll need to investigate why they fail. If you're unable
    to diagnose this yourself, raise it as a bug report by following the guidelines
    in this document: :ref:`bug-reports`.
@@ -104,49 +104,16 @@ See `pypa/pipenv#2557`_ for more details.
 .. _pypa/pipenv#2557: https://github.com/pypa/pipenv/issues/2557
 
 Pipenv now uses pre-commit hooks similar to Pip in order to apply linting and
-code formatting automatically!  The build now also checks that these linting rules
+code formatting automatically! The build now also checks that these linting rules
 have been applied to the code before running the tests.
 The build will fail when linting changes are detected so be sure to sync dev requirements
 and install the pre-commit hooks locally::
 
-   $ ``pipenv install --dev``
+   $ pipenv install --dev
    # This will configure running the pre-commit checks at start of each commit
-   $ ``pre-commit install``
+   $ pre-commit install
    # Should you want to check the pre-commit configuration against all configured project files
-   $ ``pre-commit run --all-files --verbose``
-
-
-.. _testing:
-
-Testing
-~~~~~~~
-
-Tests are written in ``pytest`` style and can be run very simply:
-
-.. code-block:: sh
-
-  pytest
-
-However many tests depend on running a private pypi server on localhost:8080.
-This can be accomplished by using either the ``run-tests.sh`` or ``run-tests.bat``
-which will start the ``pypiserver`` process ahead of invoking pytest.
-
-You may also manually perform this step and then invoke pytest as you would normally.  Example::
-
-    # Linux or MacOS
-    pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
-
-    # Windows
-    cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
-
-
-This will run all Pipenv tests, which can take awhile. To run a subset of the
-tests, the standard pytest filters are available, such as:
-
-- provide a directory or file: ``pytest tests/unit`` or ``pytest tests/unit/test_cmdparse.py``
-- provide a keyword expression: ``pytest -k test_lock_editable_vcs_without_install``
-- provide a nodeid: ``pytest tests/unit/test_cmdparse.py::test_parse``
-- provide a test marker: ``pytest -m lock``
+   $ pre-commit run --all-files --verbose
 
 
 Code Review
@@ -239,11 +206,38 @@ be aware of the following things when filing bug reports:
 Run the tests
 -------------
 
-There are a few ways of running the tests:
+Tests are written in ``pytest`` style and can be run very simply:
 
-1. run-tests.sh
+.. code-block:: bash
 
-The scripts for bash or windows: ``./run-tests.sh`` and ``run-tests.bat``
+  pytest
+
+However many tests depend on running a private pypi server on localhost:8080.
+This can be accomplished by using either the ``run-tests.sh`` or ``run-tests.bat`` scripts
+which will start the ``pypiserver`` process ahead of invoking pytest.
+
+You may also manually perform this step and then invoke pytest as you would normally.  Example::
+
+    # Linux or MacOS
+    pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+
+    # Windows
+    cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
+
+
+This will run all Pipenv tests, which can take awhile. To run a subset of the
+tests, the standard pytest filters are available, such as:
+
+- provide a directory or file: ``pytest tests/unit`` or ``pytest tests/unit/test_cmdparse.py``
+- provide a keyword expression: ``pytest -k test_lock_editable_vcs_without_install``
+- provide a nodeid: ``pytest tests/unit/test_cmdparse.py::test_parse``
+- provide a test marker: ``pytest -m lock``
+
+There are a few other ways of running the tests:
+
+1. test scripts
+
+The scripts for bash or windows: ``run-tests.sh`` and ``run-tests.bat``
 
 Note that, you override the default Python Pipenv will use with
 PIPENV_PYTHON and the Python binary name with PYTHON in case it
@@ -283,15 +277,14 @@ Preferably, you should be running your tests in a Linux container
 (or FreeBSD Jail or even VM). This will guarantee that you don't break
 stuff, and that the tests run in a pristine environment.
 
-Consider doing, something like:
+Consider doing something like this::
 
-```
-$ docker run --rm -v $(pwd):/usr/src -it python:3.7 bash
-# inside the container
-# adduser --disabled-password debian
-# su debian && cd /usr/src/
-# bash run-tests.sh
-```
+    $ docker run --rm -v $(pwd):/usr/src -it python:3.7 bash
+    # inside the container
+    # adduser --disabled-password debian
+    # su debian && cd /usr/src/
+    # bash run-tests.sh
+
 
 3. Using the Makefile:
 
