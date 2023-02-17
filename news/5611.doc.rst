@@ -1,1 +1,1 @@
-Make some improvements to the contributing guide. 
+Make some improvements to the contributing guide.
