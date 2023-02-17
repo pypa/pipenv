@@ -478,7 +478,7 @@ def run(state, command, args):
     "Safety will use safety-report.json as filename. Default: empty",
 )
 @option(
-    "--use-lock",
+    "--use-installed",
     is_flag=True,
     help="Whether to use the lockfile as input to check (instead of result from pip list).",
 )
@@ -503,7 +503,7 @@ def check(
     save_json="",
     audit_and_monitor=True,
     project=None,
-    use_lock=False,
+    use_installed=False,
     categories="",
     **kwargs,
 ):
@@ -525,7 +525,7 @@ def check(
         audit_and_monitor=audit_and_monitor,
         safety_project=project,
         pypi_mirror=state.pypi_mirror,
-        use_lock=use_lock,
+        use_installed=use_installed,
         categories=categories,
     )
 

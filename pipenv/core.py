@@ -2790,7 +2790,7 @@ def do_check(
     audit_and_monitor=True,
     safety_project=None,
     pypi_mirror=None,
-    use_lock=False,
+    use_installed=False,
     categories="",
 ):
     import json
@@ -2903,14 +2903,14 @@ def do_check(
             _cmd + ["-m", "pipenv", "requirements", "--categories", f'"{categories}"'],
             is_verbose=project.s.is_verbose(),
         )
-    elif use_lock:
-        target_venv_packages = run_command(
-            _cmd + ["-m", "pipenv", "requirements"], is_verbose=project.s.is_verbose()
-        )
-    else:
+    elif use_installed:
         target_venv_packages = run_command(
             _cmd + ["-m", "pip", "list", "--format=freeze"],
             is_verbose=project.s.is_verbose(),
+        )
+    else:
+        target_venv_packages = run_command(
+            _cmd + ["-m", "pipenv", "requirements"], is_verbose=project.s.is_verbose()
         )
 
     temp_requirements = tempfile.NamedTemporaryFile(
