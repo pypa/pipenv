@@ -18,7 +18,8 @@ def test_basic_category_install(pipenv_instance_private_pypi):
 
 @pytest.mark.categories
 @pytest.mark.install
-def test_multiple_category_install(pipenv_instance_private_pypi):
+@pytest.mark.parametrize('categories', ["prereq other", "prereq, other"])
+def test_multiple_category_install(pipenv_instance_private_pypi, categories):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv('install six --categories="prereq other"')
         assert c.returncode == 0
