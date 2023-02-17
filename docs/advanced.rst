@@ -390,9 +390,11 @@ It can be used to specify multiple categories also.
 Pipenv includes the `safety <https://github.com/pyupio/safety>`_ package, and will use it to scan your dependency graph
 for known security vulnerabilities!
 
-By default ``pipenv check`` will scan the virtualenv packages for what is installed and use this as the input to the safety command.
-To have ``pipenv check`` use the ``Pipfile.lock`` to determine package inputs simply pass ``--use-lock`` to use the default packages
-category, or pass the specific ``--categories`` you want to check against.
+By default ``pipenv check`` will scan the Pipfile.lock default packages group and use this as the input to the safety command.
+To scan other package categories pass the specific ``--categories`` you want to check against.
+To have ``pipenv check`` scan the virtualenv packages for what is installed and use this as the input to the safety command,
+run``pipenv check --use-installed``.
+Note:  ``--use-installed`` was the default behavior in ``pipenv<=2023.2.4``
 
 Example::
 
