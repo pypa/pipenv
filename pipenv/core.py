@@ -2900,7 +2900,7 @@ def do_check(
 
     if categories:
         target_venv_packages = run_command(
-            _cmd + ["-m", "pipenv", "requirements", "--categories", f'"{categories}"'],
+            ["pipenv", "requirements", "--categories", categories],
             is_verbose=project.s.is_verbose(),
         )
     elif use_installed:
@@ -2910,7 +2910,7 @@ def do_check(
         )
     else:
         target_venv_packages = run_command(
-            _cmd + ["-m", "pipenv", "requirements"], is_verbose=project.s.is_verbose()
+            ["pipenv", "requirements"], is_verbose=project.s.is_verbose()
         )
 
     temp_requirements = tempfile.NamedTemporaryFile(

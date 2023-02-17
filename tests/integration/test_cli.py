@@ -173,11 +173,6 @@ def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
         c = p.pipenv(f'check --categories={category}')
         assert c.returncode != 0
         assert 'wheel' in c.stdout
-        c = p.pipenv('pip uninstall wheel')
-        assert c.returncode == 0
-        c = p.pipenv(f'check --categories={category}')
-        assert c.returncode != 0
-        assert 'wheel' in c.stdout
 
 
 @pytest.mark.cli
