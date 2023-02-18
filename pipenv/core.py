@@ -2898,14 +2898,14 @@ def do_check(
     if safety_project:
         options.append(f"--project={safety_project}")
 
-    if categories:
-        target_venv_packages = run_command(
-            ["pipenv", "requirements", "--categories", categories],
-            is_verbose=project.s.is_verbose(),
-        )
-    elif use_installed:
+    if use_installed:
         target_venv_packages = run_command(
             _cmd + ["-m", "pip", "list", "--format=freeze"],
+            is_verbose=project.s.is_verbose(),
+        )
+    elif categories:
+        target_venv_packages = run_command(
+            ["pipenv", "requirements", "--categories", categories],
             is_verbose=project.s.is_verbose(),
         )
     else:
