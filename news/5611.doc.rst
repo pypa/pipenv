@@ -1,1 +1,0 @@
-Make some improvements to the contributing guide.

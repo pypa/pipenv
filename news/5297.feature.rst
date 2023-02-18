@@ -1,1 +1,0 @@
-``pipenv`` now reads the system ``pip.conf`` or ``pip.ini`` file in order to determine pre-defined indexes to use for package resolution and installation.

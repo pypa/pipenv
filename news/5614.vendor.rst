@@ -1,1 +1,0 @@
-Vendor in ``pip==23.0.1`` minor pt release.  Updates ``pythonfinder==1.3.2``.

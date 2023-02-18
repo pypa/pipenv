@@ -1,3 +1,36 @@
+2023.2.18 (2023-02-18)
+======================
+Pipenv 2023.2.18 (2023-02-18)
+=============================
+
+
+Features & Improvements
+-----------------------
+
+- ``pipenv`` now reads the system ``pip.conf`` or ``pip.ini`` file in order to determine pre-defined indexes to use for package resolution and installation.  `#5297 <https://github.com/pypa/pipenv/issues/5297>`_
+- Behavior change for ``pipenv check`` now checks the default packages group of the lockfile.
+  Specifying ``--categories`` to override which categories to check against.
+  Pass ``--use-installed`` to get the prior behavior of checking the packages actually installed into the environment.  `#5600 <https://github.com/pypa/pipenv/issues/5600>`_
+
+Bug Fixes
+---------
+
+- Fix regression with detection of ``CI`` env variable being set to something other than a truthy value.  `#5554 <https://github.com/pypa/pipenv/issues/5554>`_
+- Fix ``--categories`` argument inconsistency between requirements command and install/sync by allowing comma seperated values or spaces.  `#5570 <https://github.com/pypa/pipenv/issues/5570>`_
+- Use Nushell overlays when running ``pipenv shell``.  `#5603 <https://github.com/pypa/pipenv/issues/5603>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in the ``pip==23.0`` release.  `#5586 <https://github.com/pypa/pipenv/issues/5586>`_
+- Vendor in ``pip==23.0.1`` minor pt release.  Updates ``pythonfinder==1.3.2``.  `#5614 <https://github.com/pypa/pipenv/issues/5614>`_
+
+Improved Documentation
+----------------------
+
+- Make some improvements to the contributing guide.  `#5611 <https://github.com/pypa/pipenv/issues/5611>`_
+
+
 2023.2.4 (2023-02-04)
 =====================
 Pipenv 2023.2.4 (2023-02-04)
