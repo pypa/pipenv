@@ -22,6 +22,7 @@ parse = "*"
 importlib-metadata = {version = "*", markers="python_version < '3.8'"}
 colorama= {version = "*", markers="sys_platform == 'win32'"}
 invoke = "==2.0.0"
+exceptiongroup = "==1.1.0"
 
 [packages]
 
