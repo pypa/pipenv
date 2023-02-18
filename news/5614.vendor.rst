@@ -1,0 +1,1 @@
+Vendor in ``pip==23.0.1`` minor pt release.
