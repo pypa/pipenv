@@ -479,13 +479,23 @@ def run(state, command, args):
     help="Path to where output file will be placed, if the path is a directory, "
     "Safety will use safety-report.json as filename. Default: empty",
 )
+@option(
+    "--use-installed",
+    is_flag=True,
+    help="Whether to use the lockfile as input to check (instead of result from pip list).",
+)
+@option(
+    "--categories",
+    is_flag=False,
+    default="",
+    help="Use the specified categories from the lockfile as input to check.",
+)
 @common_options
 @system_option
 @pass_state
 def check(
     state,
     db=None,
-    style=False,
     ignore=None,
     output="screen",
     key=None,
@@ -495,6 +505,8 @@ def check(
     save_json="",
     audit_and_monitor=True,
     project=None,
+    use_installed=False,
+    categories="",
     **kwargs,
 ):
     """Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile."""
@@ -515,6 +527,8 @@ def check(
         audit_and_monitor=audit_and_monitor,
         safety_project=project,
         pypi_mirror=state.pypi_mirror,
+        use_installed=use_installed,
+        categories=categories,
     )
 
 
@@ -771,7 +785,6 @@ def verify(state):
 def requirements(
     state, dev=False, dev_only=False, hash=False, exclude_markers=False, categories=""
 ):
-
     from pipenv.utils.dependencies import convert_deps_to_pip
 
     lockfile = state.project.load_lockfile(expand_env_vars=False)

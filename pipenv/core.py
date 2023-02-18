@@ -57,7 +57,6 @@ from pipenv.vendor import click, plette, vistir
 from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 if MYPY_RUNNING:
-
     TSourceDict = Dict[str, Union[str, bool]]
 
 
@@ -2791,6 +2790,8 @@ def do_check(
     audit_and_monitor=True,
     safety_project=None,
     pypi_mirror=None,
+    use_installed=False,
+    categories="",
 ):
     import json
 
@@ -2897,9 +2898,20 @@ def do_check(
     if safety_project:
         options.append(f"--project={safety_project}")
 
-    target_venv_packages = run_command(
-        _cmd + ["-m", "pip", "list", "--format=freeze"], is_verbose=project.s.is_verbose()
-    )
+    if use_installed:
+        target_venv_packages = run_command(
+            _cmd + ["-m", "pip", "list", "--format=freeze"],
+            is_verbose=project.s.is_verbose(),
+        )
+    elif categories:
+        target_venv_packages = run_command(
+            ["pipenv", "requirements", "--categories", categories],
+            is_verbose=project.s.is_verbose(),
+        )
+    else:
+        target_venv_packages = run_command(
+            ["pipenv", "requirements"], is_verbose=project.s.is_verbose()
+        )
 
     temp_requirements = tempfile.NamedTemporaryFile(
         mode="w+",

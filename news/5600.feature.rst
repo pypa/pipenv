@@ -1,0 +1,3 @@
+Behavior change for ``pipenv check`` now checks the default packages group of the lockfile.
+Specifying ``--categories`` to override which categories to check against.
+Pass ``--use-installed`` to get the prior behavior of checking the packages actually installed into the environment.
