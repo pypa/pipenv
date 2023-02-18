@@ -19,6 +19,8 @@ from pipenv.cmdparse import Script
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
 from pipenv.patched.pip._internal.commands.install import InstallCommand
+from pipenv.patched.pip._internal.configuration import Configuration
+from pipenv.patched.pip._internal.exceptions import ConfigurationError
 from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
@@ -28,7 +30,7 @@ from pipenv.utils.dependencies import (
     pep423_name,
     python_version,
 )
-from pipenv.utils.internet import get_url_name, is_valid_url, proper_case
+from pipenv.utils.internet import get_url_name, is_pypi_url, is_valid_url, proper_case
 from pipenv.utils.shell import (
     find_requirements,
     find_windows_executable,
@@ -131,7 +133,39 @@ class Project:
         self._build_system = {"requires": ["setuptools", "wheel"]}
         self.python_version = python_version
         self.s = Setting()
-        if self.s.PIPENV_TEST_INDEX:
+        # Load Pip configuration and get items
+        self.configuration = Configuration(isolated=False, load_only=None)
+        self.configuration.load()
+        pip_conf_indexes = []
+        for section_key, value in self.configuration.items():
+            key_parts = section_key.split(".", 1)
+            if key_parts[1] == "index-url":
+                try:
+                    trusted_hosts = self.configuration.get_value(
+                        f"{key_parts[0]}.trusted-host"
+                    )
+                except ConfigurationError:
+                    trusted_hosts = []
+                pip_conf_indexes.append(
+                    {
+                        "url": value,
+                        "verify_ssl": not any(
+                            trusted_host in value for trusted_host in trusted_hosts
+                        )
+                        and "https://" in value,
+                        "name": f"pip_conf_index_{key_parts[0]}",
+                    }
+                )
+
+        if pip_conf_indexes:
+            self.default_source = None
+            for pip_conf_index in pip_conf_indexes:
+                if self.default_source is None:
+                    self.default_source = pip_conf_index
+                if is_pypi_url(pip_conf_index["url"]):
+                    self.default_source = pip_conf_index
+            pip_conf_indexes.remove(self.default_source)
+        elif self.s.PIPENV_TEST_INDEX:
             self.default_source = {
                 "url": self.s.PIPENV_TEST_INDEX,
                 "verify_ssl": True,
@@ -144,9 +178,10 @@ class Project:
                 "name": "pypi",
             }
 
-        plette.pipfiles.DEFAULT_SOURCE_TOML = (
-            f"[[source]]\n{toml.dumps(self.default_source)}"
-        )
+        default_sources_toml = f"[[source]]\n{toml.dumps(self.default_source)}"
+        for pip_conf_index in pip_conf_indexes:
+            default_sources_toml += f"\n\n[[source]]\n{toml.dumps(pip_conf_index)}"
+        plette.pipfiles.DEFAULT_SOURCE_TOML = default_sources_toml
 
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:

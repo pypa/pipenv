@@ -362,7 +362,7 @@ class Setting:
         # Internal, support running in a different Python from sys.executable.
         self.PIPENV_PYTHON = get_from_env("PYTHON", check_for_negation=False)
 
-        # Internal, overwrite all index funcitonality.
+        # Internal, overwrite all index functionality.
         self.PIPENV_TEST_INDEX = get_from_env("TEST_INDEX", check_for_negation=False)
 
         # Internal, tells Pipenv about the surrounding environment.
