@@ -21,7 +21,7 @@ from distutils.cmd import Command as DistutilsCommand
 from distutils.command.install import SCHEME_KEYS
 from distutils.command.install import install as distutils_install_command
 from distutils.sysconfig import get_python_lib
-from typing import Dict, List, Optional, Tuple, Union, cast
+from typing import Dict, List, Optional, Union, cast
 
 from pipenv.patched.pip._internal.models.scheme import Scheme
 from pipenv.patched.pip._internal.utils.compat import WINDOWS
@@ -171,10 +171,3 @@ def get_purelib() -> str:
 
 def get_platlib() -> str:
     return get_python_lib(plat_specific=True)
-
-
-def get_isolated_environment_lib_paths(prefix: str) -> Tuple[str, str]:
-    return (
-        get_python_lib(plat_specific=False, prefix=prefix),
-        get_python_lib(plat_specific=True, prefix=prefix),
-    )

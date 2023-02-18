@@ -164,6 +164,14 @@ require_virtualenv: Callable[..., Option] = partial(
     ),
 )
 
+override_externally_managed: Callable[..., Option] = partial(
+    Option,
+    "--break-system-packages",
+    dest="override_externally_managed",
+    action="store_true",
+    help="Allow pip to modify an EXTERNALLY-MANAGED Python installation",
+)
+
 python: Callable[..., Option] = partial(
     Option,
     "--python",
