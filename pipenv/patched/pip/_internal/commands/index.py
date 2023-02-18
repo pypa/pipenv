@@ -24,6 +24,7 @@ class IndexCommand(IndexGroupCommand):
     Inspect information available from package indexes.
     """
 
+    ignore_require_venv = True
     usage = """
         %prog versions <package>
     """

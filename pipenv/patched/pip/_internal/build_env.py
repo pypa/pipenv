@@ -9,7 +9,7 @@ import sys
 import textwrap
 from collections import OrderedDict
 from types import TracebackType
-from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Tuple, Type
+from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Tuple, Type, Union
 
 from pipenv.patched.pip._vendor.certifi import where
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
@@ -17,12 +17,7 @@ from pipenv.patched.pip._vendor.packaging.version import Version
 
 from pipenv.patched.pip import __file__ as pip_location
 from pipenv.patched.pip._internal.cli.spinners import open_spinner
-from pipenv.patched.pip._internal.locations import (
-    get_isolated_environment_bin_path,
-    get_isolated_environment_lib_paths,
-    get_platlib,
-    get_purelib,
-)
+from pipenv.patched.pip._internal.locations import get_platlib, get_purelib, get_scheme
 from pipenv.patched.pip._internal.metadata import get_default_environment, get_environment
 from pipenv.patched.pip._internal.utils.subprocess import call_subprocess
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
@@ -33,12 +28,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _dedup(a: str, b: str) -> Union[Tuple[str], Tuple[str, str]]:
+    return (a, b) if a != b else (a,)
+
+
 class _Prefix:
     def __init__(self, path: str) -> None:
         self.path = path
         self.setup = False
-        self.bin_dir = get_isolated_environment_bin_path(path)
-        self.lib_dirs = get_isolated_environment_lib_paths(path)
+        scheme = get_scheme("", prefix=path)
+        self.bin_dir = scheme.scripts
+        self.lib_dirs = _dedup(scheme.purelib, scheme.platlib)
 
 
 def get_runnable_pip() -> str:
