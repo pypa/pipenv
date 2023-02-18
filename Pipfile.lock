@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "303dcf4520911502e8a3da5f89010c5e8a1b625e6ae17a0106f21c19864f4ed8"
+            "sha256": "58f7dcd5928c25e71f8bc645bd59ac27fd268b7fd5af541f4fd4d5b8dcb3ce5f"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -804,6 +804,14 @@
             "index": "pypi",
             "markers": "sys_platform == 'linux'",
             "version": "==0.10.0"
+        },
+        "tomli": {
+            "hashes": [
+                "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc",
+                "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"
+            ],
+            "index": "pypi",
+            "version": "==2.0.1"
         },
         "towncrier": {
             "hashes": [
