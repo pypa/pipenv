@@ -7,6 +7,8 @@ import os
 import shutil
 import tempfile
 
+import pipenv.utils.pip
+
 try:
     import importlib.metadata as imp_meta
 except ImportError:
@@ -29,7 +31,7 @@ def _prep_meta(hooks, env, dest):
     reqs = hooks.get_requires_for_build_wheel({})
     log.info('Got build requires: %s', reqs)
 
-    env.pip_install(reqs)
+    pipenv.utils.pip.pip_install(reqs)
     log.info('Installed dynamic build dependencies')
 
     with tempfile.TemporaryDirectory() as td:

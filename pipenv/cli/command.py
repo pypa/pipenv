@@ -25,6 +25,7 @@ from pipenv.cli.options import (
 from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
 from pipenv.utils.environment import load_dot_env
 from pipenv.utils.processes import subprocess_run
+from pipenv.vendor import click
 from pipenv.vendor.click import (
     Choice,
     argument,
@@ -85,15 +86,12 @@ def cli(
 
     load_dot_env(state.project, quiet=state.quiet)
 
-    from ..core import (
-        cleanup_virtualenv,
-        do_clear,
-        do_py,
-        do_where,
-        ensure_project,
-        format_help,
-        warn_in_virtualenv,
-    )
+    from pipenv.utils.display import format_help
+    from pipenv.utils.virtualenv import do_where
+    from pipenv.utils.project import ensure_project
+    from pipenv.utils.virtualenv import cleanup_virtualenv
+    from pipenv.utils.virtualenv import warn_in_virtualenv
+    from pipenv.routines.clear import do_clear
 
     if "PIPENV_COLORBLIND" in os.environ:
         echo(
@@ -233,7 +231,7 @@ def cli(
 @pass_state
 def install(state, **kwargs):
     """Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile."""
-    from ..core import do_install
+    from pipenv.routines.install import do_install
 
     do_install(
         state.project,
@@ -278,7 +276,7 @@ def install(state, **kwargs):
 @pass_context
 def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
     """Uninstalls a provided package and removes it from Pipfile."""
-    from ..core import do_uninstall
+    from pipenv.routines.uninstall import do_uninstall
 
     retcode = do_uninstall(
         state.project,
@@ -320,7 +318,8 @@ LOCK_DEV_NOTE = """\
 @pass_context
 def lock(ctx, state, **kwargs):
     """Generates Pipfile.lock."""
-    from ..core import do_lock, ensure_project
+    from pipenv.utils.project import ensure_project
+    from pipenv.routines.lock import do_lock
 
     # Ensure that virtualenv is available.
     # Note that we don't pass clear on to ensure_project as it is also
@@ -373,7 +372,7 @@ def shell(
     anyway=False,
 ):
     """Spawns a shell within the virtualenv."""
-    from ..core import do_shell
+    from pipenv.routines.shell import do_shell
 
     # Prevent user from activating nested environments.
     if "PIPENV_ACTIVE" in os.environ:
@@ -413,7 +412,7 @@ def shell(
 @pass_state
 def run(state, command, args):
     """Spawns a command installed into the virtualenv."""
-    from ..core import do_run
+    from pipenv.routines.shell import do_run
 
     do_run(
         state.project,
@@ -510,7 +509,7 @@ def check(
     **kwargs,
 ):
     """Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile."""
-    from ..core import do_check
+    from pipenv.routines.check import do_check
 
     do_check(
         state.project,
@@ -541,7 +540,10 @@ def check(
 @pass_context
 def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
     """Runs lock, then sync."""
-    from ..core import do_lock, do_outdated, do_sync, ensure_project
+    from pipenv.utils.project import ensure_project
+    from pipenv.routines.lock import do_lock
+    from pipenv.routines.install import do_sync
+    from pipenv.routines.outdated import do_outdated
 
     ensure_project(
         state.project,
@@ -618,7 +620,7 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
 @pass_state
 def graph(state, bare=False, json=False, json_tree=False, reverse=False):
     """Displays currently-installed dependency graph information."""
-    from ..core import do_graph
+    from pipenv.routines.graph import do_graph
 
     do_graph(state.project, bare=bare, json=json, json_tree=json_tree, reverse=reverse)
 
@@ -639,7 +641,8 @@ def run_open(state, module, *args, **kwargs):
 
         EDITOR=atom pipenv open requests
     """
-    from ..core import ensure_project, inline_activate_virtual_environment
+    from pipenv.utils.virtualenv import inline_activate_virtual_environment
+    from pipenv.utils.project import ensure_project
 
     # Ensure that virtualenv is available.
     ensure_project(
@@ -679,7 +682,7 @@ def run_open(state, module, *args, **kwargs):
 @pass_context
 def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
     """Installs all packages specified in Pipfile.lock."""
-    from ..core import do_sync
+    from pipenv.routines.install import do_sync
 
     retcode = do_sync(
         state.project,
@@ -710,7 +713,7 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
 @pass_state
 def clean(state, dry_run=False, bare=False, user=False):
     """Uninstalls all packages not specified in Pipfile.lock."""
-    from ..core import do_clean
+    from pipenv.routines.clean import do_clean
 
     do_clean(
         state.project,
@@ -822,3 +825,21 @@ def requirements(
 
 if __name__ == "__main__":
     cli()
+
+
+def do_py(project, ctx=None, system=False):
+    if not project.virtualenv_exists:
+        click.echo(
+            "{}({}){}".format(
+                click.style("No virtualenv has been created for this project ", fg="red"),
+                click.style(project.project_directory, fg="yellow", bold=True),
+                click.style(" yet!", fg="red"),
+            ),
+            err=True,
+        )
+        ctx.abort()
+
+    try:
+        click.echo(project._which("python", allow_global=system))
+    except AttributeError:
+        click.echo(click.style("No project found!", fg="red"))
