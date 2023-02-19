@@ -12,8 +12,8 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
 
     from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-    from .vendor.requirementslib.models.requirements import Requirement
-    from .vendor.requirementslib.models.utils import get_version
+    from pipenv.vendor.requirementslib.models.requirements import Requirement
+    from pipenv.vendor.requirementslib.models.utils import get_version
 
     packages = {}
     package_info = namedtuple("PackageInfo", ["name", "installed", "available"])

@@ -22,7 +22,7 @@ def do_shell(project, python=False, fancy=False, shell_args=None, pypi_mirror=No
     if project.s.PIPENV_SHELL_FANCY:
         fancy = True
 
-    from .shells import choose_shell
+    from pipenv.shells import choose_shell
 
     shell = choose_shell(project)
     click.echo("Launching subshell in virtual environment...", err=True)
