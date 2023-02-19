@@ -75,5 +75,5 @@ def ensure_project(
         project,
         validate=validate,
         skip_requirements=skip_requirements,
-        system=system_or_exists,
+        system=system,
     )

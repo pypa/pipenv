@@ -3,22 +3,33 @@ from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
     is_star,
 )
+from pipenv.utils.project import ensure_project
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 
 def do_upgrade(
     project,
+    python=None,
     pre=False,
     system=False,
     packages=None,
     editable_packages=None,
     site_packages=False,
+    pypi_mirror=None,
     extra_pip_args=None,
     categories=None,
-    write=True,
-    pypi_mirror=None,
+    quiet=False,
 ):
+
+    ensure_project(
+        project,
+        python=python,
+        pypi_mirror=pypi_mirror,
+        warn=(not quiet),
+        site_packages=site_packages,
+    )
+
     lockfile = project._lockfile()
     if not pre:
         pre = project.settings.get("allow_prereleases")
@@ -28,13 +39,13 @@ def do_upgrade(
     package_args = [p for p in packages] + [f"-e {pkg}" for pkg in editable_packages]
 
     reqs = {}
-    requested_packages = []
+    requested_packages = {}
     for package in package_args[:]:
         # section = project.packages if not dev else project.dev_packages
         section = {}
         package = Requirement.from_line(package)
         package_name, package_val = package.pipfile_entry
-        requested_packages.append(package_name)
+        requested_packages[package_name] = package
         try:
             if not is_star(section[package_name]) and is_star(package_val):
                 # Support for VCS dependencies.
@@ -58,16 +69,17 @@ def do_upgrade(
         keep_outdated=False,
     )
 
-    #
+    # Upgrade the relevant packages in the various categories specified
     for category in categories:
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
         if project.pipfile_exists:
             packages = project.parsed_pipfile.get(pipfile_category, {})
         else:
             packages = project.get_pipfile_section(pipfile_category)
-        for package_name in requested_packages:
+        for package_name, requirement in requested_packages.items():
             requested_package = reqs[package_name]
             packages.append(package_name, requested_package)
+            project.add_package_to_pipfile(requirement, category=pipfile_category)
 
         full_lock_resolution = venv_resolve_deps(
             packages,

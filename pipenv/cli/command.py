@@ -275,6 +275,7 @@ def upgrade(state, **kwargs):
         site_packages=state.site_packages,
         extra_pip_args=state.installstate.extra_pip_args,
         categories=state.installstate.categories,
+        system=state.system,
     )
 
 

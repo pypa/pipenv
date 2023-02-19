@@ -977,12 +977,8 @@ class Project:
         # Set empty group if it doesn't exist yet.
         if category not in p:
             p[category] = {}
-        name = self.get_package_name_in_pipfile(req_name, category=category)
-        if name and is_star(converted):
-            # Skip for wildcard version
-            return
         # Add the package to the group.
-        p[category][name or pep423_name(req_name)] = converted
+        p[category][pep423_name(req_name)] = converted
         # Write Pipfile.
         self.write_toml(p)
 
