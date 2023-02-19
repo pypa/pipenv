@@ -254,6 +254,31 @@ def install(state, **kwargs):
 
 
 @cli.command(
+    short_help="Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile.",
+    context_settings=subcommand_context,
+)
+@system_option
+@deploy_option
+@site_packages_option
+@skip_lock_option
+@install_options
+@pass_state
+def upgrade(state, **kwargs):
+    """Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile."""
+    from pipenv.routines.upgrade import do_upgrade
+
+    do_upgrade(
+        state.project,
+        pre=state.installstate.pre,
+        packages=state.installstate.packages,
+        editable_packages=state.installstate.editables,
+        site_packages=state.site_packages,
+        extra_pip_args=state.installstate.extra_pip_args,
+        categories=state.installstate.categories,
+    )
+
+
+@cli.command(
     short_help="Uninstalls a provided package and removes it from Pipfile.",
     context_settings=subcommand_context,
 )
