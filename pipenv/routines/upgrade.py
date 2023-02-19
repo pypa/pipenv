@@ -1,14 +1,10 @@
-from pipenv.vendor import click
-
 from pipenv.utils.dependencies import (
-    get_lockfile_section_using_pipfile_category,
+    convert_deps_to_pip,
     get_pipfile_category_using_lockfile_section,
-    is_pinned,
+    is_star,
 )
-from pipenv.vendor.requirementslib.models.requirements import Requirement
-from pipenv.utils.dependencies import convert_deps_to_pip, is_star
 from pipenv.utils.resolver import venv_resolve_deps
-from pipenv.routines.lock import overwrite_with_default
+from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 
 def do_upgrade(
@@ -24,7 +20,6 @@ def do_upgrade(
     pypi_mirror=None,
 ):
     lockfile = project._lockfile()
-    upgrade_lockfile = {}
     if not pre:
         pre = project.settings.get("allow_prereleases")
     if not categories:
@@ -32,11 +27,10 @@ def do_upgrade(
 
     package_args = [p for p in packages] + [f"-e {pkg}" for pkg in editable_packages]
 
-
     reqs = {}
     requested_packages = []
-    for i, package in enumerate(package_args[:]):
-        #section = project.packages if not dev else project.dev_packages
+    for package in package_args[:]:
+        # section = project.packages if not dev else project.dev_packages
         section = {}
         package = Requirement.from_line(package)
         package_name, package_val = package.pipfile_entry
@@ -56,6 +50,7 @@ def do_upgrade(
         reqs,
         which=project._which,
         project=project,
+        lockfile={},
         category="default",
         pre=pre,
         allow_global=system,
@@ -78,11 +73,11 @@ def do_upgrade(
             packages,
             which=project._which,
             project=project,
+            lockfile={},
             category=pipfile_category,
             pre=pre,
             allow_global=system,
             pypi_mirror=pypi_mirror,
-            pipfile=packages,
             keep_outdated=False,
         )
         # Mutate the existing lockfile with the upgrade data for the categories
@@ -90,16 +85,5 @@ def do_upgrade(
             correct_package_lock = full_lock_resolution[package_name]
             lockfile[category][package_name] = correct_package_lock
 
-    # Overwrite any category packages with default packages.
-    lockfile_categories = project.get_package_categories(for_lockfile=True)
-    for category in lockfile_categories:
-        if category == "default":
-            pass
-        if lockfile.get(category):
-            lockfile[category].update(
-                overwrite_with_default(lockfile.get("default", {}), lockfile[category])
-            )
-
     lockfile.update({"_meta": project.get_lockfile_meta()})
     project.write_lockfile(lockfile)
-
