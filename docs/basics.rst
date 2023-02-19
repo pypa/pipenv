@@ -247,13 +247,13 @@ Clone / create project repository::
 
 Install from Pipfile, if there is one::
 
-    $ pipenv install
+    $ pipenv sync
 
 Or, add a package to your new project::
 
     $ pipenv install <package>
 
-This will create a ``Pipfile`` if one doesn't exist. If one does exist, it will automatically be edited with the new package you provided.
+This will create a ``Pipfile`` if one doesn't exist. If one does exist, it will automatically be edited with the new package you provided, the lock file updated and the new dependencies installed.
 
 Next, activate the Pipenv shell::
 
