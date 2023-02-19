@@ -5,11 +5,12 @@ import sys
 import tempfile
 from pathlib import Path
 
-from pipenv import pep508checker, exceptions
-from pipenv.utils.project import ensure_project
+from pipenv import exceptions, pep508checker
 from pipenv.utils.processes import run_command
-from pipenv.utils.shell import project_python, cmd_list_to_shell
+from pipenv.utils.project import ensure_project
+from pipenv.utils.shell import cmd_list_to_shell, project_python
 from pipenv.vendor import click, plette
+
 
 def do_check(
     project,

@@ -1,7 +1,7 @@
 from pipenv import exceptions
-from pipenv.utils.shell import shorten_path
 from pipenv.utils.dependencies import python_version
 from pipenv.utils.pipfile import ensure_pipfile
+from pipenv.utils.shell import shorten_path
 from pipenv.utils.virtualenv import ensure_virtualenv
 from pipenv.vendor import click
 

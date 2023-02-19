@@ -2,11 +2,11 @@ import os
 import sys
 
 from pipenv import exceptions
-from pipenv.utils.pipfile import ensure_pipfile
-from pipenv.utils.virtualenv import do_create_virtualenv, cleanup_virtualenv
 from pipenv.routines.install import do_install_dependencies
 from pipenv.routines.lock import do_lock
-from pipenv.vendor import vistir, click
+from pipenv.utils.pipfile import ensure_pipfile
+from pipenv.utils.virtualenv import cleanup_virtualenv, do_create_virtualenv
+from pipenv.vendor import click, vistir
 
 
 def do_init(

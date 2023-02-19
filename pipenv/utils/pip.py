@@ -2,14 +2,14 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.project import Project
 from pipenv.utils.dependencies import get_constraints_from_deps, prepare_constraint_file
-from pipenv.utils.indexes import prepare_pip_source_args, get_source_list
+from pipenv.utils.indexes import get_source_list, prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
-from pipenv.utils.shell import project_python, normalize_path, cmd_list_to_shell
+from pipenv.utils.shell import cmd_list_to_shell, normalize_path, project_python
 from pipenv.vendor import click, vistir
 from pipenv.vendor.requirementslib import Requirement
 

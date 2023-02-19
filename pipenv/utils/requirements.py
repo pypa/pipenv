@@ -3,7 +3,9 @@ import re
 
 from pipenv.patched.pip._internal.network.session import PipSession
 from pipenv.patched.pip._internal.req import parse_requirements
-from pipenv.patched.pip._internal.req.constructors import install_req_from_parsed_requirement
+from pipenv.patched.pip._internal.req.constructors import (
+    install_req_from_parsed_requirement,
+)
 from pipenv.patched.pip._internal.utils.misc import split_auth_from_netloc
 from pipenv.utils.indexes import parse_indexes
 from pipenv.utils.internet import get_host_and_port

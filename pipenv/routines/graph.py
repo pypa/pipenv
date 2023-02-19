@@ -4,8 +4,8 @@ import sys
 from pathlib import Path
 
 from pipenv import exceptions
-from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.utils.processes import run_command
+from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.vendor import click
 
 

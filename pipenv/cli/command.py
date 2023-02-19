@@ -86,12 +86,10 @@ def cli(
 
     load_dot_env(state.project, quiet=state.quiet)
 
-    from pipenv.utils.display import format_help
-    from pipenv.utils.virtualenv import do_where
-    from pipenv.utils.project import ensure_project
-    from pipenv.utils.virtualenv import cleanup_virtualenv
-    from pipenv.utils.virtualenv import warn_in_virtualenv
     from pipenv.routines.clear import do_clear
+    from pipenv.utils.display import format_help
+    from pipenv.utils.project import ensure_project
+    from pipenv.utils.virtualenv import cleanup_virtualenv, do_where, warn_in_virtualenv
 
     if "PIPENV_COLORBLIND" in os.environ:
         echo(
@@ -318,8 +316,8 @@ LOCK_DEV_NOTE = """\
 @pass_context
 def lock(ctx, state, **kwargs):
     """Generates Pipfile.lock."""
-    from pipenv.utils.project import ensure_project
     from pipenv.routines.lock import do_lock
+    from pipenv.utils.project import ensure_project
 
     # Ensure that virtualenv is available.
     # Note that we don't pass clear on to ensure_project as it is also
@@ -540,10 +538,10 @@ def check(
 @pass_context
 def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
     """Runs lock, then sync."""
-    from pipenv.utils.project import ensure_project
-    from pipenv.routines.lock import do_lock
     from pipenv.routines.install import do_sync
+    from pipenv.routines.lock import do_lock
     from pipenv.routines.outdated import do_outdated
+    from pipenv.utils.project import ensure_project
 
     ensure_project(
         state.project,
@@ -641,8 +639,8 @@ def run_open(state, module, *args, **kwargs):
 
         EDITOR=atom pipenv open requests
     """
-    from pipenv.utils.virtualenv import inline_activate_virtual_environment
     from pipenv.utils.project import ensure_project
+    from pipenv.utils.virtualenv import inline_activate_virtual_environment
 
     # Ensure that virtualenv is available.
     ensure_project(

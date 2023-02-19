@@ -4,17 +4,23 @@ import sys
 import warnings
 from collections import defaultdict
 
-from pipenv import exceptions, environments
+from pipenv import environments, exceptions
+from pipenv.patched.pip._internal.exceptions import PipError
+from pipenv.patched.pip._vendor import rich
+from pipenv.routines.init import do_init
+from pipenv.utils.dependencies import convert_deps_to_pip, is_star
+from pipenv.utils.indexes import get_source_list
+from pipenv.utils.internet import download_file, is_valid_url
+from pipenv.utils.pip import (
+    format_pip_error,
+    format_pip_output,
+    get_trusted_hosts,
+    pip_install,
+    pip_install_deps,
+)
 from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import import_requirements
-from pipenv.utils.pip import format_pip_output, format_pip_error, pip_install_deps, pip_install, get_trusted_hosts
-from pipenv.routines.init import do_init
-from pipenv.patched.pip._internal.exceptions import PipError
-from pipenv.utils.dependencies import is_star, convert_deps_to_pip
-from pipenv.utils.indexes import get_source_list
-from pipenv.utils.internet import is_valid_url, download_file
-from pipenv.vendor import vistir, click
-from pipenv.patched.pip._vendor import rich
+from pipenv.vendor import click, vistir
 
 console = rich.console.Console()
 err = rich.console.Console(stderr=True)

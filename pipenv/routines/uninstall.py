@@ -2,15 +2,19 @@ import shutil
 import sys
 
 from pipenv import exceptions
-from pipenv.utils.requirements import BAD_PACKAGES
-from pipenv.utils.project import ensure_project
-from pipenv.routines.lock import do_lock
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.utils.dependencies import get_canonical_names, get_lockfile_section_using_pipfile_category, \
-    get_pipfile_category_using_lockfile_section, pep423_name
+from pipenv.routines.lock import do_lock
+from pipenv.utils.dependencies import (
+    get_canonical_names,
+    get_lockfile_section_using_pipfile_category,
+    get_pipfile_category_using_lockfile_section,
+    pep423_name,
+)
 from pipenv.utils.processes import run_command, subprocess_run
-from pipenv.utils.shell import project_python, cmd_list_to_shell
+from pipenv.utils.project import ensure_project
+from pipenv.utils.requirements import BAD_PACKAGES
+from pipenv.utils.shell import cmd_list_to_shell, project_python
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib import Requirement
 

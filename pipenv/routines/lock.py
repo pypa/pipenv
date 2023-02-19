@@ -1,7 +1,10 @@
 from pipenv import exceptions
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.utils.dependencies import get_pipfile_category_using_lockfile_section, \
-    get_lockfile_section_using_pipfile_category, is_pinned
+from pipenv.utils.dependencies import (
+    get_lockfile_section_using_pipfile_category,
+    get_pipfile_category_using_lockfile_section,
+    is_pinned,
+)
 from pipenv.vendor import click
 
 

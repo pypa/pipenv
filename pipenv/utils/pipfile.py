@@ -1,10 +1,9 @@
 import os
 
-from pipenv import exceptions, environments
+from pipenv import environments, exceptions
+from pipenv.patched.pip._vendor import rich
 from pipenv.utils.requirements import import_requirements
 from pipenv.vendor import click
-
-from pipenv.patched.pip._vendor import rich
 
 console = rich.console.Console()
 err = rich.console.Console(stderr=True)

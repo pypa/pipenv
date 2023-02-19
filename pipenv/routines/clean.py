@@ -1,10 +1,10 @@
 import sys
 
-from pipenv.utils.requirements import BAD_PACKAGES
-from pipenv.routines.lock import do_lock
-from pipenv.utils.project import ensure_project
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
+from pipenv.routines.lock import do_lock
 from pipenv.utils.processes import run_command
+from pipenv.utils.project import ensure_project
+from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.utils.shell import project_python
 from pipenv.vendor import click
 

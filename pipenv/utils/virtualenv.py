@@ -4,12 +4,12 @@ import sys
 from pathlib import Path
 
 from pipenv import environments, exceptions
-from pipenv.utils.environment import ensure_environment
+from pipenv.patched.pip._vendor import rich
 from pipenv.utils.dependencies import python_version
+from pipenv.utils.environment import ensure_environment
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import find_python, shorten_path
 from pipenv.vendor import click
-from pipenv.patched.pip._vendor import rich
 
 console = rich.console.Console()
 err = rich.console.Console(stderr=True)
