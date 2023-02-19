@@ -97,7 +97,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
     project_file_name = os.path.join(project.virtualenv_location, ".project")
     with open(project_file_name, "w") as f:
         f.write(project.project_directory)
-    from .environment import Environment
+    from pipenv.environment import Environment
 
     sources = project.pipfile_sources()
     # project.get_location_for_virtualenv is only for if we are creating a new virtualenv
@@ -318,7 +318,7 @@ def ensure_python(project, python=None):
                             # Print the results, in a beautiful blue...
                             click.secho(c.stdout, fg="cyan", err=True)
                             # Clear the pythonfinder caches
-                            from .vendor.pythonfinder import Finder
+                            from pipenv.vendor.pythonfinder import Finder
 
                             finder = Finder(system=False, global_search=True)
                             finder.find_python_version.cache_clear()
@@ -354,7 +354,7 @@ def find_a_system_python(line):
     * Nothing fits, return None.
     """
 
-    from .vendor.pythonfinder import Finder
+    from pipenv.vendor.pythonfinder import Finder
 
     finder = Finder(system=False, global_search=True)
     if not line:

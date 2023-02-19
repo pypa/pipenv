@@ -21,7 +21,7 @@ from pipenv.utils.pip import (
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import import_requirements
-from pipenv.utils.virtualenv import do_create_virtualenv, cleanup_virtualenv
+from pipenv.utils.virtualenv import cleanup_virtualenv, do_create_virtualenv
 from pipenv.vendor import click, vistir
 
 console = rich.console.Console()
@@ -169,7 +169,7 @@ def do_install(
     # We should do this part first to make sure that we actually do selectively upgrade
     # the items specified
     if selective_upgrade:
-        from .vendor.requirementslib.models.requirements import Requirement
+        from pipenv.vendor.requirementslib.models.requirements import Requirement
 
         for i, package in enumerate(package_args[:]):
             section = project.packages if not dev else project.dev_packages
@@ -208,7 +208,7 @@ def do_install(
 
     # This is for if the user passed in dependencies, then we want to make sure we
     else:
-        from .vendor.requirementslib.models.requirements import Requirement
+        from pipenv.vendor.requirementslib.models.requirements import Requirement
 
         # make a tuple of (display_name, entry)
         pkg_list = packages + [f"-e {pkg}" for pkg in editable_packages]
@@ -555,7 +555,7 @@ def batch_install_iteration(
     retry=True,
     extra_pip_args=None,
 ):
-    from .vendor.requirementslib.models.utils import (
+    from pipenv.vendor.requirementslib.models.utils import (
         strip_extras_markers_from_requirement,
     )
 

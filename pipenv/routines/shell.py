@@ -58,7 +58,7 @@ def do_run(project, command, args, python=False, pypi_mirror=None):
 
     Args are appended to the command in [scripts] section of project if found.
     """
-    from .cmdparse import ScriptEmptyError
+    from pipenv.cmdparse import ScriptEmptyError
 
     env = os.environ.copy()
 
