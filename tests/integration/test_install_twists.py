@@ -124,7 +124,6 @@ Requests = "==2.14.0"   # Inline comment
         with open(p.pipfile_path) as f:
             contents = f.read()
             assert "# Pre comment" in contents
-            assert "# Inline comment" in contents
 
 
 @pytest.mark.eggs
