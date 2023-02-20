@@ -17,7 +17,6 @@ def do_upgrade(
     editable_packages=None,
     site_packages=False,
     pypi_mirror=None,
-    extra_pip_args=None,
     categories=None,
     quiet=False,
 ):

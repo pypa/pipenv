@@ -1,0 +1,3 @@
+Provide a more powerful solution than ``--keep-outdated`` and ``--selective-upgrade`` which are deprecated for remvoal.
+New solution is the ``pipenv upgrade`` command which takes the same package specifiers as ``pipenv install`` and
+updates the Pipfile and Pipfile.lock with a valid lock resolution that only effects the packages and (their dependencies) that you specify.
