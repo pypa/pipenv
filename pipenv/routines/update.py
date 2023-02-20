@@ -1,3 +1,5 @@
+import sys
+
 from pipenv.routines.install import do_sync
 from pipenv.routines.lock import do_lock
 from pipenv.routines.outdated import do_outdated
@@ -130,6 +132,10 @@ def upgrade(
             pass
         reqs[package_name] = package_val
 
+    if not reqs:
+        click.echo("Nothing to upgrade!")
+        sys.exit(0)
+
     # Resolve package to generate constraints of new package data
     upgrade_lock_data = venv_resolve_deps(
         reqs,
@@ -142,6 +148,9 @@ def upgrade(
         pypi_mirror=pypi_mirror,
         keep_outdated=False,
     )
+    if not upgrade_lock_data:
+        click.echo("Nothing to upgrade!")
+        sys.exit(0)
 
     # Upgrade the relevant packages in the various categories specified
     for category in categories:
