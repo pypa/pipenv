@@ -3,12 +3,16 @@ from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
     is_star,
 )
-from pipenv.utils.project import ensure_project
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.vendor.requirementslib.models.requirements import Requirement
+from pipenv.routines.install import do_sync
+from pipenv.routines.lock import do_lock
+from pipenv.routines.outdated import do_outdated
+from pipenv.utils.project import ensure_project
+from pipenv.vendor import click
 
 
-def do_upgrade(
+def do_update(
     project,
     python=None,
     pre=False,
@@ -17,17 +21,88 @@ def do_upgrade(
     editable_packages=None,
     site_packages=False,
     pypi_mirror=None,
+    dev=False,
     categories=None,
+    extra_pip_args=None,
     quiet=False,
+    bare=False,
+    dry_run=None,
+    outdated=False,
+    keep_outdated=False,
+    clear=False
 ):
-
     ensure_project(
         project,
         python=python,
         pypi_mirror=pypi_mirror,
         warn=(not quiet),
         site_packages=site_packages,
+        clear=clear,
     )
+    if not outdated:
+        outdated = bool(dry_run)
+    if outdated:
+        do_outdated(
+            project,
+            clear=clear,
+            pre=pre,
+            pypi_mirror=pypi_mirror,
+        )
+    packages = [p for p in packages if p]
+    editable = [p for p in editable_packages if p]
+    if not packages:
+        click.echo(
+            "{} {} {} {}{}".format(
+                click.style("Running", bold=True),
+                click.style("$ pipenv lock", fg="yellow", bold=True),
+                click.style("then", bold=True),
+                click.style("$ pipenv sync", fg="yellow", bold=True),
+                click.style(".", bold=True),
+            )
+        )
+        do_lock(
+            project,
+            clear=clear,
+            pre=pre,
+            keep_outdated=keep_outdated,
+            pypi_mirror=pypi_mirror,
+            write=not quiet,
+        )
+    else:
+        upgrade(
+            project,
+            pre=pre,
+            system=system,
+            packages=packages,
+            editable_packages=editable,
+            pypi_mirror=pypi_mirror,
+            categories=categories,
+        )
+
+    do_sync(
+        project,
+        dev=dev,
+        categories=categories,
+        python=python,
+        bare=bare,
+        dont_upgrade=not keep_outdated,
+        user=False,
+        clear=clear,
+        unused=False,
+        pypi_mirror=pypi_mirror,
+        extra_pip_args=extra_pip_args,
+    )
+
+
+def upgrade(
+    project,
+    pre=False,
+    system=False,
+    packages=None,
+    editable_packages=None,
+    pypi_mirror=None,
+    categories=None,
+):
 
     lockfile = project._lockfile()
     if not pre:

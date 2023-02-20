@@ -254,7 +254,7 @@ def install(state, **kwargs):
 
 
 @cli.command(
-    short_help="Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile.",
+    short_help="Resolves provided packages and adds them to Pipfile, or (if no packages are given), merges results to Pipfile.lock",
     context_settings=subcommand_context,
 )
 @system_option
@@ -264,16 +264,23 @@ def install(state, **kwargs):
 @install_options
 @pass_state
 def upgrade(state, **kwargs):
-    """Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile."""
-    from pipenv.routines.upgrade import do_upgrade
+    from pipenv.routines.update import upgrade
+    from pipenv.utils.project import ensure_project
 
-    do_upgrade(
+    ensure_project(
+        state.project,
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
+        warn=(not state.quiet),
+        site_packages=state.site_packages,
+        clear=state.clear,
+    )
+
+    upgrade(
         state.project,
         pre=state.installstate.pre,
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
-        site_packages=state.site_packages,
-        extra_pip_args=state.installstate.extra_pip_args,
         categories=state.installstate.categories,
         system=state.system,
     )
@@ -358,7 +365,6 @@ def lock(ctx, state, **kwargs):
     pre = state.installstate.pre
     do_lock(
         state.project,
-        ctx=ctx,
         clear=state.clear,
         pre=pre,
         keep_outdated=state.installstate.keep_outdated,
@@ -563,73 +569,27 @@ def check(
 @pass_state
 @pass_context
 def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
-    """Runs lock, then sync."""
-    from pipenv.routines.install import do_sync
-    from pipenv.routines.lock import do_lock
-    from pipenv.routines.outdated import do_outdated
-    from pipenv.utils.project import ensure_project
+    """Runs lock when no packages are specified, or upgrade, and then sync."""
+    from pipenv.routines.update import do_update
 
-    ensure_project(
+    do_update(
         state.project,
         python=state.python,
-        pypi_mirror=state.pypi_mirror,
-        warn=(not state.quiet),
         site_packages=state.site_packages,
         clear=state.clear,
-    )
-    if not outdated:
-        outdated = bool(dry_run)
-    if outdated:
-        do_outdated(
-            state.project,
-            clear=state.clear,
-            pre=state.installstate.pre,
-            pypi_mirror=state.pypi_mirror,
-        )
-    packages = [p for p in state.installstate.packages if p]
-    editable = [p for p in state.installstate.editables if p]
-    if not packages:
-        echo(
-            "{} {} {} {}{}".format(
-                style("Running", bold=True),
-                style("$ pipenv lock", fg="yellow", bold=True),
-                style("then", bold=True),
-                style("$ pipenv sync", fg="yellow", bold=True),
-                style(".", bold=True),
-            )
-        )
-    else:
-        for package in packages + editable:
-            if package not in state.project.all_packages:
-                echo(
-                    "{}: {} was not found in your Pipfile! Aborting."
-                    "".format(
-                        style("Warning", fg="red", bold=True),
-                        style(package, fg="green", bold=True),
-                    ),
-                    err=True,
-                )
-                ctx.abort()
-    do_lock(
-        state.project,
-        ctx=ctx,
-        clear=state.clear,
         pre=state.installstate.pre,
+        pypi_mirror=state.pypi_mirror,
         keep_outdated=state.installstate.keep_outdated,
-        pypi_mirror=state.pypi_mirror,
-        write=not state.quiet,
-    )
-    do_sync(
-        state.project,
+        system=False,
+        packages=state.installstate.packages,
+        editable_packages=state.installstate.editables,
         dev=state.installstate.dev,
-        python=state.python,
         bare=bare,
-        dont_upgrade=not state.installstate.keep_outdated,
-        user=False,
-        clear=state.clear,
-        unused=False,
-        pypi_mirror=state.pypi_mirror,
         extra_pip_args=state.installstate.extra_pip_args,
+        categories=state.installstate.categories,
+        quiet=state.quiet,
+        dry_run=dry_run,
+        outdated=outdated,
     )
 
 
