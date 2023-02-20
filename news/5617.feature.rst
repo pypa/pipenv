@@ -1,4 +1,4 @@
 Provide a more powerful solution than ``--keep-outdated`` and ``--selective-upgrade`` which are deprecated for removal.
 Introducing the ``pipenv upgrade`` command which takes the same package specifiers as ``pipenv install`` and
 updates the ``Pipfile`` and ``Pipfile.lock`` with a valid lock resolution that only effects the specified packages and their dependencies.
-Additionally, the ``pipenv update`` command has been updated to use the `pipenv upgrade`` routine when packages are provided, which will install sync the new lock file as well.
+Additionally, the ``pipenv update`` command has been updated to use the ``pipenv upgrade`` routine when packages are provided, which will install sync the new lock file as well.
