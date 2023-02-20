@@ -1,15 +1,15 @@
+from pipenv.routines.install import do_sync
+from pipenv.routines.lock import do_lock
+from pipenv.routines.outdated import do_outdated
 from pipenv.utils.dependencies import (
     convert_deps_to_pip,
     get_pipfile_category_using_lockfile_section,
     is_star,
 )
-from pipenv.utils.resolver import venv_resolve_deps
-from pipenv.vendor.requirementslib.models.requirements import Requirement
-from pipenv.routines.install import do_sync
-from pipenv.routines.lock import do_lock
-from pipenv.routines.outdated import do_outdated
 from pipenv.utils.project import ensure_project
+from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.vendor import click
+from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 
 def do_update(
@@ -29,7 +29,7 @@ def do_update(
     dry_run=None,
     outdated=False,
     keep_outdated=False,
-    clear=False
+    clear=False,
 ):
     ensure_project(
         project,
