@@ -979,7 +979,7 @@ class Project:
         # Add the package to the group.
         name = self.get_package_name_in_pipfile(req_name, category=category)
         normalized_name = pep423_name(req_name)
-        if name != normalized_name:
+        if name and name != normalized_name:
             self.remove_package_from_pipfile(name, category=category)
         p[category][normalized_name] = converted
         # Write Pipfile.
