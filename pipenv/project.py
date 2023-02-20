@@ -978,7 +978,11 @@ class Project:
         if category not in p:
             p[category] = {}
         # Add the package to the group.
-        p[category][pep423_name(req_name)] = converted
+        name = self.get_package_name_in_pipfile(req_name, category=category)
+        normalized_name = pep423_name(req_name)
+        if name != normalized_name:
+            del p[category][name]
+        p[category][normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)
 

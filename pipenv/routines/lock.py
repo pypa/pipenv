@@ -56,7 +56,6 @@ def do_lock(
             packages = project.parsed_pipfile.get(pipfile_category, {})
         else:
             packages = project.get_pipfile_section(pipfile_category)
-        click.echo(packages)
 
         if write:
             # Alert the user of progress.
@@ -79,7 +78,6 @@ def do_lock(
         from pipenv.utils.resolver import venv_resolve_deps
 
         # Mutates the lockfile
-        click.echo(packages)
         venv_resolve_deps(
             packages,
             which=project._which,
