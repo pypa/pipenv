@@ -980,7 +980,7 @@ class Project:
         name = self.get_package_name_in_pipfile(req_name, category=category)
         normalized_name = pep423_name(req_name)
         if name != normalized_name:
-            del p[category][name]
+            self.remove_package_from_pipfile(name, category=category)
         p[category][normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)
