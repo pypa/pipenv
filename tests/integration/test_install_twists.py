@@ -118,6 +118,8 @@ Requests = "==2.14.0"   # Inline comment
         c = p.pipenv("install requests==2.18.4")
         assert c.returncode == 0
         assert "Requests" not in p.pipfile["packages"]
+        assert "requests" in p.pipfile["packages"]
+        assert p.pipfile["packages"]["requests"] == "==2.18.4"
         c = p.pipenv("install python_DateUtil")
         assert c.returncode == 0
         assert "python-dateutil" in p.pipfile["packages"]
