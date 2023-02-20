@@ -26,7 +26,6 @@ from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
     is_editable,
-    is_star,
     pep423_name,
     python_version,
 )
