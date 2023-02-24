@@ -453,3 +453,16 @@ def system_which(command, path=None):
         if c.returncode == 0:
             result = next(iter(c.stdout.splitlines()), None)
     return result
+
+
+def shorten_path(location, bold=False):
+    """Returns a visually shorter representation of a given system path."""
+    original = location
+    short = os.sep.join(
+        [s[0] if len(s) > (len("2long4")) else s for s in location.split(os.sep)]
+    )
+    short = short.split(os.sep)
+    short[-1] = original.split(os.sep)[-1]
+    if bold:
+        short[-1] = str(click.style(short[-1], bold=True))
+    return os.sep.join(short)

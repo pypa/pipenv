@@ -24,7 +24,7 @@ class PipenvGroup(DYMMixin, Group):
     """Custom Group class provides formatted main help"""
 
     def get_help_option(self, ctx):
-        from ..core import format_help
+        from pipenv.utils.display import format_help
 
         """Override for showing formatted main help via --help and -h options"""
         help_options = self.get_help_option_names(ctx)

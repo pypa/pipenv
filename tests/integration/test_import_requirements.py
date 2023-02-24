@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from pipenv.core import import_requirements
+from pipenv.utils.requirements import import_requirements
 from pipenv.project import Project
 
 
