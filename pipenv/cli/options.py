@@ -157,7 +157,7 @@ def keep_outdated_option(f):
         state.installstate.keep_outdated = value
         if value:
             click.secho(
-                "The flag --keep-outdated has been deprecated for removal."
+                "The flag --keep-outdated has been deprecated for removal.  "
                 "The flag does not respect package resolver results and leads to inconsistent lock files.  "
                 "Please pin relevant requirements in your Pipfile and discontinue use of this flag.",
                 fg="yellow",
