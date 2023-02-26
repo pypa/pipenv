@@ -1,5 +1,3 @@
-.. _installation:
-
 # Pipenv Installation
 
 This tutorial walks you through installing and using Python packages.
@@ -12,13 +10,13 @@ presented here is most directly applicable to the development and deployment of
 network services (including web applications), but is also very well suited to
 managing development and testing environments for any kind of project.
 
-.. Note:: This guide is written for Python 3.7+
+Note: This guide is written for Python 3.7+
 
 
 ## Make sure you have python & pip
 
 Before you go any further, make sure you have Python and that it's available
-from your command line. You can check this by simply running::
+from your command line. You can check this by simply running:
 
     $ python --version
 
@@ -26,7 +24,8 @@ You should get some output like ``3.10.8``. If you do not have Python, please
 install the latest 3.x version from `python.org`_ or refer to the
 `Installing Python`_ section of *The Hitchhiker's Guide to Python*.
 
-.. Note:: If you're newcomer and you get an error like this:
+
+Note: If you're newcomer and you get an error like this:
 
     .. code-block:: pycon
 
@@ -59,16 +58,13 @@ Homebrew/Linuxbrew installer takes care of pip for you.
 .. _Installing Python: http://docs.python-guide.org/en/latest/starting/installation/
 
 
-.. _installing-pipenv:
 
-☤ Installing Pipenv
-===================
+## Installing Pipenv
 
 It is recommended that users on most platforms should install pipenv from pypi.org using ``pip install pipenv --user``.
 
 
-☤ Pragmatic Installation of Pipenv
-----------------------------------
+### Pragmatic Installation of Pipenv
 
 If you have a working installation of pip, and maintain certain "tool-chain" type Python modules as global utilities in your user environment, pip `user installs <https://pip.pypa.io/en/stable/user_guide/#user-installs>`_ allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
 
@@ -111,8 +107,7 @@ To upgrade pipenv at any time::
 
 
 
-☤ Homebrew Installation of Pipenv(Discouraged)
-----------------------------------------------
+### Homebrew Installation of Pipenv(Discouraged)
 `Homebrew`_ is a popular open-source package management system for macOS. For Linux users, `Linuxbrew`_  is a Linux port of that.
 
 Installing pipenv via Homebrew or Linuxbrew will keep pipenv and all of its dependencies in
@@ -132,8 +127,7 @@ To upgrade pipenv at any time::
     users have to re-install Pipenv, and perhaps all virtual environments managed by it.
 
 
-☤ Installing packages for your project
-======================================
+### Installing packages for your project
 
 Pipenv manages dependencies on a per-project basis. To install packages,
 change into your project's directory (or just an empty directory for this
@@ -184,8 +178,7 @@ when you share your project with others. You should get output similar to this
 .. _Requests: https://python-requests.org
 
 
-☤ Using installed packages
-==========================
+## Using installed packages
 
 Now that Requests is installed you can create a simple ``main.py`` file to
 use it:
@@ -213,8 +206,7 @@ your script. It's also possible to spawn a new shell that ensures all commands
 have access to your installed packages with ``$ pipenv shell``.
 
 
-☤ Virtualenv mapping caveat
-===========================
+## Virtualenv mapping caveat
 
 - Pipenv automatically maps projects to their specific virtualenvs.
 - By default, the virtualenv is stored globally with the name of the project’s root directory plus the hash of the full path to the project's root (e.g., ``my_project-a3de50``).

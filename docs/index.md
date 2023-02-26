@@ -1,36 +1,21 @@
 # Pipenv: Python Dev Workflow for Humans
-![pypi version](https://img.shields.io/pypi/v/pipenv.svg)(https://pypi.python.org/pypi/pipenv)
+[![pypi version](https://img.shields.io/pypi/v/pipenv.svg)](https://pypi.python.org/pypi/pipenv) [![MIT License](https://img.shields.io/pypi/l/pipenv.svg)](https://pypi.python.org/pypi/pipenv) [![Supported Versions](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://pypi.python.org/pypi/pipenv)
 
-![MIT License](https://img.shields.io/pypi/l/pipenv.svg)(https://pypi.python.org/pypi/pipenv)
-
-![Supported Versions](https://img.shields.io/pypi/pyversions/pipenv.svg)(https://pypi.python.org/pypi/pipenv)
-
-**Pipenv** is a tool that aims to bring the best of all packaging worlds (bundler, composer, npm, cargo, yarn, etc.) to the Python world. *Windows is a first-class citizen, in our world.*
+**Pipenv** is a Python virtualenv management tool that supports a multitude of systems and nicely bridges the gaps between pip, pyenv and virtualenv.
+*Linux, Mac OS, and Windows are all first-class citizens in pipenv.*
 
 It automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your ``Pipfile`` as you install/uninstall packages. It also generates the ever-important ``Pipfile.lock``, which is used to produce deterministic builds.
 
-Pipenv is primarily meant to provide users and developers of applications with an easy method to setup a working environment. For the distinction between libraries and applications and the usage of ``setup.py`` vs ``Pipfile`` to define dependencies, see :ref:`pipfile-vs-setuppy`.
-
-.. image:: https://gist.githubusercontent.com/jlusk/855d611bbcfa2b159839db73d07f6ce9/raw/7f5743401809f7e630ee8ff458faa980e19924a0/pipenv.gif
-   :height: 341px
-   :width: 654px
-   :scale: 100 %
-   :alt: a short animation of pipenv at work
+Pipenv is primarily meant to provide users and developers of applications with an easy method to setup a working environment.
 
 The problems that Pipenv seeks to solve are multi-faceted:
 
 - You no longer need to use ``pip`` and ``virtualenv`` separately. They work together.
-- Managing a ``requirements.txt`` file `can be problematic <https://kennethreitz.org/essays/2016/02/25/a-better-pip-workflow>`__, so Pipenv uses ``Pipfile`` and ``Pipfile.lock`` to separate abstract dependency declarations from the last tested combination.
-- Hashes are used everywhere, always. Security. Automatically expose security vulnerabilities.
-- Strongly encourage the use of the latest versions of dependencies to minimize security risks `arising from outdated components <https://www.owasp.org/index.php/Top_10-2017_A9-Using_Components_with_Known_Vulnerabilities>`_.
-- Give you insight into your dependency graph (e.g. ``$ pipenv graph``).
-- Streamline development workflow by loading ``.env`` files.
-
-You can quickly play with Pipenv right in your browser:
-
-.. image:: https://cdn.rawgit.com/rootnroll/library/assets/try.svg
-    :target: https://rootnroll.com/d/pipenv/
-    :alt: Try in browser
+- Managing a ``requirements.txt`` file with package hashes can be problematic.  Pipenv uses ``Pipfile`` and ``Pipfile.lock`` to separate abstract dependency declarations from the last tested combination.
+- Hashes are documented in the lock file, always. Security considerations are put first.
+- Strongly encourage the use of the latest versions of dependencies to minimize security risks [arising from outdated components](https://www.owasp.org/index.php/Top_10-2017_A9-Using_Components_with_Known_Vulnerabilities).
+- Gives you insight into your dependency graph (e.g. ``$ pipenv graph``).
+- Streamline development workflow by supporting local customizations with ``.env`` files.
 
 
 ## Install Pipenv Today!
@@ -55,10 +40,8 @@ More detailed installation instructions can be found in the :ref:`installing-pip
 - Automatically loads ``.env`` files to support customization and overrides.
 
 
-.. include:: quickstart.rst
 
-Pipenv Documentation
-----------------------------
+## Pipenv Documentation
 
 ```{toctree}
 ---
@@ -79,8 +62,7 @@ diagnose
 changelog
 ```
 
-Contribution Guides
--------------------
+## Contribution Guides
 
 ```{toctree}
 ---
