@@ -1,10 +1,6 @@
-.. _virtualenvironments-ref:
+.. _installation:
 
-=============================
-Pipenv & Virtual Environments
-=============================
-
-.. image:: https://farm3.staticflickr.com/2943/33485660921_dfc0494739_k_d.jpg
+# Pipenv Installation
 
 This tutorial walks you through installing and using Python packages.
 
@@ -16,12 +12,10 @@ presented here is most directly applicable to the development and deployment of
 network services (including web applications), but is also very well suited to
 managing development and testing environments for any kind of project.
 
-.. Note:: This guide is written for Python 3, however, these instructions
-    should work fine on Python 2.7—if you are still using it, for some reason.
+.. Note:: This guide is written for Python 3.7+
 
 
-☤ Make sure you've got Python & pip
-===================================
+## Make sure you have python & pip
 
 Before you go any further, make sure you have Python and that it's available
 from your command line. You can check this by simply running::
@@ -70,22 +64,7 @@ Homebrew/Linuxbrew installer takes care of pip for you.
 ☤ Installing Pipenv
 ===================
 
-It is recommended that users on most platforms should install pipenv from pypi.org using ``pip install pipenv``.
-
-
-☤ Isolated Installation of Pipenv with Pipx
--------------------------------------------
-
-`Pipx`_ is a tool to help you install and run end-user applications written in Python. It installs applications
-into an isolated and clean environment on their own. To install pipx, just run::
-
-    $ pip install --user pipx
-
-Once you have ``pipx`` ready on your system, continue to install Pipenv::
-
-    $ pipx install pipenv
-
-.. _Pipx: https://pypa.github.io/pipx/
+It is recommended that users on most platforms should install pipenv from pypi.org using ``pip install pipenv --user``.
 
 
 ☤ Pragmatic Installation of Pipenv
@@ -95,7 +74,7 @@ If you have a working installation of pip, and maintain certain "tool-chain" typ
 
 To install::
 
-    $ pip install --user pipenv
+    $ pip install pipenv --user
 
 .. Note:: This does a `user installation`_ to prevent breaking any system-wide
     packages. If ``pipenv`` isn't available in your shell after installation,
@@ -130,13 +109,6 @@ To upgrade pipenv at any time::
 
     $ pip install --user --upgrade pipenv
 
-
-☤ Crude Installation of Pipenv
-------------------------------
-
-If you don't even have pip installed, you can use this crude installation method, which will bootstrap your whole system::
-
-    $ curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
 
 
 ☤ Homebrew Installation of Pipenv(Discouraged)
@@ -249,9 +221,3 @@ have access to your installed packages with ``$ pipenv shell``.
 - Should you change your project's path, you break such a default mapping and pipenv will no longer be able to find and to use the project's virtualenv.
 - Customize this behavior with ``PIPENV_CUSTOM_VENV_NAME`` environment variable.
 - You might also prefer to set ``PIPENV_VENV_IN_PROJECT=1`` in your .env or .bashrc/.zshrc (or other shell configuration file) for creating the virtualenv inside your project's directory.
-
-
-☤ Next steps
-============
-
-Congratulations, you now know how to get started with pipenv, for additional details refer to the basic and advanced documentation.  ✨ 🍰 ✨

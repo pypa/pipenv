@@ -84,8 +84,13 @@ Further Documentation Guides
 .. toctree::
    :maxdepth: 2
 
-   install
-   basics
+   installation
+   workflows
+   pipfile
+   commands
+   specifiers
+   shell
+   docker
    advanced
    cli
    diagnose
