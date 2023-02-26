@@ -1,5 +1,3 @@
-.. _docker:
-
 # Pipenv and Docker Containers
 
 In general, you should not have Pipenv inside a linux container image, since
@@ -12,7 +10,7 @@ is copied from the base layer, the layer containing pipenv and other build
 dependencies is discarded.
 This results in a smaller image, which can still run your application.
 Here is an example ``Dockerfile``, which you can use as a starting point for
-doing a multistage build for your application::
+doing a multistage build for your application:
 
   FROM docker.io/python:3.9 AS builder
 
@@ -57,8 +55,7 @@ doing a multistage build for your application::
 
   CMD ["./.venv/bin/python", "-m", "run.py"]
 
-.. Note::
-
+```{note}
    Pipenv is not meant to run as root. However, in the multistage build above
    it is done nevertheless. A calculated risk, since the intermediate image
    is discarded.
@@ -67,9 +64,10 @@ doing a multistage build for your application::
    **Once again, you should not run pipenv as root (or Admin on Windows) normally.
    This could lead to breakage of your Python installation, or even your complete
    OS.**
+```
 
 When you build an image with this example (assuming requests is found in Pipfile), you
-will see that ``requests`` is installed in the ``runtime`` image::
+will see that ``requests`` is installed in the ``runtime`` image:
 
   $ sudo docker build --no-cache -t oz/123:0.1 .
   Sending build context to Docker daemon  1.122MB

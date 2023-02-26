@@ -6,7 +6,7 @@
 You can specify versions of a package using the [Semantic Versioning scheme](https://semver.org/)
 (i.e. ``major.minor.micro``).
 
-For example, to install requests you can use: ::
+For example, to install requests you can use:
 
     $ pipenv install requests~=1.2
 
@@ -17,7 +17,7 @@ This will update your ``Pipfile`` to reflect this requirement, automatically.
 In general, Pipenv uses the same specifier format as pip. However, note that according to [PEP 440](https://www.python.org/dev/peps/pep-0440/),
 you can't use versions containing a hyphen or a plus sign.
 
-To make inclusive or exclusive version comparisons you can use: ::
+To make inclusive or exclusive version comparisons you can use:
 
     $ pipenv install "requests>=1.4"   # will install a version equal or larger than 1.4.0
     $ pipenv install "requests<=2.13"  # will install a version equal or lower than 2.13.0
@@ -29,13 +29,13 @@ To make inclusive or exclusive version comparisons you can use: ::
     in Unix-based operating systems.
 ```
 
-The use of ``~=`` is preferred over the ``==`` identifier as the latter prevents pipenv from updating the packages:  ::
+The use of ``~=`` is preferred over the ``==`` identifier as the latter prevents pipenv from updating the packages:
 
     $ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using >=2.2, ==2.*)
 
 To avoid installing a specific version you can use the ``!=`` identifier.
 
-For an in depth explanation of the valid identifiers and more complex use cases check 
+For an in depth explanation of the valid identifiers and more complex use cases check
 the [relevant section of PEP-440]( https://www.python.org/dev/peps/pep-0440/#version-specifiers).
 
 ## Specifying Versions of Python
@@ -43,18 +43,18 @@ the [relevant section of PEP-440]( https://www.python.org/dev/peps/pep-0440/#ver
 To create a new virtualenv, using a specific version of Python you have installed (and
 on your ``PATH``), use the ``--python VERSION`` flag, like so:
 
-Use Python 3::
+Use Python 3
 
    $ pipenv --python 3
 
-Use Python3.11::
+Use Python3.11
 
    $ pipenv --python 3.11
 
 
 When given a Python version, like this, Pipenv will automatically scan your system for a Python that matches that given version.
 
-If a ``Pipfile`` hasn't been created yet, one will be created for you, that looks like this::
+If a ``Pipfile`` hasn't been created yet, one will be created for you, that looks like this:
 
     [[source]]
     url = "https://pypi.python.org/simple"
@@ -81,7 +81,7 @@ automatically, falling back to whatever your system's default ``python`` install
 ## Editable Dependencies (e.g. ``-e .`` )
 
 You can tell Pipenv to install a path as editable — often this is useful for
-the current working directory when working on packages::
+the current working directory when working on packages:
 
     $ pipenv install --dev -e .
 
@@ -97,7 +97,7 @@ All sub-dependencies will get added to the ``Pipfile.lock`` as well. Sub-depende
 
 ## VCS Dependencies
 
-VCS dependencies from git and other version control systems using URLs formatted according to the following rule::
+VCS dependencies from git and other version control systems using URLs formatted according to the following rule:
 
     <vcs_type>+<scheme>://<location>/<user_or_organization>/<repository>@<branch_or_tag>#egg=<package_name>
 
@@ -105,7 +105,7 @@ The only optional section is the ``@<branch_or_tag>`` section.  When using git o
 
 Note that it is **strongly recommended** that you install any version-controlled dependencies in editable mode, using ``pipenv install -e``, in order to ensure that dependency resolution can be performed with an up-to-date copy of the repository each time it is performed, and that it includes all known dependencies.
 
-Below is an example usage which installs the git repository located at ``https://github.com/requests/requests.git`` from tag ``v2.20.1`` as package name ``requests``::
+Below is an example usage which installs the git repository located at ``https://github.com/requests/requests.git`` from tag ``v2.20.1`` as package name ``requests``:
 
     $ pipenv install -e git+https://github.com/requests/requests.git@v2.20.1#egg=requests
     Creating a Pipfile for this project...
@@ -134,7 +134,7 @@ The name will be the same between ``Pipfile`` and lock file, however to support 
 By default ``pipenv lock`` will lock all known package categorises; to specify locking only specific groups use the ``--categories`` argument.
 The command should process the package groups in the order specified.
 
-Example usages::
+Example usages:
 
 	# single category
 	pipenv install six --categories prereq
@@ -148,9 +148,9 @@ Example usages::
 
 
 ```{note}
-  The ``packages``/``default`` specifiers are used to constrain all other categories just as they have done 
-  for ``dev-packages``/``develop`` category.  However this is the only way constraints are applied -- 
-  the presence of other named groups do not constraint each other, 
-  which means it is possible to define conflicting package versions across groups.  
+  The ``packages``/``default`` specifiers are used to constrain all other categories just as they have done
+  for ``dev-packages``/``develop`` category.  However this is the only way constraints are applied --
+  the presence of other named groups do not constraint each other,
+  which means it is possible to define conflicting package versions across groups.
   This may be desired in some use cases where users only are installing groups specific to their system platform.
 ```
