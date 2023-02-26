@@ -2,7 +2,7 @@
 [![pypi version](https://img.shields.io/pypi/v/pipenv.svg)](https://pypi.python.org/pypi/pipenv) [![MIT License](https://img.shields.io/pypi/l/pipenv.svg)](https://pypi.python.org/pypi/pipenv) [![Supported Versions](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://pypi.python.org/pypi/pipenv)
 
 **Pipenv** is a Python virtualenv management tool that supports a multitude of systems and nicely bridges the gaps between pip, pyenv and virtualenv.
-*Linux, Mac OS, and Windows are all first-class citizens in pipenv.*
+*Linux, macOS, and Windows are all first-class citizens in pipenv.*
 
 It automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your ``Pipfile`` as you install/uninstall packages. It also generates the ever-important ``Pipfile.lock``, which is used to produce deterministic builds.
 

@@ -242,7 +242,7 @@ Based on feedback, we may change this behavior of ``pipenv install`` to not re-l
 
 - Keep both ``Pipfile`` and ``Pipfile.lock`` in version control.
 - ``pipenv install`` adds specifiers to ``Pipfile`` and rebuilds the lock file based on the Pipfile specs, by utilizing the internal resolver of ``pip``.
-- Not all of the required sub-dependencies need be specified in ``Pipfile``, instead only add specifiers that make sense for the stability of your project.
+- Not all the required sub-dependencies need be specified in ``Pipfile``, instead only add specifiers that make sense for the stability of your project.
 Example:  ``requests`` requires ``cryptography`` but (for reasons) you want to ensure ``cryptography`` is pinned to a particular version set.
 - Consider specifying your target Python version in your ``Pipfile``'s ``[requires]`` section.
 For this use either ``python_version`` in the format ``X.Y`` (or ``X``) or ``python_full_version`` in ``X.Y.Z`` format.

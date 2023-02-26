@@ -9,7 +9,7 @@ The commands reference for pipenv (incomplete)
 ``$ pipenv install`` is used for installing packages into the pipenv virtual environment
 and updating your Pipfile.
 
-Along with the basic install command, which takes the form::
+Along with the basic installation command, which takes the form::
 
     $ pipenv install [package names]
 
@@ -27,7 +27,6 @@ The user can provide these additional parameters:
     - ``--ignore-pipfile`` — Ignore the ``Pipfile`` and install from the ``Pipfile.lock``.
     - ``--skip-lock`` — Ignore the ``Pipfile.lock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.
 
-.. _pipenv_uninstall:
 
 ## pipenv uninstall
 
@@ -40,8 +39,6 @@ as well as two additional options, ``--all`` and ``--all-dev``.
     - ``--all-dev`` — This parameter will remove all of the development packages from
       the virtual environment, and remove them from the Pipfile.
 
-
-.. _pipenv_lock:
 
 ## pipenv lock
 
