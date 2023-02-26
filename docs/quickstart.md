@@ -1,5 +1,6 @@
-Basic Commands and Concepts
-///////////////////////////
+# Quickstart
+
+## Basic Commands and Concepts
 
 Pipenv uses a set of commands to manage your Project's dependencies and custom scripts.
 It replaces the use of ``Makefile``, direct calls to ``pip`` and ``python -m venv`` or ``virtualenv``.
@@ -25,10 +26,9 @@ The main commands are:
 
 These are intended to replace ``$ pip install`` usage, as well as manual virtualenv management.
 
-Other Commands
-//////////////
+## Other Commands
 
 - ``graph`` will show you a dependency graph of your installed dependencies.
 - ``shell`` will spawn a shell with the virtualenv activated. This shell can be deactivated by using ``exit``.
 - ``run`` will run a given command from the virtualenv, with any arguments forwarded (e.g. ``$ pipenv run python`` or ``$ pipenv run pip freeze``).
-- ``check`` checks for security vulnerabilities and asserts that `PEP 508 <https://www.python.org/dev/peps/pep-0508/>`_ requirements are being met by the current environment.
+- ``check`` checks for security vulnerabilities and asserts that [PEP 508](https://www.python.org/dev/peps/pep-0508/) requirements are being met by the current environment.

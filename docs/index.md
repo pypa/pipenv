@@ -1,21 +1,9 @@
-.. pipenv documentation master file, created by
-   sphinx-quickstart on Mon Jan 30 13:28:36 2017.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root ``toctree`` directive.
+# Pipenv: Python Dev Workflow for Humans
+![pypi version](https://img.shields.io/pypi/v/pipenv.svg)(https://pypi.python.org/pypi/pipenv)
 
-Pipenv: Python Dev Workflow for Humans
-======================================
+![MIT License](https://img.shields.io/pypi/l/pipenv.svg)(https://pypi.python.org/pypi/pipenv)
 
-.. image:: https://img.shields.io/pypi/v/pipenv.svg
-    :target: https://pypi.python.org/pypi/pipenv
-
-.. image:: https://img.shields.io/pypi/l/pipenv.svg
-    :target: https://pypi.python.org/pypi/pipenv
-
-.. image:: https://img.shields.io/pypi/pyversions/pipenv.svg
-    :target: https://pypi.python.org/pypi/pipenv
-
----------------
+![Supported Versions](https://img.shields.io/pypi/pyversions/pipenv.svg)(https://pypi.python.org/pypi/pipenv)
 
 **Pipenv** is a tool that aims to bring the best of all packaging worlds (bundler, composer, npm, cargo, yarn, etc.) to the Python world. *Windows is a first-class citizen, in our world.*
 
@@ -45,26 +33,17 @@ You can quickly play with Pipenv right in your browser:
     :alt: Try in browser
 
 
-Install Pipenv Today!
----------------------
+## Install Pipenv Today!
 
-The recommended way to install pipenv on most platforms is to install from pypi using ``pip``::
+The recommended way to install pipenv on most platforms is to install from pypi using ``pip``:
 
     $ pip install --user pipenv
-
-Or, if you're using Fedora 28::
-
-    $ sudo dnf install pipenv
-
 
 More detailed installation instructions can be found in the :ref:`installing-pipenv` chapter.
 
 ✨🍰✨
 
-.. toctree::
-
-Pipenv Features
------------------
+## Pipenv Features
 
 - Enables truly *deterministic builds*, while easily specifying *only what you want*.
 - Generates and checks file hashes for locked dependencies when installing from ``Pipfile.lock``.
@@ -78,34 +57,35 @@ Pipenv Features
 
 .. include:: quickstart.rst
 
-Further Documentation Guides
+Pipenv Documentation
 ----------------------------
 
-.. toctree::
-   :maxdepth: 2
-
-   installation
-   workflows
-   pipfile
-   commands
-   specifiers
-   shell
-   docker
-   advanced
-   cli
-   diagnose
-   changelog
+```{toctree}
+---
+caption: Pipenv Documentation
+maxdepth: 2
+---
+installation
+quickstart
+workflows
+pipfile
+commands
+specifiers
+shell
+docker
+advanced
+cli
+diagnose
+changelog
+```
 
 Contribution Guides
 -------------------
 
-.. toctree::
-   :maxdepth: 2
-
-   dev/contributing
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
+```{toctree}
+---
+caption: Contributing to Pipenv
+maxdepth: 2
+---
+dev/contributing
+```
