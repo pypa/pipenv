@@ -55,14 +55,12 @@ templates_path = ["_templates"]
 
 myst_enable_extensions = [
     "amsmath",
-    "attrs_inline",
     "colon_fence",
     "deflist",
     "dollarmath",
     "fieldlist",
     "html_admonition",
     "html_image",
-    "inv_link",
     "linkify",
     "replacements",
     "smartquotes",

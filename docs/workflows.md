@@ -1,5 +1,3 @@
-.. _workflows:
-
 # Pipenv Workflows
 
 Clone / create project repository::
