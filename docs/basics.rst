@@ -7,13 +7,16 @@ Basic Usage of Pipenv
 
 This document covers the most basic features of Pipenv.
 
-Example Pipfile & Pipfile.lock
+Pipfile & Pipfile.lock
 --------------------------------
 
-``Pipfile`` contains the top level specifiers for the requirements of the project dependencies.
+``Pipfile`` contains the specification for the project top-level requirements and any desired specifiers.
+This file is managed by the developers invoking pipenv commands.
+The ``Pipfile`` uses inline tables and the `TOML Spec <https://github.com/toml-lang/toml#user-content-spec>`_.
 
 ``Pipfile.lock`` replaces the ``requirements.txt file`` used in most Python projects and adds
 security benefits of tracking the packages hashes that were last locked.
+This file is managed automatically through locking actions.
 
 You should add both ``Pipfile`` and ``Pipfile.lock`` to the project's source control.
 
@@ -228,66 +231,74 @@ General Notes and Recommendations
 -------------------------
 
 - Keep both ``Pipfile`` and ``Pipfile.lock`` in version control.
-- ``pipenv install`` adds specifiers to ``Pipfile`` and rebuilds the lock file based on the Pipfile specs, by utilizing Pip's internal resolver.
+- ``pipenv install`` adds specifiers to ``Pipfile`` and rebuilds the lock file based on the Pipfile specs, by utilizing the internal resolver of ``pip``.
 - Not all of the required sub-dependencies need be specified in ``Pipfile``, instead only add specifiers that make sense for the stability of your project.
-Example:  ``requests`` requires ``cryptography`` but (for reasons) you want to ensure ``cryptography`` is pinned to a particular version or version set.
-- Specify your target Python version in your ``Pipfile``'s ``[requires]`` section.
-Use either ``python_version`` in the format ``X.Y`` (or ``X``) or ``python_full_version`` in ``X.Y.Z`` format.
-- ``pipenv install`` is fully compatible with ``pip install`` syntax, for which the full documentation can be found `here <https://pip.pypa.io/en/stable/user_guide/#installing-packages>`__.
-- The ``Pipfile`` uses the `TOML Spec <https://github.com/toml-lang/toml#user-content-spec>`_.
+Example:  ``requests`` requires ``cryptography`` but (for reasons) you want to ensure ``cryptography`` is pinned to a particular version set.
+- Consider specifying your target Python version in your ``Pipfile``'s ``[requires]`` section.
+For this use either ``python_version`` in the format ``X.Y`` (or ``X``) or ``python_full_version`` in ``X.Y.Z`` format.
+- ``pipenv install`` is fully compatible with ``pip install`` package specifiers, for which the full documentation can be found `here <https://pip.pypa.io/en/stable/user_guide/#installing-packages>`__.
+- Additional arguments may be supplied to ``pip`` by supplying ``pipenv`` with ``--extra-pip-args``.
+- Considering making use of named package categories to further isolate dependency install groups for large monoliths.
 
 
-
-☤ Example Pipenv Workflow
+☤ Example Pipenv Workflows
 -------------------------
 
 Clone / create project repository::
 
     $ cd myproject
 
-Install from Pipfile, if there is one::
+Install from ``Pipfile.lock``, if there is one::
 
     $ pipenv sync
 
-Or, add a package to your new project::
+Add a package to your project, recalibrating entire lock file using the Pipfile specifiers::
 
     $ pipenv install <package>
 
-This will create a ``Pipfile`` if one doesn't exist. If one does exist, it will automatically be edited with the new package you provided, the lock file updated and the new dependencies installed.
+Note: This will create a ``Pipfile`` if one doesn't exist. If one does exist, it will automatically be edited with the new package you provided, the lock file updated and the new dependencies installed.
 
-Next, activate the Pipenv shell::
+Update everything (equivalent to ``pipenv lock && pipenv sync``::
+
+    $ pipenv update
+
+Update and install just the relevant package and its sub-dependencies::
+
+    $ pipenv update <package>
+
+Update in the Pipfile/lockfile just the relevant package and its sub-dependencies::
+
+    $ pipenv upgrade <package>
+
+Find out what's changed upstream::
+
+    $ pipenv update --outdated
+
+Determine the virtualenv PATH::
+
+    $ pipenv --venv
+
+Activate the Pipenv shell::
 
     $ pipenv shell
-    $ python --version
 
-This will spawn a new shell subprocess, which can be deactivated by using ``exit``.
+Note: This will spawn a new shell subprocess, which can be deactivated by using ``exit``.
 
-.. _initialization:
-
-☤ Example Pipenv Upgrade Workflow
----------------------------------
-
-- Find out what's changed upstream: ``$ pipenv update --outdated``.
-- Upgrade packages, two options:
-    a. Want to upgrade everything? Just do ``$ pipenv update``.
-    b. Want to upgrade packages one-at-a-time? ``$ pipenv update <pkg>`` for each outdated package.
 
 ☤ Importing from requirements.txt
 ---------------------------------
 
-If you only have a ``requirements.txt`` file available when running ``pipenv install``,
-pipenv will automatically import the contents of this file and create a ``Pipfile`` for you.
+For projects utilizing a ``requirements.txt`` pipenv can import the contents of this file and create a
+``Pipfile`` and `Pipfile.lock`` for you::
 
-You can also specify ``$ pipenv install -r path/to/requirements.txt`` to import a requirements file.
+    $ pipenv install -r path/to/requirements.txt
 
 If your requirements file has version numbers pinned, you'll likely want to edit the new ``Pipfile``
-to remove those, and let ``pipenv`` keep track of pinning.  If you want to keep the pinned versions
-in your ``Pipfile.lock`` for now, run ``pipenv lock --keep-outdated``.  Make sure to
-`upgrade <#initialization>`_ soon!
+to only keep track of top level dependencies and let ``pipenv`` keep track of pinning sub-dependencies in the lock file.
 
 .. _specifying_versions:
 
-☤ Specifying Versions of a Package
+Specifying Versions of a Package
 ----------------------------------
 
 You can specify versions of a package using the `Semantic Versioning scheme <https://semver.org/>`_
@@ -415,9 +426,6 @@ Example usages::
 ☤ Environment Management with Pipenv
 ------------------------------------
 
-The three primary commands you'll use in managing your pipenv environment are
-``$ pipenv install``, ``$ pipenv uninstall``, and ``$ pipenv lock``.
-
 .. _pipenv_install:
 
 $ pipenv install
@@ -439,8 +447,8 @@ The user can provide these additional parameters:
                  it with an appropriately versioned one.
 
     - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile``.
-    - ``--system`` — Use the system ``pip`` command rather than the one from your virtualenv.
-    - ``--deploy`` — Make sure the packages are properly locked in Pipfile.lock, and abort if the lock file is out-of-date.
+    - ``--system`` — Install packages to the system site-packages rather than into your virtualenv.
+    - ``--deploy`` — Verifies the _meta hash of the lock file is up to date with the ``Pipfile``, aborts install if not.
     - ``--ignore-pipfile`` — Ignore the ``Pipfile`` and install from the ``Pipfile.lock``.
     - ``--skip-lock`` — Ignore the ``Pipfile.lock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.
 
@@ -486,7 +494,7 @@ If you experience issues with ``$ pipenv shell``, just check the ``PIPENV_SHELL`
 ☤ A Note about VCS Dependencies
 -------------------------------
 
-You can install packages with pipenv from git and other version control systems using URLs formatted according to the following rule::
+VCS dependencies from git and other version control systems using URLs formatted according to the following rule::
 
     <vcs_type>+<scheme>://<location>/<user_or_organization>/<repository>@<branch_or_tag>#egg=<package_name>
 
@@ -515,15 +523,17 @@ You can read more about pip's implementation of VCS support `here <https://pip.p
 ☤ Pipfile.lock Security Features
 --------------------------------
 
-``Pipfile.lock`` takes advantage of some great new security improvements in ``pip``.
-By default, the ``Pipfile.lock`` will be generated with the sha256 hashes of each downloaded
-package. This will allow ``pip`` to guarantee you're installing what you intend to when
-on a compromised network, or downloading dependencies from an untrusted PyPI endpoint.
+``Pipfile.lock`` leverages the security of package hash validation in ``pip``.
+The ``Pipfile.lock`` is generated with the sha256 hashes of each downloaded package.
+This guarantees you're installing the same exact packages on any network as the one
+where the lock file was last updated, even on untrusted networks.
 
-We highly recommend approaching deployments with promoting projects from a development
-environment into production. You can use ``pipenv lock`` to compile your dependencies on
-your development environment and deploy the compiled ``Pipfile.lock`` to all of your
-production environments for reproducible builds.
+We recommend designing CI/CD deployments whereby the build does not alter the lock file as a side effect.
+In other words, you can use ``pipenv lock`` or ``pipenv upgrade`` to adjust your lockfile through local development,
+the PR process and approve those lock changes before deploying to production that version of the lockfile.
+In other words avoid having your CI issue ``lock``, ``update``, ``upgrade`` ``uninstall`` or ``install`` commands that will relock.
+Note:  It is counterintuitive that ``pipenv install`` re-locks and ``pipenv sync`` or ``pipenv install --deploy`` does not.
+Based on feedback, we may change this behavior of ``pipenv install`` to not re-lock in the future but be mindful of this when designing CI pipelines today.
 
 .. note::
 
