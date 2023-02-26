@@ -21,6 +21,7 @@ gunicorn = {version = "*", markers="sys_platform == 'linux'"}
 parse = "*"
 importlib-metadata = {version = "*", markers="python_version < '3.8'"}
 colorama= {version = "*", markers="sys_platform == 'win32'"}
+myst-parser = "*"
 
 [packages]
 
