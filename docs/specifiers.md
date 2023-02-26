@@ -1,11 +1,9 @@
-.. _specifiers:
-
 # Specifiers
 
 
 ## Specifying Versions of a Package
 
-You can specify versions of a package using the `Semantic Versioning scheme <https://semver.org/>`_
+You can specify versions of a package using the [Semantic Versioning scheme](https://semver.org/)
 (i.e. ``major.minor.micro``).
 
 For example, to install requests you can use: ::
@@ -16,9 +14,8 @@ Pipenv will install version ``1.2`` and any minor update, but not ``2.0``.
 
 This will update your ``Pipfile`` to reflect this requirement, automatically.
 
-In general, Pipenv uses the same specifier format as pip. However, note that according to `PEP 440`_ , you can't use versions containing a hyphen or a plus sign.
-
-.. _`PEP 440`: https://www.python.org/dev/peps/pep-0440/
+In general, Pipenv uses the same specifier format as pip. However, note that according to [PEP 440](https://www.python.org/dev/peps/pep-0440/),
+you can't use versions containing a hyphen or a plus sign.
 
 To make inclusive or exclusive version comparisons you can use: ::
 
@@ -26,9 +23,11 @@ To make inclusive or exclusive version comparisons you can use: ::
     $ pipenv install "requests<=2.13"  # will install a version equal or lower than 2.13.0
     $ pipenv install "requests>2.19"   # will install 2.19.1 but not 2.19.0
 
-.. note:: The use of double quotes around the package and version specification (i.e. ``"requests>2.19"``) is highly recommended
+```{note}
+    The use of double quotes around the package and version specification (i.e. ``"requests>2.19"``) is highly recommended
     to avoid issues with `Input and output redirection <https://robots.thoughtbot.com/input-output-redirection-in-the-shell>`_
     in Unix-based operating systems.
+```
 
 The use of ``~=`` is preferred over the ``==`` identifier as the latter prevents pipenv from updating the packages:  ::
 
@@ -36,9 +35,8 @@ The use of ``~=`` is preferred over the ``==`` identifier as the latter prevents
 
 To avoid installing a specific version you can use the ``!=`` identifier.
 
-For an in depth explanation of the valid identifiers and more complex use cases check `the relevant section of PEP-440`_.
-
-.. _`the relevant section of PEP-440`: https://www.python.org/dev/peps/pep-0440/#version-specifiers
+For an in depth explanation of the valid identifiers and more complex use cases check 
+the [relevant section of PEP-440]( https://www.python.org/dev/peps/pep-0440/#version-specifiers).
 
 ## Specifying Versions of Python
 
@@ -70,9 +68,11 @@ If a ``Pipfile`` hasn't been created yet, one will be created for you, that look
     [requires]
     python_version = "3.11"
 
-.. note:: The inclusion of ``[requires] python_version = "3.11"`` specifies that your application requires this version
-          of Python, and will be used automatically when running ``pipenv install`` against this ``Pipfile`` in the future
-          (e.g. on other machines). If this is not true, feel free to simply remove this section.
+```{note}
+   The inclusion of ``[requires] python_version = "3.11"`` specifies that your application requires this version
+   of Python, and will be used automatically when running ``pipenv install`` against this ``Pipfile`` in the future
+   (e.g. on other machines). If this is not true, feel free to simply remove this section.
+```
 
 If you don't specify a Python version on the command–line, either the ``[requires]`` ``python_full_version`` or ``python_version`` will be selected
 automatically, falling back to whatever your system's default ``python`` installation is, at time of execution.
@@ -90,10 +90,10 @@ the current working directory when working on packages::
     [dev-packages]
     "e1839a8" = {path = ".", editable = true}
     ...
-
-.. note:: All sub-dependencies will get added to the ``Pipfile.lock`` as well. Sub-dependencies are **not** added to the
-          ``Pipfile.lock`` if you leave the ``-e`` option out.
-
+```{note}
+All sub-dependencies will get added to the ``Pipfile.lock`` as well. Sub-dependencies are **not** added to the
+``Pipfile.lock`` if you leave the ``-e`` option out.
+```
 
 ## VCS Dependencies
 
@@ -127,7 +127,9 @@ You can read more about pip's implementation of VCS support `here <https://pip.p
 
 Originally pipenv supported only two package groups:  ``packages`` and ``dev-packages`` in the ``Pipfile`` which mapped to ``default`` and ``develop`` in the ``Pipfile.lock``.   Support for additional named categories has been added such that arbitrary named groups can utilized across the available pipenv commands.
 
-.. note:: The name will be the same between ``Pipfile`` and lock file, however to support the legacy naming convention it is not possible to have an additional group named ``default`` or ``develop`` in the ``Pipfile``.
+```{note}
+The name will be the same between ``Pipfile`` and lock file, however to support the legacy naming convention it is not possible to have an additional group named ``default`` or ``develop`` in the ``Pipfile``.
+```
 
 By default ``pipenv lock`` will lock all known package categorises; to specify locking only specific groups use the ``--categories`` argument.
 The command should process the package groups in the order specified.
@@ -145,5 +147,10 @@ Example usages::
 	pipenv uninstall six --categories prereq
 
 
-
-.. note:: The ``packages``/``default`` specifiers are used to constrain all other categories just as they have done for ``dev-packages``/``develop`` category.  However this is the only way constraints are applied -- the presence of other named groups do not constraint each other, which means it is possible to define conflicting package versions across groups.  This may be desired in some use cases where users only are installing groups specific to their system platform.
+```{note}
+  The ``packages``/``default`` specifiers are used to constrain all other categories just as they have done 
+  for ``dev-packages``/``develop`` category.  However this is the only way constraints are applied -- 
+  the presence of other named groups do not constraint each other, 
+  which means it is possible to define conflicting package versions across groups.  
+  This may be desired in some use cases where users only are installing groups specific to their system platform.
+```
