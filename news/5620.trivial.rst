@@ -1,0 +1,1 @@
+Use beautifulsoup4 as a dependency, not the bs4 redirect.

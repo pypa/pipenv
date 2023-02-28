@@ -28,7 +28,7 @@ required = [
 extras = {
     "dev": [
         "towncrier",
-        "bs4",
+        "beautifulsoup4",
         "sphinx",
         "flake8>=3.3.0,<4.0",
         "black;python_version>='3.7'",
