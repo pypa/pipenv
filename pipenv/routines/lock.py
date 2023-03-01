@@ -10,7 +10,6 @@ from pipenv.vendor import click
 
 def do_lock(
     project,
-    ctx=None,
     system=False,
     clear=False,
     pre=False,
@@ -27,7 +26,6 @@ def do_lock(
         if not project.lockfile_exists:
             raise exceptions.PipenvOptionsError(
                 "--keep-outdated",
-                ctx=ctx,
                 message="Pipfile.lock must exist to use --keep-outdated!",
             )
         cached_lockfile = project.lockfile_content

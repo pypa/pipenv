@@ -973,8 +973,8 @@ def venv_resolve_deps(
     :param Dict[str, Any] lockfile: A project lockfile to mutate, defaults to None
     :param bool keep_outdated: Whether to retain outdated dependencies and resolve with them in mind, defaults to False
     :raises RuntimeError: Raised on resolution failure
-    :return: Nothing
-    :rtype: None
+    :return: The lock data
+    :rtype: dict
     """
     from pipenv import resolver
 
@@ -989,7 +989,7 @@ def venv_resolve_deps(
 
     if not pipfile:
         pipfile = getattr(project, category, {})
-    if not lockfile:
+    if lockfile is None:
         lockfile = project._lockfile(categories=[category])
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
     cmd = [
@@ -1063,7 +1063,7 @@ def venv_resolve_deps(
         os.unlink(target_file.name)
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
-    prepare_lockfile(results, pipfile, lockfile[lockfile_section])
+    return prepare_lockfile(results, pipfile, lockfile[lockfile_section])
 
 
 def resolve_deps(

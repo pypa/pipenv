@@ -26,7 +26,6 @@ from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
     is_editable,
-    is_star,
     pep423_name,
     python_version,
 )
@@ -977,12 +976,12 @@ class Project:
         # Set empty group if it doesn't exist yet.
         if category not in p:
             p[category] = {}
-        name = self.get_package_name_in_pipfile(req_name, category=category)
-        if name and is_star(converted):
-            # Skip for wildcard version
-            return
         # Add the package to the group.
-        p[category][name or pep423_name(req_name)] = converted
+        name = self.get_package_name_in_pipfile(req_name, category=category)
+        normalized_name = pep423_name(req_name)
+        if name and name != normalized_name:
+            self.remove_package_from_pipfile(name, category=category)
+        p[category][normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)
 

@@ -159,7 +159,7 @@ def keep_outdated_option(f):
             click.secho(
                 "The flag --keep-outdated has been deprecated for removal.  "
                 "The flag does not respect package resolver results and leads to inconsistent lock files.  "
-                "Please pin relevant requirements in your Pipfile and discontinue use of this flag.",
+                "Consider using the new `pipenv upgrade` command to selectively upgrade packages.",
                 fg="yellow",
                 bold=True,
                 err=True,
@@ -182,6 +182,15 @@ def selective_upgrade_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.selective_upgrade = value
+        if value:
+            click.secho(
+                "The flag --selective-upgrade has been deprecated for removal.  "
+                "The flag is buggy and leads to inconsistent lock files.  "
+                "Consider using the new `pipenv upgrade` command to selectively upgrade packages.",
+                fg="yellow",
+                bold=True,
+                err=True,
+            )
         return value
 
     return option(
@@ -503,6 +512,23 @@ def deploy_option(f):
     )(f)
 
 
+def lock_only_option(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        state.installstate.lock_only = value
+        return value
+
+    return option(
+        "--lock-only",
+        is_flag=True,
+        default=False,
+        help="Only update lock file (specifiers not added to Pipfile).",
+        callback=callback,
+        type=click_types.BOOL,
+        expose_value=False,
+    )(f)
+
+
 def setup_verbosity(ctx, param, value):
     if not value:
         return
@@ -583,6 +609,11 @@ def install_options(f):
     f = ignore_pipfile_option(f)
     f = editable_option(f)
     f = package_arg(f)
+    return f
+
+
+def upgrade_options(f):
+    f = lock_only_option(f)
     return f
 
 
