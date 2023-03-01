@@ -9,7 +9,7 @@ from fnmatch import fnmatch
 from threading import Timer
 
 import pipenv.vendor.attr as attr
-from pipenv.patched.pip._vendor.packaging.version import LegacyVersion, Version
+from pipenv.patched.pip._vendor.packaging.version import Version, InvalidVersion
 
 from .compat import Path, TimeoutError, lru_cache  # noqa
 from .environment import MYPY_RUNNING, PYENV_ROOT, SUBPROCESS_TIMEOUT
@@ -130,12 +130,15 @@ def parse_python_version(version_str):
     is_devrelease = True if version_dict.get("dev") else False
     if patch:
         patch = int(patch)
-    version = None  # type: Optional[Union[Version, LegacyVersion]]
+
+    version = None  # type: Optional[Version]
+
     try:
         version = parse_version(version_str)
-    except TypeError:
+    except (TypeError, InvalidVersion):
         version = None
-    if isinstance(version, LegacyVersion) or version is None:
+
+    if version is None:
         v_dict = version_dict.copy()
         pre = ""
         if v_dict.get("prerel") and v_dict.get("prerelversion"):

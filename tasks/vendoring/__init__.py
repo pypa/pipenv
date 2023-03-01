@@ -201,13 +201,13 @@ def rewrite_file_imports(item, vendored_libs):
 
     for lib, to_lib in vendored_libs.items():
         text = re.sub(
-            r"^(?m)(\s*)import %s((?:\.\S*)?\s+as)" % lib,
+            r"(?m)^(\s*)import %s((?:\.\S*)?\s+as)" % lib,
             r"\1import %s\2" % to_lib,
             text,
         )
-        text = re.sub(r"^(?m)(\s*)from %s([\s\.]+)" % lib, r"\1from %s\2" % to_lib, text)
+        text = re.sub(r"(?m)^(\s*)from %s([\s\.]+)" % lib, r"\1from %s\2" % to_lib, text)
         text = re.sub(
-            r"^(?m)(\s*)import %s(\s*[,\n#])" % lib,
+            r"(?m)^(\s*)import %s(\s*[,\n#])" % lib,
             r"\1import %s as %s\2" % (to_lib, lib),
             text,
         )

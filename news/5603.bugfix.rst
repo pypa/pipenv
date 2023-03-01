@@ -1,1 +1,0 @@
-Use Nushell overlays when running ``pipenv shell``.

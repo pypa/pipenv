@@ -108,7 +108,12 @@ class ArchiveInfo:
         if hash is not None:
             # Auto-populate the hashes key to upgrade to the new format automatically.
             # We don't back-populate the legacy hash key.
-            hash_name, hash_value = hash.split("=", 1)
+            try:
+                hash_name, hash_value = hash.split("=", 1)
+            except ValueError:
+                raise DirectUrlValidationError(
+                    f"invalid archive_info.hash format: {hash!r}"
+                )
             if hashes is None:
                 hashes = {hash_name: hash_value}
             elif hash_name not in hash:

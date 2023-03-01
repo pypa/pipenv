@@ -390,57 +390,50 @@ It can be used to specify multiple categories also.
 Pipenv includes the `safety <https://github.com/pyupio/safety>`_ package, and will use it to scan your dependency graph
 for known security vulnerabilities!
 
+By default ``pipenv check`` will scan the Pipfile.lock default packages group and use this as the input to the safety command.
+To scan other package categories pass the specific ``--categories`` you want to check against.
+To have ``pipenv check`` scan the virtualenv packages for what is installed and use this as the input to the safety command,
+run``pipenv check --use-installed``.
+Note:  ``--use-installed`` was the default behavior in ``pipenv<=2023.2.4``
+
 Example::
 
-    $ cat Pipfile
-    [packages]
-    django = "==1.10.1"
+    $ pipenv install wheel==0.37.1
+    $ cat Pipfile.lock
+    ...
+    "default": {
+        "wheel": {
+            "hashes": [
+                "sha256:4bdcd7d840138086126cd09254dc6195fb4fc6f01c050a1d7236f2630db1d22a",
+                "sha256:e9a504e793efbca1b8e0e9cb979a249cf4a0a7b5b8c9e8b65a5e39d49529c1c4"
+            ],
+            "index": "pypi",
+            "version": "==0.37.1"
+        }
+    },
+    ...
 
-    $ pipenv check
-    Checking PEP 508 requirements...
-    Passed!
-    Checking installed package safety...
+    $ pipenv check --use-lock
+    ...
+    -> Vulnerability found in wheel version 0.37.1
+       Vulnerability ID: 51499
+       Affected spec: <0.38.1
+       ADVISORY: Wheel 0.38.1 includes a fix for CVE-2022-40898: An issue discovered in Python Packaging Authority (PyPA) Wheel 0.37.1 and earlier allows remote attackers to cause a denial of service
+       via attacker controlled input to wheel cli.https://pyup.io/posts/pyup-discovers-redos-vulnerabilities-in-top-python-packages
+       CVE-2022-40898
+       For more information, please visit https://pyup.io/v/51499/742
 
-    33075: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
-    Django before 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3, when settings.DEBUG is True, allow remote attackers to conduct DNS rebinding attacks by leveraging failure to validate the HTTP Host header against settings.ALLOWED_HOSTS.
+     Scan was completed. 1 vulnerability was found.
+     ...
 
-    33076: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
-    Django 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3 use a hardcoded password for a temporary database user created when running tests with an Oracle database, which makes it easier for remote attackers to obtain access to the database server by leveraging failure to manually specify a password in the database settings TEST dictionary.
-
-    33300: django >=1.10,<1.10.7 resolved (1.10.1 installed)!
-    CVE-2017-7233: Open redirect and possible XSS attack via user-supplied numeric redirect URLs
-    ============================================================================================
-
-    Django relies on user input in some cases  (e.g.
-    :func:`django.contrib.auth.views.login` and :doc:`i18n </topics/i18n/index>`)
-    to redirect the user to an "on success" URL. The security check for these
-    redirects (namely ``django.utils.http.is_safe_url()``) considered some numeric
-    URLs (e.g. ``http:999999999``) "safe" when they shouldn't be.
-
-    Also, if a developer relies on ``is_safe_url()`` to provide safe redirect
-    targets and puts such a URL into a link, they could suffer from an XSS attack.
-
-    CVE-2017-7234: Open redirect vulnerability in ``django.views.static.serve()``
-    =============================================================================
-
-    A maliciously crafted URL to a Django site using the
-    :func:`~django.views.static.serve` view could redirect to any other domain. The
-    view no longer does any redirects as they don't provide any known, useful
-    functionality.
-
-    Note, however, that this view has always carried a warning that it is not
-    hardened for production use and should be used only as a development aid.
-
-✨🍰✨
 
 .. note::
 
     Each month, `PyUp.io <https://pyup.io>`_ updates the ``safety`` database of
-    insecure Python packages and `makes it available to the
-    community for free <https://pyup.io/safety/>`__. Pipenv
-    makes an API call to retrieve those results and use them
-    each time you run ``pipenv check`` to show you vulnerable
-    dependencies.
+    insecure Python packages and `makes it available to the open source
+    community for free <https://pyup.io/safety/>`__. Each time
+    you run ``pipenv check`` to show you vulnerable dependencies,
+    Pipenv makes an API call to retrieve and use those results.
 
     For more up-to-date vulnerability data, you may also use your own safety
     API key by setting the environment variable ``PIPENV_PYUP_API_KEY``.

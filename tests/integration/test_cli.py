@@ -144,7 +144,7 @@ def test_pipenv_check(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv('install pyyaml')
         assert c.returncode == 0
-        c = p.pipenv('check')
+        c = p.pipenv('check --use-installed')
         assert c.returncode != 0
         assert 'pyyaml' in c.stdout
         c = p.pipenv('uninstall pyyaml')
@@ -158,9 +158,21 @@ def test_pipenv_check(pipenv_instance_private_pypi):
         # the issue above is still not resolved.
         # added also 51499
         # https://github.com/pypa/wheel/issues/481
-        c = p.pipenv('check --ignore 35015 -i 51457 -i 51499')
+        c = p.pipenv('check --use-installed --ignore 35015 -i 51457 -i 51499')
         assert c.returncode == 0
         assert 'Ignoring' in c.stderr
+
+
+@pytest.mark.cli
+@pytest.mark.needs_internet(reason='required by check')
+@pytest.mark.parametrize("category", ["CVE", "packages"])
+def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
+    with pipenv_instance_pypi() as p:
+        c = p.pipenv(f'install wheel==0.37.1 --categories={category}')
+        assert c.returncode == 0
+        c = p.pipenv(f'check --categories={category}')
+        assert c.returncode != 0
+        assert 'wheel' in c.stdout
 
 
 @pytest.mark.cli

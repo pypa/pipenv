@@ -43,6 +43,7 @@ if os.name == "nt":
     from pipenv.vendor import colorama
 
     # Backward compatability with vistir
+    # These variables will be removed in vistir 0.8.0
     no_color = False
     for item in ("ANSI_COLORS_DISABLED", "VISTIR_DISABLE_COLORS"):
         if os.getenv(item):

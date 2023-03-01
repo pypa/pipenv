@@ -4,7 +4,7 @@ from collections import namedtuple
 from traceback import format_tb
 
 from pipenv import environments
-from pipenv.vendor import click, vistir
+from pipenv.vendor import click
 from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
 
 if sys.version_info[:2] >= (3, 7):
@@ -67,7 +67,7 @@ class PipenvException(ClickException):
 
     def show(self, file=None):
         if file is None:
-            file = vistir.misc.get_text_stderr()
+            file = sys.stderr
         if self.extra:
             if isinstance(self.extra, str):
                 self.extra = [self.extra]
@@ -90,7 +90,7 @@ class PipenvCmdError(PipenvException):
 
     def show(self, file=None):
         if file is None:
-            file = vistir.misc.get_text_stderr()
+            file = sys.stderr
         click.echo(
             "{} {}".format(
                 click.style("Error running command: ", fg="red"),
@@ -120,7 +120,7 @@ class JSONParseError(PipenvException):
 
     def show(self, file=None):
         if file is None:
-            file = vistir.misc.get_text_stderr()
+            file = sys.stderr
         message = "{}\n{}".format(
             click.style("Failed parsing JSON results:", bold=True),
             print(self.message.strip(), file=file),
@@ -150,7 +150,7 @@ class PipenvUsageError(UsageError):
 
     def show(self, file=None):
         if file is None:
-            file = vistir.misc.get_text_stderr()
+            file = sys.stderr
         color = None
         if self.ctx is not None:
             color = self.ctx.color
@@ -189,7 +189,7 @@ class PipenvFileError(FileError):
 
     def show(self, file=None):
         if file is None:
-            file = vistir.misc.get_text_stderr()
+            file = sys.stderr
         if self.extra:
             if isinstance(self.extra, str):
                 self.extra = [self.extra]
