@@ -20,6 +20,7 @@ from pipenv.cli.options import (
     sync_options,
     system_option,
     uninstall_options,
+    upgrade_options,
     verbose_option,
 )
 from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
@@ -258,10 +259,9 @@ def install(state, **kwargs):
     context_settings=subcommand_context,
 )
 @system_option
-@deploy_option
 @site_packages_option
-@skip_lock_option
 @install_options
+@upgrade_options
 @pass_state
 def upgrade(state, **kwargs):
     from pipenv.routines.update import upgrade
@@ -283,6 +283,7 @@ def upgrade(state, **kwargs):
         editable_packages=state.installstate.editables,
         categories=state.installstate.categories,
         system=state.system,
+        lock_only=state.installstate.lock_only,
     )
 
 
@@ -566,6 +567,7 @@ def check(
 @option("--outdated", is_flag=True, default=False, help="List out-of-date dependencies.")
 @option("--dry-run", is_flag=True, default=None, help="List out-of-date dependencies.")
 @install_options
+@upgrade_options
 @pass_state
 @pass_context
 def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
@@ -590,6 +592,7 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
         quiet=state.quiet,
         dry_run=dry_run,
         outdated=outdated,
+        lock_only=state.installstate.lock_only,
     )
 
 

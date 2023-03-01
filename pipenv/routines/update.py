@@ -32,6 +32,7 @@ def do_update(
     outdated=False,
     keep_outdated=False,
     clear=False,
+    lock_only=False,
 ):
     ensure_project(
         project,
@@ -79,6 +80,7 @@ def do_update(
             editable_packages=editable,
             pypi_mirror=pypi_mirror,
             categories=categories,
+            lock_only=lock_only,
         )
 
     do_sync(
@@ -104,6 +106,7 @@ def upgrade(
     editable_packages=None,
     pypi_mirror=None,
     categories=None,
+    lock_only=False,
 ):
 
     lockfile = project._lockfile()
@@ -165,7 +168,8 @@ def upgrade(
                 packages.append(package_name, requested_package)
             else:
                 packages[package_name] = requested_package
-            project.add_package_to_pipfile(requirement, category=pipfile_category)
+            if lock_only is False:
+                project.add_package_to_pipfile(requirement, category=pipfile_category)
 
         full_lock_resolution = venv_resolve_deps(
             packages,
