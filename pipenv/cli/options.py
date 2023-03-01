@@ -157,7 +157,7 @@ def keep_outdated_option(f):
         state.installstate.keep_outdated = value
         if value:
             click.secho(
-                "The flag --keep-outdated has been deprecated for removal."
+                "The flag --keep-outdated has been deprecated for removal.  "
                 "The flag does not respect package resolver results and leads to inconsistent lock files.  "
                 "Consider using the new `pipenv upgrade` command to selectively upgrade packages.",
                 fg="yellow",
@@ -184,7 +184,7 @@ def selective_upgrade_option(f):
         state.installstate.selective_upgrade = value
         if value:
             click.secho(
-                "The flag --selective-upgrade has been deprecated for removal."
+                "The flag --selective-upgrade has been deprecated for removal.  "
                 "The flag is buggy and leads to inconsistent lock files.  "
                 "Consider using the new `pipenv upgrade` command to selectively upgrade packages.",
                 fg="yellow",
