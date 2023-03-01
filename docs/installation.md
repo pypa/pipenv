@@ -19,7 +19,7 @@ Check this by running:
     $ pip --version
     pip 22.3.1
 
-If you installed Python from source, with an installer from [python.org], via `Homebrew`_ you likely already have pip. 
+If you installed Python from source, with an installer from [python.org], via `Homebrew`_ you likely already have pip.
 If you're on Linux and installed using your OS package manager, you may have to [install pip](https://pip.pypa.io/en/stable/installing/) manually.
 
 * [python.org](https://python.org)
@@ -114,7 +114,7 @@ tutorial) and run:
 Pipenv will install the `requests` library and create a ``Pipfile``
 for you in your project's directory. The ``Pipfile`` is used to track which
 dependencies your project needs in case you need to re-install them, such as
-when you share your project with others. 
+when you share your project with others.
 
 You should get output similar to this:
 
@@ -126,7 +126,7 @@ You should get output similar to this:
       seeder FromAppData(download=False, pip=bundle, setuptools=bundle, wheel=bundle, via=copy, app_data_dir=C:\Users\matte\AppData\Local\pypa\virtualenv)
         added seed packages: pip==23.0, setuptools==67.1.0, wheel==0.38.4
       activators BashActivator,BatchActivator,FishActivator,NushellActivator,PowerShellActivator,PythonActivator
-    
+
     Successfully created virtual environment!
     Virtualenv location: C:\Users\matte\.virtualenvs\example-7V6BFyzL
     Installing requests...
@@ -157,7 +157,7 @@ You should get output similar to this:
     Your IP is 8.8.8.8
 
 Using ``$ pipenv run`` ensures that your installed packages are available to
-your script by activating the virtualenv. It is also possible to spawn a new shell 
+your script by activating the virtualenv. It is also possible to spawn a new shell
 that ensures all commands have access to your installed packages with ``$ pipenv shell``.
 
 
