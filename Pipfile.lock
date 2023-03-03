@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "54ce6300ead30838070d586211801fe8ce14f9963d19053bb3d976e8fe184773"
+            "sha256": "eb62088849429f204f99c914f3043a4952ab00589b6c4bd14354cff8bf95e8d9"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -13,7 +13,16 @@
             }
         ]
     },
-    "default": {},
+    "default": {
+        "pytz": {
+            "hashes": [
+                "sha256:01a0681c4b9684a28304615eba55d1ab31ae00bf68ec157ec3708a8182dbbcd0",
+                "sha256:78f4f37d8198e0627c5f1143240bb0206b8691d8d7ac6d78fee88b78733f8c4a"
+            ],
+            "index": "pypi",
+            "version": "==2022.7.1"
+        }
+    },
     "develop": {
         "alabaster": {
             "hashes": [

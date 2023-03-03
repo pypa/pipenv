@@ -27,6 +27,7 @@ exceptiongroup = "==1.1.0"
 tomli = "*"
 
 [packages]
+pytz = "*"
 
 [scripts]
 tests = "bash ./run-tests.sh"
