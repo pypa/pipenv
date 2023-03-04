@@ -71,4 +71,3 @@ as well as two additional options, ``--all`` and ``--all-dev``.
 ## check
 
 ``check`` checks for security vulnerabilities and asserts that [PEP 508](https://www.python.org/dev/peps/pep-0508/) requirements are being met by the project's lock file or current environment.
-
