@@ -1,6 +1,6 @@
 # Specifying Package Indexes
 
-The default python package index that is standard for use is [pypi.org](https://pypi.org).   
+The default python package index that is standard for use is [pypi.org](https://pypi.org).
 Sometimes there is a need to work with alternative or additional package indexes.
 
 ## Index Restricted Packages

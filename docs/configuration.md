@@ -12,7 +12,7 @@ true value. Allowed values are: ``"1", "true", "yes", "on"``
 
 To explicitly disable a boolean option, assign to it a false value (i.e. ``"0"``).
 
-```{eval-rst}  
+```{eval-rst}
 .. autoclass:: pipenv.environments.Setting
 :members:
 ```
@@ -25,10 +25,10 @@ For example:
 
 ## Changing Cache Location
 
-You can force pipenv to use a different cache location by setting the environment variable ``PIPENV_CACHE_DIR`` to the location you wish. 
+You can force pipenv to use a different cache location by setting the environment variable ``PIPENV_CACHE_DIR`` to the location you wish.
 This is useful in the same situations that you would change ``PIP_CACHE_DIR`` to a different directory.
 
 ## Changing Default Python Versions
 
-By default, pipenv will initialize a project using whatever version of python the system has as default. 
+By default, pipenv will initialize a project using whatever version of python the system has as default.
 Besides starting a project with the ``--python`` flag, you can also use ``PIPENV_DEFAULT_PYTHON_VERSION`` to specify what version to use when starting a project when ``--python`` isn't used.

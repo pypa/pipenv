@@ -54,10 +54,12 @@ commands
 workflows
 specifiers
 shell
+virtualenv
 docker
 indexes
 credentials
 scripts
+configuration
 advanced
 cli
 diagnose

@@ -440,4 +440,3 @@ interfaces that don't participate in Python-level dependency resolution
 at all, use the ``PIP_IGNORE_INSTALLED`` setting::
 
     $ PIP_IGNORE_INSTALLED=1 pipenv install --dev
-
