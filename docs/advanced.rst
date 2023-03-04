@@ -579,29 +579,6 @@ at all, use the ``PIP_IGNORE_INSTALLED`` setting::
     $ PIP_IGNORE_INSTALLED=1 pipenv install --dev
 
 
-.. _pipfile-vs-setuppy:
-
-☤ Pipfile vs setup.py
----------------------
-
-There is a subtle but very important distinction to be made between **applications** and **libraries**. This is a very common source of confusion in the Python community.
-
-Libraries provide reusable functionality to other libraries and applications (let's use the umbrella term **projects** here). They are required to work alongside other libraries, all with their own set of sub-dependencies. They define **abstract dependencies**. To avoid version conflicts in sub-dependencies of different libraries within a project, libraries should never ever pin dependency versions. Although they may specify lower or (less frequently) upper bounds, if they rely on some specific feature/fix/bug. Library dependencies are specified via ``install_requires`` in ``setup.py``.
-
-Libraries are ultimately meant to be used in some **application**. Applications are different in that they usually are not depended on by other projects. They are meant to be deployed into some specific environment and only then should the exact versions of all their dependencies and sub-dependencies be made concrete. To make this process easier is currently the main goal of Pipenv.
-
-To summarize:
-
-- For libraries, define **abstract dependencies** via ``install_requires`` in ``setup.py``. The decision of which version exactly to be installed and where to obtain that dependency is not yours to make!
-- For applications, define **dependencies and where to get them** in the ``Pipfile`` and use this file to update the set of **concrete dependencies** in ``Pipfile.lock``. This file defines a specific idempotent environment that is known to work for your project. The ``Pipfile.lock`` is your source of truth. The ``Pipfile`` is a convenience for you to create that lock-file, in that it allows you to still remain somewhat vague about the exact version of a dependency to be used. Pipenv is there to help you define a working conflict-free set of specific dependency-versions, which would otherwise be a very tedious task.
-- Of course, ``Pipfile`` and Pipenv are still useful for library developers, as they can be used to define a development or test environment.
-- And, of course, there are projects for which the distinction between library and application isn't that clear. In that case, use ``install_requires`` alongside Pipenv and ``Pipfile``.
-
-You can also do this::
-
-    $ pipenv install -e .
-
-This will tell Pipenv to lock all your ``setup.py``–declared dependencies.
 
 ☤ Changing Pipenv's Cache Location
 ----------------------------------
