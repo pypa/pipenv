@@ -1,9 +1,7 @@
 .. _advanced:
 
-Advanced Usage of Pipenv
+Other Topics
 ========================
-
-.. image:: https://farm4.staticflickr.com/3672/33231486560_bff4124c9a_k_d.jpg
 
 This document is current in the process of being broken apart into more granular sections so that we may provide better overall documentation.
 
@@ -22,35 +20,6 @@ Example usage::
     pipenv sync --extra-pip-args="--use-feature=truststore --proxy=127.0.0.1"
 
 
-☤ Specifying Basically Anything
--------------------------------
-
-If you'd like to specify that a specific package only be installed on certain systems,
-you can use `PEP 508 specifiers <https://www.python.org/dev/peps/pep-0508/>`_ to accomplish this.
-
-Here's an example ``Pipfile``, which will only install ``pywinusb`` on Windows systems::
-
-    [[source]]
-    url = "https://pypi.python.org/simple"
-    verify_ssl = true
-    name = "pypi"
-
-    [packages]
-    requests = "*"
-    pywinusb = {version = "*", sys_platform = "== 'win32'"}
-
-Voilà!
-
-Here's a more complex example::
-
-    [[source]]
-    url = "https://pypi.python.org/simple"
-    verify_ssl = true
-
-    [packages]
-    unittest2 = {version = ">=1.0,<3.0", markers="python_version < '2.7.9' or (python_version >= '3.0' and python_version < '3.4')"}
-
-Magic. Pure, unadulterated magic.
 
 ☤ Using pipenv for Deployments
 ------------------------------
@@ -366,58 +335,6 @@ Pipenv automatically honors both the ``python_full_version`` and ``python_versio
 
 💫✨🍰✨💫
 
-.. _configuration-with-environment-variables:
-
-☤ Configuration With Environment Variables
-------------------------------------------
-
-Pipenv comes with a handful of options that can be set via shell environment
-variables.
-
-To enable boolean options, create the variable in your shell and assign to it a
-truthy value (i.e. ``"1"``)::
-
-    $ PIPENV_IGNORE_VIRTUALENVS=1
-
-To explicitly disable a boolean option, assign to it a falsey value (i.e. ``"0"``).
-
-.. autoclass:: pipenv.environments.Setting
-    :members:
-
-If you'd like to set these environment variables on a per-project basis, I recommend utilizing the fantastic `direnv <https://direnv.net>`_ project, in order to do so.
-
-Also note that `pip itself supports environment variables <https://pip.pypa.io/en/stable/user_guide/#environment-variables>`_, if you need additional customization.
-
-For example::
-
-    $ PIP_INSTALL_OPTION="-- -DCMAKE_BUILD_TYPE=Release" pipenv install -e .
-
-
-☤ Custom Virtual Environment Location
--------------------------------------
-
-Pipenv automatically honors the ``WORKON_HOME`` environment variable, if you
-have it set — so you can tell pipenv to store your virtual environments
-wherever you want, e.g.::
-
-    export WORKON_HOME=~/.venvs
-
-In addition, you can also have Pipenv stick the virtualenv in ``project/.venv`` by setting the ``PIPENV_VENV_IN_PROJECT`` environment variable.
-
-☤ Virtual Environment Name
--------------------------------------
-
-The virtualenv name created by Pipenv may be different from what you were expecting.
-Dangerous characters (i.e. ``$`!*@"`` as well as space, line feed, carriage return,
-and tab) are converted to underscores. Additionally, the full path to the current
-folder is encoded into a "slug value" and appended to ensure the virtualenv name
-is unique.
-
-Pipenv supports a arbitrary custom name for the virtual environment set at ``PIPENV_CUSTOM_VENV_NAME``.
-
-The logical place to specify this would be in a user's ``.env`` file in the root of the project, which gets loaded by pipenv when it is invoked.
-
-
 ☤ Testing Projects
 ------------------
 
@@ -524,14 +441,3 @@ at all, use the ``PIP_IGNORE_INSTALLED`` setting::
 
     $ PIP_IGNORE_INSTALLED=1 pipenv install --dev
 
-
-
-☤ Changing Pipenv's Cache Location
-----------------------------------
-
-You can force Pipenv to use a different cache location by setting the environment variable ``PIPENV_CACHE_DIR`` to the location you wish. This is useful in the same situations that you would change ``PIP_CACHE_DIR`` to a different directory.
-
-☤ Changing Default Python Versions
-----------------------------------
-
-By default, Pipenv will initialize a project using whatever version of python the system has as default. Besides starting a project with the ``--python`` flag, you can also use ``PIPENV_DEFAULT_PYTHON_VERSION`` to specify what version to use when starting a project when ``--python`` isn't used.

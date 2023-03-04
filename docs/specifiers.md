@@ -154,3 +154,30 @@ Example usages:
   which means it is possible to define conflicting package versions across groups.
   This may be desired in some use cases where users only are installing groups specific to their system platform.
 ```
+
+## Specifying Basically Anything
+
+If you'd like to specify that a specific package only be installed on certain systems,
+you can use [PEP 508 specifiers](https://www.python.org/dev/peps/pep-0508/) to accomplish this.
+
+Here's an example ``Pipfile``, which will only install ``pywinusb`` on Windows systems::
+
+    [[source]]
+    url = "https://pypi.python.org/simple"
+    verify_ssl = true
+    name = "pypi"
+
+    [packages]
+    requests = "*"
+    pywinusb = {version = "*", sys_platform = "== 'win32'"}
+
+Here's a more complex example::
+
+    [[source]]
+    url = "https://pypi.python.org/simple"
+    verify_ssl = true
+
+    [packages]
+    unittest2 = {version = ">=1.0,<3.0", markers="python_version < '2.7.9' or (python_version >= '3.0' and python_version < '3.4')"}
+
+Markers provide a ton of flexibility when specifying package requirements.
