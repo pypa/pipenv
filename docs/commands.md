@@ -4,7 +4,7 @@
 
 The commands reference for pipenv (incomplete)
 
-## pipenv install
+## install
 
 ``$ pipenv install`` is used for installing packages into the pipenv virtual environment
 and updating your Pipfile.
@@ -28,7 +28,7 @@ The user can provide these additional parameters:
     - ``--skip-lock`` — Ignore the ``Pipfile.lock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.
 
 
-## pipenv uninstall
+## uninstall
 
 ``$ pipenv uninstall`` supports all of the parameters in `pipenv install <#pipenv-install>`_,
 as well as two additional options, ``--all`` and ``--all-dev``.
@@ -40,6 +40,35 @@ as well as two additional options, ``--all`` and ``--all-dev``.
       the virtual environment, and remove them from the Pipfile.
 
 
-## pipenv lock
+## sync
+``$ pipenv sync`` installs dependencies from the ``Pipfile.lock`` without any alteration to the lockfile.
 
-``$ pipenv lock`` is used to create a ``Pipfile.lock``, which declares **all** dependencies (and sub-dependencies) of your project, their latest available versions, and the current hashes for the downloaded files. This ensures repeatable, and most importantly *deterministic*, builds.
+
+## lock
+
+``$ pipenv lock`` is used to update a ``Pipfile.lock``, which declares **all** dependencies of your project, their latest resolved versions based on your ``Pipfile`` specifiers, and the current hashes for the downloaded files. This ensures repeatable and deterministic builds.
+
+## update
+
+``$ pipenv update <package>`` will update the lock of specified dependency and sub-dependencies only and install the updates.
+
+
+## upgrade
+
+``$ pipenv upgarde <package>`` will update the lock of specified dependency and sub-dependencies only, but does not modify the environment.
+
+## run
+
+``run`` will run a given command from the virtualenv, with any arguments forwarded (e.g. ``$ pipenv run python`` or ``$ pipenv run pip freeze``).
+
+## shell
+
+``shell`` will spawn a shell with the virtualenv activated. This shell can be deactivated by using ``exit``.
+
+## graph
+``graph`` will show you a dependency graph of your installed dependencies where each root node is a specifier from the ``Pipfile``.
+
+## check
+
+``check`` checks for security vulnerabilities and asserts that [PEP 508](https://www.python.org/dev/peps/pep-0508/) requirements are being met by the project's lock file or current environment.
+

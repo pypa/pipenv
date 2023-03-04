@@ -49,7 +49,6 @@ caption: Pipenv Documentation
 maxdepth: 2
 ---
 installation
-quickstart
 workflows
 pipfile
 commands
