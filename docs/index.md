@@ -49,9 +49,9 @@ caption: Pipenv Documentation
 maxdepth: 2
 ---
 installation
-workflows
 pipfile
 commands
+workflows
 specifiers
 shell
 docker
