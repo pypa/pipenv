@@ -1,4 +1,4 @@
-# Pipenv and Docker Containers
+# Docker Containers
 
 In general, you should not have Pipenv inside a linux container image, since
 it is a build tool. If you want to use it to build, and install the run time

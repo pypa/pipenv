@@ -33,7 +33,7 @@ If you're on Linux and installed using your OS package manager, you may have to 
 It is recommended that users on most platforms should install pipenv from pypi.org using ``pip install pipenv --user``.
 
 
-### Pragmatic Installation of Pipenv
+### Preferred Installation of Pipenv
 
 If you have a working installation of pip, and maintain certain "tool-chain" type Python modules as global utilities in your user environment, pip `user installs <https://pip.pypa.io/en/stable/user_guide/#user-installs>`_ allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
 
@@ -76,12 +76,8 @@ To upgrade pipenv at any time:
 
 
 
-### Homebrew Installation of Pipenv(Discouraged)
+### Homebrew Installation of Pipenv
 * [Homebrew](https://brew.sh) is a popular open-source package management system for macOS. For Linux users, `Linuxbrew`_  is a Linux port of that.
-
-Installing pipenv via Homebrew or Linuxbrew will keep pipenv and all of its dependencies in
-an isolated virtual environment so it doesn't interfere with the rest of your
-Python installation.
 
 Once you have installed Homebrew or Linuxbrew simply run:
 
