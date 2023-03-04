@@ -80,6 +80,7 @@ def do_update(
             editable_packages=editable,
             pypi_mirror=pypi_mirror,
             categories=categories,
+            dev=dev,
             lock_only=lock_only,
         )
 
@@ -106,13 +107,16 @@ def upgrade(
     editable_packages=None,
     pypi_mirror=None,
     categories=None,
+    dev=False,
     lock_only=False,
 ):
 
     lockfile = project._lockfile()
     if not pre:
         pre = project.settings.get("allow_prereleases")
-    if not categories:
+    if dev:
+        categories = ["develop"]
+    elif not categories:
         categories = ["default"]
 
     package_args = [p for p in packages] + [f"-e {pkg}" for pkg in editable_packages]
