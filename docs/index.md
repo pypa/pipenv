@@ -55,6 +55,8 @@ workflows
 specifiers
 shell
 docker
+indexes
+credentials
 advanced
 cli
 diagnose
