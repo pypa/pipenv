@@ -57,6 +57,7 @@ shell
 docker
 indexes
 credentials
+scripts
 advanced
 cli
 diagnose

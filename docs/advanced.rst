@@ -366,60 +366,6 @@ Pipenv automatically honors both the ``python_full_version`` and ``python_versio
 
 💫✨🍰✨💫
 
-☤ Custom Script Shortcuts
--------------------------
-
-Pipenv supports creating custom shortcuts in the (optional) ``[scripts]`` section of your Pipfile.
-
-You can then run ``pipenv run <shortcut name>`` in your terminal to run the command in the
-context of your pipenv virtual environment even if you have not activated the pipenv shell first.
-
-For example, in your Pipfile:
-
-.. code-block:: toml
-
-    [scripts]
-    printspam = "python -c \"print('I am a silly example, no one would need to do this')\""
-
-And then in your terminal::
-
-    $ pipenv run printspam
-    I am a silly example, no one would need to do this
-
-Commands that expect arguments will also work.
-For example:
-
-.. code-block:: toml
-
-    [scripts]
-    echospam = "echo I am really a very silly example"
-
-::
-
-    $ pipenv run echospam "indeed"
-    I am really a very silly example indeed
-
-You can also specify pacakge functions as callables such as: ``<pathed.module>:<func>``. These can also take arguments.
-For exaple:
-
-.. code-block:: toml
-
-    [scripts]
-    my_func_with_args = {call = "package.module:func('arg1', 'arg2')"}
-    my_func_no_args = {call = "package.module:func()"}
-
-::
-    $ pipenv run my_func_with_args
-    $ pipenv run my_func_no_args
-
-You can display the names and commands of your shortcuts by running ``pipenv scripts`` in your terminal.
-
-::
-
-    $ pipenv scripts
-    command   script
-    echospam  echo I am really a very silly example
-
 .. _configuration-with-environment-variables:
 
 ☤ Configuration With Environment Variables
