@@ -4,7 +4,7 @@ Clone / create project repository::
 
     $ cd myproject
 
-Install from ``Pipfile.lock``, if there is one::
+Install from `Pipfile.lock`, if there is one::
 
     $ pipenv sync
 
@@ -12,11 +12,11 @@ Add a package to your project, recalibrating entire lock file using the Pipfile 
 
     $ pipenv install <package>
 
-- Note: This will create a ``Pipfile`` if one doesn't exist. If one does exist, it will automatically be edited with the new package you provided, the lock file updated and the new dependencies installed.
-- ``pipenv install`` is fully compatible with ``pip install`` package specifiers, for which the full documentation can be found `here <https://pip.pypa.io/en/stable/user_guide/#installing-packages>`__.
-- Additional arguments may be supplied to ``pip`` by supplying ``pipenv`` with ``--extra-pip-args``.
+- Note: This will create a `Pipfile` if one doesn't exist. If one does exist, it will automatically be edited with the new package you provided, the lock file updated and the new dependencies installed.
+- `pipenv install` is fully compatible with `pip install` package specifiers, for which the full documentation can be found `here <https://pip.pypa.io/en/stable/user_guide/#installing-packages>`__.
+- Additional arguments may be supplied to `pip` by supplying `pipenv` with `--extra-pip-args`.
 
-Update everything (equivalent to ``pipenv lock && pipenv sync``::
+Update everything (equivalent to `pipenv lock && pipenv sync`::
 
     $ pipenv update
 
@@ -40,4 +40,4 @@ Activate the Pipenv shell::
 
     $ pipenv shell
 
-- Note: This will spawn a new shell subprocess, which can be deactivated by using ``exit``.
+- Note: This will spawn a new shell subprocess, which can be deactivated by using `exit`.

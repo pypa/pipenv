@@ -10,7 +10,7 @@ from your command line. You can check this by simply running:
 
     $ python --version
 
-You should get some output like ``3.10.8``. If you do not have Python, please
+You should get some output like `3.10.8`. If you do not have Python, please
 install the latest 3.x version from [python.org](https://python.org)
 
 Additionally, you will want to make sure you have pip available.
@@ -30,7 +30,7 @@ If you're on Linux and installed using your OS package manager, you may have to 
 
 ## Installing Pipenv
 
-It is recommended that users on most platforms should install pipenv from pypi.org using ``pip install pipenv --user``.
+It is recommended that users on most platforms should install pipenv from pypi.org using `pip install pipenv --user`.
 
 
 ### Preferred Installation of Pipenv
@@ -43,24 +43,24 @@ To install:
 
 ```{note}
     This does a `user installation`_ to prevent breaking any system-wide
-    packages. If ``pipenv`` isn't available in your shell after installation,
-    you'll need to add the user site-packages binary directory to your ``PATH``.
+    packages. If `pipenv` isn't available in your shell after installation,
+    you'll need to add the user site-packages binary directory to your `PATH`.
 
     On Linux and macOS you can find the user base binary directory by running
-    ``python -m site --user-base`` and adding ``bin`` to the end. For example,
-    this will typically print ``~/.local`` (with ``~`` expanded to the
+    `python -m site --user-base` and adding `bin` to the end. For example,
+    this will typically print `~/.local` (with `~` expanded to the
     absolute path to your home directory) so you'll need to add
-    ``~/.local/bin`` to your ``PATH``. You can set your ``PATH`` permanently by
+    `~/.local/bin` to your `PATH`. You can set your `PATH` permanently by
     `modifying ~/.profile`_.
 
     On Windows you can find the user base binary directory by running
-    ``python -m site --user-site`` and replacing ``site-packages`` with
-    ``Scripts``. For example, this could return
-    ``C:\Users\Username\AppData\Roaming\Python37\site-packages`` so you would
-    need to set your ``PATH`` to include
-    ``C:\Users\Username\AppData\Roaming\Python37\Scripts``. You can set your
-    user ``PATH`` permanently in the `Control Panel`_. You may need to log
-    out for the ``PATH`` changes to take effect.
+    `python -m site --user-site` and replacing `site-packages` with
+    `Scripts`. For example, this could return
+    `C:\Users\Username\AppData\Roaming\Python37\site-packages` so you would
+    need to set your `PATH` to include
+    `C:\Users\Username\AppData\Roaming\Python37\Scripts`. You can set your
+    user `PATH` permanently in the `Control Panel`_. You may need to log
+    out for the `PATH` changes to take effect.
 
     For more information, see the `user installs documentation <https://pip.pypa.io/en/stable/user_guide/#user-installs>`_.
 ```
@@ -102,13 +102,13 @@ tutorial) and run:
 
 ```{note}
    Pipenv is designed to be used by non-privileged OS users. It is not meant
-   to install or handle packages for the whole OS. Running Pipenv as ``root``
-   or with ``sudo`` (or ``Admin`` on Windows) is highly discouraged and might
+   to install or handle packages for the whole OS. Running Pipenv as `root`
+   or with `sudo` (or `Admin` on Windows) is highly discouraged and might
    lead to unintend breakage of your OS.
 ```
 
-Pipenv will install the `requests` library and create a ``Pipfile``
-for you in your project's directory. The ``Pipfile`` is used to track which
+Pipenv will install the `requests` library and create a `Pipfile`
+for you in your project's directory. The `Pipfile` is used to track which
 dependencies your project needs in case you need to re-install them, such as
 when you share your project with others.
 
@@ -136,7 +136,7 @@ You should get output similar to this:
 
 ## Using installed packages
 
-Now that ``requests`` is installed you can create a simple ``main.py`` file to use it:
+Now that `requests` is installed you can create a simple `main.py` file to use it:
 
 ```
 import requests
@@ -144,7 +144,7 @@ import requests
 response = requests.get('https://httpbin.org/ip')
 print('Your IP is {0}'.format(response.json()['origin']))
 ```
-Then you can run this script using ``pipenv run``
+Then you can run this script using `pipenv run`
 
     $ pipenv run python main.py
 
@@ -152,15 +152,15 @@ You should get output similar to this:
 
     Your IP is 8.8.8.8
 
-Using ``$ pipenv run`` ensures that your installed packages are available to
+Using `$ pipenv run` ensures that your installed packages are available to
 your script by activating the virtualenv. It is also possible to spawn a new shell
-that ensures all commands have access to your installed packages with ``$ pipenv shell``.
+that ensures all commands have access to your installed packages with `$ pipenv shell`.
 
 
 ## Virtualenv mapping caveat
 
 - Pipenv automatically maps projects to their specific virtualenvs.
-- By default, the virtualenv is stored globally with the name of the project’s root directory plus the hash of the full path to the project's root (e.g., ``my_project-a3de50``).
+- By default, the virtualenv is stored globally with the name of the project’s root directory plus the hash of the full path to the project's root (e.g., `my_project-a3de50`).
 - Should you change your project's path, you break such a default mapping and pipenv will no longer be able to find and to use the project's virtualenv.
-- Customize this behavior with ``PIPENV_CUSTOM_VENV_NAME`` environment variable.
-- You might also prefer to set ``PIPENV_VENV_IN_PROJECT=1`` in your .env or .bashrc/.zshrc (or other shell configuration file) for creating the virtualenv inside your project's directory.
+- Customize this behavior with `PIPENV_CUSTOM_VENV_NAME` environment variable.
+- You might also prefer to set `PIPENV_VENV_IN_PROJECT=1` in your .env or .bashrc/.zshrc (or other shell configuration file) for creating the virtualenv inside your project's directory.

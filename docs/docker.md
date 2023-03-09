@@ -5,13 +5,13 @@ it is a build tool. If you want to use it to build, and install the run time
 dependencies for your application, you can use a multistage build for creating
 a virtual environment with your dependencies.
 
-In this approach, Pipenv in installed in the base layer and it is used to create the virtual
-environment. In a later stage, in a ``runtime`` layer the virtual environment
+In this approach, Pipenv in installed in the base layer, and it is used to create the virtual
+environment. In a later stage, in a `runtime` layer the virtual environment
 is copied from the base layer, the layer containing pipenv and other build
 dependencies is discarded.
 
 This results in a smaller image, which can still run your application.
-Here is an example ``Dockerfile``, which you can use as a starting point for
+Here is an example `Dockerfile`, which you can use as a starting point for
 doing a multistage build for your application:
 
     FROM docker.io/python:3.9 AS builder
@@ -69,7 +69,7 @@ doing a multistage build for your application:
 ```
 
 When you build an image with this example (assuming requests is found in Pipfile), you
-will see that ``requests`` is installed in the ``runtime`` image:
+will see that `requests` is installed in the `runtime` image:
 
     $ sudo docker build --no-cache -t oz/123:0.1 .
     Sending build context to Docker daemon  1.122MB

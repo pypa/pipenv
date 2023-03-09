@@ -1,18 +1,18 @@
 # Pipfile & Pipfile.lock
 
-``Pipfile`` contains the specification for the project top-level requirements and any desired specifiers.
+`Pipfile` contains the specification for the project top-level requirements and any desired specifiers.
 This file is managed by the developers invoking pipenv commands.
-The ``Pipfile`` uses inline tables and the [TOML Spec](https://github.com/toml-lang/toml#user-content-spec>).
+The `Pipfile` uses inline tables and the [TOML Spec](https://github.com/toml-lang/toml#user-content-spec>).
 
-``Pipfile.lock`` replaces the ``requirements.txt file`` used in most Python projects and adds
+`Pipfile.lock` replaces the `requirements.txt file` used in most Python projects and adds
 security benefits of tracking the packages hashes that were last locked.
 This file is managed automatically through locking actions.
 
-You should add both ``Pipfile`` and ``Pipfile.lock`` to the project's source control.
+You should add both `Pipfile` and `Pipfile.lock` to the project's source control.
 
 ## Example Pipfile
 
-Here is a simple example of a ``Pipfile`` and the resulting ``Pipfile.lock``.
+Here is a simple example of a `Pipfile` and the resulting `Pipfile.lock`.
 
     [[source]]
     url = "https://pypi.org/simple"
@@ -211,39 +211,55 @@ Here is a simple example of a ``Pipfile`` and the resulting ``Pipfile.lock``.
 
 ## Importing from requirements.txt
 
-For projects utilizing a ``requirements.txt`` pipenv can import the contents of this file and create a
-``Pipfile`` and `Pipfile.lock`` for you:
+For projects utilizing a `requirements.txt` pipenv can import the contents of this file and create a
+`Pipfile` and `Pipfile.lock` for you:
 
     $ pipenv install -r path/to/requirements.txt
 
-If your requirements file has version numbers pinned, you'll likely want to edit the new ``Pipfile``
-to only keep track of top level dependencies and let ``pipenv`` keep track of pinning sub-dependencies in the lock file.
+If your requirements file has version numbers pinned, you'll likely want to edit the new `Pipfile`
+to only keep track of top level dependencies and let `pipenv` keep track of pinning sub-dependencies in the lock file.
 
 
 ## Pipfile.lock Security Features
 
-``Pipfile.lock`` leverages the security of package hash validation in ``pip``.
-The ``Pipfile.lock`` is generated with the sha256 hashes of each downloaded package.
+`Pipfile.lock` leverages the security of package hash validation in `pip`.
+The `Pipfile.lock` is generated with the sha256 hashes of each downloaded package.
 This guarantees you're installing the same exact packages on any network as the one
 where the lock file was last updated, even on untrusted networks.
 
 We recommend designing CI/CD deployments whereby the build does not alter the lock file as a side effect.
-In other words, you can use ``pipenv lock`` or ``pipenv upgrade`` to adjust your lockfile through local development,
+In other words, you can use `pipenv lock` or `pipenv upgrade` to adjust your lockfile through local development,
 the PR process and approve those lock changes before deploying to production that version of the lockfile.
-In other words avoid having your CI issue ``lock``, ``update``, ``upgrade`` ``uninstall`` or ``install`` commands that will relock.
-Note:  It is counterintuitive that ``pipenv install`` re-locks and ``pipenv sync`` or ``pipenv install --deploy`` does not.
-Based on feedback, we may change this behavior of ``pipenv install`` to not re-lock in the future but be mindful of this when designing CI pipelines today.
+In other words avoid having your CI issue `lock`, `update`, `upgrade` `uninstall` or `install` commands that will relock.
+Note:  It is counterintuitive that `pipenv install` re-locks and `pipenv sync` or `pipenv install --deploy` does not.
+Based on feedback, we may change this behavior of `pipenv install` to not re-lock in the future but be mindful of this when designing CI pipelines today.
 
 ```{admonition} Generate requirements.txt output from lock file
   $ pipenv requirements
 ```
 
+## Package Category Groups
+
+Pipenv supports arbitrarily named package categories in the Pipfile/Pipfile.lock for organizing dependencies into different groups.
+
+Traditionally there were only two package groups, and they were named different between the `Pipfile` and `Pipfile.lock`:
+
+* `packages` in the `Pipfile` corresponds to `default` group in the lockfile.
+* `dev-packages` in the `Pipfile` corresponds to `develop` group in the lockfile.
+
+The default/packages group is what you interact with when specifying no particular categories, 
+whereas the develop/dev-packages group is typically what you interact with when specifying the `--dev` or `-d` flag.
+
+Beginning in `pipenv==2022.10.9` support for named package categories was generalized such that any 
+non-reserved keywords may be used to create named package groups other than the original groups.
+All named categories (other than the special default/develop) will use the category name consistently between the `Pipfile` and `Pipfile.lock`
+
 ## General Notes and Recommendations
 
-- Keep both ``Pipfile`` and ``Pipfile.lock`` in version control.
-- ``pipenv install`` adds specifiers to ``Pipfile`` and rebuilds the lock file based on the Pipfile specs, by utilizing the internal resolver of ``pip``.
-- Not all the required sub-dependencies need be specified in ``Pipfile``, instead only add specifiers that make sense for the stability of your project.
-Example:  ``requests`` requires ``cryptography`` but (for reasons) you want to ensure ``cryptography`` is pinned to a particular version set.
-- Consider specifying your target Python version in your ``Pipfile``'s ``[requires]`` section.
-For this use either ``python_version`` in the format ``X.Y`` (or ``X``) or ``python_full_version`` in ``X.Y.Z`` format.
+- Keep both `Pipfile` and `Pipfile.lock` in version control.
+- `pipenv install` adds specifiers to `Pipfile` and rebuilds the lock file based on the Pipfile specs, by utilizing the internal resolver of `pip`.
+- Not all the required sub-dependencies need be specified in `Pipfile`, instead only add specifiers that make sense for the stability of your project.
+Example:  `requests` requires `cryptography` but (for reasons) you want to ensure `cryptography` is pinned to a particular version set.
+- Consider specifying your target Python version in your `Pipfile`'s `[requires]` section.
+For this use either `python_version` in the format `X.Y` (or `X`) or `python_full_version` in `X.Y.Z` format.
 - Considering making use of named package categories to further isolate dependency install groups for large monoliths.

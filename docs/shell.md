@@ -1,9 +1,9 @@
 # Environment and Shell Configuration
 
 
-## Automatic Loading of ``.env``
+## Automatic Loading of .env
 
-If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv run`` will automatically load it, for you:
+If a `.env` file is present in your project, `$ pipenv shell` and `$ pipenv run` will automatically load it, for you:
 
     $ cat .env
     HELLO=WORLD⏎
@@ -17,7 +17,7 @@ If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv
     >>> os.environ['HELLO']
     'WORLD'
 
-Variable expansion is available in ``.env`` files using ``${VARNAME}`` syntax:
+Variable expansion is available in `.env` files using `${VARNAME}` syntax:
 
     $ cat .env
     CONFIG_PATH=${HOME}/.config/foo
@@ -33,17 +33,17 @@ Variable expansion is available in ``.env`` files using ``${VARNAME}`` syntax:
 
 
 This is very useful for keeping production credentials out of your codebase.
-We do not recommend committing ``.env`` files into source control!
+We do not recommend committing `.env` files into source control!
 
-If your ``.env`` file is located in a different path or has a different name you may set the ``PIPENV_DOTENV_LOCATION`` environment variable:
+If your `.env` file is located in a different path or has a different name you may set the `PIPENV_DOTENV_LOCATION` environment variable:
 
     $ PIPENV_DOTENV_LOCATION=/path/to/.env pipenv shell
 
-To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV`` environment variable:
+To prevent pipenv from loading the `.env` file, set the `PIPENV_DONT_LOAD_ENV` environment variable:
 
     $ PIPENV_DONT_LOAD_ENV=1 pipenv shell
 
-See [theskumar/python-dotenv](https://github.com/theskumar/python-dotenv>) for more information on ``.env`` files.
+See [theskumar/python-dotenv](https://github.com/theskumar/python-dotenv>) for more information on `.env` files.
 
 ## Shell Completion
 
@@ -63,14 +63,14 @@ Shell completions are now enabled!
 
 ## Shell Notes (stale)
 
-Shells are typically misconfigured for subshell use, so ``$ pipenv shell --fancy`` may produce unexpected results. If this is the case, try ``$ pipenv shell``, which uses "compatibility mode", and will attempt to spawn a subshell despite misconfiguration.
+Shells are typically misconfigured for subshell use, so `$ pipenv shell --fancy` may produce unexpected results. If this is the case, try `$ pipenv shell`, which uses "compatibility mode", and will attempt to spawn a subshell despite misconfiguration.
 
-A proper shell configuration only sets environment variables like ``PATH`` during a login session, not during every subshell spawn (as they are typically configured to do). In fish, this looks like this:
+A proper shell configuration only sets environment variables like `PATH` during a login session, not during every subshell spawn (as they are typically configured to do). In fish, this looks like this:
 
     if status --is-login
         set -gx PATH /usr/local/bin $PATH
     end
 
-You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` or wherever appropriate.
+You should do this for your shell too, in your `~/.profile` or `~/.bashrc` or wherever appropriate.
 
-The shell launched in interactive mode. This means that if your shell reads its configuration from a specific file for interactive mode (e.g. bash by default looks for a ``~/.bashrc`` configuration file for interactive mode), then you'll need to modify (or create) this file.
+The shell launched in interactive mode. This means that if your shell reads its configuration from a specific file for interactive mode (e.g. bash by default looks for a `~/.bashrc` configuration file for interactive mode), then you'll need to modify (or create) this file.

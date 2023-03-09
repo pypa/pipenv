@@ -7,26 +7,42 @@ The commands reference for pipenv (incomplete)
 ## install
 
 ``$ pipenv install`` is used for installing packages into the pipenv virtual environment
-and updating your Pipfile.
+and updating your Pipfile and Pipfile.lock.
 
-Along with the basic installation command, which takes the form::
+Along with the basic installation command, which takes the form:
 
-    $ pipenv install [package names]
+    $ pipenv install <package_name>
+
+Running the above will install the package `<package_name>` and add it to the default packages section in the `Pipfile.lock`
 
 The user can provide these additional parameters:
 
-    - ``--python`` — Performs the installation in a virtualenv using the provided Python interpreter.
+    --python=<path/to/pyton> — Performs the installation in a virtualenv using the provided Python interpreter.
+warning: The above commands should only be used when initially creating the environment.
 
-    .. warning:: None of the above commands should be used together. They are also
-                 **destructive** and will delete your current virtualenv before replacing
-                 it with an appropriately versioned one.
+The user can provide these additional parameters:
 
-    - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile``.
-    - ``--system`` — Install packages to the system site-packages rather than into your virtualenv.
-    - ``--deploy`` — Verifies the _meta hash of the lock file is up to date with the ``Pipfile``, aborts install if not.
-    - ``--ignore-pipfile`` — Ignore the ``Pipfile`` and install from the ``Pipfile.lock``.
-    - ``--skip-lock`` — Ignore the ``Pipfile.lock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.
+    --dev — Install both develop and defaul` package categories from Pipfile.
+    --categories — Install packages to the category groups specified here.
+    --system — Install packages to the system site-packages rather than into your virtualenv.
+    --deploy — Verifies the _meta hash of the lock file is up to date with the ``Pipfile``, aborts install if not.
+    --ignore-pipfile — Install from the Pipfile.lock and completely ignore Pipfile information.
+    --skip-lock — Ignore the ``Pipfile.lock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.  This is not recommended as you loose the security benefits of lock file hash verification.
 
+General Interface Note:
+```{note}
+    It has been confusing to many users of pipenv that running install will completely relock the lock file.
+    Based on feedback in pipenv issue reports, we are considering changing install to only relock when adding or changing a package.
+    For now, to install lock file versions (without modification of the lock file) use: pipenv sync
+    To modify only specific packages and their subdependencies use: pipenv update <package_name>
+```
+
+## sync
+``$ pipenv sync`` installs dependencies from the ``Pipfile.lock`` without any alteration to the lockfile.
+
+The user can provide these additional parameters:
+
+    --categories — Install packages from the category groups specified here.
 
 ## uninstall
 
@@ -40,13 +56,9 @@ as well as two additional options, ``--all`` and ``--all-dev``.
       the virtual environment, and remove them from the Pipfile.
 
 
-## sync
-``$ pipenv sync`` installs dependencies from the ``Pipfile.lock`` without any alteration to the lockfile.
-
-
 ## lock
 
-``$ pipenv lock`` is used to update a ``Pipfile.lock``, which declares **all** dependencies of your project, their latest resolved versions based on your ``Pipfile`` specifiers, and the current hashes for the downloaded files. This ensures repeatable and deterministic builds.
+``$ pipenv lock`` is used to update all dependencies of ``Pipfile.lock`` to their latest resolved versions based on your ``Pipfile`` specification.
 
 ## update
 

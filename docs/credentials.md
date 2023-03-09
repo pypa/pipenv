@@ -16,16 +16,16 @@ you install from the lock file - so no need to commit any secrets! Woo!)
 
 If your credentials contain special characters, make sure they are URL-encoded as specified in `rfc3986 <https://datatracker.ietf.org/doc/html/rfc3986>`_.
 
-Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+Environment variables may be specified as `${MY_ENVAR}` or `$MY_ENVAR`.
 
-On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+On Windows, `%MY_ENVAR%` is supported in addition to `${MY_ENVAR}` or `$MY_ENVAR`.
 
-Environment variables in the URL part of requirement specifiers can also be expanded, where the variable must be in the form of ``${VAR_NAME}``. Neither ``$VAR_NAME`` nor ``%VAR_NAME%`` is acceptable:
+Environment variables in the URL part of requirement specifiers can also be expanded, where the variable must be in the form of `${VAR_NAME}`. Neither `$VAR_NAME` nor `%VAR_NAME%` is acceptable:
 
     [[package]]
     requests = {git = "git://${USERNAME}:${PASSWORD}@private.git.com/psf/requests.git", ref = "2.22.0"}
 
-Keep in mind that environment variables are expanded in runtime, leaving the entries in ``Pipfile`` or ``Pipfile.lock`` untouched. This is to avoid the accidental leakage of credentials in the source code.
+Keep in mind that environment variables are expanded in runtime, leaving the entries in `Pipfile` or `Pipfile.lock` untouched. This is to avoid the accidental leakage of credentials in the source code.
 
 ## Injecting credentials through keychain support
 
@@ -57,4 +57,4 @@ input. Otherwise, the process will hang forever!:
     [pipenv]
     disable_pip_input = false
 
-Above example will install ``flask`` and a private package ``private-test-package`` from GCP.
+Above example will install `flask` and a private package `private-test-package` from GCP.
