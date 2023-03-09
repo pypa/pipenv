@@ -66,7 +66,7 @@ requested as a workaround in order to support organizations where not everyone h
 
 ## Using a PyPI Mirror
 
-Should you have access to a mirror of PyPI packages and wish to substitute the default pypi.org index URL with your PyPI mirror, 
+Should you have access to a mirror of PyPI packages and wish to substitute the default pypi.org index URL with your PyPI mirror,
 you may supply the `--pypi-mirror <mirror_url>` argument to select commands:
 
     $ pipenv install --pypi-mirror <mirror_url>

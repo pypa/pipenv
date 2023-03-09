@@ -247,10 +247,10 @@ Traditionally there were only two package groups, and they were named different 
 * `packages` in the `Pipfile` corresponds to `default` group in the lockfile.
 * `dev-packages` in the `Pipfile` corresponds to `develop` group in the lockfile.
 
-The default/packages group is what you interact with when specifying no particular categories, 
+The default/packages group is what you interact with when specifying no particular categories,
 whereas the develop/dev-packages group is typically what you interact with when specifying the `--dev` or `-d` flag.
 
-Beginning in `pipenv==2022.10.9` support for named package categories was generalized such that any 
+Beginning in `pipenv==2022.10.9` support for named package categories was generalized such that any
 non-reserved keywords may be used to create named package groups other than the original groups.
 All named categories (other than the special default/develop) will use the category name consistently between the `Pipfile` and `Pipfile.lock`
 
