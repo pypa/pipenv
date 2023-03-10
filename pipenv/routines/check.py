@@ -95,10 +95,16 @@ def do_check(
         if not quiet and not project.s.is_quiet():
             click.secho("Passed!", fg="green")
     if not quiet and not project.s.is_quiet():
-        click.secho(
-            "Checking installed packages for vulnerabilities...",
-            bold=True,
-        )
+        if use_installed:
+            click.secho(
+                "Checking installed packages for vulnerabilities...",
+                bold=True,
+            )
+        else:
+            click.secho(
+                "Checking Pipfile.lock packages for vulnerabilities...",
+                bold=True,
+            )
     if ignore:
         if not isinstance(ignore, (tuple, list)):
             ignore = [ignore]
