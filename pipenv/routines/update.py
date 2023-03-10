@@ -188,8 +188,9 @@ def upgrade(
         )
         # Mutate the existing lockfile with the upgrade data for the categories
         for package_name, _ in upgrade_lock_data.items():
-            correct_package_lock = full_lock_resolution[package_name]
-            lockfile[category][package_name] = correct_package_lock
+            correct_package_lock = full_lock_resolution.get(package_name)
+            if correct_package_lock:
+                lockfile[category][package_name] = correct_package_lock
 
     lockfile.update({"_meta": project.get_lockfile_meta()})
     project.write_lockfile(lockfile)
