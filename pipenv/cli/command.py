@@ -282,6 +282,7 @@ def upgrade(state, **kwargs):
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
         categories=state.installstate.categories,
+        dev=state.installstate.dev,
         system=state.system,
         lock_only=state.installstate.lock_only,
     )
