@@ -7,6 +7,7 @@ from pipenv.utils.dependencies import (
     convert_deps_to_pip,
     get_pipfile_category_using_lockfile_section,
     is_star,
+    pep423_name,
 )
 from pipenv.utils.project import ensure_project
 from pipenv.utils.resolver import venv_resolve_deps
@@ -128,6 +129,7 @@ def upgrade(
         section = {}
         package = Requirement.from_line(package)
         package_name, package_val = package.pipfile_entry
+        package_name = pep423_name(package_name)
         requested_packages[package_name] = package
         try:
             if not is_star(section[package_name]) and is_star(package_val):
@@ -168,10 +170,7 @@ def upgrade(
             packages = project.get_pipfile_section(pipfile_category)
         for package_name, requirement in requested_packages.items():
             requested_package = reqs[package_name]
-            if package_name not in packages:
-                packages.append(package_name, requested_package)
-            else:
-                packages[package_name] = requested_package
+            packages[package_name] = requested_package
             if lock_only is False:
                 project.add_package_to_pipfile(requirement, category=pipfile_category)
 
