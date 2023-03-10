@@ -170,7 +170,10 @@ def upgrade(
             packages = project.get_pipfile_section(pipfile_category)
         for package_name, requirement in requested_packages.items():
             requested_package = reqs[package_name]
-            packages[package_name] = requested_package
+            if package_name not in packages:
+                packages.append(package_name, requested_package)
+            else:
+                packages[package_name] = requested_package
             if lock_only is False:
                 project.add_package_to_pipfile(requirement, category=pipfile_category)
 
