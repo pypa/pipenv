@@ -7,6 +7,7 @@ from pipenv.utils.dependencies import (
     convert_deps_to_pip,
     get_pipfile_category_using_lockfile_section,
     is_star,
+    pep423_name,
 )
 from pipenv.utils.project import ensure_project
 from pipenv.utils.resolver import venv_resolve_deps
@@ -80,6 +81,7 @@ def do_update(
             editable_packages=editable,
             pypi_mirror=pypi_mirror,
             categories=categories,
+            dev=dev,
             lock_only=lock_only,
         )
 
@@ -106,13 +108,16 @@ def upgrade(
     editable_packages=None,
     pypi_mirror=None,
     categories=None,
+    dev=False,
     lock_only=False,
 ):
 
     lockfile = project._lockfile()
     if not pre:
         pre = project.settings.get("allow_prereleases")
-    if not categories:
+    if dev:
+        categories = ["develop"]
+    elif not categories:
         categories = ["default"]
 
     package_args = [p for p in packages] + [f"-e {pkg}" for pkg in editable_packages]
@@ -124,6 +129,7 @@ def upgrade(
         section = {}
         package = Requirement.from_line(package)
         package_name, package_val = package.pipfile_entry
+        package_name = pep423_name(package_name)
         requested_packages[package_name] = package
         try:
             if not is_star(section[package_name]) and is_star(package_val):
@@ -184,8 +190,9 @@ def upgrade(
         )
         # Mutate the existing lockfile with the upgrade data for the categories
         for package_name, _ in upgrade_lock_data.items():
-            correct_package_lock = full_lock_resolution[package_name]
-            lockfile[category][package_name] = correct_package_lock
+            correct_package_lock = full_lock_resolution.get(package_name)
+            if correct_package_lock:
+                lockfile[category][package_name] = correct_package_lock
 
     lockfile.update({"_meta": project.get_lockfile_meta()})
     project.write_lockfile(lockfile)
