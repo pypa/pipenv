@@ -107,7 +107,6 @@ class Setting:
     """
 
     def __init__(self) -> None:
-
         self.USING_DEFAULT_PYTHON = True
         """Use the default Python"""
 

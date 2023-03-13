@@ -11,7 +11,6 @@ from pipenv.vendor import attr
 
 @attr.s
 class Version:
-
     major = attr.ib()
     minor = attr.ib()
     patch = attr.ib()
