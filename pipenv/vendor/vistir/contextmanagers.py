@@ -44,8 +44,6 @@ __all__ = [
     "cd",
     "atomic_open_for_write",
     "open_file",
-    "spinner",
-    "dummy_spinner",
     "replaced_stream",
     "replaced_streams",
 ]
@@ -125,85 +123,6 @@ def cd(path):
         yield
     finally:
         os.chdir(prev_cwd)
-
-
-@contextmanager
-def dummy_spinner(spin_type, text, **kwargs):
-    # type: (str, str, Any)
-    class FakeClass(object):
-        def __init__(self, text=""):
-            self.text = text
-
-        def fail(self, exitcode=1, text=None):
-            if text:
-                print(text)
-            raise SystemExit(exitcode, text)
-
-        def ok(self, text):
-            print(text)
-            return 0
-
-        def write(self, text):
-            print(text)
-
-    myobj = FakeClass(text)
-    yield myobj
-
-
-@contextmanager
-def spinner(
-    spinner_name=None,  # type: Optional[str]
-    start_text=None,  # type: Optional[str]
-    handler_map=None,  # type: Optional[Dict[str, Callable]]
-    nospin=False,  # type: bool
-    write_to_stdout=True,  # type: bool
-):
-    # type: (...) -> ContextManager[TSpinner]
-    """Get a spinner object or a dummy spinner to wrap a context.
-
-    :param str spinner_name: A spinner type e.g. "dots" or "bouncingBar" (default: {"bouncingBar"})
-    :param str start_text: Text to start off the spinner with (default: {None})
-    :param dict handler_map: Handler map for signals to be handled gracefully (default: {None})
-    :param bool nospin: If true, use the dummy spinner (default: {False})
-    :param bool write_to_stdout: Writes to stdout if true, otherwise writes to stderr (default: True)
-    :return: A spinner object which can be manipulated while alive
-    :rtype: :class:`~vistir.spin.VistirSpinner`
-
-    Raises:
-        RuntimeError -- Raised if the spinner extra is not installed
-    """
-
-    from .spin import create_spinner
-
-    has_yaspin = None
-    try:
-        import yaspin
-    except (ImportError, ModuleNotFoundError):  # noqa
-        has_yaspin = False
-        if not nospin:
-            raise RuntimeError(
-                "Failed to import spinner! Reinstall vistir with command:"
-                " pip install --upgrade vistir[spinner]"
-            )
-        else:
-            spinner_name = ""
-    else:
-        has_yaspin = True
-        spinner_name = ""
-    use_yaspin = (has_yaspin is False) or (nospin is True)
-    if has_yaspin is None or has_yaspin is True and not nospin:
-        use_yaspin = True
-    if start_text is None and use_yaspin is True:
-        start_text = "Running..."
-    with create_spinner(
-        spinner_name=spinner_name,
-        text=start_text,
-        handler_map=handler_map,
-        nospin=nospin,
-        use_yaspin=use_yaspin,
-        write_to_stdout=write_to_stdout,
-    ) as _spinner:
-        yield _spinner
 
 
 @contextmanager

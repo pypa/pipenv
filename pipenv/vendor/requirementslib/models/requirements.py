@@ -32,7 +32,6 @@ from pipenv.patched.pip._vendor.packaging.specifiers import (
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.vendor.vistir.contextmanagers import temp_path
-from pipenv.vendor.vistir.misc import dedup
 from pipenv.vendor.vistir.path import (
     create_tracked_tempdir,
     get_converted_relative_path,
@@ -43,6 +42,7 @@ from pipenv.vendor.vistir.path import (
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
+from ..funktools import dedup
 from ..utils import (
     VCS_LIST,
     add_ssh_scheme_to_git_uri,
@@ -213,7 +213,7 @@ class Line(object):
         line = self.line
         extras_str = extras_to_string(self.extras)
         with_hashes = False if self.editable or self.is_vcs else with_hashes
-        hash_list = ["--hash={0}".format(h) for h in self.hashes]
+        hash_list = ["--hash={0}".format(h) for h in sorted(self.hashes)]
         if self.is_named:
             line = self.name_and_specifier
         elif self.is_direct_url:

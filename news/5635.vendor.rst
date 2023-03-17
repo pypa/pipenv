@@ -1,0 +1,1 @@
+Bump vistir to 0.8.0, requirementslib to 2.2.4.

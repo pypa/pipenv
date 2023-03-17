@@ -1,9 +1,4 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
-
-import atexit
 import io
-import itertools
 import json
 import locale
 import logging
@@ -11,52 +6,34 @@ import os
 import subprocess
 import sys
 import threading
-import typing
 import warnings
 
-from collections import OrderedDict
-from functools import partial
-from itertools import islice, tee
+from itertools import tee
 from weakref import WeakKeyDictionary
 
 from queue import Empty, Queue
-from typing import Iterable
+from typing import Iterable, List, Optional, Union
 
 from .cmdparse import Script
-from .contextmanagers import spinner as spinner
 
 _fs_encode_errors = "surrogatepass"
-
-if os.name != "nt":
-
-    class WindowsError(OSError):
-        pass
 
 
 __all__ = [
     "shell_escape",
     "unnest",
-    "dedup",
     "run",
     "load_path",
     "partialclass",
     "to_text",
     "to_bytes",
     "locale_encoding",
-    "chunked",
-    "take",
-    "divide",
     "getpreferredencoding",
     "decode_for_output",
     "get_canonical_encoding_name",
     "get_wrapped_stream",
     "StreamWrapper",
 ]
-
-
-if typing.TYPE_CHECKING:
-    from typing import Any, Dict, Generator, IO, List, Optional, Text, Tuple, Union
-    from .spin import VistirSpinner
 
 
 def _get_logger(name=None, level="ERROR"):
@@ -75,8 +52,7 @@ def _get_logger(name=None, level="ERROR"):
     return logger
 
 
-def shell_escape(cmd):
-    # type: (Union[str, List[str]]) -> str
+def shell_escape(cmd: Union[str, List[str]]) -> str:
     """Escape strings for use in :func:`~subprocess.Popen` and :func:`run`.
 
     This is a passthrough method for instantiating a
@@ -133,18 +109,6 @@ def _is_iterable(elem):
     return False
 
 
-def dedup(iterable):
-    # type: (Iterable) -> Iterable
-    """Deduplicate an iterable object like iter(set(iterable)) but order-
-    preserved."""
-    warnings.warn(
-        ('This function is deprecated and will be removed in version 0.8.'
-         'Use instead: sorted(iter(dict.fromkeys(iterable)))'),
-        DeprecationWarning, stacklevel=2)
-
-    return iter(OrderedDict.fromkeys(iterable))
-
-
 def _spawn_subprocess(
     script,  # type: Union[str, List[str]]
     env=None,  # type: Optional[Dict[str, str]]
@@ -153,8 +117,11 @@ def _spawn_subprocess(
     combine_stderr=True,  # type: bool
     encoding="utf-8",  # type: str
 ):
-    # type: (...) -> subprocess.Popen
     from shutil import which
+
+    if os.name != "nt":
+        class WindowsError(OSError):
+            """this exception is only available on windows"""
 
     if not env:
         env = os.environ.copy()
@@ -185,8 +152,8 @@ def _spawn_subprocess(
     # a "command" that is non-executable. See pypa/pipenv#2727.
     try:
         return subprocess.Popen(cmd, **options)
-    except WindowsError as e:  # pragma: no cover
-        if getattr(e, "winerror", 9999) != 193:
+    except WindowsError as err:  # pragma: no cover
+        if getattr(err, "winerror", 9999) != 193:
             raise
     options["shell"] = True
     # Try shell mode to use Windows's file association for file launch.
@@ -604,25 +571,19 @@ def run(
     if block or not return_object:
         combine_stderr = False
     start_text = ""
-    with spinner(
-        spinner_name=spinner_name,
+    return _create_subprocess(
+        cmd,
+        env=_env,
+        return_object=return_object,
+        block=block,
+        cwd=cwd,
+        verbose=verbose,
+        spinner=None,
+        combine_stderr=combine_stderr,
         start_text=start_text,
-        nospin=nospin,
         write_to_stdout=write_to_stdout,
-    ) as sp:
-        return _create_subprocess(
-            cmd,
-            env=_env,
-            return_object=return_object,
-            block=block,
-            cwd=cwd,
-            verbose=verbose,
-            spinner=sp,
-            combine_stderr=combine_stderr,
-            start_text=start_text,
-            write_to_stdout=write_to_stdout,
-            encoding=encoding,
-        )
+        encoding=encoding,
+    )
 
 
 def load_path(python):
@@ -774,64 +735,6 @@ def to_text(string, encoding="utf-8", errors=None):
     except UnicodeDecodeError:  # pragma: no cover
         string = " ".join(to_text(arg, encoding, errors) for arg in string)
     return string
-
-
-def divide(n, iterable):
-    """split an iterable into n groups, per https://more-
-    itertools.readthedocs.io/en/latest/api.html#grouping.
-
-    :param int n: Number of unique groups
-    :param iter iterable: An iterable to split up
-    :return: a list of new iterables derived from the original iterable
-    :rtype: list
-    """
-    warnings.warn(
-        ('This function is deprecated and will be removed in version 0.8.'
-         'Use instead: more_itertools.divide(n, iterable)))'),
-        DeprecationWarning, stacklevel=2)
-    seq = tuple(iterable)
-    q, r = divmod(len(seq), n)
-
-    ret = []
-    for i in range(n):
-        start = (i * q) + (i if i < r else r)
-        stop = ((i + 1) * q) + (i + 1 if i + 1 < r else r)
-        ret.append(iter(seq[start:stop]))
-
-    return ret
-
-
-def take(n, iterable):
-    """Take n elements from the supplied iterable without consuming it.
-
-    :param int n: Number of unique groups
-    :param iter iterable: An iterable to split up
-
-    from https://github.com/erikrose/more-itertools/blob/master/more_itertools/recipes.py
-    """
-
-    warnings.warn(
-        ('This function is deprecated and will be removed in version 0.8.'
-         'Use instead: list(islice(iterable, n))'),
-        DeprecationWarning, stacklevel=2)
-
-    return list(islice(iterable, n))
-
-
-def chunked(n, iterable):
-    """Split an iterable into lists of length *n*.
-
-    :param int n: Number of unique groups
-    :param iter iterable: An iterable to split up
-
-    from https://github.com/erikrose/more-itertools/blob/master/more_itertools/more.py
-    """
-    warnings.warn(
-        ('This function is deprecated and will be removed in version 0.8.'
-         'Use instead: more_itertools.chunked(iterable, n)))'),
-        DeprecationWarning, stacklevel=2)
-
-    return iter(partial(take, n, iter(iterable)), [])
 
 
 try:
