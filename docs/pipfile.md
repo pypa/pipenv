@@ -4,7 +4,7 @@
 This file is managed by the developers invoking pipenv commands.
 The `Pipfile` uses inline tables and the [TOML Spec](https://github.com/toml-lang/toml#user-content-spec>).
 
-`Pipfile.lock` replaces the `requirements.txt file` used in most Python projects and adds
+`Pipfile.lock` replaces the `requirements.txt` file used in most Python projects and adds
 security benefits of tracking the packages hashes that were last locked.
 This file is managed automatically through locking actions.
 
