@@ -1,1 +1,0 @@
-Show a different message for ``pipenv check`` depending on the ``--use-installed`` option.

@@ -1,3 +1,23 @@
+2023.3.18 (2023-03-18)
+======================
+Pipenv 2023.3.18 (2023-03-18)
+=============================
+
+
+Features & Improvements
+-----------------------
+
+- Provide a more powerful solution than ``--keep-outdated`` and ``--selective-upgrade`` which are deprecated for removal.
+  Introducing the ``pipenv upgrade`` command which takes the same package specifiers as ``pipenv install`` and
+  updates the ``Pipfile`` and ``Pipfile.lock`` with a valid lock resolution that only effects the specified packages and their dependencies.
+  Additionally, the ``pipenv update`` command has been updated to use the ``pipenv upgrade`` routine when packages are provided, which will install sync the new lock file as well.  `#5617 <https://github.com/pypa/pipenv/issues/5617>`_
+
+Vendored Libraries
+------------------
+
+- Bump vistir to 0.8.0, requirementslib to 2.2.4.  `#5635 <https://github.com/pypa/pipenv/issues/5635>`_
+
+
 2023.2.18 (2023-02-18)
 =============================
 
