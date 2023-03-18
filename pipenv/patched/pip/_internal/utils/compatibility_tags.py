@@ -135,6 +135,7 @@ def get_supported(
 
     interpreter = _get_custom_interpreter(impl, version)
 
+    print(platforms)
     platforms = _expand_allowed_platforms(platforms)
 
     is_cpython = (impl or interpreter_name()) == "cp"

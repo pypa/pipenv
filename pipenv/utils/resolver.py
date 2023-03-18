@@ -1,3 +1,4 @@
+from argparse import Namespace
 import contextlib
 import hashlib
 import json
@@ -12,6 +13,7 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 
 from pipenv import environments
 from pipenv.exceptions import RequirementError, ResolutionFailure
+from pipenv.patched.pip._internal.req.constructors import install_req_from_line
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.exceptions import InstallationError
@@ -23,6 +25,20 @@ from pipenv.patched.pip._internal.operations.build.build_tracker import (
 from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_parsed_requirement,
 )
+from pipenv.patched.pip._internal.resolution.resolvelib.candidates import AlreadyInstalledCandidate, EditableCandidate, LinkCandidate
+from pipenv.patched.pip._internal.resolution.resolvelib.provider import PipProvider
+from pipenv.patched.pip._internal.resolution.resolvelib.requirements import SpecifierRequirement
+from pipenv.patched.pip._internal.resolution.resolvelib.resolver import Resolver as PipResolver
+from pipenv.patched.pip._internal.resolution.resolvelib.factory import Factory
+from pipenv.patched.pip._internal.models.format_control import FormatControl
+
+from pipenv.patched.pip._internal.resolution.resolvelib.requirements import SpecifierRequirement
+from pipenv.patched.pip._internal.req.constructors import install_req_from_line
+from pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.cli.parser import ConfigOptionParser
+from pipenv.patched.pip._internal.index.collector import LinkCollector
+from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
@@ -63,33 +79,145 @@ console = rich.console.Console()
 err = rich.console.Console(stderr=True)
 
 
-def get_package_finder(
-    install_cmd=None,
-    options=None,
-    session=None,
-    platform=None,
-    python_versions=None,
-    abi=None,
-    implementation=None,
-    ignore_requires_python=None,
-):
-    """Reduced Shim for compatibility to generate package finders."""
-    py_version_info = None
-    if python_versions:
-        py_version_info_python = max(python_versions)
-        py_version_info = tuple([int(part) for part in py_version_info_python])
+def create_package_finder(session, platforms):
+    # Manually create an options object with the necessary attributes
+    options = Namespace(
+        index_url='https://pypi.org/simple',
+        extra_index_urls=[],
+        no_index=False,
+        allow_all_prereleases=False,
+        prefer_binary=False,
+        ignore_requires_python=False,
+        format_control=FormatControl(set(), set()),
+        find_links=[],
+    )
+
+    # Create a TargetPython object with the specified platforms
     target_python = TargetPython(
-        platforms=[platform] if platform else None,
-        py_version_info=py_version_info,
-        abis=[abi] if abi else None,
-        implementation=implementation,
+        platforms=platforms,
+        implementation="cp",
+        abis=["cp38"],
+        py_version_info=None,
     )
-    return install_cmd._build_package_finder(
-        options=options,
-        session=session,
+
+    # Create a LinkCollector object with the specified session and options
+    link_collector = LinkCollector.create(session=session, options=options)
+
+    # Create a SelectionPreferences object with the specified options
+    selection_prefs = SelectionPreferences(
+        allow_all_prereleases=options.allow_all_prereleases,
+        prefer_binary=options.prefer_binary,
+        ignore_requires_python=options.ignore_requires_python,
+        format_control=None,
+        allow_yanked=False,
+    )
+
+    # Create a PackageFinder with the specified link_collector, selection_prefs, and target_python
+    finder = PackageFinder.create(
+        link_collector=link_collector,
+        selection_prefs=selection_prefs,
         target_python=target_python,
-        ignore_requires_python=ignore_requires_python,
     )
+
+    return finder
+
+
+
+from pipenv.patched.pip._internal.req.constructors import install_req_from_line
+from pipenv.patched.pip._internal.resolution.resolvelib.factory import Factory
+from pipenv.patched.pip._internal.resolution.resolvelib.provider import PipProvider
+from pipenv.patched.pip._internal.resolution.resolvelib.reporter import PipReporter
+from pipenv.patched.pip._internal.resolution.resolvelib.resolver import Resolver as PipResolver
+from pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
+from pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pip._internal.utils.misc import normalize_path
+from pipenv.patched.pip._internal.operations.build.build_tracker import BuildTracker
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
+
+
+def collect_all_requirements(install_reqs):
+    """
+    Recursively collect all the requirements of an InstallRequirement object.
+    """
+    print(type(install_reqs))
+    requirements = []
+    for req in install_reqs:
+        requirements.append(req)
+        requirements.extend(resolve_requirements(req))
+    return requirements
+
+
+def get_all_requirements(install_req):
+    install_req.populate_link(None, False, False)
+    return install_req.requires()
+
+def resolve_requirements(requirements, platforms, options):
+    session = PipSession()
+
+    with global_tempdir_manager(), get_build_tracker() as build_tracker, TempDirectory() as temp_dir:
+        cache_dir = normalize_path(temp_dir.path)
+
+        finder = create_package_finder(session, platforms)
+
+        build_dir = tempfile.mkdtemp(prefix="build-dir")
+        src_dir = tempfile.mkdtemp(prefix="src-dir")
+
+        print(options.cache_dir.path)
+        wheel_cache = WheelCache(cache_dir, options.format_control)
+
+        preparer = RequirementPreparer(
+            build_dir=build_dir,
+            download_dir=None,
+            src_dir=src_dir,
+            build_isolation=True,
+            check_build_deps=True,
+            build_tracker=BuildTracker(build_dir),
+            session=session,
+            progress_bar=options.progress_bar,
+            finder=finder,
+            require_hashes=options.require_hashes,
+            use_user_site=options.use_user_site,
+            lazy_wheel=options.lazy_wheel,
+            verbosity=options.verbose,
+        )
+
+        # Convert requirement strings to InstallRequirement objects
+        install_reqs = [install_req_from_line(req) for req in requirements]
+
+        # Create a set of user_requested requirements
+        # user_requested = {req.name for req in install_reqs}
+
+        # Create a Resolver object and resolve the InstallRequirement objects
+        resolver = PipResolver(
+            preparer=preparer,
+            finder=finder,
+            wheel_cache=wheel_cache,
+            make_install_req=install_req_from_line,
+            use_user_site=options.use_user_site,
+            ignore_dependencies=options.ignore_dependencies,
+            ignore_installed=options.ignore_installed,
+            ignore_requires_python=options.ignore_requires_python,
+            force_reinstall=options.force_reinstall,
+            upgrade_strategy=options.upgrade_strategy,
+        )
+
+        resolved_reqs = resolver.resolve(root_reqs=install_reqs, check_supported_wheels=False)
+        # Retrieve all resolved requirements
+        # Get the list of all requirements from the resolved InstallRequirement objects
+        all_reqs = set()
+        for req in resolved_reqs.all_requirements:
+            # Get the Requirement object associated with the InstallRequirement object
+            requirement = install_req_from_line(str(req.req))
+
+            # Get a list of all the requirements
+            requirements_list = get_all_requirements(requirement)
+
+            # Iterate over the requirements and get the name of each requirement
+            for req in requirements_list:
+                all_reqs.add(req.name)
+
+        return all_reqs
 
 
 class HashCacheMixin:
@@ -880,6 +1008,7 @@ def actually_resolve_deps(
     pre,
     category,
     req_dir=None,
+    platform=None,
 ):
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
