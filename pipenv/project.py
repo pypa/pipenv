@@ -487,7 +487,6 @@ class Project:
 
     @property
     def pipfile_location(self) -> str:
-
         from pipenv.utils.pipfile import find_pipfile
 
         if self.s.PIPENV_PIPFILE:
