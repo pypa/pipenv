@@ -1,1 +1,0 @@
-Fix import error in virtualenv utility for creating new environments caused by ``2023.3.18`` release.

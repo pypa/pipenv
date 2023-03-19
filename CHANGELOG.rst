@@ -1,3 +1,24 @@
+2023.3.20 (2023-03-19)
+======================
+Pipenv 2023.3.20 (2023-03-19)
+=============================
+
+
+No significant changes.
+
+
+2023.3.18 (2023-03-19)
+======================
+Pipenv 2023.3.18 (2023-03-19)
+=============================
+
+
+Bug Fixes
+---------
+
+- Fix import error in virtualenv utility for creating new environments caused by ``2023.3.18`` release.  `#5636 <https://github.com/pypa/pipenv/issues/5636>`_
+
+
 2023.3.18 (2023-03-18)
 ======================
 Pipenv 2023.3.18 (2023-03-18)
