@@ -254,7 +254,7 @@ def ensure_python(project, python=None):
             err=True,
         )
         # check for python installers
-        from .installers import Asdf, InstallerError, InstallerNotFound, Pyenv
+        from pipenv.installers import Asdf, InstallerError, InstallerNotFound, Pyenv
 
         # prefer pyenv if both pyenv and asdf are installed as it's
         # dedicated to python installs so probably the preferred
