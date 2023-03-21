@@ -67,18 +67,21 @@ from pipenv.patched.pip._internal.models.format_control import FormatControl
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.index.collector import LinkCollector
 from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
-def create_package_finder(session, platforms):
+
+
+def create_package_finder(session, platforms, options=None):
     # Manually create an options object with the necessary attributes
-    options = Namespace(
-        index_url='https://pypi.org/simple',
-        extra_index_urls=[],
-        no_index=False,
-        allow_all_prereleases=False,
-        prefer_binary=False,
-        ignore_requires_python=False,
-        format_control=FormatControl(set(), set()),
-        find_links=[],
-    )
+    if options is None:
+        options = Namespace(
+            index_url='https://pypi.org/simple',
+            extra_index_urls=[],
+            no_index=False,
+            allow_all_prereleases=False,
+            prefer_binary=False,
+            ignore_requires_python=False,
+            format_control=FormatControl(set(), set()),
+            find_links=[],
+        )
 
     # Create a TargetPython object with the specified platforms
     target_python = TargetPython(
@@ -413,7 +416,7 @@ class Resolver:
                         locked_deps.update(new_lock)
                         constraints |= new_constraints
                 # if there is no marker or there is a valid marker, add the constraint line
-                elif r and (not r.marker or (r.marker and r.marker.evaluate())):
+                elif r:
                     if r.name not in editable_packages:
                         line = _requirement_to_str_lowercase_name(r)
                         constraints.add(line)
@@ -621,10 +624,11 @@ class Resolver:
     @property
     def ignore_compatibility_finder(self):
         if self._ignore_compatibility_finder is None:
-            ignore_compatibility_finder = get_package_finder(
-                install_cmd=self.pip_command,
-                options=self.pip_options,
+            ignore_compatibility_finder = create_package_finder(
+                #install_cmd=self.pip_command,
                 session=self.session,
+                platforms=["manylinux_2_24_x86_64", "win_amd_64"],
+                options=self.pip_options,
             )
             # It would be nice if `shims.get_package_finder` took an
             # `ignore_compatibility` parameter, but that's some vendorered code
@@ -729,6 +733,7 @@ class Resolver:
         with temp_environ(), self.get_resolver() as resolver:
             try:
                 results = resolver.resolve(self.constraints, check_supported_wheels=False)
+                print(results)
             except InstallationError as e:
                 raise ResolutionFailure(message=str(e))
             else:
@@ -946,6 +951,7 @@ def actually_resolve_deps(
         hashes = resolver.resolve_hashes()
         resolver.resolve_constraints()
         results = resolver.clean_results()
+        print(results)
     for warning in warning_list:
         _show_warning(
             warning.message,

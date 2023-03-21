@@ -599,7 +599,7 @@ class Environment:
 
     @contextlib.contextmanager
     def get_finder(self, pre: bool = False) -> ContextManager[PackageFinder]:
-        from .utils.resolver import get_package_finder
+        from .utils.resolver import create_package_finder
 
         pip_command = InstallCommand(
             name="InstallCommand", summary="pip Install command."
@@ -609,8 +609,8 @@ class Environment:
         pip_options.cache_dir = self.project.s.PIPENV_CACHE_DIR
         pip_options.pre = self.pipfile.get("pre", pre)
         session = pip_command._build_session(pip_options)
-        finder = get_package_finder(
-            install_cmd=pip_command, options=pip_options, session=session
+        finder = create_package_finder(
+            session=session, platforms=["manylinux_2_24_x86_64", "win_amd_64"], options=pip_options,
         )
         yield finder
 
