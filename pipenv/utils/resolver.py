@@ -1,3 +1,4 @@
+from argparse import Namespace
 import contextlib
 import hashlib
 import json
@@ -61,6 +62,52 @@ from .shell import make_posix, subprocess_run, temp_environ
 
 console = rich.console.Console()
 err = rich.console.Console(stderr=True)
+
+from pipenv.patched.pip._internal.models.format_control import FormatControl
+from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.index.collector import LinkCollector
+from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
+def create_package_finder(session, platforms):
+    # Manually create an options object with the necessary attributes
+    options = Namespace(
+        index_url='https://pypi.org/simple',
+        extra_index_urls=[],
+        no_index=False,
+        allow_all_prereleases=False,
+        prefer_binary=False,
+        ignore_requires_python=False,
+        format_control=FormatControl(set(), set()),
+        find_links=[],
+    )
+
+    # Create a TargetPython object with the specified platforms
+    target_python = TargetPython(
+        platforms=platforms,
+        implementation="cp",
+        abis=["cp38"],
+        py_version_info=None,
+    )
+
+    # Create a LinkCollector object with the specified session and options
+    link_collector = LinkCollector.create(session=session, options=options)
+
+    # Create a SelectionPreferences object with the specified options
+    selection_prefs = SelectionPreferences(
+        allow_all_prereleases=options.allow_all_prereleases,
+        prefer_binary=options.prefer_binary,
+        ignore_requires_python=options.ignore_requires_python,
+        format_control=None,
+        allow_yanked=False,
+    )
+
+    # Create a PackageFinder with the specified link_collector, selection_prefs, and target_python
+    finder = PackageFinder.create(
+        link_collector=link_collector,
+        selection_prefs=selection_prefs,
+        target_python=target_python,
+    )
+
+    return finder
 
 
 def get_package_finder(
@@ -562,10 +609,9 @@ class Resolver:
     @property
     def finder(self):
         if self._finder is None:
-            self._finder = get_package_finder(
-                install_cmd=self.pip_command,
-                options=self.pip_options,
+            self._finder = create_package_finder(
                 session=self.session,
+                platforms=['linux', 'windows']
             )
         index_lookup = self.prepare_index_lookup()
         self._finder._link_collector.index_lookup = index_lookup
