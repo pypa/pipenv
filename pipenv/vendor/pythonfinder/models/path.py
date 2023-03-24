@@ -9,7 +9,7 @@ from collections import defaultdict
 from itertools import chain
 
 import pipenv.vendor.attr as attr
-from pipenv.vendor.pyparsing.core import cached_property
+from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 
 from ..compat import Path, fs_str
 from ..environment import (
