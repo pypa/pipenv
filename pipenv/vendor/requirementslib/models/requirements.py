@@ -10,7 +10,7 @@ from urllib import parse as urllib_parse
 from urllib.parse import unquote
 
 import pipenv.vendor.attr as attr
-from pipenv.vendor.pyparsing.core import cached_property
+from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.req.constructors import (
