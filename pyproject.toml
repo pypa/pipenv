@@ -28,17 +28,6 @@ exclude = '''
 )
 '''
 
-[tool.isort]
-atomic = true
-lines_after_imports = 2
-lines_between_types = 1
-multi_line_output = 5
-line_length = 80
-known_first_party = [
-    "pipenv",
-    "tests",
-]
-
 [tool.mypy]
 ignore_missing_imports = true
 follow_imports = "skip"
@@ -100,6 +89,58 @@ markers = [
     "extended",
     "ext: extra non-categorized tests",
 ]
+
+[tool.ruff]
+exclude = [
+    "pipenv/patched/*",
+    "pipenv/vendor/*",
+]
+select = [
+    "B",
+    "C9",
+    "E",
+    "F",
+    "G",
+    "I",
+    "ISC",
+    "PIE",
+    "PL",
+    "TID",
+    "W",
+    "YTT"
+]
+ignore = [
+    "B028",
+    "B904",
+    "PIE790",
+    "PLR2004",
+    "PLR5501",
+    "PLW2901",
+]
+line-length = 137
+target-version = "py37"
+
+[tool.ruff.mccabe]
+max-complexity = 32
+
+[tool.ruff.pylint]
+max-args = 18
+max-branches = 38
+max-returns = 9
+max-statements = 155
+
+[tool.ruff.per-file-ignores]
+"docs/conf.py" = ["E402", "E501"]
+"get-pipenv.py" = ["E402"]
+"pipenv/__init__.py" = ["E401"]
+"pipenv/cli/command.py" = ["TID252"]
+"pipenv/utils/internet.py" = ["PLW0603"]
+"tests/*" = ["E501", "F401", "I", "PLC1901", "S101"]
+"tests/integration/conftest.py" = ["B003", "PIE800", "PLW0603"]
+"tests/integration/test_pipenv.py" = ["E741"]
+"tests/integration/test_requirements.py" = ["E741"]
+"tests/unit/test_funktools.py" = ["B015"]
+"tests/unit/test_utils.py" = ["F811"]
 
 [tool.towncrier]
 package = "pipenv"

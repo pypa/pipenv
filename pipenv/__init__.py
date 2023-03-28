@@ -60,8 +60,8 @@ if os.name == "nt":
     if not os.getenv("NO_COLOR") or no_color:
         colorama.just_fix_windows_console()
 
-from . import resolver  # noqa
-from .cli import cli
+from . import resolver  # noqa: F401,E402
+from .cli import cli  # noqa: E402
 
 if __name__ == "__main__":
     cli()

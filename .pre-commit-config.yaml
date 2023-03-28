@@ -2,7 +2,7 @@ exclude: '^(pipenv/patched/|pipenv/vendor/|tests/|pipenv/pipenv.1)'
 
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.1.0
+  rev: v4.4.0
   hooks:
   - id: check-builtin-literals
   - id: check-added-large-files
@@ -17,30 +17,19 @@ repos:
   - id: trailing-whitespace
     exclude: .patch
 
+- repo: https://github.com/charliermarsh/ruff-pre-commit
+  rev: v0.0.259
+  hooks:
+  - id: ruff
+    # args: [--fix, --exit-non-zero-on-fix]
+
 - repo: https://github.com/psf/black
-  rev: 22.3.0
+  rev: 23.1.0
   hooks:
   - id: black
 
-- repo: https://github.com/PyCQA/flake8
-  rev: 4.0.1
-  hooks:
-  - id: flake8
-    additional_dependencies: [
-        'flake8-bugbear==20.1.4',
-        'flake8-logging-format==0.6.0',
-        'flake8-implicit-str-concat==0.2.0',
-    ]
-    exclude: tests/data
-
-- repo: https://github.com/PyCQA/isort
-  rev: 5.12.0
-  hooks:
-  - id: isort
-    files: \.py$
-
 - repo: https://github.com/pre-commit/pygrep-hooks
-  rev: v1.7.0
+  rev: v1.10.0
   hooks:
   - id: python-no-log-warn
   - id: python-no-eval
@@ -58,7 +47,12 @@ repos:
     files: ^news/
 
 - repo: https://github.com/mgedmin/check-manifest
-  rev: '0.46'
+  rev: '0.49'
   hooks:
   - id: check-manifest
     stages: [manual]
+
+- repo: https://github.com/abravalheri/validate-pyproject
+  rev: v0.12.2
+  hooks:
+  - id: validate-pyproject

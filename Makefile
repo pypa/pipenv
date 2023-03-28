@@ -112,7 +112,7 @@ pre-bump:
 
 .PHONY: lint
 lint:
-	flake8 .
+	ruff .
 
 man:
 	$(MAKE) -C docs $@

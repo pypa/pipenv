@@ -1,5 +1,5 @@
 import os
-import pytest 
+import pytest
 
 @pytest.mark.urls
 @pytest.mark.extras

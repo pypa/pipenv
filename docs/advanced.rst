@@ -383,7 +383,7 @@ Alternatively, you can configure a ``tox.ini`` like the one below for both local
 and external testing::
 
     [tox]
-    envlist = flake8-py3, py26, py27, py33, py34, py35, py36, pypy
+    envlist = py37, py38, py39, py310, py311, pypy3, ruff
 
     [testenv]
     deps = pipenv
@@ -391,12 +391,12 @@ and external testing::
         pipenv install --dev
         pipenv run pytest tests
 
-    [testenv:flake8-py3]
-    basepython = python3.4
+    [testenv:ruff]
+    basepython = python3.11
     commands=
         pipenv install --dev
-        pipenv run flake8 --version
-        pipenv run flake8 setup.py docs project test
+        pipenv run ruff --version
+        pipenv run ruff .
 
 Pipenv will automatically use the virtualenv provided by ``tox``. If ``pipenv install --dev`` installs e.g. ``pytest``, then installed command ``pytest`` will be present in given virtualenv and can be called directly by ``pytest tests`` instead of ``pipenv run pytest tests``.
 

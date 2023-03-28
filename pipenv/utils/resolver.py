@@ -257,7 +257,6 @@ class Resolver:
         markers_lookup: Dict[str, str] = None,
         project: Optional[Project] = None,
     ) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]:
-
         if index_lookup is None:
             index_lookup = {}
         if markers_lookup is None:
@@ -435,7 +434,6 @@ class Resolver:
         pre: bool = False,
         category: str = None,
     ) -> "Resolver":
-
         if not req_dir:
             req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
         if index_lookup is None:
@@ -705,7 +703,6 @@ class Resolver:
                     requires_python = candidate.link.requires_python
                     if requires_python:
                         try:
-
                             marker = marker_from_specifier(requires_python)
                             self.markers[result.name] = marker
                             result.markers = marker

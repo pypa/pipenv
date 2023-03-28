@@ -231,9 +231,9 @@ Jinja2 = {{ref = "2.11.0", git = "{0}"}}
         c = p.pipenv("install")
         assert c.returncode == 0
         installed_packages = ["Flask", "Jinja2"]
-        assert all([k in p.pipfile["packages"] for k in installed_packages])
-        assert all([k.lower() in p.lockfile["default"] for k in installed_packages])
-        assert all([k in p.lockfile["default"]["jinja2"] for k in ["ref", "git"]]), str(p.lockfile["default"])
+        assert all(k in p.pipfile["packages"] for k in installed_packages)
+        assert all(k.lower() in p.lockfile["default"] for k in installed_packages)
+        assert all(k in p.lockfile["default"]["jinja2"] for k in ["ref", "git"]), str(p.lockfile["default"])
         assert p.lockfile["default"]["jinja2"].get("ref") is not None
         assert (
             p.lockfile["default"]["jinja2"]["git"]
