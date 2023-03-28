@@ -515,7 +515,6 @@ def download_licenses(
             ctx.run(exe_cmd)
         except invoke.exceptions.UnexpectedExit as e:
             if "ModuleNotFoundErr" in e.result.stderr.strip():
-
                 target = parse.parse(
                     "ModuleNotFoundError: No module named '{backend}'",
                     e.result.stderr.strip().split("\n")[-1],

@@ -1,4 +1,5 @@
 import pathlib
+import re
 import shutil
 import subprocess
 
@@ -31,7 +32,7 @@ def typecheck(ctx):
 def clean(ctx):
     """Clean previously built package artifacts.
     """
-    ctx.run(f'python setup.py clean')
+    ctx.run('python setup.py clean')
     dist = ROOT.joinpath('dist')
     print(f'[clean] Removing {dist}')
     if dist.exists():
@@ -125,7 +126,7 @@ def release(ctx, type_, repo, prebump=PREBUMP):
     tag_content = tag_content.replace('"', '\\"')
     ctx.run(f'git tag -a {version} -m "Version {version}\n\n{tag_content}"')
 
-    ctx.run(f'python setup.py sdist bdist_wheel')
+    ctx.run('python setup.py sdist bdist_wheel')
 
     dist_pattern = f'{PACKAGE_NAME.replace("-", "[-_]")}-*'
     artifacts = list(ROOT.joinpath('dist').glob(dist_pattern))

@@ -116,7 +116,7 @@ def test_uninstall_all_dev(pipenv_instance_private_pypi):
         name = "pypi"
         url = "{0}"
         verify_ssl = true
-            
+
         [packages]
         tablib = "*"
 

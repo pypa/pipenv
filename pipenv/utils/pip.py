@@ -217,7 +217,7 @@ def pip_install_deps(
         if project.s.is_verbose():
             while True:
                 line = c.stdout.readline()
-                if line == "":
+                if not line:
                     break
                 if "Ignoring" in line:
                     click.secho(line, fg="red", err=True)

@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -418,7 +419,7 @@ def test_rewrite_outline_table(pipenv_instance_private_pypi):
 url = "{0}"
 verify_ssl = false
 name = "testindex"
-            
+
 [packages]
 six = {1}
 

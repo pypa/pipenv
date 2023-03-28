@@ -360,7 +360,7 @@ def find_a_system_python(line):
     if not line:
         return next(iter(finder.find_all_python_versions()), None)
     # Use the windows finder executable
-    if (line.startswith("py ") or line.startswith("py.exe ")) and os.name == "nt":
+    if (line.startswith(("py ", "py.exe "))) and os.name == "nt":
         line = line.split(" ", 1)[1].lstrip("-")
     python_entry = find_python(finder, line)
     return python_entry
