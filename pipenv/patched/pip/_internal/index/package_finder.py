@@ -769,9 +769,9 @@ class PackageFinder:
         InstallationCandidate and return it. Otherwise, return None.
         """
         result, detail = link_evaluator.evaluate_link(link)
-        if result != LinkType.candidate:
-            self._log_skipped_link(link, result, detail)
-            return None
+        # if result != LinkType.candidate:
+        #     self._log_skipped_link(link, result, detail)
+        #     return None
 
         return InstallationCandidate(
             name=link_evaluator.project_name,

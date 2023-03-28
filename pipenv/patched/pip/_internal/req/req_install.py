@@ -258,6 +258,7 @@ class InstallRequirement:
         return len(specifiers) == 1 and next(iter(specifiers)).operator in {"==", "==="}
 
     def match_markers(self, extras_requested: Optional[Iterable[str]] = None) -> bool:
+        return True
         if not extras_requested:
             # Provide an extra to safely evaluate the markers
             # without matching any extra

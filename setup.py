@@ -20,6 +20,7 @@ if sys.argv[-1] == "publish":
     sys.exit()
 
 required = [
+    "unearth",
     "certifi",
     "setuptools>=67.0.0",
     "virtualenv-clone>=0.2.5",

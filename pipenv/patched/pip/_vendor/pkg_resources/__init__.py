@@ -949,6 +949,7 @@ class _ReqExtras(dict):
         Return False if the req has a marker and fails
         evaluation. Otherwise, return True.
         """
+        return True
         extra_evals = (
             req.marker.evaluate({'extra': extra})
             for extra in self.get(req, ()) + (extras or (None,))
@@ -1373,6 +1374,7 @@ def evaluate_marker(text, extra=None):
 
     This implementation uses the 'pyparsing' module.
     """
+    return True
     try:
         marker = packaging.markers.Marker(text)
         return marker.evaluate()
@@ -3034,8 +3036,8 @@ class DistInfoDistribution(Distribution):
 
         def reqs_for_extra(extra):
             for req in reqs:
-                if not req.marker or req.marker.evaluate({'extra': extra}):
-                    yield req
+                #if not req.marker or req.marker.evaluate({'extra': extra}):
+                yield req
 
         common = frozenset(reqs_for_extra(None))
         dm[None].extend(common)

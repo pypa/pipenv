@@ -112,7 +112,7 @@ def create_package_finder(session, platforms, options=None):
 
     return finder
 
-
+from unearth import PackageFinder as UnearthPackageFinder
 def get_package_finder(
     install_cmd=None,
     options=None,
@@ -134,12 +134,111 @@ def get_package_finder(
         abis=[abi] if abi else None,
         implementation=implementation,
     )
+    return UnearthPackageFinder(index_urls=['https://pypi.org/simple/'])
     return install_cmd._build_package_finder(
         options=options,
         session=session,
         target_python=target_python,
         ignore_requires_python=ignore_requires_python,
     )
+
+from pipenv.patched.pip._internal.req.constructors import install_req_from_line
+from pipenv.patched.pip._internal.resolution.resolvelib.factory import Factory
+from pipenv.patched.pip._internal.resolution.resolvelib.provider import PipProvider
+from pipenv.patched.pip._internal.resolution.resolvelib.reporter import PipReporter
+from pipenv.patched.pip._internal.resolution.resolvelib.resolver import Resolver as PipResolver
+from pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
+from pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pip._internal.utils.misc import normalize_path
+from pipenv.patched.pip._internal.operations.build.build_tracker import BuildTracker
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.pip._internal.network.session import PipSession
+
+
+def collect_all_requirements(install_reqs):
+    """
+    Recursively collect all the requirements of an InstallRequirement object.
+    """
+    print(type(install_reqs))
+    requirements = []
+    for req in install_reqs:
+        requirements.append(req)
+        requirements.extend(resolve_requirements(req))
+    return requirements
+
+
+def get_all_requirements(install_req):
+    install_req.populate_link(None, False, False)
+    return install_req.requires()
+
+def resolve_requirements(requirements, platforms, options):
+    session = PipSession()
+
+    with global_tempdir_manager(), get_build_tracker() as build_tracker, TempDirectory() as temp_dir:
+        cache_dir = normalize_path(temp_dir.path)
+
+        finder = UnearthPackageFinder(index_urls=['https://pypi.org/simple/'])
+
+        build_dir = tempfile.mkdtemp(prefix="build-dir")
+        src_dir = tempfile.mkdtemp(prefix="src-dir")
+
+        print(options.cache_dir.path)
+        wheel_cache = WheelCache(cache_dir, options.format_control)
+
+        preparer = RequirementPreparer(
+            build_dir=build_dir,
+            download_dir=None,
+            src_dir=src_dir,
+            build_isolation=True,
+            check_build_deps=True,
+            build_tracker=BuildTracker(build_dir),
+            session=session,
+            progress_bar=options.progress_bar,
+            finder=finder,
+            require_hashes=options.require_hashes,
+            use_user_site=options.use_user_site,
+            lazy_wheel=options.lazy_wheel,
+            verbosity=options.verbose,
+        )
+
+        # Convert requirement strings to InstallRequirement objects
+        install_reqs = [install_req_from_line(req) for req in requirements]
+
+        # Create a set of user_requested requirements
+        # user_requested = {req.name for req in install_reqs}
+
+        # Create a Resolver object and resolve the InstallRequirement objects
+        resolver = PipResolver(
+            preparer=preparer,
+            finder=finder,
+            wheel_cache=wheel_cache,
+            make_install_req=install_req_from_line,
+            use_user_site=options.use_user_site,
+            ignore_dependencies=options.ignore_dependencies,
+            ignore_installed=options.ignore_installed,
+            ignore_requires_python=options.ignore_requires_python,
+            force_reinstall=options.force_reinstall,
+            upgrade_strategy=options.upgrade_strategy,
+        )
+
+        resolved_reqs = resolver.resolve(root_reqs=install_reqs, check_supported_wheels=False)
+        # Retrieve all resolved requirements
+        # Get the list of all requirements from the resolved InstallRequirement objects
+        all_reqs = set()
+        for req in resolved_reqs.all_requirements:
+            # Get the Requirement object associated with the InstallRequirement object
+            requirement = install_req_from_line(str(req.req))
+
+            # Get a list of all the requirements
+            requirements_list = get_all_requirements(requirement)
+
+            # Iterate over the requirements and get the name of each requirement
+            for req in requirements_list:
+                all_reqs.add(req.name)
+
+        return all_reqs
+
 
 
 class HashCacheMixin:
@@ -405,21 +504,45 @@ class Resolver:
                             continue
                         line = _requirement_to_str_lowercase_name(r)
                         new_req, _, _ = self.parse_line(line)
-                        if r.marker and not r.marker.evaluate():
-                            new_constraints = {}
-                            _, new_entry = req.pipfile_entry
-                            new_lock = {pep423_name(new_req.normalized_name): new_entry}
-                        else:
-                            new_constraints, new_lock = self.get_deps_from_req(
-                                new_req, resolver
-                            )
+                        # if r.marker and not r.marker.evaluate():
+                        #     new_constraints = {}
+                        #     _, new_entry = req.pipfile_entry
+                        #     new_lock = {pep423_name(new_req.normalized_name): new_entry}
+                        # else:
+                        new_constraints, new_lock = self.get_deps_from_req(
+                            new_req, resolver
+                        )
                         locked_deps.update(new_lock)
                         constraints |= new_constraints
                 # if there is no marker or there is a valid marker, add the constraint line
                 elif r:
                     if r.name not in editable_packages:
                         line = _requirement_to_str_lowercase_name(r)
+                        print(line)
                         constraints.add(line)
+                # elif r:
+                #     pypi = resolver.finder if resolver else None
+                #     ireq = req.ireq
+                #     best_match = (
+                #         pypi.find_best_candidate(ireq.name, ireq.specifier).best_candidate
+                #         if pypi
+                #         else None
+                #     )
+                #     if best_match:
+                #         ireq.req.specifier = ireq.specifier.__class__(
+                #             f"=={best_match.version}"
+                #         )
+                #         hashes = resolver.collect_hashes(ireq) if resolver else []
+                #         new_req = Requirement.from_ireq(ireq)
+                #         new_req = new_req.add_hashes(hashes)
+                #         new_req = new_req.merge_markers(req.markers)
+                #         name, entry = new_req.pipfile_entry
+                #         locked_deps[pep423_name(name)] = translate_markers(entry)
+                #         click.echo(
+                #             "{} doesn't match your environment, "
+                #             "its dependencies won't be resolved.".format(req.as_line()),
+                #             err=True,
+                #         )
             # ensure the top level entry remains as provided
             # note that we shouldn't pin versions for editable vcs deps
             if not req.is_vcs:
@@ -434,40 +557,40 @@ class Resolver:
         else:
             # if the dependency isn't installable, don't add it to constraints
             # and instead add it directly to the lock
-            if (
-                req
-                and req.requirement
-                and (req.requirement.marker and not req.requirement.marker.evaluate())
-            ):
-                pypi = resolver.finder if resolver else None
-                ireq = req.ireq
-                best_match = (
-                    pypi.find_best_candidate(ireq.name, ireq.specifier).best_candidate
-                    if pypi
-                    else None
-                )
-                if best_match:
-                    ireq.req.specifier = ireq.specifier.__class__(
-                        f"=={best_match.version}"
-                    )
-                    hashes = resolver.collect_hashes(ireq) if resolver else []
-                    new_req = Requirement.from_ireq(ireq)
-                    new_req = new_req.add_hashes(hashes)
-                    new_req = new_req.merge_markers(req.markers)
-                    name, entry = new_req.pipfile_entry
-                    locked_deps[pep423_name(name)] = translate_markers(entry)
-                    click.echo(
-                        "{} doesn't match your environment, "
-                        "its dependencies won't be resolved.".format(req.as_line()),
-                        err=True,
-                    )
-                else:
-                    click.echo(
-                        "Could not find a version of {} that matches your environment, "
-                        "it will be skipped.".format(req.as_line()),
-                        err=True,
-                    )
-                return constraints, locked_deps
+            # if (
+            #     req
+            #     and req.requirement
+            #     and (req.requirement.marker and not req.requirement.marker.evaluate())
+            # ):
+            #     pypi = resolver.finder if resolver else None
+            #     ireq = req.ireq
+            #     best_match = (
+            #         pypi.find_best_candidate(ireq.name, ireq.specifier).best_candidate
+            #         if pypi
+            #         else None
+            #     )
+            #     if best_match:
+            #         ireq.req.specifier = ireq.specifier.__class__(
+            #             f"=={best_match.version}"
+            #         )
+            #         hashes = resolver.collect_hashes(ireq) if resolver else []
+            #         new_req = Requirement.from_ireq(ireq)
+            #         new_req = new_req.add_hashes(hashes)
+            #         new_req = new_req.merge_markers(req.markers)
+            #         name, entry = new_req.pipfile_entry
+            #         locked_deps[pep423_name(name)] = translate_markers(entry)
+            #         click.echo(
+            #             "{} doesn't match your environment, "
+            #             "its dependencies won't be resolved.".format(req.as_line()),
+            #             err=True,
+            #         )
+            #     else:
+            #         click.echo(
+            #             "Could not find a version of {} that matches your environment, "
+            #             "it will be skipped.".format(req.as_line()),
+            #             err=True,
+            #         )
+            #     return constraints, locked_deps
             constraints.add(req.constraint_line)
             return constraints, locked_deps
         return constraints, locked_deps
@@ -614,7 +737,7 @@ class Resolver:
         if self._finder is None:
             self._finder = create_package_finder(
                 session=self.session,
-                platforms=['linux', 'windows']
+                platforms=["linux", "win32"]
             )
         index_lookup = self.prepare_index_lookup()
         self._finder._link_collector.index_lookup = index_lookup
@@ -627,7 +750,7 @@ class Resolver:
             ignore_compatibility_finder = create_package_finder(
                 #install_cmd=self.pip_command,
                 session=self.session,
-                platforms=["manylinux_2_24_x86_64", "win_amd_64"],
+                platforms=["linux", "win32"],
                 options=self.pip_options,
             )
             # It would be nice if `shims.get_package_finder` took an
@@ -733,7 +856,6 @@ class Resolver:
         with temp_environ(), self.get_resolver() as resolver:
             try:
                 results = resolver.resolve(self.constraints, check_supported_wheels=False)
-                print(results)
             except InstallationError as e:
                 raise ResolutionFailure(message=str(e))
             else:
@@ -951,7 +1073,6 @@ def actually_resolve_deps(
         hashes = resolver.resolve_hashes()
         resolver.resolve_constraints()
         results = resolver.clean_results()
-        print(results)
     for warning in warning_list:
         _show_warning(
             warning.message,

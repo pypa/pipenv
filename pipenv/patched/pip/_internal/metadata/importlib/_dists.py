@@ -216,9 +216,10 @@ class Distribution(BaseDistribution):
         contexts: Sequence[Dict[str, str]] = [{"extra": safe_extra(e)} for e in extras]
         for req_string in self.metadata.get_all("Requires-Dist", []):
             req = Requirement(req_string)
-            if not req.marker:
-                yield req
-            elif not extras and req.marker.evaluate({"extra": ""}):
-                yield req
-            elif any(req.marker.evaluate(context) for context in contexts):
-                yield req
+            yield req
+            # if not req.marker:
+            #     yield req
+            # elif not extras and req.marker.evaluate({"extra": ""}):
+            #     yield req
+            # elif any(req.marker.evaluate(context) for context in contexts):
+            #     yield req

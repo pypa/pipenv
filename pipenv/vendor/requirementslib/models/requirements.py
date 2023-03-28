@@ -2785,7 +2785,7 @@ class Requirement(object):
         sources=None,
         include_hashes=True,
         include_extras=True,
-        include_markers=True,
+        include_markers=False,
         as_list=False,
     ):
         """Format this requirement as a line in requirements.txt.
