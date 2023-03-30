@@ -67,7 +67,7 @@ as well as two additional options, ``--all`` and ``--all-dev``.
 
 ## upgrade
 
-``$ pipenv upgarde <package>`` will update the lock of specified dependency and sub-dependencies only, but does not modify the environment.
+``$ pipenv upgrade <package>`` will update the lock of specified dependency and sub-dependencies only, but does not modify the environment.
 
 ## run
 
