@@ -8,9 +8,9 @@ You can specify versions of a package using the [Semantic Versioning scheme](htt
 
 For example, to install requests you can use:
 
-    $ pipenv install requests~=1.2
+    $ pipenv install requests~=1.1
 
-Pipenv will install version `1.2` and any minor update, but not `2.0`.
+Pipenv will install version `1.2` as it is a minor update, but not `2.0`.
 
 This will update your `Pipfile` to reflect this requirement, automatically.
 
