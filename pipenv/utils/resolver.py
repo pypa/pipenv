@@ -653,7 +653,7 @@ class Resolver:
         with global_tempdir_manager(), get_build_tracker() as build_tracker, TempDirectory() as directory:
             pip_options = self.pip_options
             finder = self.finder
-            wheel_cache = WheelCache(pip_options.cache_dir, pip_options.format_control)
+            wheel_cache = WheelCache(pip_options.cache_dir)
             preparer = self.pip_command.make_requirement_preparer(
                 temp_build_dir=directory,
                 options=pip_options,
