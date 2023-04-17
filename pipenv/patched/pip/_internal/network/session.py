@@ -316,7 +316,6 @@ class InsecureCacheControlAdapter(CacheControlAdapter):
 
 
 class PipSession(requests.Session):
-
     timeout: Optional[int] = None
 
     def __init__(

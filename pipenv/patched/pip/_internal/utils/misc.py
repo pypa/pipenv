@@ -32,6 +32,7 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
+    Union,
     cast,
 )
 
@@ -614,18 +615,6 @@ def hash_file(path: str, blocksize: int = 1 << 20) -> Tuple[Any, int]:
     return h, length
 
 
-def is_wheel_installed() -> bool:
-    """
-    Return whether the wheel package is installed.
-    """
-    try:
-        import wheel  # noqa: F401
-    except ImportError:
-        return False
-
-    return True
-
-
 def pairwise(iterable: Iterable[Any]) -> Iterator[Tuple[Any, Any]]:
     """
     Return paired elements.
@@ -669,7 +658,7 @@ class ConfiguredBuildBackendHookCaller(BuildBackendHookCaller):
     def build_wheel(
         self,
         wheel_directory: str,
-        config_settings: Optional[Dict[str, str]] = None,
+        config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
         metadata_directory: Optional[str] = None,
     ) -> str:
         cs = self.config_holder.config_settings
@@ -678,7 +667,9 @@ class ConfiguredBuildBackendHookCaller(BuildBackendHookCaller):
         )
 
     def build_sdist(
-        self, sdist_directory: str, config_settings: Optional[Dict[str, str]] = None
+        self,
+        sdist_directory: str,
+        config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
     ) -> str:
         cs = self.config_holder.config_settings
         return super().build_sdist(sdist_directory, config_settings=cs)
@@ -686,7 +677,7 @@ class ConfiguredBuildBackendHookCaller(BuildBackendHookCaller):
     def build_editable(
         self,
         wheel_directory: str,
-        config_settings: Optional[Dict[str, str]] = None,
+        config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
         metadata_directory: Optional[str] = None,
     ) -> str:
         cs = self.config_holder.config_settings
@@ -695,19 +686,19 @@ class ConfiguredBuildBackendHookCaller(BuildBackendHookCaller):
         )
 
     def get_requires_for_build_wheel(
-        self, config_settings: Optional[Dict[str, str]] = None
+        self, config_settings: Optional[Dict[str, Union[str, List[str]]]] = None
     ) -> List[str]:
         cs = self.config_holder.config_settings
         return super().get_requires_for_build_wheel(config_settings=cs)
 
     def get_requires_for_build_sdist(
-        self, config_settings: Optional[Dict[str, str]] = None
+        self, config_settings: Optional[Dict[str, Union[str, List[str]]]] = None
     ) -> List[str]:
         cs = self.config_holder.config_settings
         return super().get_requires_for_build_sdist(config_settings=cs)
 
     def get_requires_for_build_editable(
-        self, config_settings: Optional[Dict[str, str]] = None
+        self, config_settings: Optional[Dict[str, Union[str, List[str]]]] = None
     ) -> List[str]:
         cs = self.config_holder.config_settings
         return super().get_requires_for_build_editable(config_settings=cs)
@@ -715,7 +706,7 @@ class ConfiguredBuildBackendHookCaller(BuildBackendHookCaller):
     def prepare_metadata_for_build_wheel(
         self,
         metadata_directory: str,
-        config_settings: Optional[Dict[str, str]] = None,
+        config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
         _allow_fallback: bool = True,
     ) -> str:
         cs = self.config_holder.config_settings
@@ -728,7 +719,7 @@ class ConfiguredBuildBackendHookCaller(BuildBackendHookCaller):
     def prepare_metadata_for_build_editable(
         self,
         metadata_directory: str,
-        config_settings: Optional[Dict[str, str]] = None,
+        config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
         _allow_fallback: bool = True,
     ) -> str:
         cs = self.config_holder.config_settings

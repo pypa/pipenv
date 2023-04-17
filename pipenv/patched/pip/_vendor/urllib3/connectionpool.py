@@ -379,7 +379,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
 
         timeout_obj = self._get_timeout(timeout)
         timeout_obj.start_connect()
-        conn.timeout = timeout_obj.connect_timeout
+        conn.timeout = Timeout.resolve_default_timeout(timeout_obj.connect_timeout)
 
         # Trigger any extra validation we need to do.
         try:

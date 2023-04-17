@@ -88,9 +88,9 @@ class Resolver(BaseResolver):
         )
 
         try:
-            try_to_avoid_resolution_too_deep = 2000000
+            limit_how_complex_resolution_can_be = 200000
             result = self._result = resolver.resolve(
-                collected.requirements, max_rounds=try_to_avoid_resolution_too_deep
+                collected.requirements, max_rounds=limit_how_complex_resolution_can_be
             )
 
         except ResolutionImpossible as e:

@@ -12,8 +12,9 @@ from .api import PlatformDirsABC
 class Android(PlatformDirsABC):
     """
     Follows the guidance `from here <https://android.stackexchange.com/a/216132>`_. Makes use of the
-    `appname <platformdirs.api.PlatformDirsABC.appname>` and
-    `version <platformdirs.api.PlatformDirsABC.version>`.
+    `appname <platformdirs.api.PlatformDirsABC.appname>`,
+    `version <platformdirs.api.PlatformDirsABC.version>`,
+    `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     """
 
     @property
@@ -42,6 +43,11 @@ class Android(PlatformDirsABC):
     def user_cache_dir(self) -> str:
         """:return: cache directory tied to the user, e.g. e.g. ``/data/user/<userid>/<packagename>/cache/<AppName>``"""
         return self._append_app_name_and_version(cast(str, _android_folder()), "cache")
+
+    @property
+    def site_cache_dir(self) -> str:
+        """:return: cache directory shared by users, same as `user_cache_dir`"""
+        return self.user_cache_dir
 
     @property
     def user_state_dir(self) -> str:

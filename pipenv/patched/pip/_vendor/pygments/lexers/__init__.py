@@ -8,7 +8,6 @@
     :license: BSD, see LICENSE for details.
 """
 
-import re
 import sys
 import types
 from fnmatch import fnmatch

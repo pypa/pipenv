@@ -6,7 +6,6 @@ import os
 import shutil
 import tempfile
 
-import pipenv.utils.pip
 from ._compat import tomllib
 from .envbuild import BuildEnvironment
 from .wrappers import Pep517HookCaller
@@ -61,7 +60,7 @@ def _do_build(hooks, env, dist, dest):
     reqs = get_requires({})
     log.info('Got build requires: %s', reqs)
 
-    pipenv.utils.pip.pip_install(reqs)
+    env.pip_install(reqs)
     log.info('Installed dynamic build dependencies')
 
     with tempfile.TemporaryDirectory() as td:

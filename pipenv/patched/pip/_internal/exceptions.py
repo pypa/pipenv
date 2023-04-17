@@ -361,20 +361,6 @@ class MetadataInconsistent(InstallationError):
         )
 
 
-class LegacyInstallFailure(DiagnosticPipError):
-    """Error occurred while executing `setup.py install`"""
-
-    reference = "legacy-install-failure"
-
-    def __init__(self, package_details: str) -> None:
-        super().__init__(
-            message="Encountered error while trying to install package.",
-            context=package_details,
-            hint_stmt="See above for output from the failure.",
-            note_stmt="This is an issue with the package mentioned above, not pip.",
-        )
-
-
 class InstallationSubprocessError(DiagnosticPipError, InstallationError):
     """A subprocess call failed."""
 

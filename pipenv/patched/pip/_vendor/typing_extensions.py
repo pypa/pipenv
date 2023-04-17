@@ -2,10 +2,12 @@ import abc
 import collections
 import collections.abc
 import functools
+import inspect
 import operator
 import sys
 import types as _types
 import typing
+import warnings
 
 
 __all__ = [
@@ -51,6 +53,7 @@ __all__ = [
     'assert_type',
     'clear_overloads',
     'dataclass_transform',
+    'deprecated',
     'get_overloads',
     'final',
     'get_args',
@@ -728,6 +731,8 @@ else:
     _typeddict_new.__text_signature__ = ('($cls, _typename, _fields=None,'
                                          ' /, *, total=True, **kwargs)')
 
+    _TAKES_MODULE = "module" in inspect.signature(typing._type_check).parameters
+
     class _TypedDictMeta(type):
         def __init__(cls, name, bases, ns, total=True):
             super().__init__(name, bases, ns)
@@ -753,8 +758,10 @@ else:
             annotations = {}
             own_annotations = ns.get('__annotations__', {})
             msg = "TypedDict('Name', {f0: t0, f1: t1, ...}); each t must be a type"
+            kwds = {"module": tp_dict.__module__} if _TAKES_MODULE else {}
             own_annotations = {
-                n: typing._type_check(tp, msg) for n, tp in own_annotations.items()
+                n: typing._type_check(tp, msg, **kwds)
+                for n, tp in own_annotations.items()
             }
             required_keys = set()
             optional_keys = set()
@@ -1157,7 +1164,7 @@ class _DefaultMixin:
         if isinstance(default, (tuple, list)):
             self.__default__ = tuple((typing._type_check(d, "Default must be a type")
                                       for d in default))
-        elif default:
+        elif default != _marker:
             self.__default__ = typing._type_check(default, "Default must be a type")
         else:
             self.__default__ = None
@@ -1171,7 +1178,7 @@ class TypeVar(typing.TypeVar, _DefaultMixin, _root=True):
 
     def __init__(self, name, *constraints, bound=None,
                  covariant=False, contravariant=False,
-                 default=None, infer_variance=False):
+                 default=_marker, infer_variance=False):
         super().__init__(name, *constraints, bound=bound, covariant=covariant,
                          contravariant=contravariant)
         _DefaultMixin.__init__(self, default)
@@ -1258,7 +1265,7 @@ if hasattr(typing, 'ParamSpec'):
         __module__ = 'typing'
 
         def __init__(self, name, *, bound=None, covariant=False, contravariant=False,
-                     default=None):
+                     default=_marker):
             super().__init__(name, bound=bound, covariant=covariant,
                              contravariant=contravariant)
             _DefaultMixin.__init__(self, default)
@@ -1334,7 +1341,7 @@ else:
             return ParamSpecKwargs(self)
 
         def __init__(self, name, *, bound=None, covariant=False, contravariant=False,
-                     default=None):
+                     default=_marker):
             super().__init__([self])
             self.__name__ = name
             self.__covariant__ = bool(covariant)
@@ -1850,7 +1857,7 @@ if hasattr(typing, "TypeVarTuple"):  # 3.11+
     class TypeVarTuple(typing.TypeVarTuple, _DefaultMixin, _root=True):
         """Type variable tuple."""
 
-        def __init__(self, name, *, default=None):
+        def __init__(self, name, *, default=_marker):
             super().__init__(name)
             _DefaultMixin.__init__(self, default)
 
@@ -1913,7 +1920,7 @@ else:
         def __iter__(self):
             yield self.__unpacked__
 
-        def __init__(self, name, *, default=None):
+        def __init__(self, name, *, default=_marker):
             self.__name__ = name
             _DefaultMixin.__init__(self, default)
 
@@ -1993,7 +2000,8 @@ else:
         raise AssertionError("Expected code to be unreachable")
 
 
-if hasattr(typing, 'dataclass_transform'):
+if sys.version_info >= (3, 12):
+    # dataclass_transform exists in 3.11 but lacks the frozen_default parameter
     dataclass_transform = typing.dataclass_transform
 else:
     def dataclass_transform(
@@ -2001,6 +2009,7 @@ else:
         eq_default: bool = True,
         order_default: bool = False,
         kw_only_default: bool = False,
+        frozen_default: bool = False,
         field_specifiers: typing.Tuple[
             typing.Union[typing.Type[typing.Any], typing.Callable[..., typing.Any]],
             ...
@@ -2057,6 +2066,8 @@ else:
           assumed to be True or False if it is omitted by the caller.
         - ``kw_only_default`` indicates whether the ``kw_only`` parameter is
           assumed to be True or False if it is omitted by the caller.
+        - ``frozen_default`` indicates whether the ``frozen`` parameter is
+          assumed to be True or False if it is omitted by the caller.
         - ``field_specifiers`` specifies a static list of supported classes
           or functions that describe fields, similar to ``dataclasses.field()``.
 
@@ -2071,6 +2082,7 @@ else:
                 "eq_default": eq_default,
                 "order_default": order_default,
                 "kw_only_default": kw_only_default,
+                "frozen_default": frozen_default,
                 "field_specifiers": field_specifiers,
                 "kwargs": kwargs,
             }
@@ -2102,10 +2114,101 @@ else:
         This helps prevent bugs that may occur when a base class is changed
         without an equivalent change to a child class.
 
+        There is no runtime checking of these properties. The decorator
+        sets the ``__override__`` attribute to ``True`` on the decorated object
+        to allow runtime introspection.
+
         See PEP 698 for details.
 
         """
+        try:
+            __arg.__override__ = True
+        except (AttributeError, TypeError):
+            # Skip the attribute silently if it is not writable.
+            # AttributeError happens if the object has __slots__ or a
+            # read-only property, TypeError if it's a builtin class.
+            pass
         return __arg
+
+
+if hasattr(typing, "deprecated"):
+    deprecated = typing.deprecated
+else:
+    _T = typing.TypeVar("_T")
+
+    def deprecated(
+        __msg: str,
+        *,
+        category: typing.Optional[typing.Type[Warning]] = DeprecationWarning,
+        stacklevel: int = 1,
+    ) -> typing.Callable[[_T], _T]:
+        """Indicate that a class, function or overload is deprecated.
+
+        Usage:
+
+            @deprecated("Use B instead")
+            class A:
+                pass
+
+            @deprecated("Use g instead")
+            def f():
+                pass
+
+            @overload
+            @deprecated("int support is deprecated")
+            def g(x: int) -> int: ...
+            @overload
+            def g(x: str) -> int: ...
+
+        When this decorator is applied to an object, the type checker
+        will generate a diagnostic on usage of the deprecated object.
+
+        No runtime warning is issued. The decorator sets the ``__deprecated__``
+        attribute on the decorated object to the deprecation message
+        passed to the decorator. If applied to an overload, the decorator
+        must be after the ``@overload`` decorator for the attribute to
+        exist on the overload as returned by ``get_overloads()``.
+
+        See PEP 702 for details.
+
+        """
+        def decorator(__arg: _T) -> _T:
+            if category is None:
+                __arg.__deprecated__ = __msg
+                return __arg
+            elif isinstance(__arg, type):
+                original_new = __arg.__new__
+                has_init = __arg.__init__ is not object.__init__
+
+                @functools.wraps(original_new)
+                def __new__(cls, *args, **kwargs):
+                    warnings.warn(__msg, category=category, stacklevel=stacklevel + 1)
+                    # Mirrors a similar check in object.__new__.
+                    if not has_init and (args or kwargs):
+                        raise TypeError(f"{cls.__name__}() takes no arguments")
+                    if original_new is not object.__new__:
+                        return original_new(cls, *args, **kwargs)
+                    else:
+                        return original_new(cls)
+
+                __arg.__new__ = staticmethod(__new__)
+                __arg.__deprecated__ = __new__.__deprecated__ = __msg
+                return __arg
+            elif callable(__arg):
+                @functools.wraps(__arg)
+                def wrapper(*args, **kwargs):
+                    warnings.warn(__msg, category=category, stacklevel=stacklevel + 1)
+                    return __arg(*args, **kwargs)
+
+                __arg.__deprecated__ = wrapper.__deprecated__ = __msg
+                return wrapper
+            else:
+                raise TypeError(
+                    "@deprecated decorator with non-None category must be applied to "
+                    f"a class or callable, not {__arg!r}"
+                )
+
+        return decorator
 
 
 # We have to do some monkey patching to deal with the dual nature of

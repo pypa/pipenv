@@ -36,12 +36,20 @@ ENV_NAMES_IGNORED = "version", "help"
 kinds = enum(
     USER="user",  # User Specific
     GLOBAL="global",  # System Wide
-    SITE="site",  # [Virtual] Environment Specific
+    BASE="base",  # Base environment specific (e.g. for all venvs with the same base)
+    SITE="site",  # Environment Specific (e.g. per venv)
     ENV="env",  # from PIP_CONFIG_FILE
     ENV_VAR="env-var",  # from Environment Variables
 )
-OVERRIDE_ORDER = kinds.GLOBAL, kinds.USER, kinds.SITE, kinds.ENV, kinds.ENV_VAR
-VALID_LOAD_ONLY = kinds.USER, kinds.GLOBAL, kinds.SITE
+OVERRIDE_ORDER = (
+    kinds.GLOBAL,
+    kinds.USER,
+    kinds.BASE,
+    kinds.SITE,
+    kinds.ENV,
+    kinds.ENV_VAR,
+)
+VALID_LOAD_ONLY = kinds.USER, kinds.GLOBAL, kinds.BASE, kinds.SITE
 
 logger = getLogger(__name__)
 
@@ -70,6 +78,7 @@ def get_configuration_files() -> Dict[Kind, List[str]]:
         os.path.join(path, CONFIG_BASENAME) for path in appdirs.site_config_dirs("pip")
     ]
 
+    base_config_file = os.path.join(sys.base_prefix, CONFIG_BASENAME)
     site_config_file = os.path.join(sys.prefix, CONFIG_BASENAME)
     legacy_config_file = os.path.join(
         os.path.expanduser("~"),
@@ -78,6 +87,7 @@ def get_configuration_files() -> Dict[Kind, List[str]]:
     )
     new_config_file = os.path.join(appdirs.user_config_dir("pip"), CONFIG_BASENAME)
     return {
+        kinds.BASE: [base_config_file],
         kinds.GLOBAL: global_config_files,
         kinds.SITE: [site_config_file],
         kinds.USER: [legacy_config_file, new_config_file],
@@ -343,6 +353,8 @@ class Configuration:
         if should_load_user_config:
             # The legacy config file is overridden by the new config file
             yield kinds.USER, config_files[kinds.USER]
+
+        yield kinds.BASE, config_files[kinds.BASE]
 
         # finally virtualenv configuration first trumping others
         yield kinds.SITE, config_files[kinds.SITE]

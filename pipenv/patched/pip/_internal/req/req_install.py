@@ -8,7 +8,6 @@ import shutil
 import sys
 import uuid
 import zipfile
-from enum import Enum
 from optparse import Values
 from typing import Any, Collection, Dict, Iterable, List, Optional, Sequence, Union
 
@@ -21,7 +20,7 @@ from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.patched.pip._vendor.pyproject_hooks import BuildBackendHookCaller
 
 from pipenv.patched.pip._internal.build_env import BuildEnvironment, NoOpBuildEnvironment
-from pipenv.patched.pip._internal.exceptions import InstallationError, LegacyInstallFailure
+from pipenv.patched.pip._internal.exceptions import InstallationError
 from pipenv.patched.pip._internal.locations import get_scheme
 from pipenv.patched.pip._internal.metadata import (
     BaseDistribution,
@@ -40,15 +39,10 @@ from pipenv.patched.pip._internal.operations.build.metadata_legacy import (
 from pipenv.patched.pip._internal.operations.install.editable_legacy import (
     install_editable as install_editable_legacy,
 )
-from pipenv.patched.pip._internal.operations.install.legacy import install as install_legacy
 from pipenv.patched.pip._internal.operations.install.wheel import install_wheel
 from pipenv.patched.pip._internal.pyproject import load_pyproject_toml, make_pyproject_path
 from pipenv.patched.pip._internal.req.req_uninstall import UninstallPathSet
-from pipenv.patched.pip._internal.utils.deprecation import LegacyInstallReason, deprecated
-from pipenv.patched.pip._internal.utils.direct_url_helpers import (
-    direct_url_for_editable,
-    direct_url_from_link,
-)
+from pipenv.patched.pip._internal.utils.deprecation import deprecated
 from pipenv.patched.pip._internal.utils.hashes import Hashes
 from pipenv.patched.pip._internal.utils.misc import (
     ConfiguredBuildBackendHookCaller,
@@ -83,10 +77,10 @@ class InstallRequirement:
         markers: Optional[Marker] = None,
         use_pep517: Optional[bool] = None,
         isolated: bool = False,
-        install_options: Optional[List[str]] = None,
+        *,
         global_options: Optional[List[str]] = None,
         hash_options: Optional[Dict[str, List[str]]] = None,
-        config_settings: Optional[Dict[str, str]] = None,
+        config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
         constraint: bool = False,
         extras: Collection[str] = (),
         user_supplied: bool = False,
@@ -98,7 +92,6 @@ class InstallRequirement:
         self.constraint = constraint
         self.editable = editable
         self.permit_editable_wheels = permit_editable_wheels
-        self.legacy_install_reason: Optional[LegacyInstallReason] = None
 
         # source_dir is the local directory where the linked requirement is
         # located, or unpacked. In case unpacking is needed, creating and
@@ -115,7 +108,11 @@ class InstallRequirement:
             # PEP 508 URL requirement
             link = Link(req.url)
         self.link = self.original_link = link
-        self.original_link_is_in_wheel_cache = False
+
+        # When this InstallRequirement is a wheel obtained from the cache of locally
+        # built wheels, this is the source link corresponding to the cache entry, which
+        # was used to download and build the cached wheel.
+        self.cached_wheel_source_link: Optional[Link] = None
 
         # Information about the location of the artifact that was downloaded . This
         # property is guaranteed to be set in resolver results.
@@ -146,7 +143,6 @@ class InstallRequirement:
         # Set to True after successful installation
         self.install_succeeded: Optional[bool] = None
         # Supplied options
-        self.install_options = install_options if install_options else []
         self.global_options = global_options if global_options else []
         self.hash_options = hash_options if hash_options else {}
         self.config_settings = config_settings
@@ -295,7 +291,12 @@ class InstallRequirement:
 
         """
         good_hashes = self.hash_options.copy()
-        link = self.link if trust_internet else self.original_link
+        if trust_internet:
+            link = self.link
+        elif self.original_link and self.user_supplied:
+            link = self.original_link
+        else:
+            link = None
         if link and link.hash:
             good_hashes.setdefault(link.hash_name, []).append(link.hash)
         return Hashes(good_hashes)
@@ -440,6 +441,12 @@ class InstallRequirement:
             return False
         return self.link.is_wheel
 
+    @property
+    def is_wheel_from_cache(self) -> bool:
+        # When True, it means that this InstallRequirement is a local wheel file in the
+        # cache of locally built wheels.
+        return self.cached_wheel_source_link is not None
+
     # Things valid for sdists
     @property
     def unpacked_source_directory(self) -> str:
@@ -479,6 +486,15 @@ class InstallRequirement:
         )
 
         if pyproject_toml_data is None:
+            if self.config_settings:
+                deprecated(
+                    reason=f"Config settings are ignored for project {self}.",
+                    replacement=(
+                        "to use --use-pep517 or add a "
+                        "pyproject.toml file to the project"
+                    ),
+                    gone_in="23.3",
+                )
             self.use_pep517 = False
             return
 
@@ -747,7 +763,6 @@ class InstallRequirement:
 
     def install(
         self,
-        install_options: List[str],
         global_options: Optional[Sequence[str]] = None,
         root: Optional[str] = None,
         home: Optional[str] = None,
@@ -765,11 +780,9 @@ class InstallRequirement:
             prefix=prefix,
         )
 
-        global_options = global_options if global_options is not None else []
         if self.editable and not self.is_wheel:
             install_editable_legacy(
-                install_options,
-                global_options,
+                global_options=global_options if global_options is not None else [],
                 prefix=prefix,
                 home=home,
                 use_user_site=use_user_site,
@@ -782,82 +795,23 @@ class InstallRequirement:
             self.install_succeeded = True
             return
 
-        if self.is_wheel:
-            assert self.local_file_path
-            direct_url = None
-            # TODO this can be refactored to direct_url = self.download_info
-            if self.editable:
-                direct_url = direct_url_for_editable(self.unpacked_source_directory)
-            elif self.original_link:
-                direct_url = direct_url_from_link(
-                    self.original_link,
-                    self.source_dir,
-                    self.original_link_is_in_wheel_cache,
-                )
-            install_wheel(
-                self.name,
-                self.local_file_path,
-                scheme=scheme,
-                req_description=str(self.req),
-                pycompile=pycompile,
-                warn_script_location=warn_script_location,
-                direct_url=direct_url,
-                requested=self.user_supplied,
-            )
-            self.install_succeeded = True
-            return
+        assert self.is_wheel
+        assert self.local_file_path
 
-        # TODO: Why don't we do this for editable installs?
-
-        # Extend the list of global and install options passed on to
-        # the setup.py call with the ones from the requirements file.
-        # Options specified in requirements file override those
-        # specified on the command line, since the last option given
-        # to setup.py is the one that is used.
-        global_options = list(global_options) + self.global_options
-        install_options = list(install_options) + self.install_options
-
-        try:
-            if (
-                self.legacy_install_reason is not None
-                and self.legacy_install_reason.emit_before_install
-            ):
-                self.legacy_install_reason.emit_deprecation(self.name)
-            success = install_legacy(
-                install_options=install_options,
-                global_options=global_options,
-                root=root,
-                home=home,
-                prefix=prefix,
-                use_user_site=use_user_site,
-                pycompile=pycompile,
-                scheme=scheme,
-                setup_py_path=self.setup_py_path,
-                isolated=self.isolated,
-                req_name=self.name,
-                build_env=self.build_env,
-                unpacked_source_directory=self.unpacked_source_directory,
-                req_description=str(self.req),
-            )
-        except LegacyInstallFailure as exc:
-            self.install_succeeded = False
-            raise exc
-        except Exception:
-            self.install_succeeded = True
-            raise
-
-        self.install_succeeded = success
-
-        if (
-            success
-            and self.legacy_install_reason is not None
-            and self.legacy_install_reason.emit_after_success
-        ):
-            self.legacy_install_reason.emit_deprecation(self.name)
+        install_wheel(
+            self.name,
+            self.local_file_path,
+            scheme=scheme,
+            req_description=str(self.req),
+            pycompile=pycompile,
+            warn_script_location=warn_script_location,
+            direct_url=self.download_info if self.original_link else None,
+            requested=self.user_supplied,
+        )
+        self.install_succeeded = True
 
 
 def check_invalid_constraint_type(req: InstallRequirement) -> str:
-
     # Check for unsupported forms
     problem = ""
     if not req.name:
@@ -894,54 +848,21 @@ def _has_option(options: Values, reqs: List[InstallRequirement], option: str) ->
     return False
 
 
-def _install_option_ignored(
-    install_options: List[str], reqs: List[InstallRequirement]
-) -> bool:
-    for req in reqs:
-        if (install_options or req.install_options) and not req.use_pep517:
-            return False
-    return True
-
-
-class LegacySetupPyOptionsCheckMode(Enum):
-    INSTALL = 1
-    WHEEL = 2
-    DOWNLOAD = 3
-
-
 def check_legacy_setup_py_options(
     options: Values,
     reqs: List[InstallRequirement],
-    mode: LegacySetupPyOptionsCheckMode,
 ) -> None:
-    has_install_options = _has_option(options, reqs, "install_options")
     has_build_options = _has_option(options, reqs, "build_options")
     has_global_options = _has_option(options, reqs, "global_options")
-    legacy_setup_py_options_present = (
-        has_install_options or has_build_options or has_global_options
-    )
-    if not legacy_setup_py_options_present:
-        return
-
-    options.format_control.disallow_binaries()
-    logger.warning(
-        "Implying --no-binary=:all: due to the presence of "
-        "--build-option / --global-option / --install-option. "
-        "Consider using --config-settings for more flexibility.",
-    )
-    if mode == LegacySetupPyOptionsCheckMode.INSTALL and has_install_options:
-        if _install_option_ignored(options.install_options, reqs):
-            logger.warning(
-                "Ignoring --install-option when building using PEP 517",
-            )
-        else:
-            deprecated(
-                reason=(
-                    "--install-option is deprecated because "
-                    "it forces pip to use the 'setup.py install' "
-                    "command which is itself deprecated."
-                ),
-                issue=11358,
-                replacement="to use --config-settings",
-                gone_in="23.1",
-            )
+    if has_build_options or has_global_options:
+        deprecated(
+            reason="--build-option and --global-option are deprecated.",
+            issue=11859,
+            replacement="to use --config-settings",
+            gone_in="23.3",
+        )
+        logger.warning(
+            "Implying --no-binary=:all: due to the presence of "
+            "--build-option / --global-option. "
+        )
+        options.format_control.disallow_binaries()

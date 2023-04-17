@@ -14,15 +14,16 @@ import time
 
 from pipenv.patched.pip._vendor.pygments.filter import apply_filters, Filter
 from pipenv.patched.pip._vendor.pygments.filters import get_filter_by_name
-from pipenv.patched.pip._vendor.pygments.token import Error, Text, Other, _TokenType
+from pipenv.patched.pip._vendor.pygments.token import Error, Text, Other, Whitespace, _TokenType
 from pipenv.patched.pip._vendor.pygments.util import get_bool_opt, get_int_opt, get_list_opt, \
     make_analysator, Future, guess_decode
 from pipenv.patched.pip._vendor.pygments.regexopt import regex_opt
 
 __all__ = ['Lexer', 'RegexLexer', 'ExtendedRegexLexer', 'DelegatingLexer',
            'LexerContext', 'include', 'inherit', 'bygroups', 'using', 'this',
-           'default', 'words']
+           'default', 'words', 'line_re']
 
+line_re = re.compile('.*?\n')
 
 _encoding_map = [(b'\xef\xbb\xbf', 'utf-8'),
                  (b'\xff\xfe\0\0', 'utf-32'),
@@ -670,7 +671,7 @@ class RegexLexer(Lexer, metaclass=RegexLexerMeta):
                         # at EOL, reset state to "root"
                         statestack = ['root']
                         statetokens = tokendefs['root']
-                        yield pos, Text, '\n'
+                        yield pos, Whitespace, '\n'
                         pos += 1
                         continue
                     yield pos, Error, text[pos]
