@@ -25,7 +25,6 @@ from pipenv.utils.virtualenv import cleanup_virtualenv, do_create_virtualenv
 from pipenv.vendor import click, vistir
 from pipenv.vendor.requirementslib.models.requirements import Requirement
 
-
 console = rich.console.Console()
 err = rich.console.Console(stderr=True)
 
