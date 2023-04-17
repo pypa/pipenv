@@ -122,6 +122,15 @@ class Command(CommandContextMixIn):
             user_log_file=options.log,
         )
 
+        always_enabled_features = set(options.features_enabled) & set(
+            cmdoptions.ALWAYS_ENABLED_FEATURES
+        )
+        if always_enabled_features:
+            logger.warning(
+                "The following features are always enabled: %s. ",
+                ", ".join(sorted(always_enabled_features)),
+            )
+
         # TODO: Try to get these passing down from the command?
         #       without resorting to os.environ to hold these.
         #       This also affects isolated builds and it should.

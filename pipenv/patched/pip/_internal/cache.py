@@ -6,14 +6,13 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 from pipenv.patched.pip._vendor.packaging.tags import Tag, interpreter_name, interpreter_version
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
 from pipenv.patched.pip._internal.exceptions import InvalidWheelFilename
 from pipenv.patched.pip._internal.models.direct_url import DirectUrl
-from pipenv.patched.pip._internal.models.format_control import FormatControl
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
@@ -33,25 +32,13 @@ def _hash_dict(d: Dict[str, str]) -> str:
 class Cache:
     """An abstract class - provides cache directories for data from links
 
-
     :param cache_dir: The root of the cache.
-    :param format_control: An object of FormatControl class to limit
-        binaries being read from the cache.
-    :param allowed_formats: which formats of files the cache should store.
-        ('binary' and 'source' are the only allowed values)
     """
 
-    def __init__(
-        self, cache_dir: str, format_control: FormatControl, allowed_formats: Set[str]
-    ) -> None:
+    def __init__(self, cache_dir: str) -> None:
         super().__init__()
         assert not cache_dir or os.path.isabs(cache_dir)
         self.cache_dir = cache_dir or None
-        self.format_control = format_control
-        self.allowed_formats = allowed_formats
-
-        _valid_formats = {"source", "binary"}
-        assert self.allowed_formats.union(_valid_formats) == _valid_formats
 
     def _get_cache_path_parts(self, link: Link) -> List[str]:
         """Get parts of part that must be os.path.joined with cache_dir"""
@@ -91,10 +78,6 @@ class Cache:
         if can_not_cache:
             return []
 
-        formats = self.format_control.get_allowed_formats(canonical_package_name)
-        if not self.allowed_formats.intersection(formats):
-            return []
-
         candidates = []
         path = self.get_path_for_link(link)
         if os.path.isdir(path):
@@ -121,8 +104,8 @@ class Cache:
 class SimpleWheelCache(Cache):
     """A cache of wheels for future installs."""
 
-    def __init__(self, cache_dir: str, format_control: FormatControl) -> None:
-        super().__init__(cache_dir, format_control, {"binary"})
+    def __init__(self, cache_dir: str) -> None:
+        super().__init__(cache_dir)
 
     def get_path_for_link(self, link: Link) -> str:
         """Return a directory to store cached wheels for link
@@ -191,13 +174,13 @@ class SimpleWheelCache(Cache):
 class EphemWheelCache(SimpleWheelCache):
     """A SimpleWheelCache that creates it's own temporary cache directory"""
 
-    def __init__(self, format_control: FormatControl) -> None:
+    def __init__(self) -> None:
         self._temp_dir = TempDirectory(
             kind=tempdir_kinds.EPHEM_WHEEL_CACHE,
             globally_managed=True,
         )
 
-        super().__init__(self._temp_dir.path, format_control)
+        super().__init__(self._temp_dir.path)
 
 
 class CacheEntry:
@@ -221,14 +204,10 @@ class WheelCache(Cache):
     when a certain link is not found in the simple wheel cache first.
     """
 
-    def __init__(
-        self, cache_dir: str, format_control: Optional[FormatControl] = None
-    ) -> None:
-        if format_control is None:
-            format_control = FormatControl()
-        super().__init__(cache_dir, format_control, {"binary"})
-        self._wheel_cache = SimpleWheelCache(cache_dir, format_control)
-        self._ephem_cache = EphemWheelCache(format_control)
+    def __init__(self, cache_dir: str) -> None:
+        super().__init__(cache_dir)
+        self._wheel_cache = SimpleWheelCache(cache_dir)
+        self._ephem_cache = EphemWheelCache()
 
     def get_path_for_link(self, link: Link) -> str:
         return self._wheel_cache.get_path_for_link(link)

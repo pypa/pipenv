@@ -151,6 +151,7 @@ class SessionCommandMixin(CommandContextMixIn):
 
         # Determine if we can prompt the user for authentication or not
         session.auth.prompting = not options.no_input
+        session.auth.keyring_provider = options.keyring_provider
 
         return session
 
@@ -343,7 +344,6 @@ class RequirementCommand(IndexGroupCommand):
             install_req_from_req_string,
             isolated=options.isolated_mode,
             use_pep517=use_pep517,
-            config_settings=getattr(options, "config_settings", None),
         )
         resolver_variant = cls.determine_resolver_variant(options)
         # The long import name and duplicated invocation is needed to convince
@@ -410,7 +410,7 @@ class RequirementCommand(IndexGroupCommand):
         for req in args:
             req_to_add = install_req_from_line(
                 req,
-                None,
+                comes_from=None,
                 isolated=options.isolated_mode,
                 use_pep517=options.use_pep517,
                 user_supplied=True,
@@ -438,6 +438,9 @@ class RequirementCommand(IndexGroupCommand):
                     isolated=options.isolated_mode,
                     use_pep517=options.use_pep517,
                     user_supplied=True,
+                    config_settings=parsed_req.options.get("config_settings")
+                    if parsed_req.options
+                    else None,
                 )
                 requirements.append(req_to_add)
 

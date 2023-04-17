@@ -20,7 +20,6 @@ class CheckCommand(Command):
       %prog [options]"""
 
     def run(self, options: Values, args: List[str]) -> int:
-
         package_set, parsing_probs = create_package_set_from_installed()
         missing, conflicting = check_package_set(package_set)
 

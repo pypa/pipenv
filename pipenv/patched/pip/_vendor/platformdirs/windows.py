@@ -17,7 +17,9 @@ class Windows(PlatformDirsABC):
     `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`,
     `version <platformdirs.api.PlatformDirsABC.version>`,
     `roaming <platformdirs.api.PlatformDirsABC.roaming>`,
-    `opinion <platformdirs.api.PlatformDirsABC.opinion>`."""
+    `opinion <platformdirs.api.PlatformDirsABC.opinion>`,
+    `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    """
 
     @property
     def user_data_dir(self) -> str:
@@ -41,7 +43,9 @@ class Windows(PlatformDirsABC):
                 params.append(opinion_value)
             if self.version:
                 params.append(self.version)
-        return os.path.join(path, *params)
+        path = os.path.join(path, *params)
+        self._optionally_create_directory(path)
+        return path
 
     @property
     def site_data_dir(self) -> str:
@@ -69,6 +73,12 @@ class Windows(PlatformDirsABC):
         return self._append_parts(path, opinion_value="Cache")
 
     @property
+    def site_cache_dir(self) -> str:
+        """:return: cache directory shared by users, e.g. ``C:\\ProgramData\\$appauthor\\$appname\\Cache\\$version``"""
+        path = os.path.normpath(get_win_folder("CSIDL_COMMON_APPDATA"))
+        return self._append_parts(path, opinion_value="Cache")
+
+    @property
     def user_state_dir(self) -> str:
         """:return: state directory tied to the user, same as `user_data_dir`"""
         return self.user_data_dir
@@ -81,6 +91,7 @@ class Windows(PlatformDirsABC):
         path = self.user_data_dir
         if self.opinion:
             path = os.path.join(path, "Logs")
+            self._optionally_create_directory(path)
         return path
 
     @property

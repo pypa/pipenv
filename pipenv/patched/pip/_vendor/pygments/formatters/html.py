@@ -878,10 +878,12 @@ class HtmlFormatter(Formatter):
             # for all but the last line
             for part in parts[:-1]:
                 if line:
-                    if lspan != cspan:
+                    # Also check for part being non-empty, so we avoid creating
+                    # empty <span> tags
+                    if lspan != cspan and part:
                         line.extend(((lspan and '</span>'), cspan, part,
                                      (cspan and '</span>'), lsep))
-                    else:  # both are the same
+                    else:  # both are the same, or the current part was empty
                         line.extend((part, (lspan and '</span>'), lsep))
                     yield 1, ''.join(line)
                     line = []
