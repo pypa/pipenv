@@ -6,11 +6,17 @@
 You can specify versions of a package using the [Semantic Versioning scheme](https://semver.org/)
 (i.e. `major.minor.micro`).
 
-For example, to install requests you can use:
+To install a major version of requests you can use:
 
-    $ pipenv install requests~=1.2
+    $ pipenv install requests~=1.1
 
-Pipenv will install version `1.2` and any minor update, but not `2.0`.
+Pipenv will install version `1.2` as it is a minor update, but not `2.0`.
+
+To install a minor version of requests you can use:
+
+    $ pipenv install requests~=1.0.1
+
+Pipenv will install version `1.0.4` as it is a micro version update, but not `1.1.0`.
 
 This will update your `Pipfile` to reflect this requirement, automatically.
 
@@ -45,11 +51,11 @@ on your `PATH`), use the `--python VERSION` flag, like so:
 
 Use Python 3
 
-   $ pipenv --python 3
+    $ pipenv --python 3
 
 Use Python3.11
 
-   $ pipenv --python 3.11
+    $ pipenv --python 3.11
 
 
 When given a Python version, like this, Pipenv will automatically scan your system for a Python that matches that given version.
