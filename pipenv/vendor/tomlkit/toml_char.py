@@ -1,7 +1,5 @@
 import string
 
-from functools import lru_cache
-
 
 class TOMLChar(str):
     def __init__(self, c):
@@ -17,42 +15,36 @@ class TOMLChar(str):
     NL = "\n\r"
     WS = SPACES + NL
 
-    @lru_cache(maxsize=None)
     def is_bare_key_char(self) -> bool:
         """
         Whether the character is a valid bare key name or not.
         """
         return self in self.BARE
 
-    @lru_cache(maxsize=None)
     def is_kv_sep(self) -> bool:
         """
-        Whether the character is a valid key/value separator ot not.
+        Whether the character is a valid key/value separator or not.
         """
         return self in self.KV
 
-    @lru_cache(maxsize=None)
     def is_int_float_char(self) -> bool:
         """
         Whether the character if a valid integer or float value character or not.
         """
         return self in self.NUMBER
 
-    @lru_cache(maxsize=None)
     def is_ws(self) -> bool:
         """
         Whether the character is a whitespace character or not.
         """
         return self in self.WS
 
-    @lru_cache(maxsize=None)
     def is_nl(self) -> bool:
         """
         Whether the character is a new line character or not.
         """
         return self in self.NL
 
-    @lru_cache(maxsize=None)
     def is_spaces(self) -> bool:
         """
         Whether the character is a space or not

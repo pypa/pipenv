@@ -9,16 +9,12 @@ import operator
 import re
 
 from contextlib import contextmanager
+from re import Pattern
 
 from ._config import get_run_validators, set_run_validators
 from ._make import _AndValidator, and_, attrib, attrs
+from .converters import default_if_none
 from .exceptions import NotCallableError
-
-
-try:
-    Pattern = re.Pattern
-except AttributeError:  # Python <3.7 lacks a Pattern type.
-    Pattern = type(re.compile(""))
 
 
 __all__ = [
@@ -37,6 +33,7 @@ __all__ = [
     "matches_re",
     "max_len",
     "min_len",
+    "not_",
     "optional",
     "provides",
     "set_disabled",
@@ -126,7 +123,7 @@ def instance_of(type):
     `isinstance` therefore it's also valid to pass a tuple of types).
 
     :param type: The type to check for.
-    :type type: type or tuple of types
+    :type type: type or tuple of type
 
     :raises TypeError: With a human readable error message, the attribute
         (of type `attrs.Attribute`), the expected type, and the value it
@@ -247,7 +244,17 @@ def provides(interface):
     :raises TypeError: With a human readable error message, the attribute
         (of type `attrs.Attribute`), the expected interface, and the
         value it got.
+
+    .. deprecated:: 23.1.0
     """
+    import warnings
+
+    warnings.warn(
+        "attrs's zope-interface support is deprecated and will be removed in, "
+        "or after, April 2024.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return _ProvidesValidator(interface)
 
 
@@ -273,15 +280,16 @@ def optional(validator):
     which can be set to ``None`` in addition to satisfying the requirements of
     the sub-validator.
 
-    :param validator: A validator (or a list of validators) that is used for
-        non-``None`` values.
-    :type validator: callable or `list` of callables.
+    :param Callable | tuple[Callable] | list[Callable] validator: A validator
+        (or validators) that is used for non-``None`` values.
 
     .. versionadded:: 15.1.0
     .. versionchanged:: 17.1.0 *validator* can be a list of validators.
+    .. versionchanged:: 23.1.0 *validator* can also be a tuple of validators.
     """
-    if isinstance(validator, list):
+    if isinstance(validator, (list, tuple)):
         return _OptionalValidator(_AndValidator(validator))
+
     return _OptionalValidator(validator)
 
 
@@ -357,13 +365,13 @@ class _IsCallableValidator:
 
 def is_callable():
     """
-    A validator that raises a `attr.exceptions.NotCallableError` if the
+    A validator that raises a `attrs.exceptions.NotCallableError` if the
     initializer is called with a value for this particular attribute
     that is not callable.
 
     .. versionadded:: 19.1.0
 
-    :raises `attr.exceptions.NotCallableError`: With a human readable error
+    :raises attrs.exceptions.NotCallableError: With a human readable error
         message containing the attribute (`attrs.Attribute`) name,
         and the value it got.
     """
@@ -391,7 +399,7 @@ class _DeepIterable:
         iterable_identifier = (
             ""
             if self.iterable_validator is None
-            else " {iterable!r}".format(iterable=self.iterable_validator)
+            else f" {self.iterable_validator!r}"
         )
         return (
             "<deep_iterable validator for{iterable_identifier}"
@@ -548,7 +556,7 @@ class _MaxLengthValidator:
             )
 
     def __repr__(self):
-        return "<max_len validator for {max}>".format(max=self.max_length)
+        return f"<max_len validator for {self.max_length}>"
 
 
 def max_len(length):
@@ -579,7 +587,7 @@ class _MinLengthValidator:
             )
 
     def __repr__(self):
-        return "<min_len validator for {min}>".format(min=self.min_length)
+        return f"<min_len validator for {self.min_length}>"
 
 
 def min_len(length):
@@ -592,3 +600,121 @@ def min_len(length):
     .. versionadded:: 22.1.0
     """
     return _MinLengthValidator(length)
+
+
+@attrs(repr=False, slots=True, hash=True)
+class _SubclassOfValidator:
+    type = attrib()
+
+    def __call__(self, inst, attr, value):
+        """
+        We use a callable class to be able to change the ``__repr__``.
+        """
+        if not issubclass(value, self.type):
+            raise TypeError(
+                "'{name}' must be a subclass of {type!r} "
+                "(got {value!r}).".format(
+                    name=attr.name,
+                    type=self.type,
+                    value=value,
+                ),
+                attr,
+                self.type,
+                value,
+            )
+
+    def __repr__(self):
+        return "<subclass_of validator for type {type!r}>".format(
+            type=self.type
+        )
+
+
+def _subclass_of(type):
+    """
+    A validator that raises a `TypeError` if the initializer is called
+    with a wrong type for this particular attribute (checks are performed using
+    `issubclass` therefore it's also valid to pass a tuple of types).
+
+    :param type: The type to check for.
+    :type type: type or tuple of types
+
+    :raises TypeError: With a human readable error message, the attribute
+        (of type `attrs.Attribute`), the expected type, and the value it
+        got.
+    """
+    return _SubclassOfValidator(type)
+
+
+@attrs(repr=False, slots=True, hash=True)
+class _NotValidator:
+    validator = attrib()
+    msg = attrib(
+        converter=default_if_none(
+            "not_ validator child '{validator!r}' "
+            "did not raise a captured error"
+        )
+    )
+    exc_types = attrib(
+        validator=deep_iterable(
+            member_validator=_subclass_of(Exception),
+            iterable_validator=instance_of(tuple),
+        ),
+    )
+
+    def __call__(self, inst, attr, value):
+        try:
+            self.validator(inst, attr, value)
+        except self.exc_types:
+            pass  # suppress error to invert validity
+        else:
+            raise ValueError(
+                self.msg.format(
+                    validator=self.validator,
+                    exc_types=self.exc_types,
+                ),
+                attr,
+                self.validator,
+                value,
+                self.exc_types,
+            )
+
+    def __repr__(self):
+        return (
+            "<not_ validator wrapping {what!r}, " "capturing {exc_types!r}>"
+        ).format(
+            what=self.validator,
+            exc_types=self.exc_types,
+        )
+
+
+def not_(validator, *, msg=None, exc_types=(ValueError, TypeError)):
+    """
+    A validator that wraps and logically 'inverts' the validator passed to it.
+    It will raise a `ValueError` if the provided validator *doesn't* raise a
+    `ValueError` or `TypeError` (by default), and will suppress the exception
+    if the provided validator *does*.
+
+    Intended to be used with existing validators to compose logic without
+    needing to create inverted variants, for example, ``not_(in_(...))``.
+
+    :param validator: A validator to be logically inverted.
+    :param msg: Message to raise if validator fails.
+        Formatted with keys ``exc_types`` and ``validator``.
+    :type msg: str
+    :param exc_types: Exception type(s) to capture.
+        Other types raised by child validators will not be intercepted and
+        pass through.
+
+    :raises ValueError: With a human readable error message,
+        the attribute (of type `attrs.Attribute`),
+        the validator that failed to raise an exception,
+        the value it got,
+        and the expected exception types.
+
+    .. versionadded:: 22.2.0
+    """
+    try:
+        exc_types = tuple(exc_types)
+    except TypeError:
+        exc_types = (exc_types,)
+    return _NotValidator(validator, msg, exc_types)

@@ -23,6 +23,7 @@ from attr import __version_info__ as __version_info__
 from attr import _FilterType
 from attr import assoc as assoc
 from attr import Attribute as Attribute
+from attr import AttrsInstance as AttrsInstance
 from attr import cmp_using as cmp_using
 from attr import converters as converters
 from attr import define as define
@@ -45,7 +46,7 @@ from attr import validators as validators
 
 # TODO: see definition of attr.asdict/astuple
 def asdict(
-    inst: Any,
+    inst: AttrsInstance,
     recurse: bool = ...,
     filter: Optional[_FilterType[Any]] = ...,
     dict_factory: Type[Mapping[Any, Any]] = ...,
@@ -58,7 +59,7 @@ def asdict(
 
 # TODO: add support for returning NamedTuple from the mypy plugin
 def astuple(
-    inst: Any,
+    inst: AttrsInstance,
     recurse: bool = ...,
     filter: Optional[_FilterType[Any]] = ...,
     tuple_factory: Type[Sequence[Any]] = ...,

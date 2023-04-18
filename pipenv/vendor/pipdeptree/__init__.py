@@ -1,4 +1,5 @@
 import argparse
+import fnmatch
 import inspect
 import json
 import os
@@ -10,6 +11,7 @@ from collections import defaultdict, deque
 from collections.abc import Mapping
 from importlib import import_module
 from itertools import chain
+from textwrap import dedent
 
 from pipenv.patched.pip._vendor import pkg_resources
 
@@ -349,14 +351,14 @@ class PackageDAG(Mapping):
         m = {}
         seen = set()
         for node in self._obj.keys():
-            if node.key in exclude:
+            if any(fnmatch.fnmatch(node.key, e) for e in exclude):
                 continue
-            if include is None or node.key in include:
+            if include is None or any(fnmatch.fnmatch(node.key, i) for i in include):
                 stack.append(node)
             while True:
                 if len(stack) > 0:
                     n = stack.pop()
-                    cldn = [c for c in self._obj[n] if c.key not in exclude]
+                    cldn = [c for c in self._obj[n] if not any(fnmatch.fnmatch(c.key, e) for e in exclude)]
                     m[n] = cldn
                     seen.add(n.key)
                     for c in cldn:
@@ -550,6 +552,103 @@ def render_json_tree(tree, indent):
     return json.dumps([aux(p) for p in nodes], indent=indent)
 
 
+def render_mermaid(tree) -> str:
+    """Produce a Mermaid flowchart from the dependency graph.
+
+    :param dict tree: dependency graph
+    """
+    # List of reserved keywords in Mermaid that cannot be used as node names.
+    # See: https://github.com/mermaid-js/mermaid/issues/4182#issuecomment-1454787806
+    reserved_ids: set[str] = {
+        "C4Component",
+        "C4Container",
+        "C4Deployment",
+        "C4Dynamic",
+        "_blank",
+        "_parent",
+        "_self",
+        "_top",
+        "call",
+        "class",
+        "classDef",
+        "click",
+        "end",
+        "flowchart",
+        "flowchart-v2",
+        "graph",
+        "interpolate",
+        "linkStyle",
+        "style",
+        "subgraph",
+    }
+    node_ids_map: dict[str:str] = {}
+
+    def mermaid_id(key: str) -> str:
+        """Returns a valid Mermaid node ID from a string."""
+        # If we have already seen this key, return the canonical ID.
+        canonical_id = node_ids_map.get(key)
+        if canonical_id is not None:
+            return canonical_id
+        # If the key is not a reserved keyword, return it as is, and update the map.
+        if key not in reserved_ids:
+            node_ids_map[key] = key
+            return key
+        # If the key is a reserved keyword, append a number to it.
+        number = 0
+        while True:
+            new_id = f"{key}_{number}"
+            if new_id not in node_ids_map:
+                node_ids_map[key] = new_id
+                return new_id
+            number += 1
+
+    # Use a sets to avoid duplicate entries.
+    nodes: set[str] = set()
+    edges: set[str] = set()
+
+    if isinstance(tree, ReversedPackageDAG):
+        for package, reverse_dependencies in tree.items():
+            package_label = "\\n".join(
+                (package.project_name, "(missing)" if package.is_missing else package.installed_version)
+            )
+            package_key = mermaid_id(package.key)
+            nodes.add(f'{package_key}["{package_label}"]')
+            for reverse_dependency in reverse_dependencies:
+                edge_label = reverse_dependency.req.version_spec or "any"
+                reverse_dependency_key = mermaid_id(reverse_dependency.key)
+                edges.add(f'{package_key} -- "{edge_label}" --> {reverse_dependency_key}')
+    else:
+        for package, dependencies in tree.items():
+            package_label = "\\n".join((package.project_name, package.version))
+            package_key = mermaid_id(package.key)
+            nodes.add(f'{package_key}["{package_label}"]')
+            for dependency in dependencies:
+                edge_label = dependency.version_spec or "any"
+                dependency_key = mermaid_id(dependency.key)
+                if dependency.is_missing:
+                    dependency_label = f"{dependency.project_name}\\n(missing)"
+                    nodes.add(f'{dependency_key}["{dependency_label}"]:::missing')
+                    edges.add(f"{package_key} -.-> {dependency_key}")
+                else:
+                    edges.add(f'{package_key} -- "{edge_label}" --> {dependency_key}')
+
+    # Produce the Mermaid Markdown.
+    indent = " " * 4
+    output = dedent(
+        f"""\
+        flowchart TD
+        {indent}classDef missing stroke-dasharray: 5
+        """
+    )
+    # Sort the nodes and edges to make the output deterministic.
+    output += indent
+    output += f"\n{indent}".join(node for node in sorted(nodes))
+    output += "\n" + indent
+    output += f"\n{indent}".join(edge for edge in sorted(edges))
+    output += "\n"
+    return output
+
+
 def dump_graphviz(tree, output_format="dot", is_reverse=False):
     """Output dependency graph as one of the supported GraphViz output formats.
 
@@ -612,7 +711,11 @@ def dump_graphviz(tree, output_format="dot", is_reverse=False):
 
     # Allow output of dot format, even if GraphViz isn't installed.
     if output_format == "dot":
-        return graph.source
+        # Emulates graphviz.dot.Dot.__iter__() to force the sorting of graph.body.
+        # Fixes https://github.com/tox-dev/pipdeptree/issues/188
+        # That way we can guarantee the output of the dot format is deterministic
+        # and stable.
+        return "".join([tuple(graph)[0]] + sorted(graph.body) + [graph._tail])
 
     # As it's unknown if the selected output format is binary or not, try to
     # decode it as UTF8 and only print it out in binary if that's not possible.
@@ -742,12 +845,20 @@ def get_parser():
     parser.add_argument(
         "-p",
         "--packages",
-        help="Comma separated list of select packages to show " "in the output. If set, --all will be ignored.",
+        help=(
+            "Comma separated list of select packages to show in the output. "
+            "Wildcards are supported, like 'somepackage.*'. "
+            "If set, --all will be ignored."
+        ),
     )
     parser.add_argument(
         "-e",
         "--exclude",
-        help="Comma separated list of select packages to exclude " "from the output. If set, --all will be ignored.",
+        help=(
+            "Comma separated list of select packages to exclude from the output. "
+            "Wildcards are supported, like 'somepackage.*'. "
+            "If set, --all will be ignored."
+        ),
         metavar="PACKAGES",
     )
     parser.add_argument(
@@ -770,6 +881,12 @@ def get_parser():
             "the same way as the plain text output printed by default. "
             "This option overrides all other options (except --json)."
         ),
+    )
+    parser.add_argument(
+        "--mermaid",
+        action="store_true",
+        default=False,
+        help=("Display dependency tree as a Maermaid graph. " "This option overrides all other options."),
     )
     parser.add_argument(
         "--graph-output",
@@ -880,6 +997,8 @@ def main():
         print(render_json(tree, indent=4))
     elif args.json_tree:
         print(render_json_tree(tree, indent=4))
+    elif args.mermaid:
+        print(render_mermaid(tree))
     elif args.output_format:
         output = dump_graphviz(tree, output_format=args.output_format, is_reverse=args.reverse)
         print_graphviz(output)

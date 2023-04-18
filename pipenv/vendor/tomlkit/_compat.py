@@ -1,3 +1,4 @@
+import contextlib
 import sys
 
 from typing import Any
@@ -15,9 +16,7 @@ def decode(string: Any, encodings: Optional[List[str]] = None):
     encodings = encodings or ["utf-8", "latin1", "ascii"]
 
     for encoding in encodings:
-        try:
+        with contextlib.suppress(UnicodeEncodeError, UnicodeDecodeError):
             return string.decode(encoding)
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            pass
 
     return string.decode(encodings[0], errors="ignore")

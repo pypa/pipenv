@@ -4,9 +4,9 @@ from typing import Optional
 from typing import Tuple
 from typing import Type
 
-from .exceptions import ParseError
-from .exceptions import UnexpectedCharError
-from .toml_char import TOMLChar
+from pipenv.vendor.tomlkit.exceptions import ParseError
+from pipenv.vendor.tomlkit.exceptions import UnexpectedCharError
+from pipenv.vendor.tomlkit.toml_char import TOMLChar
 
 
 class _State:
@@ -129,11 +129,7 @@ class Source(str):
         Increments the parser by n characters
         if the end of the input has not been reached.
         """
-        for _ in range(n):
-            if not self.inc(exception=exception):
-                return False
-
-        return True
+        return all(self.inc(exception=exception) for _ in range(n))
 
     def consume(self, chars, min=0, max=-1):
         """

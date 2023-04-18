@@ -11,9 +11,10 @@ if t.TYPE_CHECKING:
             pass
 
 
-__version__ = "2.0.1"
+__version__ = "2.1.2"
 
-_striptags_re = re.compile(r"(<!--.*?-->|<[^>]*>)")
+_strip_comments_re = re.compile(r"<!--.*?-->", re.DOTALL)
+_strip_tags_re = re.compile(r"<.*?>", re.DOTALL)
 
 
 def _simple_escaping_wrapper(name: str) -> t.Callable[..., "Markup"]:
@@ -92,19 +93,24 @@ class Markup(str):
 
         return NotImplemented
 
-    def __mul__(self, num: int) -> "Markup":
+    def __mul__(self, num: "te.SupportsIndex") -> "Markup":
         if isinstance(num, int):
             return self.__class__(super().__mul__(num))
 
-        return NotImplemented  # type: ignore
+        return NotImplemented
 
     __rmul__ = __mul__
 
     def __mod__(self, arg: t.Any) -> "Markup":
         if isinstance(arg, tuple):
+            # a tuple of arguments, each wrapped
             arg = tuple(_MarkupEscapeHelper(x, self.escape) for x in arg)
-        else:
+        elif hasattr(type(arg), "__getitem__") and not isinstance(arg, str):
+            # a mapping of arguments, wrapped
             arg = _MarkupEscapeHelper(arg, self.escape)
+        else:
+            # a single argument, wrapped with the helper and a tuple
+            arg = (_MarkupEscapeHelper(arg, self.escape),)
 
         return self.__class__(super().__mod__(arg))
 
@@ -153,8 +159,11 @@ class Markup(str):
         >>> Markup("Main &raquo;\t<em>About</em>").striptags()
         'Main » About'
         """
-        stripped = " ".join(_striptags_re.sub("", self).split())
-        return Markup(stripped).unescape()
+        # Use two regexes to avoid ambiguous matches.
+        value = _strip_comments_re.sub("", self)
+        value = _strip_tags_re.sub("", value)
+        value = " ".join(value.split())
+        return Markup(value).unescape()
 
     @classmethod
     def escape(cls, s: t.Any) -> "Markup":
@@ -280,9 +289,7 @@ try:
     from ._speedups import escape as escape
     from ._speedups import escape_silent as escape_silent
     from ._speedups import soft_str as soft_str
-    from ._speedups import soft_unicode
 except ImportError:
     from ._native import escape as escape
     from ._native import escape_silent as escape_silent  # noqa: F401
     from ._native import soft_str as soft_str  # noqa: F401
-    from ._native import soft_unicode  # noqa: F401

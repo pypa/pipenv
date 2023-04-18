@@ -8,23 +8,25 @@ from datetime import datetime
 from datetime import time
 from datetime import tzinfo
 from enum import Enum
-from functools import lru_cache
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Collection
 from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import Optional
+from typing import Sequence
 from typing import TypeVar
 from typing import Union
 from typing import cast
 from typing import overload
 
-from ._compat import PY38
-from ._compat import decode
-from ._utils import escape_string
-from .toml_char import TOMLChar
+from pipenv.vendor.tomlkit._compat import PY38
+from pipenv.vendor.tomlkit._compat import decode
+from pipenv.vendor.tomlkit._utils import CONTROL_CHARS
+from pipenv.vendor.tomlkit._utils import escape_string
+from pipenv.vendor.tomlkit.exceptions import InvalidStringError
 
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -39,11 +41,11 @@ if TYPE_CHECKING:  # pragma: no cover
     # Importing from builtins is preferred over simple assignment, see issues:
     # https://github.com/python/mypy/issues/8715
     # https://github.com/python/mypy/issues/10068
-    from builtins import dict as _CustomDict
-    from builtins import list as _CustomList
+    from builtins import dict as _CustomDict  # noqa: N812, TC004
+    from builtins import list as _CustomList  # noqa: N812, TC004
 
     # Allow type annotations but break circular imports
-    from . import container
+    from pipenv.vendor.tomlkit import container
 else:
     from collections.abc import MutableMapping
     from collections.abc import MutableSequence
@@ -53,6 +55,91 @@ else:
 
     class _CustomDict(MutableMapping, dict):
         """Adds MutableMapping mixin while pretending to be a builtin dict"""
+
+
+ItemT = TypeVar("ItemT", bound="Item")
+
+
+@overload
+def item(
+    value: bool, _parent: Optional["Item"] = ..., _sort_keys: bool = ...
+) -> "Bool":
+    ...
+
+
+@overload
+def item(
+    value: int, _parent: Optional["Item"] = ..., _sort_keys: bool = ...
+) -> "Integer":
+    ...
+
+
+@overload
+def item(
+    value: float, _parent: Optional["Item"] = ..., _sort_keys: bool = ...
+) -> "Float":
+    ...
+
+
+@overload
+def item(
+    value: str, _parent: Optional["Item"] = ..., _sort_keys: bool = ...
+) -> "String":
+    ...
+
+
+@overload
+def item(
+    value: datetime, _parent: Optional["Item"] = ..., _sort_keys: bool = ...
+) -> "DateTime":
+    ...
+
+
+@overload
+def item(
+    value: date, _parent: Optional["Item"] = ..., _sort_keys: bool = ...
+) -> "Date":
+    ...
+
+
+@overload
+def item(
+    value: time, _parent: Optional["Item"] = ..., _sort_keys: bool = ...
+) -> "Time":
+    ...
+
+
+@overload
+def item(
+    value: Sequence[dict], _parent: Optional["Item"] = ..., _sort_keys: bool = ...
+) -> "AoT":
+    ...
+
+
+@overload
+def item(
+    value: Sequence, _parent: Optional["Item"] = ..., _sort_keys: bool = ...
+) -> "Array":
+    ...
+
+
+@overload
+def item(value: dict, _parent: "Array" = ..., _sort_keys: bool = ...) -> "InlineTable":
+    ...
+
+
+@overload
+def item(
+    value: dict, _parent: Optional["Item"] = ..., _sort_keys: bool = ...
+) -> "Table":
+    ...
+
+
+@overload
+def item(
+    value: ItemT, _parent: Optional["Item"] = ..., _sort_keys: bool = ...
+) -> ItemT:
+    ...
 
 
 def item(
@@ -71,7 +158,7 @@ def item(
     b = 2
     """
 
-    from .container import Container
+    from pipenv.vendor.tomlkit.container import Container
 
     if isinstance(value, Item):
         return value
@@ -83,25 +170,23 @@ def item(
     elif isinstance(value, float):
         return Float(value, Trivia(), str(value))
     elif isinstance(value, dict):
-        table_constructor = InlineTable if isinstance(_parent, Array) else Table
+        table_constructor = (
+            InlineTable if isinstance(_parent, (Array, InlineTable)) else Table
+        )
         val = table_constructor(Container(), Trivia(), False)
         for k, v in sorted(
             value.items(),
             key=lambda i: (isinstance(i[1], dict), i[0] if _sort_keys else 1),
         ):
             val[k] = item(v, _parent=val, _sort_keys=_sort_keys)
-        only_child = len(value) == 1 and val[next(iter(value))]
-        if (
-            table_constructor is Table
-            and only_child
-            and isinstance(only_child, (AoT, Table))
-        ):
-            # The table becomes super table if the only child is a table or AoT.
-            val._is_super_table = True
 
         return val
     elif isinstance(value, (list, tuple)):
-        if value and all(isinstance(v, dict) for v in value):
+        if (
+            value
+            and all(isinstance(v, dict) for v in value)
+            and (_parent is None or isinstance(_parent, Table))
+        ):
             a = AoT([])
             table_constructor = Table
         else:
@@ -116,7 +201,7 @@ def item(
                     v.items(),
                     key=lambda i: (isinstance(i[1], dict), i[0] if _sort_keys else 1),
                 ):
-                    i = item(_v, _parent=a, _sort_keys=_sort_keys)
+                    i = item(_v, _parent=table, _sort_keys=_sort_keys)
                     if isinstance(table, InlineTable):
                         i.trivia.trail = ""
 
@@ -128,9 +213,7 @@ def item(
 
         return a
     elif isinstance(value, str):
-        escaped = escape_string(value)
-
-        return String(StringType.SLB, decode(value), escaped, Trivia())
+        return String.from_raw(value)
     elif isinstance(value, datetime):
         return DateTime(
             value.year,
@@ -170,28 +253,55 @@ class StringType(Enum):
     # Multi Line Literal
     MLL = "'''"
 
+    @classmethod
+    def select(cls, literal=False, multiline=False) -> "StringType":
+        return {
+            (False, False): cls.SLB,
+            (False, True): cls.MLB,
+            (True, False): cls.SLL,
+            (True, True): cls.MLL,
+        }[(literal, multiline)]
+
     @property
-    @lru_cache(maxsize=None)
+    def escaped_sequences(self) -> Collection[str]:
+        # https://toml.io/en/v1.0.0#string
+        escaped_in_basic = CONTROL_CHARS | {"\\"}
+        allowed_in_multiline = {"\n", "\r"}
+        return {
+            StringType.SLB: escaped_in_basic | {'"'},
+            StringType.MLB: (escaped_in_basic | {'"""'}) - allowed_in_multiline,
+            StringType.SLL: (),
+            StringType.MLL: (),
+        }[self]
+
+    @property
+    def invalid_sequences(self) -> Collection[str]:
+        # https://toml.io/en/v1.0.0#string
+        forbidden_in_literal = CONTROL_CHARS - {"\t"}
+        allowed_in_multiline = {"\n", "\r"}
+        return {
+            StringType.SLB: (),
+            StringType.MLB: (),
+            StringType.SLL: forbidden_in_literal | {"'"},
+            StringType.MLL: (forbidden_in_literal | {"'''"}) - allowed_in_multiline,
+        }[self]
+
+    @property
     def unit(self) -> str:
         return self.value[0]
 
-    @lru_cache(maxsize=None)
     def is_basic(self) -> bool:
         return self in {StringType.SLB, StringType.MLB}
 
-    @lru_cache(maxsize=None)
     def is_literal(self) -> bool:
         return self in {StringType.SLL, StringType.MLL}
 
-    @lru_cache(maxsize=None)
     def is_singleline(self) -> bool:
         return self in {StringType.SLB, StringType.SLL}
 
-    @lru_cache(maxsize=None)
     def is_multiline(self) -> bool:
         return self in {StringType.MLB, StringType.MLL}
 
-    @lru_cache(maxsize=None)
     def toggle(self) -> "StringType":
         return {
             StringType.SLB: StringType.MLB,
@@ -205,7 +315,6 @@ class BoolType(Enum):
     TRUE = "true"
     FALSE = "false"
 
-    @lru_cache(maxsize=None)
     def __bool__(self):
         return {BoolType.TRUE: True, BoolType.FALSE: False}[self]
 
@@ -396,6 +505,14 @@ class Item:
         """The TOML representation"""
         raise NotImplementedError()
 
+    @property
+    def value(self) -> Any:
+        return self
+
+    def unwrap(self) -> Any:
+        """Returns as pure python object (ppo)"""
+        raise NotImplementedError()
+
     # Helpers
 
     def comment(self, comment: str) -> "Item":
@@ -489,8 +606,8 @@ class Comment(Item):
         return 1
 
     def as_string(self) -> str:
-        return "{}{}{}".format(
-            self._trivia.indent, decode(self._trivia.comment), self._trivia.trail
+        return (
+            f"{self._trivia.indent}{decode(self._trivia.comment)}{self._trivia.trail}"
         )
 
     def __str__(self) -> str:
@@ -514,6 +631,9 @@ class Integer(int, Item):
         if re.match(r"^[+\-]\d+$", raw):
             self._sign = True
 
+    def unwrap(self) -> int:
+        return int(self)
+
     @property
     def discriminant(self) -> int:
         return 2
@@ -528,33 +648,30 @@ class Integer(int, Item):
 
     def __add__(self, other):
         result = super().__add__(other)
-
+        if result is NotImplemented:
+            return result
         return self._new(result)
 
     def __radd__(self, other):
         result = super().__radd__(other)
-
-        if isinstance(other, Integer):
-            return self._new(result)
-
-        return result
+        if result is NotImplemented:
+            return result
+        return self._new(result)
 
     def __sub__(self, other):
         result = super().__sub__(other)
-
+        if result is NotImplemented:
+            return result
         return self._new(result)
 
     def __rsub__(self, other):
         result = super().__rsub__(other)
-
-        if isinstance(other, Integer):
-            return self._new(result)
-
-        return result
+        if result is NotImplemented:
+            return result
+        return self._new(result)
 
     def _new(self, result):
         raw = str(result)
-
         if self._sign:
             sign = "+" if result >= 0 else "-"
             raw = sign + raw
@@ -581,6 +698,9 @@ class Float(float, Item):
 
         if re.match(r"^[+\-].+$", raw):
             self._sign = True
+
+    def unwrap(self) -> float:
+        return float(self)
 
     @property
     def discriminant(self) -> int:
@@ -643,6 +763,9 @@ class Bool(Item):
 
         self._value = bool(t)
 
+    def unwrap(self) -> bool:
+        return bool(self)
+
     @property
     def discriminant(self) -> int:
         return 4
@@ -691,8 +814,7 @@ class DateTime(Item, datetime):
         second: int,
         microsecond: int,
         tzinfo: Optional[tzinfo],
-        trivia: Trivia,
-        raw: str,
+        *_: Any,
         **kwargs: Any,
     ) -> datetime:
         return datetime.__new__(
@@ -718,12 +840,28 @@ class DateTime(Item, datetime):
         second: int,
         microsecond: int,
         tzinfo: Optional[tzinfo],
-        trivia: Trivia,
-        raw: str,
+        trivia: Optional[Trivia] = None,
+        raw: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
-        super().__init__(trivia)
+        super().__init__(trivia or Trivia())
 
-        self._raw = raw
+        self._raw = raw or self.isoformat()
+
+    def unwrap(self) -> datetime:
+        (
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            microsecond,
+            tzinfo,
+            _,
+            _,
+        ) = self._getstate()
+        return datetime(year, month, day, hour, minute, second, microsecond, tzinfo)
 
     @property
     def discriminant(self) -> int:
@@ -773,7 +911,16 @@ class DateTime(Item, datetime):
 
         return result
 
-    def _new(self, result):
+    def replace(self, *args: Any, **kwargs: Any) -> datetime:
+        return self._new(super().replace(*args, **kwargs))
+
+    def astimezone(self, tz: tzinfo) -> datetime:
+        result = super().astimezone(tz)
+        if PY38:
+            return result
+        return self._new(result)
+
+    def _new(self, result) -> "DateTime":
         raw = result.isoformat()
 
         return DateTime(
@@ -819,6 +966,10 @@ class Date(Item, date):
 
         self._raw = raw
 
+    def unwrap(self) -> date:
+        (year, month, day, _, _) = self._getstate()
+        return date(year, month, day)
+
     @property
     def discriminant(self) -> int:
         return 6
@@ -848,6 +999,9 @@ class Date(Item, date):
             result = self._new(result)
 
         return result
+
+    def replace(self, *args: Any, **kwargs: Any) -> date:
+        return self._new(super().replace(*args, **kwargs))
 
     def _new(self, result):
         raw = result.isoformat()
@@ -888,6 +1042,10 @@ class Time(Item, time):
 
         self._raw = raw
 
+    def unwrap(self) -> time:
+        (hour, minute, second, microsecond, tzinfo, _, _) = self._getstate()
+        return time(hour, minute, second, microsecond, tzinfo)
+
     @property
     def discriminant(self) -> int:
         return 7
@@ -898,6 +1056,22 @@ class Time(Item, time):
 
     def as_string(self) -> str:
         return self._raw
+
+    def replace(self, *args: Any, **kwargs: Any) -> time:
+        return self._new(super().replace(*args, **kwargs))
+
+    def _new(self, result):
+        raw = result.isoformat()
+
+        return Time(
+            result.hour,
+            result.minute,
+            result.second,
+            result.microsecond,
+            result.tzinfo,
+            self._trivia,
+            raw,
+        )
 
     def _getstate(self, protocol: int = 3) -> tuple:
         return (
@@ -911,21 +1085,92 @@ class Time(Item, time):
         )
 
 
+class _ArrayItemGroup:
+    __slots__ = ("value", "indent", "comma", "comment")
+
+    def __init__(
+        self,
+        value: Optional[Item] = None,
+        indent: Optional[Whitespace] = None,
+        comma: Optional[Whitespace] = None,
+        comment: Optional[Comment] = None,
+    ) -> None:
+        self.value = value
+        self.indent = indent
+        self.comma = comma
+        self.comment = comment
+
+    def __iter__(self) -> Iterator[Item]:
+        return filter(
+            lambda x: x is not None, (self.indent, self.value, self.comma, self.comment)
+        )
+
+    def __repr__(self) -> str:
+        return repr(tuple(self))
+
+    def is_whitespace(self) -> bool:
+        return self.value is None and self.comment is None
+
+    def __bool__(self) -> bool:
+        try:
+            next(iter(self))
+        except StopIteration:
+            return False
+        return True
+
+
 class Array(Item, _CustomList):
     """
     An array literal
     """
 
-    def __init__(self, value: list, trivia: Trivia, multiline: bool = False) -> None:
+    def __init__(
+        self, value: List[Item], trivia: Trivia, multiline: bool = False
+    ) -> None:
         super().__init__(trivia)
-        self._index_map: Dict[int, int] = {}
         list.__init__(
-            self, [v.value for v in value if not isinstance(v, (Whitespace, Comment))]
+            self,
+            [v for v in value if not isinstance(v, (Whitespace, Comment, Null))],
         )
-
-        self._value = value
+        self._index_map: Dict[int, int] = {}
+        self._value = self._group_values(value)
         self._multiline = multiline
         self._reindex()
+
+    def _group_values(self, value: List[Item]) -> List[_ArrayItemGroup]:
+        """Group the values into (indent, value, comma, comment) tuples"""
+        groups = []
+        this_group = _ArrayItemGroup()
+        for item in value:
+            if isinstance(item, Whitespace):
+                if "," not in item.s:
+                    groups.append(this_group)
+                    this_group = _ArrayItemGroup(indent=item)
+                else:
+                    if this_group.value is None:
+                        # when comma is met and no value is provided, add a dummy Null
+                        this_group.value = Null()
+                    this_group.comma = item
+            elif isinstance(item, Comment):
+                if this_group.value is None:
+                    this_group.value = Null()
+                this_group.comment = item
+            elif this_group.value is None:
+                this_group.value = item
+            else:
+                groups.append(this_group)
+                this_group = _ArrayItemGroup(value=item)
+        groups.append(this_group)
+        return [group for group in groups if group]
+
+    def unwrap(self) -> List[Any]:
+        unwrapped = []
+        for v in self:
+            if hasattr(v, "unwrap"):
+                unwrapped.append(v.unwrap())
+            else:
+                unwrapped.append(v)
+        return unwrapped
 
     @property
     def discriminant(self) -> int:
@@ -934,6 +1179,10 @@ class Array(Item, _CustomList):
     @property
     def value(self) -> list:
         return self
+
+    def _iter_items(self) -> Iterator[Item]:
+        for v in self._value:
+            yield from v
 
     def multiline(self, multiline: bool) -> "Array":
         """Change the array to display in multiline or not.
@@ -956,14 +1205,20 @@ class Array(Item, _CustomList):
 
     def as_string(self) -> str:
         if not self._multiline or not self._value:
-            return "[{}]".format("".join(v.as_string() for v in self._value))
+            return f'[{"".join(v.as_string() for v in self._iter_items())}]'
 
-        s = "[\n" + self.trivia.indent + " " * 4
-        s += (",\n" + self.trivia.indent + " " * 4).join(
-            v.as_string() for v in self._value if not isinstance(v, Whitespace)
+        s = "[\n"
+        s += "".join(
+            self.trivia.indent
+            + " " * 4
+            + v.value.as_string()
+            + ("," if not isinstance(v.value, Null) else "")
+            + (v.comment.as_string() if v.comment is not None else "")
+            + "\n"
+            for v in self._value
+            if v.value is not None
         )
-        s += ",\n"
-        s += "]"
+        s += self.trivia.indent + "]"
 
         return s
 
@@ -971,7 +1226,7 @@ class Array(Item, _CustomList):
         self._index_map.clear()
         index = 0
         for i, v in enumerate(self._value):
-            if isinstance(v, (Whitespace, Comment)):
+            if v.value is None or isinstance(v.value, Null):
                 continue
             self._index_map[index] = i
             index += 1
@@ -1000,156 +1255,167 @@ class Array(Item, _CustomList):
             4, 5, 6,
         ]
         """
-        values = self._value[:]
-        new_values = []
-
-        def append_item(el: Item) -> None:
-            if not values:
-                return values.append(el)
-            last_el = values[-1]
-            if (
-                isinstance(el, Whitespace)
-                and "," not in el.s
-                and isinstance(last_el, Whitespace)
-                and "," not in last_el.s
-            ):
-                values[-1] = Whitespace(last_el.s + el.s)
-            else:
-                values.append(el)
-
-        if newline:
-            append_item(Whitespace("\n"))
-        if indent:
-            append_item(Whitespace(indent))
+        new_values: List[Item] = []
+        first_indent = f"\n{indent}" if newline else indent
+        if first_indent:
+            new_values.append(Whitespace(first_indent))
+        whitespace = ""
+        data_values = []
         for i, el in enumerate(items):
-            el = item(el, _parent=self)
-            if isinstance(el, Comment) or add_comma and isinstance(el, Whitespace):
-                raise ValueError(f"item type {type(el)} is not allowed")
-            if not isinstance(el, Whitespace):
-                new_values.append(el.value)
-            append_item(el)
-            if add_comma:
-                append_item(Whitespace(","))
-                if i != len(items) - 1:
-                    append_item(Whitespace(" "))
+            it = item(el, _parent=self)
+            if isinstance(it, Comment) or add_comma and isinstance(el, Whitespace):
+                raise ValueError(f"item type {type(it)} is not allowed in add_line")
+            if not isinstance(it, Whitespace):
+                if whitespace:
+                    new_values.append(Whitespace(whitespace))
+                    whitespace = ""
+                new_values.append(it)
+                data_values.append(it.value)
+                if add_comma:
+                    new_values.append(Whitespace(","))
+                    if i != len(items) - 1:
+                        new_values.append(Whitespace(" "))
+            elif "," not in it.s:
+                whitespace += it.s
+            else:
+                new_values.append(it)
+        if whitespace:
+            new_values.append(Whitespace(whitespace))
         if comment:
             indent = " " if items else ""
-            append_item(
+            new_values.append(
                 Comment(Trivia(indent=indent, comment=f"# {comment}", trail=""))
             )
-        # Atomic manipulation
-        self._value[:] = values
-        list.extend(self, new_values)
+        list.extend(self, data_values)
+        if len(self._value) > 0:
+            last_item = self._value[-1]
+            last_value_item = next(
+                (
+                    v
+                    for v in self._value[::-1]
+                    if v.value is not None and not isinstance(v.value, Null)
+                ),
+                None,
+            )
+            if last_value_item is not None:
+                last_value_item.comma = Whitespace(",")
+            if last_item.is_whitespace():
+                self._value[-1:-1] = self._group_values(new_values)
+            else:
+                self._value.extend(self._group_values(new_values))
+        else:
+            self._value.extend(self._group_values(new_values))
         self._reindex()
 
     def clear(self) -> None:
         """Clear the array."""
         list.clear(self)
-
-        self._value.clear()
         self._index_map.clear()
+        self._value.clear()
 
     def __len__(self) -> int:
         return list.__len__(self)
 
     def __getitem__(self, key: Union[int, slice]) -> Any:
-        return list.__getitem__(self, key)
+        rv = cast(Item, list.__getitem__(self, key))
+        if rv.is_boolean():
+            return bool(rv)
+        return rv
 
     def __setitem__(self, key: Union[int, slice], value: Any) -> Any:
         it = item(value, _parent=self)
-        list.__setitem__(self, key, it.value)
+        list.__setitem__(self, key, it)
         if isinstance(key, slice):
             raise ValueError("slice assignment is not supported")
         if key < 0:
             key += len(self)
-        self._value[self._index_map[key]] = it
+        self._value[self._index_map[key]].value = it
 
     def insert(self, pos: int, value: Any) -> None:
         it = item(value, _parent=self)
         length = len(self)
         if not isinstance(it, (Comment, Whitespace)):
-            list.insert(self, pos, it.value)
+            list.insert(self, pos, it)
         if pos < 0:
             pos += length
             if pos < 0:
                 pos = 0
 
-        items = [it]
-        idx = 0
+        idx = 0  # insert position of the self._value list
+        default_indent = " "
         if pos < length:
             try:
                 idx = self._index_map[pos]
-            except KeyError:
-                raise IndexError("list index out of range")
-            if not isinstance(it, (Whitespace, Comment)):
-                items.append(Whitespace(","))
+            except KeyError as e:
+                raise IndexError("list index out of range") from e
         else:
             idx = len(self._value)
+            if idx >= 1 and self._value[idx - 1].is_whitespace():
+                # The last item is a pure whitespace(\n ), insert before it
+                idx -= 1
+                if (
+                    self._value[idx].indent is not None
+                    and "\n" in self._value[idx].indent.s
+                ):
+                    default_indent = "\n    "
+        indent: Optional[Item] = None
+        comma: Optional[Item] = Whitespace(",") if pos < length else None
+        if idx < len(self._value) and not self._value[idx].is_whitespace():
+            # Prefer to copy the indentation from the item after
+            indent = self._value[idx].indent
         if idx > 0:
             last_item = self._value[idx - 1]
-            if isinstance(last_item, Whitespace) and "," not in last_item.s:
-                # the item has an indent, copy that
-                idx -= 1
-                ws = last_item.s
-                if isinstance(it, Whitespace) and "," not in it.s:
-                    # merge the whitespace
-                    self._value[idx] = Whitespace(ws + it.s)
-                    return
-            else:
-                ws = ""
-            has_newline = bool(set(ws) & set(TOMLChar.NL))
-            has_space = ws and ws[-1] in TOMLChar.SPACES
-            if not has_space:
-                # four spaces for multiline array and single space otherwise
-                ws += "    " if has_newline else " "
-            items.insert(0, Whitespace(ws))
-        self._value[idx:idx] = items
-        i = idx - 1
-        if pos > 0:  # Check if the last item ends with a comma
-            while i >= 0 and isinstance(self._value[i], (Whitespace, Comment)):
-                if isinstance(self._value[i], Whitespace) and "," in self._value[i].s:
-                    break
-                i -= 1
-            else:
-                self._value.insert(i + 1, Whitespace(","))
-
+            if indent is None:
+                indent = last_item.indent
+            if not isinstance(last_item.value, Null) and "\n" in default_indent:
+                # Copy the comma from the last item if 1) it contains a value and
+                # 2) the array is multiline
+                comma = last_item.comma
+            if last_item.comma is None and not isinstance(last_item.value, Null):
+                # Add comma to the last item to separate it from the following items.
+                last_item.comma = Whitespace(",")
+        if indent is None and (idx > 0 or "\n" in default_indent):
+            # apply default indent if it isn't the first item or the array is multiline.
+            indent = Whitespace(default_indent)
+        new_item = _ArrayItemGroup(value=it, indent=indent, comma=comma)
+        self._value.insert(idx, new_item)
         self._reindex()
 
     def __delitem__(self, key: Union[int, slice]):
         length = len(self)
         list.__delitem__(self, key)
 
-        def get_indice_to_remove(idx: int) -> Iterable[int]:
-            try:
-                real_idx = self._index_map[idx]
-            except KeyError:
-                raise IndexError("list index out of range")
-            yield real_idx
-            for i in range(real_idx + 1, len(self._value)):
-                if isinstance(self._value[i], Whitespace):
-                    yield i
-                else:
-                    break
-
-        indexes = set()
         if isinstance(key, slice):
-            for idx in range(key.start or 0, key.stop or length, key.step or 1):
-                indexes.update(get_indice_to_remove(idx))
+            indices_to_remove = list(
+                range(key.start or 0, key.stop or length, key.step or 1)
+            )
         else:
-            indexes.update(get_indice_to_remove(length + key if key < 0 else key))
-        for i in sorted(indexes, reverse=True):
-            del self._value[i]
-        while self._value and isinstance(self._value[-1], Whitespace):
-            self._value.pop()
+            indices_to_remove = [length + key if key < 0 else key]
+        for i in sorted(indices_to_remove, reverse=True):
+            try:
+                idx = self._index_map[i]
+            except KeyError as e:
+                if not isinstance(key, slice):
+                    raise IndexError("list index out of range") from e
+            else:
+                del self._value[idx]
+                if (
+                    idx == 0
+                    and len(self._value) > 0
+                    and "\n" not in self._value[idx].indent.s
+                ):
+                    # Remove the indentation of the first item if not newline
+                    self._value[idx].indent = None
+        if len(self._value) > 0:
+            v = self._value[-1]
+            if not v.is_whitespace():
+                # remove the comma of the last item
+                v.comma = None
+
         self._reindex()
 
-    def __str__(self):
-        return str(
-            [v.value for v in self._value if not isinstance(v, (Whitespace, Comment))]
-        )
-
     def _getstate(self, protocol=3):
-        return self._value, self._trivia
+        return list(self._iter_items()), self._trivia, self._multiline
 
 
 AT = TypeVar("AT", bound="AbstractTable")
@@ -1166,6 +1432,17 @@ class AbstractTable(Item, _CustomDict):
         for k, v in self._value.body:
             if k is not None:
                 dict.__setitem__(self, k.key, v)
+
+    def unwrap(self) -> Dict[str, Any]:
+        unwrapped = {}
+        for k, v in self.items():
+            if isinstance(k, Key):
+                k = k.key
+            if hasattr(v, "unwrap"):
+                v = v.unwrap()
+            unwrapped[k] = v
+
+        return unwrapped
 
     @property
     def value(self) -> "container.Container":
@@ -1238,7 +1515,7 @@ class AbstractTable(Item, _CustomDict):
 
     def __setitem__(self, key: Union[Key, str], value: Any) -> None:
         if not isinstance(value, Item):
-            value = item(value)
+            value = item(value, _parent=self)
 
         is_replace = key in self
         self._value[key] = value
@@ -1272,7 +1549,7 @@ class Table(AbstractTable):
         value: "container.Container",
         trivia: Trivia,
         is_aot_element: bool,
-        is_super_table: bool = False,
+        is_super_table: Optional[bool] = None,
         name: Optional[str] = None,
         display_name: Optional[str] = None,
     ) -> None:
@@ -1302,7 +1579,7 @@ class Table(AbstractTable):
         Appends a (key, item) to the table.
         """
         if not isinstance(_item, Item):
-            _item = item(_item)
+            _item = item(_item, _parent=self)
 
         self._value.append(key, _item)
 
@@ -1351,7 +1628,13 @@ class Table(AbstractTable):
     def is_super_table(self) -> bool:
         """A super table is the intermediate parent of a nested table as in [a.b.c].
         If true, it won't appear in the TOML representation."""
-        return self._is_super_table
+        if self._is_super_table is not None:
+            return self._is_super_table
+        # If the table has only one child and that child is a table, then it is a super table.
+        if len(self) != 1:
+            return False
+        only_child = next(iter(self.values()))
+        return isinstance(only_child, (Table, AoT))
 
     def as_string(self) -> str:
         return self._value.as_string()
@@ -1413,7 +1696,7 @@ class InlineTable(AbstractTable):
         Appends a (key, item) to the table.
         """
         if not isinstance(_item, Item):
-            _item = item(_item)
+            _item = item(_item, _parent=self)
 
         if not isinstance(_item, (Whitespace, Comment)):
             if not _item.trivia.indent and len(self._value) > 0 and not self._new:
@@ -1433,6 +1716,14 @@ class InlineTable(AbstractTable):
 
     def as_string(self) -> str:
         buf = "{"
+        last_item_idx = next(
+            (
+                i
+                for i in range(len(self._value.body) - 1, -1, -1)
+                if self._value.body[i][0] is not None
+            ),
+            None,
+        )
         for i, (k, v) in enumerate(self._value.body):
             if k is None:
                 if i == len(self._value.body) - 1:
@@ -1445,16 +1736,17 @@ class InlineTable(AbstractTable):
 
                 continue
 
-            buf += "{}{}{}{}{}{}".format(
-                v.trivia.indent,
-                k.as_string() + ("." if k.is_dotted() else ""),
-                k.sep,
-                v.as_string(),
-                v.trivia.comment,
-                v.trivia.trail.replace("\n", ""),
+            v_trivia_trail = v.trivia.trail.replace("\n", "")
+            buf += (
+                f"{v.trivia.indent}"
+                f'{k.as_string() + ("." if k.is_dotted() else "")}'
+                f"{k.sep}"
+                f"{v.as_string()}"
+                f"{v.trivia.comment}"
+                f"{v_trivia_trail}"
             )
 
-            if i != len(self._value.body) - 1:
+            if last_item_idx is not None and i < last_item_idx:
                 buf += ","
                 if self._new:
                     buf += " "
@@ -1489,6 +1781,9 @@ class String(str, Item):
         self._t = t
         self._original = original
 
+    def unwrap(self) -> str:
+        return str(self)
+
     @property
     def discriminant(self) -> int:
         return 11
@@ -1500,21 +1795,32 @@ class String(str, Item):
     def as_string(self) -> str:
         return f"{self._t.value}{decode(self._original)}{self._t.value}"
 
-    def __add__(self, other):
+    def __add__(self: ItemT, other: str) -> ItemT:
+        if not isinstance(other, str):
+            return NotImplemented
         result = super().__add__(other)
+        original = self._original + getattr(other, "_original", other)
 
-        return self._new(result)
+        return self._new(result, original)
 
-    def __sub__(self, other):
-        result = super().__sub__(other)
-
-        return self._new(result)
-
-    def _new(self, result):
-        return String(self._t, result, result, self._trivia)
+    def _new(self, result: str, original: str) -> "String":
+        return String(self._t, result, original, self._trivia)
 
     def _getstate(self, protocol=3):
         return self._t, str(self), self._original, self._trivia
+
+    @classmethod
+    def from_raw(cls, value: str, type_=StringType.SLB, escape=True) -> "String":
+        value = decode(value)
+
+        invalid = type_.invalid_sequences
+        if any(c in value for c in invalid):
+            raise InvalidStringError(value, invalid, type_.value)
+
+        escaped = type_.escaped_sequences
+        string_value = escape_string(value, escaped) if escape and escaped else value
+
+        return cls(type_, decode(value), string_value, Trivia())
 
 
 class AoT(Item, _CustomList):
@@ -1533,6 +1839,15 @@ class AoT(Item, _CustomList):
 
         for table in body:
             self.append(table)
+
+    def unwrap(self) -> List[Dict[str, Any]]:
+        unwrapped = []
+        for t in self._body:
+            if hasattr(t, "unwrap"):
+                unwrapped.append(t.unwrap())
+            else:
+                unwrapped.append(t)
+        return unwrapped
 
     @property
     def body(self) -> List[Table]:
@@ -1625,6 +1940,9 @@ class Null(Item):
     def __init__(self) -> None:
         pass
 
+    def unwrap(self) -> None:
+        return None
+
     @property
     def discriminant(self) -> int:
         return -1
@@ -1636,5 +1954,5 @@ class Null(Item):
     def as_string(self) -> str:
         return ""
 
-    def _getstate(self, protocol=3):
-        return tuple()
+    def _getstate(self, protocol=3) -> tuple:
+        return ()

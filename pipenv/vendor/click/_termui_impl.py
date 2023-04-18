@@ -675,7 +675,6 @@ if WIN:
         _translate_ch_to_exc(rv)
         return rv
 
-
 else:
     import tty
     import termios

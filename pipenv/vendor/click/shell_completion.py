@@ -102,10 +102,10 @@ _SOURCE_BASH = """\
         IFS=',' read type value <<< "$completion"
 
         if [[ $type == 'dir' ]]; then
-            COMREPLY=()
+            COMPREPLY=()
             compopt -o dirnames
         elif [[ $type == 'file' ]]; then
-            COMREPLY=()
+            COMPREPLY=()
             compopt -o default
         elif [[ $type == 'plain' ]]; then
             COMPREPLY+=($value)
@@ -448,17 +448,16 @@ def _is_incomplete_argument(ctx: Context, param: Parameter) -> bool:
     )
 
 
-def _start_of_option(value: str) -> bool:
+def _start_of_option(ctx: Context, value: str) -> bool:
     """Check if the value looks like the start of an option."""
     if not value:
         return False
 
     c = value[0]
-    # Allow "/" since that starts a path.
-    return not c.isalnum() and c != "/"
+    return c in ctx._opt_prefixes
 
 
-def _is_incomplete_option(args: t.List[str], param: Parameter) -> bool:
+def _is_incomplete_option(ctx: Context, args: t.List[str], param: Parameter) -> bool:
     """Determine if the given parameter is an option that needs a value.
 
     :param args: List of complete args before the incomplete value.
@@ -467,7 +466,7 @@ def _is_incomplete_option(args: t.List[str], param: Parameter) -> bool:
     if not isinstance(param, Option):
         return False
 
-    if param.is_flag:
+    if param.is_flag or param.count:
         return False
 
     last_option = None
@@ -476,7 +475,7 @@ def _is_incomplete_option(args: t.List[str], param: Parameter) -> bool:
         if index + 1 > param.nargs:
             break
 
-        if _start_of_option(arg):
+        if _start_of_option(ctx, arg):
             last_option = arg
 
     return last_option is not None and last_option in param.opts
@@ -551,7 +550,7 @@ def _resolve_incomplete(
     # split and discard the "=" to make completion easier.
     if incomplete == "=":
         incomplete = ""
-    elif "=" in incomplete and _start_of_option(incomplete):
+    elif "=" in incomplete and _start_of_option(ctx, incomplete):
         name, _, incomplete = incomplete.partition("=")
         args.append(name)
 
@@ -559,7 +558,7 @@ def _resolve_incomplete(
     # even if they start with the option character. If it hasn't been
     # given and the incomplete arg looks like an option, the current
     # command will provide option name completions.
-    if "--" not in args and _start_of_option(incomplete):
+    if "--" not in args and _start_of_option(ctx, incomplete):
         return ctx.command, incomplete
 
     params = ctx.command.get_params(ctx)
@@ -567,7 +566,7 @@ def _resolve_incomplete(
     # If the last complete arg is an option name with an incomplete
     # value, the option will provide value completions.
     for param in params:
-        if _is_incomplete_option(args, param):
+        if _is_incomplete_option(ctx, args, param):
             return param, incomplete
 
     # It's not an option name or value. The first argument without a

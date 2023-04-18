@@ -61,15 +61,3 @@ def soft_str(s: t.Any) -> str:
         return str(s)
 
     return s
-
-
-def soft_unicode(s: t.Any) -> str:
-    import warnings
-
-    warnings.warn(
-        "'soft_unicode' has been renamed to 'soft_str'. The old name"
-        " will be removed in MarkupSafe 2.1.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return soft_str(s)

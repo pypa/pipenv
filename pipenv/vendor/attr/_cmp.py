@@ -20,22 +20,22 @@ def cmp_using(
     class_name="Comparable",
 ):
     """
-    Create a class that can be passed into `attr.ib`'s ``eq``, ``order``, and
-    ``cmp`` arguments to customize field comparison.
+    Create a class that can be passed into `attrs.field`'s ``eq``, ``order``,
+    and ``cmp`` arguments to customize field comparison.
 
-    The resulting class will have a full set of ordering methods if
-    at least one of ``{lt, le, gt, ge}`` and ``eq``  are provided.
+    The resulting class will have a full set of ordering methods if at least
+    one of ``{lt, le, gt, ge}`` and ``eq``  are provided.
 
-    :param Optional[callable] eq: `callable` used to evaluate equality
-        of two objects.
-    :param Optional[callable] lt: `callable` used to evaluate whether
-        one object is less than another object.
-    :param Optional[callable] le: `callable` used to evaluate whether
-        one object is less than or equal to another object.
-    :param Optional[callable] gt: `callable` used to evaluate whether
-        one object is greater than another object.
-    :param Optional[callable] ge: `callable` used to evaluate whether
-        one object is greater than or equal to another object.
+    :param Optional[callable] eq: `callable` used to evaluate equality of two
+        objects.
+    :param Optional[callable] lt: `callable` used to evaluate whether one
+        object is less than another object.
+    :param Optional[callable] le: `callable` used to evaluate whether one
+        object is less than or equal to another object.
+    :param Optional[callable] gt: `callable` used to evaluate whether one
+        object is greater than another object.
+    :param Optional[callable] ge: `callable` used to evaluate whether one
+        object is greater than or equal to another object.
 
     :param bool require_same_type: When `True`, equality and ordering methods
         will return `NotImplemented` if objects are not of the same type.
@@ -130,9 +130,9 @@ def _make_operator(name, func):
 
         return result
 
-    method.__name__ = "__%s__" % (name,)
-    method.__doc__ = "Return a %s b.  Computed by attrs." % (
-        _operation_names[name],
+    method.__name__ = f"__{name}__"
+    method.__doc__ = (
+        f"Return a {_operation_names[name]} b.  Computed by attrs."
     )
 
     return method

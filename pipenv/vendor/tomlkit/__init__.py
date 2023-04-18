@@ -1,31 +1,31 @@
-from .api import TOMLDocument
-from .api import aot
-from .api import array
-from .api import boolean
-from .api import comment
-from .api import date
-from .api import datetime
-from .api import document
-from .api import dump
-from .api import dumps
-from .api import float_
-from .api import inline_table
-from .api import integer
-from .api import item
-from .api import key
-from .api import key_value
-from .api import load
-from .api import loads
-from .api import nl
-from .api import parse
-from .api import string
-from .api import table
-from .api import time
-from .api import value
-from .api import ws
+from pipenv.vendor.tomlkit.api import TOMLDocument
+from pipenv.vendor.tomlkit.api import aot
+from pipenv.vendor.tomlkit.api import array
+from pipenv.vendor.tomlkit.api import boolean
+from pipenv.vendor.tomlkit.api import comment
+from pipenv.vendor.tomlkit.api import date
+from pipenv.vendor.tomlkit.api import datetime
+from pipenv.vendor.tomlkit.api import document
+from pipenv.vendor.tomlkit.api import dump
+from pipenv.vendor.tomlkit.api import dumps
+from pipenv.vendor.tomlkit.api import float_
+from pipenv.vendor.tomlkit.api import inline_table
+from pipenv.vendor.tomlkit.api import integer
+from pipenv.vendor.tomlkit.api import item
+from pipenv.vendor.tomlkit.api import key
+from pipenv.vendor.tomlkit.api import key_value
+from pipenv.vendor.tomlkit.api import load
+from pipenv.vendor.tomlkit.api import loads
+from pipenv.vendor.tomlkit.api import nl
+from pipenv.vendor.tomlkit.api import parse
+from pipenv.vendor.tomlkit.api import string
+from pipenv.vendor.tomlkit.api import table
+from pipenv.vendor.tomlkit.api import time
+from pipenv.vendor.tomlkit.api import value
+from pipenv.vendor.tomlkit.api import ws
 
 
-__version__ = "0.9.2"
+__version__ = "0.11.7"
 __all__ = [
     "aot",
     "array",
@@ -49,6 +49,7 @@ __all__ = [
     "string",
     "table",
     "time",
+    "TOMLDocument",
     "value",
     "ws",
 ]

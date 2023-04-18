@@ -464,16 +464,16 @@ class CliRunner:
             Added the ``temp_dir`` parameter.
         """
         cwd = os.getcwd()
-        t = tempfile.mkdtemp(dir=temp_dir)
-        os.chdir(t)
+        dt = tempfile.mkdtemp(dir=temp_dir)  # type: ignore[type-var]
+        os.chdir(dt)
 
         try:
-            yield t
+            yield t.cast(str, dt)
         finally:
             os.chdir(cwd)
 
             if temp_dir is None:
                 try:
-                    shutil.rmtree(t)
+                    shutil.rmtree(dt)
                 except OSError:  # noqa: B014
                     pass

@@ -3,33 +3,35 @@ import datetime as _datetime
 from collections.abc import Mapping
 from typing import IO
 from typing import Iterable
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
-from ._utils import parse_rfc3339
-from .container import Container
-from .exceptions import UnexpectedCharError
-from .items import AoT
-from .items import Array
-from .items import Bool
-from .items import Comment
-from .items import Date
-from .items import DateTime
-from .items import DottedKey
-from .items import Float
-from .items import InlineTable
-from .items import Integer
-from .items import Item as _Item
-from .items import Key
-from .items import SingleKey
-from .items import String
-from .items import Table
-from .items import Time
-from .items import Trivia
-from .items import Whitespace
-from .items import item
-from .parser import Parser
-from .toml_document import TOMLDocument
+from pipenv.vendor.tomlkit._utils import parse_rfc3339
+from pipenv.vendor.tomlkit.container import Container
+from pipenv.vendor.tomlkit.exceptions import UnexpectedCharError
+from pipenv.vendor.tomlkit.items import AoT
+from pipenv.vendor.tomlkit.items import Array
+from pipenv.vendor.tomlkit.items import Bool
+from pipenv.vendor.tomlkit.items import Comment
+from pipenv.vendor.tomlkit.items import Date
+from pipenv.vendor.tomlkit.items import DateTime
+from pipenv.vendor.tomlkit.items import DottedKey
+from pipenv.vendor.tomlkit.items import Float
+from pipenv.vendor.tomlkit.items import InlineTable
+from pipenv.vendor.tomlkit.items import Integer
+from pipenv.vendor.tomlkit.items import Item as _Item
+from pipenv.vendor.tomlkit.items import Key
+from pipenv.vendor.tomlkit.items import SingleKey
+from pipenv.vendor.tomlkit.items import String
+from pipenv.vendor.tomlkit.items import StringType as _StringType
+from pipenv.vendor.tomlkit.items import Table
+from pipenv.vendor.tomlkit.items import Time
+from pipenv.vendor.tomlkit.items import Trivia
+from pipenv.vendor.tomlkit.items import Whitespace
+from pipenv.vendor.tomlkit.items import item
+from pipenv.vendor.tomlkit.parser import Parser
+from pipenv.vendor.tomlkit.toml_document import TOMLDocument
 
 
 def loads(string: Union[str, bytes]) -> TOMLDocument:
@@ -57,7 +59,7 @@ def dumps(data: Mapping, sort_keys: bool = False) -> str:
         raise TypeError(msg) from ex
 
 
-def load(fp: IO) -> TOMLDocument:
+def load(fp: Union[IO[str], IO[bytes]]) -> TOMLDocument:
     """
     Load toml document from a file-like object.
     """
@@ -104,9 +106,28 @@ def boolean(raw: str) -> Bool:
     return item(raw == "true")
 
 
-def string(raw: str) -> String:
-    """Create a string item."""
-    return item(raw)
+def string(
+    raw: str,
+    *,
+    literal: bool = False,
+    multiline: bool = False,
+    escape: bool = True,
+) -> String:
+    """Create a string item.
+
+    By default, this function will create *single line basic* strings, but
+    boolean flags (e.g. ``literal=True`` and/or ``multiline=True``)
+    can be used for personalization.
+
+    For more information, please check the spec: `<https://toml.io/en/v1.0.0#string>`__.
+
+    Common escaping rules will be applied for basic strings.
+    This can be controlled by explicitly setting ``escape=False``.
+    Please note that, if you disable escaping, you will have to make sure that
+    the given strings don't contain any forbidden character or sequence.
+    """
+    type_ = _StringType.select(literal, multiline)
+    return String.from_raw(raw, type_, escape)
 
 
 def date(raw: str) -> Date:
@@ -154,7 +175,7 @@ def array(raw: str = None) -> Array:
     return value(raw)
 
 
-def table(is_super_table: bool = False) -> Table:
+def table(is_super_table: Optional[bool] = None) -> Table:
     """Create an empty table.
 
     :param is_super_table: if true, the table is a super table
