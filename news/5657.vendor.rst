@@ -1,0 +1,1 @@
+Vendor in latest available dependencies:  ``attrs==23.1.0`` ``click-didyoumean==0.3.0`` ``click==8.1.3`` ``markupsafe==2.1.2`` ``pipdeptree==2.7.0`` ``shellingham==1.5.0.post1`` ``tomlkit==0.11.7``

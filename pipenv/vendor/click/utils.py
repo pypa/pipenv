@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import typing as t
 from functools import update_wrapper
@@ -203,7 +204,7 @@ class KeepOpenFile:
 
 def echo(
     message: t.Optional[t.Any] = None,
-    file: t.Optional[t.IO] = None,
+    file: t.Optional[t.IO[t.Any]] = None,
     nl: bool = True,
     err: bool = False,
     color: t.Optional[bool] = None,
@@ -340,53 +341,43 @@ def open_file(
     lazy: bool = False,
     atomic: bool = False,
 ) -> t.IO:
-    """This is similar to how the :class:`File` works but for manual
-    usage.  Files are opened non lazy by default.  This can open regular
-    files as well as stdin/stdout if ``'-'`` is passed.
+    """Open a file, with extra behavior to handle ``'-'`` to indicate
+    a standard stream, lazy open on write, and atomic write. Similar to
+    the behavior of the :class:`~click.File` param type.
 
-    If stdin/stdout is returned the stream is wrapped so that the context
-    manager will not close the stream accidentally.  This makes it possible
-    to always use the function like this without having to worry to
-    accidentally close a standard stream::
+    If ``'-'`` is given to open ``stdout`` or ``stdin``, the stream is
+    wrapped so that using it in a context manager will not close it.
+    This makes it possible to use the function without accidentally
+    closing a standard stream:
+
+    .. code-block:: python
 
         with open_file(filename) as f:
             ...
 
-    .. versionadded:: 3.0
+    :param filename: The name of the file to open, or ``'-'`` for
+        ``stdin``/``stdout``.
+    :param mode: The mode in which to open the file.
+    :param encoding: The encoding to decode or encode a file opened in
+        text mode.
+    :param errors: The error handling mode.
+    :param lazy: Wait to open the file until it is accessed. For read
+        mode, the file is temporarily opened to raise access errors
+        early, then closed until it is read again.
+    :param atomic: Write to a temporary file and replace the given file
+        on close.
 
-    :param filename: the name of the file to open (or ``'-'`` for stdin/stdout).
-    :param mode: the mode in which to open the file.
-    :param encoding: the encoding to use.
-    :param errors: the error handling for this file.
-    :param lazy: can be flipped to true to open the file lazily.
-    :param atomic: in atomic mode writes go into a temporary file and it's
-                   moved on close.
+    .. versionadded:: 3.0
     """
     if lazy:
         return t.cast(t.IO, LazyFile(filename, mode, encoding, errors, atomic=atomic))
+
     f, should_close = open_stream(filename, mode, encoding, errors, atomic=atomic)
+
     if not should_close:
         f = t.cast(t.IO, KeepOpenFile(f))
+
     return f
-
-
-def get_os_args() -> t.Sequence[str]:
-    """Returns the argument part of ``sys.argv``, removing the first
-    value which is the name of the script.
-
-    .. deprecated:: 8.0
-        Will be removed in Click 8.1. Access ``sys.argv[1:]`` directly
-        instead.
-    """
-    import warnings
-
-    warnings.warn(
-        "'get_os_args' is deprecated and will be removed in Click 8.1."
-        " Access 'sys.argv[1:]' directly instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return sys.argv[1:]
 
 
 def format_filename(
@@ -484,7 +475,7 @@ class PacifyFlushWrapper:
 
 
 def _detect_program_name(
-    path: t.Optional[str] = None, _main: ModuleType = sys.modules["__main__"]
+    path: t.Optional[str] = None, _main: t.Optional[ModuleType] = None
 ) -> str:
     """Determine the command used to run the program, for use in help
     text. If a file or entry point was executed, the file name is
@@ -506,6 +497,9 @@ def _detect_program_name(
 
     :meta private:
     """
+    if _main is None:
+        _main = sys.modules["__main__"]
+
     if not path:
         path = sys.argv[0]
 
@@ -546,13 +540,17 @@ def _expand_args(
     See :func:`glob.glob`, :func:`os.path.expanduser`, and
     :func:`os.path.expandvars`.
 
-    This intended for use on Windows, where the shell does not do any
+    This is intended for use on Windows, where the shell does not do any
     expansion. It may not exactly match what a Unix shell would do.
 
     :param args: List of command line arguments to expand.
     :param user: Expand user home directory.
     :param env: Expand environment variables.
     :param glob_recursive: ``**`` matches directories recursively.
+
+    .. versionchanged:: 8.1
+        Invalid glob patterns are treated as empty expansions rather
+        than raising an error.
 
     .. versionadded:: 8.0
 
@@ -569,7 +567,10 @@ def _expand_args(
         if env:
             arg = os.path.expandvars(arg)
 
-        matches = glob(arg, recursive=glob_recursive)
+        try:
+            matches = glob(arg, recursive=glob_recursive)
+        except re.error:
+            matches = []
 
         if not matches:
             out.append(arg)

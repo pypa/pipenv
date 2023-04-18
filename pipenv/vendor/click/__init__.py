@@ -41,7 +41,6 @@ from .termui import clear as clear
 from .termui import confirm as confirm
 from .termui import echo_via_pager as echo_via_pager
 from .termui import edit as edit
-from .termui import get_terminal_size as get_terminal_size
 from .termui import getchar as getchar
 from .termui import launch as launch
 from .termui import pause as pause
@@ -68,8 +67,7 @@ from .utils import echo as echo
 from .utils import format_filename as format_filename
 from .utils import get_app_dir as get_app_dir
 from .utils import get_binary_stream as get_binary_stream
-from .utils import get_os_args as get_os_args
 from .utils import get_text_stream as get_text_stream
 from .utils import open_file as open_file
 
-__version__ = "8.0.3"
+__version__ = "8.1.3"

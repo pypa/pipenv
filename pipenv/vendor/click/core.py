@@ -1,8 +1,8 @@
 import enum
 import errno
+import inspect
 import os
 import sys
-import typing
 import typing as t
 from collections import abc
 from contextlib import contextmanager
@@ -14,7 +14,6 @@ from gettext import ngettext
 from itertools import repeat
 
 from . import types
-from ._unicodefun import _verify_python_env
 from .exceptions import Abort
 from .exceptions import BadParameter
 from .exceptions import ClickException
@@ -224,9 +223,14 @@ class Context:
                   codes are used in texts that Click prints which is by
                   default not the case.  This for instance would affect
                   help output.
-    :param show_default: Show defaults for all options. If not set,
-        defaults to the value from a parent context. Overrides an
-        option's ``show_default`` argument.
+    :param show_default: Show the default value for commands. If this
+        value is not set, it defaults to the value from the parent
+        context. ``Command.show_default`` overrides this default for the
+        specific command.
+
+    .. versionchanged:: 8.1
+        The ``show_default`` parameter is overridden by
+        ``Command.show_default``, instead of the other way around.
 
     .. versionchanged:: 8.0
         The ``show_default`` parameter defaults to the value from the
@@ -288,6 +292,8 @@ class Context:
         #: must be never propagated to another arguments.  This is used
         #: to implement nested parsing.
         self.protected_args: t.List[str] = []
+        #: the collected prefixes of the command's options.
+        self._opt_prefixes: t.Set[str] = set(parent._opt_prefixes) if parent else set()
 
         if obj is None and parent is not None:
             obj = parent.obj
@@ -632,13 +638,13 @@ class Context:
             self.obj = rv = object_type()
         return rv
 
-    @typing.overload
+    @t.overload
     def lookup_default(
         self, name: str, call: "te.Literal[True]" = True
     ) -> t.Optional[t.Any]:
         ...
 
-    @typing.overload
+    @t.overload
     def lookup_default(
         self, name: str, call: "te.Literal[False]" = ...
     ) -> t.Optional[t.Union[t.Any, t.Callable[[], t.Any]]]:
@@ -956,7 +962,7 @@ class BaseCommand:
 
         return results
 
-    @typing.overload
+    @t.overload
     def main(
         self,
         args: t.Optional[t.Sequence[str]] = None,
@@ -967,7 +973,7 @@ class BaseCommand:
     ) -> "te.NoReturn":
         ...
 
-    @typing.overload
+    @t.overload
     def main(
         self,
         args: t.Optional[t.Sequence[str]] = None,
@@ -1029,10 +1035,6 @@ class BaseCommand:
         .. versionchanged:: 3.0
            Added the ``standalone_mode`` parameter.
         """
-        # Verify that the environment is configured correctly, or reject
-        # further execution to avoid a broken script.
-        _verify_python_env()
-
         if args is None:
             args = sys.argv[1:]
 
@@ -1133,13 +1135,6 @@ class Command(BaseCommand):
     Click.  A basic command handles command line parsing and might dispatch
     more parsing to commands nested below it.
 
-    .. versionchanged:: 2.0
-       Added the `context_settings` parameter.
-    .. versionchanged:: 8.0
-       Added repr showing the command name
-    .. versionchanged:: 7.1
-       Added the `no_args_is_help` parameter.
-
     :param name: the name of the command to use unless a group overrides it.
     :param context_settings: an optional dictionary with defaults that are
                              passed to the context object.
@@ -1161,6 +1156,20 @@ class Command(BaseCommand):
 
     :param deprecated: issues a message indicating that
                              the command is deprecated.
+
+    .. versionchanged:: 8.1
+        ``help``, ``epilog``, and ``short_help`` are stored unprocessed,
+        all formatting is done when outputting help text, not at init,
+        and is done even if not using the ``@command`` decorator.
+
+    .. versionchanged:: 8.0
+        Added a ``repr`` showing the command name.
+
+    .. versionchanged:: 7.1
+        Added the ``no_args_is_help`` parameter.
+
+    .. versionchanged:: 2.0
+        Added the ``context_settings`` parameter.
     """
 
     def __init__(
@@ -1186,12 +1195,6 @@ class Command(BaseCommand):
         #: should show up in the help page and execute.  Eager parameters
         #: will automatically be handled before non eager ones.
         self.params: t.List["Parameter"] = params or []
-
-        # if a form feed (page break) is found in the help text, truncate help
-        # text to the content preceding the first form feed
-        if help and "\f" in help:
-            help = help.split("\f", 1)[0]
-
         self.help = help
         self.epilog = epilog
         self.options_metavar = options_metavar
@@ -1299,10 +1302,12 @@ class Command(BaseCommand):
         """Gets short help for the command or makes it by shortening the
         long help string.
         """
-        text = self.short_help or ""
-
-        if not text and self.help:
+        if self.short_help:
+            text = inspect.cleandoc(self.short_help)
+        elif self.help:
             text = make_default_short_help(self.help, limit)
+        else:
+            text = ""
 
         if self.deprecated:
             text = _("(Deprecated) {text}").format(text=text)
@@ -1328,12 +1333,13 @@ class Command(BaseCommand):
 
     def format_help_text(self, ctx: Context, formatter: HelpFormatter) -> None:
         """Writes the help text to the formatter if it exists."""
-        text = self.help or ""
+        text = self.help if self.help is not None else ""
 
         if self.deprecated:
             text = _("(Deprecated) {text}").format(text=text)
 
         if text:
+            text = inspect.cleandoc(text).partition("\f")[0]
             formatter.write_paragraph()
 
             with formatter.indentation():
@@ -1354,9 +1360,11 @@ class Command(BaseCommand):
     def format_epilog(self, ctx: Context, formatter: HelpFormatter) -> None:
         """Writes the epilog into the formatter if it exists."""
         if self.epilog:
+            epilog = inspect.cleandoc(self.epilog)
             formatter.write_paragraph()
+
             with formatter.indentation():
-                formatter.write_text(self.epilog)
+                formatter.write_text(epilog)
 
     def parse_args(self, ctx: Context, args: t.List[str]) -> t.List[str]:
         if not args and self.no_args_is_help and not ctx.resilient_parsing:
@@ -1379,6 +1387,7 @@ class Command(BaseCommand):
             )
 
         ctx.args = args
+        ctx._opt_prefixes.update(parser._opt_prefixes)
         return args
 
     def invoke(self, ctx: Context) -> t.Any:
@@ -1568,17 +1577,6 @@ class MultiCommand(Command):
 
         return decorator
 
-    def resultcallback(self, replace: bool = False) -> t.Callable[[F], F]:
-        import warnings
-
-        warnings.warn(
-            "'resultcallback' has been renamed to 'result_callback'."
-            " The old name will be removed in Click 8.1.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.result_callback(replace=replace)
-
     def format_commands(self, ctx: Context, formatter: HelpFormatter) -> None:
         """Extra format methods for multi methods that adds all the commands
         after the options.
@@ -1631,11 +1629,11 @@ class MultiCommand(Command):
         if not ctx.protected_args:
             if self.invoke_without_command:
                 # No subcommand was invoked, so the result callback is
-                # invoked with None for regular groups, or an empty list
-                # for chained groups.
+                # invoked with the group return value for regular
+                # groups, or an empty list for chained groups.
                 with ctx:
-                    super().invoke(ctx)
-                    return _process_result([] if self.chain else None)
+                    rv = super().invoke(ctx)
+                    return _process_result([] if self.chain else rv)
             ctx.fail(_("Missing command."))
 
         # Fetch args back out
@@ -1811,9 +1809,19 @@ class Group(MultiCommand):
         _check_multicommand(self, name, cmd, register=True)
         self.commands[name] = cmd
 
+    @t.overload
+    def command(self, __func: t.Callable[..., t.Any]) -> Command:
+        ...
+
+    @t.overload
     def command(
         self, *args: t.Any, **kwargs: t.Any
     ) -> t.Callable[[t.Callable[..., t.Any]], Command]:
+        ...
+
+    def command(
+        self, *args: t.Any, **kwargs: t.Any
+    ) -> t.Union[t.Callable[[t.Callable[..., t.Any]], Command], Command]:
         """A shortcut decorator for declaring and attaching a command to
         the group. This takes the same arguments as :func:`command` and
         immediately registers the created command with this group by
@@ -1822,24 +1830,49 @@ class Group(MultiCommand):
         To customize the command class used, set the
         :attr:`command_class` attribute.
 
+        .. versionchanged:: 8.1
+            This decorator can be applied without parentheses.
+
         .. versionchanged:: 8.0
             Added the :attr:`command_class` attribute.
         """
         from .decorators import command
 
-        if self.command_class is not None and "cls" not in kwargs:
+        if self.command_class and kwargs.get("cls") is None:
             kwargs["cls"] = self.command_class
 
+        func: t.Optional[t.Callable] = None
+
+        if args and callable(args[0]):
+            assert (
+                len(args) == 1 and not kwargs
+            ), "Use 'command(**kwargs)(callable)' to provide arguments."
+            (func,) = args
+            args = ()
+
         def decorator(f: t.Callable[..., t.Any]) -> Command:
-            cmd = command(*args, **kwargs)(f)
+            cmd: Command = command(*args, **kwargs)(f)
             self.add_command(cmd)
             return cmd
 
+        if func is not None:
+            return decorator(func)
+
         return decorator
 
+    @t.overload
+    def group(self, __func: t.Callable[..., t.Any]) -> "Group":
+        ...
+
+    @t.overload
     def group(
         self, *args: t.Any, **kwargs: t.Any
     ) -> t.Callable[[t.Callable[..., t.Any]], "Group"]:
+        ...
+
+    def group(
+        self, *args: t.Any, **kwargs: t.Any
+    ) -> t.Union[t.Callable[[t.Callable[..., t.Any]], "Group"], "Group"]:
         """A shortcut decorator for declaring and attaching a group to
         the group. This takes the same arguments as :func:`group` and
         immediately registers the created group with this group by
@@ -1848,21 +1881,36 @@ class Group(MultiCommand):
         To customize the group class used, set the :attr:`group_class`
         attribute.
 
+        .. versionchanged:: 8.1
+            This decorator can be applied without parentheses.
+
         .. versionchanged:: 8.0
             Added the :attr:`group_class` attribute.
         """
         from .decorators import group
 
-        if self.group_class is not None and "cls" not in kwargs:
+        func: t.Optional[t.Callable] = None
+
+        if args and callable(args[0]):
+            assert (
+                len(args) == 1 and not kwargs
+            ), "Use 'group(**kwargs)(callable)' to provide arguments."
+            (func,) = args
+            args = ()
+
+        if self.group_class is not None and kwargs.get("cls") is None:
             if self.group_class is type:
                 kwargs["cls"] = type(self)
             else:
                 kwargs["cls"] = self.group_class
 
         def decorator(f: t.Callable[..., t.Any]) -> "Group":
-            cmd = group(*args, **kwargs)(f)
+            cmd: Group = group(*args, **kwargs)(f)
             self.add_command(cmd)
             return cmd
+
+        if func is not None:
+            return decorator(func)
 
         return decorator
 
@@ -2020,11 +2068,6 @@ class Parameter:
                 t.Union[t.List["CompletionItem"], t.List[str]],
             ]
         ] = None,
-        autocompletion: t.Optional[
-            t.Callable[
-                [Context, t.List[str], str], t.List[t.Union[t.Tuple[str, str], str]]
-            ]
-        ] = None,
     ) -> None:
         self.name, self.opts, self.secondary_opts = self._parse_decls(
             param_decls or (), expose_value
@@ -2048,36 +2091,6 @@ class Parameter:
         self.is_eager = is_eager
         self.metavar = metavar
         self.envvar = envvar
-
-        if autocompletion is not None:
-            import warnings
-
-            warnings.warn(
-                "'autocompletion' is renamed to 'shell_complete'. The old name is"
-                " deprecated and will be removed in Click 8.1. See the docs about"
-                " 'Parameter' for information about new behavior.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-            def shell_complete(
-                ctx: Context, param: "Parameter", incomplete: str
-            ) -> t.List["CompletionItem"]:
-                from pipenv.vendor.click.shell_completion import CompletionItem
-
-                out = []
-
-                for c in autocompletion(ctx, [], incomplete):  # type: ignore
-                    if isinstance(c, tuple):
-                        c = CompletionItem(c[0], help=c[1])
-                    elif isinstance(c, str):
-                        c = CompletionItem(c)
-
-                    if c.value.startswith(incomplete):
-                        out.append(c)
-
-                return out
-
         self._custom_shell_complete = shell_complete
 
         if __debug__:
@@ -2172,13 +2185,13 @@ class Parameter:
 
         return metavar
 
-    @typing.overload
+    @t.overload
     def get_default(
         self, ctx: Context, call: "te.Literal[True]" = True
     ) -> t.Optional[t.Any]:
         ...
 
-    @typing.overload
+    @t.overload
     def get_default(
         self, ctx: Context, call: bool = ...
     ) -> t.Optional[t.Union[t.Any, t.Callable[[], t.Any]]]:
@@ -2399,25 +2412,27 @@ class Option(Parameter):
 
     All other parameters are passed onwards to the parameter constructor.
 
-    :param show_default: controls if the default value should be shown on the
-                         help page. Normally, defaults are not shown. If this
-                         value is a string, it shows the string instead of the
-                         value. This is particularly useful for dynamic options.
-    :param show_envvar: controls if an environment variable should be shown on
-                        the help page.  Normally, environment variables
-                        are not shown.
-    :param prompt: if set to `True` or a non empty string then the user will be
-                   prompted for input.  If set to `True` the prompt will be the
-                   option name capitalized.
+    :param show_default: Show the default value for this option in its
+        help text. Values are not shown by default, unless
+        :attr:`Context.show_default` is ``True``. If this value is a
+        string, it shows that string in parentheses instead of the
+        actual value. This is particularly useful for dynamic options.
+        For single option boolean flags, the default remains hidden if
+        its value is ``False``.
+    :param show_envvar: Controls if an environment variable should be
+        shown on the help page. Normally, environment variables are not
+        shown.
+    :param prompt: If set to ``True`` or a non empty string then the
+        user will be prompted for input. If set to ``True`` the prompt
+        will be the option name capitalized.
     :param confirmation_prompt: Prompt a second time to confirm the
         value if it was prompted for. Can be set to a string instead of
         ``True`` to customize the message.
     :param prompt_required: If set to ``False``, the user will be
         prompted for input only when the option was specified as a flag
         without a value.
-    :param hide_input: if this is `True` then the input on the prompt will be
-                       hidden from the user.  This is useful for password
-                       input.
+    :param hide_input: If this is ``True`` then the input on the prompt
+        will be hidden from the user. This is useful for password input.
     :param is_flag: forces this option to act as a flag.  The default is
                     auto detection.
     :param flag_value: which value should be used for this flag if it's
@@ -2435,6 +2450,18 @@ class Option(Parameter):
     :param help: the help string.
     :param hidden: hide this option from help outputs.
 
+    .. versionchanged:: 8.1.0
+        Help text indentation is cleaned here instead of only in the
+        ``@option`` decorator.
+
+    .. versionchanged:: 8.1.0
+        The ``show_default`` parameter overrides
+        ``Context.show_default``.
+
+    .. versionchanged:: 8.1.0
+        The default of a single option boolean flag is not shown if the
+        default value is ``False``.
+
     .. versionchanged:: 8.0.1
         ``type`` is detected from ``flag_value`` if given.
     """
@@ -2444,7 +2471,7 @@ class Option(Parameter):
     def __init__(
         self,
         param_decls: t.Optional[t.Sequence[str]] = None,
-        show_default: t.Union[bool, str] = False,
+        show_default: t.Union[bool, str, None] = None,
         prompt: t.Union[bool, str] = False,
         confirmation_prompt: t.Union[bool, str] = False,
         prompt_required: bool = True,
@@ -2461,6 +2488,9 @@ class Option(Parameter):
         show_envvar: bool = False,
         **attrs: t.Any,
     ) -> None:
+        if help:
+            help = inspect.cleandoc(help)
+
         default_is_missing = "default" not in attrs
         super().__init__(param_decls, type=type, multiple=multiple, **attrs)
 
@@ -2472,7 +2502,7 @@ class Option(Parameter):
         elif prompt is False:
             prompt_text = None
         else:
-            prompt_text = t.cast(str, prompt)
+            prompt_text = prompt
 
         self.prompt = prompt_text
         self.confirmation_prompt = confirmation_prompt
@@ -2499,7 +2529,7 @@ class Option(Parameter):
             # flag if flag_value is set.
             self._flag_needs_value = flag_value is not None
 
-        if is_flag and default_is_missing:
+        if is_flag and default_is_missing and not self.required:
             self.default: t.Union[t.Any, t.Callable[[], t.Any]] = False
 
         if flag_value is None:
@@ -2549,6 +2579,9 @@ class Option(Parameter):
 
                 if self.is_flag:
                     raise TypeError("'count' is not valid with 'is_flag'.")
+
+            if self.multiple and self.is_flag:
+                raise TypeError("'multiple' is not valid with 'is_flag', use 'count'.")
 
     def to_info_dict(self) -> t.Dict[str, t.Any]:
         info_dict = super().to_info_dict()
@@ -2711,16 +2744,23 @@ class Option(Parameter):
         finally:
             ctx.resilient_parsing = resilient
 
-        show_default_is_str = isinstance(self.show_default, str)
+        show_default = False
+        show_default_is_str = False
 
-        if show_default_is_str or (
-            default_value is not None and (self.show_default or ctx.show_default)
-        ):
+        if self.show_default is not None:
+            if isinstance(self.show_default, str):
+                show_default_is_str = show_default = True
+            else:
+                show_default = self.show_default
+        elif ctx.show_default is not None:
+            show_default = ctx.show_default
+
+        if show_default_is_str or (show_default and (default_value is not None)):
             if show_default_is_str:
                 default_string = f"({self.show_default})"
             elif isinstance(default_value, (list, tuple)):
                 default_string = ", ".join(str(d) for d in default_value)
-            elif callable(default_value):
+            elif inspect.isfunction(default_value):
                 default_string = _("(dynamic)")
             elif self.is_bool_flag and self.secondary_opts:
                 # For boolean flags that have distinct True/False opts,
@@ -2728,6 +2768,8 @@ class Option(Parameter):
                 default_string = split_opt(
                     (self.opts if self.default else self.secondary_opts)[0]
                 )[1]
+            elif self.is_bool_flag and not self.secondary_opts and not default_value:
+                default_string = ""
             else:
                 default_string = str(default_value)
 
@@ -2753,13 +2795,13 @@ class Option(Parameter):
 
         return ("; " if any_prefix_is_slash else " / ").join(rv), help
 
-    @typing.overload
+    @t.overload
     def get_default(
         self, ctx: Context, call: "te.Literal[True]" = True
     ) -> t.Optional[t.Any]:
         ...
 
-    @typing.overload
+    @t.overload
     def get_default(
         self, ctx: Context, call: bool = ...
     ) -> t.Optional[t.Union[t.Any, t.Callable[[], t.Any]]]:
@@ -2770,7 +2812,7 @@ class Option(Parameter):
     ) -> t.Optional[t.Union[t.Any, t.Callable[[], t.Any]]]:
         # If we're a non boolean flag our default is more complex because
         # we need to look at all flags in the same group to figure out
-        # if we're the the default one in which case we return the flag
+        # if we're the default one in which case we return the flag
         # value as default.
         if self.is_flag and not self.is_bool_flag:
             for param in ctx.command.params:
@@ -2821,7 +2863,10 @@ class Option(Parameter):
             envvar = f"{ctx.auto_envvar_prefix}_{self.name.upper()}"
             rv = os.environ.get(envvar)
 
-        return rv
+            if rv:
+                return rv
+
+        return None
 
     def value_from_envvar(self, ctx: Context) -> t.Optional[t.Any]:
         rv: t.Optional[t.Any] = self.resolve_envvar_value(ctx)

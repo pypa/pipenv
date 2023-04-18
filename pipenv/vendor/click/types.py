@@ -63,7 +63,14 @@ class ParamType:
         # The class name without the "ParamType" suffix.
         param_type = type(self).__name__.partition("ParamType")[0]
         param_type = param_type.partition("ParameterType")[0]
-        return {"param_type": param_type, "name": self.name}
+
+        # Custom subclasses might not remember to set a name.
+        if hasattr(self, "name"):
+            name = self.name
+        else:
+            name = param_type
+
+        return {"param_type": param_type, "name": name}
 
     def __call__(
         self,
@@ -724,7 +731,7 @@ class File(ParamType):
 
             return f
         except OSError as e:  # noqa: B014
-            self.fail(f"{os.fsdecode(value)!r}: {e.strerror}", param, ctx)
+            self.fail(f"'{os.fsdecode(value)}': {e.strerror}", param, ctx)
 
     def shell_complete(
         self, ctx: "Context", param: "Parameter", incomplete: str
@@ -744,29 +751,30 @@ class File(ParamType):
 
 
 class Path(ParamType):
-    """The path type is similar to the :class:`File` type but it performs
-    different checks.  First of all, instead of returning an open file
-    handle it returns just the filename.  Secondly, it can perform various
-    basic checks about what the file or directory should be.
+    """The ``Path`` type is similar to the :class:`File` type, but
+    returns the filename instead of an open file. Various checks can be
+    enabled to validate the type of file and permissions.
 
-    :param exists: if set to true, the file or directory needs to exist for
-                   this value to be valid.  If this is not required and a
-                   file does indeed not exist, then all further checks are
-                   silently skipped.
-    :param file_okay: controls if a file is a possible value.
-    :param dir_okay: controls if a directory is a possible value.
-    :param writable: if true, a writable check is performed.
+    :param exists: The file or directory needs to exist for the value to
+        be valid. If this is not set to ``True``, and the file does not
+        exist, then all further checks are silently skipped.
+    :param file_okay: Allow a file as a value.
+    :param dir_okay: Allow a directory as a value.
     :param readable: if true, a readable check is performed.
-    :param resolve_path: if this is true, then the path is fully resolved
-                         before the value is passed onwards.  This means
-                         that it's absolute and symlinks are resolved.  It
-                         will not expand a tilde-prefix, as this is
-                         supposed to be done by the shell only.
-    :param allow_dash: If this is set to `True`, a single dash to indicate
-                       standard streams is permitted.
+    :param writable: if true, a writable check is performed.
+    :param executable: if true, an executable check is performed.
+    :param resolve_path: Make the value absolute and resolve any
+        symlinks. A ``~`` is not expanded, as this is supposed to be
+        done by the shell only.
+    :param allow_dash: Allow a single dash as a value, which indicates
+        a standard stream (but does not open it). Use
+        :func:`~click.open_file` to handle opening this value.
     :param path_type: Convert the incoming path value to this type. If
         ``None``, keep Python's default, which is ``str``. Useful to
         convert to :class:`pathlib.Path`.
+
+    .. versionchanged:: 8.1
+        Added the ``executable`` parameter.
 
     .. versionchanged:: 8.0
         Allow passing ``type=pathlib.Path``.
@@ -787,12 +795,14 @@ class Path(ParamType):
         resolve_path: bool = False,
         allow_dash: bool = False,
         path_type: t.Optional[t.Type] = None,
+        executable: bool = False,
     ):
         self.exists = exists
         self.file_okay = file_okay
         self.dir_okay = dir_okay
-        self.writable = writable
         self.readable = readable
+        self.writable = writable
+        self.executable = executable
         self.resolve_path = resolve_path
         self.allow_dash = allow_dash
         self.type = path_type
@@ -865,12 +875,22 @@ class Path(ParamType):
                 )
             if not self.dir_okay and stat.S_ISDIR(st.st_mode):
                 self.fail(
-                    _("{name} {filename!r} is a directory.").format(
+                    _("{name} '{filename}' is a directory.").format(
                         name=self.name.title(), filename=os.fsdecode(value)
                     ),
                     param,
                     ctx,
                 )
+
+            if self.readable and not os.access(rv, os.R_OK):
+                self.fail(
+                    _("{name} {filename!r} is not readable.").format(
+                        name=self.name.title(), filename=os.fsdecode(value)
+                    ),
+                    param,
+                    ctx,
+                )
+
             if self.writable and not os.access(rv, os.W_OK):
                 self.fail(
                     _("{name} {filename!r} is not writable.").format(
@@ -879,9 +899,10 @@ class Path(ParamType):
                     param,
                     ctx,
                 )
-            if self.readable and not os.access(rv, os.R_OK):
+
+            if self.executable and not os.access(value, os.X_OK):
                 self.fail(
-                    _("{name} {filename!r} is not readable.").format(
+                    _("{name} {filename!r} is not executable.").format(
                         name=self.name.title(), filename=os.fsdecode(value)
                     ),
                     param,

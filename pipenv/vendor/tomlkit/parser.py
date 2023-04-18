@@ -1,3 +1,4 @@
+import datetime
 import re
 import string
 
@@ -7,48 +8,48 @@ from typing import Tuple
 from typing import Type
 from typing import Union
 
-from ._compat import decode
-from ._utils import RFC_3339_LOOSE
-from ._utils import _escaped
-from ._utils import parse_rfc3339
-from .container import Container
-from .exceptions import EmptyKeyError
-from .exceptions import EmptyTableNameError
-from .exceptions import InternalParserError
-from .exceptions import InvalidCharInStringError
-from .exceptions import InvalidControlChar
-from .exceptions import InvalidDateError
-from .exceptions import InvalidDateTimeError
-from .exceptions import InvalidNumberError
-from .exceptions import InvalidTimeError
-from .exceptions import InvalidUnicodeValueError
-from .exceptions import ParseError
-from .exceptions import UnexpectedCharError
-from .exceptions import UnexpectedEofError
-from .items import AoT
-from .items import Array
-from .items import Bool
-from .items import BoolType
-from .items import Comment
-from .items import Date
-from .items import DateTime
-from .items import Float
-from .items import InlineTable
-from .items import Integer
-from .items import Item
-from .items import Key
-from .items import KeyType
-from .items import Null
-from .items import SingleKey
-from .items import String
-from .items import StringType
-from .items import Table
-from .items import Time
-from .items import Trivia
-from .items import Whitespace
-from .source import Source
-from .toml_char import TOMLChar
-from .toml_document import TOMLDocument
+from pipenv.vendor.tomlkit._compat import decode
+from pipenv.vendor.tomlkit._utils import RFC_3339_LOOSE
+from pipenv.vendor.tomlkit._utils import _escaped
+from pipenv.vendor.tomlkit._utils import parse_rfc3339
+from pipenv.vendor.tomlkit.container import Container
+from pipenv.vendor.tomlkit.exceptions import EmptyKeyError
+from pipenv.vendor.tomlkit.exceptions import EmptyTableNameError
+from pipenv.vendor.tomlkit.exceptions import InternalParserError
+from pipenv.vendor.tomlkit.exceptions import InvalidCharInStringError
+from pipenv.vendor.tomlkit.exceptions import InvalidControlChar
+from pipenv.vendor.tomlkit.exceptions import InvalidDateError
+from pipenv.vendor.tomlkit.exceptions import InvalidDateTimeError
+from pipenv.vendor.tomlkit.exceptions import InvalidNumberError
+from pipenv.vendor.tomlkit.exceptions import InvalidTimeError
+from pipenv.vendor.tomlkit.exceptions import InvalidUnicodeValueError
+from pipenv.vendor.tomlkit.exceptions import ParseError
+from pipenv.vendor.tomlkit.exceptions import UnexpectedCharError
+from pipenv.vendor.tomlkit.exceptions import UnexpectedEofError
+from pipenv.vendor.tomlkit.items import AoT
+from pipenv.vendor.tomlkit.items import Array
+from pipenv.vendor.tomlkit.items import Bool
+from pipenv.vendor.tomlkit.items import BoolType
+from pipenv.vendor.tomlkit.items import Comment
+from pipenv.vendor.tomlkit.items import Date
+from pipenv.vendor.tomlkit.items import DateTime
+from pipenv.vendor.tomlkit.items import Float
+from pipenv.vendor.tomlkit.items import InlineTable
+from pipenv.vendor.tomlkit.items import Integer
+from pipenv.vendor.tomlkit.items import Item
+from pipenv.vendor.tomlkit.items import Key
+from pipenv.vendor.tomlkit.items import KeyType
+from pipenv.vendor.tomlkit.items import Null
+from pipenv.vendor.tomlkit.items import SingleKey
+from pipenv.vendor.tomlkit.items import String
+from pipenv.vendor.tomlkit.items import StringType
+from pipenv.vendor.tomlkit.items import Table
+from pipenv.vendor.tomlkit.items import Time
+from pipenv.vendor.tomlkit.items import Trivia
+from pipenv.vendor.tomlkit.items import Whitespace
+from pipenv.vendor.tomlkit.source import Source
+from pipenv.vendor.tomlkit.toml_char import TOMLChar
+from pipenv.vendor.tomlkit.toml_document import TOMLDocument
 
 
 CTRL_I = 0x09  # Tab
@@ -146,7 +147,10 @@ class Parser:
             key, value = item
             if (key is not None and key.is_multi()) or not self._merge_ws(value, body):
                 # We actually have a table
-                body.append(key, value)
+                try:
+                    body.append(key, value)
+                except Exception as e:
+                    raise self.parse_error(ParseError, str(e)) from e
 
             self.mark()
 
@@ -157,7 +161,10 @@ class Parser:
                 # along with it.
                 value = self._parse_aot(value, key)
 
-            body.append(key, value)
+            try:
+                body.append(key, value)
+            except Exception as e:
+                raise self.parse_error(ParseError, str(e)) from e
 
         body.parsing(False)
 
@@ -226,7 +233,7 @@ class Parser:
                     # Found a table, delegate to the calling function.
                     return
                 else:
-                    # Begining of a KV pair.
+                    # Beginning of a KV pair.
                     # Return to beginning of whitespace so it gets included
                     # as indentation for the KV about to be parsed.
                     state.restore = True
@@ -464,6 +471,7 @@ class Parser:
                     # datetime
                     try:
                         dt = parse_rfc3339(raw)
+                        assert isinstance(dt, datetime.datetime)
                         return DateTime(
                             dt.year,
                             dt.month,
@@ -482,17 +490,20 @@ class Parser:
                 if m.group(1):
                     try:
                         dt = parse_rfc3339(raw)
+                        assert isinstance(dt, datetime.date)
                         date = Date(dt.year, dt.month, dt.day, trivia, raw)
                         self.mark()
                         while self._current not in "\t\n\r#,]}" and self.inc():
                             pass
 
                         time_raw = self.extract()
-                        if not time_raw.strip():
-                            trivia.comment_ws = time_raw
+                        time_part = time_raw.rstrip()
+                        trivia.comment_ws = time_raw[len(time_part) :]
+                        if not time_part:
                             return date
 
-                        dt = parse_rfc3339(raw + time_raw)
+                        dt = parse_rfc3339(raw + time_part)
+                        assert isinstance(dt, datetime.datetime)
                         return DateTime(
                             dt.year,
                             dt.month,
@@ -503,7 +514,7 @@ class Parser:
                             dt.microsecond,
                             dt.tzinfo,
                             trivia,
-                            raw + time_raw,
+                            raw + time_part,
                         )
                     except ValueError:
                         raise self.parse_error(InvalidDateError)
@@ -511,6 +522,7 @@ class Parser:
                 if m.group(5):
                     try:
                         t = parse_rfc3339(raw)
+                        assert isinstance(t, datetime.time)
                         return Time(
                             t.hour,
                             t.minute,
@@ -672,10 +684,10 @@ class Parser:
             or sign
             and raw.startswith(".")
         ):
-            return
+            return None
 
         if raw.startswith(("0o", "0x", "0b")) and sign:
-            return
+            return None
 
         digits = "[0-9]"
         base = 10
@@ -693,14 +705,14 @@ class Parser:
         clean = re.sub(f"(?i)(?<={digits})_(?={digits})", "", raw).lower()
 
         if "_" in clean:
-            return
+            return None
 
         if (
             clean.endswith(".")
             or not clean.startswith("0x")
             and clean.split("e", 1)[0].endswith(".")
         ):
-            return
+            return None
 
         try:
             return Integer(int(sign + clean, base), trivia, sign + raw)
@@ -708,7 +720,7 @@ class Parser:
             try:
                 return Float(float(sign + clean), trivia, sign + raw)
             except ValueError:
-                return
+                return None
 
     def _parse_literal_string(self) -> String:
         with self._state:
@@ -802,9 +814,7 @@ class Parser:
                 delim.is_singleline()
                 and not escaped
                 and (code == CHR_DEL or code <= CTRL_CHAR_LIMIT and code != CTRL_I)
-            ):
-                raise self.parse_error(InvalidControlChar, code, "strings")
-            elif (
+            ) or (
                 delim.is_multiline()
                 and not escaped
                 and (
@@ -901,8 +911,6 @@ class Parser:
             raise self.parse_error(UnexpectedEofError)
         elif self._current != "]":
             raise self.parse_error(UnexpectedCharError, self._current)
-        elif not key.key.strip():
-            raise self.parse_error(EmptyTableNameError)
 
         key.sep = ""
         full_key = key
@@ -916,7 +924,7 @@ class Parser:
         if parent_name:
             parent_name_parts = tuple(parent_name)
         else:
-            parent_name_parts = tuple()
+            parent_name_parts = ()
 
         if len(name_parts) > len(parent_name_parts) + 1:
             missing_table = True
@@ -939,6 +947,7 @@ class Parser:
             is_aot,
             name=name_parts[0].key if name_parts else key.key,
             display_name=full_key.as_string(),
+            is_super_table=False,
         )
 
         if len(name_parts) > 1:
@@ -960,10 +969,9 @@ class Parser:
             key = name_parts[0]
 
             for i, _name in enumerate(name_parts[1:]):
-                if _name in table:
-                    child = table[_name]
-                else:
-                    child = Table(
+                child = table.get(
+                    _name,
+                    Table(
                         Container(True),
                         Trivia(indent, cws, comment, trail),
                         is_aot and i == len(name_parts) - 2,
@@ -972,7 +980,8 @@ class Parser:
                         display_name=full_key.as_string()
                         if i == len(name_parts) - 2
                         else None,
-                    )
+                    ),
+                )
 
                 if is_aot and i == len(name_parts) - 2:
                     table.raw_append(_name, AoT([child], name=table.name, parsed=True))

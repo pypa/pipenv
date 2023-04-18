@@ -3,7 +3,6 @@ import io
 import itertools
 import os
 import sys
-import typing
 import typing as t
 from gettext import gettext as _
 
@@ -94,7 +93,7 @@ def prompt(
     """Prompts a user for input.  This is a convenience function that can
     be used to prompt a user for input later.
 
-    If the user aborts the input by sending a interrupt signal, this
+    If the user aborts the input by sending an interrupt signal, this
     function will catch it and raise a :exc:`Abort` exception.
 
     :param text: the text to show for the prompt.
@@ -160,7 +159,6 @@ def prompt(
         if confirmation_prompt is True:
             confirmation_prompt = _("Repeat for confirmation")
 
-        confirmation_prompt = t.cast(str, confirmation_prompt)
         confirmation_prompt = _build_prompt(confirmation_prompt, prompt_suffix)
 
     while True:
@@ -182,9 +180,9 @@ def prompt(
         if not confirmation_prompt:
             return result
         while True:
-            confirmation_prompt = t.cast(str, confirmation_prompt)
             value2 = prompt_func(confirmation_prompt)
-            if value2:
+            is_empty = not value and not value2
+            if value2 or is_empty:
                 break
         if value == value2:
             return result
@@ -250,26 +248,6 @@ def confirm(
     if abort and not rv:
         raise Abort()
     return rv
-
-
-def get_terminal_size() -> os.terminal_size:
-    """Returns the current size of the terminal as tuple in the form
-    ``(width, height)`` in columns and rows.
-
-    .. deprecated:: 8.0
-        Will be removed in Click 8.1. Use
-        :func:`shutil.get_terminal_size` instead.
-    """
-    import shutil
-    import warnings
-
-    warnings.warn(
-        "'click.get_terminal_size()' is deprecated and will be removed"
-        " in Click 8.1. Use 'shutil.get_terminal_size()' instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return shutil.get_terminal_size()
 
 
 def echo_via_pager(
@@ -627,7 +605,7 @@ def unstyle(text: str) -> str:
 
 def secho(
     message: t.Optional[t.Any] = None,
-    file: t.Optional[t.IO] = None,
+    file: t.Optional[t.IO[t.AnyStr]] = None,
     nl: bool = True,
     err: bool = False,
     color: t.Optional[bool] = None,

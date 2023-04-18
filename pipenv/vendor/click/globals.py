@@ -1,4 +1,3 @@
-import typing
 import typing as t
 from threading import local
 
@@ -9,12 +8,12 @@ if t.TYPE_CHECKING:
 _local = local()
 
 
-@typing.overload
+@t.overload
 def get_current_context(silent: "te.Literal[False]" = False) -> "Context":
     ...
 
 
-@typing.overload
+@t.overload
 def get_current_context(silent: bool = ...) -> t.Optional["Context"]:
     ...
 

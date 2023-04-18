@@ -6,9 +6,10 @@ from datetime import datetime
 from datetime import time
 from datetime import timedelta
 from datetime import timezone
+from typing import Collection
 from typing import Union
 
-from ._compat import decode
+from pipenv.vendor.tomlkit._compat import decode
 
 
 RFC_3339_LOOSE = re.compile(
@@ -97,31 +98,48 @@ def parse_rfc3339(string: str) -> Union[datetime, date, time]:
     raise ValueError("Invalid RFC 339 string")
 
 
-_escaped = {"b": "\b", "t": "\t", "n": "\n", "f": "\f", "r": "\r", '"': '"', "\\": "\\"}
-_escapes = {v: k for k, v in _escaped.items()}
+# https://toml.io/en/v1.0.0#string
+CONTROL_CHARS = frozenset(chr(c) for c in range(0x20)) | {chr(0x7F)}
+_escaped = {
+    "b": "\b",
+    "t": "\t",
+    "n": "\n",
+    "f": "\f",
+    "r": "\r",
+    '"': '"',
+    "\\": "\\",
+}
+_compact_escapes = {
+    **{v: f"\\{k}" for k, v in _escaped.items()},
+    '"""': '""\\"',
+}
+_basic_escapes = CONTROL_CHARS | {'"', "\\"}
 
 
-def escape_string(s: str) -> str:
+def _unicode_escape(seq: str) -> str:
+    return "".join(f"\\u{ord(c):04x}" for c in seq)
+
+
+def escape_string(s: str, escape_sequences: Collection[str] = _basic_escapes) -> str:
     s = decode(s)
 
     res = []
     start = 0
 
-    def flush():
+    def flush(inc=1):
         if start != i:
             res.append(s[start:i])
 
-        return i + 1
+        return i + inc
 
     i = 0
     while i < len(s):
-        c = s[i]
-        if c in '"\\\n\r\t\b\f':
-            start = flush()
-            res.append("\\" + _escapes[c])
-        elif ord(c) < 0x20:
-            start = flush()
-            res.append("\\u%04x" % ord(c))
+        for seq in escape_sequences:
+            seq_len = len(seq)
+            if s[i:].startswith(seq):
+                start = flush(seq_len)
+                res.append(_compact_escapes.get(seq) or _unicode_escape(seq))
+                i += seq_len - 1  # fast-forward escape sequence
         i += 1
 
     flush()

@@ -1,4 +1,4 @@
-from .container import Container
+from pipenv.vendor.tomlkit.container import Container
 
 
 class TOMLDocument(Container):
