@@ -23,6 +23,7 @@ from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import import_requirements
 from pipenv.utils.virtualenv import cleanup_virtualenv, do_create_virtualenv
 from pipenv.vendor import click, vistir
+from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 console = rich.console.Console()
 err = rich.console.Console(stderr=True)
@@ -375,7 +376,7 @@ def do_install(
                 st.console.print(
                     environments.PIPENV_SPINNER_OK_TEXT.format("Installation Succeeded")
                 )
-            # Update project settings with pre preference.
+            # Update project settings with pre-release preference.
             if pre:
                 project.update_settings({"allow_prereleases": pre})
         do_init(
@@ -473,15 +474,14 @@ def do_install_dependencies(
         else:
             categories = ["packages"]
 
+    lockfile = None
+    pipfile = None
     for category in categories:
         # Load the lockfile if it exists, or if dev_only is being used.
-        if skip_lock or not project.lockfile_exists:
+        if skip_lock:
             if not bare:
                 click.secho("Installing dependencies from Pipfile...", bold=True)
-            # skip_lock should completely bypass the lockfile (broken in 4dac1676)
-            lockfile = project.get_or_create_lockfile(
-                categories=categories, from_pipfile=True
-            )
+            pipfile = project.get_pipfile_section(category)
         else:
             lockfile = project.get_or_create_lockfile(categories=categories)
             if not bare:
@@ -492,9 +492,14 @@ def do_install_dependencies(
                     bold=True,
                 )
         dev = dev or dev_only
-        deps_list = list(
-            lockfile.get_requirements(dev=dev, only=dev_only, categories=[category])
-        )
+        if lockfile:
+            deps_list = list(
+                lockfile.get_requirements(dev=dev, only=dev_only, categories=[category])
+            )
+        else:
+            deps_list = []
+            for req_name, specifier in pipfile.items():
+                deps_list.append(Requirement.from_pipfile(req_name, specifier))
         failed_deps_queue = queue.Queue()
         if skip_lock:
             ignore_hashes = True
