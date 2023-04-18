@@ -23,16 +23,16 @@ def get_cli_string(
     """
     command = ['dotenv']
     if quote:
-        command.append('-q %s' % quote)
+        command.append(f'-q {quote}')
     if path:
-        command.append('-f %s' % path)
+        command.append(f'-f {path}')
     if action:
         command.append(action)
         if key:
             command.append(key)
             if value:
                 if ' ' in value:
-                    command.append('"%s"' % value)
+                    command.append(f'"{value}"')
                 else:
                     command.append(value)
 

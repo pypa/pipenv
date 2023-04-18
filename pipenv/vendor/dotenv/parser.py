@@ -25,23 +25,16 @@ _double_quote_escapes = make_regex(r"\\[\\'\"abfnrtv]")
 _single_quote_escapes = make_regex(r"\\[\\']")
 
 
-Original = NamedTuple(
-    "Original",
-    [
-        ("string", str),
-        ("line", int),
-    ],
-)
+class Original(NamedTuple):
+    string: str
+    line: int
 
-Binding = NamedTuple(
-    "Binding",
-    [
-        ("key", Optional[str]),
-        ("value", Optional[str]),
-        ("original", Original),
-        ("error", bool),
-    ],
-)
+
+class Binding(NamedTuple):
+    key: Optional[str]
+    value: Optional[str]
+    original: Original
+    error: bool
 
 
 class Position:
@@ -155,7 +148,7 @@ def parse_binding(reader: Reader) -> Binding:
         reader.read_regex(_whitespace)
         if reader.peek(1) == "=":
             reader.read_regex(_equal_sign)
-            value = parse_value(reader)  # type: Optional[str]
+            value: Optional[str] = parse_value(reader)
         else:
             value = None
         reader.read_regex(_comment)
