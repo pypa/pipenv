@@ -11,32 +11,19 @@ import os
 import shutil
 import stat
 
-from pipenv.vendor.vistir.path import rmtree
-
 logger = logging.getLogger(__name__)
 
 
-from typing import Dict, Iterable, List, Optional
-
-from pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pip._internal.network.download import Downloader
-from pipenv.patched.pip._internal.operations.prepare import (
-    File,
-    get_file_url,
-    get_http_url,
-    unpack_vcs_link,
-)
-from pipenv.patched.pip._internal.utils.hashes import Hashes
-from pipenv.patched.pip._internal.utils.unpacking import unpack_file
+from typing import Dict, Iterable, List
 
 
-def is_socket(path):
-    # type: (str) -> bool
+# This can be removed once this pr is merged
+# https://github.com/python/cpython/pull/16575
+def is_socket(path: str) -> bool:
     return stat.S_ISSOCK(os.lstat(path).st_mode)
 
 
-def copy2_fixed(src, dest):
-    # type: (str, str) -> None
+def copy2_fixed(src: str, dest: str) -> None:
     """Wrap shutil.copy2() but map errors copying socket files to
     SpecialFileError as expected.
 
@@ -108,55 +95,3 @@ def _copy_source_tree(source: str, target: str) -> None:
         symlinks=True,
         copy_function=_copy2_ignoring_special_files,
     )
-
-
-def old_unpack_url(
-    link: Link,
-    location: str,
-    download: Downloader,
-    verbosity: int,
-    download_dir: Optional[str] = None,
-    hashes: Optional[Hashes] = None,
-) -> Optional[File]:
-    """Unpack link into location, downloading if required.
-
-    :param hashes: A Hashes object, one of whose embedded hashes must match,
-        or HashMismatch will be raised. If the Hashes is empty, no matches are
-        required, and unhashable types of requirements (like VCS ones, which
-        would ordinarily raise HashUnsupported) are allowed.
-    """
-    # non-editable vcs urls
-    if link.is_vcs:
-        unpack_vcs_link(link, location, verbosity=verbosity)
-        return None
-
-    # Once out-of-tree-builds are no longer supported, could potentially
-    # replace the below condition with `assert not link.is_existing_dir`
-    # - unpack_url does not need to be called for in-tree-builds.
-    #
-    # As further cleanup, _copy_source_tree and accompanying tests can
-    # be removed.
-    #
-    # TODO when use-deprecated=out-of-tree-build is removed
-    if link.is_existing_dir():
-        if os.path.isdir(location):
-            rmtree(location)
-        _copy_source_tree(link.file_path, location)
-        return None
-
-    # file urls
-    if link.is_file:
-        file = get_file_url(link, download_dir, hashes=hashes)
-    # http urls
-    else:
-        file = get_http_url(
-            link,
-            download,
-            download_dir,
-            hashes=hashes,
-        )
-    # unpack the archive to the build dir location. even when only downloading
-    # archives, they have to be unpacked to parse dependencies, except wheels
-    if not link.is_wheel:
-        unpack_file(file.path, location, file.content_type)
-    return file

@@ -18,6 +18,7 @@ import pipenv.vendor.attr as attr
 from pipenv.patched.pip._vendor.distlib.wheel import Wheel
 from pipenv.vendor.pep517 import envbuild, wrappers
 from pipenv.patched.pip._internal.network.download import Downloader
+from pipenv.patched.pip._internal.operations.prepare import unpack_url
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._internal.utils.urls import url_to_path
 from pipenv.patched.pip._vendor.packaging.markers import Marker
@@ -36,7 +37,7 @@ from pipenv.vendor.vistir.path import create_tracked_tempdir, rmtree
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
 from ..utils import get_pip_command
-from .old_pip_utils import old_unpack_url
+from .old_pip_utils import _copy_source_tree
 from .utils import (
     get_default_pyproject_backend,
     get_name_variants,
@@ -1514,16 +1515,22 @@ build-backend = "{1}"
             build_location_func(**build_kwargs)
             ireq.ensure_has_source_dir(kwargs["src_dir"])
             location = None
-            if getattr(ireq, "source_dir", None):
+            if ireq.source_dir:
                 location = ireq.source_dir
-            old_unpack_url(
-                link=ireq.link,
-                location=location,
-                download=Downloader(session, "off"),
-                verbosity=1,
-                download_dir=download_dir,
-                hashes=ireq.hashes(True),
-            )
+
+            if ireq.link.is_existing_dir():
+                if os.path.isdir(location):
+                    rmtree(location)
+                _copy_source_tree(ireq.link.file_path, location)
+            else:
+                unpack_url(
+                    link=ireq.link,
+                    location=location,
+                    download=Downloader(session, "off"),
+                    verbosity=1,
+                    download_dir=download_dir,
+                    hashes=ireq.hashes(True),
+                )
         created = cls.create(
             ireq.source_dir, subdirectory=subdir, ireq=ireq, kwargs=kwargs, stack=stack
         )
