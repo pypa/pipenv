@@ -1,3 +1,57 @@
+2023.4.20 (2023-04-20)
+======================
+Pipenv 2023.4.20 (2023-04-20)
+=============================
+
+
+Features & Improvements
+-----------------------
+
+- Checks environment variable ``PIP_TRUSTED_HOSTS`` when evaluating an
+  index specified at the command line when adding to ``Pipfile``.
+
+  For example, this command line
+
+  ::
+
+     PIP_TRUSTED_HOSTS=internal.mycompany.com pipenv install pypkg --index=https://internal.mycompany.com/pypi/simple
+
+  will add the following to the ``Pipfile``:
+
+  ::
+
+     [[source]]
+     url = 'https://internal.mycompany.com/pypi/simple'
+     verify_ssl = false
+     name = 'Internalmycompany'
+
+     [packages]
+     pypkg = {version="*", index="Internalmycompany"}
+
+  This allows users with private indexes to add them to ``Pipfile``
+  initially from command line with correct permissions using environment
+  variable ``PIP_TRUSTED_HOSTS``.  `#5572 <https://github.com/pypa/pipenv/issues/5572>`_
+- Vendor in the updates, upgrades and fixes provided by ``pip==23.1``.  `#5655 <https://github.com/pypa/pipenv/issues/5655>`_
+- Replace flake8 and isort with `ruff <https://beta.ruff.rs>`_.  `#ruff <https://github.com/pypa/pipenv/issues/ruff>`_
+
+Bug Fixes
+---------
+
+- Fix regression with ``--skip-lock`` option with ``install`` command.  `#5653 <https://github.com/pypa/pipenv/issues/5653>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in latest ``python-dotenv==1.0.0``  `#5656 <https://github.com/pypa/pipenv/issues/5656>`_
+- Vendor in latest available dependencies:  ``attrs==23.1.0`` ``click-didyoumean==0.3.0`` ``click==8.1.3`` ``markupsafe==2.1.2`` ``pipdeptree==2.7.0`` ``shellingham==1.5.0.post1`` ``tomlkit==0.11.7``  `#5657 <https://github.com/pypa/pipenv/issues/5657>`_
+- Vendor in latest ``requirementslib==2.2.5`` which includes updates for pip 23.1  `#5659 <https://github.com/pypa/pipenv/issues/5659>`_
+
+Improved Documentation
+----------------------
+
+- Made documentation clear about tilde-equals operator for package versions.  `#5594 <https://github.com/pypa/pipenv/issues/5594>`_
+
+
 2023.3.20 (2023-03-19)
 ======================
 Pipenv 2023.3.20 (2023-03-19)

@@ -1,1 +1,0 @@
-Vendor in latest ``requirementslib==2.2.5`` which includes updates for pip 23.1

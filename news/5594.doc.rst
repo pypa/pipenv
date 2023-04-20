@@ -1,1 +1,0 @@
-Made documentation clear about tilde-equals operator for package versions.
