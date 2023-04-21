@@ -307,11 +307,6 @@ class Pipfile(object):
         }
         return cls(**creation_args)
 
-    def write(self):
-        # type: () -> None
-        self.projectfile.model = copy.deepcopy(self._pipfile)
-        self.projectfile.write()
-
     @property
     def dev_packages(self):
         # type: () -> List[Requirement]
@@ -345,32 +340,3 @@ class Pipfile(object):
                 if v is not None
             ]
         return self._requirements
-
-    def _read_pyproject(self):
-        # type: () -> None
-        pyproject = self.path.parent.joinpath("pyproject.toml")
-        if pyproject.exists():
-            self._pyproject = tomlkit.loads(pyproject.read_text())
-            build_system = self._pyproject.get("build-system", None)
-            if build_system and not build_system.get("build_backend"):
-                build_system["build-backend"] = "setuptools.build_meta:__legacy__"
-            elif not build_system or not build_system.get("requires"):
-                build_system = {
-                    "requires": ["setuptools>=40.8", "wheel"],
-                    "build-backend": "setuptools.build_meta:__legacy__",
-                }
-            self.build_system = build_system
-
-    @property
-    def build_requires(self):
-        # type: () -> List[Text]
-        if not self.build_system:
-            self._read_pyproject()
-        return self.build_system.get("requires", [])
-
-    @property
-    def build_backend(self):
-        # type: () -> Text
-        if not self.build_system:
-            self._read_pyproject()
-        return self.build_system.get("build-backend", None)

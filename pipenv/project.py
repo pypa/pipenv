@@ -13,7 +13,7 @@ import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
 
-import click
+from pipenv.vendor import click
 
 from pipenv.cmdparse import Script
 from pipenv.environment import Environment

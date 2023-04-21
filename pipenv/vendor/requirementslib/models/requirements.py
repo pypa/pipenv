@@ -52,7 +52,6 @@ from ..utils import (
     is_vcs,
     strip_ssh_from_git_uri,
 )
-from .dependencies import AbstractDependency, get_abstract_dependencies, get_dependencies
 from .markers import normalize_marker_str
 from .setup_info import (
     SetupInfo,
@@ -75,7 +74,6 @@ from .utils import (
     get_pyproject,
     get_version,
     init_requirement,
-    is_pinned_requirement,
     make_install_requirement,
     normalize_name,
     parse_extras,
@@ -104,9 +102,6 @@ if MYPY_RUNNING:
         TypeVar,
         Union,
     )
-
-    from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-    from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
 
     RequirementType = TypeVar(
         "RequirementType", covariant=True, bound=PackagingRequirement
@@ -2386,9 +2381,6 @@ class Requirement(object):
         factory=frozenset, converter=frozenset, eq=True, order=True
     )  # type: FrozenSet[STRING_TYPE]
     extras = attr.ib(factory=tuple, eq=True, order=True)  # type: Tuple[STRING_TYPE, ...]
-    abstract_dep = attr.ib(
-        default=None, eq=False, order=False
-    )  # type: Optional[AbstractDependency]
     _line_instance = attr.ib(default=None, eq=False, order=False)  # type: Optional[Line]
     _ireq = attr.ib(
         default=None, eq=False, order=False
@@ -2454,14 +2446,6 @@ class Requirement(object):
         hashes = self.get_hashes_as_pip()
         assert isinstance(hashes, str)
         return hashes
-
-    @property
-    def markers_as_pip(self):
-        # type: () -> S
-        if self.markers:
-            return " ; {0}".format(self.markers).replace('"', "'")
-
-        return ""
 
     @property
     def extras_as_pip(self):
@@ -2619,25 +2603,6 @@ class Requirement(object):
     def is_vcs(self):
         # type: () -> bool
         return isinstance(self.req, VCSRequirement)
-
-    @property
-    def build_backend(self):
-        # type: () -> Optional[STRING_TYPE]
-        if self.req is not None and (
-            not isinstance(self.req, NamedRequirement) and self.req.is_local
-        ):
-            with global_tempdir_manager():
-                setup_info = self.run_requires()
-            build_backend = setup_info.get("build_backend")
-            return build_backend
-        return "setuptools.build_meta"
-
-    @property
-    def uses_pep517(self):
-        # type: () -> bool
-        if self.build_backend:
-            return True
-        return False
 
     @property
     def is_file_or_url(self):
@@ -2942,67 +2907,6 @@ class Requirement(object):
     def ireq(self):
         return self.as_ireq()
 
-    def dependencies(self, sources=None):
-        """Retrieve the dependencies of the current requirement.
-
-        Retrieves dependencies of the current requirement.  This only works on pinned
-        requirements.
-
-        :param sources: Pipfile-formatted sources, defaults to None
-        :param sources: list[dict], optional
-        :return: A set of requirement strings of the dependencies of this requirement.
-        :rtype: set(str)
-        """
-        if not sources:
-            sources = [
-                {"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True}
-            ]
-        return get_dependencies(self.as_ireq(), sources=sources)
-
-    def abstract_dependencies(self, sources=None):
-        """Retrieve the abstract dependencies of this requirement.
-
-        Returns the abstract dependencies of the current requirement in order to resolve.
-
-        :param sources: A list of sources (pipfile format), defaults to None
-        :param sources: list, optional
-        :return: A list of abstract (unpinned) dependencies
-        :rtype: list[ :class:`~requirementslib.models.dependency.AbstractDependency` ]
-        """
-
-        if not self.abstract_dep:
-            parent = getattr(self, "parent", None)
-            self.abstract_dep = AbstractDependency.from_requirement(self, parent=parent)
-        if not sources:
-            sources = [
-                {"url": "https://pypi.org/simple", "name": "pypi", "verify_ssl": True}
-            ]
-        if is_pinned_requirement(self.ireq):
-            deps = self.dependencies()
-        else:
-            ireq = sorted(self.find_all_matches(), key=lambda k: k.version)
-            deps = get_dependencies(ireq.pop())
-        return get_abstract_dependencies(deps, parent=self.abstract_dep)
-
-    def find_all_matches(self, sources=None, finder=None):
-        # type: (Optional[List[Dict[S, Union[S, bool]]]], Optional[PackageFinder]) -> List[InstallationCandidate]
-        """Find all matching candidates for the current requirement.
-
-        Consults a finder to find all matching candidates.
-
-        :param sources: Pipfile-formatted sources, defaults to None
-        :param sources: list[dict], optional
-        :param PackageFinder finder: A **PackageFinder** instance from pip's repository implementation
-        :return: A list of Installation Candidates
-        :rtype: list[ :class:`~pipenv.patched.pip._internal.index.InstallationCandidate` ]
-        """
-
-        from .dependencies import find_all_matches, get_finder
-
-        if not finder:
-            _, finder = get_finder(sources=sources)
-        return find_all_matches(finder, self.as_ireq())
-
     def run_requires(self, sources=None, finder=None):
         if self.req and self.req.setup_info is not None:
             info_dict = self.req.setup_info.as_dict()
@@ -3147,8 +3051,3 @@ def named_req_from_parsed_line(parsed_line):
             parsed_line=parsed_line,
         )
     return NamedRequirement.from_line(parsed_line.line)
-
-
-if __name__ == "__main__":
-    line = Line("vistir@ git+https://github.com/sarugaku/vistir.git@master")
-    print(line)

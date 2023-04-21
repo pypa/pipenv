@@ -44,23 +44,6 @@ def _get_parsed_url(url):
     return parsed
 
 
-def remove_password_from_url(url):
-    # type: (S) -> S
-    """Given a url, remove the password and insert 4 dashes.
-
-    :param url: The url to replace the authentication in
-    :type url: S
-    :return: The new URL without authentication
-    :rtype: S
-    """
-
-    parsed = _get_parsed_url(url)
-    if parsed.auth:
-        auth, _, _ = parsed.auth.partition(":")
-        return parsed._replace(auth="{auth}:----".format(auth=auth)).url
-    return parsed.url
-
-
 @attr.s(hash=True)
 class URI(object):
     #: The target hostname, e.g. `amazon.com`
