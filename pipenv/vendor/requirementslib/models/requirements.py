@@ -1887,7 +1887,7 @@ class FileRequirement(ReqLibBaseModel):
             "_setup_info",
             "_parsed_line",
         ]
-        instance_dict = self.dict()
+        instance_dict = self.dict().copy()
         pipfile_dict = {k: v for k, v in instance_dict.items() if v and k not in excludes}
         name = pipfile_dict.pop("name", None)
         if name is None:
