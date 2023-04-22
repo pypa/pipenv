@@ -981,10 +981,12 @@ class Project:
         keys = list(converted.keys())
         for k in keys:
             value = converted.get(k)
-            if value is None or value == [] or value == "":
+            if not value:
                 del converted[k]
             if k in ["name", "uri"]:
                 del converted[k]
+        if len(converted) == 1:
+            converted = converted.get("version")
         p[category][normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)

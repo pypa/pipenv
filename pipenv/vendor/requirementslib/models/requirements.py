@@ -1432,6 +1432,10 @@ class NamedRequirement(ReqLibBaseModel):
             pipfile_dict["version"] = "*"
         if "_parsed_line" in pipfile_dict:
             pipfile_dict.pop("_parsed_line")
+        if pipfile_dict.get("editable") is False:
+            pipfile_dict.pop("editable")
+        if pipfile_dict.get("line_part"):
+            pipfile_dict.pop("line_part")
         name = pipfile_dict.pop("name")
         return {name: pipfile_dict}
 
@@ -1488,14 +1492,16 @@ class FileRequirement(ReqLibBaseModel):
                 self._parsed_line._ireq.req = self.req
 
         # Set default values using the methods
-        if not self.uri:
-            self.uri = self.get_uri()
         if not self.name:
             self.name = self.get_name()
         if not self.link:
             self.link = self.get_link()
         if not self.req:
             self.req = self.get_requirement()
+        if not self.uri:
+            self.uri = self.get_uri()
+        if self.path:
+            self._uri_scheme = "path"
 
     @classmethod
     def get_link_from_line(cls, line):
@@ -1887,8 +1893,16 @@ class FileRequirement(ReqLibBaseModel):
             "_setup_info",
             "_parsed_line",
         ]
-        instance_dict = self.dict().copy()
-        pipfile_dict = {k: v for k, v in instance_dict.items() if v and k not in excludes}
+        pipfile_dict = self.dict().copy()
+        for k in list(pipfile_dict.keys()):
+            if k in excludes:
+                pipfile_dict.pop(k)
+            elif not pipfile_dict.get(k):
+                pipfile_dict.pop(k)
+        if pipfile_dict.get("editable") is False:
+            pipfile_dict.pop("editable")
+        if pipfile_dict.get("line_part"):
+            pipfile_dict.pop("line_part")
         name = pipfile_dict.pop("name", None)
         if name is None:
             if self.name:
@@ -2351,8 +2365,12 @@ class VCSRequirement(FileRequirement):
         for k in list(pipfile_dict.keys()):
             if k in excludes:
                 pipfile_dict.pop(k)
+            elif not pipfile_dict.get(k):
+                pipfile_dict.pop(k)
         if pipfile_dict.get("editable") is False:
             pipfile_dict.pop("editable")
+        if pipfile_dict.get("line_part"):
+            pipfile_dict.pop("line_part")
         name = pipfile_dict.get("name")
         if name is None:
             if self.name:
@@ -2484,7 +2502,7 @@ class Requirement(ReqLibBaseModel):
                 line_parts.append(self.extras_as_pip)
         if self.specifiers and not (self.is_file_or_url or self.is_vcs):
             line_parts.append(self.specifiers)
-        if self.markers:
+        if self.markers and not self.is_file_or_url:
             line_parts.append(" ; {0}".format(self.markers.replace('"', "'")))
         if self.hashes_as_pip and not (self.editable or self.vcs or self.is_vcs):
             line_parts.append(self.hashes_as_pip)
