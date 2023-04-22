@@ -193,14 +193,8 @@ def init_requirement(name):
     return req
 
 
-def extras_to_string(extras):
-    # type: (Iterable[S]) -> S
-    """Turn a list of extras into a string.
-
-    :param List[str]] extras: a list of extras to format
-    :return: A string of extras
-    :rtype: str
-    """
+def extras_to_string(extras) -> str:
+    """Turn a list of extras into a string."""
     if isinstance(extras, str):
         if extras.startswith("["):
             return extras
@@ -208,11 +202,10 @@ def extras_to_string(extras):
             extras = [extras]
     if not extras:
         return ""
-    return "[{0}]".format(",".join(sorted(set(extras))))  # type: ignore
+    return "[{0}]".format(",".join(sorted(set(extras))))
 
 
 def parse_extras(extras_str):
-    # type: (AnyStr) -> List[AnyStr]
     """Turn a string of extras into a parsed extras list.
 
     :param str extras_str: An extras string

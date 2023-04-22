@@ -9,7 +9,25 @@ from sysconfig import get_path
 from urllib import parse as urllib_parse
 from urllib.parse import unquote
 
-import pipenv.vendor.attr as attr
+from typing import (
+    Any,
+    AnyStr,
+    Dict,
+    FrozenSet,
+    Generator,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Text,
+    Tuple,
+    TypeVar,
+    Union,
+)
+from pipenv.vendor.pydantic import BaseModel, Field
+from pipenv.vendor.pydantic.dataclasses import dataclass
+from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+
 from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
@@ -59,6 +77,9 @@ from .setup_info import (
     ast_parse_setup_py,
     get_metadata,
 )
+from urllib.parse import SplitResult
+
+from .vcs import VCSRepository
 from .url import URI
 from .utils import (
     DIRECT_URL_RE,
@@ -103,67 +124,50 @@ if MYPY_RUNNING:
         Union,
     )
 
-    RequirementType = TypeVar(
-        "RequirementType", covariant=True, bound=PackagingRequirement
-    )
     F = TypeVar("F", "FileRequirement", "VCSRequirement", covariant=True)
-    from urllib.parse import SplitResult
-
-    from .vcs import VCSRepository
 
     NON_STRING_ITERABLE = Union[List, Set, Tuple]
-    STRING_TYPE = Union[str, bytes, Text]
+    str = Union[str, bytes, Text]
     S = TypeVar("S", bytes, str, Text)
-    BASE_TYPES = Union[bool, STRING_TYPE, Tuple[STRING_TYPE, ...]]
-    CUSTOM_TYPES = Union[VCSRepository, RequirementType, SetupInfo, "Line"]
+    BASE_TYPES = Union[bool, str, Tuple[str, ...]]
+    CUSTOM_TYPES = Union[VCSRepository, PackagingRequirement, SetupInfo, "Line"]
     CREATION_ARG_TYPES = Union[BASE_TYPES, Link, CUSTOM_TYPES]
-    PIPFILE_ENTRY_TYPE = Union[STRING_TYPE, bool, Tuple[STRING_TYPE], List[STRING_TYPE]]
-    PIPFILE_TYPE = Union[STRING_TYPE, Dict[STRING_TYPE, PIPFILE_ENTRY_TYPE]]
-    TPIPFILE = Dict[STRING_TYPE, PIPFILE_ENTRY_TYPE]
+    PIPFILE_ENTRY_TYPE = Union[str, bool, Tuple[str], List[str]]
+    PIPFILE_TYPE = Union[str, Dict[str, PIPFILE_ENTRY_TYPE]]
+    TPIPFILE = Dict[str, PIPFILE_ENTRY_TYPE]
 
 
 SPECIFIERS_BY_LENGTH = sorted(list(Specifier._operators.keys()), key=len, reverse=True)
 
 
-class Line(object):
-    def __init__(self, line, extras=None):
-        # type: (AnyStr, Optional[Union[List[S], Set[S], Tuple[S, ...]]]) -> None
-        self.editable = False  # type: bool
-        if line.startswith("-e "):
-            line = line[len("-e ") :]
-            self.editable = True
-        self.extras = ()  # type: Tuple[STRING_TYPE, ...]
-        if extras is not None:
-            self.extras = tuple(sorted(set(extras)))
-        self.line = line  # type: STRING_TYPE
-        self.hashes = []  # type: List[STRING_TYPE]
-        self.markers = None  # type: Optional[STRING_TYPE]
-        self.vcs = None  # type: Optional[STRING_TYPE]
-        self.path = None  # type: Optional[STRING_TYPE]
-        self.relpath = None  # type: Optional[STRING_TYPE]
-        self.uri = None  # type: Optional[STRING_TYPE]
-        self._link = None  # type: Optional[Link]
-        self.is_local = False  # type: bool
-        self._name = None  # type: Optional[STRING_TYPE]
-        self._specifier = None  # type: Optional[STRING_TYPE]
-        self.parsed_marker = None  # type: Optional[Marker]
-        self.preferred_scheme = None  # type: Optional[STRING_TYPE]
-        self._requirement = None  # type: Optional[PackagingRequirement]
-        self._parsed_url = None  # type: Optional[URI]
-        self._setup_cfg = None  # type: Optional[STRING_TYPE]
-        self._setup_py = None  # type: Optional[STRING_TYPE]
-        self._pyproject_toml = None  # type: Optional[STRING_TYPE]
-        self._pyproject_requires = None  # type: Optional[Tuple[STRING_TYPE, ...]]
-        self._pyproject_backend = None  # type: Optional[STRING_TYPE]
-        self._wheel_kwargs = None  # type: Optional[Dict[STRING_TYPE, STRING_TYPE]]
-        self._vcsrepo = None  # type: Optional[VCSRepository]
-        self._setup_info = None  # type: Optional[SetupInfo]
-        self._ref = None  # type: Optional[STRING_TYPE]
-        self._ireq = None  # type: Optional[InstallRequirement]
-        self._src_root = None  # type: Optional[STRING_TYPE]
-        self.dist = None  # type: Any
-        super(Line, self).__init__()
-        self.parse()
+class Line(BaseModel):
+    line: str
+    editable: bool = Field(False, eq=True, order=True)
+    extras: Tuple[str, ...] = Field(tuple(), eq=True, order=True)
+    hashes: List[str] = Field(list, eq=True, order=True)
+    markers: Optional[str] = Field(None, eq=True, order=True)
+    vcs: Optional[str] = Field(None, eq=True, order=True)
+    path: Optional[str] = Field(None, eq=True, order=True)
+    relpath: Optional[str] = Field(None, eq=True, order=True)
+    uri: Optional[str] = Field(None, eq=True, order=True)
+    _link: Optional[Link] = Field(None, eq=True, order=True)
+    is_local: bool = Field(False, eq=True, order=True)
+    _name: Optional[str] = Field(None, eq=True, order=True)
+    _specifier: Optional[str] = Field(None, eq=True, order=True)
+    parsed_marker: Optional[Marker] = Field(None, eq=True, order=True)
+    preferred_scheme: Optional[str] = Field(None, eq=True, order=True)
+    _requirement: Optional[PackagingRequirement] = Field(None, eq=True, order=True)
+    _vcsrepo: Optional[VCSRepository] = Field(None, eq=True, order=True)
+    _setup_info: Optional[SetupInfo] = Field(None, eq=True, order=True)
+    _ref: Optional[str] = Field(None, eq=True, order=True)
+    _ireq: Optional[InstallRequirement] = Field(None, eq=True, order=True)
+    dist: Any = Field(None, eq=True, order=True)
+
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        keep_untouched = (cached_property,)
 
     def __hash__(self):
         return hash(
@@ -186,25 +190,23 @@ class Line(object):
             return (
                 "<Line (editable={self.editable}, name={self._name}, path={self.path}, "
                 "uri={self.uri}, extras={self.extras}, markers={self.markers}, vcs={self.vcs}"
-                ", specifier={self._specifier}, pyproject={self._pyproject_toml}, "
-                "pyproject_requires={self._pyproject_requires}, "
-                "pyproject_backend={self._pyproject_backend}, ireq={self._ireq})>".format(
+                ", specifier={self._specifier}, pyproject={self.pyproject_toml}, "
+                "pyproject_requires={self.pyproject_requires}, "
+                "pyproject_backend={self.pyproject_backend}, ireq={self._ireq})>".format(
                     self=self
                 )
             )
         except Exception:
             return "<Line {0}>".format(self.__dict__.values())
 
-    def __str__(self):
-        # type: () -> str
+    def __str__(self) -> str:
         if self.markers:
             return "{0} ; {1}".format(self.get_line(), self.markers)
         return self.get_line()
 
     def get_line(
-        self, with_prefix=False, with_markers=False, with_hashes=True, as_list=False
-    ):
-        # type: (bool, bool, bool, bool) -> Union[STRING_TYPE, List[STRING_TYPE]]
+        self, with_prefix: bool = False, with_markers: bool = False, with_hashes: bool = True, as_list: bool = False
+    ) -> Union[str, List[str]]:
         line = self.line
         extras_str = extras_to_string(self.extras)
         with_hashes = False if self.editable or self.is_vcs else with_hashes
@@ -220,15 +222,7 @@ class Line(object):
                     line = line.replace("git+file:/", "git+file:///")
             elif extras_str not in line:
                 line = "{0}{1}".format(line, extras_str)
-        # XXX: For using markers on vcs or url requirements, they can be used
-        # as normal (i.e. no space between the requirement and the semicolon)
-        # and no additional quoting as long as they are not editable requirements
-        # HOWEVER, for editable requirements, the requirement+marker must be quoted
-        # We do this here for the line-formatted versions, but leave it up to the
-        # `Script.parse()` functionality in pipenv, for instance, to handle that
-        # in a cross-platform manner for the `as_list` approach since that is how
-        # we anticipate this will be used if passing directly to the command line
-        # for pip.
+
         if with_markers and self.markers:
             line = "{0} ; {1}".format(line, self.markers)
             if with_prefix and self.editable and not as_list:
@@ -247,8 +241,8 @@ class Line(object):
             line = "{0} {1}".format(line, " ".join(hash_list))
         return line
 
-    @property
-    def name_and_specifier(self):
+    @cached_property
+    def name_and_specifier(self) -> str:
         name_str, spec_str = "", ""
         if self.name:
             name_str = "{0}".format(self.name.lower())
@@ -260,13 +254,12 @@ class Line(object):
         return "{0}{1}".format(name_str, spec_str)
 
     @classmethod
-    def split_hashes(cls, line):
-        # type: (S) -> Tuple[S, List[S]]
+    def split_hashes(cls, line: str) -> Tuple[str, List[str]]:
         if "--hash" not in line:
             return line, []
         split_line = line.split()
-        line_parts = []  # type: List[S]
-        hashes = []  # type: List[S]
+        line_parts = []  # type: List[str]
+        hashes = []  # type: List[str]
         for part in split_line:
             if part.startswith("--hash"):
                 param, _, value = part.partition("=")
@@ -276,15 +269,13 @@ class Line(object):
         line = " ".join(line_parts)
         return line, hashes
 
-    @property
-    def line_with_prefix(self):
-        # type: () -> STRING_TYPE
+    @cached_property
+    def line_with_prefix(self) -> str:
         return self.get_line(with_prefix=True, with_hashes=False)
 
-    @property
-    def line_for_ireq(self):
-        # type: () -> STRING_TYPE
-        line = ""  # type: STRING_TYPE
+    @cached_property
+    def line_for_ireq(self) -> str:
+        line = ""
         if self.is_file or self.is_remote_url and not self.is_vcs:
             scheme = self.preferred_scheme if self.preferred_scheme is not None else "uri"
             local_line = next(
@@ -338,9 +329,8 @@ class Line(object):
             line = self.line
         return line
 
-    @property
-    def base_path(self):
-        # type: () -> Optional[S]
+    @cached_property
+    def base_path(self) -> str:
         if not self.link and not self.path:
             self.parse_link()
         if not self.path:
@@ -354,30 +344,23 @@ class Line(object):
             path = None
         return path
 
-    @property
-    def setup_py(self):
-        # type: () -> Optional[STRING_TYPE]
-        if self._setup_py is None:
-            self.populate_setup_paths()
-        return self._setup_py
+    @cached_property
+    def setup_py(self) -> str:
+        setup_paths = self.get_setup_paths()
+        return setup_paths.get("setup_py")
+
+    @cached_property
+    def setup_cfg(self) -> str:
+        setup_paths = self.get_setup_paths()
+        return setup_paths.get("setup_cfg")
+
+    @cached_property
+    def pyproject_toml(self) -> str:
+        setup_paths = self.get_setup_paths()
+        return setup_paths.get("pyproject_toml")
 
     @property
-    def setup_cfg(self):
-        # type: () -> Optional[STRING_TYPE]
-        if self._setup_cfg is None:
-            self.populate_setup_paths()
-        return self._setup_cfg
-
-    @property
-    def pyproject_toml(self):
-        # type: () -> Optional[STRING_TYPE]
-        if self._pyproject_toml is None:
-            self.populate_setup_paths()
-        return self._pyproject_toml
-
-    @property
-    def specifier(self):
-        # type: () -> Optional[STRING_TYPE]
+    def specifier(self) -> Optional[str]:
         options = [self._specifier]
         for req in (self.ireq, self.requirement):
             if req is not None and getattr(req, "specifier", None):
@@ -385,7 +368,7 @@ class Line(object):
         specifier = next(
             iter(spec for spec in options if spec is not None), None
         )  # type: Optional[Union[Specifier, SpecifierSet]]
-        spec_string = None  # type: Optional[STRING_TYPE]
+        spec_string = None  # type: Optional[str]
         if specifier is not None:
             spec_string = specs_to_string(specifier)
         elif (
@@ -399,16 +382,14 @@ class Line(object):
         return self._specifier
 
     @specifier.setter
-    def specifier(self, spec):
-        # type: (str) -> None
+    def specifier(self, spec: str) -> None:
         if not spec.startswith("=="):
             spec = "=={0}".format(spec)
         self._specifier = spec
         self.specifiers = SpecifierSet(spec)
 
     @property
-    def specifiers(self):
-        # type: () -> Optional[SpecifierSet]
+    def specifiers(self) -> Optional[SpecifierSet]:
         ireq_needs_specifier = False
         req_needs_specifier = False
         if self.ireq is None or self.ireq.req is None or not self.ireq.req.specifier:
@@ -439,7 +420,6 @@ class Line(object):
 
     @specifiers.setter
     def specifiers(self, specifiers):
-        # type: (Union[Text, str, SpecifierSet]) -> None
         if not isinstance(specifiers, SpecifierSet):
             if isinstance(specifiers, str):
                 specifiers = SpecifierSet(specifiers)
@@ -464,13 +444,13 @@ class Line(object):
 
     @property
     def requirement(self):
-        # type: () -> Optional[RequirementType]
-        if self._requirement is None:
-            self.parse_requirement()
-            if self._requirement is None and self._name is not None:
-                self._requirement = init_requirement(canonicalize_name(self.name))
-                if self.is_file or self.is_remote_url and self._requirement is not None:
-                    self._requirement.url = self.url
+        # type: () -> Optional[PackagingRequirement]
+        self.parse_requirement()
+        requirement = None
+        if self._name is not None:
+            requirement = init_requirement(canonicalize_name(self.name))
+            if self.is_file or self.is_remote_url and self._requirement is not None:
+                requirement.url = self.url
         if (
             self._requirement
             and self._requirement.specifier
@@ -480,8 +460,7 @@ class Line(object):
             self._requirement.specs = specs
         return self._requirement
 
-    def populate_setup_paths(self):
-        # type: () -> None
+    def get_setup_paths(self):
         if not self.link and not self.path:
             self.parse_link()
         if not self.path:
@@ -491,45 +470,33 @@ class Line(object):
             return
         setup_paths = get_setup_paths(
             base_path, subdirectory=self.subdirectory
-        )  # type: Dict[STRING_TYPE, Optional[STRING_TYPE]]
-        self._setup_py = setup_paths.get("setup_py")
-        self._setup_cfg = setup_paths.get("setup_cfg")
-        self._pyproject_toml = setup_paths.get("pyproject_toml")
+        )  # type: Dict[str, Optional[str]]
+        return setup_paths
 
     @property
     def pyproject_requires(self):
-        # type: () -> Optional[Tuple[STRING_TYPE, ...]]
-        if self._pyproject_requires is None and self.pyproject_toml is not None:
-            if self.path is not None:
-                pyproject_requires, pyproject_backend = None, None
-                pyproject_results = get_pyproject(self.path)  # type: ignore
-                if pyproject_results:
-                    pyproject_requires, pyproject_backend = pyproject_results
-                if pyproject_requires:
-                    self._pyproject_requires = tuple(pyproject_requires)
-                self._pyproject_backend = pyproject_backend
-        return self._pyproject_requires
-
-    @property
-    def pyproject_backend(self):
-        # type: () -> Optional[STRING_TYPE]
-        if self._pyproject_requires is None and self.pyproject_toml is not None:
-            pyproject_requires = None  # type: Optional[Sequence[STRING_TYPE]]
-            pyproject_backend = None  # type: Optional[STRING_TYPE]
+        # type: () -> Optional[Tuple[str, ...]]
+        if self.pyproject_toml is not None and self.path is not None:
+            pyproject_requires = None
             pyproject_results = get_pyproject(self.path)  # type: ignore
             if pyproject_results:
-                pyproject_requires, pyproject_backend = pyproject_results
-            if not pyproject_backend and self.setup_cfg is not None:
-                setup_dict = SetupInfo.get_setup_cfg(self.setup_cfg)
-                pyproject_backend = get_default_pyproject_backend()
-                pyproject_requires = setup_dict.get(
-                    "build_requires", ["setuptools", "wheel"]
-                )  # type: ignore
+                pyproject_requires, _ = pyproject_results
             if pyproject_requires:
-                self._pyproject_requires = tuple(pyproject_requires)
+                return tuple(pyproject_requires)
+        return None
+
+    @cached_property
+    def pyproject_backend(self) -> Optional[str]:
+        if self.pyproject_toml is not None:
+            pyproject_backend = None  # type: Optional[str]
+            pyproject_results = get_pyproject(self.path)  # type: ignore
+            if pyproject_results:
+                _, pyproject_backend = pyproject_results
+            if not pyproject_backend and self.setup_cfg is not None:
+                pyproject_backend = get_default_pyproject_backend()
             if pyproject_backend:
-                self._pyproject_backend = pyproject_backend
-        return self._pyproject_backend
+                return pyproject_backend
+        return None
 
     def parse_hashes(self):
         # type: () -> "Line"
@@ -570,7 +537,7 @@ class Line(object):
                 self.line, extras = _strip_extras(self.line)
         else:
             self.line, extras = _strip_extras(self.line)
-        extras_set = set()  # type: Set[STRING_TYPE]
+        extras_set = set()  # type: Set[str]
         if extras is not None:
             extras_set = set(parse_extras(extras))
         if self._name:
@@ -583,7 +550,7 @@ class Line(object):
         return self
 
     def get_url(self):
-        # type: () -> STRING_TYPE
+        # type: () -> str
         """Sets ``self.name`` if given a **PEP-508** style URL."""
         return self.parsed_url.to_string(
             escape_password=False, direct=False, strip_ref=True
@@ -591,7 +558,7 @@ class Line(object):
 
     @property
     def name(self):
-        # type: () -> Optional[STRING_TYPE]
+        # type: () -> Optional[str]
         if self._name is None:
             self.parse_name()
             if self._name is None and not self.is_named and not self.is_wheel:
@@ -605,7 +572,7 @@ class Line(object):
 
     @name.setter
     def name(self, name):
-        # type: (STRING_TYPE) -> None
+        # type: (str) -> None
         self._name = name
         if self._setup_info:
             self._setup_info.name = name
@@ -616,7 +583,7 @@ class Line(object):
 
     @property
     def url(self):
-        # type: () -> Optional[STRING_TYPE]
+        # type: () -> Optional[str]
         try:
             return self.parsed_url.to_string(
                 escape_password=False,
@@ -637,7 +604,7 @@ class Line(object):
 
     @property
     def subdirectory(self):
-        # type: () -> Optional[STRING_TYPE]
+        # type: () -> Optional[str]
         if self.link is not None:
             return self.link.subdirectory_fragment
         return ""
@@ -734,9 +701,9 @@ class Line(object):
             self.is_path
             or (is_file_url(url) and is_installable_file(url))
             or (
-                self._parsed_url
-                and self._parsed_url.is_file_url
-                and is_installable_file(self._parsed_url.url_without_fragment_or_ref)
+                self.parsed_url
+                and self.parsed_url.is_file_url
+                and is_installable_file(self.parsed_url.url_without_fragment_or_ref)
             )
         ):
             return True
@@ -755,7 +722,7 @@ class Line(object):
 
     @property
     def ref(self):
-        # type: () -> Optional[STRING_TYPE]
+        # type: () -> Optional[str]
         if self._ref is None and self.relpath is not None:
             self.relpath, self._ref = split_ref_from_uri(self.relpath)
         return self._ref
@@ -777,11 +744,9 @@ class Line(object):
         possible_paths = (self.line, url, self.path, self.base_path)
         return any(is_installable_file(p) for p in possible_paths if p is not None)
 
-    @property
+    @cached_property
     def wheel_kwargs(self):
-        if not self._wheel_kwargs:
-            self._wheel_kwargs = _prepare_wheel_building_kwargs(self.ireq)
-        return self._wheel_kwargs
+        return _prepare_wheel_building_kwargs(self.ireq)
 
     def get_setup_info(self):
         # type: () -> SetupInfo
@@ -843,12 +808,9 @@ class Line(object):
             self._vcsrepo = self._get_vcsrepo()
         return self._vcsrepo
 
-    @property
+    @cached_property
     def parsed_url(self):
-        # type: () -> URI
-        if self._parsed_url is None:
-            self._parsed_url = URI.parse(self.line)
-        return self._parsed_url
+        return URI.parse(self.line)
 
     @property
     def is_direct_url(self):
@@ -932,7 +894,7 @@ class Line(object):
                 self._ireq.req = self.requirement
 
     def _parse_wheel(self):
-        # type: () -> Optional[STRING_TYPE]
+        # type: () -> Optional[str]
         if not self.is_wheel:
             return
         _wheel = Wheel(self.link.filename)
@@ -942,7 +904,7 @@ class Line(object):
         return name
 
     def _parse_name_from_link(self):
-        # type: () -> Optional[STRING_TYPE]
+        # type: () -> Optional[str]
         if self.link is None:
             return None
         if getattr(self.link, "egg_fragment", None):
@@ -952,7 +914,7 @@ class Line(object):
         return None
 
     def _parse_name_from_line(self):
-        # type: () -> Optional[STRING_TYPE]
+        # type: () -> Optional[str]
         if not self.is_named:
             pass
         try:
@@ -971,11 +933,11 @@ class Line(object):
             specifier_match = next(
                 iter(spec for spec in SPECIFIERS_BY_LENGTH if spec in self.line), None
             )
-            specifier = None  # type: Optional[STRING_TYPE]
+            specifier = None  # type: Optional[str]
             if specifier_match:
                 specifier = "{0!s}".format(specifier_match)
             if specifier is not None and specifier in name:
-                version = None  # type: Optional[STRING_TYPE]
+                version = None  # type: Optional[str]
                 name, specifier, version = name.partition(specifier)
                 self._specifier = "{0}{1}".format(specifier, version)
         return name
@@ -1009,10 +971,10 @@ class Line(object):
                 name = self._parse_name_from_link()
             if name is None and (
                 (self.is_remote_url or self.is_artifact or self.is_vcs)
-                and self._parsed_url
+                and self.parsed_url
             ):
-                if self._parsed_url.fragment:
-                    _, _, name = self._parsed_url.fragment.partition("egg=")
+                if self.parsed_url.fragment:
+                    _, _, name = self.parsed_url.fragment.partition("egg=")
                     if "&" in name:
                         # subdirectory fragments might also be in here
                         name, _, _ = name.partition("&")
@@ -1064,7 +1026,6 @@ class Line(object):
         return self._requirement
 
     def parse_requirement(self):
-        # type: () -> "Line"
         if self._name is None:
             self.parse_name()
             if not any([self._name, self.is_vcs, self.is_named]):
@@ -1107,7 +1068,6 @@ class Line(object):
                     "dependencies. Please install remote dependency "
                     "in the form {0}#egg=<package-name>.".format(url)
                 )
-        return self
 
     def parse_link(self):
         # type: () -> "Line"
@@ -1121,7 +1081,7 @@ class Line(object):
             )
         ):
             url = path_to_url(os.path.abspath(self.line))
-            self._parsed_url = parsed_url = URI.parse(url)
+            # self.parsed_url = parsed_url = URI.parse(url)
         elif any(
             [
                 is_valid_url(self.line),
@@ -1193,7 +1153,7 @@ class Line(object):
         # only if they are `file://` (with only two slashes)
         name = None  # type: Optional[S]
         extras = ()  # type: Tuple[Optional[S], ...]
-        url = None  # type: Optional[STRING_TYPE]
+        url = None  # type: Optional[str]
         # if self.is_direct_url:
         if self._name:
             name = canonicalize_name(self._name)
@@ -1285,48 +1245,53 @@ class Line(object):
             self.line = self.line.replace("git+file:/", "git+file:///")
         self.parse_markers()
         if self.is_file_url:
-            if self.line_is_installable:
-                self.populate_setup_paths()
-            else:
+            if not self.line_is_installable:
                 raise RequirementError(
                     "Supplied requirement is not installable: {0!r}".format(self.line)
                 )
         elif self.is_named and self._name is None:
             self.parse_name()
         self.parse_link()
-        # self.parse_requirement()
-        # self.parse_ireq()
 
 
-@attr.s(slots=True, hash=True)
-class NamedRequirement(object):
-    name = attr.ib()  # type: STRING_TYPE
-    version = attr.ib()  # type: Optional[STRING_TYPE]
-    req = attr.ib()  # type: PackagingRequirement
-    extras = attr.ib(default=attr.Factory(list))  # type: Tuple[STRING_TYPE, ...]
-    editable = attr.ib(default=False)  # type: bool
-    _parsed_line = attr.ib(default=None)  # type: Optional[Line]
+class NamedRequirement(BaseModel):
+    name: str
+    version: Optional[str]
+    req: PackagingRequirement
+    extras: Tuple[str, ...] = Field(default_factory=list)
+    editable: bool = False
+    _parsed_line: Optional[Line] = None
 
-    @req.default
-    def get_requirement(self):
-        # type: () -> RequirementType
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        keep_untouched = (cached_property,)
+
+    def __init__(self, **data):
+        super().__init__(**data)
+
+        # Set default values using the methods
+        if not self.req:
+            self.req = self.get_requirement()
+
+    def get_requirement(self) -> PackagingRequirement:
         req = init_requirement(
             "{0}{1}".format(canonicalize_name(self.name), self.version)
         )
         return req
 
     @property
-    def parsed_line(self):
-        # type: () -> Optional[Line]
+    def parsed_line(self) -> Optional[Line]:
         if self._parsed_line is None:
-            self._parsed_line = Line(self.line_part)
+            self._parsed_line = Line(line=self.line_part)
         return self._parsed_line
 
     @classmethod
     def from_line(cls, line, parsed_line=None):
         # type: (AnyStr, Optional[Line]) -> NamedRequirement
         req = init_requirement(line)
-        specifiers = None  # type: Optional[STRING_TYPE]
+        specifiers = None  # type: Optional[str]
         if req.specifier:
             specifiers = specs_to_string(req.specifier)
         req.line = line
@@ -1344,46 +1309,45 @@ class NamedRequirement(object):
             "parsed_line": parsed_line,
             "extras": None,
         }
-        extras = None  # type: Optional[Tuple[STRING_TYPE, ...]]
+        extras = None  # type: Optional[Tuple[str, ...]]
         if req.extras:
             extras = tuple(req.extras)
         creation_kwargs["extras"] = extras
         return cls(**creation_kwargs)
 
     @classmethod
-    def from_pipfile(cls, name, pipfile):
-        # type: (S, TPIPFILE) -> NamedRequirement
-        creation_args = {}  # type: TPIPFILE
+    def from_pipfile(cls, name: str, pipfile: Dict[str, Any]) -> 'NamedRequirement':
+        creation_args = {}
         if hasattr(pipfile, "keys"):
-            attr_fields = [field.name for field in attr.fields(cls)]
+            # Get field names from the Pydantic model
+            pydantic_fields = cls.__fields__.keys()
             creation_args = {
-                k: v for k, v in pipfile.items() if k in attr_fields
-            }  # type: ignore
+                k: v for k, v in pipfile.items() if k in pydantic_fields
+            }
         creation_args["name"] = name
-        version = get_version(pipfile)  # type: Optional[STRING_TYPE]
+        version = get_version(pipfile)
         extras = creation_args.get("extras", None)
-        creation_args["version"] = version  # type: ignore
+        creation_args["version"] = version
         req = init_requirement("{0}{1}".format(name, version))
         if req and extras and req.extras and isinstance(req.extras, tuple):
             if isinstance(extras, str):
-                req.extras = (extras) + tuple(["{0}".format(xtra) for xtra in req.extras])
+                req.extras = (extras,) + tuple(["{0}".format(xtra) for xtra in req.extras])
             elif isinstance(extras, (tuple, list)):
                 req.extras += tuple(extras)
         creation_args["req"] = req
-        return cls(**creation_args)  # type: ignore
+        return cls(**creation_args)
 
-    @property
+    @cached_property
     def line_part(self):
-        # type: () -> STRING_TYPE
+        # type: () -> str
         # FIXME: This should actually be canonicalized but for now we have to
         # simply lowercase it and replace underscores, since full canonicalization
         # also replaces dots and that doesn't actually work when querying the index
         return normalize_name(self.name)
 
-    @property
-    def pipfile_part(self):
-        # type: () -> Dict[STRING_TYPE, Any]
-        pipfile_dict = attr.asdict(self, filter=filter_none).copy()  # type: ignore
+    @cached_property
+    def pipfile_part(self) -> Dict[str, Any]:
+        pipfile_dict = self.dict()
         if "version" not in pipfile_dict:
             pipfile_dict["version"] = "*"
         if "_parsed_line" in pipfile_dict:
@@ -1397,55 +1361,64 @@ LinkInfo = collections.namedtuple(
 )
 
 
-@attr.s(slots=True, eq=True, order=True, hash=True)
-class FileRequirement(object):
+class FileRequirement(BaseModel):
     """File requirements for tar.gz installable files or wheels or setup.py
     containing directories."""
+    setup_path: Optional[str] = None
+    path: Optional[str] = None
+    editable: bool = False
+    extras: Tuple[str, ...] = ()
+    _uri_scheme: Optional[str] = None
+    uri: Optional[str] = Field(default_factory=lambda: "")
+    name: Optional[str] = Field(default_factory=lambda: "")
+    link: Optional[Link] = Field(default_factory=lambda: None)
+    pyproject_requires: Optional[Tuple[str, ...]] = ()
+    pyproject_backend: Optional[str] = None
+    pyproject_path: Optional[str] = None
+    subdirectory: Optional[str] = None
+    _setup_info: Optional[SetupInfo] = None
+    _has_hashed_name: bool = False
+    _parsed_line: Optional['Line'] = None
+    req: Optional[PackagingRequirement] = Field(default_factory=lambda: None)
 
-    #: Path to the relevant `setup.py` location
-    setup_path = attr.ib(default=None, eq=True, order=True)  # type: Optional[STRING_TYPE]
-    #: path to hit - without any of the VCS prefixes (like git+ / http+ / etc)
-    path = attr.ib(default=None, eq=True, order=True)  # type: Optional[STRING_TYPE]
-    #: Whether the package is editable
-    editable = attr.ib(default=False, eq=True, order=True)  # type: bool
-    #: Extras if applicable
-    extras = attr.ib(
-        default=attr.Factory(tuple), eq=True, order=True
-    )  # type: Tuple[STRING_TYPE, ...]
-    _uri_scheme = attr.ib(
-        default=None, eq=True, order=True
-    )  # type: Optional[STRING_TYPE]
-    #: URI of the package
-    uri = attr.ib(eq=True, order=True)  # type: Optional[STRING_TYPE]
-    #: Link object representing the package to clone
-    link = attr.ib(eq=True, order=True)  # type: Optional[Link]
-    #: PyProject Requirements
-    pyproject_requires = attr.ib(
-        factory=tuple, eq=True, order=True
-    )  # type: Optional[Tuple[STRING_TYPE, ...]]
-    #: PyProject Build System
-    pyproject_backend = attr.ib(
-        default=None, eq=True, order=True
-    )  # type: Optional[STRING_TYPE]
-    #: PyProject Path
-    pyproject_path = attr.ib(
-        default=None, eq=True, order=True
-    )  # type: Optional[STRING_TYPE]
-    subdirectory = attr.ib(default=None)  # type: Optional[STRING_TYPE]
-    #: Setup metadata e.g. dependencies
-    _setup_info = attr.ib(default=None, eq=True, order=True)  # type: Optional[SetupInfo]
-    _has_hashed_name = attr.ib(default=False, eq=True, order=True)  # type: bool
-    _parsed_line = attr.ib(
-        default=None, eq=False, order=False, hash=True
-    )  # type: Optional[Line]
-    #: Package name
-    name = attr.ib(eq=True, order=True)  # type: Optional[STRING_TYPE]
-    #: A :class:`~pkg_resources.Requirement` instance
-    req = attr.ib(eq=True, order=True)  # type: Optional[PackagingRequirement]
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        keep_untouched = (cached_property,)
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if self.name is None and self._parsed_line:
+            if self._parsed_line.setup_info:
+                self._setup_info = self._parsed_line.setup_info
+                if self._parsed_line.setup_info.name:
+                    self.name = self._parsed_line.setup_info.name
+        if self.req is None and (
+            self._parsed_line is not None and self._parsed_line.requirement is not None
+        ):
+            self.req = self._parsed_line.requirement
+        if (
+            self._parsed_line
+            and self._parsed_line.ireq
+            and not self._parsed_line.ireq.req
+        ):
+            if self.req is not None and self._parsed_line._ireq is not None:
+                self._parsed_line._ireq.req = self.req
+
+        # Set default values using the methods
+        if not self.uri:
+            self.uri = self.get_uri()
+        if not self.name:
+            self.name = self.get_name()
+        if not self.link:
+            self.link = self.get_link()
+        if not self.req:
+            self.req = self.get_requirement()
 
     @classmethod
     def get_link_from_line(cls, line):
-        # type: (STRING_TYPE) -> LinkInfo
+        # type: (str) -> LinkInfo
         """Parse link information from given requirement line.
 
         Return a 6-tuple:
@@ -1479,16 +1452,16 @@ class FileRequirement(object):
 
         # Git allows `git@github.com...` lines that are not really URIs.
         # Add "ssh://" so we can parse correctly, and restore afterwards.
-        fixed_line = add_ssh_scheme_to_git_uri(line)  # type: STRING_TYPE
+        fixed_line = add_ssh_scheme_to_git_uri(line)  # type: str
         added_ssh_scheme = fixed_line != line  # type: bool
 
         # We can assume a lot of things if this is a local filesystem path.
         if "://" not in fixed_line:
             p = Path(fixed_line).absolute()  # type: Path
-            path = p.as_posix()  # type: Optional[STRING_TYPE]
-            uri = p.as_uri()  # type: STRING_TYPE
+            path = p.as_posix()  # type: Optional[str]
+            uri = p.as_uri()  # type: str
             link = create_link(uri)  # type: Link
-            relpath = None  # type: Optional[STRING_TYPE]
+            relpath = None  # type: Optional[str]
             try:
                 relpath = get_converted_relative_path(path)
             except ValueError:
@@ -1501,13 +1474,13 @@ class FileRequirement(object):
         original_url = parsed_url._replace()  # type: SplitResult
 
         # Split the VCS part out if needed.
-        original_scheme = parsed_url.scheme  # type: STRING_TYPE
-        vcs_type = None  # type: Optional[STRING_TYPE]
+        original_scheme = parsed_url.scheme  # type: str
+        vcs_type = None  # type: Optional[str]
         if "+" in original_scheme:
-            scheme = None  # type: Optional[STRING_TYPE]
+            scheme = None  # type: Optional[str]
             vcs_type, _, scheme = original_scheme.partition("+")
             parsed_url = parsed_url._replace(scheme=scheme)  # type: ignore
-            prefer = "uri"  # type: STRING_TYPE
+            prefer = "uri"  # type: str
         else:
             vcs_type = None
             prefer = "file"
@@ -1546,8 +1519,7 @@ class FileRequirement(object):
         return LinkInfo(vcs_type, prefer, relpath, path, uri, link)
 
     @property
-    def setup_py_dir(self):
-        # type: () -> Optional[STRING_TYPE]
+    def setup_py_dir(self) -> Optional[str]:
         if self.setup_path:
             return os.path.dirname(os.path.abspath(self.setup_path))
         return None
@@ -1576,28 +1548,8 @@ class FileRequirement(object):
         build_deps = list(set(build_deps))
         return deps, setup_deps, build_deps
 
-    def __attrs_post_init__(self):
-        # type: () -> None
-        if self.name is None and self.parsed_line:
-            if self.parsed_line.setup_info:
-                self._setup_info = self.parsed_line.setup_info
-                if self.parsed_line.setup_info.name:
-                    self.name = self.parsed_line.setup_info.name
-        if self.req is None and (
-            self._parsed_line is not None and self._parsed_line.requirement is not None
-        ):
-            self.req = self._parsed_line.requirement
-        if (
-            self._parsed_line
-            and self._parsed_line.ireq
-            and not self._parsed_line.ireq.req
-        ):
-            if self.req is not None and self._parsed_line._ireq is not None:
-                self._parsed_line._ireq.req = self.req
-
     @property
-    def setup_info(self):
-        # type: () -> Optional[SetupInfo]
+    def setup_info(self) -> Optional[SetupInfo]:
         if self._setup_info is None and self.parsed_line:
             if self.parsed_line and self._parsed_line and self.parsed_line.setup_info:
                 if (
@@ -1628,9 +1580,7 @@ class FileRequirement(object):
         if self._parsed_line:
             self._parsed_line._setup_info = setup_info
 
-    @uri.default
-    def get_uri(self):
-        # type: () -> STRING_TYPE
+    def get_uri(self) -> str:
         if self.path and not self.uri:
             self._uri_scheme = "path"
             return path_to_url(os.path.abspath(self.path))
@@ -1644,9 +1594,7 @@ class FileRequirement(object):
             return self.link.url_without_fragment
         return ""
 
-    @name.default
-    def get_name(self):
-        # type: () -> STRING_TYPE
+    def get_name(self) -> str:
         if self.parsed_line and self.parsed_line.name:
             return self.parsed_line.name
         elif self.link and self.link.egg_fragment:
@@ -1654,7 +1602,6 @@ class FileRequirement(object):
         elif self.setup_info and self.setup_info.name:
             return self.setup_info.name
 
-    @link.default
     def get_link(self) -> Link:
         target = "{0}".format(self.uri)
         if hasattr(self, "name") and not self._has_hashed_name:
@@ -1662,9 +1609,7 @@ class FileRequirement(object):
         link = create_link(target)
         return link
 
-    @req.default
-    def get_requirement(self):
-        # type () -> RequirementType
+    def get_requirement(self) -> PackagingRequirement:
         if self.name is None:
             if self._parsed_line is not None and self._parsed_line.name is not None:
                 self.name = self._parsed_line.name
@@ -1674,12 +1619,7 @@ class FileRequirement(object):
                         self
                     )
                 )
-        if self._parsed_line:
-            try:
-                # initialize specifiers to make sure we capture them
-                self._parsed_line.specifiers
-            except Exception:
-                pass
+        if self.parsed_line:
             req = copy.deepcopy(self._parsed_line.requirement)
             if req:
                 return req
@@ -1688,7 +1628,7 @@ class FileRequirement(object):
     def parsed_line(self):
         # type: () -> Optional[Line]
         if self._parsed_line is None:
-            self._parsed_line = Line(self.line_part)
+            self._parsed_line = Line(line=self.line_part)
         return self._parsed_line
 
     @property
@@ -1729,7 +1669,7 @@ class FileRequirement(object):
 
     @property
     def formatted_path(self):
-        # type: () -> Optional[STRING_TYPE]
+        # type: () -> Optional[str]
         if self.path:
             path = self.path
             if not isinstance(path, Path):
@@ -1740,12 +1680,12 @@ class FileRequirement(object):
     @classmethod
     def from_line(cls, line, editable=None, extras=None, parsed_line=None):
         # type: (AnyStr, Optional[bool], Optional[Tuple[AnyStr, ...]], Optional[Line]) -> F
-        parsed_line = Line(line)
+        parsed_line = Line(line=line)
         file_req_from_parsed_line(parsed_line)
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
-        # type: (STRING_TYPE, Dict[STRING_TYPE, Union[Tuple[STRING_TYPE, ...], STRING_TYPE, bool]]) -> F
+        # type: (str, Dict[str, Union[Tuple[str, ...], str, bool]]) -> F
         # Parse the values out. After this dance we should have two variables:
         # path - Local filesystem path.
         # uri - Absolute URI that is parsable with urlsplit.
@@ -1789,7 +1729,7 @@ class FileRequirement(object):
             link = link_info.link
             if link.url_without_fragment:
                 uri = link.url_without_fragment
-        extras = ()  # type: Optional[Tuple[STRING_TYPE, ...]]
+        extras = ()  # type: Optional[Tuple[str, ...]]
         if "extras" in pipfile:
             extras = tuple(pipfile["extras"])  # type: ignore
         editable = pipfile["editable"] if "editable" in pipfile else False
@@ -1803,7 +1743,7 @@ class FileRequirement(object):
             "extras": extras if extras else None,
         }
 
-        line = ""  # type: STRING_TYPE
+        line = ""  # type: str
         extras_string = "" if not extras else extras_to_string(extras)
         if editable and uri_scheme == "path":
             line = "{0}{1}".format(path, extras_string)
@@ -1826,15 +1766,15 @@ class FileRequirement(object):
                 line = "{0}&subdirectory={1}".format(line, pipfile["subdirectory"])
         if editable:
             line = "-e {0}".format(line)
-        arg_dict["parsed_line"] = Line(line, extras=extras)
+        arg_dict["parsed_line"] = Line(line=line, extras=extras)
         arg_dict["setup_info"] = arg_dict["parsed_line"].setup_info
         return cls(**arg_dict)  # type: ignore
 
     @property
     def line_part(self):
-        # type: () -> STRING_TYPE
-        link_url = None  # type: Optional[STRING_TYPE]
-        seed = None  # type: Optional[STRING_TYPE]
+        # type: () -> str
+        link_url = None  # type: Optional[str]
+        seed = None  # type: Optional[str]
         if self.link is not None:
             link_url = self.link.url_without_fragment
         is_vcs = getattr(self.link, "is_vcs", False)
@@ -1854,8 +1794,7 @@ class FileRequirement(object):
         return "{0}{1}".format(editable, seed)
 
     @property
-    def pipfile_part(self):
-        # type: () -> Dict[AnyStr, Dict[AnyStr, Any]]
+    def pipfile_part(self) -> Dict[str, Dict[str, Any]]:
         excludes = [
             "_base_line",
             "_has_hashed_name",
@@ -1867,8 +1806,8 @@ class FileRequirement(object):
             "_setup_info",
             "_parsed_line",
         ]
-        filter_func = lambda k, v: bool(v) is True and k.name not in excludes  # noqa
-        pipfile_dict = attr.asdict(self, filter=filter_func).copy()  # type: Dict
+        instance_dict = self.dict()
+        pipfile_dict = {k: v for k, v in instance_dict.items() if v and k not in excludes}
         name = pipfile_dict.pop("name", None)
         if name is None:
             if self.name:
@@ -1881,8 +1820,8 @@ class FileRequirement(object):
             pipfile_dict.pop("_uri_scheme")
         # For local paths and remote installable artifacts (zipfiles, etc)
         collision_keys = {"file", "uri", "path"}
-        collision_order = ["file", "uri", "path"]  # type: List[STRING_TYPE]
-        collisions = []  # type: List[STRING_TYPE]
+        collision_order = ["file", "uri", "path"]  # type: List[str]
+        collisions = []  # type: List[str]
         key_match = next(iter(k for k in collision_order if k in pipfile_dict.keys()))
         is_vcs = None
         if self.link is not None:
@@ -1918,31 +1857,21 @@ class FileRequirement(object):
         return {name: pipfile_dict}
 
 
-@attr.s(slots=True, hash=True)
-class VCSRequirement(FileRequirement):
-    #: Whether the repository is editable
-    editable = attr.ib(default=None)  # type: Optional[bool]
-    #: URI for the repository
-    uri = attr.ib(default=None)  # type: Optional[STRING_TYPE]
-    #: path to the repository, if it's local
-    path = attr.ib(
-        default=None, validator=attr.validators.optional(validate_path)
-    )  # type: Optional[STRING_TYPE]
-    #: vcs type, i.e. git/hg/svn
-    vcs = attr.ib(
-        validator=attr.validators.optional(validate_vcs), default=None
-    )  # type: Optional[STRING_TYPE]
-    #: vcs reference name (branch / commit / tag)
-    ref = attr.ib(default=None)  # type: Optional[STRING_TYPE]
-    #: Subdirectory to use for installation if applicable
-    _repo = attr.ib(default=None)  # type: Optional[VCSRepository]
-    _base_line = attr.ib(default=None)  # type: Optional[STRING_TYPE]
-    name = attr.ib()  # type: STRING_TYPE
-    link = attr.ib()  # type: Optional[Link]
-    req = attr.ib()  # type: Optional[RequirementType]
 
-    def __attrs_post_init__(self):
-        # type: () -> None
+class VCSRequirement(FileRequirement):
+    editable: Optional[bool] = None
+    uri: Optional[str] = None
+    path: Optional[str] = Field(default=None, validator=validate_path)
+    vcs: Optional[str] = Field(default=None, validator=validate_vcs)
+    ref: Optional[str] = None
+    _repo: Optional[VCSRepository] = None
+    _base_line: Optional[str] = None
+    name: str
+    link: Optional[Link]
+    req: Optional[PackagingRequirement]
+
+    def __init__(self, **data):
+        super().__init__(**data)
         if not self.uri:
             if self.path:
                 self.uri = path_to_url(self.path)
@@ -1958,15 +1887,13 @@ class VCSRequirement(FileRequirement):
             self.uri = new_uri
 
     @property
-    def url(self):
-        # type: () -> STRING_TYPE
+    def url(self) -> str:
         if self.link and self.link.url:
             return self.link.url
         elif self.uri:
             return self.uri
         raise ValueError("No valid url found for requirement {0!r}".format(self))
 
-    @link.default
     def get_link(self) -> Link:
         uri = self.uri if self.uri else path_to_url(self.path)
         vcs_uri = build_vcs_uri(
@@ -1979,9 +1906,7 @@ class VCSRequirement(FileRequirement):
         )
         return self.get_link_from_line(vcs_uri).link
 
-    @name.default
-    def get_name(self):
-        # type: () -> STRING_TYPE
+    def get_name(self) -> str:
         if self.link and self.link.egg_fragment:
             return self.link.egg_fragment
         if self.req and self.req.name:
@@ -1990,7 +1915,7 @@ class VCSRequirement(FileRequirement):
 
     @property
     def vcs_uri(self):
-        # type: () -> Optional[STRING_TYPE]
+        # type: () -> Optional[str]
         uri = self.uri
         if uri and not any(uri.startswith("{0}+".format(vcs)) for vcs in VCS_LIST):
             if self.vcs:
@@ -2008,7 +1933,7 @@ class VCSRequirement(FileRequirement):
         if self._repo:
             with global_tempdir_manager():
                 self._setup_info = SetupInfo.from_ireq(
-                    Line(self._repo.checkout_directory).ireq, subdir=subdir
+                    Line(line=self._repo.checkout_directory).ireq, subdir=subdir
                 )
                 self._setup_info.get_info()
             return self._setup_info
@@ -2024,10 +1949,9 @@ class VCSRequirement(FileRequirement):
         if self._parsed_line:
             self._parsed_line.setup_info = setup_info
 
-    @req.default
     def get_requirement(self):
         # type: () -> PackagingRequirement
-        name = None  # type: Optional[STRING_TYPE]
+        name = None  # type: Optional[str]
         if self.name:
             name = self.name
         elif self.link and self.link.egg_fragment:
@@ -2105,7 +2029,7 @@ class VCSRequirement(FileRequirement):
         return self._repo
 
     def get_checkout_dir(self, src_dir=None):
-        # type: (Optional[S]) -> STRING_TYPE
+        # type: (Optional[S]) -> str
         src_dir = os.environ.get("PIP_SRC", None) if not src_dir else src_dir
         checkout_dir = None
         if self.is_local:
@@ -2122,7 +2046,7 @@ class VCSRequirement(FileRequirement):
         return os.path.join(create_tracked_tempdir(prefix="requirementslib"), self.name)
 
     def get_vcs_repo(self, src_dir=None, checkout_dir=None):
-        # type: (Optional[STRING_TYPE], STRING_TYPE) -> VCSRepository
+        # type: (Optional[str], str) -> VCSRepository
         from .vcs import VCSRepository
 
         if checkout_dir is None:
@@ -2155,13 +2079,13 @@ class VCSRequirement(FileRequirement):
         return vcsrepo
 
     def get_commit_hash(self):
-        # type: () -> STRING_TYPE
+        # type: () -> str
         with global_tempdir_manager():
             hash_ = self.repo.get_commit_hash()
         return hash_
 
     def update_repo(self, src_dir=None, ref=None):
-        # type: (Optional[STRING_TYPE], Optional[STRING_TYPE]) -> STRING_TYPE
+        # type: (Optional[str], Optional[str]) -> str
         if ref:
             self.ref = ref
         repo_hash = None
@@ -2173,8 +2097,7 @@ class VCSRequirement(FileRequirement):
         return repo_hash
 
     @contextmanager
-    def locked_vcs_repo(self, src_dir=None):
-        # type: (Optional[AnyStr]) -> Generator[VCSRepository, None, None]
+    def locked_vcs_repo(self, src_dir: Optional[str] = None) -> Generator[VCSRepository, None, None]:
         if not src_dir:
             src_dir = create_tracked_tempdir(prefix="requirementslib-", suffix="-src")
         vcsrepo = self.get_vcs_repo(src_dir=src_dir)
@@ -2197,8 +2120,8 @@ class VCSRequirement(FileRequirement):
         if self._parsed_line:
             self._parsed_line.vcsrepo = vcsrepo
         if self._setup_info:
-            self._setup_info = attr.evolve(
-                self._setup_info,
+            # Use the copy() method to create a new instance with updated attributes
+            self._setup_info = self._setup_info.copy(
                 requirements=(),
                 _extras_requirements=(),
                 build_requires=(),
@@ -2218,8 +2141,8 @@ class VCSRequirement(FileRequirement):
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
-        # type: (STRING_TYPE, Dict[S, Union[Tuple[S, ...], S, bool]]) -> F
-        creation_args = {}  # type: Dict[STRING_TYPE, CREATION_ARG_TYPES]
+        # type: (str, Dict[S, Union[Tuple[S, ...], S, bool]]) -> F
+        creation_args = {}  # type: Dict[str, CREATION_ARG_TYPES]
         pipfile_keys = [
             k
             for k in (
@@ -2235,7 +2158,7 @@ class VCSRequirement(FileRequirement):
             + VCS_LIST
             if k in pipfile
         ]
-        # extras = None  # type: Optional[Tuple[STRING_TYPE, ...]]
+        # extras = None  # type: Optional[Tuple[str, ...]]
         for key in pipfile_keys:
             if key == "extras" and key in pipfile:
                 extras = pipfile[key]
@@ -2271,14 +2194,14 @@ class VCSRequirement(FileRequirement):
     @classmethod
     def from_line(cls, line, editable=None, extras=None, parsed_line=None):
         # type: (AnyStr, Optional[bool], Optional[Tuple[AnyStr, ...]], Optional[Line]) -> F
-        parsed_line = Line(line)
+        parsed_line = Line(line=line)
         return vcs_req_from_parsed_line(parsed_line)
 
     @property
     def line_part(self):
-        # type: () -> STRING_TYPE
+        # type: () -> str
         """requirements.txt compatible line part sans-extras."""
-        base = ""  # type: STRING_TYPE
+        base = ""  # type: str
         if self.is_local:
             base_link = self.link
             if not self.link:
@@ -2311,9 +2234,9 @@ class VCSRequirement(FileRequirement):
     def _choose_vcs_source(pipfile):
         # type: (Dict[S, Union[S, Any]]) -> Dict[S, Union[S, Any]]
         src_keys = [k for k in pipfile.keys() if k in ["path", "uri", "file"]]
-        vcs_type = ""  # type: Optional[STRING_TYPE]
-        alt_type = ""  # type: Optional[STRING_TYPE]
-        vcs_value = ""  # type: STRING_TYPE
+        vcs_type = ""  # type: Optional[str]
+        alt_type = ""  # type: Optional[str]
+        vcs_value = ""  # type: str
         if src_keys:
             chosen_key = next(iter(src_keys))
             vcs_type = pipfile.pop("vcs")
@@ -2330,7 +2253,7 @@ class VCSRequirement(FileRequirement):
 
     @property
     def pipfile_part(self):
-        # type: () -> Dict[S, Dict[S, Union[List[S], S, bool, RequirementType, Link]]]
+        # type: () -> Dict[S, Dict[S, Union[List[S], S, bool, PackagingRequirement, Link]]]
         excludes = [
             "_repo",
             "_base_line",
@@ -2344,7 +2267,7 @@ class VCSRequirement(FileRequirement):
             "_uri_scheme",
         ]
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes  # noqa
-        pipfile_dict = attr.asdict(self, filter=filter_func).copy()
+        pipfile_dict = self.dict()
         name = pipfile_dict.pop("name", None)
         if name is None:
             if self.name:
@@ -2359,107 +2282,69 @@ class VCSRequirement(FileRequirement):
         return {name: pipfile_dict}  # type: ignore
 
 
-@attr.s(eq=True, order=True, hash=True)
-class Requirement(object):
-    _name = attr.ib(eq=True, order=True)  # type: STRING_TYPE
-    vcs = attr.ib(
-        default=None,
-        validator=attr.validators.optional(validate_vcs),
-        eq=True,
-        order=True,
-    )  # type: Optional[STRING_TYPE]
-    req = attr.ib(
-        default=None, eq=True, order=True
-    )  # type: Optional[Union[VCSRequirement, FileRequirement, NamedRequirement]]
-    markers = attr.ib(default=None, eq=True, order=True)  # type: Optional[STRING_TYPE]
-    _specifiers = attr.ib(
-        validator=attr.validators.optional(validate_specifiers), eq=True, order=True
-    )  # type: Optional[STRING_TYPE]
-    index = attr.ib(default=None, eq=True, order=True)  # type: Optional[STRING_TYPE]
-    editable = attr.ib(default=None, eq=True, order=True)  # type: Optional[bool]
-    hashes = attr.ib(
-        factory=frozenset, converter=frozenset, eq=True, order=True
-    )  # type: FrozenSet[STRING_TYPE]
-    extras = attr.ib(factory=tuple, eq=True, order=True)  # type: Tuple[STRING_TYPE, ...]
-    _line_instance = attr.ib(default=None, eq=False, order=False)  # type: Optional[Line]
-    _ireq = attr.ib(
-        default=None, eq=False, order=False
-    )  # type: Optional[InstallRequirement]
+class Requirement(BaseModel):
+    vcs: Optional[str] = Field(None, eq=True, order=True)
+    req: Optional[Any] = Field(None, eq=True, order=True)
+    #req: Optional[Union[VCSRequirement, FileRequirement, NamedRequirement]] = Field(None, eq=True, order=True)
+    markers: Optional[str] = Field(dict, eq=True, order=True)
+    index: Optional[str] = Field(None, eq=True, order=True)
+    editable: Optional[bool] = Field(None, eq=True, order=True)
+    hashes: Set[str] = Field(set(), eq=True, order=True)
+    extras: Tuple[str, ...] = Field(tuple(), eq=True, order=True)
+    #line_instance: Optional[Line] = Field(None, eq=False, order=False)
+    #ireq: Optional[InstallRequirement] = Field(None, eq=False, order=False)
+    #_ireq: Optional[Any] = Field(None, eq=False, order=False)
+
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        keep_untouched = (cached_property,)
 
     def __hash__(self):
         return hash(self.as_line())
 
-    @_name.default
-    def get_name(self):
-        # type: () -> Optional[STRING_TYPE]
-        if self.req is not None:
-            return self.req.name
-        return None
-
-    @property
-    def name(self):
-        # type: () -> Optional[STRING_TYPE]
-        if self._name is not None:
-            return self._name
+    @cached_property
+    def name(self) -> Optional[str]:
         name = None
         if self.req and self.req.name:
             name = self.req.name
         elif self.req and self.is_file_or_url and self.req.setup_info:
             name = self.req.setup_info.name
-        self._name = name
         return name
 
     @property
-    def requirement(self):
-        # type: () -> Optional[PackagingRequirement]
+    def requirement(self) -> Optional[PackagingRequirement]:
         if self.req:
             return self.req.req
         return None
 
-    def add_hashes(self, hashes):
-        # type: (Union[S, List[S], Set[S], Tuple[S, ...]]) -> Requirement
-        new_hashes = set()  # type: Set[STRING_TYPE]
+    def add_hashes(self, hashes: set) -> 'Requirement':
+        new_hashes = set()
         if self.hashes is not None:
             new_hashes |= set(self.hashes)
         if isinstance(hashes, str):
             new_hashes.add(hashes)
         else:
             new_hashes |= set(hashes)
-        return attr.evolve(self, hashes=tuple(new_hashes))
+        self.hashes = new_hashes
 
-    def get_hashes_as_pip(self, as_list=False):
-        # type: (bool) -> Union[STRING_TYPE, List[STRING_TYPE]]
-        hashes = ""  # type: Union[STRING_TYPE, List[STRING_TYPE]]
+    def get_hashes_as_pip(self, as_list: bool = False) -> Union[str, List[str]]:
         if as_list:
-            hashes = []
-            if self.hashes:
-                hashes = [HASH_STRING.format(h) for h in self.hashes]
+            return [HASH_STRING.format(h) for h in self.hashes] if self.hashes else []
         else:
-            hashes = ""
-            if self.hashes:
-                hashes = "".join([HASH_STRING.format(h) for h in self.hashes])
-        return hashes
+            return "".join([HASH_STRING.format(h) for h in self.hashes]) if self.hashes else ""
 
     @property
-    def hashes_as_pip(self):
-        # type: () -> STRING_TYPE
-        hashes = self.get_hashes_as_pip()
-        assert isinstance(hashes, str)
-        return hashes
+    def hashes_as_pip(self) -> str:
+        return self.get_hashes_as_pip()
 
     @property
-    def extras_as_pip(self):
-        # type: () -> STRING_TYPE
-        if self.extras:
-            return "[{0}]".format(
-                ",".join(sorted([extra.lower() for extra in self.extras]))  # type: ignore
-            )
-
-        return ""
+    def extras_as_pip(self) -> str:
+        return f"[{','.join(sorted([extra.lower() for extra in self.extras]))}]" if self.extras else ""
 
     @cached_property
-    def commit_hash(self):
-        # type: () -> Optional[S]
+    def commit_hash(self) -> Optional[str]:
         if self.req is None or not isinstance(self.req, VCSRequirement):
             return None
         commit_hash = None
@@ -2468,14 +2353,13 @@ class Requirement(object):
                 commit_hash = repo.get_commit_hash()
         return commit_hash
 
-    @_specifiers.default
-    def get_specifiers(self):
-        # type: () -> S
+    @property
+    def get_specifiers(self) -> str:
         if self.req and self.req.req and self.req.req.specifier:
             return specs_to_string(self.req.req.specifier)
         return ""
 
-    def update_name_from_path(self, path):
+    def update_name_from_path(self, path: str) -> None:
         metadata = get_metadata(path)
         name = self.name
         if metadata is not None:
@@ -2487,15 +2371,12 @@ class Requirement(object):
                 self.req.name = name
             if self.req.req and self.req.req.name is None:
                 self.req.req.name = name
-            if self._line_instance._name is None:
-                self._line_instance.name = name
             if self.req._parsed_line._name is None:
                 self.req._parsed_line.name = name
             if self.req._setup_info and self.req._setup_info.name is None:
                 self.req._setup_info.name = name
 
-    def get_line_instance(self):
-        # type: () -> Line
+    def get_line_instance(self) -> Line:
         line_parts = []
         local_editable = False
         if self.req:
@@ -2512,11 +2393,11 @@ class Requirement(object):
                 # fix for file uri with egg names and extras
                 and not len(self.req.line_part.split("#")) > 1
             ):
-                line_parts.append(f"#egg={self._name}{self.extras_as_pip}")
+                line_parts.append(f"#egg={self.name}{self.extras_as_pip}")
             else:
                 line_parts.append(self.extras_as_pip)
-        if self._specifiers and not (self.is_file_or_url or self.is_vcs):
-            line_parts.append(self._specifiers)
+        if self.specifiers and not (self.is_file_or_url or self.is_vcs):
+            line_parts.append(self.specifiers)
         if self.markers:
             line_parts.append(" ; {0}".format(self.markers.replace('"', "'")))
         if self.hashes_as_pip and not (self.editable or self.vcs or self.is_vcs):
@@ -2531,92 +2412,51 @@ class Requirement(object):
             line = "-e {0}".format(line)
         else:
             line = "".join(line_parts)
-        return Line(line)
+        return Line(line=line)
 
     @property
-    def line_instance(self):
-        # type: () -> Optional[Line]
-        if self._line_instance is None:
-            self.line_instance = self.get_line_instance()
-        return self._line_instance
-
-    @line_instance.setter
-    def line_instance(self, line_instance):
-        # type: (Line) -> None
-        if self.req:
-            self.req._parsed_line = line_instance
-        self._line_instance = line_instance
+    def line_instance(self) -> Optional[Line]:
+        return self.get_line_instance()
 
     @property
-    def specifiers(self):
-        # type: () -> Optional[STRING_TYPE]
-        if self._specifiers:
-            return self._specifiers
-        else:
-            specs = self.get_specifiers()
-            if specs:
-                self._specifiers = specs
-                return specs
-        if not self._specifiers and (
+    def specifiers(self) -> Optional[str]:
+        specs = self.get_specifiers
+        if specs:
+            return specs
+        if (
             self.req is not None
             and isinstance(self.req, NamedRequirement)
             and self.req.version
         ):
-            self._specifiers = self.req.version
+            return self.req.version
+        elif self.is_file_or_url or self.is_vcs:
+            try:
+                setupinfo_dict = self.run_requires()
+            except Exception:
+                setupinfo_dict = None
+            if setupinfo_dict is not None:
+                return "=={0}".format(setupinfo_dict.get("version"))
         elif (
-            not self.editable
-            and self.req
-            and (not isinstance(self.req, NamedRequirement) and self.req.setup_info)
+            self.req
+            and hasattr(self.req, "setup_info")
+            and self.req.setup_info.version
         ):
-            if (
-                self.line_instance
-                and self.line_instance.setup_info
-                and self.line_instance.setup_info.version
-            ):
-                self._specifiers = "=={0}".format(self.req.setup_info.version)
-        elif not self._specifiers:
-            if self.req and self.req.parsed_line and self.req.parsed_line.specifiers:
-                self._specifiers = specs_to_string(self.req.parsed_line.specifiers)
-            elif self.line_instance and self.line_instance.specifiers:
-                self._specifiers = specs_to_string(self.line_instance.specifiers)
-            elif self.is_file_or_url or self.is_vcs:
-                try:
-                    setupinfo_dict = self.run_requires()
-                except Exception:
-                    setupinfo_dict = None
-                if setupinfo_dict is not None:
-                    self._specifiers = "=={0}".format(setupinfo_dict.get("version"))
-        if self._specifiers:
-            specset = SpecifierSet(self._specifiers)
-            if self.line_instance and not self.line_instance.specifiers:
-                self.line_instance.specifiers = specset
-            if self.req:
-                if self.req._parsed_line and not self.req._parsed_line.specifiers:
-                    self.req._parsed_line.specifiers = specset
-                elif not self.req._parsed_line and self.line_instance:
-                    self.req._parsed_line = self.line_instance
-            if self.req and self.req.req and not self.req.req.specifier:
-                self.req.req.specifier = specset
-        return self._specifiers
+            return "=={0}".format(self.req.setup_info.version)
 
     @property
-    def is_vcs(self):
-        # type: () -> bool
+    def is_vcs(self) -> bool:
         return isinstance(self.req, VCSRequirement)
 
     @property
-    def is_file_or_url(self):
-        # type: () -> bool
+    def is_file_or_url(self) -> bool:
         return isinstance(self.req, FileRequirement)
 
     @property
-    def is_named(self):
-        # type: () -> bool
+    def is_named(self) -> bool:
         return isinstance(self.req, NamedRequirement)
 
     @property
-    def is_wheel(self):
-        # type: () -> bool
+    def is_wheel(self) -> bool:
         if (
             self.req
             and not isinstance(self.req, NamedRequirement)
@@ -2626,23 +2466,19 @@ class Requirement(object):
         return False
 
     @property
-    def normalized_name(self):
-        # type: () -> S
+    def normalized_name(self) -> str:
         return canonicalize_name(self.name)
 
-    def copy(self):
-        return attr.evolve(self)
+    def _copy(self):
+        return self.__class__(**self.__dict__)
 
     @classmethod
-    @lru_cache()
-    def from_line(cls, line):
-        # type: (AnyStr) -> Requirement
+    def from_line(cls, line: AnyStr) -> 'Requirement':
+        if isinstance(line, Requirement):
+            return line
         if isinstance(line, InstallRequirement):
             line = format_requirement(line)
-        parsed_line = Line(line)
-        r = (
-            None
-        )  # type: Optional[Union[VCSRequirement, FileRequirement, NamedRequirement]]
+        parsed_line = Line(line=line)
         if (
             (parsed_line.is_file and parsed_line.is_installable)
             or parsed_line.is_remote_url
@@ -2663,7 +2499,6 @@ class Requirement(object):
             )
         if r is not None and r.req is not None:
             r.req.marker = getattr(req_markers, "marker", None) if req_markers else None
-        args = {}  # type: Dict[STRING_TYPE, CREATION_ARG_TYPES]
         args = {
             "name": r.name,
             "vcs": parsed_line.vcs,
@@ -2673,7 +2508,6 @@ class Requirement(object):
             "line_instance": parsed_line,
         }
         if parsed_line.extras:
-            extras = ()  # type: Tuple[STRING_TYPE, ...]
             extras = tuple(sorted(dedup([extra.lower() for extra in parsed_line.extras])))
             args["extras"] = extras
             if r is not None:
@@ -2782,25 +2616,27 @@ class Requirement(object):
                 parts = "{0} {1}".format(parts, index_string)
         return parts
 
+    @cached_property
     def get_markers(self):
-        # type: () -> Marker
         markers = self.markers
         if markers:
             fake_pkg = PackagingRequirement("fakepkg ; {0}".format(markers))
             markers = fake_pkg.marker
         return markers
 
-    def get_specifier(self):
-        # type: () -> Union[SpecifierSet, LegacySpecifier]
+    @cached_property
+    def get_specifier(self) -> Union[Specifier, LegacySpecifier]:
         try:
             return Specifier(self.specifiers)
         except InvalidSpecifier:
             return LegacySpecifier(self.specifiers)
 
+    @cached_property
     def get_version(self):
-        return parse(self.get_specifier().version)
+        return parse(self.get_specifier.version)
 
-    def get_requirement(self):
+    @cached_property
+    def get_requirement(self) -> PackagingRequirement:
         req_line = self.req.req.line
         if req_line.startswith("-e "):
             _, req_line = req_line.split(" ", 1)
@@ -2809,23 +2645,23 @@ class Requirement(object):
         req.specifier = SpecifierSet(self.specifiers if self.specifiers else "")
         if self.is_vcs or self.is_file_or_url:
             req.url = getattr(self.req.req, "url", self.req.link.url_without_fragment)
-        req.marker = self.get_markers()
+        req.marker = self.get_markers
         req.extras = set(self.extras) if self.extras else set()
         return req
 
     @property
-    def constraint_line(self):
+    def constraint_line(self) -> str:
         return self.as_line()
 
     @property
-    def is_direct_url(self):
+    def is_direct_url(self) -> bool:
         return (
             self.is_file_or_url
             and self.req.is_direct_url
             or (self.line_instance.is_direct_url or self.req.parsed_line.is_direct_url)
         )
 
-    def as_pipfile(self):
+    def as_pipfile(self) -> Dict[str, Any]:
         good_keys = (
             "hashes",
             "extras",
@@ -2836,12 +2672,17 @@ class Requirement(object):
         ) + VCS_LIST
         req_dict = {
             k: v
-            for k, v in attr.asdict(self, recurse=False, filter=filter_none).items()
-            if k in good_keys
+            for k, v in self.dict(exclude_unset=True).items()
+            if k in good_keys and v is not None
         }
+        if req_dict.get("editable") is False:
+            req_dict.pop("editable")
+
+
         name = self.name
         if "markers" in req_dict and req_dict["markers"]:
             req_dict["markers"] = req_dict["markers"].replace('"', "'")
+
         if not self.req.name:
             name_carriers = (self.req, self, self.line_instance, self.req.parsed_line)
             name_options = [
@@ -2851,6 +2692,7 @@ class Requirement(object):
             ]
             req_name = next(iter(n for n in name_options if n is not None), None)
             self.req.name = req_name
+
         req_name, dict_from_subreq = self.req.pipfile_part.popitem()
         base_dict = {
             k: v
@@ -2858,11 +2700,13 @@ class Requirement(object):
             if k not in ["req", "link", "_setup_info"]
         }
         base_dict.update(req_dict)
+
         conflicting_keys = ("file", "path", "uri")
         if "file" in base_dict and any(k in base_dict for k in conflicting_keys[1:]):
             conflicts = [k for k in (conflicting_keys[1:],) if k in base_dict]
             for k in conflicts:
                 base_dict.pop(k)
+
         if "hashes" in base_dict:
             _hashes = base_dict.pop("hashes")
             hashes = []
@@ -2872,13 +2716,17 @@ class Requirement(object):
                 except AttributeError:
                     hashes.append(_hash)
             base_dict["hashes"] = sorted(hashes)
+
         if "extras" in base_dict:
             base_dict["extras"] = list(base_dict["extras"])
+
         if len(base_dict.keys()) == 1 and "version" in base_dict:
             base_dict = base_dict.get("version")
+
         return {name: base_dict}
 
-    def as_ireq(self):
+    @cached_property
+    def as_ireq(self) -> InstallRequirement:
         if self.line_instance and self.line_instance.ireq:
             return self.line_instance.ireq
         elif getattr(self.req, "_parsed_line", None) and self.req._parsed_line.ireq:
@@ -2887,8 +2735,8 @@ class Requirement(object):
         if (self.is_file_or_url and self.req.is_local) or self.is_vcs:
             kwargs["include_markers"] = False
         ireq_line = self.as_line(**kwargs)
-        ireq = Line(ireq_line).ireq
-        if not getattr(ireq, "req", None):
+        ireq = Line(line=ireq_line).ireq
+        if not getattr(ireq, "req", None) and self.req.req:
             ireq.req = self.req.req
             if (self.is_file_or_url and self.req.is_local) or self.is_vcs:
                 if getattr(ireq, "req", None) and getattr(ireq.req, "marker", None):
@@ -2899,24 +2747,25 @@ class Requirement(object):
                 ireq.req.marker = self.req.req.marker
         return ireq
 
-    @property
-    def pipfile_entry(self):
+    @cached_property
+    def pipfile_entry(self) -> Tuple[str, Any]:
+        print(self.name)
+        print(self.as_pipfile())
         return self.as_pipfile().copy().popitem()
 
-    @property
-    def ireq(self):
-        return self.as_ireq()
+    @cached_property
+    def ireq(self) -> InstallRequirement:
+        return self.as_ireq
 
-    def run_requires(self, sources=None, finder=None):
+    def run_requires(self, sources: Optional[List[str]] = None, finder: Optional[PackageFinder] = None) -> Dict[
+        str, Any]:
         if self.req and self.req.setup_info is not None:
             info_dict = self.req.setup_info.as_dict()
         elif self.line_instance and self.line_instance.setup_info is not None:
             info_dict = self.line_instance.setup_info.as_dict()
         else:
-
             if not finder:
                 from .dependencies import get_finder
-
                 finder = get_finder(sources=sources)
             with global_tempdir_manager():
                 info = SetupInfo.from_requirement(self, finder=finder)
@@ -2931,44 +2780,31 @@ class Requirement(object):
                 self.req.req.name = info_dict["name"]
         return info_dict
 
-    def merge_markers(self, markers):
-        # type: (Union[AnyStr, Marker]) -> None
+    def merge_markers(self, markers: Union[str, Marker]) -> 'Requirement':
         if not markers:
             return self
         if not isinstance(markers, Marker):
             markers = Marker(markers)
         _markers = []  # type: List[Marker]
-        ireq = self.as_ireq()
+        ireq = self.as_ireq
         if ireq and ireq.markers:
             ireq_marker = ireq.markers
             _markers.append(str(ireq_marker))
         _markers.append(str(markers))
         marker_str = " and ".join([normalize_marker_str(m) for m in _markers if m])
-        new_marker = Marker(marker_str)
-        line = copy.deepcopy(self._line_instance)
-        line.markers = marker_str
-        line.parsed_marker = new_marker
-        if getattr(line, "_requirement", None) is not None:
-            line._requirement.marker = new_marker
-        if getattr(line, "_ireq", None) is not None and line._ireq.req:
-            line._ireq.req.marker = new_marker
-        new_ireq = getattr(self, "ireq", None)
-        if new_ireq and new_ireq.req:
-            new_ireq.req.marker = new_marker
-        req = self.req
-        if req.req:
-            req_requirement = req.req
-            req_requirement.marker = new_marker
-            req = attr.evolve(req, req=req_requirement, parsed_line=line)
-        return attr.evolve(
-            self, markers=str(new_marker), ireq=new_ireq, req=req, line_instance=line
-        )
+        self.markers = marker_str
+        # new_marker = Marker(marker_str)
+        # new_ireq = getattr(self, "ireq", None)
+        # if new_ireq and new_ireq.req:
+        #     new_ireq.req.marker = new_marker
+        # if self.req.req:
+        #     self.req.req = new_marker
 
 
 def file_req_from_parsed_line(parsed_line):
     # type: (Line) -> FileRequirement
     path = parsed_line.relpath if parsed_line.relpath else parsed_line.path
-    pyproject_requires = None  # type: Optional[Tuple[STRING_TYPE, ...]]
+    pyproject_requires = None  # type: Optional[Tuple[str, ...]]
     if parsed_line.pyproject_requires is not None:
         pyproject_requires = tuple(parsed_line.pyproject_requires)
     pyproject_path = (
@@ -3011,7 +2847,7 @@ def vcs_req_from_parsed_line(parsed_line):
         )
     else:
         link = parsed_line.link
-    pyproject_requires = ()  # type: Optional[Tuple[STRING_TYPE, ...]]
+    pyproject_requires = ()  # type: Optional[Tuple[str, ...]]
     if parsed_line.pyproject_requires is not None:
         pyproject_requires = tuple(parsed_line.pyproject_requires)
     vcs_dict = {

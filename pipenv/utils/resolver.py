@@ -401,8 +401,8 @@ class Resolver:
                     )
                     hashes = resolver.collect_hashes(ireq) if resolver else []
                     new_req = Requirement.from_ireq(ireq)
-                    new_req = new_req.add_hashes(hashes)
-                    new_req = new_req.merge_markers(req.markers)
+                    new_req.add_hashes(hashes)
+                    new_req.merge_markers(req.markers)
                     name, entry = new_req.pipfile_entry
                     locked_deps[pep423_name(name)] = translate_markers(entry)
                     click.echo(
@@ -808,7 +808,7 @@ class Resolver:
         ref = None
         if req.is_vcs:
             ref = req.commit_hash
-        ireq = req.as_ireq()
+        ireq = req.as_ireq
         entry = value.copy()
         entry["name"] = req.name
         if entry.get("editable", False) and entry.get("version"):
@@ -832,7 +832,7 @@ class Resolver:
             elif req.normalized_name in self.skipped.keys():
                 continue
             collected_hashes = self.hashes.get(ireq, set())
-            req = req.add_hashes(collected_hashes)
+            req.add_hashes(collected_hashes)
             if collected_hashes:
                 collected_hashes = sorted(collected_hashes)
             name, entry = format_requirement_for_lockfile(

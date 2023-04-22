@@ -195,7 +195,7 @@ class Entry:
         if not markers:
             marker_str = self.marker_to_str(markers)
             if marker_str:
-                self._entry = self.entry.merge_markers(marker_str)
+                self.entry.merge_markers(marker_str)
                 self._markers = self.marker_to_str(self._entry.markers)
                 entry_dict = self.entry_dict.copy()
                 entry_dict["markers"] = self.marker_to_str(self._entry.markers)
@@ -473,7 +473,7 @@ class Entry:
                 )
                 hashes = None
                 if self.lockfile_entry.specifiers == satisfied_by:
-                    ireq = self.lockfile_entry.as_ireq()
+                    ireq = self.lockfile_entry.as_ire
                     if (
                         not self.lockfile_entry.hashes
                         and self.resolver._should_include_hash(ireq)
@@ -519,7 +519,7 @@ class Entry:
         :return: An **InstallRequirement** instance representing a version constraint
         """
         if self.is_in_pipfile:
-            return self.pipfile_entry.as_ireq()
+            return self.pipfile_entry.as_ireq
 
     def validate_constraints(self):
         """

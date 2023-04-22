@@ -1449,7 +1449,7 @@ build-backend = "{1}"
     @classmethod
     def from_requirement(cls, requirement, finder=None):
         # type: (TRequirement, Optional[PackageFinder]) -> Optional[SetupInfo]
-        ireq = requirement.as_ireq()
+        ireq = requirement.as_ireq
         subdir = getattr(requirement.req, "subdirectory", None)
         return cls.from_ireq(ireq, subdir=subdir, finder=finder)
 
@@ -1457,6 +1457,8 @@ build-backend = "{1}"
     @lru_cache()
     def from_ireq(cls, ireq, subdir=None, finder=None, session=None):
         # type: (InstallRequirement, Optional[AnyStr], Optional[PackageFinder], Optional[Session]) -> Optional[SetupInfo]
+        if not ireq:
+            return None
         if not ireq.link:
             return None
         if ireq.link.is_wheel:
