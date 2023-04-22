@@ -640,8 +640,7 @@ class Line(ReqLibBaseModel):
         )
 
     @property
-    def name(self):
-        # type: () -> Optional[str]
+    def name(self) -> Optional[str]:
         if self._name is None:
             self.parse_name()
             if self._name is None and not self.is_named and not self.is_wheel:
@@ -893,8 +892,7 @@ class Line(ReqLibBaseModel):
         return self._vcsrepo
 
     @property
-    def parsed_url(self):
-        # type: () -> URI
+    def parsed_url(self) -> URI:
         if self._parsed_url is None:
             self._parsed_url = URI.parse(self.line)
         return self._parsed_url
@@ -1399,7 +1397,7 @@ class NamedRequirement(ReqLibBaseModel):
 
     @classmethod
     def from_pipfile(cls, name: str, pipfile: Dict[str, Any]) -> 'NamedRequirement':
-        creation_args = {}
+        creation_args = {}  # type: TPIPFILE
         if hasattr(pipfile, "keys"):
             # Get field names from the Pydantic model
             pydantic_fields = cls.__fields__.keys()
@@ -1413,7 +1411,7 @@ class NamedRequirement(ReqLibBaseModel):
         req = init_requirement("{0}{1}".format(name, version))
         if req and extras and req.extras and isinstance(req.extras, tuple):
             if isinstance(extras, str):
-                req.extras = (extras) + tuple(["{0}".format(xtra) for xtra in req.extras])
+                req.extras = (extras,) + tuple(["{0}".format(xtra) for xtra in req.extras])
             elif isinstance(extras, (tuple, list)):
                 req.extras += tuple(extras)
         creation_args["req"] = req
@@ -1427,7 +1425,7 @@ class NamedRequirement(ReqLibBaseModel):
         # also replaces dots and that doesn't actually work when querying the index
         return normalize_name(self.name)
 
-    @property
+    @cached_property
     def pipfile_part(self) -> Dict[str, Any]:
         pipfile_dict = self.dict()
         if "version" not in pipfile_dict:
@@ -2758,18 +2756,16 @@ class Requirement(ReqLibBaseModel):
             "version",
             "index",
         ) + VCS_LIST
-        req_dict = {
-            k: v
-            for k, v in self.dict().items()
-            if k in good_keys and v is not None
-        }
+        req_dict = {}
+        for k, v in self.dict().items():
+            if k in good_keys and v:
+                req_dict[k] = v
         if req_dict.get("editable") is False:
             req_dict.pop("editable")
 
         name = self.name
         if "markers" in req_dict and req_dict["markers"]:
             req_dict["markers"] = req_dict["markers"].replace('"', "'")
-
         if not self.req.name:
             name_carriers = (self.req, self, self.line_instance, self.req.parsed_line)
             name_options = [
@@ -2779,7 +2775,6 @@ class Requirement(ReqLibBaseModel):
             ]
             req_name = next(iter(n for n in name_options if n is not None), None)
             self.req.name = req_name
-
         req_name, dict_from_subreq = self.req.pipfile_part.popitem()
         base_dict = {
             k: v
@@ -2787,13 +2782,11 @@ class Requirement(ReqLibBaseModel):
             if k not in ["req", "link", "_setup_info"]
         }
         base_dict.update(req_dict)
-
         conflicting_keys = ("file", "path", "uri")
         if "file" in base_dict and any(k in base_dict for k in conflicting_keys[1:]):
             conflicts = [k for k in (conflicting_keys[1:],) if k in base_dict]
             for k in conflicts:
                 base_dict.pop(k)
-
         if "hashes" in base_dict:
             _hashes = base_dict.pop("hashes")
             hashes = []
@@ -2803,10 +2796,8 @@ class Requirement(ReqLibBaseModel):
                 except AttributeError:
                     hashes.append(_hash)
             base_dict["hashes"] = sorted(hashes)
-
         if "extras" in base_dict:
             base_dict["extras"] = list(base_dict["extras"])
-
         if len(base_dict.keys()) == 1 and "version" in base_dict:
             base_dict = base_dict.get("version")
 
@@ -2834,7 +2825,7 @@ class Requirement(ReqLibBaseModel):
                 ireq.req.marker = self.req.req.marker
         return ireq
 
-    @property
+    @cached_property
     def pipfile_entry(self) -> Tuple[str, Any]:
         dict = self.as_pipfile()
         last_key = next(reversed(dict))
