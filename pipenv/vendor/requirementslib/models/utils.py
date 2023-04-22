@@ -335,7 +335,10 @@ def get_version(pipfile_entry):
     if hasattr(pipfile_entry, "keys") and "version" in pipfile_entry:
         if is_star(pipfile_entry.get("version")):
             return ""
-        return pipfile_entry.get("version", "").strip().lstrip("(").rstrip(")")
+        version = pipfile_entry.get("version")
+        if version is None:
+            version = ""
+        return version.strip().lstrip("(").rstrip(")")
 
     if isinstance(pipfile_entry, str):
         return pipfile_entry.strip().lstrip("(").rstrip(")")
