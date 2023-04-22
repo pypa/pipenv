@@ -24,7 +24,7 @@ from typing import (
     TypeVar,
     Union,
 )
-from pipenv.vendor.pydantic import BaseModel, Field
+from pipenv.vendor.pydantic import BaseModel, Field, Extra
 from pipenv.vendor.pydantic.dataclasses import dataclass
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 
@@ -140,28 +140,42 @@ if MYPY_RUNNING:
 SPECIFIERS_BY_LENGTH = sorted(list(Specifier._operators.keys()), key=len, reverse=True)
 
 
-class Line(BaseModel):
+class ReqLibBaseModel(BaseModel):
+    def __setattr__(self, name, value):  # noqa: C901 (ignore complexity)
+        private_attributes = {
+            field_name for field_name in self.__annotations__ if field_name.startswith("_")
+        }
+
+        if name in private_attributes or name in self.__fields__:
+            return object.__setattr__(self, name, value)
+
+        if self.__config__.extra is not Extra.allow and name not in self.__fields__:
+            raise ValueError(f'"{self.__class__.__name__}" object has no field "{name}"')
+
+        object.__setattr__(self, name, value)
+
+class Line(ReqLibBaseModel):
     line: str
-    editable: bool = Field(False, eq=True, order=True)
-    extras: Tuple[str, ...] = Field(tuple(), eq=True, order=True)
-    hashes: List[str] = Field(list, eq=True, order=True)
-    markers: Optional[str] = Field(None, eq=True, order=True)
-    vcs: Optional[str] = Field(None, eq=True, order=True)
-    path: Optional[str] = Field(None, eq=True, order=True)
-    relpath: Optional[str] = Field(None, eq=True, order=True)
-    uri: Optional[str] = Field(None, eq=True, order=True)
-    _link: Optional[Link] = Field(None, eq=True, order=True)
-    is_local: bool = Field(False, eq=True, order=True)
-    _name: Optional[str] = Field(None, eq=True, order=True)
-    _specifier: Optional[str] = Field(None, eq=True, order=True)
-    parsed_marker: Optional[Marker] = Field(None, eq=True, order=True)
-    preferred_scheme: Optional[str] = Field(None, eq=True, order=True)
-    _requirement: Optional[PackagingRequirement] = Field(None, eq=True, order=True)
-    _vcsrepo: Optional[VCSRepository] = Field(None, eq=True, order=True)
-    _setup_info: Optional[SetupInfo] = Field(None, eq=True, order=True)
-    _ref: Optional[str] = Field(None, eq=True, order=True)
-    _ireq: Optional[InstallRequirement] = Field(None, eq=True, order=True)
-    dist: Any = Field(None, eq=True, order=True)
+    editable: bool = False
+    extras: Tuple[str, ...] = tuple()
+    hashes: List[str] = list()
+    markers: Optional[str] = None
+    vcs: Optional[str] = None
+    path: Optional[str] = None
+    relpath: Optional[str] = None
+    uri: Optional[str] = None
+    _link: Optional[Link] = None
+    is_local: bool = None
+    _name: Optional[str] = None
+    _specifier: Optional[str] = None
+    parsed_marker: Optional[Marker] = None
+    preferred_scheme: Optional[str] = None
+    _requirement: Optional[PackagingRequirement] = None
+    _vcsrepo: Optional[VCSRepository] = None
+    _setup_info: Optional[SetupInfo] = None
+    _ref: Optional[str] = None
+    _ireq: Optional[InstallRequirement] = None
+    dist: Any = None
 
     class Config:
         validate_assignment = True
@@ -442,15 +456,16 @@ class Line(BaseModel):
             specs.append(spec._spec)
         return specs
 
-    @property
+    @cached_property
     def requirement(self):
         # type: () -> Optional[PackagingRequirement]
+        if self._requirement:
+            return self._requirement
         self.parse_requirement()
-        requirement = None
         if self._name is not None:
-            requirement = init_requirement(canonicalize_name(self.name))
+            self._requirement = init_requirement(canonicalize_name(self.name))
             if self.is_file or self.is_remote_url and self._requirement is not None:
-                requirement.url = self.url
+                self._requirement.url = self.url
         if (
             self._requirement
             and self._requirement.specifier
@@ -464,10 +479,10 @@ class Line(BaseModel):
         if not self.link and not self.path:
             self.parse_link()
         if not self.path:
-            return
+            return {}
         base_path = self.base_path
         if base_path is None:
-            return
+            return {}
         setup_paths = get_setup_paths(
             base_path, subdirectory=self.subdirectory
         )  # type: Dict[str, Optional[str]]
@@ -915,10 +930,8 @@ class Line(BaseModel):
 
     def _parse_name_from_line(self):
         # type: () -> Optional[str]
-        if not self.is_named:
-            pass
         try:
-            self._requirement = init_requirement(self.line)
+            self._requirement = init_requirement(self.name_and_specifier)
         except Exception:
             raise RequirementError(
                 "Failed parsing requirement from {0!r}".format(self.line)
@@ -1081,7 +1094,7 @@ class Line(BaseModel):
             )
         ):
             url = path_to_url(os.path.abspath(self.line))
-            # self.parsed_url = parsed_url = URI.parse(url)
+            self.parsed_url = parsed_url = URI.parse(url)
         elif any(
             [
                 is_valid_url(self.line),
@@ -1254,7 +1267,7 @@ class Line(BaseModel):
         self.parse_link()
 
 
-class NamedRequirement(BaseModel):
+class NamedRequirement(ReqLibBaseModel):
     name: str
     version: Optional[str]
     req: PackagingRequirement
@@ -1345,7 +1358,7 @@ class NamedRequirement(BaseModel):
         # also replaces dots and that doesn't actually work when querying the index
         return normalize_name(self.name)
 
-    @cached_property
+    @property
     def pipfile_part(self) -> Dict[str, Any]:
         pipfile_dict = self.dict()
         if "version" not in pipfile_dict:
@@ -1361,7 +1374,7 @@ LinkInfo = collections.namedtuple(
 )
 
 
-class FileRequirement(BaseModel):
+class FileRequirement(ReqLibBaseModel):
     """File requirements for tar.gz installable files or wheels or setup.py
     containing directories."""
     setup_path: Optional[str] = None
@@ -2282,14 +2295,14 @@ class VCSRequirement(FileRequirement):
         return {name: pipfile_dict}  # type: ignore
 
 
-class Requirement(BaseModel):
+class Requirement(ReqLibBaseModel):
     vcs: Optional[str] = Field(None, eq=True, order=True)
     req: Optional[Any] = Field(None, eq=True, order=True)
     #req: Optional[Union[VCSRequirement, FileRequirement, NamedRequirement]] = Field(None, eq=True, order=True)
     markers: Optional[str] = Field(dict, eq=True, order=True)
     index: Optional[str] = Field(None, eq=True, order=True)
-    editable: Optional[bool] = Field(None, eq=True, order=True)
-    hashes: Set[str] = Field(set(), eq=True, order=True)
+    editable: Optional[bool] = Field(False, eq=True, order=True)
+    hashes: Set[str] = set()
     extras: Tuple[str, ...] = Field(tuple(), eq=True, order=True)
     #line_instance: Optional[Line] = Field(None, eq=False, order=False)
     #ireq: Optional[InstallRequirement] = Field(None, eq=False, order=False)
@@ -2313,7 +2326,7 @@ class Requirement(BaseModel):
             name = self.req.setup_info.name
         return name
 
-    @property
+    @cached_property
     def requirement(self) -> Optional[PackagingRequirement]:
         if self.req:
             return self.req.req
@@ -2414,11 +2427,11 @@ class Requirement(BaseModel):
             line = "".join(line_parts)
         return Line(line=line)
 
-    @property
+    @cached_property
     def line_instance(self) -> Optional[Line]:
         return self.get_line_instance()
 
-    @property
+    @cached_property
     def specifiers(self) -> Optional[str]:
         specs = self.get_specifiers
         if specs:
@@ -2443,19 +2456,19 @@ class Requirement(BaseModel):
         ):
             return "=={0}".format(self.req.setup_info.version)
 
-    @property
+    @cached_property
     def is_vcs(self) -> bool:
         return isinstance(self.req, VCSRequirement)
 
-    @property
+    @cached_property
     def is_file_or_url(self) -> bool:
         return isinstance(self.req, FileRequirement)
 
-    @property
+    @cached_property
     def is_named(self) -> bool:
         return isinstance(self.req, NamedRequirement)
 
-    @property
+    @cached_property
     def is_wheel(self) -> bool:
         if (
             self.req
@@ -2465,7 +2478,7 @@ class Requirement(BaseModel):
             return True
         return False
 
-    @property
+    @cached_property
     def normalized_name(self) -> str:
         return canonicalize_name(self.name)
 
@@ -2672,12 +2685,11 @@ class Requirement(BaseModel):
         ) + VCS_LIST
         req_dict = {
             k: v
-            for k, v in self.dict(exclude_unset=True).items()
+            for k, v in self.dict().items()
             if k in good_keys and v is not None
         }
         if req_dict.get("editable") is False:
             req_dict.pop("editable")
-
 
         name = self.name
         if "markers" in req_dict and req_dict["markers"]:
@@ -2736,7 +2748,7 @@ class Requirement(BaseModel):
             kwargs["include_markers"] = False
         ireq_line = self.as_line(**kwargs)
         ireq = Line(line=ireq_line).ireq
-        if not getattr(ireq, "req", None) and self.req.req:
+        if not getattr(ireq, "req", None):
             ireq.req = self.req.req
             if (self.is_file_or_url and self.req.is_local) or self.is_vcs:
                 if getattr(ireq, "req", None) and getattr(ireq.req, "marker", None):
@@ -2749,8 +2761,6 @@ class Requirement(BaseModel):
 
     @cached_property
     def pipfile_entry(self) -> Tuple[str, Any]:
-        print(self.name)
-        print(self.as_pipfile())
         return self.as_pipfile().copy().popitem()
 
     @cached_property
