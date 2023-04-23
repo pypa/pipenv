@@ -3,7 +3,6 @@ import copy
 import os
 import sys
 from contextlib import contextmanager
-from functools import lru_cache
 from pathlib import Path
 from sysconfig import get_path
 from urllib import parse as urllib_parse
@@ -13,19 +12,14 @@ from typing import (
     Any,
     AnyStr,
     Dict,
-    FrozenSet,
     Generator,
     List,
     Optional,
-    Sequence,
     Set,
-    Text,
     Tuple,
-    TypeVar,
     Union,
 )
 from pipenv.vendor.pydantic import BaseModel, Field, Extra
-from pipenv.vendor.pydantic.dataclasses import dataclass
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 
 from pipenv.patched.pip._vendor.pyparsing.core import cached_property
@@ -187,7 +181,7 @@ class Line(ReqLibBaseModel):
     _pyproject_toml: Optional[str] = None
     _pyproject_requires: Optional[Tuple[str, ...]] = None
     _pyproject_backend: Optional[str] = None
-    _wheel_kwargs: Optional[dict[str, str]] = None
+    _wheel_kwargs: Optional[Dict[str, str]] = None
     _vcsrepo: Optional[Any] = None
     _setup_info: Optional[Any] = None
     _ref: Optional[str] = None
