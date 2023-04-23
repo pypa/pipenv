@@ -233,9 +233,9 @@ class Line(ReqLibBaseModel):
             return (
                 "<Line (editable={self.editable}, name={self._name}, path={self.path}, "
                 "uri={self.uri}, extras={self.extras}, markers={self.markers}, vcs={self.vcs}"
-                ", specifier={self._specifier}, pyproject={self.pyproject_toml}, "
-                "pyproject_requires={self.pyproject_requires}, "
-                "pyproject_backend={self.pyproject_backend}, ireq={self._ireq})>".format(
+                ", specifier={self._specifier}, pyproject={self._pyproject_toml}, "
+                "pyproject_requires={self._pyproject_requires}, "
+                "pyproject_backend={self._pyproject_backend}, ireq={self._ireq})>".format(
                     self=self
                 )
             )
@@ -535,8 +535,6 @@ class Line(ReqLibBaseModel):
     def get_setup_paths(self) -> None:
         if not self.link and not self.path:
             self.parse_link()
-        if not self.path:
-            return
         base_path = self.base_path
         if base_path is None:
             return
@@ -1501,6 +1499,8 @@ class FileRequirement(ReqLibBaseModel):
             self.uri = self.get_uri()
         if self.path:
             self._uri_scheme = "path"
+        if self.path and not self._uri_scheme:
+            self._uri_scheme = "file"
 
     @classmethod
     def get_link_from_line(cls, line):
@@ -1785,8 +1785,8 @@ class FileRequirement(ReqLibBaseModel):
                 path = get_converted_relative_path(path)
         if path and uri:
             raise ValueError("do not specify both 'path' and 'uri'")
-        if path and fil:
-            raise ValueError("do not specify both 'path' and 'file'")
+        # if path and fil:
+        #     raise ValueError("do not specify both 'path' and 'file'")
         uri = uri or fil
 
         # Decide that scheme to use.
@@ -1828,7 +1828,6 @@ class FileRequirement(ReqLibBaseModel):
             "extras": extras if extras else None,
         }
 
-        line = ""  # type: str
         extras_string = "" if not extras else extras_to_string(extras)
         if editable and uri_scheme == "path":
             line = "{0}{1}".format(path, extras_string)
