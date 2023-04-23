@@ -383,7 +383,7 @@ class Line(ReqLibBaseModel):
     @property
     def base_path(self):
         # type: () -> Optional[S]
-q        self.parse_link()
+        self.parse_link()
         if not self.path:
             return None
         path = normalize_path(self.path)
