@@ -985,7 +985,7 @@ class Project:
                 del converted[k]
             if k in ["name", "uri"]:
                 del converted[k]
-        if len(converted) == 1:
+        if len(converted) == 1 and converted.get("version"):
             converted = converted.get("version")
         p[category][normalized_name] = converted
         # Write Pipfile.

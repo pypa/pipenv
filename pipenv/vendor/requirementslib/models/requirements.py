@@ -383,10 +383,9 @@ class Line(ReqLibBaseModel):
     @property
     def base_path(self):
         # type: () -> Optional[S]
-        if not self.link and not self.path:
-            self.parse_link()
+q        self.parse_link()
         if not self.path:
-            pass
+            return None
         path = normalize_path(self.path)
         if os.path.exists(path) and os.path.isdir(path):
             path = path
@@ -429,6 +428,7 @@ class Line(ReqLibBaseModel):
         spec_string = None  # type: Optional[str]
         if specifier is not None:
             spec_string = specs_to_string(specifier)
+            self.set_specifiers(specifier)
         elif (
             specifier is None
             and not self.is_named
@@ -482,10 +482,10 @@ class Line(ReqLibBaseModel):
                 raise TypeError("Must pass a string or a SpecifierSet")
         specs = self.get_requirement_specs(specifiers)
         if self.ireq is not None and self._ireq and self._ireq.req is not None:
-            self._ireq.req.set_specifier(specifiers)
+            self._ireq.req.specifier = specifiers
             self._ireq.req.specs = specs
         if self.requirement is not None:
-            self.requirement.set_specifier(specifiers)
+            self.requirement.specifier = specifiers
             self.requirement.specs = specs
 
     @classmethod
@@ -1021,7 +1021,6 @@ class Line(ReqLibBaseModel):
             if specifier_match:
                 specifier = "{0!s}".format(specifier_match)
             if specifier is not None and specifier in name:
-                version = None  # type: Optional[str]
                 name, specifier, version = name.partition(specifier)
                 self._specifier = "{0}{1}".format(specifier, version)
         return name
@@ -1202,14 +1201,14 @@ class Line(ReqLibBaseModel):
         if relpath is not None and "@" in relpath:
             relpath, _, ref = relpath.rpartition("@")
         if path is not None and "@" in path:
-            path, _ = split_ref_from_uri(path)
+            path, prefix = split_ref_from_uri(path)
         link_url = link.url_without_fragment
         if "@" in link_url:
             link_url, _ = split_ref_from_uri(link_url)
         self.preferred_scheme = prefer
         self.relpath = relpath
         self.path = path
-        # self.uri = uri
+        self.uri = uri
         if prefer in ("path", "relpath") or uri.startswith("file"):
             self.is_local = True
         if parsed_url.is_vcs or parsed_url.is_direct_url and parsed_link:
@@ -1428,7 +1427,7 @@ class NamedRequirement(ReqLibBaseModel):
     @cached_property
     def pipfile_part(self) -> Dict[str, Any]:
         pipfile_dict = self.dict()
-        if "version" not in pipfile_dict:
+        if "version" not in pipfile_dict or pipfile_dict["version"] is None:
             pipfile_dict["version"] = "*"
         if "_parsed_line" in pipfile_dict:
             pipfile_dict.pop("_parsed_line")
@@ -1961,15 +1960,15 @@ class VCSRequirement(FileRequirement):
     _repo: Optional[VCSRepository] = None
     _base_line: Optional[str] = None
     _parsed_line: Optional[Line] = None
+    _uri_scheme: Optional[str] = None
     name: str
     link: Optional[Link]
     req: Optional[PackagingRequirement]
 
     def __init__(self, **data):
         super().__init__(**data)
-        if not self.uri:
-            if self.path:
-                self.uri = path_to_url(self.path)
+        if not self.uri and self.path:
+            self.uri = path_to_url(self.path)
         if self.uri is not None:
             split = urllib_parse.urlsplit(self.uri)
             scheme, rest = split[0], split[1:]
@@ -2391,7 +2390,7 @@ class Requirement(ReqLibBaseModel):
     #req: Optional[Union[VCSRequirement, FileRequirement, NamedRequirement]] = Field(None, eq=True, order=True)
     markers: Optional[str] = Field(dict, eq=True, order=True)
     index: Optional[str] = Field(None, eq=True, order=True)
-    editable: Optional[bool] = Field(False, eq=True, order=True)
+    editable: Optional[bool] = Field(None, eq=True, order=True)
     hashes: Set[str] = set()
     extras: Tuple[str, ...] = Field(tuple(), eq=True, order=True)
     #line_instance: Optional[Line] = Field(None, eq=False, order=False)
@@ -2662,8 +2661,7 @@ class Requirement(ReqLibBaseModel):
                 r.req.marker = req_markers.marker
         extras = _pipfile.get("extras")
         if r.req:
-            if r.req.specifier:
-                r.req.specifier = SpecifierSet(_pipfile["version"])
+            r.req.specifier = SpecifierSet(_pipfile["version"])
             r.req.extras = (
                 tuple(sorted(dedup([extra.lower() for extra in extras])))
                 if extras
@@ -2728,14 +2726,14 @@ class Requirement(ReqLibBaseModel):
             markers = fake_pkg.marker
         return markers
 
-    @cached_property
+    @property
     def get_specifier(self) -> Union[Specifier, LegacySpecifier]:
         try:
             return Specifier(self.specifiers)
         except InvalidSpecifier:
             return LegacySpecifier(self.specifiers)
 
-    @cached_property
+    @property
     def get_version(self):
         return parse(self.get_specifier.version)
 
@@ -2793,7 +2791,8 @@ class Requirement(ReqLibBaseModel):
             ]
             req_name = next(iter(n for n in name_options if n is not None), None)
             self.req.name = req_name
-        req_name, dict_from_subreq = self.req.pipfile_part.popitem()
+        req_name = next(reversed(self.req.pipfile_part))
+        dict_from_subreq = self.req.pipfile_part[req_name]
         base_dict = {
             k: v
             for k, v in dict_from_subreq.items()
@@ -2845,9 +2844,9 @@ class Requirement(ReqLibBaseModel):
 
     @cached_property
     def pipfile_entry(self) -> Tuple[str, Any]:
-        dict = self.as_pipfile()
-        last_key = next(reversed(dict))
-        last_value = dict[last_key]
+        pipfile = self.as_pipfile()
+        last_key = next(reversed(pipfile))
+        last_value = pipfile[last_key]
         return last_key, last_value
 
     @cached_property
