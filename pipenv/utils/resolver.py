@@ -347,6 +347,13 @@ class Resolver:
                 )
             ):
                 requirements = [v for v in getattr(setup_info, "requires", {}).values()]
+                if req.extras:
+                    for extra in req.extras:
+                        requirements.extend(
+                            v
+                            for v in getattr(setup_info, "extras", {}).get(extra, [])
+                            if v not in requirements
+                        )
             for r in requirements:
                 if getattr(r, "url", None) and not getattr(r, "editable", False):
                     if r is not None:
