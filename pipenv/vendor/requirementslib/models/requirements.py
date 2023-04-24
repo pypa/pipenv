@@ -2784,7 +2784,7 @@ class Requirement(ReqLibBaseModel):
             ]
             req_name = next(iter(n for n in name_options if n is not None), None)
             self.req.name = req_name
-        req_name = next(reversed(self.req.pipfile_part))
+        req_name = next(reversed(list(self.req.pipfile_part.keys())))
         dict_from_subreq = self.req.pipfile_part[req_name]
         base_dict = {
             k: v
@@ -2838,7 +2838,7 @@ class Requirement(ReqLibBaseModel):
     @cached_property
     def pipfile_entry(self) -> Tuple[str, Any]:
         pipfile = self.as_pipfile()
-        last_key = next(reversed(pipfile))
+        last_key = next(reversed(list(pipfile.keys())))
         last_value = pipfile[last_key]
         return last_key, last_value
 
