@@ -978,15 +978,16 @@ class Project:
         normalized_name = pep423_name(req_name)
         if name and name != normalized_name:
             self.remove_package_from_pipfile(name, category=category)
-        keys = list(converted.keys())
-        for k in keys:
-            value = converted.get(k)
-            if not value:
-                del converted[k]
-            if k in ["name", "uri"]:
-                del converted[k]
-        if len(converted) == 1 and converted.get("version"):
-            converted = converted.get("version")
+        if isinstance(converted, dict):
+            keys = list(converted.keys())
+            for k in keys:
+                value = converted.get(k)
+                if not value:
+                    del converted[k]
+                if k in ["name", "uri"]:
+                    del converted[k]
+            if len(converted) == 1 and converted.get("version"):
+                converted = converted.get("version")
         p[category][normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)
