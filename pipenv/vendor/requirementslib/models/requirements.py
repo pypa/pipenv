@@ -1427,6 +1427,8 @@ class NamedRequirement(ReqLibBaseModel):
             pipfile_dict.pop("editable")
         if pipfile_dict.get("line_part"):
             pipfile_dict.pop("line_part")
+        if not pipfile_dict.get("extras", True):
+            pipfile_dict.pop("extras")
         name = pipfile_dict.pop("name")
         return {name: pipfile_dict}
 
