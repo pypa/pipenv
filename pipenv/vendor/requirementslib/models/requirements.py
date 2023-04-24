@@ -1203,6 +1203,8 @@ class Line(ReqLibBaseModel):
         self.uri = uri
         if prefer in ("path", "relpath") or uri.startswith("file"):
             self.is_local = True
+            if uri.startswith("file"):
+                self.path = uri
         if parsed_url.is_vcs or parsed_url.is_direct_url and parsed_link:
             self._link = parsed_link
         else:
@@ -1777,7 +1779,7 @@ class FileRequirement(ReqLibBaseModel):
         if path and isinstance(path, str):
             if isinstance(path, Path) and not path.is_absolute():
                 path = get_converted_relative_path(path.as_posix())
-            elif not os.path.isabs(path):
+            elif not os.path.isabs(path) and not path.startswith("file:/"):
                 path = get_converted_relative_path(path)
         if path and uri:
             raise ValueError("do not specify both 'path' and 'uri'")
@@ -1789,7 +1791,7 @@ class FileRequirement(ReqLibBaseModel):
         # 'path' - local filesystem path.
         # 'file' - A file:// URI (possibly with VCS prefix).
         # 'uri' - Any other URI.
-        if path:
+        if path and not path.startswith("file:/"):
             uri_scheme = "path"
         else:
             # URI is not currently a valid key in pipfile entries
@@ -1797,7 +1799,12 @@ class FileRequirement(ReqLibBaseModel):
             uri_scheme = "file"
 
         if not uri:
-            uri = path_to_url(path)
+            if path.startswith("file:///"):
+                uri = path_to_url(path.lstrip("file:///"))
+            elif path.startswith("file:/"):
+                uri = path_to_url(path.lstrip("file:/"))
+            else:
+                uri = path_to_url(path)
         link_info = None  # type: Optional[LinkInfo]
         if uri and isinstance(uri, str):
             link_info = cls.get_link_from_line(uri)

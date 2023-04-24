@@ -59,10 +59,10 @@ def test_file_urls_work(pipenv_instance_pypi, pip_src_dir):
         c = p.pipenv('install "{0}"'.format(wheel_url))
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
-        assert "file" in p.pipfile["packages"]["six"]
+        assert "path" in p.pipfile["packages"]["six"]
         assert 'six' in p.lockfile["default"]
-        assert 'file' in p.lockfile["default"]["six"]
-        assert "six-1.11.0-py2.py3-none-any.whl" in p.lockfile["default"]["six"]["file"]
+        assert 'path' in p.lockfile["default"]["six"]
+        assert "six-1.11.0-py2.py3-none-any.whl" in p.lockfile["default"]["six"]["path"]
 
 
 
