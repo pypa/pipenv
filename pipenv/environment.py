@@ -776,8 +776,6 @@ class Environment:
         if match is not None:
             if req.editable and req.line_instance.is_local and self.find_egg(match):
                 requested_path = req.line_instance.path
-                if requested_path.startswith("file:///"):
-                    requested_path = requested_path.replace("file:///", "")
                 return requested_path and os.path.samefile(requested_path, match.location)
             elif match.has_metadata("direct_url.json"):
                 direct_url_metadata = json.loads(match.get_metadata("direct_url.json"))
