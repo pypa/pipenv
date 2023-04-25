@@ -813,18 +813,10 @@ class Line(ReqLibBaseModel):
     def setup_info(self):
         # type: () -> Optional[SetupInfo]
         if not self._setup_info and not self.is_named and not self.is_wheel:
-            # make two attempts at this before failing to allow for stale data
-            try:
-                self.set_setup_info(self.get_setup_info())
-            except FileNotFoundError:
-                try:
-                    self.set_setup_info(self.get_setup_info())
-                except FileNotFoundError:
-                    raise
+            self.set_setup_info(self.get_setup_info())
         return self._setup_info
 
-    def set_setup_info(self, setup_info):
-        # type: (SetupInfo) -> None
+    def set_setup_info(self, setup_info) -> None:
         self._setup_info = setup_info
         if setup_info.version:
             self.set_specifiers(f"=={setup_info.version}")
@@ -1626,8 +1618,7 @@ class FileRequirement(ReqLibBaseModel):
                         self._setup_info.get_info()
         return self._setup_info
 
-    def set_setup_info(self, setup_info):
-        # type: (SetupInfo) -> None
+    def set_setup_info(self, setup_info) -> None:
         self._setup_info = setup_info
         if self._parsed_line:
             self._parsed_line._setup_info = setup_info
@@ -2008,7 +1999,7 @@ class VCSRequirement(FileRequirement):
             self._setup_info = SetupInfo.from_ireq(ireq, subdir=subdir)
         return self._setup_info
 
-    def set_setup_info(self, setup_info):
+    def set_setup_info(self, setup_info) -> None:
         self._setup_info = setup_info
         if self._parsed_line:
             self._parsed_line.set_setup_info(setup_info)

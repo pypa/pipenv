@@ -547,9 +547,8 @@ class ReleaseUrl(BaseModel):
                 requires_dist = [str(v) for v in metadata.requires.values()]
         results["requires_dist"] = requires_dist
         requires_python = getattr(self, "requires_python", results["requires_python"])
-
-        # In a Pydantic model, use the copy method to update the attribute
-        return self.copy(update={"requires_python": requires_python}), results
+        self.requires_python = requires_python
+        return self, results
 
     @property
     def sha256(self) -> str:

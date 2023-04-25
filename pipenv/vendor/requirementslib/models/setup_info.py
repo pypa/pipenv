@@ -956,9 +956,9 @@ class SetupInfo(ReqLibBaseModel):
 
     @property
     def requires(self) -> Dict[str, PackagingRequirement]:
+        self.get_info()
         if self._requirements is None:
             self._requirements = frozenset()
-            self.get_info()
         return {req.name: req.requirement for req in self._requirements}
 
     @property
@@ -978,7 +978,7 @@ class SetupInfo(ReqLibBaseModel):
     @property
     def version(self) -> Optional[str]:
         if not self._version:
-            info = self.get_info()
+            info = self.as_dict()
             self._version = info.get("version", None)
         return self._version
 
@@ -1323,9 +1323,9 @@ build-backend = "{1}"
                 self.update_from_dict(parsed)
                 return self.as_dict()
 
-        return self.get_info()
+        return self.as_dict()
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> None:
         if self.metadata is None:
             self.build()
 
@@ -1341,8 +1341,6 @@ build-backend = "{1}"
                 if metadata:
                     self.populate_metadata(metadata)
 
-        return self.as_dict()
-
     def as_dict(self) -> Dict[str, Any]:
         prop_dict = {
             "name": self.name,
@@ -1351,10 +1349,10 @@ build-backend = "{1}"
             "ireq": self.ireq,
             "build_backend": self.build_backend,
             "build_requires": self.build_requires,
-            "requires": self.requires if self._requirements else None,
+            "requires": self.requires,
             "setup_requires": self.setup_requires,
             "python_requires": self.python_requires,
-            "extras": self.extras if self._extras_requirements else None,
+            "extras": self.extras,
             "extra_kwargs": self.extra_kwargs,
             "setup_cfg": self.setup_cfg,
             "setup_py": self.setup_py,
