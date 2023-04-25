@@ -1419,7 +1419,7 @@ class FileRequirement(ReqLibBaseModel):
     link: Optional[Link] = Field(default_factory=lambda: None)
     pyproject_requires: Optional[Tuple[str, ...]] = ()
     pyproject_backend: Optional[str] = None
-    pyproject_path: Optional[str] = None
+    pyproject_path: Optional[Any] = None
     subdirectory: Optional[str] = None
     _setup_info: Optional[SetupInfo] = None
     _has_hashed_name: bool = False
@@ -2699,7 +2699,6 @@ class Requirement(ReqLibBaseModel):
     def get_version(self):
         return parse(self.get_specifier.version)
 
-    @cached_property
     def get_requirement(self) -> PackagingRequirement:
         req_line = self.req.req.line
         if req_line.startswith("-e "):

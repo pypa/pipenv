@@ -29,7 +29,7 @@ from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor import pkg_resources, rich
 from pipenv.project import Project
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib import Requirement
+from pipenv.vendor.requirementslib.models.requirements import Requirement
 from pipenv.vendor.requirementslib.models.requirements import Line
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
 from pipenv.vendor.vistir.contextmanagers import open_file
@@ -829,8 +829,6 @@ class Resolver:
         return req.name, entry
 
     def clean_results(self):
-        from pipenv.vendor.requirementslib.models.requirements import Requirement
-
         reqs = [(Requirement.from_ireq(ireq), ireq) for ireq in self.resolved_tree]
         results = {}
         for req, ireq in reqs:

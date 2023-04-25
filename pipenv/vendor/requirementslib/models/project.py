@@ -1,5 +1,6 @@
 import collections
 import io
+import json
 import os
 from typing import Optional, Any
 
@@ -60,10 +61,10 @@ class ProjectFile(BaseModel):
         kwargs = {"encoding": "utf-8", "newline": self.line_ending}
         with io.open(self.location, "w", **kwargs) as f:
             if self.model:
-                f.write(self.model.json())
+                f.write(json.dumps(self.model))
 
     def dumps(self) -> str:
         if self.model:
-            return self.model.json()
+            return json.dumps(self.model)
         else:
             return ""
