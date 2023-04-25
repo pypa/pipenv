@@ -61,7 +61,7 @@ class URI(ReqLibBaseModel):
     extras: Optional[Tuple] = Field(default_factory=tuple)
     is_direct_url: Optional[bool] = Field(False)
     is_implicit_ssh: Optional[bool] = Field(False)
-    _auth: Optional[str] = None
+    auth: Optional[str] = None
     _fragment_dict: Optional[Dict] = Field(default_factory=dict)
     _username_is_quoted: Optional[bool] = False
     _password_is_quoted: Optional[bool] = False
@@ -73,7 +73,13 @@ class URI(ReqLibBaseModel):
         include_private_attributes = True
         #keep_untouched = (cached_property,)
 
-    def _parse_query(self) -> 'CustomURI':
+    def __init__(self, **data):
+        super().__init__(**data)
+        self._parse_auth()
+        self._parse_query()
+        self._parse_fragment()
+
+    def _parse_query(self) -> None:
         query = self.query if self.query is not None else ""
         query_dict = dict()
         queries = query.split("&")
@@ -87,10 +93,11 @@ class URI(ReqLibBaseModel):
             else:
                 query_items.append((key, val))
         query_dict.update(query_items)
-        return self.copy(update={"query_dict": query_dict, "subdirectory": subdirectory, "query": query})
+        self.query_dict = query_dict
+        self.subdirectory = subdirectory
+        self.query = query
 
-
-    def _parse_fragment(self) -> "URI":
+    def _parse_fragment(self) -> None:
         subdirectory = self.subdirectory if self.subdirectory else ""
         fragment = self.fragment if self.fragment else ""
         if self.fragment is None:
@@ -111,17 +118,15 @@ class URI(ReqLibBaseModel):
                     extras = tuple(parse_extras(stripped_extras))
             elif key == "subdirectory":
                 subdirectory = val
-        return self.copy(update={
-            "fragment_dict": fragment_items,
-            "subdirectory": subdirectory,
-            "fragment": fragment,
-            "extras": extras,
-            "name": name,
-        })
+        self.name = name
+        self.extras = extras
+        self.subdirectory = subdirectory
+        self.fragment = fragment
+        self._fragment_dict = fragment_items
 
-    def _parse_auth(self) -> "URI":
-        if self._auth:
-            username, _, password = self._auth.partition(":")
+    def _parse_auth(self) -> None:
+        if self.auth:
+            username, _, password = self.auth.partition(":")
             username_is_quoted, password_is_quoted = False, False
             quoted_username, quoted_password = "", ""
             if password:
@@ -130,13 +135,10 @@ class URI(ReqLibBaseModel):
             if username:
                 quoted_username = quote(username)
                 username_is_quoted = quoted_username != username
-            return self.copy(update={
-                "username": quoted_username,
-                "password": quoted_password,
-                "username_is_quoted": username_is_quoted,
-                "password_is_quoted": password_is_quoted,
-            })
-        return self
+            self.username = quoted_username
+            self.password = quoted_password
+            self._username_is_quoted = username_is_quoted
+            self._password_is_quoted = password_is_quoted
 
     def get_password(self, unquote=False, include_token=True) -> str:
         password = self.password if self.password else ""
@@ -165,6 +167,7 @@ class URI(ReqLibBaseModel):
     @classmethod
     def get_parsed_url(cls, url):
         # if there is a "#" in the auth section, this could break url parsing
+        maybe_auth = None
         parsed_url = _get_parsed_url(url)
         if "@" in url and "#" in url:
             scheme = "{0}://".format(parsed_url.scheme)
@@ -211,7 +214,7 @@ class URI(ReqLibBaseModel):
         parsed_dict.update(
             **update_url_name_and_fragment(name_with_extras, ref, parsed_dict)
         )  # type: ignore
-        return cls(**parsed_dict)._parse_auth()._parse_query()._parse_fragment()
+        return cls(**parsed_dict)
 
     def to_string(
         self,
