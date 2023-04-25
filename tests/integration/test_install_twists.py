@@ -181,7 +181,7 @@ def test_local_zip_file(pipenv_instance_private_pypi, testsroot):
     file_name = "requests-2.19.1.tar.gz"
 
     with pipenv_instance_private_pypi(chdir=True) as p:
-        requests_path = p._pipfile.get_fixture_path(f"{file_name}").as_posix()
+        requests_path = p.pipfile.get_fixture_path(f"{file_name}").as_posix()
 
         # This tests for a bug when installing a zipfile
         c = p.pipenv(f"install {requests_path}")
@@ -244,7 +244,7 @@ def test_multiple_editable_packages_should_not_race(pipenv_instance_private_pypi
 
     with pipenv_instance_private_pypi(chdir=True) as p:
         for pkg_name in pkgs:
-            source_path = p._pipfile.get_fixture_path(f"git/{pkg_name}/").as_posix()
+            source_path = p.pipfile.get_fixture_path(f"git/{pkg_name}/").as_posix()
             shutil.copytree(source_path, pkg_name)
 
             pipfile_string += '"{0}" = {{path = "./{0}", editable = true}}\n'.format(pkg_name)
@@ -267,7 +267,7 @@ def test_outdated_should_compare_postreleases_without_failing(pipenv_instance_pr
         c = p.pipenv("update --outdated")
         assert c.returncode == 0
         assert "Skipped Update" in c.stderr
-        p._pipfile.update("ibm-db-sa-py3", "*")
+        p.pipfile.update("ibm-db-sa-py3", "*")
         c = p.pipenv("update --outdated")
         assert c.returncode != 0
         assert "out-of-date" in c.stdout

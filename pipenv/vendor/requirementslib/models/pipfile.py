@@ -1,11 +1,13 @@
-import copy
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Text, Union
 import itertools
 import os
-from pathlib import Path
 
-import pipenv.vendor.attr as attr
 import pipenv.vendor.tomlkit as tomlkit
 from pipenv.vendor.plette import pipfiles
+from pipenv.vendor.pydantic import BaseModel, validator
+
+from pipenv.vendor.requirementslib.models.common import ReqLibBaseModel
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
@@ -131,32 +133,33 @@ class PipfileLoader(pipfiles.Pipfile):
         return super(PipfileLoader, self).__getattribute__(key)
 
 
-@attr.s(slots=True)
-class Pipfile(object):
-    path = attr.ib(validator=is_path, type=Path)
-    projectfile = attr.ib(validator=is_projectfile, type=ProjectFile)
-    _pipfile = attr.ib(type=PipfileLoader)
-    _pyproject = attr.ib(
-        default=attr.Factory(tomlkit.document), type=tomlkit.toml_document.TOMLDocument
-    )
-    build_system = attr.ib(default=attr.Factory(dict), type=dict)
-    _requirements = attr.ib(default=attr.Factory(list), type=list)
-    _dev_requirements = attr.ib(default=attr.Factory(list), type=list)
+class Pipfile(ReqLibBaseModel):
+    path: Path
+    projectfile: ProjectFile
+    pipfile: Optional[PipfileLoader]
+    _pyproject: Optional[tomlkit.TOMLDocument] = tomlkit.document()
+    build_system: Optional[Dict] = dict()
+    _requirements: Optional[List] = list()
+    _dev_requirements: Optional[List] = list()
 
-    @path.default
-    def _get_path(self):
-        # type: () -> Path
-        return Path(os.curdir).absolute()
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        include_private_attributes = True
+        #keep_untouched = (cached_property,)
 
-    @projectfile.default
-    def _get_projectfile(self):
-        # type: () -> ProjectFile
-        return self.load_projectfile(os.curdir, create=False)
+    @validator("path", pre=True, always=True)
+    def _get_path(cls, v):
+        return v or Path(os.curdir).absolute()
 
-    @_pipfile.default
-    def _get_pipfile(self):
-        # type: () -> Union[pipfiles.Pipfile, PipfileLoader]
-        return self.projectfile.model
+    @validator("projectfile", pre=True, always=True)
+    def _get_projectfile(cls, v, values):
+        return v or cls.load_projectfile(os.curdir, create=False)
+
+    @validator("pipfile", pre=True, always=True)
+    def _get_pipfile(cls, v, values):
+        return v or values['projectfile'].model
 
     @property
     def root(self):
@@ -171,13 +174,7 @@ class Pipfile(object):
             )
         ]
 
-    @property
-    def pipfile(self):
-        # type: () -> Union[PipfileLoader, pipfiles.Pipfile]
-        return self._pipfile
-
     def get_deps(self, dev=False, only=True):
-        # type: (bool, bool) -> Dict[Text, Dict[Text, Union[List[Text], Text]]]
         deps = {}  # type: Dict[Text, Dict[Text, Union[List[Text], Text]]]
         if dev:
             deps.update(dict(self.pipfile._data.get("dev-packages", {})))
@@ -188,20 +185,17 @@ class Pipfile(object):
         )
 
     def get(self, k):
-        # type: (Text) -> Any
         return self.__getitem__(k)
 
     def __contains__(self, k):
-        # type: (Text) -> bool
         check_pipfile = k in self.extended_keys or self.pipfile.__contains__(k)
         if check_pipfile:
             return True
         return False
 
     def __getitem__(self, k, *args, **kwargs):
-        # type: ignore
         retval = None
-        pipfile = self._pipfile
+        pipfile = self.pipfile
         section = None
         pkg_type = None
         try:
@@ -222,30 +216,26 @@ class Pipfile(object):
         return retval
 
     def __getattr__(self, k, *args, **kwargs):
-        # type: ignore
-        retval = None
-        pipfile = super(Pipfile, self).__getattribute__("_pipfile")
+        pipfile = self.pipfile
         try:
-            retval = super(Pipfile, self).__getattribute__(k)
+            retval = getattr(self, k)
         except AttributeError:
             retval = getattr(pipfile, k, None)
-        if retval is not None:
-            return retval
-        return super(Pipfile, self).__getattribute__(k, *args, **kwargs)
+        return retval
 
     @property
     def requires_python(self):
         # type: () -> bool
         return getattr(
-            self._pipfile.requires,
+            self.pipfile.requires,
             "python_version",
-            getattr(self._pipfile.requires, "python_full_version", None),
+            getattr(self.pipfile.requires, "python_full_version", None),
         )
 
     @property
     def allow_prereleases(self):
         # type: () -> bool
-        return self._pipfile.get("pipenv", {}).get("allow_prereleases", False)
+        return self.pipfile.get("pipenv", {}).get("allow_prereleases", False)
 
     @classmethod
     def read_projectfile(cls, path):

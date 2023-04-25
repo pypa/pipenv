@@ -130,7 +130,7 @@ class Lockfile(object):
             if not os.path.isabs(pipfile_path):
                 pipfile_path = os.path.abspath(pipfile_path)
             pipfile = Pipfile.load(os.path.dirname(pipfile_path))
-            return lockfiles.Lockfile.with_meta_from(pipfile._pipfile)
+            return lockfiles.Lockfile.with_meta_from(pipfile.pipfile)
         raise PipfileNotFound(pipfile_path)
 
     @classmethod

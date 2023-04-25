@@ -165,7 +165,7 @@ install_search_all_sources = true
 def test_install_local_vcs_not_in_lockfile(pipenv_instance_pypi):
     with pipenv_instance_pypi(chdir=True) as p:
         # six_path = os.path.join(p.path, "six")
-        six_path = p._pipfile.get_fixture_path("git/six/").as_posix()
+        six_path = p.pipfile.get_fixture_path("git/six/").as_posix()
         c = subprocess_run(["git", "clone", six_path, "./six"])
         assert c.returncode == 0
         c = p.pipenv("install -e ./six")
@@ -214,7 +214,7 @@ def test_vcs_entry_supersedes_non_vcs(pipenv_instance_pypi):
     the resolution graph of non-editable vcs dependencies.
     """
     with pipenv_instance_pypi(chdir=True) as p:
-        jinja2_uri = p._pipfile.get_fixture_path("git/jinja2").as_uri()
+        jinja2_uri = p.pipfile.get_fixture_path("git/jinja2").as_uri()
         with open(p.pipfile_path, "w") as f:
             f.write(
                 """
@@ -247,8 +247,8 @@ Jinja2 = {{ref = "2.11.0", git = "{0}"}}
 @pytest.mark.needs_internet
 def test_vcs_can_use_markers(pipenv_instance_pypi):
     with pipenv_instance_pypi(chdir=True) as p:
-        path = p._pipfile.get_fixture_path("git/six/.git")
-        p._pipfile.install("six", {"git": "{0}".format(path.as_uri()), "markers": "sys_platform == 'linux'"})
+        path = p.pipfile.get_fixture_path("git/six/.git")
+        p.pipfile.install("six", {"git": "{0}".format(path.as_uri()), "markers": "sys_platform == 'linux'"})
         assert "six" in p.pipfile["packages"]
         c = p.pipenv("install")
         assert c.returncode == 0
