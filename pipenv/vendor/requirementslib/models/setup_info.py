@@ -27,7 +27,6 @@ from pipenv.patched.pip._vendor.distlib.wheel import Wheel
 from pipenv.vendor.pep517 import envbuild, wrappers
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.operations.prepare import unpack_url
-from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._internal.utils.urls import url_to_path
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import parse
@@ -45,6 +44,7 @@ from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 from pipenv.vendor.vistir.contextmanagers import cd, temp_path
 from pipenv.vendor.vistir.path import create_tracked_tempdir, rmtree
 from pipenv.vendor.requirementslib.models.common import ReqLibBaseModel
+from pipenv.vendor.requirementslib.models.utils import HashableRequirement, convert_to_hashable_requirement
 from pipenv.vendor.pydantic import Field
 
 from ..exceptions import RequirementError
@@ -105,18 +105,17 @@ class HookCaller(wrappers.Pep517HookCaller):
         self.backend_path = backend_path
 
 
-def make_base_requirements(reqs):
-    # type: (Sequence[str]) -> Set[BaseRequirement]
-    requirements = set()
+def make_base_requirements(reqs) -> Tuple:
+    requirements = ()
     if not isinstance(reqs, (list, tuple, set)):
         reqs = [reqs]
     for req in reqs:
         if isinstance(req, BaseRequirement):
-            requirements.add(req)
+            requirements += (req, )
         elif isinstance(req, Requirement):
-            requirements.add(BaseRequirement.from_req(req))
+            requirements += (BaseRequirement.from_req(req), )
         elif req and isinstance(req, str) and not req.startswith("#"):
-            requirements.add(BaseRequirement.from_string(req))
+            requirements += (BaseRequirement.from_string(req), )
     return requirements
 
 
@@ -872,7 +871,7 @@ def run_setup(script_path, egg_base=None):
 
 class BaseRequirement(ReqLibBaseModel):
     name: str = ""
-    requirement: Optional[Requirement] = None
+    requirement: Optional[HashableRequirement] = None
 
     class Config:
         validate_assignment = True
@@ -881,11 +880,16 @@ class BaseRequirement(ReqLibBaseModel):
         include_private_attributes = True
         # keep_untouched = (cached_property,)
 
+    def __setattr__(self, name, value):
+        if name == "requirement" and isinstance(value, Requirement):
+            value = convert_to_hashable_requirement(value)
+        super().__setattr__(name, value)
+
     def __str__(self) -> str:
         return "{0}".format(str(self.requirement))
 
     def __hash__(self):
-        return hash((self.name, self.requirement))
+        return hash((self.name, str(self.requirement)))
 
     def as_dict(self) -> Dict[str, Optional[Requirement]]:
         return {self.name: self.requirement}
@@ -895,14 +899,14 @@ class BaseRequirement(ReqLibBaseModel):
 
     @classmethod
     @lru_cache()
-    def from_string(cls, line: str) -> 'BaseRequirement':
+    def from_string(cls, line: str) -> 'HashableRequirement':
         line = line.strip()
         req = init_requirement(line)
         return cls.from_req(req)
 
     @classmethod
     @lru_cache()
-    def from_req(cls, req: Requirement) -> 'BaseRequirement':
+    def from_req(cls, req: Requirement) -> 'HashableRequirement':
         name = None
         key = getattr(req, "key", None)
         name = getattr(req, "name", None)
@@ -911,14 +915,15 @@ class BaseRequirement(ReqLibBaseModel):
             name = key
         if name is None:
             name = project_name
-        return cls(name=name, requirement=req)
+        hashable_req = convert_to_hashable_requirement(req)
+        return cls(name=name, requirement=hashable_req)
 
 
 class SetupInfo(ReqLibBaseModel):
     name: Optional[str] = None
     base_dir: Optional[str] = None
     _version: Optional[str] = None
-    _requirements: Optional[frozenset] = frozenset()
+    _requirements: Optional[Tuple] = None
     build_requires: Optional[Tuple] = None
     build_backend: Optional[str] = None
     setup_requires: Optional[Tuple] = None
@@ -955,10 +960,10 @@ class SetupInfo(ReqLibBaseModel):
 
 
     @property
-    def requires(self) -> Dict[str, PackagingRequirement]:
+    def requires(self) -> Dict[str, HashableRequirement]:
         self.get_info()
         if self._requirements is None:
-            self._requirements = frozenset()
+            self._requirements = ()
         return {req.name: req.requirement for req in self._requirements}
 
     @property
@@ -1020,17 +1025,17 @@ class SetupInfo(ReqLibBaseModel):
             self.build_requires = ()
         self.build_requires = tuple(set(self.build_requires) | set(build_requires))
         self._requirements = (
-            frozenset() if self._requirements is None else self._requirements
+            () if self._requirements is None else self._requirements
         )
-        requirements = set(self._requirements)
+        requirements = self._requirements
         install_requires = make_base_requirements(metadata.get("install_requires", []))
-        requirements |= install_requires
+        requirements += install_requires
         setup_requires = make_base_requirements(metadata.get("setup_requires", []))
         if self.setup_requires is None:
             self.setup_requires = ()
-        self.setup_requires = tuple(set(self.setup_requires) | setup_requires)
+        self.setup_requires = tuple(self.setup_requires + setup_requires)
         if self.ireq.editable:
-            requirements |= setup_requires
+            requirements += setup_requires
         # TODO: Should this be a specifierset?
         self.python_requires = metadata.get("python_requires", self.python_requires)
         extras_require = metadata.get("extras_require", {})
@@ -1045,14 +1050,14 @@ class SetupInfo(ReqLibBaseModel):
             extras_tuples.append((section, tuple(extras_set)))
         self._extras_requirements += tuple(extras_tuples)
         self.build_backend = metadata.get("build_backend", "setuptools.build_meta:__legacy__")
-        self._requirements = frozenset(requirements)
+        self._requirements = requirements
 
     def get_extras_from_ireq(self) -> None:
         if self.ireq and self.ireq.extras:
             for extra in self.ireq.extras:
                 if extra in self.extras:
                     extras = make_base_requirements(self.extras[extra])
-                    self._requirements = frozenset(set(self._requirements) | extras)
+                    self._requirements = self._requirements + extras
                 else:
                     extras = tuple(make_base_requirements(extra))
                     self._extras_requirements += (extra, extras)

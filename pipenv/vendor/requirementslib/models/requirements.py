@@ -183,18 +183,28 @@ class Line(ReqLibBaseModel):
         self.parse()
 
     def __hash__(self):
+        # Convert the _requirement attribute to a hashable type if it's a dict
+        requirement_hash = (
+            hash(tuple(self._requirement.items())) if isinstance(self._requirement, dict) else self._requirement
+        )
+
+        # Convert the extras attribute to a hashable type if it's a dict
+        extras_hash = (
+            hash(tuple(self.extras.items())) if isinstance(self.extras, dict) else tuple(self.extras)
+        )
+
         return hash(
             (
                 self.editable,
                 self.line,
                 self.markers,
-                tuple(self.extras),
+                extras_hash,
                 tuple(self.hashes),
                 self.vcs,
                 self.uri,
                 self.path,
                 self.name,
-                self._requirement,
+                requirement_hash,
             )
         )
 
@@ -2349,7 +2359,7 @@ class Requirement(ReqLibBaseModel):
     vcs: Optional[str] = Field(None, eq=True, order=True)
     req: Optional[Any] = Field(None, eq=True, order=True)
     #req: Optional[Union[VCSRequirement, FileRequirement, NamedRequirement]] = Field(None, eq=True, order=True)
-    markers: Optional[str] = Field(dict, eq=True, order=True)
+    markers: Optional[str] = Field("", eq=True, order=True)
     index: Optional[str] = Field(None, eq=True, order=True)
     editable: Optional[bool] = Field(None, eq=True, order=True)
     hashes: Set[str] = set()

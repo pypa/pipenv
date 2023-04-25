@@ -19,6 +19,11 @@ from typing import (
 import pipenv.vendor.tomlkit as tomlkit
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.constructors import install_req_from_line
+from pipenv.patched.pip._internal.utils._jaraco_text import (
+    yield_lines,
+    drop_comment,
+    join_continuation,
+)
 from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker, Op, Value, Variable
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
@@ -167,18 +172,43 @@ def get_url_name(url):
     return urllib3_util.parse_url(url).host
 
 
-def init_requirement(name):
-    # type: (AnyStr) -> TRequirement
+class HashableRequirement(Requirement):
+    def __hash__(self):
+        specifier_hash = hash(tuple((str(s),) for s in self.specifier))
+        return hash((
+            self.url,
+            specifier_hash,
+            frozenset(self.extras),
+            str(self.marker) if self.marker else None,
+        ))
 
+    @staticmethod
+    def parse(s):
+        (req,) = map(HashableRequirement, join_continuation(map(drop_comment, yield_lines(s))))
+        return req
+
+
+def init_requirement(name):
     if not isinstance(name, str):
         raise TypeError("must supply a name to generate a requirement")
 
-    req = Requirement.parse(name)
+    req = HashableRequirement.parse(name)
     req.vcs = None
     req.local_file = None
     req.revision = None
     req.path = None
     return req
+
+
+def convert_to_hashable_requirement(req: Requirement) -> Optional[HashableRequirement]:
+    if req is None:
+        return None
+
+    hashable_req = HashableRequirement(str(req))
+    hashable_req.extras = req.extras
+    hashable_req.marker = req.marker
+    hashable_req.url = req.url
+    return hashable_req
 
 
 def extras_to_string(extras) -> str:
