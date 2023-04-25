@@ -1046,7 +1046,7 @@ class SetupInfo(ReqLibBaseModel):
             extras = extras_require[section]
             extras_set = make_base_requirements(extras)
             if self.ireq and self.ireq.extras and section in self.ireq.extras:
-                requirements |= extras_set
+                requirements += extras_set
             extras_tuples.append((section, tuple(extras_set)))
         self._extras_requirements += tuple(extras_tuples)
         self.build_backend = metadata.get("build_backend", "setuptools.build_meta:__legacy__")
