@@ -224,8 +224,8 @@ def test_keep_outdated_doesnt_update_satisfied_constraints(pipenv_instance_priva
 @pytest.mark.needs_internet
 def test_complex_lock_with_vcs_deps(local_tempdir, pipenv_instance_private_pypi, pip_src_dir):
     with pipenv_instance_private_pypi() as p, local_tempdir:
-        requests_uri = p.pipfile._get_fixture_path("git/requests").as_uri()
-        dateutil_uri = p.pipfile._get_fixture_path("git/dateutil").as_uri()
+        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
+        dateutil_uri = p._pipfile.get_fixture_path("git/dateutil").as_uri()
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -419,7 +419,7 @@ requests = "==2.14.0"
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_without_install(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi(chdir=True) as p:
-        requests_uri = p.pipfile._get_fixture_path("git/six").as_uri()
+        requests_uri = p._pipfile.get_fixture_path("git/six").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
@@ -435,7 +435,7 @@ six = {git = "%s", editable = true}
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_ref_in_git(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi(chdir=True) as p:
-        requests_uri = p.pipfile._get_fixture_path("git/requests").as_uri()
+        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
@@ -453,7 +453,7 @@ requests = {git = "%s@883caaf", editable = true}
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_extras_without_install(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi(chdir=True) as p:
-        requests_uri = p.pipfile._get_fixture_path("git/requests").as_uri()
+        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
@@ -473,7 +473,7 @@ requests = {git = "%s", editable = true, extras = ["socks"]}
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_markers_without_install(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi(chdir=True) as p:
-        requests_uri = p.pipfile._get_fixture_path("git/requests").as_uri()
+        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
@@ -530,7 +530,7 @@ def test_vcs_lock_respects_top_level_pins(pipenv_instance_private_pypi):
     """Test that locking VCS dependencies respects top level packages pinned in Pipfiles"""
 
     with pipenv_instance_private_pypi(chdir=True) as p:
-        requests_uri = p.pipfile._get_fixture_path("git/requests").as_uri()
+        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         p._pipfile.add("requests", {
             "editable": True, "git": f"{requests_uri}",
             "ref": "v2.18.4"

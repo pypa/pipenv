@@ -95,7 +95,7 @@ def test_mirror_uninstall(pipenv_instance_private_pypi):
 @pytest.mark.uninstall
 def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
     with pipenv_instance_private_pypi(chdir=True) as p:
-        file_uri = p.pipfile._get_fixture_path("tablib/tablib-0.12.1.tar.gz", fixtures="pypi").as_uri()
+        file_uri = p._pipfile.get_fixture_path("tablib/tablib-0.12.1.tar.gz", fixtures="pypi").as_uri()
         c = p.pipenv(f"install {file_uri}")
         assert c.returncode == 0
         c = p.pipenv("uninstall --all")
