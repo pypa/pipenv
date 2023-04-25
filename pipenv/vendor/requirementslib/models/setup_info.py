@@ -7,12 +7,10 @@ import shutil
 import subprocess as sp
 import sys
 from collections.abc import Iterable, Mapping
-from contextlib import ExitStack
 from functools import lru_cache
 from os import scandir
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, urlunparse
-from weakref import finalize
 from typing import (
     Any,
     AnyStr,
@@ -934,8 +932,6 @@ class SetupInfo(ReqLibBaseModel):
     ireq: Optional[InstallRequirement] = None
     extra_kwargs: Dict = Field(default_factory=dict)
     metadata: Optional[Tuple[str]] = None
-    stack: Optional[ExitStack] = None
-    _finalizer: Optional[Any] = None
 
     class Config:
         validate_assignment = True
@@ -943,10 +939,6 @@ class SetupInfo(ReqLibBaseModel):
         allow_mutation = True
         include_private_attributes = True
         # keep_untouched = (cached_property,)
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        self._finalizer = finalize(self, self.stack.close)
 
     @property
     def requires(self) -> Dict[str, PackagingRequirement]:
@@ -1400,12 +1392,10 @@ build-backend = "{1}"
             return None
         if ireq.link.is_wheel:
             return None
-        stack = ExitStack()
         if not session:
             cmd = get_pip_command()
             options, _ = cmd.parser.parse_args([])
             session = cmd._build_session(options)
-        stack.enter_context(global_tempdir_manager())
         vcs, uri = split_vcs_method_from_uri(ireq.link.url_without_fragment)
         parsed = urlparse(uri)
         if "file" in parsed.scheme:
@@ -1471,7 +1461,7 @@ build-backend = "{1}"
                     hashes=ireq.hashes(True),
                 )
         created = cls.create(
-            ireq.source_dir, subdirectory=subdir, ireq=ireq, kwargs=kwargs, stack=stack
+            ireq.source_dir, subdirectory=subdir, ireq=ireq, kwargs=kwargs,
         )
         return created
 
@@ -1482,7 +1472,6 @@ build-backend = "{1}"
         subdirectory: Optional[str] = None,
         ireq: Optional[InstallRequirement] = None,
         kwargs: Optional[Dict[str, str]] = None,
-        stack: Optional[ExitStack] = None,
     ) -> Optional["SetupInfo"]:
         if not base_dir or base_dir is None:
             return None
@@ -1500,9 +1489,6 @@ build-backend = "{1}"
         creation_kwargs["pyproject"] = pyproject
         creation_kwargs["setup_py"] = setup_py
         creation_kwargs["setup_cfg"] = setup_cfg
-        if stack is None:
-            stack = ExitStack()
-        creation_kwargs["stack"] = stack
         if ireq:
             creation_kwargs["ireq"] = ireq
         created = cls(**creation_kwargs)
