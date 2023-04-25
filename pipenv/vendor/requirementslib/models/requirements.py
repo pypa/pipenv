@@ -908,7 +908,6 @@ class Line(ReqLibBaseModel):
                 kwargs=wheel_kwargs,
             )
             self._setup_info = setupinfo
-            self._setup_info.reload()
 
     def get_ireq(self):
         # type: () -> InstallRequirement
