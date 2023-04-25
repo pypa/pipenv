@@ -3,9 +3,20 @@ import re
 import string
 from functools import lru_cache
 from pathlib import Path
-
+from typing import (
+    Any,
+    AnyStr,
+    Dict,
+    List,
+    Match,
+    Optional,
+    Set,
+    Text,
+    Tuple,
+    TypeVar,
+    Union,
+)
 import pipenv.vendor.tomlkit as tomlkit
-from pipenv.vendor.attr import validators
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.constructors import install_req_from_line
 from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker, Op, Value, Variable
@@ -25,22 +36,6 @@ from ..environment import MYPY_RUNNING
 from ..utils import VCS_LIST, is_star
 
 if MYPY_RUNNING:
-    from typing import Iterable  # noqa
-    from typing import (
-        Any,
-        AnyStr,
-        Dict,
-        List,
-        Match,
-        Optional,
-        Set,
-        Text,
-        Tuple,
-        TypeVar,
-        Union,
-    )
-
-    from pipenv.vendor.attr import _ValidatorType  # noqa
     from pipenv.patched.pip._vendor.packaging.markers import Marker as PkgResourcesMarker
     from pipenv.patched.pip._vendor.packaging.markers import Op as PkgResourcesOp
     from pipenv.patched.pip._vendor.packaging.markers import Value as PkgResourcesValue
@@ -86,21 +81,14 @@ URL_RE = re.compile(r"{0}(?:{1}?{2}?)?".format(URL, URL_NAME, SUBDIR_RE))
 DIRECT_URL_RE = re.compile(r"{0}\s?@\s?{1}".format(NAME_WITH_EXTRAS, URL))
 
 
-def filter_none(k, v):
-    # type: (AnyStr, Any) -> bool
+def filter_none(k, v) -> bool:
     if v:
         return True
     return False
 
 
-def filter_dict(dict_):
-    # type: (Dict[AnyStr, Any]) -> Dict[AnyStr, Any]
+def filter_dict(dict_) -> Dict[AnyStr, Any]:
     return {k: v for k, v in dict_.items() if filter_none(k, v)}
-
-
-def optional_instance_of(cls):
-    # type: (Any) -> _ValidatorType[Optional[_T]]
-    return validators.optional(validators.instance_of(cls))
 
 
 def create_link(link):
@@ -237,12 +225,12 @@ def specs_to_string(specs):
 
 
 def build_vcs_uri(
-    vcs,  # type: Optional[S]
-    uri,  # type: S
-    name=None,  # type: Optional[S]
-    ref=None,  # type: Optional[S]
-    subdirectory=None,  # type: Optional[S]
-    extras=None,  # type: Optional[Iterable[S]]
+    vcs,
+    uri,
+    name=None,
+    ref=None,
+    subdirectory=None,
+    extras=None,
 ):
     # type: (...) -> STRING_TYPE
     if extras is None:
@@ -328,7 +316,6 @@ def convert_direct_url_to_url(direct_url):
 
 
 def get_version(pipfile_entry):
-    # type: (Union[STRING_TYPE, Dict[STRING_TYPE, Union[STRING_TYPE, bool, Iterable[STRING_TYPE]]]]) -> STRING_TYPE
     if str(pipfile_entry) == "{}" or is_star(pipfile_entry):
         return ""
 
@@ -513,13 +500,6 @@ def validate_vcs(instance, attr_, value):
 def validate_path(instance, attr_, value):
     if not os.path.exists(value):
         raise ValueError("Invalid path {0!r}".format(value))
-
-
-def validate_markers(instance, attr_, value):
-    try:
-        Marker("{0}{1}".format(attr_.name, value))
-    except InvalidMarker:
-        raise ValueError("Invalid Marker {0}{1}".format(attr_, value))
 
 
 def validate_specifiers(instance, attr_, value):

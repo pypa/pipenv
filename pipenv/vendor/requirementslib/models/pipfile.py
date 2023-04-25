@@ -14,7 +14,7 @@ from ..exceptions import RequirementError
 from ..utils import is_editable, is_vcs, merge_items
 from .project import ProjectFile
 from .requirements import Requirement
-from .utils import get_url_name, optional_instance_of, tomlkit_value_to_python
+from .utils import get_url_name, tomlkit_value_to_python
 
 if MYPY_RUNNING:
     from typing import Any, Dict, Iterable, List, Text, Union
@@ -24,11 +24,6 @@ if MYPY_RUNNING:
     sources_type = Iterable[source_type]
     meta_type = Dict[Text, Union[int, Dict[Text, Text], sources_type]]
     lockfile_type = Dict[Text, Union[package_type, meta_type]]
-
-
-is_pipfile = optional_instance_of(pipfiles.Pipfile)
-is_path = optional_instance_of(Path)
-is_projectfile = optional_instance_of(ProjectFile)
 
 
 def reorder_source_keys(data):

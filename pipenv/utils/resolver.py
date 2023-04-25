@@ -994,7 +994,7 @@ def venv_resolve_deps(
     if not pipfile:
         pipfile = getattr(project, category, {})
     if lockfile is None:
-        lockfile = project._lockfile(categories=[category])
+        lockfile = project.lockfile(categories=[category])
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
     cmd = [
         which("python", allow_global=allow_global),

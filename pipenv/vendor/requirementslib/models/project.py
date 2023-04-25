@@ -1,8 +1,9 @@
 import collections
 import io
 import os
+from typing import Optional, Any
 
-import pipenv.vendor.attr as attr
+from pipenv.vendor.pydantic import BaseModel
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 
 SectionDifference = collections.namedtuple("SectionDifference", ["inthis", "inthat"])
@@ -34,21 +35,19 @@ def preferred_newlines(f):
     return DEFAULT_NEWLINES
 
 
-@attr.s
-class ProjectFile(object):
-    """A file in the Pipfile project."""
-
-    location = attr.ib()
-    line_ending = attr.ib()
-    model = attr.ib()
+class ProjectFile(BaseModel):
+    location: str
+    line_ending: str
+    model: Optional[Any] = {}
 
     @classmethod
-    def read(cls, location, model_cls, invalid_ok=False):
+    def read(cls, location: str, model_cls, invalid_ok: bool = False) -> "ProjectFile":
         if not os.path.exists(location) and not invalid_ok:
             raise FileNotFoundError(location)
         try:
             with io.open(location, encoding="utf-8") as f:
-                model = model_cls.load(f)
+                content = f.read()
+                model = model_cls.parse_raw(content)
                 line_ending = preferred_newlines(f)
         except Exception:
             if not invalid_ok:
@@ -57,12 +56,14 @@ class ProjectFile(object):
             line_ending = DEFAULT_NEWLINES
         return cls(location=location, line_ending=line_ending, model=model)
 
-    def write(self):
+    def write(self) -> None:
         kwargs = {"encoding": "utf-8", "newline": self.line_ending}
         with io.open(self.location, "w", **kwargs) as f:
-            self.model.dump(f)
+            if self.model:
+                f.write(self.model.json())
 
-    def dumps(self):
-        strio = io.StringIO()
-        self.model.dump(strio)
-        return strio.getvalue()
+    def dumps(self) -> str:
+        if self.model:
+            return self.model.json()
+        else:
+            return ""

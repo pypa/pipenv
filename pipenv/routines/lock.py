@@ -41,7 +41,7 @@ def do_lock(
             lockfile_categories.remove("packages")
             lockfile_categories.insert(0, "default")
     # Create the lockfile.
-    lockfile = project._lockfile(categories=lockfile_categories)
+    lockfile = project.lockfile(categories=lockfile_categories)
     for category in lockfile_categories:
         for k, v in lockfile.get(category, {}).copy().items():
             if not hasattr(v, "keys"):
