@@ -1,5 +1,4 @@
 import datetime
-import functools
 import io
 import json
 import logging
@@ -8,7 +7,7 @@ import os
 import zipfile
 from collections import defaultdict
 from functools import reduce
-from typing import Sequence
+from typing import Sequence, List, Dict
 
 import pipenv.vendor.attr as attr
 import pipenv.patched.pip._vendor.requests as requests
@@ -20,6 +19,9 @@ from pipenv.patched.pip._vendor.packaging.requirements import Requirement as Pac
 from pipenv.patched.pip._vendor.packaging.specifiers import Specifier, SpecifierSet
 from pipenv.patched.pip._vendor.packaging.tags import Tag
 from pipenv.patched.pip._vendor.packaging.version import _BaseVersion, parse
+from pipenv.vendor.pydantic.json import pydantic_encoder
+from pipenv.vendor.requirementslib.models.common import ReqLibBaseModel
+from pipenv.vendor.pydantic import BaseModel, Field, validator
 
 from ..environment import MYPY_RUNNING
 from .markers import (
@@ -193,49 +195,25 @@ def create_specifierset(spec=None):
     return SpecifierSet(spec)
 
 
-@attr.s(frozen=True, eq=True)
-class ExtrasCollection(object):
-    #: The name of the extras collection (e.g. 'security')
-    name = attr.ib(type=str)
-    #: The dependency the collection belongs to
-    parent = attr.ib(type="Dependency")
-    #: The members of the collection
-    dependencies = attr.ib(factory=set)  # type: Set["Dependency"]
+class Dependency(ReqLibBaseModel):
+    name: str
+    requirement: PackagingRequirement
+    specifier: SpecifierSet
+    extras: Tuple[str, ...] = tuple()
+    from_extras: Optional[str] = None
+    python_version: SpecifierSet = ""
+    parent: Optional["Dependency"] = None
+    markers: Optional[Marker] = None
+    _specset_str: str = ""
+    _python_version_str: str = ""
+    _marker_str: str = ""
 
-    def add_dependency(self, dependency):
-        # type: ("Dependency") -> "ExtrasCollection"
-        if not isinstance(dependency, Dependency):
-            raise TypeError(
-                "Expected a Dependency instance, received {0!r}".format(dependency)
-            )
-        dependencies = self.dependencies.copy()
-        dependencies.add(dependency)
-        return attr.evolve(self, dependencies=dependencies)
-
-
-@attr.s(frozen=True, eq=True)
-class Dependency(object):
-    #: The name of the dependency
-    name = attr.ib(type=str)
-    #: A requirement instance
-    requirement = attr.ib(type=PackagingRequirement, eq=False)
-    #: The specifier defined in the dependency definition
-    specifier = attr.ib(type=SpecifierSet, converter=create_specifierset, eq=False)
-    #: Any extras this dependency declares
-    extras = attr.ib(factory=tuple, validator=validate_extras)  # type: Tuple[str, ...]
-    #: The name of the extra meta-dependency this one came from (e.g. 'security')
-    from_extras = attr.ib(default=None, eq=False)  # type: Optional[str]
-    #: The declared specifier set of allowable python versions for this dependency
-    python_version = attr.ib(
-        default="", type=SpecifierSet, converter=create_specifierset, eq=False
-    )
-    #: The parent of this dependency (i.e. where it came from)
-    parent = attr.ib(default=None)  # type: Optional[Dependency]
-    #: The markers for this dependency
-    markers = attr.ib(default=None, eq=False)  # type: Optional[Marker]
-    _specset_str = attr.ib(default="", type=str)
-    _python_version_str = attr.ib(default="", type=str)
-    _marker_str = attr.ib(default="", type=str)
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        include_private_attributes = True
+        # keep_untouched = (cached_property,)
 
     def __str__(self):
         # type: () -> str
@@ -382,34 +360,39 @@ class Dependency(object):
             raise
         return cls.from_requirement(req, parent=parent)
 
-    def add_parent(self, parent):
-        # type: ("Dependency") -> "Dependency"
-        return attr.evolve(self, parent=parent)
 
 
-@attr.s(frozen=True, eq=True)
-class Digest(object):
-    #: The algorithm declared for the digest, e.g. 'sha256'
-    algorithm = attr.ib(
-        type=str, validator=attr.validators.in_(VALID_ALGORITHMS.keys()), eq=True
-    )
-    #: The digest value
-    value = attr.ib(type=str, validator=validate_digest, eq=True)
+class Digest(BaseModel):
+    algorithm: str
+    value: str
+
+    class Config:
+        frozen = True
 
     def __str__(self):
-        # type: () -> str
-        return "{0}:{1}".format(self.algorithm, self.value)
+        return f"{self.algorithm}:{self.value}"
 
     @classmethod
-    def create(cls, algorithm, value):
-        # type: (str, str) -> "Digest"
+    def create(cls, algorithm: str, value: str) -> "Digest":
+        if algorithm not in VALID_ALGORITHMS.keys():
+            raise ValueError("Invalid algorithm")
+        validate_digest(value)  # Assuming this function raises an exception if invalid
         return cls(algorithm=algorithm, value=value)
 
     @classmethod
-    def collection_from_dict(cls, digest_dict):
-        # type: (TDigestDict) -> List["Digest"]
+    def collection_from_dict(cls, digest_dict: Dict[str, str]) -> List["Digest"]:
         return [cls.create(k, v) for k, v in digest_dict.items()]
 
+    @validator("algorithm")
+    def check_algorithm(cls, algorithm):
+        if algorithm not in VALID_ALGORITHMS.keys():
+            raise ValueError("Invalid algorithm")
+        return algorithm
+
+    @validator("value")
+    def check_value(cls, value):
+        validate_digest(value)  # Assuming this function raises an exception if invalid
+        return value
 
 # XXX: This is necessary because attrs converters can only be functions, not classmethods
 def create_digest_collection(digest_dict):
@@ -921,34 +904,33 @@ def create_dependencies(
     return dependencies
 
 
-@attr.s(frozen=True)
-class PackageInfo(object):
-    name = attr.ib(type=str)
-    version = attr.ib(type=str)
-    package_url = attr.ib(type=str)
-    summary = attr.ib(type=str, default=None)  # type: Optional[str]
-    author = attr.ib(type=str, default=None)  # type: Optional[str]
-    keywords = attr.ib(factory=list, converter=split_keywords)  # type: List[str]
-    description = attr.ib(type=str, default="")
-    download_url = attr.ib(type=str, default="")
-    home_page = attr.ib(type=str, default="")
-    license = attr.ib(type=str, default="")
-    maintainer = attr.ib(type=str, default="")
-    maintainer_email = attr.ib(type=str, default="")
-    downloads = attr.ib(factory=dict)  # type: Dict[str, int]
-    docs_url = attr.ib(default=None)  # type: Optional[str]
-    platform = attr.ib(type=str, default="")
-    project_url = attr.ib(type=str, default="")
-    project_urls = attr.ib(factory=dict)  # type: Dict[str, str]
-    requires_python = attr.ib(default=None)  # type: Optional[str]
-    requires_dist = attr.ib(factory=list)  # type: List[Dependency]
-    release_url = attr.ib(default=None)  # type: Optional[str]
-    description_content_type = attr.ib(type=str, default="text/md")
-    bugtrack_url = attr.ib(default=None)  # type: str
-    classifiers = attr.ib(factory=list)  # type: List[str]
-    author_email = attr.ib(default=None)  # type: Optional[str]
-    markers = attr.ib(default=None)  # type: Optional[str]
-    dependencies = attr.ib(default=None)  # type: Tuple[Dependency]
+class PackageInfo(ReqLibBaseModel):
+    name: str
+    version: str
+    package_url: str
+    summary: Optional[str] = None
+    author: Optional[str] = None
+    keywords: Optional[List[str]] = []
+    description: Optional[str] = ""
+    download_url: Optional[str] = ""
+    home_page: Optional[str] = ""
+    license: Optional[str] = ""
+    maintainer: Optional[str] = ""
+    maintainer_email: Optional[str] = ""
+    downloads: Optional[Dict[str, int]] = {}
+    docs_url: Optional[str] = None
+    platform: Optional[str] = ""
+    project_url: Optional[str] = ""
+    project_urls: Optional[Dict[str, str]] = {}
+    requires_python: Optional[str] = None
+    requires_dist: Optional[List[Dependency]] = []
+    release_url: Optional[str] = None
+    description_content_type: Optional[str] = "text/md"
+    bugtrack_url: Optional[str] = None
+    classifiers: Optional[List[str]] = []
+    author_email: Optional[str] = None
+    markers: Optional[str] = None
+    dependencies: Optional[Tuple[Dependency]] = None
 
     @classmethod
     def from_json(cls, info_json):
@@ -979,7 +961,7 @@ class PackageInfo(object):
         for dep in self_dependencies:
             if dep is None:
                 continue
-            new_dep = dep.add_parent(self_dependency)
+            new_dep = dep.parent = self_dependency
             deps.add(new_dep)
         created_deps = create_dependencies(self.requires_dist, parent=self_dependency)
         if created_deps is not None:
@@ -987,7 +969,7 @@ class PackageInfo(object):
                 if dep is None:
                     continue
                 deps.add(dep)
-        return attr.evolve(self, dependencies=tuple(sorted(deps)))
+        self.dependencies = tuple(sorted(deps))
 
 
 def convert_package_info(info_json):
@@ -1011,59 +993,40 @@ def add_markers_to_dep(d, marker_str):
     return str(req)
 
 
-@attr.s
-class Package(object):
-    info = attr.ib(type=PackageInfo, converter=convert_package_info)
-    last_serial = attr.ib(type=int)
-    releases = attr.ib(
-        type=ReleaseCollection,
-        converter=instance_check_converter(  # type: ignore
-            ReleaseCollection, convert_releases_to_collection
-        ),
+class Package(BaseModel):
+    info: PackageInfo = Field(converter=convert_package_info)
+    last_serial: int
+    releases: ReleaseCollection = Field(
+        converter=instance_check_converter(ReleaseCollection, convert_releases_to_collection)
     )
-    # XXX: Note: sometimes releases have no urls at the top level (e.g. pyrouge)
-    urls = attr.ib(
-        type=ReleaseUrlCollection,
-        converter=instance_check_converter(  # type: ignore
-            ReleaseUrlCollection, convert_release_urls_to_collection
-        ),
+    urls: ReleaseUrlCollection = Field(
+        default_factory=lambda: [],
+        converter=instance_check_converter(ReleaseUrlCollection, convert_release_urls_to_collection)
     )
-
-    @urls.default
-    def _get_urls_collection(self):
-        return functools.partial(
-            convert_release_urls_to_collection, urls=[], name=self.name
-        )
 
     @property
-    def name(self):
-        # type: () -> str
+    def name(self) -> str:
         return self.info.name
 
     @property
-    def version(self):
-        # type: () -> str
+    def version(self) -> str:
         return self.info.version
 
     @property
-    def requirement(self):
-        # type: () -> PackagingRequirement
+    def requirement(self) -> PackagingRequirement:
         return self.info.to_dependency().requirement
 
     @property
-    def latest_sdist(self):
-        # type: () -> ReleaseUrl
+    def latest_sdist(self) -> ReleaseUrl:
         return next(iter(self.urls.sdists))
 
     @property
-    def latest_wheels(self):
-        # type: () -> Iterator[ReleaseUrl]
+    def latest_wheels(self) -> Iterator[ReleaseUrl]:
         for w in self.urls.wheels:
             yield w
 
     @property
-    def dependencies(self):
-        # type: () -> List[Dependency]
+    def dependencies(self) -> List[Dependency]:
         if self.info.dependencies is None and list(self.urls):
             rval = self.get_dependencies()
             return rval.dependencies
@@ -1200,13 +1163,11 @@ class Package(object):
         lockfile.update({self.info.name: self.releases.get_latest_lockfile()})
         return lockfile
 
-    def as_dict(self):
-        # type: () -> Dict[str, Any]
-        return json.loads(self.serialize())
+    def as_dict(self) -> Dict[str, Any]:
+        return self.dict()
 
-    def serialize(self):
-        # type: () -> str
-        return json.dumps(attr.asdict(self), cls=PackageEncoder, indent=4)
+    def serialize(self) -> str:
+        return json.dumps(self.dict(), default=pydantic_encoder, indent=4)
 
 
 def get_package(name):
