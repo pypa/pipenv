@@ -827,7 +827,7 @@ class Line(ReqLibBaseModel):
         # type: (SetupInfo) -> None
         self._setup_info = setup_info
         if setup_info.version:
-            self.set_specifiers(setup_info.version)
+            self.set_specifiers(f"=={setup_info.version}")
         if setup_info.name and not self.name:
             self.name = setup_info.name
 
