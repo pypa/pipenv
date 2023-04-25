@@ -61,10 +61,11 @@ class ProjectFile(BaseModel):
         kwargs = {"encoding": "utf-8", "newline": self.line_ending}
         with io.open(self.location, "w", **kwargs) as f:
             if self.model:
-                f.write(json.dumps(self.model))
+                self.model.dump(f)
 
     def dumps(self) -> str:
         if self.model:
-            return json.dumps(self.model)
-        else:
-            return ""
+            strio = io.StringIO()
+            self.model.dump(strio)
+            return strio.getvalue()
+        return ""
