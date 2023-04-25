@@ -19,13 +19,13 @@ class VCSRepository(BaseModel):
     name: str
     checkout_directory: str
     vcs_type: str
-    parsed_url: URI = Field(default_factory=None)
+    parsed_url: Optional[URI] = Field(default_factory=None)
     subdirectory: Optional[str] = None
     commit_sha: Optional[str] = None
     ref: Optional[str] = None
-    repo_backend: Any = Field(default_factory=None)
+    repo_backend: Any = None
     clone_log: Optional[str] = None
-    DEFAULT_RUN_ARGS: Any = None
+    DEFAULT_RUN_ARGS: Optional[Any] = None
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -84,8 +84,7 @@ class VCSRepository(BaseModel):
         self.commit_sha = self.get_commit_hash()
 
     def get_commit_hash(self, ref: Optional[str] = None) -> str:
-        with global_tempdir_manager():
-            return self.repo_backend.get_revision(self.checkout_directory)
+        return self.repo_backend.get_revision(self.checkout_directory)
 
     @classmethod
     def monkeypatch_pip(cls) -> Tuple[Any, ...]:

@@ -46,25 +46,25 @@ def _get_parsed_url(url) -> Url:
 
 
 class URI(ReqLibBaseModel):
-    host: str = Field(...)
-    scheme: str = Field("https", description="The URI Scheme, e.g. `salesforce`")
+    host: Optional[str] = Field(...)
+    scheme: Optional[str] = Field("https", description="The URI Scheme, e.g. `salesforce`")
     port: Optional[int] = Field(None, description="The numeric port of the url if specified")
     path: str = Field("", description="The url path, e.g. `/path/to/endpoint`")
-    query: str = Field("", description="Query parameters, e.g. `?variable=value...`")
-    fragment: str = Field("", description="URL Fragments, e.g. `#fragment=value`")
-    subdirectory: str = Field("", description="Subdirectory fragment, e.g. `&subdirectory=blah...`")
-    ref: str = Field("", description="VCS ref this URI points at, if available")
-    username: str = Field("", description="The username if provided, parsed from `user:password@hostname`")
-    password: str = Field("", description="Password parsed from `user:password@hostname`", repr=False)
-    query_dict: Dict = Field(default_factory=dict)
-    name: str = Field("", description="The name of the specified package in case it is a VCS URI with an egg fragment")
-    extras: Tuple = Field(default_factory=tuple)
-    is_direct_url: bool = Field(False)
-    is_implicit_ssh: bool = Field(False)
-    _auth: Optional[str] = Field(None, repr=False)
-    _fragment_dict: Dict = Field(default_factory=dict)
-    _username_is_quoted: bool = Field(False)
-    _password_is_quoted: bool = Field(False)
+    query:  Optional[str] = Field("", description="Query parameters, e.g. `?variable=value...`")
+    fragment: Optional[str] = Field("", description="URL Fragments, e.g. `#fragment=value`")
+    subdirectory: Optional[str] = Field("", description="Subdirectory fragment, e.g. `&subdirectory=blah...`")
+    ref: Optional[str] = Field("", description="VCS ref this URI points at, if available")
+    username: Optional[str] = Field("", description="The username if provided, parsed from `user:password@hostname`")
+    password: Optional[str] = Field("", description="Password parsed from `user:password@hostname`", repr=False)
+    query_dict: Optional[Dict] = Field(default_factory=dict)
+    name: Optional[str] = Field("", description="The name of the specified package in case it is a VCS URI with an egg fragment")
+    extras: Optional[Tuple] = Field(default_factory=tuple)
+    is_direct_url: Optional[bool] = Field(False)
+    is_implicit_ssh: Optional[bool] = Field(False)
+    _auth: Optional[str] = None
+    _fragment_dict: Optional[Dict] = Field(default_factory=dict)
+    _username_is_quoted: Optional[bool] = False
+    _password_is_quoted: Optional[bool] = False
 
     class Config:
         validate_assignment = True
