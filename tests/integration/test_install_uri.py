@@ -248,7 +248,7 @@ Jinja2 = {{ref = "2.11.0", git = "{0}"}}
 def test_vcs_can_use_markers(pipenv_instance_pypi):
     with pipenv_instance_pypi(chdir=True) as p:
         path = p._pipfile.get_fixture_path("git/six/.git")
-        p.pipfile.install("six", {"git": "{0}".format(path.as_uri()), "markers": "sys_platform == 'linux'"})
+        p._pipfile.install("six", {"git": "{0}".format(path.as_uri()), "markers": "sys_platform == 'linux'"})
         assert "six" in p.pipfile["packages"]
         c = p.pipenv("install")
         assert c.returncode == 0
