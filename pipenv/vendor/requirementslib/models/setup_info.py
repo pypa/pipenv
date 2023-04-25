@@ -3,7 +3,6 @@ import atexit
 import configparser
 import contextlib
 import os
-import shutil
 import subprocess as sp
 import sys
 from collections.abc import Iterable, Mapping
@@ -20,9 +19,7 @@ from typing import (
     Optional,
     Sequence,
     Set,
-    Text,
     Tuple,
-    TypeVar,
     Union,
 )
 
@@ -32,7 +29,6 @@ from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.operations.prepare import unpack_url
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._internal.utils.urls import url_to_path
-from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.patched.pip._vendor.pkg_resources import (
@@ -51,7 +47,6 @@ from pipenv.vendor.vistir.path import create_tracked_tempdir, rmtree
 from pipenv.vendor.requirementslib.models.common import ReqLibBaseModel
 from pipenv.vendor.pydantic import Field
 
-from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
 from ..utils import get_pip_command
 from .old_pip_utils import _copy_source_tree
@@ -889,6 +884,9 @@ class BaseRequirement(ReqLibBaseModel):
     def __str__(self) -> str:
         return "{0}".format(str(self.requirement))
 
+    def __hash__(self):
+        return hash((self.name, self.requirement))
+
     def as_dict(self) -> Dict[str, Optional[Requirement]]:
         return {self.name: self.requirement}
 
@@ -940,6 +938,22 @@ class SetupInfo(ReqLibBaseModel):
         include_private_attributes = True
         # keep_untouched = (cached_property,)
 
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.build_backend:
+            self.build_backend = "setuptools.build_meta:__legacy__"
+
+    def __hash__(self):
+        return hash((self.name, self._version, self._requirements, self.build_requires, self.build_backend,
+                     self.setup_requires, self.python_requires, self._extras_requirements, self.setup_cfg,
+                     self.setup_py, self.pyproject, self.ireq))
+
+    def __eq__(self, other):
+        if not isinstance(other, SetupInfo):
+            return NotImplemented
+        return self.name == other.name and self._version == other._version and self._requirements == other._requirements and self.build_requires == other.build_requires
+
+
     @property
     def requires(self) -> Dict[str, PackagingRequirement]:
         if self._requirements is None:
@@ -987,16 +1001,6 @@ class SetupInfo(ReqLibBaseModel):
         egg_base.mkdir(parents=True, exist_ok=True)
         return egg_base.as_posix()
 
-    def __hash__(self):
-        return hash((self.name, self._version, self._requirements, self.build_requires, self.build_backend,
-                     self.setup_requires, self.python_requires, self._extras_requirements, self.setup_cfg,
-                     self.setup_py, self.pyproject, self.ireq))
-
-    def __eq__(self, other):
-        if not isinstance(other, SetupInfo):
-            return NotImplemented
-        return self.name == other.name and self._version == other._version and self._requirements == other._requirements and self.build_requires == other.build_requires
-
     def update_from_dict(self, metadata: Dict[str, Any]) -> None:
         name = metadata.get("name", self.name)
         if isinstance(name, str):
@@ -1040,9 +1044,7 @@ class SetupInfo(ReqLibBaseModel):
                 requirements |= extras_set
             extras_tuples.append((section, tuple(extras_set)))
         self._extras_requirements += tuple(extras_tuples)
-        build_backend = metadata.get("build_backend", "setuptools.build_meta:__legacy__")
-        if not self.build_backend:
-            self.build_backend = build_backend
+        self.build_backend = metadata.get("build_backend", "setuptools.build_meta:__legacy__")
         self._requirements = frozenset(requirements)
 
     def get_extras_from_ireq(self) -> None:
@@ -1210,19 +1212,6 @@ build-backend = "{1}"
             return self.run_setup()
         return self
 
-    def reload(self) -> Dict[str, Any]:
-        """Wipe existing distribution info metadata for rebuilding.
-
-        Erases metadata from **self.egg_base** and unsets
-        **self.requirements** and **self.extras**.
-        """
-        for metadata_dir in os.listdir(self.egg_base):
-            shutil.rmtree(metadata_dir, ignore_errors=True)
-        self.metadata = None
-        self._requirements = frozenset()
-        self._extras_requirements = ()
-        self.get_info()
-
     def get_metadata_from_wheel(self, wheel_path) -> Dict[Any, Any]:
         """Given a path to a wheel, return the metadata from that wheel.
 
@@ -1338,24 +1327,19 @@ build-backend = "{1}"
 
     def get_info(self) -> Dict[str, Any]:
         if self.metadata is None:
-            with cd(self.base_dir):
-                self.build()
+            self.build()
 
-        if self.setup_py and self.setup_py.exists() and self.metadata is None:
-            if not self.requires or not self.name:
-                try:
-                    with cd(self.base_dir):
-                        self.run_setup()
-                except Exception:
-                    with cd(self.base_dir):
-                        metadata = self.get_egg_metadata()
-                        if metadata:
-                            self.populate_metadata(metadata)
-                if self.metadata is None or not self.name:
-                    with cd(self.base_dir):
-                        metadata = self.get_egg_metadata()
-                        if metadata:
-                            self.populate_metadata(metadata)
+        if self.setup_py and self.setup_py.exists():
+            try:
+                self.run_setup()
+            except Exception:
+                metadata = self.get_egg_metadata()
+                if metadata:
+                    self.populate_metadata(metadata)
+            if self.metadata is None or not self.name:
+                metadata = self.get_egg_metadata()
+                if metadata:
+                    self.populate_metadata(metadata)
 
         return self.as_dict()
 
