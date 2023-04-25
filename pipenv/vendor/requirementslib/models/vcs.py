@@ -25,7 +25,7 @@ class VCSRepository(BaseModel):
     ref: Optional[str] = None
     repo_backend: Any = Field(default_factory=None)
     clone_log: Optional[str] = None
-    DEFAULT_RUN_ARGS = None
+    DEFAULT_RUN_ARGS: Any = None
 
     def __init__(self, **data):
         super().__init__(**data)
