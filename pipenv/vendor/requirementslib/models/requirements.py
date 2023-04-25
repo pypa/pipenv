@@ -100,6 +100,7 @@ from .utils import (
     validate_specifiers,
     validate_vcs,
 )
+from pipenv.vendor.requirementslib.models.common import ReqLibBaseModel
 
 if MYPY_RUNNING:
     from typing import (
@@ -131,31 +132,6 @@ if MYPY_RUNNING:
 
 
 SPECIFIERS_BY_LENGTH = sorted(list(Specifier._operators.keys()), key=len, reverse=True)
-
-
-class ReqLibBaseModel(BaseModel):
-    def __setattr__(self, name, value):  # noqa: C901 (ignore complexity)
-        private_attributes = {
-            field_name for field_name in self.__annotations__ if field_name.startswith("_")
-        }
-
-        if name in private_attributes or name in self.__fields__:
-            return object.__setattr__(self, name, value)
-
-        if self.__config__.extra is not Extra.allow and name not in self.__fields__:
-            raise ValueError(f'"{self.__class__.__name__}" object has no field "{name}"')
-
-        object.__setattr__(self, name, value)
-
-    def dict(self, *args, **kwargs) -> Dict[str, Any]:
-        """ The requirementslib classes make use of a lot of private attributes
-        which do not get serialized out to the dict by default in pydantic. """
-        model_dict = super().dict(*args, **kwargs)
-        private_attrs = {
-            k: v for k, v in self.__dict__.items() if k.startswith("_")
-        }
-        model_dict.update(private_attrs)
-        return model_dict
 
 
 class Line(ReqLibBaseModel):
@@ -475,7 +451,7 @@ class Line(ReqLibBaseModel):
             else:
                 raise TypeError("Must pass a string or a SpecifierSet")
         specs = self.get_requirement_specs(specifiers)
-        if self.ireq is not None and self._ireq and self._ireq.req is not None:
+        if self._ireq and self._ireq.req is not None:
             self._ireq.req.specifier = specifiers
             self._ireq.req.specs = specs
         if self.requirement is not None:
@@ -839,10 +815,10 @@ class Line(ReqLibBaseModel):
         if not self._setup_info and not self.is_named and not self.is_wheel:
             # make two attempts at this before failing to allow for stale data
             try:
-                self._setup_info = self.get_setup_info()
+                self.set_setup_info(self.get_setup_info())
             except FileNotFoundError:
                 try:
-                    self._setup_info = self.get_setup_info()
+                    self.set_setup_info(self.get_setup_info())
                 except FileNotFoundError:
                     raise
         return self._setup_info
