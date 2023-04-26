@@ -12,8 +12,8 @@ import sys
 import typing
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
-from urllib.request import url2pathname
 from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 import pipenv
 from pipenv import cmdparse
