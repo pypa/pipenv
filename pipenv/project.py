@@ -988,6 +988,8 @@ class Project:
                     del converted[k]
             if len(converted) == 1 and converted.get("version"):
                 converted = converted.get("version")
+            if "git" in converted and "path" in converted:
+                del converted["path"]
         p[category][normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)
