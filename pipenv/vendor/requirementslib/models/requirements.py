@@ -151,6 +151,7 @@ class Line(ReqLibBaseModel):
     parsed_marker: Optional[Any] = None
     preferred_scheme: Optional[str] = None
     _requirement: Optional[Any] = None
+    _parsed_url: Optional[Any] = None
     _setup_cfg: Optional[str] = None
     _setup_py: Optional[str] = None
     _pyproject_toml: Optional[str] = None
@@ -760,9 +761,9 @@ class Line(ReqLibBaseModel):
             self.is_path
             or (is_file_url(url) and is_installable_file(url))
             or (
-                self.parsed_url
-                and self.parsed_url.is_file_url
-                and is_installable_file(self.parsed_url.url_without_fragment_or_ref)
+                self._parsed_url
+                and self._parsed_url.is_file_url
+                and is_installable_file(self._parsed_url.url_without_fragment_or_ref)
             )
         ):
             return True
@@ -862,13 +863,15 @@ class Line(ReqLibBaseModel):
 
     @property
     def parsed_url(self) -> URI:
-        return URI.parse(self.line)
+        if self._parsed_url is None:
+            self._parsed_url = URI.parse(self.line)
+        return self._parsed_url
 
     @property
     def is_direct_url(self):
         # type: () -> bool
         try:
-            return self.is_url and self.parsed_url.is_direct_url
+            return self.is_url and self._parsed_url.is_direct_url
         except ValueError:
             return self.is_url and bool(DIRECT_URL_RE.match(self.line))
 
@@ -1022,8 +1025,8 @@ class Line(ReqLibBaseModel):
                 (self.is_remote_url or self.is_artifact or self.is_vcs)
                 and self.parsed_url
             ):
-                if self.parsed_url.fragment:
-                    _, _, name = self.parsed_url.fragment.partition("egg=")
+                if self._parsed_url.fragment:
+                    _, _, name = self._parsed_url.fragment.partition("egg=")
                     if "&" in name:
                         # subdirectory fragments might also be in here
                         name, _, _ = name.partition("&")
@@ -1132,7 +1135,7 @@ class Line(ReqLibBaseModel):
             )
         ):
             url = path_to_url(os.path.abspath(self.line))
-            parsed_url = URI.parse(url)
+            self._parsed_url = parsed_url = URI.parse(url)
         elif any(
             [
                 is_valid_url(self.line),
