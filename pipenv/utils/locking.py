@@ -36,6 +36,8 @@ def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=No
                 del entry[key]
             except KeyError:
                 pass
+    if "setup_info" in entry:
+        del entry["setup_info"]
     return name, entry
 
 

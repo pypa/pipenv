@@ -826,6 +826,10 @@ class Resolver:
         collected_hashes = self.collect_hashes(ireq)
         if collected_hashes:
             entry["hashes"] = sorted(set(collected_hashes))
+        if "setup_info" in entry:
+            del entry["setup_info"]
+        if "git" in entry and "path" in entry:
+            del entry["path"]
         return req.name, entry
 
     def clean_results(self):

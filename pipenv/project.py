@@ -990,6 +990,8 @@ class Project:
                 converted = converted.get("version")
             if "git" in converted and "path" in converted:
                 del converted["path"]
+            if "setup_info" in converted:
+                del converted["setup_info"]
         p[category][normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)

@@ -306,7 +306,7 @@ class Line(ReqLibBaseModel):
     def line_with_prefix(self) -> str:
         return self.get_line(with_prefix=True, with_hashes=False)
 
-    @property
+    @cached_property
     def line_for_ireq(self) -> str:
         line = ""
         if self.is_file or self.is_remote_url and not self.is_vcs:
@@ -362,7 +362,7 @@ class Line(ReqLibBaseModel):
             line = self.line
         return line
 
-    @property
+    @cached_property
     def base_path(self):
         # type: () -> Optional[S]
         self.parse_link()
@@ -398,7 +398,7 @@ class Line(ReqLibBaseModel):
             self.populate_setup_paths()
         return self._pyproject_toml
 
-    @property
+    @cached_property
     def specifier(self) -> Optional[str]:
         options = [self._specifier]
         for req in (self.ireq, self.requirement):
@@ -427,7 +427,7 @@ class Line(ReqLibBaseModel):
         self._specifier = spec
         self.set_specifiers(SpecifierSet(spec))
 
-    @property
+    @cached_property
     def specifiers(self) -> Optional[SpecifierSet]:
         ireq_needs_specifier = False
         req_needs_specifier = False
@@ -1198,7 +1198,7 @@ class Line(ReqLibBaseModel):
             pkg_name, markers = split_markers_from_line(self.line)
             self.parsed_marker = markers
 
-    @property
+    @cached_property
     def requirement_info(self):
         # type: () -> Tuple[Optional[S], Tuple[Optional[S], ...], Optional[S]]
         """
@@ -1237,7 +1237,7 @@ class Line(ReqLibBaseModel):
                     name = canonicalize_name(self._name)
         return name, extras, url  # type: ignore
 
-    @property
+    @cached_property
     def line_is_installable(self):
         # type: () -> bool
         """This is a safeguard against decoy requirements when a user installs
@@ -1581,13 +1581,13 @@ class FileRequirement(ReqLibBaseModel):
 
         return LinkInfo(vcs_type, prefer, relpath, path, uri, link)
 
-    @property
+    @cached_property
     def setup_py_dir(self) -> Optional[str]:
         if self.setup_path:
             return os.path.dirname(os.path.abspath(self.setup_path))
         return None
 
-    @property
+    @cached_property
     def dependencies(self):
         # type: () -> Tuple[Dict[S, PackagingRequirement], List[Union[S, PackagingRequirement]], List[S]]
         build_deps = []  # type: List[Union[S, PackagingRequirement]]
@@ -1611,7 +1611,7 @@ class FileRequirement(ReqLibBaseModel):
         build_deps = list(set(build_deps))
         return deps, setup_deps, build_deps
 
-    @property
+    @cached_property
     def setup_info(self) -> Optional[SetupInfo]:
         if self._setup_info is None and self.parsed_line:
             if self.parsed_line and self._parsed_line and self.parsed_line.setup_info:
@@ -1697,7 +1697,7 @@ class FileRequirement(ReqLibBaseModel):
             self._parsed_line = Line(line=self.line_part)
         return self._parsed_line
 
-    @property
+    @cached_property
     def is_local(self):
         # type: () -> bool
         uri = getattr(self, "uri", None)
@@ -1714,7 +1714,7 @@ class FileRequirement(ReqLibBaseModel):
                 return True
         return False
 
-    @property
+    @cached_property
     def is_remote_artifact(self):
         # type: () -> bool
         if self.link is None:
@@ -1829,7 +1829,7 @@ class FileRequirement(ReqLibBaseModel):
         arg_dict["setup_info"] = arg_dict["parsed_line"].setup_info
         return cls(**arg_dict)  # type: ignore
 
-    @property
+    @cached_property
     def line_part(self):
         # type: () -> str
         link_url = None  # type: Optional[str]
@@ -1852,7 +1852,7 @@ class FileRequirement(ReqLibBaseModel):
             raise ValueError("Could not calculate url for {0!r}".format(self))
         return "{0}{1}".format(editable, seed)
 
-    @property
+    @cached_property
     def pipfile_part(self):
         # type: () -> Dict[AnyStr, Dict[AnyStr, Any]]
         excludes = [
@@ -1954,7 +1954,7 @@ class VCSRequirement(FileRequirement):
             new_uri = "{0}{1}".format(vcs_type, new_uri)
             self.uri = new_uri
 
-    @property
+    @cached_property
     def url(self) -> str:
         if self.link and self.link.url:
             return self.link.url
@@ -1981,7 +1981,7 @@ class VCSRequirement(FileRequirement):
             return self.req.name
         return super(VCSRequirement, self).get_name()
 
-    @property
+    @cached_property
     def vcs_uri(self):
         # type: () -> Optional[str]
         uri = self.uri
@@ -1990,7 +1990,7 @@ class VCSRequirement(FileRequirement):
                 uri = "{0}+{1}".format(self.vcs, uri)
         return uri
 
-    @property
+    @cached_property
     def setup_info(self):
         if self._parsed_line and self._parsed_line.setup_info:
             if not self._parsed_line.setup_info.name:
@@ -2082,9 +2082,8 @@ class VCSRequirement(FileRequirement):
             req.url = url
         return req
 
-    @property
-    def repo(self):
-        # type: () -> VCSRepository
+    @cached_property
+    def repo(self) -> VCSRepository:
         if self._repo is None:
             if self._parsed_line and self._parsed_line.vcsrepo:
                 self._repo = self._parsed_line.vcsrepo
@@ -2094,8 +2093,7 @@ class VCSRequirement(FileRequirement):
                     self._parsed_line.set_vcsrepo(self._repo)
         return self._repo
 
-    def get_checkout_dir(self, src_dir=None):
-        # type: (Optional[S]) -> str
+    def get_checkout_dir(self, src_dir=None) -> str:
         src_dir = os.environ.get("PIP_SRC", None) if not src_dir else src_dir
         checkout_dir = None
         if self.is_local:
@@ -2262,7 +2260,7 @@ class VCSRequirement(FileRequirement):
         parsed_line = Line(line=line)
         return vcs_req_from_parsed_line(parsed_line)
 
-    @property
+    @cached_property
     def line_part(self):
         # type: () -> str
         """requirements.txt compatible line part sans-extras."""
@@ -2317,7 +2315,7 @@ class VCSRequirement(FileRequirement):
                 pipfile[vcs_type] = pipfile_url
         return pipfile
 
-    @property
+    @cached_property
     def pipfile_part(self):
         # type: () -> Dict[S, Dict[S, Union[List[S], S, bool, PackagingRequirement, Link]]]
         excludes = [
@@ -2411,11 +2409,11 @@ class Requirement(ReqLibBaseModel):
         else:
             return "".join([HASH_STRING.format(h) for h in self.hashes]) if self.hashes else ""
 
-    @property
+    @cached_property
     def hashes_as_pip(self) -> str:
         return self.get_hashes_as_pip()
 
-    @property
+    @cached_property
     def extras_as_pip(self) -> str:
         return f"[{','.join(sorted([extra.lower() for extra in self.extras]))}]" if self.extras else ""
 
@@ -2429,7 +2427,7 @@ class Requirement(ReqLibBaseModel):
                 commit_hash = repo.get_commit_hash()
         return commit_hash
 
-    @property
+    @cached_property
     def get_specifiers(self) -> str:
         if self.req and self.req.req and self.req.req.specifier:
             return specs_to_string(self.req.req.specifier)
@@ -2699,14 +2697,14 @@ class Requirement(ReqLibBaseModel):
             markers = fake_pkg.marker
         return markers
 
-    @property
+    @cached_property
     def get_specifier(self) -> Union[Specifier, LegacySpecifier]:
         try:
             return Specifier(self.specifiers)
         except InvalidSpecifier:
             return LegacySpecifier(self.specifiers)
 
-    @property
+    @cached_property
     def get_version(self):
         return parse(self.get_specifier.version)
 
@@ -2723,11 +2721,11 @@ class Requirement(ReqLibBaseModel):
         req.extras = set(self.extras) if self.extras else set()
         return req
 
-    @property
+    @cached_property
     def constraint_line(self) -> str:
         return self.as_line()
 
-    @property
+    @cached_property
     def is_direct_url(self) -> bool:
         return (
             self.is_file_or_url

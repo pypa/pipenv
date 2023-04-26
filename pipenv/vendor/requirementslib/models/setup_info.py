@@ -952,6 +952,7 @@ class SetupInfo(ReqLibBaseModel):
             self.build_backend = "setuptools.build_meta:__legacy__"
         if self._requirements is None:
             self._requirements = ()
+        self.get_initial_info()
         self.get_info()
 
     def __hash__(self):
@@ -1250,6 +1251,9 @@ build-backend = "{1}"
         self.metadata = _metadata
         self.setup_requires = make_base_requirements(metadata.get("requires", ()))
         self._requirements += tuple(self.setup_requires)
+        name = metadata.get("name")
+        if name:
+            self.name = name
         extras_require = metadata.get("extras", ())
         extras_tuples = []
         for section in set(extras_require):
@@ -1283,6 +1287,7 @@ build-backend = "{1}"
         parse_setupcfg = False
         parse_setuppy = False
         self.run_pyproject()
+        self.run_setup()
         if self.setup_cfg and self.setup_cfg.exists():
             parse_setupcfg = True
         if self.setup_py and self.setup_py.exists():
