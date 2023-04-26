@@ -2,6 +2,7 @@ import ast
 import atexit
 import configparser
 import contextlib
+from contextlib import ExitStack
 import os
 import subprocess as sp
 import sys
@@ -28,8 +29,10 @@ from pipenv.vendor.pep517 import envbuild, wrappers
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.operations.prepare import unpack_url
 from pipenv.patched.pip._internal.utils.urls import url_to_path
+from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 from pipenv.patched.pip._vendor.pkg_resources import (
     PathMetadata,
     Requirement,
@@ -878,7 +881,7 @@ class BaseRequirement(ReqLibBaseModel):
         arbitrary_types_allowed = True
         allow_mutation = True
         include_private_attributes = True
-        # keep_untouched = (cached_property,)
+        keep_untouched = (cached_property,)
 
     def __setattr__(self, name, value):
         if name == "requirement" and isinstance(value, Requirement):
@@ -941,12 +944,15 @@ class SetupInfo(ReqLibBaseModel):
         arbitrary_types_allowed = True
         allow_mutation = True
         include_private_attributes = True
-        # keep_untouched = (cached_property,)
+        keep_untouched = (cached_property,)
 
     def __init__(self, **data):
         super().__init__(**data)
         if not self.build_backend:
             self.build_backend = "setuptools.build_meta:__legacy__"
+        if self._requirements is None:
+            self._requirements = ()
+        self.get_info()
 
     def __hash__(self):
         return hash((self.name, self._version, self._requirements, self.build_requires, self.build_backend,
@@ -958,19 +964,16 @@ class SetupInfo(ReqLibBaseModel):
             return NotImplemented
         return self.name == other.name and self._version == other._version and self._requirements == other._requirements and self.build_requires == other.build_requires
 
-
-    @property
+    @cached_property
     def requires(self) -> Dict[str, HashableRequirement]:
-        self.get_info()
         if self._requirements is None:
             self._requirements = ()
         return {req.name: req.requirement for req in self._requirements}
 
-    @property
+    @cached_property
     def extras(self) -> Dict[str, Optional[Any]]:
         if self._extras_requirements is None:
             self._extras_requirements = ()
-            self.get_info()
         extras_dict = {}
         extras = set(self._extras_requirements)
         for section, deps in extras:
@@ -1034,9 +1037,7 @@ class SetupInfo(ReqLibBaseModel):
         if self.setup_requires is None:
             self.setup_requires = ()
         self.setup_requires = tuple(self.setup_requires + setup_requires)
-        if self.ireq.editable:
-            requirements += setup_requires
-        # TODO: Should this be a specifierset?
+        requirements += self.setup_requires
         self.python_requires = metadata.get("python_requires", self.python_requires)
         extras_require = metadata.get("extras_require", {})
         extras_tuples = []
@@ -1094,28 +1095,6 @@ class SetupInfo(ReqLibBaseModel):
                 if isinstance(dist, Mapping):
                     self.populate_metadata(dist)
                     return
-                name = dist.get_name()
-                if name:
-                    self.name = name
-                update_dict = {}
-                if dist.python_requires:
-                    update_dict["python_requires"] = dist.python_requires
-                update_dict["extras_require"] = {}
-                if dist.extras_require:
-                    for extra, extra_requires in dist.extras_require:
-                        extras_tuple = make_base_requirements(extra_requires)
-                        update_dict["extras_require"][extra] = extras_tuple
-                update_dict["install_requires"] = make_base_requirements(
-                    dist.get_requires()
-                )
-                if dist.setup_requires:
-                    update_dict["setup_requires"] = make_base_requirements(
-                        dist.setup_requires
-                    )
-                version = dist.get_version()
-                if version:
-                    update_dict["version"] = version
-                return self.update_from_dict(update_dict)
 
     @property
     def pep517_config(self) -> Dict[str, Any]:
@@ -1270,17 +1249,16 @@ build-backend = "{1}"
             else:
                 _metadata += (k, v)
         self.metadata = _metadata
-        cleaned = metadata.copy()
-        cleaned.update(
-            {
-                "install_requires": metadata.get("requires", []),
-                "extras_require": metadata.get("extras", {}),
-            }
-        )
-        if cleaned:
-            self.update_from_dict(cleaned.copy())
-        else:
-            self.update_from_dict(metadata)
+        self.setup_requires = make_base_requirements(metadata.get("requires", ()))
+        self._requirements += tuple(self.setup_requires)
+        extras_require = metadata.get("extras", ())
+        extras_tuples = []
+        for section in set(extras_require):
+            extras = extras_require[section]
+            extras_set = make_base_requirements(extras)
+            if self.ireq and self.ireq.extras and section in self.ireq.extras:
+                self._requirements += extras_set
+            extras_tuples.append((section, tuple(extras_set)))
         return self
 
     def run_pyproject(self)  -> "SetupInfo":
@@ -1379,10 +1357,12 @@ build-backend = "{1}"
             return None
         if ireq.link.is_wheel:
             return None
+        stack = ExitStack()
         if not session:
             cmd = get_pip_command()
             options, _ = cmd.parser.parse_args([])
             session = cmd._build_session(options)
+        stack.enter_context(global_tempdir_manager())
         vcs, uri = split_vcs_method_from_uri(ireq.link.url_without_fragment)
         parsed = urlparse(uri)
         if "file" in parsed.scheme:

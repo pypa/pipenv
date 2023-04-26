@@ -21,7 +21,6 @@ from typing import (
 )
 from pipenv.vendor.pydantic import BaseModel, Field, Extra
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-
 from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
@@ -159,6 +158,7 @@ class Line(ReqLibBaseModel):
     _pyproject_backend: Optional[str] = None
     _wheel_kwargs: Optional[Dict[str, str]] = None
     _vcsrepo: Optional[Any] = None
+    _stack: Optional[Any] = None
     _setup_info: Optional[Any] = None
     _ref: Optional[str] = None
     _ireq: Optional[Any] = None
@@ -812,14 +812,15 @@ class Line(ReqLibBaseModel):
 
     def get_setup_info(self):
         # type: () -> SetupInfo
-        setup_info = None
-        with global_tempdir_manager():
-            setup_info = SetupInfo.from_ireq(self.ireq, subdir=self.subdirectory)
-            if not setup_info.name:
-                setup_info.get_info()
+        setup_info = self._setup_info
+        if setup_info is None:
+            with global_tempdir_manager():
+                setup_info = SetupInfo.from_ireq(self.ireq, subdir=self.subdirectory)
+                if not setup_info.name:
+                    setup_info.get_info()
         return setup_info
 
-    @property
+    @cached_property
     def setup_info(self):
         # type: () -> Optional[SetupInfo]
         if not self._setup_info and not self.is_named and not self.is_wheel:
@@ -1996,7 +1997,6 @@ class VCSRequirement(FileRequirement):
                 self._setup_info = SetupInfo.from_ireq(
                     Line(line=self._repo.checkout_directory).ireq, subdir=subdir
                 )
-                self._setup_info.get_info()
             return self._setup_info
         ireq = self.parsed_line.ireq
 
@@ -2821,25 +2821,25 @@ class Requirement(ReqLibBaseModel):
 
     def run_requires(self, sources: Optional[List[str]] = None, finder: Optional[PackageFinder] = None) -> Dict[
         str, Any]:
-        if self.req and self.req.setup_info is not None:
+        if self.req and self.req.setup_info:
             info_dict = self.req.setup_info.as_dict()
-        elif self.line_instance and self.line_instance.setup_info is not None:
+        elif self.line_instance and self.line_instance.setup_info:
             info_dict = self.line_instance.setup_info.as_dict()
         else:
             if not finder:
                 from .dependencies import get_finder
                 finder = get_finder(sources=sources)
             with global_tempdir_manager():
-                info = SetupInfo.from_requirement(self, finder=finder)
-                if info is None:
+                setup_info = SetupInfo.from_requirement(self, finder=finder)
+                if setup_info is None:
                     return {}
-                info_dict = info.get_info()
-            if self.req and not self.req.setup_info:
-                self.req._setup_info = info
-        if self.req._has_hashed_name and info_dict.get("name"):
-            self.req.name = self.name = info_dict["name"]
-            if self.req.req.name != info_dict["name"]:
-                self.req.req.name = info_dict["name"]
+                info_dict = setup_info.as_dict()
+                if self.req:
+                    self.req._setup_info = setup_info
+                if self.req._has_hashed_name and info_dict.get("name"):
+                    self.req.name = self.name = info_dict["name"]
+                    if self.req.req.name != info_dict["name"]:
+                        self.req.req.name = info_dict["name"]
         return info_dict
 
     def merge_markers(self, markers: Union[str, Marker]) -> 'Requirement':
@@ -2885,6 +2885,7 @@ def file_req_from_parsed_line(parsed_line):
         "pyproject_path": pyproject_path,
         "parsed_line": parsed_line,
         "req": parsed_line.requirement,
+        "_setup_info": parsed_line.setup_info,
     }
     if parsed_line.name is not None:
         req_dict["name"] = parsed_line.name
