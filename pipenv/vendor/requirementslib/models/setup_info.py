@@ -1093,8 +1093,7 @@ class SetupInfo(ReqLibBaseModel):
                         return self.populate_metadata(metadata)
 
                 if isinstance(dist, Mapping):
-                    self.populate_metadata(dist)
-                    return
+                    return self.populate_metadata(dist)
 
     @property
     def pep517_config(self) -> Dict[str, Any]:

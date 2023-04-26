@@ -7,6 +7,8 @@ from pathlib import Path
 from sysconfig import get_path
 from urllib import parse as urllib_parse
 from urllib.parse import unquote
+from urllib.request import url2pathname
+from urllib.parse import urlparse
 
 from typing import (
     Any,
@@ -997,8 +999,12 @@ class Line(ReqLibBaseModel):
 
     def _parse_name_from_path(self):
         # type: () -> Optional[S]
-        if self.path and self.is_local and is_installable_dir(self.path):
-            metadata = get_metadata(self.path)
+        path = self.path
+        if path and path.startswith("file:"):
+            parsed_url = urlparse(path)
+            path = url2pathname(parsed_url.path)
+        if path and self.is_local and is_installable_dir(path):
+            metadata = get_metadata(path)
             if metadata:
                 name = metadata.get("name", "")
                 if name and name != "wheel":
@@ -1016,32 +1022,29 @@ class Line(ReqLibBaseModel):
                     return name
         return None
 
-    def parse_name(self):
-        # type: () -> "Line"
-        if self._name is None:
-            name = None
-            if self.link is not None and self.line_is_installable:
-                name = self._parse_name_from_link()
-            if name is None and (
-                (self.is_remote_url or self.is_artifact or self.is_vcs)
-                and self.parsed_url
-            ):
-                if self._parsed_url.fragment:
-                    _, _, name = self._parsed_url.fragment.partition("egg=")
-                    if "&" in name:
-                        # subdirectory fragments might also be in here
-                        name, _, _ = name.partition("&")
-            if name is None and self.is_named:
-                name = self._parse_name_from_line()
-            elif name is None and (self.is_file or self.is_remote_url or self.is_path):
-                if self.is_local:
-                    name = self._parse_name_from_path()
-            if name is not None:
-                name, extras = _strip_extras(name)
-                if extras is not None and not self.extras:
-                    self.extras = tuple(sorted(set(parse_extras(extras))))
-                self._name = name
-        return self
+    def parse_name(self) -> None:
+        name = None
+        if self.link is not None and self.line_is_installable:
+            name = self._parse_name_from_link()
+        if name is None and (
+            (self.is_remote_url or self.is_artifact or self.is_vcs)
+            and self.parsed_url
+        ):
+            if self._parsed_url.fragment:
+                _, _, name = self._parsed_url.fragment.partition("egg=")
+                if "&" in name:
+                    # subdirectory fragments might also be in here
+                    name, _, _ = name.partition("&")
+        if name is None and self.is_named:
+            name = self._parse_name_from_line()
+        elif name is None and (self.is_file or self.is_remote_url or self.is_path):
+            if self.is_local:
+                name = self._parse_name_from_path()
+        if name is not None:
+            name, extras = _strip_extras(name)
+            if extras is not None and not self.extras:
+                self.extras = tuple(sorted(set(parse_extras(extras))))
+        self._name = name
 
     def _parse_requirement_from_vcs(self):
         # type: () -> Optional[PackagingRequirement]
@@ -1473,7 +1476,10 @@ class FileRequirement(ReqLibBaseModel):
             self.req = self.get_requirement()
         if not self.uri:
             self.uri = self.get_uri()
-        if self.path and self.path.startswith("file:"):
+        if not self.path and self.uri:
+            self.path = self.uri
+            self._uri_scheme = "file"
+        elif self.path and self.path.startswith("file:"):
             self._uri_scheme = "file"
         elif self.path:
             self._uri_scheme = "path"
