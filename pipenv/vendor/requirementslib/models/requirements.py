@@ -1180,6 +1180,8 @@ class Line(ReqLibBaseModel):
         self.uri = uri
         if prefer in ("path", "relpath") or uri.startswith("file"):
             self.is_local = True
+            if uri.startswith("file"):
+                self.path = uri
         if parsed_url.is_vcs or parsed_url.is_direct_url and parsed_link:
             self._link = parsed_link
         else:
@@ -1470,10 +1472,10 @@ class FileRequirement(ReqLibBaseModel):
             self.req = self.get_requirement()
         if not self.uri:
             self.uri = self.get_uri()
-        if self.path:
-            self._uri_scheme = "path"
-        if self.path and not self._uri_scheme:
+        if self.path and self.path.startswith("file:"):
             self._uri_scheme = "file"
+        elif self.path:
+            self._uri_scheme = "path"
 
     @classmethod
     def get_link_from_line(cls, line):
@@ -1751,26 +1753,20 @@ class FileRequirement(ReqLibBaseModel):
         fil = pipfile.get("file")
         path = pipfile.get("path")
         if path and isinstance(path, str):
-            if isinstance(path, Path) and not path.is_absolute():
-                path = get_converted_relative_path(path.as_posix())
-            elif not os.path.isabs(path):
+            if not urllib_parse.urlparse(path).scheme and not os.path.isabs(path):
                 path = get_converted_relative_path(path)
         if path and uri:
             raise ValueError("do not specify both 'path' and 'uri'")
-        # if path and fil:
-        #     raise ValueError("do not specify both 'path' and 'file'")
-        uri = uri or fil
+        uri = uri or fil or path
 
         # Decide that scheme to use.
-        # 'path' - local filesystem path.
         # 'file' - A file:// URI (possibly with VCS prefix).
+        # 'path' - local filesystem path.
         # 'uri' - Any other URI.
-        if path:
-            uri_scheme = "path"
-        else:
-            # URI is not currently a valid key in pipfile entries
-            # see https://github.com/pypa/pipfile/issues/110
+        if fil or (path and path.startswith("file:/")):
             uri_scheme = "file"
+        else:
+            uri_scheme = "path"
 
         if not uri:
             uri = path_to_url(path)
