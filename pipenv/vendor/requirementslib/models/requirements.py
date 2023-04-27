@@ -822,7 +822,7 @@ class Line(ReqLibBaseModel):
                     setup_info.get_info()
         return setup_info
 
-    @cached_property
+    @property
     def setup_info(self):
         # type: () -> Optional[SetupInfo]
         if not self._setup_info and not self.is_named and not self.is_wheel:
@@ -1078,7 +1078,7 @@ class Line(ReqLibBaseModel):
             self._requirement.revision = self.ref
             if self._vcsrepo is not None:
                 with global_tempdir_manager():
-                    self._requirement.revision = self._vcsrepo.get_commit_hash()
+                    self._requirement.revision = self._vcsrepo.commit_hash
         return self._requirement
 
     def parse_requirement(self):
@@ -1611,7 +1611,7 @@ class FileRequirement(ReqLibBaseModel):
         build_deps = list(set(build_deps))
         return deps, setup_deps, build_deps
 
-    @cached_property
+    @property
     def setup_info(self) -> Optional[SetupInfo]:
         if self._setup_info is None and self.parsed_line:
             if self.parsed_line and self._parsed_line and self.parsed_line.setup_info:
@@ -1990,7 +1990,7 @@ class VCSRequirement(FileRequirement):
                 uri = "{0}+{1}".format(self.vcs, uri)
         return uri
 
-    @cached_property
+    @property
     def setup_info(self):
         if self._parsed_line and self._parsed_line.setup_info:
             if not self._parsed_line.setup_info.name:
@@ -2142,20 +2142,16 @@ class VCSRequirement(FileRequirement):
             self.pyproject_backend = pyproject_backend
         return vcsrepo
 
-    def get_commit_hash(self):
-        # type: () -> str
-        with global_tempdir_manager():
-            hash_ = self.repo.get_commit_hash()
-        return hash_
+    @cached_property
+    def commit_hash(self) -> str:
+        return self.repo.commit_hash
 
-    def update_repo(self, src_dir=None, ref=None):
-        # type: (Optional[str], Optional[str]) -> str
+    def update_repo(self, src_dir=None, ref=None) -> str:
         if ref:
             self.ref = ref
-        repo_hash = None
         if not self.is_local and self.ref is not None:
             self.repo.checkout_ref(self.ref)
-        repo_hash = self.get_commit_hash()
+        repo_hash = self.commit_hash
         if self.req:
             self.req.revision = repo_hash
         return repo_hash
@@ -2171,7 +2167,7 @@ class VCSRequirement(FileRequirement):
             else:
                 self.req = self.get_requirement()
         with global_tempdir_manager():
-            revision = self.req.revision = vcsrepo.get_commit_hash()
+            revision = self.req.revision = vcsrepo.commit_hash
 
         # Remove potential ref in the end of uri after ref is parsed
         if self.link and "@" in self.link.show_url and self.uri and "@" in self.uri:
@@ -2424,7 +2420,7 @@ class Requirement(ReqLibBaseModel):
         commit_hash = None
         if self.req is not None:
             with self.req.locked_vcs_repo() as repo:
-                commit_hash = repo.get_commit_hash()
+                commit_hash = repo.commit_hash
         return commit_hash
 
     @cached_property

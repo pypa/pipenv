@@ -6,6 +6,8 @@ from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
 from pipenv.vendor.pydantic import Field
 from pipenv.vendor.requirementslib.models.common import ReqLibBaseModel
+from pipenv.patched.pip._vendor.pyparsing.core import cached_property
+
 
 from typing import Any, Optional, Tuple
 from pipenv.vendor.pydantic import BaseModel, Field
@@ -14,7 +16,7 @@ from tempfile import gettempdir as global_tempdir_manager
 from .url import URI
 
 
-class VCSRepository(BaseModel):
+class VCSRepository(ReqLibBaseModel):
     url: str
     name: str
     checkout_directory: str
@@ -26,6 +28,13 @@ class VCSRepository(BaseModel):
     repo_backend: Any = None
     clone_log: Optional[str] = None
     DEFAULT_RUN_ARGS: Optional[Any] = None
+
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        include_private_attributes = True
+        keep_untouched = (cached_property,)
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -65,7 +74,7 @@ class VCSRepository(BaseModel):
             if self.ref:
                 self.checkout_ref(self.ref)
         if not self.commit_sha:
-            self.commit_sha = self.get_commit_hash()
+            self.commit_sha = self.commit_hash
 
     def checkout_ref(self, ref: str) -> None:
         rev_opts = self.repo_backend.make_rev_options(ref)
@@ -81,11 +90,11 @@ class VCSRepository(BaseModel):
     def update(self, ref: str) -> None:
         target_ref = self.repo_backend.make_rev_options(ref)
         self.repo_backend.update(self.checkout_directory, self.url, target_ref)
-        self.commit_sha = self.get_commit_hash()
+        self.commit_sha = self.commit_hash
 
-    def get_commit_hash(self, ref: Optional[str] = None) -> str:
-        with global_tempdir_manager():
-            return self.repo_backend.get_revision(self.checkout_directory)
+    @cached_property
+    def commit_hash(self) -> str:
+        return self.repo_backend.get_revision(self.checkout_directory)
 
     @classmethod
     def monkeypatch_pip(cls) -> Tuple[Any, ...]:

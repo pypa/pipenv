@@ -129,7 +129,7 @@ def get_vcs_deps(project=None, dev=False, pypi_mirror=None, packages=None, reqs=
 
                     # from distutils.sysconfig import get_python_lib
                     # sys.path = [repo.checkout_directory, "", ".", get_python_lib(plat_specific=0)]
-                    commit_hash = repo.get_commit_hash()
+                    commit_hash = repo.commit_hash
                     name = requirement.normalized_name
                     lockfile[name] = requirement.pipfile_entry[1]
                     lockfile[name]["ref"] = commit_hash
