@@ -716,16 +716,9 @@ def make_install_requirement(
     return install_req_from_line(requirement_string, constraint=constraint)
 
 
-def normalize_name(pkg):
-    # type: (AnyStr) -> AnyStr
+def normalize_name(pkg) -> str:
     """Given a package name, return its normalized, non-canonicalized form.
-
-    :param AnyStr pkg: The name of a package
-    :return: A normalized package name
-    :rtype: AnyStr
     """
-
-    assert isinstance(pkg, str)
     return pkg.replace("_", "-").lower()
 
 

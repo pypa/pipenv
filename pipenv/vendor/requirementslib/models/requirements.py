@@ -306,7 +306,6 @@ class Line(ReqLibBaseModel):
     def line_with_prefix(self) -> str:
         return self.get_line(with_prefix=True, with_hashes=False)
 
-    @cached_property
     def line_for_ireq(self) -> str:
         line = ""
         if self.is_file or self.is_remote_url and not self.is_vcs:
@@ -427,7 +426,7 @@ class Line(ReqLibBaseModel):
         self._specifier = spec
         self.set_specifiers(SpecifierSet(spec))
 
-    @cached_property
+    @property
     def specifiers(self) -> Optional[SpecifierSet]:
         ireq_needs_specifier = False
         req_needs_specifier = False
@@ -924,7 +923,7 @@ class Line(ReqLibBaseModel):
 
     def get_ireq(self):
         # type: () -> InstallRequirement
-        line = self.line_for_ireq
+        line = self.line_for_ireq()
         if self.editable:
             ireq = install_req_from_editable(line)
         else:
@@ -1198,7 +1197,7 @@ class Line(ReqLibBaseModel):
             pkg_name, markers = split_markers_from_line(self.line)
             self.parsed_marker = markers
 
-    @cached_property
+    @property
     def requirement_info(self):
         # type: () -> Tuple[Optional[S], Tuple[Optional[S], ...], Optional[S]]
         """
@@ -1237,7 +1236,7 @@ class Line(ReqLibBaseModel):
                     name = canonicalize_name(self._name)
         return name, extras, url  # type: ignore
 
-    @cached_property
+    @property
     def line_is_installable(self):
         # type: () -> bool
         """This is a safeguard against decoy requirements when a user installs
@@ -1392,11 +1391,7 @@ class NamedRequirement(ReqLibBaseModel):
         return cls(**creation_args)
 
     @cached_property
-    def line_part(self):
-        # type: () -> str
-        # FIXME: This should actually be canonicalized but for now we have to
-        # simply lowercase it and replace underscores, since full canonicalization
-        # also replaces dots and that doesn't actually work when querying the index
+    def line_part(self) -> str:
         return normalize_name(self.name)
 
     @cached_property
@@ -1581,13 +1576,13 @@ class FileRequirement(ReqLibBaseModel):
 
         return LinkInfo(vcs_type, prefer, relpath, path, uri, link)
 
-    @cached_property
+    @property
     def setup_py_dir(self) -> Optional[str]:
         if self.setup_path:
             return os.path.dirname(os.path.abspath(self.setup_path))
         return None
 
-    @cached_property
+    @property
     def dependencies(self):
         # type: () -> Tuple[Dict[S, PackagingRequirement], List[Union[S, PackagingRequirement]], List[S]]
         build_deps = []  # type: List[Union[S, PackagingRequirement]]
@@ -1697,7 +1692,7 @@ class FileRequirement(ReqLibBaseModel):
             self._parsed_line = Line(line=self.line_part)
         return self._parsed_line
 
-    @cached_property
+    @property
     def is_local(self):
         # type: () -> bool
         uri = getattr(self, "uri", None)
