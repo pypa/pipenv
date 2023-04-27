@@ -183,8 +183,6 @@ class Line(ReqLibBaseModel):
             self.extras = tuple(sorted(set(extras)))
         self.line = line
         self.parse()
-        if not self.is_named and not self.is_wheel:
-            self.set_setup_info(self.get_setup_info())
 
     def __hash__(self):
         # Convert the _requirement attribute to a hashable type if it's a dict
@@ -1414,7 +1412,7 @@ class FileRequirement(ReqLibBaseModel):
     path: Optional[str] = None
     editable: bool = False
     extras: Optional[Tuple[str, ...]] = ()
-    _uri_scheme: Optional[str] = None
+    uri_scheme: Optional[str] = None
     uri: Optional[str] = Field(default_factory=lambda: "")
     name: Optional[str] = Field(default_factory=lambda: "")
     link: Optional[Link] = Field(default_factory=lambda: None)
@@ -1436,8 +1434,6 @@ class FileRequirement(ReqLibBaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
-        if self.parsed_line is None:
-            self.parsed_line = Line(line=self.line_part)
         # Set default values using the methods
         if not self.name:
             self.name = self.get_name()
@@ -1449,12 +1445,14 @@ class FileRequirement(ReqLibBaseModel):
             self.uri = self.get_uri()
         if not self.path and self.uri:
             self.path = self.uri
-            self._uri_scheme = "file"
+            self.uri_scheme = "file"
         elif self.path and self.path.startswith("file:"):
-            self._uri_scheme = "file"
+            self.uri_scheme = "file"
         elif self.path:
-            self._uri_scheme = "path"
-        self.parse_setup_info()
+            self.uri_scheme = "path"
+        #self.parse_setup_info()
+        if self.parsed_line is None:
+            self.parsed_line = Line(line=self.line_part)
         if self.name is None and self.parsed_line:
             if self.parsed_line.setup_info:
                 self.setup_info = self.parsed_line.setup_info
@@ -1630,7 +1628,7 @@ class FileRequirement(ReqLibBaseModel):
 
     def get_uri(self) -> str:
         if self.path and not self.uri:
-            self._uri_scheme = "path"
+            self.uri_scheme = "path"
             return path_to_url(os.path.abspath(self.path))
         elif (
             getattr(self, "req", None)
@@ -1817,10 +1815,10 @@ class FileRequirement(ReqLibBaseModel):
         if self.link is not None:
             link_url = self.link.url_without_fragment
         is_vcs = getattr(self.link, "is_vcs", False)
-        if self._uri_scheme and self._uri_scheme == "path":
+        if self.uri_scheme and self.uri_scheme == "path":
             # We may need any one of these for passing to pip
             seed = self.path or link_url or self.uri
-        elif (self._uri_scheme and self._uri_scheme == "file") or (
+        elif (self.uri_scheme and self.uri_scheme == "file") or (
             (self.link.is_wheel or not is_vcs) and self.link.url
         ):
             seed = link_url or self.uri
@@ -1840,7 +1838,7 @@ class FileRequirement(ReqLibBaseModel):
             "_has_hashed_name",
             "setup_path",
             "pyproject_path",
-            "_uri_scheme",
+            "uri_scheme",
             "pyproject_requires",
             "pyproject_backend",
             "setup_info",
@@ -1864,8 +1862,8 @@ class FileRequirement(ReqLibBaseModel):
                 name = self.name = self.parsed_line.name
             elif self.setup_info and self.setup_info.name:
                 name = self.name = self.setup_info.name
-        if "_uri_scheme" in pipfile_dict:
-            pipfile_dict.pop("_uri_scheme")
+        if "uri_scheme" in pipfile_dict:
+            pipfile_dict.pop("uri_scheme")
         # For local paths and remote installable artifacts (zipfiles, etc)
         collision_keys = {"file", "uri", "path"}
         collision_order = ["file", "uri", "path"]  # type: List[str]
@@ -1873,8 +1871,8 @@ class FileRequirement(ReqLibBaseModel):
         is_vcs = None
         if self.link is not None:
             is_vcs = getattr(self.link, "is_vcs", False)
-        if self._uri_scheme:
-            dict_key = self._uri_scheme
+        if self.uri_scheme:
+            dict_key = self.uri_scheme
             target_key = dict_key if dict_key in pipfile_dict else key_match
             if target_key is not None:
                 winning_value = pipfile_dict.pop(target_key)
@@ -1885,7 +1883,7 @@ class FileRequirement(ReqLibBaseModel):
         elif (
             self.is_remote_artifact
             or (is_vcs is not None and not is_vcs)
-            and (self._uri_scheme and self._uri_scheme == "file")
+            and (self.uri_scheme and self.uri_scheme == "file")
         ):
             dict_key = "file"
             # Look for uri first because file is a uri format and this is designed
@@ -1913,7 +1911,7 @@ class VCSRequirement(FileRequirement):
     _repo: Optional[VCSRepository] = None
     _base_line: Optional[str] = None
     parsed_line: Optional[Line] = None
-    _uri_scheme: Optional[str] = None
+    uri_scheme: Optional[str] = None
     name: str
     link: Optional[Link]
     req: Optional[PackagingRequirement]
@@ -2267,7 +2265,7 @@ class VCSRequirement(FileRequirement):
             "pyproject_backend",
             "_setup_info",
             "parsed_line",
-            "_uri_scheme",
+            "uri_scheme",
         ]
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes  # noqa
         pipfile_dict = self.dict()
@@ -2492,6 +2490,8 @@ class Requirement(ReqLibBaseModel):
         if isinstance(line, InstallRequirement):
             line = format_requirement(line)
         parsed_line = Line(line=line)
+        if not parsed_line.is_named and not parsed_line.is_wheel:
+            parsed_line.set_setup_info(parsed_line.get_setup_info())
         if (
             (parsed_line.is_file and parsed_line.is_installable)
             or parsed_line.is_remote_url
