@@ -1,18 +1,12 @@
 import importlib
 import operator
 import os
+from typing import Any, Dict, List, Optional, Union
 
-from . import environment
 from .exceptions import InvalidPythonVersion
-from .utils import Iterable, filter_pythons, version_re
-
-if environment.MYPY_RUNNING:
-    from typing import Any, Dict, Iterator, List, Optional, Text, Union
-
-    from .models.path import Path, PathEntry, SystemPath
-    from .models.windows import WindowsFinder
-
-    STRING_TYPE = Union[str, Text, bytes]
+from .utils import Iterable, version_re
+from .models.path import PathEntry, SystemPath
+from .models.windows import WindowsFinder
 
 
 class Finder(object):
@@ -50,8 +44,6 @@ class Finder(object):
         :param bool sort_by_path: Whether to always sort by path
         :returns: a :class:`~pythonfinder.pythonfinder.Finder` object.
         """
-        from .models import WindowsFinder
-
         self.path_prepend = path  # type: Optional[str]
         self.global_search = global_search  # type: bool
         self.system = system  # type: bool
@@ -80,35 +72,7 @@ class Finder(object):
             ignore_unsupported=self.ignore_unsupported,
         )
 
-    def reload_system_path(self):
-        # type: () -> None
-        """
-        Rebuilds the base system path and all of the contained finders within it.
-
-        This will re-apply any changes to the environment or any version changes on the system.
-        """
-
-        if self.system_path is not None:
-            self.system_path.clear_caches()
-            self.system_path = None
-        pyfinder_path = importlib.import_module("pythonfinder.models.path")
-        importlib.reload(pyfinder_path)
-        self.system_path = self.create_system_path()
-
-    def rehash(self):
-        # type: () -> "Finder"
-        if not self.system_path:
-            self.system_path = self.create_system_path()
-        self.find_all_python_versions.cache_clear()
-        self.find_python_version.cache_clear()
-        if self.windows_finder is not None:
-            self.windows_finder = None
-        filter_pythons.cache_clear()
-        self.reload_system_path()
-        return self
-
-    def which(self, exe):
-        # type: (str) -> Optional[PathEntry]
+    def which(self, exe) -> Optional[PathEntry]:
         return self.system_path.which(exe)
 
     @classmethod

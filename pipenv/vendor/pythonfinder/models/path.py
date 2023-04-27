@@ -125,6 +125,7 @@ class SystemPath(BaseModel):
     @staticmethod
     def check_for_asdf():
         return ASDF_INSTALLED or os.path.exists(normalize_path(ASDF_DATA_DIR))
+
     def set_version_dict(self):
         self.version_dict = defaultdict(list)
         for finder_name, finder in self.finders_dict.items():
@@ -230,16 +231,14 @@ class SystemPath(BaseModel):
         new_order = []
         target = normalize_path(path)
         path_map = {normalize_path(pth): pth for pth in self.paths.keys()}
-        new_paths = self.paths.copy()
         if target in path_map:
-            del new_paths[path_map[target]]
+            del self.paths[path_map[target]]
         for current_path in path_copy:
             normalized = normalize_path(current_path)
             if normalized != target:
                 new_order.append(normalized)
         new_order = [ensure_path(p).as_posix() for p in reversed(new_order)]
         self.path_order = new_order
-        self.paths = new_paths
         return self
 
     def _setup_asdf(self) -> "SystemPath":
@@ -272,33 +271,6 @@ class SystemPath(BaseModel):
         self._remove_path(normalize_path(os.path.join(ASDF_DATA_DIR, "shims")))
         self._register_finder("asdf", asdf_finder)
         return self
-
-    def reload_finder(self, finder_name) -> "SystemPath":
-        if finder_name is None:
-            raise TypeError("Must pass a string as the name of the target finder")
-        finder_attr = "{0}_finder".format(finder_name)
-        setup_attr = "_setup_{0}".format(finder_name)
-        try:
-            current_finder = getattr(self, finder_attr)  # type: Any
-        except AttributeError:
-            raise ValueError("Must pass a valid finder to reload.")
-        try:
-            setup_fn = getattr(self, setup_attr)
-        except AttributeError:
-            raise ValueError("Finder has no valid setup function: %s" % finder_name)
-        if current_finder is None:
-            # TODO: This is called 'reload', should we load a new finder for the first
-            # time here? lets just skip that for now to avoid unallowed finders
-            pass
-        if (finder_name == "pyenv" and not PYENV_INSTALLED) or (
-            finder_name == "asdf" and not ASDF_INSTALLED
-        ):
-            # Don't allow loading of finders that aren't explicitly 'installed' as it were
-            return self
-        setattr(self, finder_attr, None)
-        if finder_name in self.finders_dict:
-            del self.finders_dict[finder_name]
-        return setup_fn()
 
     def _setup_pyenv(self) -> "SystemPath":
         if "pyenv" in self.finders and self.pyenv_finder is not None:

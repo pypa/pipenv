@@ -223,7 +223,7 @@ class BasePath(BaseModel):
         )
         if not self.is_dir:
             return sub_finder(self)
-        unnested = [sub_finder(path) for path in expand_paths(self)]
+        unnested = [sub_finder(path) for path in expand_paths(self.path)]
         version_sort = operator.attrgetter("as_python.version_sort")
         unnested = [p for p in unnested if p is not None and p.as_python is not None]
         paths = sorted(unnested, key=version_sort, reverse=True)
