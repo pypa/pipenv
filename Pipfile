@@ -25,9 +25,9 @@ myst-parser = {extras = ["linkify"], version = "*"}
 invoke = "==2.0.0"
 exceptiongroup = "==1.1.0"
 tomli = "*"
+pytz = "*"
 
 [packages]
-pytz = "*"
 
 [scripts]
 tests = "bash ./run-tests.sh"

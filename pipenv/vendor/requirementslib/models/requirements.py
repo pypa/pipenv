@@ -1,6 +1,7 @@
 import collections
 import copy
 import os
+import re
 import sys
 from contextlib import contextmanager
 from functools import lru_cache
@@ -134,13 +135,6 @@ class Line(object):
     def __init__(self, line, extras=None):
         # type: (AnyStr, Optional[Union[List[S], Set[S], Tuple[S, ...]]]) -> None
         self.editable = False  # type: bool
-        if line.startswith("-e "):
-            line = line[len("-e ") :]
-            self.editable = True
-        self.extras = ()  # type: Tuple[STRING_TYPE, ...]
-        if extras is not None:
-            self.extras = tuple(sorted(set(extras)))
-        self.line = line  # type: STRING_TYPE
         self.hashes = []  # type: List[STRING_TYPE]
         self.markers = None  # type: Optional[STRING_TYPE]
         self.vcs = None  # type: Optional[STRING_TYPE]
@@ -167,7 +161,20 @@ class Line(object):
         self._ireq = None  # type: Optional[InstallRequirement]
         self._src_root = None  # type: Optional[STRING_TYPE]
         self.dist = None  # type: Any
+        self.line = line  # type: STRING_TYPE
         super(Line, self).__init__()
+        self.extras = ()  # type: Tuple[STRING_TYPE, ...]
+        if extras is not None:
+            self.extras = tuple(sorted(set(extras)))
+        if line.startswith("-e "):
+            self.line = line = line[len("-e "):]
+            # Regular expression to match the path without extras
+            path_pattern = re.compile(r"^[^\[]+")
+            # Extract the path without extras
+            self.line = line = path_pattern.match(line).group(0)
+            self.editable = True
+            self.path = os.path.abspath(line)
+            self.setup_info = self.get_setup_info()
         self.parse()
 
     def __hash__(self):
@@ -216,10 +223,10 @@ class Line(object):
         hash_list = ["--hash={0}".format(h) for h in sorted(self.hashes)]
         if self.is_named:
             line = self.name_and_specifier
-        elif self.is_direct_url:
+        elif self.is_direct_url and self.link:
             line = self.link.url
         elif extras_str:
-            if self.is_vcs:
+            if self.is_vcs and self.link:
                 line = self.link.url
                 if "git+file:/" in line and "git+file:///" not in line:
                     line = line.replace("git+file:/", "git+file:///")
@@ -335,7 +342,7 @@ class Line(object):
                         line = self.path
                     if self.extras:
                         line = "{0}{1}".format(line, extras_to_string(self.extras))
-                else:
+                elif self.link:
                     line = self.link.url
         elif self.is_vcs and not self.editable:
             line = add_ssh_scheme_to_git_uri(self.line)
@@ -1021,11 +1028,12 @@ class Line(object):
                     if "&" in name:
                         # subdirectory fragments might also be in here
                         name, _, _ = name.partition("&")
-            if name is None and self.is_named:
-                name = self._parse_name_from_line()
-            elif name is None and (self.is_file or self.is_remote_url or self.is_path):
+
+            if name is None and (self.is_file or self.is_remote_url or self.is_path):
                 if self.is_local:
                     name = self._parse_name_from_path()
+            elif name is None and self.is_named:
+                name = self._parse_name_from_line()
             if name is not None:
                 name, extras = _strip_extras(name)
                 if extras is not None and not self.extras:
