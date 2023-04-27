@@ -2424,8 +2424,8 @@ class Requirement(ReqLibBaseModel):
                 self.req.name = name
             if self.req.req and self.req.req.name is None:
                 self.req.req.name = name
-            if self.req._parsed_line._name is None:
-                self.req._parsed_line.name = name
+            if self.req.parsed_line._name is None:
+                self.req.parsed_line.name = name
             if self.req._setup_info and self.req._setup_info.name is None:
                 self.req._setup_info.name = name
 
@@ -2773,7 +2773,7 @@ class Requirement(ReqLibBaseModel):
         if self.line_instance and self.line_instance.ireq:
             return self.line_instance.ireq
         elif getattr(self.req, "parsed_line", None) and self.req.parsed_line.ireq:
-            return self.req._parsed_line.ireq
+            return self.req.parsed_line.ireq
         kwargs = {"include_hashes": False}
         if (self.is_file_or_url and self.req.is_local) or self.is_vcs:
             kwargs["include_markers"] = False
