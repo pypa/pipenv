@@ -634,8 +634,7 @@ def _is_venv_dir(path):
         )
 
 
-def iter_metadata(path, pkg_name=None, metadata_type="egg-info"):
-    # type: (AnyStr, Optional[AnyStr], AnyStr) -> Generator
+def iter_metadata(path, pkg_name=None, metadata_type="egg-info") -> Generator:
     if pkg_name is not None:
         pkg_variants = get_name_variants(pkg_name)
     dirs_to_search = [path]
@@ -938,6 +937,7 @@ class SetupInfo(ReqLibBaseModel):
     ireq: Optional[InstallRequirement] = None
     extra_kwargs: Dict = Field(default_factory=dict)
     metadata: Optional[Tuple[str]] = None
+    _is_built: bool = False
 
     class Config:
         validate_assignment = True
@@ -948,6 +948,7 @@ class SetupInfo(ReqLibBaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
+        self._is_built = False
         if not self.build_backend:
             self.build_backend = "setuptools.build_meta:__legacy__"
         if self._requirements is None:
@@ -1172,6 +1173,8 @@ build-backend = "{1}"
         return result
 
     def build(self) -> "SetupInfo":
+        if self._is_built:
+            return self
         metadata = None
         try:
             dist_path = self.build_wheel()
@@ -1194,6 +1197,7 @@ build-backend = "{1}"
                 self.populate_metadata(metadata)
         if not self.metadata or not self.name:
             return self.run_setup()
+        self._is_built = True
         return self
 
     def get_metadata_from_wheel(self, wheel_path) -> Dict[Any, Any]:
