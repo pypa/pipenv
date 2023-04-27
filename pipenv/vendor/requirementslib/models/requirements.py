@@ -1319,7 +1319,7 @@ class NamedRequirement(ReqLibBaseModel):
     req: PackagingRequirement
     extras: Tuple[str, ...] = Field(default_factory=list)
     editable: bool = False
-    _parsed_line: Optional[Line] = None
+    parsed_line: Optional[Line] = None
 
     class Config:
         validate_assignment = True
@@ -1331,15 +1331,11 @@ class NamedRequirement(ReqLibBaseModel):
     def __init__(self, **data):
         super().__init__(**data)
 
+        self.parsed_line = Line(line=self.line_part)
+
         # Set default values using the methods
         if not self.req:
             self.req = self.get_requirement()
-
-    @property
-    def parsed_line(self) -> Optional[Line]:
-        if self._parsed_line is None:
-            self._parsed_line = Line(line=self.line_part)
-        return self._parsed_line
 
     @classmethod
     def from_line(cls, line, parsed_line=None) -> 'NamedRequirement':
@@ -1399,8 +1395,8 @@ class NamedRequirement(ReqLibBaseModel):
         pipfile_dict = self.dict()
         if "version" not in pipfile_dict or pipfile_dict["version"] is None:
             pipfile_dict["version"] = "*"
-        if "_parsed_line" in pipfile_dict:
-            pipfile_dict.pop("_parsed_line")
+        if "parsed_line" in pipfile_dict:
+            pipfile_dict.pop("parsed_line")
         if pipfile_dict.get("editable") is False:
             pipfile_dict.pop("editable")
         if pipfile_dict.get("line_part"):
@@ -1433,7 +1429,7 @@ class FileRequirement(ReqLibBaseModel):
     subdirectory: Optional[str] = None
     _setup_info: Optional[SetupInfo] = None
     _has_hashed_name: bool = False
-    _parsed_line: Optional[Line] = None
+    parsed_line: Optional[Line] = None
     req: Optional[PackagingRequirement] = Field(default_factory=lambda: None)
 
     class Config:
@@ -1445,23 +1441,8 @@ class FileRequirement(ReqLibBaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
-        if self.name is None and self.parsed_line:
-            if self.parsed_line.setup_info:
-                self._setup_info = self.parsed_line.setup_info
-                if self.parsed_line.setup_info.name:
-                    self.name = self.parsed_line.setup_info.name
-        if self.req is None and (
-            self._parsed_line is not None and self._parsed_line.requirement is not None
-        ):
-            self.req = self._parsed_line.requirement
-        if (
-            self._parsed_line
-            and self._parsed_line.ireq
-            and not self._parsed_line.ireq.req
-        ):
-            if self.req is not None and self._parsed_line._ireq is not None:
-                self._parsed_line._ireq.req = self.req
-
+        if self.parsed_line is None:
+            self.parsed_line = Line(line=self.line_part)
         # Set default values using the methods
         if not self.name:
             self.name = self.get_name()
@@ -1478,6 +1459,22 @@ class FileRequirement(ReqLibBaseModel):
             self._uri_scheme = "file"
         elif self.path:
             self._uri_scheme = "path"
+        if self.name is None and self.parsed_line:
+            if self.parsed_line.setup_info:
+                self._setup_info = self.parsed_line.setup_info
+                if self.parsed_line.setup_info.name:
+                    self.name = self.parsed_line.setup_info.name
+        if self.req is None and (
+            self.parsed_line is not None and self.parsed_line.requirement is not None
+        ):
+            self.req = self.parsed_line.requirement
+        if (
+            self.parsed_line
+            and self.parsed_line.ireq
+            and not self.parsed_line.ireq.req
+        ):
+            if self.req is not None and self.parsed_line._ireq is not None:
+                self.parsed_line._ireq.req = self.req
 
     @classmethod
     def get_link_from_line(cls, line):
@@ -1609,13 +1606,13 @@ class FileRequirement(ReqLibBaseModel):
     @property
     def setup_info(self) -> Optional[SetupInfo]:
         if self._setup_info is None and self.parsed_line:
-            if self.parsed_line and self._parsed_line and self.parsed_line.setup_info:
+            if self.parsed_line and self.parsed_line and self.parsed_line.setup_info:
                 if (
-                    self._parsed_line._setup_info
-                    and not self._parsed_line._setup_info.name
+                    self.parsed_line._setup_info
+                    and not self.parsed_line._setup_info.name
                 ):
                     with global_tempdir_manager():
-                        self._parsed_line._setup_info.get_info()
+                        self.parsed_line._setup_info.get_info()
                 self._setup_info = self.parsed_line._setup_info
             elif self.parsed_line and (
                 self.parsed_line.ireq and not self.parsed_line.is_wheel
@@ -1633,8 +1630,8 @@ class FileRequirement(ReqLibBaseModel):
 
     def set_setup_info(self, setup_info) -> None:
         self._setup_info = setup_info
-        if self._parsed_line:
-            self._parsed_line._setup_info = setup_info
+        if self.parsed_line:
+            self.parsed_line._setup_info = setup_info
 
     def get_uri(self) -> str:
         if self.path and not self.uri:
@@ -1667,30 +1664,23 @@ class FileRequirement(ReqLibBaseModel):
 
     def get_requirement(self) -> PackagingRequirement:
         if self.name is None:
-            if self._parsed_line is not None and self._parsed_line.name is not None:
-                self.name = self._parsed_line.name
+            if self.parsed_line is not None and self.parsed_line.name is not None:
+                self.name = self.parsed_line.name
             else:
                 raise ValueError(
                     "Failed to generate a requirement: missing name for {0!r}".format(
                         self
                     )
                 )
-        if self._parsed_line:
+        if self.parsed_line:
             try:
                 # initialize specifiers to make sure we capture them
-                self._parsed_line.specifiers
+                self.parsed_line.specifiers
             except Exception:
                 pass
-            req = copy.deepcopy(self._parsed_line.requirement)
+            req = copy.deepcopy(self.parsed_line.requirement)
             if req:
                 return req
-
-    @property
-    def parsed_line(self):
-        # type: () -> Optional[Line]
-        if self._parsed_line is None:
-            self._parsed_line = Line(line=self.line_part)
-        return self._parsed_line
 
     @property
     def is_local(self):
@@ -1715,16 +1705,16 @@ class FileRequirement(ReqLibBaseModel):
         if self.link is None:
             return False
         return (
-            self._parsed_line
-            and not self._parsed_line.is_local
-            and (self._parsed_line.is_artifact or self._parsed_line.is_wheel)
+            self.parsed_line
+            and not self.parsed_line.is_local
+            and (self.parsed_line.is_artifact or self.parsed_line.is_wheel)
             and not self.editable
         )
 
     @property
     def is_direct_url(self):
         # type: () -> bool
-        if self._parsed_line is not None and self._parsed_line.is_direct_url:
+        if self.parsed_line is not None and self.parsed_line.is_direct_url:
             return True
         return self.is_remote_artifact
 
@@ -1859,7 +1849,7 @@ class FileRequirement(ReqLibBaseModel):
             "pyproject_requires",
             "pyproject_backend",
             "_setup_info",
-            "_parsed_line",
+            "parsed_line",
         ]
         pipfile_dict = self.dict()
         for k in list(pipfile_dict.keys()):
@@ -1927,7 +1917,7 @@ class VCSRequirement(FileRequirement):
     ref: Optional[str] = None
     _repo: Optional[VCSRepository] = None
     _base_line: Optional[str] = None
-    _parsed_line: Optional[Line] = None
+    parsed_line: Optional[Line] = None
     _uri_scheme: Optional[str] = None
     name: str
     link: Optional[Link]
@@ -2316,7 +2306,7 @@ class VCSRequirement(FileRequirement):
             "pyproject_requires",
             "pyproject_backend",
             "_setup_info",
-            "_parsed_line",
+            "parsed_line",
             "_uri_scheme",
         ]
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes  # noqa
@@ -2782,7 +2772,7 @@ class Requirement(ReqLibBaseModel):
     def as_ireq(self) -> InstallRequirement:
         if self.line_instance and self.line_instance.ireq:
             return self.line_instance.ireq
-        elif getattr(self.req, "_parsed_line", None) and self.req._parsed_line.ireq:
+        elif getattr(self.req, "parsed_line", None) and self.req.parsed_line.ireq:
             return self.req._parsed_line.ireq
         kwargs = {"include_hashes": False}
         if (self.is_file_or_url and self.req.is_local) or self.is_vcs:

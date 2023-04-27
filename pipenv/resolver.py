@@ -253,6 +253,8 @@ class Entry:
         if "version" in self.entry_dict:
             self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
         _, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
+        if "parsed_line" in self.entry_dict:
+            del self.entry_dict["parsed_line"]
         return self.entry_dict
 
     @property
