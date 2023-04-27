@@ -58,10 +58,11 @@ class BasePath(BaseModel):
         if self.is_dir is None:
             if not self.path:
                 self.is_dir = False
-            try:
-                self.is_dir = self.path.is_dir()
-            except OSError:
-                self.is_dir = False
+            else:
+                try:
+                    self.is_dir = self.path.is_dir()
+                except OSError:
+                    self.is_dir = False
         if self.is_executable is None:
             if not self.path:
                 self.is_executable = False
