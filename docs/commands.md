@@ -17,7 +17,7 @@ Running the above will install the package `<package_name>` and add it to the de
 
 The user can provide these additional parameters:
 
-    --python=<path/to/pyton> — Performs the installation in a virtualenv using the provided Python interpreter.
+    --python=<path/to/python> — Performs the installation in a virtualenv using the provided Python interpreter.
 warning: The above commands should only be used when initially creating the environment.
 
 The user can provide these additional parameters:
