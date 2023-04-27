@@ -1,28 +1,22 @@
-# -*- coding=utf-8 -*-
 import io
 import itertools
 import os
 import re
 import subprocess
 from collections import OrderedDict
+from collections.abc import Iterable, Sequence
 from fnmatch import fnmatch
 from threading import Timer
+from pathlib import Path
+from builtins import TimeoutError
+from functools import lru_cache
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
-import pipenv.vendor.attr as attr
 from pipenv.patched.pip._vendor.packaging.version import Version, InvalidVersion
 
-from .compat import Path, TimeoutError, lru_cache  # noqa
-from .environment import MYPY_RUNNING, PYENV_ROOT, SUBPROCESS_TIMEOUT
+from .environment import PYENV_ROOT, SUBPROCESS_TIMEOUT
 from .exceptions import InvalidPythonVersion
 
-from collections.abc import Iterable, Sequence
-
-if MYPY_RUNNING:
-    from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple, Union
-
-    from pipenv.vendor.attr.validators import _OptionalValidator  # type: ignore
-
-    from .models.path import PathEntry
 
 
 version_re_str = (
@@ -159,18 +153,6 @@ def parse_python_version(version_str):
         "is_debug": is_debug,
         "version": version,
     }
-
-
-def optional_instance_of(cls):
-    # type: (Any) -> _OptionalValidator
-    """
-    Return an validator to determine whether an input is an optional instance of a class.
-
-    :return: A validator to determine optional instance membership.
-    :rtype: :class:`~attr.validators._OptionalValidator`
-    """
-
-    return attr.validators.optional(attr.validators.instance_of(cls))
 
 
 def path_is_executable(path):
@@ -402,8 +384,7 @@ def is_in_path(path, parent):
     return normalize_path(str(path)).startswith(normalize_path(str(parent)))
 
 
-def expand_paths(path, only_python=True):
-    # type: (Union[Sequence, PathEntry], bool) -> Iterator
+def expand_paths(path, only_python=True) -> Iterator:
     """
     Recursively expand a list or :class:`~pythonfinder.models.path.PathEntry` instance
 

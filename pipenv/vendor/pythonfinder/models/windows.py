@@ -1,42 +1,52 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function
-
 import operator
 from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-import pipenv.vendor.attr as attr
+from pipenv.vendor.pydantic import BaseModel, Field
 
-from ..environment import MYPY_RUNNING
 from ..exceptions import InvalidPythonVersion
 from ..utils import ensure_path
-from .mixins import BaseFinder
-from .path import PathEntry
-from .python import PythonVersion, VersionMap
-
-if MYPY_RUNNING:
-    from typing import Any, DefaultDict, List, Optional, Tuple, Type, TypeVar, Union
-
-    FinderType = TypeVar("FinderType")
+from .mixins import PathEntry
+from .python import PythonVersion
 
 
-@attr.s
-class WindowsFinder(BaseFinder):
-    paths = attr.ib(default=attr.Factory(list), type=list)
-    version_list = attr.ib(default=attr.Factory(list), type=list)
-    _versions = attr.ib()  # type: DefaultDict[Tuple, PathEntry]
-    _pythons = attr.ib()  # type: DefaultDict[str, PathEntry]
+class WindowsFinder(BaseModel):
+    paths: Optional[List] = Field(default_factory=list)
+    version_list: Optional[List] = Field(default_factory=list)
+    versions: Optional[Dict[Tuple, PathEntry]]
+    pythons: Optional[Dict[str, PathEntry]]
+
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        include_private_attributes = True
+        # keep_untouched = (cached_property,)
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.versions:
+            self.versions = self.get_versions()
+        self.get_pythons()
+
+    @property
+    def version_paths(self) -> Any:
+        return self.versions.values()
+
+    @property
+    def expanded_paths(self) -> Any:
+        return (p.paths.values() for p in self.version_paths)
 
     def find_all_python_versions(
         self,
-        major=None,  # type: Optional[Union[str, int]]
-        minor=None,  # type: Optional[int]
-        patch=None,  # type: Optional[int]
-        pre=None,  # type: Optional[bool]
-        dev=None,  # type: Optional[bool]
-        arch=None,  # type: Optional[str]
-        name=None,  # type: Optional[str]
-    ):
-        # type (...) -> List[PathEntry]
+        major: Optional[Union[str, int]] = None,
+        minor: Optional[int] = None,
+        patch: Optional[int] = None,
+        pre: Optional[bool] = None,
+        dev: Optional[bool] = None,
+        arch: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> List[PathEntry]:
         version_matcher = operator.methodcaller(
             "matches", major, minor, patch, pre, dev, arch, python_name=name
         )
@@ -75,10 +85,8 @@ class WindowsFinder(BaseFinder):
             None,
         )
 
-    @_versions.default
-    def get_versions(self):
-        # type: () -> DefaultDict[Tuple, PathEntry]
-        versions = defaultdict(PathEntry)  # type: DefaultDict[Tuple, PathEntry]
+    def get_versions(self) -> Dict[Tuple, PathEntry]:
+        versions = defaultdict(PathEntry)
         from pipenv.vendor.pythonfinder._vendor.pep514tools import environment as pep514env
 
         env_versions = pep514env.findall()
@@ -117,33 +125,10 @@ class WindowsFinder(BaseFinder):
             self.paths.append(base_dir)
         return versions
 
-    @property
-    def versions(self):
-        # type: () -> DefaultDict[Tuple, PathEntry]
-        if not self._versions:
-            self._versions = self.get_versions()
-        return self._versions
-
-    @_pythons.default
     def get_pythons(self):
-        # type: () -> DefaultDict[str, PathEntry]
-        pythons = defaultdict()  # type: DefaultDict[str, PathEntry]
+        # type: () -> Dict[str, PathEntry]
+        pythons = defaultdict()
         for version in self.version_list:
             _path = ensure_path(version.comes_from.path)
             pythons[_path.as_posix()] = version.comes_from
         return pythons
-
-    @property
-    def pythons(self):
-        # type: () -> DefaultDict[str, PathEntry]
-        return self._pythons
-
-    @pythons.setter
-    def pythons(self, value):
-        # type: (DefaultDict[str, PathEntry]) -> None
-        self._pythons = value
-
-    @classmethod
-    def create(cls, *args, **kwargs):
-        # type: (Type[FinderType], Any, Any) -> FinderType
-        return cls()

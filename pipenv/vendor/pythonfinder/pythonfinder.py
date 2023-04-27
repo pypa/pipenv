@@ -1,10 +1,8 @@
-# -*- coding=utf-8 -*-
 import importlib
 import operator
 import os
 
 from . import environment
-from .compat import lru_cache
 from .exceptions import InvalidPythonVersion
 from .utils import Iterable, filter_pythons, version_re
 
@@ -52,14 +50,15 @@ class Finder(object):
         :param bool sort_by_path: Whether to always sort by path
         :returns: a :class:`~pythonfinder.pythonfinder.Finder` object.
         """
+        from .models import WindowsFinder
 
         self.path_prepend = path  # type: Optional[str]
         self.global_search = global_search  # type: bool
         self.system = system  # type: bool
         self.sort_by_path = sort_by_path  # type: bool
         self.ignore_unsupported = ignore_unsupported  # type: bool
-        self._system_path = None  # type: Optional[SystemPath]
-        self._windows_finder = None  # type: Optional[WindowsFinder]
+        self.system_path = self.create_system_path()  # type: Optional[SystemPath]
+        self.windows_finder = None if os.name != "nt" else WindowsFinder()
 
     def __hash__(self):
         # type: () -> int
@@ -89,40 +88,24 @@ class Finder(object):
         This will re-apply any changes to the environment or any version changes on the system.
         """
 
-        if self._system_path is not None:
-            self._system_path = self._system_path.clear_caches()
-            self._system_path = None
+        if self.system_path is not None:
+            self.system_path.clear_caches()
+            self.system_path = None
         pyfinder_path = importlib.import_module("pythonfinder.models.path")
         importlib.reload(pyfinder_path)
-        self._system_path = self.create_system_path()
+        self.system_path = self.create_system_path()
 
     def rehash(self):
         # type: () -> "Finder"
-        if not self._system_path:
-            self._system_path = self.create_system_path()
+        if not self.system_path:
+            self.system_path = self.create_system_path()
         self.find_all_python_versions.cache_clear()
         self.find_python_version.cache_clear()
-        if self._windows_finder is not None:
-            self._windows_finder = None
+        if self.windows_finder is not None:
+            self.windows_finder = None
         filter_pythons.cache_clear()
         self.reload_system_path()
         return self
-
-    @property
-    def system_path(self):
-        # type: () -> SystemPath
-        if self._system_path is None:
-            self._system_path = self.create_system_path()
-        return self._system_path
-
-    @property
-    def windows_finder(self):
-        # type: () -> Optional[WindowsFinder]
-        if os.name == "nt" and not self._windows_finder:
-            from .models import WindowsFinder
-
-            self._windows_finder = WindowsFinder()
-        return self._windows_finder
 
     def which(self, exe):
         # type: (str) -> Optional[PathEntry]
@@ -209,7 +192,6 @@ class Finder(object):
                 version_dict["name"] = name
         return version_dict
 
-    @lru_cache(maxsize=1024)
     def find_python_version(
         self,
         major=None,  # type: Optional[Union[str, int]]
@@ -291,7 +273,6 @@ class Finder(object):
             sort_by_path=self.sort_by_path,
         )
 
-    @lru_cache(maxsize=1024)
     def find_all_python_versions(
         self,
         major=None,  # type: Optional[Union[str, int]]
