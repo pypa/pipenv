@@ -309,8 +309,12 @@ class _PipenvInstance:
         if name is not None:
             path = Path(os.environ["HOME"]) / "projects" / name
             path.mkdir(exist_ok=True)
-        self.path = path = os.path.abspath(".")
-        self._path = Path(path)
+        self._path = path = TemporaryDirectory(prefix='pipenv-', suffix='-project')
+        path = Path(self._path.name)
+        try:
+            self.path = str(path.resolve())
+        except OSError:
+            self.path = str(path.absolute())
 
         # set file creation perms
         self.pipfile_path = None
@@ -359,9 +363,12 @@ class _PipenvInstance:
             os.environ['PIPENV_PIPFILE'] = self.pipfile_path
         # a bit of a hack to make sure the virtualenv is created
 
-        cmd_args = shlex.split(cmd)
-        r = cli_runner.invoke(cli, cmd_args, env=self.env)
-        r.returncode = r.exit_code
+        with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
+            cmd_args = shlex.split(cmd)
+            env = {**self.env, **{'PIPENV_CACHE_DIR': tempdir}}
+            self.capfd.readouterr()
+            r = cli_runner.invoke(cli, cmd_args, env=env)
+            r.returncode = r.exit_code
         # Pretty output for failing tests.
         out, err = self.capfd.readouterr()
         if out:
