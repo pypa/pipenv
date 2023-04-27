@@ -9,7 +9,6 @@ from fnmatch import fnmatch
 from threading import Timer
 from pathlib import Path
 from builtins import TimeoutError
-from functools import lru_cache
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from pipenv.patched.pip._vendor.packaging.version import Version, InvalidVersion
@@ -72,7 +71,6 @@ for rule in RULES:
     )
 
 
-@lru_cache(maxsize=1024)
 def get_python_version(path):
     # type: (str) -> str
     """Get python version string using subprocess from a given path."""
@@ -103,7 +101,6 @@ def get_python_version(path):
     return out.strip()
 
 
-@lru_cache(maxsize=1024)
 def parse_python_version(version_str):
     # type: (str) -> Dict[str, Union[str, int, Version]]
     from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
@@ -167,7 +164,6 @@ def path_is_executable(path):
     return os.access(str(path), os.X_OK)
 
 
-@lru_cache(maxsize=1024)
 def path_is_known_executable(path):
     # type: (Path) -> bool
     """
@@ -187,7 +183,6 @@ def path_is_known_executable(path):
     )
 
 
-@lru_cache(maxsize=1024)
 def looks_like_python(name):
     # type: (str) -> bool
     """
@@ -206,7 +201,6 @@ def looks_like_python(name):
     return False
 
 
-@lru_cache(maxsize=1024)
 def path_is_python(path):
     # type: (Path) -> bool
     """
@@ -221,7 +215,6 @@ def path_is_python(path):
     return path_is_executable(path) and looks_like_python(path.name)
 
 
-@lru_cache(maxsize=1024)
 def guess_company(path):
     # type: (str) -> Optional[str]
     """Given a path to python, guess the company who created it
@@ -236,7 +229,6 @@ def guess_company(path):
     )
 
 
-@lru_cache(maxsize=1024)
 def path_is_pythoncore(path):
     # type: (str) -> bool
     """Given a path, determine whether it appears to be pythoncore.
@@ -255,7 +247,6 @@ def path_is_pythoncore(path):
     return False
 
 
-@lru_cache(maxsize=1024)
 def ensure_path(path):
     # type: (Union[Path, str]) -> Path
     """
@@ -290,7 +281,6 @@ def normalize_path(path):
     )
 
 
-@lru_cache(maxsize=1024)
 def filter_pythons(path):
     # type: (Union[str, Path]) -> Iterable
     """Return all valid pythons in a given path"""
