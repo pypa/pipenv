@@ -1976,11 +1976,11 @@ class VCSRequirement(FileRequirement):
 
     @property
     def setup_info(self):
-        if self._parsed_line and self._parsed_line.setup_info:
-            if not self._parsed_line.setup_info.name:
+        if self.parsed_line and self.parsed_line.setup_info:
+            if not self.parsed_line.setup_info.name:
                 with global_tempdir_manager():
-                    self._parsed_line._setup_info.get_info()
-            return self._parsed_line.setup_info
+                    self.parsed_line._setup_info.get_info()
+            return self.parsed_line.setup_info
         subdir = self.subdirectory or self.parsed_line.subdirectory
         if self._repo:
             with global_tempdir_manager():
@@ -1996,8 +1996,8 @@ class VCSRequirement(FileRequirement):
 
     def set_setup_info(self, setup_info) -> None:
         self._setup_info = setup_info
-        if self._parsed_line:
-            self._parsed_line.set_setup_info(setup_info)
+        if self.parsed_line:
+            self.parsed_line.set_setup_info(setup_info)
 
     def get_requirement(self):
         # type: () -> PackagingRequirement
@@ -2069,12 +2069,12 @@ class VCSRequirement(FileRequirement):
     @cached_property
     def repo(self) -> VCSRepository:
         if self._repo is None:
-            if self._parsed_line and self._parsed_line.vcsrepo:
-                self._repo = self._parsed_line.vcsrepo
+            if self.parsed_line and self.parsed_line.vcsrepo:
+                self._repo = self.parsed_line.vcsrepo
             else:
                 self._repo = self.get_vcs_repo()
-                if self._parsed_line:
-                    self._parsed_line.set_vcsrepo(self._repo)
+                if self.parsed_line:
+                    self.parsed_line.set_vcsrepo(self._repo)
         return self._repo
 
     def get_checkout_dir(self, src_dir=None) -> str:
@@ -2162,8 +2162,8 @@ class VCSRequirement(FileRequirement):
                 self.uri = uri
         orig_repo = self._repo
         self._repo = vcsrepo
-        if self._parsed_line:
-            self._parsed_line.set_vcsrepo(vcsrepo)
+        if self.parsed_line:
+            self.parsed_line.set_vcsrepo(vcsrepo)
         if self._setup_info:
             # Use the copy() method to create a new instance with updated attributes
             self._setup_info = self._setup_info.copy(
@@ -2174,8 +2174,8 @@ class VCSRequirement(FileRequirement):
                 version=None,
                 metadata=None,
             )
-        if self.parsed_line and self._parsed_line:
-            self._parsed_line.set_vcsrepo(vcsrepo)
+        if self.parsed_line and self.parsed_line:
+            self.parsed_line.set_vcsrepo(vcsrepo)
         if self.req and not self.editable:
             self.req.specifier = SpecifierSet("=={0}".format(self.setup_info.version))
         try:
@@ -2253,10 +2253,10 @@ class VCSRequirement(FileRequirement):
             else:
                 final_format = "{0}"
             base = final_format.format(self.vcs_uri)
-        elif self._parsed_line is not None and (
-            self._parsed_line.is_direct_url and self._parsed_line.line_with_prefix
+        elif self.parsed_line is not None and (
+            self.parsed_line.is_direct_url and self.parsed_line.line_with_prefix
         ):
-            return self._parsed_line.line_with_prefix
+            return self.parsed_line.line_with_prefix
         elif getattr(self, "_base_line", None) and (isinstance(self._base_line, str)):
             base = self._base_line
         else:
