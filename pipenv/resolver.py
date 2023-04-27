@@ -705,7 +705,7 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
         if not req.name:
             with temp_path(), cd(req.req.setup_info.base_dir):
                 sys.path.insert(0, req.req.setup_info.base_dir)
-                req.req._setup_info.get_info()
+                req.req.setup_info.get_info()
                 req.update_name_from_path(req.req.setup_info.base_dir)
         try:
             name, entry = req.pipfile_entry

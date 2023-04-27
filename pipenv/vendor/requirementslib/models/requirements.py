@@ -2134,16 +2134,6 @@ class VCSRequirement(FileRequirement):
         self._repo = vcsrepo
         if self.parsed_line:
             self.parsed_line.set_vcsrepo(vcsrepo)
-        if self._setup_info:
-            # Use the copy() method to create a new instance with updated attributes
-            self._setup_info = self._setup_info.copy(
-                requirements=(),
-                _extras_requirements=(),
-                build_requires=(),
-                setup_requires=(),
-                version=None,
-                metadata=None,
-            )
         if self.parsed_line and self.parsed_line:
             self.parsed_line.set_vcsrepo(vcsrepo)
         if self.req and not self.editable:
@@ -2396,8 +2386,8 @@ class Requirement(ReqLibBaseModel):
                 self.req.req.name = name
             if self.req.parsed_line._name is None:
                 self.req.parsed_line.name = name
-            if self.req._setup_info and self.req._setup_info.name is None:
-                self.req._setup_info.name = name
+            if self.req.setup_info and self.req.setup_info.name is None:
+                self.req.setup_info.name = name
 
     def get_line_instance(self) -> Line:
         line_parts = []
@@ -2787,7 +2777,7 @@ class Requirement(ReqLibBaseModel):
                     return {}
                 info_dict = setup_info.as_dict()
                 if self.req:
-                    self.req._setup_info = setup_info
+                    self.req.setup_info = setup_info
                 if self.req._has_hashed_name and info_dict.get("name"):
                     self.req.name = self.name = info_dict["name"]
                     if self.req.req.name != info_dict["name"]:
