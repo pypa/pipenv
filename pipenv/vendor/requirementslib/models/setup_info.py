@@ -1349,7 +1349,7 @@ build-backend = "{1}"
 
     @classmethod
     def from_requirement(cls, requirement, finder=None) -> Optional["SetupInfo"]:
-        ireq = requirement.as_ireq
+        ireq = requirement.ireq
         subdir = getattr(requirement.req, "subdirectory", None)
         return cls.from_ireq(ireq, subdir=subdir, finder=finder)
 

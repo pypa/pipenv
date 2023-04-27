@@ -815,7 +815,7 @@ class Resolver:
         ref = None
         if req.is_vcs:
             ref = req.commit_hash
-        ireq = req.as_ireq
+        ireq = req.ireq
         entry = value.copy()
         entry["name"] = req.name
         if entry.get("editable", False) and entry.get("version"):

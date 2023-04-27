@@ -1852,7 +1852,7 @@ class FileRequirement(ReqLibBaseModel):
             raise ValueError("Could not calculate url for {0!r}".format(self))
         return "{0}{1}".format(editable, seed)
 
-    @cached_property
+    @property
     def pipfile_part(self):
         # type: () -> Dict[AnyStr, Dict[AnyStr, Any]]
         excludes = [
@@ -1866,7 +1866,7 @@ class FileRequirement(ReqLibBaseModel):
             "_setup_info",
             "_parsed_line",
         ]
-        pipfile_dict = self.dict().copy()
+        pipfile_dict = self.dict()
         for k in list(pipfile_dict.keys()):
             if k in excludes:
                 pipfile_dict.pop(k)
@@ -1889,7 +1889,6 @@ class FileRequirement(ReqLibBaseModel):
         # For local paths and remote installable artifacts (zipfiles, etc)
         collision_keys = {"file", "uri", "path"}
         collision_order = ["file", "uri", "path"]  # type: List[str]
-        collisions = []  # type: List[str]
         key_match = next(iter(k for k in collision_order if k in pipfile_dict.keys()))
         is_vcs = None
         if self.link is not None:
@@ -1913,10 +1912,10 @@ class FileRequirement(ReqLibBaseModel):
             # to make sure we add file keys to the pipfile as a replacement of uri
             if key_match is not None:
                 winning_value = pipfile_dict.pop(key_match)
+                pipfile_dict[dict_key] = winning_value
             key_to_remove = (k for k in collision_keys if k in pipfile_dict)
             for key in key_to_remove:
                 pipfile_dict.pop(key)
-            pipfile_dict[dict_key] = winning_value
         else:
             collisions = [key for key in collision_order if key in pipfile_dict.keys()]
             if len(collisions) > 1:
@@ -2142,6 +2141,7 @@ class VCSRequirement(FileRequirement):
             self.pyproject_backend = pyproject_backend
         return vcsrepo
 
+
     @cached_property
     def commit_hash(self) -> str:
         return self.repo.commit_hash
@@ -2256,11 +2256,9 @@ class VCSRequirement(FileRequirement):
         parsed_line = Line(line=line)
         return vcs_req_from_parsed_line(parsed_line)
 
-    @cached_property
-    def line_part(self):
-        # type: () -> str
+    @property
+    def line_part(self) -> str:
         """requirements.txt compatible line part sans-extras."""
-        base = ""  # type: str
         if self.is_local:
             base_link = self.link
             if not self.link:
@@ -2311,7 +2309,7 @@ class VCSRequirement(FileRequirement):
                 pipfile[vcs_type] = pipfile_url
         return pipfile
 
-    @cached_property
+    @property
     def pipfile_part(self):
         # type: () -> Dict[S, Dict[S, Union[List[S], S, bool, PackagingRequirement, Link]]]
         excludes = [
@@ -2327,7 +2325,7 @@ class VCSRequirement(FileRequirement):
             "_uri_scheme",
         ]
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes  # noqa
-        pipfile_dict = self.dict().copy()
+        pipfile_dict = self.dict()
         for k in list(pipfile_dict.keys()):
             if k in excludes:
                 pipfile_dict.pop(k)
@@ -2786,7 +2784,6 @@ class Requirement(ReqLibBaseModel):
 
         return {name: base_dict}
 
-    @cached_property
     def as_ireq(self) -> InstallRequirement:
         if self.line_instance and self.line_instance.ireq:
             return self.line_instance.ireq
@@ -2817,7 +2814,7 @@ class Requirement(ReqLibBaseModel):
 
     @cached_property
     def ireq(self) -> InstallRequirement:
-        return self.as_ireq
+        return self.as_ireq()
 
     def run_requires(self, sources: Optional[List[str]] = None, finder: Optional[PackageFinder] = None) -> Dict[
         str, Any]:
@@ -2848,7 +2845,7 @@ class Requirement(ReqLibBaseModel):
         if not isinstance(markers, Marker):
             markers = Marker(markers)
         _markers = []  # type: List[Marker]
-        ireq = self.as_ireq
+        ireq = self.ireq
         if ireq and ireq.markers:
             ireq_marker = ireq.markers
             _markers.append(str(ireq_marker))

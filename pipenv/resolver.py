@@ -519,7 +519,7 @@ class Entry:
         :return: An **InstallRequirement** instance representing a version constraint
         """
         if self.is_in_pipfile:
-            return self.pipfile_entry.as_ireq
+            return self.pipfile_entry.ireq
 
     def validate_constraints(self):
         """
