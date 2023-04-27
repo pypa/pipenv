@@ -938,6 +938,7 @@ class SetupInfo(ReqLibBaseModel):
     extra_kwargs: Dict = Field(default_factory=dict)
     metadata: Optional[Tuple[str]] = None
     _is_built: bool = False
+    _ran_setup: bool = False
 
     class Config:
         validate_assignment = True
@@ -949,6 +950,7 @@ class SetupInfo(ReqLibBaseModel):
     def __init__(self, **data):
         super().__init__(**data)
         self._is_built = False
+        self._ran_setup = False
         if not self.build_backend:
             self.build_backend = "setuptools.build_meta:__legacy__"
         if self._requirements is None:
@@ -1084,18 +1086,18 @@ class SetupInfo(ReqLibBaseModel):
             return parsed
         return {}
 
-    def run_setup(self) -> "SetupInfo":
-        if self.setup_py is not None and self.setup_py.exists():
+    def run_setup(self) -> None:
+        if not self._ran_setup and self.setup_py is not None and self.setup_py.exists():
             dist = run_setup(self.setup_py.as_posix(), egg_base=self.egg_base)
             target_cwd = self.setup_py.parent.as_posix()
             with temp_path(), cd(target_cwd):
                 if not dist:
                     metadata = self.get_egg_metadata()
                     if metadata:
-                        return self.populate_metadata(metadata)
-
-                if isinstance(dist, Mapping):
-                    return self.populate_metadata(dist)
+                        self.populate_metadata(metadata)
+                elif isinstance(dist, Mapping):
+                    self.populate_metadata(dist)
+                self._ran_setup = True
 
     @property
     def pep517_config(self) -> Dict[str, Any]:
@@ -1172,9 +1174,9 @@ build-backend = "{1}"
             self.pyproject.unlink()
         return result
 
-    def build(self) -> "SetupInfo":
+    def build(self) -> None:
         if self._is_built:
-            return self
+            return
         metadata = None
         try:
             dist_path = self.build_wheel()
@@ -1196,9 +1198,8 @@ build-backend = "{1}"
             if metadata:
                 self.populate_metadata(metadata)
         if not self.metadata or not self.name:
-            return self.run_setup()
+            self.run_setup()
         self._is_built = True
-        return self
 
     def get_metadata_from_wheel(self, wheel_path) -> Dict[Any, Any]:
         """Given a path to a wheel, return the metadata from that wheel.
