@@ -2484,13 +2484,13 @@ class Requirement(ReqLibBaseModel):
         return self.__class__(**self.__dict__)
 
     @classmethod
-    def from_line(cls, line: AnyStr) -> 'Requirement':
+    def from_line(cls, line, parse_setup_info=True) -> 'Requirement':
         if isinstance(line, Requirement):
             return line
         if isinstance(line, InstallRequirement):
             line = format_requirement(line)
         parsed_line = Line(line=line)
-        if not parsed_line.is_named and not parsed_line.is_wheel:
+        if parse_setup_info and not parsed_line.is_named and not parsed_line.is_wheel:
             parsed_line.set_setup_info(parsed_line.get_setup_info())
         if (
             (parsed_line.is_file and parsed_line.is_installable)

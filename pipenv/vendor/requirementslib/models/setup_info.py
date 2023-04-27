@@ -1393,10 +1393,6 @@ build-backend = "{1}"
                 download_dir = kwargs["wheel_download_dir"]
             else:
                 download_dir = kwargs["download_dir"]
-        elif path is not None and os.path.isdir(path):
-            raise RequirementError(
-                "The file URL points to a directory not installable: {}".format(ireq.link)
-            )
         # this ensures the build dir is treated as the temporary build location
         # and the source dir is treated as permanent / not deleted by pip
         build_location_func = getattr(ireq, "build_location", None)
