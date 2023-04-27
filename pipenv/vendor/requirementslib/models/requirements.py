@@ -161,7 +161,7 @@ class Line(ReqLibBaseModel):
     _wheel_kwargs: Optional[Dict[str, str]] = None
     _vcsrepo: Optional[Any] = None
     _stack: Optional[Any] = None
-    _setup_info: Optional[Any] = None
+    setup_info: Optional[Any] = None
     _ref: Optional[str] = None
     _ireq: Optional[Any] = None
     _src_root: Optional[str] = None
@@ -183,6 +183,8 @@ class Line(ReqLibBaseModel):
             self.extras = tuple(sorted(set(extras)))
         self.line = line
         self.parse()
+        if not self.is_named and not self.is_wheel:
+            self.set_setup_info(self.get_setup_info())
 
     def __hash__(self):
         # Convert the _requirement attribute to a hashable type if it's a dict
@@ -302,7 +304,7 @@ class Line(ReqLibBaseModel):
         line = " ".join(line_parts)
         return line, hashes
 
-    @cached_property
+    @property
     def line_with_prefix(self) -> str:
         return self.get_line(with_prefix=True, with_hashes=False)
 
@@ -413,9 +415,9 @@ class Line(ReqLibBaseModel):
         elif (
             specifier is None
             and not self.is_named
-            and (self._setup_info is not None and self._setup_info.version)
+            and (self.setup_info is not None and self.setup_info.version)
         ):
-            spec_string = "=={0}".format(self._setup_info.version)
+            spec_string = "=={0}".format(self.setup_info.version)
         if spec_string:
             self._specifier = spec_string
         return self._specifier
@@ -635,8 +637,8 @@ class Line(ReqLibBaseModel):
     def name(self, name):
         # type: (str) -> None
         self._name = name
-        if self._setup_info:
-            self._setup_info.name = name
+        if self.setup_info:
+            self.setup_info.name = name
         if self.requirement and self._requirement:
             self._requirement.name = name
         if self.ireq and self._ireq and self._ireq.req:
@@ -813,7 +815,7 @@ class Line(ReqLibBaseModel):
 
     def get_setup_info(self):
         # type: () -> SetupInfo
-        setup_info = self._setup_info
+        setup_info = self.setup_info
         if setup_info is None:
             with global_tempdir_manager():
                 setup_info = SetupInfo.from_ireq(self.ireq, subdir=self.subdirectory)
@@ -821,15 +823,8 @@ class Line(ReqLibBaseModel):
                     setup_info.get_info()
         return setup_info
 
-    @property
-    def setup_info(self):
-        # type: () -> Optional[SetupInfo]
-        if not self._setup_info and not self.is_named and not self.is_wheel:
-            self.set_setup_info(self.get_setup_info())
-        return self._setup_info
-
     def set_setup_info(self, setup_info) -> None:
-        self._setup_info = setup_info
+        self.setup_info = setup_info
         if setup_info.version:
             self.set_specifiers(f"=={setup_info.version}")
         if setup_info.name and not self.name:
@@ -919,7 +914,7 @@ class Line(ReqLibBaseModel):
                 subdirectory=self.subdirectory,
                 kwargs=wheel_kwargs,
             )
-            self._setup_info = setupinfo
+            self.setup_info = setupinfo
 
     def get_ireq(self):
         # type: () -> InstallRequirement
@@ -1427,7 +1422,7 @@ class FileRequirement(ReqLibBaseModel):
     pyproject_backend: Optional[str] = None
     pyproject_path: Optional[Any] = None
     subdirectory: Optional[str] = None
-    _setup_info: Optional[SetupInfo] = None
+    setup_info: Optional[SetupInfo] = None
     _has_hashed_name: bool = False
     parsed_line: Optional[Line] = None
     req: Optional[PackagingRequirement] = Field(default_factory=lambda: None)
@@ -1459,9 +1454,10 @@ class FileRequirement(ReqLibBaseModel):
             self._uri_scheme = "file"
         elif self.path:
             self._uri_scheme = "path"
+        self.parse_setup_info()
         if self.name is None and self.parsed_line:
             if self.parsed_line.setup_info:
-                self._setup_info = self.parsed_line.setup_info
+                self.setup_info = self.parsed_line.setup_info
                 if self.parsed_line.setup_info.name:
                     self.name = self.parsed_line.setup_info.name
         if self.req is None and (
@@ -1603,35 +1599,34 @@ class FileRequirement(ReqLibBaseModel):
         build_deps = list(set(build_deps))
         return deps, setup_deps, build_deps
 
-    @property
-    def setup_info(self) -> Optional[SetupInfo]:
-        if self._setup_info is None and self.parsed_line:
+    def parse_setup_info(self) -> Optional[SetupInfo]:
+        if self.setup_info is None and self.parsed_line:
             if self.parsed_line and self.parsed_line and self.parsed_line.setup_info:
                 if (
-                    self.parsed_line._setup_info
-                    and not self.parsed_line._setup_info.name
+                    self.parsed_line.setup_info
+                    and not self.parsed_line.setup_info.name
                 ):
                     with global_tempdir_manager():
-                        self.parsed_line._setup_info.get_info()
-                self._setup_info = self.parsed_line._setup_info
+                        self.parsed_line.setup_info.get_info()
+                self.setup_info = self.parsed_line.setup_info
             elif self.parsed_line and (
                 self.parsed_line.ireq and not self.parsed_line.is_wheel
             ):
                 with global_tempdir_manager():
-                    self._setup_info = SetupInfo.from_ireq(
+                    self.setup_info = SetupInfo.from_ireq(
                         self.parsed_line.ireq, subdir=self.subdirectory
                     )
             else:
                 if self.link and not self.link.is_wheel:
-                    self._setup_info = Line(self.line_part).setup_info
+                    self.setup_info = Line(self.line_part).setup_info
                     with global_tempdir_manager():
-                        self._setup_info.get_info()
-        return self._setup_info
+                        self.setup_info.get_info()
+        return self.setup_info
 
     def set_setup_info(self, setup_info) -> None:
-        self._setup_info = setup_info
+        self.setup_info = setup_info
         if self.parsed_line:
-            self.parsed_line._setup_info = setup_info
+            self.parsed_line.setup_info = setup_info
 
     def get_uri(self) -> str:
         if self.path and not self.uri:
@@ -1848,7 +1843,7 @@ class FileRequirement(ReqLibBaseModel):
             "_uri_scheme",
             "pyproject_requires",
             "pyproject_backend",
-            "_setup_info",
+            "setup_info",
             "parsed_line",
         ]
         pipfile_dict = self.dict()
@@ -1973,31 +1968,6 @@ class VCSRequirement(FileRequirement):
             if self.vcs:
                 uri = "{0}+{1}".format(self.vcs, uri)
         return uri
-
-    @property
-    def setup_info(self):
-        if self.parsed_line and self.parsed_line.setup_info:
-            if not self.parsed_line.setup_info.name:
-                with global_tempdir_manager():
-                    self.parsed_line._setup_info.get_info()
-            return self.parsed_line.setup_info
-        subdir = self.subdirectory or self.parsed_line.subdirectory
-        if self._repo:
-            with global_tempdir_manager():
-                self._setup_info = SetupInfo.from_ireq(
-                    Line(line=self._repo.checkout_directory).ireq, subdir=subdir
-                )
-            return self._setup_info
-        ireq = self.parsed_line.ireq
-
-        with global_tempdir_manager():
-            self._setup_info = SetupInfo.from_ireq(ireq, subdir=subdir)
-        return self._setup_info
-
-    def set_setup_info(self, setup_info) -> None:
-        self._setup_info = setup_info
-        if self.parsed_line:
-            self.parsed_line.set_setup_info(setup_info)
 
     def get_requirement(self):
         # type: () -> PackagingRequirement
