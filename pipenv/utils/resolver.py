@@ -330,7 +330,10 @@ class Resolver:
                 name = req.normalized_name
             except TypeError:
                 raise RequirementError(req=req)
-            setup_info = req.req.parse_setup_info()
+            if parsed_line.setup_info:
+                setup_info = parsed_line.setup_info
+            else:
+                setup_info = req.req.parse_setup_info()
             locked_deps[pep423_name(name)] = entry
             requirements = []
             # Allow users to toggle resolution off for non-editable VCS packages

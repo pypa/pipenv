@@ -2135,6 +2135,10 @@ class VCSRequirement(FileRequirement):
         if self.parsed_line and self.parsed_line:
             self.parsed_line.set_vcsrepo(vcsrepo)
         if self.req and not self.editable:
+            if self.setup_info is None and self.parsed_line.setup_info:
+                self.setup_info = self.parsed_line.setup_info
+            if self.setup_info and not self.setup_info.version:
+                self.setup_info.build()
             self.req.specifier = SpecifierSet("=={0}".format(self.setup_info.version))
         try:
             yield self._repo
