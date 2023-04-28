@@ -51,34 +51,6 @@ class BasePath(BaseModel):
         include_private_attributes = True
         # keep_untouched = (cached_property,)
 
-    def __init__(self, **data):
-        super().__init__(**data)
-        if self.path and self.name is None:
-            self.name = self.path.name
-        if self.is_dir is None:
-            if not self.path:
-                self.is_dir = False
-            else:
-                try:
-                    self.is_dir = self.path.is_dir()
-                except OSError:
-                    self.is_dir = False
-        if self.is_executable is None:
-            if not self.path:
-                self.is_executable = False
-            else:
-                self.is_executable = path_is_known_executable(self.path)
-        if not self.py_version:
-            py_version = self.get_py_version()
-            self.py_version = py_version
-        if self.is_python is None:
-            if not self.path:
-                self.is_python = False
-            else:
-                self.is_python = self.is_executable and (
-                    looks_like_python(self.path.name)
-                )
-
     def __str__(self) -> str:
         return fs_str("{0}".format(self.path.as_posix()))
 
@@ -126,17 +98,13 @@ class BasePath(BaseModel):
             return self.py_version
         if not self.is_dir and self.is_python:
             try:
-                from .python import PythonVersion
-
                 py_version = PythonVersion.from_path(  # type: ignore
                     path=self, name=self.name
                 )
             except (ValueError, InvalidPythonVersion):
                 pass
-        if py_version is None:
-            pass
         self.py_version = py_version
-        return py_version  # type: ignore
+        return self.py_version
 
     def get_py_version(self):
         # type: () -> Optional[PythonVersion]
@@ -269,6 +237,34 @@ class PathEntry(BasePath):
         allow_mutation = True
         include_private_attributes = True
         # keep_untouched = (cached_property,)
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if self.path and self.name is None:
+            self.name = self.path.name
+        if self.is_dir is None:
+            if not self.path:
+                self.is_dir = False
+            else:
+                try:
+                    self.is_dir = self.path.is_dir()
+                except OSError:
+                    self.is_dir = False
+        if self.is_executable is None:
+            if not self.path:
+                self.is_executable = False
+            else:
+                self.is_executable = path_is_known_executable(self.path)
+        if not self.py_version:
+            py_version = self.get_py_version()
+            self.py_version = py_version
+        if self.is_python is None:
+            if not self.path:
+                self.is_python = False
+            else:
+                self.is_python = self.is_executable and (
+                    looks_like_python(self.path.name)
+                )
 
     def __lt__(self, other):
         return self.path.as_posix() < other.path.as_posix()

@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 class PythonFinder(PathEntry):
-    root: Optional[Path] = None
+    root: Path
     ignore_unsupported: bool = True
     version_glob_path: str = "versions/*"
     sort_function: Optional[Callable] = None
@@ -338,7 +338,7 @@ class PythonVersion(BaseModel):
         )
 
     @property
-    def version_tuple(self) -> Tuple[int, Optional[int], Optional[int], bool, bool, bool]:
+    def version_tuple(self) -> Tuple[int, int, int, bool, bool, bool]:
         """
         Provides a version tuple for using as a dictionary key.
 

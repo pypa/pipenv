@@ -10,7 +10,7 @@ from .mixins import PathEntry
 from .python import PythonVersion
 
 
-class WindowsFinder(BaseModel):
+class WindowsFinder(PathEntry):
     paths: Optional[List] = Field(default_factory=list)
     version_list: Optional[List] = Field(default_factory=list)
     versions: Optional[Dict[Tuple, PathEntry]]
