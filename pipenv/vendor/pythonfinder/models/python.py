@@ -51,7 +51,7 @@ class PythonFinder(PathEntry):
     def __init__(self, **data):
         super().__init__(**data)
         if not self.children:
-            children = {}
+            self.children = children = {}
             for child_key, child_val in self._gen_children():
                 children[child_key] = child_val
             self.children = children

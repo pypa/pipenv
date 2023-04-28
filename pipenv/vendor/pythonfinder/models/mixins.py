@@ -51,6 +51,10 @@ class BasePath(BaseModel):
         include_private_attributes = True
         # keep_untouched = (cached_property,)
 
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.children = self._gen_children()
+
     def __str__(self) -> str:
         return fs_str("{0}".format(self.path.as_posix()))
 
@@ -129,16 +133,18 @@ class BasePath(BaseModel):
         return None
 
     def _iter_pythons(self) -> Iterator:
-        if self.is_python and self.as_python is not None:
+        if self.is_dir:
+            for entry in self.children.values():
+                if entry is None:
+                    continue
+                elif entry.is_python and entry.as_python is not None:
+                    yield entry
+                else:
+                    for python in entry._iter_pythons():
+                        yield python
+        elif self.is_python and self.as_python is not None:
+            raise(self)
             yield self
-        for entry in self.children.values():
-            if entry is None:
-                continue
-            elif entry.is_dir:
-                for python in entry._iter_pythons():
-                    yield python
-            elif entry.is_python and entry.as_python is not None:
-                yield entry
 
     def __iter__(self) -> Iterator:
         for entry in self.children.values():
@@ -201,9 +207,9 @@ class BasePath(BaseModel):
         :param str name: The name of a python version, e.g. ``anaconda3-5.3.0``
         :returns: A :class:`~pythonfinder.models.PathEntry` instance matching the version requested.
         """
-        version_matcher = operator.methodcaller(
-            "matches", major, minor, patch, pre, dev, arch, python_name=name
-        )
+        def version_matcher(py_version):
+            return py_version.matches(major, minor, patch, pre, dev, arch, python_name=name)
+
         if not self.is_dir:
             if self.is_python and self.as_python and version_matcher(self.py_version):
                 return self  # type: ignore
@@ -217,12 +223,12 @@ class BasePath(BaseModel):
                 and version_matcher(entry.py_version)
             )
         ]
-        results = sorted(matching_pythons, key=operator.itemgetter(1, 0), reverse=True)
+        results = sorted(matching_pythons, key=lambda r: (r[1], r[0]), reverse=True)
         return next(iter(r[0] for r in results if r is not None), None)
 
 
 class PathEntry(BasePath):
-    is_root: bool = Field(default=True, order=False)
+    is_root: bool = Field(default=False, order=False)
 
     class Config:
         validate_assignment = True
@@ -235,14 +241,13 @@ class PathEntry(BasePath):
         super().__init__(**data)
         if self.path and self.name is None:
             self.name = self.path.name
-        if self.is_dir is None:
-            if not self.path:
+        if not self.path:
+            self.is_dir = False
+        else:
+            try:
+                self.is_dir = self.path.is_dir()
+            except OSError:
                 self.is_dir = False
-            else:
-                try:
-                    self.is_dir = self.path.is_dir()
-                except OSError:
-                    self.is_dir = False
         if self.is_executable is None:
             if not self.path:
                 self.is_executable = False
@@ -292,7 +297,7 @@ class PathEntry(BasePath):
 
         if not self.is_dir and self.path:
             yield (self.path.as_posix(), self)
-        elif self.is_root:
+        else:
             for child in self._filter_children():
                 if any(is_in_path(str(child), shim) for shim in shim_paths):
                     continue

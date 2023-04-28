@@ -155,7 +155,6 @@ class SystemPath(BaseModel):
                 for shim in SHIM_PATHS
             )
         ]
-        self.paths.clear()
         self.paths.update(
             {
                 p.as_posix(): PathEntry.create(
@@ -385,9 +384,11 @@ class SystemPath(BaseModel):
                 yield python
 
     def get_pythons(self, finder) -> Iterator:
-        sort_key = operator.attrgetter("as_python.version_sort")
+        def version_sort_key(entry):
+            return entry.as_python.version_sort
+
         pythons = [entry for entry in self._get_all_pythons(finder)]
-        for python in sorted(pythons, key=sort_key, reverse=True):
+        for python in sorted(pythons, key=version_sort_key, reverse=True):
             if python is not None:
                 yield python
 
@@ -415,21 +416,23 @@ class SystemPath(BaseModel):
         :rtype: List[:class:`~pythonfinder.models.PathEntry`]
         """
 
-        sub_finder = operator.methodcaller(
-            "find_all_python_versions", major, minor, patch, pre, dev, arch, name
-        )
+        def sub_finder(instance):
+            return instance.find_all_python_versions(major, minor, patch, pre, dev, arch, name)
+
         alternate_sub_finder = None
         if major and not (minor or patch or pre or dev or arch or name):
-            alternate_sub_finder = operator.methodcaller(
-                "find_all_python_versions", None, None, None, None, None, None, major
-            )
+            def alternate_sub_finder(instance):
+                return instance.find_all_python_versions(None, None, None, None, None, None, major)
+
         if os.name == "nt" and self.windows_finder:
             windows_finder_version = sub_finder(self.windows_finder)
             if windows_finder_version:
                 return windows_finder_version
+
         values = list(self.get_pythons(sub_finder))
         if not values and alternate_sub_finder is not None:
             values = list(self.get_pythons(alternate_sub_finder))
+
         return values
 
     def find_python_version(

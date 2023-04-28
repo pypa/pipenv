@@ -21,7 +21,8 @@ class Finder(BaseModel):
     windows_finder: Optional[WindowsFinder] = None if os.name != "nt" else WindowsFinder()
     system_path: Optional[SystemPath] = None
 
-    def __post_init__(self) -> None:
+    def __init__(self, **data) -> None:
+        super().__init__(**data)
         if os.name == "nt":
             self.windows_finder = WindowsFinder()
         self.system_path = self.create_system_path()
