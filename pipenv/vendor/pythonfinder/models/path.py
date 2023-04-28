@@ -50,7 +50,7 @@ class SystemPath(BaseModel):
     global_search: bool = True
     paths: Dict[str, Union[PythonFinder, PathEntry]] = Field(default_factory=lambda: defaultdict(PathEntry))
     executables: List[PathEntry] = Field(default_factory=lambda: list())
-    python_executables: Dict[str, PathEntry] = Field(default_factory=lambda: dict())
+    _python_executables: Dict[str, PathEntry] = Field(default_factory=lambda: dict())
     path_order: List[str] = Field(default_factory=lambda: list())
     python_version_dict: Dict[Tuple, Any] = Field(default_factory=lambda: defaultdict(list))
     _version_dict: Dict[Tuple, List[PathEntry]] = Field(default_factory=lambda: defaultdict(list))
@@ -78,7 +78,7 @@ class SystemPath(BaseModel):
         for _, finder in self.finders_dict.items():
             if finder.pythons:
                 python_executables.update(dict(finder.pythons))
-        self.python_executables = python_executables
+        self._python_executables = python_executables
 
     @root_validator(pre=True)
     def set_defaults(cls, values):
