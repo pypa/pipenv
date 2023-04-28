@@ -102,14 +102,6 @@ class SystemPath(BaseModel):
             self.finders_dict[finder_name] = finder
         return self
 
-    def clear_caches(self):
-        for key in ["executables", "python_executables", "version_dict", "path_entries"]:
-            if key in self.__dict__:
-                del self.__dict__[key]
-        for finder in list(self.finders_dict.keys()):
-            del self.finders_dict[finder]
-        self.finders_dict = {}
-
     @property
     def finders(self):
         # type: () -> List[str]
