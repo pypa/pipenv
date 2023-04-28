@@ -15,8 +15,6 @@ from pipenv.patched.pip._vendor.packaging.version import Version, InvalidVersion
 
 from .environment import PYENV_ROOT, SUBPROCESS_TIMEOUT
 from .exceptions import InvalidPythonVersion
-from .models.path import PathEntry
-
 
 
 version_re_str = (
@@ -384,6 +382,7 @@ def expand_paths(path, only_python=True) -> Iterator:
     :returns: An iterator over the expanded set of path entries
     :rtype: Iterator[PathEntry]
     """
+    from .models.path import PathEntry
 
     if path is not None and isinstance(path, Sequence):
         for p in path:
