@@ -6,9 +6,10 @@ import sys
 from collections import defaultdict, ChainMap
 from typing import Any, Dict, List, Generator, Iterator, Optional, Tuple, Union
 
-from pipenv.vendor.pydantic import BaseModel, Field, validator, root_validator
+from pipenv.vendor.pydantic import Field, validator, root_validator
 from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 
+from .common import FinderBaseModel
 from ..compat import fs_str
 from ..environment import (
     ASDF_DATA_DIR,
@@ -46,7 +47,7 @@ def exists_and_is_accessible(path):
             raise
 
 
-class SystemPath(BaseModel):
+class SystemPath(FinderBaseModel):
     global_search: bool = True
     paths: Dict[str, Union[PythonFinder, PathEntry]] = Field(default_factory=lambda: defaultdict(PathEntry))
     executables: List[PathEntry] = Field(default_factory=lambda: list())

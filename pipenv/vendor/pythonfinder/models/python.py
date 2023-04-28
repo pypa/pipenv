@@ -8,8 +8,9 @@ from pathlib import Path, WindowsPath
 from typing import Callable, DefaultDict, Dict, List, Optional, Tuple, Union, Generator, Iterator
 
 from pipenv.patched.pip._vendor.packaging.version import Version
-from pipenv.vendor.pydantic import BaseModel, Field, validator
+from pipenv.vendor.pydantic import Field, validator
 
+from .common import FinderBaseModel
 from ..environment import ASDF_DATA_DIR, PYENV_ROOT, SYSTEM_ARCH
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
@@ -335,7 +336,7 @@ class PythonFinder(PathEntry):
         return non_empty_match
 
 
-class PythonVersion(BaseModel):
+class PythonVersion(FinderBaseModel):
     major: int = 0
     minor: Optional[int] = None
     patch: Optional[int] = None
@@ -650,7 +651,7 @@ class PythonVersion(BaseModel):
         return cls(**kwargs)
 
 
-class VersionMap(BaseModel):
+class VersionMap(FinderBaseModel):
     versions: DefaultDict[Tuple[int, Optional[int], Optional[int], bool, bool, bool], List[PathEntry]] = defaultdict(list)
 
     class Config:

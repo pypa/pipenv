@@ -9,9 +9,10 @@ from .utils import Iterable, version_re
 from .models.path import PathEntry, SystemPath
 from .models.windows import WindowsFinder
 from .models.python import PythonVersion
+from .models.common import FinderBaseModel
 
 
-class Finder(BaseModel):
+class Finder(FinderBaseModel):
 
     path_prepend: Optional[str] = None
     system: bool = False

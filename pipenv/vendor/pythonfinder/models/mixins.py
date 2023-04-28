@@ -12,7 +12,7 @@ from typing import (
     Union,
 )
 
-from pipenv.vendor.pydantic import BaseModel, Field
+from pipenv.vendor.pydantic import Field
 
 from .common import FinderBaseModel
 from ..compat import fs_str
