@@ -374,16 +374,6 @@ class PathEntry(BaseModel):
             self.children_ref = children
         return self._children
 
-    @children_ref.setter
-    def children(self, val):
-        # type: (Dict[str, PathEntry]) -> None
-        self._children = val
-
-    @children_ref.deleter
-    def children(self):
-        # type: () -> None
-        del self._children
-
     @classmethod
     def create(
         cls,
