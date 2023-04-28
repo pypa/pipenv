@@ -367,12 +367,12 @@ class PathEntry(BaseModel):
     @property
     def children(self):
         # type: () -> Dict[str, PathEntry]
-        children = getattr(self, "_children", {})  # type: Dict[str, PathEntry]
+        children = getattr(self, "children_ref", {})  # type: Dict[str, PathEntry]
         if not children:
             for child_key, child_val in self._gen_children():
                 children[child_key] = child_val
             self.children_ref = children
-        return self._children
+        return self.children_ref
 
     @classmethod
     def create(
@@ -420,6 +420,6 @@ class PathEntry(BaseModel):
                 children[pth.as_posix()] = PathEntry(  # type: ignore
                     py_version=python, path=pth, **child_creation_args
                 )
-            _new._children = children
+            _new.children_ref = children
         return _new
 
