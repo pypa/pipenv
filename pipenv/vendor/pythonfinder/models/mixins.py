@@ -38,7 +38,7 @@ class PathEntry(BaseModel):
     is_root: bool = Field(default=False, order=False)
     name: Optional[str] = None
     path: Optional[Path] = None
-    children_ref: Optional[Any] = Field(default=None)
+    children_ref: Optional[Any] = Field(default_factory=lambda: dict())
     only_python: Optional[bool] = False
     py_version_ref: Optional[Any] = None
     pythons_ref: Optional[Dict[Any, Any]] = defaultdict(lambda: None)
