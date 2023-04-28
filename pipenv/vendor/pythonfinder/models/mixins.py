@@ -38,7 +38,7 @@ class PathEntry(FinderBaseModel):
     is_root: bool = Field(default=False, order=False)
     name: Optional[str] = None
     path: Optional[Path] = None
-    children: Optional[Any] = {}
+    children: Optional[Any] = None
     only_python: Optional[bool] = False
     _py_version: Optional[Any] = None
     _pythons: Optional[Dict[Any, Any]] = defaultdict(lambda: None)
@@ -53,11 +53,12 @@ class PathEntry(FinderBaseModel):
         include_private_attributes = True
         # keep_untouched = (cached_property,)
 
-    def __init__(self, **data):
-        super().__init__(**data)
-        if self.path:
-            self.name = self.path.name
-        self.children = self._gen_children()
+    @validator('children', pre=True, always=True)
+    def set_children(cls, v, values, **kwargs):
+        path = values.get('path')
+        if path:
+            values['name'] = path.name
+        return v or cls()._gen_children()
 
     def __str__(self) -> str:
         return fs_str("{0}".format(self.path.as_posix()))
