@@ -49,9 +49,9 @@ def exists_and_is_accessible(path):
 class SystemPath(BaseModel):
     global_search: bool = True
     paths: Dict[str, Union[PythonFinder, PathEntry]] = Field(default_factory=lambda: defaultdict(PathEntry))
-    executables: List[PathEntry] = Field(default_factory=list)
-    python_executables: Dict[str, PathEntry] = Field(default_factory=dict)
-    path_order: List[str] = Field(default_factory=list)
+    executables: List[PathEntry] = Field(default_factory=lambda: list())
+    python_executables: Dict[str, PathEntry] = Field(default_factory=lambda: dict())
+    path_order: List[str] = Field(default_factory=lambda: list())
     python_version_dict: Dict[Tuple, Any] = Field(default_factory=lambda: defaultdict(list))
     _version_dict: Dict[Tuple, List[PathEntry]] = Field(default_factory=lambda: defaultdict(list))
     only_python: bool = False
