@@ -203,24 +203,12 @@ class PythonFinder(PathEntry):
         arch=None,  # type: Optional[str]
         name=None,  # type: Optional[str]
     ) -> List[PathEntry]:
-        """Search for a specific python version on the path. Return all copies
-
-        :param major: Major python version to search for.
-        :type major: int
-        :param int minor: Minor python version to search for, defaults to None
-        :param int patch: Patch python version to search for, defaults to None
-        :param bool pre: Search for prereleases (default None) - prioritize releases if None
-        :param bool dev: Search for devreleases (default None) - prioritize releases if None
-        :param str arch: Architecture to include, e.g. '64bit', defaults to None
-        :param str name: The name of a python version, e.g. ``anaconda3-5.3.0``
-        :return: A list of :class:`~pythonfinder.models.PathEntry` instances matching the version requested.
-        :rtype: List[:class:`~pythonfinder.models.PathEntry`]
-        """
 
         call_method = "find_all_python_versions" if self.is_dir else "find_python_version"
-        sub_finder = operator.methodcaller(
-            call_method, major, minor, patch, pre, dev, arch, name
-        )
+
+        def sub_finder(path):
+            return getattr(path, call_method)(major, minor, patch, pre, dev, arch, name)
+
         if not any([major, minor, patch, name]):
             pythons = [
                 next(iter(py for py in base.find_all_python_versions()), None)
@@ -228,8 +216,12 @@ class PythonFinder(PathEntry):
             ]
         else:
             pythons = [sub_finder(path) for path in self.paths]
+
         pythons = expand_paths(pythons, True)
-        version_sort = operator.attrgetter("as_python.version_sort")
+
+        def version_sort(py):
+            return py.as_python.version_sort
+
         paths = [
             p for p in sorted(pythons, key=version_sort, reverse=True) if p is not None
         ]
