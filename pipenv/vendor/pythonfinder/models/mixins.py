@@ -270,19 +270,6 @@ class PathEntry(BasePath):
         include_private_attributes = True
         # keep_untouched = (cached_property,)
 
-    def __init__(self, **data):
-        super().__init__(**data)
-        if not self.children:
-            children = {}
-            for child_key, child_val in self._gen_children():
-                children[child_key] = child_val
-            self.children = children
-        if not self.pythons:
-            self.pythons = defaultdict(PathEntry)
-            for python in self._iter_pythons():
-                python_path = python.path.as_posix()  # type: ignore
-                self.pythons[python_path] = python
-
     def __lt__(self, other):
         return self.path.as_posix() < other.path.as_posix()
 

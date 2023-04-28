@@ -48,6 +48,19 @@ class PythonFinder(PathEntry):
         include_private_attributes = True
         # keep_untouched = (cached_property,)
 
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.children:
+            children = {}
+            for child_key, child_val in self._gen_children():
+                children[child_key] = child_val
+            self.children = children
+        if not self.pythons:
+            self.pythons = defaultdict(PathEntry)
+            for python in self._iter_pythons():
+                python_path = python.path.as_posix()
+                self.pythons[python_path] = python
+
     @validator('root', pre=True, always=True)
     def optional_instance_of_path(cls, value):
         if value is not None:
