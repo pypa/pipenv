@@ -392,8 +392,6 @@ def expand_paths(path, only_python=True) -> Iterator:
                 expand_paths(p, only_python=only_python)
             ):
                 yield expanded
-    elif path is not None and (not only_python or (path.is_python and path.as_python is not None)):
-        yield path
     elif path is not None and path.is_dir and isinstance(path, PathEntry):
         for p in path.children.values():
             if p is not None and p.is_python and p.as_python is not None:
@@ -401,6 +399,8 @@ def expand_paths(path, only_python=True) -> Iterator:
                     expand_paths(p, only_python=only_python)
                 ):
                     yield sub_path
+    elif path is not None:
+        yield path
 
 
 def dedup(iterable):
