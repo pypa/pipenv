@@ -113,8 +113,8 @@ class PathEntry(BaseModel):
                 )
             except (ValueError, InvalidPythonVersion):
                 pass
-        self.py_version = py_version
-        return self.py_version
+        self.py_version_ref = py_version
+        return self.py_version_ref
 
     @property
     def is_dir(self) -> bool:
@@ -202,14 +202,6 @@ class PathEntry(BaseModel):
         else:
             py_version = self.py_version_ref
         return py_version
-
-    @py_version.setter
-    def py_version(self, val) -> None:
-        self.py_version_ref = val
-
-    @py_version.deleter
-    def py_version(self) -> None:
-        self.py_version_ref = None
 
     def _iter_pythons(self) -> Iterator:
         if self.is_dir:
