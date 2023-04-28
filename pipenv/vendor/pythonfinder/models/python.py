@@ -5,7 +5,6 @@ import platform
 import sys
 from collections import defaultdict
 from pathlib import Path, WindowsPath
-from functools import lru_cache
 from typing import Callable, DefaultDict, Dict, List, Optional, Tuple, Union, Generator, Iterator
 
 from pipenv.patched.pip._vendor.packaging.version import Version
@@ -407,7 +406,6 @@ class PythonVersion(BaseModel):
                 setattr(self, key, metadata[key])
 
     @classmethod
-    @lru_cache(maxsize=1024)
     def parse(cls, version) -> Dict[str, Union[str, int, Version]]:
         """
         Parse a valid version string into a dictionary
@@ -492,7 +490,6 @@ class PythonVersion(BaseModel):
         return cls(**instance_dict)  # type: ignore
 
     @classmethod
-    @lru_cache(maxsize=1024)
     def parse_executable(cls, path) -> Dict[str, Optional[Union[str, int, Version]]]:
         result_dict = {}
         result_version = None
