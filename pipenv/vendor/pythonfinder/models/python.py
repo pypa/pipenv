@@ -370,7 +370,8 @@ class PythonVersion(BaseModel):
             and (
                 python_name is None
                 or (python_name and self.name)
-                and (self.name == python_name or self.name.startswith(python_name) or python_name == "python")
+                and (self.name == python_name or self.name.startswith(python_name) or
+                     python_name.endswith("python") or python_name.endswith("python.exe"))
             )
         ):
             result = True
