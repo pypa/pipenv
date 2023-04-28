@@ -222,10 +222,8 @@ class BasePath(BaseModel):
             yield self  # type: ignore
 
     @property
-    def pythons(self) -> DefaultDict[Union[str, Path], PathEntry]:
+    def pythons(self) -> Dict[Union[str, Path], "PathEntry"]:
         if not self._pythons:
-            from .path import PathEntry
-
             self._pythons = defaultdict(PathEntry)
             for python in self._iter_pythons():
                 python_path = python.path.as_posix()  # type: ignore
@@ -455,42 +453,3 @@ class PathEntry(BasePath):
             _new._children = children
         return _new
 
-
-
-class BaseFinder(object, metaclass=abc.ABCMeta):
-    def __init__(self):
-        #: Maps executable paths to PathEntries
-        from .path import PathEntry
-
-        self._pythons = defaultdict(PathEntry)  # type: DefaultDict[str, PathEntry]
-        self._versions = defaultdict(PathEntry)  # type: Dict[Tuple, PathEntry]
-
-    def get_versions(self):
-        # type: () -> DefaultDict[Tuple, PathEntry]
-        """Return the available versions from the finder"""
-        raise NotImplementedError
-
-    @classmethod
-    def create(cls, *args, **kwargs):
-        # type: (Any, Any) -> BaseFinderType
-        raise NotImplementedError
-
-    @property
-    def version_paths(self):
-        # type: () -> Any
-        return self._versions.values()
-
-    @property
-    def expanded_paths(self):
-        # type: () -> Any
-        return (p.paths.values() for p in self.version_paths)
-
-    @property
-    def pythons(self):
-        # type: () -> DefaultDict[str, PathEntry]
-        return self._pythons
-
-    @pythons.setter
-    def pythons(self, value):
-        # type: (DefaultDict[str, PathEntry]) -> None
-        self._pythons = value
