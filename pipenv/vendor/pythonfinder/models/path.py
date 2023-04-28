@@ -119,7 +119,7 @@ class SystemPath(BaseModel):
     def check_for_asdf():
         return ASDF_INSTALLED or os.path.exists(normalize_path(ASDF_DATA_DIR))
 
-    @cached_property
+    @property
     def executables(self):
         # type: () -> List[PathEntry]
         self.executables = [
