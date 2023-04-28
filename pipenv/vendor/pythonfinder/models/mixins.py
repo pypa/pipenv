@@ -34,7 +34,8 @@ from ..environment import (
 )
 
 
-class BasePath(FinderBaseModel):
+class PathEntry(FinderBaseModel):
+    is_root: bool = Field(default=False, order=False)
     name: Optional[str] = None
     path: Optional[Path] = None
     children: Optional[Any] = {}
@@ -323,29 +324,6 @@ class BasePath(FinderBaseModel):
         ]
         results = sorted(matching_pythons, key=lambda r: (r[1], r[0]), reverse=True)
         return next(iter(r[0] for r in results if r is not None), None)
-
-
-class PathEntry(BasePath):
-    is_root: bool = Field(default=False, order=False)
-
-    class Config:
-        validate_assignment = True
-        arbitrary_types_allowed = True
-        allow_mutation = True
-        include_private_attributes = True
-        # keep_untouched = (cached_property,)
-
-    def __lt__(self, other):
-        return self.path.as_posix() < other.path.as_posix()
-
-    def __lte__(self, other):
-        return self.path.as_posix() <= other.path.as_posix()
-
-    def __gt__(self, other):
-        return self.path.as_posix() > other.path.as_posix()
-
-    def __gte__(self, other):
-        return self.path.as_posix() >= other.path.as_posix()
 
     def _filter_children(self) -> Iterator[Path]:
         if not os.access(str(self.path), os.R_OK):
