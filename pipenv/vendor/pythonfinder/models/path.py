@@ -101,8 +101,8 @@ class SystemPath(BaseModel):
                 if p.is_executable
             ]
         return values
-		
-	def _register_finder(self, finder_name, finder):
+
+    def _register_finder(self, finder_name, finder):
         if finder_name not in self.finders_dict:
             self.finders_dict[finder_name] = finder
         return self
@@ -219,7 +219,7 @@ class SystemPath(BaseModel):
                 path=syspath_bin, is_root=True, only_python=False
             )
             self.path_order = path_order
-	    return self
+        return self
 
     def _get_last_instance(self, path) -> int:
         reversed_paths = reversed(self.path_order)
