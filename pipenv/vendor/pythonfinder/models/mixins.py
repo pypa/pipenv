@@ -152,35 +152,28 @@ class BasePath(BaseModel):
 
     def find_all_python_versions(
         self,
-        major=None,  # type: Optional[Union[str, int]]
-        minor=None,  # type: Optional[int]
-        patch=None,  # type: Optional[int]
-        pre=None,  # type: Optional[bool]
-        dev=None,  # type: Optional[bool]
-        arch=None,  # type: Optional[str]
-        name=None,  # type: Optional[str]
+        major=None,
+        minor=None,
+        patch=None,
+        pre=None,
+        dev=None,
+        arch=None,
+        name=None,
     ) -> List["PathEntry"]:
-        """Search for a specific python version on the path. Return all copies
-
-        :param major: Major python version to search for.
-        :type major: int
-        :param int minor: Minor python version to search for, defaults to None
-        :param int patch: Patch python version to search for, defaults to None
-        :param bool pre: Search for prereleases (default None) - prioritize releases if None
-        :param bool dev: Search for devreleases (default None) - prioritize releases if None
-        :param str arch: Architecture to include, e.g. '64bit', defaults to None
-        :param str name: The name of a python version, e.g. ``anaconda3-5.3.0``
-        :return: A list of :class:`~pythonfinder.models.PathEntry` instances matching the version requested.
-        :rtype: List[:class:`~pythonfinder.models.PathEntry`]
-        """
-
         call_method = "find_all_python_versions" if self.is_dir else "find_python_version"
         sub_finder = operator.methodcaller(
             call_method, major, minor, patch, pre, dev, arch, name
         )
+
         if not self.is_dir:
-            return sub_finder(self)
-        unnested = [sub_finder(path) for path in expand_paths(self.path)]
+            try:
+                result = sub_finder(self)
+                return result
+            except AttributeError:
+                # If 'find_python_version' doesn't exist, return an empty list
+                return []
+
+        unnested = [sub_finder(path) for path in expand_paths(self.path) if hasattr(path, call_method)]
         version_sort = operator.attrgetter("as_python.version_sort")
         unnested = [p for p in unnested if p is not None and p.as_python is not None]
         paths = sorted(unnested, key=version_sort, reverse=True)
