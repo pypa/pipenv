@@ -15,6 +15,7 @@ from pipenv.patched.pip._vendor.packaging.version import Version, InvalidVersion
 
 from .environment import PYENV_ROOT, SUBPROCESS_TIMEOUT
 from .exceptions import InvalidPythonVersion
+from .models.path import PathEntry
 
 
 
@@ -384,10 +385,7 @@ def expand_paths(path, only_python=True) -> Iterator:
     :rtype: Iterator[PathEntry]
     """
 
-    if path is not None and (
-        isinstance(path, Sequence)
-        and not getattr(path.__class__, "__name__", "") == "PathEntry"
-    ):
+    if path is not None and isinstance(path, Sequence):
         for p in path:
             if p is None:
                 continue
@@ -395,18 +393,15 @@ def expand_paths(path, only_python=True) -> Iterator:
                 expand_paths(p, only_python=only_python)
             ):
                 yield expanded
-    elif path is not None and path.is_dir:
+    elif path is not None and (not only_python or (path.is_python and path.as_python is not None)):
+        yield path
+    elif path is not None and path.is_dir and isinstance(path, PathEntry):
         for p in path.children.values():
             if p is not None and p.is_python and p.as_python is not None:
                 for sub_path in itertools.chain.from_iterable(
                     expand_paths(p, only_python=only_python)
                 ):
                     yield sub_path
-    else:
-        if path is not None and (
-            not only_python or (path.is_python and path.as_python is not None)
-        ):
-            yield path
 
 
 def dedup(iterable):
