@@ -50,6 +50,7 @@ class SystemPath(BaseModel):
     python_version_dict: Dict[Tuple, Any] = Field(default_factory=lambda: defaultdict(list))
     version_dict: Dict[Tuple, List[PathEntry]] = Field(default_factory=lambda: defaultdict(list))
     only_python: bool = False
+    nix_finder: Optional[PythonFinder] = None
     pyenv_finder: Optional[PythonFinder] = None
     asdf_finder: Optional[PythonFinder] = None
     windows_finder: Optional[WindowsFinder] = None
@@ -66,6 +67,7 @@ class SystemPath(BaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
+        self.set_version_dict()
         python_executables = {}
         for child in self.paths.values():
             if child.pythons:
@@ -78,6 +80,7 @@ class SystemPath(BaseModel):
     @root_validator(pre=True)
     def set_defaults(cls, values):
         values['python_version_dict'] = defaultdict(list)
+        values['nix_finder'] = None
         values['pyenv_finder'] = None
         values['windows_finder'] = None
         values['asdf_finder'] = None
@@ -111,8 +114,7 @@ class SystemPath(BaseModel):
         self.finders_dict = {}
 
     @property
-    def finders(self):
-        # type: () -> List[str]
+    def finders(self) -> List[str]:
         return [k for k in self.finders_dict.keys()]
 
     @staticmethod
@@ -169,6 +171,8 @@ class SystemPath(BaseModel):
         ]
         if os.name == "nt" and "windows" not in self.finders:
             self._setup_windows()
+        else:
+            self._setup_nix()
         #: slice in pyenv
         if self.check_for_pyenv() and "pyenv" not in self.finders:
             self._setup_pyenv()
@@ -294,6 +298,40 @@ class SystemPath(BaseModel):
         self._remove_path(os.path.join(PYENV_ROOT, "shims"))
         self._register_finder("pyenv", pyenv_finder)
         return self
+
+    def _setup_nix(self) -> "SystemPath":
+        if "nix" in self.finders and self.pyenv_finder is not None:
+            return self
+
+        os_path = os.environ["PATH"].split(os.pathsep)
+
+        raise Exception(vars(self))
+
+        pyenv_finder = PythonFinder.create(
+            root=PYENV_ROOT,
+            sort_function=parse_pyenv_version_order,
+            version_glob_path="versions/*",
+            ignore_unsupported=self.ignore_unsupported,
+        )
+        pyenv_index = None
+        try:
+            pyenv_index = self._get_last_instance(PYENV_ROOT)
+        except ValueError:
+            pyenv_index = 0 if is_in_path(next(iter(os_path), ""), PYENV_ROOT) else -1
+        if pyenv_index is None:
+            # we are in a virtualenv without global pyenv on the path, so we should
+            # not write pyenv to the path here
+            return self
+        # * These are the root paths for the finder
+        _ = [p for p in pyenv_finder.roots]
+        self._slice_in_paths(pyenv_index, [pyenv_finder.root])
+        self.paths[pyenv_finder.root] = pyenv_finder
+        self.paths.update(pyenv_finder.roots)
+        self.pyenv_finder = pyenv_finder
+        self._remove_path(os.path.join(PYENV_ROOT, "shims"))
+        self._register_finder("nix", pyenv_finder)
+        return self
+
 
     def _setup_windows(self) -> "SystemPath":
         if "windows" in self.finders and self.windows_finder is not None:
