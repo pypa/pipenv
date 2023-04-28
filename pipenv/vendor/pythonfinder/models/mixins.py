@@ -14,6 +14,7 @@ from typing import (
 
 from pipenv.vendor.pydantic import BaseModel, Field
 
+from .common import FinderBaseModel
 from ..compat import fs_str
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
@@ -33,7 +34,7 @@ from ..environment import (
 )
 
 
-class BasePath(BaseModel):
+class BasePath(FinderBaseModel):
     name: Optional[str] = None
     path: Optional[Path] = None
     children: Optional[Any] = {}
