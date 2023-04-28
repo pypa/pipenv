@@ -415,25 +415,19 @@ class SystemPath(BaseModel):
         :return: A list of :class:`~pythonfinder.models.PathEntry` instances matching the version requested.
         :rtype: List[:class:`~pythonfinder.models.PathEntry`]
         """
+        def version_matcher(py):
+            return py.matches(major, minor, patch, pre, dev, arch, python_name=name)
 
-        def sub_finder(instance):
-            return instance.find_all_python_versions(major, minor, patch, pre, dev, arch, name)
+        pythons = [py for py in self.version_dict.values() if version_matcher(py)]
 
-        alternate_sub_finder = None
-        if major and not (minor or patch or pre or dev or arch or name):
-            def alternate_sub_finder(instance):
-                return instance.find_all_python_versions(None, None, None, None, None, None, major)
+        def version_sort(py):
+            return py.version_sort
 
-        if os.name == "nt" and self.windows_finder:
-            windows_finder_version = sub_finder(self.windows_finder)
-            if windows_finder_version:
-                return windows_finder_version
-
-        values = list(self.get_pythons(sub_finder))
-        if not values and alternate_sub_finder is not None:
-            values = list(self.get_pythons(alternate_sub_finder))
-
-        return values
+        return [
+            c.comes_from
+            for c in sorted(pythons, key=version_sort, reverse=True)
+            if c.comes_from
+        ]
 
     def find_python_version(
         self,
@@ -462,42 +456,21 @@ class SystemPath(BaseModel):
         """
         major, minor, patch, name = split_version_and_name(major, minor, patch, name)
 
-        def sub_finder(obj):
-            return obj.find_python_version(major, minor, patch, pre, dev, arch, name)
-
-        alternate_sub_finder = None
-        if name and not (minor or patch or pre or dev or arch or major):
-            def alternate_sub_finder(obj):
-                return obj.find_all_python_versions(None, None, None, None, None, None, name)
-
-        if major and minor and patch:
-            _tuple_pre = pre if pre is not None else False
-            _tuple_dev = dev if dev is not None else False
-        if os.name == "nt" and self.windows_finder:
-            windows_finder_version = sub_finder(self.windows_finder)
-            if windows_finder_version:
-                return windows_finder_version
-        if sort_by_path:
-            paths = [self.get_path(k) for k in self.path_order]
-            for path in paths:
-                found_version = sub_finder(path)
-                if found_version:
-                    return found_version
-            if alternate_sub_finder:
-                for path in paths:
-                    found_version = alternate_sub_finder(path)
-                    if found_version:
-                        return found_version
-
-        ver = next(iter(self.get_pythons(sub_finder)), None)
-        if not ver and alternate_sub_finder is not None:
-            ver = next(iter(self.get_pythons(alternate_sub_finder)), None)
-        if ver:
-            if ver.as_python.version_tuple[:5] in self.python_version_dict:
-                self.python_version_dict[ver.as_python.version_tuple[:5]].append(ver)
-            else:
-                self.python_version_dict[ver.as_python.version_tuple[:5]] = [ver]
-        return ver
+        return next(
+            iter(
+                v
+                for v in self.find_all_python_versions(
+                    major=major,
+                    minor=minor,
+                    patch=patch,
+                    pre=pre,
+                    dev=dev,
+                    arch=arch,
+                    name=name,
+                )
+            ),
+            None,
+        )
 
     @classmethod
     def create(

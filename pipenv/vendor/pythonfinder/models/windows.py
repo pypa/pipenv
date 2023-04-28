@@ -47,11 +47,14 @@ class WindowsFinder(PathEntry):
         arch: Optional[str] = None,
         name: Optional[str] = None,
     ) -> List[PathEntry]:
-        version_matcher = operator.methodcaller(
-            "matches", major, minor, patch, pre, dev, arch, python_name=name
-        )
+        def version_matcher(py):
+            return py.matches(major, minor, patch, pre, dev, arch, python_name=name)
+
         pythons = [py for py in self.version_list if version_matcher(py)]
-        version_sort = operator.attrgetter("version_sort")
+
+        def version_sort(py):
+            return py.version_sort
+
         return [
             c.comes_from
             for c in sorted(pythons, key=version_sort, reverse=True)
