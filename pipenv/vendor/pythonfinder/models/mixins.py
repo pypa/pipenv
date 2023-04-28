@@ -303,6 +303,7 @@ class PathEntry(BasePath):
 
     def _gen_children(self) -> Iterator:
         shim_paths = get_shim_paths()
+        raise Exception(self.dict())
         pass_name = self.name != self.path.name
         pass_args = {"is_root": False, "only_python": self.only_python}
         if pass_name:
