@@ -6,14 +6,13 @@ from abc import ABCMeta, abstractmethod
 
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import find_windows_executable
-from pipenv.vendor import attr
+from pipenv.vendor.pydantic import  BaseModel, Field
 
 
-@attr.s
-class Version:
-    major = attr.ib()
-    minor = attr.ib()
-    patch = attr.ib()
+class Version(BaseModel):
+    major: int
+    minor: int
+    patch: Optional[int] = None
 
     def __str__(self):
         parts = [self.major, self.minor]
@@ -22,7 +21,7 @@ class Version:
         return ".".join(str(p) for p in parts)
 
     @classmethod
-    def parse(cls, name):
+    def parse(cls, name: str):
         """Parse an X.Y.Z or X.Y string into a version tuple."""
         match = re.match(r"^(\d+)\.(\d+)(?:\.(\d+))?$", name)
         if not match:
@@ -32,14 +31,14 @@ class Version:
         patch = match.group(3)
         if patch is not None:
             patch = int(patch)
-        return cls(major, minor, patch)
+        return cls(major=major, minor=minor, patch=patch)
 
     @property
     def cmpkey(self):
         """Make the version a comparable tuple.
 
-        Some old Python versions does not have a patch part, e.g. 2.7.0 is
-        named "2.7" in pyenv. Fix that, otherwise `None` will fail to compare
+        Some old Python versions do not have a patch part, e.g., 2.7.0 is
+        named "2.7" in pyenv. Fix that; otherwise, `None` will fail to compare
         with int.
         """
         return (self.major, self.minor, self.patch or 0)
