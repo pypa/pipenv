@@ -26,3 +26,11 @@ class FinderBaseModel(BaseModel):
         }
         model_dict.update(private_attrs)
         return model_dict
+
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        include_private_attributes = True
+        check_fields = False  # Add this line
+

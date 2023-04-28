@@ -12,7 +12,7 @@ from typing import (
     Union,
 )
 
-from pipenv.vendor.pydantic import Field
+from pipenv.vendor.pydantic import BaseModel, Field, validator
 
 from .common import FinderBaseModel
 from ..compat import fs_str
@@ -34,11 +34,11 @@ from ..environment import (
 )
 
 
-class PathEntry(FinderBaseModel):
+class PathEntry(BaseModel):
     is_root: bool = Field(default=False, order=False)
     name: Optional[str] = None
     path: Optional[Path] = None
-    children: Optional[Any] = None
+    children: Optional[Any] = Field(default=None)
     only_python: Optional[bool] = False
     _py_version: Optional[Any] = None
     _pythons: Optional[Dict[Any, Any]] = defaultdict(lambda: None)
@@ -51,9 +51,9 @@ class PathEntry(FinderBaseModel):
         arbitrary_types_allowed = True
         allow_mutation = True
         include_private_attributes = True
-        # keep_untouched = (cached_property,)
+        check_fields = False  # Add this line
 
-    @validator('children', pre=True, always=True)
+    @validator('children', pre=True, always=True, check_fields=False)
     def set_children(cls, v, values, **kwargs):
         path = values.get('path')
         if path:
