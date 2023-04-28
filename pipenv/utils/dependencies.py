@@ -129,7 +129,7 @@ def get_vcs_deps(project=None, dev=False, pypi_mirror=None, packages=None, reqs=
 
                     # from distutils.sysconfig import get_python_lib
                     # sys.path = [repo.checkout_directory, "", ".", get_python_lib(plat_specific=0)]
-                    commit_hash = repo.get_commit_hash()
+                    commit_hash = repo.commit_hash
                     name = requirement.normalized_name
                     lockfile[name] = requirement.pipfile_entry[1]
                     lockfile[name]["ref"] = commit_hash
@@ -302,7 +302,7 @@ def get_constraints_from_deps(deps):
     constraints = []
     for dep_name, dep in deps.items():
         new_dep = Requirement.from_pipfile(dep_name, dep)
-        if new_dep.is_named and is_constraints(new_dep.as_ireq()):
+        if new_dep.is_named and is_constraints(new_dep.ireq):
             c = new_dep.as_line().strip()
             constraints.append(c)
     return constraints

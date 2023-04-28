@@ -41,9 +41,6 @@ def setup_logger():
 log = setup_logger()
 
 
-SCHEME_LIST = ("http://", "https://", "ftp://", "ftps://", "file://")
-
-
 VCS_SCHEMES = [
     "git",
     "git+http",

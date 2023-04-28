@@ -3,21 +3,15 @@ import operator
 import re
 from collections.abc import Mapping, Set
 from functools import reduce
+from typing import Any, AnyStr, Iterator, List, Optional, Tuple, Type, Union
 
-import pipenv.vendor.attr as attr
 from pipenv.patched.pip._vendor.distlib import markers
 from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker
 from pipenv.patched.pip._vendor.packaging.specifiers import LegacySpecifier, Specifier, SpecifierSet
-from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.vendor.pydantic import BaseModel
 
-from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
-from .utils import filter_none, validate_markers
 
-if MYPY_RUNNING:
-    from typing import Any, AnyStr, Iterator, List, Optional, Text, Tuple, Type, Union
-
-    STRING_TYPE = Union[str, bytes, Text]
 
 MAX_VERSIONS = {1: 7, 2: 7, 3: 11, 4: 0}
 DEPRECATED_VERSIONS = ["3.0", "3.1", "3.2", "3.3"]
@@ -30,48 +24,26 @@ def is_instance(item, cls):
     return False
 
 
-@attr.s
-class PipenvMarkers(object):
-    """System-level requirements - see PEP508 for more detail"""
-
-    os_name = attr.ib(default=None, validator=attr.validators.optional(validate_markers))
-    sys_platform = attr.ib(
-        default=None, validator=attr.validators.optional(validate_markers)
-    )
-    platform_machine = attr.ib(
-        default=None, validator=attr.validators.optional(validate_markers)
-    )
-    platform_python_implementation = attr.ib(
-        default=None, validator=attr.validators.optional(validate_markers)
-    )
-    platform_release = attr.ib(
-        default=None, validator=attr.validators.optional(validate_markers)
-    )
-    platform_system = attr.ib(
-        default=None, validator=attr.validators.optional(validate_markers)
-    )
-    platform_version = attr.ib(
-        default=None, validator=attr.validators.optional(validate_markers)
-    )
-    python_version = attr.ib(
-        default=None, validator=attr.validators.optional(validate_markers)
-    )
-    python_full_version = attr.ib(
-        default=None, validator=attr.validators.optional(validate_markers)
-    )
-    implementation_name = attr.ib(
-        default=None, validator=attr.validators.optional(validate_markers)
-    )
-    implementation_version = attr.ib(
-        default=None, validator=attr.validators.optional(validate_markers)
-    )
+class PipenvMarkers(BaseModel):
+    os_name: Optional[str] = None
+    sys_platform: Optional[str] = None
+    platform_machine: Optional[str] = None
+    platform_python_implementation: Optional[str] = None
+    platform_release: Optional[str] = None
+    platform_system: Optional[str] = None
+    platform_version: Optional[str] = None
+    python_version: Optional[str] = None
+    python_full_version: Optional[str] = None
+    implementation_name: Optional[str] = None
+    implementation_version: Optional[str] = None
 
     @property
     def line_part(self):
         return " and ".join(
             [
                 "{0} {1}".format(k, v)
-                for k, v in attr.asdict(self, filter=filter_none).items()
+                for k, v in self.dict().items()
+                if v is not None
             ]
         )
 
@@ -98,7 +70,7 @@ class PipenvMarkers(object):
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
-        attr_fields = [field.name for field in attr.fields(cls)]
+        attr_fields = [field_name for field_name in cls.__fields__]
         found_keys = [k for k in pipfile.keys() if k in attr_fields]
         marker_strings = ["{0} {1}".format(k, pipfile[k]) for k in found_keys]
         if pipfile.get("markers"):
@@ -314,31 +286,6 @@ def fix_version_tuple(version_tuple):
         op = "<="
         version = (version[0], version[1] - 1)
     return (op, version)
-
-
-# TODO: Rename this to something meaningful, deprecate it (See prior function)
-def get_versions(specset, group_by_operator=True):
-    # type: (Union[Set[Specifier], SpecifierSet], bool) -> List[Tuple[STRING_TYPE, STRING_TYPE]]
-    specs = [_get_specs(x) for x in list(tuple(specset))]
-    initial_sort_key = lambda k: (k[0], k[1])
-    initial_grouping_key = operator.itemgetter(0)
-    if not group_by_operator:
-        initial_grouping_key = operator.itemgetter(1)
-        initial_sort_key = operator.itemgetter(1)
-    version_tuples = sorted(
-        set((op, version) for spec in specs for op, version in spec), key=initial_sort_key
-    )
-    version_tuples = [fix_version_tuple(t) for t in version_tuples]
-    op_groups = [
-        (grp, list(map(operator.itemgetter(1), keys)))
-        for grp, keys in itertools.groupby(version_tuples, key=initial_grouping_key)
-    ]
-    versions = [
-        (op, parse(".".join(str(v) for v in val)))
-        for op, vals in op_groups
-        for val in vals
-    ]
-    return sorted(versions, key=operator.itemgetter(1))
 
 
 def _ensure_marker(marker):

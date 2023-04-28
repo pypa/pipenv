@@ -5,7 +5,7 @@ from .dependencies import clean_resolved_dep, pep423_name, translate_markers
 
 def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=None):
     if req.specifiers:
-        version = str(req.get_version())
+        version = str(req.get_version)
     else:
         version = None
     index = index_lookup.get(req.normalized_name)
@@ -36,6 +36,8 @@ def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=No
                 del entry[key]
             except KeyError:
                 pass
+    if "setup_info" in entry:
+        del entry["setup_info"]
     return name, entry
 
 

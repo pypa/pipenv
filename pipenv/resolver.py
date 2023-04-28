@@ -195,7 +195,7 @@ class Entry:
         if not markers:
             marker_str = self.marker_to_str(markers)
             if marker_str:
-                self._entry = self.entry.merge_markers(marker_str)
+                self.entry.merge_markers(marker_str)
                 self._markers = self.marker_to_str(self._entry.markers)
                 entry_dict = self.entry_dict.copy()
                 entry_dict["markers"] = self.marker_to_str(self._entry.markers)
@@ -253,6 +253,8 @@ class Entry:
         if "version" in self.entry_dict:
             self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
         _, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
+        if "parsed_line" in self.entry_dict:
+            del self.entry_dict["parsed_line"]
         return self.entry_dict
 
     @property
@@ -473,7 +475,7 @@ class Entry:
                 )
                 hashes = None
                 if self.lockfile_entry.specifiers == satisfied_by:
-                    ireq = self.lockfile_entry.as_ireq()
+                    ireq = self.lockfile_entry.as_ire
                     if (
                         not self.lockfile_entry.hashes
                         and self.resolver._should_include_hash(ireq)
@@ -519,7 +521,7 @@ class Entry:
         :return: An **InstallRequirement** instance representing a version constraint
         """
         if self.is_in_pipfile:
-            return self.pipfile_entry.as_ireq()
+            return self.pipfile_entry.ireq
 
     def validate_constraints(self):
         """
@@ -703,7 +705,7 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
         if not req.name:
             with temp_path(), cd(req.req.setup_info.base_dir):
                 sys.path.insert(0, req.req.setup_info.base_dir)
-                req.req._setup_info.get_info()
+                req.req.setup_info.get_info()
                 req.update_name_from_path(req.req.setup_info.base_dir)
         try:
             name, entry = req.pipfile_entry

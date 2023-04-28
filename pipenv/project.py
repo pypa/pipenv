@@ -13,8 +13,6 @@ import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
 
-import click
-
 from pipenv.cmdparse import Script
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
@@ -41,7 +39,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
-from pipenv.vendor import plette, toml, tomlkit, vistir
+from pipenv.vendor import click, plette, toml, tomlkit, vistir
 from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 
 try:
@@ -601,7 +599,7 @@ class Project:
             # Write the changes to disk.
             self.write_toml(p)
 
-    def _lockfile(self, categories=None):
+    def lockfile(self, categories=None):
         """Pipfile.lock divided by PyPI and external dependencies."""
         lockfile_loaded = False
         if self.lockfile_exists:
@@ -751,7 +749,7 @@ class Project:
         if from_pipfile and self.pipfile_exists:
             lockfile_dict = {}
             categories = self.get_package_categories(for_lockfile=True)
-            _lockfile = self._lockfile(categories=categories)
+            _lockfile = self.lockfile(categories=categories)
             for category in categories:
                 lockfile_dict[category] = _lockfile.get(category, {}).copy()
             lockfile_dict.update({"_meta": self.get_lockfile_meta()})
@@ -768,10 +766,10 @@ class Project:
         else:
             lockfile = Req_Lockfile.from_data(
                 path=self.lockfile_location,
-                data=self._lockfile(),
+                data=self.lockfile(),
                 meta_from_project=False,
             )
-        if lockfile._lockfile is not None:
+        if lockfile.lockfile is not None:
             return lockfile
         if self.lockfile_exists and self.lockfile_content:
             lockfile_dict = self.lockfile_content.copy()
@@ -784,7 +782,7 @@ class Project:
             _created_lockfile = Req_Lockfile.from_data(
                 path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
             )
-            lockfile._lockfile = lockfile.projectfile.model = _created_lockfile
+            lockfile.lockfile = lockfile.projectfile.model = _created_lockfile
             return lockfile
         else:
             return self.get_or_create_lockfile(categories=categories, from_pipfile=True)
@@ -969,7 +967,7 @@ class Project:
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.
         if not isinstance(package, Requirement):
-            package = Requirement.from_line(package.strip())
+            package = Requirement.from_line(package.strip(), parse_setup_info=False)
         req_name, converted = package.pipfile_entry
         category = category if category else "dev-packages" if dev else "packages"
         # Set empty group if it doesn't exist yet.
@@ -980,6 +978,20 @@ class Project:
         normalized_name = pep423_name(req_name)
         if name and name != normalized_name:
             self.remove_package_from_pipfile(name, category=category)
+        if isinstance(converted, dict):
+            keys = list(converted.keys())
+            for k in keys:
+                value = converted.get(k)
+                if not value:
+                    del converted[k]
+                if k in ["name", "uri"]:
+                    del converted[k]
+            if len(converted) == 1 and converted.get("version"):
+                converted = converted.get("version")
+            if "git" in converted and "path" in converted:
+                del converted["path"]
+            if "setup_info" in converted:
+                del converted["setup_info"]
         p[category][normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)
