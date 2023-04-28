@@ -14,7 +14,6 @@ class WindowsFinder(PathEntry):
     paths: Optional[List] = Field(default_factory=list)
     version_list: Optional[List] = Field(default_factory=list)
     versions: Optional[Dict[Tuple, PathEntry]]
-    pythons: Optional[Dict[str, PathEntry]]
 
     class Config:
         validate_assignment = True

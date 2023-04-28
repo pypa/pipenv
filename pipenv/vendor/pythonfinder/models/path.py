@@ -582,7 +582,7 @@ class VersionPath(SystemPath):
         arbitrary_types_allowed = True
         allow_mutation = True
         include_private_attributes = True
-        # keep_untouched = (cached_property,)
+        keep_untouched = (cached_property,)
 
     @validator('base', pre=True)
     def optional_instance_of_path(cls, value):
