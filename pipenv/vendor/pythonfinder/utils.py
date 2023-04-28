@@ -408,7 +408,7 @@ def expand_paths(path, only_python=True) -> Iterator:
             ):
                 yield expanded
     elif path is not None and path.is_dir:
-        for p in path.children.values():
+        for p in path.children_ref.values():
             if p is not None and p.is_python and p.as_python is not None:
                 for sub_path in itertools.chain.from_iterable(
                     expand_paths(p, only_python=only_python)

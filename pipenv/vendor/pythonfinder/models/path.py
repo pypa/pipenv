@@ -98,7 +98,7 @@ class SystemPath(FinderBaseModel):
         if paths:
             values['executables'] = [
                 p
-                for p in ChainMap(*(child.children.values() for child in paths.values()))
+                for p in ChainMap(*(child.children_ref.values() for child in paths.values()))
                 if p.is_executable
             ]
         return values
@@ -125,7 +125,7 @@ class SystemPath(FinderBaseModel):
         # type: () -> List[PathEntry]
         self.executables = [
             p
-            for p in chain(*(child.children.values() for child in self.paths.values()))
+            for p in chain(*(child.children_ref.values() for child in self.paths.values()))
             if p.is_executable
         ]
         return self.executables

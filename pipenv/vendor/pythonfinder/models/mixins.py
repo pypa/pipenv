@@ -38,7 +38,7 @@ class PathEntry(BaseModel):
     is_root: bool = Field(default=False, order=False)
     name: Optional[str] = None
     path: Optional[Path] = None
-    children: Optional[Any] = Field(default=None)
+    children_ref: Optional[Any] = Field(default=None)
     only_python: Optional[bool] = False
     py_version_ref: Optional[Any] = None
     pythons_ref: Optional[Dict[Any, Any]] = defaultdict(lambda: None)
@@ -371,15 +371,15 @@ class PathEntry(BaseModel):
         if not children:
             for child_key, child_val in self._gen_children():
                 children[child_key] = child_val
-            self.children = children
+            self.children_ref = children
         return self._children
 
-    @children.setter
+    @children_ref.setter
     def children(self, val):
         # type: (Dict[str, PathEntry]) -> None
         self._children = val
 
-    @children.deleter
+    @children_ref.deleter
     def children(self):
         # type: () -> None
         del self._children
