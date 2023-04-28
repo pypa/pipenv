@@ -350,7 +350,7 @@ def find_a_system_python(line):
     """
     if (line and line.startswith(("py ", "py.exe "))) and os.name == "nt":
         line = line.split(" ", 1)[1].lstrip("-")
-    finder = Finder(line, system=True, global_search=True)
+    finder = Finder(path_prepend=line, system=True, global_search=True)
     if not line:
         return next(iter(finder.find_all_python_versions()), None)
     python_entry = find_python(finder, line)
