@@ -348,7 +348,7 @@ def find_a_system_python(line):
     * Search for "python" and "pythonX.Y" executables in PATH to find a match.
     * Nothing fits, return None.
     """
-    if (line.startswith(("py ", "py.exe "))) and os.name == "nt":
+    if (line and line.startswith(("py ", "py.exe "))) and os.name == "nt":
         line = line.split(" ", 1)[1].lstrip("-")
     finder = Finder(line, system=True, global_search=True)
     if not line:
