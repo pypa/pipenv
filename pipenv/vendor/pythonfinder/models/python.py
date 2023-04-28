@@ -197,9 +197,12 @@ class PythonFinder(PathEntry):
             else:
                 yield self.versions[version_tuple]
 
-    @paths.default
-    def get_paths(self) -> List[PathEntry]:
-        _paths = [base for _, base in self._iter_version_bases()]
+    @validator("paths", pre=True, always=True)
+    def get_paths(cls, v) -> List[PathEntry]:
+        if v is not None:
+            return v
+
+        _paths = [base for _, base in cls._iter_version_bases()]
         return _paths
 
     @property
