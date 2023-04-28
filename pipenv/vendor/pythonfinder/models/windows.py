@@ -134,5 +134,5 @@ class WindowsFinder(PathEntry):
         return pythons
 
     @classmethod
-    def create(cls, *args, **kwargs) -> FinderType:
+    def create(cls, *args, **kwargs) -> "FinderType":
         return cls()

@@ -224,7 +224,7 @@ class PythonFinder(PathEntry):
         return self.pythons
 
     @classmethod
-    def create(cls, root, sort_function, version_glob_path=None, ignore_unsupported=True) -> PythonFinder:
+    def create(cls, root, sort_function, version_glob_path=None, ignore_unsupported=True) -> "PythonFinder":
         root = ensure_path(root)
         if not version_glob_path:
             version_glob_path = "versions/*"
@@ -461,12 +461,12 @@ class PythonVersion(BaseModel):
             result = True
         return result
 
-    def as_major(self) -> PythonVersion:
+    def as_major(self) -> "PythonVersion":
         self_dict = self.dict()
         self_dict.update({"minor": None, "patch": None})
         return self.create(**self_dict)
 
-    def as_minor(self) -> PythonVersion:
+    def as_minor(self) -> "PythonVersion":
         self_dict = self.dict()
         self_dict.update({"patch": None})
         return self.create(**self_dict)
