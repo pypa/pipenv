@@ -1,4 +1,3 @@
-import importlib
 import operator
 import os
 from typing import Any, Dict, List, Optional, Union
@@ -7,6 +6,7 @@ from .exceptions import InvalidPythonVersion
 from .utils import Iterable, version_re
 from .models.path import PathEntry, SystemPath
 from .models.windows import WindowsFinder
+from .models.python import PythonVersion
 
 
 class Finder(object):
@@ -28,8 +28,7 @@ class Finder(object):
         global_search=True,
         ignore_unsupported=True,
         sort_by_path=False,
-    ):
-        # type: (Optional[str], bool, bool, bool, bool) -> None
+    ) -> None:
         """Create a new :class:`~pythonfinder.pythonfinder.Finder` instance.
 
         :param path: A bin-directory search location, defaults to None
@@ -49,23 +48,19 @@ class Finder(object):
         self.system = system  # type: bool
         self.sort_by_path = sort_by_path  # type: bool
         self.ignore_unsupported = ignore_unsupported  # type: bool
-        self.system_path = self.create_system_path()  # type: Optional[SystemPath]
         self.windows_finder = None if os.name != "nt" else WindowsFinder()
+        self.system_path = self.create_system_path()  # type: Optional[SystemPath]
 
-    def __hash__(self):
-        # type: () -> int
+    def __hash__(self) -> int:
         return hash(
             (self.path_prepend, self.system, self.global_search, self.ignore_unsupported)
         )
 
-    def __eq__(self, other):
-        # type: (Any) -> bool
+    def __eq__(self, other) -> bool:
         return self.__hash__() == other.__hash__()
 
-    def create_system_path(self):
-        # type: () -> SystemPath
-        pyfinder_path = importlib.import_module("pythonfinder.models.path")
-        return pyfinder_path.SystemPath.create(
+    def create_system_path(self) -> SystemPath:
+        return SystemPath.create(
             path=self.path_prepend,
             system=self.system,
             global_search=self.global_search,
@@ -84,9 +79,7 @@ class Finder(object):
         pre=None,  # type: Optional[bool]
         dev=None,  # type: Optional[bool]
         arch=None,  # type: Optional[str]
-    ):
-        # type: (...) -> Dict[str, Union[int, str, bool, None]]
-        from .models import PythonVersion
+    ) -> Dict[str, Any]:
 
         major_is_str = major and isinstance(major, str)
         is_num = (
@@ -123,7 +116,7 @@ class Finder(object):
             return {"major": None, "name": major, "arch": arch}
         elif major and is_num:
             match = version_re.match(major)
-            version_dict = match.groupdict() if match else {}  # type: ignore
+            version_dict = match.groupdict() if match else {}
             version_dict.update(
                 {
                     "is_prerelease": bool(version_dict.get("prerel", False)),
@@ -166,8 +159,7 @@ class Finder(object):
         arch=None,  # type: Optional[str]
         name=None,  # type: Optional[str]
         sort_by_path=False,  # type: bool
-    ):
-        # type: (...) -> Optional[PathEntry]
+     ) -> Optional[PathEntry]:
         """
         Find the python version which corresponds most closely to the version requested.
 
@@ -182,16 +174,8 @@ class Finder(object):
         :return: A new *PathEntry* pointer at a matching python version, if one can be located.
         :rtype: :class:`pythonfinder.models.path.PathEntry`
         """
-
         minor = int(minor) if minor is not None else minor
         patch = int(patch) if patch is not None else patch
-
-        version_dict = {
-            "minor": minor,
-            "patch": patch,
-            "name": name,
-            "arch": arch,
-        }  # type: Dict[str, Union[str, int, Any]]
 
         if (
             isinstance(major, str)
@@ -202,10 +186,10 @@ class Finder(object):
         ):
             version_dict = self.parse_major(major, minor=minor, patch=patch, arch=arch)
             major = version_dict["major"]
-            minor = version_dict.get("minor", minor)  # type: ignore
-            patch = version_dict.get("patch", patch)  # type: ignore
-            arch = version_dict.get("arch", arch)  # type: ignore
-            name = version_dict.get("name", name)  # type: ignore
+            minor = version_dict.get("minor", minor)
+            patch = version_dict.get("patch", patch)
+            arch = version_dict.get("arch", arch)
+            name = version_dict.get("name", name)
             _pre = version_dict.get("is_prerelease", pre)
             pre = bool(_pre) if _pre is not None else pre
             _dev = version_dict.get("is_devrelease", dev)
@@ -213,7 +197,7 @@ class Finder(object):
             if "architecture" in version_dict and isinstance(
                 version_dict["architecture"], str
             ):
-                arch = version_dict["architecture"]  # type: ignore
+                arch = version_dict["architecture"]
         if os.name == "nt" and self.windows_finder is not None:
             found = self.windows_finder.find_python_version(
                 major=major,
@@ -246,8 +230,7 @@ class Finder(object):
         dev=None,  # type: Optional[bool]
         arch=None,  # type: Optional[str]
         name=None,  # type: Optional[str]
-    ):
-        # type: (...) -> List[PathEntry]
+    ) -> List[PathEntry]:
         version_sort = operator.attrgetter("as_python.version_sort")
         python_version_dict = getattr(self.system_path, "python_version_dict", {})
         if python_version_dict:
@@ -268,7 +251,7 @@ class Finder(object):
         path_list = sorted(
             filter(lambda v: v and v.as_python, versions), key=version_sort, reverse=True
         )
-        path_map = {}  # type: Dict[str, PathEntry]
+        path_map = {}
         for path in path_list:
             try:
                 resolved_path = path.path.resolve()

@@ -171,17 +171,16 @@ class BasePath(BaseModel):
         return None
 
     def _iter_pythons(self) -> Iterator:
-        if self.is_dir:
-            for entry in self.children.values():
-                if entry is None:
-                    continue
-                elif entry.is_dir:
-                    for python in entry._iter_pythons():
-                        yield python
-                elif entry.is_python and entry.as_python is not None:
-                    yield entry
-        elif self.is_python and self.as_python is not None:
-            yield self  # type: ignore
+        if self.is_python and self.as_python is not None:
+            yield self
+        for entry in self.children.values():
+            if entry is None:
+                continue
+            elif entry.is_dir:
+                for python in entry._iter_pythons():
+                    yield python
+            elif entry.is_python and entry.as_python is not None:
+                yield entry
 
     def __iter__(self) -> Iterator:
         for entry in self.children.values():
@@ -251,7 +250,6 @@ class BasePath(BaseModel):
         :param str name: The name of a python version, e.g. ``anaconda3-5.3.0``
         :returns: A :class:`~pythonfinder.models.PathEntry` instance matching the version requested.
         """
-
         version_matcher = operator.methodcaller(
             "matches", major, minor, patch, pre, dev, arch, python_name=name
         )

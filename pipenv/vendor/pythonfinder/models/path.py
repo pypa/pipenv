@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import sys
 from collections import defaultdict, ChainMap
-from typing import Any, Dict, List, Generator, Iterator, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Generator, Iterator, Optional, Tuple, Union
 
 from pipenv.vendor.pydantic import BaseModel, Field, validator, root_validator
 from pipenv.patched.pip._vendor.pyparsing.core import cached_property
@@ -29,9 +29,6 @@ from ..utils import (
 from .mixins import PathEntry
 from .python import PythonFinder, PythonVersion
 from .windows import WindowsFinder
-
-FinderType = TypeVar("FinderType", PythonFinder, WindowsFinder)
-PathType = Union[PythonFinder, "PathEntry"]
 
 
 def exists_and_is_accessible(path):
@@ -146,8 +143,6 @@ class SystemPath(BaseModel):
                 self.version_dict[version].append(entry)
 
     def _run_setup(self) -> "SystemPath":
-        if not self.__class__ == SystemPath:
-            return
         path_order = self.path_order[:]
         path_entries = self.paths.copy()
         if self.global_search and "PATH" in os.environ:
@@ -321,7 +316,7 @@ class SystemPath(BaseModel):
         self._register_finder("windows", windows_finder)
         return self
 
-    def get_path(self, path) -> PathType:
+    def get_path(self, path) -> Union[PythonFinder, PathEntry]:
         if path is None:
             raise TypeError("A path must be provided in order to generate a path entry.")
         path = ensure_path(path)
@@ -337,7 +332,7 @@ class SystemPath(BaseModel):
             raise ValueError("Path not found or generated: {0!r}".format(path))
         return _path
 
-    def _get_paths(self) -> Generator[Union[PathType, WindowsFinder], None, None]:
+    def _get_paths(self) -> Generator[Union[PythonFinder, PathEntry, WindowsFinder], None, None]:
         for path in self.path_order:
             try:
                 entry = self.get_path(path)
@@ -347,11 +342,11 @@ class SystemPath(BaseModel):
                 yield entry
 
     @cached_property
-    def path_entries(self) -> List[Union[PathType, WindowsFinder]]:
+    def path_entries(self) -> List[Union[PythonFinder, PathEntry, WindowsFinder]]:
         paths = list(self._get_paths())
         return paths
 
-    def find_all(self, executable) -> List[Union["PathEntry", FinderType]]:
+    def find_all(self, executable) -> List[Union["PathEntry", PythonFinder, WindowsFinder]]:
         """
         Search the path for an executable. Return all copies.
 
@@ -450,8 +445,7 @@ class SystemPath(BaseModel):
         arch=None,  # type: Optional[str]
         name=None,  # type: Optional[str]
         sort_by_path=False,  # type: bool
-    ):
-        # type: (...) -> PathEntry
+    ) -> PathEntry:
         """Search for a specific python version on the path.
 
         :param major: Major python version to search for.
@@ -466,7 +460,6 @@ class SystemPath(BaseModel):
         :return: A :class:`~pythonfinder.models.PathEntry` instance matching the version requested.
         :rtype: :class:`~pythonfinder.models.PathEntry`
         """
-
         major, minor, patch, name = split_version_and_name(major, minor, patch, name)
         sub_finder = operator.methodcaller(
             "find_python_version", major, minor, patch, pre, dev, arch, name
@@ -479,8 +472,6 @@ class SystemPath(BaseModel):
         if major and minor and patch:
             _tuple_pre = pre if pre is not None else False
             _tuple_dev = dev if dev is not None else False
-            version_tuple = (major, minor, patch, _tuple_pre, _tuple_dev)
-            version_tuple_pre = (major, minor, patch, True, False)
         if os.name == "nt" and self.windows_finder:
             windows_finder_version = sub_finder(self.windows_finder)
             if windows_finder_version:

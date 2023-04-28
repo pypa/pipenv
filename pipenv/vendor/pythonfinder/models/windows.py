@@ -67,8 +67,7 @@ class WindowsFinder(BaseModel):
         dev=None,  # type: Optional[bool]
         arch=None,  # type: Optional[str]
         name=None,  # type: Optional[str]
-    ):
-        # type: (...) -> Optional[PathEntry]
+    ) -> Optional[PathEntry]:
         return next(
             iter(
                 v
@@ -90,7 +89,6 @@ class WindowsFinder(BaseModel):
         from pipenv.vendor.pythonfinder._vendor.pep514tools import environment as pep514env
 
         env_versions = pep514env.findall()
-        path = None
         for version_object in env_versions:
             install_path = getattr(version_object.info, "install_path", None)
             name = getattr(version_object, "tag", None)
@@ -125,8 +123,7 @@ class WindowsFinder(BaseModel):
             self.paths.append(base_dir)
         return versions
 
-    def get_pythons(self):
-        # type: () -> Dict[str, PathEntry]
+    def get_pythons(self) -> Dict[str, PathEntry]:
         pythons = defaultdict()
         for version in self.version_list:
             _path = ensure_path(version.comes_from.path)

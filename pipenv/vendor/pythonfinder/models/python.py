@@ -11,7 +11,6 @@ from typing import Callable, DefaultDict, Dict, List, Optional, Tuple, Union, Ge
 from pipenv.patched.pip._vendor.packaging.version import Version
 from pipenv.vendor.pydantic import BaseModel, Field, validator
 
-from .path import PathEntry
 from ..environment import ASDF_DATA_DIR, PYENV_ROOT, SYSTEM_ARCH
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
@@ -26,7 +25,7 @@ from ..utils import (
     parse_python_version,
     unnest,
 )
-from .mixins import BasePath, PathEntry
+from .mixins import PathEntry
 
 
 logger = logging.getLogger(__name__)
@@ -296,28 +295,6 @@ class PythonVersion(BaseModel):
         include_private_attributes = True
         # keep_untouched = (cached_property,)
 
-    def __getattribute__(self, key):
-        result = super(PythonVersion, self).__getattribute__(key)
-        if key in ["minor", "patch"] and result is None:
-            executable = None  # type: Optional[str]
-            if self.executable:
-                executable = self.executable
-            elif self.comes_from:
-                executable = self.comes_from.path.as_posix()
-            if executable is not None:
-                if not isinstance(executable, str):
-                    executable = executable.as_posix()
-                instance_dict = self.parse_executable(executable)
-                for k in instance_dict.keys():
-                    try:
-                        super(PythonVersion, self).__getattribute__(k)
-                    except AttributeError:
-                        continue
-                    else:
-                        setattr(self, k, instance_dict[k])
-                result = instance_dict.get(key)
-        return result
-
     @property
     def version_sort(self) -> Tuple[int, int, Optional[int], int, int]:
         """
@@ -371,10 +348,10 @@ class PythonVersion(BaseModel):
         major=None,  # type: Optional[int]
         minor=None,  # type: Optional[int]
         patch=None,  # type: Optional[int]
-        pre=False,  # type: bool
-        dev=False,  # type: bool
+        pre=None,  # type: bool
+        dev=None,  # type: bool
         arch=None,  # type: Optional[str]
-        debug=False,  # type: bool
+        debug=None,  # type: bool
         python_name=None,  # type: Optional[str]
     ) -> bool:
         result = False
@@ -393,34 +370,11 @@ class PythonVersion(BaseModel):
             and (
                 python_name is None
                 or (python_name and self.name)
-                and (self.name == python_name or self.name.startswith(python_name))
+                and (self.name == python_name or self.name.startswith(python_name) or python_name == "python")
             )
         ):
             result = True
         return result
-
-    def as_major(self) -> "PythonVersion":
-        self_dict = self.as_dict()
-        self_dict.update({"minor": None, "patch": None})
-        return self.create(**self_dict)
-
-    def as_minor(self) -> "PythonVersion":
-        self_dict = self.as_dict()
-        self_dict.update({"patch": None})
-        return self.create(**self_dict)
-
-    def as_dict(self) -> Dict[str, Union[int, bool, Version, None]]:
-        return {
-            "major": self.major,
-            "minor": self.minor,
-            "patch": self.patch,
-            "is_prerelease": self.is_prerelease,
-            "is_postrelease": self.is_postrelease,
-            "is_devrelease": self.is_devrelease,
-            "is_debug": self.is_debug,
-            "version": self.version,
-            "company": self.company,
-        }
 
     def update_metadata(self, metadata) -> None:
         """
