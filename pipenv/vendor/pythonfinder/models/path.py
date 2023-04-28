@@ -144,7 +144,6 @@ class SystemPath(BaseModel):
 
     def _run_setup(self) -> "SystemPath":
         path_order = self.path_order[:]
-        path_entries = self.paths.copy()
         if self.global_search and "PATH" in os.environ:
             path_order = path_order + os.environ["PATH"].split(os.pathsep)
         path_order = list(dedup(path_order))
@@ -156,7 +155,8 @@ class SystemPath(BaseModel):
                 for shim in SHIM_PATHS
             )
         ]
-        path_entries.update(
+        self.paths.clear()
+        self.paths.update(
             {
                 p.as_posix(): PathEntry.create(
                     path=p.absolute(), is_root=True, only_python=self.only_python
@@ -166,9 +166,8 @@ class SystemPath(BaseModel):
             }
         )
         self.path_order = [
-                p.as_posix() for p in path_instances if exists_and_is_accessible(p)
-            ]
-        self.paths = path_entries
+            p.as_posix() for p in path_instances if exists_and_is_accessible(p)
+        ]
         if os.name == "nt" and "windows" not in self.finders:
             self._setup_windows()
         #: slice in pyenv
@@ -459,14 +458,15 @@ class SystemPath(BaseModel):
         :rtype: :class:`~pythonfinder.models.PathEntry`
         """
         major, minor, patch, name = split_version_and_name(major, minor, patch, name)
-        sub_finder = operator.methodcaller(
-            "find_python_version", major, minor, patch, pre, dev, arch, name
-        )
+
+        def sub_finder(obj):
+            return obj.find_python_version(major, minor, patch, pre, dev, arch, name)
+
         alternate_sub_finder = None
         if name and not (minor or patch or pre or dev or arch or major):
-            alternate_sub_finder = operator.methodcaller(
-                "find_all_python_versions", None, None, None, None, None, None, name
-            )
+            def alternate_sub_finder(obj):
+                return obj.find_all_python_versions(None, None, None, None, None, None, name)
+
         if major and minor and patch:
             _tuple_pre = pre if pre is not None else False
             _tuple_dev = dev if dev is not None else False

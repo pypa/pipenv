@@ -2,7 +2,7 @@ import operator
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from pipenv.vendor.pydantic import BaseModel, Field
+from pipenv.vendor.pydantic import Field
 
 from ..exceptions import InvalidPythonVersion
 from ..utils import ensure_path

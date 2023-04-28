@@ -2,6 +2,8 @@ import operator
 import os
 from typing import Any, Dict, List, Optional, Union
 
+from pipenv.vendor.pydantic import BaseModel
+
 from .exceptions import InvalidPythonVersion
 from .utils import Iterable, version_re
 from .models.path import PathEntry, SystemPath
@@ -9,55 +11,29 @@ from .models.windows import WindowsFinder
 from .models.python import PythonVersion
 
 
-class Finder(object):
+class Finder(BaseModel):
 
-    """
-    A cross-platform Finder for locating python and other executables.
+    path_prepend: Optional[str] = None
+    system: bool = False
+    global_search: bool = True
+    ignore_unsupported: bool = True
+    sort_by_path: bool = False
+    windows_finder: Optional[WindowsFinder] = None if os.name != "nt" else WindowsFinder()
+    system_path: Optional[SystemPath] = None
 
-    Searches for python and other specified binaries starting in *path*, if supplied,
-    but searching the bin path of ``sys.executable`` if *system* is ``True``, and then
-    searching in the ``os.environ['PATH']`` if *global_search* is ``True``.  When *global_search*
-    is ``False``, this search operation is restricted to the allowed locations of
-    *path* and *system*.
-    """
+    def __post_init__(self) -> None:
+        if os.name == "nt":
+            self.windows_finder = WindowsFinder()
+        self.system_path = self.create_system_path()
 
-    def __init__(
-        self,
-        path=None,
-        system=False,
-        global_search=True,
-        ignore_unsupported=True,
-        sort_by_path=False,
-    ) -> None:
-        """Create a new :class:`~pythonfinder.pythonfinder.Finder` instance.
-
-        :param path: A bin-directory search location, defaults to None
-        :param path: str, optional
-        :param system: Whether to include the bin-dir of ``sys.executable``, defaults to False
-        :param system: bool, optional
-        :param global_search: Whether to search the global path from os.environ, defaults to True
-        :param global_search: bool, optional
-        :param ignore_unsupported: Whether to ignore unsupported python versions, if False, an
-            error is raised, defaults to True
-        :param ignore_unsupported: bool, optional
-        :param bool sort_by_path: Whether to always sort by path
-        :returns: a :class:`~pythonfinder.pythonfinder.Finder` object.
-        """
-        self.path_prepend = path  # type: Optional[str]
-        self.global_search = global_search  # type: bool
-        self.system = system  # type: bool
-        self.sort_by_path = sort_by_path  # type: bool
-        self.ignore_unsupported = ignore_unsupported  # type: bool
-        self.windows_finder = None if os.name != "nt" else WindowsFinder()
-        self.system_path = self.create_system_path()  # type: Optional[SystemPath]
-
+    @property
     def __hash__(self) -> int:
         return hash(
             (self.path_prepend, self.system, self.global_search, self.ignore_unsupported)
         )
 
     def __eq__(self, other) -> bool:
-        return self.__hash__() == other.__hash__()
+        return self.__hash__ == other.__hash__
 
     def create_system_path(self) -> SystemPath:
         return SystemPath.create(
