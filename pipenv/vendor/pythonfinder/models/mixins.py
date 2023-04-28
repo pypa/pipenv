@@ -102,6 +102,8 @@ class BasePath(BaseModel):
         if self.py_version:
             return self.py_version
         if not self.is_dir and self.is_python:
+            from .python import PythonVersion
+
             try:
                 py_version = PythonVersion.from_path(  # type: ignore
                     path=self, name=self.name
@@ -190,7 +192,7 @@ class BasePath(BaseModel):
         return None
 
     @property
-    def py_version(self) -> Optional[PythonVersion]:
+    def py_version(self) -> Optional["PythonVersion"]:
         if not self._py_version:
             py_version = self.get_py_version()
             self._py_version = py_version
