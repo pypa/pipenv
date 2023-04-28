@@ -40,7 +40,6 @@ class PythonFinder(PathEntry):
     paths: List = Field(default_factory=lambda: list())
     shim_dir: str = "shims"
     versions: Dict = Field(default_factory=lambda: defaultdict())
-    pythons: Dict = Field(default_factory=lambda: defaultdict(PathEntry))
 
     class Config:
         validate_assignment = True

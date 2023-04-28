@@ -239,7 +239,6 @@ class SystemPath(BaseModel):
     def _setup_asdf(self) -> "SystemPath":
         if "asdf" in self.finders and self.asdf_finder is not None:
             return self
-        from .python import PythonFinder
 
         os_path = os.environ["PATH"].split(os.pathsep)
         asdf_finder = PythonFinder.create(
@@ -270,7 +269,6 @@ class SystemPath(BaseModel):
     def _setup_pyenv(self) -> "SystemPath":
         if "pyenv" in self.finders and self.pyenv_finder is not None:
             return self
-        from .python import PythonFinder
 
         os_path = os.environ["PATH"].split(os.pathsep)
 
