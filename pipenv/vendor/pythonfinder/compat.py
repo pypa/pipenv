@@ -1,12 +1,3 @@
-# -*- coding=utf-8 -*-
-import sys
-
-from pathlib import Path
-
-from builtins import TimeoutError
-from functools import lru_cache
-
-
 def getpreferredencoding():
     import locale
 

@@ -1,30 +1,24 @@
-# -*- coding=utf-8 -*-
-
 import errno
 import operator
 import os
-import stat
+from pathlib import Path
 import sys
-from collections import defaultdict
-from itertools import chain
+from collections import defaultdict, ChainMap
+from typing import Any, Dict, List, Generator, Iterator, Optional, Tuple, Union
 
-import pipenv.vendor.attr as attr
+from pipenv.vendor.pydantic import BaseModel, Field, validator, root_validator
 from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 
-from ..compat import Path, fs_str
+from ..compat import fs_str
 from ..environment import (
     ASDF_DATA_DIR,
     ASDF_INSTALLED,
-    MYPY_RUNNING,
     PYENV_INSTALLED,
     PYENV_ROOT,
     SHIM_PATHS,
     get_shim_paths,
 )
-from ..exceptions import InvalidPythonVersion
 from ..utils import (
-    Iterable,
-    Sequence,
     dedup,
     ensure_path,
     filter_pythons,
@@ -37,30 +31,9 @@ from ..utils import (
     split_version_and_name,
     unnest,
 )
-from .mixins import BaseFinder, BasePath
-
-if MYPY_RUNNING:
-    from typing import (
-        Any,
-        Callable,
-        DefaultDict,
-        Dict,
-        Generator,
-        Iterator,
-        List,
-        Optional,
-        Tuple,
-        Type,
-        TypeVar,
-        Union,
-    )
-
-    from .python import PythonFinder, PythonVersion
-    from .windows import WindowsFinder
-
-    FinderType = TypeVar("FinderType", BaseFinder, PythonFinder, WindowsFinder)
-    ChildType = Union[PythonFinder, "PathEntry"]
-    PathType = Union[PythonFinder, "PathEntry"]
+from .mixins import PathEntry
+from .python import PythonFinder, PythonVersion
+from .windows import WindowsFinder
 
 
 def exists_and_is_accessible(path):
@@ -73,81 +46,70 @@ def exists_and_is_accessible(path):
             raise
 
 
-@attr.s
-class SystemPath(object):
-    global_search = attr.ib(default=True)
-    paths = attr.ib(
-        default=attr.Factory(defaultdict)
-    )  # type: DefaultDict[str, Union[PythonFinder, PathEntry]]
-    _executables = attr.ib(default=attr.Factory(list))  # type: List[PathEntry]
-    _python_executables = attr.ib(
-        default=attr.Factory(dict)
-    )  # type: Dict[str, PathEntry]
-    path_order = attr.ib(default=attr.Factory(list))  # type: List[str]
-    python_version_dict = attr.ib()  # type: DefaultDict[Tuple, List[PythonVersion]]
-    only_python = attr.ib(default=False, type=bool)
-    pyenv_finder = attr.ib(default=None)  # type: Optional[PythonFinder]
-    asdf_finder = attr.ib(default=None)  # type: Optional[PythonFinder]
-    windows_finder = attr.ib(default=None)  # type: Optional[WindowsFinder]
-    system = attr.ib(default=False, type=bool)
-    _version_dict = attr.ib(
-        default=attr.Factory(defaultdict)
-    )  # type: DefaultDict[Tuple, List[PathEntry]]
-    ignore_unsupported = attr.ib(default=False, type=bool)
+class SystemPath(BaseModel):
+    global_search: bool = True
+    paths: Dict[str, Union[PythonFinder, PathEntry]] = Field(default_factory=lambda: defaultdict(PathEntry))
+    executables: List[PathEntry] = Field(default_factory=list)
+    python_executables: Dict[str, PathEntry] = Field(default_factory=dict)
+    path_order: List[str] = Field(default_factory=list)
+    python_version_dict: Dict[Tuple, Any] = Field(default_factory=lambda: defaultdict(list))
+    _version_dict: Dict[Tuple, List[PathEntry]] = Field(default_factory=lambda: defaultdict(list))
+    only_python: bool = False
+    pyenv_finder: Optional[PythonFinder] = None
+    asdf_finder: Optional[PythonFinder] = None
+    windows_finder: Optional[WindowsFinder] = None
+    system: bool = False
+    ignore_unsupported: bool = False
+    finders_dict: Dict[str, Union[WindowsFinder, PythonFinder]] = Field(default_factory=lambda: dict())
 
-    __finders = attr.ib(
-        default=attr.Factory(dict)
-    )  # type: Dict[str, Union[WindowsFinder, PythonFinder]]
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        include_private_attributes = True
+        keep_untouched = (cached_property,)
 
-    def _register_finder(self, finder_name, finder):
-        # type: (str, Union[WindowsFinder, PythonFinder]) -> "SystemPath"
-        if finder_name not in self.__finders:
-            self.__finders[finder_name] = finder
+    def __init__(self, **data):
+        super().__init__(**data)
+        python_executables = {}
+        for child in self.paths.values():
+            if child.pythons:
+                python_executables.update(dict(child.pythons))
+        for _, finder in self.finders_dict.items():
+            if finder.pythons:
+                python_executables.update(dict(finder.pythons))
+        self.python_executables = python_executables
+
+    @root_validator(pre=True)
+    def set_defaults(cls, values):
+        values['python_version_dict'] = defaultdict(list)
+        values['pyenv_finder'] = None
+        values['windows_finder'] = None
+        values['asdf_finder'] = None
+        values['path_order'] = []
+        values['_finders'] = {}
+        values['paths'] = defaultdict(PathEntry)
+        return values
+
+    @root_validator(pre=True)
+    def set_executables(cls, values):
+        paths = values.get('paths')
+        if paths:
+            values['executables'] = [
+                p
+                for p in ChainMap(*(child.children.values() for child in paths.values()))
+                if p.is_executable
+            ]
+        return values
+		
+	def _register_finder(self, finder_name, finder):
+        if finder_name not in self.finders_dict:
+            self.finders_dict[finder_name] = finder
         return self
 
-    def clear_caches(self):
-        for key in ["executables", "python_executables", "version_dict", "path_entries"]:
-            if key in self.__dict__:
-                del self.__dict__[key]
-        for finder in list(self.__finders.keys()):
-            del self.__finders[finder]
-        self.__finders = {}
-        return attr.evolve(
-            self,
-            executables=[],
-            python_executables={},
-            python_version_dict=defaultdict(list),
-            version_dict=defaultdict(list),
-            pyenv_finder=None,
-            windows_finder=None,
-            asdf_finder=None,
-            path_order=[],
-            paths=defaultdict(PathEntry),
-        )
-
-    def __del__(self):
-        for key in ["executables", "python_executables", "version_dict", "path_entries"]:
-            try:
-                del self.__dict__[key]
-            except KeyError:
-                pass
-        for finder in list(self.__finders.keys()):
-            del self.__finders[finder]
-        self.__finders = {}
-        self._python_executables = {}
-        self._executables = []
-        self.python_version_dict = defaultdict(list)
-        self._version_dict = defaultdict(list)
-        self.path_order = []
-        self.pyenv_finder = None
-        self.asdf_finder = None
-        self.paths = defaultdict(PathEntry)
-        self.__finders = {}
-
     @property
-    def finders(self):
-        # type: () -> List[str]
-        return [k for k in self.__finders.keys()]
+    def finders(self) -> List[str]:
+        return [k for k in self.finders_dict.keys()]
 
     @staticmethod
     def check_for_pyenv():
@@ -156,11 +118,6 @@ class SystemPath(object):
     @staticmethod
     def check_for_asdf():
         return ASDF_INSTALLED or os.path.exists(normalize_path(ASDF_DATA_DIR))
-
-    @python_version_dict.default
-    def create_python_version_dict(self):
-        # type: () -> DefaultDict[Tuple, List[PythonVersion]]
-        return defaultdict(list)
 
     @cached_property
     def executables(self):
@@ -191,7 +148,7 @@ class SystemPath(object):
         self._version_dict = defaultdict(
             list
         )  # type: DefaultDict[Tuple, List[PathEntry]]
-        for finder_name, finder in self.__finders.items():
+        for finder_name, finder in self.finders_dict.items():
             for version, entry in finder.versions.items():
                 if finder_name == "windows":
                     if entry not in self._version_dict[version]:
@@ -209,13 +166,8 @@ class SystemPath(object):
                 self._version_dict[version].append(entry)
         return self._version_dict
 
-    def _run_setup(self):
-        # type: () -> "SystemPath"
-        if not self.__class__ == SystemPath:
-            return self
-        new_instance = self
-        path_order = new_instance.path_order[:]
-        path_entries = self.paths.copy()
+    def _run_setup(self) -> "SystemPath":
+        path_order = self.path_order[:]
         if self.global_search and "PATH" in os.environ:
             path_order = path_order + os.environ["PATH"].split(os.pathsep)
         path_order = list(dedup(path_order))
@@ -227,7 +179,7 @@ class SystemPath(object):
                 for shim in SHIM_PATHS
             )
         ]
-        path_entries.update(
+        self.paths.update(
             {
                 p.as_posix(): PathEntry.create(
                     path=p.absolute(), is_root=True, only_python=self.only_python
@@ -236,48 +188,40 @@ class SystemPath(object):
                 if exists_and_is_accessible(p)
             }
         )
-        new_instance = attr.evolve(
-            new_instance,
-            path_order=[
-                p.as_posix() for p in path_instances if exists_and_is_accessible(p)
-            ],
-            paths=path_entries,
-        )
+        self.path_order = [
+            p.as_posix() for p in path_instances if exists_and_is_accessible(p)
+        ]
         if os.name == "nt" and "windows" not in self.finders:
-            new_instance = new_instance._setup_windows()
+            self._setup_windows()
         #: slice in pyenv
         if self.check_for_pyenv() and "pyenv" not in self.finders:
-            new_instance = new_instance._setup_pyenv()
+            self._setup_pyenv()
         #: slice in asdf
         if self.check_for_asdf() and "asdf" not in self.finders:
-            new_instance = new_instance._setup_asdf()
+            self._setup_asdf()
         venv = os.environ.get("VIRTUAL_ENV")
         if os.name == "nt":
             bin_dir = "Scripts"
         else:
             bin_dir = "bin"
-        if venv and (new_instance.system or new_instance.global_search):
+        if venv and (self.system or self.global_search):
             p = ensure_path(venv)
-            path_order = [(p / bin_dir).as_posix()] + new_instance.path_order
-            new_instance = attr.evolve(new_instance, path_order=path_order)
-            paths = new_instance.paths.copy()
-            paths[p] = new_instance.get_path(p.joinpath(bin_dir))
-            new_instance = attr.evolve(new_instance, paths=paths)
-        if new_instance.system:
+            path_order = [(p / bin_dir).as_posix()] + self.path_order
+            self.path_order = path_order
+            self.paths[p] = self.get_path(p.joinpath(bin_dir))
+        if self.system:
             syspath = Path(sys.executable)
             syspath_bin = syspath.parent
             if syspath_bin.name != bin_dir and syspath_bin.joinpath(bin_dir).exists():
                 syspath_bin = syspath_bin / bin_dir
-            path_order = [syspath_bin.as_posix()] + new_instance.path_order
-            paths = new_instance.paths.copy()
-            paths[syspath_bin] = PathEntry.create(
+            path_order = [syspath_bin.as_posix()] + self.path_order
+            self.paths[syspath_bin] = PathEntry.create(
                 path=syspath_bin, is_root=True, only_python=False
             )
-            new_instance = attr.evolve(new_instance, path_order=path_order, paths=paths)
-        return new_instance
+            self.path_order = path_order
+	    return self
 
-    def _get_last_instance(self, path):
-        # type: (str) -> int
+    def _get_last_instance(self, path) -> int:
         reversed_paths = reversed(self.path_order)
         paths = [normalize_path(p) for p in reversed_paths]
         normalized_target = normalize_path(path)
@@ -287,10 +231,9 @@ class SystemPath(object):
         path_index = self.path_order.index(last_instance)
         return path_index
 
-    def _slice_in_paths(self, start_idx, paths):
-        # type: (int, List[Path]) -> "SystemPath"
-        before_path = []  # type: List[str]
-        after_path = []  # type: List[str]
+    def _slice_in_paths(self, start_idx, paths) -> "SystemPath":
+        before_path = []
+        after_path = []
         if start_idx == 0:
             after_path = self.path_order[:]
         elif start_idx == -1:
@@ -299,31 +242,27 @@ class SystemPath(object):
             before_path = self.path_order[: start_idx + 1]
             after_path = self.path_order[start_idx + 2 :]
         path_order = before_path + [p.as_posix() for p in paths] + after_path
-        if path_order == self.path_order:
-            return self
-        return attr.evolve(self, path_order=path_order)
+        self.path_order = path_order
+		return self
 
-    def _remove_path(self, path):
-        # type: (str) -> "SystemPath"
+    def _remove_path(self, path) -> "SystemPath":
         path_copy = [p for p in reversed(self.path_order[:])]
         new_order = []
         target = normalize_path(path)
         path_map = {normalize_path(pth): pth for pth in self.paths.keys()}
-        new_paths = self.paths.copy()
         if target in path_map:
-            del new_paths[path_map[target]]
+            del self.paths[path_map[target]]
         for current_path in path_copy:
             normalized = normalize_path(current_path)
             if normalized != target:
                 new_order.append(normalized)
         new_order = [ensure_path(p).as_posix() for p in reversed(new_order)]
-        return attr.evolve(self, path_order=new_order, paths=new_paths)
+        self.path_order = new_order
+        return self
 
-    def _setup_asdf(self):
-        # type: () -> "SystemPath"
+    def _setup_asdf(self) -> "SystemPath":
         if "asdf" in self.finders and self.asdf_finder is not None:
             return self
-        from .python import PythonFinder
 
         os_path = os.environ["PATH"].split(os.pathsep)
         asdf_finder = PythonFinder.create(
@@ -343,49 +282,17 @@ class SystemPath(object):
             return self
         # * These are the root paths for the finder
         _ = [p for p in asdf_finder.roots]
-        new_instance = self._slice_in_paths(asdf_index, [asdf_finder.root])
-        paths = self.paths.copy()
-        paths[asdf_finder.root] = asdf_finder
-        paths.update(asdf_finder.roots)
-        return (
-            attr.evolve(new_instance, paths=paths, asdf_finder=asdf_finder)
-            ._remove_path(normalize_path(os.path.join(ASDF_DATA_DIR, "shims")))
-            ._register_finder("asdf", asdf_finder)
-        )
+        self._slice_in_paths(asdf_index, [asdf_finder.root])
+        self.paths[asdf_finder.root] = asdf_finder
+        self.paths.update(asdf_finder.roots)
+        self.asdf_finder = asdf_finder
+        self._remove_path(normalize_path(os.path.join(ASDF_DATA_DIR, "shims")))
+        self._register_finder("asdf", asdf_finder)
+        return self
 
-    def reload_finder(self, finder_name):
-        # type: (str) -> "SystemPath"
-        if finder_name is None:
-            raise TypeError("Must pass a string as the name of the target finder")
-        finder_attr = "{0}_finder".format(finder_name)
-        setup_attr = "_setup_{0}".format(finder_name)
-        try:
-            current_finder = getattr(self, finder_attr)  # type: Any
-        except AttributeError:
-            raise ValueError("Must pass a valid finder to reload.")
-        try:
-            setup_fn = getattr(self, setup_attr)
-        except AttributeError:
-            raise ValueError("Finder has no valid setup function: %s" % finder_name)
-        if current_finder is None:
-            # TODO: This is called 'reload', should we load a new finder for the first
-            # time here? lets just skip that for now to avoid unallowed finders
-            pass
-        if (finder_name == "pyenv" and not PYENV_INSTALLED) or (
-            finder_name == "asdf" and not ASDF_INSTALLED
-        ):
-            # Don't allow loading of finders that aren't explicitly 'installed' as it were
-            return self
-        setattr(self, finder_attr, None)
-        if finder_name in self.__finders:
-            del self.__finders[finder_name]
-        return setup_fn()
-
-    def _setup_pyenv(self):
-        # type: () -> "SystemPath"
+    def _setup_pyenv(self) -> "SystemPath":
         if "pyenv" in self.finders and self.pyenv_finder is not None:
             return self
-        from .python import PythonFinder
 
         os_path = os.environ["PATH"].split(os.pathsep)
 
@@ -406,18 +313,16 @@ class SystemPath(object):
             return self
         # * These are the root paths for the finder
         _ = [p for p in pyenv_finder.roots]
-        new_instance = self._slice_in_paths(pyenv_index, [pyenv_finder.root])
-        paths = new_instance.paths.copy()
-        paths[pyenv_finder.root] = pyenv_finder
-        paths.update(pyenv_finder.roots)
-        return (
-            attr.evolve(new_instance, paths=paths, pyenv_finder=pyenv_finder)
-            ._remove_path(os.path.join(PYENV_ROOT, "shims"))
-            ._register_finder("pyenv", pyenv_finder)
-        )
+        self._slice_in_paths(pyenv_index, [pyenv_finder.root])
+        self.paths[pyenv_finder.root] = pyenv_finder
+        self.paths.update(pyenv_finder.roots)
+        self.pyenv_finder = pyenv_finder
+        self._remove_path(os.path.join(PYENV_ROOT, "shims"))
+        self._register_finder("pyenv", pyenv_finder)
+        return self
 
-    def _setup_windows(self):
-        # type: () -> "SystemPath"
+
+    def _setup_windows(self) -> "SystemPath":
         if "windows" in self.finders and self.windows_finder is not None:
             return self
         from .windows import WindowsFinder
@@ -428,15 +333,13 @@ class SystemPath(object):
         new_path_order = self.path_order[:] + path_addition
         new_paths = self.paths.copy()
         new_paths.update({p.path: p for p in root_paths})
-        return attr.evolve(
-            self,
-            windows_finder=windows_finder,
-            path_order=new_path_order,
-            paths=new_paths,
-        )._register_finder("windows", windows_finder)
+        self.windows_finder = windows_finder
+        self.path_order = new_path_order
+        self.paths = new_paths
+        self._register_finder("windows", windows_finder)
+        return self
 
-    def get_path(self, path):
-        # type: (Union[str, Path]) -> PathType
+    def get_path(self, path) -> Union[PythonFinder, PathEntry]:
         if path is None:
             raise TypeError("A path must be provided in order to generate a path entry.")
         path = ensure_path(path)
@@ -452,8 +355,7 @@ class SystemPath(object):
             raise ValueError("Path not found or generated: {0!r}".format(path))
         return _path
 
-    def _get_paths(self):
-        # type: () -> Generator[Union[PathType, WindowsFinder], None, None]
+    def _get_paths(self) -> Generator[Union[PythonFinder, PathEntry, WindowsFinder], None, None]:
         for path in self.path_order:
             try:
                 entry = self.get_path(path)
@@ -463,13 +365,11 @@ class SystemPath(object):
                 yield entry
 
     @cached_property
-    def path_entries(self):
-        # type: () -> List[Union[PathType, WindowsFinder]]
+    def path_entries(self) -> List[Union[PythonFinder, PathEntry, WindowsFinder]]:
         paths = list(self._get_paths())
         return paths
 
-    def find_all(self, executable):
-        # type: (str) -> List[Union[PathEntry, FinderType]]
+    def find_all(self, executable) -> List[Union["PathEntry", PythonFinder, WindowsFinder]]:
         """
         Search the path for an executable. Return all copies.
 
@@ -482,8 +382,7 @@ class SystemPath(object):
         filtered = (sub_which(self.get_path(k)) for k in self.path_order)
         return list(filtered)
 
-    def which(self, executable):
-        # type: (str) -> Union[PathEntry, None]
+    def which(self, executable) -> Union["PathEntry", None]:
         """
         Search for an executable on the path.
 
@@ -496,8 +395,7 @@ class SystemPath(object):
         filtered = (sub_which(self.get_path(k)) for k in self.path_order)
         return next(iter(f for f in filtered if f is not None), None)
 
-    def _filter_paths(self, finder):
-        # type: (Callable) -> Iterator
+    def _filter_paths(self, finder) -> Iterator:
         for path in self._get_paths():
             if path is None:
                 continue
@@ -507,128 +405,110 @@ class SystemPath(object):
                     if python is not None:
                         yield python
 
-    def _get_all_pythons(self, finder):
-        # type: (Callable) -> Iterator
+    def _get_all_pythons(self, finder) -> Iterator:
         for python in self._filter_paths(finder):
             if python is not None and python.is_python:
                 yield python
 
-    def get_pythons(self, finder):
-        # type: (Callable) -> Iterator
-        sort_key = operator.attrgetter("as_python.version_sort")
+    def get_pythons(self, finder) -> Iterator:
+        def version_sort_key(entry):
+            return entry.as_python.version_sort
+
         pythons = [entry for entry in self._get_all_pythons(finder)]
-        for python in sorted(pythons, key=sort_key, reverse=True):
+        for python in sorted(pythons, key=version_sort_key, reverse=True):
             if python is not None:
                 yield python
 
-    def find_all_python_versions(
-        self,
-        major=None,  # type: Optional[Union[str, int]]
-        minor=None,  # type: Optional[int]
-        patch=None,  # type: Optional[int]
-        pre=None,  # type: Optional[bool]
-        dev=None,  # type: Optional[bool]
-        arch=None,  # type: Optional[str]
-        name=None,  # type: Optional[str]
-    ):
-        # type (...) -> List[PathEntry]
-        """Search for a specific python version on the path. Return all copies
+def find_all_python_versions(
+    self,
+    major=None,  # type: Optional[Union[str, int]]
+    minor=None,  # type: Optional[int]
+    patch=None,  # type: Optional[int]
+    pre=None,  # type: Optional[bool]
+    dev=None,  # type: Optional[bool]
+    arch=None,  # type: Optional[str]
+    name=None,  # type: Optional[str]
+) -> List["PathEntry"]:
 
-        :param major: Major python version to search for.
-        :type major: int
-        :param int minor: Minor python version to search for, defaults to None
-        :param int patch: Patch python version to search for, defaults to None
-        :param bool pre: Search for prereleases (default None) - prioritize releases if None
-        :param bool dev: Search for devreleases (default None) - prioritize releases if None
-        :param str arch: Architecture to include, e.g. '64bit', defaults to None
-        :param str name: The name of a python version, e.g. ``anaconda3-5.3.0``
-        :return: A list of :class:`~pythonfinder.models.PathEntry` instances matching the version requested.
-        :rtype: List[:class:`~pythonfinder.models.PathEntry`]
-        """
+    def sub_finder(obj):
+        return obj.find_all_python_versions(major, minor, patch, pre, dev, arch, name)
 
-        sub_finder = operator.methodcaller(
-            "find_all_python_versions", major, minor, patch, pre, dev, arch, name
-        )
-        alternate_sub_finder = None
-        if major and not (minor or patch or pre or dev or arch or name):
-            alternate_sub_finder = operator.methodcaller(
-                "find_all_python_versions", None, None, None, None, None, None, major
-            )
-        if os.name == "nt" and self.windows_finder:
-            windows_finder_version = sub_finder(self.windows_finder)
-            if windows_finder_version:
-                return windows_finder_version
-        values = list(self.get_pythons(sub_finder))
-        if not values and alternate_sub_finder is not None:
-            values = list(self.get_pythons(alternate_sub_finder))
-        return values
+    alternate_sub_finder = None
+    if major and not (minor or patch or pre or dev or arch or name):
+        def alternate_sub_finder(obj):
+            return obj.find_all_python_versions(None, None, None, None, None, None, major)
 
-    def find_python_version(
-        self,
-        major=None,  # type: Optional[Union[str, int]]
-        minor=None,  # type: Optional[Union[str, int]]
-        patch=None,  # type: Optional[Union[str, int]]
-        pre=None,  # type: Optional[bool]
-        dev=None,  # type: Optional[bool]
-        arch=None,  # type: Optional[str]
-        name=None,  # type: Optional[str]
-        sort_by_path=False,  # type: bool
-    ):
-        # type: (...) -> PathEntry
-        """Search for a specific python version on the path.
+    if os.name == "nt" and self.windows_finder:
+        windows_finder_version = sub_finder(self.windows_finder)
+        if windows_finder_version:
+            return windows_finder_version
 
-        :param major: Major python version to search for.
-        :type major: int
-        :param int minor: Minor python version to search for, defaults to None
-        :param int patch: Patch python version to search for, defaults to None
-        :param bool pre: Search for prereleases (default None) - prioritize releases if None
-        :param bool dev: Search for devreleases (default None) - prioritize releases if None
-        :param str arch: Architecture to include, e.g. '64bit', defaults to None
-        :param str name: The name of a python version, e.g. ``anaconda3-5.3.0``
-        :param bool sort_by_path: Whether to sort by path -- default sort is by version(default: False)
-        :return: A :class:`~pythonfinder.models.PathEntry` instance matching the version requested.
-        :rtype: :class:`~pythonfinder.models.PathEntry`
-        """
+    values = list(self.get_pythons(sub_finder))
+    if not values and alternate_sub_finder is not None:
+        values = list(self.get_pythons(alternate_sub_finder))
 
-        major, minor, patch, name = split_version_and_name(major, minor, patch, name)
-        sub_finder = operator.methodcaller(
-            "find_python_version", major, minor, patch, pre, dev, arch, name
-        )
-        alternate_sub_finder = None
-        if name and not (minor or patch or pre or dev or arch or major):
-            alternate_sub_finder = operator.methodcaller(
-                "find_all_python_versions", None, None, None, None, None, None, name
-            )
-        if major and minor and patch:
-            _tuple_pre = pre if pre is not None else False
-            _tuple_dev = dev if dev is not None else False
-            version_tuple = (major, minor, patch, _tuple_pre, _tuple_dev)
-            version_tuple_pre = (major, minor, patch, True, False)
-        if os.name == "nt" and self.windows_finder:
-            windows_finder_version = sub_finder(self.windows_finder)
-            if windows_finder_version:
-                return windows_finder_version
-        if sort_by_path:
-            paths = [self.get_path(k) for k in self.path_order]
+    return values
+
+
+def find_python_version(
+    self,
+    major=None,  # type: Optional[Union[str, int]]
+    minor=None,  # type: Optional[Union[str, int]]
+    patch=None,  # type: Optional[Union[str, int]]
+    pre=None,  # type: Optional[bool]
+    dev=None,  # type: Optional[bool]
+    arch=None,  # type: Optional[str]
+    name=None,  # type: Optional[str]
+    sort_by_path=False,  # type: bool
+) -> PathEntry:
+
+    def sub_finder(obj):
+        return obj.find_python_version(major, minor, patch, pre, dev, arch, name)
+
+    def alternate_sub_finder(obj):
+        return obj.find_all_python_versions(None, None, None, None, None, None, name)
+
+    major, minor, patch, name = split_version_and_name(major, minor, patch, name)
+    alternate_sub_finder = None
+
+    if name and not (minor or patch or pre or dev or arch or major):
+        alternate_sub_finder = alternate_sub_finder
+
+    if major and minor and patch:
+        _tuple_pre = pre if pre is not None else False
+        _tuple_dev = dev if dev is not None else False
+        version_tuple = (major, minor, patch, _tuple_pre, _tuple_dev)
+        version_tuple_pre = (major, minor, patch, True, False)
+
+    if os.name == "nt" and self.windows_finder:
+        windows_finder_version = sub_finder(self.windows_finder)
+        if windows_finder_version:
+            return windows_finder_version
+
+    if sort_by_path:
+        paths = [self.get_path(k) for k in self.path_order]
+        for path in paths:
+            found_version = sub_finder(path)
+            if found_version:
+                return found_version
+        if alternate_sub_finder:
             for path in paths:
-                found_version = sub_finder(path)
+                found_version = alternate_sub_finder(path)
                 if found_version:
                     return found_version
-            if alternate_sub_finder:
-                for path in paths:
-                    found_version = alternate_sub_finder(path)
-                    if found_version:
-                        return found_version
 
-        ver = next(iter(self.get_pythons(sub_finder)), None)
-        if not ver and alternate_sub_finder is not None:
-            ver = next(iter(self.get_pythons(alternate_sub_finder)), None)
-        if ver:
-            if ver.as_python.version_tuple[:5] in self.python_version_dict:
-                self.python_version_dict[ver.as_python.version_tuple[:5]].append(ver)
-            else:
-                self.python_version_dict[ver.as_python.version_tuple[:5]] = [ver]
-        return ver
+    ver = next(iter(self.get_pythons(sub_finder)), None)
+    if not ver and alternate_sub_finder is not None:
+        ver = next(iter(self.get_pythons(alternate_sub_finder)), None)
+
+    if ver:
+        if ver.as_python.version_tuple[:5] in self.python_version_dict:
+            self.python_version_dict[ver.as_python.version_tuple[:5]].append(ver)
+        else:
+            self.python_version_dict[ver.as_python.version_tuple[:5]] = [ver]
+
+    return ver
+
 
     @classmethod
     def create(
@@ -638,8 +518,7 @@ class SystemPath(object):
         only_python=False,  # type: bool
         global_search=True,  # type: bool
         ignore_unsupported=True,  # type: bool
-    ):
-        # type: (...) -> SystemPath
+    ) -> "SystemPath":
         """Create a new :class:`pythonfinder.models.SystemPath` instance.
 
         :param path: Search path to prepend when searching, defaults to None
@@ -651,10 +530,8 @@ class SystemPath(object):
         :rtype: :class:`pythonfinder.models.SystemPath`
         """
 
-        path_entries = defaultdict(
-            PathEntry
-        )  # type: DefaultDict[str, Union[PythonFinder, PathEntry]]
-        paths = []  # type: List[str]
+        path_entries = defaultdict(PathEntry)
+        paths = []
         if ignore_unsupported:
             os.environ["PYTHONFINDER_IGNORE_UNSUPPORTED"] = fs_str("1")
         if global_search:
@@ -693,150 +570,31 @@ class SystemPath(object):
             global_search=global_search,
             ignore_unsupported=ignore_unsupported,
         )
-        instance = instance._run_setup()
+        instance._run_setup()
         return instance
 
-
-@attr.s(slots=True)
-class PathEntry(BasePath):
-    is_root = attr.ib(default=True, type=bool, order=False)
-
-    def __lt__(self, other):
-        # type: (BasePath) -> bool
-        return self.path.as_posix() < other.path.as_posix()
-
-    def __lte__(self, other):
-        # type: (BasePath) -> bool
-        return self.path.as_posix() <= other.path.as_posix()
-
-    def __gt__(self, other):
-        # type: (BasePath) -> bool
-        return self.path.as_posix() > other.path.as_posix()
-
-    def __gte__(self, other):
-        # type: (BasePath) -> bool
-        return self.path.as_posix() >= other.path.as_posix()
-
-    def __del__(self):
-        if hasattr(self, "_children"):
-            del self._children
-        BasePath.__del__(self)
-
-    def _filter_children(self):
-        # type: () -> Iterator[Path]
-        if not os.access(str(self.path), os.R_OK):
-            return iter([])
-        if self.only_python:
-            children = filter_pythons(self.path)
-        else:
-            children = self.path.iterdir()
-        return children
-
-    def _gen_children(self):
-        # type: () -> Iterator
-        shim_paths = get_shim_paths()
-        pass_name = self.name != self.path.name
-        pass_args = {"is_root": False, "only_python": self.only_python}
-        if pass_name:
-            if self.name is not None and isinstance(self.name, str):
-                pass_args["name"] = self.name  # type: ignore
-            elif self.path is not None and isinstance(self.path.name, str):
-                pass_args["name"] = self.path.name  # type: ignore
-
-        if not self.is_dir:
-            yield (self.path.as_posix(), self)
-        elif self.is_root:
-            for child in self._filter_children():
-                if any(is_in_path(str(child), shim) for shim in shim_paths):
-                    continue
-                if self.only_python:
-                    try:
-                        entry = PathEntry.create(path=child, **pass_args)  # type: ignore
-                    except (InvalidPythonVersion, ValueError):
-                        continue
-                else:
-                    try:
-                        entry = PathEntry.create(path=child, **pass_args)  # type: ignore
-                    except (InvalidPythonVersion, ValueError):
-                        continue
-                yield (child.as_posix(), entry)
-        return
-
-    @property
-    def children(self):
-        # type: () -> Dict[str, PathEntry]
-        children = getattr(self, "_children", {})  # type: Dict[str, PathEntry]
-        if not children:
-            for child_key, child_val in self._gen_children():
-                children[child_key] = child_val
-            self.children = children
-        return self._children
-
-    @children.setter
-    def children(self, val):
-        # type: (Dict[str, PathEntry]) -> None
-        self._children = val
-
-    @children.deleter
-    def children(self):
-        # type: () -> None
-        del self._children
-
-    @classmethod
-    def create(cls, path, is_root=False, only_python=False, pythons=None, name=None):
-        # type: (Union[str, Path], bool, bool, Dict[str, PythonVersion], Optional[str]) -> PathEntry
-        """Helper method for creating new :class:`pythonfinder.models.PathEntry` instances.
-
-        :param str path: Path to the specified location.
-        :param bool is_root: Whether this is a root from the environment PATH variable, defaults to False
-        :param bool only_python: Whether to search only for python executables, defaults to False
-        :param dict pythons: A dictionary of existing python objects (usually from a finder), defaults to None
-        :param str name: Name of the python version, e.g. ``anaconda3-5.3.0``
-        :return: A new instance of the class.
-        :rtype: :class:`pythonfinder.models.PathEntry`
-        """
-
-        target = ensure_path(path)
-        guessed_name = False
-        if not name:
-            guessed_name = True
-            name = target.name
-        creation_args = {
-            "path": target,
-            "is_root": is_root,
-            "only_python": only_python,
-            "name": name,
-        }
-        if pythons:
-            creation_args["pythons"] = pythons
-        _new = cls(**creation_args)
-        if pythons and only_python:
-            children = {}
-            child_creation_args = {"is_root": False, "only_python": only_python}
-            if not guessed_name:
-                child_creation_args["name"] = _new.name  # type: ignore
-            for pth, python in pythons.items():
-                if any(shim in normalize_path(str(pth)) for shim in SHIM_PATHS):
-                    continue
-                pth = ensure_path(pth)
-                children[pth.as_posix()] = PathEntry(  # type: ignore
-                    py_version=python, path=pth, **child_creation_args
-                )
-            _new._children = children
-        return _new
-
-
-@attr.s
 class VersionPath(SystemPath):
-    base = attr.ib(default=None, validator=optional_instance_of(Path))  # type: Path
-    name = attr.ib(default=None)  # type: str
+    base: Optional[Path] = None
+    name: Optional[str] = None
+
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        include_private_attributes = True
+        # keep_untouched = (cached_property,)
+
+    @validator('base', pre=True)
+    def optional_instance_of_path(cls, value):
+        if value is not None and not isinstance(value, Path):
+            raise ValueError('The "base" attribute must be an instance of Path or None')
+        return value
 
     @classmethod
     def create(cls, path, only_python=True, pythons=None, name=None):
         """Accepts a path to a base python version directory.
 
         Generates the version listings for it"""
-        from .path import PathEntry
 
         path = ensure_path(path)
         path_entries = defaultdict(PathEntry)
