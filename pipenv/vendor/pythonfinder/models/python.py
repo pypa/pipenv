@@ -52,7 +52,7 @@ class PythonFinder(PathEntry):
     shim_dir: str = "shims"
     #: Versions discovered in the specified paths
     _versions: Dict = Field(default_factory=lambda: defaultdict())
-    _pythons: Dict = Field(default_factory=lambda: defaultdict())
+    pythons_ref: Dict = Field(default_factory=lambda: defaultdict())
 
     class Config:
         validate_assignment = True
@@ -74,12 +74,12 @@ class PythonFinder(PathEntry):
     @property
     def pythons(self):
         # type: () -> DefaultDict[str, PathEntry]
-        return self._pythons
+        return self.pythons_ref
 
     @pythons.setter
     def pythons(self, value):
         # type: (DefaultDict[str, PathEntry]) -> None
-        self._pythons = value
+        self.pythons_ref = value
 
     @property
     def expanded_paths(self):

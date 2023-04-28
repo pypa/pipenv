@@ -40,11 +40,11 @@ class PathEntry(BaseModel):
     path: Optional[Path] = None
     children: Optional[Any] = Field(default=None)
     only_python: Optional[bool] = False
-    _py_version: Optional[Any] = None
-    _pythons: Optional[Dict[Any, Any]] = defaultdict(lambda: None)
-    _is_dir: Optional[bool] = None
-    _is_executable: Optional[bool] = None
-    _is_python: Optional[bool] = None
+    py_version_ref: Optional[Any] = None
+    pythons_ref: Optional[Dict[Any, Any]] = defaultdict(lambda: None)
+    is_dir_ref: Optional[bool] = None
+    is_executable_ref: Optional[bool] = None
+    is_python_ref: Optional[bool] = None
 
     class Config:
         validate_assignment = True
@@ -118,59 +118,59 @@ class PathEntry(BaseModel):
 
     @property
     def is_dir(self) -> bool:
-        if self._is_dir is None:
+        if self.is_dir_ref is None:
             if not self.path:
                 ret_val = False
             try:
                 ret_val = self.path.is_dir()
             except OSError:
                 ret_val = False
-            self._is_dir = ret_val
-        return self._is_dir
+            self.is_dir_ref = ret_val
+        return self.is_dir_ref
 
     @is_dir.setter
     def is_dir(self, val) -> None:
-        self._is_dir = val
+        self.is_dir_ref = val
 
     @is_dir.deleter
     def is_dir(self) -> None:
-        self._is_dir = None
+        self.is_dir_ref = None
 
     @property
     def is_executable(self) -> bool:
-        if self._is_executable is None:
+        if self.is_executable_ref is None:
             if not self.path:
-                self._is_executable = False
+                self.is_executable_ref = False
             else:
-                self._is_executable = path_is_known_executable(self.path)
-        return self._is_executable
+                self.is_executable_ref = path_is_known_executable(self.path)
+        return self.is_executable_ref
 
     @is_executable.setter
     def is_executable(self, val) -> None:
-        self._is_executable = val
+        self.is_executable_ref = val
 
     @is_executable.deleter
     def is_executable(self) -> None:
-        self._is_executable = None
+        self.is_executable_ref = None
 
     @property
     def is_python(self) -> bool:
-        if self._is_python is None:
+        if self.is_python_ref is None:
             if not self.path:
-                self._is_python = False
+                self.is_python_ref = False
             else:
-                self._is_python = self.is_executable and (
+                self.is_python_ref = self.is_executable and (
                     looks_like_python(self.path.name)
                 )
-        return self._is_python
+        return self.is_python_ref
 
     @is_python.setter
     def is_python(self, val) -> None:
-        self._is_python = val
+        self.is_python_ref = val
 
     @is_python.deleter
     def is_python(self) -> None:
-        self._is_python = None
+        self.is_python_ref = None
 
     def get_py_version(self):
         # type: () -> Optional[PythonVersion]
@@ -196,20 +196,20 @@ class PathEntry(BaseModel):
 
     @property
     def py_version(self) -> Optional["PythonVersion"]:
-        if not self._py_version:
+        if not self.py_version_ref:
             py_version = self.get_py_version()
-            self._py_version = py_version
+            self.py_version_ref = py_version
         else:
-            py_version = self._py_version
+            py_version = self.py_version_ref
         return py_version
 
     @py_version.setter
     def py_version(self, val) -> None:
-        self._py_version = val
+        self.py_version_ref = val
 
     @py_version.deleter
     def py_version(self) -> None:
-        self._py_version = None
+        self.py_version_ref = None
 
     def _iter_pythons(self) -> Iterator:
         if self.is_dir:
@@ -226,12 +226,12 @@ class PathEntry(BaseModel):
 
     @property
     def pythons(self) -> Dict[Union[str, Path], "PathEntry"]:
-        if not self._pythons:
-            self._pythons = defaultdict(PathEntry)
+        if not self.pythons_ref:
+            self.pythons_ref = defaultdict(PathEntry)
             for python in self._iter_pythons():
                 python_path = python.path.as_posix()  # type: ignore
-                self._pythons[python_path] = python
-        return self._pythons
+                self.pythons_ref[python_path] = python
+        return self.pythons_ref
 
     def __iter__(self) -> Iterator:
         for entry in self.children.values():
