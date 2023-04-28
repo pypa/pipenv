@@ -36,7 +36,7 @@ from ..environment import (
 class BasePath(BaseModel):
     name: Optional[str] = None
     path: Optional[Path] = None
-    children: Optional[Dict[Any, Any]] = {}
+    children: Optional[Any] = {}
     only_python: Optional[bool] = False
     _py_version: Optional[Any] = None
     _pythons: Optional[Dict[Any, Any]] = defaultdict(lambda: None)
