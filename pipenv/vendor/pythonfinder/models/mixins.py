@@ -78,11 +78,6 @@ class BasePath(BaseModel):
                 self.is_python = self.is_executable and (
                     looks_like_python(self.path.name)
                 )
-        if not self.pythons:
-            self.pythons = defaultdict(PathEntry)
-            for python in self._iter_pythons():
-                python_path = python.path.as_posix()  # type: ignore
-                self.pythons[python_path] = python
 
     def __str__(self) -> str:
         return fs_str("{0}".format(self.path.as_posix()))
@@ -282,6 +277,11 @@ class PathEntry(BasePath):
             for child_key, child_val in self._gen_children():
                 children[child_key] = child_val
             self.children = children
+        if not self.pythons:
+            self.pythons = defaultdict(PathEntry)
+            for python in self._iter_pythons():
+                python_path = python.path.as_posix()  # type: ignore
+                self.pythons[python_path] = python
 
     def __lt__(self, other):
         return self.path.as_posix() < other.path.as_posix()
