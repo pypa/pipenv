@@ -53,6 +53,8 @@ class BasePath(BaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
+        if self.path:
+            self.name = self.path.name
         self.children = self._gen_children()
 
     def __str__(self) -> str:
@@ -108,12 +110,6 @@ class BasePath(BaseModel):
                 pass
         self.py_version = py_version
         return self.py_version
-
-    @name.default
-    def get_name(self) -> Optional[str]:
-        if self.path:
-            return self.path.name
-        return None
 
     @property
     def is_dir(self) -> bool:
