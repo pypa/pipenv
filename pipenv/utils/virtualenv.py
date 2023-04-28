@@ -3,6 +3,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from pipenv.vendor.pythonfinder import Finder
 from pipenv import environments, exceptions
 from pipenv.patched.pip._vendor import rich
 from pipenv.utils.dependencies import python_version
@@ -317,12 +318,6 @@ def ensure_python(project, python=None):
                             )
                             # Print the results, in a beautiful blue...
                             click.secho(c.stdout, fg="cyan", err=True)
-                            # Clear the pythonfinder caches
-                            from pipenv.vendor.pythonfinder import Finder
-
-                            finder = Finder(system=False, global_search=True)
-                            finder.find_python_version.cache_clear()
-                            finder.find_all_python_versions.cache_clear()
                     # Find the newly installed Python, hopefully.
                     version = str(version)
                     path_to_python = find_a_system_python(version)
@@ -353,9 +348,6 @@ def find_a_system_python(line):
     * Search for "python" and "pythonX.Y" executables in PATH to find a match.
     * Nothing fits, return None.
     """
-
-    from pipenv.vendor.pythonfinder import Finder
-
     if (line.startswith(("py ", "py.exe "))) and os.name == "nt":
         line = line.split(" ", 1)[1].lstrip("-")
     finder = Finder(line, system=True, global_search=True)

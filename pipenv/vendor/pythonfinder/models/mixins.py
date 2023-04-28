@@ -311,7 +311,7 @@ class PathEntry(BasePath):
             elif self.path is not None and isinstance(self.path.name, str):
                 pass_args["name"] = self.path.name  # type: ignore
 
-        if not self.is_dir:
+        if not self.is_dir and self.path:
             yield (self.path.as_posix(), self)
         elif self.is_root:
             for child in self._filter_children():
