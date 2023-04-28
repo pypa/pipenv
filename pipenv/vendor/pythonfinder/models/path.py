@@ -243,7 +243,7 @@ class SystemPath(BaseModel):
             after_path = self.path_order[start_idx + 2 :]
         path_order = before_path + [p.as_posix() for p in paths] + after_path
         self.path_order = path_order
-		return self
+        return self
 
     def _remove_path(self, path) -> "SystemPath":
         path_copy = [p for p in reversed(self.path_order[:])]
