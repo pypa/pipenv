@@ -37,7 +37,7 @@ class Finder(BaseModel):
         return self.__hash__ == other.__hash__
 
     def create_system_path(self) -> SystemPath:
-        return SystemPath.create(
+        return SystemPath(
             path=self.path_prepend,
             system=self.system,
             global_search=self.global_search,

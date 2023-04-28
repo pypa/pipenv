@@ -50,10 +50,10 @@ class SystemPath(BaseModel):
     global_search: bool = True
     paths: Dict[str, Union[PythonFinder, PathEntry]] = Field(default_factory=lambda: defaultdict(PathEntry))
     executables: List[PathEntry] = Field(default_factory=lambda: list())
-    _python_executables: Dict[str, PathEntry] = Field(default_factory=lambda: dict())
+    python_executables_tracking: Dict[str, PathEntry] = Field(default_factory=lambda: dict())
     path_order: List[str] = Field(default_factory=lambda: list())
     python_version_dict: Dict[Tuple, Any] = Field(default_factory=lambda: defaultdict(list))
-    _version_dict: Dict[Tuple, List[PathEntry]] = Field(default_factory=lambda: defaultdict(list))
+    version_dict_tracking: Dict[Tuple, List[PathEntry]] = Field(default_factory=lambda: defaultdict(list))
     only_python: bool = False
     pyenv_finder: Optional[PythonFinder] = None
     asdf_finder: Optional[PythonFinder] = None
@@ -78,7 +78,7 @@ class SystemPath(BaseModel):
         for _, finder in self.finders_dict.items():
             if finder.pythons:
                 python_executables.update(dict(finder.pythons))
-        self._python_executables = python_executables
+        self.python_executables_tracking = python_executables
 
     @root_validator(pre=True)
     def set_defaults(cls, values):
@@ -139,32 +139,32 @@ class SystemPath(BaseModel):
         for _, finder in self.__finders.items():
             if finder.pythons:
                 python_executables.update(dict(finder.pythons))
-        self._python_executables = python_executables
-        return self._python_executables
+        self.python_executables_tracking = python_executables
+        return self.python_executables_tracking
 
     @cached_property
     def version_dict(self):
         # type: () -> DefaultDict[Tuple, List[PathEntry]]
-        self._version_dict = defaultdict(
+        self.version_dict_tracking = defaultdict(
             list
         )  # type: DefaultDict[Tuple, List[PathEntry]]
         for finder_name, finder in self.finders_dict.items():
             for version, entry in finder.versions.items():
                 if finder_name == "windows":
-                    if entry not in self._version_dict[version]:
-                        self._version_dict[version].append(entry)
+                    if entry not in self.version_dict_tracking[version]:
+                        self.version_dict_tracking[version].append(entry)
                     continue
-                if entry not in self._version_dict[version] and entry.is_python:
-                    self._version_dict[version].append(entry)
+                if entry not in self.version_dict_tracking[version] and entry.is_python:
+                    self.version_dict_tracking[version].append(entry)
         for _, entry in self.python_executables.items():
             version = entry.as_python  # type: PythonVersion
             if not version:
                 continue
             if not isinstance(version, tuple):
                 version = version.version_tuple
-            if version and entry not in self._version_dict[version]:
-                self._version_dict[version].append(entry)
-        return self._version_dict
+            if version and entry not in self.version_dict_tracking[version]:
+                self.version_dict_tracking[version].append(entry)
+        return self.version_dict_tracking
 
     def _run_setup(self) -> "SystemPath":
         path_order = self.path_order[:]
