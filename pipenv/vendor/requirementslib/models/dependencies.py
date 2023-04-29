@@ -16,11 +16,15 @@ from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, global_te
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
-from pipenv.vendor.vistir.contextmanagers import temp_environ
-from pipenv.vendor.vistir.path import create_tracked_tempdir
 
 from ..environment import MYPY_RUNNING
-from ..utils import get_package_finder, get_pip_command, prepare_pip_source_args
+from ..fileutils import create_tracked_tempdir
+from ..utils import (
+    get_package_finder,
+    get_pip_command,
+    prepare_pip_source_args,
+    temp_environ,
+)
 from .cache import CACHE_DIR, DependencyCache
 from .setup_info import SetupInfo
 from .utils import (

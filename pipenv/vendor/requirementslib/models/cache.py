@@ -4,13 +4,13 @@ import hashlib
 import json
 import os
 
-import pipenv.vendor.vistir as vistir
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
 from pipenv.patched.pip._vendor.cachecontrol.cache import DictCache
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 
+from ..fileutils import open_file
 from .utils import as_tuple, get_pinned_version, key_from_req, lookup_table
 
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
@@ -30,7 +30,8 @@ class DependencyCache(object):
 
         ("ipython", "2.1.0")
 
-        For a requirement with extras, the extras will be comma-separated and appended to the version, inside brackets,
+        For a requirement with extras, the extras will be comma-separated and appended to the
+        version, inside brackets,
         like so:
 
         ("ipython", "2.1.0[nbconvert,notebook]")
@@ -160,7 +161,7 @@ class HashCache(DictCache):
 
     def _get_file_hash(self, location):
         h = hashlib.new(FAVORITE_HASH)
-        with vistir.contextmanagers.open_file(location, self.session) as fp:
+        with open_file(location, self.session) as fp:
             for chunk in iter(lambda: fp.read(8096), b""):
                 h.update(chunk)
         return ":".join([FAVORITE_HASH, h.hexdigest()])
