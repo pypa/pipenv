@@ -41,22 +41,7 @@ if "urllib3" in sys.modules:
 
 if os.name == "nt":
     from pipenv.vendor import colorama
-
-    # Backward compatability with vistir
-    # These variables will be removed in vistir 0.8.0
     no_color = False
-    for item in ("ANSI_COLORS_DISABLED", "VISTIR_DISABLE_COLORS"):
-        if os.getenv(item):
-            warnings.warn(
-                (
-                    f"Please do not use {item}, as it will be removed in future versions."
-                    "\nUse NO_COLOR instead."
-                ),
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            no_color = True
-
     if not os.getenv("NO_COLOR") or no_color:
         colorama.just_fix_windows_console()
 

@@ -32,8 +32,7 @@ from pipenv.vendor import click
 from pipenv.vendor.requirementslib import Requirement
 from pipenv.vendor.requirementslib.models.requirements import Line
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
-from pipenv.vendor.vistir.contextmanagers import open_file
-from pipenv.vendor.vistir.path import create_tracked_tempdir
+from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir, open_file
 
 try:
     # this is only in Python3.8 and later

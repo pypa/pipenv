@@ -8,6 +8,8 @@ from pipenv.vendor.requirementslib.models.requirements import (
     InstallRequirement,
     Requirement,
 )
+from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
+from pipenv.utils.requirements import create_tracked_tempfile
 
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
@@ -314,11 +316,6 @@ def prepare_constraint_file(
     sources=None,
     pip_args=None,
 ):
-    from pipenv.vendor.vistir.path import (
-        create_tracked_tempdir,
-        create_tracked_tempfile,
-    )
-
     if not directory:
         directory = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
 
@@ -367,8 +364,6 @@ def is_editable(pipfile_entry):
 
 @contextmanager
 def locked_repository(requirement):
-    from pipenv.vendor.vistir.path import create_tracked_tempdir
-
     if not requirement.is_vcs:
         return
     src_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-src")

@@ -30,6 +30,7 @@ from pipenv.utils.dependencies import (
     python_version,
 )
 from pipenv.utils.internet import get_url_name, is_pypi_url, is_valid_url, proper_case
+from pipenv.utils.locking import atomic_open_for_write
 from pipenv.utils.shell import (
     find_requirements,
     find_windows_executable,
@@ -41,7 +42,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
-from pipenv.vendor import plette, toml, tomlkit, vistir
+from pipenv.vendor import plette, toml, tomlkit
 from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 
 try:
@@ -842,7 +843,7 @@ class Project:
         """Write out the lockfile."""
         s = self._lockfile_encoder.encode(content)
         open_kwargs = {"newline": self._lockfile_newlines, "encoding": "utf-8"}
-        with vistir.contextmanagers.atomic_open_for_write(
+        with atomic_open_for_write(
             self.lockfile_location, **open_kwargs
         ) as f:
             f.write(s)

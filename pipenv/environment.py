@@ -24,7 +24,10 @@ from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import make_posix, normalize_path
-from pipenv.vendor import click, vistir
+from pipenv.vendor import click
+from pipenv.vendor.requirementslib.fileutils import normalize_path, temp_path
+from pipenv.vendor.requirementslib.utils import temp_environ
+from pipenv.vendor.pythonfinder.utils import is_in_path
 
 try:
     # this is only in Python3.8 and later
@@ -490,7 +493,7 @@ class Environment:
     @cached_property
     def paths(self) -> Dict[str, str]:
         paths = {}
-        with vistir.contextmanagers.temp_environ(), vistir.contextmanagers.temp_path():
+        with temp_environ(), temp_path():
             os.environ["PYTHONIOENCODING"] = "utf-8"
             os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
             paths = self.base_paths
@@ -519,7 +522,7 @@ class Environment:
         prefixes = [
             Path(prefix)
             for prefix in self.base_paths["libdirs"].split(os.pathsep)
-            if vistir.path.is_in_path(prefix, self.prefix.as_posix())
+            if is_in_path(prefix, self.prefix.as_posix())
         ]
         for loc in prefixes:
             if not loc.exists():
@@ -528,7 +531,7 @@ class Environment:
                 if not pth.suffix == ".egg-link":
                     continue
                 contents = [
-                    vistir.path.normalize_path(line.strip())
+                    normalize_path(line.strip())
                     for line in pth.read_text().splitlines()
                 ]
                 pth.write_text("\n".join(contents))
@@ -796,53 +799,6 @@ class Environment:
             return True
         return False
 
-    def run(self, cmd, cwd=os.curdir):
-        """Run a command with :class:`~subprocess.Popen` in the context of the environment
-
-        :param cmd: A command to run in the environment
-        :type cmd: str or list
-        :param str cwd: The working directory in which to execute the command, defaults to :data:`os.curdir`
-        :return: A finished command object
-        :rtype: :class:`~subprocess.Popen`
-        """
-
-        c = None
-        with self.activated():
-            script = cmdparse.Script.parse(cmd)
-            c = vistir.misc.run(
-                script._parts,
-                return_object=True,
-                nospin=True,
-                cwd=cwd,
-                write_to_stdout=False,
-            )
-        return c
-
-    def run_py(self, cmd, cwd=os.curdir):
-        """Run a python command in the environment context.
-
-        :param cmd: A command to run in the environment - runs with `python -c`
-        :type cmd: str or list
-        :param str cwd: The working directory in which to execute the command, defaults to :data:`os.curdir`
-        :return: A finished command object
-        :rtype: :class:`~subprocess.Popen`
-        """
-
-        c = None
-        if isinstance(cmd, str):
-            script = cmdparse.Script.parse(f"{self.python} -c {cmd}")
-        else:
-            script = cmdparse.Script.parse([self.python, "-c"] + list(cmd))
-        with self.activated():
-            c = vistir.misc.run(
-                script._parts,
-                return_object=True,
-                nospin=True,
-                cwd=cwd,
-                write_to_stdout=False,
-            )
-        return c
-
     def run_activate_this(self):
         """Runs the environment's inline activation script"""
         if self.is_venv:
@@ -876,7 +832,7 @@ class Environment:
         original_path = sys.path
         original_prefix = sys.prefix
         prefix = self.prefix.as_posix()
-        with vistir.contextmanagers.temp_environ(), vistir.contextmanagers.temp_path():
+        with temp_environ(), temp_path():
             os.environ["PATH"] = os.pathsep.join(
                 [
                     self.script_basedir,
@@ -902,103 +858,3 @@ class Environment:
             finally:
                 sys.path = original_path
                 sys.prefix = original_prefix
-
-    @cached_property
-    def finders(self):
-        from pipenv.vendor.pythonfinder import Finder
-
-        finders = [
-            Finder(path=self.base_paths["scripts"], global_search=gs, system=False)
-            for gs in (False, True)
-        ]
-        return finders
-
-    @property
-    def finder(self):
-        return next(iter(self.finders), None)
-
-    def which(self, search, as_path=True):
-        find = operator.methodcaller("which", search)
-        result = next(iter(filter(None, (find(finder) for finder in self.finders))), None)
-        if not result:
-            result = self._which(search)
-        else:
-            if as_path:
-                result = str(result.path)
-        return result
-
-    def install(self, requirements):
-        if not isinstance(requirements, (tuple, list)):
-            requirements = [requirements]
-        with self.get_finder() as finder:
-            args = []
-            for format_control in ("no_binary", "only_binary"):
-                formats = getattr(finder.format_control, format_control)
-                args.extend(
-                    (
-                        "--" + format_control.replace("_", "-"),
-                        ",".join(sorted(formats or {":none:"})),
-                    )
-                )
-            if finder.index_urls:
-                args.extend(["-i", finder.index_urls[0]])
-                for extra_index in finder.index_urls[1:]:
-                    args.extend(["--extra-index-url", extra_index])
-            else:
-                args.append("--no-index")
-            for link in finder.find_links:
-                args.extend(["--find-links", link])
-            for _, host, _ in finder.secure_origins:
-                args.extend(["--trusted-host", host])
-            if finder.allow_all_prereleases:
-                args.append("--pre")
-            if finder.process_dependency_links:
-                args.append("--process-dependency-links")
-            args.append("--")
-            args.extend(requirements)
-            out, _ = vistir.misc.run(
-                args, return_object=False, nospin=True, block=True, combine_stderr=False
-            )
-
-    @contextlib.contextmanager
-    def uninstall(self, pkgname, *args, **kwargs):
-        """A context manager which allows uninstallation of packages from the environment
-
-        :param str pkgname: The name of a package to uninstall
-
-        >>> env = Environment("/path/to/env/root")
-        >>> with env.uninstall("pytz", auto_confirm=True, verbose=False) as uninstaller:
-                cleaned = uninstaller.paths
-        >>> if cleaned:
-                print("uninstalled packages: %s" % cleaned)
-        """
-
-        auto_confirm = kwargs.pop("auto_confirm", True)
-        verbose = kwargs.pop("verbose", False)
-        with self.activated():
-            monkey_patch = next(
-                iter(
-                    dist
-                    for dist in self.base_working_set
-                    if dist.project_name == "recursive-monkey-patch"
-                ),
-                None,
-            )
-            if monkey_patch:
-                monkey_patch.activate()
-            dist = next(
-                iter(d for d in self.get_working_set() if d.project_name == pkgname), None
-            )
-            path_set = UninstallPathSet.from_dist(dist)
-            if path_set is not None:
-                path_set.remove(auto_confirm=auto_confirm, verbose=verbose)
-            try:
-                yield path_set
-            except Exception:
-                if path_set is not None:
-                    path_set.rollback()
-            else:
-                if path_set is not None:
-                    path_set.commit()
-            if path_set is None:
-                return

@@ -4,6 +4,12 @@ import logging
 import os
 import sys
 
+from pipenv.vendor.requirementslib.models.requirements import Requirement
+from pipenv.vendor.requirementslib.fileutils import temp_path
+
+from pipenv.utils.indexes import parse_indexes
+from pipenv.utils.shell import cd
+
 os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 
@@ -690,10 +696,6 @@ def clean_outdated(results, resolver, project, category):
 
 
 def parse_packages(packages, pre, clear, system, requirements_dir=None):
-    from pipenv.utils.indexes import parse_indexes
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
-    from pipenv.vendor.vistir.contextmanagers import cd, temp_path
-
     parsed_packages = []
     for package in packages:
         *_, line = parse_indexes(package)

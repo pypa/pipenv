@@ -4,11 +4,11 @@ import pathlib
 import re
 import sys
 
-from vistir.path import normalize_drive
-
 from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
+from pipenv.vendor.requirementslib.fileutils import normalize_drive
+
 from pipenv.utils.shell import env_to_bool, is_env_truthy
-from pipenv.vendor.vistir.misc import _isatty
+from pipenv.utils.shell import isatty
 
 # HACK: avoid resolver.py uses the wrong byte code files.
 # I hope I can remove this one day.
@@ -73,7 +73,7 @@ def normalize_pipfile_path(p):
 # https://bugs.python.org/issue22490
 os.environ.pop("__PYVENV_LAUNCHER__", None)
 # Internal, to tell whether the command line session is interactive.
-SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
+SESSION_IS_INTERACTIVE = isatty(sys.stdout)
 
 # TF_BUILD indicates to Azure pipelines it is a build step
 PIPENV_IS_CI = get_from_env("CI", prefix="", check_for_negation=False) or is_env_truthy(
