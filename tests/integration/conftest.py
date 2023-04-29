@@ -21,10 +21,9 @@ from pipenv.cli import cli
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor import toml, tomlkit
-from pipenv.vendor.vistir.contextmanagers import temp_environ
-from pipenv.vendor.vistir.path import (
-    create_tracked_tempdir, handle_remove_readonly
-)
+from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
+from pipenv.vendor.requirementslib.utils import temp_environ
+from pipenv.vendor.requirementslib.models.setup_info import handle_remove_readonly
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
@@ -137,7 +136,7 @@ def _create_tracked_dir():
 
 
 @pytest.fixture
-def vistir_tmpdir():
+def tracked_tmpdir():
     temp_path = _create_tracked_dir()
     yield Path(temp_path)
 
@@ -159,7 +158,7 @@ def local_tempdir(request):
 
 
 @pytest.fixture(name='create_tmpdir')
-def vistir_tmpdir_factory():
+def tmpdir_factory():
 
     def create_tmpdir():
         return Path(_create_tracked_dir())
@@ -417,9 +416,9 @@ def _rmtree_func(path, ignore_errors=True, onerror=None):
 
 
 @pytest.fixture()
-def pip_src_dir(request, vistir_tmpdir):
+def pip_src_dir(request, tracked_tmpdir):
     old_src_dir = os.environ.get('PIP_SRC', '')
-    os.environ['PIP_SRC'] = vistir_tmpdir.as_posix()
+    os.environ['PIP_SRC'] = tracked_tmpdir.as_posix()
 
     def finalize():
         os.environ['PIP_SRC'] = old_src_dir
@@ -509,8 +508,8 @@ class VirtualEnv:
 
 
 @pytest.fixture()
-def virtualenv(vistir_tmpdir):
-    with VirtualEnv(base_dir=vistir_tmpdir) as venv:
+def virtualenv(tracked_tmpdir):
+    with VirtualEnv(base_dir=tracked_tmpdir) as venv:
         yield venv
 
 

@@ -11,14 +11,11 @@ from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 
-from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.vendor import click
+from pipenv.vendor.requirementslib.fileutils import normalize_drive, normalize_path
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
 from .processes import subprocess_run
-
-if MYPY_RUNNING:
-    from typing import Text  # noqa
 
 
 @lru_cache()
@@ -82,12 +79,6 @@ def load_path(python):
 
 def path_to_url(path):
     return Path(normalize_drive(os.path.abspath(path))).as_uri()
-
-
-def normalize_path(path):
-    return os.path.expandvars(
-        os.path.expanduser(os.path.normcase(os.path.normpath(os.path.abspath(str(path)))))
-    )
 
 
 def get_windows_path(*args):
@@ -307,28 +298,6 @@ def is_python_command(line):
     return False
 
 
-# TODO This code is basically a duplicate of pipenv.vendor.vistir.path.normalize_drive
-# Proposal:  Try removing this method and replacing usages in separate PR
-def normalize_drive(path):
-    """Normalize drive in path so they stay consistent.
-
-    This currently only affects local drives on Windows, which can be
-    identified with either upper or lower cased drive names. The case is
-    always converted to uppercase because it seems to be preferred.
-
-    See: <https://github.com/pypa/pipenv/issues/1218>
-    """
-    if os.name != "nt" or not isinstance(path, str):
-        return path
-
-    drive, tail = os.path.splitdrive(path)
-    # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
-    if drive.islower() and len(drive) == 2 and drive[1] == ":":
-        return f"{drive.upper()}{tail}"
-
-    return path
-
-
 @contextmanager
 def temp_path():
     """Allow the ability to set os.environ temporarily"""
@@ -466,3 +435,11 @@ def shorten_path(location, bold=False):
     if bold:
         short[-1] = str(click.style(short[-1], bold=True))
     return os.sep.join(short)
+
+
+def isatty(stream):
+    try:
+        is_a_tty = stream.isatty()
+    except Exception:  # pragma: no cover
+        is_a_tty = False
+    return is_a_tty

@@ -9,7 +9,7 @@ import invoke
 from parver import Version
 
 from pipenv.__version__ import __version__
-from pipenv.vendor.vistir.contextmanagers import temp_environ
+from pipenv.vendor.requirementslib.utils import temp_environ
 
 from .vendoring import _get_git_root, drop_dir
 

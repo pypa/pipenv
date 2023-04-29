@@ -3,6 +3,7 @@ import queue
 import sys
 import warnings
 from collections import defaultdict
+from tempfile import NamedTemporaryFile
 
 from pipenv import environments, exceptions
 from pipenv.patched.pip._internal.exceptions import PipError
@@ -22,8 +23,10 @@ from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import import_requirements
 from pipenv.utils.virtualenv import cleanup_virtualenv, do_create_virtualenv
-from pipenv.vendor import click, vistir
+from pipenv.vendor import click
+from pipenv.vendor.requirementslib import fileutils
 from pipenv.vendor.requirementslib.models.requirements import Requirement
+from pipenv.vendor.requirementslib.utils import temp_environ
 
 console = rich.console.Console()
 err = rich.console.Console(stderr=True)
@@ -49,7 +52,7 @@ def do_install(
     extra_pip_args=None,
     categories=None,
 ):
-    requirements_directory = vistir.path.create_tracked_tempdir(
+    requirements_directory = fileutils.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
     )
     warnings.filterwarnings("default", category=ResourceWarning)
@@ -109,7 +112,7 @@ def do_install(
             bold=True,
             err=True,
         )
-        fd = vistir.path.create_tracked_tempfile(
+        fd = NamedTemporaryFile(
             prefix="pipenv-", suffix="-requirement.txt", dir=requirements_directory
         )
         temp_reqs = fd.name
@@ -235,7 +238,7 @@ def do_install(
                 bold=True,
             )
             # pip install:
-            with vistir.contextmanagers.temp_environ(), console.status(
+            with temp_environ(), console.status(
                 "Installing...", spinner=project.s.PIPENV_SPINNER
             ) as st:
                 if not system:
@@ -426,7 +429,7 @@ def do_sync(
     )
 
     # Install everything.
-    requirements_dir = vistir.path.create_tracked_tempdir(
+    requirements_dir = fileutils.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
     )
     if system:
@@ -592,7 +595,7 @@ def batch_install_iteration(
         elif dep.is_vcs:
             is_artifact = True
 
-    with vistir.contextmanagers.temp_environ():
+    with temp_environ():
         if not allow_global:
             os.environ["PIP_USER"] = "0"
             if "PYTHONHOME" in os.environ:
@@ -790,7 +793,7 @@ def do_init(
     if not deploy:
         ensure_pipfile(project, system=system)
     if not requirements_dir:
-        requirements_dir = vistir.path.create_tracked_tempdir(
+        requirements_dir = fileutils.create_tracked_tempdir(
             suffix="-requirements", prefix="pipenv-"
         )
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored

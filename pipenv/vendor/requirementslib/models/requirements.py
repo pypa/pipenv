@@ -10,7 +10,6 @@ from urllib import parse as urllib_parse
 from urllib.parse import unquote
 
 import pipenv.vendor.attr as attr
-from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.req.constructors import (
@@ -21,6 +20,7 @@ from pipenv.patched.pip._internal.req.constructors import (
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
+from pipenv.patched.pip._vendor.distlib.util import cached_property
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import (
@@ -31,17 +31,17 @@ from pipenv.patched.pip._vendor.packaging.specifiers import (
 )
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
-from pipenv.vendor.vistir.contextmanagers import temp_path
-from pipenv.vendor.vistir.path import (
+
+from ..environment import MYPY_RUNNING
+from ..exceptions import RequirementError
+from ..fileutils import (
     create_tracked_tempdir,
     get_converted_relative_path,
     is_file_url,
     is_valid_url,
     normalize_path,
+    temp_path,
 )
-
-from ..environment import MYPY_RUNNING
-from ..exceptions import RequirementError
 from ..funktools import dedup
 from ..utils import (
     VCS_LIST,
@@ -95,6 +95,7 @@ if MYPY_RUNNING:
         Dict,
         FrozenSet,
         Generator,
+        Iterator,
         List,
         Optional,
         Sequence,
