@@ -1,5 +1,4 @@
 import logging
-import operator
 import os
 import platform
 import sys
@@ -14,19 +13,15 @@ from .common import FinderBaseModel
 from ..environment import ASDF_DATA_DIR, PYENV_ROOT, SYSTEM_ARCH
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
-    RE_MATCHER,
-    _filter_none,
     ensure_path,
     expand_paths,
     get_python_version,
     guess_company,
     is_in_path,
     looks_like_python,
-    optional_instance_of,
     parse_asdf_version_order,
     parse_pyenv_version_order,
     parse_python_version,
-    path_is_pythoncore,
     unnest,
 )
 from .mixins import PathEntry
@@ -67,11 +62,6 @@ class PythonFinder(PathEntry):
         return self._versions.values()
 
     @property
-    def expanded_paths(self):
-        # type: () -> Any
-        return (p.paths.values() for p in self.version_paths)
-
-    @property
     def pythons(self):
         # type: () -> DefaultDict[str, PathEntry]
         return self.pythons_ref
@@ -80,13 +70,6 @@ class PythonFinder(PathEntry):
     def pythons(self, value):
         # type: (DefaultDict[str, PathEntry]) -> None
         self.pythons_ref = value
-
-    @property
-    def expanded_paths(self):
-        # type: () -> Generator
-        return (
-            path for path in unnest(p for p in self.versions.values()) if path is not None
-        )
 
     @property
     def is_pyenv(self):
@@ -552,11 +535,6 @@ class PythonVersion(FinderBaseModel):
         :return: An instance of a PythonVersion.
         :rtype: :class:`~pythonfinder.models.python.PythonVersion`
         """
-
-        from .path import PathEntry
-
-        if not isinstance(path, PathEntry):
-            path = PathEntry.create(path, is_root=False, only_python=True, name=name)
         from ..environment import IGNORE_UNSUPPORTED
 
         ignore_unsupported = ignore_unsupported or IGNORE_UNSUPPORTED

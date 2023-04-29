@@ -177,7 +177,7 @@ class Finder(FinderBaseModel):
             ):
                 arch = version_dict["architecture"]
         if os.name == "nt" and self.windows_finder is not None:
-            found = self.windows_finder.find_python_version(
+            found = self.system_path.find_python_version(
                 major=major,
                 minor=minor,
                 patch=patch,

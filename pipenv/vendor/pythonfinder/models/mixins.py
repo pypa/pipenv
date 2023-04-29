@@ -14,7 +14,6 @@ from typing import (
 
 from pipenv.vendor.pydantic import BaseModel, Field, validator
 
-from .common import FinderBaseModel
 from ..compat import fs_str
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
@@ -51,7 +50,6 @@ class PathEntry(BaseModel):
         arbitrary_types_allowed = True
         allow_mutation = True
         include_private_attributes = True
-        check_fields = False  # Add this line
 
     @validator('children', pre=True, always=True, check_fields=False)
     def set_children(cls, v, values, **kwargs):
@@ -119,8 +117,6 @@ class PathEntry(BaseModel):
     @property
     def is_dir(self) -> bool:
         if self.is_dir_ref is None:
-            if not self.path:
-                ret_val = False
             try:
                 ret_val = self.path.is_dir()
             except OSError:
