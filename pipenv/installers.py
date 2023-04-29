@@ -3,10 +3,11 @@ import os
 import re
 import sys
 from abc import ABCMeta, abstractmethod
+from typing import Optional
 
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import find_windows_executable
-from pipenv.vendor.pydantic import  BaseModel, Field
+from pipenv.vendor.pydantic import BaseModel
 
 
 class Version(BaseModel):
