@@ -2416,7 +2416,7 @@ class Requirement(ReqLibBaseModel):
             return self.req.version
         elif (
             self.req
-            and hasattr(self.req, "setup_info")
+            and self.req.setup_info
             and self.req.setup_info.version
         ):
             return "=={0}".format(self.req.setup_info.version)
