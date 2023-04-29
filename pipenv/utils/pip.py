@@ -9,10 +9,10 @@ from pipenv.project import Project
 from pipenv.utils.dependencies import get_constraints_from_deps, prepare_constraint_file
 from pipenv.utils.indexes import get_source_list, prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
-from pipenv.utils.shell import cmd_list_to_shell, normalize_path, project_python
+from pipenv.utils.shell import cmd_list_to_shell, project_python
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib import Requirement
-from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
+from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir, normalize_path
 
 
 def format_pip_output(out, r=None):

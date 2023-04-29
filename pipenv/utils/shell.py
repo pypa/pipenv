@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Iterator
 
 from pipenv.vendor import click
+from pipenv.vendor.requirementslib.fileutils import normalize_drive, normalize_path
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
 from .processes import subprocess_run
@@ -79,12 +80,6 @@ def load_path(python):
 
 def path_to_url(path):
     return Path(normalize_drive(os.path.abspath(path))).as_uri()
-
-
-def normalize_path(path):
-    return os.path.expandvars(
-        os.path.expanduser(os.path.normcase(os.path.normpath(os.path.abspath(str(path)))))
-    )
 
 
 def get_windows_path(*args):
@@ -304,26 +299,6 @@ def is_python_command(line):
     return False
 
 
-def normalize_drive(path):
-    """Normalize drive in path so they stay consistent.
-
-    This currently only affects local drives on Windows, which can be
-    identified with either upper or lower cased drive names. The case is
-    always converted to uppercase because it seems to be preferred.
-
-    See: <https://github.com/pypa/pipenv/issues/1218>
-    """
-    if os.name != "nt" or not isinstance(path, str):
-        return path
-
-    drive, tail = os.path.splitdrive(path)
-    # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
-    if drive.islower() and len(drive) == 2 and drive[1] == ":":
-        return f"{drive.upper()}{tail}"
-
-    return path
-
-
 @contextmanager
 def temp_path():
     """Allow the ability to set os.environ temporarily"""
@@ -469,29 +444,3 @@ def isatty(stream):
     except Exception:  # pragma: no cover
         is_a_tty = False
     return is_a_tty
-
-
-@contextmanager
-def cd(path) -> Iterator[None]:
-    """Context manager to temporarily change working directories
-
-    :param str path: The directory to move into
-
-    >>> print(os.path.abspath(os.curdir))
-    '/home/user/code/myrepo'
-    >>> with cd("/home/user/code/otherdir/subdir"):
-    ...     print("Changed directory: %s" % os.path.abspath(os.curdir))
-    Changed directory: /home/user/code/otherdir/subdir
-    >>> print(os.path.abspath(os.curdir))
-    '/home/user/code/myrepo'
-    """
-    if not path:
-        return
-    prev_cwd = Path.cwd().as_posix()
-    if isinstance(path, Path):
-        path = path.as_posix()
-    os.chdir(str(path))
-    try:
-        yield
-    finally:
-        os.chdir(prev_cwd)
