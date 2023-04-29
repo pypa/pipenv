@@ -38,7 +38,7 @@ from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
 
 from ..environment import MYPY_RUNNING
 from ..fileutils import is_valid_url
-from ..utils import SCHEME_LIST, VCS_LIST, is_star
+from ..utils import VCS_LIST, is_star
 
 if MYPY_RUNNING:
     from pipenv.patched.pip._vendor.packaging.markers import Marker as PkgResourcesMarker
