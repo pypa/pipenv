@@ -1,3 +1,16 @@
+2023.4.29 (2023-04-29)
+======================
+Pipenv 2023.4.29 (2023-04-29)
+=============================
+
+
+Vendored Libraries
+------------------
+
+- Vendor in ``pip==23.1.2`` latest.  `#5671 <https://github.com/pypa/pipenv/issues/5671>`_
+- Vendor in ``requirementslib==2.3.0`` which drops usage of ``vistir``.  `#5672 <https://github.com/pypa/pipenv/issues/5672>`_
+
+
 2023.4.20 (2023-04-20)
 ======================
 Pipenv 2023.4.20 (2023-04-20)
