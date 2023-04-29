@@ -21,6 +21,6 @@ class FinderBaseModel(BaseModel):
         validate_assignment = True
         arbitrary_types_allowed = True
         allow_mutation = True
-        include_private_attributes = True
+        include_private_attributes = False
         check_fields = False  # Add this line
 
