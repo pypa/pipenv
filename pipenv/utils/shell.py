@@ -10,7 +10,6 @@ import warnings
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterator
 
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib.fileutils import normalize_drive, normalize_path
