@@ -192,8 +192,8 @@ class SystemPath(FinderBaseModel):
         self.path_order = [
             p.as_posix() for p in path_instances if exists_and_is_accessible(p)
         ]
-        if os.name == "nt" and "windows" not in self.finders:
-            self._setup_windows()
+        # if os.name == "nt" and "windows" not in self.finders:
+        #     self._setup_windows()
         #: slice in pyenv
         if self.check_for_pyenv() and "pyenv" not in self.finders:
             self._setup_pyenv()
@@ -439,10 +439,10 @@ class SystemPath(FinderBaseModel):
             def alternate_sub_finder(obj):
                 return obj.find_all_python_versions(None, None, None, None, None, None, major)
 
-        if os.name == "nt" and self.windows_finder:
-            windows_finder_version = sub_finder(self.windows_finder)
-            if windows_finder_version:
-                return windows_finder_version
+        # if os.name == "nt" and self.windows_finder:
+        #     windows_finder_version = sub_finder(self.windows_finder)
+        #     if windows_finder_version:
+        #         return windows_finder_version
 
         values = list(self.get_pythons(sub_finder))
         if not values and alternate_sub_finder is not None:
@@ -473,10 +473,10 @@ class SystemPath(FinderBaseModel):
             _tuple_pre = pre if pre is not None else False
             _tuple_dev = dev if dev is not None else False
 
-        if os.name == "nt" and self.windows_finder:
-            windows_finder_version = sub_finder(self.windows_finder)
-            if windows_finder_version:
-                return windows_finder_version
+        # if os.name == "nt" and self.windows_finder:
+        #     windows_finder_version = sub_finder(self.windows_finder)
+        #     if windows_finder_version:
+        #         return windows_finder_version
 
         if sort_by_path:
             paths = [self.get_path(k) for k in self.path_order]

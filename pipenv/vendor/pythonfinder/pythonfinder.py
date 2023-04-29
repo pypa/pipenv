@@ -19,13 +19,13 @@ class Finder(FinderBaseModel):
     global_search: bool = True
     ignore_unsupported: bool = True
     sort_by_path: bool = False
-    windows_finder: Optional[WindowsFinder] = None if os.name != "nt" else WindowsFinder()
+    # windows_finder: Optional[WindowsFinder] = None if os.name != "nt" else WindowsFinder()
     system_path: Optional[SystemPath] = None
 
     def __init__(self, **data) -> None:
         super().__init__(**data)
-        if os.name == "nt":
-            self.windows_finder = WindowsFinder()
+        # if os.name == "nt":
+        #     self.windows_finder = WindowsFinder()
         self.system_path = self.create_system_path()
 
     @property
@@ -176,18 +176,18 @@ class Finder(FinderBaseModel):
                 version_dict["architecture"], str
             ):
                 arch = version_dict["architecture"]
-        if os.name == "nt" and self.windows_finder is not None:
-            found = self.system_path.find_python_version(
-                major=major,
-                minor=minor,
-                patch=patch,
-                pre=pre,
-                dev=dev,
-                arch=arch,
-                name=name,
-            )
-            if found:
-                return found
+        # if os.name == "nt" and self.windows_finder is not None:
+        #     found = self.system_path.find_python_version(
+        #         major=major,
+        #         minor=minor,
+        #         patch=patch,
+        #         pre=pre,
+        #         dev=dev,
+        #         arch=arch,
+        #         name=name,
+        #     )
+        #     if found:
+        #         return found
         return self.system_path.find_python_version(
             major=major,
             minor=minor,
