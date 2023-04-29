@@ -16,4 +16,4 @@ __version__ = "1.3.2"
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-__all__ = ["Finder", "WindowsFinder", "SystemPath", "InvalidPythonVersion"]
+__all__ = ["Finder", "SystemPath", "InvalidPythonVersion"]

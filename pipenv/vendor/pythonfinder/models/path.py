@@ -17,24 +17,18 @@ from ..environment import (
     PYENV_INSTALLED,
     PYENV_ROOT,
     SHIM_PATHS,
-    get_shim_paths,
 )
 from ..utils import (
     dedup,
     ensure_path,
-    filter_pythons,
     is_in_path,
     normalize_path,
-    optional_instance_of,
     parse_asdf_version_order,
     parse_pyenv_version_order,
-    path_is_known_executable,
     split_version_and_name,
-    unnest,
 )
 from .mixins import PathEntry
 from .python import PythonFinder, PythonVersion
-from .windows import WindowsFinder
 
 
 def exists_and_is_accessible(path):
@@ -58,10 +52,9 @@ class SystemPath(FinderBaseModel):
     only_python: bool = False
     pyenv_finder: Optional[PythonFinder] = None
     asdf_finder: Optional[PythonFinder] = None
-    windows_finder: Optional[WindowsFinder] = None
     system: bool = False
     ignore_unsupported: bool = False
-    finders_dict: Dict[str, Union[WindowsFinder, PythonFinder]] = Field(default_factory=lambda: dict())
+    finders_dict: Dict[str, PythonFinder] = Field(default_factory=lambda: dict())
 
     class Config:
         validate_assignment = True
@@ -85,7 +78,6 @@ class SystemPath(FinderBaseModel):
     def set_defaults(cls, values):
         values['python_version_dict'] = defaultdict(list)
         values['pyenv_finder'] = None
-        values['windows_finder'] = None
         values['asdf_finder'] = None
         values['path_order'] = []
         values['_finders'] = {}
@@ -151,10 +143,6 @@ class SystemPath(FinderBaseModel):
         )  # type: DefaultDict[Tuple, List[PathEntry]]
         for finder_name, finder in self.finders_dict.items():
             for version, entry in finder.versions.items():
-                if finder_name == "windows":
-                    if entry not in self.version_dict_tracking[version]:
-                        self.version_dict_tracking[version].append(entry)
-                    continue
                 if entry not in self.version_dict_tracking[version] and entry.is_python:
                     self.version_dict_tracking[version].append(entry)
         for _, entry in self.python_executables.items():
@@ -192,8 +180,6 @@ class SystemPath(FinderBaseModel):
         self.path_order = [
             p.as_posix() for p in path_instances if exists_and_is_accessible(p)
         ]
-        # if os.name == "nt" and "windows" not in self.finders:
-        #     self._setup_windows()
         #: slice in pyenv
         if self.check_for_pyenv() and "pyenv" not in self.finders:
             self._setup_pyenv()
@@ -322,24 +308,6 @@ class SystemPath(FinderBaseModel):
         self._register_finder("pyenv", pyenv_finder)
         return self
 
-
-    def _setup_windows(self) -> "SystemPath":
-        if "windows" in self.finders and self.windows_finder is not None:
-            return self
-        from .windows import WindowsFinder
-
-        windows_finder = WindowsFinder.create()
-        root_paths = (p for p in windows_finder.paths if p.is_root)
-        path_addition = [p.path.as_posix() for p in root_paths]
-        new_path_order = self.path_order[:] + path_addition
-        new_paths = self.paths.copy()
-        new_paths.update({p.path: p for p in root_paths})
-        self.windows_finder = windows_finder
-        self.path_order = new_path_order
-        self.paths = new_paths
-        self._register_finder("windows", windows_finder)
-        return self
-
     def get_path(self, path) -> Union[PythonFinder, PathEntry]:
         if path is None:
             raise TypeError("A path must be provided in order to generate a path entry.")
@@ -356,7 +324,7 @@ class SystemPath(FinderBaseModel):
             raise ValueError("Path not found or generated: {0!r}".format(path))
         return _path
 
-    def _get_paths(self) -> Generator[Union[PythonFinder, PathEntry, WindowsFinder], None, None]:
+    def _get_paths(self) -> Generator[Union[PythonFinder, PathEntry], None, None]:
         for path in self.path_order:
             try:
                 entry = self.get_path(path)
@@ -366,11 +334,11 @@ class SystemPath(FinderBaseModel):
                 yield entry
 
     @cached_property
-    def path_entries(self) -> List[Union[PythonFinder, PathEntry, WindowsFinder]]:
+    def path_entries(self) -> List[Union[PythonFinder, PathEntry]]:
         paths = list(self._get_paths())
         return paths
 
-    def find_all(self, executable) -> List[Union["PathEntry", PythonFinder, WindowsFinder]]:
+    def find_all(self, executable) -> List[Union["PathEntry", PythonFinder]]:
         """
         Search the path for an executable. Return all copies.
 
@@ -439,11 +407,6 @@ class SystemPath(FinderBaseModel):
             def alternate_sub_finder(obj):
                 return obj.find_all_python_versions(None, None, None, None, None, None, major)
 
-        # if os.name == "nt" and self.windows_finder:
-        #     windows_finder_version = sub_finder(self.windows_finder)
-        #     if windows_finder_version:
-        #         return windows_finder_version
-
         values = list(self.get_pythons(sub_finder))
         if not values and alternate_sub_finder is not None:
             values = list(self.get_pythons(alternate_sub_finder))
@@ -472,11 +435,6 @@ class SystemPath(FinderBaseModel):
         if major and minor and patch:
             _tuple_pre = pre if pre is not None else False
             _tuple_dev = dev if dev is not None else False
-
-        # if os.name == "nt" and self.windows_finder:
-        #     windows_finder_version = sub_finder(self.windows_finder)
-        #     if windows_finder_version:
-        #         return windows_finder_version
 
         if sort_by_path:
             paths = [self.get_path(k) for k in self.path_order]

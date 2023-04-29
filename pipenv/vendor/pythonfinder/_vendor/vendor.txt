@@ -1,1 +1,0 @@
-git+https://github.com/zooba/pep514tools.git@master#egg=pep514tools
