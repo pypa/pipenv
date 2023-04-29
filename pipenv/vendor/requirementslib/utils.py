@@ -1,23 +1,54 @@
+# This Module is taken in part from the click project and expanded
+# see https://github.com/pallets/click/blob/6cafd32/click/_winconsole.py
+# Copyright © 2014 by the Pallets team.
+
+# Some rights reserved.
+
+# Redistribution and use in source and binary forms of the software as well as
+# documentation, with or without modification, are permitted provided that the
+# following conditions are met:
+#     Redistributions of source code must retain the above copyright notice,
+#           this list of conditions and the following disclaimer.
+#     Redistributions in binary form must reproduce the above copyright notice,
+#           this list of conditions and the following disclaimer in the
+#           documentation and/or other materials provided with the distribution.
+#     Neither the name of the copyright holder nor the names of its contributors
+#           may be used to endorse or promote products derived from this
+#           software without specific prior written permission.
+
+# THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+# CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+# NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE AND
+# DOCUMENTATION, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
 import logging
 import os
 import sys
 from collections.abc import ItemsView, Mapping, Sequence, Set
+from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urlparse, urlsplit, urlunparse
 
 import pipenv.vendor.tomlkit as tomlkit
-import pipenv.vendor.vistir as vistir
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.models.target_python import TargetPython
 from pipenv.patched.pip._internal.utils.filetypes import is_archive_file
 from pipenv.patched.pip._internal.utils.misc import is_installable_dir
 from pipenv.patched.pip._vendor.packaging import specifiers
-from pipenv.vendor.vistir.path import is_valid_url
 
 from .environment import MYPY_RUNNING
+from .fileutils import is_valid_url, normalize_path, url_to_path
 
 if MYPY_RUNNING:
-    from typing import Dict, List, Optional, Text, Tuple, TypeVar, Union
+    from typing import Dict, Iterator, List, Optional, Text, Tuple, TypeVar, Union
 
     STRING_TYPE = Union[bytes, str, Text]
     S = TypeVar("S", bytes, str, Text)
@@ -142,7 +173,7 @@ def convert_entry_to_path(path):
         raise ValueError("missing path-like entry in supplied mapping {0!r}".format(path))
 
     if "file" in path:
-        path = vistir.path.url_to_path(path["file"])
+        path = url_to_path(path["file"])
 
     elif "path" in path:
         path = path["path"]
@@ -176,8 +207,8 @@ def is_installable_file(path):
         or (len(parsed.scheme) == 1 and os.name == "nt")
     )
     if parsed.scheme and parsed.scheme == "file":
-        path = os.fsdecode(vistir.path.url_to_path(path))
-    normalized_path = vistir.path.normalize_path(path)
+        path = os.fsdecode(url_to_path(path))
+    normalized_path = normalize_path(path)
     if is_local and not os.path.exists(normalized_path):
         return False
 
@@ -670,3 +701,17 @@ def get_pip_command() -> InstallCommand:
         name="InstallCommand", summary="requirementslib pip Install command."
     )
     return pip_command
+
+
+# Borrowed from Pew.
+# See https://github.com/berdario/pew/blob/master/pew/_utils.py#L82
+@contextmanager
+def temp_environ():
+    # type: () -> Iterator[None]
+    """Allow the ability to set os.environ temporarily."""
+    environ = dict(os.environ)
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(environ)

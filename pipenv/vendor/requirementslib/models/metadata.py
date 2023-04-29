@@ -10,7 +10,6 @@ from functools import reduce
 from typing import Sequence, List, Dict
 
 import pipenv.patched.pip._vendor.requests as requests
-import pipenv.vendor.vistir as vistir
 from pipenv.patched.pip._vendor.distlib import wheel
 from pipenv.patched.pip._vendor.distlib.metadata import Metadata
 from pipenv.patched.pip._vendor.packaging.markers import Marker
@@ -23,6 +22,7 @@ from pipenv.vendor.requirementslib.models.common import ReqLibBaseModel
 from pipenv.vendor.pydantic import BaseModel, Field, validator
 
 from ..environment import MYPY_RUNNING
+from ..fileutils import open_file
 from .markers import (
     get_contained_extras,
     get_contained_pyversions,
@@ -157,7 +157,7 @@ def get_remote_sdist_metadata(line) -> SetupInfo:
 def get_remote_wheel_metadata(whl_file) -> Optional[Metadata]:
     parsed_metadata = None
     data = io.BytesIO()
-    with vistir.contextmanagers.open_file(whl_file) as fp:
+    with open_file(whl_file) as fp:
         for chunk in iter(lambda: fp.read(8096), b""):
             data.write(chunk)
     with zipfile.ZipFile(data, mode="r", compression=zipfile.ZIP_DEFLATED) as zf:

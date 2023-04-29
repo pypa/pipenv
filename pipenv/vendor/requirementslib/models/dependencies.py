@@ -1,30 +1,21 @@
 import atexit
 import os
 
-from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
+from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 
-from ..environment import MYPY_RUNNING
-from ..utils import get_package_finder, get_pip_command, prepare_pip_source_args
-from .cache import CACHE_DIR
+from ..utils import (
+    get_package_finder,
+    get_pip_command,
+    prepare_pip_source_args,
+)
 
-if MYPY_RUNNING:
-    from typing import Any, Dict, List, Optional, Text, TypeVar, Union
-
-    from pipenv.patched.pip._internal.commands import Command
-    from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-    from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
-
-    TRequirement = TypeVar("TRequirement")
-    RequirementType = TypeVar(
-        "RequirementType", covariant=True, bound=PackagingRequirement
-    )
-    MarkerType = TypeVar("MarkerType", covariant=True, bound=Marker)
-    STRING_TYPE = Union[str, bytes, Text]
-    S = TypeVar("S", bytes, str, Text)
+CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
 
 
 def is_python(section):
     return section.startswith("[") and ":" in section
+
 
 def get_pip_options(args=None, sources=None, pip_command=None):
     """Build a pip command from a list of sources.
@@ -50,8 +41,7 @@ def get_pip_options(args=None, sources=None, pip_command=None):
     return pip_options
 
 
-def get_finder(sources=None, pip_command=None, pip_options=None):
-    # type: (List[Dict[S, Union[S, bool]]], Optional[Command], Any) -> PackageFinder
+def get_finder(sources=None, pip_command=None, pip_options=None) -> PackageFinder:
     """Get a package finder for looking up candidates to install.
 
     :param sources: A list of pipfile-formatted sources, defaults to None

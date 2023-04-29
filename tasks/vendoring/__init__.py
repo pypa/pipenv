@@ -15,6 +15,8 @@ import invoke
 import requests
 from urllib3.util import parse_url as urllib3_parse
 
+from pipenv.vendor.requirementslib.fileutils import open_file
+
 TASK_NAME = "update"
 
 LIBRARY_DIRNAMES = {
@@ -328,11 +330,6 @@ def post_install_cleanup(ctx, vendor_dir):
     drop_dir(vendor_dir / "colorama" / "tests")
 
     remove_all(vendor_dir.glob("toml.py"))
-    # this function is called twice hence try ... except ...
-    try:
-        (vendor_dir / "vistir" / "spin.py").unlink()
-    except FileNotFoundError:
-        pass
 
 
 @invoke.task
@@ -770,8 +767,6 @@ def main(ctx, package=None, type=None):
 
 @invoke.task
 def vendor_artifact(ctx, package, version=None):
-    from pipenv.vendor.vistir.contextmanagers import open_file
-
     simple = requests.get(f"https://pypi.org/simple/{package}/")
     pkg_str = f"{package}-{version}"
     soup = bs4.BeautifulSoup(simple.content)

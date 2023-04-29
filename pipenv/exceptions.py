@@ -3,7 +3,6 @@ import sys
 from collections import namedtuple
 from traceback import format_tb
 
-from pipenv import environments
 from pipenv.vendor import click
 from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
 
@@ -31,6 +30,8 @@ KNOWN_EXCEPTIONS = [
 
 
 def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
+    from pipenv import environments
+
     if environments.Setting().is_verbose() or not issubclass(exc_type, ClickException):
         hook(exc_type, exception, traceback)
     else:

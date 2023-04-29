@@ -17,11 +17,14 @@ from typing import (
     Generator,
     List,
     Optional,
+    Sequence,
     Set,
+    Text,
     Tuple,
+    TypeVar,
     Union,
 )
-from pipenv.vendor.pydantic import BaseModel, Field, Extra
+from pipenv.vendor.pydantic import Field, Extra
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 from pipenv.patched.pip._internal.models.link import Link
@@ -44,17 +47,17 @@ from pipenv.patched.pip._vendor.packaging.specifiers import (
 )
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
-from pipenv.vendor.vistir.contextmanagers import temp_path
-from pipenv.vendor.vistir.path import (
+
+from ..environment import MYPY_RUNNING
+from ..exceptions import RequirementError
+from ..fileutils import (
     create_tracked_tempdir,
     get_converted_relative_path,
     is_file_url,
     is_valid_url,
     normalize_path,
+    temp_path,
 )
-
-from ..environment import MYPY_RUNNING
-from ..exceptions import RequirementError
 from ..funktools import dedup
 from ..utils import (
     VCS_LIST,
@@ -84,7 +87,6 @@ from .utils import (
     create_link,
     expand_env_variables,
     extras_to_string,
-    filter_none,
     format_requirement,
     get_default_pyproject_backend,
     get_pyproject,
@@ -98,38 +100,12 @@ from .utils import (
     split_ref_from_uri,
     split_vcs_method_from_uri,
     validate_path,
-    validate_specifiers,
     validate_vcs,
 )
 from pipenv.vendor.requirementslib.models.common import ReqLibBaseModel
 
 if MYPY_RUNNING:
-    from typing import (
-        Any,
-        AnyStr,
-        Dict,
-        FrozenSet,
-        Generator,
-        List,
-        Optional,
-        Sequence,
-        Set,
-        Text,
-        Tuple,
-        TypeVar,
-        Union,
-    )
-
-    F = TypeVar("F", "FileRequirement", "VCSRequirement", covariant=True)
-
-    NON_STRING_ITERABLE = Union[List, Set, Tuple]
     S = TypeVar("S", bytes, str, Text)
-    BASE_TYPES = Union[bool, str, Tuple[str, ...]]
-    CUSTOM_TYPES = Union[VCSRepository, PackagingRequirement, SetupInfo, "Line"]
-    CREATION_ARG_TYPES = Union[BASE_TYPES, Link, CUSTOM_TYPES]
-    PIPFILE_ENTRY_TYPE = Union[str, bool, Tuple[str], List[str]]
-    PIPFILE_TYPE = Union[str, Dict[str, PIPFILE_ENTRY_TYPE]]
-    TPIPFILE = Dict[str, PIPFILE_ENTRY_TYPE]
 
 
 SPECIFIERS_BY_LENGTH = sorted(list(Specifier._operators.keys()), key=len, reverse=True)
@@ -1359,7 +1335,7 @@ class NamedRequirement(ReqLibBaseModel):
 
     @classmethod
     def from_pipfile(cls, name: str, pipfile: Dict[str, Any]) -> 'NamedRequirement':
-        creation_args = {}  # type: TPIPFILE
+        creation_args = {}
         if hasattr(pipfile, "keys"):
             # Get field names from the Pydantic model
             pydantic_fields = cls.__fields__.keys()
@@ -1722,14 +1698,12 @@ class FileRequirement(ReqLibBaseModel):
         return None
 
     @classmethod
-    def from_line(cls, line, editable=None, extras=None, parsed_line=None):
-        # type: (AnyStr, Optional[bool], Optional[Tuple[AnyStr, ...]], Optional[Line]) -> F
+    def from_line(cls, line, editable=None, extras=None, parsed_line=None) -> Union["FileRequirement", "VCSRequirement"]:
         parsed_line = Line(line=line)
         file_req_from_parsed_line(parsed_line)
 
     @classmethod
-    def from_pipfile(cls, name, pipfile):
-        # type: (str, Dict[str, Union[Tuple[str, ...], str, bool]]) -> F
+    def from_pipfile(cls, name, pipfile) -> Union["FileRequirement", "VCSRequirement"]:
         # Parse the values out. After this dance we should have two variables:
         # path - Local filesystem path.
         # uri - Absolute URI that is parsable with urlsplit.
@@ -2147,9 +2121,8 @@ class VCSRequirement(FileRequirement):
             raise
 
     @classmethod
-    def from_pipfile(cls, name, pipfile):
-        # type: (str, Dict[S, Union[Tuple[S, ...], S, bool]]) -> F
-        creation_args = {}  # type: Dict[str, CREATION_ARG_TYPES]
+    def from_pipfile(cls, name, pipfile) -> Union["FileRequirement", "VCSRequirement"]:
+        creation_args = {}
         pipfile_keys = [
             k
             for k in (
@@ -2198,8 +2171,7 @@ class VCSRequirement(FileRequirement):
         return cls_inst
 
     @classmethod
-    def from_line(cls, line, editable=None, extras=None, parsed_line=None):
-        # type: (AnyStr, Optional[bool], Optional[Tuple[AnyStr, ...]], Optional[Line]) -> F
+    def from_line(cls, line, editable=None, extras=None, parsed_line=None) -> Union["FileRequirement", "VCSRequirement"]:
         parsed_line = Line(line=line)
         return vcs_req_from_parsed_line(parsed_line)
 
@@ -2809,8 +2781,7 @@ class Requirement(ReqLibBaseModel):
             self.req.req = new_marker
 
 
-def file_req_from_parsed_line(parsed_line):
-    # type: (Line) -> FileRequirement
+def file_req_from_parsed_line(parsed_line) -> FileRequirement:
     path = parsed_line.relpath if parsed_line.relpath else parsed_line.path
     pyproject_requires = None  # type: Optional[Tuple[str, ...]]
     if parsed_line.pyproject_requires is not None:

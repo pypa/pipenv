@@ -1,9 +1,11 @@
 import os
 from contextlib import contextmanager
+from tempfile import NamedTemporaryFile
 from typing import Mapping, Sequence
 
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
 from pipenv.vendor.requirementslib.models.requirements import (
     InstallRequirement,
     Requirement,
@@ -314,15 +316,10 @@ def prepare_constraint_file(
     sources=None,
     pip_args=None,
 ):
-    from pipenv.vendor.vistir.path import (
-        create_tracked_tempdir,
-        create_tracked_tempfile,
-    )
-
     if not directory:
         directory = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
 
-    constraints_file = create_tracked_tempfile(
+    constraints_file = NamedTemporaryFile(
         mode="w",
         prefix="pipenv-",
         suffix="-constraints.txt",
@@ -367,8 +364,6 @@ def is_editable(pipfile_entry):
 
 @contextmanager
 def locked_repository(requirement):
-    from pipenv.vendor.vistir.path import create_tracked_tempdir
-
     if not requirement.is_vcs:
         return
     src_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-src")

@@ -7,8 +7,9 @@ import pytest
 
 from pipenv.project import Project
 from pipenv.utils.shell import temp_environ
-from pipenv.vendor.vistir.path import is_in_path, normalize_path
 from pipenv.vendor.plette import Pipfile
+from pipenv.vendor.requirementslib.fileutils import normalize_path
+from pipenv.vendor.pythonfinder.utils import is_in_path
 
 
 @pytest.mark.project

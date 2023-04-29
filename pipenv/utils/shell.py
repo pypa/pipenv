@@ -10,15 +10,12 @@ import warnings
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
+from typing import Iterator
 
-from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.vendor import click
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
 from .processes import subprocess_run
-
-if MYPY_RUNNING:
-    from typing import Text  # noqa
 
 
 @lru_cache()
@@ -307,8 +304,6 @@ def is_python_command(line):
     return False
 
 
-# TODO This code is basically a duplicate of pipenv.vendor.vistir.path.normalize_drive
-# Proposal:  Try removing this method and replacing usages in separate PR
 def normalize_drive(path):
     """Normalize drive in path so they stay consistent.
 
@@ -466,3 +461,37 @@ def shorten_path(location, bold=False):
     if bold:
         short[-1] = str(click.style(short[-1], bold=True))
     return os.sep.join(short)
+
+
+def isatty(stream):
+    try:
+        is_a_tty = stream.isatty()
+    except Exception:  # pragma: no cover
+        is_a_tty = False
+    return is_a_tty
+
+
+@contextmanager
+def cd(path) -> Iterator[None]:
+    """Context manager to temporarily change working directories
+
+    :param str path: The directory to move into
+
+    >>> print(os.path.abspath(os.curdir))
+    '/home/user/code/myrepo'
+    >>> with cd("/home/user/code/otherdir/subdir"):
+    ...     print("Changed directory: %s" % os.path.abspath(os.curdir))
+    Changed directory: /home/user/code/otherdir/subdir
+    >>> print(os.path.abspath(os.curdir))
+    '/home/user/code/myrepo'
+    """
+    if not path:
+        return
+    prev_cwd = Path.cwd().as_posix()
+    if isinstance(path, Path):
+        path = path.as_posix()
+    os.chdir(str(path))
+    try:
+        yield
+    finally:
+        os.chdir(prev_cwd)

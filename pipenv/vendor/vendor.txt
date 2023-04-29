@@ -12,10 +12,9 @@ pydantic==1.10.7
 ptyprocess==0.7.0
 python-dotenv==1.0.0
 pythonfinder==1.3.2
-requirementslib==2.2.5
+requirementslib==2.3.0
 ruamel.yaml==0.17.21
 shellingham==1.5.0.post1
 toml==0.10.2
 tomlkit==0.11.7
 typing-extensions==4.5.0
-vistir==0.8.0

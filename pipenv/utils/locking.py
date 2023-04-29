@@ -1,3 +1,7 @@
+import os
+import stat
+from contextlib import contextmanager
+from tempfile import NamedTemporaryFile
 from typing import Mapping
 
 from .dependencies import clean_resolved_dep, pep423_name, translate_markers
@@ -86,3 +90,85 @@ def prepare_lockfile(results, pipfile, lockfile):
         else:
             lockfile[name] = lockfile_entry[name]
     return lockfile
+
+
+@contextmanager
+def atomic_open_for_write(target, binary=False, newline=None, encoding=None) -> None:
+    """Atomically open `target` for writing.
+    This is based on Lektor's `atomic_open()` utility, but simplified a lot
+    to handle only writing, and skip many multi-process/thread edge cases
+    handled by Werkzeug.
+    :param str target: Target filename to write
+    :param bool binary: Whether to open in binary mode, default False
+    :param Optional[str] newline: The newline character to use when writing, determined
+        from system if not supplied.
+    :param Optional[str] encoding: The encoding to use when writing, defaults to system
+        encoding.
+    How this works:
+    * Create a temp file (in the same directory of the actual target), and
+      yield for surrounding code to write to it.
+    * If some thing goes wrong, try to remove the temp file. The actual target
+      is not touched whatsoever.
+    * If everything goes well, close the temp file, and replace the actual
+      target with this new file.
+    .. code:: python
+        >>> fn = "test_file.txt"
+        >>> def read_test_file(filename=fn):
+                with open(filename, 'r') as fh:
+                    print(fh.read().strip())
+        >>> with open(fn, "w") as fh:
+                fh.write("this is some test text")
+        >>> read_test_file()
+        this is some test text
+        >>> def raise_exception_while_writing(filename):
+                with open(filename, "w") as fh:
+                    fh.write("writing some new text")
+                    raise RuntimeError("Uh oh, hope your file didn't get overwritten")
+        >>> raise_exception_while_writing(fn)
+        Traceback (most recent call last):
+            ...
+        RuntimeError: Uh oh, hope your file didn't get overwritten
+        >>> read_test_file()
+        writing some new text
+        >>> def raise_exception_while_writing(filename):
+                with atomic_open_for_write(filename) as fh:
+                    fh.write("Overwriting all the text from before with even newer text")
+                    raise RuntimeError("But did it get overwritten now?")
+        >>> raise_exception_while_writing(fn)
+            Traceback (most recent call last):
+                ...
+            RuntimeError: But did it get overwritten now?
+        >>> read_test_file()
+            writing some new text
+    """
+
+    mode = "w+b" if binary else "w"
+    f = NamedTemporaryFile(
+        dir=os.path.dirname(target),
+        prefix=".__atomic-write",
+        mode=mode,
+        encoding=encoding,
+        newline=newline,
+        delete=False,
+    )
+    # set permissions to 0644
+    try:
+        os.chmod(f.name, stat.S_IWUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+    except OSError:
+        pass
+    try:
+        yield f
+    except BaseException:
+        f.close()
+        try:
+            os.remove(f.name)
+        except OSError:
+            pass
+        raise
+    else:
+        f.close()
+        try:
+            os.remove(target)  # This is needed on Windows.
+        except OSError:
+            pass
+        os.rename(f.name, target)  # No os.replace() on Python 2.
