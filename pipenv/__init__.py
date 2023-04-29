@@ -4,7 +4,6 @@
 #      |
 
 import os
-import sys
 import warnings
 
 from pipenv.__version__ import __version__  # noqa
