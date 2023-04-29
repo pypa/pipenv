@@ -3046,6 +3046,9 @@ class Distribution:
         except ValueError:
             issue_warning("Unbuilt egg for " + repr(self))
             return False
+        except SystemError:
+            # TODO: remove this except clause when python/cpython#103632 is fixed.
+            return False
         return True
 
     def clone(self, **kw):
