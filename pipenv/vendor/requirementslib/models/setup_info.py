@@ -3,7 +3,7 @@ import atexit
 import configparser
 import contextlib
 from contextlib import ExitStack
-import os
+
 import errno
 import locale
 import os
@@ -18,17 +18,15 @@ from functools import lru_cache
 from itertools import count
 from os import scandir
 from pathlib import Path
-from typing import Callable, Optional
 from urllib.parse import parse_qs, urlparse, urlunparse
 from typing import (
     Any,
     AnyStr,
+    Callable,
     Dict,
     Generator,
     List,
     Optional,
-    Sequence,
-    Set,
     Tuple,
     Union,
 )
@@ -70,7 +68,6 @@ from .utils import (
     split_vcs_method_from_uri,
     strip_extras_markers_from_requirement,
 )
-
 
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
 

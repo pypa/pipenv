@@ -24,9 +24,9 @@ from typing import (
     TypeVar,
     Union,
 )
-from pipenv.vendor.pydantic import Field, Extra
+from pipenv.vendor.pydantic import Field
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._vendor.pyparsing.core import cached_property
+
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.req.constructors import (
@@ -37,6 +37,7 @@ from pipenv.patched.pip._internal.req.constructors import (
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
+from pipenv.patched.pip._vendor.distlib.util import cached_property
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import (
@@ -88,7 +89,6 @@ from .utils import (
     expand_env_variables,
     extras_to_string,
     format_requirement,
-    get_default_pyproject_backend,
     get_pyproject,
     get_version,
     init_requirement,
