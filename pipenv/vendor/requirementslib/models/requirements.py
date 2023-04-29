@@ -525,12 +525,6 @@ class Line(ReqLibBaseModel):
             pyproject_results = get_pyproject(self.path)  # type: ignore
             if pyproject_results:
                 pyproject_requires, pyproject_backend = pyproject_results
-            if not pyproject_backend and self.setup_cfg is not None:
-                setup_dict = SetupInfo.get_setup_cfg(self.setup_cfg)
-                pyproject_backend = get_default_pyproject_backend()
-                pyproject_requires = setup_dict.get(
-                    "build_requires", ["setuptools", "wheel"]
-                )  # type: ignore
             if pyproject_requires:
                 self._pyproject_requires = tuple(pyproject_requires)
             if pyproject_backend:
@@ -2271,13 +2265,12 @@ class VCSRequirement(FileRequirement):
 class Requirement(ReqLibBaseModel):
     vcs: Optional[str] = Field(None, eq=True, order=True)
     req: Optional[Any] = Field(None, eq=True, order=True)
-    #req: Optional[Union[VCSRequirement, FileRequirement, NamedRequirement]] = Field(None, eq=True, order=True)
     markers: Optional[str] = Field("", eq=True, order=True)
     index: Optional[str] = Field(None, eq=True, order=True)
     editable: Optional[bool] = Field(None, eq=True, order=True)
     hashes: Set[str] = set()
     extras: Tuple[str, ...] = Field(tuple(), eq=True, order=True)
-    #line_instance: Optional[Line] = Field(None, eq=False, order=False)
+    line_instance_ref: Optional[Line] = Field(None, eq=False, order=False)
     #ireq: Optional[InstallRequirement] = Field(None, eq=False, order=False)
     #_ireq: Optional[Any] = Field(None, eq=False, order=False)
 
@@ -2364,6 +2357,8 @@ class Requirement(ReqLibBaseModel):
                 self.req.setup_info.name = name
 
     def get_line_instance(self) -> Line:
+        if self.line_instance_ref:
+            return self.line_instance_ref
         line_parts = []
         local_editable = False
         if self.req:
@@ -2383,7 +2378,7 @@ class Requirement(ReqLibBaseModel):
                 line_parts.append(f"#egg={self.name}{self.extras_as_pip}")
             else:
                 line_parts.append(self.extras_as_pip)
-        if self.specifiers and not (self.is_file_or_url or self.is_vcs):
+        if not (self.is_file_or_url or self.is_vcs) and self.specifiers:
             line_parts.append(self.specifiers)
         if self.markers and not self.is_file_or_url:
             line_parts.append(" ; {0}".format(self.markers.replace('"', "'")))
@@ -2399,10 +2394,13 @@ class Requirement(ReqLibBaseModel):
             line = "-e {0}".format(line)
         else:
             line = "".join(line_parts)
-        return Line(line=line)
+        self.line_instance_ref = Line(line=line)
+        return self.line_instance_ref
 
     @cached_property
     def line_instance(self) -> Optional[Line]:
+        if self.line_instance_ref:
+            return self.line_instance_ref
         return self.get_line_instance()
 
     @cached_property
@@ -2416,6 +2414,13 @@ class Requirement(ReqLibBaseModel):
             and self.req.version
         ):
             return self.req.version
+        elif (
+            self.req
+            and hasattr(self.req, "setup_info")
+            and self.req.setup_info.version
+        ):
+            return "=={0}".format(self.req.setup_info.version)
+        # TODO This creates circular call chain that eventuallys gets cached by cached_property
         elif self.is_file_or_url or self.is_vcs:
             try:
                 setupinfo_dict = self.run_requires()
@@ -2423,13 +2428,6 @@ class Requirement(ReqLibBaseModel):
                 setupinfo_dict = None
             if setupinfo_dict is not None:
                 return "=={0}".format(setupinfo_dict.get("version"))
-        elif (
-            self.req
-            and hasattr(self.req, "setup_info")
-            and self.req.setup_info.version
-        ):
-            return "=={0}".format(self.req.setup_info.version)
-
     @cached_property
     def is_vcs(self) -> bool:
         return isinstance(self.req, VCSRequirement)
