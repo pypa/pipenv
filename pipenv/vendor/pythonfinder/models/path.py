@@ -469,16 +469,9 @@ class SystemPath(FinderBaseModel):
             return obj.find_all_python_versions(None, None, None, None, None, None, name)
 
         major, minor, patch, name = split_version_and_name(major, minor, patch, name)
-        alternate_sub_finder = None
-
-        if name and not (minor or patch or pre or dev or arch or major):
-            alternate_sub_finder = alternate_sub_finder
-
         if major and minor and patch:
             _tuple_pre = pre if pre is not None else False
             _tuple_dev = dev if dev is not None else False
-            version_tuple = (major, minor, patch, _tuple_pre, _tuple_dev)
-            version_tuple_pre = (major, minor, patch, True, False)
 
         if os.name == "nt" and self.windows_finder:
             windows_finder_version = sub_finder(self.windows_finder)
