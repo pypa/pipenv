@@ -2408,14 +2408,11 @@ class Requirement(ReqLibBaseModel):
         specs = self.get_specifiers
         if specs:
             return specs
-        if (
-            self.req is not None
-            and isinstance(self.req, NamedRequirement)
-            and self.req.version
-        ):
-            return self.req.version
+        elif self.req and isinstance(self.req, NamedRequirement) and self.req.version:
+            return "=={0}".format(self.req.version)
         elif (
             self.req
+            and hasattr(self.req, "setup_info")
             and self.req.setup_info
             and self.req.setup_info.version
         ):
