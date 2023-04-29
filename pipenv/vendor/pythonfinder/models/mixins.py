@@ -102,8 +102,8 @@ class PathEntry(BaseModel):
     @property
     def as_python(self) -> "PythonVersion":
         py_version = None
-        if self.py_version:
-            return self.py_version
+        if self.py_version_ref:
+            return self.py_version_ref
         if not self.is_dir and self.is_python:
             from .python import PythonVersion
 
