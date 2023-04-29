@@ -83,7 +83,7 @@ class PygmentsDoc(Directive):
         nested_parse_with_titles(self.state, vl, node)
         for fn in self.filenames:
             self.state.document.settings.record_dependencies.add(fn)
-        return node.children_ref
+        return node.children
 
     def document_lexers_overview(self):
         """Generate a tabular overview of all lexers.

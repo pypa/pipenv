@@ -154,16 +154,16 @@ class Tree(JupyterMixin):
                             SPACE if last else CONTINUE, prefix[-1].style or null_style
                         )
 
-            if node.expanded and node.children_ref:
+            if node.expanded and node.children:
                 levels[-1] = make_guide(
                     SPACE if last else CONTINUE, levels[-1].style or null_style
                 )
                 levels.append(
-                    make_guide(END if len(node.children_ref) == 1 else FORK, guide_style)
+                    make_guide(END if len(node.children) == 1 else FORK, guide_style)
                 )
                 style_stack.push(get_style(node.style))
                 guide_style_stack.push(get_style(node.guide_style))
-                push(iter(loop_last(node.children_ref)))
+                push(iter(loop_last(node.children)))
                 depth += 1
 
     def __rich_measure__(
@@ -188,8 +188,8 @@ class Tree(JupyterMixin):
             indent = level * 4
             minimum = max(min_measure + indent, minimum)
             maximum = max(max_measure + indent, maximum)
-            if tree.expanded and tree.children_ref:
-                push(iter(tree.children_ref))
+            if tree.expanded and tree.children:
+                push(iter(tree.children))
                 level += 1
         return Measurement(minimum, maximum)
 

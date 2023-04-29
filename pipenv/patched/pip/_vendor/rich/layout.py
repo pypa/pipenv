@@ -353,7 +353,7 @@ class Layout:
         while stack:
             append_layout_region(pop())
             layout, region = layout_regions[-1]
-            children = layout.children_ref
+            children = layout.children
             if children:
                 for child_and_region in layout.splitter.divide(children, region):
                     push(child_and_region)
@@ -380,7 +380,7 @@ class Layout:
         layout_regions = [
             (layout, region)
             for layout, region in region_map.items()
-            if not layout.children_ref
+            if not layout.children
         ]
         render_map: Dict["Layout", "LayoutRender"] = {}
         render_lines = console.render_lines

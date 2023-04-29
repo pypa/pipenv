@@ -486,7 +486,7 @@ class _Line:
     @property
     def expandable(self) -> bool:
         """Check if the line may be expanded."""
-        return bool(self.node is not None and self.node.children_ref)
+        return bool(self.node is not None and self.node.children)
 
     def check_length(self, max_length: int) -> bool:
         """Check this line fits within a given number of cells."""
@@ -501,7 +501,7 @@ class _Line:
         node = self.node
         assert node is not None
         whitespace = self.whitespace
-        assert node.children_ref
+        assert node.children
         if node.key_repr:
             new_line = yield _Line(
                 text=f"{node.key_repr}{node.key_separator}{node.open_brace}",
@@ -510,8 +510,8 @@ class _Line:
         else:
             new_line = yield _Line(text=node.open_brace, whitespace=whitespace)
         child_whitespace = self.whitespace + " " * indent_size
-        tuple_of_one = node.is_tuple and len(node.children_ref) == 1
-        for last, child in loop_last(node.children_ref):
+        tuple_of_one = node.is_tuple and len(node.children) == 1
+        for last, child in loop_last(node.children):
             separator = "," if tuple_of_one else node.separator
             line = _Line(
                 parent=new_line,
