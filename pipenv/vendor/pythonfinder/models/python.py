@@ -463,14 +463,13 @@ class PythonVersion(FinderBaseModel):
         return result
 
     def as_major(self) -> "PythonVersion":
-        self_dict = self.dict()
-        self_dict.update({"minor": None, "patch": None})
-        return self.create(**self_dict)
+        self.minor = None
+        self.patch = None
+        return self
 
     def as_minor(self) -> "PythonVersion":
-        self_dict = self.dict()
-        self_dict.update({"patch": None})
-        return self.create(**self_dict)
+        self.patch = None
+        return self
 
     def as_dict(self) -> Dict[str, Union[int, bool, Version, None]]:
         return {

@@ -276,7 +276,6 @@ class PathEntry(BaseModel):
         paths = sorted(unnested, key=version_sort, reverse=True)
         return list(paths)
 
-
     def find_python_version(
         self,
         major=None,  # type: Optional[Union[str, int]]

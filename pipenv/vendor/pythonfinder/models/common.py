@@ -17,16 +17,6 @@ class FinderBaseModel(BaseModel):
 
         object.__setattr__(self, name, value)
 
-    def dict(self, *args, **kwargs) -> Dict[str, Any]:
-        """ The requirementslib classes make use of a lot of private attributes
-        which do not get serialized out to the dict by default in pydantic. """
-        model_dict = super().dict(*args, **kwargs)
-        private_attrs = {
-            k: v for k, v in self.__dict__.items() if k.startswith("_")
-        }
-        model_dict.update(private_attrs)
-        return model_dict
-
     class Config:
         validate_assignment = True
         arbitrary_types_allowed = True
