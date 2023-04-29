@@ -41,6 +41,7 @@ if "urllib3" in sys.modules:
 
 if os.name == "nt":
     from pipenv.vendor import colorama
+
     no_color = False
     if not os.getenv("NO_COLOR") or no_color:
         colorama.just_fix_windows_console()

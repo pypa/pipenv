@@ -1,8 +1,8 @@
-from typing import Mapping
 import os
 import stat
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
+from typing import Mapping
 
 from .dependencies import clean_resolved_dep, pep423_name, translate_markers
 

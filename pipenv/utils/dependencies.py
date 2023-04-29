@@ -1,15 +1,16 @@
 import os
 from contextlib import contextmanager
-from typing import Mapping, Sequence
 from tempfile import NamedTemporaryFile
+from typing import Mapping, Sequence
 
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
 from pipenv.vendor.requirementslib.models.requirements import (
     InstallRequirement,
     Requirement,
 )
-from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
+
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
 

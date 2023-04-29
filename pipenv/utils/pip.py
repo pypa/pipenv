@@ -5,15 +5,14 @@ from pathlib import Path
 from typing import List, Optional
 
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
-from pipenv.vendor import click
-from pipenv.vendor.requirementslib import Requirement
-from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
-
 from pipenv.project import Project
 from pipenv.utils.dependencies import get_constraints_from_deps, prepare_constraint_file
 from pipenv.utils.indexes import get_source_list, prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import cmd_list_to_shell, normalize_path, project_python
+from pipenv.vendor import click
+from pipenv.vendor.requirementslib import Requirement
+from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
 
 
 def format_pip_output(out, r=None):
@@ -95,9 +94,7 @@ def pip_install_deps(
     else:
         src_dir = os.getenv("PIP_SRC", os.getenv("PIP_SRC_DIR"))
     if not requirements_dir:
-        requirements_dir = create_tracked_tempdir(
-            prefix="pipenv", suffix="requirements"
-        )
+        requirements_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
 
     standard_requirements = tempfile.NamedTemporaryFile(
         prefix="pipenv-", suffix="-hashed-reqs.txt", dir=requirements_dir, delete=False
@@ -413,9 +410,7 @@ def write_requirement_to_file(
     include_hashes: bool = True,
 ) -> str:
     if not requirements_dir:
-        requirements_dir = create_tracked_tempdir(
-            prefix="pipenv", suffix="requirements"
-        )
+        requirements_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
     line = requirement.line_instance.get_line(
         with_prefix=True, with_hashes=include_hashes, with_markers=True, as_list=False
     )

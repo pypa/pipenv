@@ -10,10 +10,10 @@ import warnings
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterator, Text
+from typing import Iterator
 
 from pipenv.vendor import click
-from pipenv.utils.scripts import Script
+
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
 from .processes import subprocess_run
 

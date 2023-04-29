@@ -5,10 +5,8 @@ import re
 import sys
 
 from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
+from pipenv.utils.shell import env_to_bool, is_env_truthy, isatty
 from pipenv.vendor.requirementslib.fileutils import normalize_drive
-
-from pipenv.utils.shell import env_to_bool, is_env_truthy
-from pipenv.utils.shell import isatty
 
 # HACK: avoid resolver.py uses the wrong byte code files.
 # I hope I can remove this one day.

@@ -4,11 +4,10 @@ import logging
 import os
 import sys
 
-from pipenv.vendor.requirementslib.models.requirements import Requirement
-from pipenv.vendor.requirementslib.fileutils import temp_path
-
 from pipenv.utils.indexes import parse_indexes
 from pipenv.utils.shell import cd
+from pipenv.vendor.requirementslib.fileutils import temp_path
+from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 

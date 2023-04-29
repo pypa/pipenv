@@ -24,8 +24,8 @@ from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import import_requirements
 from pipenv.utils.virtualenv import cleanup_virtualenv, do_create_virtualenv
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib.models.requirements import Requirement
 from pipenv.vendor.requirementslib import fileutils
+from pipenv.vendor.requirementslib.models.requirements import Requirement
 from pipenv.vendor.requirementslib.utils import temp_environ
 
 console = rich.console.Console()

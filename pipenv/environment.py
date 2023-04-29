@@ -22,9 +22,9 @@ from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import make_posix, normalize_path
 from pipenv.vendor import click
+from pipenv.vendor.pythonfinder.utils import is_in_path
 from pipenv.vendor.requirementslib.fileutils import temp_path
 from pipenv.vendor.requirementslib.utils import temp_environ
-from pipenv.vendor.pythonfinder.utils import is_in_path
 
 try:
     # this is only in Python3.8 and later
@@ -528,8 +528,7 @@ class Environment:
                 if not pth.suffix == ".egg-link":
                     continue
                 contents = [
-                    normalize_path(line.strip())
-                    for line in pth.read_text().splitlines()
+                    normalize_path(line.strip()) for line in pth.read_text().splitlines()
                 ]
                 pth.write_text("\n".join(contents))
 
