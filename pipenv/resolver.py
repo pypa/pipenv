@@ -693,8 +693,7 @@ def clean_outdated(results, resolver, project, category):
 
 def parse_packages(packages, pre, clear, system, requirements_dir=None):
     from pipenv.utils.indexes import parse_indexes
-    from pipenv.utils.shell import cd
-    from pipenv.vendor.requirementslib.fileutils import temp_path
+    from pipenv.vendor.requirementslib.fileutils import cd, temp_path
     from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     parsed_packages = []

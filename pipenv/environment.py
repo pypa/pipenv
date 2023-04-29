@@ -22,10 +22,10 @@ from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
-from pipenv.utils.shell import make_posix, normalize_path
+from pipenv.utils.shell import make_posix
 from pipenv.vendor import click
 from pipenv.vendor.pythonfinder.utils import is_in_path
-from pipenv.vendor.requirementslib.fileutils import temp_path
+from pipenv.vendor.requirementslib.fileutils import normalize_path, temp_path
 from pipenv.vendor.requirementslib.utils import temp_environ
 
 try:
