@@ -5,7 +5,6 @@ import importlib
 import importlib.util
 import itertools
 import json
-import operator
 import os
 import site
 import sys
@@ -14,10 +13,8 @@ from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
 
 import pipenv
-from pipenv import cmdparse
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._internal.req.req_uninstall import UninstallPathSet
 from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils.funktools import chunked, unnest
@@ -25,7 +22,7 @@ from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import make_posix, normalize_path
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib.fileutils import normalize_path, temp_path
+from pipenv.vendor.requirementslib.fileutils import temp_path
 from pipenv.vendor.requirementslib.utils import temp_environ
 from pipenv.vendor.pythonfinder.utils import is_in_path
 

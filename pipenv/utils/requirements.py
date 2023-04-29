@@ -83,18 +83,3 @@ BAD_PACKAGES = (
     "setuptools",
     "wheel",
 )
-
-
-
-def create_tracked_tempfile(*args: Any, **kwargs: Any) -> str:
-    """Create a tracked temporary directory.
-    This uses `TemporaryDirectory`, but does not remove the directory
-    when the return value goes out of scope, instead registers a handler
-    to cleanup on program exit. The return value is the path to the
-    created directory.
-    """
-    tempdir = TemporaryDirectory(*args, **kwargs)
-    TRACKED_TEMPORARY_DIRECTORIES.append(tempdir)
-    atexit.register(tempdir.cleanup)
-    warnings.simplefilter("ignore", ResourceWarning)
-    return tempdir.name

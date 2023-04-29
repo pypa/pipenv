@@ -238,7 +238,7 @@ def do_install(
                 bold=True,
             )
             # pip install:
-            with utils.temp_environ(), console.status(
+            with temp_environ(), console.status(
                 "Installing...", spinner=project.s.PIPENV_SPINNER
             ) as st:
                 if not system:

@@ -1,6 +1,7 @@
 import os
 from contextlib import contextmanager
 from typing import Mapping, Sequence
+from tempfile import NamedTemporaryFile
 
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.version import parse
@@ -9,8 +10,6 @@ from pipenv.vendor.requirementslib.models.requirements import (
     Requirement,
 )
 from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
-from pipenv.utils.requirements import create_tracked_tempfile
-
 from .constants import SCHEME_LIST, VCS_LIST
 from .shell import temp_path
 
@@ -319,7 +318,7 @@ def prepare_constraint_file(
     if not directory:
         directory = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
 
-    constraints_file = create_tracked_tempfile(
+    constraints_file = NamedTemporaryFile(
         mode="w",
         prefix="pipenv-",
         suffix="-constraints.txt",
