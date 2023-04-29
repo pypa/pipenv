@@ -23,7 +23,7 @@ def test_suppress_nested_venv_warning(capsys, project):
 def test_load_dot_env_from_environment_variable_location(monkeypatch, capsys, project):
     with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
         if os.name == "nt":
-            import click
+            from pipenv.vendor import click
             is_console = False
             m.setattr(click._winconsole, "_is_console", lambda x: is_console)
         dotenv_path = os.path.join(tempdir, 'test.env')
@@ -40,7 +40,7 @@ def test_load_dot_env_from_environment_variable_location(monkeypatch, capsys, pr
 def test_doesnt_load_dot_env_if_disabled(monkeypatch, capsys, project):
     with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
         if os.name == "nt":
-            import click
+            from pipenv.vendor import click
             is_console = False
             m.setattr(click._winconsole, "_is_console", lambda x: is_console)
         dotenv_path = os.path.join(tempdir, 'test.env')
@@ -61,7 +61,7 @@ def test_doesnt_load_dot_env_if_disabled(monkeypatch, capsys, project):
 def test_load_dot_env_warns_if_file_doesnt_exist(monkeypatch, capsys, project):
     with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
         if os.name == "nt":
-            import click
+            from pipenv.vendor import click
             is_console = False
             m.setattr(click._winconsole, "_is_console", lambda x: is_console)
         dotenv_path = os.path.join(tempdir, 'does-not-exist.env')
