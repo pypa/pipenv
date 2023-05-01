@@ -4,7 +4,7 @@ import json
 import os
 from typing import Optional, Any
 
-from pipenv.vendor.pydantic import BaseModel
+from pipenv.vendor.pydantic import BaseModel, Field
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 
 SectionDifference = collections.namedtuple("SectionDifference", ["inthis", "inthat"])
