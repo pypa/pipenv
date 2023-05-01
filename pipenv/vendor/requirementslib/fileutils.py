@@ -97,15 +97,12 @@ def normalize_path(path):
     )
 
 
-
 def normalize_drive(path):
     """Normalize drive in path so they stay consistent.
 
     This currently only affects local drives on Windows, which can be
     identified with either upper or lower cased drive names. The case is
     always converted to uppercase because it seems to be preferred.
-
-    See: <https://github.com/pypa/pipenv/issues/1218>
     """
     if os.name != "nt" or not isinstance(path, str):
         return path
@@ -151,7 +148,7 @@ def open_file(
 ) -> ContextManager[Union[IO[bytes], Urllib3_HTTPResponse, Urllib_HTTPResponse]]:
     """Open local or remote file for reading.
 
-    :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with
+    :param pip._internal.index.Link link: A link object from resolving dependencies with
         pip, or else a URL.
     :param Optional[Session] session: A :class:`~requests.Session` instance
     :param bool stream: Whether to stream the content if remote, default True

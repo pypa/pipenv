@@ -1,3 +1,4 @@
+from typing import Dict, Optional, Text, Tuple, TypeVar, Union
 from urllib.parse import quote
 from urllib.parse import unquote as url_unquote
 from urllib.parse import unquote_plus
@@ -6,14 +7,13 @@ from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.constructors import _strip_extras
 from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
 from pipenv.patched.pip._vendor.urllib3.util.url import Url
+from pipenv.vendor.pydantic import Field
 
 from ..environment import MYPY_RUNNING
 from ..utils import is_installable_file
-from .utils import extras_to_string, parse_extras, DIRECT_URL_RE, split_ref_from_uri
+from .common import ReqLibBaseModel
+from .utils import DIRECT_URL_RE, extras_to_string, parse_extras_str, split_ref_from_uri
 
-from typing import Dict, Optional, Text, Tuple, TypeVar, Union
-from pipenv.vendor.pydantic import Field
-from pipenv.vendor.requirementslib.models.common import ReqLibBaseModel
 
 if MYPY_RUNNING:
 
@@ -47,17 +47,34 @@ def _get_parsed_url(url) -> Url:
 
 class URI(ReqLibBaseModel):
     host: Optional[str] = Field(...)
-    scheme: Optional[str] = Field("https", description="The URI Scheme, e.g. `salesforce`")
-    port: Optional[int] = Field(None, description="The numeric port of the url if specified")
-    path: str = Field("", description="The url path, e.g. `/path/to/endpoint`")
-    query:  Optional[str] = Field("", description="Query parameters, e.g. `?variable=value...`")
-    fragment: Optional[str] = Field("", description="URL Fragments, e.g. `#fragment=value`")
-    subdirectory: Optional[str] = Field("", description="Subdirectory fragment, e.g. `&subdirectory=blah...`")
+    scheme: Optional[str] = Field(
+        "https", description="The URI Scheme, e.g. `salesforce`"
+    )
+    port: Optional[int] = Field(
+        None, description="The numeric port of the url if specified"
+    )
+    path: Optional[str] = Field("", description="The url path, e.g. `/path/to/endpoint`")
+    query: Optional[str] = Field(
+        "", description="Query parameters, e.g. `?variable=value...`"
+    )
+    fragment: Optional[str] = Field(
+        "", description="URL Fragments, e.g. `#fragment=value`"
+    )
+    subdirectory: Optional[str] = Field(
+        "", description="Subdirectory fragment, e.g. `&subdirectory=blah...`"
+    )
     ref: Optional[str] = Field("", description="VCS ref this URI points at, if available")
-    username: Optional[str] = Field("", description="The username if provided, parsed from `user:password@hostname`")
-    password: Optional[str] = Field("", description="Password parsed from `user:password@hostname`", repr=False)
+    username: Optional[str] = Field(
+        "", description="The username if provided, parsed from `user:password@hostname`"
+    )
+    password: Optional[str] = Field(
+        "", description="Password parsed from `user:password@hostname`", repr=False
+    )
     query_dict: Optional[Dict] = Field(default_factory=dict)
-    name: Optional[str] = Field("", description="The name of the specified package in case it is a VCS URI with an egg fragment")
+    name: Optional[str] = Field(
+        "",
+        description="The name of the specified package in case it is a VCS URI with an egg fragment",
+    )
     extras: Optional[Tuple] = Field(default_factory=tuple)
     is_direct_url: Optional[bool] = Field(False)
     is_implicit_ssh: Optional[bool] = Field(False)
@@ -71,7 +88,7 @@ class URI(ReqLibBaseModel):
         arbitrary_types_allowed = True
         allow_mutation = True
         include_private_attributes = True
-        #keep_untouched = (cached_property,)
+        # keep_untouched = (cached_property,)
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -111,11 +128,11 @@ class URI(ReqLibBaseModel):
             val = unquote_plus(val)
             fragment_items[key] = val
             if key == "egg":
-                from .utils import parse_extras
+                from .utils import parse_extras_str
 
                 name, stripped_extras = _strip_extras(val)
                 if stripped_extras:
-                    extras = tuple(parse_extras(stripped_extras))
+                    extras = tuple(parse_extras_str(stripped_extras))
             elif key == "subdirectory":
                 subdirectory = val
         self.name = name
@@ -442,7 +459,7 @@ def update_url_name_and_fragment(name_with_extras, ref, parsed_dict):
         parsed_extras = ()
         name, extras = _strip_extras(name_with_extras)
         if extras:
-            parsed_extras = parsed_extras + tuple(parse_extras(extras))
+            parsed_extras = parsed_extras + tuple(parse_extras_str(extras))
         if parsed_dict["fragment"] is not None:
             fragment = "{0}".format(parsed_dict["fragment"])
             if fragment.startswith("egg="):
@@ -450,7 +467,9 @@ def update_url_name_and_fragment(name_with_extras, ref, parsed_dict):
                 fragment_name, fragment_extras = _strip_extras(fragment_part)
                 name = name if name else fragment_name
                 if fragment_extras:
-                    parsed_extras = parsed_extras + tuple(parse_extras(fragment_extras))
+                    parsed_extras = parsed_extras + tuple(
+                        parse_extras_str(fragment_extras)
+                    )
                 name_with_extras = "{0}{1}".format(name, extras_to_string(parsed_extras))
         elif (
             parsed_dict.get("path") is not None and "&subdirectory" in parsed_dict["path"]

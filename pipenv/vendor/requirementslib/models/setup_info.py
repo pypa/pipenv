@@ -18,18 +18,8 @@ from functools import lru_cache
 from itertools import count
 from os import scandir
 from pathlib import Path
+from typing import Any, AnyStr, Callable, Dict, Generator, List, Optional, Tuple, Union
 from urllib.parse import parse_qs, urlparse, urlunparse
-from typing import (
-    Any,
-    AnyStr,
-    Callable,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
 
 from pipenv.patched.pip._vendor.distlib.wheel import Wheel
 from pipenv.vendor.pep517 import envbuild, wrappers
@@ -41,6 +31,8 @@ from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 from pipenv.patched.pip._vendor.pkg_resources import (
+    DistInfoDistribution,
+    EggInfoDistribution,
     PathMetadata,
     Requirement,
     distributions_from_metadata,
@@ -55,18 +47,20 @@ from pipenv.vendor.requirementslib.models.common import ReqLibBaseModel
 from pipenv.vendor.requirementslib.models.utils import HashableRequirement, convert_to_hashable_requirement
 from pipenv.vendor.pydantic import Field
 
-
-from ..exceptions import RequirementError
 from ..fileutils import cd, create_tracked_tempdir, temp_path
 from ..utils import get_pip_command
+from .common import ReqLibBaseModel
 from .old_pip_utils import _copy_source_tree
 from .utils import (
+    HashableRequirement,
+    convert_to_hashable_requirement,
     get_default_pyproject_backend,
     get_name_variants,
     get_pyproject,
     init_requirement,
     split_vcs_method_from_uri,
     strip_extras_markers_from_requirement,
+    tuple_to_dict,
 )
 
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
@@ -343,11 +337,11 @@ def make_base_requirements(reqs) -> Tuple:
         reqs = [reqs]
     for req in reqs:
         if isinstance(req, BaseRequirement):
-            requirements += (req, )
+            requirements += (req,)
         elif isinstance(req, Requirement):
-            requirements += (BaseRequirement.from_req(req), )
+            requirements += (BaseRequirement.from_req(req),)
         elif req and isinstance(req, str) and not req.startswith("#"):
-            requirements += (BaseRequirement.from_string(req), )
+            requirements += (BaseRequirement.from_string(req),)
     return requirements
 
 
@@ -861,7 +855,7 @@ def _get_src_dir(root):
 
 @lru_cache()
 def ensure_reqs(reqs):
-    # type: (List[Union[S, Requirement]]) -> List[Requirement]
+    # type: (List[Union[Requirement]]) -> List[Requirement]
 
     if not isinstance(reqs, Iterable):
         raise TypeError("Expecting an Iterable, got %r" % reqs)
@@ -1003,9 +997,7 @@ def find_distinfo(target, pkg_name=None):
             yield dist_dir
 
 
-def get_distinfo_dist(path, pkg_name=None):
-    # type: (S, Optional[S]) -> Optional[DistInfoDistribution]
-
+def get_distinfo_dist(path, pkg_name=None) -> Optional[DistInfoDistribution]:
     dist_dir = next(iter(find_distinfo(path, pkg_name=pkg_name)), None)
     if dist_dir is not None:
         metadata_dir = dist_dir.path
@@ -1016,9 +1008,7 @@ def get_distinfo_dist(path, pkg_name=None):
     return None
 
 
-def get_egginfo_dist(path, pkg_name=None):
-    # type: (S, Optional[S]) -> Optional[EggInfoDistribution]
-
+def get_egginfo_dist(path, pkg_name=None) -> Optional[EggInfoDistribution]:
     egg_dir = next(iter(find_egginfo(path, pkg_name=pkg_name)), None)
     if egg_dir is not None:
         metadata_dir = egg_dir.path
@@ -1032,7 +1022,6 @@ def get_egginfo_dist(path, pkg_name=None):
 
 
 def get_metadata(path, pkg_name=None, metadata_type=None):
-    # type: (S, Optional[S], Optional[S]) -> Dict[S, Union[S, List[PackagingRequirement], Dict[S, PackagingRequirement]]]
     wheel_allowed = metadata_type == "wheel" or metadata_type is None
     egg_allowed = metadata_type == "egg" or metadata_type is None
     dist = None  # type: Optional[Union[DistInfoDistribution, EggInfoDistribution]]
@@ -1056,8 +1045,7 @@ def get_extra_name_from_marker(marker):
     return None
 
 
-def get_metadata_from_wheel(wheel_path):
-    # type: (S) -> Dict[Any, Any]
+def get_metadata_from_wheel(wheel_path) -> Dict[Any, Any]:
     if not isinstance(wheel_path, str):
         raise TypeError("Expected string instance, received {0!r}".format(wheel_path))
     try:
@@ -1069,9 +1057,7 @@ def get_metadata_from_wheel(wheel_path):
     version = metadata.version
     requires = []
     extras_keys = getattr(metadata, "extras", [])  # type: List[str]
-    extras = {
-        k: [] for k in extras_keys
-    }  # type: Dict[str, List[PackagingRequirement]]
+    extras = {k: [] for k in extras_keys}  # type: Dict[str, List[PackagingRequirement]]
     for req in getattr(metadata, "run_requires", []):
         parsed_req = init_requirement(req)
         parsed_marker = parsed_req.marker
@@ -1090,7 +1076,6 @@ def get_metadata_from_wheel(wheel_path):
 
 
 def get_metadata_from_dist(dist):
-    # type: (Union[PathMetadata, EggInfoDistribution, DistInfoDistribution]) -> Dict[S, Union[S, List[PackagingRequirement], Dict[S, PackagingRequirement]]]
     try:
         requires = dist.requires()
     except Exception:
@@ -1138,11 +1123,10 @@ def ast_parse_setup_py(path: str, raising: bool = True) -> "Dict[str, Any]":
 
 
 def run_setup(script_path, egg_base=None):
-    # type: (str, Optional[str]) -> Distribution
     """Run a `setup.py` script with a target **egg_base** if provided.
 
-    :param S script_path: The path to the `setup.py` script to run
-    :param Optional[S] egg_base: The metadata directory to build in
+    :param script_path: The path to the `setup.py` script to run
+    :param Optional egg_base: The metadata directory to build in
     :raises FileNotFoundError: If the provided `script_path` does not exist
     :return: The metadata dictionary
     :rtype: Dict[Any, Any]
@@ -1220,14 +1204,14 @@ class BaseRequirement(ReqLibBaseModel):
 
     @classmethod
     @lru_cache()
-    def from_string(cls, line: str) -> 'HashableRequirement':
+    def from_string(cls, line: str) -> "HashableRequirement":
         line = line.strip()
         req = init_requirement(line)
         return cls.from_req(req)
 
     @classmethod
     @lru_cache()
-    def from_req(cls, req: Requirement) -> 'HashableRequirement':
+    def from_req(cls, req: Requirement) -> "HashableRequirement":
         name = None
         key = getattr(req, "key", None)
         name = getattr(req, "name", None)
@@ -1254,7 +1238,7 @@ class SetupInfo(ReqLibBaseModel):
     setup_py: Optional[Path] = None
     pyproject: Optional[Path] = None
     ireq: Optional[InstallRequirement] = None
-    extra_kwargs: Dict = Field(default_factory=dict)
+    extra_kwargs: Optional[Dict] = Field(default_factory=dict)
     metadata: Optional[Tuple[str]] = None
     _is_built: bool = False
     _ran_setup: bool = False
@@ -1278,14 +1262,32 @@ class SetupInfo(ReqLibBaseModel):
         self.get_info()
 
     def __hash__(self):
-        return hash((self.name, self._version, self._requirements, self.build_requires, self.build_backend,
-                     self.setup_requires, self.python_requires, self._extras_requirements, self.setup_cfg,
-                     self.setup_py, self.pyproject, self.ireq))
+        return hash(
+            (
+                self.name,
+                self._version,
+                self._requirements,
+                self.build_requires,
+                self.build_backend,
+                self.setup_requires,
+                self.python_requires,
+                self._extras_requirements,
+                self.setup_cfg,
+                self.setup_py,
+                self.pyproject,
+                self.ireq,
+            )
+        )
 
     def __eq__(self, other):
         if not isinstance(other, SetupInfo):
             return NotImplemented
-        return self.name == other.name and self._version == other._version and self._requirements == other._requirements and self.build_requires == other.build_requires
+        return (
+            self.name == other.name
+            and self._version == other._version
+            and self._requirements == other._requirements
+            and self.build_requires == other.build_requires
+        )
 
     @cached_property
     def requires(self) -> Dict[str, HashableRequirement]:
@@ -1309,8 +1311,10 @@ class SetupInfo(ReqLibBaseModel):
     @property
     def version(self) -> Optional[str]:
         if not self._version:
-            info = self.as_dict()
-            self._version = info.get("version", None)
+            self.get_info()
+            if self.metadata:
+                metadata_dict = tuple_to_dict(self.metadata)
+                self._version = metadata_dict.get("version")
         return self._version
 
     @property
@@ -1334,8 +1338,8 @@ class SetupInfo(ReqLibBaseModel):
 
     def update_from_dict(self, metadata: Dict[str, Any]) -> None:
         name = metadata.get("name", self.name)
-        if isinstance(name, str):
-            self.name = self.name if self.name else name
+        if name and isinstance(name, str):
+            self.name = name
         version = metadata.get("version", None)
         if version:
             try:
@@ -1350,9 +1354,7 @@ class SetupInfo(ReqLibBaseModel):
         if self.build_requires is None:
             self.build_requires = ()
         self.build_requires = tuple(set(self.build_requires) | set(build_requires))
-        self._requirements = (
-            () if self._requirements is None else self._requirements
-        )
+        self._requirements = () if self._requirements is None else self._requirements
         requirements = self._requirements
         install_requires = make_base_requirements(metadata.get("install_requires", []))
         requirements += install_requires
@@ -1373,7 +1375,9 @@ class SetupInfo(ReqLibBaseModel):
                 requirements += extras_set
             extras_tuples.append((section, tuple(extras_set)))
         self._extras_requirements += tuple(extras_tuples)
-        self.build_backend = metadata.get("build_backend", "setuptools.build_meta:__legacy__")
+        self.build_backend = metadata.get(
+            "build_backend", "setuptools.build_meta:__legacy__"
+        )
         self._requirements = requirements
 
     def get_extras_from_ireq(self) -> None:
@@ -1386,7 +1390,7 @@ class SetupInfo(ReqLibBaseModel):
                     extras = tuple(make_base_requirements(extra))
                     self._extras_requirements += (extra, extras)
 
-    def parse_setup_cfg(self)-> Dict[str, Any]:
+    def parse_setup_cfg(self) -> Dict[str, Any]:
         if self.setup_cfg is not None and self.setup_cfg.exists():
             try:
                 parsed = setuptools_parse_setup_cfg(self.setup_cfg.as_posix())
@@ -1558,8 +1562,7 @@ build-backend = "{1}"
         return metadata
 
     def populate_metadata(self, metadata) -> "SetupInfo":
-        """Populates the metadata dictionary from the supplied metadata.
-        """
+        """Populates the metadata dictionary from the supplied metadata."""
 
         _metadata = ()
         for k, v in metadata.items():
@@ -1588,9 +1591,8 @@ build-backend = "{1}"
             extras_tuples.append((section, tuple(extras_set)))
         return self
 
-    def run_pyproject(self)  -> "SetupInfo":
-        """Populates the **pyproject.toml** metadata if available.
-        """
+    def run_pyproject(self) -> "SetupInfo":
+        """Populates the **pyproject.toml** metadata if available."""
         if self.pyproject and self.pyproject.exists():
             result = get_pyproject(self.pyproject.parent)
             if result is not None:
@@ -1655,7 +1657,7 @@ build-backend = "{1}"
     def as_dict(self) -> Dict[str, Any]:
         prop_dict = {
             "name": self.name,
-            "version": self.version if self._version else None,
+            "version": self.version if self.version else None,
             "base_dir": self.base_dir,
             "ireq": self.ireq,
             "build_backend": self.build_backend,
@@ -1678,7 +1680,9 @@ build-backend = "{1}"
         return cls.from_ireq(ireq, subdir=subdir, finder=finder)
 
     @classmethod
-    def from_ireq(cls, ireq, subdir=None, finder=None, session=None) -> Optional["SetupInfo"]:
+    def from_ireq(
+        cls, ireq, subdir=None, finder=None, session=None
+    ) -> Optional["SetupInfo"]:
         if not ireq:
             return None
         if not ireq.link:
@@ -1699,13 +1703,9 @@ build-backend = "{1}"
                 url_path, _, _ = url_path.rpartition("@")
             parsed = parsed._replace(path=url_path)
             uri = urlunparse(parsed)
-        path = None
         is_file = False
         if ireq.link.scheme == "file" or uri.startswith("file://"):
             is_file = True
-            if "file:/" in uri and "file:///" not in uri:
-                uri = uri.replace("file:/", "file:///")
-            path = url_to_path(uri)
         kwargs = _prepare_wheel_building_kwargs(ireq)
         is_artifact_or_vcs = getattr(
             ireq.link, "is_vcs", getattr(ireq.link, "is_artifact", False)
@@ -1724,7 +1724,8 @@ build-backend = "{1}"
             build_location_func = getattr(ireq, "ensure_build_location", None)
         if not ireq.source_dir:
             if subdir:
-                directory = f"{kwargs['build_dir']}/{subdir}"
+                normalized_subdir = os.path.normpath(subdir)
+                directory = os.path.join(kwargs["build_dir"], normalized_subdir)
             else:
                 directory = kwargs["build_dir"]
             build_kwargs = {
@@ -1752,7 +1753,10 @@ build-backend = "{1}"
                     hashes=ireq.hashes(True),
                 )
         created = cls.create(
-            ireq.source_dir, subdirectory=subdir, ireq=ireq, kwargs=kwargs,
+            ireq.source_dir,
+            subdirectory=subdir,
+            ireq=ireq,
+            kwargs=kwargs,
         )
         return created
 

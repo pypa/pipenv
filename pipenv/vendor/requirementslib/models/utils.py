@@ -175,16 +175,20 @@ def get_url_name(url):
 class HashableRequirement(Requirement):
     def __hash__(self):
         specifier_hash = hash(tuple((str(s),) for s in self.specifier))
-        return hash((
-            self.url,
-            specifier_hash,
-            frozenset(self.extras),
-            str(self.marker) if self.marker else None,
-        ))
+        return hash(
+            (
+                self.url,
+                specifier_hash,
+                frozenset(self.extras),
+                str(self.marker) if self.marker else None,
+            )
+        )
 
     @staticmethod
     def parse(s):
-        (req,) = map(HashableRequirement, join_continuation(map(drop_comment, yield_lines(s))))
+        (req,) = map(
+            HashableRequirement, join_continuation(map(drop_comment, yield_lines(s)))
+        )
         return req
 
 
@@ -223,7 +227,7 @@ def extras_to_string(extras) -> str:
     return "[{0}]".format(",".join(sorted(set(extras))))
 
 
-def parse_extras(extras_str):
+def parse_extras_str(extras_str):
     """Turn a string of extras into a parsed extras list.
 
     :param str extras_str: An extras string
@@ -232,6 +236,20 @@ def parse_extras(extras_str):
     """
     extras = Requirement.parse("fakepkg{0}".format(extras_to_string(extras_str))).extras
     return sorted(dict.fromkeys([extra.lower() for extra in extras]))
+
+
+def parse_extras_from_line(installable_line):
+    extras = []
+
+    # Extract the part within square brackets, if any
+    start = installable_line.find("[")
+    end = installable_line.find("]")
+
+    if start != -1 and end != -1 and start < end:
+        extras_str = installable_line[start + 1 : end]
+        extras = extras_str.split(",")
+
+    return extras
 
 
 def specs_to_string(specs):
@@ -717,8 +735,7 @@ def make_install_requirement(
 
 
 def normalize_name(pkg) -> str:
-    """Given a package name, return its normalized, non-canonicalized form.
-    """
+    """Given a package name, return its normalized, non-canonicalized form."""
     return pkg.replace("_", "-").lower()
 
 
@@ -755,3 +772,20 @@ def expand_env_variables(line):
         return value if value else match.group()
 
     return re.sub(r"\$\{([A-Z0-9_]+)\}", replace_with_env, line)
+
+
+def tuple_to_dict(input_tuple):
+    result_dict = {}
+    i = 0
+    while i < len(input_tuple):
+        key = input_tuple[i]
+        i += 1
+        if i < len(input_tuple):
+            if isinstance(input_tuple[i], tuple):
+                value = tuple_to_dict(input_tuple[i])
+                i += 1
+            else:
+                value = input_tuple[i]
+                i += 1
+            result_dict[key] = value
+    return result_dict

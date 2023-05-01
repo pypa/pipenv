@@ -1,4 +1,3 @@
-import datetime
 import io
 import json
 import logging
@@ -6,8 +5,23 @@ import operator
 import os
 import zipfile
 from collections import defaultdict
+from datetime import datetime
 from functools import reduce
-from typing import Sequence, List, Dict
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import pipenv.patched.pip._vendor.requests as requests
 from pipenv.patched.pip._vendor.distlib import wheel
@@ -21,8 +35,8 @@ from pipenv.vendor.pydantic.json import pydantic_encoder
 from pipenv.vendor.requirementslib.models.common import ReqLibBaseModel
 from pipenv.vendor.pydantic import BaseModel, Field, validator
 
-from ..environment import MYPY_RUNNING
 from ..fileutils import open_file
+from .common import ReqLibBaseModel
 from .markers import (
     get_contained_extras,
     get_contained_pyversions,
@@ -33,6 +47,7 @@ from .markers import (
     normalize_specifier_set,
 )
 from .requirements import Requirement
+from .setup_info import SetupInfo
 from .utils import filter_dict, get_pinned_version, is_pinned_requirement
 
 ch = logging.StreamHandler()
@@ -40,34 +55,6 @@ formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
 ch.setFormatter(formatter)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-if MYPY_RUNNING:
-    from typing import (
-        Any,
-        Callable,
-        Dict,
-        Generic,
-        Iterator,
-        List,
-        Optional,
-        Set,
-        Tuple,
-        Type,
-        TypeVar,
-        Union,
-    )
-    from .setup_info import SetupInfo
-
-    TDigestDict = Dict[str, str]
-    TProjectUrls = Dict[str, str]
-    TReleaseUrlDict = Dict[str, Union[bool, int, str, TDigestDict]]
-    TReleasesList = List[TReleaseUrlDict]
-    TReleasesDict = Dict[str, TReleasesList]
-    TDownloads = Dict[str, int]
-    TPackageInfo = Dict[str, Optional[Union[str, List[str], TDownloads, TProjectUrls]]]
-    TPackage = Dict[str, Union[TPackageInfo, int, TReleasesDict, TReleasesList]]
-
 
 VALID_ALGORITHMS = {
     "sha1": 40,
@@ -82,7 +69,7 @@ VALID_ALGORITHMS = {
     "md5": 32,
     "sha3_384": 96,
     "sha224": 56,
-}  # type: Dict[str, int]
+}
 
 PACKAGE_TYPES = {
     "sdist",
@@ -98,7 +85,7 @@ PACKAGE_TYPES = {
 
 class PackageEncoder(json.JSONEncoder):
     def default(self, obj):  # noqa:E0202 # noqa:W0221
-        if isinstance(obj, datetime.datetime):
+        if isinstance(obj, datetime):
             return obj.isoformat()
         elif isinstance(obj, PackagingRequirement):
             return obj.__dict__
@@ -117,8 +104,8 @@ def validate_extras(inst, attrib, value) -> None:
     return None
 
 
-def validate_digest(inst, attrib, value) -> None:
-    expected_length = VALID_ALGORITHMS[inst.algorithm.lower()]
+def validate_digest(algorithm, value) -> None:
+    expected_length = VALID_ALGORITHMS[algorithm.lower()]
     if len(value) != expected_length:
         raise ValueError(
             "Expected a digest of length {0!s}, got one of length {1!s}".format(
@@ -190,7 +177,7 @@ class Dependency(ReqLibBaseModel):
     specifier: SpecifierSet
     extras: Tuple[str, ...] = tuple()
     from_extras: Optional[str] = None
-    python_version: SpecifierSet = ""
+    python_version: Any = ""
     parent: Optional["Dependency"] = None
     markers: Optional[Marker] = None
     _specset_str: str = ""
@@ -203,6 +190,10 @@ class Dependency(ReqLibBaseModel):
         allow_mutation = True
         include_private_attributes = True
         # keep_untouched = (cached_property,)
+
+    def __hash__(self):
+        # type: () -> int
+        return hash(self.name)
 
     def __str__(self):
         # type: () -> str
@@ -349,7 +340,6 @@ class Dependency(ReqLibBaseModel):
         return cls.from_requirement(req, parent=parent)
 
 
-
 class Digest(BaseModel):
     algorithm: str
     value: str
@@ -364,27 +354,26 @@ class Digest(BaseModel):
     def create(cls, algorithm: str, value: str) -> "Digest":
         if algorithm not in VALID_ALGORITHMS.keys():
             raise ValueError("Invalid algorithm")
-        validate_digest(value)  # Assuming this function raises an exception if invalid
+        validate_digest(algorithm, value)
         return cls(algorithm=algorithm, value=value)
 
     @classmethod
     def collection_from_dict(cls, digest_dict: Dict[str, str]) -> List["Digest"]:
         return [cls.create(k, v) for k, v in digest_dict.items()]
 
-    @validator("algorithm")
-    def check_algorithm(cls, algorithm):
+    def check_algorithm(self, algorithm):
         if algorithm not in VALID_ALGORITHMS.keys():
             raise ValueError("Invalid algorithm")
         return algorithm
 
-    @validator("value")
-    def check_value(cls, value):
-        validate_digest(value)  # Assuming this function raises an exception if invalid
+    def check_value(self, algorithm, value):
+        self.check_algorithm(algorithm)
+        validate_digest(algorithm, value)
         return value
 
+
 # XXX: This is necessary because attrs converters can only be functions, not classmethods
-def create_digest_collection(digest_dict):
-    # type: (TDigestDict) -> List["Digest"]
+def create_digest_collection(digest_dict) -> List["Digest"]:
     return Digest.collection_from_dict(digest_dict)
 
 
@@ -463,24 +452,25 @@ class ReleaseUrl(BaseModel):
     upload_time_iso_8601: datetime
     size: int
     url: str
-    digests: List[Digest]
+    digests: Any
     name: Optional[str] = None
     comment_text: str = ""
     yanked: bool = False
     downloads: int = -1
     filename: str = ""
     has_sig: bool = False
-    python_version: str = "source"
+    python_version: Optional[str] = "source"
     requires_python: Optional[str] = None
     tags: List[ParsedTag] = []
 
-    class Config:
-        frozen = True
-
-    @validator('packagetype', pre=True)
+    @validator("packagetype", pre=True)
     def validate_package_type(cls, packagetype):
         if packagetype not in PACKAGE_TYPES:
-            raise ValueError("Invalid package type: {0}. Expected one of {1}".format(packagetype, " ".join(PACKAGE_TYPES)))
+            raise ValueError(
+                "Invalid package type: {0}. Expected one of {1}".format(
+                    packagetype, " ".join(PACKAGE_TYPES)
+                )
+            )
         return packagetype
 
     @property
@@ -539,12 +529,14 @@ class ReleaseUrl(BaseModel):
                 if not self.requires_python:
                     results["requires_python"] = metadata._legacy.get("Requires-Python")
         else:
+            requires_dist = []
             try:
                 metadata = get_remote_sdist_metadata(self.pep508_url)
             except Exception:
-                requires_dist = []
+                pass
             else:
-                requires_dist = [str(v) for v in metadata.requires.values()]
+                if metadata.requires:
+                    requires_dist = [str(v) for v in metadata.requires.values()]
         results["requires_dist"] = requires_dist
         requires_python = getattr(self, "requires_python", results["requires_python"])
         self.requires_python = requires_python
@@ -560,7 +552,6 @@ class ReleaseUrl(BaseModel):
     def create(cls, release_dict: Dict, name: Optional[str] = None) -> "ReleaseUrl":
         valid_digest_keys = set("{0}_digest".format(k) for k in VALID_ALGORITHMS.keys())
         digest_keys = set(release_dict.keys()) & valid_digest_keys
-        creation_kwargs = {}  # type: Dict[str, Union[bool, int, str, Digest, TDigestDict]]
         creation_kwargs = {k: v for k, v in release_dict.items() if k not in digest_keys}
         if name is not None:
             creation_kwargs["name"] = name
@@ -598,7 +589,7 @@ class ReleaseUrlCollection(BaseModel, Sequence):
         frozen = True
 
     @classmethod
-    def create(cls, urls: TReleasesList, name: Optional[str] = None) -> "ReleaseUrlCollection":
+    def create(cls, urls, name: Optional[str] = None) -> "ReleaseUrlCollection":
         return cls(urls=create_release_urls_from_list(urls), name=name)
 
     @property
@@ -649,8 +640,7 @@ class ReleaseUrlCollection(BaseModel, Sequence):
         return next(iter(url for url in self.urls if url.packagetype == type_), None)
 
 
-def convert_release_urls_to_collection(urls=None, name=None):
-    # type: (Optional[TReleasesList], Optional[str]) -> ReleaseUrlCollection
+def convert_release_urls_to_collection(urls=None, name=None) -> ReleaseUrlCollection:
     if urls is None:
         urls = []
     urls = create_release_urls_from_list(urls, name=name)
@@ -707,8 +697,7 @@ class Release(BaseModel, Sequence):
         }
 
 
-def get_release(version, urls, name=None):
-    # type: (str, TReleasesList, Optional[str]) -> Release
+def get_release(version, urls, name=None) -> Release:
     release_kwargs = {"version": version, "name": name}
     if not isinstance(urls, ReleaseUrlCollection):
         release_kwargs["urls"] = convert_release_urls_to_collection(urls, name=name)
@@ -717,8 +706,7 @@ def get_release(version, urls, name=None):
     return Release(**release_kwargs)  # type: ignore
 
 
-def get_releases_from_package(releases, name=None):
-    # type: (TReleasesDict, Optional[str]) -> List[Release]
+def get_releases_from_package(releases, name=None) -> List[Release]:
     release_list = []
     for version, urls in releases.items():
         release_list.append(get_release(version, urls, name=name))
@@ -769,7 +757,7 @@ class ReleaseCollection(BaseModel):
         return next(iter(r for r in self.sort_releases() if not r.yanked))
 
     @classmethod
-    def load(cls, releases: Union[TReleasesDict, List[Release]], name: Optional[str] = None) -> "ReleaseCollection":
+    def load(cls, releases, name: Optional[str] = None) -> "ReleaseCollection":
         if not isinstance(releases, list):
             releases = get_releases_from_package(releases, name=name)
         return cls(releases=releases)
@@ -778,8 +766,7 @@ class ReleaseCollection(BaseModel):
         frozen = True
 
 
-def convert_releases_to_collection(releases, name=None):
-    # type: (TReleasesDict, Optional[str]) -> ReleaseCollection
+def convert_releases_to_collection(releases, name=None) -> ReleaseCollection:
     return ReleaseCollection.load(releases, name=name)
 
 
@@ -814,7 +801,7 @@ class PackageInfo(ReqLibBaseModel):
     package_url: str
     summary: Optional[str] = None
     author: Optional[str] = None
-    keywords: Optional[List[str]] = []
+    keywords: Optional[Union[str, List[str]]] = []
     description: Optional[str] = ""
     download_url: Optional[str] = ""
     home_page: Optional[str] = ""
@@ -827,26 +814,23 @@ class PackageInfo(ReqLibBaseModel):
     project_url: Optional[str] = ""
     project_urls: Optional[Dict[str, str]] = {}
     requires_python: Optional[str] = None
-    requires_dist: Optional[List[Dependency]] = []
+    requires_dist: Optional[Any] = []
     release_url: Optional[str] = None
     description_content_type: Optional[str] = "text/md"
     bugtrack_url: Optional[str] = None
     classifiers: Optional[List[str]] = []
     author_email: Optional[str] = None
     markers: Optional[str] = None
-    dependencies: Optional[Tuple[Dependency]] = None
+    dependencies: Optional[Any] = None
 
     @classmethod
-    def from_json(cls, info_json):
-        # type: (TPackageInfo) -> "PackageInfo"
+    def from_json(cls, info_json) -> "PackageInfo":
         return cls(**filter_dict(info_json))  # type: ignore
 
-    def to_dependency(self):
-        # type: () -> Dependency
+    def to_dependency(self) -> Dependency:
         return Dependency.from_info(self)
 
-    def create_dependencies(self, force=False):
-        # type: (bool) -> "PackageInfo"
+    def create_dependencies(self, force=False) -> "PackageInfo":
         """Create values for **self.dependencies**.
 
         :param bool force: Sets **self.dependencies** to an empty tuple if it would be
@@ -873,12 +857,11 @@ class PackageInfo(ReqLibBaseModel):
                 if dep is None:
                     continue
                 deps.add(dep)
-        self.dependencies = tuple(sorted(deps))
+        self.dependencies = deps
         return self
 
 
-def convert_package_info(info_json):
-    # type: (Union[TPackageInfo, PackageInfo]) -> PackageInfo
+def convert_package_info(info_json) -> PackageInfo:
     if isinstance(info_json, PackageInfo):
         return info_json
     return PackageInfo.from_json(info_json)
@@ -902,11 +885,15 @@ class Package(BaseModel):
     info: PackageInfo = Field(converter=convert_package_info)
     last_serial: int
     releases: ReleaseCollection = Field(
-        converter=instance_check_converter(ReleaseCollection, convert_releases_to_collection)
+        converter=instance_check_converter(
+            ReleaseCollection, convert_releases_to_collection
+        )
     )
     urls: ReleaseUrlCollection = Field(
         default_factory=lambda: [],
-        converter=instance_check_converter(ReleaseUrlCollection, convert_release_urls_to_collection)
+        converter=instance_check_converter(
+            ReleaseUrlCollection, convert_release_urls_to_collection
+        ),
     )
 
     @property
@@ -931,11 +918,11 @@ class Package(BaseModel):
             yield w
 
     @property
-    def dependencies(self) -> List[Dependency]:
+    def dependencies(self) -> Set[Dependency]:
         if self.info.dependencies is None and list(self.urls):
             rval = self.get_dependencies()
-            return rval.dependencies
-        return list(self.info.dependencies)
+            return set(rval.dependencies)
+        return set(self.info.dependencies)
 
     def get_dependencies(self) -> "Package":
         urls = []
@@ -968,8 +955,7 @@ class Package(BaseModel):
         return self
 
     @classmethod
-    def from_json(cls, package_json):
-        # type: (Dict[str, Any]) -> "Package"
+    def from_json(cls, package_json) -> "Package":
         info = convert_package_info(package_json["info"]).create_dependencies()
         releases = convert_releases_to_collection(
             package_json["releases"], name=info.name

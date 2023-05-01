@@ -24,7 +24,9 @@ def preferred_newlines(f):
 
 
 class Lockfile(ReqLibBaseModel):
-    path: Path = Field(default_factory=lambda: Path(os.curdir).joinpath("Pipfile.lock").absolute())
+    path: Path = Field(
+        default_factory=lambda: Path(os.curdir).joinpath("Pipfile.lock").absolute()
+    )
     _requirements: Optional[list] = Field(default_factory=list)
     _dev_requirements: Optional[list] = Field(default_factory=list)
     projectfile: ProjectFile = None
@@ -114,8 +116,9 @@ class Lockfile(ReqLibBaseModel):
         raise PipfileNotFound(pipfile_path)
 
     @classmethod
-    def load_projectfile(cls, path: Optional[str] = None, create: bool = True,
-                         data: Optional[Dict] = None) -> 'ProjectFile':
+    def load_projectfile(
+        cls, path: Optional[str] = None, create: bool = True, data: Optional[Dict] = None
+    ) -> "ProjectFile":
         if not path:
             path = os.curdir
         path = Path(path).absolute()
@@ -143,7 +146,9 @@ class Lockfile(ReqLibBaseModel):
         return projectfile
 
     @classmethod
-    def from_data(cls, path: Optional[str], data: Optional[Dict], meta_from_project: bool = True) -> 'Lockfile':
+    def from_data(
+        cls, path: Optional[str], data: Optional[Dict], meta_from_project: bool = True
+    ) -> "Lockfile":
         if path is None:
             raise MissingParameter("path")
         if data is None:
@@ -173,7 +178,7 @@ class Lockfile(ReqLibBaseModel):
         )
 
     @classmethod
-    def load(cls, path: Optional[str], create: bool = True) -> 'Lockfile':
+    def load(cls, path: Optional[str], create: bool = True) -> "Lockfile":
         try:
             projectfile = cls.load_projectfile(path, create=create)
         except JSONDecodeError:
@@ -196,7 +201,7 @@ class Lockfile(ReqLibBaseModel):
         return cls(**creation_args)
 
     @classmethod
-    def create(cls, path: Optional[str], create: bool = True) -> 'Lockfile':
+    def create(cls, path: Optional[str], create: bool = True) -> "Lockfile":
         return cls.load(path, create=create)
 
     def get_section(self, name: str) -> Optional[Dict]:
@@ -211,7 +216,8 @@ class Lockfile(ReqLibBaseModel):
         return self.lockfile.default
 
     def get_requirements(
-        self, dev: bool = True, only: bool = False, categories: Optional[List[str]] = None) -> Iterator[Requirement]:
+        self, dev: bool = True, only: bool = False, categories: Optional[List[str]] = None
+    ) -> Iterator[Requirement]:
         if categories:
             deps = {}
             for category in categories:

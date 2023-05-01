@@ -39,7 +39,7 @@ def preferred_newlines(f):
 class ProjectFile(BaseModel):
     location: str
     line_ending: str
-    model: Optional[Any] = {}
+    model: Optional[Any] = Field(default_factory=lambda: dict())
 
     @classmethod
     def read(cls, location: str, model_cls, invalid_ok: bool = False) -> "ProjectFile":
@@ -47,13 +47,12 @@ class ProjectFile(BaseModel):
             raise FileNotFoundError(location)
         try:
             with io.open(location, encoding="utf-8") as f:
-                content = f.read()
-                model = model_cls.parse_raw(content)
+                model = model_cls.load(f)
                 line_ending = preferred_newlines(f)
         except Exception:
             if not invalid_ok:
                 raise
-            model = None
+            model = {}
             line_ending = DEFAULT_NEWLINES
         return cls(location=location, line_ending=line_ending, model=model)
 

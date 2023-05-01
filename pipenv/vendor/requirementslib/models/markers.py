@@ -40,11 +40,7 @@ class PipenvMarkers(BaseModel):
     @property
     def line_part(self):
         return " and ".join(
-            [
-                "{0} {1}".format(k, v)
-                for k, v in self.dict().items()
-                if v is not None
-            ]
+            ["{0} {1}".format(k, v) for k, v in self.dict().items() if v is not None]
         )
 
     @property
@@ -88,7 +84,7 @@ class PipenvMarkers(BaseModel):
 
 
 def _tuplize_version(version):
-    # type: (STRING_TYPE) -> Union[Tuple[()], Tuple[int, ...], Tuple[int, int, str]]
+    # type: (str) -> Union[Tuple[()], Tuple[int, ...], Tuple[int, int, str]]
     output = []
     for idx, part in enumerate(version.split(".")):
         if part == "*":
@@ -101,8 +97,7 @@ def _tuplize_version(version):
     return tuple(output)
 
 
-def _format_version(version):
-    # type: (Tuple[int, ...]) -> STRING_TYPE
+def _format_version(version) -> str:
     if not isinstance(version, str):
         return ".".join(str(i) for i in version)
     return version
@@ -113,7 +108,7 @@ REPLACE_RANGES = {">": ">=", "<=": "<"}
 
 
 def _format_pyspec(specifier):
-    # type: (Union[STRING_TYPE, Specifier]) -> Specifier
+    # type: (Union[str, Specifier]) -> Specifier
     if isinstance(specifier, str):
         if not specifier.startswith(tuple(Specifier._operators.keys())):
             specifier = "=={0}".format(specifier)
@@ -289,14 +284,14 @@ def fix_version_tuple(version_tuple):
 
 
 def _ensure_marker(marker):
-    # type: (Union[STRING_TYPE, Marker]) -> Marker
+    # type: (Union[str, Marker]) -> Marker
     if not is_instance(marker, Marker):
         return Marker(str(marker))
     return marker
 
 
 def gen_marker(mkr):
-    # type: (List[STRING_TYPE]) -> Marker
+    # type: (List[str]) -> Marker
     m = Marker("python_version == '1'")
     m._markers.pop()
     m._markers.append(mkr)
@@ -560,11 +555,11 @@ def parse_marker_dict(marker_dict):
     # Essentially we will iterate over each side of the parsed marker if either one is
     # A mapping instance (i.e. a dictionary) and recursively parse and reduce the specset
     # Union the "and" specs, intersect the "or"s to find the most appropriate range
-    if any(issubclass(type(side), Mapping) for side in (lhs, rhs)):
+    if any(isinstance(side, Mapping) for side in (lhs, rhs)):
         for side in (lhs, rhs):
             side_specs = set()
             side_markers = set()
-            if issubclass(type(side), Mapping):
+            if isinstance(side, Mapping):
                 merged_side_specs, merged_side_markers = parse_marker_dict(side)
                 side_specs.update(merged_side_specs)
                 side_markers.update(merged_side_markers)
@@ -625,8 +620,7 @@ def format_pyversion(parts):
     return "{0} {1} '{2}'".format(version_marker, op, val)
 
 
-def normalize_marker_str(marker):
-    # type: (Union[Marker, STRING_TYPE]) -> str
+def normalize_marker_str(marker) -> str:
     marker_str = ""
     if not marker:
         return None
@@ -645,8 +639,7 @@ def normalize_marker_str(marker):
     return marker_str.replace('"', "'")
 
 
-def marker_from_specifier(spec):
-    # type: (STRING_TYPE) -> Marker
+def marker_from_specifier(spec) -> Marker:
     if not any(spec.startswith(k) for k in Specifier._operators.keys()):
         if spec.strip().lower() in ["any", "<any>", "*"]:
             return None
