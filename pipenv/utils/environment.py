@@ -1,7 +1,8 @@
 import os
+import dotenv
+import click
 
 from pipenv import environments
-from pipenv.vendor import click, dotenv
 
 
 def load_dot_env(project, as_dict=False, quiet=False):
