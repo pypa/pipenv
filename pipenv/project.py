@@ -13,6 +13,13 @@ import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
 
+import click, tomlkit
+
+try:
+    import tomllib as toml
+except ImportError:
+    import tomli as toml
+
 from pipenv.cmdparse import Script
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
@@ -40,7 +47,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
-from pipenv.vendor import click, plette, toml, tomlkit
+from pipenv.vendor import plette
 from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 
 try:
