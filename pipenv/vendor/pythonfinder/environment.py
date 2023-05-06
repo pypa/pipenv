@@ -1,5 +1,4 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function
+from __future__ import annotations
 
 import os
 import platform
@@ -49,6 +48,3 @@ def get_shim_paths():
     if PYENV_INSTALLED:
         shim_paths.append(os.path.join(PYENV_ROOT, "shims"))
     return [os.path.normpath(os.path.normcase(p)) for p in shim_paths]
-
-
-SHIM_PATHS = get_shim_paths()

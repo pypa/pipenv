@@ -1,5 +1,4 @@
-# -*- coding=utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import annotations
 
 import pipenv.vendor.click as click
 
@@ -52,7 +51,7 @@ def cli(
                 fg="red",
             )
     if find:
-        click.secho("Searching for python: {0!s}".format(find.strip()), fg="yellow")
+        click.secho(f"Searching for python: {find.strip()!s}", fg="yellow")
         found = finder.find_python_version(find.strip())
         if found:
             py = found.py_version
@@ -61,7 +60,7 @@ def cli(
                 comes_from_path = getattr(comes_from, "path", found.path)
             else:
                 comes_from_path = found.path
-            arch = getattr(py, "architecture", None)
+
             click.secho("Found python at the following locations:", fg="green")
             click.secho(
                 "{py.name!s}: {py.version!s} ({py.architecture!s}) @ {comes_from!s}".format(
@@ -76,7 +75,7 @@ def cli(
     elif which:
         found = finder.system_path.which(which.strip())
         if found:
-            click.secho("Found Executable: {0}".format(found), fg="white")
+            click.secho(f"Found Executable: {found}", fg="white")
             ctx.exit()
         else:
             click.secho("Failed to find matching executable...", fg="yellow")

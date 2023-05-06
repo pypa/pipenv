@@ -92,10 +92,19 @@ if os.name == "nt":
 
 
 def normalize_path(path):
-    return os.path.expandvars(
-        os.path.expanduser(os.path.normcase(os.path.normpath(os.path.abspath(str(path)))))
-    )
+    """Return a case-normalized absolute variable-expanded path.
 
+    :param str path: The non-normalized path
+    :return: A normalized, expanded, case-normalized path
+    :rtype: str
+    """
+
+    path = os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
+    if os.name == "nt" and os.path.exists(path):
+
+        path = get_long_path(path)
+
+    return os.path.normpath(os.path.normcase(path))
 
 
 def normalize_drive(path):
@@ -104,11 +113,11 @@ def normalize_drive(path):
     This currently only affects local drives on Windows, which can be
     identified with either upper or lower cased drive names. The case is
     always converted to uppercase because it seems to be preferred.
-
-    See: <https://github.com/pypa/pipenv/issues/1218>
     """
-    if os.name != "nt" or not isinstance(path, str):
-        return path
+    if os.name != "nt" or not (
+        isinstance(path, str) or getattr(path, "__fspath__", None)
+    ):
+        return path  # type: ignore
 
     drive, tail = os.path.splitdrive(path)
     # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
