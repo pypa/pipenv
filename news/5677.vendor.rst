@@ -1,0 +1,1 @@
+Upgrade ``pythonfinder==2.0.0`` which also brings in ``pydantic==1.10.7``.
