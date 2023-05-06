@@ -2,7 +2,7 @@ import typing as t
 from threading import local
 
 if t.TYPE_CHECKING:
-    import typing_extensions as te
+    import pipenv.vendor.typing_extensions as te
     from .core import Context
 
 _local = local()

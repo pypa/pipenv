@@ -19,7 +19,7 @@ from typing import (
 )
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
-from typing_extensions import Annotated
+from pipenv.vendor.typing_extensions import Annotated
 
 from .class_validators import gather_all_validators
 from .fields import DeferredType

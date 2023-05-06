@@ -6,7 +6,7 @@ from .main import BaseModel, create_model
 from .typing import is_typeddict, is_typeddict_special
 
 if TYPE_CHECKING:
-    from typing_extensions import TypedDict
+    from pipenv.vendor.typing_extensions import TypedDict
 
 if sys.version_info < (3, 11):
 

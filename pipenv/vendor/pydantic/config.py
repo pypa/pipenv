@@ -2,7 +2,7 @@ import json
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, ForwardRef, Optional, Tuple, Type, Union
 
-from typing_extensions import Literal, Protocol
+from pipenv.vendor.typing_extensions import Literal, Protocol
 
 from .typing import AnyArgTCallable, AnyCallable
 from .utils import GetterDict
@@ -40,7 +40,7 @@ class Extra(str, Enum):
 # https://github.com/cython/cython/issues/4003
 # Will be fixed with Cython 3 but still in alpha right now
 if not compiled:
-    from typing_extensions import TypedDict
+    from pipenv.vendor.typing_extensions import TypedDict
 
     class ConfigDict(TypedDict, total=False):
         title: Optional[str]
