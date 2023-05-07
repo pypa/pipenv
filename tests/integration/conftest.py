@@ -20,7 +20,7 @@ from click.testing import CliRunner
 from pipenv.cli import cli
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.utils.processes import subprocess_run
-from pipenv.vendor import toml, tomlkit
+from pipenv.vendor import tomlkit
 from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
 from pipenv.vendor.requirementslib.utils import temp_environ
 from pipenv.vendor.requirementslib.models.setup_info import handle_remove_readonly
@@ -390,7 +390,7 @@ class _PipenvInstance:
     def pipfile(self):
         p_path = os.sep.join([self.path, 'Pipfile'])
         with open(p_path) as f:
-            return toml.loads(f.read())
+            return tomlkit.loads(f.read())
 
     @property
     def lockfile(self):
