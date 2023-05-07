@@ -13,9 +13,6 @@ import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
 
-import click
-import tomlkit
-
 try:
     import tomllib as toml
 except ImportError:
@@ -48,7 +45,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
-from pipenv.vendor import plette
+from pipenv.vendor import click, plette, tomlkit
 from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 
 try:

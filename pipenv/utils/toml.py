@@ -3,7 +3,7 @@ try:
 except ImportError:
     import tomli as toml
 
-import tomlkit
+from pipenv.vendor import tomlkit
 
 
 def cleanup_toml(tml):
