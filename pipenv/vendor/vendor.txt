@@ -16,5 +16,4 @@ pythonfinder==2.0.3
 requirementslib==2.3.0
 ruamel.yaml==0.17.21
 shellingham==1.5.0.post1
-toml==0.10.2
 tomlkit==0.11.7
