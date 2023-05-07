@@ -13,7 +13,7 @@ from pathlib import PurePath
 try:
     import tomllib as toml
 except ImportError:
-    import tomli as toml
+    from pipenv.vendor import tomli as toml
 
 from .errors import MalformedDependencyFileError
 from .regex import HASH_REGEX
