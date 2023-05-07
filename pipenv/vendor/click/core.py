@@ -38,7 +38,7 @@ from .utils import make_str
 from .utils import PacifyFlushWrapper
 
 if t.TYPE_CHECKING:
-    import typing_extensions as te
+    import pipenv.vendor.typing_extensions as te
     from .shell_completion import CompletionItem
 
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])

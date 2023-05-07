@@ -1,29 +1,20 @@
-# -*- coding=utf-8 -*-
-import io
+from __future__ import annotations
+
 import itertools
 import os
 import re
 import subprocess
+from builtins import TimeoutError
 from collections import OrderedDict
-from fnmatch import fnmatch
-from threading import Timer
-
-import pipenv.vendor.attr as attr
-from pipenv.patched.pip._vendor.packaging.version import Version, InvalidVersion
-
-from .compat import Path, TimeoutError, lru_cache  # noqa
-from .environment import MYPY_RUNNING, PYENV_ROOT, SUBPROCESS_TIMEOUT
-from .exceptions import InvalidPythonVersion
-
 from collections.abc import Iterable, Sequence
+from fnmatch import fnmatch
+from pathlib import Path
+from typing import Any, Iterator
 
-if MYPY_RUNNING:
-    from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple, Union
+from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
 
-    from pipenv.vendor.attr.validators import _OptionalValidator  # type: ignore
-
-    from .models.path import PathEntry
-
+from .environment import PYENV_ROOT
+from .exceptions import InvalidPythonVersion
 
 version_re_str = (
     r"(?P<major>\d+)(?:\.(?P<minor>\d+))?(?:\.(?P<patch>(?<=\.)[0-9]+))?\.?"
@@ -53,12 +44,12 @@ KNOWN_EXTS = KNOWN_EXTS | set(
     filter(None, os.environ.get("PATHEXT", "").split(os.pathsep))
 )
 PY_MATCH_STR = (
-    r"((?P<implementation>{0})(?:\d?(?:\.\d[cpm]{{0,3}}))?(?:-?[\d\.]+)*(?!w))".format(
+    r"((?P<implementation>{})(?:\d?(?:\.\d[cpm]{{,3}}))?(?:-?[\d\.]+)*(?!w))".format(
         "|".join(PYTHON_IMPLEMENTATIONS)
     )
 )
-EXE_MATCH_STR = r"{0}(?:\.(?P<ext>{1}))?".format(PY_MATCH_STR, "|".join(KNOWN_EXTS))
-RE_MATCHER = re.compile(r"({0}|{1})".format(version_re_str, PY_MATCH_STR))
+EXE_MATCH_STR = r"{}(?:\.(?P<ext>{}))?".format(PY_MATCH_STR, "|".join(KNOWN_EXTS))
+RE_MATCHER = re.compile(rf"({version_re_str}|{PY_MATCH_STR})")
 EXE_MATCHER = re.compile(EXE_MATCH_STR)
 RULES_BASE = [
     "*{0}",
@@ -73,14 +64,10 @@ RULES = [rule.format(impl) for impl in PYTHON_IMPLEMENTATIONS for rule in RULES_
 
 MATCH_RULES = []
 for rule in RULES:
-    MATCH_RULES.extend(
-        ["{0}.{1}".format(rule, ext) if ext else "{0}".format(rule) for ext in KNOWN_EXTS]
-    )
+    MATCH_RULES.extend([f"{rule}.{ext}" if ext else f"{rule}" for ext in KNOWN_EXTS])
 
 
-@lru_cache(maxsize=1024)
-def get_python_version(path):
-    # type: (str) -> str
+def get_python_version(path) -> str:
     """Get python version string using subprocess from a given path."""
     version_cmd = [
         path,
@@ -95,7 +82,7 @@ def get_python_version(path):
         "shell": False,
     }
     c = subprocess.Popen(version_cmd, **subprocess_kwargs)
-    timer = Timer(SUBPROCESS_TIMEOUT, c.kill)
+
     try:
         out, _ = c.communicate()
     except (SystemExit, KeyboardInterrupt, TimeoutError):
@@ -109,9 +96,7 @@ def get_python_version(path):
     return out.strip()
 
 
-@lru_cache(maxsize=1024)
-def parse_python_version(version_str):
-    # type: (str) -> Dict[str, Union[str, int, Version]]
+def parse_python_version(version_str: str) -> dict[str, str | int | Version]:
     from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
     is_debug = False
@@ -121,7 +106,7 @@ def parse_python_version(version_str):
     match = version_re.match(version_str)
     if not match:
         raise InvalidPythonVersion("%s is not a python version" % version_str)
-    version_dict = match.groupdict()  # type: Dict[str, str]
+    version_dict = match.groupdict()
     major = int(version_dict.get("major", 0)) if version_dict.get("major") else None
     minor = int(version_dict.get("minor", 0)) if version_dict.get("minor") else None
     patch = int(version_dict.get("patch", 0)) if version_dict.get("patch") else None
@@ -130,8 +115,6 @@ def parse_python_version(version_str):
     is_devrelease = True if version_dict.get("dev") else False
     if patch:
         patch = int(patch)
-
-    version = None  # type: Optional[Version]
 
     try:
         version = parse_version(version_str)
@@ -143,7 +126,7 @@ def parse_python_version(version_str):
         pre = ""
         if v_dict.get("prerel") and v_dict.get("prerelversion"):
             pre = v_dict.pop("prerel")
-            pre = "{0}{1}".format(pre, v_dict.pop("prerelversion"))
+            pre = "{}{}".format(pre, v_dict.pop("prerelversion"))
         v_dict["pre"] = pre
         keys = ["major", "minor", "patch", "pre", "postdev", "post", "dev"]
         values = [v_dict.get(val) for val in keys]
@@ -161,41 +144,23 @@ def parse_python_version(version_str):
     }
 
 
-def optional_instance_of(cls):
-    # type: (Any) -> _OptionalValidator
-    """
-    Return an validator to determine whether an input is an optional instance of a class.
-
-    :return: A validator to determine optional instance membership.
-    :rtype: :class:`~attr.validators._OptionalValidator`
-    """
-
-    return attr.validators.optional(attr.validators.instance_of(cls))
-
-
-def path_is_executable(path):
-    # type: (str) -> bool
+def path_is_executable(path) -> bool:
     """
     Determine whether the supplied path is executable.
 
     :return: Whether the provided path is executable.
-    :rtype: bool
     """
 
     return os.access(str(path), os.X_OK)
 
 
-@lru_cache(maxsize=1024)
-def path_is_known_executable(path):
-    # type: (Path) -> bool
+def path_is_known_executable(path: Path) -> bool:
     """
     Returns whether a given path is a known executable from known executable extensions
     or has the executable bit toggled.
 
     :param path: The path to the target executable.
-    :type path: :class:`~Path`
     :return: True if the path has chmod +x, or is a readable, known executable extension.
-    :rtype: bool
     """
 
     return (
@@ -205,15 +170,12 @@ def path_is_known_executable(path):
     )
 
 
-@lru_cache(maxsize=1024)
-def looks_like_python(name):
-    # type: (str) -> bool
+def looks_like_python(name: str) -> bool:
     """
     Determine whether the supplied filename looks like a possible name of python.
 
     :param str name: The name of the provided file.
     :return: Whether the provided name looks like python.
-    :rtype: bool
     """
 
     if not any(name.lower().startswith(py_name) for py_name in PYTHON_IMPLEMENTATIONS):
@@ -224,29 +186,23 @@ def looks_like_python(name):
     return False
 
 
-@lru_cache(maxsize=1024)
-def path_is_python(path):
-    # type: (Path) -> bool
+def path_is_python(path: Path) -> bool:
     """
     Determine whether the supplied path is executable and looks like a possible path to python.
 
     :param path: The path to an executable.
     :type path: :class:`~Path`
     :return: Whether the provided path is an executable path to python.
-    :rtype: bool
     """
 
     return path_is_executable(path) and looks_like_python(path.name)
 
 
-@lru_cache(maxsize=1024)
-def guess_company(path):
-    # type: (str) -> Optional[str]
+def guess_company(path: str) -> str | None:
     """Given a path to python, guess the company who created it
 
     :param str path: The path to guess about
     :return: The guessed company
-    :rtype: Optional[str]
     """
     non_core_pythons = [impl for impl in PYTHON_IMPLEMENTATIONS if impl != "python"]
     return next(
@@ -254,9 +210,7 @@ def guess_company(path):
     )
 
 
-@lru_cache(maxsize=1024)
-def path_is_pythoncore(path):
-    # type: (str) -> bool
+def path_is_pythoncore(path: str) -> bool:
     """Given a path, determine whether it appears to be pythoncore.
 
     Does not verify whether the path is in fact a path to python, but simply
@@ -265,7 +219,6 @@ def path_is_pythoncore(path):
 
     :param str path: The path to check
     :return: Whether that path is a PythonCore path or not
-    :rtype: bool
     """
     company = guess_company(path)
     if company:
@@ -273,16 +226,13 @@ def path_is_pythoncore(path):
     return False
 
 
-@lru_cache(maxsize=1024)
-def ensure_path(path):
-    # type: (Union[Path, str]) -> Path
+def ensure_path(path: Path | str) -> Path:
     """
     Given a path (either a string or a Path object), expand variables and return a Path object.
 
     :param path: A string or a :class:`~pathlib.Path` object.
     :type path: str or :class:`~pathlib.Path`
     :return: A fully expanded Path object.
-    :rtype: :class:`~pathlib.Path`
     """
 
     if isinstance(path, Path):
@@ -291,16 +241,13 @@ def ensure_path(path):
     return path.absolute()
 
 
-def _filter_none(k, v):
-    # type: (Any, Any) -> bool
+def _filter_none(k, v) -> bool:
     if v:
         return True
     return False
 
 
-# TODO: Reimplement in vistir
-def normalize_path(path):
-    # type: (str) -> str
+def normalize_path(path: str) -> str:
     return os.path.normpath(
         os.path.normcase(
             os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
@@ -308,9 +255,7 @@ def normalize_path(path):
     )
 
 
-@lru_cache(maxsize=1024)
-def filter_pythons(path):
-    # type: (Union[str, Path]) -> Iterable
+def filter_pythons(path: str | Path) -> Iterable | Path:
     """Return all valid pythons in a given path"""
     if not isinstance(path, Path):
         path = Path(str(path))
@@ -319,10 +264,7 @@ def filter_pythons(path):
     return filter(path_is_python, path.iterdir())
 
 
-# TODO: Port to vistir
-def unnest(item):
-    # type: (Any) -> Iterable[Any]
-    target = None  # type: Optional[Iterable]
+def unnest(item) -> Iterable[Any]:
     if isinstance(item, Iterable) and not isinstance(item, str):
         item, target = itertools.tee(item, 2)
     else:
@@ -339,22 +281,20 @@ def unnest(item):
         yield target
 
 
-def parse_pyenv_version_order(filename="version"):
-    # type: (str) -> List[str]
+def parse_pyenv_version_order(filename="version") -> list[str]:
     version_order_file = normalize_path(os.path.join(PYENV_ROOT, filename))
     if os.path.exists(version_order_file) and os.path.isfile(version_order_file):
-        with io.open(version_order_file, encoding="utf-8") as fh:
+        with open(version_order_file, encoding="utf-8") as fh:
             contents = fh.read()
         version_order = [v for v in contents.splitlines()]
         return version_order
     return []
 
 
-def parse_asdf_version_order(filename=".tool-versions"):
-    # type: (str) -> List[str]
+def parse_asdf_version_order(filename: str = ".tool-versions") -> list[str]:
     version_order_file = normalize_path(os.path.join("~", filename))
     if os.path.exists(version_order_file) and os.path.isfile(version_order_file):
-        with io.open(version_order_file, encoding="utf-8") as fh:
+        with open(version_order_file, encoding="utf-8") as fh:
             contents = fh.read()
         python_section = next(
             iter(line for line in contents.splitlines() if line.startswith("python")),
@@ -369,12 +309,11 @@ def parse_asdf_version_order(filename=".tool-versions"):
 
 
 def split_version_and_name(
-    major=None,  # type: Optional[Union[str, int]]
-    minor=None,  # type: Optional[Union[str, int]]
-    patch=None,  # type: Optional[Union[str, int]]
-    name=None,  # type: Optional[str]
-):
-    # type: (...) -> Tuple[Optional[Union[str, int]], Optional[Union[str, int]], Optional[Union[str, int]], Optional[str]]  # noqa
+    major: str | int | None = None,
+    minor: str | int | None = None,
+    patch: str | int | None = None,
+    name: str | None = None,
+) -> tuple[str | int | None, str | int | None, str | int | None, str | None,]:
     if isinstance(major, str) and not minor and not patch:
         # Only proceed if this is in the format "x.y.z" or similar
         if major.isdigit() or (major.count(".") > 0 and major[0].isdigit()):
@@ -392,7 +331,7 @@ def split_version_and_name(
                 major = major
                 name = None
         else:
-            name = "{0!s}".format(major)
+            name = f"{major!s}"
             major = None
     return (major, minor, patch, name)
 
@@ -402,15 +341,13 @@ def is_in_path(path, parent):
     return normalize_path(str(path)).startswith(normalize_path(str(parent)))
 
 
-def expand_paths(path, only_python=True):
-    # type: (Union[Sequence, PathEntry], bool) -> Iterator
+def expand_paths(path, only_python=True) -> Iterator:
     """
     Recursively expand a list or :class:`~pythonfinder.models.path.PathEntry` instance
 
     :param Union[Sequence, PathEntry] path: The path or list of paths to expand
     :param bool only_python: Whether to filter to include only python paths, default True
     :returns: An iterator over the expanded set of path entries
-    :rtype: Iterator[PathEntry]
     """
 
     if path is not None and (
@@ -425,7 +362,7 @@ def expand_paths(path, only_python=True):
             ):
                 yield expanded
     elif path is not None and path.is_dir:
-        for p in path.children.values():
+        for p in path.children_ref.values():
             if p is not None and p.is_python and p.as_python is not None:
                 for sub_path in itertools.chain.from_iterable(
                     expand_paths(p, only_python=only_python)
@@ -438,8 +375,7 @@ def expand_paths(path, only_python=True):
             yield path
 
 
-def dedup(iterable):
-    # type: (Iterable) -> Iterable
+def dedup(iterable: Iterable) -> Iterable:
     """Deduplicate an iterable object like iter(set(iterable)) but
     order-reserved.
     """
