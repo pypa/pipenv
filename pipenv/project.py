@@ -183,9 +183,9 @@ class Project:
                 "name": "pypi",
             }
 
-        default_sources_toml = f"[[source]]\n{toml.dumps(self.default_source)}"
+        default_sources_toml = f"[[source]]\n{tomlkit.dumps(self.default_source)}"
         for pip_conf_index in pip_conf_indexes:
-            default_sources_toml += f"\n\n[[source]]\n{toml.dumps(pip_conf_index)}"
+            default_sources_toml += f"\n\n[[source]]\n{tomlkit.dumps(pip_conf_index)}"
         plette.pipfiles.DEFAULT_SOURCE_TOML = default_sources_toml
 
         # Hack to skip this during pipenv run, or -r.
