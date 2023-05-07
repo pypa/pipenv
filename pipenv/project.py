@@ -16,7 +16,7 @@ from pathlib import Path
 try:
     import tomllib as toml
 except ImportError:
-    import tomli as toml
+    from pipenv.vendor import tomli as toml
 
 from pipenv.cmdparse import Script
 from pipenv.environment import Environment

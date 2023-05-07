@@ -8,7 +8,7 @@ import os
 try:
     import tomllib as toml
 except ImportError:
-    import tomli as toml
+    from pipenv.vendor import tomli as toml
 
 
 class RequirementsTXTUpdater(object):
