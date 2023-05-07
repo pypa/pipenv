@@ -1,0 +1,1 @@
+Drop old vendored toml library. Use stdlib tomllib or tomli instead.
