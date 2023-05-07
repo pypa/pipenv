@@ -13,7 +13,8 @@ import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
 
-import click, tomlkit
+import click
+import tomlkit
 
 try:
     import tomllib as toml
