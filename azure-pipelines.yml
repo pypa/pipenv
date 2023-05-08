@@ -24,7 +24,7 @@ variables:
 - group: CI
 
 jobs:
-- job: Test runner
+- job: TestRunner
   displayName: Vendoring
   pool:
     vmImage: 'Ubuntu-latest'
