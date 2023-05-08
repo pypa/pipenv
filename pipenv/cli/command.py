@@ -412,7 +412,7 @@ def shell(
         venv_name = os.environ.get("VIRTUAL_ENV", "UNKNOWN_VIRTUAL_ENVIRONMENT")
         if not anyway:
             echo(
-                "{} {} {}\nNo action taken to avoid nested environments.".format(
+                "{} {} {}\nNew shell not activated to avoid nested environments.".format(
                     style("Shell for"),
                     style(venv_name, fg="green", bold=True),
                     style("already activated.", bold=True),
