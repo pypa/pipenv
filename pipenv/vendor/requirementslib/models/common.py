@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from pydantic import BaseModel, Extra
+from pipenv.vendor.pydantic import BaseModel, Extra
 
 
 class ReqLibBaseModel(BaseModel):
