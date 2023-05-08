@@ -1302,10 +1302,6 @@ class NamedRequirement(ReqLibBaseModel):
         if not self.parsed_line:
             self.parsed_line = Line(line=self.line_part)
 
-        # Set default values using the methods
-        if not self.req:
-            self.req = self.get_requirement()
-
     @classmethod
     def from_line(cls, line, parsed_line=None) -> "NamedRequirement":
         req = init_requirement(line)
@@ -2808,9 +2804,6 @@ class Requirement(ReqLibBaseModel):
         new_ireq = getattr(self, "ireq", None)
         if new_ireq and new_ireq.req:
             new_ireq.req.marker = new_marker
-        if self.req.req:
-            self.req.req = new_marker
-
 
 def file_req_from_parsed_line(parsed_line) -> FileRequirement:
     path = parsed_line.relpath if parsed_line.relpath else parsed_line.path
