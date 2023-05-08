@@ -1285,7 +1285,7 @@ class NamedRequirement(ReqLibBaseModel):
     name: str
     version: Optional[str]
     req: PackagingRequirement
-    extras: Tuple[str, ...] = Field(default_factory=list)
+    extras: Optional[Tuple[str, ...]] = Field(default_factory=list)
     editable: bool = False
     parsed_line: Optional[Line] = None
 
@@ -1761,8 +1761,7 @@ class FileRequirement(ReqLibBaseModel):
             line = "{0}{1}".format(path, extras_string)
         else:
             if name:
-                line_name = "{0}{1}".format(name, extras_string)
-                line = "{0}#egg={1}".format(link.url_without_fragment, line_name)
+                line = "{0}{1}".format(name, extras_string)
             else:
                 if link:
                     line = link.url
