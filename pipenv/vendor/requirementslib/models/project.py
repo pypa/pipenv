@@ -1,9 +1,10 @@
 import collections
 import io
 import os
+from typing import Any, Optional
 
-import pipenv.vendor.attr as attr
 from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.vendor.pydantic import BaseModel, Field
 
 SectionDifference = collections.namedtuple("SectionDifference", ["inthis", "inthat"])
 FileDifference = collections.namedtuple("FileDifference", ["default", "develop"])
@@ -34,16 +35,13 @@ def preferred_newlines(f):
     return DEFAULT_NEWLINES
 
 
-@attr.s
-class ProjectFile(object):
-    """A file in the Pipfile project."""
-
-    location = attr.ib()
-    line_ending = attr.ib()
-    model = attr.ib()
+class ProjectFile(BaseModel):
+    location: str
+    line_ending: str
+    model: Optional[Any] = Field(default_factory=lambda: dict())
 
     @classmethod
-    def read(cls, location, model_cls, invalid_ok=False):
+    def read(cls, location: str, model_cls, invalid_ok: bool = False) -> "ProjectFile":
         if not os.path.exists(location) and not invalid_ok:
             raise FileNotFoundError(location)
         try:
@@ -53,16 +51,19 @@ class ProjectFile(object):
         except Exception:
             if not invalid_ok:
                 raise
-            model = None
+            model = {}
             line_ending = DEFAULT_NEWLINES
         return cls(location=location, line_ending=line_ending, model=model)
 
-    def write(self):
+    def write(self) -> None:
         kwargs = {"encoding": "utf-8", "newline": self.line_ending}
         with io.open(self.location, "w", **kwargs) as f:
-            self.model.dump(f)
+            if self.model:
+                self.model.dump(f)
 
-    def dumps(self):
-        strio = io.StringIO()
-        self.model.dump(strio)
-        return strio.getvalue()
+    def dumps(self) -> str:
+        if self.model:
+            strio = io.StringIO()
+            self.model.dump(strio)
+            return strio.getvalue()
+        return ""
