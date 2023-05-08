@@ -16,33 +16,36 @@ from typing import (
     TypeVar,
     Union,
 )
-
 import pipenv.vendor.tomlkit as tomlkit
-from pipenv.vendor.attr import validators
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.constructors import install_req_from_line
+from pipenv.patched.pip._internal.utils._jaraco_text import (
+    yield_lines,
+    drop_comment,
+    join_continuation,
+)
 from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker, Op, Value, Variable
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.patched.pip._vendor.pkg_resources import Requirement, get_distribution, safe_name
-from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
-from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
 from pipenv.vendor.plette.models import Package, PackageCollection
 from pipenv.vendor.tomlkit.container import Container
 from pipenv.vendor.tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
+from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
+from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
 
 from ..environment import MYPY_RUNNING
 from ..fileutils import is_valid_url
 from ..utils import VCS_LIST, is_star
 
 if MYPY_RUNNING:
-    from pip._vendor.packaging.markers import Marker as PkgResourcesMarker
-    from pip._vendor.packaging.markers import Op as PkgResourcesOp
-    from pip._vendor.packaging.markers import Value as PkgResourcesValue
-    from pip._vendor.packaging.markers import Variable as PkgResourcesVariable
-    from pip._vendor.urllib3.util.url import Url
+    from pipenv.patched.pip._vendor.packaging.markers import Marker as PkgResourcesMarker
+    from pipenv.patched.pip._vendor.packaging.markers import Op as PkgResourcesOp
+    from pipenv.patched.pip._vendor.packaging.markers import Value as PkgResourcesValue
+    from pipenv.patched.pip._vendor.packaging.markers import Variable as PkgResourcesVariable
+    from pipenv.patched.pip._vendor.urllib3.util.url import Url
 
     _T = TypeVar("_T")
     TMarker = Union[Marker, PkgResourcesMarker]
@@ -702,7 +705,7 @@ def as_tuple(ireq):
 def make_install_requirement(
     name, version=None, extras=None, markers=None, constraint=False
 ):
-    """Generates an :class:`~pip._internal.req.req_install.InstallRequirement`.
+    """Generates an :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`.
 
     Create an InstallRequirement from the supplied metadata.
 
@@ -717,7 +720,7 @@ def make_install_requirement(
     :param constraint: Whether to flag the requirement as a constraint, defaults to False.
     :param constraint: bool, optional
     :return: A generated InstallRequirement
-    :rtype: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :rtype: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
     """
     requirement_string = "{0}".format(name)
     if extras:
