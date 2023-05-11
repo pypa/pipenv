@@ -1256,32 +1256,14 @@ class SetupInfo(ReqLibBaseModel):
         self.get_info()
 
     def __hash__(self):
-        return hash(
-            (
-                self.name,
-                self._version,
-                self._requirements,
-                self.build_requires,
-                self.build_backend,
-                self.setup_requires,
-                self.python_requires,
-                self._extras_requirements,
-                self.setup_cfg,
-                self.setup_py,
-                self.pyproject,
-                self.ireq,
-            )
-        )
+        return hash((self.name, self._version, self._requirements, self.build_requires, self.build_backend,
+                     self.setup_requires, self.python_requires, self._extras_requirements, self.setup_cfg,
+                     self.setup_py, self.pyproject, self.ireq))
 
     def __eq__(self, other):
         if not isinstance(other, SetupInfo):
             return NotImplemented
-        return (
-            self.name == other.name
-            and self._version == other._version
-            and self._requirements == other._requirements
-            and self.build_requires == other.build_requires
-        )
+        return self.name == other.name and self._version == other._version and self._requirements == other._requirements and self.build_requires == other.build_requires
 
     @cached_property
     def requires(self) -> Dict[str, HashableRequirement]:
@@ -1305,10 +1287,8 @@ class SetupInfo(ReqLibBaseModel):
     @property
     def version(self) -> Optional[str]:
         if not self._version:
-            self.get_info()
-            if self.metadata:
-                metadata_dict = tuple_to_dict(self.metadata)
-                self._version = metadata_dict.get("version")
+            info = self.as_dict()
+            self._version = info.get("version", None)
         return self._version
 
     @property
@@ -1332,8 +1312,8 @@ class SetupInfo(ReqLibBaseModel):
 
     def update_from_dict(self, metadata: Dict[str, Any]) -> None:
         name = metadata.get("name", self.name)
-        if name and isinstance(name, str):
-            self.name = name
+        if isinstance(name, str):
+            self.name = self.name if self.name else name
         version = metadata.get("version", None)
         if version:
             try:

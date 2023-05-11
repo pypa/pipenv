@@ -1558,23 +1558,20 @@ class FileRequirement(ReqLibBaseModel):
         build_deps = []  # type: List[Union[S, PackagingRequirement]]
         setup_deps = []  # type: List[S]
         deps = {}  # type: Dict[S, PackagingRequirement]
+        if self.setup_info:
+            setup_info = self.setup_info.as_dict()
+            deps.update(setup_info.get("requires", {}))
+            setup_deps.extend(setup_info.get("setup_requires", []))
+            build_deps.extend(setup_info.get("build_requires", []))
+            if self.extras and self.setup_info.extras:
+                for dep in self.extras:
+                    if dep not in self.setup_info.extras:
+                        continue
+                    extras_list = self.setup_info.extras.get(dep, [])  # type: ignore
+                    for req_instance in extras_list:  # type: ignore
+                        deps[req_instance.key] = req_instance
         if self.pyproject_requires:
             build_deps.extend(list(self.pyproject_requires))
-        else:
-            if not self.setup_info:
-                self.parse_setup_info()
-            if self.setup_info:
-                setup_info = self.setup_info.as_dict()
-                deps.update(setup_info.get("requires", {}))
-                setup_deps.extend(setup_info.get("setup_requires", []))
-                build_deps.extend(setup_info.get("build_requires", []))
-                if self.extras and self.setup_info.extras:
-                    for dep in self.extras:
-                        if dep not in self.setup_info.extras:
-                            continue
-                        extras_list = self.setup_info.extras.get(dep, [])  # type: ignore
-                        for req_instance in extras_list:  # type: ignore
-                            deps[req_instance.key] = req_instance
         setup_deps = list(set(setup_deps))
         build_deps = list(set(build_deps))
         return deps, setup_deps, build_deps
@@ -2180,7 +2177,7 @@ class VCSRequirement(FileRequirement):
     def from_line(
         cls, line, editable=None, extras=None, parsed_line=None
     ) -> Union["FileRequirement", "VCSRequirement"]:
-        parsed_line = Line(line=line, editable=editable, extras=extras)
+        parsed_line = Line(line=line)
         return vcs_req_from_parsed_line(parsed_line)
 
     @property
@@ -2284,9 +2281,9 @@ class Requirement(ReqLibBaseModel):
     editable: Optional[bool] = Field(None, eq=True, order=True)
     hashes: Set[str] = set()
     extras: Tuple[str, ...] = Field(tuple(), eq=True, order=True)
-    line_instance_ref: Optional[Line] = Field(None, eq=False, order=False)
-    # ireq: Optional[InstallRequirement] = Field(None, eq=False, order=False)
-    # _ireq: Optional[Any] = Field(None, eq=False, order=False)
+    #line_instance: Optional[Line] = Field(None, eq=False, order=False)
+    #ireq: Optional[InstallRequirement] = Field(None, eq=False, order=False)
+    #_ireq: Optional[Any] = Field(None, eq=False, order=False)
 
     class Config:
         validate_assignment = True
@@ -2379,8 +2376,6 @@ class Requirement(ReqLibBaseModel):
                 self.req.setup_info.name = name
 
     def get_line_instance(self) -> Line:
-        if self.line_instance_ref:
-            return self.line_instance_ref
         line_parts = []
         local_editable = False
         if self.req:
@@ -2416,13 +2411,10 @@ class Requirement(ReqLibBaseModel):
             line = "-e {0}".format(line)
         else:
             line = "".join(line_parts)
-        self.line_instance_ref = Line(line=line, extras=self.extras)
-        return self.line_instance_ref
+        return Line(line=line)
 
-    @property
+    @cached_property
     def line_instance(self) -> Optional[Line]:
-        if self.line_instance_ref:
-            return self.line_instance_ref
         return self.get_line_instance()
 
     @cached_property
@@ -2514,7 +2506,6 @@ class Requirement(ReqLibBaseModel):
             "req": r,
             "markers": parsed_line.markers,
             "editable": parsed_line.editable,
-            "line_instance_ref": parsed_line,
         }
         if parsed_line.extras:
             extras = tuple(sorted(dedup([extra.lower() for extra in parsed_line.extras])))
