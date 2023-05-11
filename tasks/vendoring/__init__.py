@@ -104,7 +104,7 @@ GLOBAL_REPLACEMENT = [
     ),
     (
         "from pipenv.patched.pip._vendor.typing_extensions",
-        "from pipenv.patched.pip._vendor from pipenv.patched.pip._vendor.typing_extensions",
+        "from pipenv.patched.pip._vendor.typing_extensions",
     ),
 ]
 
