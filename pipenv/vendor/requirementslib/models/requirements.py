@@ -2392,18 +2392,16 @@ class Requirement(ReqLibBaseModel):
             version, fetched = self.get_version_from_setup_info()
             if version is not None and not (self.is_file_or_url or self.is_vcs):
                 line_parts.append(f"=={version}")
-
-            if not self.is_vcs and not self.vcs and self.extras_as_pip:
-                if (
-                    self.is_file_or_url
-                    and not local_editable
-                    and not self.req.get_uri().startswith("file://")
-                    # fix for file uri with egg names and extras
-                    and not len(self.req.line_part.split("#")) > 1
-                ):
-                    line_parts.append(f"#egg={self.name}{self.extras_as_pip}")
-                else:
-                    line_parts.append(self.extras_as_pip)
+            if (
+                self.is_file_or_url
+                and not local_editable
+                and not self.req.get_uri().startswith("file://")
+                # fix for file uri with egg names and extras
+                and not len(self.req.line_part.split("#")) > 1
+            ):
+                line_parts.append(f"#egg={self.name}{self.extras_as_pip}")
+            elif not any(part for part in line_parts if self.extras_as_pip in part):
+                line_parts.append(self.extras_as_pip)
             if self.specifiers and not (self.is_file_or_url or self.is_vcs):
                 line_parts.append(self.specifiers)
             if self.markers and not self.is_file_or_url:
