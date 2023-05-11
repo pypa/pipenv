@@ -240,6 +240,7 @@ def parse_extras_str(extras_str):
 
 def parse_extras_from_line(installable_line):
     extras = []
+    line_without_extras = installable_line
 
     # Extract the part within square brackets, if any
     start = installable_line.find("[")
@@ -248,8 +249,9 @@ def parse_extras_from_line(installable_line):
     if start != -1 and end != -1 and start < end:
         extras_str = installable_line[start + 1 : end]
         extras = extras_str.split(",")
+        line_without_extras = installable_line[:start] + installable_line[end + 1:]
 
-    return extras
+    return (line_without_extras.strip(), extras)
 
 
 def specs_to_string(specs):

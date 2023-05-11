@@ -95,13 +95,13 @@ def parse_editable(editable_req: str) -> Tuple[Optional[str], str, Set[str]]:
 
     link = Link(url)
 
-    if not link.is_vcs:
-        backends = ", ".join(vcs.all_schemes)
-        raise InstallationError(
-            f"{editable_req} is not a valid editable requirement. "
-            f"It should either be a path to a local project or a VCS URL "
-            f"(beginning with {backends})."
-        )
+    # if not link.is_vcs:
+    #     backends = ", ".join(vcs.all_schemes)
+    #     raise InstallationError(
+    #         f"{editable_req} is not a valid editable requirement. "
+    #         f"It should either be a path to a local project or a VCS URL "
+    #         f"(beginning with {backends})."
+    #     )
 
     package_name = link.egg_fragment
     if not package_name:
