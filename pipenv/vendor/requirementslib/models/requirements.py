@@ -2737,6 +2737,8 @@ class Requirement(ReqLibBaseModel):
             base_dict["hashes"] = sorted(hashes)
         if "extras" in base_dict:
             base_dict["extras"] = list(base_dict["extras"])
+        if "setup_info" in base_dict:
+            del base_dict["setup_info"]
         if len(base_dict.keys()) == 1 and "version" in base_dict:
             base_dict = base_dict.get("version")
 
