@@ -384,10 +384,10 @@ class Line(ReqLibBaseModel):
             self.populate_setup_paths()
         return self._pyproject_toml
 
-    @property
+    @cached_property
     def specifier(self) -> Optional[str]:
         options = [self._specifier]
-        for req in (self._ireq, self._requirement):
+        for req in (self.ireq, self.requirement):
             if req is not None and getattr(req, "specifier", None):
                 options.append(req.specifier)
         specifier = next(
@@ -417,9 +417,9 @@ class Line(ReqLibBaseModel):
     def specifiers(self) -> Optional[SpecifierSet]:
         ireq_needs_specifier = False
         req_needs_specifier = False
-        if self._ireq is None or self._ireq.req is None or not self._ireq.req.specifier:
+        if self.ireq is None or self.ireq.req is None or not self.ireq.req.specifier:
             ireq_needs_specifier = True
-        if self._requirement is None or not self._requirement.specifier:
+        if self.requirement is None or not self.requirement.specifier:
             req_needs_specifier = True
         if any([ireq_needs_specifier, req_needs_specifier]):
             # TODO: Should we include versions for VCS dependencies? IS there a reason not
@@ -436,8 +436,8 @@ class Line(ReqLibBaseModel):
                     if not isinstance(specifier, SpecifierSet):
                         specifier = SpecifierSet(specifier)
                     return specifier
-        if self._ireq is not None and self._ireq.req is not None:
-            return self._ireq.req.specifier
+        if self.ireq is not None and self.ireq.req is not None:
+            return self.ireq.req.specifier
         elif self.requirement is not None:
             return self.requirement.specifier
         return None
@@ -2704,9 +2704,14 @@ class Requirement(ReqLibBaseModel):
             if k not in ["req", "link", "_setup_info"]
         }
         base_dict.update(req_dict)
-        conflicting_keys = ("file", "path", "uri")
-        if "file" in base_dict and any(k in base_dict for k in conflicting_keys[1:]):
-            conflicts = [k for k in (conflicting_keys[1:],) if k in base_dict]
+        file_conflicting_keys = ("path", "uri", "name")
+        if "file" in base_dict and any(k in base_dict for k in file_conflicting_keys):
+            conflicts = [k for k in file_conflicting_keys if k in base_dict]
+            for k in conflicts:
+                base_dict.pop(k)
+        vcs_conflicting_keys = ("path", "uri", "name")
+        if any(k in base_dict for k in VCS_LIST):
+            conflicts = [k for k in vcs_conflicting_keys if k in base_dict]
             for k in conflicts:
                 base_dict.pop(k)
         if "hashes" in base_dict:
