@@ -1587,6 +1587,7 @@ build-backend = "{1}"
         parse_setupcfg = False
         parse_setuppy = False
         self.run_pyproject()
+        self.run_setup()
         if self.setup_cfg and self.setup_cfg.exists():
             parse_setupcfg = True
         if self.setup_py and self.setup_py.exists():
@@ -1676,9 +1677,13 @@ build-backend = "{1}"
                 url_path, _, _ = url_path.rpartition("@")
             parsed = parsed._replace(path=url_path)
             uri = urlunparse(parsed)
+        path = None
         is_file = False
         if ireq.link.scheme == "file" or uri.startswith("file://"):
             is_file = True
+            if "file:/" in uri and "file:///" not in uri:
+                uri = uri.replace("file:/", "file:///")
+            path = url_to_path(uri)
         kwargs = _prepare_wheel_building_kwargs(ireq)
         is_artifact_or_vcs = getattr(
             ireq.link, "is_vcs", getattr(ireq.link, "is_artifact", False)
@@ -1697,8 +1702,7 @@ build-backend = "{1}"
             build_location_func = getattr(ireq, "ensure_build_location", None)
         if not ireq.source_dir:
             if subdir:
-                normalized_subdir = os.path.normpath(subdir)
-                directory = os.path.join(kwargs["build_dir"], normalized_subdir)
+                directory = f"{kwargs['build_dir']}/{subdir}"
             else:
                 directory = kwargs["build_dir"]
             build_kwargs = {

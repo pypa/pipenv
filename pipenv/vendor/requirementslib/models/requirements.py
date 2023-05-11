@@ -1592,7 +1592,7 @@ class FileRequirement(ReqLibBaseModel):
                     )
             else:
                 if self.link and not self.link.is_wheel:
-                    self.setup_info = Line(self.line_part, name=self.name).setup_info
+                    self.setup_info = Line(self.line_part).setup_info
                     with global_tempdir_manager():
                         self.setup_info.get_info()
         return self.setup_info
