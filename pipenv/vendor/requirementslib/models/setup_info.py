@@ -1718,7 +1718,8 @@ build-backend = "{1}"
             build_location_func = getattr(ireq, "ensure_build_location", None)
         if not ireq.source_dir:
             if subdir:
-                directory = f"{kwargs['build_dir']}/{subdir}"
+                normalized_subdir = os.path.normpath(subdir)
+                directory = os.path.join(kwargs["build_dir"], normalized_subdir)
             else:
                 directory = kwargs["build_dir"]
             build_kwargs = {
