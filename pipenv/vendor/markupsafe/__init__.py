@@ -4,7 +4,7 @@ import string
 import typing as t
 
 if t.TYPE_CHECKING:
-    from pipenv.patched.pip._vendor import typing_extensions as te
+    from pipenv.patched.pip._vendor from pipenv.patched.pip._vendor.typing_extensions as te
 
     class HasHTML(te.Protocol):
         def __html__(self) -> str:
