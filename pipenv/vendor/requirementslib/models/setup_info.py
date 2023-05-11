@@ -1305,10 +1305,8 @@ class SetupInfo(ReqLibBaseModel):
     @property
     def version(self) -> Optional[str]:
         if not self._version:
-            self.get_info()
-            if self.metadata:
-                metadata_dict = tuple_to_dict(self.metadata)
-                self._version = metadata_dict.get("version")
+            info = self.as_dict()
+            self._version = info.get("version", None)
         return self._version
 
     @property
@@ -1607,7 +1605,6 @@ build-backend = "{1}"
         parse_setupcfg = False
         parse_setuppy = False
         self.run_pyproject()
-        self.run_setup()
         if self.setup_cfg and self.setup_cfg.exists():
             parse_setupcfg = True
         if self.setup_py and self.setup_py.exists():
@@ -1718,8 +1715,7 @@ build-backend = "{1}"
             build_location_func = getattr(ireq, "ensure_build_location", None)
         if not ireq.source_dir:
             if subdir:
-                normalized_subdir = os.path.normpath(subdir)
-                directory = os.path.join(kwargs["build_dir"], normalized_subdir)
+                directory = f"{kwargs['build_dir']}/{subdir}"
             else:
                 directory = kwargs["build_dir"]
             build_kwargs = {
