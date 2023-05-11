@@ -41,7 +41,7 @@ from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 from pipenv.vendor.pydantic import Field
 
-from ..fileutils import cd, create_tracked_tempdir, temp_path
+from ..fileutils import cd, create_tracked_tempdir, temp_path, url_to_path
 from ..utils import get_pip_command
 from .common import ReqLibBaseModel
 from .old_pip_utils import _copy_source_tree
