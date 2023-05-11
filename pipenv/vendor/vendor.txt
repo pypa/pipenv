@@ -18,4 +18,3 @@ ruamel.yaml==0.17.21
 shellingham==1.5.0.post1
 toml==0.10.2
 tomlkit==0.11.7
-typing-extensions==4.5.0

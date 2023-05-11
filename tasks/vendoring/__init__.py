@@ -98,6 +98,14 @@ GLOBAL_REPLACEMENT = [
         "from pipenv.patched.pip._vendor.distlib.metadata import",
     ),
     ("from distlib.wheel import", "from pipenv.patched.pip._vendor.distlib.wheel import"),
+    (
+        "from typing_extensions import",
+        "from pipenv.patched.pip._vendor.typing_extensions import",
+    ),
+    (
+        "import typing_extensions",
+        "from pipenv.patched.pip._vendor import typing_extensions",
+    ),
 ]
 
 
