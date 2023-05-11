@@ -436,8 +436,8 @@ class Line(ReqLibBaseModel):
                     if not isinstance(specifier, SpecifierSet):
                         specifier = SpecifierSet(specifier)
                     return specifier
-        if self.ireq is not None and self.ireq.req is not None:
-            return self.ireq.req.specifier
+        if self._ireq is not None and self._ireq.req is not None:
+            return self._ireq.req.specifier
         elif self.requirement is not None:
             return self.requirement.specifier
         return None
@@ -909,7 +909,7 @@ class Line(ReqLibBaseModel):
         if self.parsed_marker is not None and not ireq.markers:
             ireq.markers = self.parsed_marker
         if not ireq.req and self._requirement is not None:
-            ireq.req = copy.deepcopy(self._requirement)
+            ireq.req = self._requirement
         return ireq
 
     def parse_ireq(self):
@@ -1558,20 +1558,23 @@ class FileRequirement(ReqLibBaseModel):
         build_deps = []  # type: List[Union[S, PackagingRequirement]]
         setup_deps = []  # type: List[S]
         deps = {}  # type: Dict[S, PackagingRequirement]
-        if self.setup_info:
-            setup_info = self.setup_info.as_dict()
-            deps.update(setup_info.get("requires", {}))
-            setup_deps.extend(setup_info.get("setup_requires", []))
-            build_deps.extend(setup_info.get("build_requires", []))
-            if self.extras and self.setup_info.extras:
-                for dep in self.extras:
-                    if dep not in self.setup_info.extras:
-                        continue
-                    extras_list = self.setup_info.extras.get(dep, [])  # type: ignore
-                    for req_instance in extras_list:  # type: ignore
-                        deps[req_instance.key] = req_instance
         if self.pyproject_requires:
             build_deps.extend(list(self.pyproject_requires))
+        else:
+            if not self.setup_info:
+                self.parse_setup_info()
+            if self.setup_info:
+                setup_info = self.setup_info.as_dict()
+                deps.update(setup_info.get("requires", {}))
+                setup_deps.extend(setup_info.get("setup_requires", []))
+                build_deps.extend(setup_info.get("build_requires", []))
+                if self.extras and self.setup_info.extras:
+                    for dep in self.extras:
+                        if dep not in self.setup_info.extras:
+                            continue
+                        extras_list = self.setup_info.extras.get(dep, [])  # type: ignore
+                        for req_instance in extras_list:  # type: ignore
+                            deps[req_instance.key] = req_instance
         setup_deps = list(set(setup_deps))
         build_deps = list(set(build_deps))
         return deps, setup_deps, build_deps
@@ -2401,7 +2404,8 @@ class Requirement(ReqLibBaseModel):
                     line_parts.append(f"#egg={self.name}{self.extras_as_pip}")
                 else:
                     line_parts.append(self.extras_as_pip)
-
+            if self.specifiers and not (self.is_file_or_url or self.is_vcs):
+                line_parts.append(self.specifiers)
             if self.markers and not self.is_file_or_url:
                 line_parts.append(" ; {0}".format(self.markers.replace('"', "'")))
 
@@ -2430,12 +2434,16 @@ class Requirement(ReqLibBaseModel):
         specs = self.get_specifiers
         if specs:
             return specs
-        if (
-            self.req is not None
-            and isinstance(self.req, NamedRequirement)
-            and self.req.version
+        elif self.req and isinstance(self.req, NamedRequirement) and self.req.version:
+            return "=={0}".format(self.req.version)
+        elif (
+            self.req
+            and hasattr(self.req, "setup_info")
+            and self.req.setup_info
+            and self.req.setup_info.version
         ):
-            return self.req.version
+            return "=={0}".format(self.req.setup_info.version)
+        # TODO This creates circular call chain that eventuallys gets cached by cached_property
         elif self.is_file_or_url or self.is_vcs:
             version, fetched = self.get_version_from_setup_info()
             if version is not None:
@@ -2453,6 +2461,7 @@ class Requirement(ReqLibBaseModel):
             and self.req.setup_info.version
         ):
             return "=={0}".format(self.req.setup_info.version)
+
     @cached_property
     def is_vcs(self) -> bool:
         return isinstance(self.req, VCSRequirement)
@@ -2671,6 +2680,7 @@ class Requirement(ReqLibBaseModel):
         )
 
     def as_pipfile(self) -> Dict[str, Any]:
+
         good_keys = (
             "hashes",
             "extras",
@@ -2764,10 +2774,9 @@ class Requirement(ReqLibBaseModel):
     def ireq(self) -> InstallRequirement:
         return self.as_ireq()
 
-    def get_version_from_setup_info(self, fetched: bool = False) -> Tuple[Optional[str], bool]:
-        if fetched:
-            return None, True
-
+    def get_version_from_setup_info(self) -> Tuple[Optional[str], bool]:
+        if self.req and isinstance(self.req, FileRequirement):
+            self.req.parse_setup_info()
         if self.req and hasattr(self.req, "setup_info") and self.req.setup_info:
             return self.req.setup_info.version, True
         elif self._line_instance and self._line_instance.setup_info:
@@ -2778,7 +2787,7 @@ class Requirement(ReqLibBaseModel):
     def run_requires(
         self, sources: Optional[List[str]] = None, finder: Optional[PackageFinder] = None
     ) -> Dict[str, Any]:
-        if self.line_instance:
+        if self.line_instance and self._line_instance.setup_info:
             info_dict = self.line_instance.setup_info.as_dict()
         else:
             if not finder:

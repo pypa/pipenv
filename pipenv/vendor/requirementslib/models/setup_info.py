@@ -1555,6 +1555,9 @@ build-backend = "{1}"
         name = metadata.get("name")
         if name:
             self.name = name
+        version = metadata.get("version")
+        if version:
+            self._version = version
         extras_require = metadata.get("extras", ())
         extras_tuples = []
         for section in set(extras_require):
