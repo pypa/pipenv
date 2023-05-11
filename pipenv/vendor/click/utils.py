@@ -19,7 +19,7 @@ from ._compat import WIN
 from .globals import resolve_color_default
 
 if t.TYPE_CHECKING:
-    from pipenv.patched.pip._vendor.typing_extensions as te
+    from pipenv.patched.pip._vendor import typing_extensions as te
 
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 
