@@ -1630,7 +1630,7 @@ build-backend = "{1}"
     def as_dict(self) -> Dict[str, Any]:
         prop_dict = {
             "name": self.name,
-            "version": self.version if self.version else None,
+            "version": self.version if self._version else None,
             "base_dir": self.base_dir,
             "ireq": self.ireq,
             "build_backend": self.build_backend,
