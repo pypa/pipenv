@@ -85,12 +85,12 @@ from .utils import (
     expand_env_variables,
     extras_to_string,
     format_requirement,
+    get_default_pyproject_backend,
     get_pyproject,
     get_version,
     init_requirement,
     make_install_requirement,
     normalize_name,
-    parse_extras_from_line,
     parse_extras_str,
     specs_to_string,
     split_markers_from_line,
@@ -156,7 +156,7 @@ class Line(ReqLibBaseModel):
     ) -> None:
         super().__init__(line=line, extras=extras)
         if line.startswith("-e "):
-            line = line[len("-e "):]
+            line = line[len("-e ") :]
             self.editable = True
         if extras is not None:
             self.extras = tuple(sorted(set(extras)))

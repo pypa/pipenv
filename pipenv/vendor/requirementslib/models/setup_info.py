@@ -54,7 +54,6 @@ from .utils import (
     init_requirement,
     split_vcs_method_from_uri,
     strip_extras_markers_from_requirement,
-    tuple_to_dict,
 )
 
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
@@ -1256,14 +1255,32 @@ class SetupInfo(ReqLibBaseModel):
         self.get_info()
 
     def __hash__(self):
-        return hash((self.name, self._version, self._requirements, self.build_requires, self.build_backend,
-                     self.setup_requires, self.python_requires, self._extras_requirements, self.setup_cfg,
-                     self.setup_py, self.pyproject, self.ireq))
+        return hash(
+            (
+                self.name,
+                self._version,
+                self._requirements,
+                self.build_requires,
+                self.build_backend,
+                self.setup_requires,
+                self.python_requires,
+                self._extras_requirements,
+                self.setup_cfg,
+                self.setup_py,
+                self.pyproject,
+                self.ireq,
+            )
+        )
 
     def __eq__(self, other):
         if not isinstance(other, SetupInfo):
             return NotImplemented
-        return self.name == other.name and self._version == other._version and self._requirements == other._requirements and self.build_requires == other.build_requires
+        return (
+            self.name == other.name
+            and self._version == other._version
+            and self._requirements == other._requirements
+            and self.build_requires == other.build_requires
+        )
 
     @cached_property
     def requires(self) -> Dict[str, HashableRequirement]:
@@ -1680,13 +1697,9 @@ build-backend = "{1}"
                 url_path, _, _ = url_path.rpartition("@")
             parsed = parsed._replace(path=url_path)
             uri = urlunparse(parsed)
-        path = None
         is_file = False
         if ireq.link.scheme == "file" or uri.startswith("file://"):
             is_file = True
-            if "file:/" in uri and "file:///" not in uri:
-                uri = uri.replace("file:/", "file:///")
-            path = url_to_path(uri)
         kwargs = _prepare_wheel_building_kwargs(ireq)
         is_artifact_or_vcs = getattr(
             ireq.link, "is_vcs", getattr(ireq.link, "is_artifact", False)
