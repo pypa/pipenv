@@ -33,8 +33,8 @@ from typing import Callable, Dict, Type, Union, cast, overload
 import hypothesis.strategies as st
 
 import pipenv.vendor.pydantic as pydantic
-from pipenv.vendor.pydantic import color
-from pipenv.vendor.pydantic import types
+import pydantic.color
+import pydantic.types
 from pipenv.vendor.pydantic.utils import lenient_issubclass
 
 # FilePath and DirectoryPath are explicitly unsupported, as we'd have to create
@@ -88,23 +88,23 @@ st.register_type_strategy(
 _color_regexes = (
     '|'.join(
         (
-            color.r_hex_short,
-            color.r_hex_long,
-            color.r_rgb,
-            color.r_rgba,
-            color.r_hsl,
-            color.r_hsla,
+            pydantic.color.r_hex_short,
+            pydantic.color.r_hex_long,
+            pydantic.color.r_rgb,
+            pydantic.color.r_rgba,
+            pydantic.color.r_hsl,
+            pydantic.color.r_hsla,
         )
     )
     # Use more precise regex patterns to avoid value-out-of-range errors
-    .replace(color._r_sl, r'(?:(\d\d?(?:\.\d+)?|100(?:\.0+)?)%)')
-    .replace(color._r_alpha, r'(?:(0(?:\.\d+)?|1(?:\.0+)?|\.\d+|\d{1,2}%))')
-    .replace(color._r_255, r'(?:((?:\d|\d\d|[01]\d\d|2[0-4]\d|25[0-4])(?:\.\d+)?|255(?:\.0+)?))')
+    .replace(pydantic.color._r_sl, r'(?:(\d\d?(?:\.\d+)?|100(?:\.0+)?)%)')
+    .replace(pydantic.color._r_alpha, r'(?:(0(?:\.\d+)?|1(?:\.0+)?|\.\d+|\d{1,2}%))')
+    .replace(pydantic.color._r_255, r'(?:((?:\d|\d\d|[01]\d\d|2[0-4]\d|25[0-4])(?:\.\d+)?|255(?:\.0+)?))')
 )
 st.register_type_strategy(
-    color.Color,
+    pydantic.color.Color,
     st.one_of(
-        st.sampled_from(sorted(color.COLORS_BY_NAME)),
+        st.sampled_from(sorted(pydantic.color.COLORS_BY_NAME)),
         st.tuples(
             st.integers(0, 255),
             st.integers(0, 255),
@@ -177,22 +177,22 @@ RESOLVERS: Dict[type, Callable[[type], st.SearchStrategy]] = {}  # type: ignore[
 
 
 @overload
-def _registered(typ: Type[types.T]) -> Type[types.T]:
+def _registered(typ: Type[pydantic.types.T]) -> Type[pydantic.types.T]:
     pass
 
 
 @overload
-def _registered(typ: types.ConstrainedNumberMeta) -> types.ConstrainedNumberMeta:
+def _registered(typ: pydantic.types.ConstrainedNumberMeta) -> pydantic.types.ConstrainedNumberMeta:
     pass
 
 
 def _registered(
-    typ: Union[Type[types.T], types.ConstrainedNumberMeta]
-) -> Union[Type[types.T], types.ConstrainedNumberMeta]:
-    # This function replaces the version in `types`, in order to
+    typ: Union[Type[pydantic.types.T], pydantic.types.ConstrainedNumberMeta]
+) -> Union[Type[pydantic.types.T], pydantic.types.ConstrainedNumberMeta]:
+    # This function replaces the version in `pydantic.types`, in order to
     # effect the registration of new constrained types so that Hypothesis
     # can generate valid examples.
-    types._DEFINED_TYPES.add(typ)
+    pydantic.types._DEFINED_TYPES.add(typ)
     for supertype, resolver in RESOLVERS.items():
         if issubclass(typ, supertype):
             st.register_type_strategy(typ, resolver(typ))  # type: ignore
@@ -201,7 +201,7 @@ def _registered(
 
 
 def resolves(
-    typ: Union[type, types.ConstrainedNumberMeta]
+    typ: Union[type, pydantic.types.ConstrainedNumberMeta]
 ) -> Callable[[Callable[..., st.SearchStrategy]], Callable[..., st.SearchStrategy]]:  # type: ignore[type-arg]
     def inner(f):  # type: ignore
         assert f not in RESOLVERS
@@ -380,7 +380,7 @@ def resolve_constr(cls):  # type: ignore[no-untyped-def]  # pragma: no cover
 
 
 # Finally, register all previously-defined types, and patch in our new function
-for typ in list(types._DEFINED_TYPES):
+for typ in list(pydantic.types._DEFINED_TYPES):
     _registered(typ)
-types._registered = _registered
+pydantic.types._registered = _registered
 st.register_type_strategy(pydantic.Json, resolve_json)
