@@ -2281,7 +2281,7 @@ class Requirement(ReqLibBaseModel):
     editable: Optional[bool] = Field(None, eq=True, order=True)
     hashes: Set[str] = set()
     extras: Tuple[str, ...] = Field(tuple(), eq=True, order=True)
-    #line_instance: Optional[Line] = Field(None, eq=False, order=False)
+    _line_instance: Optional[Line] = None
     #ireq: Optional[InstallRequirement] = Field(None, eq=False, order=False)
     #_ireq: Optional[Any] = Field(None, eq=False, order=False)
 
@@ -2376,45 +2376,53 @@ class Requirement(ReqLibBaseModel):
                 self.req.setup_info.name = name
 
     def get_line_instance(self) -> Line:
-        line_parts = []
-        local_editable = False
-        if self.req:
-            if self.req.line_part.startswith("-e "):
-                local_editable = True
-                line_parts.extend(self.req.line_part.split(" ", 1))
-            else:
-                line_parts.append(self.req.line_part)
-        if not self.is_vcs and not self.vcs and self.extras_as_pip:
-            if (
-                self.is_file_or_url
-                and not local_editable
-                and not self.req.get_uri().startswith("file://")
-                # fix for file uri with egg names and extras
-                and not len(self.req.line_part.split("#")) > 1
-            ):
-                line_parts.append(f"#egg={self.name}{self.extras_as_pip}")
-            else:
-                line_parts.append(self.extras_as_pip)
-        if self.specifiers and not (self.is_file_or_url or self.is_vcs):
-            line_parts.append(self.specifiers)
-        if self.markers and not self.is_file_or_url:
-            line_parts.append(" ; {0}".format(self.markers.replace('"', "'")))
-        if self.hashes_as_pip and not (self.editable or self.vcs or self.is_vcs):
-            line_parts.append(self.hashes_as_pip)
-        if self.editable:
-            if line_parts[0] == "-e":
-                line = "".join(line_parts[1:])
+        if self._line_instance is None:
+            line_parts = []
+            local_editable = False
+            if self.req:
+                if self.req.line_part.startswith("-e "):
+                    local_editable = True
+                    line_parts.extend(self.req.line_part.split(" ", 1))
+                else:
+                    line_parts.append(self.req.line_part)
+
+            version, fetched = self.get_version_from_setup_info()
+            if version is not None and not (self.is_file_or_url or self.is_vcs):
+                line_parts.append(f"=={version}")
+
+            if not self.is_vcs and not self.vcs and self.extras_as_pip:
+                if (
+                    self.is_file_or_url
+                    and not local_editable
+                    and not self.req.get_uri().startswith("file://")
+                    # fix for file uri with egg names and extras
+                    and not len(self.req.line_part.split("#")) > 1
+                ):
+                    line_parts.append(f"#egg={self.name}{self.extras_as_pip}")
+                else:
+                    line_parts.append(self.extras_as_pip)
+
+            if self.markers and not self.is_file_or_url:
+                line_parts.append(" ; {0}".format(self.markers.replace('"', "'")))
+
+            if self.hashes_as_pip and not (self.editable or self.vcs or self.is_vcs):
+                line_parts.append(self.hashes_as_pip)
+
+            if self.editable:
+                if line_parts[0] == "-e":
+                    line = "".join(line_parts[1:])
+                else:
+                    line = "".join(line_parts)
+                if self.markers:
+                    line = '"{0}"'.format(line)
+                line = "-e {0}".format(line)
             else:
                 line = "".join(line_parts)
-            if self.markers:
-                line = '"{0}"'.format(line)
-            line = "-e {0}".format(line)
-        else:
-            line = "".join(line_parts)
-        return Line(line=line)
+            self._line_instance = Line(line=line)
+        return self._line_instance
 
-    @cached_property
-    def line_instance(self) -> Optional[Line]:
+    @property
+    def line_instance(self):
         return self.get_line_instance()
 
     @cached_property
@@ -2429,19 +2437,22 @@ class Requirement(ReqLibBaseModel):
         ):
             return self.req.version
         elif self.is_file_or_url or self.is_vcs:
-            try:
-                setupinfo_dict = self.run_requires()
-            except Exception:
-                setupinfo_dict = None
-            if setupinfo_dict is not None:
-                return "=={0}".format(setupinfo_dict.get("version"))
+            version, fetched = self.get_version_from_setup_info()
+            if version is not None:
+                return "=={0}".format(version)
+            elif not fetched:
+                try:
+                    setupinfo_dict = self.run_requires()
+                except Exception:
+                    setupinfo_dict = None
+                if setupinfo_dict is not None:
+                    return "=={0}".format(setupinfo_dict.get("version"))
         elif (
             self.req
             and hasattr(self.req, "setup_info")
             and self.req.setup_info.version
         ):
             return "=={0}".format(self.req.setup_info.version)
-
     @cached_property
     def is_vcs(self) -> bool:
         return isinstance(self.req, VCSRequirement)
@@ -2753,12 +2764,21 @@ class Requirement(ReqLibBaseModel):
     def ireq(self) -> InstallRequirement:
         return self.as_ireq()
 
+    def get_version_from_setup_info(self, fetched: bool = False) -> Tuple[Optional[str], bool]:
+        if fetched:
+            return None, True
+
+        if self.req and hasattr(self.req, "setup_info") and self.req.setup_info:
+            return self.req.setup_info.version, True
+        elif self._line_instance and self._line_instance.setup_info:
+            return self._line_instance.setup_info.version, True
+
+        return None, False
+
     def run_requires(
         self, sources: Optional[List[str]] = None, finder: Optional[PackageFinder] = None
     ) -> Dict[str, Any]:
-        if self.req and self.req.setup_info:
-            info_dict = self.req.setup_info.as_dict()
-        elif self.line_instance and self.line_instance.setup_info:
+        if self.line_instance:
             info_dict = self.line_instance.setup_info.as_dict()
         else:
             if not finder:
