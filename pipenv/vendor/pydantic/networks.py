@@ -33,7 +33,7 @@ from .validators import constr_length_validator, str_validator
 
 if TYPE_CHECKING:
     import email_validator
-    from pipenv.vendor.typing_extensions import TypedDict
+    from pipenv.patched.pip._vendor.typing_extensions import TypedDict
 
     from .config import BaseConfig
     from .fields import ModelField

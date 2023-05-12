@@ -26,7 +26,7 @@ from typing import (
     Union,
 )
 
-from pipenv.vendor.typing_extensions import Annotated
+from pipenv.patched.pip._vendor.typing_extensions import Annotated
 
 from .errors import ConfigError
 from .typing import (

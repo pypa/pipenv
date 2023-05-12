@@ -26,7 +26,7 @@ from typing import (  # type: ignore
     get_type_hints,
 )
 
-from pipenv.vendor.typing_extensions import (
+from pipenv.patched.pip._vendor.typing_extensions import (
     Annotated,
     Final,
     Literal,
@@ -186,7 +186,7 @@ if sys.version_info < (3, 9):
 else:
     from typing import _UnionGenericAlias  # type: ignore
 
-    from pipenv.vendor.typing_extensions import _AnnotatedAlias
+    from pipenv.patched.pip._vendor.typing_extensions import _AnnotatedAlias
 
     def convert_generics(tp: Type[Any]) -> Type[Any]:
         """
