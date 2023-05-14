@@ -242,6 +242,10 @@ def find_python(finder, line=None):
 
     if line and not isinstance(line, str):
         raise TypeError(f"Invalid python search type: expected string, received {line!r}")
+    if line and os.path.isabs(line):
+        if os.name == "nt":
+            line = make_posix(line)
+        return line
 
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
