@@ -372,7 +372,6 @@ class PathEntry(BaseModel):
         :param str name: Name of the python version, e.g. ``anaconda3-5.3.0``
         :return: A new instance of the class.
         """
-
         target = ensure_path(path)
         guessed_name = False
         if not name:

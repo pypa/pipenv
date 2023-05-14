@@ -7,6 +7,7 @@ from .exceptions import InvalidPythonVersion
 from .models.common import FinderBaseModel
 from .models.path import PathEntry, SystemPath
 from .models.python import PythonVersion
+from .environment import set_pyenv_paths
 from .utils import Iterable, version_re
 
 
@@ -32,6 +33,7 @@ class Finder(FinderBaseModel):
         return self.__hash__ == other.__hash__
 
     def create_system_path(self) -> SystemPath:
+        set_pyenv_paths()
         return SystemPath.create(
             path=self.path_prepend,
             system=self.system,

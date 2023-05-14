@@ -3,6 +3,9 @@ from __future__ import annotations
 import os
 import platform
 import sys
+import posixpath
+import ntpath
+import re
 
 
 def is_type_checking():
@@ -20,6 +23,11 @@ ASDF_INSTALLED = bool(os.environ.get("ASDF_DIR"))
 PYENV_ROOT = os.path.expanduser(
     os.path.expandvars(os.environ.get("PYENV_ROOT", "~/.pyenv"))
 )
+# Check if the path is in Unix-style (Git Bash)
+if PYENV_ROOT.startswith('/') and os.name == 'nt':
+    # Convert to Windows-style path
+    drive, tail = re.match(r"^/([a-zA-Z])/(.*)", PYENV_ROOT).groups()
+    PYENV_ROOT = drive.upper() + ":\\" + tail.replace('/', '\\')
 ASDF_DATA_DIR = os.path.expanduser(
     os.path.expandvars(os.environ.get("ASDF_DATA_DIR", "~/.asdf"))
 )
@@ -41,10 +49,37 @@ Set to **5** by default.
 """
 
 
+def join_path_for_platform(path, path_parts):
+    # If we're on Unix or Unix-like system
+    if os.name == 'posix' or sys.platform == 'linux':
+        return posixpath.join(path, *path_parts)
+    # If we're on Windows
+    elif os.name == 'nt' or sys.platform == 'win32':
+        return ntpath.join(path, *path_parts)
+    else:
+        raise Exception("Unknown environment")
+
+
 def get_shim_paths():
     shim_paths = []
     if ASDF_INSTALLED:
         shim_paths.append(os.path.join(ASDF_DATA_DIR, "shims"))
-    if PYENV_INSTALLED:
-        shim_paths.append(os.path.join(PYENV_ROOT, "shims"))
     return [os.path.normpath(os.path.normcase(p)) for p in shim_paths]
+
+
+def set_pyenv_paths():
+    if PYENV_INSTALLED:
+        if os.name == "nt":
+            python_versions = join_path_for_platform(PYENV_ROOT, ["pyenv-win", "versions"])
+        else:
+            python_versions = join_path_for_platform(PYENV_ROOT, ["versions"])
+        try:
+            # Get a list of all files and directories in the given path
+            all_files_and_dirs = os.listdir(python_versions)
+            # Filter out files and keep only directories
+            for name in all_files_and_dirs:
+                if os.path.isdir(os.path.join(python_versions, name)):
+                    pyenv_path = os.path.join(python_versions, name)
+                    os.environ['PATH'] = pyenv_path + os.pathsep + os.environ['PATH']
+        except FileNotFoundError:
+            pass

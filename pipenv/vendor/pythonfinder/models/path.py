@@ -180,10 +180,6 @@ class SystemPath(FinderBaseModel):
         path_instances = [
             ensure_path(p.strip('"'))
             for p in path_order
-            if not any(
-                is_in_path(normalize_path(str(p)), normalize_path(shim))
-                for shim in get_shim_paths()
-            )
         ]
         self.paths.update(
             {
@@ -249,6 +245,16 @@ class SystemPath(FinderBaseModel):
         self.path_order = path_order
         return self
 
+    def _remove_shims(self):
+        path_copy = [p for p in self.path_order[:]]
+        new_order = []
+        for current_path in path_copy:
+            if not current_path.endswith("shims"):
+                normalized = normalize_path(current_path)
+                new_order.append(normalized)
+        new_order = [ensure_path(p).as_posix() for p in new_order]
+        self.path_order = new_order
+
     def _remove_path(self, path) -> SystemPath:
         path_copy = [p for p in reversed(self.path_order[:])]
         new_order = []
@@ -306,7 +312,6 @@ class SystemPath(FinderBaseModel):
             version_glob_path="versions/*",
             ignore_unsupported=self.ignore_unsupported,
         )
-        pyenv_index = None
         try:
             pyenv_index = self._get_last_instance(PYENV_ROOT)
         except ValueError:
@@ -321,7 +326,7 @@ class SystemPath(FinderBaseModel):
         self.paths[pyenv_finder.root] = pyenv_finder
         self.paths.update(pyenv_finder.roots)
         self.pyenv_finder = pyenv_finder
-        self._remove_path(os.path.join(PYENV_ROOT, "shims"))
+        self._remove_shims()
         self._register_finder("pyenv", pyenv_finder)
         return self
 
