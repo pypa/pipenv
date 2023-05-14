@@ -242,8 +242,6 @@ def find_python(finder, line=None):
 
     if line and not isinstance(line, str):
         raise TypeError(f"Invalid python search type: expected string, received {line!r}")
-    if line and not line.startswith("python"):
-        line = f"python{line}"
 
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
@@ -257,6 +255,9 @@ def find_python(finder, line=None):
         result = finder.find_python_version(name=line)
     if not result:
         result = finder.which(line)
+    if not result and not line.startswith("python"):
+        line = f"python{line}"
+        result = find_python(finder, line)
 
     if result:
         if not isinstance(result, str):
