@@ -6,8 +6,5 @@ variables:
 jobs:
 - job: TestVendoring
   displayName: Vendoring
-  variables:
-    python.version: '3.7'
-    python.architecture: x64
   steps:
     - script: echo "foobar" ; env
