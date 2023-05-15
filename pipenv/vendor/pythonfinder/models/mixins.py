@@ -14,16 +14,13 @@ from typing import (
 
 from pipenv.vendor.pydantic import BaseModel, Field, validator
 
-from ..environment import get_shim_paths
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
     KNOWN_EXTS,
     ensure_path,
     expand_paths,
     filter_pythons,
-    is_in_path,
     looks_like_python,
-    normalize_path,
     path_is_known_executable,
 )
 
@@ -317,7 +314,6 @@ class PathEntry(BaseModel):
         return children
 
     def _gen_children(self) -> Iterator:
-        shim_paths = get_shim_paths()
         pass_name = self.name != self.path.name
         pass_args = {"is_root": False, "only_python": self.only_python}
         if pass_name:
@@ -330,8 +326,6 @@ class PathEntry(BaseModel):
             yield (self.path.as_posix(), self)
         elif self.is_root:
             for child in self._filter_children():
-                if any(is_in_path(str(child), shim) for shim in shim_paths):
-                    continue
                 if self.only_python:
                     try:
                         entry = PathEntry.create(path=child, **pass_args)
@@ -392,8 +386,6 @@ class PathEntry(BaseModel):
             if not guessed_name:
                 child_creation_args["name"] = _new.name
             for pth, python in pythons.items():
-                if any(shim in normalize_path(str(pth)) for shim in get_shim_paths()):
-                    continue
                 pth = ensure_path(pth)
                 children[pth.as_posix()] = PathEntry(
                     py_version=python, path=pth, **child_creation_args

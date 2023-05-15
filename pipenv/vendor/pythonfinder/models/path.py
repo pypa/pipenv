@@ -27,7 +27,6 @@ from ..environment import (
     ASDF_INSTALLED,
     PYENV_INSTALLED,
     PYENV_ROOT,
-    get_shim_paths,
 )
 from ..utils import (
     dedup,
@@ -523,9 +522,6 @@ class SystemPath(FinderBaseModel):
                 }
             )
             paths = [path, *paths]
-        paths = [
-            p for p in paths if not any(is_in_path(p, shim) for shim in get_shim_paths())
-        ]
         _path_objects = [ensure_path(p.strip('"')) for p in paths]
         path_entries.update(
             {
