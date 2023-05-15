@@ -1,8 +1,5 @@
 name: CI
 
-variables:
-- group: CI
-
 jobs:
 - job: TestVendoring
   displayName: Vendoring
