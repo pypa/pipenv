@@ -317,12 +317,6 @@ def ensure_python(project, python=None):
                             )
                             # Print the results, in a beautiful blue...
                             click.secho(c.stdout, fg="cyan", err=True)
-                            # Clear the pythonfinder caches
-                            from pipenv.vendor.pythonfinder import Finder
-
-                            finder = Finder(system=False, global_search=True)
-                            finder.find_python_version.cache_clear()
-                            finder.find_all_python_versions.cache_clear()
                     # Find the newly installed Python, hopefully.
                     version = str(version)
                     path_to_python = find_a_system_python(version)
