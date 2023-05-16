@@ -855,14 +855,21 @@ class Project:
 
     def pipfile_sources(self, expand_vars=True):
         if self.pipfile_is_empty or "source" not in self.parsed_pipfile:
-            return [self.default_source]
+            sources = [self.default_source]
+            if os.environ.get("PIPENV_PYPI_MIRROR"):
+                sources[0]["url"] = os.environ["PIPENV_PYPI_MIRROR"]
+            return sources
         # We need to make copies of the source info so we don't
         # accidentally modify the cache. See #2100 where values are
         # written after the os.path.expandvars() call.
-        return [
+        sources = [
             {k: safe_expandvars(v) if expand_vars else v for k, v in source.items()}
             for source in self.parsed_pipfile["source"]
         ]
+        for source in sources:
+            if os.environ.get("PIPENV_PYPI_MIRROR") and is_pypi_url(source.get("url")):
+                source["url"] = os.environ["PIPENV_PYPI_MIRROR"]
+        return sources
 
     @property
     def sources(self):
