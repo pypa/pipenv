@@ -32,7 +32,7 @@ from .exceptions import NoSuchOption
 from .exceptions import UsageError
 
 if t.TYPE_CHECKING:
-    from pipenv.patched.pip._vendor import typing_extensions as te
+    import typing_extensions as te
     from .core import Argument as CoreArgument
     from .core import Context
     from .core import Option as CoreOption
