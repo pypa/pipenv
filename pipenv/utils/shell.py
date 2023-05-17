@@ -246,6 +246,7 @@ def find_python(finder, line=None):
         if os.name == "nt":
             line = make_posix(line)
         return line
+
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
 
