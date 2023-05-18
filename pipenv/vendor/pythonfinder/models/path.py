@@ -199,12 +199,13 @@ class SystemPath(FinderBaseModel):
         if self.check_for_asdf() and "asdf" not in self.finders:
             self._setup_asdf()
         venv = os.environ.get("VIRTUAL_ENV")
+        if venv:
+            venv = ensure_path(venv)
         if os.name == "nt":
             bin_dir = "Scripts"
         else:
             bin_dir = "bin"
         if venv and (self.system or self.global_search):
-            p = ensure_path(venv)
             path_order = [(p / bin_dir).as_posix(), *self.path_order]
             self.path_order = path_order
             self.paths[p] = self.get_path(p.joinpath(bin_dir))

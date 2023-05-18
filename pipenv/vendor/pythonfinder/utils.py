@@ -13,7 +13,7 @@ from typing import Any, Iterator
 
 from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
 
-from .environment import PYENV_ROOT
+from .environment import PYENV_ROOT, possibly_convert_to_windows_style_path
 from .exceptions import InvalidPythonVersion
 
 version_re_str = (
@@ -234,7 +234,7 @@ def ensure_path(path: Path | str) -> Path:
     :type path: str or :class:`~pathlib.Path`
     :return: A fully expanded Path object.
     """
-
+    path = possibly_convert_to_windows_style_path(path)
     if isinstance(path, Path):
         return path
     path = Path(os.path.expandvars(path))
