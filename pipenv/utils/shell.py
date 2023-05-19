@@ -12,6 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from pipenv.vendor import click
+from pipenv.vendor.pythonfinder.utils import ensure_path
 from pipenv.vendor.requirementslib.fileutils import normalize_drive, normalize_path
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
@@ -190,6 +191,7 @@ def get_workon_home():
             )
     # Create directory if it does not already exist
     expanded_path = Path(os.path.expandvars(workon_home)).expanduser()
+    expanded_path = ensure_path(expanded_path)
     os.makedirs(expanded_path, exist_ok=True)
     return expanded_path
 
@@ -246,6 +248,7 @@ def find_python(finder, line=None):
         if os.name == "nt":
             line = make_posix(line)
         return line
+
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
 

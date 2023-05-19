@@ -121,7 +121,7 @@ OptionalDate = Optional[date]
 StrIntFloat = Union[str, int, float]
 
 if TYPE_CHECKING:
-    from pipenv.vendor.typing_extensions import Annotated
+    from pipenv.patched.pip._vendor.typing_extensions import Annotated
 
     from .dataclasses import Dataclass
     from .main import BaseModel
