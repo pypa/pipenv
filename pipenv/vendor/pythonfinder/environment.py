@@ -17,14 +17,27 @@ def is_type_checking():
     return TYPE_CHECKING
 
 
+def possibly_convert_to_windows_style_path(path):
+    if not isinstance(path, str):
+        path = str(path)
+    # Check if the path is in Unix-style (Git Bash)
+    if os.name == 'nt':
+        if path.startswith('/'):
+            drive, tail = re.match(r"^/([a-zA-Z])/(.*)", path).groups()
+            revised_path = drive.upper() + ":\\" + tail.replace('/', '\\')
+            return revised_path
+        elif path.startswith('\\'):
+            drive, tail = re.match(r"^\\([a-zA-Z])\\(.*)", path).groups()
+            revised_path = drive.upper() + ":\\" + tail.replace('\\', '\\')
+            return revised_path
+
+    return path
+
+
 PYENV_ROOT = os.path.expanduser(
     os.path.expandvars(os.environ.get("PYENV_ROOT", "~/.pyenv"))
 )
-# Check if the path is in Unix-style (Git Bash)
-if PYENV_ROOT.startswith('/') and os.name == 'nt':
-    # Convert to Windows-style path
-    drive, tail = re.match(r"^/([a-zA-Z])/(.*)", PYENV_ROOT).groups()
-    PYENV_ROOT = drive.upper() + ":\\" + tail.replace('/', '\\')
+PYENV_ROOT = possibly_convert_to_windows_style_path(PYENV_ROOT)
 PYENV_INSTALLED = shutil.which("pyenv") != None
 ASDF_DATA_DIR = os.path.expanduser(
     os.path.expandvars(os.environ.get("ASDF_DATA_DIR", "~/.asdf"))
