@@ -462,14 +462,14 @@ class SystemPath(FinderBaseModel):
                 found_version = sub_finder(path)
                 if found_version:
                     return found_version
-            if alternate_sub_finder:
+            if name and not (minor or patch or pre or dev or arch or major):
                 for path in paths:
                     found_version = alternate_sub_finder(path)
                     if found_version:
                         return found_version
 
         ver = next(iter(self.get_pythons(sub_finder)), None)
-        if not ver and alternate_sub_finder is not None:
+        if not ver and name and not (minor or patch or pre or dev or arch or major):
             ver = next(iter(self.get_pythons(alternate_sub_finder)), None)
 
         if ver:
