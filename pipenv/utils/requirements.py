@@ -9,6 +9,7 @@ from pipenv.patched.pip._internal.req.constructors import (
 from pipenv.patched.pip._internal.utils.misc import split_auth_from_netloc
 from pipenv.utils.indexes import parse_indexes
 from pipenv.utils.internet import get_host_and_port
+from pipenv.utils.pip import get_trusted_hosts
 
 
 def import_requirements(project, r=None, dev=False):
@@ -59,21 +60,29 @@ def import_requirements(project, r=None, dev=False):
             else:
                 project.add_package_to_pipfile(str(package.req), dev=dev)
     for index in indexes:
-        # don't require HTTPS for trusted hosts (see: https://pip.pypa.io/en/stable/cli/pip/#cmdoption-trusted-host)
-        host_and_port = get_host_and_port(index)
-        require_valid_https = not any(
-            (
-                v in trusted_hosts
-                for v in (
-                    host_and_port,
-                    host_and_port.partition(":")[
-                        0
-                    ],  # also check if hostname without port is in trusted_hosts
-                )
+        add_index_to_pipfile(project, index, trusted_hosts)
+    project.recase_pipfile()
+
+
+def add_index_to_pipfile(project, index, trusted_hosts=None):
+    # don't require HTTPS for trusted hosts (see: https://pip.pypa.io/en/stable/cli/pip/#cmdoption-trusted-host)
+    if trusted_hosts is None:
+        trusted_hosts = get_trusted_hosts()
+
+    host_and_port = get_host_and_port(index)
+    require_valid_https = not any(
+        (
+            v in trusted_hosts
+            for v in (
+                host_and_port,
+                host_and_port.partition(":")[
+                    0
+                ],  # also check if hostname without port is in trusted_hosts
             )
         )
-        project.add_index_to_pipfile(index, verify_ssl=require_valid_https)
-    project.recase_pipfile()
+    )
+    index_name = project.add_index_to_pipfile(index, verify_ssl=require_valid_https)
+    return index_name
 
 
 BAD_PACKAGES = (

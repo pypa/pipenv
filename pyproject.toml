@@ -124,7 +124,7 @@ target-version = "py37"
 max-complexity = 32
 
 [tool.ruff.pylint]
-max-args = 18
+max-args = 20
 max-branches = 38
 max-returns = 9
 max-statements = 155
