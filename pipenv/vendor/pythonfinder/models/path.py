@@ -176,10 +176,7 @@ class SystemPath(FinderBaseModel):
         if self.global_search and "PATH" in os.environ:
             path_order = path_order + os.environ["PATH"].split(os.pathsep)
         path_order = list(dedup(path_order))
-        path_instances = [
-            ensure_path(p.strip('"'))
-            for p in path_order
-        ]
+        path_instances = [ensure_path(p.strip('"')) for p in path_order]
         self.paths.update(
             {
                 p.as_posix(): PathEntry.create(
