@@ -1,1 +1,0 @@
-Consider ``--index`` argument in ``update`` and ``upgrade`` commands.

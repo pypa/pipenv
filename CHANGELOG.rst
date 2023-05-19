@@ -1,3 +1,20 @@
+2023.5.19 (2023-05-19)
+======================
+Pipenv 2023.5.19 (2023-05-19)
+=============================
+
+
+Bug Fixes
+---------
+
+- Consider ``--index`` argument in ``update`` and ``upgrade`` commands.  `#5692 <https://github.com/pypa/pipenv/issues/5692>`_
+
+Vendored Libraries
+------------------
+
+- Upgrade ``pythonfinder==2.0.0`` which also brings in ``pydantic==1.10.7``.  `#5677 <https://github.com/pypa/pipenv/issues/5677>`_
+
+
 2023.4.29 (2023-04-29)
 ======================
 Pipenv 2023.4.29 (2023-04-29)
