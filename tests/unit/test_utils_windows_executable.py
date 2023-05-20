@@ -14,6 +14,7 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.mark.utils
+@pytest.mark.skipif(os.name != "nt", reason="Windows test only")
 @mock.patch('os.path.isfile')
 @mock.patch('shutil.which')
 def test_find_windows_executable_when_not_found(mocked_which, mocked_isfile):
@@ -32,6 +33,7 @@ def test_find_windows_executable_when_not_found(mocked_which, mocked_isfile):
 
 
 @pytest.mark.utils
+@pytest.mark.skipif(os.name != "nt", reason="Windows test only")
 @mock.patch('os.path.isfile')
 @mock.patch('shutil.which')
 def test_find_windows_executable_when_found(mocked_which, mocked_isfile):
