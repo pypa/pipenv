@@ -53,8 +53,6 @@ class PythonFinder(PathEntry):
     roots: Dict = Field(default_factory=lambda: defaultdict())
     #: List of paths discovered during search
     paths: List = Field(default_factory=lambda: list())
-    #: shim directory
-    shim_dir: str = "shims"
     #: Versions discovered in the specified paths
     _versions: Dict = Field(default_factory=lambda: defaultdict())
     pythons_ref: Dict = Field(default_factory=lambda: defaultdict())

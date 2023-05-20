@@ -24,7 +24,7 @@ from typing import (
     overload,
 )
 
-from pipenv.vendor.typing_extensions import dataclass_transform
+from pipenv.patched.pip._vendor.typing_extensions import dataclass_transform
 
 from .class_validators import ValidatorGroup, extract_root_validators, extract_validators, inherit_validators
 from .config import BaseConfig, Extra, inherit_config, prepare_config

@@ -5,7 +5,7 @@ from .json import pydantic_encoder
 from .utils import Representation
 
 if TYPE_CHECKING:
-    from pipenv.vendor.typing_extensions import TypedDict
+    from pipenv.patched.pip._vendor.typing_extensions import TypedDict
 
     from .config import BaseConfig
     from .types import ModelOrDc

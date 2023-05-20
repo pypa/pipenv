@@ -10,6 +10,7 @@ from pipenv.utils.dependencies import (
     pep423_name,
 )
 from pipenv.utils.project import ensure_project
+from pipenv.utils.requirements import add_index_to_pipfile
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib.models.requirements import Requirement
@@ -26,6 +27,7 @@ def do_update(
     pypi_mirror=None,
     dev=False,
     categories=None,
+    index_url=None,
     extra_pip_args=None,
     quiet=False,
     bare=False,
@@ -81,6 +83,7 @@ def do_update(
             editable_packages=editable,
             pypi_mirror=pypi_mirror,
             categories=categories,
+            index_url=index_url,
             dev=dev,
             lock_only=lock_only,
         )
@@ -107,6 +110,7 @@ def upgrade(
     packages=None,
     editable_packages=None,
     pypi_mirror=None,
+    index_url=None,
     categories=None,
     dev=False,
     lock_only=False,
@@ -121,12 +125,18 @@ def upgrade(
 
     package_args = [p for p in packages] + [f"-e {pkg}" for pkg in editable_packages]
 
+    index_name = None
+    if index_url:
+        index_name = add_index_to_pipfile(project, index_url)
+
     reqs = {}
     requested_packages = {}
     for package in package_args[:]:
         # section = project.packages if not dev else project.dev_packages
         section = {}
         package = Requirement.from_line(package)
+        if index_name:
+            package.index = index_name
         package_name, package_val = package.pipfile_entry
         package_name = pep423_name(package_name)
         requested_packages[package_name] = package

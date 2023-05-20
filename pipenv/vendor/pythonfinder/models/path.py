@@ -27,7 +27,6 @@ from ..environment import (
     ASDF_INSTALLED,
     PYENV_INSTALLED,
     PYENV_ROOT,
-    get_shim_paths,
 )
 from ..utils import (
     dedup,
@@ -177,14 +176,7 @@ class SystemPath(FinderBaseModel):
         if self.global_search and "PATH" in os.environ:
             path_order = path_order + os.environ["PATH"].split(os.pathsep)
         path_order = list(dedup(path_order))
-        path_instances = [
-            ensure_path(p.strip('"'))
-            for p in path_order
-            if not any(
-                is_in_path(normalize_path(str(p)), normalize_path(shim))
-                for shim in get_shim_paths()
-            )
-        ]
+        path_instances = [ensure_path(p.strip('"')) for p in path_order]
         self.paths.update(
             {
                 p.as_posix(): PathEntry.create(
@@ -204,15 +196,16 @@ class SystemPath(FinderBaseModel):
         if self.check_for_asdf() and "asdf" not in self.finders:
             self._setup_asdf()
         venv = os.environ.get("VIRTUAL_ENV")
+        if venv:
+            venv = ensure_path(venv)
         if os.name == "nt":
             bin_dir = "Scripts"
         else:
             bin_dir = "bin"
         if venv and (self.system or self.global_search):
-            p = ensure_path(venv)
-            path_order = [(p / bin_dir).as_posix(), *self.path_order]
+            path_order = [(venv / bin_dir).as_posix(), *self.path_order]
             self.path_order = path_order
-            self.paths[p] = self.get_path(p.joinpath(bin_dir))
+            self.paths[venv] = self.get_path(venv.joinpath(bin_dir))
         if self.system:
             syspath = Path(sys.executable)
             syspath_bin = syspath.parent
@@ -248,6 +241,16 @@ class SystemPath(FinderBaseModel):
         path_order = before_path + [p.as_posix() for p in paths] + after_path
         self.path_order = path_order
         return self
+
+    def _remove_shims(self):
+        path_copy = [p for p in self.path_order[:]]
+        new_order = []
+        for current_path in path_copy:
+            if not current_path.endswith("shims"):
+                normalized = normalize_path(current_path)
+                new_order.append(normalized)
+        new_order = [ensure_path(p).as_posix() for p in new_order]
+        self.path_order = new_order
 
     def _remove_path(self, path) -> SystemPath:
         path_copy = [p for p in reversed(self.path_order[:])]
@@ -306,7 +309,6 @@ class SystemPath(FinderBaseModel):
             version_glob_path="versions/*",
             ignore_unsupported=self.ignore_unsupported,
         )
-        pyenv_index = None
         try:
             pyenv_index = self._get_last_instance(PYENV_ROOT)
         except ValueError:
@@ -321,7 +323,7 @@ class SystemPath(FinderBaseModel):
         self.paths[pyenv_finder.root] = pyenv_finder
         self.paths.update(pyenv_finder.roots)
         self.pyenv_finder = pyenv_finder
-        self._remove_path(os.path.join(PYENV_ROOT, "shims"))
+        self._remove_shims()
         self._register_finder("pyenv", pyenv_finder)
         return self
 
@@ -460,14 +462,14 @@ class SystemPath(FinderBaseModel):
                 found_version = sub_finder(path)
                 if found_version:
                     return found_version
-            if alternate_sub_finder:
+            if name and not (minor or patch or pre or dev or arch or major):
                 for path in paths:
                     found_version = alternate_sub_finder(path)
                     if found_version:
                         return found_version
 
         ver = next(iter(self.get_pythons(sub_finder)), None)
-        if not ver and alternate_sub_finder is not None:
+        if not ver and name and not (minor or patch or pre or dev or arch or major):
             ver = next(iter(self.get_pythons(alternate_sub_finder)), None)
 
         if ver:
@@ -518,9 +520,6 @@ class SystemPath(FinderBaseModel):
                 }
             )
             paths = [path, *paths]
-        paths = [
-            p for p in paths if not any(is_in_path(p, shim) for shim in get_shim_paths())
-        ]
         _path_objects = [ensure_path(p.strip('"')) for p in paths]
         path_entries.update(
             {
