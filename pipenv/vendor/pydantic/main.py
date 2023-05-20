@@ -1,299 +1,197 @@
+"""
+Logic for creating models, could perhaps be renamed to `models.py`.
+"""
+from __future__ import annotations as _annotations
+
+import typing
 import warnings
 from abc import ABCMeta
-from copy import deepcopy
-from enum import Enum
-from functools import partial
+from copy import copy, deepcopy
+from inspect import getdoc
 from pathlib import Path
-from types import FunctionType, prepare_class, resolve_bases
-from typing import (
-    TYPE_CHECKING,
-    AbstractSet,
-    Any,
-    Callable,
-    ClassVar,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    cast,
-    no_type_check,
-    overload,
+from types import prepare_class, resolve_bases
+from typing import Any, Callable, Generic, Mapping, Tuple, cast
+
+import pydantic_core
+import typing_extensions
+from pipenv.patched.pip._vendor.typing_extensions import deprecated
+
+from ._internal import (
+    _config,
+    _decorators,
+    _forward_ref,
+    _generics,
+    _model_construction,
+    _repr,
+    _typing_extra,
+    _utils,
+)
+from ._internal._fields import Undefined
+from ._migration import getattr_migration
+from .config import ConfigDict
+from .deprecated import copy_internals as _deprecated_copy_internals
+from .deprecated import parse as _deprecated_parse
+from .errors import PydanticUndefinedAnnotation, PydanticUserError
+from .fields import ComputedFieldInfo, Field, FieldInfo, ModelPrivateAttr
+from .json_schema import (
+    DEFAULT_REF_TEMPLATE,
+    GenerateJsonSchema,
+    GetJsonSchemaHandler,
+    JsonSchemaValue,
+    model_json_schema,
 )
 
-from pipenv.patched.pip._vendor.typing_extensions import dataclass_transform
-
-from .class_validators import ValidatorGroup, extract_root_validators, extract_validators, inherit_validators
-from .config import BaseConfig, Extra, inherit_config, prepare_config
-from .error_wrappers import ErrorWrapper, ValidationError
-from .errors import ConfigError, DictError, ExtraError, MissingError
-from .fields import (
-    MAPPING_LIKE_SHAPES,
-    Field,
-    ModelField,
-    ModelPrivateAttr,
-    PrivateAttr,
-    Undefined,
-    is_finalvar_with_default_val,
-)
-from .json import custom_pydantic_encoder, pydantic_encoder
-from .parse import Protocol, load_file, load_str_bytes
-from .schema import default_ref_template, model_schema
-from .types import PyObject, StrBytes
-from .typing import (
-    AnyCallable,
-    get_args,
-    get_origin,
-    is_classvar,
-    is_namedtuple,
-    is_union,
-    resolve_annotations,
-    update_model_forward_refs,
-)
-from .utils import (
-    DUNDER_ATTRIBUTES,
-    ROOT_KEY,
-    ClassAttribute,
-    GetterDict,
-    Representation,
-    ValueItems,
-    generate_model_signature,
-    is_valid_field,
-    is_valid_private_name,
-    lenient_issubclass,
-    sequence_like,
-    smart_deepcopy,
-    unique_list,
-    validate_field_name,
-)
-
-if TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     from inspect import Signature
 
-    from .class_validators import ValidatorListDict
-    from .types import ModelOrDc
-    from .typing import (
-        AbstractSetIntStr,
-        AnyClassMethod,
-        CallableGenerator,
-        DictAny,
-        DictStrAny,
-        MappingIntStrAny,
-        ReprArgs,
-        SetStr,
-        TupleGenerator,
-    )
+    from pydantic_core import CoreSchema, SchemaSerializer, SchemaValidator
 
-    Model = TypeVar('Model', bound='BaseModel')
+    from ._internal._utils import AbstractSetIntStr, MappingIntStrAny
 
-__all__ = 'BaseModel', 'create_model', 'validate_model'
+    AnyClassMethod = classmethod[Any, Any, Any]
+    TupleGenerator = typing.Generator[Tuple[str, Any], None, None]
+    Model = typing.TypeVar('Model', bound='BaseModel')
+    # should be `set[int] | set[str] | dict[int, IncEx] | dict[str, IncEx] | None`, but mypy can't cope
+    IncEx: typing_extensions.TypeAlias = 'set[int] | set[str] | dict[int, Any] | dict[str, Any] | None'
 
-_T = TypeVar('_T')
+__all__ = 'BaseModel', 'create_model'
 
-
-def validate_custom_root_type(fields: Dict[str, ModelField]) -> None:
-    if len(fields) > 1:
-        raise ValueError(f'{ROOT_KEY} cannot be mixed with other fields')
-
-
-def generate_hash_function(frozen: bool) -> Optional[Callable[[Any], int]]:
-    def hash_function(self_: Any) -> int:
-        return hash(self_.__class__) + hash(tuple(self_.__dict__.values()))
-
-    return hash_function if frozen else None
-
-
-# If a field is of type `Callable`, its default value should be a function and cannot to ignored.
-ANNOTATED_FIELD_UNTOUCHED_TYPES: Tuple[Any, ...] = (property, type, classmethod, staticmethod)
-# When creating a `BaseModel` instance, we bypass all the methods, properties... added to the model
-UNTOUCHED_TYPES: Tuple[Any, ...] = (FunctionType,) + ANNOTATED_FIELD_UNTOUCHED_TYPES
+_object_setattr = _model_construction.object_setattr
 # Note `ModelMetaclass` refers to `BaseModel`, but is also used to *create* `BaseModel`, so we need to add this extra
 # (somewhat hacky) boolean to keep track of whether we've created the `BaseModel` class yet, and therefore whether it's
 # safe to refer to it. If it *hasn't* been created, we assume that the `__new__` call we're in the middle of is for
 # the `BaseModel` class, since that's defined immediately after the metaclass.
-_is_base_model_class_defined = False
+_base_class_defined = False
 
 
-@dataclass_transform(kw_only_default=True, field_specifiers=(Field,))
+class _ModelNamespaceDict(dict):  # type: ignore[type-arg]
+    """
+    Intercept attributes being set on model classes and warn about overriding of decorators (`@field_validator`, etc.)
+    """
+
+    def __setitem__(self, k: str, v: object) -> None:
+        existing: Any = self.get(k, None)
+        if existing and v is not existing and isinstance(existing, _decorators.PydanticDescriptorProxy):
+            warnings.warn(f'`{k}` overrides an existing Pydantic `{existing.decorator_info.decorator_repr}` decorator')
+
+        return super().__setitem__(k, v)
+
+
+@typing_extensions.dataclass_transform(kw_only_default=True, field_specifiers=(Field,))
 class ModelMetaclass(ABCMeta):
-    @no_type_check  # noqa C901
-    def __new__(mcs, name, bases, namespace, **kwargs):  # noqa C901
-        fields: Dict[str, ModelField] = {}
-        config = BaseConfig
-        validators: 'ValidatorListDict' = {}
+    def __new__(
+        mcs,
+        cls_name: str,
+        bases: tuple[type[Any], ...],
+        namespace: dict[str, Any],
+        __pydantic_generic_metadata__: _generics.PydanticGenericMetadata | None = None,
+        __pydantic_reset_parent_namespace__: bool = True,
+        **kwargs: Any,
+    ) -> type:
+        if _base_class_defined:
+            base_field_names, class_vars, base_private_attributes = _collect_bases_data(bases)
 
-        pre_root_validators, post_root_validators = [], []
-        private_attributes: Dict[str, ModelPrivateAttr] = {}
-        base_private_attributes: Dict[str, ModelPrivateAttr] = {}
-        slots: SetStr = namespace.get('__slots__', ())
-        slots = {slots} if isinstance(slots, str) else set(slots)
-        class_vars: SetStr = set()
-        hash_func: Optional[Callable[[Any], int]] = None
+            config_wrapper = _config.ConfigWrapper.for_model(bases, namespace, kwargs)
+            namespace['model_config'] = config_wrapper.config_dict
+            private_attributes = _model_construction.inspect_namespace(
+                namespace, config_wrapper.ignored_types, class_vars, base_field_names
+            )
+            if private_attributes:
+                slots: set[str] = set(namespace.get('__slots__', ()))
+                namespace['__slots__'] = slots | private_attributes.keys()
 
-        for base in reversed(bases):
-            if _is_base_model_class_defined and issubclass(base, BaseModel) and base != BaseModel:
-                fields.update(smart_deepcopy(base.__fields__))
-                config = inherit_config(base.__config__, config)
-                validators = inherit_validators(base.__validators__, validators)
-                pre_root_validators += base.__pre_root_validators__
-                post_root_validators += base.__post_root_validators__
-                base_private_attributes.update(base.__private_attributes__)
-                class_vars.update(base.__class_vars__)
-                hash_func = base.__hash__
+                if 'model_post_init' in namespace:
+                    # if there are private_attributes and a model_post_init function, we handle both
+                    original_model_post_init = namespace['model_post_init']
 
-        resolve_forward_refs = kwargs.pop('__resolve_forward_refs__', True)
-        allowed_config_kwargs: SetStr = {
-            key
-            for key in dir(config)
-            if not (key.startswith('__') and key.endswith('__'))  # skip dunder methods and attributes
-        }
-        config_kwargs = {key: kwargs.pop(key) for key in kwargs.keys() & allowed_config_kwargs}
-        config_from_namespace = namespace.get('Config')
-        if config_kwargs and config_from_namespace:
-            raise TypeError('Specifying config in two places is ambiguous, use either Config attribute or class kwargs')
-        config = inherit_config(config_from_namespace, config, **config_kwargs)
+                    def wrapped_model_post_init(self: BaseModel, __context: Any) -> None:
+                        """
+                        We need to both initialize private attributes and call the user-defined model_post_init method
+                        """
+                        _model_construction.init_private_attributes(self, __context)
+                        original_model_post_init(self, __context)
 
-        validators = inherit_validators(extract_validators(namespace), validators)
-        vg = ValidatorGroup(validators)
+                    namespace['model_post_init'] = wrapped_model_post_init
+                else:
+                    namespace['model_post_init'] = _model_construction.init_private_attributes
 
-        for f in fields.values():
-            f.set_config(config)
-            extra_validators = vg.get_validators(f.name)
-            if extra_validators:
-                f.class_validators.update(extra_validators)
-                # re-run prepare to add extra validators
-                f.populate_validators()
+            namespace['__class_vars__'] = class_vars
+            namespace['__private_attributes__'] = {**base_private_attributes, **private_attributes}
 
-        prepare_config(config, name)
+            if config_wrapper.extra == 'allow':
+                namespace['__getattr__'] = _model_construction.model_extra_getattr
 
-        untouched_types = ANNOTATED_FIELD_UNTOUCHED_TYPES
+            if '__hash__' not in namespace and config_wrapper.frozen:
 
-        def is_untouched(v: Any) -> bool:
-            return isinstance(v, untouched_types) or v.__class__.__name__ == 'cython_function_or_method'
+                def hash_func(self: Any) -> int:
+                    return hash(self.__class__) + hash(tuple(self.__dict__.values()))
 
-        if (namespace.get('__module__'), namespace.get('__qualname__')) != ('pydantic.main', 'BaseModel'):
-            annotations = resolve_annotations(namespace.get('__annotations__', {}), namespace.get('__module__', None))
-            # annotation only fields need to come first in fields
-            for ann_name, ann_type in annotations.items():
-                if is_classvar(ann_type):
-                    class_vars.add(ann_name)
-                elif is_finalvar_with_default_val(ann_type, namespace.get(ann_name, Undefined)):
-                    class_vars.add(ann_name)
-                elif is_valid_field(ann_name):
-                    validate_field_name(bases, ann_name)
-                    value = namespace.get(ann_name, Undefined)
-                    allowed_types = get_args(ann_type) if is_union(get_origin(ann_type)) else (ann_type,)
-                    if (
-                        is_untouched(value)
-                        and ann_type != PyObject
-                        and not any(
-                            lenient_issubclass(get_origin(allowed_type), Type) for allowed_type in allowed_types
-                        )
-                    ):
-                        continue
-                    fields[ann_name] = ModelField.infer(
-                        name=ann_name,
-                        value=value,
-                        annotation=ann_type,
-                        class_validators=vg.get_validators(ann_name),
-                        config=config,
+                namespace['__hash__'] = hash_func
+
+            cls: type[BaseModel] = super().__new__(mcs, cls_name, bases, namespace, **kwargs)  # type: ignore
+
+            cls.__pydantic_decorators__ = _decorators.DecoratorInfos.build(cls)
+
+            # Use the getattr below to grab the __parameters__ from the `typing.Generic` parent class
+            if __pydantic_generic_metadata__:
+                cls.__pydantic_generic_metadata__ = __pydantic_generic_metadata__
+            else:
+                parameters = getattr(cls, '__parameters__', ())
+                parent_parameters = getattr(cls, '__pydantic_generic_metadata__', {}).get('parameters', ())
+                if parameters and parent_parameters and not all(x in parameters for x in parent_parameters):
+                    combined_parameters = parent_parameters + tuple(x for x in parameters if x not in parent_parameters)
+                    parameters_str = ', '.join([str(x) for x in combined_parameters])
+                    error_message = (
+                        f'All parameters must be present on typing.Generic;'
+                        f' you should inherit from typing.Generic[{parameters_str}]'
                     )
-                elif ann_name not in namespace and config.underscore_attrs_are_private:
-                    private_attributes[ann_name] = PrivateAttr()
+                    if Generic not in bases:  # pragma: no cover
+                        # This branch will only be hit if I have misunderstood how `__parameters__` works.
+                        # If that is the case, and a user hits this, I could imagine it being very helpful
+                        # to have this extra detail in the reported traceback.
+                        error_message += f' (bases={bases})'
+                    raise TypeError(error_message)
 
-            untouched_types = UNTOUCHED_TYPES + config.keep_untouched
-            for var_name, value in namespace.items():
-                can_be_changed = var_name not in class_vars and not is_untouched(value)
-                if isinstance(value, ModelPrivateAttr):
-                    if not is_valid_private_name(var_name):
-                        raise NameError(
-                            f'Private attributes "{var_name}" must not be a valid field name; '
-                            f'Use sunder or dunder names, e. g. "_{var_name}" or "__{var_name}__"'
-                        )
-                    private_attributes[var_name] = value
-                elif config.underscore_attrs_are_private and is_valid_private_name(var_name) and can_be_changed:
-                    private_attributes[var_name] = PrivateAttr(default=value)
-                elif is_valid_field(var_name) and var_name not in annotations and can_be_changed:
-                    validate_field_name(bases, var_name)
-                    inferred = ModelField.infer(
-                        name=var_name,
-                        value=value,
-                        annotation=annotations.get(var_name, Undefined),
-                        class_validators=vg.get_validators(var_name),
-                        config=config,
-                    )
-                    if var_name in fields:
-                        if lenient_issubclass(inferred.type_, fields[var_name].type_):
-                            inferred.type_ = fields[var_name].type_
-                        else:
-                            raise TypeError(
-                                f'The type of {name}.{var_name} differs from the new default value; '
-                                f'if you wish to change the type of this field, please use a type annotation'
-                            )
-                    fields[var_name] = inferred
+                cls.__pydantic_generic_metadata__ = {
+                    'origin': None,
+                    'args': (),
+                    'parameters': parameters,
+                }
 
-        _custom_root_type = ROOT_KEY in fields
-        if _custom_root_type:
-            validate_custom_root_type(fields)
-        vg.check_for_unused()
-        if config.json_encoders:
-            json_encoder = partial(custom_pydantic_encoder, config.json_encoders)
-        else:
-            json_encoder = pydantic_encoder
-        pre_rv_new, post_rv_new = extract_root_validators(namespace)
+            cls.__pydantic_model_complete__ = False  # Ensure this specific class gets completed
 
-        if hash_func is None:
-            hash_func = generate_hash_function(config.frozen)
-
-        exclude_from_namespace = fields | private_attributes.keys() | {'__slots__'}
-        new_namespace = {
-            '__config__': config,
-            '__fields__': fields,
-            '__exclude_fields__': {
-                name: field.field_info.exclude for name, field in fields.items() if field.field_info.exclude is not None
-            }
-            or None,
-            '__include_fields__': {
-                name: field.field_info.include for name, field in fields.items() if field.field_info.include is not None
-            }
-            or None,
-            '__validators__': vg.validators,
-            '__pre_root_validators__': unique_list(
-                pre_root_validators + pre_rv_new,
-                name_factory=lambda v: v.__name__,
-            ),
-            '__post_root_validators__': unique_list(
-                post_root_validators + post_rv_new,
-                name_factory=lambda skip_on_failure_and_v: skip_on_failure_and_v[1].__name__,
-            ),
-            '__schema_cache__': {},
-            '__json_encoder__': staticmethod(json_encoder),
-            '__custom_root_type__': _custom_root_type,
-            '__private_attributes__': {**base_private_attributes, **private_attributes},
-            '__slots__': slots | private_attributes.keys(),
-            '__hash__': hash_func,
-            '__class_vars__': class_vars,
-            **{n: v for n, v in namespace.items() if n not in exclude_from_namespace},
-        }
-
-        cls = super().__new__(mcs, name, bases, new_namespace, **kwargs)
-        # set __signature__ attr only for model class, but not for its instances
-        cls.__signature__ = ClassAttribute('__signature__', generate_model_signature(cls.__init__, fields, config))
-        if resolve_forward_refs:
-            cls.__try_update_forward_refs__()
-
-        # preserve `__set_name__` protocol defined in https://peps.python.org/pep-0487
-        # for attributes not in `new_namespace` (e.g. private attributes)
-        for name, obj in namespace.items():
-            if name not in new_namespace:
+            # preserve `__set_name__` protocol defined in https://peps.python.org/pep-0487
+            # for attributes not in `new_namespace` (e.g. private attributes)
+            for name, obj in private_attributes.items():
                 set_name = getattr(obj, '__set_name__', None)
                 if callable(set_name):
                     set_name(cls, name)
 
-        return cls
+            if __pydantic_reset_parent_namespace__:
+                cls.__pydantic_parent_namespace__ = _typing_extra.parent_frame_namespace()
+            parent_namespace = getattr(cls, '__pydantic_parent_namespace__', None)
+
+            types_namespace = _typing_extra.get_cls_types_namespace(cls, parent_namespace)
+            _model_construction.set_model_fields(cls, bases, types_namespace)
+            _model_construction.complete_model_class(
+                cls,
+                cls_name,
+                config_wrapper,
+                raise_errors=False,
+                types_namespace=types_namespace,
+            )
+            # using super(cls, cls) on the next line ensures we only call the parent class's __pydantic_init_subclass__
+            # I believe the `type: ignore` is only necessary because mypy doesn't realize that this code branch is
+            # only hit for _proper_ subclasses of BaseModel
+            super(cls, cls).__pydantic_init_subclass__(**kwargs)  # type: ignore[misc]
+            return cls
+        else:
+            # this is the BaseModel class itself being created, no logic required
+            return super().__new__(mcs, cls_name, bases, namespace, **kwargs)
+
+    @classmethod
+    def __prepare__(cls, *args: Any, **kwargs: Any) -> Mapping[str, object]:
+        return _ModelNamespaceDict()
 
     def __instancecheck__(self, instance: Any) -> bool:
         """
@@ -301,676 +199,888 @@ class ModelMetaclass(ABCMeta):
 
         See #3829 and python/cpython#92810
         """
-        return hasattr(instance, '__fields__') and super().__instancecheck__(instance)
+        return hasattr(instance, '__pydantic_validator__') and super().__instancecheck__(instance)
 
 
-object_setattr = object.__setattr__
-
-
-class BaseModel(Representation, metaclass=ModelMetaclass):
-    if TYPE_CHECKING:
+class BaseModel(_repr.Representation, metaclass=ModelMetaclass):
+    if typing.TYPE_CHECKING:
         # populated by the metaclass, defined here to help IDEs only
-        __fields__: ClassVar[Dict[str, ModelField]] = {}
-        __include_fields__: ClassVar[Optional[Mapping[str, Any]]] = None
-        __exclude_fields__: ClassVar[Optional[Mapping[str, Any]]] = None
-        __validators__: ClassVar[Dict[str, AnyCallable]] = {}
-        __pre_root_validators__: ClassVar[List[AnyCallable]]
-        __post_root_validators__: ClassVar[List[Tuple[bool, AnyCallable]]]
-        __config__: ClassVar[Type[BaseConfig]] = BaseConfig
-        __json_encoder__: ClassVar[Callable[[Any], Any]] = lambda x: x
-        __schema_cache__: ClassVar['DictAny'] = {}
-        __custom_root_type__: ClassVar[bool] = False
-        __signature__: ClassVar['Signature']
-        __private_attributes__: ClassVar[Dict[str, ModelPrivateAttr]]
-        __class_vars__: ClassVar[SetStr]
-        __fields_set__: ClassVar[SetStr] = set()
+        __pydantic_validator__: typing.ClassVar[SchemaValidator]
+        __pydantic_core_schema__: typing.ClassVar[CoreSchema]
+        __pydantic_serializer__: typing.ClassVar[SchemaSerializer]
+        __pydantic_decorators__: typing.ClassVar[_decorators.DecoratorInfos]
+        """metadata for `@validator`, `@root_validator` and `@serializer` decorators"""
+        model_fields: typing.ClassVar[dict[str, FieldInfo]] = {}
+        __signature__: typing.ClassVar[Signature]
+        __private_attributes__: typing.ClassVar[dict[str, ModelPrivateAttr]]
+        __class_vars__: typing.ClassVar[set[str]]
+        __pydantic_fields_set__: set[str] = set()
+        __pydantic_extra__: dict[str, Any] | None = None
+        __pydantic_generic_metadata__: typing.ClassVar[_generics.PydanticGenericMetadata]
+        __pydantic_parent_namespace__: typing.ClassVar[dict[str, Any] | None]
+    else:
+        # `model_fields` and `__pydantic_decorators__` must be set for
+        # pydantic._internal._generate_schema.GenerateSchema.model_schema to work for a plain BaseModel annotation
+        model_fields = {}
+        __pydantic_decorators__ = _decorators.DecoratorInfos()
+        __pydantic_validator__ = _model_construction.MockValidator(
+            'Pydantic models should inherit from BaseModel, BaseModel cannot be instantiated directly',
+            code='base-model-instantiated',
+        )
 
-    Config = BaseConfig
-    __slots__ = ('__dict__', '__fields_set__')
+    model_config = ConfigDict()
+    __slots__ = '__dict__', '__pydantic_fields_set__', '__pydantic_extra__'
     __doc__ = ''  # Null out the Representation docstring
+    __pydantic_model_complete__ = False
 
-    def __init__(__pydantic_self__, **data: Any) -> None:
+    def __init__(__pydantic_self__, **data: Any) -> None:  # type: ignore
         """
         Create a new model by parsing and validating input data from keyword arguments.
 
         Raises ValidationError if the input data cannot be parsed to form a valid model.
+
+        Uses something other than `self` for the first arg to allow "self" as a field name.
         """
-        # Uses something other than `self` the first arg to allow "self" as a settable attribute
-        values, fields_set, validation_error = validate_model(__pydantic_self__.__class__, data)
-        if validation_error:
-            raise validation_error
-        try:
-            object_setattr(__pydantic_self__, '__dict__', values)
-        except TypeError as e:
-            raise TypeError(
-                'Model values must be a dict; you may not have returned a dictionary from a root validator'
-            ) from e
-        object_setattr(__pydantic_self__, '__fields_set__', fields_set)
-        __pydantic_self__._init_private_attributes()
+        # `__tracebackhide__` tells pytest and some other tools to omit this function from tracebacks
+        __tracebackhide__ = True
+        __pydantic_self__.__pydantic_validator__.validate_python(data, self_instance=__pydantic_self__)
 
-    @no_type_check
-    def __setattr__(self, name, value):  # noqa: C901 (ignore complexity)
-        if name in self.__private_attributes__ or name in DUNDER_ATTRIBUTES:
-            return object_setattr(self, name, value)
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, __source: type[BaseModel], __handler: Callable[[Any], CoreSchema]
+    ) -> CoreSchema:
+        """Hook into generating the model's CoreSchema.
 
-        if self.__config__.extra is not Extra.allow and name not in self.__fields__:
-            raise ValueError(f'"{self.__class__.__name__}" object has no field "{name}"')
-        elif not self.__config__.allow_mutation or self.__config__.frozen:
-            raise TypeError(f'"{self.__class__.__name__}" is immutable and does not support item assignment')
-        elif name in self.__fields__ and self.__fields__[name].final:
-            raise TypeError(
-                f'"{self.__class__.__name__}" object "{name}" field is final and does not support reassignment'
+        Args:
+            __source (type[BaseModel]): The class we are generating a schema for.
+                This will generally be the same as the `cls` argument if this is a classmethod.
+            __handler (GetJsonSchemaHandler): Call into Pydantic's internal JSON schema generation.
+                A callable that calls into Pydantic's internal CoreSchema generation logic.
+
+        Returns:
+            CoreSchema: A `pydantic-core` `CoreSchema`.
+        """
+        # Only use the cached value from this _exact_ class; we don't want one from a parent class
+        # This is why we check `cls.__dict__` and don't use `cls.__pydantic_core_schema__` or similar.
+        if '__pydantic_core_schema__' in cls.__dict__:
+            # Due to the way generic classes are built, it's possible that an invalid schema may be temporarily
+            # set on generic classes. I think we could resolve this to ensure that we get proper schema caching
+            # for generics, but for simplicity for now, we just always rebuild if the class has a generic origin.
+            if not cls.__pydantic_generic_metadata__['origin']:
+                return cls.__pydantic_core_schema__
+
+        return __handler(__source)
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls,
+        __core_schema: CoreSchema,
+        __handler: GetJsonSchemaHandler,
+    ) -> JsonSchemaValue:
+        """Hook into generating the model's JSON schema.
+
+        Args:
+            __core_schema (CoreSchema): A `pydantic-core` CoreSchema.
+                You can ignore this argument and call the handler with a new CoreSchema,
+                wrap this CoreSchema (`{'type': 'nullable', 'schema': current_schema}`),
+                or just call the handler with the original schema.
+            __handler (GetJsonSchemaHandler): Call into Pydantic's internal JSON schema generation.
+                This will raise a `pydantic.errors.PydanticInvalidForJsonSchema` if JSON schema
+                generation fails.
+                Since this gets called by `BaseModel.model_json_schema` you can override the
+                `schema_generator` argument to that function to change JSON schema generation globally
+                for a type.
+
+        Returns:
+            JsonSchemaValue: A JSON schema, as a Python object.
+        """
+        return __handler(__core_schema)
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:
+        """
+        This is intended to behave just like `__init_subclass__`, but is called by ModelMetaclass
+        only after the class is actually fully initialized. In particular, attributes like `model_fields` will
+        be present when this is called.
+
+        This is necessary because `__init_subclass__` will always be called by `type.__new__`,
+        and it would require a prohibitively large refactor to the `ModelMetaclass` to ensure that
+        `type.__new__` was called in such a manner that the class would already be sufficiently initialized.
+
+        This will receive the same `kwargs` that would be passed to the standard `__init_subclass__`, namely,
+        any kwargs passed to the class definition that aren't used internally by pydantic.
+        """
+        pass
+
+    @classmethod
+    def model_validate(
+        cls: type[Model], obj: Any, *, strict: bool | None = None, context: dict[str, Any] | None = None
+    ) -> Model:
+        # `__tracebackhide__` tells pytest and some other tools to omit this function from tracebacks
+        __tracebackhide__ = True
+        return cls.__pydantic_validator__.validate_python(obj, strict=strict, context=context)
+
+    @property
+    def model_fields_set(self) -> set[str]:
+        """
+        The set of fields that have been set on this model instance, i.e. that were not filled from defaults.
+        """
+        return self.__pydantic_fields_set__
+
+    @property
+    def model_extra(self) -> dict[str, Any] | None:
+        """
+        Extra fields set during validation, this will be `None` if `config.extra` is not set to `"allow"`.
+        """
+        return self.__pydantic_extra__
+
+    @property
+    def model_computed_fields(self) -> dict[str, ComputedFieldInfo]:
+        """
+        The computed fields of this model instance.
+        """
+        return {k: v.info for k, v in self.__pydantic_decorators__.computed_fields.items()}
+
+    @classmethod
+    def model_validate_json(
+        cls: type[Model],
+        json_data: str | bytes | bytearray,
+        *,
+        strict: bool | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> Model:
+        # `__tracebackhide__` tells pytest and some other tools to omit this function from tracebacks
+        __tracebackhide__ = True
+        return cls.__pydantic_validator__.validate_json(json_data, strict=strict, context=context)
+
+    def model_post_init(self, __context: Any) -> None:
+        """
+        If you override `model_post_init`, it will be called at the end of `__init__` and `model_construct`
+        """
+        pass
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in self.__class_vars__:
+            raise AttributeError(
+                f'"{name}" is a ClassVar of `{self.__class__.__name__}` and cannot be set on an instance. '
+                f'If you want to set a value on the class, use `{self.__class__.__name__}.{name} = value`.'
             )
-        elif self.__config__.validate_assignment:
-            new_values = {**self.__dict__, name: value}
+        elif name.startswith('_'):
+            _object_setattr(self, name, value)
+            return
+        elif self.model_config.get('frozen', None):
+            raise TypeError(f'"{self.__class__.__name__}" is frozen and does not support item assignment')
 
-            for validator in self.__pre_root_validators__:
-                try:
-                    new_values = validator(self.__class__, new_values)
-                except (ValueError, TypeError, AssertionError) as exc:
-                    raise ValidationError([ErrorWrapper(exc, loc=ROOT_KEY)], self.__class__)
-
-            known_field = self.__fields__.get(name, None)
-            if known_field:
-                # We want to
-                # - make sure validators are called without the current value for this field inside `values`
-                # - keep other values (e.g. submodels) untouched (using `BaseModel.dict()` will change them into dicts)
-                # - keep the order of the fields
-                if not known_field.field_info.allow_mutation:
-                    raise TypeError(f'"{known_field.name}" has allow_mutation set to False and cannot be assigned')
-                dict_without_original_value = {k: v for k, v in self.__dict__.items() if k != name}
-                value, error_ = known_field.validate(value, dict_without_original_value, loc=name, cls=self.__class__)
-                if error_:
-                    raise ValidationError([error_], self.__class__)
-                else:
-                    new_values[name] = value
-
-            errors = []
-            for skip_on_failure, validator in self.__post_root_validators__:
-                if skip_on_failure and errors:
-                    continue
-                try:
-                    new_values = validator(self.__class__, new_values)
-                except (ValueError, TypeError, AssertionError) as exc:
-                    errors.append(ErrorWrapper(exc, loc=ROOT_KEY))
-            if errors:
-                raise ValidationError(errors, self.__class__)
-
-            # update the whole __dict__ as other values than just `value`
-            # may be changed (e.g. with `root_validator`)
-            object_setattr(self, '__dict__', new_values)
+        attr = getattr(self.__class__, name, None)
+        if isinstance(attr, property):
+            attr.__set__(self, value)
+        elif self.model_config.get('validate_assignment', None):
+            self.__pydantic_validator__.validate_assignment(self, name, value)
+        elif self.model_config.get('extra') != 'allow' and name not in self.model_fields:
+            # TODO - matching error
+            raise ValueError(f'"{self.__class__.__name__}" object has no field "{name}"')
         else:
             self.__dict__[name] = value
+            self.__pydantic_fields_set__.add(name)
 
-        self.__fields_set__.add(name)
-
-    def __getstate__(self) -> 'DictAny':
+    def __getstate__(self) -> dict[Any, Any]:
         private_attrs = ((k, getattr(self, k, Undefined)) for k in self.__private_attributes__)
         return {
             '__dict__': self.__dict__,
-            '__fields_set__': self.__fields_set__,
+            '__pydantic_fields_set__': self.__pydantic_fields_set__,
             '__private_attribute_values__': {k: v for k, v in private_attrs if v is not Undefined},
         }
 
-    def __setstate__(self, state: 'DictAny') -> None:
-        object_setattr(self, '__dict__', state['__dict__'])
-        object_setattr(self, '__fields_set__', state['__fields_set__'])
+    def __setstate__(self, state: dict[Any, Any]) -> None:
+        _object_setattr(self, '__dict__', state['__dict__'])
+        _object_setattr(self, '__pydantic_fields_set__', state['__pydantic_fields_set__'])
         for name, value in state.get('__private_attribute_values__', {}).items():
-            object_setattr(self, name, value)
+            _object_setattr(self, name, value)
 
-    def _init_private_attributes(self) -> None:
-        for name, private_attr in self.__private_attributes__.items():
-            default = private_attr.get_default()
-            if default is not Undefined:
-                object_setattr(self, name, default)
-
-    def dict(
+    def model_dump(
         self,
         *,
-        include: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
-        exclude: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
+        mode: typing_extensions.Literal['json', 'python'] | str = 'python',
+        include: IncEx = None,
+        exclude: IncEx = None,
         by_alias: bool = False,
-        skip_defaults: Optional[bool] = None,
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
         exclude_none: bool = False,
-    ) -> 'DictStrAny':
+        round_trip: bool = False,
+        warnings: bool = True,
+    ) -> dict[str, Any]:
         """
         Generate a dictionary representation of the model, optionally specifying which fields to include or exclude.
-
         """
-        if skip_defaults is not None:
-            warnings.warn(
-                f'{self.__class__.__name__}.dict(): "skip_defaults" is deprecated and replaced by "exclude_unset"',
-                DeprecationWarning,
-            )
-            exclude_unset = skip_defaults
-
-        return dict(
-            self._iter(
-                to_dict=True,
-                by_alias=by_alias,
-                include=include,
-                exclude=exclude,
-                exclude_unset=exclude_unset,
-                exclude_defaults=exclude_defaults,
-                exclude_none=exclude_none,
-            )
+        return self.__pydantic_serializer__.to_python(
+            self,
+            mode=mode,
+            by_alias=by_alias,
+            include=include,
+            exclude=exclude,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            round_trip=round_trip,
+            warnings=warnings,
         )
 
-    def json(
+    def model_dump_json(
         self,
         *,
-        include: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
-        exclude: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
+        indent: int | None = None,
+        include: IncEx = None,
+        exclude: IncEx = None,
         by_alias: bool = False,
-        skip_defaults: Optional[bool] = None,
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
         exclude_none: bool = False,
-        encoder: Optional[Callable[[Any], Any]] = None,
-        models_as_dict: bool = True,
-        **dumps_kwargs: Any,
+        round_trip: bool = False,
+        warnings: bool = True,
     ) -> str:
         """
         Generate a JSON representation of the model, `include` and `exclude` arguments as per `dict()`.
-
-        `encoder` is an optional function to supply as `default` to json.dumps(), other arguments as per `json.dumps()`.
         """
-        if skip_defaults is not None:
-            warnings.warn(
-                f'{self.__class__.__name__}.json(): "skip_defaults" is deprecated and replaced by "exclude_unset"',
-                DeprecationWarning,
-            )
-            exclude_unset = skip_defaults
-        encoder = cast(Callable[[Any], Any], encoder or self.__json_encoder__)
-
-        # We don't directly call `self.dict()`, which does exactly this with `to_dict=True`
-        # because we want to be able to keep raw `BaseModel` instances and not as `dict`.
-        # This allows users to write custom JSON encoders for given `BaseModel` classes.
-        data = dict(
-            self._iter(
-                to_dict=models_as_dict,
-                by_alias=by_alias,
-                include=include,
-                exclude=exclude,
-                exclude_unset=exclude_unset,
-                exclude_defaults=exclude_defaults,
-                exclude_none=exclude_none,
-            )
-        )
-        if self.__custom_root_type__:
-            data = data[ROOT_KEY]
-        return self.__config__.json_dumps(data, default=encoder, **dumps_kwargs)
+        return self.__pydantic_serializer__.to_json(
+            self,
+            indent=indent,
+            include=include,
+            exclude=exclude,
+            by_alias=by_alias,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            round_trip=round_trip,
+            warnings=warnings,
+        ).decode()
 
     @classmethod
-    def _enforce_dict_if_root(cls, obj: Any) -> Any:
-        if cls.__custom_root_type__ and (
-            not (isinstance(obj, dict) and obj.keys() == {ROOT_KEY})
-            and not (isinstance(obj, BaseModel) and obj.__fields__.keys() == {ROOT_KEY})
-            or cls.__fields__[ROOT_KEY].shape in MAPPING_LIKE_SHAPES
-        ):
-            return {ROOT_KEY: obj}
-        else:
-            return obj
-
-    @classmethod
-    def parse_obj(cls: Type['Model'], obj: Any) -> 'Model':
-        obj = cls._enforce_dict_if_root(obj)
-        if not isinstance(obj, dict):
-            try:
-                obj = dict(obj)
-            except (TypeError, ValueError) as e:
-                exc = TypeError(f'{cls.__name__} expected dict not {obj.__class__.__name__}')
-                raise ValidationError([ErrorWrapper(exc, loc=ROOT_KEY)], cls) from e
-        return cls(**obj)
-
-    @classmethod
-    def parse_raw(
-        cls: Type['Model'],
-        b: StrBytes,
-        *,
-        content_type: str = None,
-        encoding: str = 'utf8',
-        proto: Protocol = None,
-        allow_pickle: bool = False,
-    ) -> 'Model':
-        try:
-            obj = load_str_bytes(
-                b,
-                proto=proto,
-                content_type=content_type,
-                encoding=encoding,
-                allow_pickle=allow_pickle,
-                json_loads=cls.__config__.json_loads,
-            )
-        except (ValueError, TypeError, UnicodeDecodeError) as e:
-            raise ValidationError([ErrorWrapper(e, loc=ROOT_KEY)], cls)
-        return cls.parse_obj(obj)
-
-    @classmethod
-    def parse_file(
-        cls: Type['Model'],
-        path: Union[str, Path],
-        *,
-        content_type: str = None,
-        encoding: str = 'utf8',
-        proto: Protocol = None,
-        allow_pickle: bool = False,
-    ) -> 'Model':
-        obj = load_file(
-            path,
-            proto=proto,
-            content_type=content_type,
-            encoding=encoding,
-            allow_pickle=allow_pickle,
-            json_loads=cls.__config__.json_loads,
-        )
-        return cls.parse_obj(obj)
-
-    @classmethod
-    def from_orm(cls: Type['Model'], obj: Any) -> 'Model':
-        if not cls.__config__.orm_mode:
-            raise ConfigError('You must have the config attribute orm_mode=True to use from_orm')
-        obj = {ROOT_KEY: obj} if cls.__custom_root_type__ else cls._decompose_class(obj)
-        m = cls.__new__(cls)
-        values, fields_set, validation_error = validate_model(cls, obj)
-        if validation_error:
-            raise validation_error
-        object_setattr(m, '__dict__', values)
-        object_setattr(m, '__fields_set__', fields_set)
-        m._init_private_attributes()
-        return m
-
-    @classmethod
-    def construct(cls: Type['Model'], _fields_set: Optional['SetStr'] = None, **values: Any) -> 'Model':
+    def model_construct(cls: type[Model], _fields_set: set[str] | None = None, **values: Any) -> Model:
         """
-        Creates a new model setting __dict__ and __fields_set__ from trusted or pre-validated data.
+        Creates a new model setting __dict__ and __pydantic_fields_set__ from trusted or pre-validated data.
         Default values are respected, but no other validation is performed.
         Behaves as if `Config.extra = 'allow'` was set since it adds all passed values
         """
         m = cls.__new__(cls)
-        fields_values: Dict[str, Any] = {}
-        for name, field in cls.__fields__.items():
-            if field.alt_alias and field.alias in values:
+        fields_values: dict[str, Any] = {}
+        for name, field in cls.model_fields.items():
+            if field.alias and field.alias in values:
                 fields_values[name] = values[field.alias]
             elif name in values:
                 fields_values[name] = values[name]
-            elif not field.required:
-                fields_values[name] = field.get_default()
-        fields_values.update(values)
-        object_setattr(m, '__dict__', fields_values)
+            elif not field.is_required():
+                fields_values[name] = field.get_default(call_default_factory=True)
+        _extra: dict[str, Any] | None = None
+        if cls.model_config.get('extra') == 'allow':
+            _extra = {}
+            for k, v in values.items():
+                if k in cls.model_fields:
+                    fields_values[k] = v
+                else:
+                    _extra[k] = v
+        else:
+            fields_values.update(values)
+        _object_setattr(m, '__dict__', fields_values)
         if _fields_set is None:
             _fields_set = set(values.keys())
-        object_setattr(m, '__fields_set__', _fields_set)
-        m._init_private_attributes()
+        _object_setattr(m, '__pydantic_fields_set__', _fields_set)
+        _object_setattr(m, '__pydantic_extra__', _extra)
+        if type(m).model_post_init is not BaseModel.model_post_init:
+            m.model_post_init(None)
         return m
 
-    def _copy_and_set_values(self: 'Model', values: 'DictStrAny', fields_set: 'SetStr', *, deep: bool) -> 'Model':
-        if deep:
-            # chances of having empty dict here are quite low for using smart_deepcopy
-            values = deepcopy(values)
-
-        cls = self.__class__
-        m = cls.__new__(cls)
-        object_setattr(m, '__dict__', values)
-        object_setattr(m, '__fields_set__', fields_set)
-        for name in self.__private_attributes__:
-            value = getattr(self, name, Undefined)
-            if value is not Undefined:
-                if deep:
-                    value = deepcopy(value)
-                object_setattr(m, name, value)
-
-        return m
-
-    def copy(
-        self: 'Model',
-        *,
-        include: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
-        exclude: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
-        update: Optional['DictStrAny'] = None,
-        deep: bool = False,
-    ) -> 'Model':
-        """
-        Duplicate a model, optionally choose which fields to include, exclude and change.
-
-        :param include: fields to include in new model
-        :param exclude: fields to exclude from new model, as with values this takes precedence over include
-        :param update: values to change/add in the new model. Note: the data is not validated before creating
-            the new model: you should trust this data
-        :param deep: set to `True` to make a deep copy of the model
-        :return: new model instance
-        """
-
-        values = dict(
-            self._iter(to_dict=False, by_alias=False, include=include, exclude=exclude, exclude_unset=False),
-            **(update or {}),
-        )
-
-        # new `__fields_set__` can have unset optional fields with a set value in `update` kwarg
-        if update:
-            fields_set = self.__fields_set__ | update.keys()
-        else:
-            fields_set = set(self.__fields_set__)
-
-        return self._copy_and_set_values(values, fields_set, deep=deep)
-
     @classmethod
-    def schema(cls, by_alias: bool = True, ref_template: str = default_ref_template) -> 'DictStrAny':
-        cached = cls.__schema_cache__.get((by_alias, ref_template))
-        if cached is not None:
-            return cached
-        s = model_schema(cls, by_alias=by_alias, ref_template=ref_template)
-        cls.__schema_cache__[(by_alias, ref_template)] = s
-        return s
-
-    @classmethod
-    def schema_json(
-        cls, *, by_alias: bool = True, ref_template: str = default_ref_template, **dumps_kwargs: Any
-    ) -> str:
-        from .json import pydantic_encoder
-
-        return cls.__config__.json_dumps(
-            cls.schema(by_alias=by_alias, ref_template=ref_template), default=pydantic_encoder, **dumps_kwargs
-        )
-
-    @classmethod
-    def __get_validators__(cls) -> 'CallableGenerator':
-        yield cls.validate
-
-    @classmethod
-    def validate(cls: Type['Model'], value: Any) -> 'Model':
-        if isinstance(value, cls):
-            copy_on_model_validation = cls.__config__.copy_on_model_validation
-            # whether to deep or shallow copy the model on validation, None means do not copy
-            deep_copy: Optional[bool] = None
-            if copy_on_model_validation not in {'deep', 'shallow', 'none'}:
-                # Warn about deprecated behavior
-                warnings.warn(
-                    "`copy_on_model_validation` should be a string: 'deep', 'shallow' or 'none'", DeprecationWarning
-                )
-                if copy_on_model_validation:
-                    deep_copy = False
-
-            if copy_on_model_validation == 'shallow':
-                # shallow copy
-                deep_copy = False
-            elif copy_on_model_validation == 'deep':
-                # deep copy
-                deep_copy = True
-
-            if deep_copy is None:
-                return value
-            else:
-                return value._copy_and_set_values(value.__dict__, value.__fields_set__, deep=deep_copy)
-
-        value = cls._enforce_dict_if_root(value)
-
-        if isinstance(value, dict):
-            return cls(**value)
-        elif cls.__config__.orm_mode:
-            return cls.from_orm(value)
-        else:
-            try:
-                value_as_dict = dict(value)
-            except (TypeError, ValueError) as e:
-                raise DictError() from e
-            return cls(**value_as_dict)
-
-    @classmethod
-    def _decompose_class(cls: Type['Model'], obj: Any) -> GetterDict:
-        if isinstance(obj, GetterDict):
-            return obj
-        return cls.__config__.getter_dict(obj)
-
-    @classmethod
-    @no_type_check
-    def _get_value(
+    def model_json_schema(
         cls,
-        v: Any,
-        to_dict: bool,
-        by_alias: bool,
-        include: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']],
-        exclude: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']],
-        exclude_unset: bool,
-        exclude_defaults: bool,
-        exclude_none: bool,
-    ) -> Any:
+        by_alias: bool = True,
+        ref_template: str = DEFAULT_REF_TEMPLATE,
+        schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema,
+    ) -> dict[str, Any]:
+        """
+        To override the logic used to generate the JSON schema, you can create a subclass of GenerateJsonSchema
+        with your desired modifications, then override this method on a custom base class and set the default
+        value of `schema_generator` to be your subclass.
+        """
+        return model_json_schema(cls, by_alias=by_alias, ref_template=ref_template, schema_generator=schema_generator)
 
-        if isinstance(v, BaseModel):
-            if to_dict:
-                v_dict = v.dict(
-                    by_alias=by_alias,
-                    exclude_unset=exclude_unset,
-                    exclude_defaults=exclude_defaults,
-                    include=include,
-                    exclude=exclude,
-                    exclude_none=exclude_none,
-                )
-                if ROOT_KEY in v_dict:
-                    return v_dict[ROOT_KEY]
-                return v_dict
+    @classmethod
+    def model_modify_json_schema(cls, json_schema: JsonSchemaValue) -> JsonSchemaValue:
+        """
+        Overriding this method provides a simple way to modify the JSON schema generated for the model.
+
+        This is a convenience method primarily intended to control how the "generic" properties of the JSON schema
+        are populated. See https://json-schema.org/understanding-json-schema/reference/generic.html for more details.
+
+        If you want to make more sweeping changes to how the JSON schema is generated, you will probably want to create
+        a subclass of `GenerateJsonSchema` and pass it as `schema_generator` in `BaseModel.model_json_schema`.
+        """
+        metadata = {'title': cls.model_config.get('title', None) or cls.__name__, 'description': getdoc(cls) or None}
+        metadata = {k: v for k, v in metadata.items() if v is not None}
+        return {**metadata, **json_schema}
+
+    @classmethod
+    def model_rebuild(
+        cls,
+        *,
+        force: bool = False,
+        raise_errors: bool = True,
+        _parent_namespace_depth: int = 2,
+        _types_namespace: dict[str, Any] | None = None,
+    ) -> bool | None:
+        """
+        Try to (Re)construct the model schema.
+        """
+        if not force and cls.__pydantic_model_complete__:
+            return None
+        else:
+            if _types_namespace is not None:
+                types_namespace: dict[str, Any] | None = _types_namespace.copy()
             else:
-                return v.copy(include=include, exclude=exclude)
+                if _parent_namespace_depth > 0:
+                    frame_parent_ns = _typing_extra.parent_frame_namespace(parent_depth=_parent_namespace_depth) or {}
+                    cls_parent_ns = cls.__pydantic_parent_namespace__ or {}
+                    cls.__pydantic_parent_namespace__ = {**cls_parent_ns, **frame_parent_ns}
 
-        value_exclude = ValueItems(v, exclude) if exclude else None
-        value_include = ValueItems(v, include) if include else None
+                types_namespace = cls.__pydantic_parent_namespace__
 
-        if isinstance(v, dict):
-            return {
-                k_: cls._get_value(
-                    v_,
-                    to_dict=to_dict,
-                    by_alias=by_alias,
-                    exclude_unset=exclude_unset,
-                    exclude_defaults=exclude_defaults,
-                    include=value_include and value_include.for_element(k_),
-                    exclude=value_exclude and value_exclude.for_element(k_),
-                    exclude_none=exclude_none,
-                )
-                for k_, v_ in v.items()
-                if (not value_exclude or not value_exclude.is_excluded(k_))
-                and (not value_include or value_include.is_included(k_))
-            }
-
-        elif sequence_like(v):
-            seq_args = (
-                cls._get_value(
-                    v_,
-                    to_dict=to_dict,
-                    by_alias=by_alias,
-                    exclude_unset=exclude_unset,
-                    exclude_defaults=exclude_defaults,
-                    include=value_include and value_include.for_element(i),
-                    exclude=value_exclude and value_exclude.for_element(i),
-                    exclude_none=exclude_none,
-                )
-                for i, v_ in enumerate(v)
-                if (not value_exclude or not value_exclude.is_excluded(i))
-                and (not value_include or value_include.is_included(i))
+                types_namespace = _typing_extra.get_cls_types_namespace(cls, types_namespace)
+            return _model_construction.complete_model_class(
+                cls,
+                cls.__name__,
+                _config.ConfigWrapper(cls.model_config, check=False),
+                raise_errors=raise_errors,
+                types_namespace=types_namespace,
             )
 
-            return v.__class__(*seq_args) if is_namedtuple(v.__class__) else v.__class__(seq_args)
-
-        elif isinstance(v, Enum) and getattr(cls.Config, 'use_enum_values', False):
-            return v.value
-
-        else:
-            return v
-
-    @classmethod
-    def __try_update_forward_refs__(cls, **localns: Any) -> None:
-        """
-        Same as update_forward_refs but will not raise exception
-        when forward references are not defined.
-        """
-        update_model_forward_refs(cls, cls.__fields__.values(), cls.__config__.json_encoders, localns, (NameError,))
-
-    @classmethod
-    def update_forward_refs(cls, **localns: Any) -> None:
-        """
-        Try to update ForwardRefs on fields based on this Model, globalns and localns.
-        """
-        update_model_forward_refs(cls, cls.__fields__.values(), cls.__config__.json_encoders, localns)
-
-    def __iter__(self) -> 'TupleGenerator':
+    def __iter__(self) -> TupleGenerator:
         """
         so `dict(model)` works
         """
         yield from self.__dict__.items()
 
-    def _iter(
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, BaseModel):
+            # When comparing instances of generic types for equality, as long as all field values are equal,
+            # only require their generic origin types to be equal, rather than exact type equality.
+            # This prevents headaches like MyGeneric(x=1) != MyGeneric[Any](x=1).
+            self_type = self.__pydantic_generic_metadata__['origin'] or self.__class__
+            other_type = other.__pydantic_generic_metadata__['origin'] or other.__class__
+
+            if self_type != other_type:
+                return False
+
+            if self.__dict__ != other.__dict__:
+                return False
+
+            # If the types and field values match, check for equality of private attributes
+            for k in self.__private_attributes__:
+                if getattr(self, k, Undefined) != getattr(other, k, Undefined):
+                    return False
+
+            return True
+        else:
+            return NotImplemented  # delegate to the other item in the comparison
+
+    def model_copy(self: Model, *, update: dict[str, Any] | None = None, deep: bool = False) -> Model:
+        """
+        Returns a copy of the model.
+
+        :param update: values to change/add in the new model. Note: the data is not validated before creating
+            the new model: you should trust this data
+        :param deep: set to `True` to make a deep copy of the model
+        :return: new model instance
+        """
+        copied = self.__deepcopy__() if deep else self.__copy__()
+        if update:
+            if self.model_config.get('extra') == 'allow':
+                for k, v in update.items():
+                    if k in self.model_fields:
+                        copied.__dict__[k] = v
+                    else:
+                        if copied.__pydantic_extra__ is None:
+                            copied.__pydantic_extra__ = {}
+                        copied.__pydantic_extra__[k] = v
+            else:
+                copied.__dict__.update(update)
+            copied.__pydantic_fields_set__.update(update.keys())
+        return copied
+
+    def __copy__(self: Model) -> Model:
+        """
+        Returns a shallow copy of the model
+        """
+        cls = type(self)
+        m = cls.__new__(cls)
+        _object_setattr(m, '__dict__', copy(self.__dict__))
+        _object_setattr(m, '__pydantic_extra__', copy(self.__pydantic_extra__))
+        _object_setattr(m, '__pydantic_fields_set__', copy(self.__pydantic_fields_set__))
+        for name in self.__private_attributes__:
+            value = getattr(self, name, Undefined)
+            if value is not Undefined:
+                _object_setattr(m, name, value)
+        return m
+
+    def __deepcopy__(self: Model, memo: dict[int, Any] | None = None) -> Model:
+        """
+        Returns a deep copy of the model
+        """
+        cls = type(self)
+        m = cls.__new__(cls)
+        _object_setattr(m, '__dict__', deepcopy(self.__dict__, memo=memo))
+        _object_setattr(m, '__pydantic_extra__', deepcopy(self.__pydantic_extra__, memo=memo))
+        # This next line doesn't need a deepcopy because __pydantic_fields_set__ is a set[str],
+        # and attempting a deepcopy would be marginally slower.
+        _object_setattr(m, '__pydantic_fields_set__', copy(self.__pydantic_fields_set__))
+        for name in self.__private_attributes__:
+            value = getattr(self, name, Undefined)
+            if value is not Undefined:
+                _object_setattr(m, name, deepcopy(value, memo=memo))
+        return m
+
+    def __repr_args__(self) -> _repr.ReprArgs:
+        yield from (
+            (k, v)
+            for k, v in self.__dict__.items()
+            if not k.startswith('_') and (k not in self.model_fields or self.model_fields[k].repr)
+        )
+        pydantic_extra = self.__pydantic_extra__
+        if pydantic_extra is not None:
+            yield from ((k, v) for k, v in pydantic_extra.items())
+        yield from ((k, getattr(self, k)) for k, v in self.model_computed_fields.items() if v.repr)
+
+    def __class_getitem__(
+        cls, typevar_values: type[Any] | tuple[type[Any], ...]
+    ) -> type[BaseModel] | _forward_ref.PydanticForwardRef | _forward_ref.PydanticRecursiveRef:
+        cached = _generics.get_cached_generic_type_early(cls, typevar_values)
+        if cached is not None:
+            return cached
+
+        if cls is BaseModel:
+            raise TypeError('Type parameters should be placed on typing.Generic, not BaseModel')
+        if not hasattr(cls, '__parameters__'):
+            raise TypeError(f'{cls} cannot be parametrized because it does not inherit from typing.Generic')
+        if not cls.__pydantic_generic_metadata__['parameters'] and Generic not in cls.__bases__:
+            raise TypeError(f'{cls} is not a generic class')
+
+        if not isinstance(typevar_values, tuple):
+            typevar_values = (typevar_values,)
+        _generics.check_parameters_count(cls, typevar_values)
+
+        # Build map from generic typevars to passed params
+        typevars_map: dict[_typing_extra.TypeVarType, type[Any]] = dict(
+            zip(cls.__pydantic_generic_metadata__['parameters'], typevar_values)
+        )
+
+        if _utils.all_identical(typevars_map.keys(), typevars_map.values()) and typevars_map:
+            submodel = cls  # if arguments are equal to parameters it's the same object
+            _generics.set_cached_generic_type(cls, typevar_values, submodel)
+        else:
+            parent_args = cls.__pydantic_generic_metadata__['args']
+            if not parent_args:
+                args = typevar_values
+            else:
+                args = tuple(_generics.replace_types(arg, typevars_map) for arg in parent_args)
+
+            origin = cls.__pydantic_generic_metadata__['origin'] or cls
+            model_name = origin.model_parametrized_name(args)
+            params = tuple(
+                {param: None for param in _generics.iter_contained_typevars(typevars_map.values())}
+            )  # use dict as ordered set
+
+            with _generics.generic_recursion_self_type(origin, args) as maybe_self_type:
+                if maybe_self_type is not None:
+                    return maybe_self_type
+
+                cached = _generics.get_cached_generic_type_late(cls, typevar_values, origin, args)
+                if cached is not None:
+                    return cached
+
+                # Attempt to rebuild the origin in case new types have been defined
+                try:
+                    # depth 3 gets you above this __class_getitem__ call
+                    origin.model_rebuild(_parent_namespace_depth=3)
+                except PydanticUndefinedAnnotation:
+                    # It's okay if it fails, it just means there are still undefined types
+                    # that could be evaluated later.
+                    # TODO: Presumably we should error if validation is attempted here?
+                    pass
+
+                submodel = _generics.create_generic_submodel(model_name, origin, args, params)
+
+                # Update cache
+                _generics.set_cached_generic_type(cls, typevar_values, submodel, origin, args)
+
+        return submodel
+
+    @classmethod
+    def model_parametrized_name(cls, params: tuple[type[Any], ...]) -> str:
+        """
+        Compute class name for parametrizations of generic classes.
+
+        :param params: Tuple of types of the class . Given a generic class
+            `Model` with 2 type variables and a concrete model `Model[str, int]`,
+            the value `(str, int)` would be passed to `params`.
+        :return: String representing the new class where `params` are
+            passed to `cls` as type variables.
+
+        This method can be overridden to achieve a custom naming scheme for generic BaseModels.
+        """
+        if not issubclass(cls, Generic):  # type: ignore[arg-type]
+            raise TypeError('Concrete names should only be generated for generic models.')
+
+        # Any strings received should represent forward references, so we handle them specially below.
+        # If we eventually move toward wrapping them in a ForwardRef in __class_getitem__ in the future,
+        # we may be able to remove this special case.
+        param_names = [param if isinstance(param, str) else _repr.display_as_type(param) for param in params]
+        params_component = ', '.join(param_names)
+        return f'{cls.__name__}[{params_component}]'
+
+    # ##### Deprecated methods from v1 #####
+    @property
+    @deprecated('The `__fields_set__` attribute is deprecated, use `model_fields_set` instead.')
+    def __fields_set__(self) -> set[str]:
+        warnings.warn(
+            'The `__fields_set__` attribute is deprecated, use `model_fields_set` instead.', DeprecationWarning
+        )
+        return self.__pydantic_fields_set__
+
+    @deprecated('The `dict` method is deprecated; use `model_dump` instead.')
+    def dict(
         self,
-        to_dict: bool = False,
+        *,
+        include: IncEx = None,
+        exclude: IncEx = None,
         by_alias: bool = False,
-        include: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
-        exclude: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
         exclude_none: bool = False,
-    ) -> 'TupleGenerator':
-
-        # Merge field set excludes with explicit exclude parameter with explicit overriding field set options.
-        # The extra "is not None" guards are not logically necessary but optimizes performance for the simple case.
-        if exclude is not None or self.__exclude_fields__ is not None:
-            exclude = ValueItems.merge(self.__exclude_fields__, exclude)
-
-        if include is not None or self.__include_fields__ is not None:
-            include = ValueItems.merge(self.__include_fields__, include, intersect=True)
-
-        allowed_keys = self._calculate_keys(
-            include=include, exclude=exclude, exclude_unset=exclude_unset  # type: ignore
+    ) -> typing.Dict[str, Any]:  # noqa UP006
+        warnings.warn('The `dict` method is deprecated; use `model_dump` instead.', DeprecationWarning)
+        return self.model_dump(
+            include=include,
+            exclude=exclude,
+            by_alias=by_alias,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
         )
-        if allowed_keys is None and not (to_dict or by_alias or exclude_unset or exclude_defaults or exclude_none):
-            # huge boost for plain _iter()
-            yield from self.__dict__.items()
-            return
 
-        value_exclude = ValueItems(self, exclude) if exclude is not None else None
-        value_include = ValueItems(self, include) if include is not None else None
-
-        for field_key, v in self.__dict__.items():
-            if (allowed_keys is not None and field_key not in allowed_keys) or (exclude_none and v is None):
-                continue
-
-            if exclude_defaults:
-                model_field = self.__fields__.get(field_key)
-                if not getattr(model_field, 'required', True) and getattr(model_field, 'default', _missing) == v:
-                    continue
-
-            if by_alias and field_key in self.__fields__:
-                dict_key = self.__fields__[field_key].alias
-            else:
-                dict_key = field_key
-
-            if to_dict or value_include or value_exclude:
-                v = self._get_value(
-                    v,
-                    to_dict=to_dict,
-                    by_alias=by_alias,
-                    include=value_include and value_include.for_element(field_key),
-                    exclude=value_exclude and value_exclude.for_element(field_key),
-                    exclude_unset=exclude_unset,
-                    exclude_defaults=exclude_defaults,
-                    exclude_none=exclude_none,
-                )
-            yield dict_key, v
-
-    def _calculate_keys(
+    @deprecated('The `json` method is deprecated; use `model_dump_json` instead.')
+    def json(
         self,
-        include: Optional['MappingIntStrAny'],
-        exclude: Optional['MappingIntStrAny'],
-        exclude_unset: bool,
-        update: Optional['DictStrAny'] = None,
-    ) -> Optional[AbstractSet[str]]:
-        if include is None and exclude is None and exclude_unset is False:
-            return None
+        *,
+        include: IncEx = None,
+        exclude: IncEx = None,
+        by_alias: bool = False,
+        exclude_unset: bool = False,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+        # TODO: What do we do about the following arguments?
+        #   Do they need to go on model_config now, and get used by the serializer?
+        encoder: typing.Callable[[Any], Any] | None = Undefined,  # type: ignore[assignment]
+        models_as_dict: bool = Undefined,  # type: ignore[assignment]
+        **dumps_kwargs: Any,
+    ) -> str:
+        warnings.warn('The `json` method is deprecated; use `model_dump_json` instead.', DeprecationWarning)
+        if encoder is not Undefined:
+            raise TypeError('The `encoder` argument is no longer supported; use field serializers instead.')
+        if models_as_dict is not Undefined:
+            raise TypeError('The `models_as_dict` argument is no longer supported; use a model serializer instead.')
+        if dumps_kwargs:
+            raise TypeError('`dumps_kwargs` keyword arguments are no longer supported.')
+        return self.model_dump_json(
+            include=include,
+            exclude=exclude,
+            by_alias=by_alias,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+        )
 
-        keys: AbstractSet[str]
-        if exclude_unset:
-            keys = self.__fields_set__.copy()
+    @classmethod
+    @deprecated('The `parse_obj` method is deprecated; use `model_validate` instead.')
+    def parse_obj(cls: type[Model], obj: Any) -> Model:
+        warnings.warn('The `parse_obj` method is deprecated; use `model_validate` instead.', DeprecationWarning)
+        return cls.model_validate(obj)
+
+    @classmethod
+    @deprecated(
+        'The `parse_raw` method is deprecated; if your data is JSON use `model_validate_json`, '
+        'otherwise load the data then use `model_validate` instead.'
+    )
+    def parse_raw(
+        cls: type[Model],
+        b: str | bytes,
+        *,
+        content_type: str | None = None,
+        encoding: str = 'utf8',
+        proto: _deprecated_parse.Protocol | None = None,
+        allow_pickle: bool = False,
+    ) -> Model:
+        warnings.warn(
+            'The `parse_raw` method is deprecated; if your data is JSON use `model_validate_json`, '
+            'otherwise load the data then use `model_validate` instead.',
+            DeprecationWarning,
+        )
+        try:
+            obj = _deprecated_parse.load_str_bytes(
+                b,
+                proto=proto,
+                content_type=content_type,
+                encoding=encoding,
+                allow_pickle=allow_pickle,
+            )
+        except (ValueError, TypeError) as exc:
+            import json
+
+            # try to match V1
+            if isinstance(exc, UnicodeDecodeError):
+                type_str = 'value_error.unicodedecode'
+            elif isinstance(exc, json.JSONDecodeError):
+                type_str = 'value_error.jsondecode'
+            elif isinstance(exc, ValueError):
+                type_str = 'value_error'
+            else:
+                type_str = 'type_error'
+
+            # ctx is missing here, but since we've added `input` to the error, we're not pretending it's the same
+            error: pydantic_core.InitErrorDetails = {
+                # The type: ignore on the next line is to ignore the requirement of LiteralString
+                'type': pydantic_core.PydanticCustomError(type_str, str(exc)),  # type: ignore
+                'loc': ('__root__',),
+                'input': b,
+            }
+            raise pydantic_core.ValidationError(cls.__name__, [error])
+        return cls.model_validate(obj)
+
+    @classmethod
+    @deprecated(
+        'The `parse_file` method is deprecated; load the data from file, then if your data is JSON '
+        'use `model_json_validate` otherwise `model_validate` instead.'
+    )
+    def parse_file(
+        cls: type[Model],
+        path: str | Path,
+        *,
+        content_type: str | None = None,
+        encoding: str = 'utf8',
+        proto: _deprecated_parse.Protocol | None = None,
+        allow_pickle: bool = False,
+    ) -> Model:
+        warnings.warn(
+            'The `parse_file` method is deprecated; load the data from file, then if your data is JSON '
+            'use `model_json_validate` otherwise `model_validate` instead.',
+            DeprecationWarning,
+        )
+        obj = _deprecated_parse.load_file(
+            path,
+            proto=proto,
+            content_type=content_type,
+            encoding=encoding,
+            allow_pickle=allow_pickle,
+        )
+        return cls.parse_obj(obj)
+
+    @classmethod
+    # @deprecated(
+    #     "The `from_orm` method is deprecated; set "
+    #     "`model_config['from_attributes']=True` and use `model_validate` instead."
+    # )
+    def from_orm(cls: type[Model], obj: Any) -> Model:
+        warnings.warn(
+            'The `from_orm` method is deprecated; set `model_config["from_attributes"]=True` '
+            'and use `model_validate` instead.',
+            DeprecationWarning,
+        )
+        if not cls.model_config.get('from_attributes', None):
+            raise PydanticUserError(
+                'You must set the config attribute `from_attributes=True` to use from_orm', code=None
+            )
+        return cls.model_validate(obj)
+
+    @classmethod
+    @deprecated('The `construct` method is deprecated; use `model_construct` instead.')
+    def construct(cls: type[Model], _fields_set: set[str] | None = None, **values: Any) -> Model:
+        warnings.warn('The `construct` method is deprecated; use `model_construct` instead.', DeprecationWarning)
+        return cls.model_construct(_fields_set=_fields_set, **values)
+
+    @deprecated('The copy method is deprecated; use `model_copy` instead.')
+    def copy(
+        self: Model,
+        *,
+        include: AbstractSetIntStr | MappingIntStrAny | None = None,
+        exclude: AbstractSetIntStr | MappingIntStrAny | None = None,
+        update: typing.Dict[str, Any] | None = None,  # noqa UP006
+        deep: bool = False,
+    ) -> Model:
+        """
+        This method is now deprecated; use `model_copy` instead. If you need include / exclude, use:
+
+            data = self.model_dump(include=include, exclude=exclude, round_trip=True)
+            data = {**data, **(update or {})}
+            copied = self.model_validate(data)
+        """
+        warnings.warn(
+            'The `copy` method is deprecated; use `model_copy` instead. '
+            'See the docstring of `BaseModel.copy` for details about how to handle `include` and `exclude`.',
+            DeprecationWarning,
+        )
+
+        values = dict(
+            _deprecated_copy_internals._iter(  # type: ignore
+                self, to_dict=False, by_alias=False, include=include, exclude=exclude, exclude_unset=False
+            ),
+            **(update or {}),
+        )
+        if self.__pydantic_extra__ is None:
+            extra: dict[str, Any] | None = None
         else:
-            keys = self.__dict__.keys()
+            extra = self.__pydantic_extra__.copy()
+            for k in list(self.__pydantic_extra__):
+                if k not in values:  # k was in the exclude
+                    extra.pop(k)
+            for k in list(values):
+                if k in self.__pydantic_extra__:  # k must have come from extra
+                    extra[k] = values.pop(k)
 
-        if include is not None:
-            keys &= include.keys()
-
+        # new `__pydantic_fields_set__` can have unset optional fields with a set value in `update` kwarg
         if update:
-            keys -= update.keys()
-
-        if exclude:
-            keys -= {k for k, v in exclude.items() if ValueItems.is_true(v)}
-
-        return keys
-
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, BaseModel):
-            return self.dict() == other.dict()
+            fields_set = self.__pydantic_fields_set__ | update.keys()
         else:
-            return self.dict() == other
+            fields_set = set(self.__pydantic_fields_set__)
 
-    def __repr_args__(self) -> 'ReprArgs':
-        return [
-            (k, v)
-            for k, v in self.__dict__.items()
-            if k not in DUNDER_ATTRIBUTES and (k not in self.__fields__ or self.__fields__[k].field_info.repr)
-        ]
+        # removing excluded fields from `__pydantic_fields_set__`
+        if exclude:
+            fields_set -= set(exclude)
+
+        return _deprecated_copy_internals._copy_and_set_values(self, values, fields_set, extra, deep=deep)
+
+    @classmethod
+    @deprecated('The `schema` method is deprecated; use `model_json_schema` instead.')
+    def schema(
+        cls, by_alias: bool = True, ref_template: str = DEFAULT_REF_TEMPLATE
+    ) -> typing.Dict[str, Any]:  # noqa UP006
+        warnings.warn('The `schema` method is deprecated; use `model_json_schema` instead.', DeprecationWarning)
+        return cls.model_json_schema(by_alias=by_alias, ref_template=ref_template)
+
+    @classmethod
+    @deprecated('The `schema_json` method is deprecated; use `model_json_schema` and json.dumps instead.')
+    def schema_json(
+        cls, *, by_alias: bool = True, ref_template: str = DEFAULT_REF_TEMPLATE, **dumps_kwargs: Any
+    ) -> str:
+        import json
+
+        warnings.warn(
+            'The `schema_json` method is deprecated; use `model_json_schema` and json.dumps instead.',
+            DeprecationWarning,
+        )
+        from .deprecated.json import pydantic_encoder
+
+        return json.dumps(
+            cls.model_json_schema(by_alias=by_alias, ref_template=ref_template),
+            default=pydantic_encoder,
+            **dumps_kwargs,
+        )
+
+    @classmethod
+    @deprecated('The `validate` method is deprecated; use `model_validate` instead.')
+    def validate(cls: type[Model], value: Any) -> Model:
+        warnings.warn('The `validate` method is deprecated; use `model_validate` instead.', DeprecationWarning)
+        return cls.model_validate(value)
+
+    @classmethod
+    @deprecated('The `update_forward_refs` method is deprecated; use `model_rebuild` instead.')
+    def update_forward_refs(cls, **localns: Any) -> None:
+        warnings.warn(
+            'The `update_forward_refs` method is deprecated; use `model_rebuild` instead.', DeprecationWarning
+        )
+        if localns:
+            raise TypeError('`localns` arguments are not longer accepted.')
+        cls.model_rebuild(force=True)
+
+    @deprecated('The private method `_iter` will be removed and should no longer be used.')
+    def _iter(self, *args: Any, **kwargs: Any) -> Any:
+        warnings.warn('The private method `_iter` will be removed and should no longer be used.', DeprecationWarning)
+        return _deprecated_copy_internals._iter(self, *args, **kwargs)  # type: ignore
+
+    @deprecated('The private method `_calculate_keys` will be removed and should no longer be used.')
+    def _copy_and_set_values(self, *args: Any, **kwargs: Any) -> Any:
+        warnings.warn(
+            'The private method  `_copy_and_set_values` will be removed and should no longer be used.',
+            DeprecationWarning,
+        )
+        return _deprecated_copy_internals._copy_and_set_values(self, *args, **kwargs)  # type: ignore
+
+    @classmethod
+    @deprecated('The private method `_get_value` will be removed and should no longer be used.')
+    def _get_value(cls, *args: Any, **kwargs: Any) -> Any:
+        warnings.warn(
+            'The private method  `_get_value` will be removed and should no longer be used.', DeprecationWarning
+        )
+        return _deprecated_copy_internals._get_value(cls, *args, **kwargs)  # type: ignore
+
+    @deprecated('The private method `_calculate_keys` will be removed and should no longer be used.')
+    def _calculate_keys(self, *args: Any, **kwargs: Any) -> Any:
+        warnings.warn(
+            'The private method `_calculate_keys` will be removed and should no longer be used.', DeprecationWarning
+        )
+        return _deprecated_copy_internals._calculate_keys(self, *args, **kwargs)  # type: ignore
 
 
-_is_base_model_class_defined = True
+_base_class_defined = True
 
 
-@overload
+@typing.overload
 def create_model(
     __model_name: str,
     *,
-    __config__: Optional[Type[BaseConfig]] = None,
+    __config__: ConfigDict | None = None,
     __base__: None = None,
     __module__: str = __name__,
-    __validators__: Dict[str, 'AnyClassMethod'] = None,
-    __cls_kwargs__: Dict[str, Any] = None,
+    __validators__: dict[str, AnyClassMethod] | None = None,
+    __cls_kwargs__: dict[str, Any] | None = None,
     **field_definitions: Any,
-) -> Type['BaseModel']:
+) -> type[BaseModel]:
     ...
 
 
-@overload
+@typing.overload
 def create_model(
     __model_name: str,
     *,
-    __config__: Optional[Type[BaseConfig]] = None,
-    __base__: Union[Type['Model'], Tuple[Type['Model'], ...]],
+    __config__: ConfigDict | None = None,
+    __base__: type[Model] | tuple[type[Model], ...],
     __module__: str = __name__,
-    __validators__: Dict[str, 'AnyClassMethod'] = None,
-    __cls_kwargs__: Dict[str, Any] = None,
+    __validators__: dict[str, AnyClassMethod] | None = None,
+    __cls_kwargs__: dict[str, Any] | None = None,
     **field_definitions: Any,
-) -> Type['Model']:
+) -> type[Model]:
     ...
 
 
 def create_model(
     __model_name: str,
     *,
-    __config__: Optional[Type[BaseConfig]] = None,
-    __base__: Union[None, Type['Model'], Tuple[Type['Model'], ...]] = None,
+    __config__: ConfigDict | None = None,
+    __base__: type[Model] | tuple[type[Model], ...] | None = None,
     __module__: str = __name__,
-    __validators__: Dict[str, 'AnyClassMethod'] = None,
-    __cls_kwargs__: Dict[str, Any] = None,
-    __slots__: Optional[Tuple[str, ...]] = None,
+    __validators__: dict[str, AnyClassMethod] | None = None,
+    __cls_kwargs__: dict[str, Any] | None = None,
+    __slots__: tuple[str, ...] | None = None,
     **field_definitions: Any,
-) -> Type['Model']:
+) -> type[Model]:
     """
     Dynamically create a model.
     :param __model_name: name of the created model
-    :param __config__: config class to use for the new model
+    :param __config__: config dict/class to use for the new model
     :param __base__: base class for the new model to inherit from
     :param __module__: module of the created model
     :param __validators__: a dict of method names and @validator class methods
     :param __cls_kwargs__: a dict for class creation
     :param __slots__: Deprecated, `__slots__` should not be passed to `create_model`
     :param field_definitions: fields of the model (or extra fields if a base is supplied)
-        in the format `<name>=(<type>, <default default>)` or `<name>=<default value>, e.g.
+        in the format `<name>=(<type>, <default value>)` or `<name>=<default value>, e.g.
         `foobar=(str, ...)` or `foobar=123`, or, for complex use-cases, in the format
         `<name>=<Field>` or `<name>=(<type>, <FieldInfo>)`, e.g.
         `foo=Field(datetime, default_factory=datetime.utcnow, alias='bar')` or
@@ -982,11 +1092,14 @@ def create_model(
 
     if __base__ is not None:
         if __config__ is not None:
-            raise ConfigError('to avoid confusion __config__ and __base__ cannot be used together')
+            raise PydanticUserError(
+                'to avoid confusion `__config__` and `__base__` cannot be used together',
+                code='create-model-config-base',
+            )
         if not isinstance(__base__, tuple):
             __base__ = (__base__,)
     else:
-        __base__ = (cast(Type['Model'], BaseModel),)
+        __base__ = (cast(typing.Type['Model'], BaseModel),)
 
     __cls_kwargs__ = __cls_kwargs__ or {}
 
@@ -994,16 +1107,16 @@ def create_model(
     annotations = {}
 
     for f_name, f_def in field_definitions.items():
-        if not is_valid_field(f_name):
+        if f_name.startswith('_'):
             warnings.warn(f'fields may not start with an underscore, ignoring "{f_name}"', RuntimeWarning)
         if isinstance(f_def, tuple):
+            f_def = cast('tuple[str, Any]', f_def)
             try:
                 f_annotation, f_value = f_def
             except ValueError as e:
-                raise ConfigError(
-                    'field definitions should either be a tuple of (<type>, <default>) or just a '
-                    'default value, unfortunately this means tuples as '
-                    'default values are not allowed'
+                raise PydanticUserError(
+                    'Field definitions should either be a `(<type>, <default>)`.',
+                    code='create-model-field-definitions',
                 ) from e
         else:
             f_annotation, f_value = None, f_def
@@ -1012,98 +1125,31 @@ def create_model(
             annotations[f_name] = f_annotation
         fields[f_name] = f_value
 
-    namespace: 'DictStrAny' = {'__annotations__': annotations, '__module__': __module__}
+    namespace: dict[str, Any] = {'__annotations__': annotations, '__module__': __module__}
     if __validators__:
         namespace.update(__validators__)
     namespace.update(fields)
     if __config__:
-        namespace['Config'] = inherit_config(__config__, BaseConfig)
+        namespace['model_config'] = _config.ConfigWrapper(__config__).config_dict
     resolved_bases = resolve_bases(__base__)
     meta, ns, kwds = prepare_class(__model_name, resolved_bases, kwds=__cls_kwargs__)
     if resolved_bases is not __base__:
         ns['__orig_bases__'] = __base__
     namespace.update(ns)
-    return meta(__model_name, resolved_bases, namespace, **kwds)
+    return meta(__model_name, resolved_bases, namespace, __pydantic_reset_parent_namespace__=False, **kwds)
 
 
-_missing = object()
+def _collect_bases_data(bases: tuple[type[Any], ...]) -> tuple[set[str], set[str], dict[str, ModelPrivateAttr]]:
+    field_names: set[str] = set()
+    class_vars: set[str] = set()
+    private_attributes: dict[str, ModelPrivateAttr] = {}
+    for base in bases:
+        if _base_class_defined and issubclass(base, BaseModel) and base != BaseModel:
+            # model_fields might not be defined yet in the case of generics, so we use getattr here:
+            field_names.update(getattr(base, 'model_fields', {}).keys())
+            class_vars.update(base.__class_vars__)
+            private_attributes.update(base.__private_attributes__)
+    return field_names, class_vars, private_attributes
 
 
-def validate_model(  # noqa: C901 (ignore complexity)
-    model: Type[BaseModel], input_data: 'DictStrAny', cls: 'ModelOrDc' = None
-) -> Tuple['DictStrAny', 'SetStr', Optional[ValidationError]]:
-    """
-    validate data against a model.
-    """
-    values = {}
-    errors = []
-    # input_data names, possibly alias
-    names_used = set()
-    # field names, never aliases
-    fields_set = set()
-    config = model.__config__
-    check_extra = config.extra is not Extra.ignore
-    cls_ = cls or model
-
-    for validator in model.__pre_root_validators__:
-        try:
-            input_data = validator(cls_, input_data)
-        except (ValueError, TypeError, AssertionError) as exc:
-            return {}, set(), ValidationError([ErrorWrapper(exc, loc=ROOT_KEY)], cls_)
-
-    for name, field in model.__fields__.items():
-        value = input_data.get(field.alias, _missing)
-        using_name = False
-        if value is _missing and config.allow_population_by_field_name and field.alt_alias:
-            value = input_data.get(field.name, _missing)
-            using_name = True
-
-        if value is _missing:
-            if field.required:
-                errors.append(ErrorWrapper(MissingError(), loc=field.alias))
-                continue
-
-            value = field.get_default()
-
-            if not config.validate_all and not field.validate_always:
-                values[name] = value
-                continue
-        else:
-            fields_set.add(name)
-            if check_extra:
-                names_used.add(field.name if using_name else field.alias)
-
-        v_, errors_ = field.validate(value, values, loc=field.alias, cls=cls_)
-        if isinstance(errors_, ErrorWrapper):
-            errors.append(errors_)
-        elif isinstance(errors_, list):
-            errors.extend(errors_)
-        else:
-            values[name] = v_
-
-    if check_extra:
-        if isinstance(input_data, GetterDict):
-            extra = input_data.extra_keys() - names_used
-        else:
-            extra = input_data.keys() - names_used
-        if extra:
-            fields_set |= extra
-            if config.extra is Extra.allow:
-                for f in extra:
-                    values[f] = input_data[f]
-            else:
-                for f in sorted(extra):
-                    errors.append(ErrorWrapper(ExtraError(), loc=f))
-
-    for skip_on_failure, validator in model.__post_root_validators__:
-        if skip_on_failure and errors:
-            continue
-        try:
-            values = validator(cls_, values)
-        except (ValueError, TypeError, AssertionError) as exc:
-            errors.append(ErrorWrapper(exc, loc=ROOT_KEY))
-
-    if errors:
-        return values, fields_set, ValidationError(errors, cls_)
-    else:
-        return values, fields_set, None
+__getattr__ = getattr_migration(__name__)

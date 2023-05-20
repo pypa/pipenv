@@ -1,313 +1,644 @@
-import copy
-import re
-from collections import Counter as CollectionCounter, defaultdict, deque
-from collections.abc import Callable, Hashable as CollectionsHashable, Iterable as CollectionsIterable
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Counter,
-    DefaultDict,
-    Deque,
-    Dict,
-    ForwardRef,
-    FrozenSet,
-    Generator,
-    Iterable,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Pattern,
-    Sequence,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+"""
+Defining fields on models.
+"""
+from __future__ import annotations as _annotations
 
-from pipenv.patched.pip._vendor.typing_extensions import Annotated, Final
+import dataclasses
+import inspect
+import sys
+import typing
+from copy import copy
+from dataclasses import Field as DataclassField
+from typing import Any
+from warnings import warn
 
-from . import errors as errors_
-from .class_validators import Validator, make_generic_validator, prep_validators
-from .error_wrappers import ErrorWrapper
-from .errors import ConfigError, InvalidDiscriminator, MissingDiscriminator, NoneIsNotAllowedError
-from .types import Json, JsonWrapper
-from .typing import (
-    NoArgAnyCallable,
-    convert_generics,
-    display_as_type,
-    get_args,
-    get_origin,
-    is_finalvar,
-    is_literal_type,
-    is_new_type,
-    is_none_type,
-    is_typeddict,
-    is_typeddict_special,
-    is_union,
-    new_type_supertype,
-)
-from .utils import (
-    PyObjectStr,
-    Representation,
-    ValueItems,
-    get_discriminator_alias_and_values,
-    get_unique_discriminator_alias,
-    lenient_isinstance,
-    lenient_issubclass,
-    sequence_like,
-    smart_deepcopy,
-)
-from .validators import constant_validator, dict_validator, find_validators, validate_json
+import pipenv.vendor.annotated_types as annotated_types
+import typing_extensions
 
-Required: Any = Ellipsis
+from . import types
+from ._internal import _decorators, _fields, _forward_ref, _internal_dataclass, _repr, _typing_extra, _utils
+from ._internal._fields import Undefined
+from ._internal._generics import replace_types
+from .errors import PydanticUserError
 
-T = TypeVar('T')
+if typing.TYPE_CHECKING:
+    from pydantic_core import core_schema as _core_schema
+
+    from ._internal._repr import ReprArgs
 
 
-class UndefinedType:
-    def __repr__(self) -> str:
-        return 'PydanticUndefined'
-
-    def __copy__(self: T) -> T:
-        return self
-
-    def __reduce__(self) -> str:
-        return 'Undefined'
-
-    def __deepcopy__(self: T, _: Any) -> T:
-        return self
-
-
-Undefined = UndefinedType()
-
-if TYPE_CHECKING:
-    from .class_validators import ValidatorsList
-    from .config import BaseConfig
-    from .error_wrappers import ErrorList
-    from .types import ModelOrDc
-    from .typing import AbstractSetIntStr, MappingIntStrAny, ReprArgs
-
-    ValidateReturn = Tuple[Optional[Any], Optional[ErrorList]]
-    LocStr = Union[Tuple[Union[int, str], ...], str]
-    BoolUndefined = Union[bool, UndefinedType]
-
-
-class FieldInfo(Representation):
+class FieldInfo(_repr.Representation):
     """
-    Captures extra information about a field.
+    Hold information about a field.
+
+    FieldInfo is used for any field definition whether or not the `Field()` function is explicitly used.
+
+    Attributes:
+        annotation (type): The type annotation of the field.
+        default (Any): The default value of the field.
+        default_factory (callable): The factory function used to construct the default value of the field.
+        alias (str): The alias name of the field.
+        alias_priority (int): The priority of the field's alias.
+        validation_alias (str): The validation alias name of the field.
+        serialization_alias (str): The serialization alias name of the field.
+        title (str): The title of the field.
+        description (str): The description of the field.
+        examples (List[str]): List of examples of the field.
+        exclude (bool): Whether or not to exclude the field from the model schema.
+        include (bool): Whether or not to include the field in the model schema.
+        metadata (Dict[str, Any]): Dictionary of metadata constraints.
+        repr (bool): Whether or not to include the field in representation of the model.
+        discriminator (bool): Whether or not to include the field in the "discriminator" schema property of the model.
+        json_schema_extra (Dict[str, Any]): Dictionary of extra JSON schema properties.
+        init_var (bool): Whether or not the field should be included in the constructor of the model.
+        kw_only (bool): Whether or not the field should be a keyword-only argument in the constructor of the model.
+        validate_default (bool): Whether or not to validate the default value of the field.
+        frozen (bool): Whether or not the field is frozen.
+        final (bool): Whether or not the field is final.
     """
+
+    # TODO: Need to add attribute annotations
 
     __slots__ = (
+        'annotation',
         'default',
         'default_factory',
         'alias',
         'alias_priority',
+        'validation_alias',
+        'serialization_alias',
         'title',
         'description',
+        'examples',
         'exclude',
         'include',
-        'const',
-        'gt',
-        'ge',
-        'lt',
-        'le',
-        'multiple_of',
-        'allow_inf_nan',
-        'max_digits',
-        'decimal_places',
-        'min_items',
-        'max_items',
-        'unique_items',
-        'min_length',
-        'max_length',
-        'allow_mutation',
+        'metadata',
         'repr',
-        'regex',
         'discriminator',
-        'extra',
+        'json_schema_extra',
+        'init_var',
+        'kw_only',
+        'validate_default',
+        'frozen',
+        'final',
     )
 
-    # field constraints with the default value, it's also used in update_from_config below
-    __field_constraints__ = {
-        'min_length': None,
-        'max_length': None,
-        'regex': None,
-        'gt': None,
-        'lt': None,
-        'ge': None,
-        'le': None,
-        'multiple_of': None,
+    # used to convert kwargs to metadata/constraints,
+    # None has a special meaning - these items are collected into a `PydanticGeneralMetadata`
+    metadata_lookup: dict[str, typing.Callable[[Any], Any] | None] = {
+        'gt': annotated_types.Gt,
+        'ge': annotated_types.Ge,
+        'lt': annotated_types.Lt,
+        'le': annotated_types.Le,
+        'multiple_of': annotated_types.MultipleOf,
+        'strict': types.Strict,
+        'min_length': annotated_types.MinLen,
+        'max_length': annotated_types.MaxLen,
+        'pattern': None,
         'allow_inf_nan': None,
         'max_digits': None,
         'decimal_places': None,
-        'min_items': None,
-        'max_items': None,
-        'unique_items': None,
-        'allow_mutation': True,
     }
 
-    def __init__(self, default: Any = Undefined, **kwargs: Any) -> None:
-        self.default = default
-        self.default_factory = kwargs.pop('default_factory', None)
-        self.alias = kwargs.pop('alias', None)
-        self.alias_priority = kwargs.pop('alias_priority', 2 if self.alias is not None else None)
-        self.title = kwargs.pop('title', None)
-        self.description = kwargs.pop('description', None)
-        self.exclude = kwargs.pop('exclude', None)
-        self.include = kwargs.pop('include', None)
-        self.const = kwargs.pop('const', None)
-        self.gt = kwargs.pop('gt', None)
-        self.ge = kwargs.pop('ge', None)
-        self.lt = kwargs.pop('lt', None)
-        self.le = kwargs.pop('le', None)
-        self.multiple_of = kwargs.pop('multiple_of', None)
-        self.allow_inf_nan = kwargs.pop('allow_inf_nan', None)
-        self.max_digits = kwargs.pop('max_digits', None)
-        self.decimal_places = kwargs.pop('decimal_places', None)
-        self.min_items = kwargs.pop('min_items', None)
-        self.max_items = kwargs.pop('max_items', None)
-        self.unique_items = kwargs.pop('unique_items', None)
-        self.min_length = kwargs.pop('min_length', None)
-        self.max_length = kwargs.pop('max_length', None)
-        self.allow_mutation = kwargs.pop('allow_mutation', True)
-        self.regex = kwargs.pop('regex', None)
-        self.discriminator = kwargs.pop('discriminator', None)
-        self.repr = kwargs.pop('repr', True)
-        self.extra = kwargs
+    def __init__(self, **kwargs: Any) -> None:
+        # TODO: This is a good place to add migration warnings; we should use overload for type-hinting the signature
+        self.annotation, annotation_metadata = self._extract_metadata(kwargs.get('annotation'))
 
-    def __repr_args__(self) -> 'ReprArgs':
+        default = kwargs.pop('default', Undefined)
+        if default is Ellipsis:
+            self.default = Undefined
+        else:
+            self.default = default
 
-        field_defaults_to_hide: Dict[str, Any] = {
-            'repr': True,
-            **self.__field_constraints__,
-        }
+        self.default_factory = kwargs.get('default_factory')
 
-        attrs = ((s, getattr(self, s)) for s in self.__slots__)
-        return [(a, v) for a, v in attrs if v != field_defaults_to_hide.get(a, None)]
-
-    def get_constraints(self) -> Set[str]:
-        """
-        Gets the constraints set on the field by comparing the constraint value with its default value
-
-        :return: the constraints set on field_info
-        """
-        return {attr for attr, default in self.__field_constraints__.items() if getattr(self, attr) != default}
-
-    def update_from_config(self, from_config: Dict[str, Any]) -> None:
-        """
-        Update this FieldInfo based on a dict from get_field_info, only fields which have not been set are dated.
-        """
-        for attr_name, value in from_config.items():
-            try:
-                current_value = getattr(self, attr_name)
-            except AttributeError:
-                # attr_name is not an attribute of FieldInfo, it should therefore be added to extra
-                # (except if extra already has this value!)
-                self.extra.setdefault(attr_name, value)
-            else:
-                if current_value is self.__field_constraints__.get(attr_name, None):
-                    setattr(self, attr_name, value)
-                elif attr_name == 'exclude':
-                    self.exclude = ValueItems.merge(value, current_value)
-                elif attr_name == 'include':
-                    self.include = ValueItems.merge(value, current_value, intersect=True)
-
-    def _validate(self) -> None:
         if self.default is not Undefined and self.default_factory is not None:
-            raise ValueError('cannot specify both default and default_factory')
+            raise TypeError('cannot specify both default and default_factory')
+
+        self.alias = kwargs.get('alias')
+        self.alias_priority = kwargs.get('alias_priority') or 2 if self.alias is not None else None
+        self.title = kwargs.get('title')
+        self.validation_alias = kwargs.get('validation_alias', None)
+        self.serialization_alias = kwargs.get('serialization_alias', None)
+        self.description = kwargs.get('description')
+        self.examples = kwargs.get('examples')
+        self.exclude = kwargs.get('exclude')
+        self.include = kwargs.get('include')
+        self.metadata = self._collect_metadata(kwargs) + annotation_metadata
+        self.discriminator = kwargs.get('discriminator')
+        self.repr = kwargs.get('repr', True)
+        self.json_schema_extra = kwargs.get('json_schema_extra')
+        self.validate_default = kwargs.get('validate_default', None)
+        self.frozen = kwargs.get('frozen', None)
+        self.final = kwargs.get('final', None)
+        # currently only used on dataclasses
+        self.init_var = kwargs.get('init_var', None)
+        self.kw_only = kwargs.get('kw_only', None)
+
+    @classmethod
+    def from_field(cls, default: Any = Undefined, **kwargs: Any) -> FieldInfo:
+        """
+        Create a new `FieldInfo` object with the `Field` function.
+
+        Args:
+            default (Any): The default value for the field. Defaults to Undefined.
+            **kwargs: Additional arguments dictionary.
+
+        Raises:
+            TypeError: If 'annotation' is passed as a keyword argument.
+
+        Returns:
+            FieldInfo: A new FieldInfo object with the given parameters.
+
+        Examples:
+            This is how you can create a field with default value like this:
+
+            ```python
+            import pipenv.vendor.pydantic as pydantic
+
+            class MyModel(pydantic.BaseModel):
+                foo: int = pydantic.Field(4, ...)
+            ```
+        """
+        # TODO: This is a good place to add migration warnings; should we use overload for type-hinting the signature?
+        if 'annotation' in kwargs:
+            raise TypeError('"annotation" is not permitted as a Field keyword argument')
+        return cls(default=default, **kwargs)
+
+    @classmethod
+    def from_annotation(cls, annotation: type[Any] | _forward_ref.PydanticForwardRef) -> FieldInfo:
+        """
+        Creates a `FieldInfo` instance from a bare annotation.
+
+        Args:
+            annotation (Union[type[Any], _forward_ref.PydanticForwardRef]): An annotation object.
+
+        Returns:
+            FieldInfo: An instance of the field metadata.
+
+        Examples:
+            This is how you can create a field from a bare annotation like this:
+
+            ```python
+            import pipenv.vendor.pydantic as pydantic
+            class MyModel(pydantic.BaseModel):
+                foo: int  # <-- like this
+            ```
+
+            We also account for the case where the annotation can be an instance of `Annotated` and where
+            one of the (not first) arguments in `Annotated` are an instance of `FieldInfo`, e.g.:
+
+            ```python
+            import pipenv.vendor.pydantic as pydantic, annotated_types, typing
+
+            class MyModel(pydantic.BaseModel):
+                foo: typing.Annotated[int, annotated_types.Gt(42)]
+                bar: typing.Annotated[int, Field(gt=42)]
+            ```
+
+        """
+        final = False
+        if _typing_extra.is_finalvar(annotation):
+            final = True
+            if annotation is not typing_extensions.Final:
+                annotation = typing_extensions.get_args(annotation)[0]
+
+        if _typing_extra.is_annotated(annotation):
+            first_arg, *extra_args = typing_extensions.get_args(annotation)
+            if _typing_extra.is_finalvar(first_arg):
+                final = True
+            field_info = cls._find_field_info_arg(extra_args)
+            if field_info:
+                new_field_info = copy(field_info)
+                new_field_info.annotation = first_arg
+                new_field_info.final = final
+                new_field_info.metadata += [a for a in extra_args if not isinstance(a, FieldInfo)]
+                return new_field_info
+
+        return cls(annotation=annotation, final=final)
+
+    @classmethod
+    def from_annotated_attribute(cls, annotation: type[Any], default: Any) -> FieldInfo:
+        """
+        Create `FieldInfo` from an annotation with a default value.
+
+        Args:
+            annotation (type[Any]): The type annotation of the field.
+            default (Any): The default value of the field.
+
+        Returns:
+            FieldInfo: A field object with the passed values.
+
+        Examples:
+        ```python
+        import pipenv.vendor.pydantic as pydantic, annotated_types, typing
+
+        class MyModel(pydantic.BaseModel):
+            foo: int = 4  # <-- like this
+            bar: typing.Annotated[int, annotated_types.Gt(4)] = 4  # <-- or this
+            spam: typing.Annotated[int, pydantic.Field(gt=4)] = 4  # <-- or this
+        ```
+        """
+        final = False
+        if _typing_extra.is_finalvar(annotation):
+            final = True
+            if annotation is not typing_extensions.Final:
+                annotation = typing_extensions.get_args(annotation)[0]
+
+        if isinstance(default, cls):
+            default.annotation, annotation_metadata = cls._extract_metadata(annotation)
+            default.metadata += annotation_metadata
+            default.final = final
+            return default
+        elif isinstance(default, dataclasses.Field):
+            init_var = False
+            if annotation is dataclasses.InitVar:
+                if sys.version_info < (3, 8):
+                    raise RuntimeError('InitVar is not supported in Python 3.7 as type information is lost')
+
+                init_var = True
+                annotation = Any
+            elif isinstance(annotation, dataclasses.InitVar):
+                init_var = True
+                annotation = annotation.type
+            pydantic_field = cls._from_dataclass_field(default)
+            pydantic_field.annotation, annotation_metadata = cls._extract_metadata(annotation)
+            pydantic_field.metadata += annotation_metadata
+            pydantic_field.final = final
+            pydantic_field.init_var = init_var
+            pydantic_field.kw_only = getattr(default, 'kw_only', None)
+            return pydantic_field
+        else:
+            if _typing_extra.is_annotated(annotation):
+                first_arg, *extra_args = typing_extensions.get_args(annotation)
+                field_info = cls._find_field_info_arg(extra_args)
+                if field_info is not None:
+                    if not field_info.is_required():
+                        raise TypeError('Default may not be specified twice on the same field')
+                    new_field_info = copy(field_info)
+                    new_field_info.default = default
+                    new_field_info.annotation = first_arg
+                    new_field_info.metadata += [a for a in extra_args if not isinstance(a, FieldInfo)]
+                    return new_field_info
+
+            return cls(annotation=annotation, default=default, final=final)
+
+    @classmethod
+    def _from_dataclass_field(cls, dc_field: DataclassField[Any]) -> FieldInfo:
+        """
+        Return a new `FieldInfo` instance from a `dataclasses.Field` instance.
+
+        Args:
+            dc_field (dataclasses.Field): The `dataclasses.Field` instance to convert.
+
+        Returns:
+            FieldInfo: The corresponding `FieldInfo` instance.
+
+        Raises:
+            TypeError: If any of the `FieldInfo` kwargs does not match the `dataclass.Field` kwargs.
+        """
+        default = dc_field.default
+        if default is dataclasses.MISSING:
+            default = Undefined
+
+        if dc_field.default_factory is dataclasses.MISSING:
+            default_factory: typing.Callable[[], Any] | None = None
+        else:
+            default_factory = dc_field.default_factory
+
+        # use the `Field` function so in correct kwargs raise the correct `TypeError`
+        field = Field(default=default, default_factory=default_factory, repr=dc_field.repr, **dc_field.metadata)
+
+        field.annotation, annotation_metadata = cls._extract_metadata(dc_field.type)
+        field.metadata += annotation_metadata
+        return field
+
+    @classmethod
+    def _extract_metadata(cls, annotation: type[Any] | None) -> tuple[type[Any] | None, list[Any]]:
+        """Tries to extract metadata/constraints from an annotation if it uses `Annotated`.
+
+        Args:
+            annotation (type[Any] | None): The type hint annotation for which metadata has to be extracted.
+
+        Returns:
+            tuple[type[Any] | None, list[Any]]: A tuple containing the extracted metadata type and the list
+            of extra arguments.
+
+        Raises:
+            TypeError: If a `Field` is used twice on the same field.
+        """
+        if annotation is not None:
+            if _typing_extra.is_annotated(annotation):
+                first_arg, *extra_args = typing_extensions.get_args(annotation)
+                if cls._find_field_info_arg(extra_args):
+                    raise TypeError('Field may not be used twice on the same field')
+                return first_arg, list(extra_args)
+
+        return annotation, []
+
+    @staticmethod
+    def _find_field_info_arg(args: Any) -> FieldInfo | None:
+        """
+        Find an instance of `FieldInfo` in the provided arguments.
+
+        Args:
+            args (Any): The argument list to search for `FieldInfo`.
+
+        Returns:
+            FieldInfo | None: An instance of `FieldInfo` if found, otherwise `None`.
+        """
+        return next((a for a in args if isinstance(a, FieldInfo)), None)
+
+    @classmethod
+    def _collect_metadata(cls, kwargs: dict[str, Any]) -> list[Any]:
+        """
+        Collect annotations from kwargs.
+
+        The return type is actually `annotated_types.BaseMetadata | PydanticMetadata`,
+        but it gets combined with `list[Any]` from `Annotated[T, ...]`, hence types.
+
+        Args:
+            kwargs (dict[str, Any]): Keyword arguments passed to the function.
+
+        Returns:
+            list[Any]: A list of metadata objects - a combination of `annotated_types.BaseMetadata` and
+                `PydanticMetadata`.
+        """
+        metadata: list[Any] = []
+        general_metadata = {}
+        for key, value in list(kwargs.items()):
+            try:
+                marker = cls.metadata_lookup[key]
+            except KeyError:
+                continue
+
+            del kwargs[key]
+            if value is not None:
+                if marker is None:
+                    general_metadata[key] = value
+                else:
+                    metadata.append(marker(value))
+        if general_metadata:
+            metadata.append(_fields.PydanticGeneralMetadata(**general_metadata))
+        return metadata
+
+    def get_default(self, *, call_default_factory: bool = False) -> Any:
+        """
+        Get the default value.
+
+        We expose an option for whether to call the default_factory (if present), as calling it may
+        result in side effects that we want to avoid. However, there are times when it really should
+        be called (namely, when instantiating a model via `model_construct`).
+
+        Args:
+            call_default_factory (bool, optional): Whether to call the default_factory or not. Defaults to False.
+
+        Returns:
+            Any: The default value, calling the default factory if requested or `None` if not set.
+        """
+        if self.default_factory is None:
+            return _utils.smart_deepcopy(self.default)
+        elif call_default_factory:
+            return self.default_factory()
+        else:
+            return None
+
+    def is_required(self) -> bool:
+        """Check if the argument is required.
+
+        Returns:
+            bool: `True` if the argument is required, `False` otherwise.
+        """
+        return self.default is Undefined and self.default_factory is None
+
+    def rebuild_annotation(self) -> Any:
+        """
+        Rebuild the original annotation for use in signatures.
+        """
+        if not self.metadata:
+            return self.annotation
+        else:
+            return typing_extensions._AnnotatedAlias(self.annotation, self.metadata)
+
+    def apply_typevars_map(self, typevars_map: dict[Any, Any] | None, types_namespace: dict[str, Any] | None) -> None:
+        """
+        Apply a typevars_map to the annotation.
+
+        This is used when analyzing parametrized generic types to replace typevars with their concrete types.
+
+        See pydantic._internal._generics.replace_types for more details.
+        """
+        annotation = _typing_extra.eval_type_lenient(self.annotation, types_namespace, None)
+        self.annotation = replace_types(annotation, typevars_map)
+
+    def __repr_args__(self) -> ReprArgs:
+        yield 'annotation', _repr.PlainRepr(_repr.display_as_type(self.annotation))
+        yield 'required', self.is_required()
+
+        for s in self.__slots__:
+            if s == 'annotation':
+                continue
+            elif s == 'metadata' and not self.metadata:
+                continue
+            elif s == 'repr' and self.repr is True:
+                continue
+            elif s == 'final':
+                continue
+            if s == 'frozen' and self.frozen is False:
+                continue
+            if s == 'validation_alias' and self.validation_alias == self.alias:
+                continue
+            if s == 'serialization_alias' and self.serialization_alias == self.alias:
+                continue
+            if s == 'default_factory' and self.default_factory is not None:
+                yield 'default_factory', _repr.PlainRepr(_repr.display_as_type(self.default_factory))
+            else:
+                value = getattr(self, s)
+                if value is not None and value is not Undefined:
+                    yield s, value
 
 
-def Field(
+@_internal_dataclass.slots_dataclass
+class AliasPath:
+    path: list[int | str]
+
+    def __init__(self, first_arg: str, *args: str | int) -> None:
+        self.path = [first_arg] + list(args)
+
+    def convert_to_aliases(self) -> list[str | int]:
+        return self.path
+
+
+@_internal_dataclass.slots_dataclass
+class AliasChoices:
+    choices: list[str | AliasPath]
+
+    def __init__(self, *args: str | AliasPath) -> None:
+        self.choices = list(args)
+
+    def convert_to_aliases(self) -> list[list[str | int]]:
+        aliases: list[list[str | int]] = []
+        for c in self.choices:
+            if isinstance(c, AliasPath):
+                aliases.append(c.convert_to_aliases())
+            else:
+                aliases.append([c])
+        return aliases
+
+
+def Field(  # noqa C901
     default: Any = Undefined,
     *,
-    default_factory: Optional[NoArgAnyCallable] = None,
-    alias: Optional[str] = None,
-    title: Optional[str] = None,
-    description: Optional[str] = None,
-    exclude: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny', Any]] = None,
-    include: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny', Any]] = None,
-    const: Optional[bool] = None,
-    gt: Optional[float] = None,
-    ge: Optional[float] = None,
-    lt: Optional[float] = None,
-    le: Optional[float] = None,
-    multiple_of: Optional[float] = None,
-    allow_inf_nan: Optional[bool] = None,
-    max_digits: Optional[int] = None,
-    decimal_places: Optional[int] = None,
-    min_items: Optional[int] = None,
-    max_items: Optional[int] = None,
-    unique_items: Optional[bool] = None,
-    min_length: Optional[int] = None,
-    max_length: Optional[int] = None,
-    allow_mutation: bool = True,
-    regex: Optional[str] = None,
-    discriminator: Optional[str] = None,
+    default_factory: typing.Callable[[], Any] | None = None,
+    alias: str | None = None,
+    alias_priority: int | None = None,
+    validation_alias: str | AliasPath | AliasChoices | None = None,
+    serialization_alias: str | None = None,
+    title: str | None = None,
+    description: str | None = None,
+    examples: list[Any] | None = None,
+    exclude: typing.AbstractSet[int | str] | typing.Mapping[int | str, Any] | Any = None,
+    include: typing.AbstractSet[int | str] | typing.Mapping[int | str, Any] | Any = None,
+    gt: float | None = None,
+    ge: float | None = None,
+    lt: float | None = None,
+    le: float | None = None,
+    multiple_of: float | None = None,
+    allow_inf_nan: bool | None = None,
+    max_digits: int | None = None,
+    decimal_places: int | None = None,
+    min_items: int | None = None,
+    max_items: int | None = None,
+    min_length: int | None = None,
+    max_length: int | None = None,
+    frozen: bool = False,
+    pattern: str | None = None,
+    discriminator: str | None = None,
     repr: bool = True,
+    strict: bool | None = None,
+    json_schema_extra: dict[str, Any] | None = None,
+    validate_default: bool | None = None,
+    const: bool | None = None,
+    unique_items: bool | None = None,
+    allow_mutation: bool = True,
+    regex: str | None = None,
     **extra: Any,
 ) -> Any:
     """
-    Used to provide extra information about a field, either for the model schema or complex validation. Some arguments
-    apply only to number fields (``int``, ``float``, ``Decimal``) and some apply only to ``str``.
+    Create a field for objects that can be configured.
 
-    :param default: since this is replacing the field’s default, its first argument is used
-      to set the default, use ellipsis (``...``) to indicate the field is required
-    :param default_factory: callable that will be called when a default value is needed for this field
-      If both `default` and `default_factory` are set, an error is raised.
-    :param alias: the public name of the field
-    :param title: can be any string, used in the schema
-    :param description: can be any string, used in the schema
-    :param exclude: exclude this field while dumping.
-      Takes same values as the ``include`` and ``exclude`` arguments on the ``.dict`` method.
-    :param include: include this field while dumping.
-      Takes same values as the ``include`` and ``exclude`` arguments on the ``.dict`` method.
-    :param const: this field is required and *must* take it's default value
-    :param gt: only applies to numbers, requires the field to be "greater than". The schema
-      will have an ``exclusiveMinimum`` validation keyword
-    :param ge: only applies to numbers, requires the field to be "greater than or equal to". The
-      schema will have a ``minimum`` validation keyword
-    :param lt: only applies to numbers, requires the field to be "less than". The schema
-      will have an ``exclusiveMaximum`` validation keyword
-    :param le: only applies to numbers, requires the field to be "less than or equal to". The
-      schema will have a ``maximum`` validation keyword
-    :param multiple_of: only applies to numbers, requires the field to be "a multiple of". The
-      schema will have a ``multipleOf`` validation keyword
-    :param allow_inf_nan: only applies to numbers, allows the field to be NaN or infinity (+inf or -inf),
-        which is a valid Python float. Default True, set to False for compatibility with JSON.
-    :param max_digits: only applies to Decimals, requires the field to have a maximum number
-      of digits within the decimal. It does not include a zero before the decimal point or trailing decimal zeroes.
-    :param decimal_places: only applies to Decimals, requires the field to have at most a number of decimal places
-      allowed. It does not include trailing decimal zeroes.
-    :param min_items: only applies to lists, requires the field to have a minimum number of
-      elements. The schema will have a ``minItems`` validation keyword
-    :param max_items: only applies to lists, requires the field to have a maximum number of
-      elements. The schema will have a ``maxItems`` validation keyword
-    :param unique_items: only applies to lists, requires the field not to have duplicated
-      elements. The schema will have a ``uniqueItems`` validation keyword
-    :param min_length: only applies to strings, requires the field to have a minimum length. The
-      schema will have a ``minLength`` validation keyword
-    :param max_length: only applies to strings, requires the field to have a maximum length. The
-      schema will have a ``maxLength`` validation keyword
-    :param allow_mutation: a boolean which defaults to True. When False, the field raises a TypeError if the field is
-      assigned on an instance.  The BaseModel Config must set validate_assignment to True
-    :param regex: only applies to strings, requires the field match against a regular expression
-      pattern string. The schema will have a ``pattern`` validation keyword
-    :param discriminator: only useful with a (discriminated a.k.a. tagged) `Union` of sub models with a common field.
-      The `discriminator` is the name of this common field to shorten validation and improve generated schema
-    :param repr: show this field in the representation
-    :param **extra: any additional keyword arguments will be added as is to the schema
+    Used to provide extra information about a field, either for the model schema or complex validation. Some arguments
+    apply only to number fields (`int`, `float`, `Decimal`) and some apply only to `str`.
+
+    Args:
+        default (Any, optional): default value if the field is not set.
+        default_factory (callable, optional): A callable to generate the default value like :func:`~datetime.utcnow`.
+        alias (str, optional): an alternative name for the attribute.
+        alias_priority (int, optional): priority of the alias. This defines which alias should be used in serialization.
+        validation_alias (str, list of str, list of list of str, optional): 'whitelist' validation step. The field
+            will be the single one allowed by the alias or set of aliases defined.
+        serialization_alias (str, optional): 'blacklist' validation step. The vanilla field will be the single one of
+            the alias' or set of aliases' fields and all the other fields will be ignored at serialization time.
+        title (str, optional): human-readable title.
+        description (str, optional): human-readable description.
+        examples (list[Any], optional): An example value for this field.
+        exclude (Union[AbstractSet[Union[str, int]], Mapping[Union[str, int], Any], Any]):
+            Parameters that should be excluded from the field. If `None`, default
+            Pydantic behaviors are used.
+        include (Union[AbstractSet[Union[str, int]], Mapping[Union[str, int], Any], Any]):
+            Parameters that should be included in the field. If `None`, default
+            Pydantic behaviors are used.
+        gt (float, optional): Greater than. If set, value must be greater than this. Only applicable to numbers.
+        ge (float, optional): Greater than or equal. If set, value must be
+            greater than or equal to this. Only applicable to numbers.
+        lt (float, optional): Less than. If set, value must be
+            less than this. Only applicable to numbers.
+        le (float, optional): Less than or equal. If set, value must be
+            less than or equal to this. Only applicable to numbers.
+        multiple_of (float, optional): Value must be a multiple of this. Only applicable to numbers.
+        allow_inf_nan (bool, optional): Allow `inf`, `-inf`, `nan`. Only applicable to numbers.
+        max_digits (int, optional): Maximum number of allow digits for strings.
+        decimal_places (int, optional): Maximum number decimal places allowed for numbers.
+        min_items (int, optional): Minimum number of items in a collection.
+        max_items (int, optional): Maximum number of items in a collection.
+        min_length (int, optional): Minimum length for strings.
+        max_length (int, optional): Maximum length for strings.
+        frozen (bool, optional): Store the value as a frozen object if is mutable.
+        pattern (str, optional): Pattern for strings.
+        discriminator (str, optional): Codename for discriminating a field among others of the same type.
+        repr (bool, optional): If `True` (the default), return a string representation of the field.
+        strict (bool, optional): If `True` (the default is `None`), the field should be validated strictly.
+        json_schema_extra (dict[str, Any]): Any other additional JSON schema data for the schema property.
+        validate_default (bool, optional): Run validation that isn't only checking existence of defaults. This is
+            `True` by default.
+        const (bool, optional): Value is always the same literal object. This is typically a singleton object,
+            such as `True` or `None`.
+        unique_items (bool, optional): Require that collection items be unique.
+        allow_mutation (bool, optional): If `False`, the dataclass will be frozen (made immutable).
+        regex (str, optional): Regular expression pattern that the field must match against.
+
+
+    Returns:
+        Any: return the generated field object.
     """
-    field_info = FieldInfo(
+    # Check deprecated & removed params of V1.
+    # This has to be removed deprecation period over.
+    if const:
+        raise PydanticUserError('`const` is removed. use `Literal` instead', code='deprecated_kwargs')
+    if min_items:
+        warn('`min_items` is deprecated and will be removed. use `min_length` instead', DeprecationWarning)
+        if min_length is None:
+            min_length = min_items
+    if max_items:
+        warn('`max_items` is deprecated and will be removed. use `max_length` instead', DeprecationWarning)
+        if max_length is None:
+            max_length = max_items
+    if unique_items is not None:
+        raise PydanticUserError(
+            (
+                '`unique_items` is removed, use `Set` instead'
+                '(this feature is discussed in https://github.com/pydantic/pydantic-core/issues/296)'
+            ),
+            code='deprecated_kwargs',
+        )
+    if allow_mutation is False:
+        warn('`allow_mutation` is deprecated and will be removed. use `frozen` instead', DeprecationWarning)
+        frozen = True
+    if regex:
+        raise PydanticUserError('`regex` is removed. use `Pattern` instead', code='deprecated_kwargs')
+    if extra:
+        warn(
+            'Extra keyword arguments on `Field` is deprecated and will be removed. use `json_schema_extra` instead',
+            DeprecationWarning,
+        )
+        if not json_schema_extra:
+            json_schema_extra = extra
+
+    converted_validation_alias: str | list[str | int] | list[list[str | int]] | None = None
+    if validation_alias:
+        if not isinstance(validation_alias, (str, AliasChoices, AliasPath)):
+            raise TypeError('Invalid `validation_alias` type. it should be `str`, `AliasChoices`, or `AliasPath`')
+
+        if isinstance(validation_alias, (AliasChoices, AliasPath)):
+            converted_validation_alias = validation_alias.convert_to_aliases()
+        else:
+            converted_validation_alias = validation_alias
+
+    if serialization_alias is None and isinstance(alias, str):
+        serialization_alias = alias
+
+    return FieldInfo.from_field(
         default,
         default_factory=default_factory,
         alias=alias,
+        alias_priority=alias_priority,
+        validation_alias=converted_validation_alias or alias,
+        serialization_alias=serialization_alias,
         title=title,
         description=description,
+        examples=examples,
         exclude=exclude,
         include=include,
-        const=const,
         gt=gt,
         ge=ge,
         lt=lt,
@@ -318,895 +649,56 @@ def Field(
         decimal_places=decimal_places,
         min_items=min_items,
         max_items=max_items,
-        unique_items=unique_items,
         min_length=min_length,
         max_length=max_length,
-        allow_mutation=allow_mutation,
-        regex=regex,
+        frozen=frozen,
+        pattern=pattern,
         discriminator=discriminator,
         repr=repr,
-        **extra,
-    )
-    field_info._validate()
-    return field_info
-
-
-# used to be an enum but changed to int's for small performance improvement as less access overhead
-SHAPE_SINGLETON = 1
-SHAPE_LIST = 2
-SHAPE_SET = 3
-SHAPE_MAPPING = 4
-SHAPE_TUPLE = 5
-SHAPE_TUPLE_ELLIPSIS = 6
-SHAPE_SEQUENCE = 7
-SHAPE_FROZENSET = 8
-SHAPE_ITERABLE = 9
-SHAPE_GENERIC = 10
-SHAPE_DEQUE = 11
-SHAPE_DICT = 12
-SHAPE_DEFAULTDICT = 13
-SHAPE_COUNTER = 14
-SHAPE_NAME_LOOKUP = {
-    SHAPE_LIST: 'List[{}]',
-    SHAPE_SET: 'Set[{}]',
-    SHAPE_TUPLE_ELLIPSIS: 'Tuple[{}, ...]',
-    SHAPE_SEQUENCE: 'Sequence[{}]',
-    SHAPE_FROZENSET: 'FrozenSet[{}]',
-    SHAPE_ITERABLE: 'Iterable[{}]',
-    SHAPE_DEQUE: 'Deque[{}]',
-    SHAPE_DICT: 'Dict[{}]',
-    SHAPE_DEFAULTDICT: 'DefaultDict[{}]',
-    SHAPE_COUNTER: 'Counter[{}]',
-}
-
-MAPPING_LIKE_SHAPES: Set[int] = {SHAPE_DEFAULTDICT, SHAPE_DICT, SHAPE_MAPPING, SHAPE_COUNTER}
-
-
-class ModelField(Representation):
-    __slots__ = (
-        'type_',
-        'outer_type_',
-        'annotation',
-        'sub_fields',
-        'sub_fields_mapping',
-        'key_field',
-        'validators',
-        'pre_validators',
-        'post_validators',
-        'default',
-        'default_factory',
-        'required',
-        'final',
-        'model_config',
-        'name',
-        'alias',
-        'has_alias',
-        'field_info',
-        'discriminator_key',
-        'discriminator_alias',
-        'validate_always',
-        'allow_none',
-        'shape',
-        'class_validators',
-        'parse_json',
+        json_schema_extra=json_schema_extra,
+        strict=strict,
+        validate_default=validate_default,
     )
 
-    def __init__(
-        self,
-        *,
-        name: str,
-        type_: Type[Any],
-        class_validators: Optional[Dict[str, Validator]],
-        model_config: Type['BaseConfig'],
-        default: Any = None,
-        default_factory: Optional[NoArgAnyCallable] = None,
-        required: 'BoolUndefined' = Undefined,
-        final: bool = False,
-        alias: Optional[str] = None,
-        field_info: Optional[FieldInfo] = None,
-    ) -> None:
 
-        self.name: str = name
-        self.has_alias: bool = alias is not None
-        self.alias: str = alias if alias is not None else name
-        self.annotation = type_
-        self.type_: Any = convert_generics(type_)
-        self.outer_type_: Any = type_
-        self.class_validators = class_validators or {}
-        self.default: Any = default
-        self.default_factory: Optional[NoArgAnyCallable] = default_factory
-        self.required: 'BoolUndefined' = required
-        self.final: bool = final
-        self.model_config = model_config
-        self.field_info: FieldInfo = field_info or FieldInfo(default)
-        self.discriminator_key: Optional[str] = self.field_info.discriminator
-        self.discriminator_alias: Optional[str] = self.discriminator_key
+class ModelPrivateAttr(_repr.Representation):
+    """A descriptor for private attributes in class models.
 
-        self.allow_none: bool = False
-        self.validate_always: bool = False
-        self.sub_fields: Optional[List[ModelField]] = None
-        self.sub_fields_mapping: Optional[Dict[str, 'ModelField']] = None  # used for discriminated union
-        self.key_field: Optional[ModelField] = None
-        self.validators: 'ValidatorsList' = []
-        self.pre_validators: Optional['ValidatorsList'] = None
-        self.post_validators: Optional['ValidatorsList'] = None
-        self.parse_json: bool = False
-        self.shape: int = SHAPE_SINGLETON
-        self.model_config.prepare_field(self)
-        self.prepare()
+    Attributes:
+        default (Any): The default value of the attribute if not provided.
+        default_factory (typing.Callable[[], Any]): A callable function that generates the default value of the
+            attribute if not provided.
+    """
 
-    def get_default(self) -> Any:
-        return smart_deepcopy(self.default) if self.default_factory is None else self.default_factory()
+    __slots__ = 'default', 'default_factory'
 
-    @staticmethod
-    def _get_field_info(
-        field_name: str, annotation: Any, value: Any, config: Type['BaseConfig']
-    ) -> Tuple[FieldInfo, Any]:
-        """
-        Get a FieldInfo from a root typing.Annotated annotation, value, or config default.
-
-        The FieldInfo may be set in typing.Annotated or the value, but not both. If neither contain
-        a FieldInfo, a new one will be created using the config.
-
-        :param field_name: name of the field for use in error messages
-        :param annotation: a type hint such as `str` or `Annotated[str, Field(..., min_length=5)]`
-        :param value: the field's assigned value
-        :param config: the model's config object
-        :return: the FieldInfo contained in the `annotation`, the value, or a new one from the config.
-        """
-        field_info_from_config = config.get_field_info(field_name)
-
-        field_info = None
-        if get_origin(annotation) is Annotated:
-            field_infos = [arg for arg in get_args(annotation)[1:] if isinstance(arg, FieldInfo)]
-            if len(field_infos) > 1:
-                raise ValueError(f'cannot specify multiple `Annotated` `Field`s for {field_name!r}')
-            field_info = next(iter(field_infos), None)
-            if field_info is not None:
-                field_info = copy.copy(field_info)
-                field_info.update_from_config(field_info_from_config)
-                if field_info.default not in (Undefined, Required):
-                    raise ValueError(f'`Field` default cannot be set in `Annotated` for {field_name!r}')
-                if value is not Undefined and value is not Required:
-                    # check also `Required` because of `validate_arguments` that sets `...` as default value
-                    field_info.default = value
-
-        if isinstance(value, FieldInfo):
-            if field_info is not None:
-                raise ValueError(f'cannot specify `Annotated` and value `Field`s together for {field_name!r}')
-            field_info = value
-            field_info.update_from_config(field_info_from_config)
-        elif field_info is None:
-            field_info = FieldInfo(value, **field_info_from_config)
-        value = None if field_info.default_factory is not None else field_info.default
-        field_info._validate()
-        return field_info, value
-
-    @classmethod
-    def infer(
-        cls,
-        *,
-        name: str,
-        value: Any,
-        annotation: Any,
-        class_validators: Optional[Dict[str, Validator]],
-        config: Type['BaseConfig'],
-    ) -> 'ModelField':
-        from .schema import get_annotation_from_field_info
-
-        field_info, value = cls._get_field_info(name, annotation, value, config)
-        required: 'BoolUndefined' = Undefined
-        if value is Required:
-            required = True
-            value = None
-        elif value is not Undefined:
-            required = False
-        annotation = get_annotation_from_field_info(annotation, field_info, name, config.validate_assignment)
-
-        return cls(
-            name=name,
-            type_=annotation,
-            alias=field_info.alias,
-            class_validators=class_validators,
-            default=value,
-            default_factory=field_info.default_factory,
-            required=required,
-            model_config=config,
-            field_info=field_info,
-        )
-
-    def set_config(self, config: Type['BaseConfig']) -> None:
-        self.model_config = config
-        info_from_config = config.get_field_info(self.name)
-        config.prepare_field(self)
-        new_alias = info_from_config.get('alias')
-        new_alias_priority = info_from_config.get('alias_priority') or 0
-        if new_alias and new_alias_priority >= (self.field_info.alias_priority or 0):
-            self.field_info.alias = new_alias
-            self.field_info.alias_priority = new_alias_priority
-            self.alias = new_alias
-        new_exclude = info_from_config.get('exclude')
-        if new_exclude is not None:
-            self.field_info.exclude = ValueItems.merge(self.field_info.exclude, new_exclude)
-        new_include = info_from_config.get('include')
-        if new_include is not None:
-            self.field_info.include = ValueItems.merge(self.field_info.include, new_include, intersect=True)
-
-    @property
-    def alt_alias(self) -> bool:
-        return self.name != self.alias
-
-    def prepare(self) -> None:
-        """
-        Prepare the field but inspecting self.default, self.type_ etc.
-
-        Note: this method is **not** idempotent (because _type_analysis is not idempotent),
-        e.g. calling it it multiple times may modify the field and configure it incorrectly.
-        """
-        self._set_default_and_type()
-        if self.type_.__class__ is ForwardRef or self.type_.__class__ is DeferredType:
-            # self.type_ is currently a ForwardRef and there's nothing we can do now,
-            # user will need to call model.update_forward_refs()
-            return
-
-        self._type_analysis()
-        if self.required is Undefined:
-            self.required = True
-        if self.default is Undefined and self.default_factory is None:
-            self.default = None
-        self.populate_validators()
-
-    def _set_default_and_type(self) -> None:
-        """
-        Set the default value, infer the type if needed and check if `None` value is valid.
-        """
-        if self.default_factory is not None:
-            if self.type_ is Undefined:
-                raise errors_.ConfigError(
-                    f'you need to set the type of field {self.name!r} when using `default_factory`'
-                )
-            return
-
-        default_value = self.get_default()
-
-        if default_value is not None and self.type_ is Undefined:
-            self.type_ = default_value.__class__
-            self.outer_type_ = self.type_
-            self.annotation = self.type_
-
-        if self.type_ is Undefined:
-            raise errors_.ConfigError(f'unable to infer type for attribute "{self.name}"')
-
-        if self.required is False and default_value is None:
-            self.allow_none = True
-
-    def _type_analysis(self) -> None:  # noqa: C901 (ignore complexity)
-        # typing interface is horrible, we have to do some ugly checks
-        if lenient_issubclass(self.type_, JsonWrapper):
-            self.type_ = self.type_.inner_type
-            self.parse_json = True
-        elif lenient_issubclass(self.type_, Json):
-            self.type_ = Any
-            self.parse_json = True
-        elif isinstance(self.type_, TypeVar):
-            if self.type_.__bound__:
-                self.type_ = self.type_.__bound__
-            elif self.type_.__constraints__:
-                self.type_ = Union[self.type_.__constraints__]
-            else:
-                self.type_ = Any
-        elif is_new_type(self.type_):
-            self.type_ = new_type_supertype(self.type_)
-
-        if self.type_ is Any or self.type_ is object:
-            if self.required is Undefined:
-                self.required = False
-            self.allow_none = True
-            return
-        elif self.type_ is Pattern or self.type_ is re.Pattern:
-            # python 3.7 only, Pattern is a typing object but without sub fields
-            return
-        elif is_literal_type(self.type_):
-            return
-        elif is_typeddict(self.type_):
-            return
-
-        if is_finalvar(self.type_):
-            self.final = True
-
-            if self.type_ is Final:
-                self.type_ = Any
-            else:
-                self.type_ = get_args(self.type_)[0]
-
-            self._type_analysis()
-            return
-
-        origin = get_origin(self.type_)
-
-        if origin is Annotated or is_typeddict_special(origin):
-            self.type_ = get_args(self.type_)[0]
-            self._type_analysis()
-            return
-
-        if self.discriminator_key is not None and not is_union(origin):
-            raise TypeError('`discriminator` can only be used with `Union` type with more than one variant')
-
-        # add extra check for `collections.abc.Hashable` for python 3.10+ where origin is not `None`
-        if origin is None or origin is CollectionsHashable:
-            # field is not "typing" object eg. Union, Dict, List etc.
-            # allow None for virtual superclasses of NoneType, e.g. Hashable
-            if isinstance(self.type_, type) and isinstance(None, self.type_):
-                self.allow_none = True
-            return
-        elif origin is Callable:
-            return
-        elif is_union(origin):
-            types_ = []
-            for type_ in get_args(self.type_):
-                if is_none_type(type_) or type_ is Any or type_ is object:
-                    if self.required is Undefined:
-                        self.required = False
-                    self.allow_none = True
-                if is_none_type(type_):
-                    continue
-                types_.append(type_)
-
-            if len(types_) == 1:
-                # Optional[]
-                self.type_ = types_[0]
-                # this is the one case where the "outer type" isn't just the original type
-                self.outer_type_ = self.type_
-                # re-run to correctly interpret the new self.type_
-                self._type_analysis()
-            else:
-                self.sub_fields = [self._create_sub_type(t, f'{self.name}_{display_as_type(t)}') for t in types_]
-
-                if self.discriminator_key is not None:
-                    self.prepare_discriminated_union_sub_fields()
-            return
-        elif issubclass(origin, Tuple):  # type: ignore
-            # origin == Tuple without item type
-            args = get_args(self.type_)
-            if not args:  # plain tuple
-                self.type_ = Any
-                self.shape = SHAPE_TUPLE_ELLIPSIS
-            elif len(args) == 2 and args[1] is Ellipsis:  # e.g. Tuple[int, ...]
-                self.type_ = args[0]
-                self.shape = SHAPE_TUPLE_ELLIPSIS
-                self.sub_fields = [self._create_sub_type(args[0], f'{self.name}_0')]
-            elif args == ((),):  # Tuple[()] means empty tuple
-                self.shape = SHAPE_TUPLE
-                self.type_ = Any
-                self.sub_fields = []
-            else:
-                self.shape = SHAPE_TUPLE
-                self.sub_fields = [self._create_sub_type(t, f'{self.name}_{i}') for i, t in enumerate(args)]
-            return
-        elif issubclass(origin, List):
-            # Create self validators
-            get_validators = getattr(self.type_, '__get_validators__', None)
-            if get_validators:
-                self.class_validators.update(
-                    {f'list_{i}': Validator(validator, pre=True) for i, validator in enumerate(get_validators())}
-                )
-
-            self.type_ = get_args(self.type_)[0]
-            self.shape = SHAPE_LIST
-        elif issubclass(origin, Set):
-            # Create self validators
-            get_validators = getattr(self.type_, '__get_validators__', None)
-            if get_validators:
-                self.class_validators.update(
-                    {f'set_{i}': Validator(validator, pre=True) for i, validator in enumerate(get_validators())}
-                )
-
-            self.type_ = get_args(self.type_)[0]
-            self.shape = SHAPE_SET
-        elif issubclass(origin, FrozenSet):
-            # Create self validators
-            get_validators = getattr(self.type_, '__get_validators__', None)
-            if get_validators:
-                self.class_validators.update(
-                    {f'frozenset_{i}': Validator(validator, pre=True) for i, validator in enumerate(get_validators())}
-                )
-
-            self.type_ = get_args(self.type_)[0]
-            self.shape = SHAPE_FROZENSET
-        elif issubclass(origin, Deque):
-            self.type_ = get_args(self.type_)[0]
-            self.shape = SHAPE_DEQUE
-        elif issubclass(origin, Sequence):
-            self.type_ = get_args(self.type_)[0]
-            self.shape = SHAPE_SEQUENCE
-        # priority to most common mapping: dict
-        elif origin is dict or origin is Dict:
-            self.key_field = self._create_sub_type(get_args(self.type_)[0], 'key_' + self.name, for_keys=True)
-            self.type_ = get_args(self.type_)[1]
-            self.shape = SHAPE_DICT
-        elif issubclass(origin, DefaultDict):
-            self.key_field = self._create_sub_type(get_args(self.type_)[0], 'key_' + self.name, for_keys=True)
-            self.type_ = get_args(self.type_)[1]
-            self.shape = SHAPE_DEFAULTDICT
-        elif issubclass(origin, Counter):
-            self.key_field = self._create_sub_type(get_args(self.type_)[0], 'key_' + self.name, for_keys=True)
-            self.type_ = int
-            self.shape = SHAPE_COUNTER
-        elif issubclass(origin, Mapping):
-            self.key_field = self._create_sub_type(get_args(self.type_)[0], 'key_' + self.name, for_keys=True)
-            self.type_ = get_args(self.type_)[1]
-            self.shape = SHAPE_MAPPING
-        # Equality check as almost everything inherits form Iterable, including str
-        # check for Iterable and CollectionsIterable, as it could receive one even when declared with the other
-        elif origin in {Iterable, CollectionsIterable}:
-            self.type_ = get_args(self.type_)[0]
-            self.shape = SHAPE_ITERABLE
-            self.sub_fields = [self._create_sub_type(self.type_, f'{self.name}_type')]
-        elif issubclass(origin, Type):  # type: ignore
-            return
-        elif hasattr(origin, '__get_validators__') or self.model_config.arbitrary_types_allowed:
-            # Is a Pydantic-compatible generic that handles itself
-            # or we have arbitrary_types_allowed = True
-            self.shape = SHAPE_GENERIC
-            self.sub_fields = [self._create_sub_type(t, f'{self.name}_{i}') for i, t in enumerate(get_args(self.type_))]
-            self.type_ = origin
-            return
-        else:
-            raise TypeError(f'Fields of type "{origin}" are not supported.')
-
-        # type_ has been refined eg. as the type of a List and sub_fields needs to be populated
-        self.sub_fields = [self._create_sub_type(self.type_, '_' + self.name)]
-
-    def prepare_discriminated_union_sub_fields(self) -> None:
-        """
-        Prepare the mapping <discriminator key> -> <ModelField> and update `sub_fields`
-        Note that this process can be aborted if a `ForwardRef` is encountered
-        """
-        assert self.discriminator_key is not None
-
-        if self.type_.__class__ is DeferredType:
-            return
-
-        assert self.sub_fields is not None
-        sub_fields_mapping: Dict[str, 'ModelField'] = {}
-        all_aliases: Set[str] = set()
-
-        for sub_field in self.sub_fields:
-            t = sub_field.type_
-            if t.__class__ is ForwardRef:
-                # Stopping everything...will need to call `update_forward_refs`
-                return
-
-            alias, discriminator_values = get_discriminator_alias_and_values(t, self.discriminator_key)
-            all_aliases.add(alias)
-            for discriminator_value in discriminator_values:
-                sub_fields_mapping[discriminator_value] = sub_field
-
-        self.sub_fields_mapping = sub_fields_mapping
-        self.discriminator_alias = get_unique_discriminator_alias(all_aliases, self.discriminator_key)
-
-    def _create_sub_type(self, type_: Type[Any], name: str, *, for_keys: bool = False) -> 'ModelField':
-        if for_keys:
-            class_validators = None
-        else:
-            # validators for sub items should not have `each_item` as we want to check only the first sublevel
-            class_validators = {
-                k: Validator(
-                    func=v.func,
-                    pre=v.pre,
-                    each_item=False,
-                    always=v.always,
-                    check_fields=v.check_fields,
-                    skip_on_failure=v.skip_on_failure,
-                )
-                for k, v in self.class_validators.items()
-                if v.each_item
-            }
-
-        field_info, _ = self._get_field_info(name, type_, None, self.model_config)
-
-        return self.__class__(
-            type_=type_,
-            name=name,
-            class_validators=class_validators,
-            model_config=self.model_config,
-            field_info=field_info,
-        )
-
-    def populate_validators(self) -> None:
-        """
-        Prepare self.pre_validators, self.validators, and self.post_validators based on self.type_'s  __get_validators__
-        and class validators. This method should be idempotent, e.g. it should be safe to call multiple times
-        without mis-configuring the field.
-        """
-        self.validate_always = getattr(self.type_, 'validate_always', False) or any(
-            v.always for v in self.class_validators.values()
-        )
-
-        class_validators_ = self.class_validators.values()
-        if not self.sub_fields or self.shape == SHAPE_GENERIC:
-            get_validators = getattr(self.type_, '__get_validators__', None)
-            v_funcs = (
-                *[v.func for v in class_validators_ if v.each_item and v.pre],
-                *(get_validators() if get_validators else list(find_validators(self.type_, self.model_config))),
-                *[v.func for v in class_validators_ if v.each_item and not v.pre],
-            )
-            self.validators = prep_validators(v_funcs)
-
-        self.pre_validators = []
-        self.post_validators = []
-
-        if self.field_info and self.field_info.const:
-            self.post_validators.append(make_generic_validator(constant_validator))
-
-        if class_validators_:
-            self.pre_validators += prep_validators(v.func for v in class_validators_ if not v.each_item and v.pre)
-            self.post_validators += prep_validators(v.func for v in class_validators_ if not v.each_item and not v.pre)
-
-        if self.parse_json:
-            self.pre_validators.append(make_generic_validator(validate_json))
-
-        self.pre_validators = self.pre_validators or None
-        self.post_validators = self.post_validators or None
-
-    def validate(
-        self, v: Any, values: Dict[str, Any], *, loc: 'LocStr', cls: Optional['ModelOrDc'] = None
-    ) -> 'ValidateReturn':
-
-        assert self.type_.__class__ is not DeferredType
-
-        if self.type_.__class__ is ForwardRef:
-            assert cls is not None
-            raise ConfigError(
-                f'field "{self.name}" not yet prepared so type is still a ForwardRef, '
-                f'you might need to call {cls.__name__}.update_forward_refs().'
-            )
-
-        errors: Optional['ErrorList']
-        if self.pre_validators:
-            v, errors = self._apply_validators(v, values, loc, cls, self.pre_validators)
-            if errors:
-                return v, errors
-
-        if v is None:
-            if is_none_type(self.type_):
-                # keep validating
-                pass
-            elif self.allow_none:
-                if self.post_validators:
-                    return self._apply_validators(v, values, loc, cls, self.post_validators)
-                else:
-                    return None, None
-            else:
-                return v, ErrorWrapper(NoneIsNotAllowedError(), loc)
-
-        if self.shape == SHAPE_SINGLETON:
-            v, errors = self._validate_singleton(v, values, loc, cls)
-        elif self.shape in MAPPING_LIKE_SHAPES:
-            v, errors = self._validate_mapping_like(v, values, loc, cls)
-        elif self.shape == SHAPE_TUPLE:
-            v, errors = self._validate_tuple(v, values, loc, cls)
-        elif self.shape == SHAPE_ITERABLE:
-            v, errors = self._validate_iterable(v, values, loc, cls)
-        elif self.shape == SHAPE_GENERIC:
-            v, errors = self._apply_validators(v, values, loc, cls, self.validators)
-        else:
-            #  sequence, list, set, generator, tuple with ellipsis, frozen set
-            v, errors = self._validate_sequence_like(v, values, loc, cls)
-
-        if not errors and self.post_validators:
-            v, errors = self._apply_validators(v, values, loc, cls, self.post_validators)
-        return v, errors
-
-    def _validate_sequence_like(  # noqa: C901 (ignore complexity)
-        self, v: Any, values: Dict[str, Any], loc: 'LocStr', cls: Optional['ModelOrDc']
-    ) -> 'ValidateReturn':
-        """
-        Validate sequence-like containers: lists, tuples, sets and generators
-        Note that large if-else blocks are necessary to enable Cython
-        optimization, which is why we disable the complexity check above.
-        """
-        if not sequence_like(v):
-            e: errors_.PydanticTypeError
-            if self.shape == SHAPE_LIST:
-                e = errors_.ListError()
-            elif self.shape in (SHAPE_TUPLE, SHAPE_TUPLE_ELLIPSIS):
-                e = errors_.TupleError()
-            elif self.shape == SHAPE_SET:
-                e = errors_.SetError()
-            elif self.shape == SHAPE_FROZENSET:
-                e = errors_.FrozenSetError()
-            else:
-                e = errors_.SequenceError()
-            return v, ErrorWrapper(e, loc)
-
-        loc = loc if isinstance(loc, tuple) else (loc,)
-        result = []
-        errors: List[ErrorList] = []
-        for i, v_ in enumerate(v):
-            v_loc = *loc, i
-            r, ee = self._validate_singleton(v_, values, v_loc, cls)
-            if ee:
-                errors.append(ee)
-            else:
-                result.append(r)
-
-        if errors:
-            return v, errors
-
-        converted: Union[List[Any], Set[Any], FrozenSet[Any], Tuple[Any, ...], Iterator[Any], Deque[Any]] = result
-
-        if self.shape == SHAPE_SET:
-            converted = set(result)
-        elif self.shape == SHAPE_FROZENSET:
-            converted = frozenset(result)
-        elif self.shape == SHAPE_TUPLE_ELLIPSIS:
-            converted = tuple(result)
-        elif self.shape == SHAPE_DEQUE:
-            converted = deque(result)
-        elif self.shape == SHAPE_SEQUENCE:
-            if isinstance(v, tuple):
-                converted = tuple(result)
-            elif isinstance(v, set):
-                converted = set(result)
-            elif isinstance(v, Generator):
-                converted = iter(result)
-            elif isinstance(v, deque):
-                converted = deque(result)
-        return converted, None
-
-    def _validate_iterable(
-        self, v: Any, values: Dict[str, Any], loc: 'LocStr', cls: Optional['ModelOrDc']
-    ) -> 'ValidateReturn':
-        """
-        Validate Iterables.
-
-        This intentionally doesn't validate values to allow infinite generators.
-        """
-
-        try:
-            iterable = iter(v)
-        except TypeError:
-            return v, ErrorWrapper(errors_.IterableError(), loc)
-        return iterable, None
-
-    def _validate_tuple(
-        self, v: Any, values: Dict[str, Any], loc: 'LocStr', cls: Optional['ModelOrDc']
-    ) -> 'ValidateReturn':
-        e: Optional[Exception] = None
-        if not sequence_like(v):
-            e = errors_.TupleError()
-        else:
-            actual_length, expected_length = len(v), len(self.sub_fields)  # type: ignore
-            if actual_length != expected_length:
-                e = errors_.TupleLengthError(actual_length=actual_length, expected_length=expected_length)
-
-        if e:
-            return v, ErrorWrapper(e, loc)
-
-        loc = loc if isinstance(loc, tuple) else (loc,)
-        result = []
-        errors: List[ErrorList] = []
-        for i, (v_, field) in enumerate(zip(v, self.sub_fields)):  # type: ignore
-            v_loc = *loc, i
-            r, ee = field.validate(v_, values, loc=v_loc, cls=cls)
-            if ee:
-                errors.append(ee)
-            else:
-                result.append(r)
-
-        if errors:
-            return v, errors
-        else:
-            return tuple(result), None
-
-    def _validate_mapping_like(
-        self, v: Any, values: Dict[str, Any], loc: 'LocStr', cls: Optional['ModelOrDc']
-    ) -> 'ValidateReturn':
-        try:
-            v_iter = dict_validator(v)
-        except TypeError as exc:
-            return v, ErrorWrapper(exc, loc)
-
-        loc = loc if isinstance(loc, tuple) else (loc,)
-        result, errors = {}, []
-        for k, v_ in v_iter.items():
-            v_loc = *loc, '__key__'
-            key_result, key_errors = self.key_field.validate(k, values, loc=v_loc, cls=cls)  # type: ignore
-            if key_errors:
-                errors.append(key_errors)
-                continue
-
-            v_loc = *loc, k
-            value_result, value_errors = self._validate_singleton(v_, values, v_loc, cls)
-            if value_errors:
-                errors.append(value_errors)
-                continue
-
-            result[key_result] = value_result
-        if errors:
-            return v, errors
-        elif self.shape == SHAPE_DICT:
-            return result, None
-        elif self.shape == SHAPE_DEFAULTDICT:
-            return defaultdict(self.type_, result), None
-        elif self.shape == SHAPE_COUNTER:
-            return CollectionCounter(result), None
-        else:
-            return self._get_mapping_value(v, result), None
-
-    def _get_mapping_value(self, original: T, converted: Dict[Any, Any]) -> Union[T, Dict[Any, Any]]:
-        """
-        When type is `Mapping[KT, KV]` (or another unsupported mapping), we try to avoid
-        coercing to `dict` unwillingly.
-        """
-        original_cls = original.__class__
-
-        if original_cls == dict or original_cls == Dict:
-            return converted
-        elif original_cls in {defaultdict, DefaultDict}:
-            return defaultdict(self.type_, converted)
-        else:
-            try:
-                # Counter, OrderedDict, UserDict, ...
-                return original_cls(converted)  # type: ignore
-            except TypeError:
-                raise RuntimeError(f'Could not convert dictionary to {original_cls.__name__!r}') from None
-
-    def _validate_singleton(
-        self, v: Any, values: Dict[str, Any], loc: 'LocStr', cls: Optional['ModelOrDc']
-    ) -> 'ValidateReturn':
-        if self.sub_fields:
-            if self.discriminator_key is not None:
-                return self._validate_discriminated_union(v, values, loc, cls)
-
-            errors = []
-
-            if self.model_config.smart_union and is_union(get_origin(self.type_)):
-                # 1st pass: check if the value is an exact instance of one of the Union types
-                # (e.g. to avoid coercing a bool into an int)
-                for field in self.sub_fields:
-                    if v.__class__ is field.outer_type_:
-                        return v, None
-
-                # 2nd pass: check if the value is an instance of any subclass of the Union types
-                for field in self.sub_fields:
-                    # This whole logic will be improved later on to support more complex `isinstance` checks
-                    # It will probably be done once a strict mode is added and be something like:
-                    # ```
-                    #     value, error = field.validate(v, values, strict=True)
-                    #     if error is None:
-                    #         return value, None
-                    # ```
-                    try:
-                        if isinstance(v, field.outer_type_):
-                            return v, None
-                    except TypeError:
-                        # compound type
-                        if lenient_isinstance(v, get_origin(field.outer_type_)):
-                            value, error = field.validate(v, values, loc=loc, cls=cls)
-                            if not error:
-                                return value, None
-
-            # 1st pass by default or 3rd pass with `smart_union` enabled:
-            # check if the value can be coerced into one of the Union types
-            for field in self.sub_fields:
-                value, error = field.validate(v, values, loc=loc, cls=cls)
-                if error:
-                    errors.append(error)
-                else:
-                    return value, None
-            return v, errors
-        else:
-            return self._apply_validators(v, values, loc, cls, self.validators)
-
-    def _validate_discriminated_union(
-        self, v: Any, values: Dict[str, Any], loc: 'LocStr', cls: Optional['ModelOrDc']
-    ) -> 'ValidateReturn':
-        assert self.discriminator_key is not None
-        assert self.discriminator_alias is not None
-
-        try:
-            discriminator_value = v[self.discriminator_alias]
-        except KeyError:
-            return v, ErrorWrapper(MissingDiscriminator(discriminator_key=self.discriminator_key), loc)
-        except TypeError:
-            try:
-                # BaseModel or dataclass
-                discriminator_value = getattr(v, self.discriminator_key)
-            except (AttributeError, TypeError):
-                return v, ErrorWrapper(MissingDiscriminator(discriminator_key=self.discriminator_key), loc)
-
-        if self.sub_fields_mapping is None:
-            assert cls is not None
-            raise ConfigError(
-                f'field "{self.name}" not yet prepared so type is still a ForwardRef, '
-                f'you might need to call {cls.__name__}.update_forward_refs().'
-            )
-
-        try:
-            sub_field = self.sub_fields_mapping[discriminator_value]
-        except (KeyError, TypeError):
-            # KeyError: `discriminator_value` is not in the dictionary.
-            # TypeError: `discriminator_value` is unhashable.
-            assert self.sub_fields_mapping is not None
-            return v, ErrorWrapper(
-                InvalidDiscriminator(
-                    discriminator_key=self.discriminator_key,
-                    discriminator_value=discriminator_value,
-                    allowed_values=list(self.sub_fields_mapping),
-                ),
-                loc,
-            )
-        else:
-            if not isinstance(loc, tuple):
-                loc = (loc,)
-            return sub_field.validate(v, values, loc=(*loc, display_as_type(sub_field.type_)), cls=cls)
-
-    def _apply_validators(
-        self, v: Any, values: Dict[str, Any], loc: 'LocStr', cls: Optional['ModelOrDc'], validators: 'ValidatorsList'
-    ) -> 'ValidateReturn':
-        for validator in validators:
-            try:
-                v = validator(cls, v, values, self, self.model_config)
-            except (ValueError, TypeError, AssertionError) as exc:
-                return v, ErrorWrapper(exc, loc)
-        return v, None
-
-    def is_complex(self) -> bool:
-        """
-        Whether the field is "complex" eg. env variables should be parsed as JSON.
-        """
-        from .main import BaseModel
-
-        return (
-            self.shape != SHAPE_SINGLETON
-            or hasattr(self.type_, '__pydantic_model__')
-            or lenient_issubclass(self.type_, (BaseModel, list, set, frozenset, dict))
-        )
-
-    def _type_display(self) -> PyObjectStr:
-        t = display_as_type(self.type_)
-
-        if self.shape in MAPPING_LIKE_SHAPES:
-            t = f'Mapping[{display_as_type(self.key_field.type_)}, {t}]'  # type: ignore
-        elif self.shape == SHAPE_TUPLE:
-            t = 'Tuple[{}]'.format(', '.join(display_as_type(f.type_) for f in self.sub_fields))  # type: ignore
-        elif self.shape == SHAPE_GENERIC:
-            assert self.sub_fields
-            t = '{}[{}]'.format(
-                display_as_type(self.type_), ', '.join(display_as_type(f.type_) for f in self.sub_fields)
-            )
-        elif self.shape != SHAPE_SINGLETON:
-            t = SHAPE_NAME_LOOKUP[self.shape].format(t)
-
-        if self.allow_none and (self.shape != SHAPE_SINGLETON or not self.sub_fields):
-            t = f'Optional[{t}]'
-        return PyObjectStr(t)
-
-    def __repr_args__(self) -> 'ReprArgs':
-        args = [('name', self.name), ('type', self._type_display()), ('required', self.required)]
-
-        if not self.required:
-            if self.default_factory is not None:
-                args.append(('default_factory', f'<function {self.default_factory.__name__}>'))
-            else:
-                args.append(('default', self.default))
-
-        if self.alt_alias:
-            args.append(('alias', self.alias))
-        return args
-
-
-class ModelPrivateAttr(Representation):
-    __slots__ = ('default', 'default_factory')
-
-    def __init__(self, default: Any = Undefined, *, default_factory: Optional[NoArgAnyCallable] = None) -> None:
+    def __init__(self, default: Any = Undefined, *, default_factory: typing.Callable[[], Any] | None = None) -> None:
         self.default = default
         self.default_factory = default_factory
 
+    def __set_name__(self, cls: type[Any], name: str) -> None:
+        """
+        preserve `__set_name__` protocol defined in https://peps.python.org/pep-0487
+        """
+        if self.default is not Undefined:
+            try:
+                set_name = getattr(self.default, '__set_name__')
+            except AttributeError:
+                pass
+            else:
+                if callable(set_name):
+                    set_name(cls, name)
+
     def get_default(self) -> Any:
-        return smart_deepcopy(self.default) if self.default_factory is None else self.default_factory()
+        """Returns the default value for the object.
+
+        If `self.default_factory` is `None`, the method will return a deep copy of the `self.default` object.
+        If `self.default_factory` is not `None`, it will call `self.default_factory` and return the value returned.
+
+        Returns:
+            Any: The default value of the object.
+        """
+        return _utils.smart_deepcopy(self.default) if self.default_factory is None else self.default_factory()
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, self.__class__) and (self.default, self.default_factory) == (
@@ -1218,21 +710,29 @@ class ModelPrivateAttr(Representation):
 def PrivateAttr(
     default: Any = Undefined,
     *,
-    default_factory: Optional[NoArgAnyCallable] = None,
+    default_factory: typing.Callable[[], Any] | None = None,
 ) -> Any:
     """
     Indicates that attribute is only used internally and never mixed with regular fields.
 
-    Types or values of private attrs are not checked by pydantic and it's up to you to keep them relevant.
+    Private attributes are not checked by Pydantic, so it's up to you to maintain their accuracy.
 
-    Private attrs are stored in model __slots__.
+    Private attributes are stored in the model `__slots__`.
 
-    :param default: the attribute’s default value
-    :param default_factory: callable that will be called when a default value is needed for this attribute
-      If both `default` and `default_factory` are set, an error is raised.
+    Args:
+        default (Any): The attribute's default value. Defaults to Undefined.
+        default_factory (typing.Callable[[], Any], optional): Callable that will be
+            called when a default value is needed for this attribute.
+            If both `default` and `default_factory` are set, an error will be raised.
+
+    Returns:
+        Any: An instance of `ModelPrivateAttr` class.
+
+    Raises:
+        ValueError: If both `default` and `default_factory` are set.
     """
     if default is not Undefined and default_factory is not None:
-        raise ValueError('cannot specify both default and default_factory')
+        raise TypeError('cannot specify both default and default_factory')
 
     return ModelPrivateAttr(
         default,
@@ -1240,11 +740,84 @@ def PrivateAttr(
     )
 
 
-class DeferredType:
+@_internal_dataclass.slots_dataclass
+class ComputedFieldInfo:
     """
-    Used to postpone field preparation, while creating recursive generic models.
+    A container for data from `@computed_field` so that we can access it
+    while building the pydantic-core schema.
     """
 
+    decorator_repr: typing.ClassVar[str] = '@computed_field'
+    wrapped_property: property
+    json_return_type: _core_schema.JsonReturnTypes | None
+    alias: str | None
+    title: str | None
+    description: str | None
+    repr: bool
 
-def is_finalvar_with_default_val(type_: Type[Any], val: Any) -> bool:
-    return is_finalvar(type_) and val is not Undefined and not isinstance(val, FieldInfo)
+
+# this should really be `property[T], cached_proprety[T]` but property is not generic unlike cached_property
+# See https://github.com/python/typing/issues/985 and linked issues
+PropertyT = typing.TypeVar('PropertyT')
+
+
+@typing.overload
+def computed_field(
+    *,
+    json_return_type: _core_schema.JsonReturnTypes | None = None,
+    alias: str | None = None,
+    title: str | None = None,
+    description: str | None = None,
+    repr: bool = True,
+) -> typing.Callable[[PropertyT], PropertyT]:
+    ...
+
+
+@typing.overload
+def computed_field(__func: PropertyT) -> PropertyT:
+    ...
+
+
+def computed_field(
+    __f: PropertyT | None = None,
+    *,
+    alias: str | None = None,
+    title: str | None = None,
+    description: str | None = None,
+    repr: bool = True,
+    json_return_type: _core_schema.JsonReturnTypes | None = None,
+) -> PropertyT | typing.Callable[[PropertyT], PropertyT]:
+    """
+    Decorate to include `property` and `cached_property` when serialising models.
+
+    If applied to functions not yet decorated with `@property` or `@cached_property`, the function is
+    automatically wrapped with `property`.
+
+    Args:
+        __f: the function to wrap.
+        alias: alias to use when serializing this computed field, only used when `by_alias=True`
+        title: Title to used when including this computed field in JSON Schema, currently unused waiting for #4697
+        description: Description to used when including this computed field in JSON Schema, defaults to the functions
+            docstring, currently unused waiting for #4697
+        repr: whether to include this computed field in model repr
+        json_return_type: optional return for serialization logic to expect when serialising to JSON, if included
+            this must be correct, otherwise a `TypeError` is raised
+
+    Returns:
+        A proxy wrapper for the property.
+    """
+
+    def dec(f: Any) -> Any:
+        nonlocal description
+        if description is None and f.__doc__:
+            description = inspect.cleandoc(f.__doc__)
+
+        # if the function isn't already decorated with `@property` (or another descriptor), then we wrap it now
+        f = _decorators.ensure_property(f)
+        dec_info = ComputedFieldInfo(f, json_return_type, alias, title, description, repr)
+        return _decorators.PydanticDescriptorProxy(f, dec_info)
+
+    if __f is None:
+        return dec
+    else:
+        return dec(__f)

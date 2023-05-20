@@ -1,16 +1,6 @@
-__all__ = 'compiled', 'VERSION', 'version_info'
+__all__ = 'VERSION', 'version_info'
 
-VERSION = '1.10.7'
-
-try:
-    import cython  # type: ignore
-except ImportError:
-    compiled: bool = False
-else:  # pragma: no cover
-    try:
-        compiled = cython.compiled
-    except AttributeError:
-        compiled = False
+VERSION = '2.0a4'
 
 
 def version_info() -> str:
@@ -19,17 +9,19 @@ def version_info() -> str:
     from importlib import import_module
     from pathlib import Path
 
+    import pydantic_core._pydantic_core as pdc
+
     optional_deps = []
-    for p in ('devtools', 'dotenv', 'email-validator', 'typing-extensions'):
+    for p in 'devtools', 'email-validator', 'typing-extensions':
         try:
             import_module(p.replace('-', '_'))
-        except ImportError:
+        except ImportError:  # pragma: no cover
             continue
         optional_deps.append(p)
 
     info = {
         'pydantic version': VERSION,
-        'pydantic compiled': compiled,
+        'pydantic-core version': f'{pdc.__version__} {pdc.build_profile} build profile',
         'install path': Path(__file__).resolve().parent,
         'python version': sys.version,
         'platform': platform.platform(),
