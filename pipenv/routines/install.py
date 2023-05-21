@@ -13,10 +13,7 @@ from pipenv.utils.dependencies import convert_deps_to_pip, is_star
 from pipenv.utils.indexes import get_source_list
 from pipenv.utils.internet import download_file, is_valid_url
 from pipenv.utils.pip import (
-    format_pip_error,
-    format_pip_output,
     get_trusted_hosts,
-    pip_install,
     pip_install_deps,
 )
 from pipenv.utils.pipfile import ensure_pipfile
@@ -256,60 +253,7 @@ def do_install(
                         )
                     )
                     sys.exit(1)
-                st.console.print("Installing...")
-                try:
-                    st.update(f"Installing {pkg_requirement.name}...")
-                    if project.s.is_verbose():
-                        st.console.print(
-                            f"Installing package: {pkg_requirement.as_line(include_hashes=False)}"
-                        )
-                    c = pip_install(
-                        project,
-                        pkg_requirement,
-                        ignore_hashes=True,
-                        allow_global=system,
-                        selective_upgrade=selective_upgrade,
-                        no_deps=False,
-                        pre=pre,
-                        dev=dev,
-                        requirements_dir=requirements_directory,
-                        index=index_url,
-                        pypi_mirror=pypi_mirror,
-                        use_constraint=True,
-                        extra_pip_args=extra_pip_args,
-                    )
-                    if c.returncode:
-                        err.print(
-                            "{} An error occurred while installing {}!".format(
-                                click.style("Error: ", fg="red", bold=True),
-                                click.style(pkg_line, fg="green"),
-                            ),
-                        )
-                        err.print(f"Error text: {c.stdout}")
-                        err.print(click.style(format_pip_error(c.stderr), fg="cyan"))
-                        if project.s.is_verbose():
-                            err.print(click.style(format_pip_output(c.stdout), fg="cyan"))
-                        if "setup.py egg_info" in c.stderr:
-                            err.print(
-                                "This is likely caused by a bug in {}. "
-                                "Report this to its maintainers.".format(
-                                    click.style(pkg_requirement.name, fg="green")
-                                )
-                            )
-                        err.print(
-                            environments.PIPENV_SPINNER_FAIL_TEXT.format(
-                                "Installation Failed"
-                            )
-                        )
-                        sys.exit(1)
-                except (ValueError, RuntimeError) as e:
-                    err.print("{}: {}".format(click.style("WARNING", fg="red"), e))
-                    err.print(
-                        environments.PIPENV_SPINNER_FAIL_TEXT.format(
-                            "Installation Failed",
-                        )
-                    )
-                    sys.exit(1)
+                st.update(f"Installing {pkg_requirement.name}...")
                 # Warn if --editable wasn't passed.
                 if (
                     pkg_requirement.is_vcs
