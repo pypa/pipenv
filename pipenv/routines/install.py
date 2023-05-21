@@ -187,6 +187,7 @@ def do_install(
     # Install all dependencies, if none was provided.
     # This basically ensures that we have a pipfile and lockfile, then it locks and
     # installs from the lockfile
+    new_packages = []
     if not packages and not editable_packages:
         # Update project settings with pre preference.
         if pre:
@@ -287,9 +288,15 @@ def do_install(
                 try:
                     if categories:
                         for category in categories:
-                            project.add_package_to_pipfile(pkg_requirement, dev, category)
+                            added, cat = project.add_package_to_pipfile(
+                                pkg_requirement, dev, category
+                            )
+                            if added:
+                                new_packages.append((pkg_requirement.name, cat))
                     else:
-                        project.add_package_to_pipfile(pkg_requirement, dev)
+                        added, cat = project.add_package_to_pipfile(pkg_requirement, dev)
+                        if added:
+                            new_packages.append((pkg_requirement.name, cat))
                 except ValueError:
                     import traceback
 
@@ -304,26 +311,32 @@ def do_install(
                             "Failed adding package to Pipfile"
                         )
                     )
-                # ok has a nice v in front, should do something similir with rich
+                # ok has a nice v in front, should do something similar with rich
                 st.console.print(
                     environments.PIPENV_SPINNER_OK_TEXT.format("Installation Succeeded")
                 )
             # Update project settings with pre-release preference.
             if pre:
                 project.update_settings({"allow_prereleases": pre})
-        do_init(
-            project,
-            dev=dev,
-            system=system,
-            allow_global=system,
-            keep_outdated=keep_outdated,
-            requirements_dir=requirements_directory,
-            deploy=deploy,
-            pypi_mirror=pypi_mirror,
-            skip_lock=skip_lock,
-            extra_pip_args=extra_pip_args,
-            categories=categories,
-        )
+        try:
+            do_init(
+                project,
+                dev=dev,
+                system=system,
+                allow_global=system,
+                keep_outdated=keep_outdated,
+                requirements_dir=requirements_directory,
+                deploy=deploy,
+                pypi_mirror=pypi_mirror,
+                skip_lock=skip_lock,
+                extra_pip_args=extra_pip_args,
+                categories=categories,
+            )
+        except RuntimeError:
+            # If we fail to install, remove the package from the Pipfile.
+            for pkg_name, category in new_packages:
+                project.remove_package_from_pipfile(pkg_name, category)
+            sys.exit(1)
     sys.exit(0)
 
 

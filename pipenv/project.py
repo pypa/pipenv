@@ -967,6 +967,7 @@ class Project:
     def add_package_to_pipfile(self, package, dev=False, category=None):
         from .vendor.requirementslib import Requirement
 
+        newly_added = False
         # Read and append Pipfile.
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.
@@ -982,9 +983,12 @@ class Project:
         normalized_name = pep423_name(req_name)
         if name and name != normalized_name:
             self.remove_package_from_pipfile(name, category=category)
+        if normalized_name not in p[category]:
+            newly_added = True
         p[category][normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)
+        return newly_added, category
 
     def src_name_from_url(self, index_url):
         name, _, tld_guess = urllib.parse.urlsplit(index_url).netloc.rpartition(".")
