@@ -1,27 +1,27 @@
+from typing import Dict, Optional, Text, Tuple, TypeVar, Union
 from urllib.parse import quote
 from urllib.parse import unquote as url_unquote
 from urllib.parse import unquote_plus
 
-import pipenv.vendor.attr as attr
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.constructors import _strip_extras
 from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
 from pipenv.patched.pip._vendor.urllib3.util.url import Url
+from pipenv.vendor.pydantic import Field
 
 from ..environment import MYPY_RUNNING
 from ..utils import is_installable_file
-from .utils import extras_to_string, parse_extras
+from .common import ReqLibBaseModel
+from .utils import DIRECT_URL_RE, extras_to_string, parse_extras_str, split_ref_from_uri
 
 if MYPY_RUNNING:
-    from typing import Dict, Optional, Text, Tuple, TypeVar, Union
 
     _T = TypeVar("_T")
     STRING_TYPE = Union[bytes, str, Text]
     S = TypeVar("S", bytes, str, Text)
 
 
-def _get_parsed_url(url):
-    # type: (S) -> Url
+def _get_parsed_url(url) -> Url:
     """This is a stand-in function for `urllib3.util.parse_url`
 
     The original function doesn't handle special characters very well, this simply splits
@@ -44,62 +44,58 @@ def _get_parsed_url(url):
     return parsed
 
 
-def remove_password_from_url(url):
-    # type: (S) -> S
-    """Given a url, remove the password and insert 4 dashes.
+class URI(ReqLibBaseModel):
+    host: Optional[str] = Field(...)
+    scheme: Optional[str] = Field(
+        "https", description="The URI Scheme, e.g. `salesforce`"
+    )
+    port: Optional[int] = Field(
+        None, description="The numeric port of the url if specified"
+    )
+    path: Optional[str] = Field("", description="The url path, e.g. `/path/to/endpoint`")
+    query: Optional[str] = Field(
+        "", description="Query parameters, e.g. `?variable=value...`"
+    )
+    fragment: Optional[str] = Field(
+        "", description="URL Fragments, e.g. `#fragment=value`"
+    )
+    subdirectory: Optional[str] = Field(
+        "", description="Subdirectory fragment, e.g. `&subdirectory=blah...`"
+    )
+    ref: Optional[str] = Field("", description="VCS ref this URI points at, if available")
+    username: Optional[str] = Field(
+        "", description="The username if provided, parsed from `user:password@hostname`"
+    )
+    password: Optional[str] = Field(
+        "", description="Password parsed from `user:password@hostname`", repr=False
+    )
+    query_dict: Optional[Dict] = Field(default_factory=dict)
+    name: Optional[str] = Field(
+        "",
+        description="The name of the specified package in case it is a VCS URI with an egg fragment",
+    )
+    extras: Optional[Tuple] = Field(default_factory=tuple)
+    is_direct_url: Optional[bool] = Field(False)
+    is_implicit_ssh: Optional[bool] = Field(False)
+    auth: Optional[str] = None
+    _fragment_dict: Optional[Dict] = Field(default_factory=dict)
+    _username_is_quoted: Optional[bool] = False
+    _password_is_quoted: Optional[bool] = False
 
-    :param url: The url to replace the authentication in
-    :type url: S
-    :return: The new URL without authentication
-    :rtype: S
-    """
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        include_private_attributes = True
+        # keep_untouched = (cached_property,)
 
-    parsed = _get_parsed_url(url)
-    if parsed.auth:
-        auth, _, _ = parsed.auth.partition(":")
-        return parsed._replace(auth="{auth}:----".format(auth=auth)).url
-    return parsed.url
+    def __init__(self, **data):
+        super().__init__(**data)
+        self._parse_auth()
+        self._parse_query()
+        self._parse_fragment()
 
-
-@attr.s(hash=True)
-class URI(object):
-    #: The target hostname, e.g. `amazon.com`
-    host = attr.ib(type=str)
-    #: The URI Scheme, e.g. `salesforce`
-    scheme = attr.ib(default="https", type=str)
-    #: The numeric port of the url if specified
-    port = attr.ib(default=None, type=int)
-    #: The url path, e.g. `/path/to/endpoint`
-    path = attr.ib(default="", type=str)
-    #: Query parameters, e.g. `?variable=value...`
-    query = attr.ib(default="", type=str)
-    #: URL Fragments, e.g. `#fragment=value`
-    fragment = attr.ib(default="", type=str)
-    #: Subdirectory fragment, e.g. `&subdirectory=blah...`
-    subdirectory = attr.ib(default="", type=str)
-    #: VCS ref this URI points at, if available
-    ref = attr.ib(default="", type=str)
-    #: The username if provided, parsed from `user:password@hostname`
-    username = attr.ib(default="", type=str)
-    #: Password parsed from `user:password@hostname`
-    password = attr.ib(default="", type=str, repr=False)
-    #: A dictionary representing query fragments
-    query_dict = attr.ib(factory=dict, type=dict)
-    #: The name of the specified package in case it is a VCS URI with an egg fragment
-    name = attr.ib(default="", type=str)
-    #: Any extras requested from the requirement
-    extras = attr.ib(factory=tuple, type=tuple)
-    #: Whether the url was parsed as a direct pep508-style URL
-    is_direct_url = attr.ib(default=False, type=bool)
-    #: Whether the url was an implicit `git+ssh` url (passed as `git+git@`)
-    is_implicit_ssh = attr.ib(default=False, type=bool)
-    _auth = attr.ib(default=None, type=str, repr=False)
-    _fragment_dict = attr.ib(factory=dict, type=dict)
-    _username_is_quoted = attr.ib(type=bool, default=False)
-    _password_is_quoted = attr.ib(type=bool, default=False)
-
-    def _parse_query(self):
-        # type: () -> URI
+    def _parse_query(self) -> None:
         query = self.query if self.query is not None else ""
         query_dict = dict()
         queries = query.split("&")
@@ -113,12 +109,11 @@ class URI(object):
             else:
                 query_items.append((key, val))
         query_dict.update(query_items)
-        return attr.evolve(
-            self, query_dict=query_dict, subdirectory=subdirectory, query=query
-        )
+        self.query_dict = query_dict
+        self.subdirectory = subdirectory
+        self.query = query
 
-    def _parse_fragment(self):
-        # type: () -> URI
+    def _parse_fragment(self) -> None:
         subdirectory = self.subdirectory if self.subdirectory else ""
         fragment = self.fragment if self.fragment else ""
         if self.fragment is None:
@@ -132,26 +127,22 @@ class URI(object):
             val = unquote_plus(val)
             fragment_items[key] = val
             if key == "egg":
-                from .utils import parse_extras
+                from .utils import parse_extras_str
 
                 name, stripped_extras = _strip_extras(val)
                 if stripped_extras:
-                    extras = tuple(parse_extras(stripped_extras))
+                    extras = tuple(parse_extras_str(stripped_extras))
             elif key == "subdirectory":
                 subdirectory = val
-        return attr.evolve(
-            self,
-            fragment_dict=fragment_items,
-            subdirectory=subdirectory,
-            fragment=fragment,
-            extras=extras,
-            name=name,
-        )
+        self.name = name
+        self.extras = extras
+        self.subdirectory = subdirectory
+        self.fragment = fragment
+        self._fragment_dict = fragment_items
 
-    def _parse_auth(self):
-        # type: () -> URI
-        if self._auth:
-            username, _, password = self._auth.partition(":")
+    def _parse_auth(self) -> None:
+        if self.auth:
+            username, _, password = self.auth.partition(":")
             username_is_quoted, password_is_quoted = False, False
             quoted_username, quoted_password = "", ""
             if password:
@@ -160,24 +151,18 @@ class URI(object):
             if username:
                 quoted_username = quote(username)
                 username_is_quoted = quoted_username != username
-            return attr.evolve(
-                self,
-                username=quoted_username,
-                password=quoted_password,
-                username_is_quoted=username_is_quoted,
-                password_is_quoted=password_is_quoted,
-            )
-        return self
+            self.username = quoted_username
+            self.password = quoted_password
+            self._username_is_quoted = username_is_quoted
+            self._password_is_quoted = password_is_quoted
 
-    def get_password(self, unquote=False, include_token=True):
-        # type: (bool, bool) -> str
+    def get_password(self, unquote=False, include_token=True) -> str:
         password = self.password if self.password else ""
         if password and unquote and self._password_is_quoted:
             password = url_unquote(password)
         return password
 
-    def get_username(self, unquote=False):
-        # type: (bool) -> str
+    def get_username(self, unquote=False) -> str:
         username = self.username if self.username else ""
         if username and unquote and self._username_is_quoted:
             username = url_unquote(username)
@@ -198,6 +183,7 @@ class URI(object):
     @classmethod
     def get_parsed_url(cls, url):
         # if there is a "#" in the auth section, this could break url parsing
+        maybe_auth = None
         parsed_url = _get_parsed_url(url)
         if "@" in url and "#" in url:
             scheme = "{0}://".format(parsed_url.scheme)
@@ -212,10 +198,7 @@ class URI(object):
         return parsed_url
 
     @classmethod
-    def parse(cls, url):
-        # type: (S) -> URI
-        from .utils import DIRECT_URL_RE, split_ref_from_uri
-
+    def parse(cls, url) -> "URI":
         is_direct_url = False
         name_with_extras = None
         is_implicit_ssh = url.strip().startswith("git+git@")
@@ -247,7 +230,7 @@ class URI(object):
         parsed_dict.update(
             **update_url_name_and_fragment(name_with_extras, ref, parsed_dict)
         )  # type: ignore
-        return cls(**parsed_dict)._parse_auth()._parse_query()._parse_fragment()
+        return cls(**parsed_dict)
 
     def to_string(
         self,
@@ -475,7 +458,7 @@ def update_url_name_and_fragment(name_with_extras, ref, parsed_dict):
         parsed_extras = ()
         name, extras = _strip_extras(name_with_extras)
         if extras:
-            parsed_extras = parsed_extras + tuple(parse_extras(extras))
+            parsed_extras = parsed_extras + tuple(parse_extras_str(extras))
         if parsed_dict["fragment"] is not None:
             fragment = "{0}".format(parsed_dict["fragment"])
             if fragment.startswith("egg="):
@@ -483,7 +466,9 @@ def update_url_name_and_fragment(name_with_extras, ref, parsed_dict):
                 fragment_name, fragment_extras = _strip_extras(fragment_part)
                 name = name if name else fragment_name
                 if fragment_extras:
-                    parsed_extras = parsed_extras + tuple(parse_extras(fragment_extras))
+                    parsed_extras = parsed_extras + tuple(
+                        parse_extras_str(fragment_extras)
+                    )
                 name_with_extras = "{0}{1}".format(name, extras_to_string(parsed_extras))
         elif (
             parsed_dict.get("path") is not None and "&subdirectory" in parsed_dict["path"]

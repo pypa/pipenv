@@ -1,16 +1,29 @@
 import os
 import re
 import string
-import sys
-from collections import defaultdict
 from functools import lru_cache
-from itertools import chain, groupby
 from pathlib import Path
-
+from typing import (
+    Any,
+    AnyStr,
+    Dict,
+    List,
+    Match,
+    Optional,
+    Set,
+    Text,
+    Tuple,
+    TypeVar,
+    Union,
+)
 import pipenv.vendor.tomlkit as tomlkit
-from pipenv.vendor.attr import validators
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.constructors import install_req_from_line
+from pipenv.patched.pip._internal.utils._jaraco_text import (
+    yield_lines,
+    drop_comment,
+    join_continuation,
+)
 from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker, Op, Value, Variable
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
@@ -25,25 +38,9 @@ from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
 
 from ..environment import MYPY_RUNNING
 from ..fileutils import is_valid_url
-from ..utils import SCHEME_LIST, VCS_LIST, is_star
+from ..utils import VCS_LIST, is_star
 
 if MYPY_RUNNING:
-    from typing import Iterable  # noqa
-    from typing import (
-        Any,
-        AnyStr,
-        Dict,
-        List,
-        Match,
-        Optional,
-        Set,
-        Text,
-        Tuple,
-        TypeVar,
-        Union,
-    )
-
-    from pipenv.vendor.attr import _ValidatorType  # noqa
     from pipenv.patched.pip._vendor.packaging.markers import Marker as PkgResourcesMarker
     from pipenv.patched.pip._vendor.packaging.markers import Op as PkgResourcesOp
     from pipenv.patched.pip._vendor.packaging.markers import Value as PkgResourcesValue
@@ -89,21 +86,14 @@ URL_RE = re.compile(r"{0}(?:{1}?{2}?)?".format(URL, URL_NAME, SUBDIR_RE))
 DIRECT_URL_RE = re.compile(r"{0}\s?@\s?{1}".format(NAME_WITH_EXTRAS, URL))
 
 
-def filter_none(k, v):
-    # type: (AnyStr, Any) -> bool
+def filter_none(k, v) -> bool:
     if v:
         return True
     return False
 
 
-def filter_dict(dict_):
-    # type: (Dict[AnyStr, Any]) -> Dict[AnyStr, Any]
+def filter_dict(dict_) -> Dict[AnyStr, Any]:
     return {k: v for k, v in dict_.items() if filter_none(k, v)}
-
-
-def optional_instance_of(cls):
-    # type: (Any) -> _ValidatorType[Optional[_T]]
-    return validators.optional(validators.instance_of(cls))
 
 
 def create_link(link):
@@ -182,13 +172,31 @@ def get_url_name(url):
     return urllib3_util.parse_url(url).host
 
 
-def init_requirement(name):
-    # type: (AnyStr) -> TRequirement
+class HashableRequirement(Requirement):
+    def __hash__(self):
+        specifier_hash = hash(tuple((str(s),) for s in self.specifier))
+        return hash(
+            (
+                self.url,
+                specifier_hash,
+                frozenset(self.extras),
+                str(self.marker) if self.marker else None,
+            )
+        )
 
+    @staticmethod
+    def parse(s):
+        (req,) = map(
+            HashableRequirement, join_continuation(map(drop_comment, yield_lines(s)))
+        )
+        return req
+
+
+def init_requirement(name):
     if not isinstance(name, str):
         raise TypeError("must supply a name to generate a requirement")
 
-    req = Requirement.parse(name)
+    req = HashableRequirement.parse(name)
     req.vcs = None
     req.local_file = None
     req.revision = None
@@ -196,14 +204,19 @@ def init_requirement(name):
     return req
 
 
-def extras_to_string(extras):
-    # type: (Iterable[S]) -> S
-    """Turn a list of extras into a string.
+def convert_to_hashable_requirement(req: Requirement) -> Optional[HashableRequirement]:
+    if req is None:
+        return None
 
-    :param List[str]] extras: a list of extras to format
-    :return: A string of extras
-    :rtype: str
-    """
+    hashable_req = HashableRequirement(str(req))
+    hashable_req.extras = req.extras
+    hashable_req.marker = req.marker
+    hashable_req.url = req.url
+    return hashable_req
+
+
+def extras_to_string(extras) -> str:
+    """Turn a list of extras into a string."""
     if isinstance(extras, str):
         if extras.startswith("["):
             return extras
@@ -211,11 +224,10 @@ def extras_to_string(extras):
             extras = [extras]
     if not extras:
         return ""
-    return "[{0}]".format(",".join(sorted(set(extras))))  # type: ignore
+    return "[{0}]".format(",".join(sorted(set(extras))))
 
 
-def parse_extras(extras_str):
-    # type: (AnyStr) -> List[AnyStr]
+def parse_extras_str(extras_str):
     """Turn a string of extras into a parsed extras list.
 
     :param str extras_str: An extras string
@@ -224,6 +236,20 @@ def parse_extras(extras_str):
     """
     extras = Requirement.parse("fakepkg{0}".format(extras_to_string(extras_str))).extras
     return sorted(dict.fromkeys([extra.lower() for extra in extras]))
+
+
+def parse_extras_from_line(installable_line):
+    extras = []
+
+    # Extract the part within square brackets, if any
+    start = installable_line.find("[")
+    end = installable_line.find("]")
+
+    if start != -1 and end != -1 and start < end:
+        extras_str = installable_line[start + 1 : end]
+        extras = extras_str.split(",")
+
+    return extras
 
 
 def specs_to_string(specs):
@@ -247,12 +273,12 @@ def specs_to_string(specs):
 
 
 def build_vcs_uri(
-    vcs,  # type: Optional[S]
-    uri,  # type: S
-    name=None,  # type: Optional[S]
-    ref=None,  # type: Optional[S]
-    subdirectory=None,  # type: Optional[S]
-    extras=None,  # type: Optional[Iterable[S]]
+    vcs,
+    uri,
+    name=None,
+    ref=None,
+    subdirectory=None,
+    extras=None,
 ):
     # type: (...) -> STRING_TYPE
     if extras is None:
@@ -337,64 +363,17 @@ def convert_direct_url_to_url(direct_url):
     return new_url
 
 
-def convert_url_to_direct_url(url, name=None):
-    # type: (AnyStr, Optional[AnyStr]) -> AnyStr
-    """Converts normal link-style URLs to direct urls.
-
-    Given a :class:`Link` compatible URL, convert to a direct url as
-    defined by *PEP 508* by extracting the name and extras from the **egg_fragment**.
-
-    :param AnyStr url: A :class:`InstallRequirement` compliant URL.
-    :param Optiona[AnyStr] name: A name to use in case the supplied URL doesn't provide one.
-    :return: A pep-508 compliant direct url.
-    :rtype: AnyStr
-
-    :raises ValueError: Raised when the URL can't be parsed or a name can't be found.
-    :raises TypeError: When a non-string input is provided.
-    """
-    if not isinstance(url, str):
-        raise TypeError(
-            "Expected a string to convert to a direct url, got {0!r}".format(url)
-        )
-    direct_match = DIRECT_URL_RE.match(url)
-    if direct_match:
-        return url
-    url_match = URL_RE.match(url)
-    if url_match is None or not url_match.groupdict():
-        raise ValueError("Failed parse a valid URL from {0!r}".format(url))
-    match_dict = url_match.groupdict()
-    url_segments = [match_dict.get(s) for s in ("scheme", "host", "path", "pathsep")]
-    name = match_dict.get("name", name)
-    extras = match_dict.get("extras")
-    new_url = ""
-    if extras and not name:
-        url_segments.append(extras)
-    elif extras and name:
-        new_url = "{0}{1}@ ".format(name, extras)
-    else:
-        if name is not None:
-            new_url = "{0}@ ".format(name)
-        else:
-            raise ValueError(
-                "Failed to construct direct url: "
-                "No name could be parsed from {0!r}".format(url)
-            )
-    if match_dict.get("ref"):
-        url_segments.append("@{0}".format(match_dict.get("ref")))
-    url = "".join([s for s in url if s is not None])
-    url = "{0}{1}".format(new_url, url)
-    return url
-
-
 def get_version(pipfile_entry):
-    # type: (Union[STRING_TYPE, Dict[STRING_TYPE, Union[STRING_TYPE, bool, Iterable[STRING_TYPE]]]]) -> STRING_TYPE
     if str(pipfile_entry) == "{}" or is_star(pipfile_entry):
         return ""
 
     if hasattr(pipfile_entry, "keys") and "version" in pipfile_entry:
         if is_star(pipfile_entry.get("version")):
             return ""
-        return pipfile_entry.get("version", "").strip().lstrip("(").rstrip(")")
+        version = pipfile_entry.get("version")
+        if version is None:
+            version = ""
+        return version.strip().lstrip("(").rstrip(")")
 
     if isinstance(pipfile_entry, str):
         return pipfile_entry.strip().lstrip("(").rstrip(")")
@@ -571,13 +550,6 @@ def validate_path(instance, attr_, value):
         raise ValueError("Invalid path {0!r}".format(value))
 
 
-def validate_markers(instance, attr_, value):
-    try:
-        Marker("{0}{1}".format(attr_.name, value))
-    except InvalidMarker:
-        raise ValueError("Invalid Marker {0}{1}".format(attr_, value))
-
-
 def validate_specifiers(instance, attr_, value):
     if value == "":
         return True
@@ -585,14 +557,6 @@ def validate_specifiers(instance, attr_, value):
         SpecifierSet(value)
     except (InvalidMarker, InvalidSpecifier):
         raise ValueError("Invalid Specifiers {0}".format(value))
-
-
-def key_from_ireq(ireq):
-    """Get a standardized key for an InstallRequirement."""
-    if ireq.req is None and ireq.link is not None:
-        return str(ireq.link)
-    else:
-        return key_from_req(ireq.req)
 
 
 def key_from_req(req):
@@ -661,21 +625,6 @@ def format_requirement(ireq):
             line = "{} ; ({}) and ({})".format(name, markers, ireq.markers)
 
     return line
-
-
-def format_specifier(ireq):
-    """Generic formatter for pretty printing specifiers.
-
-    Pretty-prints specifiers from InstallRequirements for output to terminal.
-
-    :param :class:`InstallRequirement` ireq: A pip **InstallRequirement** instance.
-    :return: A string of specifiers in the given install requirement or <any>
-    :rtype: str
-    """
-    # TODO: Ideally, this is carried over to the pip library itself
-    specs = ireq.specifier._specs if ireq.req is not None else []
-    specs = sorted(specs, key=lambda x: x._spec[1])
-    return ",".join(str(s) for s in specs) or "<any>"
 
 
 def get_pinned_version(ireq):
@@ -753,89 +702,6 @@ def as_tuple(ireq):
     return name, version, extras
 
 
-def full_groupby(iterable, key=None):
-    """Like groupby(), but sorts the input on the group key first."""
-
-    return groupby(sorted(iterable, key=key), key=key)
-
-
-def flat_map(fn, collection):
-    """Map a function over a collection and flatten the result by one-level."""
-
-    return chain.from_iterable(map(fn, collection))
-
-
-def lookup_table(values, key=None, keyval=None, unique=False, use_lists=False):
-    """Builds a dict-based lookup table (index) elegantly.
-
-    Supports building normal and unique lookup tables.  For example:
-
-    >>> assert lookup_table(
-    ...     ['foo', 'bar', 'baz', 'qux', 'quux'], lambda s: s[0]) == {
-    ...     'b': {'bar', 'baz'},
-    ...     'f': {'foo'},
-    ...     'q': {'quux', 'qux'}
-    ... }
-
-    For key functions that uniquely identify values, set unique=True:
-
-    >>> assert lookup_table(
-    ...     ['foo', 'bar', 'baz', 'qux', 'quux'], lambda s: s[0], unique=True) == {
-    ...     'b': 'baz',
-    ...     'f': 'foo',
-    ...     'q': 'quux'
-    ... }
-
-    The values of the resulting lookup table will be values, not sets.
-
-    For extra power, you can even change the values while building up the LUT.
-    To do so, use the `keyval` function instead of the `key` arg:
-
-    >>> assert lookup_table(
-    ...     ['foo', 'bar', 'baz', 'qux', 'quux'],
-    ...     keyval=lambda s: (s[0], s[1:])) == {
-    ...     'b': {'ar', 'az'},
-    ...     'f': {'oo'},
-    ...     'q': {'uux', 'ux'}
-    ... }
-    """
-
-    if keyval is None:
-        if key is None:
-            keyval = lambda v: v
-        else:
-            keyval = lambda v: (key(v), v)
-
-    if unique:
-        return dict(keyval(v) for v in values)
-
-    lut = {}
-    for value in values:
-        k, v = keyval(value)
-        try:
-            s = lut[k]
-        except KeyError:
-            if use_lists:
-                s = lut[k] = list()
-            else:
-                s = lut[k] = set()
-        if use_lists:
-            s.append(v)
-        else:
-            s.add(v)
-    return dict(lut)
-
-
-def name_from_req(req):
-    """Get the name of the requirement."""
-    if hasattr(req, "project_name"):
-        # from pkg_resources, such as installed dists for pip-sync
-        return req.project_name
-    else:
-        # from packaging, such as install requirements from requirements.txt
-        return req.name
-
-
 def make_install_requirement(
     name, version=None, extras=None, markers=None, constraint=False
 ):
@@ -868,90 +734,8 @@ def make_install_requirement(
     return install_req_from_line(requirement_string, constraint=constraint)
 
 
-def version_from_ireq(ireq):
-    """version_from_ireq Extract the version from a supplied
-    :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
-
-    :param ireq: An InstallRequirement
-    :type ireq: :class:`~pipenv.patched.pip._internal.req.req_install.InstallRequirement`
-    :return: The version of the InstallRequirement.
-    :rtype: str
-    """
-
-    return next(iter(ireq.specifier._specs)).version
-
-
-def _get_requires_python(candidate):
-    # type: (Any) -> str
-    requires_python = getattr(candidate, "requires_python", None)
-    if requires_python is not None:
-        link = getattr(candidate, "location", getattr(candidate, "link", None))
-        requires_python = getattr(link, "requires_python", None)
-    return requires_python
-
-
-def clean_requires_python(candidates):
-    """Get a cleaned list of all the candidates with valid specifiers in the
-    `requires_python` attributes."""
-    all_candidates = []
-    sys_version = ".".join(map(str, sys.version_info[:3]))
-    from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
-
-    py_version = parse_version(os.environ.get("PIP_PYTHON_VERSION", sys_version))
-    for c in candidates:
-        requires_python = _get_requires_python(c)
-        if requires_python:
-            # Old specifications had people setting this to single digits
-            # which is effectively the same as '>=digit,<digit+1'
-            if requires_python.isdigit():
-                requires_python = ">={0},<{1}".format(
-                    requires_python, int(requires_python) + 1
-                )
-            try:
-                specifierset = SpecifierSet(requires_python)
-            except InvalidSpecifier:
-                continue
-            else:
-                if not specifierset.contains(py_version):
-                    continue
-        all_candidates.append(c)
-    return all_candidates
-
-
-def fix_requires_python_marker(requires_python):
-    marker_str = ""
-    if any(requires_python.startswith(op) for op in Specifier._operators.keys()):
-        spec_dict = defaultdict(set)
-        # We are checking first if we have  leading specifier operator
-        # if not, we can assume we should be doing a == comparison
-        specifierset = list(SpecifierSet(requires_python))
-        # for multiple specifiers, the correct way to represent that in
-        # a specifierset is `Requirement('fakepkg; python_version<"3.0,>=2.6"')`
-        marker_key = Variable("python_version")
-        for spec in specifierset:
-            operator, val = spec._spec
-            cleaned_val = Value(val).serialize().replace('"', "")
-            spec_dict[Op(operator).serialize()].add(cleaned_val)
-        marker_str = " and ".join(
-            [
-                "{0}{1}'{2}'".format(marker_key.serialize(), op, ",".join(vals))
-                for op, vals in spec_dict.items()
-            ]
-        )
-    marker_to_add = PackagingRequirement("fakepkg ; {0}".format(marker_str)).marker
-    return marker_to_add
-
-
-def normalize_name(pkg):
-    # type: (AnyStr) -> AnyStr
-    """Given a package name, return its normalized, non-canonicalized form.
-
-    :param AnyStr pkg: The name of a package
-    :return: A normalized package name
-    :rtype: AnyStr
-    """
-
-    assert isinstance(pkg, str)
+def normalize_name(pkg) -> str:
+    """Given a package name, return its normalized, non-canonicalized form."""
     return pkg.replace("_", "-").lower()
 
 
@@ -973,20 +757,6 @@ def get_name_variants(pkg):
     return names
 
 
-def read_source(path, encoding="utf-8"):
-    # type: (S, S) -> S
-    """Read a source file and get the contents with proper encoding for Python
-    2/3.
-
-    :param AnyStr path: the file path
-    :param AnyStr encoding: the encoding that defaults to UTF-8
-    :returns: The contents of the source file
-    :rtype: AnyStr
-    """
-    with open(path, "r", encoding=encoding) as fp:
-        return fp.read()
-
-
 def expand_env_variables(line):
     # type: (AnyStr) -> AnyStr
     """Expand the env vars in a line following pip's standard.
@@ -1002,3 +772,20 @@ def expand_env_variables(line):
         return value if value else match.group()
 
     return re.sub(r"\$\{([A-Z0-9_]+)\}", replace_with_env, line)
+
+
+def tuple_to_dict(input_tuple):
+    result_dict = {}
+    i = 0
+    while i < len(input_tuple):
+        key = input_tuple[i]
+        i += 1
+        if i < len(input_tuple):
+            if isinstance(input_tuple[i], tuple):
+                value = tuple_to_dict(input_tuple[i])
+                i += 1
+            else:
+                value = input_tuple[i]
+                i += 1
+            result_dict[key] = value
+    return result_dict

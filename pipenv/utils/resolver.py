@@ -31,9 +31,8 @@ from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor import pkg_resources, rich
 from pipenv.project import Project
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib import Requirement
 from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir, open_file
-from pipenv.vendor.requirementslib.models.requirements import Line
+from pipenv.vendor.requirementslib.models.requirements import Line, Requirement
 from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
 
 try:
@@ -346,8 +345,10 @@ class Resolver:
                 name = req.normalized_name
             except TypeError:
                 raise RequirementError(req=req)
-            setup_info = req.req.setup_info
-            setup_info.get_info()
+            if parsed_line.setup_info:
+                setup_info = parsed_line.setup_info
+            else:
+                setup_info = req.req.parse_setup_info()
             locked_deps[pep423_name(name)] = entry
             requirements = []
             # Allow users to toggle resolution off for non-editable VCS packages
@@ -361,7 +362,15 @@ class Resolver:
                     and is_installable_dir(parsed_line.path)
                 )
             ):
+                setup_info.run_setup()
                 requirements = [v for v in getattr(setup_info, "requires", {}).values()]
+                if req.extras:
+                    for extra in req.extras:
+                        requirements.extend(
+                            v
+                            for v in getattr(setup_info, "extras", {}).get(extra, [])
+                            if v not in requirements
+                        )
             for r in requirements:
                 if getattr(r, "url", None) and not getattr(r, "editable", False):
                     if r is not None:
@@ -416,8 +425,8 @@ class Resolver:
                     )
                     hashes = resolver.collect_hashes(ireq) if resolver else []
                     new_req = Requirement.from_ireq(ireq)
-                    new_req = new_req.add_hashes(hashes)
-                    new_req = new_req.merge_markers(req.markers)
+                    new_req.add_hashes(hashes)
+                    new_req.merge_markers(req.markers)
                     name, entry = new_req.pipfile_entry
                     locked_deps[pep423_name(name)] = translate_markers(entry)
                     click.echo(
@@ -865,7 +874,7 @@ class Resolver:
         ref = None
         if req.is_vcs:
             ref = req.commit_hash
-        ireq = req.as_ireq()
+        ireq = req.ireq
         entry = value.copy()
         entry["name"] = req.name
         if entry.get("editable", False) and entry.get("version"):
@@ -879,8 +888,6 @@ class Resolver:
         return req.name, entry
 
     def clean_results(self):
-        from pipenv.vendor.requirementslib.models.requirements import Requirement
-
         reqs = [(Requirement.from_ireq(ireq), ireq) for ireq in self.resolved_tree]
         results = {}
         for req, ireq in reqs:
@@ -889,7 +896,7 @@ class Resolver:
             elif req.normalized_name in self.skipped.keys():
                 continue
             collected_hashes = self.hashes.get(ireq, set())
-            req = req.add_hashes(collected_hashes)
+            req.add_hashes(collected_hashes)
             if collected_hashes:
                 collected_hashes = sorted(collected_hashes)
             name, entry = format_requirement_for_lockfile(
@@ -1044,7 +1051,7 @@ def venv_resolve_deps(
     if not pipfile:
         pipfile = getattr(project, category, {})
     if lockfile is None:
-        lockfile = project._lockfile(categories=[category])
+        lockfile = project.lockfile(categories=[category])
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
     cmd = [
         which("python", allow_global=allow_global),

@@ -19,35 +19,17 @@ DEP_PIP_PAIRS = [
     ({"requests": {"extras": ["socks"], "version": "==1.10"}}, "requests[socks]==1.10"),
     (
         {
-            "pinax": {
-                "git": "https://github.com/pinax/pinax.git",
-                "ref": "1.4",
+            "dataclasses-json": {
+                "git": "https://github.com/lidatong/dataclasses-json.git",
+                "ref": "v0.5.7",
                 "editable": True,
             }
         },
-        "-e git+https://github.com/pinax/pinax.git@1.4#egg=pinax",
+        "-e git+https://github.com/lidatong/dataclasses-json.git@v0.5.7#egg=dataclasses-json",
     ),
     (
-        {"pinax": {"git": "https://github.com/pinax/pinax.git", "ref": "1.4"}},
-        "git+https://github.com/pinax/pinax.git@1.4#egg=pinax",
-    ),
-    (  # Mercurial.
-        {
-            "MyProject": {
-                "hg": "http://hg.myproject.org/MyProject",
-                "ref": "da39a3ee5e6b",
-            }
-        },
-        "hg+http://hg.myproject.org/MyProject@da39a3ee5e6b#egg=MyProject",
-    ),
-    (  # SVN.
-        {
-            "MyProject": {
-                "svn": "svn://svn.myproject.org/svn/MyProject",
-                "editable": True,
-            }
-        },
-        "-e svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject",
+        {"dataclasses-json": {"git": "https://github.com/lidatong/dataclasses-json.git", "ref": "v0.5.7"}},
+        "git+https://github.com/lidatong/dataclasses-json.git@v0.5.7#egg=dataclasses-json",
     ),
     (
         # Extras in url
@@ -63,12 +45,12 @@ DEP_PIP_PAIRS = [
         {
             "requests": {
                 "git": "https://github.com/requests/requests.git",
-                "ref": "master",
+                "ref": "main",
                 "extras": ["security"],
                 "editable": False,
             }
         },
-        "git+https://github.com/requests/requests.git@master#egg=requests[security]",
+        "git+https://github.com/requests/requests.git@main#egg=requests[security]",
     ),
 ]
 

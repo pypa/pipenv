@@ -92,19 +92,9 @@ if os.name == "nt":
 
 
 def normalize_path(path):
-    """Return a case-normalized absolute variable-expanded path.
-
-    :param str path: The non-normalized path
-    :return: A normalized, expanded, case-normalized path
-    :rtype: str
-    """
-
-    path = os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
-    if os.name == "nt" and os.path.exists(path):
-
-        path = get_long_path(path)
-
-    return os.path.normpath(os.path.normcase(path))
+    return os.path.expandvars(
+        os.path.expanduser(os.path.normcase(os.path.normpath(os.path.abspath(str(path)))))
+    )
 
 
 def normalize_drive(path):
@@ -114,10 +104,8 @@ def normalize_drive(path):
     identified with either upper or lower cased drive names. The case is
     always converted to uppercase because it seems to be preferred.
     """
-    if os.name != "nt" or not (
-        isinstance(path, str) or getattr(path, "__fspath__", None)
-    ):
-        return path  # type: ignore
+    if os.name != "nt" or not isinstance(path, str):
+        return path
 
     drive, tail = os.path.splitdrive(path)
     # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
@@ -160,7 +148,7 @@ def open_file(
 ) -> ContextManager[Union[IO[bytes], Urllib3_HTTPResponse, Urllib_HTTPResponse]]:
     """Open local or remote file for reading.
 
-    :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with
+    :param pip._internal.index.Link link: A link object from resolving dependencies with
         pip, or else a URL.
     :param Optional[Session] session: A :class:`~requests.Session` instance
     :param bool stream: Whether to stream the content if remote, default True
@@ -189,7 +177,7 @@ def open_file(
         headers = {"Accept-Encoding": "identity"}
         if not session:
             try:
-                from pipenv.patched.pip._vendor.requests import Session  # noqa
+                from requests import Session  # noqa
             except ImportError:
                 session = None
             else:
