@@ -1,0 +1,1 @@
+Resolver performance: package sources following PEP 503 will leverage package hashes from the URL fragment, without downloading the package.
