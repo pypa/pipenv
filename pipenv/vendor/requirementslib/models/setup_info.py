@@ -1732,19 +1732,14 @@ build-backend = "{1}"
             if ireq.source_dir:
                 location = ireq.source_dir
 
-            if ireq.link.is_existing_dir():
-                if os.path.isdir(location):
-                    rmtree(location)
-                _copy_source_tree(ireq.link.file_path, location)
-            else:
-                unpack_url(
-                    link=ireq.link,
-                    location=location,
-                    download=Downloader(session, "off"),
-                    verbosity=1,
-                    download_dir=download_dir,
-                    hashes=ireq.hashes(True),
-                )
+            unpack_url(
+                link=ireq.link,
+                location=location,
+                download=Downloader(session, "off"),
+                verbosity=1,
+                download_dir=download_dir,
+                hashes=ireq.hashes(True),
+            )
         created = cls.create(
             ireq.source_dir,
             subdirectory=subdir,
