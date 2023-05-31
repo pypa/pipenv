@@ -244,10 +244,14 @@ def find_python(finder, line=None):
 
     if line and not isinstance(line, str):
         raise TypeError(f"Invalid python search type: expected string, received {line!r}")
-    if line and os.path.isabs(line):
+    if line:
         if os.name == "nt":
             line = make_posix(line)
-        return line
+            if not os.path.exists(line) and not line.lower().endswith(".exe"):
+                line += ".exe"
+
+        if os.path.exists(line) and shutil.which(line):
+            return line
 
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
@@ -255,7 +259,7 @@ def find_python(finder, line=None):
         finder = Finder(global_search=True)
     if not line:
         result = next(iter(finder.find_all_python_versions()), None)
-    elif line and line[0].isdigit() or re.match(r"[\d\.]+", line):
+    elif line and line[0].isdigit() or re.match(r"^\d+(\.\d+)*$", line):
         result = finder.find_python_version(line)
     else:
         result = finder.find_python_version(name=line)
