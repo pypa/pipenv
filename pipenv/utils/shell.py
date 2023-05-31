@@ -252,6 +252,8 @@ def find_python(finder, line=None):
 
         if os.path.exists(line) and shutil.which(line):
             return line
+        else:  # TODO temp debug statement
+            raise Exception(f"Invalid python: {line!r}")
 
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
