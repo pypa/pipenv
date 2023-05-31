@@ -1,0 +1,1 @@
+Update ``pythonfinder==2.0.4`` with fix for "RecursionError: maximum recursion depth exceeded".
