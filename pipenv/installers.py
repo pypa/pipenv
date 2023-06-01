@@ -23,15 +23,20 @@ class Version:
 
     @classmethod
     def parse(cls, name):
-        """Parse an X.Y.Z or X.Y string into a version tuple."""
-        match = re.match(r"^(\d+)\.(\d+)(?:\.(\d+))?$", name)
+        """Parse an X.Y.Z, X.Y, or pre-release version string into a version tuple."""
+        match = re.match(r"^(\d+)\.(\d+)(?:\.(\d+))?(a|b|rc)?(\d+)?$", name)
         if not match:
             raise ValueError(f"invalid version name {name!r}")
         major = int(match.group(1))
         minor = int(match.group(2))
         patch = match.group(3)
+        # prerelease = match.group(4)  # Not used
+        # prerelease_num = match.group(5)
+
         if patch is not None:
             patch = int(patch)
+
+        # Return prerelease tag and number if they exist
         return cls(major, minor, patch)
 
     @property

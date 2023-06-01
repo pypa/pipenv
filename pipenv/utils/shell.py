@@ -245,14 +245,15 @@ def find_python(finder, line=None):
     if line and not isinstance(line, str):
         raise TypeError(f"Invalid python search type: expected string, received {line!r}")
     if line:
+        modified_line = line
         if (
             os.name == "nt"
-            and not os.path.exists(line)
-            and not line.lower().endswith(".exe")
+            and not os.path.exists(modified_line)
+            and not modified_line.lower().endswith(".exe")
         ):
-            line += ".exe"
-        if os.path.exists(line) and shutil.which(line):
-            return line
+            modified_line += ".exe"
+        if os.path.exists(modified_line) and shutil.which(modified_line):
+            return modified_line
 
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
