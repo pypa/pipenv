@@ -1,0 +1,1 @@
+Improve regex for python versions to handle hidden paths; handle relative paths to python better as well.
