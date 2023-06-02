@@ -1,1 +1,0 @@
-Drop vendored library cerberus. This isn't actually used by pipenv.

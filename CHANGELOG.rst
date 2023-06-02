@@ -1,3 +1,27 @@
+2023.6.2 (2023-06-02)
+=====================
+Pipenv 2023.6.2 (2023-06-02)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Resolver performance: package sources following PEP 503 will leverage package hashes from the URL fragment, without downloading the package.  `#5701 <https://github.com/pypa/pipenv/issues/5701>`_
+
+Bug Fixes
+---------
+
+- Improve regex for python versions to handle hidden paths; handle relative paths to python better as well.  `#4588 <https://github.com/pypa/pipenv/issues/4588>`_
+- Update ``pythonfinder==2.0.4`` with fix for "RecursionError: maximum recursion depth exceeded".  `#5709 <https://github.com/pypa/pipenv/issues/5709>`_
+
+Vendored Libraries
+------------------
+
+- Drop old vendored toml library. Use stdlib tomllib or tomli instead.  `#5678 <https://github.com/pypa/pipenv/issues/5678>`_
+- Drop vendored library cerberus. This isn't actually used by pipenv.  `#5699 <https://github.com/pypa/pipenv/issues/5699>`_
+
+
 2023.5.19 (2023-05-19)
 ======================
 Pipenv 2023.5.19 (2023-05-19)

@@ -1,1 +1,0 @@
-Reword active shell warning to reduce ambiguity
