@@ -58,14 +58,14 @@ doing a multistage build for your application:
     CMD ["./.venv/bin/python", "-m", "run.py"]
 
 ```{note}
-   Pipenv is not meant to run as root. However, in the multistage build above
-   it is done nevertheless. A calculated risk, since the intermediate image
-   is discarded.
-   The runtime image later shows that you should create a user and user it to
-   run your application.
-   **Once again, you should not run pipenv as root (or Admin on Windows) normally.
-   This could lead to breakage of your Python installation, or even your complete
-   OS.**
+Pipenv is not meant to run as root. However, in the multistage build above
+it is done nevertheless. A calculated risk, since the intermediate image
+is discarded.
+The runtime image later shows that you should create a user and user it to
+run your application.
+**Once again, you should not run pipenv as root (or Admin on Windows) normally.
+This could lead to breakage of your Python installation, or even your complete
+OS.**
 ```
 
 When you build an image with this example (assuming requests is found in Pipfile), you

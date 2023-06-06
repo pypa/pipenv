@@ -24,7 +24,7 @@ The recommended way to install pipenv on most platforms is to install from pypi 
 
     $ pip install --user pipenv
 
-More detailed installation instructions can be found in the :ref:`installing-pipenv` chapter.
+More detailed installation instructions can be found in the [installing Pipenv](installation) chapter.
 
 ✨🍰✨
 

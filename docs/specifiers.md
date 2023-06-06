@@ -30,9 +30,9 @@ To make inclusive or exclusive version comparisons you can use:
     $ pipenv install "requests>2.19"   # will install 2.19.1 but not 2.19.0
 
 ```{note}
-    The use of double quotes around the package and version specification (i.e. `"requests>2.19"`) is highly recommended
-    to avoid issues with `Input and output redirection <https://robots.thoughtbot.com/input-output-redirection-in-the-shell>`_
-    in Unix-based operating systems.
+The use of double quotes around the package and version specification (i.e. `"requests>2.19"`) is highly recommended
+to avoid issues with [Input and output redirection](https://robots.thoughtbot.com/input-output-redirection-in-the-shell)
+in Unix-based operating systems.
 ```
 
 The use of `~=` is preferred over the `==` identifier as the latter prevents pipenv from updating the packages:
@@ -75,9 +75,9 @@ If a `Pipfile` hasn't been created yet, one will be created for you, that looks 
     python_version = "3.11"
 
 ```{note}
-   The inclusion of `[requires] python_version = "3.11"` specifies that your application requires this version
-   of Python, and will be used automatically when running `pipenv install` against this `Pipfile` in the future
-   (e.g. on other machines). If this is not true, feel free to simply remove this section.
+The inclusion of `[requires] python_version = "3.11"` specifies that your application requires this version
+of Python, and will be used automatically when running `pipenv install` against this `Pipfile` in the future
+(e.g. on other machines). If this is not true, feel free to simply remove this section.
 ```
 
 If you don't specify a Python version on the command–line, either the `[requires]` `python_full_version` or `python_version` will be selected
@@ -154,11 +154,11 @@ Example usages:
 
 
 ```{note}
-  The `packages`/`default` specifiers are used to constrain all other categories just as they have done
-  for `dev-packages`/`develop` category.  However this is the only way constraints are applied --
-  the presence of other named groups do not constraint each other,
-  which means it is possible to define conflicting package versions across groups.
-  This may be desired in some use cases where users only are installing groups specific to their system platform.
+The `packages`/`default` specifiers are used to constrain all other categories just as they have done
+for `dev-packages`/`develop` category.  However this is the only way constraints are applied --
+the presence of other named groups do not constraint each other,
+which means it is possible to define conflicting package versions across groups.
+This may be desired in some use cases where users only are installing groups specific to their system platform.
 ```
 
 ## Specifying Basically Anything

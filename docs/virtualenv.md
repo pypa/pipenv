@@ -2,8 +2,8 @@
 
 ## Custom Virtual Environment Location
 
-Pipenv automatically honors the `WORKON_HOME` environment variable, if you
-have it set — so you can tell pipenv to store your virtual environments
+Pipenv automatically honors the `WORKON_HOME` environment variable, if it
+is set, so you can tell pipenv to store your virtual environments
 wherever you want, e.g.:
 
     export WORKON_HOME=~/.venvs
@@ -13,7 +13,7 @@ In addition, you can also have Pipenv stick the virtualenv in `project/.venv` by
 ## Virtual Environment Name
 
 The virtualenv name created by Pipenv may be different from what you were expecting.
-Dangerous characters (i.e. `$`!*@"` as well as space, line feed, carriage return,
+Dangerous characters (i.e. `` $!*@"` ``, as well as space, line feed, carriage return,
 and tab) are converted to underscores. Additionally, the full path to the current
 folder is encoded into a "slug value" and appended to ensure the virtualenv name
 is unique.
