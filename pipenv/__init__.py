@@ -14,10 +14,13 @@ warnings.filterwarnings("ignore", category=DependencyWarning)
 warnings.filterwarnings("ignore", category=ResourceWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 PIPENV_ROOT = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+PIPENV_VENDOR = os.sep.join([PIPENV_ROOT, "vendor"])
 PIP_VENDOR = os.sep.join([PIPENV_ROOT, "patched", "pip", "_vendor"])
 
 # Load patched pip instead of system pip
 os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+sys.path.insert(0, PIPENV_ROOT)
+sys.path.insert(0, PIPENV_VENDOR)
 sys.path.insert(0, PIP_VENDOR)
 
 if os.name == "nt":
