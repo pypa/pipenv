@@ -1,21 +1,18 @@
 import re
 from urllib.parse import urlparse
 
+from pipenv.patched.pip._vendor import requests
+from pipenv.patched.pip._vendor.requests.adapters import HTTPAdapter
 from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
 
-requests_session = None  # type: ignore
 
-
-def _get_requests_session(max_retries=1):
+def _get_requests_session(max_retries=1, verify_ssl=True):
     """Load requests lazily."""
-    global requests_session
-    if requests_session is not None:
-        return requests_session
-    from pipenv.patched.pip._vendor import requests
-
     requests_session = requests.Session()
-    adapter = requests.adapters.HTTPAdapter(max_retries=max_retries)
-    requests_session.mount("https://pypi.org/pypi", adapter)
+    adapter = HTTPAdapter(max_retries=max_retries)
+    requests_session.mount("https://", adapter)
+    if verify_ssl is False:
+        requests_session.verify = False
     return requests_session
 
 
@@ -46,6 +43,7 @@ def create_mirror_source(url, name):
 def download_file(url, filename, max_retries=1):
     """Downloads file from url to a path with filename"""
     r = _get_requests_session(max_retries).get(url, stream=True)
+    r.close()
     if not r.ok:
         raise OSError("Unable to download file")
 
@@ -117,6 +115,7 @@ def proper_case(package_name):
     r = _get_requests_session().get(
         f"https://pypi.org/pypi/{package_name}/json", timeout=0.3, stream=True
     )
+    r.close()
     if not r.ok:
         raise OSError(f"Unable to find package {package_name} in PyPI repository.")
 
