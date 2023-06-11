@@ -10,6 +10,11 @@ from io import StringIO
 from configparser import ConfigParser, NoOptionError
 from pathlib import PurePath
 
+try:
+    import tomllib as toml
+except ImportError:
+    from pipenv.vendor import tomli as toml
+
 from .errors import MalformedDependencyFileError
 from .regex import HASH_REGEX
 
@@ -17,7 +22,6 @@ from .dependencies import DependencyFile, Dependency
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement,\
     InvalidRequirement
 from . import filetypes
-import pipenv.vendor.toml as toml
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import Version, InvalidVersion
 import json

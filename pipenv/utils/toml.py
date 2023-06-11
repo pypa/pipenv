@@ -1,4 +1,9 @@
-from pipenv.vendor import toml, tomlkit
+try:
+    import tomllib as toml
+except ImportError:
+    from pipenv.vendor import tomli as toml
+
+from pipenv.vendor import tomlkit
 
 
 def cleanup_toml(tml):

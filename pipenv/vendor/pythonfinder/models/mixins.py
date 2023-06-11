@@ -68,6 +68,9 @@ class PathEntry(BaseModel):
     def __gte__(self, other) -> bool:
         return self.path.as_posix() >= other.path.as_posix()
 
+    def __eq__(self, other) -> bool:
+        return self.path.as_posix() == other.path.as_posix()
+
     def which(self, name) -> PathEntry | None:
         """Search in this path for an executable.
 

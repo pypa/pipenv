@@ -35,14 +35,13 @@ Alternatively the index may be specified by full url, and it will be added to th
 unless it already exists in which case the existing name with be reused when pinning the package index.
 
 ```{note}
-    In prior versions of `pipenv` you could specify `--extra-index-urls` to the `pip` resolver and avoid
-    specifically matching the expected index by name.   That functionality was deprecated in favor of index restricted
-    packages, which is a simplifying assumption that is more security mindful.  The pip documentation has the following
-    warning around the `--extra-index-urls` option:
+In prior versions of `pipenv` you could specify `--extra-index-urls` to the `pip` resolver and avoid specifically matching the expected index by name.
+That functionality was deprecated in favor of index restricted packages, which is a simplifying assumption that is more security mindful.
+The pip documentation has the following warning around the `--extra-index-urls` option:
 
-    Using this option to search for packages which are not in the main repository (such as private packages) is unsafe,
-    per a security vulnerability called dependency confusion: an attacker can claim the package on the public repository
-    in a way that will ensure it gets chosen over the private package.*
+> Using this option to search for packages which are not in the main repository (such as private packages) is unsafe,
+> per a security vulnerability called dependency confusion: an attacker can claim the package on the public repository
+> in a way that will ensure it gets chosen over the private package.
 ```
 
 Should you wish to use an alternative default index other than PyPI: simply do not specify PyPI as one of the

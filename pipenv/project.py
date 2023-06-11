@@ -13,6 +13,11 @@ import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
 
+try:
+    import tomllib as toml
+except ImportError:
+    from pipenv.vendor import tomli as toml
+
 from pipenv.cmdparse import Script
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
@@ -40,7 +45,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
-from pipenv.vendor import click, plette, toml, tomlkit
+from pipenv.vendor import click, plette, tomlkit
 from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 
 try:
@@ -176,9 +181,9 @@ class Project:
                 "name": "pypi",
             }
 
-        default_sources_toml = f"[[source]]\n{toml.dumps(self.default_source)}"
+        default_sources_toml = f"[[source]]\n{tomlkit.dumps(self.default_source)}"
         for pip_conf_index in pip_conf_indexes:
-            default_sources_toml += f"\n\n[[source]]\n{toml.dumps(pip_conf_index)}"
+            default_sources_toml += f"\n\n[[source]]\n{tomlkit.dumps(pip_conf_index)}"
         plette.pipfiles.DEFAULT_SOURCE_TOML = default_sources_toml
 
         # Hack to skip this during pipenv run, or -r.
@@ -850,14 +855,21 @@ class Project:
 
     def pipfile_sources(self, expand_vars=True):
         if self.pipfile_is_empty or "source" not in self.parsed_pipfile:
-            return [self.default_source]
+            sources = [self.default_source]
+            if os.environ.get("PIPENV_PYPI_MIRROR"):
+                sources[0]["url"] = os.environ["PIPENV_PYPI_MIRROR"]
+            return sources
         # We need to make copies of the source info so we don't
         # accidentally modify the cache. See #2100 where values are
         # written after the os.path.expandvars() call.
-        return [
+        sources = [
             {k: safe_expandvars(v) if expand_vars else v for k, v in source.items()}
             for source in self.parsed_pipfile["source"]
         ]
+        for source in sources:
+            if os.environ.get("PIPENV_PYPI_MIRROR") and is_pypi_url(source.get("url")):
+                source["url"] = os.environ["PIPENV_PYPI_MIRROR"]
+        return sources
 
     @property
     def sources(self):
@@ -962,6 +974,7 @@ class Project:
     def add_package_to_pipfile(self, package, dev=False, category=None):
         from .vendor.requirementslib import Requirement
 
+        newly_added = False
         # Read and append Pipfile.
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.
@@ -977,9 +990,12 @@ class Project:
         normalized_name = pep423_name(req_name)
         if name and name != normalized_name:
             self.remove_package_from_pipfile(name, category=category)
+        if normalized_name not in p[category]:
+            newly_added = True
         p[category][normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)
+        return newly_added, category
 
     def src_name_from_url(self, index_url):
         name, _, tld_guess = urllib.parse.urlsplit(index_url).netloc.rpartition(".")

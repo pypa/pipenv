@@ -3,8 +3,12 @@ from __future__ import absolute_import, print_function, unicode_literals
 import re
 import json
 import tempfile
-import pipenv.vendor.toml as toml
 import os
+
+try:
+    import tomllib as toml
+except ImportError:
+    from pipenv.vendor import tomli as toml
 
 
 class RequirementsTXTUpdater(object):
