@@ -1,0 +1,1 @@
+Upgrades to ``pipdeptree==2.8.0`` which fixes edge cases of the ``pipenv graph`` command.
