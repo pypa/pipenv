@@ -1,12 +1,8 @@
-"""Tests to ensure `pipenv --option` works.
-"""
-
 import os
 import re
 from pathlib import Path
 import pytest
 
-from flaky import flaky
 
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import normalize_drive
