@@ -34,7 +34,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-six = "*"
+six = "==1.12.0
             """.strip())
         c = p.pipenv(f'lock --pypi-mirror {mirror_url}')
         assert c.returncode == 0
