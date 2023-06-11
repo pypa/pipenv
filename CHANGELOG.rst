@@ -1,3 +1,15 @@
+2023.6.11 (2023-06-11)
+======================
+Pipenv 2023.6.11 (2023-06-11)
+=============================
+
+
+Vendored Libraries
+------------------
+
+- Upgrades to ``pipdeptree==2.8.0`` which fixes edge cases of the ``pipenv graph`` command.  `#5720 <https://github.com/pypa/pipenv/issues/5720>`_
+
+
 2023.6.2 (2023-06-02)
 =====================
 Pipenv 2023.6.2 (2023-06-02)
