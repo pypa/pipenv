@@ -668,6 +668,7 @@ def run_open(state, module, *args, **kwargs):
 @system_option
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @sync_options
+@site_packages_option
 @pass_state
 @pass_context
 def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
@@ -687,6 +688,7 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
         system=state.system,
         extra_pip_args=state.installstate.extra_pip_args,
         categories=state.installstate.categories,
+        site_packages=state.site_packages,
     )
     if retcode:
         ctx.abort()
