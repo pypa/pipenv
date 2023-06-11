@@ -8,19 +8,18 @@ Pipenv: Python Development Workflow for Humans
 
 ------------------------------------------------------------------------
 
-**Pipenv** is a Python virtualenv management tool that supports a multitude of systems and nicely bridges the gaps between pip, pyenv and virtualenv.
+**Pipenv** is a Python virtualenv management tool that supports a multitude of systems and nicely bridges the gaps between pip, python (using system python, pyenv or asdf) and virtualenv.
 *Linux, macOS, and Windows are all first-class citizens in pipenv.*
 
-It automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your `Pipfile` as you install/uninstall packages. It also generates the ever-important `Pipfile.lock`, which is used to produce deterministic builds.
+Pipenv automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your `Pipfile` as you install/uninstall packages. It also generates a project `Pipfile.lock`, which is used to produce deterministic builds.
 
-
-Pipenv is primarily meant to provide users and developers of applications with an easy method to setup a working environment.
+Pipenv is primarily meant to provide users and developers of applications with an easy method to arrive at a consistent working project environment.
 
 The problems that Pipenv seeks to solve are multi-faceted:
 
-- You no longer need to use `pip` and `virtualenv` separately. They work together.
+- You no longer need to use `pip` and `virtualenv` separately: they work together.
 - Managing a `requirements.txt` file with package hashes can be problematic.  Pipenv uses `Pipfile` and `Pipfile.lock` to separate abstract dependency declarations from the last tested combination.
-- Hashes are documented in the lock file, always. Security considerations are put first.
+- Hashes are documented in the lock file which are verified during install. Security considerations are put first.
 - Strongly encourage the use of the latest versions of dependencies to minimize security risks [arising from outdated components](https://www.owasp.org/index.php/Top_10-2017_A9-Using_Components_with_Known_Vulnerabilities).
 - Gives you insight into your dependency graph (e.g. `$ pipenv graph`).
 - Streamline development workflow by supporting local customizations with `.env` files.
@@ -75,9 +74,9 @@ Installation
 
 **Pipenv can be installed with Python 3.7 and above.**
 
-If you\'re using Debian Buster+:
+For most users, we recommend installing Pipenv using `pip`:
 
-    sudo apt install pipenv
+    pip install --user pipenv
 
 Or, if you\'re using Fedora:
 
@@ -95,15 +94,11 @@ Or, if you\'re using Void Linux:
 
     sudo xbps-install -S python3-pipenv
 
-Or, if you\'re using Windows:
-
-    pip install --user pipenv
-
-When none of the above is an option, it is recommended to use [Pipx](https://pypi.org/p/pipx):
+Alternatively, some users prefer to use [Pipx](https://pypi.org/p/pipx):
 
     pipx install pipenv
 
-Otherwise, refer to the [documentation](https://pipenv.pypa.io/en/latest/#install-pipenv-today) for instructions.
+Refer to the [documentation](https://pipenv.pypa.io/en/latest/#install-pipenv-today) for latest instructions.
 
 ✨🍰✨
 
@@ -113,19 +108,15 @@ Features
 -   Enables truly *deterministic builds*, while easily specifying *only
     what you want*.
 -   Generates and checks file hashes for locked dependencies.
--   Automatically install required Pythons, if `pyenv` is available.
+-   Automatically install required Pythons, if `pyenv` or `asdf` is available.
 -   Automatically finds your project home, recursively, by looking for a
     `Pipfile`.
 -   Automatically generates a `Pipfile`, if one doesn\'t exist.
 -   Automatically creates a virtualenv in a standard location.
--   Automatically adds/removes packages to a `Pipfile` when they are
-    un/installed.
+-   Automatically adds/removes packages to a `Pipfile` when they are installed/uninstalled.
 -   Automatically loads `.env` files, if they exist.
 
-The main commands are `install`, `uninstall`, and `lock`, which
-generates a `Pipfile.lock`. These are intended to replace
-`$ pip install` usage, as well as manual virtualenv management (to
-activate a virtualenv, run `$ pipenv shell`).
+For command reference, see [Commands](https://pipenv.pypa.io/en/latest/commands/).
 
 ### Basic Concepts
 
@@ -134,15 +125,6 @@ activate a virtualenv, run `$ pipenv shell`).
     `[packages]` specified will be installed.
 -   Otherwise, whatever virtualenv defaults to will be the default.
 
-### Other Commands
-
--   `shell` will spawn a shell with the virtualenv activated.
--   `run` will run a given command from the virtualenv, with any
-    arguments forwarded (e.g. `$ pipenv run python`).
--   `check` asserts that PEP 508 requirements are being met by the
-    current environment.
--   `graph` will print a pretty graph of all your installed
-    dependencies.
 
 ### Shell Completion
 
