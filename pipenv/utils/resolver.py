@@ -1004,7 +1004,6 @@ def venv_resolve_deps(
     pypi_mirror=None,
     pipfile=None,
     lockfile=None,
-    keep_outdated=False,
 ):
     """
     Resolve dependencies for a pipenv project, acts as a portal to the target environment.
@@ -1025,7 +1024,6 @@ def venv_resolve_deps(
     :param pipfile: A Pipfile section to operate on, defaults to None
     :type pipfile: Optional[Dict[str, Union[str, Dict[str, bool, List[str]]]]]
     :param Dict[str, Any] lockfile: A project lockfile to mutate, defaults to None
-    :param bool keep_outdated: Whether to retain outdated dependencies and resolve with them in mind, defaults to False
     :raises RuntimeError: Raised on resolution failure
     :return: The lock data
     :rtype: dict
@@ -1076,8 +1074,6 @@ def venv_resolve_deps(
             os.environ["PIPENV_SITE_DIR"] = pipenv_site_dir
         else:
             os.environ.pop("PIPENV_SITE_DIR", None)
-        if keep_outdated:
-            os.environ["PIPENV_KEEP_OUTDATED"] = "1"
         with console.status("Locking...", spinner=project.s.PIPENV_SPINNER) as st:
             # This conversion is somewhat slow on local and file-type requirements since
             # we now download those requirements / make temporary folders to perform

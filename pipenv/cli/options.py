@@ -3,7 +3,6 @@ import re
 
 from pipenv.project import Project
 from pipenv.utils.internet import is_valid_url
-from pipenv.vendor import click
 from pipenv.vendor.click import (
     BadArgumentUsage,
     BadParameter,
@@ -77,8 +76,6 @@ class InstallState:
     def __init__(self):
         self.dev = False
         self.pre = False
-        self.selective_upgrade = False
-        self.keep_outdated = False
         self.skip_lock = False
         self.ignore_pipfile = False
         self.code = False
@@ -148,59 +145,6 @@ def skip_lock_option(f):
         callback=callback,
         type=click_types.BOOL,
         show_envvar=True,
-    )(f)
-
-
-def keep_outdated_option(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        state.installstate.keep_outdated = value
-        if value:
-            click.secho(
-                "The flag --keep-outdated has been deprecated for removal.  "
-                "The flag does not respect package resolver results and leads to inconsistent lock files.  "
-                "Consider using the new `pipenv upgrade` command to selectively upgrade packages.",
-                fg="yellow",
-                bold=True,
-                err=True,
-            )
-        return value
-
-    return option(
-        "--keep-outdated",
-        is_flag=True,
-        default=False,
-        expose_value=False,
-        help="Keep out-dated dependencies from being updated in Pipfile.lock.",
-        callback=callback,
-        type=click_types.BOOL,
-        show_envvar=True,
-    )(f)
-
-
-def selective_upgrade_option(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        state.installstate.selective_upgrade = value
-        if value:
-            click.secho(
-                "The flag --selective-upgrade has been deprecated for removal.  "
-                "The flag is buggy and leads to inconsistent lock files.  "
-                "Consider using the new `pipenv upgrade` command to selectively upgrade packages.",
-                fg="yellow",
-                bold=True,
-                err=True,
-            )
-        return value
-
-    return option(
-        "--selective-upgrade",
-        is_flag=True,
-        default=False,
-        type=click_types.BOOL,
-        help="Update specified packages.",
-        callback=callback,
-        expose_value=False,
     )(f)
 
 
@@ -571,7 +515,6 @@ def common_options(f):
 def install_base_options(f):
     f = common_options(f)
     f = pre_option(f)
-    f = keep_outdated_option(f)
     f = extra_pip_args(f)
     return f
 
@@ -605,7 +548,6 @@ def install_options(f):
     f = sync_options(f)
     f = index_option(f)
     f = requirementstxt_option(f)
-    f = selective_upgrade_option(f)
     f = ignore_pipfile_option(f)
     f = editable_option(f)
     f = package_arg(f)
