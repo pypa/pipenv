@@ -64,12 +64,28 @@ release_help = {
 
 @invoke.task(help=release_help)
 def release(
-    ctx, manual=False, local=False, dry_run=False, pre=False, tag=None, month_offset="0"
+    ctx,
+    manual=False,
+    local=False,
+    dry_run=False,
+    pre=False,
+    tag=None,
+    month_offset="0",
+    version=None,
 ):
     trunc_month = False
     if pre:
         trunc_month = True
     drop_dist_dirs(ctx)
+    if not version:
+        version = bump_version(
+            ctx,
+            dry_run=dry_run,
+            pre=pre,
+            tag=tag,
+            month_offset=month_offset,
+            trunc_month=trunc_month,
+        )
     version = bump_version(
         ctx,
         dry_run=dry_run,
