@@ -1,0 +1,1 @@
+Remove the ``sys.path`` modifications and as a result fixes keyring support.
