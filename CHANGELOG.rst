@@ -1,3 +1,15 @@
+2023.6.12 (2023-06-11)
+======================
+Pipenv 2023.6.12 (2023-06-11)
+=============================
+
+
+Bug Fixes
+---------
+
+- Remove the ``sys.path`` modifications and as a result fixes keyring support.  `#5719 <https://github.com/pypa/pipenv/issues/5719>`_
+
+
 2023.6.11 (2023-06-11)
 ======================
 Pipenv 2023.6.11 (2023-06-11)
