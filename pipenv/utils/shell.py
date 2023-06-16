@@ -5,15 +5,18 @@ import re
 import shlex
 import shutil
 import stat
+import subprocess
 import sys
 import warnings
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 
+from pipenv.shells import choose_shell
 from pipenv.vendor import click
 from pipenv.vendor.pythonfinder.utils import ensure_path
 from pipenv.vendor.requirementslib.fileutils import normalize_drive, normalize_path
+from pipenv.vendor.shellingham import ShellDetectionFailure
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
 from .processes import subprocess_run
@@ -452,3 +455,98 @@ def isatty(stream):
     except Exception:  # pragma: no cover
         is_a_tty = False
     return is_a_tty
+
+
+class Shell:
+    """
+    Represents the current shell.  (Borrowed and modified from poetry.)
+    """
+
+    _shell = None
+
+    def __init__(self, name: str, path: str) -> None:
+        self._name = name
+        self._path = path
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def path(self) -> str:
+        return self._path
+
+    @classmethod
+    def get(cls, project):
+        """
+        Retrieve the current shell.
+        """
+        if cls._shell is not None:
+            return cls._shell
+
+        try:
+            shell = choose_shell(project)
+            name, path = Path(shell).stem, shell
+        except (RuntimeError, ShellDetectionFailure):
+            raise RuntimeError("Unable to detect the current shell.")
+
+        cls._shell = cls(name, path)
+
+        return cls._shell
+
+    def activate(self, env_path) -> int | None:
+        activate_script = self._get_activate_script()
+        is_windows = sys.platform == "win32"
+        bin_dir = "Scripts" if is_windows else "bin"
+        activate_path = os.path.join(env_path, bin_dir, activate_script)
+        os.environ["PS1"] = "({}) {}".format(self.name, os.environ["PS1"])
+
+        if is_windows:
+            args = None
+            if self._name in ("powershell", "pwsh"):
+                args = ["-NoExit", "-File", str(activate_path)]
+            elif self._name == "cmd":
+                args = ["/K", str(activate_path)]
+
+            if args:
+                completed_proc = subprocess.run([self.path, *args])
+                return completed_proc.returncode
+            else:
+                kwargs = dict(shell=True)
+                exe = subprocess.Popen(self.path, env=os.environ, **kwargs)
+                exe.communicate()
+                return exe.returncode
+
+        if self._name == "zsh":
+            cmd = f"emulate bash -c '. {shlex.quote(str(activate_path))}'"
+        else:
+            cmd = f"{self._get_source_command()} {shlex.quote(str(activate_path))}"
+            if self._name in ["fish", "nu"]:
+                cmd += "\r"
+
+        proc = subprocess.Popen(cmd, shell=True)
+        proc.communicate()
+        return proc.returncode
+
+    def _get_activate_script(self) -> str:
+        if self._name == "fish":
+            suffix = ".fish"
+        elif self._name in ("csh", "tcsh"):
+            suffix = ".csh"
+        elif self._name in ("powershell", "pwsh"):
+            suffix = ".ps1"
+        elif self._name == "cmd":
+            suffix = ".bat"
+        elif self._name == "nu":
+            suffix = ".nu"
+        else:
+            suffix = ""
+
+        return "activate" + suffix
+
+    def _get_source_command(self) -> str:
+        if self._name in ("fish", "csh", "tcsh"):
+            return "source"
+        elif self._name == "nu":
+            return "overlay use"
+        return "."

@@ -4,6 +4,7 @@ import sys
 from os.path import expandvars
 
 from pipenv import environments
+from pipenv.shells import choose_shell
 from pipenv.utils.project import ensure_project
 from pipenv.utils.shell import cmd_list_to_shell, system_which
 from pipenv.vendor import click
@@ -21,8 +22,6 @@ def do_shell(project, python=False, fancy=False, shell_args=None, pypi_mirror=No
     # Support shell compatibility mode.
     if project.s.PIPENV_SHELL_FANCY:
         fancy = True
-
-    from pipenv.shells import choose_shell
 
     shell = choose_shell(project)
     click.echo("Launching subshell in virtual environment...", err=True)
@@ -51,6 +50,18 @@ def do_shell(project, python=False, fancy=False, shell_args=None, pypi_mirror=No
             err=True,
         )
         shell.fork(*fork_args)
+
+
+def do_activate(project, python=False, pypi_mirror=None):
+    ensure_project(
+        project,
+        python=python,
+        validate=False,
+        pypi_mirror=pypi_mirror,
+    )
+    os.environ["PIPENV_ACTIVE"] = "1"
+    shell = choose_shell(project)
+    shell.activate(project.virtualenv_location)
 
 
 def do_run(project, command, args, python=False, pypi_mirror=None):

@@ -421,8 +421,6 @@ def shell(
                 err=True,
             )
             sys.exit(1)
-    # Load .env file.
-    load_dot_env(state.project)
     # Use fancy mode for Windows.
     if os.name == "nt":
         fancy = True
@@ -431,6 +429,37 @@ def shell(
         python=state.python,
         fancy=fancy,
         shell_args=shell_args,
+        pypi_mirror=state.pypi_mirror,
+    )
+
+
+@cli.command(
+    short_help="Activate the virtualenv.",
+    context_settings=subcommand_context,
+)
+@pypi_mirror_option
+@python_option
+@pass_state
+def activate(
+    state,
+):
+    """Activate the virtualenv."""
+    from pipenv.routines.shell import do_activate
+
+    # Prevent user from activating nested environments.
+    if "PIPENV_ACTIVE" in os.environ:
+        # If PIPENV_ACTIVE is set, VIRTUAL_ENV should always be set too.
+        venv_name = os.environ.get("VIRTUAL_ENV", "UNKNOWN_VIRTUAL_ENVIRONMENT")
+        echo(
+            "Virtualenv {} already activated".format(
+                style(venv_name, fg="green", bold=True),
+            ),
+            err=True,
+        )
+        sys.exit(1)
+    do_activate(
+        state.project,
+        python=state.python,
         pypi_mirror=state.pypi_mirror,
     )
 
