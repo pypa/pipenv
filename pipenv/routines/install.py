@@ -354,6 +354,7 @@ def do_sync(
     deploy=False,
     extra_pip_args=None,
     categories=None,
+    site_packages=False,
 ):
     # The lock file needs to exist because sync won't write to it.
     if not project.lockfile_exists:
@@ -368,6 +369,7 @@ def do_sync(
         deploy=deploy,
         pypi_mirror=pypi_mirror,
         clear=clear,
+        site_packages=site_packages,
     )
 
     # Install everything.

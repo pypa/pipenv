@@ -30,15 +30,28 @@ Keep in mind that environment variables are expanded in runtime, leaving the ent
 ## Injecting credentials through keychain support
 
 Private registries on Google Cloud, Azure and AWS support dynamic credentials using
-the keychain implementation. Due to the way the keychain is structured, it might ask
-the user for input. Asking the user for input is disabled. This will disable the keychain
-support completely, unfortunately.
+the keychain implementation.
 
-If you want to work with private registries that use the keychain for authentication, you
-can disable the "enforcement of no input".
+Pipenv supports this keychain implementation. It will automatically detect the
+keychain implementation and use it to authenticate to the private registry.
 
-**Note:** Please be sure that the keychain will really not ask for
-input. Otherwise, the process will hang forever!:
+### Google Cloud
+
+Google Cloud supports private registries. You can find more information about
+this here: https://cloud.google.com/artifact-registry/docs/python/authentication
+
+In order to utilize, you need to install the `keyring` and `keyrings.google-artifactregistry` packages,
+and they must be available in the same virtualenv that you intend to use Pipenv in.
+
+    pipenv run pip install keyring keyrings.google-artifactregistry-auth
+
+Depending on the way your keychain is structured, it may ask for user input.
+Asking the user for input is disabled by default, and this may disable the keychain support completely.
+If you want to work with private registries that use the keychain for authentication,
+you may need to disable the "enforcement of no input".
+
+**Note:** Please be sure that the keychain will really not ask for input.
+Otherwise, the process will hang forever!:
 
     [[source]]
     url = "https://pypi.org/simple"

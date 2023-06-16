@@ -179,6 +179,7 @@ class Resolver:
         self._pip_command = None
         self._retry_attempts = 0
         self._hash_cache = None
+        self._sessions = {}
 
     def __repr__(self):
         return (
@@ -603,7 +604,7 @@ class Resolver:
                 session=self.session,
             )
             # It would be nice if `shims.get_package_finder` took an
-            # `ignore_compatibility` parameter, but that's some vendorered code
+            # `ignore_compatibility` parameter, but that's some vendored code
             # we'd rather avoid touching.
             index_lookup = self.prepare_index_lookup()
             ignore_compatibility_finder._ignore_compatibility = True
@@ -753,9 +754,19 @@ class Resolver:
             cleaned_checksums.add(checksum)
         return cleaned_checksums
 
-    def _get_hashes_from_pypi(self, ireq):
+    def _get_requests_session_for_source(self, source):
+        if self._sessions.get(source["name"]):
+            session = self._sessions[source["name"]]
+        else:
+            session = _get_requests_session(
+                self.project.s.PIPENV_MAX_RETRIES, source.get("verify_ssl", True)
+            )
+            self._sessions[source["name"]] = session
+        return session
+
+    def _get_hashes_from_pypi(self, ireq, source):
         pkg_url = f"https://pypi.org/pypi/{ireq.name}/json"
-        session = _get_requests_session(self.project.s.PIPENV_MAX_RETRIES)
+        session = self._get_requests_session_for_source(source)
         try:
             collected_hashes = set()
             # Grab the hashes from the new warehouse API.
@@ -785,7 +796,7 @@ class Resolver:
 
     def _get_hashes_from_remote_index_urls(self, ireq, source):
         pkg_url = f"{source['url']}/{ireq.name}/"
-        session = _get_requests_session(self.project.s.PIPENV_MAX_RETRIES)
+        session = self._get_requests_session_for_source(source)
         try:
             collected_hashes = set()
             # Grab the hashes from the new warehouse API.
@@ -837,7 +848,7 @@ class Resolver:
         source = sources[0] if len(sources) else None
         if source:
             if is_pypi_url(source["url"]):
-                hashes = self._get_hashes_from_pypi(ireq)
+                hashes = self._get_hashes_from_pypi(ireq, source)
                 if hashes:
                     return hashes
             else:

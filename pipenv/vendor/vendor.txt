@@ -5,10 +5,10 @@ dparse==0.6.2
 markupsafe==2.1.2
 pep517==0.13.0
 pexpect==4.8.0
-pipdeptree==2.7.0
+pipdeptree==2.8.0
 plette==0.4.4
 ptyprocess==0.7.0
-pydantic==1.10.8
+pydantic==1.10.9
 python-dotenv==1.0.0
 pythonfinder==2.0.4
 requirementslib==2.3.0
