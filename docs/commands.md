@@ -27,7 +27,6 @@ The user can provide these additional parameters:
     --system — Install packages to the system site-packages rather than into your virtualenv.
     --deploy — Verifies the _meta hash of the lock file is up to date with the ``Pipfile``, aborts install if not.
     --ignore-pipfile — Install from the Pipfile.lock and completely ignore Pipfile information.
-    --skip-lock — Ignore the ``Pipfile.lock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.  This is not recommended as you loose the security benefits of lock file hash verification.
 
 General Interface Note:
 ```{note}
