@@ -365,11 +365,11 @@ class ResolutionFailure(PipenvException):
             "{}: Your dependencies could not be resolved. You likely have a "
             "mismatch in your sub-dependencies.\n  "
             "You can use {} to bypass this mechanism, then run "
-            "{} to inspect the situation.\n  "
+            "{} to inspect the versions actually installed in the virtualenv.\n  "
             "Hint: try {} if it is a pre-release dependency."
             "".format(
                 click.style("Warning", fg="red", bold=True),
-                click.style("$ pipenv install --skip-lock", fg="yellow"),
+                click.style("$ pipenv run pip install <requirement_name>", fg="yellow"),
                 click.style("$ pipenv graph", fg="yellow"),
                 click.style("$ pipenv lock --pre", fg="yellow"),
             ),
