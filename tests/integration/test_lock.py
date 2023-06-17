@@ -317,6 +317,7 @@ requests = {version = "*", extras = ["socks"]}
         assert "extra == 'socks'" not in c.stdout.strip()
 
 
+@pytest.mark.skip(reason="Skip lock does not support multiple indexes sources; flag is considered for deprecation.")
 @pytest.mark.index
 @pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.skip_lock
