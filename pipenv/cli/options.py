@@ -136,6 +136,15 @@ def skip_lock_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.skip_lock = value
+        if value:
+            click.secho(
+                "The flag --skip-lock has been deprecated for removal.  "
+                "Without running the lock resolver it is not possible to manage multiple package indexes.  "
+                "Additionally it bypasses the build consistency guarantees provided by maintaining a lock file.",
+                fg="yellow",
+                bold=True,
+                err=True,
+            )
         return value
 
     return option(
