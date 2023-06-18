@@ -1,39 +1,45 @@
 import importlib
 import os
 import sys
+from typing import Any, Optional, Tuple
 
-import pipenv.vendor.attr as attr
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
+from pipenv.patched.pip._vendor.pyparsing.core import cached_property
+from pipenv.vendor.pydantic import BaseModel, Field
 
-from ..environment import MYPY_RUNNING
+from .common import ReqLibBaseModel
 from .url import URI
 
-if MYPY_RUNNING:
-    from typing import Any, Optional, Tuple
 
+class VCSRepository(ReqLibBaseModel):
+    url: str
+    name: str
+    checkout_directory: str
+    vcs_type: str
+    parsed_url: Optional[URI] = Field(default_factory=None)
+    subdirectory: Optional[str] = None
+    commit_sha: Optional[str] = None
+    ref: Optional[str] = None
+    repo_backend: Any = None
+    clone_log: Optional[str] = None
+    DEFAULT_RUN_ARGS: Optional[Any] = None
 
-@attr.s(hash=True)
-class VCSRepository(object):
-    DEFAULT_RUN_ARGS = None
+    class Config:
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        allow_mutation = True
+        include_private_attributes = True
+        keep_untouched = (cached_property,)
 
-    url = attr.ib()  # type: str
-    name = attr.ib()  # type: str
-    checkout_directory = attr.ib()  # type: str
-    vcs_type = attr.ib()  # type: str
-    parsed_url = attr.ib()  # type: URI
-    subdirectory = attr.ib(default=None)  # type: Optional[str]
-    commit_sha = attr.ib(default=None)  # type: Optional[str]
-    ref = attr.ib(default=None)  # type: Optional[str]
-    repo_backend = attr.ib()  # type: Any
-    clone_log = attr.ib(default=None)  # type: Optional[str]
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.parsed_url = self.get_parsed_url()
+        self.repo_backend = self.get_repo_backend()
 
-    @parsed_url.default
-    def get_parsed_url(self):
-        # type: () -> URI
+    def get_parsed_url(self) -> URI:
         return URI.parse(self.url)
 
-    @repo_backend.default
     def get_repo_backend(self):
         if self.DEFAULT_RUN_ARGS is None:
             default_run_args = self.monkeypatch_pip()
@@ -42,14 +48,12 @@ class VCSRepository(object):
 
         VCS_SUPPORT = VcsSupport()
         backend = VCS_SUPPORT.get_backend(self.vcs_type)
-        # repo = backend(url=self.url)
         if backend.run_command.__func__.__defaults__ != default_run_args:
             backend.run_command.__func__.__defaults__ = default_run_args
         return backend
 
     @property
-    def is_local(self):
-        # type: () -> bool
+    def is_local(self) -> bool:
         url = self.url
         if "+" in url:
             url = url.split("+")[1]
@@ -66,10 +70,9 @@ class VCSRepository(object):
             if self.ref:
                 self.checkout_ref(self.ref)
         if not self.commit_sha:
-            self.commit_sha = self.get_commit_hash()
+            self.commit_sha = self.commit_hash
 
-    def checkout_ref(self, ref):
-        # type: (str) -> None
+    def checkout_ref(self, ref: str) -> None:
         rev_opts = self.repo_backend.make_rev_options(ref)
         if not any(
             [
@@ -80,24 +83,20 @@ class VCSRepository(object):
         ):
             self.update(ref)
 
-    def update(self, ref):
-        # type: (str) -> None
+    def update(self, ref: str) -> None:
         target_ref = self.repo_backend.make_rev_options(ref)
         self.repo_backend.update(self.checkout_directory, self.url, target_ref)
-        self.commit_sha = self.get_commit_hash()
+        self.commit_sha = self.commit_hash
 
-    def get_commit_hash(self, ref=None):
-        # type: (Optional[str]) -> str
-        with global_tempdir_manager():
-            return self.repo_backend.get_revision(self.checkout_directory)
+    @cached_property
+    def commit_hash(self) -> str:
+        return self.repo_backend.get_revision(self.checkout_directory)
 
     @classmethod
-    def monkeypatch_pip(cls):
-        # type: () -> Tuple[Any, ...]
+    def monkeypatch_pip(cls) -> Tuple[Any, ...]:
         target_module = VcsSupport.__module__
         pip_vcs = importlib.import_module(target_module)
         run_command_defaults = pip_vcs.VersionControl.run_command.__func__.__defaults__
-        # set the default to not write stdout, the first option sets this value
         new_defaults = [False] + list(run_command_defaults)[1:]
         new_defaults = tuple(new_defaults)
         pip_vcs.VersionControl.run_command.__func__.__defaults__ = new_defaults
