@@ -1,8 +1,8 @@
 import os
 
-import mock
 import pytest
 
+from unittest import mock
 from pipenv.utils import shell
 
 
