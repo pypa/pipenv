@@ -149,7 +149,7 @@ def open_file(
 ) -> ContextManager[Union[IO[bytes], Urllib3_HTTPResponse, Urllib_HTTPResponse]]:
     """Open local or remote file for reading.
 
-    :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with
+    :param pip._internal.index.Link link: A link object from resolving dependencies with
         pip, or else a URL.
     :param Optional[Session] session: A :class:`~requests.Session` instance
     :param bool stream: Whether to stream the content if remote, default True
@@ -178,7 +178,7 @@ def open_file(
         headers = {"Accept-Encoding": "identity"}
         if not session:
             try:
-                from pipenv.patched.pip._vendor.requests import Session  # noqa
+                from requests import Session  # noqa
             except ImportError:
                 session = None
             else:

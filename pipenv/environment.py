@@ -11,6 +11,8 @@ import sys
 import typing
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
@@ -775,7 +777,12 @@ class Environment:
         if match is not None:
             if req.editable and req.line_instance.is_local and self.find_egg(match):
                 requested_path = req.line_instance.path
-                return requested_path and os.path.samefile(requested_path, match.location)
+                if os.path.exists(requested_path):
+                    local_path = requested_path
+                else:
+                    parsed_url = urlparse(requested_path)
+                    local_path = url2pathname(parsed_url.path)
+                return requested_path and os.path.samefile(local_path, match.location)
             elif match.has_metadata("direct_url.json"):
                 direct_url_metadata = json.loads(match.get_metadata("direct_url.json"))
                 commit_id = direct_url_metadata.get("vcs_info", {}).get("commit_id", "")

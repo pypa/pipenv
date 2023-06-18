@@ -605,7 +605,7 @@ class Project:
             # Write the changes to disk.
             self.write_toml(p)
 
-    def _lockfile(self, categories=None):
+    def lockfile(self, categories=None):
         """Pipfile.lock divided by PyPI and external dependencies."""
         lockfile_loaded = False
         if self.lockfile_exists:
@@ -755,7 +755,7 @@ class Project:
         if from_pipfile and self.pipfile_exists:
             lockfile_dict = {}
             categories = self.get_package_categories(for_lockfile=True)
-            _lockfile = self._lockfile(categories=categories)
+            _lockfile = self.lockfile(categories=categories)
             for category in categories:
                 lockfile_dict[category] = _lockfile.get(category, {}).copy()
             lockfile_dict.update({"_meta": self.get_lockfile_meta()})
@@ -772,7 +772,7 @@ class Project:
         else:
             lockfile = Req_Lockfile.from_data(
                 path=self.lockfile_location,
-                data=self._lockfile(),
+                data=self.lockfile(),
                 meta_from_project=False,
             )
         if lockfile.lockfile is not None:
@@ -979,7 +979,7 @@ class Project:
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.
         if not isinstance(package, Requirement):
-            package = Requirement.from_line(package.strip())
+            package = Requirement.from_line(package.strip(), parse_setup_info=False)
         req_name, converted = package.pipfile_entry
         category = category if category else "dev-packages" if dev else "packages"
         # Set empty group if it doesn't exist yet.

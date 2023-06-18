@@ -529,7 +529,7 @@ def batch_install_iteration(
         if dep.req.req:
             dep.req.req = strip_extras_markers_from_requirement(dep.req.req)
         if dep.markers:
-            dep.markers = str(strip_extras_markers_from_requirement(dep.get_markers()))
+            dep.markers = str(strip_extras_markers_from_requirement(dep.get_markers))
         # Install the module.
         if dep.is_file_or_url and (
             dep.is_direct_url
@@ -688,8 +688,6 @@ def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
                     raise exceptions.InstallError(deps, extra=err_lines)
                 else:
                     # Alert the user.
-                    if dep:
-                        dep.use_pep517 = False
                     click.echo(
                         "{} {}! Will try again.".format(
                             click.style("An error occurred while installing", fg="red"),

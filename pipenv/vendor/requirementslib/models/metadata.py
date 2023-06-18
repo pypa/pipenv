@@ -7,7 +7,22 @@ import zipfile
 from collections import defaultdict
 from datetime import datetime
 from functools import reduce
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Set, Tuple, Union
+
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import pipenv.patched.pip._vendor.requests as requests
 from pipenv.patched.pip._vendor.distlib import wheel
@@ -375,6 +390,10 @@ class ParsedTag(BaseModel):
     python_version: Optional[str] = None
     platform_system: Optional[str] = None
     abi: Optional[str] = None
+
+    class Config:
+        frozen = True
+
 
     class Config:
         frozen = True

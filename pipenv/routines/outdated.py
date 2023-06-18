@@ -43,7 +43,10 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
     for package in packages:
         norm_name = pep423_name(package)
         if norm_name in updated_packages:
-            if updated_packages[norm_name] != packages[package]:
+            version = packages[package]
+            if isinstance(version, Mapping):
+                version = version.get("version")
+            if updated_packages[norm_name] != version:
                 outdated.append(
                     package_info(package, updated_packages[norm_name], packages[package])
                 )

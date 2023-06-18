@@ -113,15 +113,16 @@ def test_requirements_generates_requirements_from_lockfile_from_categories(pipen
         assert f'{test_packages[0]}=={test_packages[1]}' in d.stdout
         assert f'{doc_packages[0]}=={doc_packages[1]}' in d.stdout
 
+
 @pytest.mark.requirements
 def test_requirements_with_git_requirements(pipenv_instance_pypi):
-    req_name, req_hash = 'example-repo', 'cc858e89f19bc0dbd70983f86b811ab625dc9292'
+    req_hash = '3264a0046e1aa3c0a813335286ebdbc651f58b13'
     lockfile = {
         "_meta": {"sources": []},
         "default": {
-            req_name: {
+            "dataclasses-json": {
                 "editable": True,
-                "git": F"ssh://git@bitbucket.org/code/{req_name}.git",
+                "git": f"https://github.com/lidatong/dataclasses-json.git",
                 "ref": req_hash
             }
         },
@@ -134,7 +135,7 @@ def test_requirements_with_git_requirements(pipenv_instance_pypi):
 
         c = p.pipenv('requirements')
         assert c.returncode == 0
-        assert req_name in c.stdout
+        assert "dataclasses-json" in c.stdout
         assert req_hash in c.stdout
 
 

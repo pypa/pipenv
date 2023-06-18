@@ -3,17 +3,17 @@ import os
 import re
 import sys
 from abc import ABCMeta, abstractmethod
+from typing import Optional
 
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import find_windows_executable
-from pipenv.vendor import attr
+from pipenv.vendor.pydantic import BaseModel
 
 
-@attr.s
-class Version:
-    major = attr.ib()
-    minor = attr.ib()
-    patch = attr.ib()
+class Version(BaseModel):
+    major: int
+    minor: int
+    patch: Optional[int] = None
 
     def __str__(self):
         parts = [self.major, self.minor]
@@ -22,7 +22,7 @@ class Version:
         return ".".join(str(p) for p in parts)
 
     @classmethod
-    def parse(cls, name):
+    def parse(cls, name: str):
         """Parse an X.Y.Z, X.Y, or pre-release version string into a version tuple."""
         match = re.match(r"^(\d+)\.(\d+)(?:\.(\d+))?(a|b|rc)?(\d+)?$", name)
         if not match:
@@ -35,16 +35,14 @@ class Version:
 
         if patch is not None:
             patch = int(patch)
-
-        # Return prerelease tag and number if they exist
-        return cls(major, minor, patch)
+        return cls(major=major, minor=minor, patch=patch)
 
     @property
     def cmpkey(self):
         """Make the version a comparable tuple.
 
-        Some old Python versions does not have a patch part, e.g. 2.7.0 is
-        named "2.7" in pyenv. Fix that, otherwise `None` will fail to compare
+        Some old Python versions do not have a patch part, e.g., 2.7.0 is
+        named "2.7" in pyenv. Fix that; otherwise, `None` will fail to compare
         with int.
         """
         return (self.major, self.minor, self.patch or 0)
