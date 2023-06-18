@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, AnyStr, Callable, Dict, Generator, List, Optional, Tuple, Union
 from urllib.parse import parse_qs, urlparse, urlunparse
 
-from pipenv.vendor.distlib.wheel import Wheel
+from pipenv.patched.pip._vendor.distlib.wheel import Wheel
 from pipenv.vendor.pep517 import envbuild, wrappers
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.operations.prepare import unpack_url
