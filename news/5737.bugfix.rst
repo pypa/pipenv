@@ -1,0 +1,1 @@
+Fixes resolver to only consider the default index for packages when a secondary index is not specified.  This brings the code into alignment with stated assumptions about index restricted packages behavior of ``pipenv``.
