@@ -1,3 +1,20 @@
+2023.6.18 (2023-06-18)
+======================
+Pipenv 2023.6.18 (2023-06-18)
+=============================
+
+
+Bug Fixes
+---------
+
+- Fixes resolver to only consider the default index for packages when a secondary index is not specified.  This brings the code into alignment with stated assumptions about index restricted packages behavior of ``pipenv``.  `#5737 <https://github.com/pypa/pipenv/issues/5737>`_
+
+Removals and Deprecations
+-------------------------
+
+- Deprecation of ``--skip-lock`` flag as it bypasses the security benefits of pipenv.  Plus it lacks proper deterministic support of installation from multiple package indexes.  `#5737 <https://github.com/pypa/pipenv/issues/5737>`_
+
+
 2023.6.12 (2023-06-11)
 ======================
 Pipenv 2023.6.12 (2023-06-11)
