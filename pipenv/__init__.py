@@ -1,6 +1,7 @@
 import os
 import warnings
 
+from pipenv.__version__ import __version__  # noqa
 from pipenv.cli import cli
 from pipenv.patched.pip._vendor.urllib3.exceptions import DependencyWarning
 

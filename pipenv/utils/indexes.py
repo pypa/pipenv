@@ -72,7 +72,7 @@ def get_source_list(
     trusted_hosts: Optional[List[str]] = None,
     pypi_mirror: Optional[str] = None,
 ) -> List[TSource]:
-    sources: List[TSource] = []
+    sources = project.sources[:]
     if index:
         sources.append(get_project_index(project, index))
     if extra_indexes:
@@ -88,8 +88,6 @@ def get_source_list(
             if not sources or source["url"] != sources[0]["url"]:
                 sources.append(source)
 
-    if not sources:
-        sources = project.sources[:]
     if pypi_mirror:
         sources = [
             create_mirror_source(pypi_mirror, source["name"])

@@ -1,19 +1,16 @@
 import sys
+from collections import namedtuple
+from collections.abc import Mapping
 
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.routines.lock import do_lock
 from pipenv.utils.dependencies import pep423_name
 from pipenv.vendor import click
+from pipenv.vendor.requirementslib.models.requirements import Requirement
+from pipenv.vendor.requirementslib.models.utils import get_version
 
 
 def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
-    # TODO: Allow --skip-lock here?
-    from collections import namedtuple
-    from collections.abc import Mapping
-
-    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
-    from pipenv.vendor.requirementslib.models.utils import get_version
-
     packages = {}
     package_info = namedtuple("PackageInfo", ["name", "installed", "available"])
 
