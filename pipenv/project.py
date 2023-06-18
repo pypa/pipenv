@@ -775,7 +775,7 @@ class Project:
                 data=self._lockfile(),
                 meta_from_project=False,
             )
-        if lockfile._lockfile is not None:
+        if lockfile.lockfile is not None:
             return lockfile
         if self.lockfile_exists and self.lockfile_content:
             lockfile_dict = self.lockfile_content.copy()
@@ -788,7 +788,7 @@ class Project:
             _created_lockfile = Req_Lockfile.from_data(
                 path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
             )
-            lockfile._lockfile = lockfile.projectfile.model = _created_lockfile
+            lockfile.lockfile = lockfile.projectfile.model = _created_lockfile
             return lockfile
         else:
             return self.get_or_create_lockfile(categories=categories, from_pipfile=True)
