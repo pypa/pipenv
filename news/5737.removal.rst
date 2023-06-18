@@ -1,0 +1,1 @@
+Deprecation of ``--skip-lock`` flag as it bypasses the security benefits of pipenv.  Plus it lacks proper deterministic support of installation from multiple package indexes.
