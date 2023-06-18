@@ -1,6 +1,6 @@
 import os
 
-from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
+from pipenv.vendor.platformdirs import user_cache_dir
 
 
 def is_type_checking():

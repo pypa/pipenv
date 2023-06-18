@@ -16,25 +16,22 @@ from typing import (
     TypeVar,
     Union,
 )
+
 import pipenv.vendor.tomlkit as tomlkit
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.constructors import install_req_from_line
-from pipenv.patched.pip._internal.utils._jaraco_text import (
-    yield_lines,
-    drop_comment,
-    join_continuation,
-)
+from pipenv.patched.pip._internal.utils._jaraco_text import drop_comment, join_continuation, yield_lines
 from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker, Op, Value, Variable
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.patched.pip._vendor.pkg_resources import Requirement, get_distribution, safe_name
+from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
+from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
 from pipenv.vendor.plette.models import Package, PackageCollection
 from pipenv.vendor.tomlkit.container import Container
 from pipenv.vendor.tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
-from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
-from pipenv.patched.pip._vendor.urllib3.util import parse_url as urllib3_parse
 
 from ..environment import MYPY_RUNNING
 from ..fileutils import is_valid_url

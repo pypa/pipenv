@@ -22,7 +22,7 @@ def get_pip_options(args=None, sources=None, pip_command=None):
     :param pip_command: A pre-built pip command instance
     :type pip_command: :class:`~pipenv.patched.pip._internal.cli.base_command.Command`
     :return: An instance of pip_options using the supplied arguments plus sane defaults
-    :rtype: :class:`~pip._internal.cli.cmdoptions`
+    :rtype: :class:`~pipenv.patched.pip._internal.cli.cmdoptions`
     """
 
     if not pip_command:
@@ -43,11 +43,11 @@ def get_finder(sources=None, pip_command=None, pip_options=None) -> PackageFinde
     :param sources: A list of pipfile-formatted sources, defaults to None
     :param sources: list[dict], optional
     :param pip_command: A pip command instance, defaults to None
-    :type pip_command: :class:`~pip._internal.cli.base_command.Command`
+    :type pip_command: :class:`~pipenv.patched.pip._internal.cli.base_command.Command`
     :param pip_options: A pip options, defaults to None
-    :type pip_options: :class:`~pip._internal.cli.cmdoptions`
+    :type pip_options: :class:`~pipenv.patched.pip._internal.cli.cmdoptions`
     :return: A package finder
-    :rtype: :class:`~pip._internal.index.PackageFinder`
+    :rtype: :class:`~pipenv.patched.pip._internal.index.PackageFinder`
     """
 
     if not pip_command:
