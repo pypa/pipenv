@@ -1,1 +1,2 @@
- Bump requirementslib to version 3.0.0
+ * Bump requirementslib to version 3.0.0
+ * Remove vendored copy of attrs
