@@ -7,23 +7,9 @@ import zipfile
 from collections import defaultdict
 from datetime import datetime
 from functools import reduce
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generic,
-    Iterator,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Set, Tuple, Union
 
-import pip._vendor.requests as requests
+import pipenv.patched.pip._vendor.requests as requests
 from pipenv.patched.pip._vendor.distlib import wheel
 from pipenv.patched.pip._vendor.distlib.metadata import Metadata
 from pipenv.patched.pip._vendor.packaging.markers import Marker
@@ -371,13 +357,11 @@ class Digest(BaseModel):
         return value
 
 
-# XXX: This is necessary because attrs converters can only be functions, not classmethods
 def create_digest_collection(digest_dict) -> List["Digest"]:
     return Digest.collection_from_dict(digest_dict)
 
 
 def instance_check_converter(expected_type=None, converter=None):
-    # type: (Optional[Type], Optional[Callable]) -> Callable
     def _converter(val):
         if expected_type is not None and isinstance(val, expected_type):
             return val

@@ -91,7 +91,8 @@ if os.name == "nt":
         return buffer.value
 
 
-def normalize_path(path):
+def normalize_path(path: str) -> str:
+    """Return a case-normalized absolute variable-expanded path."""
     return os.path.expandvars(
         os.path.expanduser(os.path.normcase(os.path.normpath(os.path.abspath(str(path)))))
     )
@@ -148,7 +149,7 @@ def open_file(
 ) -> ContextManager[Union[IO[bytes], Urllib3_HTTPResponse, Urllib_HTTPResponse]]:
     """Open local or remote file for reading.
 
-    :param pip._internal.index.Link link: A link object from resolving dependencies with
+    :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with
         pip, or else a URL.
     :param Optional[Session] session: A :class:`~requests.Session` instance
     :param bool stream: Whether to stream the content if remote, default True
@@ -177,7 +178,7 @@ def open_file(
         headers = {"Accept-Encoding": "identity"}
         if not session:
             try:
-                from requests import Session  # noqa
+                from pipenv.patched.pip._vendor.requests import Session  # noqa
             except ImportError:
                 session = None
             else:

@@ -1440,11 +1440,7 @@ class FileRequirement(ReqLibBaseModel):
             self.parsed_line is not None and self.parsed_line.requirement is not None
         ):
             self.req = self.parsed_line.requirement
-        if (
-            self.parsed_line
-            and self.parsed_line.ireq
-            and not self.parsed_line.ireq.req
-        ):
+        if self.parsed_line and self.parsed_line.ireq and not self.parsed_line.ireq.req:
             if self.req is not None and self.parsed_line._ireq is not None:
                 self.parsed_line._ireq.req = self.req
 
@@ -2285,8 +2281,8 @@ class Requirement(ReqLibBaseModel):
     hashes: Set[str] = set()
     extras: Tuple[str, ...] = Field(tuple(), eq=True, order=True)
     _line_instance: Optional[Line] = None
-    #ireq: Optional[InstallRequirement] = Field(None, eq=False, order=False)
-    #_ireq: Optional[Any] = Field(None, eq=False, order=False)
+    # ireq: Optional[InstallRequirement] = Field(None, eq=False, order=False)
+    # _ireq: Optional[Any] = Field(None, eq=False, order=False)
 
     class Config:
         validate_assignment = True
@@ -2453,11 +2449,7 @@ class Requirement(ReqLibBaseModel):
                     setupinfo_dict = None
                 if setupinfo_dict is not None:
                     return "=={0}".format(setupinfo_dict.get("version"))
-        elif (
-            self.req
-            and hasattr(self.req, "setup_info")
-            and self.req.setup_info.version
-        ):
+        elif self.req and hasattr(self.req, "setup_info") and self.req.setup_info.version:
             return "=={0}".format(self.req.setup_info.version)
 
     @cached_property
@@ -2826,6 +2818,7 @@ class Requirement(ReqLibBaseModel):
             new_ireq.req.marker = new_marker
         if self.req.req:
             self.req.req = new_marker
+
 
 def file_req_from_parsed_line(parsed_line) -> FileRequirement:
     path = parsed_line.relpath if parsed_line.relpath else parsed_line.path
