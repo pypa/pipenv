@@ -14,7 +14,7 @@ To explicitly disable a boolean option, assign to it a false value (i.e. `"0"`).
 
 ```{eval-rst}
 .. autoclass:: pipenv.environments.Setting
-:members:
+    :members:
 ```
 
 Also note that `pip` supports additional [environment variables](https://pip.pypa.io/en/stable/user_guide/#environment-variables), if you need additional customization.
