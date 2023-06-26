@@ -4,16 +4,12 @@ from __future__ import unicode_literals, absolute_import
 import os
 from collections import OrderedDict
 import re
+import sys
 
 from io import StringIO
 
 from configparser import ConfigParser, NoOptionError
 from pathlib import PurePath
-
-try:
-    import tomllib as toml
-except ImportError:
-    from pipenv.vendor import tomli as toml
 
 from .errors import MalformedDependencyFileError
 from .regex import HASH_REGEX
@@ -25,6 +21,11 @@ from . import filetypes
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import Version, InvalidVersion
 import json
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import pipenv.vendor.tomli as tomllib
 
 
 # this is a backport from setuptools 26.1
@@ -360,7 +361,7 @@ class PipfileParser(Parser):
         :return:
         """
         try:
-            data = toml.loads(self.obj.content, _dict=OrderedDict)
+            data = tomllib.loads(self.obj.content)
             if data:
                 for package_type in ['packages', 'dev-packages']:
                     if package_type in data:
@@ -378,7 +379,7 @@ class PipfileParser(Parser):
                                     section=package_type
                                 )
                             )
-        except (toml.TomlDecodeError, IndexError):
+        except (tomllib.TOMLDecodeError, IndexError):
             pass
 
 
@@ -447,7 +448,7 @@ class PoetryLockParser(Parser):
         Parse a poetry.lock
         """
         try:
-            data = toml.loads(self.obj.content, _dict=OrderedDict)
+            data = tomllib.loads(self.obj.content)
             pkg_key = 'package'
             if data:
                 try:
@@ -475,7 +476,7 @@ class PoetryLockParser(Parser):
                             section=section
                         )
                     )
-        except (toml.TomlDecodeError, IndexError) as e:
+        except (tomllib.TOMLDecodeError, IndexError) as e:
             raise MalformedDependencyFileError(info=str(e))
 
 
