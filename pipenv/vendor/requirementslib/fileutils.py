@@ -91,20 +91,11 @@ if os.name == "nt":
         return buffer.value
 
 
-def normalize_path(path):
-    """Return a case-normalized absolute variable-expanded path.
-
-    :param str path: The non-normalized path
-    :return: A normalized, expanded, case-normalized path
-    :rtype: str
-    """
-
-    path = os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
-    if os.name == "nt" and os.path.exists(path):
-
-        path = get_long_path(path)
-
-    return os.path.normpath(os.path.normcase(path))
+def normalize_path(path: str) -> str:
+    """Return a case-normalized absolute variable-expanded path."""
+    return os.path.expandvars(
+        os.path.expanduser(os.path.normcase(os.path.normpath(os.path.abspath(str(path)))))
+    )
 
 
 def normalize_drive(path):
@@ -114,10 +105,8 @@ def normalize_drive(path):
     identified with either upper or lower cased drive names. The case is
     always converted to uppercase because it seems to be preferred.
     """
-    if os.name != "nt" or not (
-        isinstance(path, str) or getattr(path, "__fspath__", None)
-    ):
-        return path  # type: ignore
+    if os.name != "nt" or not isinstance(path, str):
+        return path
 
     drive, tail = os.path.splitdrive(path)
     # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.

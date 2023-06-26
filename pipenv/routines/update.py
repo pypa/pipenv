@@ -115,7 +115,7 @@ def upgrade(
     dev=False,
     lock_only=False,
 ):
-    lockfile = project._lockfile()
+    lockfile = project.lockfile()
     if not pre:
         pre = project.settings.get("allow_prereleases")
     if dev:
