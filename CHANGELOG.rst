@@ -1,3 +1,15 @@
+2023.6.26 (2023-06-26)
+======================
+Pipenv 2023.6.26 (2023-06-26)
+=============================
+
+
+Improved Documentation
+----------------------
+
+- Add missing environment variable descriptions back to documentation  `#missing_env_var_desc <https://github.com/pypa/pipenv/issues/missing_env_var_desc>`_
+
+
 2023.6.18 (2023-06-18)
 ======================
 Pipenv 2023.6.18 (2023-06-18)
