@@ -58,11 +58,6 @@ from .utils import (
 
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
 
-# The following are necessary for people who like to use "if __name__" conditionals
-# in their setup.py scripts
-_setup_stop_after = None
-_setup_distribution = None
-
 
 def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None) -> None:
     """The default method of calling the wrapper subprocess."""
@@ -1015,12 +1010,9 @@ def get_egginfo_dist(path, pkg_name=None) -> Optional[EggInfoDistribution]:
 
 
 def get_metadata(path, pkg_name=None, metadata_type=None):
-    wheel_allowed = metadata_type == "wheel" or metadata_type is None
-    egg_allowed = metadata_type == "egg" or metadata_type is None
-    dist = None  # type: Optional[Union[DistInfoDistribution, EggInfoDistribution]]
-    if wheel_allowed:
+    try:
         dist = get_distinfo_dist(path, pkg_name=pkg_name)
-    if egg_allowed and dist is None:
+    except Exception:
         dist = get_egginfo_dist(path, pkg_name=pkg_name)
     if dist is not None:
         return get_metadata_from_dist(dist)
@@ -1124,9 +1116,13 @@ def run_setup(script_path, egg_base=None):
     :return: The metadata dictionary
     :rtype: Dict[Any, Any]
     """
+    from pipenv.project import Project
 
     if not os.path.exists(script_path):
         raise FileNotFoundError(script_path)
+    project = Project()
+    environment = project.environment
+    python = environment.python
     target_cwd = os.path.dirname(os.path.abspath(script_path))
     if egg_base is None:
         egg_base = os.path.join(target_cwd, "reqlib-metadata")
@@ -1138,32 +1134,14 @@ def run_setup(script_path, egg_base=None):
             args += ["--egg-base", egg_base]
         script_name = os.path.basename(script_path)
         g = {"__file__": script_name, "__name__": "__main__"}
-        sys.path.insert(0, target_cwd)
 
-        save_argv = sys.argv.copy()
-        try:
-            global _setup_distribution, _setup_stop_after
-            _setup_stop_after = "run"
-            sys.argv[0] = script_name
-            sys.argv[1:] = args
-            with open(script_name, "rb") as f:
-                contents = f.read().replace(rb"\r\n", rb"\n")
-                exec(contents, g)
-        # We couldn't import everything needed to run setup
-        except Exception:
-            python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
-
-            sp.run(
+        sp.run(
                 [python, "setup.py"] + args,
                 cwd=target_cwd,
                 stdout=sp.PIPE,
                 stderr=sp.PIPE,
-            )
-        finally:
-            _setup_stop_after = None
-            sys.argv = save_argv
-            _setup_distribution = get_metadata(egg_base, metadata_type="egg")
-        dist = _setup_distribution
+        )
+        dist = get_metadata(egg_base, metadata_type="egg")
     return dist
 
 
