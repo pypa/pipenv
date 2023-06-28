@@ -13,13 +13,12 @@ def requirements_from_deps(deps, include_hashes=True, include_markers=True):
         if "git" in package_info:
             git = package_info["git"].replace("ssh://", "https://")
             ref = package_info.get("ref", "")
-            editable = "--editable " if package_info.get("editable", False) else ""
             extras = (
                 "[{}]".format(",".join(package_info.get("extras", [])))
                 if "extras" in package_info
                 else ""
             )
-            pip_package = f'"{package_name}{extras} @ {editable}git+{git}@{ref}"'
+            pip_package = f'"{package_name}{extras} @ git+{git}@{ref}"'
         else:
             # Handling packages with hashes and markers
             version = package_info.get("version", "").replace("==", "")
