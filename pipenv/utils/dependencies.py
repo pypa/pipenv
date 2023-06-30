@@ -62,6 +62,9 @@ class HackedPythonVersion:
         if self.python_path:
             os.environ["PIP_PYTHON_PATH"] = str(self.python_path)
 
+    def __exit__(self, *args):
+        pass
+
 
 def get_canonical_names(packages):
     """Canonicalize a list of packages and return a set of canonical names"""
