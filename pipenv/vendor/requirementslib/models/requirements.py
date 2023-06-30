@@ -796,7 +796,7 @@ class Line(ReqLibBaseModel):
         setup_info = self.setup_info
         if setup_info is None:
             with global_tempdir_manager():
-                setup_info = SetupInfo.from_ireq(self.ireq, subdir=self.subdirectory)
+                setup_info = SetupInfo.from_ireq(self.ireq, python=self.python, subdir=self.subdirectory)
                 if not setup_info.name:
                     setup_info.get_info()
         return setup_info
@@ -888,6 +888,7 @@ class Line(ReqLibBaseModel):
             sys.path = [repo.checkout_directory, "", ".", get_path("purelib")]
             setupinfo = SetupInfo.create(
                 repo.checkout_directory,
+                python=self.python,
                 ireq=ireq,
                 subdirectory=self.subdirectory,
                 kwargs=wheel_kwargs,
@@ -1587,7 +1588,7 @@ class FileRequirement(ReqLibBaseModel):
             ):
                 with global_tempdir_manager():
                     self.setup_info = SetupInfo.from_ireq(
-                        self.parsed_line.ireq, subdir=self.subdirectory
+                        self.parsed_line.ireq, python=self.python, subdir=self.subdirectory
                     )
             else:
                 if self.link and not self.link.is_wheel:
@@ -2482,7 +2483,7 @@ class Requirement(ReqLibBaseModel):
         return self.__class__(**self.__dict__)
 
     @classmethod
-    def from_line(cls, line, parse_setup_info=True) -> "Requirement":
+    def from_line(cls, line, python, parse_setup_info=True) -> "Requirement":
         if isinstance(line, Requirement):
             return line
         if isinstance(line, InstallRequirement):
@@ -2516,6 +2517,7 @@ class Requirement(ReqLibBaseModel):
             "req": r,
             "markers": parsed_line.markers,
             "editable": parsed_line.editable,
+            "python": python,
         }
         if parsed_line.extras:
             extras = tuple(sorted(dedup([extra.lower() for extra in parsed_line.extras])))

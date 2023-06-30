@@ -979,7 +979,9 @@ class Project:
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.
         if not isinstance(package, Requirement):
-            package = Requirement.from_line(package.strip(), parse_setup_info=False)
+            package = Requirement.from_line(
+                package.strip(), python=self.environment.python, parse_setup_info=False
+            )
         req_name, converted = package.pipfile_entry
         category = category if category else "dev-packages" if dev else "packages"
         # Set empty group if it doesn't exist yet.

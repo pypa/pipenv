@@ -8,7 +8,6 @@ import os
 import shutil
 import stat
 import subprocess as sp
-import sys
 import time
 import warnings
 from collections.abc import Iterable, Mapping
@@ -69,9 +68,9 @@ def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None) -> None:
 
 
 class BuildEnv(envbuild.BuildEnvironment):
-    def pip_install(self, reqs):
+    def pip_install(self, python, reqs):
         cmd = [
-            sys.executable,
+            python,
             "-m",
             "pip",
             "install",
@@ -804,25 +803,6 @@ def parse_setup_cfg(path: str) -> "Dict[str, Any]":
     return SetupReader.read_setup_cfg(Path(path))
 
 
-def build_pep517(source_dir, build_dir, config_settings=None, dist_type="wheel"):
-    if config_settings is None:
-        config_settings = {}
-    requires, backend = get_pyproject(source_dir)
-    hookcaller = HookCaller(source_dir, backend)
-    if dist_type == "sdist":
-        get_requires_fn = hookcaller.get_requires_for_build_sdist
-        build_fn = hookcaller.build_sdist
-    else:
-        get_requires_fn = hookcaller.get_requires_for_build_wheel
-        build_fn = hookcaller.build_wheel
-
-    with BuildEnv() as env:
-        env.pip_install(requires)
-        reqs = get_requires_fn(config_settings)
-        env.pip_install(reqs)
-        return build_fn(build_dir, config_settings)
-
-
 def _get_src_dir(root):
     # type: (AnyStr) -> AnyStr
     src = os.environ.get("PIP_SRC")
@@ -1107,34 +1087,25 @@ def ast_parse_setup_py(path: str, raising: bool = True) -> "Dict[str, Any]":
     return SetupReader.read_setup_py(Path(path), raising)
 
 
-def run_setup(script_path, egg_base=None):
+def run_setup(python, script_path, egg_base=None):
     """Run a `setup.py` script with a target **egg_base** if provided.
 
+    :param python: The path to the python executable to invoke setup with
     :param script_path: The path to the `setup.py` script to run
     :param Optional egg_base: The metadata directory to build in
     :raises FileNotFoundError: If the provided `script_path` does not exist
     :return: The metadata dictionary
     :rtype: Dict[Any, Any]
     """
-    from pipenv.project import Project
-
     if not os.path.exists(script_path):
         raise FileNotFoundError(script_path)
-    project = Project()
-    environment = project.environment
-    python = environment.python
     target_cwd = os.path.dirname(os.path.abspath(script_path))
     if egg_base is None:
         egg_base = os.path.join(target_cwd, "reqlib-metadata")
     with temp_path(), cd(target_cwd):
-        # This is for you, Hynek
-        # see https://github.com/hynek/environ_config/blob/69b1c8a/setup.py
         args = ["egg_info"]
         if egg_base:
             args += ["--egg-base", egg_base]
-        script_name = os.path.basename(script_path)
-        g = {"__file__": script_name, "__name__": "__main__"}
-
         sp.run(
                 [python, "setup.py"] + args,
                 cwd=target_cwd,
@@ -1377,10 +1348,9 @@ class SetupInfo(ReqLibBaseModel):
                 return {}
             return parsed
         return {}
-
     def run_setup(self) -> None:
         if not self._ran_setup and self.setup_py is not None and self.setup_py.exists():
-            dist = run_setup(self.setup_py.as_posix(), egg_base=self.egg_base)
+            dist = run_setup(self.python, self.setup_py.as_posix(), egg_base=self.egg_base)
             target_cwd = self.setup_py.parent.as_posix()
             with temp_path(), cd(target_cwd):
                 if not dist:
@@ -1396,6 +1366,24 @@ class SetupInfo(ReqLibBaseModel):
         config = {}
         config.setdefault("--global-option", [])
         return config
+
+    def build_pep517(self, source_dir, build_dir, config_settings=None, dist_type="wheel"):
+        if config_settings is None:
+            config_settings = {}
+        requires, backend = get_pyproject(source_dir)
+        hookcaller = HookCaller(source_dir, backend)
+        if dist_type == "sdist":
+            get_requires_fn = hookcaller.get_requires_for_build_sdist
+            build_fn = hookcaller.build_sdist
+        else:
+            get_requires_fn = hookcaller.get_requires_for_build_wheel
+            build_fn = hookcaller.build_wheel
+
+        with BuildEnv() as env:
+            env.pip_install(self.python, requires)
+            reqs = get_requires_fn(config_settings)
+            env.pip_install(self.python, reqs)
+            return build_fn(build_dir, config_settings)
 
     def build_wheel(self) -> str:
         need_delete = False
@@ -1424,7 +1412,7 @@ build-backend = "{1}"
             subdir = parse_qs(parsed.fragment).get("subdirectory", [])
             if subdir:
                 directory = f"{self.base_dir}/{subdir[0]}"
-        result = build_pep517(
+        result = self.build_pep517(
             directory,
             self.extra_kwargs["build_dir"],
             config_settings=self.pep517_config,
@@ -1456,7 +1444,7 @@ build-backend = "{1}"
                 )
             )
             need_delete = True
-        result = build_pep517(
+        result = self.build_pep517(
             self.base_dir,
             self.extra_kwargs["build_dir"],
             config_settings=self.pep517_config,
@@ -1530,7 +1518,7 @@ build-backend = "{1}"
         metadata = next(iter(d for d in metadata if d), None)
         return metadata
 
-    def populate_metadata(self, metadata) -> "SetupInfo":
+    def populate_metadata(self, metadata):
         """Populates the metadata dictionary from the supplied metadata."""
 
         _metadata = ()
@@ -1561,9 +1549,8 @@ build-backend = "{1}"
             if self.ireq and self.ireq.extras and section in self.ireq.extras:
                 self._requirements += extras_set
             extras_tuples.append((section, tuple(extras_set)))
-        return self
 
-    def run_pyproject(self) -> "SetupInfo":
+    def run_pyproject(self):
         """Populates the **pyproject.toml** metadata if available."""
         if self.pyproject and self.pyproject.exists():
             result = get_pyproject(self.pyproject.parent)
@@ -1579,7 +1566,6 @@ build-backend = "{1}"
                     self.build_requires = tuple(set(requires) | set(self.build_requires))
                 else:
                     self.build_requires = ("setuptools", "wheel")
-        return self
 
     def get_initial_info(self) -> Dict[str, Any]:
         parse_setupcfg = False
@@ -1649,11 +1635,11 @@ build-backend = "{1}"
     def from_requirement(cls, requirement, finder=None) -> Optional["SetupInfo"]:
         ireq = requirement.ireq
         subdir = getattr(requirement.req, "subdirectory", None)
-        return cls.from_ireq(ireq, subdir=subdir, finder=finder)
+        return cls.from_ireq(ireq, python=requirement.python, subdir=subdir, finder=finder)
 
     @classmethod
     def from_ireq(
-        cls, ireq, subdir=None, finder=None, session=None
+        cls, ireq, python, subdir=None, finder=None, session=None
     ) -> Optional["SetupInfo"]:
         if not ireq:
             return None
@@ -1725,6 +1711,7 @@ build-backend = "{1}"
                 )
         created = cls.create(
             ireq.source_dir,
+            python=python,
             subdirectory=subdir,
             ireq=ireq,
             kwargs=kwargs,
@@ -1735,6 +1722,7 @@ build-backend = "{1}"
     def create(
         cls,
         base_dir: str,
+        python: Path,
         subdirectory: Optional[str] = None,
         ireq: Optional[InstallRequirement] = None,
         kwargs: Optional[Dict[str, str]] = None,

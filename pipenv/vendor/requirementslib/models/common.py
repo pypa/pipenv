@@ -1,9 +1,11 @@
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 from pipenv.vendor.pydantic import BaseModel, Extra
 
 
 class ReqLibBaseModel(BaseModel):
+    python: Optional[Path]
     def __setattr__(self, name, value):  # noqa: C901 (ignore complexity)
         private_attributes = {
             field_name

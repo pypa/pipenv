@@ -184,7 +184,11 @@ def upgrade(
             else:
                 packages[package_name] = requested_package
             if lock_only is False:
-                project.add_package_to_pipfile(requirement, category=pipfile_category)
+                project.add_package_to_pipfile(
+                    requirement,
+                    python=project.environment.python,
+                    category=pipfile_category,
+                )
 
         full_lock_resolution = venv_resolve_deps(
             packages,
