@@ -290,16 +290,9 @@ class Environment:
     @property
     def python(self) -> str:
         """Path to the environment python"""
-        if self._python is not None:
-            return self._python
-        if os.name == "nt" and not self.is_venv:
-            py = Path(self.prefix).joinpath("python").absolute().as_posix()
-        else:
-            py = Path(self.script_basedir).joinpath("python").absolute().as_posix()
-        if not py:
-            py = Path(sys.executable).as_posix()
-        self._python = py
-        return py
+        from pipenv.utils.virtualenv import ensure_python
+
+        return ensure_python(self.project)
 
     @cached_property
     def sys_path(self) -> List[str]:

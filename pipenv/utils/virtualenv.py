@@ -217,7 +217,7 @@ def cleanup_virtualenv(project, bare=True):
 
 def ensure_python(project, python=None):
     # Runtime import is necessary due to the possibility that the environments module may have been reloaded.
-    if project.s.PIPENV_PYTHON and python is False:
+    if project.s.PIPENV_PYTHON and not python:
         python = project.s.PIPENV_PYTHON
 
     def abort(msg=""):

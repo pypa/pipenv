@@ -1120,6 +1120,7 @@ def run_setup(script_path, egg_base=None):
     :return: The metadata dictionary
     :rtype: Dict[Any, Any]
     """
+    from pathlib import Path
 
     if not os.path.exists(script_path):
         raise FileNotFoundError(script_path)
@@ -1127,21 +1128,13 @@ def run_setup(script_path, egg_base=None):
     if egg_base is None:
         egg_base = os.path.join(target_cwd, "reqlib-metadata")
     with temp_path(), cd(target_cwd):
-        # This is for you, Hynek
-        # see https://github.com/hynek/environ_config/blob/69b1c8a/setup.py
         args = ["egg_info"]
         if egg_base:
             args += ["--egg-base", egg_base]
-        script_name = os.path.basename(script_path)
-        g = {"__file__": script_name, "__name__": "__main__"}
-        sys.path.insert(0, target_cwd)
 
-        save_argv = sys.argv.copy()
-        python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
-
+        python = Path(os.environ.get("PIP_PYTHON_PATH", sys.executable))
         sp.run(
             [python, "setup.py"] + args,
-            cwd=target_cwd,
             stdout=sp.PIPE,
             stderr=sp.PIPE,
         )
