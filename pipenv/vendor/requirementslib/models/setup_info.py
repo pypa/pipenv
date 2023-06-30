@@ -1132,7 +1132,7 @@ def run_setup(script_path, egg_base=None):
         if egg_base:
             args += ["--egg-base", egg_base]
 
-        python = Path(os.environ.get("PIP_PYTHON_PATH", sys.executable))
+        python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
         sp.run(
             [python, "setup.py"] + args,
             capture_output=True,
