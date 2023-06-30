@@ -1158,6 +1158,13 @@ class Project:
                 result = str(result.path)
         return result
 
+    @property
+    def python(self) -> str:
+        """Path to the project python"""
+        from pipenv.utils.virtualenv import ensure_python
+
+        return ensure_python(self)
+
     def _which(self, command, location=None, allow_global=False):
         if not allow_global and location is None:
             if self.virtualenv_exists:

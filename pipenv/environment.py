@@ -81,7 +81,7 @@ class Environment:
         if self.is_venv:
             self._base_paths = self.get_paths()
         self.sys_paths = get_paths()
-        os.environ["PIP_PYTHON_PATH"] = self.python
+        os.environ["PIP_PYTHON_PATH"] = self.project.python
 
     def safe_import(self, name: str) -> ModuleType:
         """Helper utility for reimporting previously imported modules while inside the env"""
@@ -290,9 +290,16 @@ class Environment:
     @property
     def python(self) -> str:
         """Path to the environment python"""
-        from pipenv.utils.virtualenv import ensure_python
-
-        return ensure_python(self.project)
+        if self._python is not None:
+            return self._python
+        if os.name == "nt" and not self.is_venv:
+            py = Path(self.prefix).joinpath("python").absolute().as_posix()
+        else:
+            py = Path(self.script_basedir).joinpath("python").absolute().as_posix()
+        if not py:
+            py = Path(sys.executable).as_posix()
+        self._python = py
+        return py
 
     @cached_property
     def sys_path(self) -> List[str]:
