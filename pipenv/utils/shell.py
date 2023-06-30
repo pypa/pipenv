@@ -351,11 +351,13 @@ def handle_remove_readonly(func, path, exc):
             func(path)
         except OSError as e:
             if e.errno in [errno.EACCES, errno.EPERM]:
-                warnings.warn(default_warning_message.format(path), ResourceWarning)
+                warnings.warn(
+                    default_warning_message.format(path), ResourceWarning, stacklevel=1
+                )
                 return
 
     if exc_exception.errno in [errno.EACCES, errno.EPERM]:
-        warnings.warn(default_warning_message.format(path), ResourceWarning)
+        warnings.warn(default_warning_message.format(path), ResourceWarning, stacklevel=1)
         return
 
     raise exc

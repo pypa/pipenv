@@ -180,7 +180,7 @@ class Pyenv(Installer):
     def _run(self, *args, **kwargs):
         if Pyenv.WIN:
             kwargs["shell"] = True
-        return super(Pyenv, self)._run(*args, **kwargs)
+        return super()._run(*args, **kwargs)
 
     def iter_installable_versions(self):
         """Iterate through CPython versions available for Pipenv to install."""

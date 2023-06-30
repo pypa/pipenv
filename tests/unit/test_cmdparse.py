@@ -54,16 +54,8 @@ def test_cmdify_complex():
 def test_cmdify_quote_if_paren_in_command():
     """Ensure ONLY the command is quoted if it contains parentheses.
     """
-    script = Script.parse(' '.join([
-        '"C:\\Python36(x86)\\python.exe"',
-        '-c',
-        "print(123)",
-    ]))
-    assert script.cmdify() == ' '.join([
-        '"C:\\Python36(x86)\\python.exe"',
-        '-c',
-        "print(123)",
-    ]), script
+    script = Script.parse('"C:\\Python36(x86)\\python.exe" -c print(123)')
+    assert script.cmdify() == '"C:\\Python36(x86)\\python.exe" -c print(123)', script
 
 
 @pytest.mark.run

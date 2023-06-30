@@ -114,7 +114,7 @@ def test_uninstall_all_dev(pipenv_instance_private_pypi):
             contents = """
         [[source]]
         name = "pypi"
-        url = "{0}"
+        url = "{}"
         verify_ssl = true
 
         [packages]

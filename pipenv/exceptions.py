@@ -44,7 +44,7 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
                 line = f"      {line}"
             else:
                 line = f"  {line}"
-            line = "[{!s}]: {}".format(exception.__class__.__name__, line)
+            line = f"[{exception.__class__.__name__!s}]: {line}"
             formatted_lines.append(line)
         # use new exception prettification rules to format exceptions according to
         # UX rules
@@ -56,7 +56,7 @@ sys.excepthook = handle_exception
 
 
 class PipenvException(ClickException):
-    message = "{0}: {{0}}".format(click.style("ERROR", fg="red", bold=True))
+    message = "{}: {{}}".format(click.style("ERROR", fg="red", bold=True))
 
     def __init__(self, message=None, **kwargs):
         if not message:
@@ -164,7 +164,7 @@ class PipenvUsageError(UsageError):
                 click.echo(extra, file=file)
         hint = ""
         if self.cmd is not None and self.cmd.get_help_option(self.ctx) is not None:
-            hint = 'Try "%s %s" for help.\n' % (
+            hint = 'Try "{} {}" for help.\n'.format(
                 self.ctx.command_path,
                 self.ctx.help_option_names[0],
             )
@@ -174,9 +174,7 @@ class PipenvUsageError(UsageError):
 
 
 class PipenvFileError(FileError):
-    formatted_message = "{0} {{0}} {{1}}".format(
-        click.style("ERROR:", fg="red", bold=True)
-    )
+    formatted_message = "{} {{}} {{}}".format(click.style("ERROR:", fg="red", bold=True))
 
     def __init__(self, filename, message=None, **kwargs):
         extra = kwargs.pop("extra", [])

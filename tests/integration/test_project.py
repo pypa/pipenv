@@ -43,7 +43,7 @@ def test_get_source(pipenv_instance_private_pypi, lock_first):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
-url = "{0}"
+url = "{}"
 verify_ssl = false
 name = "testindex"
 
@@ -127,7 +127,7 @@ def test_many_indexes(pipenv_instance_pypi):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
-url = "{0}"
+url = "{}"
 verify_ssl = false
 name = "testindex"
 

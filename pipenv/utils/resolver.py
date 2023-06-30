@@ -121,7 +121,7 @@ class HashCacheMixin:
         with open_file(link.url, self.session) as fp:
             for chunk in iter(lambda: fp.read(8096), b""):
                 h.update(chunk)
-        return ":".join([h.name, h.hexdigest()])
+        return f"{h.name}:{h.hexdigest()}"
 
 
 class PackageIndexHTMLParser(HTMLParser):

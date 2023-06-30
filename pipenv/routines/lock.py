@@ -60,7 +60,7 @@ def do_lock(
             click.echo(
                 "{} {} {}".format(
                     click.style("Locking"),
-                    click.style("[{}]".format(pipfile_category), fg="yellow"),
+                    click.style(f"[{pipfile_category}]", fg="yellow"),
                     click.style("dependencies..."),
                 ),
                 err=True,
@@ -124,7 +124,7 @@ def do_lock(
         click.echo(
             "{}".format(
                 click.style(
-                    "Updated Pipfile.lock ({})!".format(project.get_lockfile_hash()),
+                    f"Updated Pipfile.lock ({project.get_lockfile_hash()})!",
                     bold=True,
                 )
             ),

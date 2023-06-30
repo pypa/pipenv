@@ -71,14 +71,12 @@ def add_index_to_pipfile(project, index, trusted_hosts=None):
 
     host_and_port = get_host_and_port(index)
     require_valid_https = not any(
-        (
-            v in trusted_hosts
-            for v in (
-                host_and_port,
-                host_and_port.partition(":")[
-                    0
-                ],  # also check if hostname without port is in trusted_hosts
-            )
+        v in trusted_hosts
+        for v in (
+            host_and_port,
+            host_and_port.partition(":")[
+                0
+            ],  # also check if hostname without port is in trusted_hosts
         )
     )
     index_name = project.add_index_to_pipfile(index, verify_ssl=require_valid_https)

@@ -122,7 +122,7 @@ def test_requirements_with_git_requirements(pipenv_instance_pypi):
         "default": {
             "dataclasses-json": {
                 "editable": True,
-                "git": f"https://github.com/lidatong/dataclasses-json.git",
+                "git": "https://github.com/lidatong/dataclasses-json.git",
                 "ref": req_hash
             }
         },
