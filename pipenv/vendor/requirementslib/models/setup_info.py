@@ -75,8 +75,9 @@ def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None) -> None:
 
 class BuildEnv(envbuild.BuildEnvironment):
     def pip_install(self, reqs):
+        python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
         cmd = [
-            sys.executable,
+            python,
             "-m",
             "pip",
             "install",
