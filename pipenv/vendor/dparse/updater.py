@@ -4,11 +4,12 @@ import re
 import json
 import tempfile
 import os
+import sys
 
-try:
-    import tomllib as toml
-except ImportError:
-    from pipenv.vendor import tomli as toml
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import pipenv.vendor.tomli as tomllib
 
 
 class RequirementsTXTUpdater(object):
@@ -83,7 +84,7 @@ class SetupCFGUpdater(CondaYMLUpdater):
 class PipfileUpdater(object):
     @classmethod
     def update(cls, content, dependency, version, spec="==", hashes=()):
-        data = toml.loads(content)
+        data = tomllib.loads(content)
         if data:
             for package_type in ['packages', 'dev-packages']:
                 if package_type in data:
