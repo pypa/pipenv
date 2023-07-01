@@ -1,3 +1,5 @@
+import os
+
 from pipenv import exceptions
 from pipenv.utils.dependencies import python_version
 from pipenv.utils.pipfile import ensure_pipfile
@@ -77,3 +79,4 @@ def ensure_project(
         skip_requirements=skip_requirements,
         system=system,
     )
+    os.environ["PIP_PYTHON_PATH"] = project.python

@@ -81,7 +81,6 @@ class Environment:
         if self.is_venv:
             self._base_paths = self.get_paths()
         self.sys_paths = get_paths()
-        os.environ["PIP_PYTHON_PATH"] = self.project.python
 
     def safe_import(self, name: str) -> ModuleType:
         """Helper utility for reimporting previously imported modules while inside the env"""
