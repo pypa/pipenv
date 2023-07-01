@@ -8,7 +8,7 @@ pexpect==4.8.0
 pipdeptree==2.8.0
 plette==0.4.4
 ptyprocess==0.7.0
-pydantic==1.10.9
+pydantic==1.10.10
 python-dotenv==1.0.0
 pythonfinder==2.0.4
 requirementslib==3.0.0
