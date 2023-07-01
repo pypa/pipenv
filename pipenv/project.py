@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import fnmatch
 import hashlib
-import io
 import json
 import operator
 import os
@@ -56,9 +55,9 @@ except ImportError:
     from pipenv.patched.pip._vendor.distlib.util import cached_property
 
 if is_type_checking():
-    from typing import Dict, List, Optional, Set, Text, Tuple, Union
+    from typing import Dict, List, Union
 
-    TSource = Dict[Text, Union[Text, bool]]
+    TSource = Dict[str, Union[str, bool]]
     TPackageEntry = Dict[str, Union[bool, str, List[str]]]
     TPackage = Dict[str, TPackageEntry]
     TScripts = Dict[str, str]
@@ -86,17 +85,15 @@ class _LockFileEncoder(json.JSONEncoder):
     """
 
     def __init__(self):
-        super(_LockFileEncoder, self).__init__(
-            indent=4, separators=(",", ": "), sort_keys=True
-        )
+        super().__init__(indent=4, separators=(",", ": "), sort_keys=True)
 
     def default(self, obj):
         if isinstance(obj, Path):
             obj = obj.as_posix()
-        return super(_LockFileEncoder, self).default(obj)
+        return super().default(obj)
 
     def encode(self, obj):
-        content = super(_LockFileEncoder, self).encode(obj)
+        content = super().encode(obj)
         if not isinstance(content, str):
             content = content.decode("utf-8")
         return content
@@ -281,7 +278,7 @@ class Project:
             return dot_venv
 
         # Now we assume .venv in project root is a file. Use its content.
-        with io.open(dot_venv) as f:
+        with open(dot_venv) as f:
             name = f.read().strip()
 
         # If .venv file is empty, set location based on config.
@@ -305,11 +302,11 @@ class Project:
         return self.environment.get_installed_packages()
 
     @property
-    def installed_package_names(self) -> List[str]:
+    def installed_package_names(self) -> list[str]:
         return get_canonical_names([pkg.key for pkg in self.installed_packages])
 
     @property
-    def lockfile_package_names(self) -> Dict[str, Set[str]]:
+    def lockfile_package_names(self) -> dict[str, set[str]]:
         results = {
             "combined": {},
         }
@@ -322,7 +319,7 @@ class Project:
         return results
 
     @property
-    def pipfile_package_names(self) -> Dict[str, Set[str]]:
+    def pipfile_package_names(self) -> dict[str, set[str]]:
         result = {}
         combined = set()
         for category in self.get_package_categories():
@@ -359,11 +356,11 @@ class Project:
             self._environment = self.get_environment(allow_global=allow_global)
         return self._environment
 
-    def get_outdated_packages(self) -> List[pkg_resources.Distribution]:
+    def get_outdated_packages(self) -> list[pkg_resources.Distribution]:
         return self.environment.get_outdated_packages(pre=self.pipfile.get("pre", False))
 
     @classmethod
-    def _sanitize(cls, name: str) -> Tuple[str, str]:
+    def _sanitize(cls, name: str) -> tuple[str, str]:
         # Replace dangerous characters into '_'. The length of the sanitized
         # project name is limited as 42 because of the limit of linux kernel
         #
@@ -391,7 +388,7 @@ class Project:
             return name, encoded_hash[:8]
 
         clean_name, encoded_hash = get_name(name, self.pipfile_location)
-        venv_name = "{0}-{1}".format(clean_name, encoded_hash)
+        venv_name = f"{clean_name}-{encoded_hash}"
 
         # This should work most of the time for
         #   Case-sensitive filesystems,
@@ -428,9 +425,9 @@ class Project:
         suffix = ""
         if self.s.PIPENV_PYTHON:
             if os.path.isabs(self.s.PIPENV_PYTHON):
-                suffix = "-{0}".format(os.path.basename(self.s.PIPENV_PYTHON))
+                suffix = f"-{os.path.basename(self.s.PIPENV_PYTHON)}"
             else:
-                suffix = "-{0}".format(self.s.PIPENV_PYTHON)
+                suffix = f"-{self.s.PIPENV_PYTHON}"
 
         # If the pipfile was located at '/home/user/MY_PROJECT/Pipfile',
         # the name of its virtualenv will be 'my-project-wyUfYPqE'
@@ -487,7 +484,7 @@ class Project:
     def register_proper_name(self, name: str) -> None:
         """Registers a proper name to the database."""
         with self.proper_names_db_path.open("a") as f:
-            f.write("{0}\n".format(name))
+            f.write(f"{name}\n")
 
     @property
     def pipfile_location(self) -> str:
@@ -505,7 +502,7 @@ class Project:
         return self._pipfile_location
 
     @property
-    def requirements_location(self) -> Optional[str]:
+    def requirements_location(self) -> str | None:
         if self._requirements_location is None:
             try:
                 loc = find_requirements(max_depth=self.s.PIPENV_MAX_DEPTH)
@@ -515,7 +512,7 @@ class Project:
         return self._requirements_location
 
     @property
-    def parsed_pipfile(self) -> Union[tomlkit.toml_document.TOMLDocument, TPipfile]:
+    def parsed_pipfile(self) -> tomlkit.toml_document.TOMLDocument | TPipfile:
         """Parse Pipfile into a TOMLFile and cache it
 
         (call clear_pipfile_cache() afterwards if mutating)"""
@@ -531,7 +528,7 @@ class Project:
         # Open the pipfile, read it into memory.
         if not self.pipfile_exists:
             return ""
-        with io.open(self.pipfile_location) as f:
+        with open(self.pipfile_location) as f:
             contents = f.read()
             self._pipfile_newlines = preferred_newlines(f)
 
@@ -543,7 +540,7 @@ class Project:
 
     def _parse_pipfile(
         self, contents: str
-    ) -> Union[tomlkit.toml_document.TOMLDocument, TPipfile]:
+    ) -> tomlkit.toml_document.TOMLDocument | TPipfile:
         try:
             return tomlkit.parse(contents)
         except Exception:
@@ -565,7 +562,7 @@ class Project:
                 self._build_system = build_system
 
     @property
-    def build_requires(self) -> List[str]:
+    def build_requires(self) -> list[str]:
         return self._build_system.get("requires", ["setuptools>=40.8.0", "wheel"])
 
     @property
@@ -573,7 +570,7 @@ class Project:
         return self._build_system.get("build-backend", get_default_pyproject_backend())
 
     @property
-    def settings(self) -> Union[tomlkit.items.Table, Dict[str, Union[str, bool]]]:
+    def settings(self) -> tomlkit.items.Table | dict[str, str | bool]:
         """A dictionary of the settings added to the Pipfile."""
         return self.parsed_pipfile.get("pipenv", {})
 
@@ -583,7 +580,7 @@ class Project:
         except KeyError:
             return False
 
-    def build_script(self, name: str, extra_args: Optional[List[str]] = None) -> Script:
+    def build_script(self, name: str, extra_args: list[str] | None = None) -> Script:
         try:
             script = Script.parse(self.parsed_pipfile["scripts"][name])
         except KeyError:
@@ -592,7 +589,7 @@ class Project:
             script.extend(extra_args)
         return script
 
-    def update_settings(self, d: Dict[str, Union[str, bool]]) -> None:
+    def update_settings(self, d: dict[str, str | bool]) -> None:
         settings = self.settings
         changed = False
         for new in d:
@@ -644,7 +641,7 @@ class Project:
 
     @property
     def lockfile_location(self):
-        return "{0}.lock".format(self.pipfile_location)
+        return f"{self.pipfile_location}.lock"
 
     @property
     def lockfile_exists(self):
@@ -711,7 +708,7 @@ class Project:
             if not index:
                 continue
 
-            source_name = "pip_index_{}".format(i)
+            source_name = f"pip_index_{i}"
             verify_ssl = index.startswith("https")
             sources.append({"url": index, "verify_ssl": verify_ssl, "name": source_name})
 
@@ -837,7 +834,7 @@ class Project:
         else:
             newlines = DEFAULT_NEWLINES
         formatted_data = cleanup_toml(formatted_data)
-        with io.open(path, "w", newline=newlines) as f:
+        with open(path, "w", newline=newlines) as f:
             f.write(formatted_data)
         # pipfile is mutated!
         self.clear_pipfile_cache()
@@ -1007,7 +1004,7 @@ class Project:
         else:
             from random import randint
 
-            name = "{0}-{1}".format(src_name, randint(1, 1000))
+            name = f"{src_name}-{randint(1, 1000)}"
         return name
 
     def add_index_to_pipfile(self, index, verify_ssl=True):
@@ -1041,7 +1038,7 @@ class Project:
 
     def load_lockfile(self, expand_env_vars=True):
         lockfile_modified = False
-        with io.open(self.lockfile_location, encoding="utf-8") as lock:
+        with open(self.lockfile_location, encoding="utf-8") as lock:
             try:
                 j = json.load(lock)
                 self._lockfile_newlines = preferred_newlines(lock)
@@ -1118,7 +1115,7 @@ class Project:
             try:
                 # Get new casing for package name.
                 new_casing = proper_case(dep)
-            except IOError:
+            except OSError:
                 # Unable to normalize package name.
                 continue
 

@@ -1,3 +1,4 @@
+import os
 import re
 from urllib.parse import urlparse
 
@@ -8,7 +9,10 @@ from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
 
 def _get_requests_session(max_retries=1, verify_ssl=True):
     """Load requests lazily."""
+    pip_client_cert = os.environ.get("PIP_CLIENT_CERT")
     requests_session = requests.Session()
+    if pip_client_cert:
+        requests_session.cert = pip_client_cert
     adapter = HTTPAdapter(max_retries=max_retries)
     requests_session.mount("https://", adapter)
     if verify_ssl is False:
@@ -72,7 +76,7 @@ def get_host_and_port(url):
     :return: a string with the host:port pair if the URL includes port number explicitly; otherwise, returns host only
     """
     url = urllib3_util.parse_url(url)
-    return "{}:{}".format(url.host, url.port) if url.port else url.host
+    return f"{url.host}:{url.port}" if url.port else url.host
 
 
 def get_url_name(url):

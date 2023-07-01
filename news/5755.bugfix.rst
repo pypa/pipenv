@@ -1,0 +1,1 @@
+Fix regression in ``requirements`` command that was causing package installs after upgrade to ``requirementslib==3.0.0``.

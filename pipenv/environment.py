@@ -38,7 +38,7 @@ except ImportError:
 
 if typing.TYPE_CHECKING:
     from types import ModuleType
-    from typing import ContextManager, Dict, Generator, List, Optional, Set, Union
+    from typing import ContextManager, Generator
 
     from pipenv.project import Project, TPipfile, TSource
     from pipenv.vendor import tomlkit
@@ -49,13 +49,13 @@ BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
 class Environment:
     def __init__(
         self,
-        prefix: Optional[str] = None,
-        python: Optional[str] = None,
+        prefix: str | None = None,
+        python: str | None = None,
         is_venv: bool = False,
         base_working_set: pkg_resources.WorkingSet = None,
-        pipfile: Optional[Union[tomlkit.toml_document.TOMLDocument, TPipfile]] = None,
-        sources: Optional[List[TSource]] = None,
-        project: Optional[Project] = None,
+        pipfile: tomlkit.toml_document.TOMLDocument | TPipfile | None = None,
+        sources: list[TSource] | None = None,
+        project: Project | None = None,
     ):
         super().__init__()
         self._modules = {"pkg_resources": pkg_resources, "pipenv": pipenv}
@@ -102,7 +102,7 @@ class Environment:
     @classmethod
     def resolve_dist(
         cls, dist: pkg_resources.Distribution, working_set: pkg_resources.WorkingSet
-    ) -> Set[pkg_resources.Distribution]:
+    ) -> set[pkg_resources.Distribution]:
         """Given a local distribution and a working set, returns all dependencies from the set.
 
         :param dist: A single distribution to find the dependencies of
@@ -147,12 +147,12 @@ class Environment:
             py_version = sysconfig.get_python_version()
             return py_version
 
-    def find_libdir(self) -> Optional[Path]:
+    def find_libdir(self) -> Path | None:
         libdir = self.prefix / "lib"
         return next(iter(list(libdir.iterdir())), None)
 
     @property
-    def python_info(self) -> Dict[str, str]:
+    def python_info(self) -> dict[str, str]:
         include_dir = self.prefix / "include"
         if not os.path.exists(include_dir):
             include_dirs = self.get_include_path()
@@ -191,7 +191,7 @@ class Environment:
             return "posix_prefix"
 
     @cached_property
-    def base_paths(self) -> Dict[str, str]:
+    def base_paths(self) -> dict[str, str]:
         """
         Returns the context appropriate paths for the environment.
 
@@ -302,7 +302,7 @@ class Environment:
         return py
 
     @cached_property
-    def sys_path(self) -> List[str]:
+    def sys_path(self) -> list[str]:
         """
         The system path inside the environment
 
@@ -373,7 +373,7 @@ class Environment:
         py_command = py_command % lines_as_str
         return py_command
 
-    def get_paths(self) -> Optional[Dict[str, str]]:
+    def get_paths(self) -> dict[str, str] | None:
         """
         Get the paths for the environment by running a subcommand
 
@@ -405,7 +405,7 @@ class Environment:
             click.secho(f"Output: {c.stdout}", fg="yellow")
         return None
 
-    def get_lib_paths(self) -> Dict[str, str]:
+    def get_lib_paths(self) -> dict[str, str]:
         """Get the include path for the environment
 
         :return: The python include path for the environment
@@ -456,7 +456,7 @@ class Environment:
                 return paths
         return {}
 
-    def get_include_path(self) -> Optional[Dict[str, str]]:
+    def get_include_path(self) -> dict[str, str] | None:
         """Get the include path for the environment
 
         :return: The python include path for the environment
@@ -491,7 +491,7 @@ class Environment:
         return sys_prefix
 
     @cached_property
-    def paths(self) -> Dict[str, str]:
+    def paths(self) -> dict[str, str]:
         paths = {}
         with temp_environ(), temp_path():
             os.environ["PYTHONIOENCODING"] = "utf-8"
@@ -589,7 +589,7 @@ class Environment:
         location = _normalized(make_posix(location))
         return any(location.startswith(prefix) for prefix in prefixes)
 
-    def get_installed_packages(self) -> List[pkg_resources.Distribution]:
+    def get_installed_packages(self) -> list[pkg_resources.Distribution]:
         """Returns all of the installed packages in a given environment"""
         workingset = self.get_working_set()
         packages = [
@@ -653,7 +653,7 @@ class Environment:
 
     def get_outdated_packages(
         self, pre: bool = False
-    ) -> List[pkg_resources.Distribution]:
+    ) -> list[pkg_resources.Distribution]:
         return [
             pkg
             for pkg in self.get_package_info(pre=pre)

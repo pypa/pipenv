@@ -1,6 +1,6 @@
 import os
 
-import mock
+from unittest import mock
 import pytest
 
 from pipenv.utils import shell
@@ -26,7 +26,7 @@ def test_find_windows_executable_when_not_found(mocked_which, mocked_isfile):
     assert mocked_isfile.call_count > 1
 
     calls = [mock.call('fake\\path\\python')] + [
-        mock.call('fake\\path\\python{0}'.format(ext.lower()))
+        mock.call(f'fake\\path\\python{ext.lower()}')
         for ext in os.environ['PATHEXT'].split(';')
     ]
     assert mocked_isfile.mock_calls == calls
@@ -46,7 +46,7 @@ def test_find_windows_executable_when_found(mocked_which, mocked_isfile):
     assert mocked_isfile.call_count > 1
 
     calls = [mock.call('fake\\path\\pyenv')] + [
-        mock.call('fake\\path\\pyenv{0}'.format(ext.lower()))
+        mock.call(f'fake\\path\\pyenv{ext.lower()}')
         for ext in os.environ['PATHEXT'].split(';')
     ]
     assert mocked_isfile.mock_calls == calls

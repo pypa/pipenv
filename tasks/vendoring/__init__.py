@@ -220,7 +220,7 @@ def rewrite_file_imports(item, vendored_libs):
         text = re.sub(r"(?m)^(\s*)from %s([\s\.]+)" % lib, r"\1from %s\2" % to_lib, text)
         text = re.sub(
             r"(?m)^(\s*)import %s(\s*[,\n#])" % lib,
-            r"\1import %s as %s\2" % (to_lib, lib),
+            rf"\1import {to_lib} as {lib}\2",
             text,
         )
     for pattern, sub in GLOBAL_REPLACEMENT:
@@ -517,7 +517,7 @@ def download_licenses(
     cmd = "pip download --no-binary :all: --only-binary requests_download --no-deps"
     ctx.run("pip install flit")  # needed for the next step
     for req in requirements:
-        exe_cmd = "{} --no-build-isolation -d {} {}".format(cmd, tmp_dir.as_posix(), req)
+        exe_cmd = f"{cmd} --no-build-isolation -d {tmp_dir.as_posix()} {req}"
         try:
             ctx.run(exe_cmd)
         except invoke.exceptions.UnexpectedExit as e:

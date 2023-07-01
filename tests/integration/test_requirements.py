@@ -122,7 +122,7 @@ def test_requirements_with_git_requirements(pipenv_instance_pypi):
         "default": {
             "dataclasses-json": {
                 "editable": True,
-                "git": f"https://github.com/lidatong/dataclasses-json.git",
+                "git": "https://github.com/lidatong/dataclasses-json.git",
                 "ref": req_hash
             }
         },
@@ -163,7 +163,7 @@ def test_requirements_markers_get_included(pipenv_instance_pypi):
 
         c = p.pipenv('requirements')
         assert c.returncode == 0
-        assert f'{package}{version} ; {markers}' in c.stdout
+        assert f'{package}{version}; {markers}' in c.stdout
 
 
 @pytest.mark.requirements

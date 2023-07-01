@@ -1,5 +1,4 @@
 import os
-import re
 import sys
 
 from pipenv import environments
@@ -23,7 +22,6 @@ from pipenv.cli.options import (
     upgrade_options,
     verbose_option,
 )
-from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
 from pipenv.utils.environment import load_dot_env
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor import click
@@ -780,39 +778,16 @@ def verify(state):
 def requirements(
     state, dev=False, dev_only=False, hash=False, exclude_markers=False, categories=""
 ):
-    from pipenv.utils.dependencies import convert_deps_to_pip
+    from pipenv.routines.requirements import generate_requirements
 
-    lockfile = state.project.load_lockfile(expand_env_vars=False)
-
-    for i, package_index in enumerate(lockfile["_meta"]["sources"]):
-        prefix = "-i" if i == 0 else "--extra-index-url"
-        echo(" ".join([prefix, package_index["url"]]))
-
-    deps = {}
-    categories_list = re.split(r", *| ", categories) if categories else []
-
-    if categories_list:
-        for category in categories_list:
-            category = get_lockfile_section_using_pipfile_category(category.strip())
-            deps.update(lockfile.get(category, {}))
-    else:
-        if dev or dev_only:
-            deps.update(lockfile["develop"])
-        if not dev_only:
-            deps.update(lockfile["default"])
-
-    pip_deps = convert_deps_to_pip(
-        deps,
-        project=None,
-        include_index=False,
+    generate_requirements(
+        project=state.project,
+        dev=dev,
+        dev_only=dev_only,
         include_hashes=hash,
         include_markers=not exclude_markers,
+        categories=categories,
     )
-
-    for d in pip_deps:
-        echo(d)
-
-    sys.exit(0)
 
 
 if __name__ == "__main__":

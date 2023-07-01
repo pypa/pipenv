@@ -32,7 +32,7 @@ def test_urls_work(pipenv_instance_pypi):
         # the library this installs is "django-cms"
         url = "https://github.com/lidatong/dataclasses-json/archive/refs/tags/v0.5.7.zip"
         c = p.pipenv(
-            "install {0}".format(url)
+            f"install {url}"
         )
         assert c.returncode == 0
 
@@ -56,7 +56,7 @@ def test_file_urls_work(pipenv_instance_pypi, pip_src_dir):
         except OSError:
             whl = whl.absolute()
         wheel_url = whl.as_uri()
-        c = p.pipenv('install "{0}"'.format(wheel_url))
+        c = p.pipenv(f'install "{wheel_url}"')
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
         assert "file" in p.pipfile["packages"]["six"]
@@ -190,7 +190,7 @@ def test_get_vcs_refs(pipenv_instance_private_pypi):
             == "5efb522b0647f7467248273ec1b893d06b984a59"
         )
         pipfile = Path(p.pipfile_path)
-        new_content = pipfile.read_text().replace(u"1.9.0", u"1.11.0")
+        new_content = pipfile.read_text().replace("1.9.0", "1.11.0")
         pipfile.write_text(new_content)
         c = p.pipenv("lock")
         assert c.returncode == 0
@@ -223,7 +223,7 @@ name = "pypi"
 
 [packages]
 Flask = "*"
-Jinja2 = {{ref = "2.11.0", git = "{0}"}}
+Jinja2 = {{ref = "2.11.0", git = "{}"}}
             """.format(jinja2_uri).strip()
             )
         c = p.pipenv("install")
@@ -246,7 +246,7 @@ Jinja2 = {{ref = "2.11.0", git = "{0}"}}
 def test_vcs_can_use_markers(pipenv_instance_pypi):
     with pipenv_instance_pypi(chdir=True) as p:
         path = p._pipfile.get_fixture_path("git/six/.git")
-        p._pipfile.install("six", {"git": "{0}".format(path.as_uri()), "markers": "sys_platform == 'linux'"})
+        p._pipfile.install("six", {"git": f"{path.as_uri()}", "markers": "sys_platform == 'linux'"})
         assert "six" in p.pipfile["packages"]
         c = p.pipenv("install")
         assert c.returncode == 0

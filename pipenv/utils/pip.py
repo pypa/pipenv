@@ -293,7 +293,7 @@ def pip_install(
     if not search_all_sources and requirement.index in source_names:
         sources = list(filter(lambda d: d.get("name") == requirement.index, sources))
     if r:
-        with open(r, "r") as fh:
+        with open(r) as fh:
             if "--hash" not in fh.read():
                 ignore_hashes = True
     if project.s.is_verbose():

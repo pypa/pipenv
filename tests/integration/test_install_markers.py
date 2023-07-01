@@ -15,12 +15,12 @@ def test_package_environment_markers(pipenv_instance_private_pypi):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
-url = "{0}"
+url = "{}"
 verify_ssl = false
 name = "testindex"
 
 [packages]
-fake_package = {1}
+fake_package = {}
 
 [dev-packages]
             """.format(os.environ['PIPENV_TEST_INDEX'], "{version = \"*\", markers=\"os_name=='splashwear'\", index=\"testindex\"}").strip()

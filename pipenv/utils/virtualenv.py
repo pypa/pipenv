@@ -49,11 +49,11 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         python = sys.executable
         using_string = "Using default python from"
     click.echo(
-        "{0} {1} {3} {2}".format(
+        "{} {} {} {}".format(
             click.style(using_string, bold=True),
             click.style(python, fg="yellow", bold=True),
-            click.style("to create virtualenv...", bold=True),
             click.style(f"({python_version(python)})", fg="green"),
+            click.style("to create virtualenv...", bold=True),
         ),
         err=True,
     )
