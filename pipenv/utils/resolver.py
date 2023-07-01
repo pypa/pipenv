@@ -363,6 +363,7 @@ class Resolver:
                     and is_installable_dir(parsed_line.path)
                 )
             ):
+                setup_info.run_pyproject()
                 setup_info.run_setup()
                 requirements = [v for v in getattr(setup_info, "requires", {}).values()]
                 if req.extras:

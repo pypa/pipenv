@@ -511,34 +511,29 @@ class Line(ReqLibBaseModel):
         # type: () -> Optional[Tuple[str, ...]]
         if self._pyproject_requires is None and self.pyproject_toml is not None:
             if self.path is not None:
-                pyproject_requires, pyproject_backend = None, None
-                pyproject_results = get_pyproject(self.path)  # type: ignore
-                if pyproject_results:
-                    pyproject_requires, pyproject_backend = pyproject_results
-                if pyproject_requires:
-                    self._pyproject_requires = tuple(pyproject_requires)
-                self._pyproject_backend = pyproject_backend
+                results = get_pyproject(self.path)  # type: ignore
+                if results and results.get("build_requires"):
+                    self._pyproject_requires = results.get("build_requires")
         return self._pyproject_requires
 
     @property
     def pyproject_backend(self):
         # type: () -> Optional[str]
         if self._pyproject_requires is None and self.pyproject_toml is not None:
-            pyproject_requires = None  # type: Optional[Sequence[str]]
-            pyproject_backend = None  # type: Optional[str]
-            pyproject_results = get_pyproject(self.path)  # type: ignore
-            if pyproject_results:
-                pyproject_requires, pyproject_backend = pyproject_results
-            if not pyproject_backend and self.setup_cfg is not None:
-                setup_dict = SetupInfo.get_setup_cfg(self.setup_cfg)
-                pyproject_backend = get_default_pyproject_backend()
-                pyproject_requires = setup_dict.get(
-                    "build_requires", ["setuptools", "wheel"]
-                )  # type: ignore
-            if pyproject_requires:
-                self._pyproject_requires = tuple(pyproject_requires)
-            if pyproject_backend:
-                self._pyproject_backend = pyproject_backend
+            results = get_pyproject(self.path)  # type: ignore
+            if results:
+                if not results.get("build_backend") and self.setup_cfg is not None:
+                    setup_dict = SetupInfo.get_setup_cfg(self.setup_cfg)
+                    self._pyproject_backend = get_default_pyproject_backend()
+                else:
+                    self._pyproject_backend = results.get("build_backend")
+                if results.get("build_requires"):
+                    self._pyproject_requires = tuple(results.get("build_requires"))
+                else:
+                    self._pyproject_requires = setup_dict.get(
+                        "build_requires", ["setuptools", "wheel"]
+                    )  # type: ignore
+
         return self._pyproject_backend
 
     def parse_hashes(self):
@@ -2052,21 +2047,19 @@ class VCSRequirement(FileRequirement):
         )
         if not self.is_local:
             vcsrepo.obtain()
-        pyproject_info = None
         if self.subdirectory:
             self.setup_path = os.path.join(checkout_dir, self.subdirectory, "setup.py")
             self.pyproject_path = os.path.join(
                 checkout_dir, self.subdirectory, "pyproject.toml"
             )
-            pyproject_info = get_pyproject(os.path.join(checkout_dir, self.subdirectory))
+            result = get_pyproject(os.path.join(checkout_dir, self.subdirectory))
         else:
             self.setup_path = os.path.join(checkout_dir, "setup.py")
             self.pyproject_path = os.path.join(checkout_dir, "pyproject.toml")
-            pyproject_info = get_pyproject(checkout_dir)
-        if pyproject_info is not None:
-            pyproject_requires, pyproject_backend = pyproject_info
-            self.pyproject_requires = tuple(pyproject_requires)
-            self.pyproject_backend = pyproject_backend
+            result = get_pyproject(checkout_dir)
+        if result is not None:
+            self.pyproject_requires = tuple(result.get("build_requires", []))
+            self.pyproject_backend = result.get("build_backend")
         return vcsrepo
 
     @cached_property

@@ -27,6 +27,46 @@ RandomWords = "*"
 
 @pytest.mark.lock
 @pytest.mark.requirements
+def test_lock_gathers_pyproject_dependencies(pipenv_instance_pypi):
+    """Ensure that running `pipenv install` doesn't install dev packages"""
+    with pipenv_instance_pypi(chdir=True) as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pipenvtest = { editable = true, path = "." }
+            """.strip()
+            f.write(contents)
+
+        # Write the pyproject.toml
+        pyproject_toml_path = os.path.join(os.path.dirname(p.pipfile_path), "pyproject.toml")
+        with open(pyproject_toml_path, "w") as f:
+            contents = """
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pipenvtest"
+version = "0.0.1"
+requires-python = ">=3.8"
+dependencies = [
+    "six"
+]
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("lock")
+        assert c.returncode == 0
+        assert "six" in p.lockfile["default"]
+
+
+
+@pytest.mark.lock
+@pytest.mark.requirements
 def test_lock_requirements_file(pipenv_instance_private_pypi):
 
     with pipenv_instance_private_pypi() as p:
