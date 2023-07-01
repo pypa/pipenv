@@ -72,7 +72,7 @@ def get_host_and_port(url):
     :return: a string with the host:port pair if the URL includes port number explicitly; otherwise, returns host only
     """
     url = urllib3_util.parse_url(url)
-    return "{}:{}".format(url.host, url.port) if url.port else url.host
+    return f"{url.host}:{url.port}" if url.port else url.host
 
 
 def get_url_name(url):

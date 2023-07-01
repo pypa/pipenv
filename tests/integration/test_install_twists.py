@@ -281,12 +281,12 @@ def test_install_skip_lock(pipenv_instance_private_pypi):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
-url = "{0}"
+url = "{}"
 verify_ssl = true
 name = "pypi"
 
 [packages]
-six = {1}
+six = {}
             """.format(os.environ['PIPENV_TEST_INDEX'], '{version = "*", index = "pypi"}').strip()
             f.write(contents)
         c = p.pipenv('install --skip-lock')

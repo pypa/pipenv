@@ -416,12 +416,12 @@ def test_rewrite_outline_table(pipenv_instance_private_pypi):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
-url = "{0}"
+url = "{}"
 verify_ssl = false
 name = "testindex"
 
 [packages]
-six = {1}
+six = {}
 
 [packages.requests]
 version = "*"

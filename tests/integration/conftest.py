@@ -45,11 +45,11 @@ def check_internet():
             try_internet(url)
         except KeyboardInterrupt:
             warnings.warn(
-                f"Skipped connecting to internet: {url}", RuntimeWarning
+                f"Skipped connecting to internet: {url}", RuntimeWarning, stacklevel=1
             )
         except Exception:
             warnings.warn(
-                f"Failed connecting to internet: {url}", RuntimeWarning
+                f"Failed connecting to internet: {url}", RuntimeWarning, stacklevel=1
             )
         else:
             has_internet = True
@@ -69,17 +69,17 @@ def check_github_ssh():
         res = True if c.returncode == 1 else False
     except KeyboardInterrupt:
         warnings.warn(
-            "KeyboardInterrupt while checking GitHub ssh access", RuntimeWarning
+            "KeyboardInterrupt while checking GitHub ssh access", RuntimeWarning, stacklevel=1
         )
     except Exception:
         pass
     global HAS_WARNED_GITHUB
     if not res and not HAS_WARNED_GITHUB:
         warnings.warn(
-            'Cannot connect to GitHub via SSH', RuntimeWarning
+            'Cannot connect to GitHub via SSH', RuntimeWarning, stacklevel=1
         )
         warnings.warn(
-            'Will skip tests requiring SSH access to GitHub', RuntimeWarning
+            'Will skip tests requiring SSH access to GitHub', RuntimeWarning, stacklevel=1
         )
         HAS_WARNED_GITHUB = True
     return res
@@ -353,7 +353,7 @@ class _PipenvInstance:
                 self._path.cleanup()
             except OSError as e:
                 _warn_msg = warn_msg.format(e)
-                warnings.warn(_warn_msg, ResourceWarning)
+                warnings.warn(_warn_msg, ResourceWarning, stacklevel=1)
         self.path = None
         self._path = None
 

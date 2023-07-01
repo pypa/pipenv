@@ -46,8 +46,8 @@ def prepare_pip_source_args(sources, pip_args=None):
 
 def get_project_index(
     project: Project,
-    index: Optional[Union[str, TSource]] = None,
-    trusted_hosts: Optional[List[str]] = None,
+    index: str | TSource | None = None,
+    trusted_hosts: list[str] | None = None,
 ) -> TSource:
     from pipenv.project import SourceNotFound
 
@@ -67,11 +67,11 @@ def get_project_index(
 
 def get_source_list(
     project: Project,
-    index: Optional[Union[str, TSource]] = None,
-    extra_indexes: Optional[Union[str, List[str]]] = None,
-    trusted_hosts: Optional[List[str]] = None,
-    pypi_mirror: Optional[str] = None,
-) -> List[TSource]:
+    index: str | TSource | None = None,
+    extra_indexes: str | list[str] | None = None,
+    trusted_hosts: list[str] | None = None,
+    pypi_mirror: str | None = None,
+) -> list[TSource]:
     sources = project.sources[:]
     if index:
         sources.append(get_project_index(project, index))

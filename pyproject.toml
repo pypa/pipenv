@@ -96,24 +96,25 @@ exclude = [
     "pipenv/vendor/*",
 ]
 select = [
+    "ASYNC",
     "B",
     "C9",
     "E",
     "F",
+    "FLY",
     "G",
     "I",
     "ISC",
     "PIE",
     "PL",
     "TID",
+    "UP",
     "W",
     "YTT"
 ]
 ignore = [
-    "B028",
     "B904",
     "PIE790",
-    "PLR2004",
     "PLR5501",
     "PLW2901",
 ]
@@ -121,9 +122,10 @@ line-length = 137
 target-version = "py37"
 
 [tool.ruff.mccabe]
-max-complexity = 32
+max-complexity = 44
 
 [tool.ruff.pylint]
+allow-magic-value-types = ["int", "str"]
 max-args = 20
 max-branches = 38
 max-returns = 9
@@ -135,6 +137,7 @@ max-statements = 155
 "pipenv/__init__.py" = ["E401"]
 "pipenv/cli/command.py" = ["TID252"]
 "pipenv/utils/internet.py" = ["PLW0603"]
+"pipenv/utils/resolver.py" = ["B018"]
 "tests/*" = ["E501", "F401", "I", "PLC1901", "S101"]
 "tests/integration/conftest.py" = ["B003", "PIE800", "PLW0603"]
 "tests/integration/test_pipenv.py" = ["E741"]

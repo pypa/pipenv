@@ -37,8 +37,7 @@ def walk_up(bottom):
     if new_path == bottom:
         return
 
-    for x in walk_up(new_path):
-        yield x
+    yield from walk_up(new_path)
 
 
 def find_pipfile(max_depth=3):
@@ -76,7 +75,7 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
         if project.requirements_exists and not skip_requirements:
             requirements_dir_path = os.path.dirname(project.requirements_location)
             click.echo(
-                "{0} found in {1} instead of {2}! Converting...".format(
+                "{} found in {} instead of {}! Converting...".format(
                     click.style("requirements.txt", bold=True),
                     click.style(requirements_dir_path, fg="yellow", bold=True),
                     click.style("Pipfile", bold=True),

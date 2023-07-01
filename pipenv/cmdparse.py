@@ -15,7 +15,7 @@ class ScriptParseError(ValueError):
 
 def _quote_if_contains(value, pattern):
     if next(iter(re.finditer(pattern, value)), None):
-        return '"{0}"'.format(re.sub(r'(\\*)"', r'\1\1\\"', value))
+        return '"{}"'.format(re.sub(r'(\\*)"', r'\1\1\\"', value))
     return value
 
 
@@ -40,7 +40,7 @@ def _parse_toml_inline_table(value: tomlkit.items.InlineTable) -> str:
         return f'python -c "import {module} as _m; _m.{func}"'
 
 
-class Script(object):
+class Script:
     """Parse a script line (in Pipfile's [scripts] section).
 
     This always works in POSIX mode, even on Windows.
@@ -65,7 +65,7 @@ class Script(object):
         return cls(value[0], value[1:])
 
     def __repr__(self):
-        return "Script({0!r})".format(self._parts)
+        return f"Script({self._parts!r})"
 
     @property
     def command(self):
