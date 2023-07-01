@@ -1,1 +1,0 @@
-Patch ``_get_requests_session`` method to consider ``PIP_CLIENT_CERT`` value when present.

@@ -1,3 +1,23 @@
+2023.7.1 (2023-07-01)
+=====================
+Pipenv 2023.7.1 (2023-07-01)
+============================
+
+
+Bug Fixes
+---------
+
+- Patch ``_get_requests_session`` method to consider ``PIP_CLIENT_CERT`` value when present.  `#5746 <https://github.com/pypa/pipenv/issues/5746>`_
+- Fix regression in ``requirements`` command that was causing package installs after upgrade to ``requirementslib==3.0.0``.  `#5755 <https://github.com/pypa/pipenv/issues/5755>`_
+- Fix ``error: invalid command 'egg_info'`` edge case with requirementslib 3.0.0.  It exposed pipenv resolver sometimes was using a different python than expected.  `#5760 <https://github.com/pypa/pipenv/issues/5760>`_
+- Fix issue in requirementslib 3.0.0 where dependencies defined in pyproject.toml were not being included in the lock file.  `#5766 <https://github.com/pypa/pipenv/issues/5766>`_
+
+Removals and Deprecations
+-------------------------
+
+- Bump dparse to 0.6.3  `#5750 <https://github.com/pypa/pipenv/issues/5750>`_
+
+
 2023.6.26 (2023-06-26)
 ======================
 Pipenv 2023.6.26 (2023-06-26)

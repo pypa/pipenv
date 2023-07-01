@@ -1,1 +1,0 @@
-Fix issue in requirementslib 3.0.0 where dependencies defined in pyproject.toml were not being included in the lock file.

@@ -1,1 +1,0 @@
-Fix ``error: invalid command 'egg_info'`` edge case with requirementslib 3.0.0.  It exposed pipenv resolver sometimes was using a different python than expected.
