@@ -14,9 +14,8 @@ This results in a smaller image, which can still run your application.
 Here is an example `Dockerfile`, which you can use as a starting point for
 doing a multistage build for your application:
 
-    FROM docker.io/python:3.9 AS builder
+    FROM docker.io/oz123/pipenv:3.11-v2023-6-26 AS builder
 
-    RUN pip install --user pipenv
 
     # Tell pipenv to create venv in the current directory
     ENV PIPENV_VENV_IN_PROJECT=1
@@ -37,7 +36,7 @@ doing a multistage build for your application:
 
     RUN /usr/src/.venv/bin/python -c "import requests; print(requests.__version__)"
 
-    FROM docker.io/python:3.9 AS runtime
+    FROM docker.io/python:3.11 AS runtime
 
     RUN mkdir -v /usr/src/.venv
 
