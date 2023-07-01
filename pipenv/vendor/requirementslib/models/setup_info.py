@@ -812,8 +812,8 @@ def parse_setup_cfg(path: str) -> "Dict[str, Any]":
 def build_pep517(source_dir, build_dir, config_settings=None, dist_type="wheel"):
     if config_settings is None:
         config_settings = {}
-    requires, backend = get_pyproject(source_dir)
-    hookcaller = HookCaller(source_dir, backend)
+    result = get_pyproject(source_dir) or {}
+    hookcaller = HookCaller(source_dir, result.get("build_backend", get_default_pyproject_backend()))
     if dist_type == "sdist":
         get_requires_fn = hookcaller.get_requires_for_build_sdist
         build_fn = hookcaller.build_sdist
@@ -822,7 +822,7 @@ def build_pep517(source_dir, build_dir, config_settings=None, dist_type="wheel")
         build_fn = hookcaller.build_wheel
 
     with BuildEnv() as env:
-        env.pip_install(requires)
+        env.pip_install(result.get("build_requires", []))
         reqs = get_requires_fn(config_settings)
         env.pip_install(reqs)
         return build_fn(build_dir, config_settings)
