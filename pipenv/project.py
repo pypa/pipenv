@@ -1158,9 +1158,9 @@ class Project:
     @property
     def python(self) -> str:
         """Path to the project python"""
-        from pipenv.utils.virtualenv import ensure_python
+        from pipenv.utils.shell import project_python
 
-        return ensure_python(self)
+        return project_python(self)
 
     def _which(self, command, location=None, allow_global=False):
         if not allow_global and location is None:
