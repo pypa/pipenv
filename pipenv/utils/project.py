@@ -1,5 +1,3 @@
-import os
-
 from pipenv import exceptions
 from pipenv.utils.dependencies import python_version
 from pipenv.utils.pipfile import ensure_pipfile
@@ -72,7 +70,6 @@ def ensure_project(
                         )
                     else:
                         raise exceptions.DeployException
-    os.environ["PIP_PYTHON_PATH"] = project.python
     # Ensure the Pipfile exists.
     ensure_pipfile(
         project,
