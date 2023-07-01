@@ -53,25 +53,17 @@ def get_pipfile_category_using_lockfile_section(category):
 
 
 class HackedPythonVersion:
-    """A Beautiful hack, which allows us to tell pip which version of Python we're using."""
+    """A hack, which allows us to tell resolver which version of Python we're using."""
 
-    def __init__(self, python_version, python_path):
-        self.python_version = python_version
+    def __init__(self, python_path):
         self.python_path = python_path
 
     def __enter__(self):
-        # Only inject when the value is valid
-        if self.python_version:
-            os.environ["PIPENV_REQUESTED_PYTHON_VERSION"] = str(self.python_version)
         if self.python_path:
             os.environ["PIP_PYTHON_PATH"] = str(self.python_path)
 
     def __exit__(self, *args):
-        # Restore original Python version information.
-        try:
-            del os.environ["PIPENV_REQUESTED_PYTHON_VERSION"]
-        except KeyError:
-            pass
+        pass
 
 
 def get_canonical_names(packages):

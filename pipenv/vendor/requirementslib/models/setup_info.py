@@ -58,11 +58,6 @@ from .utils import (
 
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
 
-# The following are necessary for people who like to use "if __name__" conditionals
-# in their setup.py scripts
-_setup_stop_after = None
-_setup_distribution = None
-
 
 def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None) -> None:
     """The default method of calling the wrapper subprocess."""
@@ -75,8 +70,9 @@ def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None) -> None:
 
 class BuildEnv(envbuild.BuildEnvironment):
     def pip_install(self, reqs):
+        python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
         cmd = [
-            sys.executable,
+            python,
             "-m",
             "pip",
             "install",
@@ -1123,6 +1119,7 @@ def run_setup(script_path, egg_base=None):
     :return: The metadata dictionary
     :rtype: Dict[Any, Any]
     """
+    from pathlib import Path
 
     if not os.path.exists(script_path):
         raise FileNotFoundError(script_path)
@@ -1130,39 +1127,16 @@ def run_setup(script_path, egg_base=None):
     if egg_base is None:
         egg_base = os.path.join(target_cwd, "reqlib-metadata")
     with temp_path(), cd(target_cwd):
-        # This is for you, Hynek
-        # see https://github.com/hynek/environ_config/blob/69b1c8a/setup.py
         args = ["egg_info"]
         if egg_base:
             args += ["--egg-base", egg_base]
-        script_name = os.path.basename(script_path)
-        g = {"__file__": script_name, "__name__": "__main__"}
-        sys.path.insert(0, target_cwd)
 
-        save_argv = sys.argv.copy()
-        try:
-            global _setup_distribution, _setup_stop_after
-            _setup_stop_after = "run"
-            sys.argv[0] = script_name
-            sys.argv[1:] = args
-            with open(script_name, "rb") as f:
-                contents = f.read().replace(rb"\r\n", rb"\n")
-                exec(contents, g)
-        # We couldn't import everything needed to run setup
-        except Exception:
-            python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
-
-            sp.run(
-                [python, "setup.py"] + args,
-                cwd=target_cwd,
-                stdout=sp.PIPE,
-                stderr=sp.PIPE,
-            )
-        finally:
-            _setup_stop_after = None
-            sys.argv = save_argv
-            _setup_distribution = get_metadata(egg_base, metadata_type="egg")
-        dist = _setup_distribution
+        python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
+        sp.run(
+            [python, "setup.py"] + args,
+            capture_output=True,
+        )
+        dist = get_metadata(egg_base, metadata_type="egg")
     return dist
 
 
