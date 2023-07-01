@@ -1018,9 +1018,8 @@ def get_metadata(path, pkg_name=None, metadata_type=None):
     wheel_allowed = metadata_type == "wheel" or metadata_type is None
     egg_allowed = metadata_type == "egg" or metadata_type is None
     dist = None  # type: Optional[Union[DistInfoDistribution, EggInfoDistribution]]
-    if wheel_allowed:
-        dist = get_distinfo_dist(path, pkg_name=pkg_name)
-    if egg_allowed and dist is None:
+    dist = get_distinfo_dist(path, pkg_name=pkg_name)
+    if dist is None:
         dist = get_egginfo_dist(path, pkg_name=pkg_name)
     if dist is not None:
         return get_metadata_from_dist(dist)
@@ -1590,17 +1589,18 @@ build-backend = "{1}"
         if self.pyproject and self.pyproject.exists():
             result = get_pyproject(self.pyproject.parent)
             if result is not None:
-                requires, backend = result
                 if self.build_requires is None:
                     self.build_requires = ()
-                if backend:
-                    self.build_backend = backend
+                if result.get("build_backend"):
+                    self.build_backend = result.get("build_backend")
                 else:
                     self.build_backend = get_default_pyproject_backend()
-                if requires:
-                    self.build_requires = tuple(set(requires) | set(self.build_requires))
+                if result.get("build_requires"):
+                    self.build_requires = tuple(set(result.get("build_requires", [])) | set(self.build_requires))
                 else:
                     self.build_requires = ("setuptools", "wheel")
+                if result.get("dependencies"):
+                    self._requirements += make_base_requirements(tuple(set(result.get("dependencies", []))))
         return self
 
     def get_initial_info(self) -> Dict[str, Any]:

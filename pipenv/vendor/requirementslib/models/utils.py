@@ -441,47 +441,46 @@ def get_default_pyproject_backend():
     return "setuptools.build_meta"
 
 
-def get_pyproject(path):
-    # type: (Union[STRING_TYPE, Path]) -> Optional[Tuple[List[STRING_TYPE], STRING_TYPE]]
-    """Given a base path, look for the corresponding ``pyproject.toml`` file
+def get_pyproject(path: Union[AnyStr, Path]) -> Optional[Dict[str, Union[List[AnyStr], AnyStr]]]:
+    """
+    Given a base path, look for the corresponding ``pyproject.toml`` file
     and return its build_requires and build_backend.
 
-    :param AnyStr path: The root path of the project, should be a directory (will be truncated)
-    :return: A 2 tuple of build requirements and the build backend
-    :rtype: Optional[Tuple[List[AnyStr], AnyStr]]
+    :param path: The root path of the project, should be a directory (will be truncated)
+    :return: A dictionary with build requirements, build backend, and dependencies
     """
     if not path:
         return
 
     if not isinstance(path, Path):
         path = Path(path)
+
     if not path.is_dir():
         path = path.parent
-    pp_toml = path.joinpath("pyproject.toml")
-    setup_py = path.joinpath("setup.py")
-    if not pp_toml.exists():
-        if not setup_py.exists():
-            return None
-        requires = ["setuptools>=40.8", "wheel"]
-        backend = get_default_pyproject_backend()
-    else:
-        pyproject_data = {}
-        with open(pp_toml.as_posix(), encoding="utf-8") as fh:
+
+    pp_toml = path / "pyproject.toml"
+
+    # Default values
+    requires = ["setuptools>=40.8", "wheel"]
+    backend = get_default_pyproject_backend()
+    dependencies = []
+
+    if pp_toml.exists():
+        with open(pp_toml, encoding="utf-8") as fh:
             pyproject_data = tomlkit.loads(fh.read())
+
+        # Extracting build system information
         build_system = pyproject_data.get("build-system", None)
-        if build_system is None:
-            if setup_py.exists():
-                requires = ["setuptools>=40.8", "wheel"]
-                backend = get_default_pyproject_backend()
-            else:
-                requires = ["setuptools>=40.8", "wheel"]
-                backend = get_default_pyproject_backend()
-            build_system = {"requires": requires, "build-backend": backend}
-            pyproject_data["build_system"] = build_system
-        else:
-            requires = build_system.get("requires", ["setuptools>=40.8", "wheel"])
-            backend = build_system.get("build-backend", get_default_pyproject_backend())
-    return requires, backend
+        if build_system is not None:
+            requires = build_system.get("requires", requires)
+            backend = build_system.get("build-backend", backend)
+
+        # Extracting project dependencies
+        project_data = pyproject_data.get("project", None)
+        if project_data is not None:
+            dependencies = project_data.get("dependencies", [])
+
+    return {"build_requires": requires, "build_backend": backend, "dependencies": dependencies}
 
 
 def split_markers_from_line(line):
