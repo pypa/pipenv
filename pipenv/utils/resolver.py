@@ -1166,7 +1166,7 @@ def resolve_deps(
     req_dir = req_dir if req_dir else os.environ.get("req_dir", None)
     if not req_dir:
         req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-requirements")
-    with HackedPythonVersion(python_path=project.python):
+    with HackedPythonVersion(python_path=project.python(system=allow_global)):
         try:
             results, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
                 deps,
@@ -1185,7 +1185,7 @@ def resolve_deps(
     # Second (last-resort) attempt:
     if results is None:
         with HackedPythonVersion(
-            python_path=project.python,
+            python_path=project.python(system=allow_global),
         ):
             try:
                 # Attempt to resolve again, with different Python version information,
