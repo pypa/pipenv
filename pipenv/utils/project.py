@@ -79,4 +79,4 @@ def ensure_project(
         skip_requirements=skip_requirements,
         system=system,
     )
-    os.environ["PIP_PYTHON_PATH"] = project.python
+    os.environ["PIP_PYTHON_PATH"] = project.python(system=system)
