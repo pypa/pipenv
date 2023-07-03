@@ -1,0 +1,1 @@
+Fixes regression on Pipfile requirements syntax. Ensure default operator is provided to requirement lib to avoid crash.
