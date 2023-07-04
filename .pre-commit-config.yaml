@@ -17,7 +17,7 @@ repos:
   - id: trailing-whitespace
     exclude: .patch
 
-- repo: https://github.com/charliermarsh/ruff-pre-commit
+- repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.0.275
   hooks:
   - id: ruff
