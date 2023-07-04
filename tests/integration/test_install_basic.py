@@ -92,6 +92,22 @@ tablib = "*"
 
 @pytest.mark.basic
 @pytest.mark.install
+def test_install_with_version_req_default_operator(pipenv_instance_pypi):
+    """Ensure that running `pipenv install` work when spec is package = "X.Y.Z". """
+    with pipenv_instance_pypi(chdir=True) as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+fastapi = "0.95.0"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install")
+        assert c.returncode == 0
+        assert "fastapi" in p.pipfile["packages"]
+
+
+@pytest.mark.basic
+@pytest.mark.install
 def test_install_without_dev_section(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:

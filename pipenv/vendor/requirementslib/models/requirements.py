@@ -34,7 +34,7 @@ from pipenv.patched.pip._internal.req.constructors import (
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
-from pipenv.patched.pip._vendor.distlib.util import cached_property
+from pipenv.patched.pip._vendor.distlib.util import cached_property, COMPARE_OP
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import (
@@ -2544,6 +2544,10 @@ class Requirement(ReqLibBaseModel):
         if hasattr(pipfile, "keys"):
             _pipfile = dict(pipfile).copy()
         _pipfile["version"] = get_version(pipfile)
+
+        # We ensure version contains an operator. Default to equals (==)
+        if _pipfile["version"] and COMPARE_OP.match(_pipfile["version"]) is None:
+            _pipfile["version"] = "=={}".format(_pipfile["version"])
         vcs = next(iter([vcs for vcs in VCS_LIST if vcs in _pipfile]), None)
         if vcs:
             _pipfile["vcs"] = vcs
