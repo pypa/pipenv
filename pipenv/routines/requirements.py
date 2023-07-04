@@ -32,7 +32,7 @@ def requirements_from_deps(deps, include_hashes=True, include_markers=True):
                 if include_markers and "markers" in package_info
                 else ""
             )
-            pip_package = f"{package_name}=={version}{hashes}{markers}"
+            pip_package = f"{package_name}=={version}{markers}{hashes}"
 
         # Append to the list
         pip_packages.append(pip_package)
