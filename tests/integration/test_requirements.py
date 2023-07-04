@@ -192,6 +192,33 @@ def test_requirements_markers_get_excluded(pipenv_instance_pypi):
         assert c.returncode == 0
         assert markers not in c.stdout
 
+@pytest.mark.requirements
+def test_requirements_hashes_get_included(pipenv_instance_pypi):
+    package, version, markers = "werkzeug", "==2.1.2", "python_version >= '3.7'"
+    first_hash = "sha256:1ce08e8093ed67d638d63879fd1ba3735817f7a80de3674d293f5984f25fb6e6"
+    second_hash = "sha256:72a4b735692dd3135217911cbeaa1be5fa3f62bffb8745c5215420a03dc55255"
+    lockfile = {
+        "_meta": {"sources": []},
+        "default": {
+            package: {
+                "hashes": [
+                    first_hash,
+                    second_hash
+                ],
+                "markers": markers,
+                "version": version
+            }
+        },
+        "develop": {}
+    }
+
+    with pipenv_instance_pypi(chdir=True) as p:
+        with open(p.lockfile_path, 'w') as f:
+            json.dump(lockfile, f)
+
+        c = p.pipenv('requirements --hash')
+        assert c.returncode == 0
+        assert f'{package}{version}; {markers} --hash={first_hash} --hash={second_hash}' in c.stdout
 
 def test_requirements_generates_requirements_from_lockfile_without_env_var_expansion(
         pipenv_instance_pypi,
