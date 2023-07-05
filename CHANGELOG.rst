@@ -1,3 +1,16 @@
+2023.7.4 (2023-07-04)
+=====================
+Pipenv 2023.7.4 (2023-07-04)
+============================
+
+
+Bug Fixes
+---------
+
+- Fixes regression on Pipfile requirements syntax. Ensure default operator is provided to requirement lib to avoid crash.  `#5765 <https://github.com/pypa/pipenv/issues/5765>`_
+- Ensure hashes included in a generated requirements file are after any markers.  `#5777 <https://github.com/pypa/pipenv/issues/5777>`_
+
+
 2023.7.3 (2023-07-02)
 =====================
 Pipenv 2023.7.3 (2023-07-02)
