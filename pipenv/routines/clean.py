@@ -63,10 +63,8 @@ def do_clean(
     sys.exit(int(failure))
 
 
-def ensure_lockfile(project, keep_outdated=False, pypi_mirror=None):
+def ensure_lockfile(project, pypi_mirror=None):
     """Ensures that the lockfile is up-to-date."""
-    if not keep_outdated:
-        keep_outdated = project.settings.get("keep_outdated")
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if project.lockfile_exists:
         old_hash = project.get_lockfile_hash()
@@ -80,6 +78,6 @@ def ensure_lockfile(project, keep_outdated=False, pypi_mirror=None):
                 bold=True,
                 err=True,
             )
-            do_lock(project, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
+            do_lock(project, pypi_mirror=pypi_mirror)
     else:
-        do_lock(project, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
+        do_lock(project, pypi_mirror=pypi_mirror)

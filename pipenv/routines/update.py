@@ -33,7 +33,6 @@ def do_update(
     bare=False,
     dry_run=None,
     outdated=False,
-    keep_outdated=False,
     clear=False,
     lock_only=False,
 ):
@@ -70,7 +69,6 @@ def do_update(
             project,
             clear=clear,
             pre=pre,
-            keep_outdated=keep_outdated,
             pypi_mirror=pypi_mirror,
             write=not quiet,
         )
@@ -94,7 +92,6 @@ def do_update(
         categories=categories,
         python=python,
         bare=bare,
-        dont_upgrade=not keep_outdated,
         user=False,
         clear=clear,
         unused=False,
@@ -164,7 +161,6 @@ def upgrade(
         pre=pre,
         allow_global=system,
         pypi_mirror=pypi_mirror,
-        keep_outdated=False,
     )
     if not upgrade_lock_data:
         click.echo("Nothing to upgrade!")
@@ -195,7 +191,6 @@ def upgrade(
             pre=pre,
             allow_global=system,
             pypi_mirror=pypi_mirror,
-            keep_outdated=False,
         )
         # Mutate the existing lockfile with the upgrade data for the categories
         for package_name, _ in upgrade_lock_data.items():

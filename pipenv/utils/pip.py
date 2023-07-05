@@ -82,7 +82,6 @@ def pip_install_deps(
     allow_global=False,
     ignore_hashes=False,
     no_deps=False,
-    selective_upgrade=False,
     requirements_dir=None,
     use_pep517=True,
     extra_pip_args: Optional[List] = None,
@@ -166,7 +165,6 @@ def pip_install_deps(
             pre=project.settings.get("allow_prereleases", False),
             verbose=False,  # When True, the subprocess fails to recognize the EOF when reading stdout.
             upgrade=True,
-            selective_upgrade=False,
             no_use_pep517=not use_pep517,
             no_deps=no_deps,
             extra_pip_args=extra_pip_args,
@@ -192,8 +190,6 @@ def pip_install_deps(
             click.secho(f"$ {cmd_list_to_shell(pip_command)}", fg="cyan", err=True)
         cache_dir = Path(project.s.PIPENV_CACHE_DIR)
         default_exists_action = "w"
-        if selective_upgrade:
-            default_exists_action = "i"
         exists_action = project.s.PIP_EXISTS_ACTION or default_exists_action
         pip_config = {
             "PIP_CACHE_DIR": cache_dir.as_posix(),
@@ -236,7 +232,6 @@ def pip_install(
     index=None,
     pre=False,
     dev=False,
-    selective_upgrade=False,
     requirements_dir=None,
     extra_indexes=None,
     pypi_mirror=None,
@@ -314,7 +309,6 @@ def pip_install(
         pre=pre,
         verbose=project.s.is_verbose(),
         upgrade=True,
-        selective_upgrade=selective_upgrade,
         no_use_pep517=not use_pep517,
         no_deps=no_deps,
         require_hashes=not ignore_hashes,
@@ -339,8 +333,6 @@ def pip_install(
         click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
     cache_dir = Path(project.s.PIPENV_CACHE_DIR)
     default_exists_action = "w"
-    if selective_upgrade:
-        default_exists_action = "i"
     exists_action = project.s.PIP_EXISTS_ACTION or default_exists_action
     pip_config = {
         "PIP_CACHE_DIR": cache_dir.as_posix(),
@@ -367,7 +359,6 @@ def get_pip_args(
     no_build_isolation: bool = False,
     no_use_pep517: bool = False,
     no_deps: bool = False,
-    selective_upgrade: bool = False,
     src_dir: Optional[str] = None,
     extra_pip_args: Optional[List] = None,
 ) -> List[str]:
@@ -379,18 +370,12 @@ def get_pip_args(
         "no_build_isolation": ["--no-build-isolation"],
         "no_use_pep517": ["--no-use-pep517"],
         "no_deps": ["--no-deps"],
-        "selective_upgrade": [
-            "--upgrade-strategy=only-if-needed",
-            "--exists-action={}".format(project.s.PIP_EXISTS_ACTION or "i"),
-        ],
         "src_dir": src_dir,
     }
     arg_set = ["--no-input"] if project.settings.get("disable_pip_input", True) else []
     for key in arg_map.keys():
         if key in locals() and locals().get(key):
             arg_set.extend(arg_map.get(key))
-        elif key == "selective_upgrade" and not locals().get(key):
-            arg_set.append("--exists-action=i")
     for extra_pip_arg in extra_pip_args:
         arg_set.append(extra_pip_arg)
     return list(dict.fromkeys(arg_set))

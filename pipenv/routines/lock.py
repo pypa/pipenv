@@ -1,9 +1,5 @@
-from pipenv import exceptions
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils.dependencies import (
-    get_lockfile_section_using_pipfile_category,
     get_pipfile_category_using_lockfile_section,
-    is_pinned,
 )
 from pipenv.vendor import click
 
@@ -13,22 +9,13 @@ def do_lock(
     system=False,
     clear=False,
     pre=False,
-    keep_outdated=False,
     write=True,
     pypi_mirror=None,
     categories=None,
 ):
     """Executes the freeze functionality."""
-    cached_lockfile = {}
     if not pre:
         pre = project.settings.get("allow_prereleases")
-    if keep_outdated:
-        if not project.lockfile_exists:
-            raise exceptions.PipenvOptionsError(
-                "--keep-outdated",
-                message="Pipfile.lock must exist to use --keep-outdated!",
-            )
-        cached_lockfile = project.lockfile_content
     # Cleanup lockfile.
     if not categories:
         lockfile_categories = project.get_package_categories(for_lockfile=True)
@@ -67,11 +54,10 @@ def do_lock(
             )
 
         # Prune old lockfile category as new one will be created.
-        if not keep_outdated:
-            try:
-                del lockfile[category]
-            except KeyError:
-                pass
+        try:
+            del lockfile[category]
+        except KeyError:
+            pass
 
         from pipenv.utils.resolver import venv_resolve_deps
 
@@ -87,29 +73,8 @@ def do_lock(
             pypi_mirror=pypi_mirror,
             pipfile=packages,
             lockfile=lockfile,
-            keep_outdated=keep_outdated,
         )
 
-    # Support for --keep-outdated...
-    if keep_outdated:
-        for category_name in project.get_package_categories():
-            category = project.get_pipfile_section(category_name)
-            lockfile_section = get_lockfile_section_using_pipfile_category(category_name)
-
-            for package_specified in category.keys():
-                if not is_pinned(category[package_specified]):
-                    canonical_name = canonicalize_name(package_specified)
-                    if canonical_name in cached_lockfile[lockfile_section]:
-                        lockfile[lockfile_section][canonical_name] = cached_lockfile[
-                            lockfile_section
-                        ][canonical_name].copy()
-            packages = set(cached_lockfile[lockfile_section].keys())
-            new_lockfile = set(lockfile[lockfile_section].keys())
-            missing = packages - new_lockfile
-            for missing_pkg in missing:
-                lockfile[lockfile_section][missing_pkg] = cached_lockfile[
-                    lockfile_section
-                ][missing_pkg].copy()
     # Overwrite any category packages with default packages.
     for category in lockfile_categories:
         if category == "default":

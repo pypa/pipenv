@@ -9,7 +9,6 @@ from pipenv import environments, exceptions
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._vendor import rich
 from pipenv.routines.lock import do_lock
-from pipenv.utils.dependencies import convert_deps_to_pip, is_star
 from pipenv.utils.indexes import get_source_list
 from pipenv.utils.internet import download_file, is_valid_url
 from pipenv.utils.pip import (
@@ -43,8 +42,6 @@ def do_install(
     requirementstxt=False,
     pre=False,
     deploy=False,
-    keep_outdated=False,
-    selective_upgrade=False,
     site_packages=None,
     extra_pip_args=None,
     categories=None,
@@ -53,8 +50,6 @@ def do_install(
         suffix="-requirements", prefix="pipenv-"
     )
     warnings.filterwarnings("default", category=ResourceWarning)
-    if selective_upgrade:
-        keep_outdated = True
     packages = packages if packages else []
     editable_packages = editable_packages if editable_packages else []
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
@@ -82,8 +77,6 @@ def do_install(
     # Load the --pre settings from the Pipfile.
     if not pre:
         pre = project.settings.get("allow_prereleases")
-    if not keep_outdated:
-        keep_outdated = project.settings.get("keep_outdated")
     remote = requirementstxt and is_valid_url(requirementstxt)
     if "default" in categories:
         raise exceptions.PipenvUsageError(
@@ -166,30 +159,12 @@ def do_install(
 
     # Allow more than one package to be provided.
     package_args = [p for p in packages] + [f"-e {pkg}" for pkg in editable_packages]
-    # Support for --selective-upgrade.
-    # We should do this part first to make sure that we actually do selectively upgrade
-    # the items specified
-    if selective_upgrade:
-        from pipenv.vendor.requirementslib.models.requirements import Requirement
-
-        for i, package in enumerate(package_args[:]):
-            section = project.packages if not dev else project.dev_packages
-            package = Requirement.from_line(package)
-            package__name, package__val = package.pipfile_entry
-            try:
-                if not is_star(section[package__name]) and is_star(package__val):
-                    # Support for VCS dependencies.
-                    package_args[i] = convert_deps_to_pip(
-                        {package__name: section[package__name]}, project=project
-                    )[0]
-            except KeyError:
-                pass
     # Install all dependencies, if none was provided.
     # This basically ensures that we have a pipfile and lockfile, then it locks and
     # installs from the lockfile
     new_packages = []
     if not packages and not editable_packages:
-        # Update project settings with pre preference.
+        # Update project settings with prerelease preference.
         if pre:
             project.update_settings({"allow_prereleases": pre})
         do_init(
@@ -203,7 +178,6 @@ def do_install(
             pre=pre,
             requirements_dir=requirements_directory,
             pypi_mirror=pypi_mirror,
-            keep_outdated=keep_outdated,
             extra_pip_args=extra_pip_args,
             categories=categories,
         )
@@ -220,7 +194,6 @@ def do_install(
                 dev=dev,
                 system=system,
                 allow_global=system,
-                keep_outdated=keep_outdated,
                 requirements_dir=requirements_directory,
                 deploy=deploy,
                 pypi_mirror=pypi_mirror,
@@ -324,7 +297,6 @@ def do_install(
                 dev=dev,
                 system=system,
                 allow_global=system,
-                keep_outdated=keep_outdated,
                 requirements_dir=requirements_directory,
                 deploy=deploy,
                 pypi_mirror=pypi_mirror,
@@ -345,7 +317,6 @@ def do_sync(
     dev=False,
     python=None,
     bare=False,
-    dont_upgrade=False,
     user=False,
     clear=False,
     unused=False,
@@ -709,7 +680,6 @@ def do_init(
     system=False,
     deploy=False,
     pre=False,
-    keep_outdated=False,
     requirements_dir=None,
     pypi_mirror=None,
     extra_pip_args=None,
@@ -775,7 +745,6 @@ def do_init(
                     project,
                     system=system,
                     pre=pre,
-                    keep_outdated=keep_outdated,
                     write=True,
                     pypi_mirror=pypi_mirror,
                     categories=categories,
@@ -801,7 +770,6 @@ def do_init(
                 project,
                 system=system,
                 pre=pre,
-                keep_outdated=keep_outdated,
                 write=True,
                 pypi_mirror=pypi_mirror,
                 categories=categories,

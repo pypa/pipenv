@@ -142,59 +142,6 @@ yarl = "==1.3.0"
 
 
 @pytest.mark.lock
-@pytest.mark.keep_outdated
-def test_lock_keep_outdated(pipenv_instance_pypi):
-
-    with pipenv_instance_pypi() as p:
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
-[packages]
-requests = {version = "==2.14.0"}
-pytest = "==3.1.0"
-            """.strip()
-            f.write(contents)
-
-        c = p.pipenv('lock')
-        assert c.returncode == 0
-        lock = p.lockfile
-        assert 'requests' in lock['default']
-        assert lock['default']['requests']['version'] == "==2.14.0"
-        assert 'pytest' in lock['default']
-        assert lock['default']['pytest']['version'] == "==3.1.0"
-
-        with open(p.pipfile_path, 'w') as f:
-            updated_contents = """
-[packages]
-requests = {version = "==2.18.4"}
-pytest = "*"
-            """.strip()
-            f.write(updated_contents)
-
-        c = p.pipenv('lock --keep-outdated')
-        assert c.returncode == 0
-        lock = p.lockfile
-        assert 'requests' in lock['default']
-        assert lock['default']['requests']['version'] == "==2.18.4"
-        assert 'pytest' in lock['default']
-        assert lock['default']['pytest']['version'] == "==3.1.0"
-
-
-@pytest.mark.lock
-@pytest.mark.keep_outdated
-def test_keep_outdated_doesnt_remove_lockfile_entries(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
-        p._pipfile.add("requests", {"version": "*", "markers": "os_name=='FakeOS'"})
-        p._pipfile.add("colorama", {"version": "*"})
-        c = p.pipenv("install")
-        assert c.returncode == 0
-        assert "doesn't match your environment, its dependencies won't be resolved." in c.stderr
-        p._pipfile.add("six", "*")
-        p.pipenv("lock --keep-outdated")
-        assert "requests" in p.lockfile["default"]
-        assert p.lockfile["default"]["requests"]["markers"] == "os_name == 'FakeOS'"
-
-
-@pytest.mark.lock
 def test_resolve_skip_unmatched_requirements(pipenv_instance_pypi):
     with pipenv_instance_pypi(chdir=True) as p:
         p._pipfile.add("missing-package", {"markers": "os_name=='FakeOS'"})
@@ -204,58 +151,6 @@ def test_resolve_skip_unmatched_requirements(pipenv_instance_pypi):
             "Could not find a version of missing-package ; "
             "os_name == 'FakeOS' that matches your environment"
         ) in c.stderr
-
-
-@pytest.mark.lock
-@pytest.mark.keep_outdated
-def test_keep_outdated_doesnt_upgrade_pipfile_pins(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
-        p._pipfile.add("urllib3", "==1.21.1")
-        c = p.pipenv("install")
-        assert c.returncode == 0
-        p._pipfile.add("requests", "==2.18.4")
-        c = p.pipenv("lock --keep-outdated")
-        assert c.returncode == 0
-        assert "requests" in p.lockfile["default"]
-        assert "urllib3" in p.lockfile["default"]
-        assert p.lockfile["default"]["requests"]["version"] == "==2.18.4"
-        assert p.lockfile["default"]["urllib3"]["version"] == "==1.21.1"
-
-
-@pytest.mark.lock
-def test_keep_outdated_keeps_markers_not_removed(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
-        c = p.pipenv("install six click")
-        assert c.returncode == 0
-        lockfile = Path(p.lockfile_path)
-        lockfile_content = lockfile.read_text()
-        lockfile_json = json.loads(lockfile_content)
-        assert "six" in lockfile_json["default"]
-        lockfile_json["default"]["six"]["markers"] = "python_version >= '2.7'"
-        lockfile.write_text(json.dumps(lockfile_json))
-        c = p.pipenv("lock --keep-outdated")
-        assert c.returncode == 0
-        assert p.lockfile["default"]["six"].get("markers", "") == "python_version >= '2.7'"
-
-
-@pytest.mark.lock
-@pytest.mark.keep_outdated
-def test_keep_outdated_doesnt_update_satisfied_constraints(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
-        p._pipfile.add("requests", "==2.18.4")
-        c = p.pipenv("install")
-        assert c.returncode == 0
-        p._pipfile.add("requests", "*")
-        assert p.pipfile["packages"]["requests"] == "*"
-        c = p.pipenv("lock --keep-outdated")
-        assert c.returncode == 0
-        assert "requests" in p.lockfile["default"]
-        assert "urllib3" in p.lockfile["default"]
-        # ensure this didn't update requests
-        assert p.lockfile["default"]["requests"]["version"] == "==2.18.4"
-        c = p.pipenv("lock")
-        assert c.returncode == 0
-        assert p.lockfile["default"]["requests"]["version"] != "==2.18.4"
 
 
 @pytest.mark.lock

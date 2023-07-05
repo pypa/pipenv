@@ -238,12 +238,8 @@ class Entry:
             return marker_str
         return None
 
-    def get_cleaned_dict(self, keep_outdated=False):
-        if keep_outdated and self.is_updated:
-            self.validate_constraints()
-            self.ensure_least_updates_possible()
-        elif not keep_outdated:
-            self.validate_constraints()
+    def get_cleaned_dict(self):
+        self.validate_constraints()
         if self.entry.extras != self.lockfile_entry.extras:
             entry_extras = list(self.entry.extras)
             if self.lockfile_entry.extras:
@@ -635,65 +631,7 @@ def clean_results(results, resolver, project, category):
             reverse_deps=reverse_deps,
             category=category,
         )
-        entry_dict = translate_markers(entry.get_cleaned_dict(keep_outdated=False))
-        new_results.append(entry_dict)
-    return new_results
-
-
-def clean_outdated(results, resolver, project, category):
-    from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
-
-    if not project.lockfile_exists:
-        return results
-    lockfile = project.lockfile_content
-    lockfile_section = get_lockfile_section_using_pipfile_category(category)
-    reverse_deps = project.environment.reverse_dependencies()
-    new_results = [r for r in results if r["name"] not in lockfile[lockfile_section]]
-    for result in results:
-        name = result.get("name")
-        entry_dict = result.copy()
-        entry = Entry(
-            name,
-            entry_dict,
-            project,
-            resolver,
-            reverse_deps=reverse_deps,
-            category=category,
-        )
-        # The old entry was editable but this one isnt; prefer the old one
-        # TODO: Should this be the case for all locking?
-        if entry.was_editable and not entry.is_editable:
-            continue
-        lockfile_entry = lockfile[lockfile_section].get(name, None)
-        if not lockfile_entry:
-            if name in lockfile[lockfile_section]:
-                lockfile_entry = lockfile[lockfile_section][name]
-        if lockfile_entry and not entry.is_updated:
-            old_markers = next(
-                iter(
-                    m
-                    for m in (
-                        entry.lockfile_entry.markers,
-                        lockfile_entry.get("markers", None),
-                    )
-                    if m is not None
-                ),
-                None,
-            )
-            new_markers = entry_dict.get("markers", None)
-            if old_markers:
-                old_markers = Entry.marker_to_str(old_markers)
-            if old_markers and not new_markers:
-                entry.markers = old_markers
-            elif new_markers and not old_markers:
-                del entry.entry_dict["markers"]
-                entry._entry.req.req.marker = None
-                entry._entry.markers = None
-            # if the entry has not changed versions since the previous lock,
-            # don't introduce new markers since that is more restrictive
-            # if entry.has_markers and not entry.had_markers and not entry.is_updated:
-            # do make sure we retain the original markers for entries that are not changed
-        entry_dict = entry.get_cleaned_dict(keep_outdated=True)
+        entry_dict = translate_markers(entry.get_cleaned_dict())
         new_results.append(entry_dict)
     return new_results
 
@@ -764,7 +702,6 @@ def resolve_packages(
         if pypi_mirror_source
         else project.pipfile_sources()
     )
-    keep_outdated = os.environ.get("PIPENV_KEEP_OUTDATED", False)
     results, resolver = resolve(
         packages,
         pre=pre,
@@ -775,10 +712,7 @@ def resolve_packages(
         system=system,
         requirements_dir=requirements_dir,
     )
-    if keep_outdated:
-        results = clean_outdated(results, resolver, project, category)
-    else:
-        results = clean_results(results, resolver, project, category)
+    results = clean_results(results, resolver, project, category)
     if write:
         with open(write, "w") as fh:
             if not results:

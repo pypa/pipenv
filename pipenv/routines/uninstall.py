@@ -28,7 +28,6 @@ def do_uninstall(
     lock=False,
     all_dev=False,
     all=False,
-    keep_outdated=False,
     pypi_mirror=None,
     ctx=None,
     categories=None,
@@ -167,9 +166,7 @@ def do_uninstall(
                         failure = True
 
     if lock:
-        do_lock(
-            project, system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror
-        )
+        do_lock(project, system=system, pypi_mirror=pypi_mirror)
     sys.exit(int(failure))
 
 
