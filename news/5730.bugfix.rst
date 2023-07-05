@@ -1,0 +1,1 @@
+Drop the --keep-outdated flag and --selective-upgrade flags that have been deprecated in favor of update/upgrade commands.
