@@ -3,6 +3,7 @@ import re
 
 from pipenv.project import Project
 from pipenv.utils.internet import is_valid_url
+from pipenv.vendor import click
 from pipenv.vendor.click import (
     BadArgumentUsage,
     BadParameter,
