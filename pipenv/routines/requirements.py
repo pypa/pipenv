@@ -20,8 +20,8 @@ def requirements_from_deps(deps, include_hashes=True, include_markers=True):
             )
             pip_package = f"{package_name}{extras} @ git+{git}@{ref}"
         # Handling file-sourced packages
-        elif "file" in package_info:
-            file = package_info["file"]
+        elif "file" in package_info or "path" in package_info:
+            file = package_info.get("file") or package_info.get("path")
             extras = (
                 "[{}]".format(",".join(package_info.get("extras", [])))
                 if "extras" in package_info
