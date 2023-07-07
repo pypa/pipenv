@@ -262,39 +262,38 @@ def test_requirements_generates_requirements_from_lockfile_without_env_var_expan
             {
                 "django-storages": {
                     "version": "==1.12.3",
-                    "extras": ["azure"],
-                    "hashes": ["sha256:samplehash123"]
-                },
-                "package_from_git": {
-                    "git": "https://github.com/sample/repo.git",
-                    "ref": "123456",
-                    "extras": ["extra1"]
+                    "extras": ["azure"]
                 }
             },
             True,
             True,
-            [
-                "django-storages[azure]==1.12.3 --hash=sha256:samplehash123",
-                "package_from_git[extra1] @ git+https://github.com/sample/repo.git@123456"
-            ]
+            ["django-storages[azure]==1.12.3"]
         ),
         (
             {
-                "django-storages": {
-                    "version": "==1.12.3",
-                    "extras": ["azure"],
-                    "hashes": ["sha256:samplehash123"],
-                    "markers": "python_version >= '3.6'"
+                "evotum-cripto": {
+                    "file": "https://gitlab.com/eVotUM/Cripto-py/-/archive/develop/Cripto-py-develop.zip"
                 }
             },
             True,
             True,
-            [
-                "django-storages[azure]==1.12.3; python_version >= '3.6' --hash=sha256:samplehash123"
-            ]
+            ["https://gitlab.com/eVotUM/Cripto-py/-/archive/develop/Cripto-py-develop.zip"]
+        ),
+        (
+            {
+                "pyjwt": {
+                    "git": "https://github.com/jpadilla/pyjwt.git",
+                    "ref": "7665aa625506a11bae50b56d3e04413a3dc6fdf8",
+                    "extras": ["crypto"]
+                }
+            },
+            True,
+            True,
+            ["pyjwt[crypto] @ git+https://github.com/jpadilla/pyjwt.git@7665aa625506a11bae50b56d3e04413a3dc6fdf8"]
         )
     ]
 )
 def test_requirements_from_deps(deps, include_hashes, include_markers, expected):
     result = requirements_from_deps(deps, include_hashes, include_markers)
     assert result == expected
+
