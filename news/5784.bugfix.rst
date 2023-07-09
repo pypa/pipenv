@@ -1,1 +1,0 @@
-Fix regressions in the ``requirements`` command related to standard index extras and handling of local file requirements.

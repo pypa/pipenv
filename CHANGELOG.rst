@@ -1,3 +1,16 @@
+2023.7.9 (2023-07-09)
+=====================
+Pipenv 2023.7.9 (2023-07-09)
+============================
+
+
+Bug Fixes
+---------
+
+- Drop the --keep-outdated flag and --selective-upgrade flags that have been deprecated in favor of update/upgrade commands.  `#5730 <https://github.com/pypa/pipenv/issues/5730>`_
+- Fix regressions in the ``requirements`` command related to standard index extras and handling of local file requirements.  `#5784 <https://github.com/pypa/pipenv/issues/5784>`_
+
+
 2023.7.4 (2023-07-04)
 =====================
 Pipenv 2023.7.4 (2023-07-04)
