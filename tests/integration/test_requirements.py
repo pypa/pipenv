@@ -3,7 +3,7 @@ import os
 import pytest
 
 from pipenv.utils.shell import temp_environ
-
+from pipenv.routines.requirements import requirements_from_deps
 
 @pytest.mark.requirements
 def test_requirements_generates_requirements_from_lockfile(pipenv_instance_pypi):
@@ -192,6 +192,7 @@ def test_requirements_markers_get_excluded(pipenv_instance_pypi):
         assert c.returncode == 0
         assert markers not in c.stdout
 
+
 @pytest.mark.requirements
 def test_requirements_hashes_get_included(pipenv_instance_pypi):
     package, version, markers = "werkzeug", "==2.1.2", "python_version >= '3.7'"
@@ -219,6 +220,7 @@ def test_requirements_hashes_get_included(pipenv_instance_pypi):
         c = p.pipenv('requirements --hash')
         assert c.returncode == 0
         assert f'{package}{version}; {markers} --hash={first_hash} --hash={second_hash}' in c.stdout
+
 
 def test_requirements_generates_requirements_from_lockfile_without_env_var_expansion(
         pipenv_instance_pypi,
@@ -250,3 +252,48 @@ def test_requirements_generates_requirements_from_lockfile_without_env_var_expan
                 "-i https://${redacted_user}:${redacted_pwd}@private_source.org"
                 in c.stdout
             )
+
+
+@pytest.mark.requirements
+@pytest.mark.parametrize(
+    "deps, include_hashes, include_markers, expected",
+    [
+        (
+            {
+                "django-storages": {
+                    "version": "==1.12.3",
+                    "extras": ["azure"]
+                }
+            },
+            True,
+            True,
+            ["django-storages[azure]==1.12.3"]
+        ),
+        (
+            {
+                "evotum-cripto": {
+                    "file": "https://gitlab.com/eVotUM/Cripto-py/-/archive/develop/Cripto-py-develop.zip"
+                }
+            },
+            True,
+            True,
+            ["https://gitlab.com/eVotUM/Cripto-py/-/archive/develop/Cripto-py-develop.zip"]
+        ),
+        (
+            {
+                "pyjwt": {
+                    "git": "https://github.com/jpadilla/pyjwt.git",
+                    "ref": "7665aa625506a11bae50b56d3e04413a3dc6fdf8",
+                    "extras": ["crypto"]
+                }
+            },
+            True,
+            True,
+            ["pyjwt[crypto] @ git+https://github.com/jpadilla/pyjwt.git@7665aa625506a11bae50b56d3e04413a3dc6fdf8"]
+        )
+    ]
+)
+def test_requirements_from_deps(deps, include_hashes, include_markers, expected):
+    result = requirements_from_deps(deps, include_hashes, include_markers)
+    assert result == expected
+
