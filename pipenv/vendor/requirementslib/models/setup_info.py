@@ -1386,12 +1386,6 @@ class SetupInfo(ReqLibBaseModel):
                     self.populate_metadata(dist)
                 self._ran_setup = True
 
-    @property
-    def pep517_config(self) -> Dict[str, Any]:
-        config = {}
-        config.setdefault("--global-option", [])
-        return config
-
     def build_wheel(self) -> str:
         need_delete = False
         if not self.pyproject.exists():
@@ -1422,7 +1416,6 @@ build-backend = "{1}"
         result = build_pep517(
             directory,
             self.extra_kwargs["build_dir"],
-            config_settings=self.pep517_config,
             dist_type="wheel",
         )
         if need_delete:
@@ -1454,7 +1447,6 @@ build-backend = "{1}"
         result = build_pep517(
             self.base_dir,
             self.extra_kwargs["build_dir"],
-            config_settings=self.pep517_config,
             dist_type="sdist",
         )
         if need_delete:
