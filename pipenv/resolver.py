@@ -446,58 +446,6 @@ class Entry:
                 parents.extend(parent.flattened_parents)
         return parents
 
-    def ensure_least_updates_possible(self):
-        """
-        Mutate the current entry to ensure that we are making the smallest amount of
-        changes possible to the existing lockfile -- this will keep the old locked
-        versions of packages if they satisfy new constraints.
-
-        :return: None
-        """
-        constraints = self.get_constraints()
-        can_use_original = True
-        can_use_updated = True
-        satisfied_by_versions = set()
-        for constraint in constraints:
-            if not constraint.specifier.contains(self.original_version):
-                self.can_use_original = False
-            if not constraint.specifier.contains(self.updated_version):
-                self.can_use_updated = False
-            satisfied_by_value = getattr(constraint, "satisfied_by", None)
-            if satisfied_by_value:
-                satisfied_by = "{}".format(
-                    self.clean_specifier(str(satisfied_by_value.version))
-                )
-                satisfied_by_versions.add(satisfied_by)
-        if can_use_original:
-            self.entry_dict = self.lockfile_dict.copy()
-        elif can_use_updated:
-            if len(satisfied_by_versions) == 1:
-                self.entry_dict["version"] = next(
-                    iter(sat_by for sat_by in satisfied_by_versions if sat_by), None
-                )
-                hashes = None
-                if self.lockfile_entry.specifiers == satisfied_by:
-                    ireq = self.lockfile_entry.as_ireq
-                    if (
-                        not self.lockfile_entry.hashes
-                        and self.resolver._should_include_hash(ireq)
-                    ):
-                        hashes = self.resolver.get_hash(ireq)
-                    else:
-                        hashes = self.lockfile_entry.hashes
-                else:
-                    if self.resolver._should_include_hash(constraint):
-                        hashes = self.resolver.get_hash(constraint)
-                if hashes:
-                    self.entry_dict["hashes"] = list(hashes)
-                    self._entry.hashes = frozenset(hashes)
-        else:
-            # check for any parents, since they depend on this and the current
-            # installed versions are not compatible with the new version, so
-            # we will need to update the top level dependency if possible
-            self.check_flattened_parents()
-
     def get_constraints(self):
         """
         Retrieve all of the relevant constraints, aggregated from the pipfile, resolver,
@@ -668,7 +616,7 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
 
 
 def resolve_packages(
-    pre, clear, verbose, system, write, requirements_dir, packages, category
+    pre, clear, verbose, system, requirements_dir, packages, category, constraints=None
 ):
     from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
     from pipenv.utils.resolver import resolve_deps
@@ -678,6 +626,9 @@ def resolve_packages(
         if "PIPENV_PYPI_MIRROR" in os.environ
         else None
     )
+
+    if constraints:
+        packages += constraints
 
     def resolve(
         packages, pre, project, sources, clear, system, category, requirements_dir=None
@@ -713,43 +664,9 @@ def resolve_packages(
         requirements_dir=requirements_dir,
     )
     results = clean_results(results, resolver, project, category)
-    if write:
-        with open(write, "w") as fh:
-            if not results:
-                json.dump([], fh)
-            else:
-                json.dump(results, fh)
-    else:
-        print("RESULTS:")
-        if results:
-            print(json.dumps(results))
-        else:
-            print(json.dumps([]))
-
-
-def _main(
-    pre,
-    clear,
-    verbose,
-    system,
-    write,
-    requirements_dir,
-    packages,
-    parse_only=False,
-    category=None,
-):
-    if parse_only:
-        parse_packages(
-            packages,
-            pre=pre,
-            clear=clear,
-            system=system,
-            requirements_dir=requirements_dir,
-        )
-    else:
-        resolve_packages(
-            pre, clear, verbose, system, write, requirements_dir, packages, category
-        )
+    if results:
+        return results
+    return []
 
 
 def main(argv=None):
@@ -767,15 +684,13 @@ def main(argv=None):
     os.environ["PYTHONIOENCODING"] = "utf-8"
     os.environ["PYTHONUNBUFFERED"] = "1"
     parsed = handle_parsed_args(parsed)
-    _main(
+    resolve_packages(
         parsed.pre,
         parsed.clear,
         parsed.verbose,
         parsed.system,
-        parsed.write,
         parsed.requirements_dir,
         parsed.packages,
-        parse_only=parsed.parse_only,
         category=parsed.category,
     )
 

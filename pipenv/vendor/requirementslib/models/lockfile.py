@@ -243,17 +243,6 @@ class Lockfile(ReqLibBaseModel):
             ]
         return []
 
-    def as_requirements(self, category: str, include_hashes: bool = False) -> List[str]:
-        lines = []
-        section = list(self.get_requirements(categories=[category]))
-        for req in section:
-            kwargs = {"include_hashes": include_hashes}
-            if req.editable:
-                kwargs["include_markers"] = False
-            r = req.as_line(**kwargs)
-            lines.append(r.strip())
-        return lines
-
     def write(self) -> None:
         self.projectfile.model = copy.deepcopy(self.lockfile)
         self.projectfile.write()

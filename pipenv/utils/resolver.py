@@ -1,14 +1,11 @@
 import contextlib
 import hashlib
-import json
 import os
 import subprocess
 import sys
-import tempfile
 import warnings
 from functools import lru_cache
 from html.parser import HTMLParser
-from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 from urllib import parse
 
@@ -30,6 +27,7 @@ from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor import pkg_resources, rich
 from pipenv.project import Project
+from pipenv.resolver import resolve_packages
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir, open_file
 from pipenv.vendor.requirementslib.models.requirements import Line, Requirement
@@ -57,7 +55,7 @@ from .dependencies import (
 from .indexes import parse_indexes, prepare_pip_source_args
 from .internet import _get_requests_session, is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
-from .shell import make_posix, subprocess_run, temp_environ
+from .shell import subprocess_run, temp_environ
 
 console = rich.console.Console()
 err = rich.console.Console(stderr=True)
@@ -288,7 +286,8 @@ class Resolver:
         except ValueError:
             direct_url = DIRECT_URL_RE.match(line)
             if direct_url:
-                line = "{}#egg={}".format(line, direct_url.groupdict()["name"])
+                name = direct_url.groupdict()["name"]
+                line = f"{name}@ {line}"
                 try:
                     req = Requirement.from_line(line)
                 except ValueError:
@@ -952,11 +951,8 @@ def actually_resolve_deps(
     clear,
     pre,
     category,
-    req_dir=None,
+    req_dir,
 ):
-    if not req_dir:
-        req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
-
     with warnings.catch_warnings(record=True) as warning_list:
         resolver = Resolver.create(
             deps,
@@ -1047,8 +1043,6 @@ def venv_resolve_deps(
     :return: The lock data
     :rtype: dict
     """
-    from pipenv import resolver
-
     lockfile_section = get_lockfile_section_using_pipfile_category(category)
 
     if not deps:
@@ -1063,30 +1057,11 @@ def venv_resolve_deps(
     if lockfile is None:
         lockfile = project.lockfile(categories=[category])
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
-    cmd = [
-        which("python", allow_global=allow_global),
-        Path(resolver.__file__.rstrip("co")).as_posix(),
-    ]
-    if pre:
-        cmd.append("--pre")
-    if clear:
-        cmd.append("--clear")
-    if allow_global:
-        cmd.append("--system")
-    if category:
-        cmd.append("--category")
-        cmd.append(category)
-    target_file = tempfile.NamedTemporaryFile(
-        prefix="resolver", suffix=".json", delete=False
-    )
-    target_file.close()
-    cmd.extend(["--write", make_posix(target_file.name)])
+    results = []
     with temp_environ():
         os.environ.update({k: str(val) for k, val in os.environ.items()})
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
-        os.environ["PIPENV_VERBOSITY"] = str(project.s.PIPENV_VERBOSITY)
-        os.environ["PIPENV_REQ_DIR"] = req_dir
         os.environ["PIP_NO_INPUT"] = "1"
         pipenv_site_dir = get_pipenv_sitedir()
         if pipenv_site_dir is not None:
@@ -1099,37 +1074,29 @@ def venv_resolve_deps(
             # dependency resolution on them, so we are including this step inside the
             # spinner context manager for the UX improvement
             st.console.print("Building requirements...")
-            deps = convert_deps_to_pip(deps, project, include_index=True)
+            deps = convert_deps_to_pip(deps, project)
             constraints = set(deps)
-            with tempfile.NamedTemporaryFile(
-                mode="w+", prefix="pipenv", suffix="constraints.txt", delete=False
-            ) as constraints_file:
-                constraints_file.write(str("\n".join(constraints)))
-            cmd.append("--constraints-file")
-            cmd.append(constraints_file.name)
             st.console.print("Resolving dependencies...")
-            c = resolve(cmd, st, project=project)
-            if c.returncode == 0:
-                st.console.print(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
-                if not project.s.is_verbose() and c.stderr.strip():
-                    click.echo(click.style(f"Warning: {c.stderr.strip()}"), err=True)
-            else:
+            try:
+                results = resolve_packages(
+                    pre,
+                    clear,
+                    project.s.is_verbose(),
+                    allow_global,
+                    req_dir,
+                    deps,
+                    category=category,
+                    constraints=constraints,
+                )
+                if results:
+                    st.console.print(
+                        environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
+                    )
+            except Exception:
                 st.console.print(
                     environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
                 )
-                click.echo(f"Output: {c.stdout.strip()}", err=True)
-                click.echo(f"Error: {c.stderr.strip()}", err=True)
-    try:
-        with open(target_file.name) as fh:
-            results = json.load(fh)
-    except (IndexError, json.JSONDecodeError):
-        click.echo(c.stdout.strip(), err=True)
-        click.echo(c.stderr.strip(), err=True)
-        if os.path.exists(target_file.name):
-            os.unlink(target_file.name)
-        raise RuntimeError("There was a problem with locking.")
-    if os.path.exists(target_file.name):
-        os.unlink(target_file.name)
+                raise RuntimeError("There was a problem with locking.")
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
     return prepare_lockfile(results, pipfile, lockfile[lockfile_section])
@@ -1159,7 +1126,6 @@ def resolve_deps(
     if not deps:
         return results, resolver
     # First (proper) attempt:
-    req_dir = req_dir if req_dir else os.environ.get("req_dir", None)
     if not req_dir:
         req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-requirements")
     with HackedPythonVersion(python_path=project.python(system=allow_global)):
