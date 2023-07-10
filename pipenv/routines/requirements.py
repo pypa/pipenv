@@ -38,7 +38,9 @@ def requirements_from_deps(deps, include_hashes=True, include_markers=True):
             )
             markers = (
                 "; {}".format(package_info["markers"])
-                if include_markers and "markers" in package_info
+                if include_markers
+                and "markers" in package_info
+                and package_info["markers"]
                 else ""
             )
             extras = (
