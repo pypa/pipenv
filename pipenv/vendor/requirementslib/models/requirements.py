@@ -31,7 +31,6 @@ from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_line,
 )
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
 from pipenv.patched.pip._vendor.distlib.util import cached_property, COMPARE_OP
 from pipenv.patched.pip._vendor.packaging.markers import Marker
@@ -789,10 +788,9 @@ class Line(ReqLibBaseModel):
     def get_setup_info(self) -> SetupInfo:
         setup_info = self.setup_info
         if setup_info is None:
-            with global_tempdir_manager():
-                setup_info = SetupInfo.from_ireq(self.ireq, subdir=self.subdirectory)
-                if not setup_info.name:
-                    setup_info.get_info()
+            setup_info = SetupInfo.from_ireq(self.ireq, subdir=self.subdirectory)
+            if not setup_info.name:
+                setup_info.get_info()
         return setup_info
 
     def set_setup_info(self, setup_info) -> None:
@@ -877,16 +875,13 @@ class Line(ReqLibBaseModel):
         ireq = self.ireq
         wheel_kwargs = self.wheel_kwargs.copy()
         wheel_kwargs["src_dir"] = repo.checkout_directory
-        with global_tempdir_manager(), temp_path():
-            ireq.ensure_has_source_dir(wheel_kwargs["src_dir"])
-            sys.path = [repo.checkout_directory, "", ".", get_path("purelib")]
-            setupinfo = SetupInfo.create(
-                repo.checkout_directory,
-                ireq=ireq,
-                subdirectory=self.subdirectory,
-                kwargs=wheel_kwargs,
-            )
-            self.setup_info = setupinfo
+        setupinfo = SetupInfo.create(
+            repo.checkout_directory,
+            ireq=ireq,
+            subdirectory=self.subdirectory,
+            kwargs=wheel_kwargs,
+        )
+        self.setup_info = setupinfo
 
     def get_ireq(self) -> InstallRequirement:
         line = self.line_for_ireq()
@@ -1040,8 +1035,7 @@ class Line(ReqLibBaseModel):
         if self.ref and self._requirement is not None:
             self._requirement.revision = self.ref
             if self._vcsrepo is not None:
-                with global_tempdir_manager():
-                    self._requirement.revision = self._vcsrepo.commit_hash
+                self._requirement.revision = self._vcsrepo.commit_hash
         return self._requirement
 
     def parse_requirement(self) -> "Line":
@@ -1569,21 +1563,18 @@ class FileRequirement(ReqLibBaseModel):
         if self.setup_info is None and self.parsed_line:
             if self.parsed_line and self.parsed_line and self.parsed_line.setup_info:
                 if self.parsed_line.setup_info and not self.parsed_line.setup_info.name:
-                    with global_tempdir_manager():
-                        self.parsed_line.setup_info.get_info()
+                    self.parsed_line.setup_info.get_info()
                 self.setup_info = self.parsed_line.setup_info
             elif self.parsed_line and (
                 self.parsed_line.ireq and not self.parsed_line.is_wheel
             ):
-                with global_tempdir_manager():
-                    self.setup_info = SetupInfo.from_ireq(
-                        self.parsed_line.ireq, subdir=self.subdirectory
-                    )
+                self.setup_info = SetupInfo.from_ireq(
+                    self.parsed_line.ireq, subdir=self.subdirectory
+                )
             else:
                 if self.link and not self.link.is_wheel:
                     self.setup_info = Line(self.line_part).setup_info
-                    with global_tempdir_manager():
-                        self.setup_info.get_info()
+                    self.setup_info.get_info()
         return self.setup_info
 
     def set_setup_info(self, setup_info) -> None:
@@ -2075,8 +2066,7 @@ class VCSRequirement(FileRequirement):
                 self.req = self.parsed_line.requirement
             else:
                 self.req = self.get_requirement()
-        with global_tempdir_manager():
-            revision = self.req.revision = vcsrepo.commit_hash
+        revision = self.req.revision = vcsrepo.commit_hash
 
         # Remove potential ref in the end of uri after ref is parsed
         if self.link and "@" in self.link.show_url and self.uri and "@" in self.uri:
@@ -2775,17 +2765,16 @@ class Requirement(ReqLibBaseModel):
                 from .dependencies import get_finder
 
                 finder = get_finder(sources=sources)
-            with global_tempdir_manager():
-                setup_info = SetupInfo.from_requirement(self, finder=finder)
-                if setup_info is None:
-                    return {}
-                info_dict = setup_info.as_dict()
-                if self.req:
-                    self.req.setup_info = setup_info
-                if self.req._has_hashed_name and info_dict.get("name"):
-                    self.req.name = self.name = info_dict["name"]
-                    if self.req.req.name != info_dict["name"]:
-                        self.req.req.name = info_dict["name"]
+            setup_info = SetupInfo.from_requirement(self, finder=finder)
+            if setup_info is None:
+                return {}
+            info_dict = setup_info.as_dict()
+            if self.req:
+                self.req.setup_info = setup_info
+            if self.req._has_hashed_name and info_dict.get("name"):
+                self.req.name = self.name = info_dict["name"]
+                if self.req.req.name != info_dict["name"]:
+                    self.req.req.name = info_dict["name"]
         return info_dict
 
     def merge_markers(self, markers: Union[str, Marker]) -> "Requirement":

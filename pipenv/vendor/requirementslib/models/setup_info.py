@@ -10,8 +10,8 @@ import stat
 import subprocess as sp
 import sys
 import time
+import uuid
 import warnings
-from contextlib import ExitStack
 from functools import lru_cache
 from itertools import count
 from os import scandir
@@ -22,11 +22,16 @@ from urllib.parse import parse_qs, urlparse, urlunparse
 from pipenv.patched.pip._vendor.distlib.wheel import Wheel
 from pipenv.vendor.pep517 import envbuild, wrappers
 
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
+from pipenv.patched.pip._internal.operations.prepare import File, _check_download_dir, unpack_vcs_link, get_file_url
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.operations.prepare import unpack_url
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
+from pipenv.patched.pip._internal.utils.hashes import Hashes
+from pipenv.patched.pip._internal.utils.unpacking import unpack_file
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import parse
@@ -1647,12 +1652,10 @@ build-backend = "{1}"
             return None
         if ireq.link.is_wheel:
             return None
-        stack = ExitStack()
         if not session:
             cmd = get_pip_command()
             options, _ = cmd.parser.parse_args([])
             session = cmd._build_session(options)
-        stack.enter_context(global_tempdir_manager())
         vcs, uri = split_vcs_method_from_uri(ireq.link.url_without_fragment)
         parsed = urlparse(uri)
         if "file" in parsed.scheme:
@@ -1675,23 +1678,14 @@ build-backend = "{1}"
                 download_dir = kwargs["wheel_download_dir"]
             else:
                 download_dir = kwargs["download_dir"]
-        # this ensures the build dir is treated as the temporary build location
-        # and the source dir is treated as permanent / not deleted by pip
-        build_location_func = getattr(ireq, "build_location", None)
-        if build_location_func is None:
-            build_location_func = getattr(ireq, "ensure_build_location", None)
         if not ireq.source_dir:
             if subdir:
                 directory = f"{kwargs['build_dir']}/{subdir}"
             else:
                 directory = kwargs["build_dir"]
-            build_kwargs = {
-                "build_dir": directory,
-                "autodelete": False,
-                "parallel_builds": True,
-            }
-            build_location_func(**build_kwargs)
-            ireq.ensure_has_source_dir(kwargs["src_dir"])
+            ensure_build_location(ireq, build_dir=directory, autodelete=False, parallel_builds=True)
+            if ireq.source_dir is None:
+                ireq.source_dir = ensure_build_location(ireq, build_dir=kwargs["src_dir"], autodelete=False, parallel_builds=True)
             location = None
             if ireq.source_dir:
                 location = ireq.source_dir
@@ -1746,3 +1740,111 @@ build-backend = "{1}"
         created = cls(**creation_kwargs)
         created.get_initial_info()
         return created
+
+
+def ensure_build_location(
+    ireq, build_dir: str, autodelete: bool, parallel_builds: bool
+) -> str:
+    assert build_dir is not None
+    if ireq._temp_build_dir is not None:
+        assert ireq._temp_build_dir.path
+        return ireq._temp_build_dir.path
+    if ireq.req is None:
+        # Some systems have /tmp as a symlink which confuses custom
+        # builds (such as numpy). Thus, we ensure that the real path
+        # is returned.
+        ireq._temp_build_dir = TempDirectory(
+            kind=tempdir_kinds.REQ_BUILD, globally_managed=False
+        )
+
+        return ireq._temp_build_dir.path
+
+    # This is the only remaining place where we manually determine the path
+    # for the temporary directory. It is only needed for editables where
+    # it is the value of the --src option.
+
+    # When parallel builds are enabled, add a UUID to the build directory
+    # name so multiple builds do not interfere with each other.
+    dir_name: str = canonicalize_name(ireq.name)
+    if parallel_builds:
+        dir_name = f"{dir_name}_{uuid.uuid4().hex}"
+
+    if not os.path.exists(build_dir):
+        os.makedirs(build_dir)
+    actual_build_dir = os.path.join(build_dir, dir_name)
+    # `None` indicates that we respect the globally-configured deletion
+    # settings, which is what we actually want when auto-deleting.
+    delete_arg = None if autodelete else False
+    return TempDirectory(
+        path=actual_build_dir,
+        delete=delete_arg,
+        kind=tempdir_kinds.REQ_BUILD,
+        globally_managed=False,
+    ).path
+
+
+def get_http_url(
+    link: Link,
+    download: Downloader,
+    download_dir: Optional[str] = None,
+    hashes: Optional[Hashes] = None,
+) -> File:
+    temp_dir = TempDirectory(kind="unpack", globally_managed=False)
+    # If a download dir is specified, is the file already downloaded there?
+    already_downloaded_path = None
+    if download_dir:
+        already_downloaded_path = _check_download_dir(link, download_dir, hashes)
+
+    if already_downloaded_path:
+        from_path = already_downloaded_path
+        content_type = None
+    else:
+        # let's download to a tmp dir
+        from_path, content_type = download(link, temp_dir.path)
+        if hashes:
+            hashes.check_against_path(from_path)
+
+    return File(from_path, content_type)
+
+
+def unpack_url(
+    link: Link,
+    location: str,
+    download: Downloader,
+    verbosity: int,
+    download_dir: Optional[str] = None,
+    hashes: Optional[Hashes] = None,
+) -> Optional[File]:
+    """Unpack link into location, downloading if required.
+
+    :param hashes: A Hashes object, one of whose embedded hashes must match,
+        or HashMismatch will be raised. If the Hashes is empty, no matches are
+        required, and unhashable types of requirements (like VCS ones, which
+        would ordinarily raise HashUnsupported) are allowed.
+    """
+    # non-editable vcs urls
+    if link.is_vcs:
+        unpack_vcs_link(link, location, verbosity=verbosity)
+        return None
+
+    assert not link.is_existing_dir()
+
+    # file urls
+    if link.is_file:
+        file = get_file_url(link, download_dir, hashes=hashes)
+
+    # http urls
+    else:
+        file = get_http_url(
+            link,
+            download,
+            download_dir,
+            hashes=hashes,
+        )
+
+    # unpack the archive to the build dir location. even when only downloading
+    # archives, they have to be unpacked to parse dependencies, except wheels
+    if not link.is_wheel:
+        unpack_file(file.path, location, file.content_type)
+
+    return file
