@@ -1,3 +1,16 @@
+2023.7.11 (2023-07-11)
+======================
+Pipenv 2023.7.11 (2023-07-11)
+=============================
+
+
+Bug Fixes
+---------
+
+- Invoke the resolver in the same process as pipenv rather than utilizing subprocess.  `#5787 <https://github.com/pypa/pipenv/issues/5787>`_
+- Fix regression markers being included as None/null in requirements command.  `#5788 <https://github.com/pypa/pipenv/issues/5788>`_
+
+
 2023.7.9 (2023-07-09)
 =====================
 Pipenv 2023.7.9 (2023-07-09)
