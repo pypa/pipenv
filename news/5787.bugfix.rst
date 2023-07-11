@@ -1,0 +1,1 @@
+Invoke the resolver in the same process as pipenv rather than utilizing subprocess.
