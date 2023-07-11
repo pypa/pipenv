@@ -425,9 +425,7 @@ def rmtree(
     try:
         shutil.rmtree(directory, ignore_errors=ignore_errors, onerror=onerror)
     except (IOError, OSError, FileNotFoundError, PermissionError) as exc:  # noqa:B014
-        # Ignore removal failures where the file doesn't exist
-        if exc.errno != errno.ENOENT:
-            raise
+        pass
 
 
 def suppress_unparsable(func, *args, **kwargs):
