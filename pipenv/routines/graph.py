@@ -16,7 +16,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
     pipdeptree_path = os.path.dirname(pipdeptree.__file__.rstrip("cdo"))
     try:
-        python_path = project._which("python")
+        python_path = project.python()
     except AttributeError:
         click.echo(
             "{}: {}".format(

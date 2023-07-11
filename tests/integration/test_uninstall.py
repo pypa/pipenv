@@ -1,7 +1,8 @@
 import os
-import shutil
 
 import pytest
+
+from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 from pipenv.utils.shell import temp_environ
 
@@ -53,12 +54,10 @@ def test_uninstall_django(pipenv_instance_private_pypi):
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_mirror_uninstall(pipenv_instance_private_pypi):
-    with temp_environ(), pipenv_instance_private_pypi(chdir=True) as p:
+def test_mirror_uninstall(pipenv_instance_pypi):
+    with temp_environ(), pipenv_instance_pypi() as p:
 
-        mirror_url = os.environ.pop(
-            "PIPENV_TEST_INDEX", "https://pypi.python.org/simple"
-        )
+        mirror_url = DEFAULT_PRIVATE_PYPI_SERVER
         assert "pypi.org" not in mirror_url
 
         c = p.pipenv(f"install Django --pypi-mirror {mirror_url}")
@@ -94,7 +93,7 @@ def test_mirror_uninstall(pipenv_instance_private_pypi):
 @pytest.mark.install
 @pytest.mark.uninstall
 def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         file_uri = p._pipfile.get_fixture_path("tablib/tablib-0.12.1.tar.gz", fixtures="pypi").as_uri()
         c = p.pipenv(f"install {file_uri}")
         assert c.returncode == 0
@@ -111,19 +110,19 @@ def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
 def test_uninstall_all_dev(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
-        [[source]]
-        name = "pypi"
-        url = "{}"
-        verify_ssl = true
+            contents = f"""
+[[source]]
+name = "pypi"
+url = "{p.index_url}"
+verify_ssl = true
 
-        [packages]
-        tablib = "*"
+[packages]
+tablib = "*"
 
-        [dev-packages]
-        jinja2 = "==2.11.1"
-        six = "*"
-        """.format(os.environ.get('PIPENV_TEST_INDEX'))
+[dev-packages]
+jinja2 = "==2.11.1"
+six = "==1.12.0"
+        """
             f.write(contents)
 
         c = p.pipenv("install --dev")
@@ -240,10 +239,10 @@ def test_uninstall_multiple_categories(pipenv_instance_private_pypi):
         with open(p.pipfile_path, "w") as f:
             contents = """
         [after]
-        six = "*"
+        six = "==1.12.0"
 
         [prereq]
-        six = "*"
+        six = "==1.12.0"
         """
             f.write(contents)
         c = p.pipenv("install")

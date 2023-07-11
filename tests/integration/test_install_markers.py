@@ -1,8 +1,9 @@
 import os
 
 import pytest
-
 from flaky import flaky
+
+from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 from pipenv.project import Project
 from pipenv.utils.shell import temp_environ
@@ -23,7 +24,7 @@ name = "testindex"
 fake_package = {}
 
 [dev-packages]
-            """.format(os.environ['PIPENV_TEST_INDEX'], "{version = \"*\", markers=\"os_name=='splashwear'\", index=\"testindex\"}").strip()
+            """.format(DEFAULT_PRIVATE_PYPI_SERVER, "{version = \"*\", markers=\"os_name=='splashwear'\", index=\"testindex\"}").strip()
             f.write(contents)
 
         c = p.pipenv('install -v')
@@ -97,16 +98,21 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
 @flaky
 @pytest.mark.markers
 @pytest.mark.install
-def test_global_overrides_environment_markers(pipenv_instance_pypi):
+def test_global_overrides_environment_markers(pipenv_instance_private_pypi):
     """Empty (unconditional) dependency should take precedence.
     If a dependency is specified without environment markers, it should
     override dependencies with environment markers. In this example,
     APScheduler requires funcsigs only on Python 2, but since funcsigs is
     also specified as an unconditional dep, its markers should be empty.
     """
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "testindex"
+
 [packages]
 apscheduler = "*"
 funcsigs = "*"
@@ -130,7 +136,7 @@ def test_resolver_unique_markers(pipenv_instance_pypi):
 
     This verifies that we clean that successfully.
     """
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         c = p.pipenv('install vcrpy==2.0.1')
         assert c.returncode == 0
         assert 'yarl' in p.lockfile['default']
@@ -148,7 +154,7 @@ def test_resolver_unique_markers(pipenv_instance_pypi):
 @pytest.mark.project
 @pytest.mark.needs_internet
 def test_environment_variable_value_does_not_change_hash(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         with temp_environ():
             with open(p.pipfile_path, 'w') as f:
                 f.write("""

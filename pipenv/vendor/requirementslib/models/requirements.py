@@ -12,7 +12,6 @@ from typing import (
     Generator,
     List,
     Optional,
-    Sequence,
     Set,
     Text,
     Tuple,
@@ -45,7 +44,7 @@ from pipenv.patched.pip._vendor.packaging.specifiers import (
 )
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
-from pipenv.vendor.pydantic import Field
+from pipenv.vendor.pydantic import Field, validator
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import RequirementError
@@ -557,7 +556,7 @@ class Line(ReqLibBaseModel):
         """
         extras = None
         line = "{0}".format(self.line)
-        if any([self.is_vcs, self.is_url, "@" in line]):
+        if any([self.is_vcs, self.is_url]):
             try:
                 if self.parsed_url.name:
                     self._name = self.parsed_url.name
@@ -1298,10 +1297,6 @@ class NamedRequirement(ReqLibBaseModel):
 
         self.parsed_line = Line(line=self.line_part)
 
-        # Set default values using the methods
-        if not self.req:
-            self.req = self.get_requirement()
-
     @classmethod
     def from_line(cls, line, parsed_line=None) -> "NamedRequirement":
         req = init_requirement(line)
@@ -1694,7 +1689,7 @@ class FileRequirement(ReqLibBaseModel):
     @classmethod
     def from_line(
         cls, line, editable=None, extras=None, parsed_line=None
-    ) -> Union["FileRequirement", "VCSRequirement"]:
+    ) -> Union["FileRequirement"]:
         parsed_line = Line(line=line)
         file_req_from_parsed_line(parsed_line)
 
@@ -1710,8 +1705,6 @@ class FileRequirement(ReqLibBaseModel):
         if path and isinstance(path, str):
             if not urllib_parse.urlparse(path).scheme and not os.path.isabs(path):
                 path = get_converted_relative_path(path)
-        if path and uri:
-            raise ValueError("do not specify both 'path' and 'uri'")
         uri = uri or fil or path
 
         # Decide that scheme to use.
@@ -2016,8 +2009,6 @@ class VCSRequirement(FileRequirement):
         return self._repo
 
     def get_checkout_dir(self, src_dir=None) -> str:
-        src_dir = os.environ.get("PIP_SRC", None) if not src_dir else src_dir
-        checkout_dir = None
         if self.is_local:
             path = self.path
             if not path:
@@ -2025,10 +2016,6 @@ class VCSRequirement(FileRequirement):
             if path and os.path.exists(path):
                 checkout_dir = os.path.abspath(path)
                 return checkout_dir
-        if src_dir is not None:
-            checkout_dir = os.path.join(os.path.abspath(src_dir), self.name)
-            os.makedirs(src_dir, exist_ok=True)
-            return checkout_dir
         return os.path.join(create_tracked_tempdir(prefix="requirementslib"), self.name)
 
     def get_vcs_repo(self, src_dir=None, checkout_dir=None):
@@ -2274,8 +2261,6 @@ class Requirement(ReqLibBaseModel):
     hashes: Set[str] = set()
     extras: Tuple[str, ...] = Field(tuple(), eq=True, order=True)
     _line_instance: Optional[Line] = None
-    # ireq: Optional[InstallRequirement] = Field(None, eq=False, order=False)
-    # _ireq: Optional[Any] = Field(None, eq=False, order=False)
 
     class Config:
         validate_assignment = True
@@ -2283,6 +2268,13 @@ class Requirement(ReqLibBaseModel):
         allow_mutation = True
         include_private_attributes = True
         keep_untouched = (cached_property,)
+
+    @validator('req')
+    def check_req_type(cls, v):
+        allowed_types = (VCSRequirement, NamedRequirement, FileRequirement)
+        if v is not None and not isinstance(v, allowed_types):
+            raise ValueError('req must be an instance of VCSRequirement, NamedRequirement, or FileRequirement')
+        return v
 
     def __hash__(self):
         return hash(self.as_line())
@@ -2582,7 +2574,7 @@ class Requirement(ReqLibBaseModel):
         }
         if any(key in _pipfile for key in ["hash", "hashes"]):
             args["hashes"] = _pipfile.get("hashes", [pipfile.get("hash")])
-        cls_inst = cls(**args)
+        cls_inst = Requirement(**args)
         return cls_inst
 
     def as_line(

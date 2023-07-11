@@ -1,4 +1,3 @@
-import os
 import pytest
 
 @pytest.mark.urls
@@ -6,7 +5,6 @@ import pytest
 @pytest.mark.install
 def test_install_uri_with_extras(pipenv_instance_private_pypi):
     file_uri = "http://localhost:8080/packages/plette/plette-0.2.2-py2.py3-none-any.whl"
-    index = os.environ['PIPENV_TEST_INDEX']
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
@@ -17,7 +15,7 @@ name = "testindex"
 
 [packages]
 plette = {{file = "{file_uri}", extras = ["validation"]}}
-""".format(file_uri=file_uri, index=index)
+""".format(file_uri=file_uri, index=p.index_url)
             f.write(contents)
         c = p.pipenv("install")
         assert c.returncode == 0

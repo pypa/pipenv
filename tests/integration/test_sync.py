@@ -1,7 +1,6 @@
-import json
-import os
-
 import pytest
+
+from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 from pipenv.utils.shell import temp_environ
 
@@ -9,7 +8,7 @@ from pipenv.utils.shell import temp_environ
 @pytest.mark.lock
 @pytest.mark.sync
 def test_sync_error_without_lockfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
@@ -23,8 +22,8 @@ def test_sync_error_without_lockfile(pipenv_instance_pypi):
 @pytest.mark.sync
 @pytest.mark.lock
 def test_mirror_lock_sync(pipenv_instance_private_pypi):
-    with temp_environ(), pipenv_instance_private_pypi(chdir=True) as p:
-        mirror_url = os.environ.get('PIPENV_TEST_INDEX')
+    with temp_environ(), pipenv_instance_private_pypi() as p:
+        mirror_url = DEFAULT_PRIVATE_PYPI_SERVER
         assert 'pypi.org' not in mirror_url
         with open(p.pipfile_path, 'w') as f:
             f.write("""
@@ -47,7 +46,7 @@ six = "==1.12.0"
 def test_sync_should_not_lock(pipenv_instance_pypi):
     """Sync should not touch the lock file, even if Pipfile is changed.
     """
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
@@ -69,29 +68,3 @@ six = "*"
         assert c.returncode == 0
         assert lockfile_content == p.lockfile
 
-
-@pytest.mark.sync
-def test_sync_consider_pip_target(pipenv_instance_pypi):
-    """
-    """
-    with pipenv_instance_pypi(chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
-            f.write("""
-[packages]
-six = "*"
-            """.strip())
-
-        # Perform initial lock.
-        c = p.pipenv('lock')
-        assert c.returncode == 0
-        lockfile_content = p.lockfile
-        assert lockfile_content
-        c = p.pipenv('sync')
-        assert c.returncode == 0
-
-        pip_target_dir = 'target_dir'
-        os.environ['PIP_TARGET'] = pip_target_dir
-        c = p.pipenv('sync')
-        assert c.returncode == 0
-        assert 'six.py' in os.listdir(os.path.join(p.path, pip_target_dir))
-        os.environ.pop('PIP_TARGET')

@@ -57,10 +57,7 @@ norecursedirs = [
     "tests/pypi",
     "peeps",
 ]
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::PendingDeprecationWarning",
-]
+filterwarnings = []
 # These are not all the custom markers, but most of the ones with repeat uses
 # `pipenv run pytest --markers` will list all markers inlcuding these
 markers = [

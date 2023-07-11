@@ -140,11 +140,9 @@ class Entry:
         self._parents_in_pipfile = []
 
     @staticmethod
-    def make_requirement(name=None, entry=None, from_ireq=False):
+    def make_requirement(name=None, entry=None):
         from pipenv.vendor.requirementslib.models.requirements import Requirement
 
-        if from_ireq:
-            return Requirement.from_ireq(entry)
         return Requirement.from_pipfile(name, entry)
 
     @classmethod

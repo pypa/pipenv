@@ -7,7 +7,7 @@ from pipenv.routines.requirements import requirements_from_deps
 
 @pytest.mark.requirements
 def test_requirements_generates_requirements_from_lockfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         packages = ('requests', '2.14.0')
         dev_packages = ('flask', '0.12.2')
         with open(p.pipfile_path, 'w') as f:
@@ -44,7 +44,7 @@ def test_requirements_generates_requirements_from_lockfile(pipenv_instance_pypi)
 
 @pytest.mark.requirements
 def test_requirements_generates_requirements_from_lockfile_multiple_sources(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         packages = ('six', '1.12.0')
         dev_packages = ('itsdangerous', '1.1.0')
         with open(p.pipfile_path, 'w') as f:
@@ -74,7 +74,7 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(pipe
 
 @pytest.mark.requirements
 def test_requirements_generates_requirements_from_lockfile_from_categories(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         packages = ('six', '1.12.0')
         dev_packages = ('itsdangerous', '1.1.0')
         test_packages = ('pytest', '7.1.3')
@@ -129,7 +129,7 @@ def test_requirements_with_git_requirements(pipenv_instance_pypi):
         "develop": {}
     }
 
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.lockfile_path, 'w') as f:
             json.dump(lockfile, f)
 
@@ -157,7 +157,7 @@ def test_requirements_markers_get_included(pipenv_instance_pypi):
         "develop": {}
     }
 
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.lockfile_path, 'w') as f:
             json.dump(lockfile, f)
 
@@ -184,7 +184,7 @@ def test_requirements_markers_get_excluded(pipenv_instance_pypi):
         "develop": {}
     }
 
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.lockfile_path, 'w') as f:
             json.dump(lockfile, f)
 
@@ -213,7 +213,7 @@ def test_requirements_hashes_get_included(pipenv_instance_pypi):
         "develop": {}
     }
 
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.lockfile_path, 'w') as f:
             json.dump(lockfile, f)
 
@@ -238,7 +238,7 @@ def test_requirements_generates_requirements_from_lockfile_without_env_var_expan
         "default": {},
     }
 
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.lockfile_path, "w") as f:
             json.dump(lockfile, f)
 
