@@ -10,11 +10,15 @@ from pipenv.utils.processes import subprocess_run
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_basic_vcs_install_with_env_var(pipenv_instance_pypi):
+    from pipenv.cli import cli
+    from click.testing import CliRunner  # not thread safe but macos and linux will expand the env var otherwise
+
     with pipenv_instance_pypi() as p:
         # edge case where normal package starts with VCS name shouldn't be flagged as vcs
         os.environ["GIT_HOST"] = "github.com"
-        c = p.pipenv("install git+https://${GIT_HOST}/benjaminp/six.git@1.11.0#egg=six gitdb2")
-        assert c.returncode == 0
+        cli_runner = CliRunner(mix_stderr=False)
+        c = cli_runner.invoke(cli, "install git+https://${GIT_HOST}/benjaminp/six.git@1.11.0#egg=six gitdb2")
+        assert c.exit_code == 0
         assert all(package in p.pipfile["packages"] for package in ["six", "gitdb2"])
         assert "git" in p.pipfile["packages"]["six"]
         assert p.lockfile["default"]["six"] == {
