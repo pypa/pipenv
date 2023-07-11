@@ -19,7 +19,7 @@ def test_pipenv_where(pipenv_instance_pypi):
 @pytest.mark.cli
 def test_pipenv_venv(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv('--python python')
+        c = p.pipenv('install dataclasses-json')
         assert c.returncode == 0
         c = p.pipenv('--venv')
         assert c.returncode == 0
