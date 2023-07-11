@@ -1,7 +1,10 @@
+import errno
 import functools
 import json
 import logging
 import os
+import shutil
+from shutil import rmtree as _rmtree
 import sys
 import warnings
 from pathlib import Path
@@ -10,18 +13,16 @@ import subprocess
 
 import pytest
 import requests
-
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor import tomlkit
 from pipenv.vendor.requirementslib.utils import temp_environ
+from pipenv.vendor.requirementslib.models.setup_info import handle_remove_readonly
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
 
 
 HAS_WARNED_GITHUB = False
-
-DEFAULT_PRIVATE_PYPI_SERVER = "http://localhost:8080/simple"
 
 
 def try_internet(url="http://httpbin.org/ip", timeout=1.5):
@@ -281,26 +282,48 @@ class _PipenvInstance:
         return os.sep.join([self.path, 'Pipfile.lock'])
 
 
+# Windows python3.8 fails without this patch.  Additional details: https://bugs.python.org/issue42796
+def _rmtree_func(path, ignore_errors=True, onerror=None):
+    shutil_rmtree = _rmtree
+    if onerror is None:
+        onerror = handle_remove_readonly
+    try:
+        shutil_rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
+    except (OSError, FileNotFoundError, PermissionError) as exc:
+        # Ignore removal failures where the file doesn't exist
+        if exc.errno != errno.ENOENT:
+            raise
+
 @pytest.fixture()
-def pipenv_instance_pypi(capfdbinary):
-    with temp_environ():
+def pipenv_instance_pypi(capfdbinary, monkeypatch):
+    with temp_environ(), monkeypatch.context() as m:
+        m.setattr(shutil, "rmtree", _rmtree_func)
+        original_umask = os.umask(0o007)
         os.environ["PIPENV_NOSPIN"] = "1"
         os.environ["CI"] = "1"
         os.environ["PIPENV_DONT_USE_PYENV"] = "1"
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
-        yield functools.partial(_PipenvInstance, capfd=capfdbinary, index_url="https://pypi.org/simple")
+        try:
+            yield functools.partial(_PipenvInstance, capfd=capfdbinary, index_url="https://pypi.org/simple")
+        finally:
+            os.umask(original_umask)
 
 
 @pytest.fixture()
-def pipenv_instance_private_pypi(capfdbinary):
-    with temp_environ():
+def pipenv_instance_private_pypi(capfdbinary, monkeypatch):
+    with temp_environ(), monkeypatch.context() as m:
+        m.setattr(shutil, "rmtree", _rmtree_func)
+        original_umask = os.umask(0o007)
         os.environ["PIPENV_NOSPIN"] = "1"
         os.environ["CI"] = "1"
         os.environ["PIPENV_DONT_USE_PYENV"] = "1"
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
-        yield functools.partial(_PipenvInstance, capfd=capfdbinary, index_url="http://localhost:8080/simple")
+        try:
+            yield functools.partial(_PipenvInstance, capfd=capfdbinary, index_url="http://localhost:8080/simple")
+        finally:
+            os.umask(original_umask)
 
 
 @pytest.fixture()
