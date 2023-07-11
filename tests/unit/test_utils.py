@@ -72,8 +72,8 @@ def test_convert_deps_to_pip(deps, expected):
 @pytest.mark.utils
 @pytest.mark.needs_internet
 def test_convert_deps_to_pip_star_specifier():
-    deps = {"six": "*"}
-    expected = "six"
+    deps = {"uvicorn": "*"}
+    expected = "uvicorn"
     assert dependencies.convert_deps_to_pip(deps) == [expected]
 
 
