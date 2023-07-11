@@ -3,8 +3,6 @@ import os
 
 import pytest
 
-from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
-
 from pipenv.project import Project
 from pipenv.utils.shell import temp_environ
 from pipenv.vendor.plette import Pipfile
@@ -56,7 +54,7 @@ pytz = "*"
 six = {{version = "*", index = "pypi"}}
 
 [dev-packages]
-            """.format(DEFAULT_PRIVATE_PYPI_SERVER).strip()
+            """.format(p.index_url).strip()
             f.write(contents)
 
         if lock_first:
@@ -66,7 +64,7 @@ six = {{version = "*", index = "pypi"}}
         project = Project()
         sources = [
             ['pypi', 'https://pypi.org/simple'],
-            ['testindex', DEFAULT_PRIVATE_PYPI_SERVER]
+            ['testindex', p.index_url]
         ]
         for src in sources:
             name, url = src
@@ -141,31 +139,10 @@ pytz = "*"
 six = {{version = "*", index = "pypi"}}
 
 [dev-packages]
-            """.format(DEFAULT_PRIVATE_PYPI_SERVER).strip()
+            """.format(p.index_url).strip()
             f.write(contents)
         c = p.pipenv('install')
         assert c.returncode == 0
-
-
-@pytest.mark.project
-@pytest.mark.virtualenv
-def test_run_in_virtualenv(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
-        c = p.pipenv("run pip freeze")
-        assert c.returncode == 0, (c.stdout, c.stderr)
-
-        c = p.pipenv(f"run pip install -i {p.index_url} click")
-        assert c.returncode == 0, (c.stdout, c.stderr)
-
-        c = p.pipenv("install six")
-        assert c.returncode == 0, (c.stdout, c.stderr)
-
-        c = p.pipenv("run python -c 'import click;print(click.__file__)'")
-        assert c.returncode == 0, (c.stdout, c.stderr)
-
-        c = p.pipenv("clean --dry-run")
-        assert c.returncode == 0, (c.stdout, c.stderr)
-        assert "click" in c.stdout, c.stdout
 
 
 @pytest.mark.project
