@@ -1,8 +1,5 @@
-import os
-
 import pytest
 
-from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 from pipenv.utils.shell import temp_environ
 
@@ -57,7 +54,7 @@ def test_uninstall_django(pipenv_instance_private_pypi):
 def test_mirror_uninstall(pipenv_instance_pypi):
     with temp_environ(), pipenv_instance_pypi() as p:
 
-        mirror_url = DEFAULT_PRIVATE_PYPI_SERVER
+        mirror_url = p.index_url
         assert "pypi.org" not in mirror_url
 
         c = p.pipenv(f"install Django --pypi-mirror {mirror_url}")

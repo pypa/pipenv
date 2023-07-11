@@ -4,7 +4,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
-from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
@@ -440,7 +439,7 @@ six = {}
 [packages.requests]
 version = "*"
 extras = ["socks"]
-            """.format(DEFAULT_PRIVATE_PYPI_SERVER, "{version = \"*\"}").strip()
+            """.format(p.index_url, "{version = \"*\"}").strip()
             f.write(contents)
         c = p.pipenv("install colorama")
         assert c.returncode == 0

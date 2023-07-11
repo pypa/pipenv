@@ -3,7 +3,6 @@ import shutil
 import sys
 
 import pytest
-from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 from pipenv.utils.shell import temp_environ
 
@@ -294,7 +293,7 @@ name = "pypi"
 
 [packages]
 six = {}
-            """.format(DEFAULT_PRIVATE_PYPI_SERVER, '{version = "*", index = "pypi"}').strip()
+            """.format(p.index_url, '{version = "*", index = "pypi"}').strip()
             f.write(contents)
         c = p.pipenv('install --skip-lock')
         assert c.returncode == 0
