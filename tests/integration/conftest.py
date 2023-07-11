@@ -24,6 +24,8 @@ warnings.simplefilter("default", category=ResourceWarning)
 
 HAS_WARNED_GITHUB = False
 
+DEFAULT_PRIVATE_PYPI_SERVER = os.environ.get("PIPENV_PYPI_SERVER", "http://localhost:8080/simple")
+
 
 def try_internet(url="http://httpbin.org/ip", timeout=1.5):
     resp = requests.get(url, timeout=timeout)
@@ -321,7 +323,7 @@ def pipenv_instance_private_pypi(capfdbinary, monkeypatch):
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         try:
-            yield functools.partial(_PipenvInstance, capfd=capfdbinary, index_url="http://localhost:8080/simple")
+            yield functools.partial(_PipenvInstance, capfd=capfdbinary, index_url=DEFAULT_PRIVATE_PYPI_SERVER)
         finally:
             os.umask(original_umask)
 
