@@ -3,7 +3,6 @@ import os
 import pytest
 from flaky import flaky
 
-from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 from pipenv.project import Project
 from pipenv.utils.shell import temp_environ
@@ -24,7 +23,7 @@ name = "testindex"
 fake_package = {}
 
 [dev-packages]
-            """.format(DEFAULT_PRIVATE_PYPI_SERVER, "{version = \"*\", markers=\"os_name=='splashwear'\", index=\"testindex\"}").strip()
+            """.format(p.index_url, "{version = \"*\", markers=\"os_name=='splashwear'\", index=\"testindex\"}").strip()
             f.write(contents)
 
         c = p.pipenv('install -v')

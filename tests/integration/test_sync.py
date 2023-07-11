@@ -1,7 +1,5 @@
 import pytest
 
-from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
-
 from pipenv.utils.shell import temp_environ
 
 
@@ -23,7 +21,7 @@ def test_sync_error_without_lockfile(pipenv_instance_pypi):
 @pytest.mark.lock
 def test_mirror_lock_sync(pipenv_instance_private_pypi):
     with temp_environ(), pipenv_instance_private_pypi() as p:
-        mirror_url = DEFAULT_PRIVATE_PYPI_SERVER
+        mirror_url = p.index_url
         assert 'pypi.org' not in mirror_url
         with open(p.pipfile_path, 'w') as f:
             f.write("""

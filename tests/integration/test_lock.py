@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pytest
 
-from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 from flaky import flaky
 from pipenv.utils.shell import temp_environ
