@@ -242,6 +242,7 @@ def test_install_parse_error(pipenv_instance_private_pypi):
         assert 'u/\\/p@r$34b13+pkg' not in p.pipfile['packages']
 
 
+@pytest.mark.skip(reason="This test clears the cache that other tests may be using.")
 @pytest.mark.cli
 def test_pipenv_clear(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
