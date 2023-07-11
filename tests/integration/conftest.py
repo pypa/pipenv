@@ -1,36 +1,27 @@
-import errno
 import functools
 import json
 import logging
 import os
-import shlex
-import shutil
-import traceback
-import subprocess as sp
 import sys
 import warnings
 from pathlib import Path
-from shutil import rmtree as _rmtree
 from tempfile import TemporaryDirectory
+import subprocess
 
 import pytest
 import requests
-from click.testing import CliRunner
 
-from pipenv.cli import cli
-from pipenv.exceptions import VirtualenvActivationException
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor import tomlkit
-from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
 from pipenv.vendor.requirementslib.utils import temp_environ
-from pipenv.vendor.requirementslib.models.setup_info import handle_remove_readonly
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
-cli_runner = CliRunner(mix_stderr=False)
 
 
 HAS_WARNED_GITHUB = False
+
+DEFAULT_PRIVATE_PYPI_SERVER = "http://localhost:8080/simple"
 
 
 def try_internet(url="http://httpbin.org/ip", timeout=1.5):
@@ -120,91 +111,14 @@ def pytest_runtest_setup(item):
         pytest.skip('test does not run on windows')
 
 
-@pytest.fixture
-def pathlib_tmpdir(request, tmpdir):
-    yield Path(str(tmpdir))
-    try:
-        tmpdir.remove(ignore_errors=True)
-    except Exception:
-        pass
-
-
-def _create_tracked_dir():
-    temp_args = {"prefix": "pipenv-", "suffix": "-test"}
-    temp_path = create_tracked_tempdir(**temp_args)
-    return temp_path
-
-
-@pytest.fixture
-def tracked_tmpdir():
-    temp_path = _create_tracked_dir()
-    yield Path(temp_path)
-
-
-@pytest.fixture()
-def local_tempdir(request):
-    old_temp = os.environ.get("TEMP", "")
-    new_temp = Path(os.getcwd()).absolute() / "temp"
-    new_temp.mkdir(parents=True, exist_ok=True)
-    os.environ["TEMP"] = new_temp.as_posix()
-
-    def finalize():
-        os.environ['TEMP'] = old_temp
-        _rmtree_func(new_temp.as_posix())
-
-    request.addfinalizer(finalize)
-    with TemporaryDirectory(dir=new_temp.as_posix()) as temp_dir:
-        yield Path(temp_dir)
-
-
-@pytest.fixture(name='create_tmpdir')
-def tmpdir_factory():
-
-    def create_tmpdir():
-        return Path(_create_tracked_dir())
-
-    yield create_tmpdir
-
-
-# Borrowed from pip's test runner filesystem isolation
-@pytest.fixture(autouse=True)
-def isolate(create_tmpdir):
-    """
-    Isolate our tests so that things like global configuration files and the
-    like do not affect our test results.
-    We use an autouse function scoped fixture because we want to ensure that
-    every test has it's own isolated home directory.
-    """
-
-    # Create a directory to use as our home location.
-    home_dir = os.path.join(str(create_tmpdir()), "home")
-    os.makedirs(home_dir)
-    os.makedirs(os.path.join(home_dir, ".config", "git"), exist_ok=True)
-    git_config_file = os.path.join(home_dir, ".config", "git", "config")
-    with open(git_config_file, "wb") as fp:
-        fp.write(
-            b"[user]\n\tname = pipenv\n\temail = pipenv@pipenv.org\n"
-        )
-    os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
-    os.environ["GIT_AUTHOR_NAME"] = "pipenv"
-    os.environ["GIT_AUTHOR_EMAIL"] = "pipenv@pipenv.org"
-    os.environ["GIT_ASK_YESNO"] = "false"
-    workon_home = create_tmpdir()
-    os.environ["WORKON_HOME"] = str(workon_home)
-    os.environ["HOME"] = os.path.abspath(home_dir)
-    os.makedirs(os.path.join(home_dir, "projects"), exist_ok=True)
-    # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
-    os.environ.pop("PIPENV_ACTIVE", None)
-    os.environ.pop("VIRTUAL_ENV", None)
-
-
 WE_HAVE_INTERNET = check_internet()
 WE_HAVE_GITHUB_SSH_KEYS = False
 
 
 class _Pipfile:
-    def __init__(self, path):
+    def __init__(self, path, index):
         self.path = path
+        self.index = index
         if self.path.exists():
             self.loads()
         else:
@@ -213,7 +127,7 @@ class _Pipfile:
         self.document["requires"] = self.document.get("requires", tomlkit.table())
         self.document["packages"] = self.document.get("packages", tomlkit.table())
         self.document["dev-packages"] = self.document.get("dev-packages", tomlkit.table())
-        super().__init__()
+        self.write()
 
     def install(self, package, value, dev=False):
         section = "packages" if not dev else "dev-packages"
@@ -243,12 +157,12 @@ class _Pipfile:
         self.document = tomlkit.loads(self.path.read_text())
 
     def dumps(self):
-        source_table = tomlkit.table()
-        pypi_url = os.environ.get("PIPENV_PYPI_URL", "https://pypi.org/simple")
-        source_table["url"] = os.environ.get("PIPENV_TEST_INDEX", pypi_url)
-        source_table["verify_ssl"] = False
-        source_table["name"] = "pipenv_test_index"
-        self.document["source"].append(source_table)
+        if not self.document.get("source"):
+            source_table = tomlkit.table()
+            source_table["url"] = self.index
+            source_table["verify_ssl"] = True if self.index.startswith("https") else False
+            source_table["name"] = "pipenv_test_index"
+            self.document["source"].append(source_table)
         return tomlkit.dumps(self.document)
 
     def write(self):
@@ -258,72 +172,34 @@ class _Pipfile:
     def get_fixture_path(cls, path, fixtures="test_artifacts"):
         return Path(__file__).absolute().parent.parent / fixtures / path
 
-    @classmethod
-    def get_url(cls, pkg=None, filename=None):
-        pypi = os.environ.get("PIPENV_PYPI_URL")
-        if not pkg and not filename:
-            return pypi if pypi else "https://pypi.org/"
-        file_path = filename
-        if pkg and filename:
-            file_path = os.path.join(pkg, filename)
-        if filename and not pkg:
-            pkg = os.path.basename(filename)
-        fixture_pypi = os.getenv("ARTIFACT_PYPI_URL")
-        if fixture_pypi:
-            if pkg and not filename:
-                url = f"{fixture_pypi}/{pkg}"
-            else:
-                url = f"{fixture_pypi}/{pkg}/{filename}"
-            return url
-        if pkg and not filename:
-            return cls.get_fixture_path(file_path).as_uri()
-
 
 class _PipenvInstance:
     """An instance of a Pipenv Project..."""
-    def __init__(
-        self, pypi=None, pipfile=True, chdir=True, path=None, capfd=None,
-        venv_root=None, ignore_virtualenvs=True, venv_in_project=True, name=None
-    ):
-        self.index_url = os.getenv("PIPENV_TEST_INDEX")
+    def __init__(self, pipfile=True, capfd=None, index_url=None):
+        self.index_url = index_url
         self.pypi = None
         self.env = {}
         self.capfd = capfd
-        if pypi:
-            self.pypi = pypi.url
-        elif self.index_url is not None:
+        if self.index_url is not None:
             self.pypi, _, _ = self.index_url.rpartition("/") if self.index_url else ""
-        self.index = os.getenv("PIPENV_PYPI_INDEX")
         self.env["PYTHONWARNINGS"] = "ignore:DEPRECATION"
-        if ignore_virtualenvs:
-            self.env["PIPENV_IGNORE_VIRTUALENVS"] = "1"
-        if venv_root:
-            self.env["VIRTUAL_ENV"] = venv_root
-        if venv_in_project:
-            self.env["PIPENV_VENV_IN_PROJECT"] = "1"
-        else:
-            self.env.pop("PIPENV_VENV_IN_PROJECT", None)
+        os.environ.pop("PIPENV_CUSTOM_VENV_NAME", None)
 
         self.original_dir = Path(__file__).parent.parent.parent
-        if name is not None:
-            path = Path(os.environ["HOME"]) / "projects" / name
-            path.mkdir(exist_ok=True)
-        self._path = path = TemporaryDirectory(prefix='pipenv-', suffix='-project')
+        self._path = TemporaryDirectory(prefix='pipenv-', suffix="-tests")
         path = Path(self._path.name)
         try:
             self.path = str(path.resolve())
         except OSError:
             self.path = str(path.absolute())
+        os.chdir(self.path)
 
         # set file creation perms
         self.pipfile_path = None
-        self.chdir = chdir
-
-        if self.pypi and "PIPENV_PYPI_URL" not in os.environ:
-            self.env['PIPENV_PYPI_URL'] = f'{self.pypi}'
+        p_path = os.sep.join([self.path, 'Pipfile'])
+        self.pipfile_path = p_path
 
         if pipfile:
-            p_path = os.sep.join([self.path, 'Pipfile'])
             try:
                 os.remove(p_path)
             except FileNotFoundError:
@@ -331,23 +207,21 @@ class _PipenvInstance:
             with open(p_path, 'a'):
                 os.utime(p_path, None)
 
-            self.chdir = False or chdir
-            self.pipfile_path = p_path
-            self._pipfile = _Pipfile(Path(p_path))
+            self._pipfile = _Pipfile(Path(p_path), index=self.index_url)
         else:
             self._pipfile = None
 
     def __enter__(self):
-        if self.chdir:
-            os.chdir(self.path)
         return self
 
     def __exit__(self, *args):
         warn_msg = 'Failed to remove resource: {!r}'
         if self.pipfile_path:
-            os.remove(self.pipfile_path)
-        if self.chdir:
-            os.chdir(self.original_dir)
+            try:
+                os.remove(self.pipfile_path)
+            except OSError:
+                pass
+        os.chdir(self.original_dir)
         if self._path:
             try:
                 self._path.cleanup()
@@ -357,17 +231,23 @@ class _PipenvInstance:
         self.path = None
         self._path = None
 
-    def pipenv(self, cmd, block=True):
-        if self.pipfile_path and os.path.isfile(self.pipfile_path):
-            os.environ['PIPENV_PIPFILE'] = self.pipfile_path
-        # a bit of a hack to make sure the virtualenv is created
+    def run_command(self, cmd):
+        result = subprocess.run(cmd, shell=True, capture_output=True)
+        try:
+            std_out_decoded = result.stdout.decode("utf-8")
+        except UnicodeDecodeError:
+            std_out_decoded = result.stdout
+        result.stdout = std_out_decoded
+        try:
+            std_err_decoded = result.stderr.decode("utf-8")
+        except UnicodeDecodeError:
+            std_err_decoded = result.stderr
+        result.stderr = std_err_decoded
+        return result
 
-        with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
-            cmd_args = shlex.split(cmd)
-            env = {**self.env, **{'PIPENV_CACHE_DIR': tempdir}}
-            self.capfd.readouterr()
-            r = cli_runner.invoke(cli, cmd_args, env=env)
-            r.returncode = r.exit_code
+    def pipenv(self, cmd, block=True):
+        self.capfd.readouterr()
+        r = self.run_command(f"pipenv {cmd}")
         # Pretty output for failing tests.
         out, err = self.capfd.readouterr()
         if out:
@@ -378,8 +258,6 @@ class _PipenvInstance:
             print(f'$ pipenv {cmd}')
             print(r.stdout)
             print(r.stderr, file=sys.stderr)
-            if r.exception:
-                print(''.join(traceback.format_exception(*r.exc_info)), file=sys.stderr)
             if r.returncode != 0:
                 print("Command failed...")
 
@@ -403,116 +281,28 @@ class _PipenvInstance:
         return os.sep.join([self.path, 'Pipfile.lock'])
 
 
-def _rmtree_func(path, ignore_errors=True, onerror=None):
-    shutil_rmtree = _rmtree
-    if onerror is None:
-        onerror = handle_remove_readonly
-    try:
-        shutil_rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
-    except (OSError, FileNotFoundError, PermissionError) as exc:
-        # Ignore removal failures where the file doesn't exist
-        if exc.errno != errno.ENOENT:
-            raise
-
-
 @pytest.fixture()
-def pip_src_dir(request, tracked_tmpdir):
-    old_src_dir = os.environ.get('PIP_SRC', '')
-    os.environ['PIP_SRC'] = tracked_tmpdir.as_posix()
-
-    def finalize():
-        os.environ['PIP_SRC'] = old_src_dir
-
-    request.addfinalizer(finalize)
-    return request
-
-
-@pytest.fixture()
-def pipenv_instance_pypi(pip_src_dir, monkeypatch, capfdbinary):
-    with temp_environ(), monkeypatch.context() as m:
-        m.setattr(shutil, "rmtree", _rmtree_func)
-        original_umask = os.umask(0o007)
-        m.setenv("PIPENV_NOSPIN", "1")
-        m.setenv("CI", "1")
-        m.setenv('PIPENV_DONT_USE_PYENV', '1')
-        m.setenv("PIPENV_TEST_INDEX", "https://pypi.org/simple")
-        m.setenv("PIPENV_PYPI_INDEX", "simple")
-        m.setenv("ARTIFACT_PYPI_URL", "https://pypi.org/")
-        m.setenv("PIPENV_PYPI_URL", "https://pypi.org/")
+def pipenv_instance_pypi(capfdbinary):
+    with temp_environ():
+        os.environ["PIPENV_NOSPIN"] = "1"
+        os.environ["CI"] = "1"
+        os.environ["PIPENV_DONT_USE_PYENV"] = "1"
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
-        try:
-            yield functools.partial(_PipenvInstance, capfd=capfdbinary)
-        finally:
-            os.umask(original_umask)
+        yield functools.partial(_PipenvInstance, capfd=capfdbinary, index_url="https://pypi.org/simple")
 
 
 @pytest.fixture()
-def pipenv_instance_private_pypi(monkeypatch, pip_src_dir, capfdbinary):
-    with temp_environ(), monkeypatch.context() as m:
-        m.setattr(shutil, "rmtree", _rmtree_func)
-        original_umask = os.umask(0o007)
-        m.setenv("PIPENV_NOSPIN", "1")
-        m.setenv("CI", "1")
-        m.setenv('PIPENV_DONT_USE_PYENV', '1')
-        m.setenv("PIPENV_TEST_INDEX", "http://localhost:8080/simple")
-        m.setenv("ARTIFACT_PYPI_URL", "http://localhost:8080/simple")
+def pipenv_instance_private_pypi(capfdbinary):
+    with temp_environ():
+        os.environ["PIPENV_NOSPIN"] = "1"
+        os.environ["CI"] = "1"
+        os.environ["PIPENV_DONT_USE_PYENV"] = "1"
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
-        try:
-            yield functools.partial(_PipenvInstance, capfd=capfdbinary)
-        finally:
-            os.umask(original_umask)
+        yield functools.partial(_PipenvInstance, capfd=capfdbinary, index_url="http://localhost:8080/simple")
 
 
 @pytest.fixture()
 def testsroot():
     return TESTS_ROOT
-
-
-class VirtualEnv:
-    def __init__(self, name="venv", base_dir=None):
-        if base_dir is None:
-            base_dir = Path(_create_tracked_dir())
-        self.base_dir = base_dir
-        self.name = name
-        self.path = (base_dir / name).resolve()
-
-    def __enter__(self):
-        self._old_environ = os.environ.copy()
-        self.create()
-        return self.activate()
-
-    def __exit__(self, *args, **kwargs):
-        os.environ = self._old_environ
-
-    def create(self):
-        python = Path(sys.executable).absolute().as_posix()
-        cmd = [
-            python, "-m", "virtualenv", self.path.absolute().as_posix()
-        ]
-        c = sp.run(cmd)
-        assert c.returncode == 0
-
-    def activate(self):
-        script_path = "Scripts" if os.name == "nt" else "bin"
-        activate_this = self.path / script_path / "activate_this.py"
-        if activate_this.exists():
-            with open(str(activate_this)) as f:
-                code = compile(f.read(), str(activate_this), "exec")
-                exec(code, dict(__file__=str(activate_this)))
-            os.environ["VIRTUAL_ENV"] = str(self.path)
-            return self.path
-        else:
-            raise VirtualenvActivationException("Can't find the activate_this.py script.")
-
-
-@pytest.fixture()
-def virtualenv(tracked_tmpdir):
-    with VirtualEnv(base_dir=tracked_tmpdir) as venv:
-        yield venv
-
-
-@pytest.fixture()
-def raw_venv():
-    yield VirtualEnv

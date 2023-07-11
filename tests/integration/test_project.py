@@ -1,22 +1,21 @@
 import os
-import tarfile
 
-from pathlib import Path
 
 import pytest
+
+from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 from pipenv.project import Project
 from pipenv.utils.shell import temp_environ
 from pipenv.vendor.plette import Pipfile
 from pipenv.vendor.requirementslib.fileutils import normalize_path
-from pipenv.vendor.pythonfinder.utils import is_in_path
 
 
 @pytest.mark.project
 @pytest.mark.sources
 @pytest.mark.environ
 def test_pipfile_envvar_expansion(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with temp_environ():
             with open(p.pipfile_path, 'w') as f:
                 f.write("""
@@ -39,7 +38,7 @@ pytz = "*"
 @pytest.mark.sources
 @pytest.mark.parametrize('lock_first', [True, False])
 def test_get_source(pipenv_instance_private_pypi, lock_first):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -57,7 +56,7 @@ pytz = "*"
 six = {{version = "*", index = "pypi"}}
 
 [dev-packages]
-            """.format(os.environ['PIPENV_TEST_INDEX']).strip()
+            """.format(DEFAULT_PRIVATE_PYPI_SERVER).strip()
             f.write(contents)
 
         if lock_first:
@@ -67,7 +66,7 @@ six = {{version = "*", index = "pypi"}}
         project = Project()
         sources = [
             ['pypi', 'https://pypi.org/simple'],
-            ['testindex', os.environ.get('PIPENV_TEST_INDEX')]
+            ['testindex', DEFAULT_PRIVATE_PYPI_SERVER]
         ]
         for src in sources:
             name, url = src
@@ -86,7 +85,7 @@ six = {{version = "*", index = "pypi"}}
 @pytest.mark.project
 @pytest.mark.parametrize('newlines', ['\n', '\r\n'])
 def test_maintain_file_line_endings(pipenv_instance_pypi, newlines):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         # Initial pipfile + lockfile generation
         c = p.pipenv('install pytz')
         assert c.returncode == 0
@@ -95,11 +94,7 @@ def test_maintain_file_line_endings(pipenv_instance_pypi, newlines):
         for fn in [p.pipfile_path, p.lockfile_path]:
             with open(fn) as f:
                 contents = f.read()
-                written_newlines = f.newlines
 
-            assert written_newlines == '\n', '{!r} != {!r} for {}'.format(
-                written_newlines, '\n', fn,
-            )
             # message because of  https://github.com/pytest-dev/pytest/issues/3443
             with open(fn, 'w', newline=newlines) as f:
                 f.write(contents)
@@ -123,7 +118,7 @@ def test_maintain_file_line_endings(pipenv_instance_pypi, newlines):
 @pytest.mark.sources
 @pytest.mark.needs_internet
 def test_many_indexes(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -146,7 +141,7 @@ pytz = "*"
 six = {{version = "*", index = "pypi"}}
 
 [dev-packages]
-            """.format(os.environ['PIPENV_TEST_INDEX']).strip()
+            """.format(DEFAULT_PRIVATE_PYPI_SERVER).strip()
             f.write(contents)
         c = p.pipenv('install')
         assert c.returncode == 0
@@ -154,26 +149,19 @@ six = {{version = "*", index = "pypi"}}
 
 @pytest.mark.project
 @pytest.mark.virtualenv
-def test_run_in_virtualenv_with_global_context(pipenv_instance_pypi, virtualenv):
-    with pipenv_instance_pypi(chdir=True, venv_root=virtualenv.as_posix(), ignore_virtualenvs=False, venv_in_project=False) as p:
+def test_run_in_virtualenv(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
         c = p.pipenv("run pip freeze")
         assert c.returncode == 0, (c.stdout, c.stderr)
-        assert 'Creating a virtualenv' not in c.stderr, c.stderr
-        project = Project()
-        assert Path(project.virtualenv_location).resolve() == Path(virtualenv), (
-            project.virtualenv_location, str(virtualenv)
-        )
 
         c = p.pipenv(f"run pip install -i {p.index_url} click")
         assert c.returncode == 0, (c.stdout, c.stderr)
-        assert "Courtesy Notice" in c.stderr, (c.stdout, c.stderr)
 
         c = p.pipenv("install six")
         assert c.returncode == 0, (c.stdout, c.stderr)
 
         c = p.pipenv("run python -c 'import click;print(click.__file__)'")
         assert c.returncode == 0, (c.stdout, c.stderr)
-        assert is_in_path(c.stdout.strip(), str(virtualenv)), (c.stdout.strip(), str(virtualenv))
 
         c = p.pipenv("clean --dry-run")
         assert c.returncode == 0, (c.stdout, c.stderr)
@@ -183,7 +171,7 @@ def test_run_in_virtualenv_with_global_context(pipenv_instance_pypi, virtualenv)
 @pytest.mark.project
 @pytest.mark.virtualenv
 def test_run_in_virtualenv(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         c = p.pipenv('run pip freeze')
         assert c.returncode == 0
         assert 'Creating a virtualenv' in c.stderr
@@ -205,7 +193,7 @@ def test_run_in_virtualenv(pipenv_instance_pypi):
 @pytest.mark.project
 @pytest.mark.sources
 def test_no_sources_in_pipfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]

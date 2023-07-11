@@ -3,6 +3,7 @@ import shutil
 import sys
 
 import pytest
+from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 from pipenv.utils.shell import temp_environ
 
@@ -13,7 +14,7 @@ from pipenv.utils.shell import temp_environ
 def test_local_extras_install(pipenv_instance_pypi):
     """Ensure -e .[extras] installs.
     """
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         setup_py = os.path.join(p.path, "setup.py")
         with open(setup_py, "w") as fh:
             contents = """
@@ -91,10 +92,11 @@ setup(
         assert c.returncode == 0
         assert "six" in pipenv_instance.lockfile["default"]
 
+    @pytest.mark.skip(reason="This test modifies os.environment which has side effects on other tests")
     def test_https_dependency_links_install(self, pipenv_instance_pypi):
         """Ensure dependency_links are parsed and installed (needed for private repo dependencies).
         """
-        with temp_environ(), pipenv_instance_pypi(chdir=True) as p:
+        with temp_environ(), pipenv_instance_pypi() as p:
             os.environ["PIP_NO_BUILD_ISOLATION"] = '1'
             TestDirectDependencies.helper_dependency_links_install_test(
                 p,
@@ -133,14 +135,14 @@ Requests = "==2.14.0"   # Inline comment
 @pytest.mark.local
 @pytest.mark.resolver
 @pytest.mark.skip  # extracting this package may be where its causing the pip_to_deps failures
-def test_local_package(pipenv_instance_private_pypi, pip_src_dir, testsroot):
+def test_local_package(pipenv_instance_private_pypi, testsroot):
     """This test ensures that local packages (directories with a setup.py)
     installed in editable mode have their dependencies resolved as well"""
     file_name = "requests-2.19.1.tar.gz"
     package = "requests-2.19.1"
     # Not sure where travis/appveyor run tests from
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         # This tests for a bug when installing a zipfile in the current dir
         copy_to = os.path.join(p.path, file_name)
         shutil.copy(source_path, copy_to)
@@ -180,7 +182,7 @@ def test_local_package(pipenv_instance_private_pypi, pip_src_dir, testsroot):
 def test_local_zip_file(pipenv_instance_private_pypi, testsroot):
     file_name = "requests-2.19.1.tar.gz"
 
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         requests_path = p._pipfile.get_fixture_path(f"{file_name}").as_posix()
 
         # This tests for a bug when installing a zipfile
@@ -236,13 +238,18 @@ def test_multiple_editable_packages_should_not_race(pipenv_instance_private_pypi
     """
     pkgs = ["six", "jinja2"]
 
-    pipfile_string = """
+    with pipenv_instance_private_pypi() as p:
+        pipfile_string = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "testindex"
+
 [dev-packages]
 
 [packages]
-"""
+        """
 
-    with pipenv_instance_private_pypi(chdir=True) as p:
         for pkg_name in pkgs:
             source_path = p._pipfile.get_fixture_path(f"git/{pkg_name}/").as_posix()
             shutil.copytree(source_path, pkg_name)
@@ -261,7 +268,7 @@ def test_multiple_editable_packages_should_not_race(pipenv_instance_private_pypi
 
 @pytest.mark.outdated
 def test_outdated_should_compare_postreleases_without_failing(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         c = p.pipenv("install ibm-db-sa-py3==0.3.0")
         assert c.returncode == 0
         c = p.pipenv("update --outdated")
@@ -287,7 +294,7 @@ name = "pypi"
 
 [packages]
 six = {}
-            """.format(os.environ['PIPENV_TEST_INDEX'], '{version = "*", index = "pypi"}').strip()
+            """.format(DEFAULT_PRIVATE_PYPI_SERVER, '{version = "*", index = "pypi"}').strip()
             f.write(contents)
         c = p.pipenv('install --skip-lock')
         assert c.returncode == 0

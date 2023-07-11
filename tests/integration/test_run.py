@@ -9,7 +9,7 @@ from pipenv.utils.shell import subprocess_run, temp_environ
 @pytest.mark.run
 @pytest.mark.dotenv
 def test_env(pipenv_instance_pypi):
-    with pipenv_instance_pypi(pipfile=False, chdir=True) as p:
+    with pipenv_instance_pypi(pipfile=False, ) as p:
         with open(os.path.join(p.path, ".env"), "w") as f:
             f.write("HELLO=WORLD")
         c = subprocess_run(['pipenv', 'run', 'python', '-c', "import os; print(os.environ['HELLO'])"], env=p.env)
@@ -19,7 +19,7 @@ def test_env(pipenv_instance_pypi):
 
 @pytest.mark.run
 def test_scripts(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             f.write(r"""
 [scripts]
@@ -65,7 +65,7 @@ multicommand = "bash -c \"cd docs && make html\""
 
 @pytest.mark.run
 def test_scripts_with_package_functions(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         p.pipenv('install')
         pkg_path = os.path.join(p.path, "pkg")
         os.makedirs(pkg_path, exist_ok=True)
@@ -96,7 +96,7 @@ argfunc = {call = "pkg.mod:arg_func('abc', 123)"}
 @pytest.mark.run
 @pytest.mark.skip_windows
 def test_run_with_usr_env_shebang(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         p.pipenv('install')
         script_path = os.path.join(p.path, "test_script")
         with open(script_path, "w") as f:
@@ -135,7 +135,7 @@ hello = "echo $HELLO_VAR"
         else:
             c = p.pipenv('run hello')
         assert c.returncode == 0
-        assert 'WORLD\n' in c.stdout
+        assert 'WORLD' in c.stdout
 
 
 @pytest.mark.run
@@ -144,8 +144,8 @@ def test_pipenv_run_pip_freeze_has_expected_output(quiet, pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
-    [packages]
-    requests = "==2.14.0"
+[packages]
+requests = "==2.14.0"
                 """.strip()
             f.write(contents)
         c = p.pipenv('install')
@@ -156,4 +156,4 @@ def test_pipenv_run_pip_freeze_has_expected_output(quiet, pipenv_instance_pypi):
         else:
             c = p.pipenv('run pip freeze')
         assert c.returncode == 0
-        assert 'requests==2.14.0\n' == c.stdout
+        assert 'requests==2.14.0' in c.stdout

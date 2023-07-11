@@ -94,11 +94,15 @@ def test_pipenv_graph(pipenv_instance_pypi):
 
 @pytest.mark.cli
 def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
+    from pipenv.cli import cli
+    from click.testing import CliRunner  # not thread safe but graph is a tricky test
+
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv('install tablib==0.13.0')
         assert c.returncode == 0
-        c = p.pipenv('graph --reverse')
-        assert c.returncode == 0
+        cli_runner = CliRunner(mix_stderr=False)
+        c = cli_runner.invoke(cli, "graph --reverse")
+        assert c.exit_code == 0
         output = c.stdout
 
         requests_dependency = [
@@ -169,7 +173,7 @@ def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
 
 @pytest.mark.cli
 def test_pipenv_clean(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open('setup.py', 'w') as f:
             f.write('from setuptools import setup; setup(name="empty")')
         c = p.pipenv('install -e .')
@@ -248,7 +252,7 @@ def test_pipenv_clear(pipenv_instance_pypi):
 
 @pytest.mark.outdated
 def test_pipenv_outdated_prerelease(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [packages]

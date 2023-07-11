@@ -10,7 +10,7 @@ from pipenv.utils.processes import subprocess_run
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_basic_vcs_install_with_env_var(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         # edge case where normal package starts with VCS name shouldn't be flagged as vcs
         os.environ["GIT_HOST"] = "github.com"
         c = p.pipenv("install git+https://${GIT_HOST}/benjaminp/six.git@1.11.0#egg=six gitdb2")
@@ -28,7 +28,7 @@ def test_basic_vcs_install_with_env_var(pipenv_instance_pypi):
 @pytest.mark.files
 @pytest.mark.needs_internet
 def test_urls_work(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         # the library this installs is "django-cms"
         url = "https://github.com/lidatong/dataclasses-json/archive/refs/tags/v0.5.7.zip"
         c = p.pipenv(
@@ -46,8 +46,8 @@ def test_urls_work(pipenv_instance_pypi):
 
 @pytest.mark.urls
 @pytest.mark.files
-def test_file_urls_work(pipenv_instance_pypi, pip_src_dir):
-    with pipenv_instance_pypi(chdir=True) as p:
+def test_file_urls_work(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
         whl = Path(__file__).parent.parent.joinpath(
             "pypi", "six", "six-1.11.0-py2.py3-none-any.whl"
         )
@@ -72,7 +72,7 @@ def test_file_urls_work(pipenv_instance_pypi, pip_src_dir):
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_editable_vcs_install(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         c = p.pipenv(
             "install -e git+https://github.com/lidatong/dataclasses-json.git#egg=dataclasses-json"
         )
@@ -85,7 +85,7 @@ def test_editable_vcs_install(pipenv_instance_pypi):
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_install_editable_git_tag(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         c = p.pipenv(
             "install -e git+https://github.com/benjaminp/six.git@1.11.0#egg=six"
         )
@@ -161,7 +161,7 @@ six = "*"
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_install_local_vcs_not_in_lockfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         # six_path = os.path.join(p.path, "six")
         six_path = p._pipfile.get_fixture_path("git/six/").as_posix()
         c = subprocess_run(["git", "clone", six_path, "./six"])
@@ -178,7 +178,7 @@ def test_install_local_vcs_not_in_lockfile(pipenv_instance_pypi):
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_get_vcs_refs(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         c = p.pipenv(
             "install -e git+https://github.com/benjaminp/six.git@1.9.0#egg=six"
         )
@@ -211,7 +211,7 @@ def test_vcs_entry_supersedes_non_vcs(pipenv_instance_pypi):
     in the lockfile -- due to not running pip install before locking and not locking
     the resolution graph of non-editable vcs dependencies.
     """
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         jinja2_uri = p._pipfile.get_fixture_path("git/jinja2").as_uri()
         with open(p.pipfile_path, "w") as f:
             f.write(
@@ -244,7 +244,7 @@ Jinja2 = {{ref = "2.11.0", git = "{}"}}
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_vcs_can_use_markers(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         path = p._pipfile.get_fixture_path("git/six/.git")
         p._pipfile.install("six", {"git": f"{path.as_uri()}", "markers": "sys_platform == 'linux'"})
         assert "six" in p.pipfile["packages"]

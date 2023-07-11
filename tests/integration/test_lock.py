@@ -1,8 +1,9 @@
-import json
 import os
 from pathlib import Path
 
 import pytest
+
+from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 from flaky import flaky
 from pipenv.utils.shell import temp_environ
@@ -15,7 +16,12 @@ def test_lock_handle_eggs(pipenv_instance_private_pypi):
     """
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
-            f.write("""
+            f.write(f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "testindex"
+
 [packages]
 RandomWords = "*"
             """)
@@ -29,7 +35,7 @@ RandomWords = "*"
 @pytest.mark.requirements
 def test_lock_gathers_pyproject_dependencies(pipenv_instance_pypi):
     """Ensure that running `pipenv install` doesn't install dev packages"""
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
@@ -120,7 +126,12 @@ def test_lock_includes_hashes_for_all_platforms(pipenv_instance_private_pypi):
 
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "testindex"
+
 [packages]
 yarl = "==1.3.0"
             """.strip()
@@ -143,7 +154,7 @@ yarl = "==1.3.0"
 
 @pytest.mark.lock
 def test_resolve_skip_unmatched_requirements(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         p._pipfile.add("missing-package", {"markers": "os_name=='FakeOS'"})
         c = p.pipenv("lock")
         assert c.returncode == 0
@@ -156,8 +167,8 @@ def test_resolve_skip_unmatched_requirements(pipenv_instance_pypi):
 @pytest.mark.lock
 @pytest.mark.complex
 @pytest.mark.needs_internet
-def test_complex_lock_with_vcs_deps(local_tempdir, pipenv_instance_private_pypi, pip_src_dir):
-    with pipenv_instance_private_pypi() as p, local_tempdir:
+def test_complex_lock_with_vcs_deps(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         dateutil_uri = p._pipfile.get_fixture_path("git/dateutil").as_uri()
         with open(p.pipfile_path, 'w') as f:
@@ -211,9 +222,9 @@ allow_prereleases = true
 @pytest.mark.complex
 @pytest.mark.needs_internet
 @flaky
-def test_complex_deps_lock_and_install_properly(pipenv_instance_pypi, pip_src_dir):
+def test_complex_deps_lock_and_install_properly(pipenv_instance_pypi):
     # This uses the real PyPI because Maya has too many dependencies...
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -353,7 +364,7 @@ requests = "==2.14.0"
 @pytest.mark.lock
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_without_install(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         requests_uri = p._pipfile.get_fixture_path("git/six").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
@@ -369,7 +380,7 @@ six = {git = "%s", editable = true}
 @pytest.mark.lock
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_ref_in_git(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
@@ -387,7 +398,7 @@ requests = {git = "%s@883caaf", editable = true}
 @pytest.mark.extras
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_extras_without_install(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
@@ -407,7 +418,7 @@ requests = {git = "%s", editable = true, extras = ["socks"]}
 @pytest.mark.lock
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_markers_without_install(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         with open(p.pipfile_path, 'w') as f:
             f.write("""
@@ -444,27 +455,12 @@ def test_lockfile_with_empty_dict(pipenv_instance_pypi):
         assert p.lockfile['_meta']
 
 
-@pytest.mark.lock
-@pytest.mark.install
-@pytest.mark.skip
-# We get warning: Creating a LegacyVersion has been deprecated and will be removed in the next major release
-# https://github.com/pypa/pip/issues/9250
-def test_lock_no_warnings(pipenv_instance_pypi, recwarn):
-    with pipenv_instance_pypi(chdir=True) as p:
-        c = p.pipenv("install six")
-        assert c.returncode == 0
-        print(recwarn)
-        print(vars(recwarn))
-        print(recwarn[0])
-        assert len(recwarn) == 0
-
-
 @pytest.mark.vcs
 @pytest.mark.lock
 def test_vcs_lock_respects_top_level_pins(pipenv_instance_private_pypi):
     """Test that locking VCS dependencies respects top level packages pinned in Pipfiles"""
 
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
         p._pipfile.add("requests", {
             "editable": True, "git": f"{requests_uri}",
@@ -481,7 +477,7 @@ def test_vcs_lock_respects_top_level_pins(pipenv_instance_private_pypi):
 
 @pytest.mark.lock
 def test_lock_after_update_source_name(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         contents = """
 [[source]]
 url = "{}"
@@ -511,10 +507,15 @@ def test_lock_nested_direct_url(pipenv_instance_private_pypi):
     a PEP508 style VCS URL. This ensures that we capture the dependency
     here along with its own dependencies.
     """
-    with pipenv_instance_private_pypi() as p:
-        contents = """
-        [packages]
-        test_package = "*"
+    with pipenv_instance_private_pypi(pipfile=False) as p:
+        contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "local"
+
+[packages]
+test_package = "*"
                 """.strip()
         with open(p.pipfile_path, 'w') as f:
             f.write(contents)
@@ -528,7 +529,7 @@ def test_lock_nested_direct_url(pipenv_instance_private_pypi):
 @pytest.mark.lock
 @pytest.mark.needs_internet
 def test_lock_nested_vcs_direct_url(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         p._pipfile.add("pep508_package", {
             "git": "https://github.com/techalchemy/test-project.git",
             "editable": True,  "ref": "master",
@@ -546,7 +547,7 @@ def test_lock_nested_vcs_direct_url(pipenv_instance_pypi):
 @pytest.mark.lock
 @pytest.mark.install
 def test_lock_package_with_wildcard_version(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         c = p.pipenv("install 'six==1.11.*'")
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
@@ -559,7 +560,7 @@ def test_lock_package_with_wildcard_version(pipenv_instance_pypi):
 @pytest.mark.lock
 @pytest.mark.install
 def test_default_lock_overwrite_dev_lock(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         c = p.pipenv("install 'click==6.7'")
         assert c.returncode == 0
         c = p.pipenv("install -d flask")
@@ -588,7 +589,7 @@ name = "local"
 
 [packages]
 requests = {requirement}
-                """.strip().format(url=os.environ['PIPENV_TEST_INDEX'], requirement='{version="*", index="local"}')
+                """.strip().format(url=p.index_url, requirement='{version="*", index="local"}')
             f.write(contents)
 
         c = p.pipenv('lock')
@@ -611,9 +612,14 @@ requests = {requirement}
 def test_dev_lock_use_default_packages_as_constraint(pipenv_instance_private_pypi):
     # See https://github.com/pypa/pipenv/issues/4371
     # See https://github.com/pypa/pipenv/issues/2987
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "testindex"
+
 [packages]
 requests = "<=2.14.0"
 
@@ -638,7 +644,7 @@ requests = "*"
 
 @pytest.mark.lock
 def test_lock_specific_named_category(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(chdir=True) as p:
+    with pipenv_instance_private_pypi(pipfile=False) as p:
         contents = """
 [[source]]
 url = "{}"

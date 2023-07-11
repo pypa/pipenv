@@ -8,5 +8,4 @@ def test_update_outdated_with_outdated_package(pipenv_instance_private_pypi, cmd
         package_name = "six"
         p.pipenv(f"install {cmd_option} {package_name}==1.11")
         c = p.pipenv("update --outdated")
-        assert isinstance(c.exception, SystemExit)
-        assert f"Package '{package_name}' out-of-date:" in c.stdout_bytes.decode("utf-8")
+        assert f"Package '{package_name}' out-of-date:" in c.stdout

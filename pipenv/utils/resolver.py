@@ -280,7 +280,6 @@ class Resolver:
             project = Project()
         index, extra_index, trust_host, remainder = parse_indexes(line)
         line = " ".join(remainder)
-        req: Requirement = None
         try:
             req = Requirement.from_line(line)
         except ValueError:
@@ -1084,7 +1083,7 @@ def venv_resolve_deps(
                     project.s.is_verbose(),
                     allow_global,
                     req_dir,
-                    deps,
+                    packages=deps,
                     category=category,
                     constraints=constraints,
                 )

@@ -13,7 +13,7 @@ pytestmark = pytest.mark.skipif(os.name != 'nt', reason="only relevant on window
 def test_case_changes_windows(pipenv_instance_pypi):
     """Test project matching for case changes on Windows.
     """
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         c = p.pipenv('install pytz')
         assert c.returncode == 0
 
@@ -47,7 +47,7 @@ def test_local_path_windows(pipenv_instance_pypi):
         whl = whl.resolve()
     except OSError:
         whl = whl.absolute()
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         c = p.pipenv(f'install "{whl}"')
         assert c.returncode == 0
 
@@ -63,14 +63,14 @@ def test_local_path_windows_forward_slash(pipenv_instance_pypi):
         whl = whl.resolve()
     except OSError:
         whl = whl.absolute()
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         c = p.pipenv(f'install "{whl.as_posix()}"')
         assert c.returncode == 0
 
 
 @pytest.mark.cli
 def test_pipenv_clean_windows(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         c = p.pipenv('install dataclasses-json')
         assert c.returncode == 0
         c = p.pipenv(f'run pip install -i {p.index_url} click')

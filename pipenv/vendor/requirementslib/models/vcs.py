@@ -3,10 +3,9 @@ import os
 import sys
 from typing import Any, Optional, Tuple
 
-from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
 from pipenv.patched.pip._vendor.pyparsing.core import cached_property
-from pipenv.vendor.pydantic import BaseModel, Field
+from pipenv.vendor.pydantic import Field
 
 from .common import ReqLibBaseModel
 from .url import URI

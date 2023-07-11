@@ -11,17 +11,18 @@ import subprocess as sp
 import sys
 import time
 import warnings
-from collections.abc import Iterable, Mapping
 from contextlib import ExitStack
 from functools import lru_cache
 from itertools import count
 from os import scandir
 from pathlib import Path
-from typing import Any, AnyStr, Callable, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, AnyStr, Callable, Dict, Generator, List, Optional, Tuple, Union, Iterable, Mapping
 from urllib.parse import parse_qs, urlparse, urlunparse
 
 from pipenv.patched.pip._vendor.distlib.wheel import Wheel
 from pipenv.vendor.pep517 import envbuild, wrappers
+
+from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.operations.prepare import unpack_url
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
@@ -1119,8 +1120,6 @@ def run_setup(script_path, egg_base=None):
     :return: The metadata dictionary
     :rtype: Dict[Any, Any]
     """
-    from pathlib import Path
-
     if not os.path.exists(script_path):
         raise FileNotFoundError(script_path)
     target_cwd = os.path.dirname(os.path.abspath(script_path))
@@ -1131,9 +1130,8 @@ def run_setup(script_path, egg_base=None):
         if egg_base:
             args += ["--egg-base", egg_base]
 
-        python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
         sp.run(
-            [python, "setup.py"] + args,
+            [sys.executable, "setup.py"] + args,
             capture_output=True,
         )
         dist = get_metadata(egg_base, metadata_type="egg")

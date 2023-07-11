@@ -16,7 +16,7 @@ from pipenv.utils.shell import temp_environ
 @pytest.mark.deploy
 def test_deploy_works(pipenv_instance_pypi):
 
-    with pipenv_instance_pypi(chdir=True) as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
@@ -65,7 +65,7 @@ def test_update_locks(pipenv_instance_private_pypi):
 @pytest.mark.project
 @pytest.mark.proper_names
 def test_proper_names_unmanaged_virtualenv(pipenv_instance_pypi):
-    with pipenv_instance_pypi(chdir=True):
+    with pipenv_instance_pypi():
         c = subprocess_run(['python', '-m', 'virtualenv', '.venv'])
         assert c.returncode == 0
         project = Project()
@@ -73,9 +73,9 @@ def test_proper_names_unmanaged_virtualenv(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-def test_directory_with_leading_dash(raw_venv, pipenv_instance_pypi):
+def test_directory_with_leading_dash(pipenv_instance_pypi):
     with temp_environ():
-        with pipenv_instance_pypi(chdir=True, venv_in_project=False, name="-project-with-dash") as p:
+        with pipenv_instance_pypi() as p:
             c = p.pipenv('run pip freeze')
             assert c.returncode == 0
             c = p.pipenv('--venv')
