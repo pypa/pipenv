@@ -250,7 +250,7 @@ class _PipenvInstance:
 
     def pipenv(self, cmd, block=True):
         self.capfd.readouterr()
-        r = self.run_command(f"{sys.executable} -m pipenv {cmd}")
+        r = self.run_command(f"pipenv {cmd}")
         # Pretty output for failing tests.
         out, err = self.capfd.readouterr()
         if out:
