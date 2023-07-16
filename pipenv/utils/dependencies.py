@@ -549,8 +549,12 @@ def from_pipfile(name, pipfile):
     if vcs:
         _pipfile["vcs"] = vcs
         req_str = f"{name}{extras_str} @ {_pipfile[vcs]}"
-    elif any(key in _pipfile for key in ["path", "file", "uri"]):
+    elif "path" in _pipfile:
         req_str = f"{name}{extras_str} @ {_pipfile['path']}"
+    elif "file" in _pipfile:
+        req_str = f"{name}{extras_str} @ {_pipfile['file']}"
+    elif "uri" in _pipfile:
+        req_str = f"{name}{extras_str} @ {_pipfile['uri']}"
     else:
         # We ensure version contains an operator. Default to equals (==)
         _pipfile["version"] = get_version(pipfile)
