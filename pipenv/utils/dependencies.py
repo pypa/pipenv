@@ -313,9 +313,9 @@ def req_as_line(dep_name, dep, include_hashes, include_markers, sources):
             return f"{dep_name}=={dep}"
         return f"{dep_name}{dep}"
     line = []
-    if dep.get("editable"):
-        line.append("-e")
     vcs = next(iter([vcs for vcs in VCS_LIST if vcs in dep]), None)
+    if not vcs and dep.get("editable"):
+        line.append("-e")
     include_index = False
     if vcs and vcs in dep:  # VCS Requirements
         extras = ""
