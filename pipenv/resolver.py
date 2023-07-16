@@ -3,8 +3,6 @@ import logging
 import os
 import sys
 
-from pipenv.patched.pip._vendor.packaging.requirements import Requirement
-
 os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 
@@ -148,6 +146,8 @@ class Entry:
 
     @classmethod
     def clean_initial_dict(cls, entry_dict):
+        from pipenv.patched.pip._vendor.packaging.requirements import Requirement
+
         entry_dict.get("version", "")
         version = entry_dict.get("version", "")
         if isinstance(version, Requirement):
@@ -480,6 +480,7 @@ class Entry:
         :raises: :exc:`pipenv.exceptions.DependencyConflict` if the constraints dont exist
         """
         from pipenv.exceptions import DependencyConflict
+        from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 
         constraints = self.get_constraints()
         pinned_version = self.updated_version
