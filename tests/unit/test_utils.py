@@ -39,7 +39,7 @@ DEP_PIP_PAIRS = [
                 "extras": ["pipenv"],
             }
         },
-        "https://github.com/oz123/dparse/archive/refs/heads/master.zip#egg=dparse[pipenv]"
+        "dparse[pipenv] @ https://github.com/oz123/dparse/archive/refs/heads/master.zip",
     ),
     (
         {
@@ -64,8 +64,6 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
 @pytest.mark.needs_internet
 def test_convert_deps_to_pip(deps, expected):
-    if expected.startswith("Django"):
-        expected = expected.lower()
     assert dependencies.convert_deps_to_pip(deps) == [expected]
 
 
@@ -139,10 +137,9 @@ def test_convert_deps_to_pip_one_way():
         ({"uvicorn": {}}, ["uvicorn"]),
         ({"FooProject": {"path": ".", "editable": "true"}}, []),
         ({"FooProject": {"version": "==1.2"}}, ["fooproject==1.2"]),
-        ({"uvicorn": {"extras": ["standard"]}}, []),
+        ({"uvicorn": {"extras": ["standard"]}}, ["uvicorn"]),
         ({"uvicorn": {"extras": []}}, ["uvicorn"]),
         ({"extras": {}}, ["extras"]),
-        ({"uvicorn[standard]": {}}, [])
     ],
 )
 def test_get_constraints_from_deps(deps, expected):

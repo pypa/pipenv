@@ -942,7 +942,9 @@ class Project:
 
     def get_package_name_in_pipfile(self, package_name, category):
         """Get the equivalent package name in pipfile"""
-        section = self.parsed_pipfile.get(category, {})
+        section = self.parsed_pipfile.get(category)
+        if section is None:
+            section = {}
         package_name = pep423_name(package_name)
         for name in section.keys():
             if pep423_name(name) == package_name:
@@ -975,35 +977,40 @@ class Project:
 
     def add_package_to_pipfile(self, package, dev=False, category=None):
         newly_added = False
+        category = category if category else "dev-packages" if dev else "packages"
 
         # Read and append Pipfile.
         p = self.parsed_pipfile
+
+        # Set empty group if it doesn't exist yet.
+        if category not in p:
+            p[category] = {}
 
         # Don't re-capitalize file URLs or VCSs.
         if not isinstance(package, InstallRequirement):
             package = install_req_from_line(package.strip())
 
         req_name = package.name
-        if package.req:
-            converted = str(package.specifier)
-            if not converted:
-                converted = "*"
+        name = self.get_package_name_in_pipfile(req_name, category=category)
+        normalized_name = pep423_name(req_name)
+        if name and name != normalized_name:
+            self.remove_package_from_pipfile(name, category=category)
 
-        category = category if category else "dev-packages" if dev else "packages"
-
-        # Set empty group if it doesn't exist yet.
-        if category not in p:
-            p[category] = {}
+        extras = package.extras
+        specifier = "*"
+        if package.req and package.specifier:
+            specifier = str(package.specifier)
 
         # Add the package to the group.
         normalized_name = normalize_name(req_name)
-        if normalized_name in p[category]:
-            existing_requirement = p[category][normalized_name]
-            # If the requirement is the same, then nothing to do
-            if existing_requirement == converted:
-                return False, category
-        else:
+        if normalized_name not in p[category]:
             newly_added = True
+
+        # Construct package requirement with extras if they exist
+        if extras:
+            converted = {"extras": list(extras), "version": specifier}
+        else:
+            converted = specifier
 
         p[category][normalized_name] = converted
 

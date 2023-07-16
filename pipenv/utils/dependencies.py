@@ -1,19 +1,25 @@
 import os
+import zipfile
 from contextlib import contextmanager
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 from urllib.parse import urlparse
 
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.req.constructors import parse_req_from_line
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._vendor import tomli
 from pipenv.patched.pip._vendor.distlib.util import COMPARE_OP
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
 from pipenv.vendor.requirementslib.models.markers import PipenvMarkers
+from pipenv.vendor.requirementslib.models.setup_info import unpack_url
 from pipenv.vendor.requirementslib.models.utils import get_version
-from pipenv.vendor.requirementslib.utils import prepare_pip_source_args
+from pipenv.vendor.requirementslib.utils import get_pip_command, prepare_pip_source_args
 
 from .constants import SCHEME_LIST, VCS_LIST
 
@@ -102,7 +108,7 @@ def translate_markers(pipfile_entry):
     any valid key from `packaging.markers.marker_context.keys()` and standardize
     the format into {'markers': 'key == "some_value"'}.
 
-    :param pipfile_entry: A dictionariy of keys and values representing a pipfile entry
+    :param pipfile_entry: A dictionary of keys and values representing a pipfile entry
     :type pipfile_entry: dict
     :returns: A normalized dictionary with cleaned marker entries
     """
@@ -161,6 +167,8 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
                 lockfile["version"] = str(version.specifier)
             if version.extras:
                 lockfile["extras"] = sorted(version.extras)
+        elif version:
+            lockfile["version"] = version
 
     if "editable" in dep:
         lockfile["editable"] = dep["editable"]
@@ -305,18 +313,20 @@ def req_as_line(dep_name, dep, include_hashes, include_markers, sources):
             return f"{dep_name}=={dep}"
         return f"{dep_name}{dep}"
     line = []
+    if dep.get("editable"):
+        line.append("-e")
     vcs = next(iter([vcs for vcs in VCS_LIST if vcs in dep]), None)
-
+    include_index = False
     if vcs and vcs in dep:  # VCS Requirements
         extras = ""
         ref = ""
-        if dep.get("rev"):
+        if dep.get("ref"):
             ref = f"@{dep['ref']}"
         if "extras" in dep:
             extras = f"[{','.join(dep['extras'])}]"
-        git_req = f"{dep_name}{extras} @ {dep[vcs]}{ref}"
+        git_req = f"{vcs}+{dep[vcs]}{ref}#egg={dep_name}{extras}"
         if "subdirectory" in dep:
-            git_req += f"#subdirectory={dep['subdirectory']}"
+            git_req += f"&subdirectory={dep['subdirectory']}"
         line.append(git_req)
     elif "file" in dep:  # File Requirements
         extras = ""
@@ -328,13 +338,15 @@ def req_as_line(dep_name, dep, include_hashes, include_markers, sources):
             line.append("-e")
         line.append(dep["path"])
     else:  # Normal/Named Requirements
+        include_index = True
         line.append(dep_name)
         if "extras" in dep:
             line[-1] += f"[{','.join(dep['extras'])}]"
         if "version" in dep:
             version = dep["version"]
-            if version and not is_star(version) and COMPARE_OP.match(version):
-                version = f"=={version}"
+            if version and not is_star(version):
+                if not COMPARE_OP.match(version):
+                    version = f"=={version}"
                 line[-1] += version
 
     if include_markers and dep.get("markers"):
@@ -343,12 +355,13 @@ def req_as_line(dep_name, dep, include_hashes, include_markers, sources):
     if include_hashes and dep.get("hashes"):
         line.extend([f"--hash={hash}" for hash in dep["hashes"]])
 
-    if dep.get("index"):
-        sources = [s for s in sources if s.get("name") == dep["index"]]
-    else:
-        sources = [sources[0]]
-    source_list = prepare_pip_source_args(sources)
-    line.extend(source_list)
+    if include_index:
+        if dep.get("index"):
+            sources = [s for s in sources if s.get("name") == dep["index"]]
+        else:
+            sources = [sources[0]] if sources else []
+        source_list = prepare_pip_source_args(sources)
+        line.extend(source_list)
 
     pip_line = " ".join(line)
     return pip_line
@@ -373,6 +386,80 @@ def convert_deps_to_pip(
         req = req_as_line(dep_name, dep, include_hashes, include_markers, sources)
         dependencies.append(req)
     return dependencies
+
+
+def parse_metadata_file(content: str):
+    """
+    Parse a METADATA file to get the package name.
+
+    Parameters:
+    content (str): Contents of the METADATA file.
+
+    Returns:
+    str: Name of the package or None if not found.
+    """
+
+    for line in content.splitlines():
+        if line.startswith("Name:"):
+            return line.split("Name: ")[1].strip()
+
+    return None
+
+
+def parse_setup_file(content):
+    # this is a very rudimentary way to find the name parameter in setup.py
+    # but it should work for most cases
+    start = content.find("name=")
+    if start != -1:
+        end = content.find(",", start)
+        return content[start + 5 : end].strip(" \"'")
+
+    return None
+
+
+def parse_cfg_file(content):
+    from setuptools.config import read_configuration
+
+    cfg_dict = read_configuration(content)
+    return cfg_dict["metadata"]["name"]
+
+
+def parse_toml_file(content):
+    toml_dict = tomli.loads(content)
+    if "tool" in toml_dict and "poetry" in toml_dict["tool"]:
+        return toml_dict["tool"]["poetry"]["name"]
+
+    return None
+
+
+def find_package_name(zip_filepath):
+    with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
+        for filename in zip_ref.namelist():
+            if filename.endswith(("METADATA", "setup.py", "setup.cfg", "pyproject.toml")):
+                with zip_ref.open(filename) as file:
+                    content = file.read().decode()
+
+                    if filename.endswith("METADATA"):
+                        possible_name = parse_metadata_file(content)
+                        if possible_name:
+                            return possible_name
+
+                    if filename.endswith("setup.py"):
+                        possible_name = parse_setup_file(content)
+                        if possible_name:
+                            return possible_name
+
+                    if filename.endswith("setup.cfg"):
+                        possible_name = parse_cfg_file(content)
+                        if possible_name:
+                            return possible_name
+
+                    if filename.endswith("pyproject.toml"):
+                        possible_name = parse_toml_file(content)
+                        if possible_name:
+                            return possible_name
+
+    return None
 
 
 def install_req_from_line(
@@ -412,16 +499,25 @@ def install_req_from_line(
         if urlparse(name).scheme == "":
             # It's a local file or directory
             base_name = os.path.basename(name)
-        else:
-            # It's a URL
-            base_name = os.path.basename(urlparse(name).path)
-        package_name, _ = os.path.splitext(base_name)
-        package_name = package_name.split("-")[0]
+            package_name, _ = os.path.splitext(base_name)
+            package_name = package_name.split("-")[0]
+        else:  # It's a URL
+            link = Link(name)
+            with TemporaryDirectory() as td:
+                cmd = get_pip_command()
+                options, _ = cmd.parser.parse_args([])
+                session = cmd._build_session(options)
+                file = unpack_url(
+                    link=link,
+                    location=td,
+                    download=Downloader(session, "off"),
+                    verbosity=1,
+                )
+                package_name = find_package_name(file.path)
+        parts = parse_req_from_line(package_name, line_source)
     else:
         # It's a requirement
-        package_name = name
-
-    parts = parse_req_from_line(package_name, line_source)
+        parts = parse_req_from_line(name, line_source)
 
     return InstallRequirement(
         parts.requirement,
@@ -443,30 +539,28 @@ def from_pipfile(name, pipfile):
     _pipfile = {}
     if hasattr(pipfile, "keys"):
         _pipfile = dict(pipfile).copy()
-    _pipfile["version"] = get_version(pipfile)
 
-    # We ensure version contains an operator. Default to equals (==)
-    if (
-        _pipfile["version"]
-        and not is_star(_pipfile["version"])
-        and COMPARE_OP.match(_pipfile["version"]) is None
-    ):
-        _pipfile["version"] = "=={}".format(_pipfile["version"])
+    extras = _pipfile.get("extras", [])
+    extras_str = ""
+    if extras:
+        extras_str = f"[{','.join(extras)}]"
     vcs = next(iter([vcs for vcs in VCS_LIST if vcs in _pipfile]), None)
 
     if vcs:
         _pipfile["vcs"] = vcs
-        req_str = f"{name}@{_pipfile[vcs]}"
-
+        req_str = f"{name}{extras_str} @ {_pipfile[vcs]}"
     elif any(key in _pipfile for key in ["path", "file", "uri"]):
-        req_str = f"{name}@{_pipfile['path']}"
-
+        req_str = f"{name}{extras_str} @ {_pipfile['path']}"
     else:
-        req_str = f"{name}{_pipfile['version']}"
-
-    extras = _pipfile.get("extras", [])
-    if extras:
-        req_str += f"[{','.join(extras)}]"
+        # We ensure version contains an operator. Default to equals (==)
+        _pipfile["version"] = get_version(pipfile)
+        if (
+            _pipfile["version"]
+            and not is_star(_pipfile["version"])
+            and COMPARE_OP.match(_pipfile["version"]) is None
+        ):
+            _pipfile["version"] = "=={}".format(_pipfile["version"])
+        req_str = f"{name}{extras_str}{_pipfile['version']}"
 
     install_req = install_req_from_line(
         req_str,
@@ -483,9 +577,10 @@ def from_pipfile(name, pipfile):
         install_req.markers = Marker(markers)
 
     # Construct the requirement string for your Requirement class
-    req_str = f"{install_req.name}{install_req.req.specifier}"
+    extras_str = ""
     if install_req.req.extras:
-        req_str += f"[{','.join(install_req.req.extras)}]"
+        extras_str = f"[{','.join(install_req.req.extras)}]"
+    req_str = f"{install_req.name}{extras_str}{install_req.req.specifier}"
     if install_req.markers:
         req_str += f"; {install_req.markers}"
 
@@ -497,17 +592,28 @@ def from_pipfile(name, pipfile):
 
 def get_constraints_from_deps(deps):
     """Get constraints from dictionary-formatted dependency"""
-    from pip._vendor.packaging.utils import canonicalize_name
-
-    from pipenv.patched.pip._vendor.distlib.util import COMPARE_OP
-
     constraints = []
     for dep_name, dep_version in deps.items():
+        c = None
         # Creating a constraint as a canonical name plus a version specifier
-        if not is_star(dep_version) and COMPARE_OP.match(dep_version) is None:
-            dep_version = f"=={dep_version}"
-        c = f"{canonicalize_name(dep_name)}{dep_version}"
-        constraints.append(c)
+        if isinstance(dep_version, str):
+            if dep_version and not is_star(dep_version):
+                if COMPARE_OP.match(dep_version) is None:
+                    dep_version = f"=={dep_version}"
+                c = f"{canonicalize_name(dep_name)}{dep_version}"
+            else:
+                c = canonicalize_name(dep_name)
+        else:
+            if not any([k in dep_version for k in ["path", "file", "uri"]]):
+                version = dep_version.get("version", None)
+                if version and not is_star(version):
+                    if COMPARE_OP.match(version) is None:
+                        version = f"=={dep_version}"
+                    c = f"{canonicalize_name(dep_name)}{version}"
+                else:
+                    c = canonicalize_name(dep_name)
+        if c:
+            constraints.append(c)
     return constraints
 
 

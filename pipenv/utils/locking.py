@@ -19,7 +19,7 @@ def format_requirement_for_lockfile(
     else:
         version = None
     index = index_lookup.get(normalize_name(req.name))
-    markers = markers_lookup.get(normalize_name(req.name))
+    markers = req.markers
     req.index = index
     name = normalize_name(req.name)
     entry = {}
@@ -42,7 +42,7 @@ def format_requirement_for_lockfile(
     if index:
         entry.update({"index": index})
     if markers:
-        entry.update({"markers": markers})
+        entry.update({"markers": str(markers)})
     entry = translate_markers(entry)
     if req.editable:
         for key in ("index", "version", "file"):

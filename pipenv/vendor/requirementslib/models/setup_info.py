@@ -28,7 +28,6 @@ from pipenv.patched.pip._internal.operations.prepare import File, _check_downloa
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.network.download import Downloader
-from pipenv.patched.pip._internal.operations.prepare import unpack_url
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.hashes import Hashes
 from pipenv.patched.pip._internal.utils.unpacking import unpack_file

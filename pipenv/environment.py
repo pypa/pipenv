@@ -763,7 +763,8 @@ class Environment:
             iter(
                 d
                 for d in self.get_distributions()
-                if canonicalize_name(d.project_name) == canonicalize_name(req.name)
+                if req.name
+                and canonicalize_name(d.project_name) == canonicalize_name(req.name)
             ),
             None,
         )

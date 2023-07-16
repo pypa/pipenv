@@ -3,6 +3,8 @@ import logging
 import os
 import sys
 
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
+
 os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 
@@ -147,8 +149,10 @@ class Entry:
     @classmethod
     def clean_initial_dict(cls, entry_dict):
         entry_dict.get("version", "")
-        if not entry_dict.get("version", "").startswith("=="):
-            entry_dict["version"] = cls.clean_specifier(entry_dict.get("version", ""))
+        version = entry_dict.get("version", "")
+        if isinstance(version, Requirement):
+            version = str(version.specifier)
+        entry_dict["version"] = cls.clean_specifier(version)
         if "name" in entry_dict:
             del entry_dict["name"]
         return entry_dict
@@ -242,16 +246,13 @@ class Entry:
             entry_extras = list(self.entry.extras)
             if self.lockfile_entry.extras:
                 entry_extras.extend(list(self.lockfile_entry.extras))
-            self._entry.req.extras = entry_extras
-            self.entry_dict["extras"] = self.entry.extras
+            self.entry_dict["extras"] = entry_extras
         if self.original_markers and not self.markers:
             original_markers = self.marker_to_str(self.original_markers)
             self.markers = original_markers
             self.entry_dict["markers"] = self.marker_to_str(original_markers)
-        entry_hashes = set(self.entry.hashes)
-        locked_hashes = set(self.lockfile_entry.hashes)
-        if entry_hashes != locked_hashes and not self.is_updated:
-            self.entry_dict["hashes"] = sorted(entry_hashes | locked_hashes)
+        entry_hashes = set(self.entry_dict.get("hashes", []))
+        self.entry_dict["hashes"] = sorted(entry_hashes)
         self.entry_dict["name"] = self.name
         if "version" in self.entry_dict:
             self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
@@ -383,12 +384,12 @@ class Entry:
 
     @property
     def updated_version(self):
-        version = self.entry.specifiers
+        version = str(self.entry.specifier)
         return self.strip_version(version)
 
     @property
     def updated_specifier(self) -> str:
-        return self.entry.specifiers
+        return str(self.entry.specifier)
 
     @property
     def original_specifier(self) -> str:
@@ -456,9 +457,7 @@ class Entry:
             c for c in self.resolver.parsed_constraints if c and c.name == self.entry.name
         }
         pipfile_constraint = self.get_pipfile_constraint()
-        if pipfile_constraint and not (
-            self.pipfile_entry.editable or pipfile_constraint.editable
-        ):
+        if pipfile_constraint:
             constraints.add(pipfile_constraint)
         return constraints
 
@@ -470,7 +469,7 @@ class Entry:
         :return: An **InstallRequirement** instance representing a version constraint
         """
         if self.is_in_pipfile:
-            return self.pipfile_entry.ireq
+            return self.pipfile_entry
 
     def validate_constraints(self):
         """
@@ -485,9 +484,9 @@ class Entry:
         constraints = self.get_constraints()
         pinned_version = self.updated_version
         for constraint in constraints:
-            if not constraint.req:
+            if not isinstance(constraint, Requirement):
                 continue
-            if pinned_version and not constraint.req.specifier.contains(
+            if pinned_version and not constraint.specifier.contains(
                 str(pinned_version), prereleases=True
             ):
                 if self.project.s.is_verbose():
@@ -496,7 +495,7 @@ class Entry:
                     "Cannot resolve conflicting version {}{} while {}{} is "
                     "locked.".format(
                         self.name,
-                        constraint.req.specifier,
+                        constraint.specifier,
                         self.name,
                         self.updated_specifier,
                     )

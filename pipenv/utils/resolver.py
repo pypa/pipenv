@@ -228,6 +228,14 @@ class Resolver:
             pre=pre,
             category=category,
         )
+        markers_lookup = {}
+        if not req_dir:
+            req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-reqdir")
+        for dep in deps:
+            if not dep:
+                continue
+            # index_lookup.update(dep)
+            # markers_lookup.update(dep)
         resolver.initial_constraints = deps
         # resolver.skipped = skipped
         resolver.index_lookup = index_lookup
