@@ -235,7 +235,7 @@ class _PipenvInstance:
         self._path = None
 
     def run_command(self, cmd):
-        result = subprocess.run(cmd, shell=True, capture_output=True)
+        result = subprocess.run(cmd, capture_output=True)
         try:
             std_out_decoded = result.stdout.decode("utf-8")
         except UnicodeDecodeError:
@@ -250,7 +250,7 @@ class _PipenvInstance:
 
     def pipenv(self, cmd, block=True):
         self.capfd.readouterr()
-        r = self.run_command(f"pipenv {cmd}")
+        r = self.run_command(f"{sys.executable} -m pipenv {cmd}")
         # Pretty output for failing tests.
         out, err = self.capfd.readouterr()
         if out:

@@ -9,6 +9,7 @@ import shutil
 import stat
 import subprocess as sp
 import sys
+import tempfile
 import time
 import uuid
 import warnings
@@ -26,7 +27,6 @@ from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_k
 from pipenv.patched.pip._internal.operations.prepare import File, _check_download_dir, unpack_vcs_link, get_file_url
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.operations.prepare import unpack_url
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement

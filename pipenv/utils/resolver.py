@@ -6,11 +6,11 @@ import sys
 import warnings
 from functools import lru_cache
 from html.parser import HTMLParser
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional
 from urllib import parse
 
 from pipenv import environments
-from pipenv.exceptions import RequirementError, ResolutionFailure
+from pipenv.exceptions import ResolutionFailure
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.exceptions import InstallationError
@@ -23,6 +23,7 @@ from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_parsed_requirement,
 )
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor import pkg_resources, rich
@@ -30,8 +31,7 @@ from pipenv.project import Project
 from pipenv.resolver import resolve_packages
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir, open_file
-from pipenv.vendor.requirementslib.models.requirements import Line, Requirement
-from pipenv.vendor.requirementslib.models.utils import DIRECT_URL_RE
+from pipenv.vendor.requirementslib.models.utils import normalize_name
 
 try:
     # this is only in Python3.8 and later
@@ -46,13 +46,11 @@ from .dependencies import (
     convert_deps_to_pip,
     get_constraints_from_deps,
     get_lockfile_section_using_pipfile_category,
-    get_vcs_deps,
     is_pinned_requirement,
-    pep423_name,
     prepare_constraint_file,
     translate_markers,
 )
-from .indexes import parse_indexes, prepare_pip_source_args
+from .indexes import prepare_pip_source_args
 from .internet import _get_requests_session, is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import subprocess_run, temp_environ
@@ -198,253 +196,6 @@ class Resolver:
             )
         return self._hash_cache
 
-    def get_metadata(
-        self,
-        deps: List[str],
-        index_lookup: Dict[str, str],
-        markers_lookup: Dict[str, str],
-        project: Project,
-        sources: Dict[str, str],
-        req_dir: Optional[str] = None,
-        pre: bool = False,
-        clear: bool = False,
-        category: str = None,
-    ) -> Tuple[
-        Set[str],
-        Dict[str, Dict[str, Union[str, bool, List[str]]]],
-        Dict[str, str],
-        Dict[str, str],
-    ]:
-        constraints: Set[str] = set()
-        skipped: Dict[str, Dict[str, Union[str, bool, List[str]]]] = {}
-        if index_lookup is None:
-            index_lookup = {}
-        if markers_lookup is None:
-            markers_lookup = {}
-        if not req_dir:
-            req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-reqdir")
-        for dep in deps:
-            if not dep:
-                continue
-            req, req_idx, markers_idx = self.parse_line(
-                dep,
-                index_lookup=index_lookup,
-                markers_lookup=markers_lookup,
-                project=project,
-            )
-            index_lookup.update(req_idx)
-            markers_lookup.update(markers_idx)
-            # Add dependencies of any file (e.g. wheels/tarballs), source, or local
-            # directories into the initial constraint pool to be resolved with the
-            # rest of the dependencies, while adding the files/vcs deps/paths themselves
-            # to the lockfile directly
-            use_sources = None
-            if req.name in index_lookup:
-                use_sources = list(
-                    filter(lambda s: s.get("name") == index_lookup[req.name], sources)
-                )
-            if not use_sources:
-                use_sources = sources
-            transient_resolver = Resolver(
-                [],
-                req_dir,
-                project,
-                use_sources,
-                index_lookup=index_lookup,
-                markers_lookup=markers_lookup,
-                clear=clear,
-                pre=pre,
-                category=category,
-            )
-            constraint_update, lockfile_update = self.get_deps_from_req(
-                req, resolver=transient_resolver, resolve_vcs=project.s.PIPENV_RESOLVE_VCS
-            )
-            constraints |= constraint_update
-            skipped.update(lockfile_update)
-        return constraints, skipped, index_lookup, markers_lookup
-
-    def parse_line(
-        self,
-        line: str,
-        index_lookup: Dict[str, str] = None,
-        markers_lookup: Dict[str, str] = None,
-        project: Optional[Project] = None,
-    ) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]:
-        if index_lookup is None:
-            index_lookup = {}
-        if markers_lookup is None:
-            markers_lookup = {}
-        if project is None:
-            from pipenv.project import Project
-
-            project = Project()
-        index, extra_index, trust_host, remainder = parse_indexes(line)
-        line = " ".join(remainder)
-        try:
-            req = Requirement.from_line(line)
-        except ValueError:
-            direct_url = DIRECT_URL_RE.match(line)
-            if direct_url:
-                name = direct_url.groupdict()["name"]
-                line = f"{name}@ {line}"
-                try:
-                    req = Requirement.from_line(line)
-                except ValueError:
-                    raise ResolutionFailure(
-                        f"Failed to resolve requirement from line: {line!s}"
-                    )
-            else:
-                raise ResolutionFailure(
-                    f"Failed to resolve requirement from line: {line!s}"
-                )
-        if index:
-            try:
-                index_lookup[req.normalized_name] = project.get_source(
-                    url=index, refresh=True
-                ).get("name")
-            except TypeError:
-                pass
-        try:
-            req.normalized_name
-        except TypeError:
-            raise RequirementError(req=req)
-        # strip the marker and re-add it later after resolution
-        # but we will need a fallback in case resolution fails
-        # eg pypiwin32
-        if req.markers:
-            markers_lookup[req.normalized_name] = req.markers.replace('"', "'")
-        return req, index_lookup, markers_lookup
-
-    def get_deps_from_req(
-        self,
-        req: Requirement,
-        resolver: Optional["Resolver"] = None,
-        resolve_vcs: bool = True,
-    ) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]:
-        from pipenv.vendor.requirementslib.models.requirements import Requirement
-        from pipenv.vendor.requirementslib.models.utils import (
-            _requirement_to_str_lowercase_name,
-        )
-        from pipenv.vendor.requirementslib.utils import is_installable_dir
-
-        # TODO: this is way too complex, refactor this
-        constraints: Set[str] = set()
-        locked_deps: Dict[str, Dict[str, Union[str, bool, List[str]]]] = {}
-        editable_packages = self.project.get_editable_packages(category=self.category)
-        if (req.is_file_or_url or req.is_vcs) and not req.is_wheel:
-            # for local packages with setup.py files and potential direct url deps:
-            if req.is_vcs:
-                req_list, lockfile = get_vcs_deps(reqs=[req])
-                req = next(iter(req for req in req_list if req is not None), req_list)
-                entry = lockfile[pep423_name(req.normalized_name)]
-            else:
-                _, entry = req.pipfile_entry
-            parsed_line: Line = req.req.parsed_line
-            try:
-                name = req.normalized_name
-            except TypeError:
-                raise RequirementError(req=req)
-            if parsed_line.setup_info:
-                setup_info = parsed_line.setup_info
-            else:
-                setup_info = req.req.parse_setup_info()
-            locked_deps[pep423_name(name)] = entry
-            requirements = []
-            # Allow users to toggle resolution off for non-editable VCS packages
-            # but leave it on for local, installable folders on the filesystem
-            if resolve_vcs or (
-                req.editable
-                or parsed_line.is_wheel
-                or (
-                    req.is_file_or_url
-                    and parsed_line.is_local
-                    and is_installable_dir(parsed_line.path)
-                )
-            ):
-                setup_info.run_pyproject()
-                setup_info.run_setup()
-                requirements = [v for v in getattr(setup_info, "requires", {}).values()]
-                if req.extras:
-                    for extra in req.extras:
-                        requirements.extend(
-                            v
-                            for v in getattr(setup_info, "extras", {}).get(extra, [])
-                            if v not in requirements
-                        )
-            for r in requirements:
-                if getattr(r, "url", None) and not getattr(r, "editable", False):
-                    if r is not None:
-                        if not r.url:
-                            continue
-                        line = _requirement_to_str_lowercase_name(r)
-                        new_req, _, _ = self.parse_line(line)
-                        if r.marker and not r.marker.evaluate():
-                            new_constraints = {}
-                            _, new_entry = req.pipfile_entry
-                            new_lock = {pep423_name(new_req.normalized_name): new_entry}
-                        else:
-                            new_constraints, new_lock = self.get_deps_from_req(
-                                new_req, resolver
-                            )
-                        locked_deps.update(new_lock)
-                        constraints |= new_constraints
-                # if there is no marker or there is a valid marker, add the constraint line
-                elif r and (not r.marker or (r.marker and r.marker.evaluate())):
-                    if r.name not in editable_packages:
-                        line = _requirement_to_str_lowercase_name(r)
-                        constraints.add(line)
-            # ensure the top level entry remains as provided
-            # note that we shouldn't pin versions for editable vcs deps
-            if not req.is_vcs:
-                if req.specifiers:
-                    locked_deps[name]["version"] = req.specifiers
-                elif parsed_line.setup_info and parsed_line.setup_info.version:
-                    locked_deps[name]["version"] = "=={}".format(
-                        parsed_line.setup_info.version
-                    )
-            # if not req.is_vcs:
-            locked_deps.update({name: entry})
-        else:
-            # if the dependency isn't installable, don't add it to constraints
-            # and instead add it directly to the lock
-            if (
-                req
-                and req.requirement
-                and (req.requirement.marker and not req.requirement.marker.evaluate())
-            ):
-                pypi = resolver.finder if resolver else None
-                ireq = req.ireq
-                best_match = (
-                    pypi.find_best_candidate(ireq.name, ireq.specifier).best_candidate
-                    if pypi
-                    else None
-                )
-                if best_match:
-                    ireq.req.specifier = ireq.specifier.__class__(
-                        f"=={best_match.version}"
-                    )
-                    hashes = resolver.collect_hashes(ireq) if resolver else []
-                    new_req = Requirement.from_ireq(ireq)
-                    new_req.add_hashes(hashes)
-                    new_req.merge_markers(req.markers)
-                    name, entry = new_req.pipfile_entry
-                    locked_deps[pep423_name(name)] = translate_markers(entry)
-                    click.echo(
-                        "{} doesn't match your environment, "
-                        "its dependencies won't be resolved.".format(req.as_line()),
-                        err=True,
-                    )
-                else:
-                    click.echo(
-                        "Could not find a version of {} that matches your environment, "
-                        "it will be skipped.".format(req.as_line()),
-                        err=True,
-                    )
-                return constraints, locked_deps
-            constraints.add(req.constraint_line)
-            return constraints, locked_deps
-        return constraints, locked_deps
-
     @classmethod
     def create(
         cls,
@@ -477,19 +228,8 @@ class Resolver:
             pre=pre,
             category=category,
         )
-        constraints, skipped, index_lookup, markers_lookup = resolver.get_metadata(
-            deps,
-            index_lookup,
-            markers_lookup,
-            project,
-            sources,
-            req_dir=req_dir,
-            pre=pre,
-            clear=clear,
-            category=category,
-        )  # Workaround to the fact `get_metadata` instantiates a transient Resolver
-        resolver.initial_constraints = constraints
-        resolver.skipped = skipped
+        resolver.initial_constraints = deps
+        # resolver.skipped = skipped
         resolver.index_lookup = index_lookup
         resolver.markers_lookup = markers_lookup
         return resolver
@@ -667,7 +407,6 @@ class Resolver:
             # Only use default_constraints when installing dev-packages
             if self.category != "packages":
                 self._constraints += self.default_constraints
-            self._constraints.sort(key=lambda ireq: ireq.name)
         return self._constraints
 
     @contextlib.contextmanager
@@ -900,19 +639,18 @@ class Resolver:
         return req.name, entry
 
     def clean_results(self):
-        reqs = [(Requirement.from_ireq(ireq), ireq) for ireq in self.resolved_tree]
+        reqs = [(ireq,) for ireq in self.resolved_tree]
         results = {}
-        for req, ireq in reqs:
-            if req.vcs and req.editable and not req.is_direct_url:
+        for (ireq,) in reqs:
+            if ireq.link and ireq.editable and not ireq.link.is_file:
                 continue
-            elif req.normalized_name in self.skipped.keys():
+            elif normalize_name(ireq.name) in self.skipped.keys():
                 continue
             collected_hashes = self.hashes.get(ireq, set())
-            req.add_hashes(collected_hashes)
             if collected_hashes:
                 collected_hashes = sorted(collected_hashes)
             name, entry = format_requirement_for_lockfile(
-                req, self.markers_lookup, self.index_lookup, collected_hashes
+                ireq, self.markers_lookup, self.index_lookup, collected_hashes
             )
             entry = translate_markers(entry)
             if name in results:
@@ -920,7 +658,7 @@ class Resolver:
             else:
                 results[name] = entry
         for k in list(self.skipped.keys()):
-            req = Requirement.from_pipfile(k, self.skipped[k])
+            req = InstallRequirement.from_line(k + self.skipped[k])
             name, entry = self._clean_skipped_result(req, self.skipped[k])
             entry = translate_markers(entry)
             if name in results:

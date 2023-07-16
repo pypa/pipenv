@@ -1,5 +1,4 @@
 import importlib.util
-import json
 import logging
 import os
 import sys
@@ -141,12 +140,13 @@ class Entry:
 
     @staticmethod
     def make_requirement(name=None, entry=None):
-        from pipenv.vendor.requirementslib.models.requirements import Requirement
+        from pipenv.utils.dependencies import from_pipfile
 
-        return Requirement.from_pipfile(name, entry)
+        return from_pipfile(name, entry)
 
     @classmethod
     def clean_initial_dict(cls, entry_dict):
+        entry_dict.get("version", "")
         if not entry_dict.get("version", "").startswith("=="):
             entry_dict["version"] = cls.clean_specifier(entry_dict.get("version", ""))
         if "name" in entry_dict:
@@ -580,37 +580,6 @@ def clean_results(results, resolver, project, category):
         entry_dict = translate_markers(entry.get_cleaned_dict())
         new_results.append(entry_dict)
     return new_results
-
-
-def parse_packages(packages, pre, clear, system, requirements_dir=None):
-    from pipenv.utils.indexes import parse_indexes
-    from pipenv.vendor.requirementslib.fileutils import cd, temp_path
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
-
-    parsed_packages = []
-    for package in packages:
-        *_, line = parse_indexes(package)
-        line = " ".join(line)
-        pf = {}
-        req = Requirement.from_line(line)
-        if not req.name:
-            with temp_path(), cd(req.req.setup_info.base_dir):
-                sys.path.insert(0, req.req.setup_info.base_dir)
-                req.req.setup_info.get_info()
-                req.update_name_from_path(req.req.setup_info.base_dir)
-        try:
-            name, entry = req.pipfile_entry
-        except Exception:
-            continue
-        else:
-            if name is not None and entry is not None:
-                pf[name] = entry
-                parsed_packages.append(pf)
-    print("RESULTS:")
-    if parsed_packages:
-        print(json.dumps(parsed_packages))
-    else:
-        print(json.dumps([]))
 
 
 def resolve_packages(

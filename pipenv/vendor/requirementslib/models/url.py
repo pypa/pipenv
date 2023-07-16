@@ -285,10 +285,7 @@ class URI(ReqLibBaseModel):
             query = "{query}?{self.query}".format(query=query, self=self)
         subdir_prefix = "#"
         if not direct:
-            if self.name and not strip_name:
-                fragment = "#egg={self.name_with_extras}".format(self=self)
-                subdir_prefix = "&"
-            elif not strip_name and (
+            if not strip_name and (
                 self.extras and self.scheme and self.scheme.startswith("file")
             ):
                 from .utils import extras_to_string
@@ -296,7 +293,7 @@ class URI(ReqLibBaseModel):
                 fragment = extras_to_string(self.extras)
             else:
                 fragment = ""
-            query = "{query}{fragment}".format(query=query, fragment=fragment)
+            query = f"{fragment}{query}"
         if self.subdirectory and not strip_subdir:
             query = "{query}{subdir_prefix}subdirectory={self.subdirectory}".format(
                 query=query, subdir_prefix=subdir_prefix, self=self
@@ -310,7 +307,7 @@ class URI(ReqLibBaseModel):
 
             url = strip_ssh_from_git_uri(url)
         if self.name and direct and not strip_name:
-            return "{self.name_with_extras}@ {url}".format(self=self, url=url)
+            return f"{self.name_with_extras} @ {url}"
         return url
 
     def get_host_port_path(self, strip_ref=False):
@@ -454,7 +451,6 @@ class URI(ReqLibBaseModel):
 def update_url_name_and_fragment(name_with_extras, ref, parsed_dict):
     # type: (Optional[str], Optional[str], Dict[str, Optional[str]]) -> Dict[str, Optional[str]]
     if name_with_extras:
-        fragment = ""  # type: Optional[str]
         parsed_extras = ()
         name, extras = _strip_extras(name_with_extras)
         if extras:
@@ -469,11 +465,10 @@ def update_url_name_and_fragment(name_with_extras, ref, parsed_dict):
                     parsed_extras = parsed_extras + tuple(
                         parse_extras_str(fragment_extras)
                     )
-                name_with_extras = "{0}{1}".format(name, extras_to_string(parsed_extras))
         elif (
             parsed_dict.get("path") is not None and "&subdirectory" in parsed_dict["path"]
         ):
-            path, fragment = URI.parse_subdirectory(parsed_dict["path"])  # type: ignore
+            path, fragment = URI.parse_subdirectory(parsed_dict["path"])
             parsed_dict["path"] = path
         elif ref is not None and "&subdirectory" in ref:
             ref, fragment = URI.parse_subdirectory(ref)

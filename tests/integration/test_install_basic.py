@@ -298,10 +298,10 @@ def test_clean_on_empty_venv(pipenv_instance_pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_does_not_extrapolate_environ(pipenv_instance_pypi):
+def test_install_does_not_extrapolate_environ(pipenv_instance_private_pypi):
     """Ensure environment variables are not expanded in lock file.
     """
-    with temp_environ(), pipenv_instance_pypi() as p:
+    with temp_environ(), pipenv_instance_private_pypi() as p:
         os.environ["PYPI_URL"] = p.pypi
 
         with open(p.pipfile_path, "w") as f:
@@ -321,7 +321,7 @@ name = 'mockpi'
         assert p.lockfile["_meta"]["sources"][0]["url"] == "${PYPI_URL}/simple"
 
         # Ensure package install does not extrapolate.
-        c = p.pipenv("install six")
+        c = p.pipenv("install six -v")
         assert c.returncode == 0
         assert p.pipfile["source"][0]["url"] == "${PYPI_URL}/simple"
         assert p.lockfile["_meta"]["sources"][0]["url"] == "${PYPI_URL}/simple"

@@ -23,10 +23,12 @@ from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_pat
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.configuration import Configuration
 from pipenv.patched.pip._internal.exceptions import ConfigurationError
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     get_canonical_names,
+    install_req_from_line,
     is_editable,
     pep423_name,
     python_version,
@@ -45,7 +47,10 @@ from pipenv.utils.shell import (
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
 from pipenv.vendor import click, plette, tomlkit
-from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
+from pipenv.vendor.requirementslib.models.utils import (
+    get_default_pyproject_backend,
+    normalize_name,
+)
 
 try:
     # this is only in Python3.8 and later
@@ -969,27 +974,39 @@ class Project:
         self.write_toml(parsed)
 
     def add_package_to_pipfile(self, package, dev=False, category=None):
-        from .vendor.requirementslib import Requirement
-
         newly_added = False
+
         # Read and append Pipfile.
         p = self.parsed_pipfile
+
         # Don't re-capitalize file URLs or VCSs.
-        if not isinstance(package, Requirement):
-            package = Requirement.from_line(package.strip(), parse_setup_info=False)
-        req_name, converted = package.pipfile_entry
+        if not isinstance(package, InstallRequirement):
+            package = install_req_from_line(package.strip())
+
+        req_name = package.name
+        if package.req:
+            converted = str(package.specifier)
+            if not converted:
+                converted = "*"
+
         category = category if category else "dev-packages" if dev else "packages"
+
         # Set empty group if it doesn't exist yet.
         if category not in p:
             p[category] = {}
+
         # Add the package to the group.
-        name = self.get_package_name_in_pipfile(req_name, category=category)
-        normalized_name = pep423_name(req_name)
-        if name and name != normalized_name:
-            self.remove_package_from_pipfile(name, category=category)
-        if normalized_name not in p[category]:
+        normalized_name = normalize_name(req_name)
+        if normalized_name in p[category]:
+            existing_requirement = p[category][normalized_name]
+            # If the requirement is the same, then nothing to do
+            if existing_requirement == converted:
+                return False, category
+        else:
             newly_added = True
+
         p[category][normalized_name] = converted
+
         # Write Pipfile.
         self.write_toml(p)
         return newly_added, category

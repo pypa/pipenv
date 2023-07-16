@@ -305,6 +305,7 @@ def parse_req_from_line(name: str, line_source: Optional[str]) -> RequirementPar
 
     if is_url(name):
         link = Link(name)
+        _, extras_as_string = _strip_extras(link.egg_fragment)
     else:
         p, extras_as_string = _strip_extras(path)
         url = _get_url_from_path(p, name)

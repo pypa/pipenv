@@ -1,18 +1,21 @@
 import os
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
-from typing import Mapping, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
+from urllib.parse import urlparse
 
+from pipenv.patched.pip._internal.req.constructors import parse_req_from_line
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._vendor.distlib.util import COMPARE_OP
 from pipenv.patched.pip._vendor.packaging.markers import Marker
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
-from pipenv.vendor.requirementslib.models.requirements import (
-    InstallRequirement,
-    Requirement,
-)
+from pipenv.vendor.requirementslib.models.markers import PipenvMarkers
+from pipenv.vendor.requirementslib.models.utils import get_version
+from pipenv.vendor.requirementslib.utils import prepare_pip_source_args
 
 from .constants import SCHEME_LIST, VCS_LIST
-from .shell import temp_path
 
 
 def python_version(path_to_python):
@@ -92,45 +95,6 @@ def pep423_name(name):
         return name
 
 
-def get_vcs_deps(project=None, dev=False, pypi_mirror=None, packages=None, reqs=None):
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
-
-    section = "vcs_dev_packages" if dev else "vcs_packages"
-    if reqs is None:
-        reqs = []
-    lockfile = {}
-    if not reqs:
-        if not project and not packages:
-            raise ValueError(
-                "Must supply either a project or a pipfile section to lock vcs dependencies."
-            )
-        if not packages:
-            try:
-                packages = getattr(project, section)
-            except AttributeError:
-                return [], []
-        reqs = [Requirement.from_pipfile(name, entry) for name, entry in packages.items()]
-    result = []
-    for requirement in reqs:
-        name = requirement.normalized_name
-        commit_hash = None
-        if requirement.is_vcs:
-            try:
-                with temp_path(), locked_repository(requirement) as repo:
-                    from pipenv.vendor.requirementslib.models.requirements import (
-                        Requirement,
-                    )
-
-                    commit_hash = repo.commit_hash
-                    name = requirement.normalized_name
-                    lockfile[name] = requirement.pipfile_entry[1]
-                    lockfile[name]["ref"] = commit_hash
-                    result.append(requirement)
-            except OSError:
-                continue
-    return result, lockfile
-
-
 def translate_markers(pipfile_entry):
     """Take a pipfile entry and normalize its markers
 
@@ -175,45 +139,52 @@ def translate_markers(pipfile_entry):
 
 
 def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
-    from pipenv.vendor.requirementslib.utils import is_vcs
+    from pipenv.patched.pip._vendor.packaging.requirements import (
+        Requirement as PipRequirement,
+    )
 
     name = pep423_name(dep["name"])
     lockfile = {}
-    # We use this to determine if there are any markers on top level packages
-    # So we can make sure those win out during resolution if the packages reoccur
-    if "version" in dep and dep["version"] and not dep.get("editable", False):
-        version = "{}".format(dep["version"])
-        if not version.startswith("=="):
-            version = f"=={version}"
-        lockfile["version"] = version
-    if is_vcs(dep):
-        ref = dep.get("ref", None)
-        if ref is not None:
-            lockfile["ref"] = ref
-        vcs_type = next(iter(k for k in dep.keys() if k in VCS_LIST), None)
-        if vcs_type:
+
+    version = dep.get("version", None)
+
+    is_vcs_or_file = False
+    for vcs_type in VCS_LIST:
+        if vcs_type in dep:
             lockfile[vcs_type] = dep[vcs_type]
-        if "subdirectory" in dep:
-            lockfile["subdirectory"] = dep["subdirectory"]
-    for key in ["hashes", "index", "extras", "editable"]:
-        if key in dep:
-            lockfile[key] = dep[key]
-    # In case we lock a uri or a file when the user supplied a path
-    # remove the uri or file keys from the entry and keep the path
+            lockfile["ref"] = dep.get("rev")
+            is_vcs_or_file = True
+
+    if version and not is_vcs_or_file:
+        if isinstance(version, PipRequirement):
+            if version.specifier:
+                lockfile["version"] = str(version.specifier)
+            if version.extras:
+                lockfile["extras"] = sorted(version.extras)
+
+    if "editable" in dep:
+        lockfile["editable"] = dep["editable"]
+
     preferred_file_keys = ["path", "file"]
     dependency_file_key = next(iter(k for k in preferred_file_keys if k in dep), None)
     if dependency_file_key:
         lockfile[dependency_file_key] = dep[dependency_file_key]
-    # Pipfile entry overrides path/file from resolver
+
+    if dep.get("hashes"):
+        lockfile["hashes"] = dep["hashes"]
+
+    if hasattr(dep, "index"):
+        lockfile["index"] = dep.index
+
+    # In case we lock a uri or a file when the user supplied a path
+    # remove the uri or file keys from the entry and keep the path
     if pipfile_entry and isinstance(pipfile_entry, dict):
         for k in preferred_file_keys:
             if k in pipfile_entry.keys():
                 lockfile[k] = pipfile_entry[k]
                 break
-    # If a package is **PRESENT** in the pipfile but has no markers, make sure we
-    # **NEVER** include markers in the lockfile
+
     if "markers" in dep and dep.get("markers", "").strip():
-        # First, handle the case where there is no top level dependency in the pipfile
         if not is_top_level:
             translated = translate_markers(dep).get("markers", "").strip()
             if translated:
@@ -221,8 +192,6 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
                     lockfile["markers"] = translated
                 except TypeError:
                     pass
-        # otherwise make sure we are prioritizing whatever the pipfile says about the markers
-        # If the pipfile says nothing, then we should put nothing in the lockfile
         else:
             try:
                 pipfile_entry = translate_markers(pipfile_entry)
@@ -230,7 +199,43 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
                     lockfile["markers"] = pipfile_entry.get("markers")
             except TypeError:
                 pass
+
     return {name: lockfile}
+
+
+def as_pipfile(dep: InstallRequirement) -> Dict[str, Any]:
+    """Create a pipfile entry for the given InstallRequirement."""
+    pipfile_dict = {}
+    name = dep.name
+    version = dep.req.specifier
+
+    # Construct the pipfile entry
+    pipfile_dict[name] = {
+        "version": str(version),
+        "editable": dep.editable,
+        "extras": list(dep.extras),
+    }
+
+    if dep.link:
+        # If it's a VCS link
+        if dep.link.is_vcs:
+            pipfile_dict[name]["vcs"] = dep.link.url_without_fragment
+        # If it's a URL link
+        elif dep.link.scheme.startswith("http"):
+            pipfile_dict[name]["file"] = dep.link.url_without_fragment
+        # If it's a local file
+        elif dep.link.is_file:
+            pipfile_dict[name]["path"] = dep.link.file_path
+
+    # Convert any markers to their string representation
+    if dep.markers:
+        pipfile_dict[name]["markers"] = str(dep.markers)
+
+    # If a hash is available, add it to the pipfile entry
+    if dep.hash_options:
+        pipfile_dict[name]["hashes"] = dep.hash_options
+
+    return pipfile_dict
 
 
 def is_star(val):
@@ -257,6 +262,98 @@ def is_pinned_requirement(ireq):
     return spec.operator in {"==", "==="} and not spec.version.endswith(".*")
 
 
+def req_as_line2(dep_name, dep, include_hashes, include_markers, sources):
+    """Creates a requirement line from a requirement name and an InstallRequirement"""
+    line = []
+    if dep.link:
+        if dep.link.is_vcs:  # VCS Requirements
+            line.append(f"{dep.link.url}#egg={dep_name}")
+            if dep.link.revision and not dep.link.is_artifact:
+                line.append(f"@{dep.link.revision}")
+            if include_markers and dep.marker:
+                line.append(f"; {dep.marker}")
+        else:  # URL or local file path Requirements
+            line.append(f"{dep.link.egg_fragment} @ {dep.link.url_without_fragment}")
+            if include_markers and dep.marker:
+                line.append(f"; {dep.marker}")
+    else:  # PyPI package
+        line.append(f"{dep_name}")
+        if dep.specifier:
+            line.append(f"{dep.specifier}")
+        if include_hashes and dep.hashes():
+            line.append(f"\n--hash={dep.hashes()}")
+        if include_markers and dep.marker:
+            line.append(f"; {dep.marker}")
+    line.append("\n")
+
+    if hasattr(dep, "index"):
+        sources = [s for s in sources if s.get("name") == dep.ndex]
+    else:
+        sources = [sources[0]]
+    source_list = prepare_pip_source_args(sources)
+    line.extend(source_list)
+
+    pip_line = "".join(line)
+    return pip_line
+
+
+def req_as_line(dep_name, dep, include_hashes, include_markers, sources):
+    if isinstance(dep, str):
+        if is_star(dep):
+            return dep_name
+        elif not COMPARE_OP.match(dep):
+            return f"{dep_name}=={dep}"
+        return f"{dep_name}{dep}"
+    line = []
+    vcs = next(iter([vcs for vcs in VCS_LIST if vcs in dep]), None)
+
+    if vcs and vcs in dep:  # VCS Requirements
+        extras = ""
+        ref = ""
+        if dep.get("rev"):
+            ref = f"@{dep['ref']}"
+        if "extras" in dep:
+            extras = f"[{','.join(dep['extras'])}]"
+        git_req = f"{dep_name}{extras} @ {dep[vcs]}{ref}"
+        if "subdirectory" in dep:
+            git_req += f"#subdirectory={dep['subdirectory']}"
+        line.append(git_req)
+    elif "file" in dep:  # File Requirements
+        extras = ""
+        if "extras" in dep:
+            extras = f"[{','.join(dep['extras'])}]"
+        line.append(f"{dep_name}{extras} @ {dep['file']}")
+    elif "path" in dep:  # Editable Requirements
+        if dep.get("editable"):
+            line.append("-e")
+        line.append(dep["path"])
+    else:  # Normal/Named Requirements
+        line.append(dep_name)
+        if "extras" in dep:
+            line[-1] += f"[{','.join(dep['extras'])}]"
+        if "version" in dep:
+            version = dep["version"]
+            if version and not is_star(version) and COMPARE_OP.match(version):
+                version = f"=={version}"
+                line[-1] += version
+
+    if include_markers and dep.get("markers"):
+        line.append(f'; {dep["markers"]}')
+
+    if include_hashes and dep.get("hashes"):
+        line.extend([f"--hash={hash}" for hash in dep["hashes"]])
+
+    if dep.get("index"):
+        sources = [s for s in sources if s.get("name") == dep["index"]]
+    else:
+        sources = [sources[0]]
+    source_list = prepare_pip_source_args(sources)
+    line.extend(source_list)
+
+    pip_line = " ".join(line)
+    return pip_line
+
+
 def convert_deps_to_pip(
     deps,
     project=None,
@@ -272,31 +369,145 @@ def convert_deps_to_pip(
         indexes = []
         if project:
             indexes = project.pipfile_sources()
-        new_dep = Requirement.from_pipfile(dep_name, dep)
-        if new_dep.index:
-            include_index = True
-        sources = indexes if include_index else None
-        req = new_dep.as_line(
-            sources=sources,
-            include_hashes=include_hashes,
-            include_markers=include_markers,
-        ).strip()
+        sources = indexes
+        req = req_as_line(dep_name, dep, include_hashes, include_markers, sources)
         dependencies.append(req)
     return dependencies
 
 
-def get_constraints_from_deps(deps):
-    """Get contraints from Pipfile-formatted dependency"""
+def install_req_from_line(
+    name: str,
+    comes_from: Optional[Union[str, InstallRequirement]] = None,
+    *,
+    use_pep517: Optional[bool] = None,
+    isolated: bool = False,
+    global_options: Optional[List[str]] = None,
+    hash_options: Optional[Dict[str, List[str]]] = None,
+    constraint: bool = False,
+    line_source: Optional[str] = None,
+    user_supplied: bool = False,
+    config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
+) -> InstallRequirement:
+    """Creates an InstallRequirement from a name, which might be a
+    requirement, directory containing 'setup.py', filename, or URL.
 
-    def is_constraints(dep: InstallRequirement) -> bool:
-        return dep.name and not dep.editable and not dep.extras
+    :param line_source: An optional string describing where the line is from,
+        for logging purposes in case of an error.
+    """
+    if name.startswith("-e "):
+        # Editable requirement
+        editable_path = name.split("-e ")[1]
+        if os.path.isdir(editable_path):
+            name = editable_path
+        else:
+            name = os.path.abspath(editable_path)
+
+    if (
+        os.path.isfile(name)
+        or os.path.isdir(name)
+        or urlparse(name).scheme in ("http", "https", "file")
+    ):
+        # It's a local file, directory or URL. Extract the base name, and
+        # then the package name.
+        if urlparse(name).scheme == "":
+            # It's a local file or directory
+            base_name = os.path.basename(name)
+        else:
+            # It's a URL
+            base_name = os.path.basename(urlparse(name).path)
+        package_name, _ = os.path.splitext(base_name)
+        package_name = package_name.split("-")[0]
+    else:
+        # It's a requirement
+        package_name = name
+
+    parts = parse_req_from_line(package_name, line_source)
+
+    return InstallRequirement(
+        parts.requirement,
+        comes_from,
+        link=parts.link,
+        markers=parts.markers,
+        use_pep517=use_pep517,
+        isolated=isolated,
+        global_options=global_options,
+        hash_options=hash_options,
+        config_settings=config_settings,
+        constraint=constraint,
+        extras=parts.extras,
+        user_supplied=user_supplied,
+    )
+
+
+def from_pipfile(name, pipfile):
+    _pipfile = {}
+    if hasattr(pipfile, "keys"):
+        _pipfile = dict(pipfile).copy()
+    _pipfile["version"] = get_version(pipfile)
+
+    # We ensure version contains an operator. Default to equals (==)
+    if (
+        _pipfile["version"]
+        and not is_star(_pipfile["version"])
+        and COMPARE_OP.match(_pipfile["version"]) is None
+    ):
+        _pipfile["version"] = "=={}".format(_pipfile["version"])
+    vcs = next(iter([vcs for vcs in VCS_LIST if vcs in _pipfile]), None)
+
+    if vcs:
+        _pipfile["vcs"] = vcs
+        req_str = f"{name}@{_pipfile[vcs]}"
+
+    elif any(key in _pipfile for key in ["path", "file", "uri"]):
+        req_str = f"{name}@{_pipfile['path']}"
+
+    else:
+        req_str = f"{name}{_pipfile['version']}"
+
+    extras = _pipfile.get("extras", [])
+    if extras:
+        req_str += f"[{','.join(extras)}]"
+
+    install_req = install_req_from_line(
+        req_str,
+        comes_from=None,
+        use_pep517=False,
+        isolated=False,
+        hash_options={"hashes": _pipfile.get("hashes", [])},
+        constraint=False,
+    )
+
+    markers = PipenvMarkers.from_pipfile(name, _pipfile)
+    if markers:
+        markers = str(markers)
+        install_req.markers = Marker(markers)
+
+    # Construct the requirement string for your Requirement class
+    req_str = f"{install_req.name}{install_req.req.specifier}"
+    if install_req.req.extras:
+        req_str += f"[{','.join(install_req.req.extras)}]"
+    if install_req.markers:
+        req_str += f"; {install_req.markers}"
+
+    # Create the Requirement instance
+    cls_inst = Requirement(req_str)
+
+    return cls_inst
+
+
+def get_constraints_from_deps(deps):
+    """Get constraints from dictionary-formatted dependency"""
+    from pip._vendor.packaging.utils import canonicalize_name
+
+    from pipenv.patched.pip._vendor.distlib.util import COMPARE_OP
 
     constraints = []
-    for dep_name, dep in deps.items():
-        new_dep = Requirement.from_pipfile(dep_name, dep)
-        if new_dep.is_named and is_constraints(new_dep.ireq):
-            c = new_dep.as_line().strip()
-            constraints.append(c)
+    for dep_name, dep_version in deps.items():
+        # Creating a constraint as a canonical name plus a version specifier
+        if not is_star(dep_version) and COMPARE_OP.match(dep_version) is None:
+            dep_version = f"=={dep_version}"
+        c = f"{canonicalize_name(dep_name)}{dep_version}"
+        constraints.append(c)
     return constraints
 
 

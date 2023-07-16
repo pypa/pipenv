@@ -4,28 +4,38 @@ from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 from typing import Mapping
 
+from pip._internal.req import InstallRequirement
+
+from pipenv.vendor.requirementslib.models.utils import normalize_name
+
 from .dependencies import clean_resolved_dep, pep423_name, translate_markers
 
 
-def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=None):
-    if req.specifiers:
-        version = str(req.get_version)
+def format_requirement_for_lockfile(
+    req: InstallRequirement, markers_lookup, index_lookup, hashes=None
+):
+    if req.specifier:
+        version = str(req.specifier)
     else:
         version = None
-    index = index_lookup.get(req.normalized_name)
-    markers = markers_lookup.get(req.normalized_name)
+    index = index_lookup.get(normalize_name(req.name))
+    markers = markers_lookup.get(normalize_name(req.name))
     req.index = index
-    name, pf_entry = req.pipfile_entry
-    name = pep423_name(req.name)
+    name = normalize_name(req.name)
     entry = {}
-    if isinstance(pf_entry, str):
-        entry["version"] = pf_entry.lstrip("=")
+    if req.link and req.link.is_vcs:
+        vcs = req.link.scheme.split("+", 1)[0]
+        entry[vcs] = req.link.url
+        revision = req.link.show_url.split("@", 1)
+        if len(revision) > 1:
+            revision = revision[1]
+            entry["rev"] = revision
+    if req.req:
+        entry["version"] = req.req
     else:
-        entry.update(pf_entry)
-        if version is not None and not req.is_vcs:
-            entry["version"] = version
-        if req.line_instance.is_direct_url and not req.is_vcs:
-            entry["file"] = req.req.uri
+        entry["version"] = version
+    if req.link and req.link.is_file:
+        entry["file"] = req.link.url
     if hashes:
         entry["hashes"] = sorted(set(hashes))
     entry["name"] = name
@@ -34,7 +44,7 @@ def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=No
     if markers:
         entry.update({"markers": markers})
     entry = translate_markers(entry)
-    if req.vcs or req.editable:
+    if req.editable:
         for key in ("index", "version", "file"):
             try:
                 del entry[key]
@@ -44,49 +54,52 @@ def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=No
 
 
 def get_locked_dep(dep, pipfile_section):
-    entry = None
+    # initialize default values
     cleaner_kwargs = {"is_top_level": False, "pipfile_entry": None}
+
+    # if the dependency has a name, find corresponding entry in pipfile
     if isinstance(dep, Mapping) and dep.get("name"):
         dep_name = pep423_name(dep["name"])
         for pipfile_key, pipfile_entry in pipfile_section.items():
             if pep423_name(pipfile_key) == dep_name:
-                entry = pipfile_entry
+                cleaner_kwargs.update(
+                    {"is_top_level": True, "pipfile_entry": pipfile_entry}
+                )
+                pipfile_entry.get("version", "") if isinstance(
+                    pipfile_entry, Mapping
+                ) else pipfile_entry
+                break
 
-    if entry:
-        cleaner_kwargs.update({"is_top_level": True, "pipfile_entry": entry})
+    # clean the dependency
     lockfile_entry = clean_resolved_dep(dep, **cleaner_kwargs)
-    if entry and isinstance(entry, Mapping):
-        version = entry.get("version", "") if entry else ""
-    else:
-        version = entry if entry else ""
+
+    # get the lockfile version and compare with pipfile version
     lockfile_name, lockfile_dict = lockfile_entry.copy().popitem()
-    lockfile_version = lockfile_dict.get("version", "")
-    # Keep pins from the lockfile
-    if lockfile_version != version and version.startswith("==") and "*" not in version:
-        lockfile_dict["version"] = version
     lockfile_entry[lockfile_name] = lockfile_dict
+
     return lockfile_entry
 
 
 def prepare_lockfile(results, pipfile, lockfile):
-    # from .vendor.requirementslib.utils import is_vcs
     for dep in results:
         if not dep:
             continue
-        # Merge in any relevant information from the pipfile entry, including
-        # markers, normalized names, URL info, etc that we may have dropped during lock
-        # if not is_vcs(dep):
         lockfile_entry = get_locked_dep(dep, pipfile)
-        name = next(iter(k for k in lockfile_entry.keys()))
-        current_entry = lockfile.get(name)
-        if current_entry:
-            if not isinstance(current_entry, Mapping):
-                lockfile[name] = lockfile_entry[name]
-            else:
-                lockfile[name].update(lockfile_entry[name])
-                lockfile[name] = translate_markers(lockfile[name])
+        dep_name = dep["name"]
+
+        # If the current dependency doesn't exist in the lockfile, add it
+        if dep_name not in lockfile:
+            lockfile[dep_name] = lockfile_entry[dep_name]
         else:
-            lockfile[name] = lockfile_entry[name]
+            # If the dependency exists, update the details
+            current_entry = lockfile[dep_name]
+            if not isinstance(current_entry, dict):
+                lockfile[dep_name] = lockfile_entry[dep_name]
+            else:
+                # If the current entry is a dict, merge the new details
+                lockfile[dep_name].update(lockfile_entry[dep_name])
+                lockfile[dep_name] = translate_markers(lockfile[dep_name])
+
     return lockfile
 
 

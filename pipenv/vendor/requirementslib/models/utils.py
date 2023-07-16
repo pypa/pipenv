@@ -277,10 +277,6 @@ def build_vcs_uri(
     subdirectory=None,
     extras=None,
 ):
-    # type: (...) -> STRING_TYPE
-    if extras is None:
-        extras = []
-    vcs_start = ""
     if vcs is not None:
         vcs_start = "{0}+".format(vcs)
         if not uri.startswith(vcs_start):

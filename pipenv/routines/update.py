@@ -1,5 +1,6 @@
 import sys
 
+from pipenv.patched.pip._internal.req.constructors import install_req_from_line
 from pipenv.routines.install import do_sync
 from pipenv.routines.lock import do_lock
 from pipenv.routines.outdated import do_outdated
@@ -13,7 +14,6 @@ from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import add_index_to_pipfile
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 
 def do_update(
@@ -131,7 +131,7 @@ def upgrade(
     for package in package_args[:]:
         # section = project.packages if not dev else project.dev_packages
         section = {}
-        package = Requirement.from_line(package)
+        package = install_req_from_line(package)
         if index_name:
             package.index = index_name
         package_name, package_val = package.pipfile_entry

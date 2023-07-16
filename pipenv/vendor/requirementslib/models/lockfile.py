@@ -5,14 +5,16 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional
 
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+
 from pipenv.vendor.plette import lockfiles
 from pipenv.vendor.pydantic import Field
+from pipenv.utils.dependencies import install_req_from_line
 
 from ..exceptions import LockfileCorruptException, MissingParameter, PipfileNotFound
 from ..utils import is_editable, is_vcs, merge_items
 from .common import ReqLibBaseModel
 from .project import ProjectFile
-from .requirements import Requirement
 
 DEFAULT_NEWLINES = "\n"
 
@@ -217,7 +219,9 @@ class Lockfile(ReqLibBaseModel):
 
     def get_requirements(
         self, dev: bool = True, only: bool = False, categories: Optional[List[str]] = None
-    ) -> Iterator[Requirement]:
+    ) -> Iterator[InstallRequirement]:
+        from pipenv.routines.requirements import requirement_from_dep
+
         if categories:
             deps = {}
             for category in categories:
@@ -233,8 +237,10 @@ class Lockfile(ReqLibBaseModel):
                 deps = merge_items([deps, category_deps])
         else:
             deps = self.get_deps(dev=dev, only=only)
-        for k, v in deps.items():
-            yield Requirement.from_pipfile(k, v)
+        for package_name, package_info in deps.items():
+            pip_line = requirement_from_dep(package_name, package_info, include_hashes=False, include_markers=False)
+            pip_line_specified = requirement_from_dep(package_name, package_info, include_hashes=True, include_markers=True)
+            yield install_req_from_line(pip_line), pip_line_specified
 
     def requirements_list(self, category: str) -> List[Dict]:
         if self.lockfile.get(category):

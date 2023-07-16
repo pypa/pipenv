@@ -9,6 +9,7 @@ from pipenv import environments, exceptions
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._vendor import rich
 from pipenv.routines.lock import do_lock
+from pipenv.utils.dependencies import install_req_from_line
 from pipenv.utils.indexes import get_source_list
 from pipenv.utils.internet import download_file, is_valid_url
 from pipenv.utils.pip import (
@@ -21,7 +22,6 @@ from pipenv.utils.requirements import add_index_to_pipfile, import_requirements
 from pipenv.utils.virtualenv import cleanup_virtualenv, do_create_virtualenv
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib import fileutils
-from pipenv.vendor.requirementslib.models.requirements import Requirement
 from pipenv.vendor.requirementslib.utils import temp_environ
 
 console = rich.console.Console()
@@ -184,8 +184,6 @@ def do_install(
 
     # This is for if the user passed in dependencies, then we want to make sure we
     else:
-        from pipenv.vendor.requirementslib.models.requirements import Requirement
-
         # make a tuple of (display_name, entry)
         pkg_list = packages + [f"-e {pkg}" for pkg in editable_packages]
         if not system and not project.virtualenv_exists:
@@ -216,9 +214,9 @@ def do_install(
                     os.environ["PIP_USER"] = "0"
                     if "PYTHONHOME" in os.environ:
                         del os.environ["PYTHONHOME"]
-                st.console.print(f"Resolving {pkg_line}...")
+                st.console.print(f"Resolving {pkg_line}...", markup=False)
                 try:
-                    pkg_requirement = Requirement.from_line(pkg_line)
+                    pkg_requirement = install_req_from_line(pkg_line)
                 except ValueError as e:
                     err.print("{}: {}".format(click.style("WARNING", fg="red"), e))
                     err.print(
@@ -230,7 +228,8 @@ def do_install(
                 st.update(f"Installing {pkg_requirement.name}...")
                 # Warn if --editable wasn't passed.
                 if (
-                    pkg_requirement.is_vcs
+                    pkg_requirement.link
+                    and pkg_requirement.link.is_vcs
                     and not pkg_requirement.editable
                     and not project.s.PIPENV_RESOLVE_VCS
                 ):
@@ -392,39 +391,30 @@ def do_install_dependencies(
         else:
             categories = ["packages"]
 
-    lockfile = None
-    pipfile = None
     for category in categories:
-        # Load the lockfile if it exists, or if dev_only is being used.
-        if skip_lock:
-            if not bare:
-                click.secho("Installing dependencies from Pipfile...", bold=True)
-            pipfile = project.get_pipfile_section(category)
-        else:
-            lockfile = project.get_or_create_lockfile(categories=categories)
-            if not bare:
-                click.secho(
-                    "Installing dependencies from Pipfile.lock ({})...".format(
-                        lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
-                    ),
-                    bold=True,
-                )
-        dev = dev or dev_only
-        if lockfile:
-            deps_list = list(
-                lockfile.get_requirements(dev=dev, only=dev_only, categories=[category])
+        lockfile = project.get_or_create_lockfile(categories=categories)
+        if not bare:
+            click.secho(
+                "Installing dependencies from Pipfile.lock ({})...".format(
+                    lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
+                ),
+                bold=True,
             )
-        else:
-            deps_list = []
-            for req_name, specifier in pipfile.items():
-                deps_list.append(Requirement.from_pipfile(req_name, specifier))
+        dev = dev or dev_only
+        deps_list = list(
+            lockfile.get_requirements(dev=dev, only=dev_only, categories=[category])
+        )
         failed_deps_queue = queue.Queue()
-        if skip_lock:
-            ignore_hashes = True
-        editable_or_vcs_deps = [dep for dep in deps_list if (dep.editable or dep.vcs)]
-        normal_deps = [dep for dep in deps_list if not (dep.editable or dep.vcs)]
+        editable_or_vcs_deps = [
+            (dep, pip_line) for dep, pip_line in deps_list if (dep.link and dep.editable)
+        ]
+        normal_deps = [
+            (dep, pip_line)
+            for dep, pip_line in deps_list
+            if not (dep.link and dep.editable)
+        ]
         install_kwargs = {
-            "no_deps": not skip_lock,
+            "no_deps": True,
             "ignore_hashes": ignore_hashes,
             "allow_global": allow_global,
             "pypi_mirror": pypi_mirror,
@@ -491,25 +481,7 @@ def batch_install_iteration(
     retry=True,
     extra_pip_args=None,
 ):
-    from pipenv.vendor.requirementslib.models.utils import (
-        strip_extras_markers_from_requirement,
-    )
-
     is_artifact = False
-    for dep in deps_to_install:
-        if dep.req.req:
-            dep.req.req = strip_extras_markers_from_requirement(dep.req.req)
-        if dep.markers:
-            dep.markers = str(strip_extras_markers_from_requirement(dep.get_markers))
-        # Install the module.
-        if dep.is_file_or_url and (
-            dep.is_direct_url
-            or any(dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"])
-        ):
-            is_artifact = True
-        elif dep.is_vcs:
-            is_artifact = True
-
     with temp_environ():
         if not allow_global:
             os.environ["PIP_USER"] = "0"
@@ -557,7 +529,9 @@ def batch_install(
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
     deps_to_install = [
-        dep for dep in deps_to_install if not project.environment.is_satisfied(dep)
+        (dep, pip_line)
+        for dep, pip_line in deps_to_install
+        if not project.environment.is_satisfied(dep)
     ]
     search_all_sources = project.settings.get("install_search_all_sources", False)
     sources = get_source_list(
@@ -584,11 +558,11 @@ def batch_install(
     else:
         # Sort the dependencies out by index -- include editable/vcs in the default group
         deps_by_index = defaultdict(list)
-        for dependency in deps_to_install:
-            if dependency.index:
-                deps_by_index[dependency.index].append(dependency)
+        for dependency, pip_line in deps_to_install:
+            if hasattr(dependency, "index"):
+                deps_by_index[dependency.index].append(pip_line)
             else:
-                deps_by_index[project.sources_default["name"]].append(dependency)
+                deps_by_index[project.sources_default["name"]].append(pip_line)
         # Treat each index as its own pip install phase
         for index_name, dependencies in deps_by_index.items():
             try:
@@ -662,7 +636,7 @@ def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
                     click.echo(
                         "{} {}! Will try again.".format(
                             click.style("An error occurred while installing", fg="red"),
-                            click.style(dep.as_line() if dep else "", fg="green"),
+                            click.style(dep if dep else "", fg="green"),
                         ),
                         err=True,
                     )

@@ -474,7 +474,7 @@ class ReleaseUrl(BaseModel):
     def pep508_url(self):
         # type: () -> str
         markers = self.markers
-        req_str = "{0} @ {1}#egg={0}".format(self.name, self.url)
+        req_str = f"{self.name} @ {self.url}"
         if markers:
             req_str = "{0} ; {1}".format(req_str, markers)
         return req_str

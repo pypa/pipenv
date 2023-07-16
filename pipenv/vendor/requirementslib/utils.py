@@ -276,7 +276,7 @@ def prepare_pip_source_args(sources, pip_args=None):
         pip_args = []
     if sources:
         # Add the source to pip9.
-        pip_args.extend(["-i", sources[0]["url"]])  # type: ignore
+        pip_args.extend(["-i ", sources[0]["url"]])  # type: ignore
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
             pip_args.extend(
