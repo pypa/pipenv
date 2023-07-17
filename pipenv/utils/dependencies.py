@@ -305,7 +305,9 @@ def req_as_line2(dep_name, dep, include_hashes, include_markers, sources):
     return pip_line
 
 
-def req_as_line(dep_name, dep, include_hashes, include_markers, sources):
+def req_as_line(
+    dep_name, dep, include_hashes, include_markers, indexes, constraint=False
+):
     if isinstance(dep, str):
         if is_star(dep):
             return dep_name
@@ -313,8 +315,9 @@ def req_as_line(dep_name, dep, include_hashes, include_markers, sources):
             return f"{dep_name}=={dep}"
         return f"{dep_name}{dep}"
     line = []
+    is_constraint = False
     vcs = next(iter([vcs for vcs in VCS_LIST if vcs in dep]), None)
-    if not vcs and dep.get("editable"):
+    if not vcs and dep.get("editable") or dep.get("path") or dep.get("file"):
         line.append("-e")
     include_index = False
     if vcs and vcs in dep:  # VCS Requirements
@@ -334,10 +337,9 @@ def req_as_line(dep_name, dep, include_hashes, include_markers, sources):
             extras = f"[{','.join(dep['extras'])}]"
         line.append(f"{dep_name}{extras} @ {dep['file']}")
     elif "path" in dep:  # Editable Requirements
-        if dep.get("editable"):
-            line.append("-e")
         line.append(dep["path"])
     else:  # Normal/Named Requirements
+        is_constraint = True
         include_index = True
         line.append(dep_name)
         if "extras" in dep:
@@ -357,13 +359,16 @@ def req_as_line(dep_name, dep, include_hashes, include_markers, sources):
 
     if include_index:
         if dep.get("index"):
-            sources = [s for s in sources if s.get("name") == dep["index"]]
+            indexes = [s for s in indexes if s.get("name") == dep["index"]]
         else:
-            sources = [sources[0]] if sources else []
-        source_list = prepare_pip_source_args(sources)
-        line.extend(source_list)
+            indexes = [indexes[0]] if indexes else []
+        index_list = prepare_pip_source_args(indexes)
+        line.extend(index_list)
 
-    pip_line = " ".join(line)
+    if constraint and not is_constraint:
+        pip_line = ""
+    else:
+        pip_line = " ".join(line)
     return pip_line
 
 
@@ -373,6 +378,7 @@ def convert_deps_to_pip(
     include_index=True,
     include_hashes=True,
     include_markers=True,
+    constraints_only=False,
 ):
     """ "Converts a Pipfile-formatted dependency to a pip-formatted one."""
     dependencies = []
@@ -382,8 +388,7 @@ def convert_deps_to_pip(
         indexes = []
         if project:
             indexes = project.pipfile_sources()
-        sources = indexes
-        req = req_as_line(dep_name, dep, include_hashes, include_markers, sources)
+        req = req_as_line(dep_name, dep, include_hashes, include_markers, indexes)
         dependencies.append(req)
     return dependencies
 
@@ -432,33 +437,55 @@ def parse_toml_file(content):
     return None
 
 
-def find_package_name(zip_filepath):
+def find_package_name_from_zipfile(zip_filepath):
     with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
         for filename in zip_ref.namelist():
             if filename.endswith(("METADATA", "setup.py", "setup.cfg", "pyproject.toml")):
                 with zip_ref.open(filename) as file:
-                    content = file.read().decode()
+                    possible_name = find_package_name_from_filename(file.name, file)
+                    if possible_name:
+                        return possible_name
 
-                    if filename.endswith("METADATA"):
-                        possible_name = parse_metadata_file(content)
-                        if possible_name:
-                            return possible_name
 
-                    if filename.endswith("setup.py"):
-                        possible_name = parse_setup_file(content)
-                        if possible_name:
-                            return possible_name
+def find_package_name_from_directory(directory):
+    for filename in os.listdir(directory):
+        filepath = os.path.join(directory, filename)
+        if os.path.isfile(filepath):
+            if filename.endswith(("METADATA", "setup.py", "setup.cfg", "pyproject.toml")):
+                with open(filepath, "rb") as file:
+                    possible_name = find_package_name_from_filename(filename, file)
+                    if possible_name:
+                        return possible_name
+        elif os.path.isdir(filepath):
+            possible_name = find_package_name_from_directory(filepath)
+            if possible_name:
+                return possible_name
 
-                    if filename.endswith("setup.cfg"):
-                        possible_name = parse_cfg_file(content)
-                        if possible_name:
-                            return possible_name
+    return None
 
-                    if filename.endswith("pyproject.toml"):
-                        possible_name = parse_toml_file(content)
-                        if possible_name:
-                            return possible_name
 
+def find_package_name_from_filename(filename, file):
+    content = file.read().decode()
+
+    if filename.endswith("METADATA"):
+        possible_name = parse_metadata_file(content)
+        if possible_name:
+            return possible_name
+
+    if filename.endswith("setup.py"):
+        possible_name = parse_setup_file(content)
+        if possible_name:
+            return possible_name
+
+    if filename.endswith("setup.cfg"):
+        possible_name = parse_cfg_file(content)
+        if possible_name:
+            return possible_name
+
+    if filename.endswith("pyproject.toml"):
+        possible_name = parse_toml_file(content)
+        if possible_name:
+            return possible_name
     return None
 
 
@@ -503,17 +530,22 @@ def install_req_from_line(
             package_name = package_name.split("-")[0]
         else:  # It's a URL
             link = Link(name)
-            with TemporaryDirectory() as td:
-                cmd = get_pip_command()
-                options, _ = cmd.parser.parse_args([])
-                session = cmd._build_session(options)
-                file = unpack_url(
-                    link=link,
-                    location=td,
-                    download=Downloader(session, "off"),
-                    verbosity=1,
-                )
-                package_name = find_package_name(file.path)
+            if link.scheme != "file":
+                with TemporaryDirectory() as td:
+                    cmd = get_pip_command()
+                    options, _ = cmd.parser.parse_args([])
+                    session = cmd._build_session(options)
+                    file = unpack_url(
+                        link=link,
+                        location=td,
+                        download=Downloader(session, "off"),
+                        verbosity=1,
+                    )
+                    package_name = find_package_name_from_zipfile(file)
+            elif link.is_wheel:
+                package_name = find_package_name_from_zipfile(link.file_path)
+            else:
+                package_name = find_package_name_from_directory(link.file_path)
         parts = parse_req_from_line(package_name, line_source)
     else:
         # It's a requirement
@@ -557,14 +589,12 @@ def from_pipfile(name, pipfile):
         req_str = f"{name}{extras_str} @ {_pipfile['uri']}"
     else:
         # We ensure version contains an operator. Default to equals (==)
-        _pipfile["version"] = get_version(pipfile)
-        if (
-            _pipfile["version"]
-            and not is_star(_pipfile["version"])
-            and COMPARE_OP.match(_pipfile["version"]) is None
-        ):
-            _pipfile["version"] = "=={}".format(_pipfile["version"])
-        req_str = f"{name}{extras_str}{_pipfile['version']}"
+        _pipfile["version"] = version = get_version(pipfile)
+        if version and not is_star(version) and COMPARE_OP.match(version) is None:
+            _pipfile["version"] = f"=={version}"
+        if is_star(version) or version == "==*":
+            version = ""
+        req_str = f"{name}{extras_str}{version}"
 
     install_req = install_req_from_line(
         req_str,

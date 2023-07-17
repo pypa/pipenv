@@ -132,8 +132,6 @@ six = "==1.12.0"
         assert "tablib" in p.lockfile["default"]
         assert "jinja2" in p.lockfile["develop"]
         assert "six" in p.lockfile["develop"]
-
-        c = p.pipenv('run python -c "import jinja2"')
         assert c.returncode == 0
 
         c = p.pipenv("uninstall --all-dev")

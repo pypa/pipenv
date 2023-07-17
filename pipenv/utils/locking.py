@@ -31,7 +31,7 @@ def format_requirement_for_lockfile(
             revision = revision[1]
             entry["rev"] = revision
     if req.req:
-        entry["version"] = req.req
+        entry["version"] = str(req.specifier)
     else:
         entry["version"] = version
     if req.link and req.link.is_file:

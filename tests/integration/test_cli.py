@@ -172,8 +172,8 @@ def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
 
 
 @pytest.mark.cli
-def test_pipenv_clean(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_clean(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
         with open('setup.py', 'w') as f:
             f.write('from setuptools import setup; setup(name="empty")')
         c = p.pipenv('install -e .')

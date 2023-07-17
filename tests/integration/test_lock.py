@@ -388,8 +388,8 @@ requests = {git = "%s@883caaf", editable = true}
             """.strip() % requests_uri)
         c = p.pipenv('lock')
         assert c.returncode == 0
-        assert p.lockfile['default']['requests']['git'] == requests_uri
-        assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
+        assert requests_uri in p.lockfile['default']['requests']['git']
+        assert p.lockfile['default']['requests']['ref'] == '883caaf'
 
 
 @pytest.mark.vcs

@@ -821,7 +821,7 @@ def venv_resolve_deps(
             # dependency resolution on them, so we are including this step inside the
             # spinner context manager for the UX improvement
             st.console.print("Building requirements...")
-            deps = convert_deps_to_pip(deps, project)
+            deps = convert_deps_to_pip(deps, project, constraints_only=True)
             constraints = set(deps)
             st.console.print("Resolving dependencies...")
             try:

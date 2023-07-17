@@ -25,7 +25,7 @@ DEP_PIP_PAIRS = [
                 "editable": True,
             }
         },
-        "-e git+https://github.com/lidatong/dataclasses-json.git@v0.5.7#egg=dataclasses-json",
+        "git+https://github.com/lidatong/dataclasses-json.git@v0.5.7#egg=dataclasses-json",
     ),
     (
         {"dataclasses-json": {"git": "https://github.com/lidatong/dataclasses-json.git", "ref": "v0.5.7"}},
@@ -39,7 +39,7 @@ DEP_PIP_PAIRS = [
                 "extras": ["pipenv"],
             }
         },
-        "dparse[pipenv] @ https://github.com/oz123/dparse/archive/refs/heads/master.zip",
+        "-e dparse[pipenv] @ https://github.com/oz123/dparse/archive/refs/heads/master.zip",
     ),
     (
         {

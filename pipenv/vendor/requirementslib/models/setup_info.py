@@ -1824,8 +1824,6 @@ def unpack_url(
         unpack_vcs_link(link, location, verbosity=verbosity)
         return None
 
-    assert not link.is_existing_dir()
-
     # file urls
     if link.is_file:
         file = get_file_url(link, download_dir, hashes=hashes)

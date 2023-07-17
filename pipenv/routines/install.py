@@ -260,15 +260,17 @@ def do_install(
                 try:
                     if categories:
                         for category in categories:
-                            added, cat = project.add_package_to_pipfile(
+                            added, cat, normalized_name = project.add_package_to_pipfile(
                                 pkg_requirement, dev, category
                             )
                             if added:
-                                new_packages.append((pkg_requirement.name, cat))
+                                new_packages.append((normalized_name, cat))
                     else:
-                        added, cat = project.add_package_to_pipfile(pkg_requirement, dev)
+                        added, cat, normalized_name = project.add_package_to_pipfile(
+                            pkg_requirement, dev
+                        )
                         if added:
-                            new_packages.append((pkg_requirement.name, cat))
+                            new_packages.append((normalized_name, cat))
                 except ValueError:
                     import traceback
 

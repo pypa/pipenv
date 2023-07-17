@@ -11,6 +11,9 @@ import sys
 import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from pipenv.vendor.requirementslib.models.setup_info import unpack_url
 
 try:
     import tomllib as toml
@@ -23,10 +26,13 @@ from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_pat
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.configuration import Configuration
 from pipenv.patched.pip._internal.exceptions import ConfigurationError
+from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
+    find_package_name_from_directory,
+    find_package_name_from_zipfile,
     get_canonical_names,
     install_req_from_line,
     is_editable,
@@ -51,6 +57,7 @@ from pipenv.vendor.requirementslib.models.utils import (
     get_default_pyproject_backend,
     normalize_name,
 )
+from pipenv.vendor.requirementslib.utils import get_pip_command
 
 try:
     # this is only in Python3.8 and later
@@ -990,7 +997,37 @@ class Project:
         if not isinstance(package, InstallRequirement):
             package = install_req_from_line(package.strip())
 
-        req_name = package.name
+        path_specifier = None
+        if package.name:
+            req_name = package.name
+        elif package.link and package.link.scheme in [
+            "http",
+            "https",
+            "url",
+            "uri",
+            "git",
+            "hg",
+            "svn",
+        ]:
+            with TemporaryDirectory() as td:
+                cmd = get_pip_command()
+                options, _ = cmd.parser.parse_args([])
+                session = cmd._build_session(options)
+                file = unpack_url(
+                    link=package.link,
+                    location=td,
+                    download=Downloader(session, "off"),
+                    verbosity=1,
+                )
+                req_name = find_package_name_from_zipfile(file.path)
+        elif package.link and package.link.scheme == "file":
+            req_name = find_package_name_from_directory(Path(package.link.file_path))
+            path_specifier = os.path.relpath(
+                package.link.file_path
+            )  # Preserve the original file path
+        else:
+            raise ValueError(f"Could not determine package name from {package}")
+
         name = self.get_package_name_in_pipfile(req_name, category=category)
         normalized_name = pep423_name(req_name)
         if name and name != normalized_name:
@@ -1006,17 +1043,23 @@ class Project:
         if normalized_name not in p[category]:
             newly_added = True
 
-        # Construct package requirement with extras if they exist
+        # Construct package requirement
+        converted = {}
         if extras:
-            converted = {"extras": list(extras), "version": specifier}
+            converted["extras"] = list(extras)
+        if path_specifier:
+            converted["path"] = path_specifier
         else:
-            converted = specifier
+            converted["version"] = specifier
 
-        p[category][normalized_name] = converted
+        if len(converted) == 1 and "version" in converted:
+            p[category][normalized_name] = specifier
+        else:
+            p[category][normalized_name] = converted
 
         # Write Pipfile.
         self.write_toml(p)
-        return newly_added, category
+        return newly_added, category, normalized_name
 
     def src_name_from_url(self, index_url):
         name, _, tld_guess = urllib.parse.urlsplit(index_url).netloc.rpartition(".")
