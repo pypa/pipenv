@@ -36,6 +36,8 @@ def convert_toml_outline_tables(parsed, project):
         result = section.copy()
         if isinstance(section, tomlkit.items.Table):
             body = section.value._body
+        elif isinstance(section, tomlkit.container.OutOfOrderTableProxy):
+            body = section._internal_container._body
         else:
             body = section._body
         for key, value in body:
