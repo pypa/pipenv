@@ -822,7 +822,7 @@ def venv_resolve_deps(
             # spinner context manager for the UX improvement
             st.console.print("Building requirements...")
             deps = convert_deps_to_pip(deps, project, constraints_only=True)
-            constraints = set(deps)
+            # constraints = set(deps)
             st.console.print("Resolving dependencies...")
             try:
                 results = resolve_packages(
@@ -833,7 +833,7 @@ def venv_resolve_deps(
                     req_dir,
                     packages=deps,
                     category=category,
-                    constraints=constraints,
+                    # constraints=constraints,
                 )
                 if results:
                     st.console.print(

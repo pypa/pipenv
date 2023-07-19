@@ -1,12 +1,11 @@
 import os
+import tarfile
 import zipfile
 from contextlib import contextmanager
-from tempfile import NamedTemporaryFile, TemporaryDirectory
+from tempfile import NamedTemporaryFile
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 from urllib.parse import urlparse
 
-from pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.req.constructors import parse_req_from_line
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor import tomli
@@ -17,9 +16,8 @@ from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
 from pipenv.vendor.requirementslib.models.markers import PipenvMarkers
-from pipenv.vendor.requirementslib.models.setup_info import unpack_url
 from pipenv.vendor.requirementslib.models.utils import get_version
-from pipenv.vendor.requirementslib.utils import get_pip_command, prepare_pip_source_args
+from pipenv.vendor.requirementslib.utils import prepare_pip_source_args
 
 from .constants import SCHEME_LIST, VCS_LIST
 
@@ -270,42 +268,7 @@ def is_pinned_requirement(ireq):
     return spec.operator in {"==", "==="} and not spec.version.endswith(".*")
 
 
-def req_as_line2(dep_name, dep, include_hashes, include_markers, sources):
-    """Creates a requirement line from a requirement name and an InstallRequirement"""
-    line = []
-    if dep.link:
-        if dep.link.is_vcs:  # VCS Requirements
-            line.append(f"{dep.link.url}#egg={dep_name}")
-            if dep.link.revision and not dep.link.is_artifact:
-                line.append(f"@{dep.link.revision}")
-            if include_markers and dep.marker:
-                line.append(f"; {dep.marker}")
-        else:  # URL or local file path Requirements
-            line.append(f"{dep.link.egg_fragment} @ {dep.link.url_without_fragment}")
-            if include_markers and dep.marker:
-                line.append(f"; {dep.marker}")
-    else:  # PyPI package
-        line.append(f"{dep_name}")
-        if dep.specifier:
-            line.append(f"{dep.specifier}")
-        if include_hashes and dep.hashes():
-            line.append(f"\n--hash={dep.hashes()}")
-        if include_markers and dep.marker:
-            line.append(f"; {dep.marker}")
-    line.append("\n")
-
-    if hasattr(dep, "index"):
-        sources = [s for s in sources if s.get("name") == dep.ndex]
-    else:
-        sources = [sources[0]]
-    source_list = prepare_pip_source_args(sources)
-    line.extend(source_list)
-
-    pip_line = "".join(line)
-    return pip_line
-
-
-def req_as_line(
+def dependency_as_pip_install_line(
     dep_name, dep, include_hashes, include_markers, indexes, constraint=False
 ):
     if isinstance(dep, str):
@@ -317,8 +280,13 @@ def req_as_line(
     line = []
     is_constraint = False
     vcs = next(iter([vcs for vcs in VCS_LIST if vcs in dep]), None)
-    if not vcs and dep.get("editable") or dep.get("path") or dep.get("file"):
-        line.append("-e")
+    if not vcs:
+        if dep.get("editable"):
+            line.append("-e")
+        elif dep.get("path") and dep.get("path").startswith("file:"):
+            line.append("-e")
+        elif dep.get("file") and dep.get("file").startswith("file:"):
+            line.append("-e")
     include_index = False
     if vcs and vcs in dep:  # VCS Requirements
         extras = ""
@@ -337,7 +305,10 @@ def req_as_line(
             extras = f"[{','.join(dep['extras'])}]"
         line.append(f"{dep_name}{extras} @ {dep['file']}")
     elif "path" in dep:  # Editable Requirements
-        line.append(dep["path"])
+        extras = ""
+        if "extras" in dep:
+            extras = f"[{','.join(dep['extras'])}]"
+        line.append(f"{dep_name}{extras} @ {dep['path']}")
     else:  # Normal/Named Requirements
         is_constraint = True
         include_index = True
@@ -355,7 +326,7 @@ def req_as_line(
         line.append(f'; {dep["markers"]}')
 
     if include_hashes and dep.get("hashes"):
-        line.extend([f"--hash={hash}" for hash in dep["hashes"]])
+        line.extend([f" --hash={hash}" for hash in dep["hashes"]])
 
     if include_index:
         if dep.get("index"):
@@ -388,7 +359,9 @@ def convert_deps_to_pip(
         indexes = []
         if project:
             indexes = project.pipfile_sources()
-        req = req_as_line(dep_name, dep, include_hashes, include_markers, indexes)
+        req = dependency_as_pip_install_line(
+            dep_name, dep, include_hashes, include_markers, indexes
+        )
         dependencies.append(req)
     return dependencies
 
@@ -435,6 +408,16 @@ def parse_toml_file(content):
         return toml_dict["tool"]["poetry"]["name"]
 
     return None
+
+
+def find_package_name_from_tarball(tarball_filepath):
+    with tarfile.open(tarball_filepath, "r") as tar_ref:
+        for filename in tar_ref.getnames():
+            if filename.endswith(("METADATA", "setup.py", "setup.cfg", "pyproject.toml")):
+                with tar_ref.extractfile(filename) as file:
+                    possible_name = find_package_name_from_filename(file.name, file)
+                    if possible_name:
+                        return possible_name
 
 
 def find_package_name_from_zipfile(zip_filepath):
@@ -516,37 +499,12 @@ def install_req_from_line(
         else:
             name = os.path.abspath(editable_path)
 
-    if (
-        os.path.isfile(name)
-        or os.path.isdir(name)
-        or urlparse(name).scheme in ("http", "https", "file")
-    ):
-        # It's a local file, directory or URL. Extract the base name, and
-        # then the package name.
-        if urlparse(name).scheme == "":
-            # It's a local file or directory
-            base_name = os.path.basename(name)
-            package_name, _ = os.path.splitext(base_name)
-            package_name = package_name.split("-")[0]
-        else:  # It's a URL
-            link = Link(name)
-            if link.scheme != "file":
-                with TemporaryDirectory() as td:
-                    cmd = get_pip_command()
-                    options, _ = cmd.parser.parse_args([])
-                    session = cmd._build_session(options)
-                    file = unpack_url(
-                        link=link,
-                        location=td,
-                        download=Downloader(session, "off"),
-                        verbosity=1,
-                    )
-                    package_name = find_package_name_from_zipfile(file)
-            elif link.is_wheel:
-                package_name = find_package_name_from_zipfile(link.file_path)
-            else:
-                package_name = find_package_name_from_directory(link.file_path)
-        parts = parse_req_from_line(package_name, line_source)
+    if os.path.isfile(name) or os.path.isdir(name):
+        if not name.startswith("file:"):
+            name = "file:" + name
+        parts = parse_req_from_line(name, line_source)
+    elif urlparse(name).scheme in ("http", "https", "file"):
+        parts = parse_req_from_line(name, line_source)
     else:
         # It's a requirement
         parts = parse_req_from_line(name, line_source)

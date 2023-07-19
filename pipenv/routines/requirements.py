@@ -8,6 +8,14 @@ from pipenv.vendor import click
 def requirement_from_dep(
     package_name, package_info, include_hashes=True, include_markers=True
 ):
+    from pipenv.utils.dependencies import is_star
+
+    # Handle string requirements
+    if isinstance(package_info, str):
+        if package_info and not is_star(package_info):
+            return f"{package_name}=={package_info}"
+        else:
+            return package_name
     # Handling git repositories
     if "git" in package_info:
         git = package_info["git"]
@@ -17,7 +25,7 @@ def requirement_from_dep(
             if "extras" in package_info
             else ""
         )
-        pip_package = f"{package_name}{extras} @ git+{git}@{ref}"
+        pip_line = f"{package_name}{extras} @ git+{git}@{ref}"
     # Handling file-sourced packages
     elif "file" in package_info or "path" in package_info:
         file = package_info.get("file") or package_info.get("path")
@@ -26,12 +34,12 @@ def requirement_from_dep(
             if "extras" in package_info
             else ""
         )
-        pip_package = f"{file}{extras}"
+        pip_line = f"{file}{extras}"
     else:
         # Handling packages from standard pypi like indexes
         version = package_info.get("version", "").replace("==", "")
         hashes = (
-            "\n--hash={}".format("\n--hash=".join(package_info["hashes"]))
+            "\n --hash={}".format("\n --hash=".join(package_info["hashes"]))
             if include_hashes and "hashes" in package_info
             else ""
         )
@@ -45,8 +53,8 @@ def requirement_from_dep(
             if "extras" in package_info
             else ""
         )
-        pip_package = f"{package_name}{extras}=={version}{markers}{hashes}"
-    return pip_package
+        pip_line = f"{package_name}{extras}=={version}{markers}{hashes}"
+    return pip_line
 
 
 def requirements_from_deps(deps, include_hashes=True, include_markers=True):

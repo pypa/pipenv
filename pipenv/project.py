@@ -32,6 +32,7 @@ from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     find_package_name_from_directory,
+    find_package_name_from_tarball,
     find_package_name_from_zipfile,
     get_canonical_names,
     install_req_from_line,
@@ -998,9 +999,7 @@ class Project:
             package = install_req_from_line(package.strip())
 
         path_specifier = None
-        if package.name:
-            req_name = package.name
-        elif package.link and package.link.scheme in [
+        if package.link and package.link.scheme in [
             "http",
             "https",
             "url",
@@ -1019,12 +1018,25 @@ class Project:
                     download=Downloader(session, "off"),
                     verbosity=1,
                 )
-                req_name = find_package_name_from_zipfile(file.path)
+                if file.path.endswith(".whl") or file.path.endswith(".zip"):
+                    req_name = find_package_name_from_zipfile(file.path)
+                elif file.path.endswith(".tar.gz") or file.path.endswith(".tar.bz2"):
+                    req_name = find_package_name_from_tarball(file.path)
+                else:
+                    req_name = find_package_name_from_directory(file.path)
+                path_specifier = package.link.url
         elif package.link and package.link.scheme == "file":
-            req_name = find_package_name_from_directory(Path(package.link.file_path))
+            if package.link.file_path.endswith(".whl"):
+                req_name = find_package_name_from_zipfile(package.link.file_path)
+            elif package.link.file_path.endswith(".tar.gz"):
+                req_name = find_package_name_from_tarball(package.link.file_path)
+            else:
+                req_name = find_package_name_from_directory(package.link.file_path)
             path_specifier = os.path.relpath(
                 package.link.file_path
             )  # Preserve the original file path
+        elif package.name:
+            req_name = package.name
         else:
             raise ValueError(f"Could not determine package name from {package}")
 
@@ -1048,7 +1060,7 @@ class Project:
         if extras:
             converted["extras"] = list(extras)
         if path_specifier:
-            converted["path"] = path_specifier
+            converted["file"] = path_specifier
         else:
             converted["version"] = specifier
 

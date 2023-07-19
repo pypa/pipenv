@@ -39,7 +39,9 @@ logger = logging.getLogger(__name__)
 operators = Specifier._operators.keys()
 
 
-def _strip_extras(path: str) -> Tuple[str, Optional[str]]:
+def _strip_extras(path: str) -> Tuple[Optional[str], Optional[str]]:
+    if path is None:
+        return None, None
     m = re.match(r"^(.+)(\[[^\]]+\])$", path)
     extras = None
     if m:
