@@ -151,6 +151,8 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     lockfile = {}
 
     version = dep.get("version", None)
+    if not version.startswith("=="):
+        version = f"=={version}"
 
     is_vcs_or_file = False
     for vcs_type in VCS_LIST:

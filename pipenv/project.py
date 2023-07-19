@@ -12,7 +12,9 @@ import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import unquote
 
+from pipenv.utils.constants import VCS_LIST
 from pipenv.vendor.requirementslib.models.setup_info import unpack_url
 
 try:
@@ -999,14 +1001,28 @@ class Project:
             package = install_req_from_line(package.strip())
 
         path_specifier = None
+        vcs_specifier = None
         if package.link and package.link.scheme in [
             "http",
             "https",
-            "url",
-            "uri",
-            "git",
-            "hg",
-            "svn",
+            "file",
+            "ftp",
+            "git+http",
+            "git+https",
+            "git+ssh",
+            "git+git",
+            "hg+http",
+            "hg+https",
+            "hg+ssh",
+            "svn+http",
+            "svn+https",
+            "svn+svn",
+            "bzr+http",
+            "bzr+https",
+            "bzr+ssh",
+            "bzr+sftp",
+            "bzr+ftp",
+            "bzr+lp",
         ]:
             with TemporaryDirectory() as td:
                 cmd = get_pip_command()
@@ -1024,7 +1040,10 @@ class Project:
                     req_name = find_package_name_from_tarball(file.path)
                 else:
                     req_name = find_package_name_from_directory(file.path)
-                path_specifier = package.link.url
+                if package.link.scheme == "file":
+                    path_specifier = package.link.url
+                else:
+                    vcs_specifier = package.link.url_without_fragment
         elif package.link and package.link.scheme == "file":
             if package.link.file_path.endswith(".whl"):
                 req_name = find_package_name_from_zipfile(package.link.file_path)
@@ -1060,7 +1079,12 @@ class Project:
         if extras:
             converted["extras"] = list(extras)
         if path_specifier:
-            converted["file"] = path_specifier
+            converted["file"] = unquote(path_specifier)
+        elif vcs_specifier:
+            for vcs in VCS_LIST:
+                if vcs in package.link.scheme:
+                    converted[vcs] = unquote(vcs_specifier)
+                    break
         else:
             converted["version"] = specifier
 
