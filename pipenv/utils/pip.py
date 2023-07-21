@@ -170,7 +170,7 @@ def pip_install_deps(
                 standard_deps if file == standard_requirements else editable_deps
             ):
                 err.print(f"Preparing Installation of {requirement.name!r}", style="bold")
-            err.print(f"$ {cmd_list_to_shell(pip_command)}", color="cyan")
+            err.print(f"$ {cmd_list_to_shell(pip_command)}", style="cyan")
         cache_dir = Path(project.s.PIPENV_CACHE_DIR)
         default_exists_action = "w"
         exists_action = project.s.PIP_EXISTS_ACTION or default_exists_action
