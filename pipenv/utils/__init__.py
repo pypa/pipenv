@@ -1,8 +1,8 @@
 import logging
 
-from pipenv.patched.pip._vendor import rich
+from pipenv.patched.pip._vendor.rich.console import Console
 
 logging.basicConfig(level=logging.ERROR)
 
-console = rich.console.Console()
-err = rich.console.Console(stderr=True)
+console = Console()
+err = Console(stderr=True)
