@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.project import Project
-from pipenv.utils import console, err
+from pipenv.utils import err
 from pipenv.utils.dependencies import get_constraints_from_deps, prepare_constraint_file
 from pipenv.utils.indexes import get_source_list, prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
@@ -30,15 +30,16 @@ def format_pip_output(out, r=None):
 
 
 def format_pip_error(error):
-    error = error.replace("Expected", "[bold green]Expected[/bold green]", fg="green", bold=True)))
+    error = error.replace("Expected", "[bold green]Expected[/bold green]")
     error = error.replace("Got", "[bold red]Got[/red bold]")
     error = error.replace(
         "THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE",
         "[bold red]THESE PACKAGES DO NOT MATCH THE HASHES FROM Pipfile.lock![/bold red]",
-            )
+    )
     error = error.replace(
         "someone may have tampered with them",
-        "[red]someone may have tampered with them[/red]")
+        "[red]someone may have tampered with them[/red]",
+    )
     error = error.replace("option to pip install", "option to 'pipenv install'")
     return error
 
