@@ -134,12 +134,12 @@ def test_convert_deps_to_pip_one_way():
 @pytest.mark.parametrize(
     "deps, expected",
     [
-        ({"uvicorn": {}}, ["uvicorn"]),
-        ({"FooProject": {"path": ".", "editable": "true"}}, []),
-        ({"FooProject": {"version": "==1.2"}}, ["fooproject==1.2"]),
-        ({"uvicorn": {"extras": ["standard"]}}, ["uvicorn"]),
-        ({"uvicorn": {"extras": []}}, ["uvicorn"]),
-        ({"extras": {}}, ["extras"]),
+        ({"uvicorn": {}}, {"uvicorn"}),
+        ({"FooProject": {"path": ".", "editable": "true"}}, set()),
+        ({"FooProject": {"version": "==1.2"}}, {"fooproject==1.2"}),
+        ({"uvicorn": {"extras": ["standard"]}}, {"uvicorn"}),
+        ({"uvicorn": {"extras": []}}, {"uvicorn"}),
+        ({"extras": {}}, {"extras"}),
     ],
 )
 def test_get_constraints_from_deps(deps, expected):
