@@ -1080,6 +1080,7 @@ def venv_resolve_deps(
             deps = convert_deps_to_pip(deps, project, include_index=True)
             constraints = set(deps)
             st.console.print("Resolving dependencies...")
+            # Useful for debugging and hitting breakpoints in the resolver
             if project.s.PIPENV_RESOLVER_PARENT_PYTHON:
                 try:
                     results = resolver.resolve_packages(
@@ -1102,7 +1103,7 @@ def venv_resolve_deps(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
                     )
                     raise
-            else:  # Default behavior is to use project python's resolver
+            else:  # Default/Production behavior is to use project python's resolver
                 cmd = [
                     which("python", allow_global=allow_global),
                     Path(resolver.__file__.rstrip("co")).as_posix(),
