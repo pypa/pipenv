@@ -1133,8 +1133,9 @@ def run_setup(script_path, egg_base=None):
         if egg_base:
             args += ["--egg-base", egg_base]
 
+        python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
         sp.run(
-            [sys.executable, "setup.py"] + args,
+            [python, "setup.py"] + args,
             capture_output=True,
         )
         dist = get_metadata(egg_base, metadata_type="egg")
