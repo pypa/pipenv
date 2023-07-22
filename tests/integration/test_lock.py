@@ -262,36 +262,6 @@ requests = {version = "*", extras = ["socks"]}
         assert "extra == 'socks'" not in c.stdout.strip()
 
 
-@pytest.mark.skip(reason="Skip lock does not support multiple indexes sources; flag is considered for deprecation.")
-@pytest.mark.index
-@pytest.mark.install  # private indexes need to be uncached for resolution
-@pytest.mark.skip_lock
-@pytest.mark.needs_internet
-def test_private_index_skip_lock(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
-[[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
-name = "pypi"
-
-[[source]]
-url = "https://test.pypi.org/simple"
-verify_ssl = true
-name = "testpypi"
-
-[packages]
-pipenv-test-private-package = {version = "*", index = "testpypi"}
-
-[pipenv]
-install_search_all_sources = true
-            """.strip()
-            f.write(contents)
-        c = p.pipenv('install --skip-lock')
-        assert c.returncode == 0
-
-
 @pytest.mark.lock
 @pytest.mark.index
 @pytest.mark.install  # private indexes need to be uncached for resolution
