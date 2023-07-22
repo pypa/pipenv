@@ -514,7 +514,9 @@ class MultiDomainBasicAuth(AuthBase):
 
         # Consume content and release the original connection to allow our new
         #   request to reuse the same one.
-        resp.content
+        # The result of the assignment isn't used, it's just needed to consume
+        # the content.
+        _ = resp.content
         resp.raw.release_conn()
 
         # Add our new username and password to the request

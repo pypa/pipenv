@@ -4,15 +4,15 @@
 
     Lexers for Python and related languages.
 
-    :copyright: Copyright 2006-2022 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2023 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
 import re
 import keyword
 
-from pipenv.patched.pip._vendor.pygments.lexer import Lexer, RegexLexer, include, bygroups, using, \
-    default, words, combined, do_insertions, this, line_re
+from pipenv.patched.pip._vendor.pygments.lexer import DelegatingLexer, Lexer, RegexLexer, include, \
+    bygroups, using, default, words, combined, do_insertions, this, line_re
 from pipenv.patched.pip._vendor.pygments.util import get_bool_opt, shebang_matches
 from pipenv.patched.pip._vendor.pygments.token import Text, Comment, Operator, Keyword, Name, String, \
     Number, Punctuation, Generic, Other, Error, Whitespace
@@ -234,16 +234,16 @@ class PythonLexer(RegexLexer):
         ],
         'builtins': [
             (words((
-                '__import__', 'abs', 'all', 'any', 'bin', 'bool', 'bytearray',
-                'breakpoint', 'bytes', 'chr', 'classmethod', 'compile', 'complex',
-                'delattr', 'dict', 'dir', 'divmod', 'enumerate', 'eval', 'filter',
-                'float', 'format', 'frozenset', 'getattr', 'globals', 'hasattr',
-                'hash', 'hex', 'id', 'input', 'int', 'isinstance', 'issubclass',
-                'iter', 'len', 'list', 'locals', 'map', 'max', 'memoryview',
-                'min', 'next', 'object', 'oct', 'open', 'ord', 'pow', 'print',
-                'property', 'range', 'repr', 'reversed', 'round', 'set', 'setattr',
-                'slice', 'sorted', 'staticmethod', 'str', 'sum', 'super', 'tuple',
-                'type', 'vars', 'zip'), prefix=r'(?<!\.)', suffix=r'\b'),
+                '__import__', 'abs', 'aiter', 'all', 'any', 'bin', 'bool', 'bytearray',
+                'breakpoint', 'bytes', 'callable', 'chr', 'classmethod', 'compile',
+                'complex', 'delattr', 'dict', 'dir', 'divmod', 'enumerate', 'eval',
+                'filter', 'float', 'format', 'frozenset', 'getattr', 'globals',
+                'hasattr', 'hash', 'hex', 'id', 'input', 'int', 'isinstance',
+                'issubclass', 'iter', 'len', 'list', 'locals', 'map', 'max',
+                'memoryview', 'min', 'next', 'object', 'oct', 'open', 'ord', 'pow',
+                'print', 'property', 'range', 'repr', 'reversed', 'round', 'set',
+                'setattr', 'slice', 'sorted', 'staticmethod', 'str', 'sum', 'super',
+                'tuple', 'type', 'vars', 'zip'), prefix=r'(?<!\.)', suffix=r'\b'),
              Name.Builtin),
             (r'(?<!\.)(self|Ellipsis|NotImplemented|cls)\b', Name.Builtin.Pseudo),
             (words((
@@ -341,7 +341,7 @@ class PythonLexer(RegexLexer):
             (r'\.', Name.Namespace),
             # if None occurs here, it's "raise x from None", since None can
             # never be a module name
-            (r'None\b', Name.Builtin.Pseudo, '#pop'),
+            (r'None\b', Keyword.Constant, '#pop'),
             (uni_name, Name.Namespace),
             default('#pop'),
         ],
@@ -635,15 +635,50 @@ class Python2Lexer(RegexLexer):
     def analyse_text(text):
         return shebang_matches(text, r'pythonw?2(\.\d)?')
 
+class _PythonConsoleLexerBase(RegexLexer):
+    name = 'Python console session'
+    aliases = ['pycon']
+    mimetypes = ['text/x-python-doctest']
 
-class PythonConsoleLexer(Lexer):
+    """Auxiliary lexer for `PythonConsoleLexer`.
+
+    Code tokens are output as ``Token.Other.Code``, traceback tokens as
+    ``Token.Other.Traceback``.
+    """
+    tokens = {
+        'root': [
+            (r'(>>> )(.*\n)', bygroups(Generic.Prompt, Other.Code), 'continuations'),
+            # This happens, e.g., when tracebacks are embedded in documentation;
+            # trailing whitespaces are often stripped in such contexts.
+            (r'(>>>)(\n)', bygroups(Generic.Prompt, Whitespace)),
+            (r'(\^C)?Traceback \(most recent call last\):\n', Other.Traceback, 'traceback'),
+            # SyntaxError starts with this
+            (r'  File "[^"]+", line \d+', Other.Traceback, 'traceback'),
+            (r'.*\n', Generic.Output),
+        ],
+        'continuations': [
+            (r'(\.\.\. )(.*\n)', bygroups(Generic.Prompt, Other.Code)),
+            # See above.
+            (r'(\.\.\.)(\n)', bygroups(Generic.Prompt, Whitespace)),
+            default('#pop'),
+        ],
+        'traceback': [
+            # As soon as we see a traceback, consume everything until the next
+            # >>> prompt.
+            (r'(?=>>>( |$))', Text, '#pop'),
+            (r'(KeyboardInterrupt)(\n)', bygroups(Name.Class, Whitespace)),
+            (r'.*\n', Other.Traceback),
+        ],
+    }
+
+class PythonConsoleLexer(DelegatingLexer):
     """
     For Python console output or doctests, such as:
 
     .. sourcecode:: pycon
 
         >>> a = 'foo'
-        >>> print a
+        >>> print(a)
         foo
         >>> 1 / 0
         Traceback (most recent call last):
@@ -659,70 +694,28 @@ class PythonConsoleLexer(Lexer):
         .. versionchanged:: 2.5
            Now defaults to ``True``.
     """
+
     name = 'Python console session'
     aliases = ['pycon']
     mimetypes = ['text/x-python-doctest']
 
     def __init__(self, **options):
-        self.python3 = get_bool_opt(options, 'python3', True)
-        Lexer.__init__(self, **options)
-
-    def get_tokens_unprocessed(self, text):
-        if self.python3:
-            pylexer = PythonLexer(**self.options)
-            tblexer = PythonTracebackLexer(**self.options)
+        python3 = get_bool_opt(options, 'python3', True)
+        if python3:
+            pylexer = PythonLexer
+            tblexer = PythonTracebackLexer
         else:
-            pylexer = Python2Lexer(**self.options)
-            tblexer = Python2TracebackLexer(**self.options)
-
-        curcode = ''
-        insertions = []
-        curtb = ''
-        tbindex = 0
-        tb = 0
-        for match in line_re.finditer(text):
-            line = match.group()
-            if line.startswith('>>> ') or line.startswith('... '):
-                tb = 0
-                insertions.append((len(curcode),
-                                   [(0, Generic.Prompt, line[:4])]))
-                curcode += line[4:]
-            elif line.rstrip() == '...' and not tb:
-                # only a new >>> prompt can end an exception block
-                # otherwise an ellipsis in place of the traceback frames
-                # will be mishandled
-                insertions.append((len(curcode),
-                                   [(0, Generic.Prompt, '...')]))
-                curcode += line[3:]
-            else:
-                if curcode:
-                    yield from do_insertions(
-                        insertions, pylexer.get_tokens_unprocessed(curcode))
-                    curcode = ''
-                    insertions = []
-                if (line.startswith('Traceback (most recent call last):') or
-                        re.match('  File "[^"]+", line \\d+\\n$', line)):
-                    tb = 1
-                    curtb = line
-                    tbindex = match.start()
-                elif line == 'KeyboardInterrupt\n':
-                    yield match.start(), Name.Class, line
-                elif tb:
-                    curtb += line
-                    if not (line.startswith(' ') or line.strip() == '...'):
-                        tb = 0
-                        for i, t, v in tblexer.get_tokens_unprocessed(curtb):
-                            yield tbindex+i, t, v
-                        curtb = ''
-                else:
-                    yield match.start(), Generic.Output, line
-        if curcode:
-            yield from do_insertions(insertions,
-                                     pylexer.get_tokens_unprocessed(curcode))
-        if curtb:
-            for i, t, v in tblexer.get_tokens_unprocessed(curtb):
-                yield tbindex+i, t, v
-
+            pylexer = Python2Lexer
+            tblexer = Python2TracebackLexer
+        # We have two auxiliary lexers. Use DelegatingLexer twice with
+        # different tokens.  TODO: DelegatingLexer should support this
+        # directly, by accepting a tuplet of auxiliary lexers and a tuple of
+        # distinguishing tokens. Then we wouldn't need this intermediary
+        # class.
+        class _ReplaceInnerCode(DelegatingLexer):
+            def __init__(self, **options):
+                super().__init__(pylexer, _PythonConsoleLexerBase, Other.Code, **options)
+        super().__init__(tblexer, _ReplaceInnerCode, Other.Traceback, **options)
 
 class PythonTracebackLexer(RegexLexer):
     """
@@ -743,7 +736,7 @@ class PythonTracebackLexer(RegexLexer):
     tokens = {
         'root': [
             (r'\n', Whitespace),
-            (r'^Traceback \(most recent call last\):\n', Generic.Traceback, 'intb'),
+            (r'^(\^C)?Traceback \(most recent call last\):\n', Generic.Traceback, 'intb'),
             (r'^During handling of the above exception, another '
              r'exception occurred:\n\n', Generic.Traceback),
             (r'^The above exception was the direct cause of the '
@@ -763,7 +756,8 @@ class PythonTracebackLexer(RegexLexer):
             (r'^([^:]+)(: )(.+)(\n)',
              bygroups(Generic.Error, Text, Name, Whitespace), '#pop'),
             (r'^([a-zA-Z_][\w.]*)(:?\n)',
-             bygroups(Generic.Error, Whitespace), '#pop')
+             bygroups(Generic.Error, Whitespace), '#pop'),
+            default('#pop'),
         ],
         'markers': [
             # Either `PEP 657 <https://www.python.org/dev/peps/pep-0657/>`

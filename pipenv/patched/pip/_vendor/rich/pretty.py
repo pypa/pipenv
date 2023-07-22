@@ -28,7 +28,7 @@ from typing import (
 from pipenv.patched.pip._vendor.rich.repr import RichReprResult
 
 try:
-    import pipenv.vendor.attr as _attr_module
+    import attr as _attr_module
 
     _has_attrs = hasattr(_attr_module, "ib")
 except ImportError:  # pragma: no cover

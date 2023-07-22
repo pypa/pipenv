@@ -170,7 +170,6 @@ class Resolver:
         self._parsed_constraints = None
         self._resolver = None
         self._finder = None
-        self._ignore_compatibility_finder = None
         self._session = None
         self._constraint_file = None
         self._pip_options = None
@@ -595,26 +594,6 @@ class Resolver:
         return self._finder
 
     @property
-    def ignore_compatibility_finder(self):
-        if self._ignore_compatibility_finder is None:
-            ignore_compatibility_finder = get_package_finder(
-                install_cmd=self.pip_command,
-                options=self.pip_options,
-                session=self.session,
-            )
-            # It would be nice if `shims.get_package_finder` took an
-            # `ignore_compatibility` parameter, but that's some vendored code
-            # we'd rather avoid touching.
-            index_lookup = self.prepare_index_lookup()
-            ignore_compatibility_finder._ignore_compatibility = True
-            self._ignore_compatibility_finder = ignore_compatibility_finder
-            self._ignore_compatibility_finder._link_collector.index_lookup = index_lookup
-            self._ignore_compatibility_finder._link_collector.search_scope.index_lookup = (
-                index_lookup
-            )
-        return self._ignore_compatibility_finder
-
-    @property
     def parsed_constraints(self):
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
@@ -857,7 +836,7 @@ class Resolver:
                 if hashes:
                     return hashes
 
-        applicable_candidates = self.ignore_compatibility_finder.find_best_candidate(
+        applicable_candidates = self.finder.find_best_candidate(
             ireq.name, ireq.specifier
         ).iter_applicable()
         applicable_candidates = list(applicable_candidates)
