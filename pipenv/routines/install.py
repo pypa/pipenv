@@ -38,7 +38,6 @@ def do_install(
     pypi_mirror=None,
     system=False,
     ignore_pipfile=False,
-    skip_lock=False,
     requirementstxt=False,
     pre=False,
     deploy=False,
@@ -72,7 +71,7 @@ def do_install(
     if not project.pipfile_exists and not (package_args or dev):
         if not (ignore_pipfile or deploy):
             raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
-        elif ((skip_lock and deploy) or ignore_pipfile) and not project.lockfile_exists:
+        elif ignore_pipfile and not project.lockfile_exists:
             raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
     # Load the --pre settings from the Pipfile.
     if not pre:
@@ -173,7 +172,6 @@ def do_install(
             allow_global=system,
             ignore_pipfile=ignore_pipfile,
             system=system,
-            skip_lock=skip_lock,
             deploy=deploy,
             pre=pre,
             requirements_dir=requirements_directory,
@@ -195,7 +193,6 @@ def do_install(
                 requirements_dir=requirements_directory,
                 deploy=deploy,
                 pypi_mirror=pypi_mirror,
-                skip_lock=skip_lock,
                 extra_pip_args=extra_pip_args,
                 categories=categories,
             )
@@ -301,7 +298,6 @@ def do_install(
                 requirements_dir=requirements_directory,
                 deploy=deploy,
                 pypi_mirror=pypi_mirror,
-                skip_lock=skip_lock,
                 extra_pip_args=extra_pip_args,
                 categories=categories,
             )
@@ -374,7 +370,6 @@ def do_install_dependencies(
     bare=False,
     allow_global=False,
     ignore_hashes=False,
-    skip_lock=False,
     requirements_dir=None,
     pypi_mirror=None,
     extra_pip_args=None,
@@ -415,6 +410,7 @@ def do_install_dependencies(
             for dep, pip_line in deps_list
             if not (dep.link and dep.editable)
         ]
+
         install_kwargs = {
             "no_deps": True,
             "ignore_hashes": ignore_hashes,
@@ -652,7 +648,6 @@ def do_init(
     dev_only=False,
     allow_global=False,
     ignore_pipfile=False,
-    skip_lock=False,
     system=False,
     deploy=False,
     pre=False,
@@ -685,7 +680,7 @@ def do_init(
             suffix="-requirements", prefix="pipenv-"
         )
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
-    if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
+    if project.lockfile_exists and not ignore_pipfile:
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
@@ -726,7 +721,7 @@ def do_init(
                     categories=categories,
                 )
     # Write out the lockfile if it doesn't exist.
-    if not project.lockfile_exists and not skip_lock:
+    if not project.lockfile_exists:
         # Unless we're in a virtualenv not managed by pipenv, abort if we're
         # using the system's python.
         if (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
@@ -755,7 +750,6 @@ def do_init(
         dev=dev,
         dev_only=dev_only,
         allow_global=allow_global,
-        skip_lock=skip_lock,
         requirements_dir=requirements_dir,
         pypi_mirror=pypi_mirror,
         extra_pip_args=extra_pip_args,

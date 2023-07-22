@@ -279,28 +279,6 @@ def test_outdated_should_compare_postreleases_without_failing(pipenv_instance_pr
         assert "out-of-date" in c.stdout
 
 
-@pytest.mark.install
-@pytest.mark.skip_lock
-@pytest.mark.needs_internet
-def test_install_skip_lock(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
-[[source]]
-url = "{}"
-verify_ssl = true
-name = "pypi"
-
-[packages]
-six = {}
-            """.format(p.index_url, '{version = "*", index = "pypi"}').strip()
-            f.write(contents)
-        c = p.pipenv('install --skip-lock')
-        assert c.returncode == 0
-        c = p.pipenv('run python -c "import six"')
-        assert c.returncode == 0
-
-
 def test_install_remote_wheel_file_with_extras(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv("install fastapi[dev]@https://files.pythonhosted.org/packages/4e/1a/04887c641b67e6649bde845b9a631f73a7abfbe3afda83957e09b95d88eb/fastapi-0.95.2-py3-none-any.whl")

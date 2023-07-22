@@ -15,7 +15,6 @@ from pipenv.cli.options import (
     pypi_mirror_option,
     python_option,
     site_packages_option,
-    skip_lock_option,
     sync_options,
     system_option,
     uninstall_options,
@@ -223,7 +222,6 @@ def cli(
 @system_option
 @deploy_option
 @site_packages_option
-@skip_lock_option
 @install_options
 @pass_state
 def install(state, **kwargs):
@@ -237,7 +235,6 @@ def install(state, **kwargs):
         pypi_mirror=state.pypi_mirror,
         system=state.system,
         ignore_pipfile=state.installstate.ignore_pipfile,
-        skip_lock=state.installstate.skip_lock,
         requirementstxt=state.installstate.requirementstxt,
         pre=state.installstate.pre,
         deploy=state.installstate.deploy,
@@ -314,7 +311,7 @@ def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
         editable_packages=state.installstate.editables,
         python=state.python,
         system=state.system,
-        lock=not state.installstate.skip_lock,
+        lock=True,
         all_dev=all_dev,
         all=all,
         pypi_mirror=state.pypi_mirror,

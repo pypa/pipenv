@@ -3,7 +3,6 @@ import re
 
 from pipenv.project import Project
 from pipenv.utils.internet import is_valid_url
-from pipenv.vendor import click
 from pipenv.vendor.click import (
     BadArgumentUsage,
     BadParameter,
@@ -77,7 +76,6 @@ class InstallState:
     def __init__(self):
         self.dev = False
         self.pre = False
-        self.skip_lock = False
         self.ignore_pipfile = False
         self.code = False
         self.requirementstxt = None
@@ -127,34 +125,6 @@ def editable_option(f):
         callback=callback,
         type=click_types.Path(file_okay=False),
         help="An editable Python package URL or path, often to a VCS repository.",
-    )(f)
-
-
-def skip_lock_option(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        state.installstate.skip_lock = value
-        if value:
-            click.secho(
-                "The flag --skip-lock has been deprecated for removal.  "
-                "Without running the lock resolver it is not possible to manage multiple package indexes.  "
-                "Additionally it bypasses the build consistency guarantees provided by maintaining a lock file.",
-                fg="yellow",
-                bold=True,
-                err=True,
-            )
-        return value
-
-    return option(
-        "--skip-lock",
-        is_flag=True,
-        default=False,
-        expose_value=False,
-        help="Skip locking mechanisms and use the Pipfile instead during operation.",
-        envvar="PIPENV_SKIP_LOCK",
-        callback=callback,
-        type=click_types.BOOL,
-        show_envvar=True,
     )(f)
 
 
@@ -533,7 +503,6 @@ def uninstall_options(f):
     f = install_base_options(f)
     f = categories_option(f)
     f = uninstall_dev_option(f)
-    f = skip_lock_option(f)
     f = editable_option(f)
     f = package_arg(f)
     return f

@@ -451,6 +451,39 @@ extras = ["socks"]
         assert 'colorama = "*"' in contents
 
 
+@pytest.mark.basic
+@pytest.mark.install
+def test_rewrite_outline_table_ooo(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "{}"
+verify_ssl = false
+name = "testindex"
+
+[packages]
+six = {}
+
+# Out-of-order
+[pipenv]
+allow_prereleases = false
+
+[packages.requests]
+version = "*"
+extras = ["socks"]
+            """.format(p.index_url, "{version = \"*\"}").strip()
+            f.write(contents)
+        c = p.pipenv("install colorama")
+        assert c.returncode == 0
+        with open(p.pipfile_path) as f:
+            contents = f.read()
+        assert "[packages.requests]" not in contents
+        assert 'six = {version = "*"}' in contents
+        assert 'requests = {version = "*"' in contents
+        assert 'colorama = "*"' in contents
+
+
 @pytest.mark.dev
 @pytest.mark.install
 def test_install_dev_use_default_constraints(pipenv_instance_private_pypi):
