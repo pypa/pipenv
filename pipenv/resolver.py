@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import logging
 import os
 import sys
@@ -583,7 +584,15 @@ def clean_results(results, resolver, project, category):
 
 
 def resolve_packages(
-    pre, clear, verbose, system, requirements_dir, packages, category, constraints=None
+    pre,
+    clear,
+    verbose,
+    system,
+    write,
+    requirements_dir,
+    packages,
+    category,
+    constraints=None,
 ):
     from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
     from pipenv.utils.resolver import resolve_deps
@@ -631,9 +640,30 @@ def resolve_packages(
         requirements_dir=requirements_dir,
     )
     results = clean_results(results, resolver, project, category)
+    if write:
+        with open(write, "w") as fh:
+            if not results:
+                json.dump([], fh)
+            else:
+                json.dump(results, fh)
     if results:
         return results
     return []
+
+
+def _main(
+    pre,
+    clear,
+    verbose,
+    system,
+    write,
+    requirements_dir,
+    packages,
+    category=None,
+):
+    resolve_packages(
+        pre, clear, verbose, system, write, requirements_dir, packages, category
+    )
 
 
 def main(argv=None):
@@ -651,11 +681,12 @@ def main(argv=None):
     os.environ["PYTHONIOENCODING"] = "utf-8"
     os.environ["PYTHONUNBUFFERED"] = "1"
     parsed = handle_parsed_args(parsed)
-    resolve_packages(
+    _main(
         parsed.pre,
         parsed.clear,
         parsed.verbose,
         parsed.system,
+        parsed.write,
         parsed.requirements_dir,
         parsed.packages,
         category=parsed.category,
