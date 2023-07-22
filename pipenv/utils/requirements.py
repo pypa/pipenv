@@ -96,7 +96,7 @@ BAD_PACKAGES = (
 def requirement_from_lockfile(
     package_name, package_info, include_hashes=True, include_markers=True
 ):
-    from pipenv.utils.dependencies import is_star
+    from pipenv.utils.dependencies import is_editable_path, is_star
 
     # Handle string requirements
     if isinstance(package_info, str):
@@ -117,35 +117,37 @@ def requirement_from_lockfile(
             pip_line = f"{vcs}+{url}@{ref}#egg={package_name}{extras}"
             return pip_line
     # Handling file-sourced packages
-    if "file" in package_info or "path" in package_info:
-        file = package_info.get("file")
-        if not file:
-            file = package_info.get("path")
-        extras = (
-            "[{}]".format(",".join(package_info.get("extras", [])))
-            if "extras" in package_info
-            else ""
-        )
-        pip_line = f"-e {file}"
-    else:
-        # Handling packages from standard pypi like indexes
-        version = package_info.get("version", "").replace("==", "")
-        hashes = (
-            "\n --hash={}".format("\n --hash=".join(package_info["hashes"]))
-            if include_hashes and "hashes" in package_info
-            else ""
-        )
-        markers = (
-            "; {}".format(package_info["markers"])
-            if include_markers and "markers" in package_info and package_info["markers"]
-            else ""
-        )
-        extras = (
-            "[{}]".format(",".join(package_info.get("extras", [])))
-            if "extras" in package_info
-            else ""
-        )
-        pip_line = f"{package_name}{extras}=={version}{markers}{hashes}"
+    for k in ["file", "path"]:
+        line = []
+        if k in package_info:
+            path = package_info[k]
+            if is_editable_path(path):
+                line.append("-e")
+            extras = ""
+            if "extras" in package_info:
+                extras = f"[{','.join(package_info['extras'])}]"
+            line.append(f"{package_info[k]}{extras}")
+            pip_line = " ".join(line)
+            return pip_line
+
+    # Handling packages from standard pypi like indexes
+    version = package_info.get("version", "").replace("==", "")
+    hashes = (
+        "\n --hash={}".format("\n --hash=".join(package_info["hashes"]))
+        if include_hashes and "hashes" in package_info
+        else ""
+    )
+    markers = (
+        "; {}".format(package_info["markers"])
+        if include_markers and "markers" in package_info and package_info["markers"]
+        else ""
+    )
+    extras = (
+        "[{}]".format(",".join(package_info.get("extras", [])))
+        if "extras" in package_info
+        else ""
+    )
+    pip_line = f"{package_name}{extras}=={version}{markers}{hashes}"
     return pip_line
 
 

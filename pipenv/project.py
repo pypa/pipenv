@@ -1040,6 +1040,14 @@ class Project:
                 else:
                     req_name = find_package_name_from_directory(file.path)
                 vcs_specifier = package.link.url_without_fragment
+        elif package.link and package.link.scheme in [
+            "bzr+file",
+            "git+file",
+            "hg+file",
+            "svn+file",
+        ]:
+            repository_path = package.link.url.split(":")[1]
+            req_name = find_package_name_from_directory(repository_path)
         elif package.link and package.link.scheme == "file":
             if package.link.file_path.endswith(".whl"):
                 req_name = find_package_name_from_zipfile(package.link.file_path)

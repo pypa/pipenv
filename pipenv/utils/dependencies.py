@@ -1,3 +1,5 @@
+import ast
+import configparser
 import os
 import tarfile
 import zipfile
@@ -299,6 +301,20 @@ def is_pinned_requirement(ireq):
     return spec.operator in {"==", "==="} and not spec.version.endswith(".*")
 
 
+def is_editable_path(path):
+    not_editable = [".whl", ".zip", ".tar", ".tar.gz", ".tgz"]
+    if os.path.isfile(path):
+        return False
+    if os.path.isdir(path):
+        return True
+    if os.path.splitext(path)[1] in not_editable:
+        return False
+    for ext in not_editable:
+        if path.endswith(ext):
+            return False
+    return True
+
+
 def dependency_as_pip_install_line(
     dep_name, dep, include_hashes, include_markers, indexes, constraint=False
 ):
@@ -312,15 +328,15 @@ def dependency_as_pip_install_line(
     is_constraint = False
     vcs = next(iter([vcs for vcs in VCS_LIST if vcs in dep]), None)
     if not vcs:
-        if dep.get("path") or dep.get("file"):
-            line.append("-e")
-            extras = ""
-            if "extras" in dep:
-                extras = f"[{','.join(dep['extras'])}]"
-            if "file" in dep:  # File Requirements
-                line.append(f"{dep['file']}{extras}")
-            elif "path" in dep:  # Editable Requirements
-                line.append(f"{dep['path']}{extras}")
+        for k in ["file", "path"]:
+            if k in dep:
+                if is_editable_path(dep[k]):
+                    line.append("-e")
+                extras = ""
+                if "extras" in dep:
+                    extras = f"[{','.join(dep['extras'])}]"
+                line.append(f"{dep[k]}{extras}")
+                break
     include_index = False
     if vcs and vcs in dep:  # VCS Requirements
         extras = ""
@@ -411,21 +427,26 @@ def parse_metadata_file(content: str):
 
 
 def parse_setup_file(content):
-    # this is a very rudimentary way to find the name parameter in setup.py
-    # but it should work for most cases
-    start = content.find("name=")
-    if start != -1:
-        end = content.find(",", start)
-        return content[start + 5 : end].strip(" \"'")
+    module = ast.parse(content)
+    for node in module.body:
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+            if getattr(node.value.func, "id", None) == "setup":
+                for keyword in node.value.keywords:
+                    if keyword.arg == "name":
+                        return keyword.value.s
 
     return None
 
 
-def parse_cfg_file(content):
-    from setuptools.config import read_configuration
-
-    cfg_dict = read_configuration(content)
-    return cfg_dict["metadata"]["name"]
+def parse_cfg_file(filepath):
+    config = configparser.ConfigParser()
+    config.read(filepath)
+    try:
+        return config["metadata"]["name"]
+    except configparser.NoSectionError:
+        return None
+    except KeyError:
+        return None
 
 
 def parse_toml_file(content):
@@ -474,24 +495,25 @@ def find_package_name_from_directory(directory):
 
 
 def find_package_name_from_filename(filename, file):
-    content = file.read().decode()
-
     if filename.endswith("METADATA"):
+        content = file.read().decode()
         possible_name = parse_metadata_file(content)
         if possible_name:
             return possible_name
 
     if filename.endswith("setup.py"):
+        content = file.read().decode()
         possible_name = parse_setup_file(content)
         if possible_name:
             return possible_name
 
     if filename.endswith("setup.cfg"):
-        possible_name = parse_cfg_file(content)
+        possible_name = parse_cfg_file(file)
         if possible_name:
             return possible_name
 
     if filename.endswith("pyproject.toml"):
+        content = file.read().decode()
         possible_name = parse_toml_file(content)
         if possible_name:
             return possible_name
@@ -524,7 +546,7 @@ def install_req_from_line(
         editable = "-e "
 
     if os.path.isfile(name) or os.path.isdir(name):
-        if not name.startswith("file:"):
+        if not name.startswith("file:") and not editable:
             name = f"{editable}file:" + name
         else:
             name = editable + name
@@ -611,7 +633,7 @@ def from_pipfile(name, pipfile):
 
 def get_constraints_from_deps(deps):
     """Get constraints from dictionary-formatted dependency"""
-    constraints = []
+    constraints = set()
     for dep_name, dep_version in deps.items():
         c = None
         # Creating a constraint as a canonical name plus a version specifier
@@ -632,7 +654,7 @@ def get_constraints_from_deps(deps):
                 else:
                     c = canonicalize_name(dep_name)
         if c:
-            constraints.append(c)
+            constraints.add(c)
     return constraints
 
 
@@ -645,6 +667,7 @@ def prepare_constraint_file(
     if not directory:
         directory = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
 
+    constraints = set(constraints)
     constraints_file = NamedTemporaryFile(
         mode="w",
         prefix="pipenv-",

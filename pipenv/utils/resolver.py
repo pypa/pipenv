@@ -9,7 +9,7 @@ import warnings
 from functools import lru_cache
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 from urllib import parse
 
 from pipenv import environments, resolver
@@ -201,7 +201,7 @@ class Resolver:
     @classmethod
     def create(
         cls,
-        deps: List[str],
+        deps: Set[str],
         project: Project,
         index_lookup: Dict[str, str] = None,
         markers_lookup: Dict[str, str] = None,
@@ -220,7 +220,7 @@ class Resolver:
         if sources is None:
             sources = project.sources
         resolver = Resolver(
-            [],
+            set(),
             req_dir,
             project,
             sources,
@@ -388,7 +388,7 @@ class Resolver:
             session=self.session,
             options=pip_options,
         )
-        return parsed_default_constraints
+        return set(parsed_default_constraints)
 
     @cached_property
     def default_constraints(self):
@@ -400,7 +400,7 @@ class Resolver:
             )
             for c in self.parsed_default_constraints
         ]
-        return default_constraints
+        return set(default_constraints)
 
     @property
     def constraints(self):

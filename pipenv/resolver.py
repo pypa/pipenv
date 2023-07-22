@@ -603,8 +603,12 @@ def resolve_packages(
         else None
     )
 
+    if not isinstance(packages, set):
+        packages = set(packages)
+    if not isinstance(constraints, set):
+        constraints = set(constraints) if constraints else set()
     if constraints:
-        packages += constraints
+        packages |= constraints
 
     def resolve(
         packages, pre, project, sources, clear, system, category, requirements_dir=None
