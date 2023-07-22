@@ -544,7 +544,7 @@ class HashMissing(HashError):
             # so the output can be directly copied into the requirements file.
             package = (
                 self.req.original_link
-                if self.req.original_link
+                if self.req.is_direct
                 # In case someone feeds something downright stupid
                 # to InstallRequirement's constructor.
                 else getattr(self.req, "req", None)

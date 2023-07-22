@@ -345,6 +345,7 @@ class AlreadyInstalledCandidate(Candidate):
         self.dist = dist
         self._ireq = _make_install_req_from_dist(dist, template)
         self._factory = factory
+        self._version = None
 
         # This is just logging some messages, so we can do it eagerly.
         # The returned dist would be exactly the same as self.dist because we
@@ -380,7 +381,9 @@ class AlreadyInstalledCandidate(Candidate):
 
     @property
     def version(self) -> CandidateVersion:
-        return self.dist.version
+        if self._version is None:
+            self._version = self.dist.version
+        return self._version
 
     @property
     def is_editable(self) -> bool:
