@@ -1,11 +1,11 @@
 diff --git a/pipenv/patched/pip/__main__.py b/pipenv/patched/pip/__main__.py
-index 24d42002b..b424ab203 100644
+index 599132611..f6ff8ad22 100644
 --- a/pipenv/patched/pip/__main__.py
 +++ b/pipenv/patched/pip/__main__.py
-@@ -26,6 +26,13 @@ if __name__ == "__main__":
-     warnings.filterwarnings(
-         "ignore", category=DeprecationWarning, module=".*packaging\\.version"
-     )
+@@ -19,6 +19,13 @@ if __package__ == "":
+     sys.path.insert(0, path)
+
+ if __name__ == "__main__":
 +    import importlib.util
 +    import sys
 +    spec = importlib.util.spec_from_file_location(
@@ -13,7 +13,7 @@ index 24d42002b..b424ab203 100644
 +    pipenv = importlib.util.module_from_spec(spec)
 +    sys.modules["pipenv"] = pipenv
 +    spec.loader.exec_module(pipenv)
-     from pipenv.patched.pip._internal.cli.main import main as _main
+    from pipenv.patched.pip._internal.cli.main import main as _main
 
      sys.exit(_main())
 diff --git a/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py b/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py
