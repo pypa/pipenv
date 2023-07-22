@@ -220,7 +220,7 @@ class Lockfile(ReqLibBaseModel):
     def get_requirements(
         self, dev: bool = True, only: bool = False, categories: Optional[List[str]] = None
     ) -> Iterator[InstallRequirement]:
-        from pipenv.routines.requirements import requirement_from_dep
+        from pipenv.utils.requirements import requirement_from_lockfile
 
         if categories:
             deps = {}
@@ -238,8 +238,8 @@ class Lockfile(ReqLibBaseModel):
         else:
             deps = self.get_deps(dev=dev, only=only)
         for package_name, package_info in deps.items():
-            pip_line = requirement_from_dep(package_name, package_info, include_hashes=False, include_markers=False)
-            pip_line_specified = requirement_from_dep(package_name, package_info, include_hashes=True, include_markers=True)
+            pip_line = requirement_from_lockfile(package_name, package_info, include_hashes=False, include_markers=False)
+            pip_line_specified = requirement_from_lockfile(package_name, package_info, include_hashes=True, include_markers=True)
             yield install_req_from_line(pip_line), pip_line_specified
 
     def requirements_list(self, category: str) -> List[Dict]:

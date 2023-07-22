@@ -32,9 +32,9 @@ def format_requirement_for_lockfile(
             entry["rev"] = revision
     if req.req:
         entry["version"] = str(req.specifier)
-    else:
+    elif version:
         entry["version"] = version
-    if req.link and req.link.is_file:
+    elif req.link and req.link.is_file:
         entry["file"] = req.link.url
     if hashes:
         entry["hashes"] = sorted(set(hashes))
@@ -44,12 +44,18 @@ def format_requirement_for_lockfile(
     if markers:
         entry.update({"markers": str(markers)})
     entry = translate_markers(entry)
-    if req.editable:
-        for key in ("index", "version", "file"):
-            try:
-                del entry[key]
-            except KeyError:
-                pass
+    if req.extras:
+        entry["extras"] = sorted(req.extras)
+    if entry.get("file"):
+        entry["file"] = entry["file"]
+        entry["editable"] = True
+        entry.pop("version", None)
+        entry.pop("index", None)
+    elif entry.get("path"):
+        entry["path"] = entry["path"]
+        entry["editable"] = True
+        entry.pop("version", None)
+        entry.pop("index", None)
     return name, entry
 
 

@@ -9,7 +9,6 @@ import shutil
 import stat
 import subprocess as sp
 import sys
-import tempfile
 import time
 import uuid
 import warnings
@@ -1823,6 +1822,8 @@ def unpack_url(
     if link.is_vcs:
         unpack_vcs_link(link, location, verbosity=verbosity)
         return None
+
+    assert not link.is_existing_dir()
 
     # file urls
     if link.is_file:

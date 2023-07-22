@@ -6,7 +6,10 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 from urllib.parse import urlparse
 
-from pipenv.patched.pip._internal.req.constructors import parse_req_from_line
+from pipenv.patched.pip._internal.req.constructors import (
+    install_req_from_editable,
+    parse_req_from_line,
+)
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor import tomli
 from pipenv.patched.pip._vendor.distlib.util import COMPARE_OP
@@ -142,7 +145,7 @@ def translate_markers(pipfile_entry):
     return new_pipfile
 
 
-def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
+def clean_resolved_dep(dep, dep_name=None, is_top_level=False, pipfile_entry=None):
     from pipenv.patched.pip._vendor.packaging.requirements import (
         Requirement as PipRequirement,
     )
@@ -151,7 +154,7 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     lockfile = {}
 
     version = dep.get("version", None)
-    if not version.startswith("=="):
+    if version and not version.startswith("=="):
         version = f"=={version}"
 
     is_vcs_or_file = False
@@ -160,6 +163,28 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
             lockfile[vcs_type] = dep[vcs_type]
             lockfile["ref"] = dep.get("rev")
             is_vcs_or_file = True
+    if dep.link and dep.link.scheme in [
+        "http",
+        "https",
+        "ftp",
+        "git+http",
+        "git+https",
+        "git+ssh",
+        "git+git",
+        "hg+http",
+        "hg+https",
+        "hg+ssh",
+        "svn+http",
+        "svn+https",
+        "svn+svn",
+        "bzr+http",
+        "bzr+https",
+        "bzr+ssh",
+        "bzr+sftp",
+        "bzr+ftp",
+        "bzr+lp",
+    ]:
+        is_vcs_or_file = True
 
     if version and not is_vcs_or_file:
         if isinstance(version, PipRequirement):
@@ -177,6 +202,10 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     dependency_file_key = next(iter(k for k in preferred_file_keys if k in dep), None)
     if dependency_file_key:
         lockfile[dependency_file_key] = dep[dependency_file_key]
+        if "editable" in dep:
+            lockfile["editable"] = dep["editable"]
+        if "extras" in dep:
+            lockfile["extras"] = sorted(dep["extras"])
 
     if dep.get("hashes"):
         lockfile["hashes"] = dep["hashes"]
@@ -283,12 +312,15 @@ def dependency_as_pip_install_line(
     is_constraint = False
     vcs = next(iter([vcs for vcs in VCS_LIST if vcs in dep]), None)
     if not vcs:
-        if dep.get("editable"):
+        if dep.get("path") or dep.get("file"):
             line.append("-e")
-        elif dep.get("path") and dep.get("path").startswith("file:"):
-            line.append("-e")
-        elif dep.get("file") and dep.get("file").startswith("file:"):
-            line.append("-e")
+            extras = ""
+            if "extras" in dep:
+                extras = f"[{','.join(dep['extras'])}]"
+            if "file" in dep:  # File Requirements
+                line.append(f"{dep['file']}{extras}")
+            elif "path" in dep:  # Editable Requirements
+                line.append(f"{dep['path']}{extras}")
     include_index = False
     if vcs and vcs in dep:  # VCS Requirements
         extras = ""
@@ -301,16 +333,8 @@ def dependency_as_pip_install_line(
         if "subdirectory" in dep:
             git_req += f"&subdirectory={dep['subdirectory']}"
         line.append(git_req)
-    elif "file" in dep:  # File Requirements
-        extras = ""
-        if "extras" in dep:
-            extras = f"[{','.join(dep['extras'])}]"
-        line.append(f"{dep_name}{extras} @ {dep['file']}")
-    elif "path" in dep:  # Editable Requirements
-        extras = ""
-        if "extras" in dep:
-            extras = f"[{','.join(dep['extras'])}]"
-        line.append(f"{dep_name}{extras} @ {dep['path']}")
+    elif "file" in dep or "path" in dep:  # File Requirements
+        pass
     else:  # Normal/Named Requirements
         is_constraint = True
         include_index = True
@@ -493,18 +517,19 @@ def install_req_from_line(
     :param line_source: An optional string describing where the line is from,
         for logging purposes in case of an error.
     """
+    editable = ""
     if name.startswith("-e "):
         # Editable requirement
-        editable_path = name.split("-e ")[1]
-        if os.path.isdir(editable_path):
-            name = editable_path
-        else:
-            name = os.path.abspath(editable_path)
+        name = name.split("-e ")[1]
+        editable = "-e "
 
     if os.path.isfile(name) or os.path.isdir(name):
         if not name.startswith("file:"):
-            name = "file:" + name
-        parts = parse_req_from_line(name, line_source)
+            name = f"{editable}file:" + name
+        else:
+            name = editable + name
+
+        return install_req_from_editable(name, line_source)
     elif urlparse(name).scheme in ("http", "https", "file"):
         parts = parse_req_from_line(name, line_source)
     else:
@@ -542,9 +567,9 @@ def from_pipfile(name, pipfile):
         _pipfile["vcs"] = vcs
         req_str = f"{name}{extras_str} @ {_pipfile[vcs]}"
     elif "path" in _pipfile:
-        req_str = f"{name}{extras_str} @ {_pipfile['path']}"
+        req_str = f"-e {_pipfile['path']}{extras_str}"
     elif "file" in _pipfile:
-        req_str = f"{name}{extras_str} @ {_pipfile['file']}"
+        req_str = f"-e {_pipfile['file']}{extras_str}"
     elif "uri" in _pipfile:
         req_str = f"{name}{extras_str} @ {_pipfile['uri']}"
     else:
@@ -572,7 +597,7 @@ def from_pipfile(name, pipfile):
 
     # Construct the requirement string for your Requirement class
     extras_str = ""
-    if install_req.req.extras:
+    if install_req.req and install_req.req.extras:
         extras_str = f"[{','.join(install_req.req.extras)}]"
     req_str = f"{install_req.name}{extras_str}{install_req.req.specifier}"
     if install_req.markers:

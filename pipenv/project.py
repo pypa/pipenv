@@ -1005,7 +1005,6 @@ class Project:
         if package.link and package.link.scheme in [
             "http",
             "https",
-            "file",
             "ftp",
             "git+http",
             "git+https",
@@ -1040,10 +1039,7 @@ class Project:
                     req_name = find_package_name_from_tarball(file.path)
                 else:
                     req_name = find_package_name_from_directory(file.path)
-                if package.link.scheme == "file":
-                    path_specifier = package.link.url
-                else:
-                    vcs_specifier = package.link.url_without_fragment
+                vcs_specifier = package.link.url_without_fragment
         elif package.link and package.link.scheme == "file":
             if package.link.file_path.endswith(".whl"):
                 req_name = find_package_name_from_zipfile(package.link.file_path)

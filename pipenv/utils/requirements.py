@@ -7,6 +7,7 @@ from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_parsed_requirement,
 )
 from pipenv.patched.pip._internal.utils.misc import split_auth_from_netloc
+from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.indexes import parse_indexes
 from pipenv.utils.internet import get_host_and_port
 from pipenv.utils.pip import get_trusted_hosts
@@ -90,3 +91,74 @@ BAD_PACKAGES = (
     "setuptools",
     "wheel",
 )
+
+
+def requirement_from_lockfile(
+    package_name, package_info, include_hashes=True, include_markers=True
+):
+    from pipenv.utils.dependencies import is_star
+
+    # Handle string requirements
+    if isinstance(package_info, str):
+        if package_info and not is_star(package_info):
+            return f"{package_name}=={package_info}"
+        else:
+            return package_name
+    # Handling vcs repositories
+    for vcs in VCS_LIST:
+        if vcs in package_info:
+            url = package_info[vcs]
+            ref = package_info.get("ref", "")
+            extras = (
+                "[{}]".format(",".join(package_info.get("extras", [])))
+                if "extras" in package_info
+                else ""
+            )
+            pip_line = f"{vcs}+{url}@{ref}#egg={package_name}{extras}"
+            return pip_line
+    # Handling file-sourced packages
+    if "file" in package_info or "path" in package_info:
+        file = package_info.get("file")
+        if not file:
+            file = package_info.get("path")
+        extras = (
+            "[{}]".format(",".join(package_info.get("extras", [])))
+            if "extras" in package_info
+            else ""
+        )
+        pip_line = f"-e {file}"
+    else:
+        # Handling packages from standard pypi like indexes
+        version = package_info.get("version", "").replace("==", "")
+        hashes = (
+            "\n --hash={}".format("\n --hash=".join(package_info["hashes"]))
+            if include_hashes and "hashes" in package_info
+            else ""
+        )
+        markers = (
+            "; {}".format(package_info["markers"])
+            if include_markers and "markers" in package_info and package_info["markers"]
+            else ""
+        )
+        extras = (
+            "[{}]".format(",".join(package_info.get("extras", [])))
+            if "extras" in package_info
+            else ""
+        )
+        pip_line = f"{package_name}{extras}=={version}{markers}{hashes}"
+    return pip_line
+
+
+def requirements_from_lockfile(deps, include_hashes=True, include_markers=True):
+    pip_packages = []
+
+    for package_name, package_info in deps.items():
+        pip_package = requirement_from_lockfile(
+            package_name, package_info, include_hashes, include_markers
+        )
+
+        # Append to the list
+        pip_packages.append(pip_package)
+
+    # pip_packages contains the pip-installable lines
+    return pip_packages

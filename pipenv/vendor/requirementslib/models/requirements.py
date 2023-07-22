@@ -20,7 +20,6 @@ from urllib import parse as urllib_parse
 from urllib.parse import SplitResult, unquote, urlparse
 from urllib.request import url2pathname
 
-from pipenv.vendor.requirementslib.models.markers import PipenvMarkers
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
@@ -223,7 +222,7 @@ class Line(ReqLibBaseModel):
         if self.is_named:
             line = self.name_and_specifier
         elif self.is_direct_url:
-            line = f"{self.name}{extras_str} @ {self.link.url}"
+            line = self.link.url
         elif extras_str:
             if self.is_vcs:
                 line = self.link.url
@@ -291,7 +290,7 @@ class Line(ReqLibBaseModel):
         return self.get_line(with_prefix=True, with_hashes=False)
 
     def line_for_ireq(self) -> str:
-        line = self.line
+        line = ""
         if self.is_file or self.is_remote_url and not self.is_vcs:
             scheme = self.preferred_scheme if self.preferred_scheme is not None else "uri"
             local_line = next(
@@ -922,6 +921,8 @@ class Line(ReqLibBaseModel):
         # type: () -> Optional[str]
         if self.link is None:
             return None
+        if getattr(self.link, "egg_fragment", None):
+            return self.link.egg_fragment
         elif self.is_wheel:
             return self._parse_wheel()
         return None
@@ -1185,6 +1186,7 @@ class Line(ReqLibBaseModel):
                 else:
                     url = self.uri
             if self.link and name is None:
+                self._name = self.link.egg_fragment
                 if self._name:
                     name = canonicalize_name(self._name)
         return name, extras, url  # type: ignore
@@ -1553,7 +1555,6 @@ class FileRequirement(ReqLibBaseModel):
                             deps[req_instance.key] = req_instance
         setup_deps = list(set(setup_deps))
         build_deps = list(set(build_deps))
-
         return deps, setup_deps, build_deps
 
     def parse_setup_info(self) -> Optional[SetupInfo]:
@@ -1596,11 +1597,15 @@ class FileRequirement(ReqLibBaseModel):
     def get_name(self) -> str:
         if self.parsed_line and self.parsed_line.name:
             return self.parsed_line.name
+        elif self.link and self.link.egg_fragment:
+            return self.link.egg_fragment
         elif self.setup_info and self.setup_info.name:
             return self.setup_info.name
 
     def get_link(self) -> Link:
         target = "{0}".format(self.uri)
+        if hasattr(self, "name") and not self._has_hashed_name:
+            target = "{0}#egg={1}".format(target, self.name)
         link = create_link(target)
         return link
 
@@ -1734,7 +1739,7 @@ class FileRequirement(ReqLibBaseModel):
         else:
             if name:
                 line_name = "{0}{1}".format(name, extras_string)
-                line = f"{line_name} @ {link.url}"
+                line = "{0}#egg={1}".format(link.url_without_fragment, line_name)
             else:
                 if link:
                     line = link.url
@@ -1744,7 +1749,7 @@ class FileRequirement(ReqLibBaseModel):
                     raise ValueError(
                         "Failed parsing requirement from pipfile: {0!r}".format(pipfile)
                     )
-                line = f"{line}{extras_string}"
+                line = "{0}{1}".format(line, extras_string)
             if "subdirectory" in pipfile:
                 arg_dict["subdirectory"] = pipfile["subdirectory"]
                 line = "{0}&subdirectory={1}".format(line, pipfile["subdirectory"])
@@ -1769,6 +1774,9 @@ class FileRequirement(ReqLibBaseModel):
             (self.link.is_wheel or not is_vcs) and self.link.url
         ):
             seed = link_url or self.uri
+        # add egg fragments to remote artifacts (valid urls only)
+        if not self._has_hashed_name and self.is_remote_artifact and seed is not None:
+            seed += "#egg={0}".format(self.name)
         editable = "-e " if self.editable else ""
         if seed is None:
             raise ValueError("Could not calculate url for {0!r}".format(self))
@@ -2298,7 +2306,7 @@ class Requirement(ReqLibBaseModel):
     def hashes_as_pip(self) -> str:
         return self.get_hashes_as_pip()
 
-    @property
+    @cached_property
     def extras_as_pip(self) -> str:
         return (
             f"[{','.join(sorted([extra.lower() for extra in self.extras]))}]"
@@ -2343,23 +2351,23 @@ class Requirement(ReqLibBaseModel):
         if self._line_instance is None:
             line_parts = []
             local_editable = False
-            if (
-                self.is_file_or_url
-                and not self.req.get_uri().startswith("file://")
-                and not self.is_vcs
-            ):
-                line_parts.append(f"{self.name}{self.extras_as_pip} @ ")
-                line_parts.append(self.req.line_part)
-            elif self.is_vcs:
-                line_parts.append(self.req.line_part)
-
-            if not any(part for part in line_parts if self.extras_as_pip in part):
-                line_parts.append(f"{self.name}{self.extras_as_pip}")
+            if self.req:
+                if self.req.line_part.startswith("-e "):
+                    local_editable = True
+                    line_parts.extend(self.req.line_part.split(" ", 1))
+                else:
+                    line_parts.append(self.req.line_part)
 
             version, fetched = self.get_version_from_setup_info()
             if version is not None and not (self.is_file_or_url or self.is_vcs):
                 line_parts.append(f"=={version}")
-            if self.is_vcs and "egg=" not in line_parts[-1]:
+            if (
+                self.is_file_or_url
+                and not local_editable
+                and not self.req.get_uri().startswith("file://")
+                # fix for file uri with egg names and extras
+                and not len(self.req.line_part.split("#")) > 1
+            ):
                 line_parts.append(f"#egg={self.name}{self.extras_as_pip}")
             elif not any(part for part in line_parts if self.extras_as_pip in part):
                 line_parts.append(self.extras_as_pip)
@@ -2510,7 +2518,7 @@ class Requirement(ReqLibBaseModel):
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
-        from pip._internal.req.constructors import install_req_from_line
+        from .markers import PipenvMarkers
 
         _pipfile = {}
         if hasattr(pipfile, "keys"):
@@ -2521,45 +2529,39 @@ class Requirement(ReqLibBaseModel):
         if _pipfile["version"] and COMPARE_OP.match(_pipfile["version"]) is None:
             _pipfile["version"] = "=={}".format(_pipfile["version"])
         vcs = next(iter([vcs for vcs in VCS_LIST if vcs in _pipfile]), None)
-
         if vcs:
             _pipfile["vcs"] = vcs
-            req_str = f"{name}@{_pipfile[vcs]}"
-
+            r = VCSRequirement.from_pipfile(name, pipfile)
         elif any(key in _pipfile for key in ["path", "file", "uri"]):
-            req_str = f"{name}@{_pipfile['path']}"
-
+            r = FileRequirement.from_pipfile(name, pipfile)
         else:
-            req_str = f"{name}{_pipfile['version']}"
-
-        extras = _pipfile.get("extras", [])
-        if extras:
-            req_str += f"[{','.join(extras)}]"
-
-        install_req = install_req_from_line(
-            req_str,
-            comes_from=None,
-            use_pep517=False,
-            isolated=False,
-            options={"hashes": _pipfile.get("hashes", [])},
-            constraint=False,
-        )
-
+            r = NamedRequirement.from_pipfile(name, pipfile)
         markers = PipenvMarkers.from_pipfile(name, _pipfile)
+        req_markers = None
         if markers:
             markers = str(markers)
-            install_req.markers = Marker(markers)
-
+            req_markers = PackagingRequirement("fakepkg ; {0}".format(markers))
+            if r.req is not None:
+                r.req.marker = req_markers.marker
+        extras = _pipfile.get("extras")
+        if r.req:
+            r.req.specifier = SpecifierSet(_pipfile["version"])
+            r.req.extras = (
+                tuple(sorted(dedup([extra.lower() for extra in extras])))
+                if extras
+                else ()
+            )
         args = {
-            "name": install_req.name,
+            "name": r.name,
             "vcs": vcs,
-            "req": install_req,
+            "req": r,
             "markers": markers,
             "extras": tuple(_pipfile.get("extras", ())),
             "editable": _pipfile.get("editable", False),
             "index": _pipfile.get("index"),
         }
-
+        if any(key in _pipfile for key in ["hash", "hashes"]):
+            args["hashes"] = _pipfile.get("hashes", [pipfile.get("hash")])
         cls_inst = Requirement(**args)
         return cls_inst
 

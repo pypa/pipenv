@@ -476,7 +476,7 @@ class ReleaseUrl(BaseModel):
         markers = self.markers
         req_str = f"{self.name} @ {self.url}"
         if markers:
-            req_str = "{0} ; {1}".format(req_str, markers)
+            req_str = "{0} @ {1}#egg={0}".format(self.name, self.url)
         return req_str
 
     def get_markers_from_wheel(self) -> str:

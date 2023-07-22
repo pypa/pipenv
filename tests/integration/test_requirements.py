@@ -3,7 +3,8 @@ import os
 import pytest
 
 from pipenv.utils.shell import temp_environ
-from pipenv.routines.requirements import requirements_from_deps
+from pipenv.utils.requirements import requirements_from_lockfile
+
 
 @pytest.mark.requirements
 def test_requirements_generates_requirements_from_lockfile(pipenv_instance_pypi):
@@ -294,6 +295,6 @@ def test_requirements_generates_requirements_from_lockfile_without_env_var_expan
     ]
 )
 def test_requirements_from_deps(deps, include_hashes, include_markers, expected):
-    result = requirements_from_deps(deps, include_hashes, include_markers)
+    result = requirements_from_lockfile(deps, include_hashes, include_markers)
     assert result == expected
 
