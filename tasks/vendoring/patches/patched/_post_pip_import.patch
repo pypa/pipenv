@@ -17,7 +17,7 @@ index 599132611..f6ff8ad22 100644
 
      sys.exit(_main())
 diff --git a/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py b/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py
-index 0ba06c52..6fdb59b7 100644
+index de04e1d73..0f54c26a1 100644
 --- a/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py
 +++ b/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py
 @@ -2,6 +2,7 @@ import logging
@@ -28,8 +28,8 @@ index 0ba06c52..6fdb59b7 100644
  from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
  from pipenv.patched.pip._vendor.packaging.version import Version
 
-@@ -253,7 +253,10 @@ class _InstallRequirementBackedCandidate(Candidate):
-        yield self._factory.make_requires_python_requirement(self.dist.requires_python)
+@@ -244,7 +245,10 @@ class _InstallRequirementBackedCandidate(Candidate):
+         yield self._factory.make_requires_python_requirement(self.dist.requires_python)
 
      def get_install_requirement(self) -> Optional[InstallRequirement]:
 -        return self._ireq
