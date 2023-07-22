@@ -1,15 +1,18 @@
 import contextlib
 import hashlib
+import json
 import os
 import subprocess
 import sys
+import tempfile
 import warnings
 from functools import lru_cache
 from html.parser import HTMLParser
+from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 from urllib import parse
 
-from pipenv import environments
+from pipenv import environments, resolver
 from pipenv.exceptions import RequirementError, ResolutionFailure
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.commands.install import InstallCommand
@@ -27,7 +30,6 @@ from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor import pkg_resources, rich
 from pipenv.project import Project
-from pipenv.resolver import resolve_packages
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir, open_file
 from pipenv.vendor.requirementslib.models.requirements import Line, Requirement
@@ -55,7 +57,7 @@ from .dependencies import (
 from .indexes import parse_indexes, prepare_pip_source_args
 from .internet import _get_requests_session, is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
-from .shell import subprocess_run, temp_environ
+from .shell import make_posix, subprocess_run, temp_environ
 
 console = rich.console.Console()
 err = rich.console.Console(stderr=True)
@@ -1052,29 +1054,82 @@ def venv_resolve_deps(
             # dependency resolution on them, so we are including this step inside the
             # spinner context manager for the UX improvement
             st.console.print("Building requirements...")
-            deps = convert_deps_to_pip(deps, project)
+            deps = convert_deps_to_pip(deps, project, include_index=True)
             constraints = set(deps)
             st.console.print("Resolving dependencies...")
-            try:
-                results = resolve_packages(
-                    pre,
-                    clear,
-                    project.s.is_verbose(),
-                    allow_global,
-                    req_dir,
-                    packages=deps,
-                    category=category,
-                    constraints=constraints,
+            if project.s.PIPENV_RESOLVER_PARENT_PYTHON:
+                try:
+                    results = resolver.resolve_packages(
+                        pre,
+                        clear,
+                        project.s.is_verbose(),
+                        system=allow_global,
+                        write=False,
+                        requirements_dir=req_dir,
+                        packages=deps,
+                        category=category,
+                        constraints=constraints,
+                    )
+                    if results:
+                        st.console.print(
+                            environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
+                        )
+                except Exception:
+                    st.console.print(
+                        environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
+                    )
+                    raise
+            else:  # Default behavior is to use project python's resolver
+                cmd = [
+                    which("python", allow_global=allow_global),
+                    Path(resolver.__file__.rstrip("co")).as_posix(),
+                ]
+                if pre:
+                    cmd.append("--pre")
+                if clear:
+                    cmd.append("--clear")
+                if allow_global:
+                    cmd.append("--system")
+                if category:
+                    cmd.append("--category")
+                    cmd.append(category)
+                target_file = tempfile.NamedTemporaryFile(
+                    prefix="resolver", suffix=".json", delete=False
                 )
-                if results:
+                target_file.close()
+                cmd.extend(["--write", make_posix(target_file.name)])
+
+                with tempfile.NamedTemporaryFile(
+                    mode="w+", prefix="pipenv", suffix="constraints.txt", delete=False
+                ) as constraints_file:
+                    constraints_file.write(str("\n".join(constraints)))
+                cmd.append("--constraints-file")
+                cmd.append(constraints_file.name)
+                st.console.print("Resolving dependencies...")
+                c = resolve(cmd, st, project=project)
+                if c.returncode == 0:
+                    try:
+                        with open(target_file.name) as fh:
+                            results = json.load(fh)
+                    except (IndexError, json.JSONDecodeError):
+                        click.echo(c.stdout.strip(), err=True)
+                        click.echo(c.stderr.strip(), err=True)
+                        if os.path.exists(target_file.name):
+                            os.unlink(target_file.name)
+                        raise RuntimeError("There was a problem with locking.")
+                    if os.path.exists(target_file.name):
+                        os.unlink(target_file.name)
                     st.console.print(
                         environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
                     )
-            except Exception:
-                st.console.print(
-                    environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
-                )
-                raise RuntimeError("There was a problem with locking.")
+                    if not project.s.is_verbose() and c.stderr.strip():
+                        click.echo(click.style(f"Warning: {c.stderr.strip()}"), err=True)
+                else:
+                    st.console.print(
+                        environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
+                    )
+                    click.echo(f"Output: {c.stdout.strip()}", err=True)
+                    click.echo(f"Error: {c.stderr.strip()}", err=True)
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
     return prepare_lockfile(results, pipfile, lockfile[lockfile_section])
