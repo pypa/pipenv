@@ -163,28 +163,28 @@ def clean_resolved_dep(dep, dep_name=None, is_top_level=False, pipfile_entry=Non
             lockfile[vcs_type] = dep[vcs_type]
             lockfile["ref"] = dep.get("rev")
             is_vcs_or_file = True
-    if dep.link and dep.link.scheme in [
-        "http",
-        "https",
-        "ftp",
-        "git+http",
-        "git+https",
-        "git+ssh",
-        "git+git",
-        "hg+http",
-        "hg+https",
-        "hg+ssh",
-        "svn+http",
-        "svn+https",
-        "svn+svn",
-        "bzr+http",
-        "bzr+https",
-        "bzr+ssh",
-        "bzr+sftp",
-        "bzr+ftp",
-        "bzr+lp",
-    ]:
-        is_vcs_or_file = True
+    # if dep.link and dep.link.scheme in [
+    #     "http",
+    #     "https",
+    #     "ftp",
+    #     "git+http",
+    #     "git+https",
+    #     "git+ssh",
+    #     "git+git",
+    #     "hg+http",
+    #     "hg+https",
+    #     "hg+ssh",
+    #     "svn+http",
+    #     "svn+https",
+    #     "svn+svn",
+    #     "bzr+http",
+    #     "bzr+https",
+    #     "bzr+ssh",
+    #     "bzr+sftp",
+    #     "bzr+ftp",
+    #     "bzr+lp",
+    # ]:
+    #     is_vcs_or_file = True
 
     if version and not is_vcs_or_file:
         if isinstance(version, PipRequirement):
