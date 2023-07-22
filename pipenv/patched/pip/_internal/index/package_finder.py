@@ -181,7 +181,7 @@ class LinkEvaluator:
                     LinkType.format_unsupported,
                     f"unsupported archive format: {ext}",
                 )
-            if "binary" not in self._formats and ext == WHEEL_EXTENSION :
+            if "binary" not in self._formats and ext == WHEEL_EXTENSION:
                 reason = f"No binaries permitted for {self.project_name}"
                 return (LinkType.format_unsupported, reason)
             if "macosx10" in link.path and ext == ".zip":
@@ -487,9 +487,7 @@ class CandidateEvaluator:
 
         return sorted(filtered_applicable_candidates, key=self._sort_key)
 
-    def _sort_key(
-            self, candidate: InstallationCandidate,
-    ) -> CandidateSortingKey:
+    def _sort_key(self, candidate: InstallationCandidate) -> CandidateSortingKey:
         """
         Function to pass as the `key` argument to a call to sorted() to sort
         InstallationCandidates by preference.
@@ -538,7 +536,6 @@ class CandidateEvaluator:
                     "{} is not a supported wheel for this platform. It "
                     "can't be sorted.".format(wheel.filename)
                 )
-                pri = -(support_num)
             if self._prefer_binary:
                 binary_preference = 1
             if wheel.build_tag is not None:
