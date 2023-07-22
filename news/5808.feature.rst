@@ -1,0 +1,1 @@
+Upgrades ``pip==23.2`` which includes everything from the pip changelog.  Drops the "install_compatatability_finder" pip internals patch.
