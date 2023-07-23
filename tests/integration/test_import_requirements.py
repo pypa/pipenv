@@ -14,7 +14,7 @@ from pipenv.project import Project
 @pytest.mark.cli
 @pytest.mark.deploy
 @pytest.mark.system
-@mock.patch("pipenv.project.unpack_url", mock.MagicMock(return_value=File("/some/path/to/project", content_type=None)))
+@mock.patch("pipenv.utils.dependencies.unpack_url", mock.MagicMock(return_value=File("/some/path/to/project", content_type=None)))
 @mock.patch("pipenv.utils.dependencies.find_package_name_from_directory")
 def test_auth_with_pw_redacted(mock_find_package_name_from_directory, pipenv_instance_pypi):
     mock_find_package_name_from_directory.return_value = "myproject"
@@ -32,7 +32,7 @@ def test_auth_with_pw_redacted(mock_find_package_name_from_directory, pipenv_ins
 @pytest.mark.cli
 @pytest.mark.deploy
 @pytest.mark.system
-@mock.patch("pipenv.project.unpack_url", mock.MagicMock(return_value=File("/some/path/to/project", content_type=None)))
+@mock.patch("pipenv.utils.dependencies.unpack_url", mock.MagicMock(return_value=File("/some/path/to/project", content_type=None)))
 @mock.patch("pipenv.utils.dependencies.find_package_name_from_directory")
 def test_auth_with_username_redacted(mock_find_package_name_from_directory, pipenv_instance_pypi):
     mock_find_package_name_from_directory.return_value = "myproject"
@@ -50,7 +50,7 @@ def test_auth_with_username_redacted(mock_find_package_name_from_directory, pipe
 @pytest.mark.cli
 @pytest.mark.deploy
 @pytest.mark.system
-@mock.patch("pipenv.project.unpack_url", mock.MagicMock(return_value=File("/some/path/to/project", content_type=None)))
+@mock.patch("pipenv.utils.dependencies.unpack_url", mock.MagicMock(return_value=File("/some/path/to/project", content_type=None)))
 @mock.patch("pipenv.utils.dependencies.find_package_name_from_directory")
 def test_auth_with_pw_are_variables_passed_to_pipfile(mock_find_package_name_from_directory, pipenv_instance_pypi):
     mock_find_package_name_from_directory.return_value = "myproject"
@@ -67,7 +67,7 @@ def test_auth_with_pw_are_variables_passed_to_pipfile(mock_find_package_name_fro
 @pytest.mark.cli
 @pytest.mark.deploy
 @pytest.mark.system
-@mock.patch("pipenv.project.unpack_url", mock.MagicMock(return_value=File("/some/path/to/project", content_type=None)))
+@mock.patch("pipenv.utils.dependencies.unpack_url", mock.MagicMock(return_value=File("/some/path/to/project", content_type=None)))
 @mock.patch("pipenv.utils.dependencies.find_package_name_from_directory")
 def test_auth_with_only_username_variable_passed_to_pipfile(mock_find_package_name_from_directory, pipenv_instance_pypi):
     mock_find_package_name_from_directory.return_value = "myproject"
