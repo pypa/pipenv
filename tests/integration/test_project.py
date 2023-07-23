@@ -97,7 +97,7 @@ def test_maintain_file_line_endings(pipenv_instance_pypi, newlines):
             with open(fn, 'w', newline=newlines) as f:
                 f.write(contents)
 
-        # Run pipenv install to programatically rewrite
+        # Run pipenv install to programmatically rewrite
         c = p.pipenv('install chardet')
         assert c.returncode == 0
 

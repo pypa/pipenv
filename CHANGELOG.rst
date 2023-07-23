@@ -287,7 +287,7 @@ Bug Fixes
 ---------
 
 - Fix regression with detection of ``CI`` env variable being set to something other than a truthy value.  `#5554 <https://github.com/pypa/pipenv/issues/5554>`_
-- Fix ``--categories`` argument inconsistency between requirements command and install/sync by allowing comma seperated values or spaces.  `#5570 <https://github.com/pypa/pipenv/issues/5570>`_
+- Fix ``--categories`` argument inconsistency between requirements command and install/sync by allowing comma separated values or spaces.  `#5570 <https://github.com/pypa/pipenv/issues/5570>`_
 - Use Nushell overlays when running ``pipenv shell``.  `#5603 <https://github.com/pypa/pipenv/issues/5603>`_
 
 Vendored Libraries
@@ -497,7 +497,7 @@ Bug Fixes
 Features & Improvements
 -----------------------
 
-- Add ability for callable scripts in Pipfile under [scripts]. Callables can now be added like: ``<pathed.module>:<func>`` and can also take arguments. For exaple: ``func = {call = "package.module:func('arg1', 'arg2')"}`` then this can be activated in the shell with ``pipenv run func``  `#5294 <https://github.com/pypa/pipenv/issues/5294>`_
+- Add ability for callable scripts in Pipfile under [scripts]. Callables can now be added like: ``<pathed.module>:<func>`` and can also take arguments. For example: ``func = {call = "package.module:func('arg1', 'arg2')"}`` then this can be activated in the shell with ``pipenv run func``  `#5294 <https://github.com/pypa/pipenv/issues/5294>`_
 
 Bug Fixes
 ---------
@@ -567,7 +567,7 @@ Behavior Changes
 - Remove usage of pipfile module in favour of Plette.
   pipfile is not actively maintained anymore. Plette is actively maintained,
   and has stricter checking of the Pipefile and Pipefile.lock. As a result,
-  Pipefile with unnamed package indecies will fail to lock. If a Pipefile
+  Pipefile with unnamed package indices will fail to lock. If a Pipefile
   was hand crafeted, and the source is anonymous an error will be thrown.
   The solution is simple, add a name to your index, e.g, replace::
 
@@ -760,8 +760,8 @@ Bug Fixes
 - If environment variable ``CI`` or ``TF_BUILD`` is set but does not evaluate to ``False`` it is now treated as ``True``.  `#5128 <https://github.com/pypa/pipenv/issues/5128>`_
 - Fix auto-complete crashing on 'install' and 'uninstall' keywords  `#5214 <https://github.com/pypa/pipenv/issues/5214>`_
 - Address remaining ``pipenv`` commands that were still referencing the user or system installed ``pip`` to use the vendored ``pip`` internal to ``pipenv``.  `#5229 <https://github.com/pypa/pipenv/issues/5229>`_
-- Use ``packages`` as contraints when locking ``dev-packages`` in Pipfile.
-  Use ``packages`` as contraints when installing new ``dev-packages``.  `#5234 <https://github.com/pypa/pipenv/issues/5234>`_
+- Use ``packages`` as constraints when locking ``dev-packages`` in Pipfile.
+  Use ``packages`` as constraints when installing new ``dev-packages``.  `#5234 <https://github.com/pypa/pipenv/issues/5234>`_
 
 Vendored Libraries
 ------------------
@@ -903,7 +903,7 @@ Vendored Libraries
 Removals and Deprecations
 -------------------------
 
-- Remove more usage of misc functions of vistir. Many of this function are availabel in the STL or in another dependency of pipenv.  `#5078 <https://github.com/pypa/pipenv/issues/5078>`_
+- Remove more usage of misc functions of vistir. Many of this function are available in the STL or in another dependency of pipenv.  `#5078 <https://github.com/pypa/pipenv/issues/5078>`_
 
 
 2022.4.21 (2022-04-21)
@@ -943,7 +943,7 @@ Removals and Deprecations
 -------------------------
 
 - Removed the vendor dependency ``more-itertools`` as it was originally added for ``zipp``, which since stopped using it.  `#5044 <https://github.com/pypa/pipenv/issues/5044>`_
-- Removed all usages of ``pipenv.vendor.vistir.compat.fs_str``, since this function was used for PY2-PY3 compatability and is no longer needed.  `#5062 <https://github.com/pypa/pipenv/issues/5062>`_
+- Removed all usages of ``pipenv.vendor.vistir.compat.fs_str``, since this function was used for PY2-PY3 compatibility and is no longer needed.  `#5062 <https://github.com/pypa/pipenv/issues/5062>`_
 
 Relates to dev process changes
 ------------------------------
@@ -1406,7 +1406,7 @@ Features & Improvements
 - Added a new environment variable, ``PIPENV_RESOLVE_VCS``, to toggle dependency resolution off for non-editable VCS, file, and URL based dependencies.  `#3577 <https://github.com/pypa/pipenv/issues/3577>`_
 - Added the ability for Windows users to enable emojis by setting ``PIPENV_HIDE_EMOJIS=0``.  `#3595 <https://github.com/pypa/pipenv/issues/3595>`_
 - Allow overriding PIPENV_INSTALL_TIMEOUT environment variable (in seconds).  `#3652 <https://github.com/pypa/pipenv/issues/3652>`_
-- Allow overriding PIP_EXISTS_ACTION evironment variable (value is passed to pip install).
+- Allow overriding PIP_EXISTS_ACTION environment variable (value is passed to pip install).
   Possible values here: https://pip.pypa.io/en/stable/reference/pip/#exists-action-option
   Useful when you need to ``PIP_EXISTS_ACTION=i`` (ignore existing packages) - great for CI environments, where you need really fast setup.  `#3738 <https://github.com/pypa/pipenv/issues/3738>`_
 - Pipenv will no longer forcibly override ``PIP_NO_DEPS`` on all vcs and file dependencies as resolution happens on these in a pre-lock step.  `#3763 <https://github.com/pypa/pipenv/issues/3763>`_
@@ -1594,11 +1594,11 @@ Vendored Libraries
 Improved Documentation
 ----------------------
 
-- Added documenation about variable expansion in ``Pipfile`` entries.  `#2317 <https://github.com/pypa/pipenv/issues/2317>`_
+- Added documentation about variable expansion in ``Pipfile`` entries.  `#2317 <https://github.com/pypa/pipenv/issues/2317>`_
 - Consolidate all contributing docs in the rst file  `#3120 <https://github.com/pypa/pipenv/issues/3120>`_
 - Update the out-dated manual page.  `#3246 <https://github.com/pypa/pipenv/issues/3246>`_
 - Move CLI docs to its own page.  `#3346 <https://github.com/pypa/pipenv/issues/3346>`_
-- Replace (non-existant) video on docs index.rst with equivalent gif.  `#3499 <https://github.com/pypa/pipenv/issues/3499>`_
+- Replace (non-existent) video on docs index.rst with equivalent gif.  `#3499 <https://github.com/pypa/pipenv/issues/3499>`_
 - Clarify wording in Basic Usage example on using double quotes to escape shell redirection  `#3522 <https://github.com/pypa/pipenv/issues/3522>`_
 - Ensure docs show navigation on small-screen devices  `#3527 <https://github.com/pypa/pipenv/issues/3527>`_
 - Added a link to the TOML Spec under General Recommendations & Version Control to clarify how Pipfiles should be written.  `#3629 <https://github.com/pypa/pipenv/issues/3629>`_
