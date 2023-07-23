@@ -315,7 +315,7 @@ def is_editable_path(path):
 
 def dependency_as_pip_install_line(
     dep_name: str,
-    dep: dict | str,
+    dep: Union[str, Mapping],
     include_hashes: bool,
     include_markers: bool,
     indexes: list,
