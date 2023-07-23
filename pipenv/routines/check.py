@@ -129,7 +129,7 @@ def do_check(
     if output in formats:
         options.append(formats.get(output, ""))
 
-    elif output in ["screen", "default"]:
+    elif output not in ["screen", "default"]:
         options.append(f"--output={output}")
 
     if save_json:
