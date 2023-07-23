@@ -228,7 +228,7 @@ def test_man(pipenv_instance_pypi):
 def test_install_parse_error(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
 
-        # Make sure unparseable packages don't wind up in the pipfile
+        # Make sure unparsable packages don't wind up in the pipfile
         # Escape $ for shell input
         with open(p.pipfile_path, 'w') as f:
             contents = """

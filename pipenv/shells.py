@@ -74,10 +74,7 @@ class Shell:
         self.args = []
 
     def __repr__(self):
-        return "{type}(cmd={cmd!r})".format(
-            type=type(self).__name__,
-            cmd=self.cmd,
-        )
+        return "{type(self).__name__}(cmd={self.cmd!r})"
 
     @contextlib.contextmanager
     def inject_path(self, venv):

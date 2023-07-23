@@ -19,11 +19,11 @@ from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.utils import console
 from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import make_posix
-from pipenv.vendor import click
 from pipenv.vendor.pythonfinder.utils import is_in_path
 from pipenv.vendor.requirementslib.fileutils import normalize_path, temp_path
 from pipenv.vendor.requirementslib.utils import temp_environ
@@ -400,8 +400,8 @@ class Environment:
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            click.secho(f"Failed to load paths: {c.stderr}", fg="yellow")
-            click.secho(f"Output: {c.stdout}", fg="yellow")
+            console.print(f"Failed to load paths: {c.stderr}", style="yellow")
+            console.print(f"Output: {c.stdout}", style="yellow")
         return None
 
     def get_lib_paths(self) -> dict[str, str]:
@@ -423,8 +423,8 @@ class Environment:
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            click.secho(f"Failed to load paths: {c.stderr}", fg="yellow")
-            click.secho(f"Output: {c.stdout}", fg="yellow")
+            console.print(f"Failed to load paths: {c.stderr}", style="yellow")
+            console.print(f"Output: {c.stdout}", style="yellow")
         if not paths:
             if not self.prefix.joinpath("lib").exists():
                 return {}
@@ -471,8 +471,8 @@ class Environment:
                     paths[key] = make_posix(paths[key])
             return paths
         else:
-            click.secho(f"Failed to load paths: {c.stderr}", fg="yellow")
-            click.secho(f"Output: {c.stdout}", fg="yellow")
+            console.print(f"Failed to load paths: {c.stderr}", style="yellow")
+            console.print(f"Output: {c.stdout}", style="yellow")
         return None
 
     @cached_property
@@ -536,7 +536,7 @@ class Environment:
 
     def get_distributions(self) -> Generator[pkg_resources.Distribution, None, None]:
         """
-        Retrives the distributions installed on the library path of the environment
+        Retrieves the distributions installed on the library path of the environment
 
         :return: A set of distributions found on the library path
         :rtype: iterator

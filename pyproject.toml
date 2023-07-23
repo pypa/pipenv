@@ -59,7 +59,7 @@ norecursedirs = [
 ]
 filterwarnings = []
 # These are not all the custom markers, but most of the ones with repeat uses
-# `pipenv run pytest --markers` will list all markers inlcuding these
+# `pipenv run pytest --markers` will list all markers including these
 markers = [
     "install: tests having to do with `pipenv install`",
     "update: tests having to do with `pipenv update`",

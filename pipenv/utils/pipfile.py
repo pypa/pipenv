@@ -1,12 +1,8 @@
 import os
 
 from pipenv import environments, exceptions
-from pipenv.patched.pip._vendor import rich
+from pipenv.utils import console, err
 from pipenv.utils.requirements import import_requirements
-from pipenv.vendor import click
-
-console = rich.console.Console()
-err = rich.console.Console(stderr=True)
 
 
 def walk_up(bottom):
@@ -74,12 +70,9 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists and not skip_requirements:
             requirements_dir_path = os.path.dirname(project.requirements_location)
-            click.echo(
-                "{} found in {} instead of {}! Converting...".format(
-                    click.style("requirements.txt", bold=True),
-                    click.style(requirements_dir_path, fg="yellow", bold=True),
-                    click.style("Pipfile", bold=True),
-                )
+            console.print(
+                f"[bold]requirements.txt[/bold] found in [bold yellow]{requirements_dir_path}"
+                "[/bold yellow] instead of [bold]Pipfile[/bold]! Converting..."
             )
             # Create a Pipfile...
             project.create_pipfile(python=python)
@@ -96,18 +89,14 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
                         environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
                     )
             # Warn the user of side-effects.
-            click.echo(
-                "{0}: Your {1} now contains pinned versions, if your {2} did. \n"
-                "We recommend updating your {1} to specify the {3} version, instead."
-                "".format(
-                    click.style("Warning", fg="red", bold=True),
-                    click.style("Pipfile", bold=True),
-                    click.style("requirements.txt", bold=True),
-                    click.style('"*"', bold=True),
-                )
+            console.print(
+                "[bold red]Warning[/bold red]: Your [bold]Pipfile[/bold] now contains pinned versions, "
+                "if your [bold]requirements.txt[/bold] did. \n"
+                'We recommend updating your [bold]Pipfile[/bold] to specify the [bold]"*"'
+                "[/bold] version, instead."
             )
         else:
-            click.secho("Creating a Pipfile for this project...", bold=True, err=True)
+            err.print("Creating a Pipfile for this project...", style="bold")
             # Create the pipfile if it doesn't exist.
             project.create_pipfile(python=python)
     # Validate the Pipfile's contents.
@@ -117,7 +106,5 @@ def ensure_pipfile(project, validate=True, skip_requirements=False, system=False
         changed = project.ensure_proper_casing()
         # Write changes out to disk.
         if changed:
-            click.echo(
-                click.style("Fixing package names in Pipfile...", bold=True), err=True
-            )
+            err.print("Fixing package names in Pipfile...", style="bold")
             project.write_toml(p)
