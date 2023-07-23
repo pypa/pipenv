@@ -4,25 +4,35 @@ import os
 import tarfile
 import zipfile
 from contextlib import contextmanager
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit
 
 from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_editable,
     parse_req_from_line,
 )
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
 from pipenv.patched.pip._vendor import tomli
 from pipenv.patched.pip._vendor.distlib.util import COMPARE_OP
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
-from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
+from pipenv.vendor.requirementslib.fileutils import (
+    create_tracked_tempdir,
+    get_converted_relative_path,
+)
 from pipenv.vendor.requirementslib.models.markers import PipenvMarkers
-from pipenv.vendor.requirementslib.models.utils import get_version
-from pipenv.vendor.requirementslib.utils import prepare_pip_source_args
+from pipenv.vendor.requirementslib.models.requirements import LinkInfo
+from pipenv.vendor.requirementslib.models.utils import create_link, get_version
+from pipenv.vendor.requirementslib.utils import (
+    add_ssh_scheme_to_git_uri,
+    prepare_pip_source_args,
+    strip_ssh_from_git_uri,
+)
 
 from .constants import SCHEME_LIST, VCS_LIST
 
@@ -345,7 +355,8 @@ def dependency_as_pip_install_line(
             ref = f"@{dep['ref']}"
         if "extras" in dep:
             extras = f"[{','.join(dep['extras'])}]"
-        git_req = f"{vcs}+{dep[vcs]}{ref}#egg={dep_name}{extras}"
+        include_vcs = "" if f"{vcs}+" in dep[vcs] else f"{vcs}+"
+        git_req = f"{include_vcs}{dep[vcs]}{ref}#egg={dep_name}{extras}"
         if "subdirectory" in dep:
             git_req += f"&subdirectory={dep['subdirectory']}"
         line.append(git_req)
@@ -520,7 +531,99 @@ def find_package_name_from_filename(filename, file):
     return None
 
 
-def install_req_from_line(
+def get_link_from_line(line):
+    """Parse link information from given requirement line. Return a
+    6-tuple:
+
+    - `vcs_type` indicates the VCS to use (e.g. "git"), or None.
+    - `prefer` is either "file", "path" or "uri", indicating how the
+        information should be used in later stages.
+    - `relpath` is the relative path to use when recording the dependency,
+        instead of the absolute path/URI used to perform installation.
+        This can be None (to prefer the absolute path or URI).
+    - `path` is the absolute file path to the package. This will always use
+        forward slashes. Can be None if the line is a remote URI.
+    - `uri` is the absolute URI to the package. Can be None if the line is
+        not a URI.
+    - `link` is an instance of :class:`pipenv.patched.pip._internal.index.Link`,
+        representing a URI parse result based on the value of `uri`.
+    This function is provided to deal with edge cases concerning URIs
+    without a valid netloc. Those URIs are problematic to a straight
+    ``urlsplit` call because they cannot be reliably reconstructed with
+    ``urlunsplit`` due to a bug in the standard library:
+    >>> from urllib.parse import urlsplit, urlunsplit
+    >>> urlunsplit(urlsplit('git+file:///this/breaks'))
+    'git+file:/this/breaks'
+    >>> urlunsplit(urlsplit('file:///this/works'))
+    'file:///this/works'
+    See `https://bugs.python.org/issue23505#msg277350`.
+    """
+
+    # Git allows `git@github.com...` lines that are not really URIs.
+    # Add "ssh://" so we can parse correctly, and restore afterward.
+    fixed_line = add_ssh_scheme_to_git_uri(line)  # type: str
+    added_ssh_scheme = fixed_line != line  # type: bool
+
+    # We can assume a lot of things if this is a local filesystem path.
+    if "://" not in fixed_line:
+        p = Path(fixed_line).absolute()  # type: Path
+        path = p.as_posix()  # type: Optional[str]
+        uri = p.as_uri()  # type: str
+        link = create_link(uri)  # type: Link
+        relpath = None  # type: Optional[str]
+        try:
+            relpath = get_converted_relative_path(path)
+        except ValueError:
+            relpath = None
+        return LinkInfo(None, "path", relpath, path, uri, link)
+
+    # This is an URI. We'll need to perform some elaborated parsing.
+    parsed_url = urlsplit(fixed_line)  # type: SplitResult
+    original_url = parsed_url._replace()  # type: SplitResult
+
+    # Split the VCS part out if needed.
+    original_scheme = parsed_url.scheme  # type: str
+    vcs_type = None  # type: Optional[str]
+    if "+" in original_scheme:
+        scheme = None  # type: Optional[str]
+        vcs_type, _, scheme = original_scheme.partition("+")
+        parsed_url = parsed_url._replace(scheme=scheme)  # type: ignore
+    else:
+        pass
+
+    if parsed_url.scheme == "file" and parsed_url.path:
+        # This is a "file://" URI. Use url_to_path and path_to_url to
+        # ensure the path is absolute. Also we need to build relpath.
+        path = Path(url_to_path(urlunsplit(parsed_url))).as_posix()
+        try:
+            relpath = get_converted_relative_path(path)
+        except ValueError:
+            relpath = None
+        uri = path_to_url(path)
+    else:
+        # This is a remote URI. Simply use it.
+        path = None
+        relpath = None
+        # Cut the fragment, but otherwise this is fixed_line.
+        uri = urlunsplit(
+            parsed_url._replace(scheme=original_scheme, fragment="")  # type: ignore
+        )
+
+    if added_ssh_scheme:
+        original_uri = urlunsplit(
+            original_url._replace(scheme=original_scheme, fragment="")  # type: ignore
+        )
+        uri = strip_ssh_from_git_uri(original_uri)
+
+    # Re-attach VCS prefix to build a Link.
+    link = create_link(
+        urlunsplit(parsed_url._replace(scheme=original_scheme))  # type: ignore
+    )
+
+    return link
+
+
+def expansive_install_req_from_line(
     name: str,
     comes_from: Optional[Union[str, InstallRequirement]] = None,
     *,
@@ -552,7 +655,22 @@ def install_req_from_line(
             name = editable + name
 
         return install_req_from_editable(name, line_source)
-    elif urlparse(name).scheme in ("http", "https", "file"):
+
+    for vcs in VCS_LIST:
+        if name.startswith(f"{vcs}+"):
+            link = get_link_from_line(name)
+            return InstallRequirement(
+                None,
+                comes_from,
+                link=link,
+                use_pep517=use_pep517,
+                isolated=isolated,
+                global_options=global_options,
+                hash_options=hash_options,
+                constraint=constraint,
+                user_supplied=user_supplied,
+            )
+    if urlparse(name).scheme in ("http", "https", "file"):
         parts = parse_req_from_line(name, line_source)
     else:
         # It's a requirement
@@ -603,7 +721,7 @@ def from_pipfile(name, pipfile):
             version = ""
         req_str = f"{name}{extras_str}{version}"
 
-    install_req = install_req_from_line(
+    install_req = expansive_install_req_from_line(
         req_str,
         comes_from=None,
         use_pep517=False,

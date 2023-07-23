@@ -1820,9 +1820,26 @@ def unpack_url(
         would ordinarily raise HashUnsupported) are allowed.
     """
     # non-editable vcs urls
-    if link.is_vcs:
+    if link.scheme in [
+        "git+http",
+            "git+https",
+            "git+ssh",
+            "git+git",
+            "hg+http",
+            "hg+https",
+            "hg+ssh",
+            "svn+http",
+            "svn+https",
+            "svn+svn",
+            "bzr+http",
+            "bzr+https",
+            "bzr+ssh",
+            "bzr+sftp",
+            "bzr+ftp",
+            "bzr+lp",
+        ]:
         unpack_vcs_link(link, location, verbosity=verbosity)
-        return None
+        return File(location, content_type=None)
 
     assert not link.is_existing_dir()
 

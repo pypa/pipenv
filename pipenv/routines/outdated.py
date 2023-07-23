@@ -4,7 +4,11 @@ from collections.abc import Mapping
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.routines.lock import do_lock
-from pipenv.utils.dependencies import as_pipfile, install_req_from_line, pep423_name
+from pipenv.utils.dependencies import (
+    as_pipfile,
+    expansive_install_req_from_line,
+    pep423_name,
+)
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib.models.utils import get_version
 
@@ -25,7 +29,7 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         for name, deps in project.environment.reverse_dependencies().items()
     }
     for result in installed_packages:
-        dep = install_req_from_line(str(result.as_requirement()))
+        dep = expansive_install_req_from_line(str(result.as_requirement()))
         packages.update(as_pipfile(dep))
 
     updated_packages = {}

@@ -9,7 +9,7 @@ from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 
 from pipenv.vendor.plette import lockfiles
 from pipenv.vendor.pydantic import Field
-from pipenv.utils.dependencies import install_req_from_line
+from pipenv.utils.dependencies import expansive_install_req_from_line
 
 from ..exceptions import LockfileCorruptException, MissingParameter, PipfileNotFound
 from ..utils import is_editable, is_vcs, merge_items
@@ -240,7 +240,7 @@ class Lockfile(ReqLibBaseModel):
         for package_name, package_info in deps.items():
             pip_line = requirement_from_lockfile(package_name, package_info, include_hashes=False, include_markers=False)
             pip_line_specified = requirement_from_lockfile(package_name, package_info, include_hashes=True, include_markers=True)
-            yield install_req_from_line(pip_line), pip_line_specified
+            yield expansive_install_req_from_line(pip_line), pip_line_specified
 
     def requirements_list(self, category: str) -> List[Dict]:
         if self.lockfile.get(category):

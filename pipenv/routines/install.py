@@ -9,7 +9,7 @@ from pipenv import environments, exceptions
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._vendor import rich
 from pipenv.routines.lock import do_lock
-from pipenv.utils.dependencies import install_req_from_line
+from pipenv.utils.dependencies import expansive_install_req_from_line
 from pipenv.utils.indexes import get_source_list
 from pipenv.utils.internet import download_file, is_valid_url
 from pipenv.utils.pip import (
@@ -213,7 +213,7 @@ def do_install(
                         del os.environ["PYTHONHOME"]
                 st.console.print(f"Resolving {pkg_line}...", markup=False)
                 try:
-                    pkg_requirement = install_req_from_line(pkg_line)
+                    pkg_requirement = expansive_install_req_from_line(pkg_line)
                 except ValueError as e:
                     err.print("{}: {}".format(click.style("WARNING", fg="red"), e))
                     err.print(

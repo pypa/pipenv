@@ -75,10 +75,10 @@ def test_file_urls_work(pipenv_instance_pypi):
 @pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_editable_vcs_install(pipenv_instance_pypi):
+def test_vcs_install(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv(
-            "install -e git+https://github.com/lidatong/dataclasses-json.git#egg=dataclasses-json"
+            "install git+https://github.com/lidatong/dataclasses-json.git@v0.5.7#egg=dataclasses-json"
         )
         assert c.returncode == 0
         assert "dataclasses-json" in p.pipfile["packages"]
@@ -88,10 +88,10 @@ def test_editable_vcs_install(pipenv_instance_pypi):
 @pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_install_editable_git_tag(pipenv_instance_private_pypi):
+def test_install_git_tag(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv(
-            "install -e git+https://github.com/benjaminp/six.git@1.11.0#egg=six"
+            "install git+https://github.com/benjaminp/six.git@1.11.0#egg=six"
         )
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
@@ -99,7 +99,7 @@ def test_install_editable_git_tag(pipenv_instance_private_pypi):
         assert "git" in p.lockfile["default"]["six"]
         assert (
             p.lockfile["default"]["six"]["git"]
-            == "https://github.com/benjaminp/six.git"
+            == "git+https://github.com/benjaminp/six.git@1.11.0#egg=six"
         )
         assert "ref" in p.lockfile["default"]["six"]
 

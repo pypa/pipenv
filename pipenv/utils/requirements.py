@@ -114,7 +114,8 @@ def requirement_from_lockfile(
                 if "extras" in package_info
                 else ""
             )
-            pip_line = f"{vcs}+{url}@{ref}#egg={package_name}{extras}"
+            include_vcs = "" if f"{vcs}+" in url else f"{vcs}+"
+            pip_line = f"{include_vcs}{url}@{ref}#egg={package_name}{extras}"
             return pip_line
     # Handling file-sourced packages
     for k in ["file", "path"]:

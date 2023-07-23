@@ -33,11 +33,11 @@ from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
+    expansive_install_req_from_line,
     find_package_name_from_directory,
     find_package_name_from_tarball,
     find_package_name_from_zipfile,
     get_canonical_names,
-    install_req_from_line,
     is_editable,
     pep423_name,
     python_version,
@@ -998,7 +998,7 @@ class Project:
 
         # Don't re-capitalize file URLs or VCSs.
         if not isinstance(package, InstallRequirement):
-            package = install_req_from_line(package.strip())
+            package = expansive_install_req_from_line(package.strip())
 
         path_specifier = None
         vcs_specifier = None
@@ -1049,7 +1049,9 @@ class Project:
             repository_path = package.link.url.split(":")[1]
             req_name = find_package_name_from_directory(repository_path)
         elif package.link and package.link.scheme == "file":
-            if package.link.file_path.endswith(".whl"):
+            if package.link.file_path.endswith(".whl") or package.link.file_path.endswith(
+                ".zip"
+            ):
                 req_name = find_package_name_from_zipfile(package.link.file_path)
             elif package.link.file_path.endswith(".tar.gz"):
                 req_name = find_package_name_from_tarball(package.link.file_path)
