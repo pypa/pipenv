@@ -332,7 +332,7 @@ def dependency_as_pip_install_line(
                 extras = ""
                 if "extras" in dep:
                     extras = f"[{','.join(dep['extras'])}]"
-                line.append(f"{dep[k]}{extras}")
+                line.append(f"{dep_name}{extras}")
                 break
     include_index = False
     if vcs and vcs in dep:  # VCS Requirements
@@ -348,7 +348,8 @@ def dependency_as_pip_install_line(
             git_req += f"&subdirectory={dep['subdirectory']}"
         line.append(git_req)
     elif "file" in dep or "path" in dep:  # File Requirements
-        pass
+        line.append("@")
+        line.append(dep["file"] if "file" in dep else dep["path"])
     else:  # Normal/Named Requirements
         is_constraint = True
         include_index = True
@@ -493,11 +494,15 @@ def find_package_name_from_directory(directory):
 
 
 def determine_path_specifier(package: InstallRequirement):
-    if package.link and package.link.scheme == "file":
-        path_specifier = os.path.relpath(
-            package.link.file_path
-        )  # Preserve the original file path
-        return path_specifier
+    if package.link:
+        if package.link.scheme in ["http", "https"]:
+            path_specifier = package.link.url_without_fragment
+            return path_specifier
+        if package.link.scheme == "file":
+            path_specifier = os.path.relpath(
+                package.link.file_path
+            )  # Preserve the original file path
+            return path_specifier
 
 
 def determine_vcs_specifier(package: InstallRequirement):
