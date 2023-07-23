@@ -1,3 +1,28 @@
+2023.7.23 (2023-07-23)
+======================
+Pipenv 2023.7.23 (2023-07-23)
+=============================
+
+
+Features & Improvements
+-----------------------
+
+- Upgrades ``pip==23.2`` which includes everything from the pip changelog.  Drops the "install_compatatability_finder" pip internals patch.  `#5808 <https://github.com/pypa/pipenv/issues/5808>`_
+
+Bug Fixes
+---------
+
+- Fix issue parsing some Pipfiles with separate packages.<pkg> sections (tomlkit OutOfOrderTableProxy)  `#5794 <https://github.com/pypa/pipenv/issues/5794>`_
+- Fix all ruff linter warnings  `#5807 <https://github.com/pypa/pipenv/issues/5807>`_
+- Restore running Resolver in sub-process using the project python by default; maintains ability to run directly by setting ``PIPENV_RESOLVER_PARENT_PYTHON`` environment variable to 1 (useful for internal debugging).  `#5809 <https://github.com/pypa/pipenv/issues/5809>`_
+- Fix error when a Windows path begins with a '\' with ``pythonfinder==2.0.5``.  `#5812 <https://github.com/pypa/pipenv/issues/5812>`_
+
+Vendored Libraries
+------------------
+
+- Remove usage of click.secho in some modules.  `#5804 <https://github.com/pypa/pipenv/issues/5804>`_
+
+
 2023.7.11 (2023-07-11)
 ======================
 Pipenv 2023.7.11 (2023-07-11)

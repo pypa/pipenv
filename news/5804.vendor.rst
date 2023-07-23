@@ -1,1 +1,0 @@
-Remove usage of click.secho in some modules.

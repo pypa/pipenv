@@ -1,1 +1,0 @@
-Restore running Resolver in sub-process using the project python by default; maintains ability to run directly by setting ``PIPENV_RESOLVER_PARENT_PYTHON`` environment variable to 1 (useful for internal debugging).
