@@ -342,6 +342,19 @@ def dependency_as_pip_install_line(
                 line.append(dep["file"] if "file" in dep else dep["path"])
                 line.append(extras)
                 break
+        else:
+            # Normal/Named Requirements
+            is_constraint = True
+            include_index = True
+            line.append(dep_name)
+            if "extras" in dep:
+                line[-1] += f"[{','.join(dep['extras'])}]"
+            if "version" in dep:
+                version = dep["version"]
+                if version and not is_star(version):
+                    if not COMPARE_OP.match(version):
+                        version = f"=={version}"
+                    line[-1] += version
     elif vcs and vcs in dep:  # VCS Requirements
         extras = ""
         ref = ""
@@ -354,18 +367,6 @@ def dependency_as_pip_install_line(
         if "subdirectory" in dep:
             git_req += f"&subdirectory={dep['subdirectory']}"
         line.append(git_req)
-    else:  # Normal/Named Requirements
-        is_constraint = True
-        include_index = True
-        line.append(dep_name)
-        if "extras" in dep:
-            line[-1] += f"[{','.join(dep['extras'])}]"
-        if "version" in dep:
-            version = dep["version"]
-            if version and not is_star(version):
-                if not COMPARE_OP.match(version):
-                    version = f"=={version}"
-                line[-1] += version
 
     if include_markers and dep.get("markers"):
         line.append(f'; {dep["markers"]}')
@@ -394,7 +395,6 @@ def convert_deps_to_pip(
     include_index=True,
     include_hashes=True,
     include_markers=True,
-    constraints_only=False,
 ):
     """ "Converts a Pipfile-formatted dependency to a pip-formatted one."""
     dependencies = []
