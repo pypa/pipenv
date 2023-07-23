@@ -2,6 +2,7 @@ import sys
 
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.routines.lock import do_lock
+from pipenv.utils import console, err
 from pipenv.utils.processes import run_command
 from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import BAD_PACKAGES
@@ -44,10 +45,8 @@ def do_clean(
             click.echo(apparent_bad_package)
         else:
             if not bare:
-                click.secho(
-                    f"Uninstalling {apparent_bad_package}...",
-                    fg="white",
-                    bold=True,
+                console.print(
+                    f"Uninstalling {apparent_bad_package}...", style="white bold"
                 )
             # Uninstall the package.
             cmd = [
@@ -70,13 +69,9 @@ def ensure_lockfile(project, pypi_mirror=None):
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
-            click.secho(
-                "Pipfile.lock ({}) out of date, updating to ({})...".format(
-                    old_hash[-6:], new_hash[-6:]
-                ),
-                fg="yellow",
-                bold=True,
-                err=True,
+            err.print(
+                f"Pipfile.lock ({old_hash[-6:]}) out of date, updating to ({new_hash[-6:]})...",
+                style="bold yellow",
             )
             do_lock(project, pypi_mirror=pypi_mirror)
     else:
