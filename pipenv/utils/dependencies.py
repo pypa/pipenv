@@ -8,7 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
-from urllib.parse import urlparse, urlsplit, urlunsplit
+from urllib.parse import urljoin, urlparse, urlsplit, urlunsplit
 
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.req.constructors import (
@@ -28,7 +28,6 @@ from pipenv.vendor.requirementslib.fileutils import (
     get_converted_relative_path,
 )
 from pipenv.vendor.requirementslib.models.markers import PipenvMarkers
-from pipenv.vendor.requirementslib.models.requirements import LinkInfo
 from pipenv.vendor.requirementslib.models.setup_info import unpack_url
 from pipenv.vendor.requirementslib.models.utils import create_link, get_version
 from pipenv.vendor.requirementslib.utils import (
@@ -340,7 +339,7 @@ def dependency_as_pip_install_line(
                 if "extras" in dep:
                     extras = f"[{','.join(dep['extras'])}]"
                 line.append(dep["file"] if "file" in dep else dep["path"])
-                line.append(extras)
+                line[-1] += extras
                 break
         else:
             # Normal/Named Requirements
@@ -355,6 +354,19 @@ def dependency_as_pip_install_line(
                     if not COMPARE_OP.match(version):
                         version = f"=={version}"
                     line[-1] += version
+            if include_markers and dep.get("markers"):
+                line[-1] = f'{line[-1]}; {dep["markers"]}'
+
+            if include_hashes and dep.get("hashes"):
+                line.extend([f" --hash={hash}" for hash in dep["hashes"]])
+
+            if include_index:
+                if dep.get("index"):
+                    indexes = [s for s in indexes if s.get("name") == dep["index"]]
+                else:
+                    indexes = [indexes[0]] if indexes else []
+                index_list = prepare_pip_source_args(indexes)
+                line.extend(index_list)
     elif vcs and vcs in dep:  # VCS Requirements
         extras = ""
         ref = ""
@@ -367,20 +379,6 @@ def dependency_as_pip_install_line(
         if "subdirectory" in dep:
             git_req += f"&subdirectory={dep['subdirectory']}"
         line.append(git_req)
-
-    if include_markers and dep.get("markers"):
-        line.append(f'; {dep["markers"]}')
-
-    if include_hashes and dep.get("hashes"):
-        line.extend([f" --hash={hash}" for hash in dep["hashes"]])
-
-    if include_index:
-        if dep.get("index"):
-            indexes = [s for s in indexes if s.get("name") == dep["index"]]
-        else:
-            indexes = [indexes[0]] if indexes else []
-        index_list = prepare_pip_source_args(indexes)
-        line.extend(index_list)
 
     if constraint and not is_constraint:
         pip_line = ""
@@ -479,6 +477,8 @@ def parse_cfg_file(filepath):
 
 def parse_toml_file(content):
     toml_dict = tomli.loads(content)
+    if "project" in toml_dict and "name" in toml_dict["project"]:
+        return toml_dict["project"]["name"]
     if "tool" in toml_dict and "poetry" in toml_dict["tool"]:
         return toml_dict["tool"]["poetry"]["name"]
 
@@ -657,12 +657,7 @@ def get_link_from_line(line):
         path = p.as_posix()  # type: Optional[str]
         uri = p.as_uri()  # type: str
         link = create_link(uri)  # type: Link
-        relpath = None  # type: Optional[str]
-        try:
-            relpath = get_converted_relative_path(path)
-        except ValueError:
-            relpath = None
-        return LinkInfo(None, "path", relpath, path, uri, link)
+        return link
 
     # This is an URI. We'll need to perform some elaborated parsing.
     parsed_url = urlsplit(fixed_line)  # type: SplitResult
@@ -683,14 +678,13 @@ def get_link_from_line(line):
         # ensure the path is absolute. Also we need to build relpath.
         path = Path(url_to_path(urlunsplit(parsed_url))).as_posix()
         try:
-            relpath = get_converted_relative_path(path)
+            get_converted_relative_path(path)
         except ValueError:
-            relpath = None
+            pass
         uri = path_to_url(path)
     else:
         # This is a remote URI. Simply use it.
         path = None
-        relpath = None
         # Cut the fragment, but otherwise this is fixed_line.
         uri = urlunsplit(
             parsed_url._replace(scheme=original_scheme, fragment="")  # type: ignore
@@ -729,17 +723,16 @@ def expansive_install_req_from_line(
     :param line_source: An optional string describing where the line is from,
         for logging purposes in case of an error.
     """
-    editable = ""
     if name.startswith("-e "):
         # Editable requirement
         name = name.split("-e ")[1]
-        editable = "-e "
 
     if os.path.isfile(name) or os.path.isdir(name):
-        if not name.startswith("file:") and not editable:
-            name = f"{editable}file:" + name
-        else:
-            name = editable + name
+        if not name.startswith("file:"):
+            # Make sure the path is absolute and properly formatted as a file: URL
+            absolute_path = os.path.abspath(name)
+            name = urljoin("file:", absolute_path)
+            name = "file:" + name
 
         return install_req_from_editable(name, line_source)
 
@@ -761,6 +754,10 @@ def expansive_install_req_from_line(
         parts = parse_req_from_line(name, line_source)
     else:
         # It's a requirement
+        if "--index" in name:
+            name = name.split("--index")[0]
+        if " -i " in name:
+            name = name.split(" -i ")[0]
         parts = parse_req_from_line(name, line_source)
 
     return InstallRequirement(

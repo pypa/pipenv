@@ -39,7 +39,7 @@ DEP_PIP_PAIRS = [
                 "extras": ["pipenv"],
             }
         },
-        "-e dparse[pipenv] @ https://github.com/oz123/dparse/archive/refs/heads/master.zip",
+        "https://github.com/oz123/dparse/archive/refs/heads/master.zip[pipenv]",
     ),
     (
         {

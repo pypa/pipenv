@@ -134,7 +134,7 @@ def requirement_from_lockfile(
     # Handling packages from standard pypi like indexes
     version = package_info.get("version", "").replace("==", "")
     hashes = (
-        "\n --hash={}".format("\n --hash=".join(package_info["hashes"]))
+        f" --hash={' --hash='.join(package_info['hashes'])}"
         if include_hashes and "hashes" in package_info
         else ""
     )

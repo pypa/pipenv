@@ -46,13 +46,15 @@ from .dependencies import (
     HackedPythonVersion,
     clean_pkg_version,
     convert_deps_to_pip,
+    determine_package_name,
+    expansive_install_req_from_line,
     get_constraints_from_deps,
     get_lockfile_section_using_pipfile_category,
     is_pinned_requirement,
     prepare_constraint_file,
     translate_markers,
 )
-from .indexes import prepare_pip_source_args
+from .indexes import parse_indexes, prepare_pip_source_args
 from .internet import _get_requests_session, is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
@@ -170,7 +172,6 @@ class Resolver:
         self._parsed_constraints = None
         self._resolver = None
         self._finder = None
-        self._ignore_compatibility_finder = None
         self._session = None
         self._constraint_file = None
         self._pip_options = None
@@ -197,6 +198,203 @@ class Resolver:
                 os.path.join(self.project.s.PIPENV_CACHE_DIR, "hashes"), self.session
             )
         return self._hash_cache
+
+    #
+    # def parse_line(
+    #     self,
+    #     line: str,
+    #     index_lookup: Dict[str, str] = None,
+    #     markers_lookup: Dict[str, str] = None,
+    #     project: Optional[Project] = None,
+    # ) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]:
+    #     if index_lookup is None:
+    #         index_lookup = {}
+    #     if markers_lookup is None:
+    #         markers_lookup = {}
+    #     if project is None:
+    #         from pipenv.project import Project
+    #
+    #         project = Project()
+    #     index, extra_index, trust_host, remainder = parse_indexes(line)
+    #     line = " ".join(remainder)
+    #     try:
+    #         req = Requirement.from_line(line)
+    #     except ValueError:
+    #         direct_url = DIRECT_URL_RE.match(line)
+    #         if direct_url:
+    #             name = direct_url.groupdict()["name"]
+    #             line = f"{name}@ {line}"
+    #             try:
+    #                 req = Requirement.from_line(line)
+    #             except ValueError:
+    #                 raise ResolutionFailure(
+    #                     f"Failed to resolve requirement from line: {line!s}"
+    #                 )
+    #         else:
+    #             raise ResolutionFailure(
+    #                 f"Failed to resolve requirement from line: {line!s}"
+    #             )
+    #     if index:
+    #         try:
+    #             index_lookup[req.normalized_name] = project.get_source(
+    #                 url=index, refresh=True
+    #             ).get("name")
+    #         except TypeError:
+    #             pass
+    #     try:
+    #         req.normalized_name
+    #     except TypeError:
+    #         raise RequirementError(req=req)
+    #     # strip the marker and re-add it later after resolution
+    #     # but we will need a fallback in case resolution fails
+    #     # eg pypiwin32
+    #     if req.markers:
+    #         markers_lookup[req.normalized_name] = req.markers.replace('"', "'")
+    #     return req, index_lookup, markers_lookup
+
+    # def get_deps_from_req(
+    #     self,
+    #     package_name: str,
+    #     req: InstallRequirement,
+    #     resolver: Optional["Resolver"] = None,
+    #     resolve_vcs: bool = True,
+    # ) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]:
+    #     from pipenv.vendor.requirementslib.models.requirements import Requirement
+    #     from pipenv.vendor.requirementslib.models.utils import (
+    #         _requirement_to_str_lowercase_name,
+    #     )
+    #     from pipenv.vendor.requirementslib.utils import is_installable_dir
+    #
+    #     # TODO: this is way too complex, refactor this
+    #     constraints: Set[str] = set()
+    #     locked_deps: Dict[str, Dict[str, Union[str, bool, List[str]]]] = {}
+    #     editable_packages = self.project.get_editable_packages(category=self.category)
+    #     if (req.is_file_or_url or req.is_vcs) and not req.is_wheel:
+    #         # for local packages with setup.py files and potential direct url deps:
+    #         if req.is_vcs:
+    #             req_list, lockfile = get_vcs_deps(reqs=[req])
+    #             req = next(iter(req for req in req_list if req is not None), req_list)
+    #             entry = lockfile[pep423_name(req.normalized_name)]
+    #         else:
+    #             _, entry = req.pipfile_entry
+    #         parsed_line: Line = req.req.parsed_line
+    #         try:
+    #             name = req.normalized_name
+    #         except TypeError:
+    #             raise RequirementError(req=req)
+    #         if parsed_line.setup_info:
+    #             setup_info = parsed_line.setup_info
+    #         else:
+    #             setup_info = req.req.parse_setup_info()
+    #         locked_deps[pep423_name(name)] = entry
+    #         requirements = []
+    #         # Allow users to toggle resolution off for non-editable VCS packages
+    #         # but leave it on for local, installable folders on the filesystem
+    #         if resolve_vcs or (
+    #             req.editable
+    #             or parsed_line.is_wheel
+    #             or (
+    #                 req.is_file_or_url
+    #                 and parsed_line.is_local
+    #                 and is_installable_dir(parsed_line.path)
+    #             )
+    #         ):
+    #             setup_info.run_pyproject()
+    #             setup_info.run_setup()
+    #             requirements = [v for v in getattr(setup_info, "requires", {}).values()]
+    #             if req.extras:
+    #                 for extra in req.extras:
+    #                     requirements.extend(
+    #                         v
+    #                         for v in getattr(setup_info, "extras", {}).get(extra, [])
+    #                         if v not in requirements
+    #                     )
+    #         for r in requirements:
+    #             if getattr(r, "url", None) and not getattr(r, "editable", False):
+    #                 if r is not None:
+    #                     if not r.url:
+    #                         continue
+    #                     line = _requirement_to_str_lowercase_name(r)
+    #                     new_req, _, _ = self.parse_line(line)
+    #                     if r.marker and not r.marker.evaluate():
+    #                         new_constraints = {}
+    #                         _, new_entry = req.pipfile_entry
+    #                         new_lock = {pep423_name(new_req.normalized_name): new_entry}
+    #                     else:
+    #                         new_constraints, new_lock = self.get_deps_from_req(
+    #                             new_req, resolver
+    #                         )
+    #                     locked_deps.update(new_lock)
+    #                     constraints |= new_constraints
+    #             # if there is no marker or there is a valid marker, add the constraint line
+    #             elif r and (not r.marker or (r.marker and r.marker.evaluate())):
+    #                 if r.name not in editable_packages:
+    #                     line = _requirement_to_str_lowercase_name(r)
+    #                     constraints.add(line)
+    #         # ensure the top level entry remains as provided
+    #         # note that we shouldn't pin versions for editable vcs deps
+    #         if not req.is_vcs:
+    #             if req.specifiers:
+    #                 locked_deps[name]["version"] = req.specifiers
+    #             elif parsed_line.setup_info and parsed_line.setup_info.version:
+    #                 locked_deps[name]["version"] = "=={}".format(
+    #                     parsed_line.setup_info.version
+    #                 )
+    #         # if not req.is_vcs:
+    #         locked_deps.update({name: entry})
+    #     else:
+    #         # if the dependency isn't installable, don't add it to constraints
+    #         # and instead add it directly to the lock
+    #         if (
+    #             req
+    #             and req.requirement
+    #             and (req.requirement.marker and not req.requirement.marker.evaluate())
+    #         ):
+    #             pypi = resolver.finder if resolver else None
+    #             ireq = req.ireq
+    #             best_match = (
+    #                 pypi.find_best_candidate(ireq.name, ireq.specifier).best_candidate
+    #                 if pypi
+    #                 else None
+    #             )
+    #             if best_match:
+    #                 ireq.req.specifier = ireq.specifier.__class__(
+    #                     f"=={best_match.version}"
+    #                 )
+    #                 hashes = resolver.collect_hashes(ireq) if resolver else []
+    #                 new_req = Requirement.from_ireq(ireq)
+    #                 new_req.add_hashes(hashes)
+    #                 new_req.merge_markers(req.markers)
+    #                 name, entry = new_req.pipfile_entry
+    #                 locked_deps[pep423_name(name)] = translate_markers(entry)
+    #                 click.echo(
+    #                     "{} doesn't match your environment, "
+    #                     "its dependencies won't be resolved.".format(req.as_line()),
+    #                     err=True,
+    #                 )
+    #             else:
+    #                 click.echo(
+    #                     "Could not find a version of {} that matches your environment, "
+    #                     "it will be skipped.".format(req.as_line()),
+    #                     err=True,
+    #                 )
+    #             return constraints, locked_deps
+    #         constraints.add(req.constraint_line)
+    #         return constraints, locked_deps
+    #     return constraints, locked_deps
+
+    def check_if_package_req_skipped(
+        self,
+        req: InstallRequirement,
+    ) -> bool:
+        if req.markers and not req.markers.evaluate():
+            click.echo(
+                "{} doesn't match your environment, "
+                "its dependencies will be skipped.".format(req.as_line()),
+                err=True,
+            )
+            return True
+        return False
 
     @classmethod
     def create(
@@ -231,15 +429,17 @@ class Resolver:
             category=category,
         )
         markers_lookup = {}
-        if not req_dir:
-            req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-reqdir")
-        for dep in deps:
+        for dep in deps:  # Build up the index and markers lookups
             if not dep:
                 continue
-            # index_lookup.update(dep)
-            # markers_lookup.update(dep)
+            install_req = expansive_install_req_from_line(dep)
+            package_name = determine_package_name(install_req)
+            index, extra_index, trust_host, remainder = parse_indexes(dep)
+            index_lookup[package_name] = index
+            markers_lookup[package_name] = install_req.markers
+            if resolver.check_if_package_req_skipped(install_req):
+                resolver.skipped[package_name] = dep
         resolver.initial_constraints = deps
-        # resolver.skipped = skipped
         resolver.index_lookup = index_lookup
         resolver.markers_lookup = markers_lookup
         return resolver
@@ -343,26 +543,6 @@ class Resolver:
         self._finder._link_collector.index_lookup = index_lookup
         self._finder._link_collector.search_scope.index_lookup = index_lookup
         return self._finder
-
-    @property
-    def ignore_compatibility_finder(self):
-        if self._ignore_compatibility_finder is None:
-            ignore_compatibility_finder = get_package_finder(
-                install_cmd=self.pip_command,
-                options=self.pip_options,
-                session=self.session,
-            )
-            # It would be nice if `shims.get_package_finder` took an
-            # `ignore_compatibility` parameter, but that's some vendored code
-            # we'd rather avoid touching.
-            index_lookup = self.prepare_index_lookup()
-            ignore_compatibility_finder._ignore_compatibility = True
-            self._ignore_compatibility_finder = ignore_compatibility_finder
-            self._ignore_compatibility_finder._link_collector.index_lookup = index_lookup
-            self._ignore_compatibility_finder._link_collector.search_scope.index_lookup = (
-                index_lookup
-            )
-        return self._ignore_compatibility_finder
 
     @property
     def parsed_constraints(self):
@@ -502,7 +682,7 @@ class Resolver:
             if not checksum.startswith(f"{hash_type}:"):
                 checksum = f"{hash_type}:{checksum}"
             cleaned_checksums.add(checksum)
-        return cleaned_checksums
+        return sorted(cleaned_checksums)
 
     def _get_requests_session_for_source(self, source):
         if self._sessions.get(source["name"]):
@@ -606,15 +786,17 @@ class Resolver:
                 if hashes:
                     return hashes
 
-        applicable_candidates = self.ignore_compatibility_finder.find_best_candidate(
+        applicable_candidates = self.finder.find_best_candidate(
             ireq.name, ireq.specifier
         ).iter_applicable()
         applicable_candidates = list(applicable_candidates)
         if applicable_candidates:
-            return {
-                self._get_hash_from_link(candidate.link)
-                for candidate in applicable_candidates
-            }
+            return sorted(
+                {
+                    self._get_hash_from_link(candidate.link)
+                    for candidate in applicable_candidates
+                }
+            )
         if link:
             return {self._get_hash_from_link(link)}
         return set()
@@ -631,13 +813,13 @@ class Resolver:
 
         return self.hash_cache.get_hash(link)
 
-    def _clean_skipped_result(self, req, value):
+    def _clean_skipped_result(self, req_name: str, ireq: InstallRequirement, value):
         ref = None
-        if req.is_vcs:
-            ref = req.commit_hash
-        ireq = req.ireq
+        if ireq.link and ireq.link.is_vcs:
+            ref = ireq.link.egg_fragment
+
         entry = value.copy()
-        entry["name"] = req.name
+        entry["name"] = req_name
         if entry.get("editable", False) and entry.get("version"):
             del entry["version"]
         ref = ref if ref is not None else entry.get("ref")
@@ -646,7 +828,7 @@ class Resolver:
         collected_hashes = self.collect_hashes(ireq)
         if collected_hashes:
             entry["hashes"] = sorted(set(collected_hashes))
-        return req.name, entry
+        return req_name, entry
 
     def clean_results(self):
         reqs = [(ireq,) for ireq in self.resolved_tree]
@@ -667,9 +849,11 @@ class Resolver:
                 results[name].update(entry)
             else:
                 results[name] = entry
-        for k in list(self.skipped.keys()):
-            req = InstallRequirement.from_line(k + self.skipped[k])
-            name, entry = self._clean_skipped_result(req, self.skipped[k])
+        for req_name in list(self.skipped.keys()):
+            req = expansive_install_req_from_line(req_name + self.skipped[req_name])
+            name, entry = self._clean_skipped_result(
+                req_name, req, self.skipped[req_name]
+            )
             entry = translate_markers(entry)
             if name in results:
                 results[name].update(entry)
