@@ -1,0 +1,1 @@
+Fix error when a Windows path begins with a '\' with ``pythonfinder==2.0.5``.
