@@ -536,7 +536,7 @@ class Environment:
 
     def get_distributions(self) -> Generator[pkg_resources.Distribution, None, None]:
         """
-        Retrives the distributions installed on the library path of the environment
+        Retrieves the distributions installed on the library path of the environment
 
         :return: A set of distributions found on the library path
         :rtype: iterator
