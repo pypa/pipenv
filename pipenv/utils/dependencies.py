@@ -38,7 +38,13 @@ from pipenv.vendor.requirementslib.utils import (
     strip_ssh_from_git_uri,
 )
 
-from .constants import REMOTE_SCHEMES, SCHEME_LIST, VCS_LIST, VCS_SCHEMES
+from .constants import (
+    RELEVANT_PROJECT_FILES,
+    REMOTE_SCHEMES,
+    SCHEME_LIST,
+    VCS_LIST,
+    VCS_SCHEMES,
+)
 
 
 def python_version(path_to_python):
@@ -324,6 +330,7 @@ def dependency_as_pip_install_line(
     line = []
     is_constraint = False
     vcs = next(iter([vcs for vcs in VCS_LIST if vcs in dep]), None)
+    include_index = False
     if not vcs:
         for k in ["file", "path"]:
             if k in dep:
@@ -332,10 +339,10 @@ def dependency_as_pip_install_line(
                 extras = ""
                 if "extras" in dep:
                     extras = f"[{','.join(dep['extras'])}]"
-                line.append(f"{dep_name}{extras}")
+                line.append(dep["file"] if "file" in dep else dep["path"])
+                line.append(extras)
                 break
-    include_index = False
-    if vcs and vcs in dep:  # VCS Requirements
+    elif vcs and vcs in dep:  # VCS Requirements
         extras = ""
         ref = ""
         if dep.get("ref"):
@@ -347,9 +354,6 @@ def dependency_as_pip_install_line(
         if "subdirectory" in dep:
             git_req += f"&subdirectory={dep['subdirectory']}"
         line.append(git_req)
-    elif "file" in dep or "path" in dep:  # File Requirements
-        line.append("@")
-        line.append(dep["file"] if "file" in dep else dep["path"])
     else:  # Normal/Named Requirements
         is_constraint = True
         include_index = True
@@ -425,14 +429,39 @@ def parse_metadata_file(content: str):
     return None
 
 
+def parse_pkginfo_file(content: str):
+    """
+    Parse a PKG-INFO file to get the package name.
+
+    Parameters:
+    content (str): Contents of the PKG-INFO file.
+
+    Returns:
+    str: Name of the package or None if not found.
+    """
+    for line in content.splitlines():
+        if line.startswith("Name:"):
+            return line.split("Name: ")[1].strip()
+
+    return None
+
+
 def parse_setup_file(content):
-    module = ast.parse(content)
-    for node in module.body:
-        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
-            if getattr(node.value.func, "id", None) == "setup":
-                for keyword in node.value.keywords:
-                    if keyword.arg == "name":
-                        return keyword.value.s
+    from pipenv.utils.safe_ast import _find_setup_call, _find_single_string
+
+    try:
+        body = ast.parse(content).body
+        setup_call, body = _find_setup_call(body)
+        _find_single_string(setup_call, body, "name")
+        module = ast.parse(content)
+        for node in module.body:
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+                if getattr(node.value.func, "id", None) == "setup":
+                    for keyword in node.value.keywords:
+                        if keyword.arg == "name":
+                            return keyword.value.s
+    except ValueError:
+        pass  # We will not exec unsafe code to determine the name pre-resolver
 
     return None
 
@@ -459,9 +488,9 @@ def parse_toml_file(content):
 def find_package_name_from_tarball(tarball_filepath):
     with tarfile.open(tarball_filepath, "r") as tar_ref:
         for filename in tar_ref.getnames():
-            if filename.endswith(("METADATA", "setup.py", "setup.cfg", "pyproject.toml")):
+            if filename.endswith(RELEVANT_PROJECT_FILES):
                 with tar_ref.extractfile(filename) as file:
-                    possible_name = find_package_name_from_filename(file.name, file)
+                    possible_name = find_package_name_from_filename(filename, file)
                     if possible_name:
                         return possible_name
 
@@ -469,7 +498,7 @@ def find_package_name_from_tarball(tarball_filepath):
 def find_package_name_from_zipfile(zip_filepath):
     with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
         for filename in zip_ref.namelist():
-            if filename.endswith(("METADATA", "setup.py", "setup.cfg", "pyproject.toml")):
+            if filename.endswith(RELEVANT_PROJECT_FILES):
                 with zip_ref.open(filename) as file:
                     possible_name = find_package_name_from_filename(file.name, file)
                     if possible_name:
@@ -480,7 +509,7 @@ def find_package_name_from_directory(directory):
     for filename in os.listdir(directory):
         filepath = os.path.join(directory, filename)
         if os.path.isfile(filepath):
-            if filename.endswith(("METADATA", "setup.py", "setup.cfg", "pyproject.toml")):
+            if filename.endswith(RELEVANT_PROJECT_FILES):
                 with open(filepath, "rb") as file:
                     possible_name = find_package_name_from_filename(filename, file)
                     if possible_name:
@@ -561,6 +590,12 @@ def find_package_name_from_filename(filename, file):
     if filename.endswith("METADATA"):
         content = file.read().decode()
         possible_name = parse_metadata_file(content)
+        if possible_name:
+            return possible_name
+
+    if filename.endswith("PKG-INFO"):
+        content = file.read().decode()
+        possible_name = parse_pkginfo_file(content)
         if possible_name:
             return possible_name
 

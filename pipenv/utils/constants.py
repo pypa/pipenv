@@ -28,6 +28,14 @@ VCS_SCHEMES = [
 ]
 REMOTE_SCHEMES = REMOTE_FILE_SCHEMES + VCS_SCHEMES
 
+RELEVANT_PROJECT_FILES = (
+    "METADATA",
+    "PKG-INFO",
+    "setup.py",
+    "setup.cfg",
+    "pyproject.toml",
+)
+
 
 def is_type_checking():
     try:
