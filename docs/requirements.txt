@@ -10,7 +10,7 @@ Jinja2==3.1.2
 MarkupSafe==2.1.2
 myst-parser[linkify]==0.18.1
 -e .
-Pygments==2.14.0
+Pygments==2.15.0
 pytz==2022.7.1
 requests==2.31.0
 snowballstemmer==2.2.0
