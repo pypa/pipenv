@@ -31,6 +31,8 @@ from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
     determine_package_name,
+    determine_path_specifier,
+    determine_vcs_specifier,
     expansive_install_req_from_line,
     get_canonical_names,
     is_editable,
@@ -984,9 +986,9 @@ class Project:
         if not isinstance(package, InstallRequirement):
             package = expansive_install_req_from_line(package.strip())
 
-        path_specifier = None
-        vcs_specifier = None
         req_name = determine_package_name(package)
+        path_specifier = determine_path_specifier(package)
+        vcs_specifier = determine_vcs_specifier(package)
 
         name = self.get_package_name_in_pipfile(req_name, category=category)
         normalized_name = normalize_name(req_name)

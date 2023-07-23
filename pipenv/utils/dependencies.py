@@ -38,7 +38,7 @@ from pipenv.vendor.requirementslib.utils import (
     strip_ssh_from_git_uri,
 )
 
-from .constants import SCHEME_LIST, VCS_LIST
+from .constants import REMOTE_SCHEMES, SCHEME_LIST, VCS_LIST, VCS_SCHEMES
 
 
 def python_version(path_to_python):
@@ -179,28 +179,6 @@ def clean_resolved_dep(dep, dep_name=None, is_top_level=False, pipfile_entry=Non
             lockfile[vcs_type] = dep[vcs_type]
             lockfile["ref"] = dep.get("rev")
             is_vcs_or_file = True
-    # if dep.link and dep.link.scheme in [
-    #     "http",
-    #     "https",
-    #     "ftp",
-    #     "git+http",
-    #     "git+https",
-    #     "git+ssh",
-    #     "git+git",
-    #     "hg+http",
-    #     "hg+https",
-    #     "hg+ssh",
-    #     "svn+http",
-    #     "svn+https",
-    #     "svn+svn",
-    #     "bzr+http",
-    #     "bzr+https",
-    #     "bzr+ssh",
-    #     "bzr+sftp",
-    #     "bzr+ftp",
-    #     "bzr+lp",
-    # ]:
-    #     is_vcs_or_file = True
 
     if version and not is_vcs_or_file:
         if isinstance(version, PipRequirement):
@@ -514,29 +492,26 @@ def find_package_name_from_directory(directory):
     return None
 
 
+def determine_path_specifier(package: InstallRequirement):
+    if package.link and package.link.scheme == "file":
+        path_specifier = os.path.relpath(
+            package.link.file_path
+        )  # Preserve the original file path
+        return path_specifier
+
+
+def determine_vcs_specifier(package: InstallRequirement):
+    if package.link and package.link.scheme in VCS_SCHEMES:
+        vcs_specifier = package.link.url_without_fragment
+        return vcs_specifier
+
+
 @lru_cache(maxsize=None)
 def determine_package_name(package: InstallRequirement):
-    if package.link and package.link.scheme in [
-        "http",
-        "https",
-        "ftp",
-        "git+http",
-        "git+https",
-        "git+ssh",
-        "git+git",
-        "hg+http",
-        "hg+https",
-        "hg+ssh",
-        "svn+http",
-        "svn+https",
-        "svn+svn",
-        "bzr+http",
-        "bzr+https",
-        "bzr+ssh",
-        "bzr+sftp",
-        "bzr+ftp",
-        "bzr+lp",
-    ]:
+    req_name = None
+    if package.name:
+        req_name = package.name
+    elif package.link and package.link.scheme in REMOTE_SCHEMES:
         with TemporaryDirectory() as td:
             cmd = get_pip_command()
             options, _ = cmd.parser.parse_args([])
@@ -571,8 +546,6 @@ def determine_package_name(package: InstallRequirement):
         else:
             req_name = find_package_name_from_directory(package.link.file_path)
         os.path.relpath(package.link.file_path)  # Preserve the original file path
-    elif package.name:
-        req_name = package.name
     if req_name:
         return req_name
     else:
