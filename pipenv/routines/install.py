@@ -715,13 +715,12 @@ def do_init(
         if new_hash != old_hash:
             if deploy:
                 click.secho(
-                    "Your Pipfile.lock ({}) is out of date. Expected: ({}).".format(
-                        old_hash[-6:], new_hash[-6:]
-                    ),
+                    "Your Pipfile.lock (old_hash[-6:]) is out of date."
+                    " Expected: ({new_hash[-6:]}).",
                     fg="red",
                 )
                 raise exceptions.DeployException
-            elif (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
+            if (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
                 click.secho(
                     "Pipfile.lock ({}) out of date, but installation "
                     "uses {} re-building lockfile must happen in "

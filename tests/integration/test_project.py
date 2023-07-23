@@ -38,9 +38,9 @@ pytz = "*"
 def test_get_source(pipenv_instance_private_pypi, lock_first):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
-            contents = """
+            contents = f"""
 [[source]]
-url = "{}"
+url = "{p.index_url}"
 verify_ssl = false
 name = "testindex"
 
@@ -54,7 +54,7 @@ pytz = "*"
 six = {{version = "*", index = "pypi"}}
 
 [dev-packages]
-            """.format(p.index_url).strip()
+            """.strip()
             f.write(contents)
 
         if lock_first:
@@ -106,10 +106,7 @@ def test_maintain_file_line_endings(pipenv_instance_pypi, newlines):
             with open(fn) as f:
                 f.read()    # Consumes the content to detect newlines.
                 actual_newlines = f.newlines
-            assert actual_newlines == newlines, '{!r} != {!r} for {}'.format(
-                actual_newlines, newlines, fn,
-            )
-            # message because of  https://github.com/pytest-dev/pytest/issues/3443
+            assert actual_newlines == newlines, f'{actual_newlines!r} != {newlines!r} for {fn}'
 
 
 @pytest.mark.project
@@ -118,9 +115,9 @@ def test_maintain_file_line_endings(pipenv_instance_pypi, newlines):
 def test_many_indexes(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, 'w') as f:
-            contents = """
+            contents = f"""
 [[source]]
-url = "{}"
+url = "{p.index_url}"
 verify_ssl = false
 name = "testindex"
 
@@ -139,7 +136,7 @@ pytz = "*"
 six = {{version = "*", index = "pypi"}}
 
 [dev-packages]
-            """.format(p.index_url).strip()
+            """.strip()
             f.write(contents)
         c = p.pipenv('install')
         assert c.returncode == 0

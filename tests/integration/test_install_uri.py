@@ -219,7 +219,7 @@ def test_vcs_entry_supersedes_non_vcs(pipenv_instance_pypi):
         jinja2_uri = p._pipfile.get_fixture_path("git/jinja2").as_uri()
         with open(p.pipfile_path, "w") as f:
             f.write(
-                """
+                f"""
 [[source]]
 url = "https://pypi.org/simple"
 verify_ssl = true
@@ -227,8 +227,8 @@ name = "pypi"
 
 [packages]
 Flask = "*"
-Jinja2 = {{ref = "2.11.0", git = "{}"}}
-            """.format(jinja2_uri).strip()
+Jinja2 = {{ref = "2.11.0", git = "{jinja2_uri}"}}
+            """.strip()
             )
         c = p.pipenv("install")
         assert c.returncode == 0

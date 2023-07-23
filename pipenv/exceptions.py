@@ -73,9 +73,7 @@ class PipenvException(ClickException):
             if isinstance(self.extra, str):
                 self.extra = [self.extra]
             for extra in self.extra:
-                extra = "[pipenv.exceptions.{!s}]: {}".format(
-                    self.__class__.__name__, extra
-                )
+                extra = f"[pipenv.exceptions.{self.__class__.__name__}]: {extra}"
                 click.echo(extra, file=file)
         click.echo(f"{self.message}", file=file)
 
@@ -164,10 +162,7 @@ class PipenvUsageError(UsageError):
                 click.echo(extra, file=file)
         hint = ""
         if self.cmd is not None and self.cmd.get_help_option(self.ctx) is not None:
-            hint = 'Try "{} {}" for help.\n'.format(
-                self.ctx.command_path,
-                self.ctx.help_option_names[0],
-            )
+            hint = f'Try "{self.ctx.command_path} {self.ctx.help_option_names[0]}" for help.\n'
         if self.ctx is not None:
             click.echo(self.ctx.get_usage() + "\n%s" % hint, file=file, color=color)
         click.echo(self.message, file=file)

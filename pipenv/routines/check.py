@@ -125,10 +125,10 @@ def do_check(
         "--exit-code" if exit_code else "--continue-on-error",
     ]
 
-    if output == "full-report":
-        options.append("--full-report")
-    elif output == "minimal":
-        options.append("--json")
+    formats = {"full-report": "--full-report", "minimal": "--json"}
+    if output in formats:
+        options.append(formats.get(output, ""))
+
     elif output not in ["screen", "default"]:
         options.append(f"--output={output}")
 
