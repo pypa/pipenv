@@ -11,11 +11,9 @@ import sys
 import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from urllib.parse import unquote
 
 from pipenv.utils.constants import VCS_LIST
-from pipenv.vendor.requirementslib.models.setup_info import unpack_url
 
 try:
     import tomllib as toml
@@ -28,15 +26,12 @@ from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_pat
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.configuration import Configuration
 from pipenv.patched.pip._internal.exceptions import ConfigurationError
-from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
+    determine_package_name,
     expansive_install_req_from_line,
-    find_package_name_from_directory,
-    find_package_name_from_tarball,
-    find_package_name_from_zipfile,
     get_canonical_names,
     is_editable,
     pep423_name,
@@ -60,7 +55,6 @@ from pipenv.vendor.requirementslib.models.utils import (
     get_default_pyproject_backend,
     normalize_name,
 )
-from pipenv.vendor.requirementslib.utils import get_pip_command
 
 try:
     # this is only in Python3.8 and later
@@ -985,100 +979,22 @@ class Project:
                 del parsed[category][pkg_name]
         self.write_toml(parsed)
 
-    def add_package_to_pipfile(self, package, dev=False, category=None):
-        newly_added = False
-        category = category if category else "dev-packages" if dev else "packages"
-
-        # Read and append Pipfile.
-        p = self.parsed_pipfile
-
-        # Set empty group if it doesn't exist yet.
-        if category not in p:
-            p[category] = {}
-
+    def generate_package_pipfile_entry(self, package, category=None):
         # Don't re-capitalize file URLs or VCSs.
         if not isinstance(package, InstallRequirement):
             package = expansive_install_req_from_line(package.strip())
 
         path_specifier = None
         vcs_specifier = None
-        if package.link and package.link.scheme in [
-            "http",
-            "https",
-            "ftp",
-            "git+http",
-            "git+https",
-            "git+ssh",
-            "git+git",
-            "hg+http",
-            "hg+https",
-            "hg+ssh",
-            "svn+http",
-            "svn+https",
-            "svn+svn",
-            "bzr+http",
-            "bzr+https",
-            "bzr+ssh",
-            "bzr+sftp",
-            "bzr+ftp",
-            "bzr+lp",
-        ]:
-            with TemporaryDirectory() as td:
-                cmd = get_pip_command()
-                options, _ = cmd.parser.parse_args([])
-                session = cmd._build_session(options)
-                file = unpack_url(
-                    link=package.link,
-                    location=td,
-                    download=Downloader(session, "off"),
-                    verbosity=1,
-                )
-                if file.path.endswith(".whl") or file.path.endswith(".zip"):
-                    req_name = find_package_name_from_zipfile(file.path)
-                elif file.path.endswith(".tar.gz") or file.path.endswith(".tar.bz2"):
-                    req_name = find_package_name_from_tarball(file.path)
-                else:
-                    req_name = find_package_name_from_directory(file.path)
-                vcs_specifier = package.link.url_without_fragment
-        elif package.link and package.link.scheme in [
-            "bzr+file",
-            "git+file",
-            "hg+file",
-            "svn+file",
-        ]:
-            repository_path = package.link.url.split(":")[1]
-            req_name = find_package_name_from_directory(repository_path)
-        elif package.link and package.link.scheme == "file":
-            if package.link.file_path.endswith(".whl") or package.link.file_path.endswith(
-                ".zip"
-            ):
-                req_name = find_package_name_from_zipfile(package.link.file_path)
-            elif package.link.file_path.endswith(".tar.gz"):
-                req_name = find_package_name_from_tarball(package.link.file_path)
-            else:
-                req_name = find_package_name_from_directory(package.link.file_path)
-            path_specifier = os.path.relpath(
-                package.link.file_path
-            )  # Preserve the original file path
-        elif package.name:
-            req_name = package.name
-        else:
-            raise ValueError(f"Could not determine package name from {package}")
+        req_name = determine_package_name(package)
 
         name = self.get_package_name_in_pipfile(req_name, category=category)
-        normalized_name = pep423_name(req_name)
-        if name and name != normalized_name:
-            self.remove_package_from_pipfile(name, category=category)
+        normalized_name = normalize_name(req_name)
 
         extras = package.extras
         specifier = "*"
         if package.req and package.specifier:
             specifier = str(package.specifier)
-
-        # Add the package to the group.
-        normalized_name = normalize_name(req_name)
-        if normalized_name not in p[category]:
-            newly_added = True
 
         # Construct package requirement
         converted = {}
@@ -1095,9 +1011,32 @@ class Project:
             converted["version"] = specifier
 
         if len(converted) == 1 and "version" in converted:
-            p[category][normalized_name] = specifier
+            return name, normalized_name, specifier
         else:
-            p[category][normalized_name] = converted
+            return name, normalized_name, converted
+
+    def add_package_to_pipfile(self, package, dev=False, category=None):
+        newly_added = False
+        category = category if category else "dev-packages" if dev else "packages"
+
+        # Read and append Pipfile.
+        p = self.parsed_pipfile
+
+        # Set empty group if it doesn't exist yet.
+        if category not in p:
+            p[category] = {}
+
+        name, normalized_name, entry = self.generate_package_pipfile_entry(
+            package, category=category
+        )
+        if name and name != normalized_name:
+            self.remove_package_from_pipfile(name, category=category)
+
+        # Add the package to the group.
+        if normalized_name not in p[category]:
+            newly_added = True
+
+        p[category][normalized_name] = entry
 
         # Write Pipfile.
         self.write_toml(p)

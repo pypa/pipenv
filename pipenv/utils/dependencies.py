@@ -4,11 +4,13 @@ import os
 import tarfile
 import zipfile
 from contextlib import contextmanager
+from functools import lru_cache
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 from urllib.parse import urlparse, urlsplit, urlunsplit
 
+from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_editable,
     parse_req_from_line,
@@ -27,9 +29,11 @@ from pipenv.vendor.requirementslib.fileutils import (
 )
 from pipenv.vendor.requirementslib.models.markers import PipenvMarkers
 from pipenv.vendor.requirementslib.models.requirements import LinkInfo
+from pipenv.vendor.requirementslib.models.setup_info import unpack_url
 from pipenv.vendor.requirementslib.models.utils import create_link, get_version
 from pipenv.vendor.requirementslib.utils import (
     add_ssh_scheme_to_git_uri,
+    get_pip_command,
     prepare_pip_source_args,
     strip_ssh_from_git_uri,
 )
@@ -326,7 +330,12 @@ def is_editable_path(path):
 
 
 def dependency_as_pip_install_line(
-    dep_name, dep, include_hashes, include_markers, indexes, constraint=False
+    dep_name: str,
+    dep: dict | str,
+    include_hashes: bool,
+    include_markers: bool,
+    indexes: list,
+    constraint: bool = False,
 ):
     if isinstance(dep, str):
         if is_star(dep):
@@ -503,6 +512,71 @@ def find_package_name_from_directory(directory):
                 return possible_name
 
     return None
+
+
+@lru_cache(maxsize=None)
+def determine_package_name(package: InstallRequirement):
+    if package.link and package.link.scheme in [
+        "http",
+        "https",
+        "ftp",
+        "git+http",
+        "git+https",
+        "git+ssh",
+        "git+git",
+        "hg+http",
+        "hg+https",
+        "hg+ssh",
+        "svn+http",
+        "svn+https",
+        "svn+svn",
+        "bzr+http",
+        "bzr+https",
+        "bzr+ssh",
+        "bzr+sftp",
+        "bzr+ftp",
+        "bzr+lp",
+    ]:
+        with TemporaryDirectory() as td:
+            cmd = get_pip_command()
+            options, _ = cmd.parser.parse_args([])
+            session = cmd._build_session(options)
+            file = unpack_url(
+                link=package.link,
+                location=td,
+                download=Downloader(session, "off"),
+                verbosity=1,
+            )
+            if file.path.endswith(".whl") or file.path.endswith(".zip"):
+                req_name = find_package_name_from_zipfile(file.path)
+            elif file.path.endswith(".tar.gz") or file.path.endswith(".tar.bz2"):
+                req_name = find_package_name_from_tarball(file.path)
+            else:
+                req_name = find_package_name_from_directory(file.path)
+    elif package.link and package.link.scheme in [
+        "bzr+file",
+        "git+file",
+        "hg+file",
+        "svn+file",
+    ]:
+        repository_path = package.link.url.split(":")[1]
+        req_name = find_package_name_from_directory(repository_path)
+    elif package.link and package.link.scheme == "file":
+        if package.link.file_path.endswith(".whl") or package.link.file_path.endswith(
+            ".zip"
+        ):
+            req_name = find_package_name_from_zipfile(package.link.file_path)
+        elif package.link.file_path.endswith(".tar.gz"):
+            req_name = find_package_name_from_tarball(package.link.file_path)
+        else:
+            req_name = find_package_name_from_directory(package.link.file_path)
+        os.path.relpath(package.link.file_path)  # Preserve the original file path
+    elif package.name:
+        req_name = package.name
+    if req_name:
+        return req_name
+    else:
+        raise ValueError(f"Could not determine package name from {package}")
 
 
 def find_package_name_from_filename(filename, file):
