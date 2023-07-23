@@ -202,7 +202,7 @@ def generate_manual(ctx, commit=False):
     ctx.run("make man")
     ctx.run("cp docs/_build/man/pipenv.1 pipenv/")
     if commit:
-        log("Commiting...")
+        log("Committing...")
         ctx.run("git add pipenv/pipenv.1")
         ctx.run('git commit -m "Update manual page."')
 
@@ -212,7 +212,7 @@ def generate_contributing_md(ctx, commit=False):
     log("Generating CONTRIBUTING.md from reStructuredText source...")
     ctx.run("pandoc docs/dev/contributing.rst -f rst -t markdown -o CONTRIBUTING.md")
     if commit:
-        log("Commiting...")
+        log("Committing...")
         ctx.run("git add CONTRIBUTING.md")
         ctx.run('git commit -m "Update CONTRIBUTING.md."')
 

@@ -64,16 +64,15 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
                 )
                 rdeps = reverse_deps.get(canonicalize_name(package))
                 if isinstance(rdeps, Mapping) and "required" in rdeps:
-                    required = " {} required".format(rdeps["required"])
+                    required = " {rdeps['required']} required"
                 if version:
                     pipfile_version_text = f" ({version} set in Pipfile)"
                 else:
                     pipfile_version_text = " (Unpinned in Pipfile)"
                 click.secho(
-                    "Skipped Update of Package {!s}: {!s} installed,{!s}{!s}, "
-                    "{!s} available.".format(
-                        package, old_version, required, pipfile_version_text, new_version
-                    ),
+                    f"Skipped Update of Package {package!s}:"
+                    f" {old_version!s} installed,{required!s}{pipfile_version_text!s}, "
+                    f"{new_version!s} available.",
                     fg="yellow",
                     err=True,
                 )
@@ -82,8 +81,6 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         sys.exit(0)
     for package, new_version, old_version in outdated:
         click.echo(
-            "Package {!r} out-of-date: {!r} installed, {!r} available.".format(
-                package, old_version, new_version
-            )
+            f"Package {package!r} out-of-date: {old_version!r} installed, {new_version!r} available."
         )
     sys.exit(bool(outdated))

@@ -398,9 +398,7 @@ class Resolver:
                 if req.specifiers:
                     locked_deps[name]["version"] = req.specifiers
                 elif parsed_line.setup_info and parsed_line.setup_info.version:
-                    locked_deps[name]["version"] = "=={}".format(
-                        parsed_line.setup_info.version
-                    )
+                    locked_deps[name]["version"] = f"=={parsed_line.setup_info.version}"
             # if not req.is_vcs:
             locked_deps.update({name: entry})
         else:

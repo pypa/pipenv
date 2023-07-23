@@ -6,11 +6,11 @@ from typing import List, Optional
 
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.project import Project
+from pipenv.utils import err
 from pipenv.utils.dependencies import get_constraints_from_deps, prepare_constraint_file
 from pipenv.utils.indexes import get_source_list, prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import cmd_list_to_shell, project_python
-from pipenv.vendor import click
 from pipenv.vendor.requirementslib import Requirement
 from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir, normalize_path
 
@@ -30,21 +30,15 @@ def format_pip_output(out, r=None):
 
 
 def format_pip_error(error):
-    error = error.replace("Expected", str(click.style("Expected", fg="green", bold=True)))
-    error = error.replace("Got", str(click.style("Got", fg="red", bold=True)))
+    error = error.replace("Expected", "[bold green]Expected[/bold green]")
+    error = error.replace("Got", "[bold red]Got[/red bold]")
     error = error.replace(
         "THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE",
-        str(
-            click.style(
-                "THESE PACKAGES DO NOT MATCH THE HASHES FROM Pipfile.lock!",
-                fg="red",
-                bold=True,
-            )
-        ),
+        "[bold red]THESE PACKAGES DO NOT MATCH THE HASHES FROM Pipfile.lock![/bold red]",
     )
     error = error.replace(
         "someone may have tampered with them",
-        str(click.style("someone may have tampered with them", fg="red")),
+        "[red]someone may have tampered with them[/red]",
     )
     error = error.replace("option to pip install", "option to 'pipenv install'")
     return error
@@ -121,10 +115,7 @@ def pip_install_deps(
             as_list=False,
         )
         if project.s.is_verbose():
-            click.echo(
-                f"Writing supplied requirement line to temporary file: {line!r}",
-                err=True,
-            )
+            err.print(f"Writing supplied requirement line to temporary file: {line!r}")
         target = editable_requirements if vcs_or_editable else standard_requirements
         target.write(line.encode())
         target.write(b"\n")
@@ -174,20 +165,12 @@ def pip_install_deps(
         pip_command.extend(["-r", normalize_path(file.name)])
         if project.s.is_verbose():
             msg = f"Install Phase: {'Standard Requirements' if file == standard_requirements else 'Editable Requirements'}"
-            click.echo(
-                click.style(msg, bold=True),
-                err=True,
-            )
+            err.print(msg, style="bold")
             for requirement in (
                 standard_deps if file == standard_requirements else editable_deps
             ):
-                click.echo(
-                    click.style(
-                        f"Preparing Installation of {requirement.name!r}", bold=True
-                    ),
-                    err=True,
-                )
-            click.secho(f"$ {cmd_list_to_shell(pip_command)}", fg="cyan", err=True)
+                err.print(f"Preparing Installation of {requirement.name!r}", style="bold")
+            err.print(f"$ {cmd_list_to_shell(pip_command)}", style="cyan")
         cache_dir = Path(project.s.PIPENV_CACHE_DIR)
         default_exists_action = "w"
         exists_action = project.s.PIP_EXISTS_ACTION or default_exists_action
@@ -200,7 +183,7 @@ def pip_install_deps(
         }
         if src_dir:
             if project.s.is_verbose():
-                click.echo(f"Using source directory: {src_dir!r}", err=True)
+                err.print(f"Using source directory: {src_dir!r}")
             pip_config.update({"PIP_SRC": src_dir})
         c = subprocess_run(pip_command, block=False, capture_output=True, env=pip_config)
         if file == standard_requirements:
@@ -215,9 +198,9 @@ def pip_install_deps(
                 if not line:
                     break
                 if "Ignoring" in line:
-                    click.secho(line, fg="red", err=True)
+                    err.print(line, style="red")
                 elif line:
-                    click.secho(line, fg="yellow", err=True)
+                    err.print(line, style="yellow")
     return cmds
 
 
@@ -294,10 +277,7 @@ def pip_install(
     if project.s.is_verbose():
         piplogger.setLevel(logging.WARN)
         if requirement:
-            click.echo(
-                click.style(f"Installing {requirement.name!r}", bold=True),
-                err=True,
-            )
+            err.print(f"Installing {requirement.name!r}", style="bold")
 
     pip_command = [
         project_python(project, system=allow_global),
@@ -330,7 +310,7 @@ def pip_install(
         pip_command.extend(["-c", normalize_path(constraint_filename)])
     pip_command.extend(prepare_pip_source_args(sources))
     if project.s.is_verbose():
-        click.echo(f"$ {cmd_list_to_shell(pip_command)}", err=True)
+        err.print(f"$ {cmd_list_to_shell(pip_command)}")
     cache_dir = Path(project.s.PIPENV_CACHE_DIR)
     default_exists_action = "w"
     exists_action = project.s.PIP_EXISTS_ACTION or default_exists_action
@@ -343,7 +323,7 @@ def pip_install(
     }
     if src_dir:
         if project.s.is_verbose():
-            click.echo(f"Using source directory: {src_dir!r}", err=True)
+            err(f"Using source directory: {src_dir!r}")
         pip_config.update({"PIP_SRC": src_dir})
     c = subprocess_run(pip_command, block=block, env=pip_config)
     c.env = pip_config
@@ -404,9 +384,7 @@ def write_requirement_to_file(
         prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir, delete=False
     )
     if project.s.is_verbose():
-        click.echo(
-            f"Writing supplied requirement line to temporary file: {line!r}", err=True
-        )
+        err.print(f"Writing supplied requirement line to temporary file: {line!r}")
     f.write(line.encode())
     r = f.name
     f.close()
