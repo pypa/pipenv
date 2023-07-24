@@ -149,7 +149,7 @@ def cli(
                 )
                 ctx.abort()
             else:
-                console.print(state.project.virtualenv_location)
+                print(state.project.virtualenv_location)
                 return 0
         # --rm was passed...
         elif rm:
