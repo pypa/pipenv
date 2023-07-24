@@ -203,14 +203,15 @@ def clean_resolved_dep(dep, dep_name=None, is_top_level=False, pipfile_entry=Non
         lockfile[dependency_file_key] = dep[dependency_file_key]
         if "editable" in dep:
             lockfile["editable"] = dep["editable"]
-        if "extras" in dep:
-            lockfile["extras"] = sorted(dep["extras"])
 
     if dep.get("hashes"):
         lockfile["hashes"] = dep["hashes"]
 
-    if hasattr(dep, "index"):
-        lockfile["index"] = dep.index
+    if dep.get("index"):
+        lockfile["index"] = dep["index"]
+
+    if dep.get("extras"):
+        lockfile["extras"] = sorted(dep["extras"])
 
     # In case we lock a uri or a file when the user supplied a path
     # remove the uri or file keys from the entry and keep the path
@@ -317,6 +318,7 @@ def dependency_as_pip_install_line(
     dep: Union[str, Mapping],
     include_hashes: bool,
     include_markers: bool,
+    include_index: bool,
     indexes: list,
     constraint: bool = False,
 ):
@@ -361,10 +363,11 @@ def dependency_as_pip_install_line(
             if include_hashes and dep.get("hashes"):
                 line.extend([f" --hash={hash}" for hash in dep["hashes"]])
 
-            if dep.get("index"):
-                indexes = [s for s in indexes if s.get("name") == dep["index"]]
-            else:
-                indexes = [indexes[0]] if indexes else []
+            if include_index:
+                if dep.get("index"):
+                    indexes = [s for s in indexes if s.get("name") == dep["index"]]
+                else:
+                    indexes = [indexes[0]] if indexes else []
             index_list = prepare_pip_source_args(indexes)
             line.extend(index_list)
     elif vcs and vcs in dep:  # VCS Requirements
@@ -389,21 +392,18 @@ def dependency_as_pip_install_line(
 
 def convert_deps_to_pip(
     deps,
-    project=None,
-    include_index=True,
+    indexes=None,
     include_hashes=True,
     include_markers=True,
+    include_index=False,
 ):
     """ "Converts a Pipfile-formatted dependency to a pip-formatted one."""
     dependencies = []
-    for dep_name, dep in deps.items():
-        if project:
-            project.clear_pipfile_cache()
+    if indexes is None:
         indexes = []
-        if project:
-            indexes = project.pipfile_sources()
+    for dep_name, dep in deps.items():
         req = dependency_as_pip_install_line(
-            dep_name, dep, include_hashes, include_markers, indexes
+            dep_name, dep, include_hashes, include_markers, include_index, indexes
         )
         dependencies.append(req)
     return dependencies
@@ -823,7 +823,8 @@ def from_pipfile(name, pipfile):
     extras_str = ""
     if install_req.req and install_req.req.extras:
         extras_str = f"[{','.join(install_req.req.extras)}]"
-    req_str = f"{install_req.name}{extras_str}{install_req.req.specifier}"
+    specifier = install_req.req.specifier if install_req.req else ""
+    req_str = f"{install_req.name}{extras_str}{specifier}"
     if install_req.markers:
         req_str += f"; {install_req.markers}"
 

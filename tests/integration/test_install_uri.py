@@ -239,7 +239,7 @@ Jinja2 = {{ref = "2.11.0", git = "{}"}}
         assert p.lockfile["default"]["jinja2"].get("ref") is not None
         assert (
             p.lockfile["default"]["jinja2"]["git"]
-            == jinja2_uri
+            == f"{jinja2_uri}@2.11.0#egg=jinja2"
         )
 
 

@@ -258,6 +258,8 @@ class Entry:
         if "version" in self.entry_dict:
             self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
         _, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
+        if self.resolver.index_lookup.get(self.name):
+            self.entry_dict["index"] = self.resolver.index_lookup[self.name]
         return self.entry_dict
 
     @property

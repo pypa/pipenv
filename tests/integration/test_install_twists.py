@@ -52,7 +52,7 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         c = p.pipenv(f"install {line}")
         assert c.returncode == 0
         assert "testpipenv" in p.pipfile["packages"]
-        assert p.pipfile["packages"]["testpipenv"]["path"] == "."
+        assert p.pipfile["packages"]["testpipenv"]["file"] == "."
         assert p.pipfile["packages"]["testpipenv"]["extras"] == ["dev"]
         assert "six" in p.lockfile["default"]
 

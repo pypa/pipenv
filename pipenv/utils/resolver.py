@@ -450,6 +450,7 @@ class Resolver:
         #     resolver.skipped[package_name] = dep
         resolver.initial_constraints = deps
         resolver.index_lookup = index_lookup
+        resolver.finder.index_lookup = index_lookup
         resolver.markers_lookup = markers_lookup
         return resolver
 
@@ -919,7 +920,7 @@ def actually_resolve_deps(
             warning.lineno,
             warning.line,
         )
-    return (results, hashes, resolver.markers_lookup, resolver, resolver.skipped)
+    return (results, hashes, resolver)
 
 
 def resolve(cmd, st, project):
@@ -1016,7 +1017,9 @@ def venv_resolve_deps(
             # dependency resolution on them, so we are including this step inside the
             # spinner context manager for the UX improvement
             st.console.print("Building requirements...")
-            deps = convert_deps_to_pip(deps, project, include_index=True)
+            deps = convert_deps_to_pip(
+                deps, project.pipfile_sources(), include_index=True
+            )
             constraints = set(deps)
             st.console.print("Resolving dependencies...")
             # Useful for debugging and hitting breakpoints in the resolver
@@ -1126,7 +1129,7 @@ def resolve_deps(
         req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-requirements")
     with HackedPythonVersion(python_path=project.python(system=allow_global)):
         try:
-            results, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
+            results, hashes, internal_resolver = actually_resolve_deps(
                 deps,
                 index_lookup,
                 markers_lookup,
@@ -1151,9 +1154,7 @@ def resolve_deps(
                 (
                     results,
                     hashes,
-                    markers_lookup,
-                    resolver,
-                    skipped,
+                    internal_resolver,
                 ) = actually_resolve_deps(
                     deps,
                     index_lookup,
@@ -1167,7 +1168,7 @@ def resolve_deps(
                 )
             except RuntimeError:
                 sys.exit(1)
-    return results, resolver
+    return results, internal_resolver
 
 
 @lru_cache()
