@@ -723,6 +723,7 @@ def expansive_install_req_from_line(
     :param line_source: An optional string describing where the line is from,
         for logging purposes in case of an error.
     """
+    name = name.strip("'")
     if name.startswith("-e "):
         # Editable requirement
         name = name.split("-e ")[1]

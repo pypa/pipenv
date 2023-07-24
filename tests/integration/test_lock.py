@@ -515,15 +515,15 @@ def test_lock_nested_vcs_direct_url(pipenv_instance_pypi):
 
 @pytest.mark.lock
 @pytest.mark.install
-def test_lock_package_with_wildcard_version(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
-        c = p.pipenv("install 'six==1.11.*'")
+def test_lock_package_with_compatible_release_specifier(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        c = p.pipenv("install six~=1.11")
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
-        assert p.pipfile["packages"]["six"] == "==1.11.*"
+        assert p.pipfile["packages"]["six"] == "~=1.11"
         assert "six" in p.lockfile["default"]
         assert "version" in p.lockfile["default"]["six"]
-        assert p.lockfile["default"]["six"]["version"] == "==1.11.0"
+        assert p.lockfile["default"]["six"]["version"] == "==1.12.0"
 
 
 @pytest.mark.lock
