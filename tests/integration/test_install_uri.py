@@ -191,7 +191,7 @@ def test_get_vcs_refs(pipenv_instance_private_pypi):
         assert "six" in p.lockfile["default"]
         assert (
             p.lockfile["default"]["six"]["ref"]
-            == "5efb522b0647f7467248273ec1b893d06b984a59"
+            == "1.9.0"
         )
         pipfile = Path(p.pipfile_path)
         new_content = pipfile.read_text().replace("1.9.0", "1.11.0")
@@ -200,7 +200,7 @@ def test_get_vcs_refs(pipenv_instance_private_pypi):
         assert c.returncode == 0
         assert (
             p.lockfile["default"]["six"]["ref"]
-            == "15e31431af97e5e64b80af0a3f598d382bcdd49a"
+            == "1.11.0"
         )
         assert "six" in p.pipfile["packages"]
         assert "six" in p.lockfile["default"]
@@ -239,7 +239,7 @@ Jinja2 = {{ref = "2.11.0", git = "{}"}}
         assert p.lockfile["default"]["jinja2"].get("ref") is not None
         assert (
             p.lockfile["default"]["jinja2"]["git"]
-            == f"{jinja2_uri}@2.11.0#egg=jinja2"
+            == f"git+{jinja2_uri}@2.11.0#egg=Jinja2"
         )
 
 

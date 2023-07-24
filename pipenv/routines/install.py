@@ -307,11 +307,11 @@ def do_install(
                 extra_pip_args=extra_pip_args,
                 categories=categories,
             )
-        except RuntimeError:
+        except Exception as e:
             # If we fail to install, remove the package from the Pipfile.
             for pkg_name, category in new_packages:
                 project.remove_package_from_pipfile(pkg_name, category)
-            sys.exit(1)
+            raise e
     sys.exit(0)
 
 
