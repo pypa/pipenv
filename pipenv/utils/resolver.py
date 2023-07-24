@@ -417,6 +417,24 @@ class Resolver:
             markers_lookup = {}
         if sources is None:
             sources = project.sources
+        packages = project.get_pipfile_section(category)
+        markers_lookup = {}
+        for dep in deps:  # Build up the index and markers lookups
+            if not dep:
+                continue
+            install_req = expansive_install_req_from_line(dep)
+            package_name = determine_package_name(install_req)
+            index, extra_index, trust_host, remainder = parse_indexes(dep)
+            if package_name in packages:
+                pipfile_entry = packages[package_name]
+                if isinstance(pipfile_entry, dict):
+                    if packages[package_name].get("index"):
+                        index_lookup[package_name] = packages[package_name].get("index")
+                elif index:
+                    index_lookup[package_name] = index
+                else:
+                    index_lookup[package_name] = project.get_default_index()["name"]
+            markers_lookup[package_name] = install_req.markers
         resolver = Resolver(
             set(),
             req_dir,
@@ -428,17 +446,8 @@ class Resolver:
             pre=pre,
             category=category,
         )
-        markers_lookup = {}
-        for dep in deps:  # Build up the index and markers lookups
-            if not dep:
-                continue
-            install_req = expansive_install_req_from_line(dep)
-            package_name = determine_package_name(install_req)
-            index, extra_index, trust_host, remainder = parse_indexes(dep)
-            index_lookup[package_name] = index
-            markers_lookup[package_name] = install_req.markers
-            if resolver.check_if_package_req_skipped(install_req):
-                resolver.skipped[package_name] = dep
+        # if resolver.check_if_package_req_skipped(install_req):
+        #     resolver.skipped[package_name] = dep
         resolver.initial_constraints = deps
         resolver.index_lookup = index_lookup
         resolver.markers_lookup = markers_lookup

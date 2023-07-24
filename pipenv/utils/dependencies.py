@@ -329,7 +329,6 @@ def dependency_as_pip_install_line(
     line = []
     is_constraint = False
     vcs = next(iter([vcs for vcs in VCS_LIST if vcs in dep]), None)
-    include_index = False
     if not vcs:
         for k in ["file", "path"]:
             if k in dep:
@@ -338,13 +337,15 @@ def dependency_as_pip_install_line(
                 extras = ""
                 if "extras" in dep:
                     extras = f"[{','.join(dep['extras'])}]"
-                line.append(dep["file"] if "file" in dep else dep["path"])
-                line[-1] += extras
+                location = dep["file"] if "file" in dep else dep["path"]
+                if location.startswith("http:" or "https:"):
+                    line.append(f"{dep_name}{extras} @ {location}")
+                else:
+                    line.append(f"{location}{extras}")
                 break
         else:
             # Normal/Named Requirements
             is_constraint = True
-            include_index = True
             line.append(dep_name)
             if "extras" in dep:
                 line[-1] += f"[{','.join(dep['extras'])}]"
@@ -360,13 +361,12 @@ def dependency_as_pip_install_line(
             if include_hashes and dep.get("hashes"):
                 line.extend([f" --hash={hash}" for hash in dep["hashes"]])
 
-            if include_index:
-                if dep.get("index"):
-                    indexes = [s for s in indexes if s.get("name") == dep["index"]]
-                else:
-                    indexes = [indexes[0]] if indexes else []
-                index_list = prepare_pip_source_args(indexes)
-                line.extend(index_list)
+            if dep.get("index"):
+                indexes = [s for s in indexes if s.get("name") == dep["index"]]
+            else:
+                indexes = [indexes[0]] if indexes else []
+            index_list = prepare_pip_source_args(indexes)
+            line.extend(index_list)
     elif vcs and vcs in dep:  # VCS Requirements
         extras = ""
         ref = ""

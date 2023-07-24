@@ -879,6 +879,14 @@ class Project:
                 source["url"] = os.environ["PIPENV_PYPI_MIRROR"]
         return sources
 
+    def get_default_index(self):
+        return self.pipfile_sources()[0]
+
+    def get_index_by_name(self, index_name):
+        for source in self.pipfile_sources():
+            if source.get("name") == index_name:
+                return source
+
     @property
     def sources(self):
         if self.lockfile_exists and hasattr(self.lockfile_content, "keys"):
@@ -1011,6 +1019,8 @@ class Project:
                     break
         else:
             converted["version"] = specifier
+        if hasattr(package, "index"):
+            converted["index"] = package.index
 
         if len(converted) == 1 and "version" in converted:
             return name, normalized_name, specifier

@@ -238,7 +238,7 @@ def install(state, **kwargs):
         requirementstxt=state.installstate.requirementstxt,
         pre=state.installstate.pre,
         deploy=state.installstate.deploy,
-        index_url=state.index,
+        index=state.index,
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
         site_packages=state.site_packages,

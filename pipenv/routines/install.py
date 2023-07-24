@@ -32,7 +32,7 @@ def do_install(
     project,
     packages=False,
     editable_packages=False,
-    index_url=False,
+    index=False,
     dev=False,
     python=False,
     pypi_mirror=None,
@@ -251,9 +251,15 @@ def do_install(
                     f"[bold]Adding [green]{pkg_requirement.name}[/green][/bold] to Pipfile's [yellow]\\{pipfile_sections}[/yellow] ..."
                 )
                 # Add the package to the Pipfile.
-                if index_url:
-                    index_name = add_index_to_pipfile(project, index_url)
-                    pkg_requirement.index = index_name
+                if index:
+                    source = project.get_index_by_name(index)
+                    default_index = project.get_default_index()["name"]
+                    if not source:
+                        index_name = add_index_to_pipfile(project, index)
+                        if index_name != default_index:
+                            pkg_requirement.index = index_name
+                    elif source["name"] != default_index:
+                        pkg_requirement.index = source["name"]
                 try:
                     if categories:
                         for category in categories:
