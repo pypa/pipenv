@@ -657,37 +657,6 @@ def resolve_packages(
     return []
 
 
-def parse_packages(packages, pre, clear, system, requirements_dir=None):
-    from pipenv.utils.indexes import parse_indexes
-    from pipenv.vendor.requirementslib.fileutils import cd, temp_path
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
-
-    parsed_packages = []
-    for package in packages:
-        *_, line = parse_indexes(package)
-        line = " ".join(line)
-        pf = {}
-        req = Requirement.from_line(line)
-        if not req.name:
-            with temp_path(), cd(req.req.setup_info.base_dir):
-                sys.path.insert(0, req.req.setup_info.base_dir)
-                req.req.setup_info.get_info()
-                req.update_name_from_path(req.req.setup_info.base_dir)
-        try:
-            name, entry = req.pipfile_entry
-        except Exception:
-            continue
-        else:
-            if name is not None and entry is not None:
-                pf[name] = entry
-                parsed_packages.append(pf)
-    print("RESULTS:")
-    if parsed_packages:
-        print(json.dumps(parsed_packages))
-    else:
-        print(json.dumps([]))
-
-
 def _main(
     pre,
     clear,
@@ -699,18 +668,9 @@ def _main(
     parse_only=False,
     category=None,
 ):
-    if parse_only:
-        parse_packages(
-            packages,
-            pre=pre,
-            clear=clear,
-            system=system,
-            requirements_dir=requirements_dir,
-        )
-    else:
-        resolve_packages(
-            pre, clear, verbose, system, write, requirements_dir, packages, category
-        )
+    resolve_packages(
+        pre, clear, verbose, system, write, requirements_dir, packages, category
+    )
 
 
 def main(argv=None):
