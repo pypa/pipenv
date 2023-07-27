@@ -166,7 +166,7 @@ def translate_markers(pipfile_entry):
     return new_pipfile
 
 
-def clean_resolved_dep(dep, dep_name=None, is_top_level=False, pipfile_entry=None):
+def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     from pipenv.patched.pip._vendor.packaging.requirements import (
         Requirement as PipRequirement,
     )
