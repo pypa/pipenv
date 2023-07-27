@@ -507,6 +507,14 @@ def find_package_name_from_zipfile(zip_filepath):
 
 
 def find_package_name_from_directory(directory):
+    # Parse the directory as a URL
+    parsed = urlparse(directory)
+
+    # If it's a file:// URL, convert it to a file path
+    if parsed.scheme == "file":
+        directory = parsed.path
+
+    # Existing code continues here...
     for filename in os.listdir(directory):
         filepath = os.path.join(directory, filename)
         if os.path.isfile(filepath):
