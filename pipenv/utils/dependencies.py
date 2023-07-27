@@ -733,11 +733,15 @@ def expansive_install_req_from_line(
 
     if os.path.isfile(name) or os.path.isdir(name):
         if not name.startswith("file:"):
-            # Keep path as is, just ensure it's properly formatted as a file: URL
             url_path = pathname2url(name)
             if os.name == "nt":
                 url_path = url_path.lstrip("/")
-            name = f"file:{url_path}"
+
+            # Only prepend "file:" if the path is absolute
+            if os.path.isabs(name):
+                name = f"file:{url_path}"
+            else:
+                name = url_path
 
         return install_req_from_editable(name, line_source)
 
