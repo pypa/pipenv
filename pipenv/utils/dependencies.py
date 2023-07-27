@@ -528,9 +528,11 @@ def determine_path_specifier(package: InstallRequirement):
             path_specifier = package.link.url_without_fragment
             return path_specifier
         if package.link.scheme == "file":
-            path_specifier = os.path.relpath(
-                package.link.file_path
-            )  # Preserve the original file path
+            try:
+                path_specifier = os.path.relpath(package.link.file_path)
+            except ValueError:
+                # If os.path.relpath() fails, use the absolute path instead
+                path_specifier = os.path.abspath(package.link.file_path)
             return path_specifier
 
 
@@ -578,7 +580,7 @@ def determine_package_name(package: InstallRequirement):
         elif package.link.file_path.endswith(".tar.gz"):
             req_name = find_package_name_from_tarball(package.link.file_path)
         else:
-            req_name = find_package_name_from_directory(package.link.file_path)
+            req_name = find_package_name_from_directory(package.link.path)
         os.path.relpath(package.link.file_path)  # Preserve the original file path
     if req_name:
         return req_name
