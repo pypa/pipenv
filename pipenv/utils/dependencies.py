@@ -513,6 +513,8 @@ def find_package_name_from_directory(directory):
 
     # If it's a file:// URL or a relative URL, convert it to a file path
     directory = unquote(parsed.path)
+    if os.name == "nt":
+        directory = directory.lstrip("/")
 
     # Existing code continues here...
     for filename in os.listdir(directory):
