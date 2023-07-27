@@ -16,3 +16,4 @@ ruamel.yaml==0.17.21
 shellingham==1.5.0.post1
 tomli==2.0.1
 tomlkit==0.11.7
+unearth==0.10.0
