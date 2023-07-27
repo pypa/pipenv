@@ -104,6 +104,8 @@ class InstallRequirement:
             if link.is_file:
                 self.source_dir = os.path.normpath(os.path.abspath(link.file_path))
 
+        # original_link is the direct URL that was provided by the user for the
+        # requirement, either directly or via a constraints file.
         if link is None and req and req.url:
             # PEP 508 URL requirement
             link = Link(req.url)
@@ -245,6 +247,11 @@ class InstallRequirement:
         return self.req.specifier
 
     @property
+    def is_direct(self) -> bool:
+        """Whether this requirement was specified as a direct URL."""
+        return self.original_link is not None
+
+    @property
     def is_pinned(self) -> bool:
         """Return whether I am pinned to an exact version.
 
@@ -293,7 +300,7 @@ class InstallRequirement:
         good_hashes = self.hash_options.copy()
         if trust_internet:
             link = self.link
-        elif self.original_link and self.user_supplied:
+        elif self.is_direct and self.user_supplied:
             link = self.original_link
         else:
             link = None
@@ -805,7 +812,7 @@ class InstallRequirement:
             req_description=str(self.req),
             pycompile=pycompile,
             warn_script_location=warn_script_location,
-            direct_url=self.download_info if self.original_link else None,
+            direct_url=self.download_info if self.is_direct else None,
             requested=self.user_supplied,
         )
         self.install_succeeded = True

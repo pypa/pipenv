@@ -75,7 +75,7 @@ NON_CATEGORY_SECTIONS = {
 
 
 class _LockFileEncoder(json.JSONEncoder):
-    """A specilized JSON encoder to convert loaded TOML data into a lock file.
+    """A specialized JSON encoder to convert loaded TOML data into a lock file.
 
     This adds a few characteristics to the encoder:
 

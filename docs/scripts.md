@@ -32,7 +32,7 @@ Invoke script:
     $ pipenv run echospam "indeed"
     I am really a very silly example indeed
 
-You can also specify pacakge functions as callables such as: `<pathed.module>:<func>`. These can also take arguments.
+You can also specify package functions as callables such as: `<pathed.module>:<func>`. These can also take arguments.
 For example:
 
     [scripts]

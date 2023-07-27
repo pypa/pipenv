@@ -286,7 +286,7 @@ def convert_deps_to_pip(
 
 
 def get_constraints_from_deps(deps):
-    """Get contraints from Pipfile-formatted dependency"""
+    """Get constraints from Pipfile-formatted dependency"""
 
     def is_constraints(dep: InstallRequirement) -> bool:
         return dep.name and not dep.editable and not dep.extras

@@ -1,2 +1,2 @@
 # This file is protected via CODEOWNERS
-__version__ = "1.26.15"
+__version__ = "1.26.16"

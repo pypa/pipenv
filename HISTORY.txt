@@ -42,7 +42,7 @@
    non-deterministic resolution errors.
 2018.6.25:
  - Added error handling functionality to properly cope with single-digit `Requires-Python`
-   metatdata with no specifiers.
+   metadata with no specifiers.
  - Pipenv will now generate hashes much more quickly by resolving them in a single pass
    during locking.
  - `pipenv run` will now avoid spawning additional `COMSPEC` instances to run commands in
@@ -88,7 +88,7 @@
    have been fixed.
  - VCS dependencies are now manually obtained only if they do not match the requested ref.
  - Windows executable discovery now leverages `os.pathext`.
- - Pipenv will now correctly unqoute special characters in wheel URIs.
+ - Pipenv will now correctly unquote special characters in wheel URIs.
  - Fixed a bug with parsing and grouping old-style setup.py extras during resolution.
  - Fixed a bug which caused `--system` to incorrectly abort when users were in a virtualenv.
  - Pipenv clean will now ignore comments when cleaning the environment.
@@ -218,7 +218,7 @@
 11.4.0:
  - Stability.
  - Don't install dependencies straight-away with pipenv–install — rely on the underlying pipenv sync architecture to pick up dependencies.
- - Warn (abord) if requested update package is not in Pipfile.
+ - Warn (abort) if requested update package is not in Pipfile.
  - Don't configure the Pipfile for keep_outdated when update is used.
 11.3.3:
  - Sorry for all the bugs.
@@ -298,7 +298,7 @@
  - Assume `PIPENV_VENV_IN_PROJECT` if `./.venv/` already exists.
  - Use and generate hashes for PyPI mirrors and custom indexes.
 10.1.0:
- - Default dependencies now take precidence over Develop dependencies when
+ - Default dependencies now take precedence over Develop dependencies when
    creating a Pipfile.lock.
  - Introducing `pipenv lock --keep-outdated`, which can also be passed to
    `install` and `uninstall`.

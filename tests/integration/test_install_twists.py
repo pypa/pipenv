@@ -210,13 +210,11 @@ def test_install_local_uri_special_character(pipenv_instance_private_pypi, tests
         os.makedirs(artifact_path, exist_ok=True)
         shutil.copy(source_path, os.path.join(artifact_path, file_name))
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
 # Pre comment
 [packages]
-six = {{path = "./artifacts/{}"}}
-            """.format(
-                file_name
-            )
+six = {{path = "./artifacts/{file_name}"}}
+            """
             f.write(contents.strip())
         c = p.pipenv("install")
         assert c.returncode == 0

@@ -1,29 +1,33 @@
+"""Base API."""
 from __future__ import annotations
 
 import os
-import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-if sys.version_info >= (3, 8):  # pragma: no branch
-    from typing import Literal  # pragma: no cover
+if TYPE_CHECKING:
+    import sys
+
+    if sys.version_info >= (3, 8):  # pragma: no cover (py38+)
+        from typing import Literal
+    else:  # pragma: no cover (py38+)
+        from pipenv.patched.pip._vendor.typing_extensions import Literal
 
 
 class PlatformDirsABC(ABC):
-    """
-    Abstract base class for platform directories.
-    """
+    """Abstract base class for platform directories."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         appname: str | None = None,
         appauthor: str | None | Literal[False] = None,
         version: str | None = None,
-        roaming: bool = False,
-        multipath: bool = False,
-        opinion: bool = True,
-        ensure_exists: bool = False,
-    ):
+        roaming: bool = False,  # noqa: FBT001, FBT002
+        multipath: bool = False,  # noqa: FBT001, FBT002
+        opinion: bool = True,  # noqa: FBT001, FBT002
+        ensure_exists: bool = False,  # noqa: FBT001, FBT002
+    ) -> None:
         """
         Create a new platform directory.
 
@@ -70,7 +74,7 @@ class PlatformDirsABC(ABC):
             params.append(self.appname)
             if self.version:
                 params.append(self.version)
-        path = os.path.join(base[0], *params)
+        path = os.path.join(base[0], *params)  # noqa: PTH118
         self._optionally_create_directory(path)
         return path
 
@@ -125,6 +129,26 @@ class PlatformDirsABC(ABC):
 
     @property
     @abstractmethod
+    def user_downloads_dir(self) -> str:
+        """:return: downloads directory tied to the user"""
+
+    @property
+    @abstractmethod
+    def user_pictures_dir(self) -> str:
+        """:return: pictures directory tied to the user"""
+
+    @property
+    @abstractmethod
+    def user_videos_dir(self) -> str:
+        """:return: videos directory tied to the user"""
+
+    @property
+    @abstractmethod
+    def user_music_dir(self) -> str:
+        """:return: music directory tied to the user"""
+
+    @property
+    @abstractmethod
     def user_runtime_dir(self) -> str:
         """:return: runtime directory tied to the user"""
 
@@ -172,6 +196,26 @@ class PlatformDirsABC(ABC):
     def user_documents_path(self) -> Path:
         """:return: documents path tied to the user"""
         return Path(self.user_documents_dir)
+
+    @property
+    def user_downloads_path(self) -> Path:
+        """:return: downloads path tied to the user"""
+        return Path(self.user_downloads_dir)
+
+    @property
+    def user_pictures_path(self) -> Path:
+        """:return: pictures path tied to the user"""
+        return Path(self.user_pictures_dir)
+
+    @property
+    def user_videos_path(self) -> Path:
+        """:return: videos path tied to the user"""
+        return Path(self.user_videos_dir)
+
+    @property
+    def user_music_path(self) -> Path:
+        """:return: music path tied to the user"""
+        return Path(self.user_music_dir)
 
     @property
     def user_runtime_path(self) -> Path:

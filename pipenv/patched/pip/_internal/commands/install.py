@@ -387,6 +387,9 @@ class InstallCommand(RequirementCommand):
                         json.dump(report.to_dict(), f, indent=2, ensure_ascii=False)
 
             if options.dry_run:
+                # In non dry-run mode, the legacy versions and specifiers check
+                # will be done as part of conflict detection.
+                requirement_set.warn_legacy_versions_and_specifiers()
                 would_install_items = sorted(
                     (r.metadata["name"], r.metadata["version"])
                     for r in requirement_set.requirements_to_install

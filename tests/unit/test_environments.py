@@ -29,7 +29,7 @@ def test_get_from_env(arg, prefix, use_negation):
             main_expected_value = True if is_positive else None
             if use_negation and not is_positive:
                 main_expected_value = False
-            # use negation means if the normal variable isnt set we will check
+            # use negation means if the normal variable isn't set we will check
             # for the negated version
             negative_expected_value = True if is_negative else None
             if is_positive:

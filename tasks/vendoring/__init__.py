@@ -296,10 +296,7 @@ def install(ctx, vendor_dir, package=None):
     # are added to vendor.txt, this includes all dependencies recursively up
     # the chain.
     ctx.run(
-        "pip install -t {} --no-compile --no-deps --upgrade {}".format(
-            vendor_dir.as_posix(),
-            requirement,
-        )
+        f"pip install -t {vendor_dir.as_posix()} --no-compile --no-deps --upgrade {requirement}"
     )
     # read licenses from distinfo files if possible
     for path in vendor_dir.glob("*.dist-info"):
@@ -627,9 +624,8 @@ def license_destination(vendor_dir, libname, filename):
         override = vendor_dir / LIBRARY_DIRNAMES[libname]
         if not override.exists() and override.parent.exists():
             # for flattened subdeps, specifically backports/weakref.py
-            return (vendor_dir / override.parent) / "{}.{}".format(
-                override.name, filename
-            )
+            return (vendor_dir / override.parent) / "{override.name}.{filename}"
+
         license_path = Path(LIBRARY_DIRNAMES[libname]) / filename
         if license_path.as_posix() in LICENSE_RENAMES:
             return vendor_dir / LICENSE_RENAMES[license_path.as_posix()]

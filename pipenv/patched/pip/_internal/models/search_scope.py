@@ -136,6 +136,6 @@ class SearchScope:
         index_urls = self.index_urls
         if project_name in self.index_lookup:
             index_urls = [self.index_lookup[project_name]]
-        else:
+        elif self.index_urls:
             index_urls = [self.index_urls[0]]
         return [mkurl_pypi_url(url) for url in index_urls]
