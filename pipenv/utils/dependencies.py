@@ -341,7 +341,7 @@ def dependency_as_pip_install_line(
                 if "extras" in dep:
                     extras = f"[{','.join(dep['extras'])}]"
                 location = dep["file"] if "file" in dep else dep["path"]
-                if location.startswith("http:" or "https:"):
+                if location.startswith(("http:", "https:")):
                     line.append(f"{dep_name}{extras} @ {location}")
                 else:
                     line.append(f"{location}{extras}")

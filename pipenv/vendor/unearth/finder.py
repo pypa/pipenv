@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, NamedTuple, Sequence
 from urllib.parse import urljoin
 
-import packaging.requirements
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.packaging.utils import BuildTag, canonicalize_name, parse_wheel_filename
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
@@ -192,7 +192,7 @@ class PackageFinder:
     def _evaluate_packages(
         self,
         packages: Iterable[Package],
-        requirement: packaging.requirements.Requirement,
+        requirement: Requirement,
         allow_prereleases: bool | None = None,
     ) -> Iterable[Package]:
         evaluator = functools.partial(
@@ -296,7 +296,7 @@ class PackageFinder:
 
     def _find_packages_from_requirement(
         self,
-        requirement: packaging.requirements.Requirement,
+        requirement: Requirement,
         allow_yanked: bool | None = None,
     ) -> Iterable[Package]:
         if allow_yanked is None:
@@ -308,7 +308,7 @@ class PackageFinder:
 
     def find_matches(
         self,
-        requirement: packaging.requirements.Requirement | str,
+        requirement: Requirement | str,
         allow_yanked: bool | None = None,
         allow_prereleases: bool | None = None,
         hashes: dict[str, list[str]] | None = None,
@@ -328,7 +328,7 @@ class PackageFinder:
             Sequence[Package]: The packages sorted by best match
         """
         if isinstance(requirement, str):
-            requirement = packaging.requirements.Requirement(requirement)
+            requirement = Requirement(requirement)
         return LazySequence(
             self._evaluate_hashes(
                 self._evaluate_packages(
@@ -342,7 +342,7 @@ class PackageFinder:
 
     def find_best_match(
         self,
-        requirement: packaging.requirements.Requirement | str,
+        requirement: Requirement | str,
         allow_yanked: bool | None = None,
         allow_prereleases: bool | None = None,
         hashes: dict[str, list[str]] | None = None,
@@ -362,7 +362,7 @@ class PackageFinder:
             BestMatch: The best match
         """
         if isinstance(requirement, str):
-            requirement = packaging.requirements.Requirement(requirement)
+            requirement = Requirement(requirement)
         packages = self._find_packages_from_requirement(requirement, allow_yanked)
         candidates = LazySequence(packages)
         applicable_candidates = LazySequence(

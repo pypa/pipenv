@@ -10,7 +10,7 @@ import warnings
 from pathlib import Path
 from typing import Any, Iterable, cast
 
-import requests.adapters
+from pipenv.patched.pip._vendor.requests import adapters
 import pipenv.patched.pip._vendor.urllib3 as urllib3
 from pipenv.patched.pip._vendor.requests import Session
 from pipenv.patched.pip._vendor.requests.models import PreparedRequest, Response
@@ -46,11 +46,11 @@ class InsecureMixin:
             return super().send(request, *args, **kwargs)
 
 
-class InsecureHTTPAdapter(InsecureMixin, requests.adapters.HTTPAdapter):
+class InsecureHTTPAdapter(InsecureMixin, adapters.HTTPAdapter):
     pass
 
 
-class LocalFSAdapter(requests.adapters.BaseAdapter):
+class LocalFSAdapter(adapters.BaseAdapter):
     def send(self, request: PreparedRequest, *args: Any, **kwargs: Any) -> Response:
         link = Link(cast(str, request.url))
         path = link.file_path
@@ -102,7 +102,7 @@ class PyPISession(Session):
     """
 
     #: The adapter class to use for secure connections.
-    secure_adapter_cls = requests.adapters.HTTPAdapter
+    secure_adapter_cls = adapters.HTTPAdapter
     #: The adapter class to use for insecure connections.
     insecure_adapter_cls = InsecureHTTPAdapter
 

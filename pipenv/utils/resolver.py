@@ -34,6 +34,7 @@ from pipenv.project import Project
 from pipenv.vendor import click
 from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir, open_file
 from pipenv.vendor.requirementslib.models.utils import normalize_name
+from pipenv.vendor.unearth import PackageFinder
 
 try:
     # this is only in Python3.8 and later
@@ -46,7 +47,6 @@ from .dependencies import (
     HackedPythonVersion,
     clean_pkg_version,
     convert_deps_to_pip,
-    determine_package_name,
     expansive_install_req_from_line,
     get_constraints_from_deps,
     get_lockfile_section_using_pipfile_category,
@@ -423,8 +423,10 @@ class Resolver:
             if not dep:
                 continue
             install_req = expansive_install_req_from_line(dep)
-            package_name = determine_package_name(install_req)
             index, extra_index, trust_host, remainder = parse_indexes(dep)
+            finder = PackageFinder(index_urls=[index], trusted_hosts=trust_host or [])
+            result = finder.find_best_match(dep)
+            package_name = result.best.name
             if package_name in packages:
                 pipfile_entry = packages[package_name]
                 if isinstance(pipfile_entry, dict):

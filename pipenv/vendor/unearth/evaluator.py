@@ -7,7 +7,7 @@ import logging
 import sys
 from typing import Any
 
-import packaging.requirements
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
 from pipenv.patched.pip._vendor.packaging.tags import Tag
 from pipenv.patched.pip._vendor.packaging.utils import (
@@ -224,7 +224,7 @@ class Evaluator:
 
 def evaluate_package(
     package: Package,
-    requirement: packaging.requirements.Requirement,
+    requirement: Requirement,
     allow_prereleases: bool | None = None,
 ) -> bool:
     """Evaluate the package based on the requirement.
