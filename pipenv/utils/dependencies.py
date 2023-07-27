@@ -8,7 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
-from urllib.parse import urlparse, urlsplit, urlunsplit
+from urllib.parse import unquote, urlparse, urlsplit, urlunsplit
 from urllib.request import pathname2url
 
 from pipenv.patched.pip._internal.network.download import Downloader
@@ -510,9 +510,8 @@ def find_package_name_from_directory(directory):
     # Parse the directory as a URL
     parsed = urlparse(directory)
 
-    # If it's a file:// URL, convert it to a file path
-    if parsed.scheme == "file":
-        directory = parsed.path
+    # If it's a file:// URL or a relative URL, convert it to a file path
+    directory = unquote(parsed.path)
 
     # Existing code continues here...
     for filename in os.listdir(directory):
@@ -744,9 +743,7 @@ def expansive_install_req_from_line(
             url_path = pathname2url(name)
             if os.name == "nt":
                 url_path = url_path.lstrip("/")
-
-            # Only prepend "file:" if the path is absolute
-            if os.path.isabs(name):
+            if not url_path.startswith("file:"):
                 name = f"file:{url_path}"
             else:
                 name = url_path
