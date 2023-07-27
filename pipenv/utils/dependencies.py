@@ -735,7 +735,6 @@ def expansive_install_req_from_line(
             # Make sure the path is absolute and properly formatted as a file: URL
             absolute_path = os.path.abspath(name)
             name = urljoin("file:", absolute_path)
-            name = "file:" + name
 
         return install_req_from_editable(name, line_source)
 
