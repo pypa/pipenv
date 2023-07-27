@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import List, Optional
 
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
+from pipenv.utils import err
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import cmd_list_to_shell, project_python
-from pipenv.vendor import click
 from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir, normalize_path
 
 
@@ -42,9 +42,8 @@ def pip_install_deps(
         ignore_hash = ignore_hashes or "--hash" not in pip_line
 
         if project.s.is_verbose():
-            click.echo(
-                f"Writing supplied requirement line to temporary file: {pip_line!r}",
-                err=True,
+            err.print(
+                f"Writing supplied requirement line to temporary file: {pip_line!r}"
             )
         target = editable_requirements if ignore_hash else standard_requirements
         target.write(pip_line.encode())
@@ -81,16 +80,10 @@ def pip_install_deps(
         pip_command.extend(["-r", normalize_path(file.name)])
         if project.s.is_verbose():
             msg = f"Install Phase: {'Standard Requirements' if file == standard_requirements else 'Editable Requirements'}"
-            click.echo(
-                click.style(msg, bold=True),
-                err=True,
-            )
+            err.print(msg, style="bold")
             for pip_line in deps:
-                click.echo(
-                    click.style(f"Preparing Installation of {pip_line!r}", bold=True),
-                    err=True,
-                )
-            click.secho(f"$ {cmd_list_to_shell(pip_command)}", fg="cyan", err=True)
+                err.print(f"Preparing Installation of {pip_line!r}", style="bold")
+            err.print(f"$ {cmd_list_to_shell(pip_command)}", style="cyan")
         cache_dir = Path(project.s.PIPENV_CACHE_DIR)
         default_exists_action = "w"
         exists_action = project.s.PIP_EXISTS_ACTION or default_exists_action
@@ -103,7 +96,7 @@ def pip_install_deps(
         }
         if src_dir:
             if project.s.is_verbose():
-                click.echo(f"Using source directory: {src_dir!r}", err=True)
+                err.print(f"Using source directory: {src_dir!r}")
             pip_config.update({"PIP_SRC": src_dir})
         c = subprocess_run(pip_command, block=False, capture_output=True, env=pip_config)
         c.env = pip_config
@@ -114,9 +107,9 @@ def pip_install_deps(
                 if not line:
                     break
                 if "Ignoring" in line:
-                    click.secho(line, fg="red", err=True)
+                    err.print(line, style="red")
                 elif line:
-                    click.secho(line, fg="yellow", err=True)
+                    err.print(line, style="yellow")
     return cmds
 
 

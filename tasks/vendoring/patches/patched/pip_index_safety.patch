@@ -36,7 +36,7 @@ index 0120610c..ead5227e 100644
          return link_collector
 
 diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patched/pip/_internal/models/search_scope.py
-index a64af738..76c44656 100644
+index fe61e8116..dab85fbb9 100644
 --- a/pipenv/patched/pip/_internal/models/search_scope.py
 +++ b/pipenv/patched/pip/_internal/models/search_scope.py
 @@ -3,7 +3,7 @@ import logging
@@ -86,7 +86,7 @@ index a64af738..76c44656 100644
 
      def get_formatted_locations(self) -> str:
          lines = []
-@@ -130,4 +134,7 @@ class SearchScope:
+@@ -129,4 +133,9 @@ class SearchScope:
                  loc = loc + "/"
              return loc
 
@@ -94,6 +94,6 @@ index a64af738..76c44656 100644
 +        index_urls = self.index_urls
 +        if project_name in self.index_lookup:
 +            index_urls = [self.index_lookup[project_name]]
-+        else:
++        elif self.index_urls:
 +            index_urls = [self.index_urls[0]]
 +        return [mkurl_pypi_url(url) for url in index_urls]

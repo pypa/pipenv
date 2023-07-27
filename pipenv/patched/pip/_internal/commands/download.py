@@ -137,6 +137,10 @@ class DownloadCommand(RequirementCommand):
                 assert req.name is not None
                 preparer.save_linked_requirement(req)
                 downloaded.append(req.name)
+
+        preparer.prepare_linked_requirements_more(requirement_set.requirements.values())
+        requirement_set.warn_legacy_versions_and_specifiers()
+
         if downloaded:
             write_output("Successfully downloaded %s", " ".join(downloaded))
 

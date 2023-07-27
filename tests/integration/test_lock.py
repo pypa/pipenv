@@ -447,15 +447,15 @@ def test_vcs_lock_respects_top_level_pins(pipenv_instance_private_pypi):
 @pytest.mark.lock
 def test_lock_after_update_source_name(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        contents = """
+        contents = f"""
 [[source]]
-url = "{}"
+url = "{p.index_url}"
 verify_ssl = true
 name = "test"
 
 [packages]
 six = "*"
-        """.format(p.index_url).strip()
+        """.strip()
         with open(p.pipfile_path, 'w') as f:
             f.write(contents)
         c = p.pipenv("lock")
@@ -614,9 +614,9 @@ requests = "*"
 @pytest.mark.lock
 def test_lock_specific_named_category(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi(pipfile=False) as p:
-        contents = """
+        contents = f"""
 [[source]]
-url = "{}"
+url = "{p.index_url}"
 verify_ssl = true
 name = "test"
 
@@ -625,7 +625,7 @@ requests = "*"
 
 [prereq]
 six = "*"
-        """.format(p.index_url).strip()
+        """.strip()
         with open(p.pipfile_path, 'w') as f:
             f.write(contents)
         c = p.pipenv("lock --categories prereq")

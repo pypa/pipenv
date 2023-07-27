@@ -194,7 +194,17 @@ class CacheEntry:
         self.origin: Optional[DirectUrl] = None
         origin_direct_url_path = Path(self.link.file_path).parent / ORIGIN_JSON_NAME
         if origin_direct_url_path.exists():
-            self.origin = DirectUrl.from_json(origin_direct_url_path.read_text())
+            try:
+                self.origin = DirectUrl.from_json(
+                    origin_direct_url_path.read_text(encoding="utf-8")
+                )
+            except Exception as e:
+                logger.warning(
+                    "Ignoring invalid cache entry origin file %s for %s (%s)",
+                    origin_direct_url_path,
+                    link.filename,
+                    e,
+                )
 
 
 class WheelCache(Cache):
@@ -257,16 +267,26 @@ class WheelCache(Cache):
     @staticmethod
     def record_download_origin(cache_dir: str, download_info: DirectUrl) -> None:
         origin_path = Path(cache_dir) / ORIGIN_JSON_NAME
-        if origin_path.is_file():
-            origin = DirectUrl.from_json(origin_path.read_text())
-            # TODO: use DirectUrl.equivalent when https://github.com/pypa/pip/pull/10564
-            # is merged.
-            if origin.url != download_info.url:
+        if origin_path.exists():
+            try:
+                origin = DirectUrl.from_json(origin_path.read_text(encoding="utf-8"))
+            except Exception as e:
                 logger.warning(
-                    "Origin URL %s in cache entry %s does not match download URL %s. "
-                    "This is likely a pip bug or a cache corruption issue.",
-                    origin.url,
-                    cache_dir,
-                    download_info.url,
+                    "Could not read origin file %s in cache entry (%s). "
+                    "Will attempt to overwrite it.",
+                    origin_path,
+                    e,
                 )
+            else:
+                # TODO: use DirectUrl.equivalent when
+                # https://github.com/pypa/pip/pull/10564 is merged.
+                if origin.url != download_info.url:
+                    logger.warning(
+                        "Origin URL %s in cache entry %s does not match download URL "
+                        "%s. This is likely a pip bug or a cache corruption issue. "
+                        "Will overwrite it with the new value.",
+                        origin.url,
+                        cache_dir,
+                        download_info.url,
+                    )
         origin_path.write_text(download_info.to_json(), encoding="utf-8")

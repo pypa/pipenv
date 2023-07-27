@@ -22,7 +22,7 @@ warning: The above commands should only be used when initially creating the envi
 
 The user can provide these additional parameters:
 
-    --dev — Install both develop and defaul` package categories from Pipfile.
+    --dev — Install both develop and default package categories from Pipfile.
     --categories — Install packages to the category groups specified here.
     --system — Install packages to the system site-packages rather than into your virtualenv.
     --deploy — Verifies the _meta hash of the lock file is up to date with the ``Pipfile``, aborts install if not.
