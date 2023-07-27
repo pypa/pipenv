@@ -8,7 +8,8 @@ from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
-from urllib.parse import urljoin, urlparse, urlsplit, urlunsplit
+from urllib.parse import urlparse, urlsplit, urlunsplit
+from urllib.request import pathname2url
 
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.req.constructors import (
@@ -580,7 +581,7 @@ def determine_package_name(package: InstallRequirement):
         elif package.link.file_path.endswith(".tar.gz"):
             req_name = find_package_name_from_tarball(package.link.file_path)
         else:
-            req_name = find_package_name_from_directory(package.link.path)
+            req_name = find_package_name_from_directory(package.link.url_without_fragment)
         os.path.relpath(package.link.file_path)  # Preserve the original file path
     if req_name:
         return req_name
@@ -734,7 +735,14 @@ def expansive_install_req_from_line(
         if not name.startswith("file:"):
             # Make sure the path is absolute and properly formatted as a file: URL
             absolute_path = os.path.abspath(name)
-            name = urljoin("file:", absolute_path)
+            url_path = pathname2url(absolute_path)
+
+            # In windows, drive letters are pre-pended with a /
+            # We should remove this extra / for file URL
+            if os.name == "nt":
+                url_path = url_path.lstrip("/")
+
+            name = f"file:{url_path}"
 
         return install_req_from_editable(name, line_source)
 
