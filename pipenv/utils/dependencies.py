@@ -37,6 +37,7 @@ from pipenv.vendor.requirementslib.utils import (
     prepare_pip_source_args,
     strip_ssh_from_git_uri,
 )
+from pipenv.vendor.unearth import PackageFinder
 
 from .constants import (
     RELEVANT_PROJECT_FILES,
@@ -556,22 +557,35 @@ def determine_package_name(package: InstallRequirement):
     if package.name:
         req_name = package.name
     elif package.link and package.link.scheme in REMOTE_SCHEMES:
-        with TemporaryDirectory() as td:
-            cmd = get_pip_command()
-            options, _ = cmd.parser.parse_args([])
-            session = cmd._build_session(options)
-            file = unpack_url(
-                link=package.link,
-                location=td,
-                download=Downloader(session, "off"),
-                verbosity=1,
+        try:
+            finder = PackageFinder(
+                index_urls=[
+                    package.index
+                    if hasattr(package, "index")
+                    else "https://pypi.org/simple"
+                ],
+                trusted_hosts=[],
             )
-            if file.path.endswith(".whl") or file.path.endswith(".zip"):
-                req_name = find_package_name_from_zipfile(file.path)
-            elif file.path.endswith(".tar.gz") or file.path.endswith(".tar.bz2"):
-                req_name = find_package_name_from_tarball(file.path)
-            else:
-                req_name = find_package_name_from_directory(file.path)
+            result = finder.find_best_match(package.link)
+            package_name = result.best.name
+            return package_name
+        except Exception:
+            with TemporaryDirectory() as td:
+                cmd = get_pip_command()
+                options, _ = cmd.parser.parse_args([])
+                session = cmd._build_session(options)
+                file = unpack_url(
+                    link=package.link,
+                    location=td,
+                    download=Downloader(session, "off"),
+                    verbosity=1,
+                )
+                if file.path.endswith(".whl") or file.path.endswith(".zip"):
+                    req_name = find_package_name_from_zipfile(file.path)
+                elif file.path.endswith(".tar.gz") or file.path.endswith(".tar.bz2"):
+                    req_name = find_package_name_from_tarball(file.path)
+                else:
+                    req_name = find_package_name_from_directory(file.path)
     elif package.link and package.link.scheme in [
         "bzr+file",
         "git+file",
