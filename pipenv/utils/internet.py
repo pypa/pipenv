@@ -1,5 +1,6 @@
 import os
 import re
+from html.parser import HTMLParser
 from urllib.parse import urlparse
 
 from pipenv.patched.pip._vendor import requests
@@ -7,7 +8,7 @@ from pipenv.patched.pip._vendor.requests.adapters import HTTPAdapter
 from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
 
 
-def _get_requests_session(max_retries=1, verify_ssl=True):
+def get_requests_session(max_retries=1, verify_ssl=True):
     """Load requests lazily."""
     pip_client_cert = os.environ.get("PIP_CLIENT_CERT")
     requests_session = requests.Session()
@@ -46,7 +47,7 @@ def create_mirror_source(url, name):
 
 def download_file(url, filename, max_retries=1):
     """Downloads file from url to a path with filename"""
-    r = _get_requests_session(max_retries).get(url, stream=True)
+    r = get_requests_session(max_retries).get(url, stream=True)
     r.close()
     if not r.ok:
         raise OSError("Unable to download file")
@@ -116,7 +117,7 @@ def is_url_equal(url: str, other_url: str) -> bool:
 def proper_case(package_name):
     """Properly case project name from pypi.org."""
     # Hit the simple API.
-    r = _get_requests_session().get(
+    r = get_requests_session().get(
         f"https://pypi.org/pypi/{package_name}/json", timeout=0.3, stream=True
     )
     r.close()
@@ -128,3 +129,17 @@ def proper_case(package_name):
     good_name = match.group(1)
 
     return good_name
+
+
+class PackageIndexHTMLParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.urls = []
+
+    def handle_starttag(self, tag, attrs):
+        # If tag is an anchor
+        if tag == "a":
+            # find href attribute
+            for attr in attrs:
+                if attr[0] == "href":
+                    self.urls.append(attr[1])

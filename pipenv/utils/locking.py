@@ -11,8 +11,23 @@ from pipenv.vendor.requirementslib.models.utils import normalize_name
 from .dependencies import clean_resolved_dep, pep423_name, translate_markers
 
 
+def merge_markers(entry, markers, markers_key="markers"):
+    if isinstance(markers, str):
+        markers = [markers]
+    for marker in markers:
+        if markers_key not in entry:
+            entry[markers_key] = marker
+        if marker not in entry[markers_key]:
+            entry[markers_key] = f"({entry[markers_key]}) and ({marker})"
+
+
 def format_requirement_for_lockfile(
-    req: InstallRequirement, markers_lookup, index_lookup, hashes=None
+    req: InstallRequirement,
+    markers_lookup,
+    index_lookup,
+    original_deps,
+    pipfile_entries,
+    hashes=None,
 ):
     if req.specifier:
         version = str(req.specifier)
@@ -22,14 +37,18 @@ def format_requirement_for_lockfile(
     markers = req.markers
     req.index = index
     name = normalize_name(req.name)
+    pipfile_entry = pipfile_entries[name] if name in pipfile_entries else None
     entry = {}
     if req.link and req.link.is_vcs:
         vcs = req.link.scheme.split("+", 1)[0]
-        entry[vcs] = req.link.url
         revision = req.link.show_url.split("@", 1)
         if len(revision) > 1:
             revision = revision[1]
             entry["rev"] = revision
+        if name in original_deps:
+            entry[vcs] = original_deps[name]
+        else:
+            entry[vcs] = req.link.url
     if req.req:
         entry["version"] = str(req.specifier)
     elif version:
@@ -43,41 +62,45 @@ def format_requirement_for_lockfile(
         entry.update({"index": index})
     if markers:
         entry.update({"markers": str(markers)})
+    elif name in markers_lookup:
+        merge_markers(entry, markers_lookup[name])
+    if isinstance(pipfile_entry, dict) and "markers" in pipfile_entry:
+        merge_markers(entry, pipfile_entry["markers"])
+    if isinstance(pipfile_entry, dict) and "os_name" in pipfile_entry:
+        merge_markers(entry, pipfile_entry["os_name"], "os_name")
     entry = translate_markers(entry)
     if req.extras:
         entry["extras"] = sorted(req.extras)
-    if entry.get("file"):
-        entry["file"] = entry["file"]
+    if isinstance(pipfile_entry, dict) and pipfile_entry.get("file"):
+        entry["file"] = pipfile_entry["file"]
         entry["editable"] = True
         entry.pop("version", None)
         entry.pop("index", None)
-    elif entry.get("path"):
-        entry["path"] = entry["path"]
+    elif isinstance(pipfile_entry, dict) and pipfile_entry.get("path"):
+        entry["path"] = pipfile_entry["path"]
         entry["editable"] = True
         entry.pop("version", None)
         entry.pop("index", None)
     return name, entry
 
 
-def get_locked_dep(dep, pipfile_section):
+def get_locked_dep(project, dep, pipfile_section):
     # initialize default values
-    cleaner_kwargs = {"is_top_level": False, "pipfile_entry": None}
+    is_top_level = False
 
     # if the dependency has a name, find corresponding entry in pipfile
     if isinstance(dep, Mapping) and dep.get("name"):
         dep_name = pep423_name(dep["name"])
         for pipfile_key, pipfile_entry in pipfile_section.items():
             if pep423_name(pipfile_key) == dep_name:
-                cleaner_kwargs.update(
-                    {"is_top_level": True, "pipfile_entry": pipfile_entry}
-                )
+                is_top_level = True
                 pipfile_entry.get("version", "") if isinstance(
                     pipfile_entry, Mapping
                 ) else pipfile_entry
                 break
 
     # clean the dependency
-    lockfile_entry = clean_resolved_dep(dep, **cleaner_kwargs)
+    lockfile_entry = clean_resolved_dep(project, dep, is_top_level)
 
     # get the lockfile version and compare with pipfile version
     lockfile_name, lockfile_dict = lockfile_entry.copy().popitem()
@@ -86,11 +109,11 @@ def get_locked_dep(dep, pipfile_section):
     return lockfile_entry
 
 
-def prepare_lockfile(results, pipfile, lockfile):
+def prepare_lockfile(project, results, pipfile, lockfile):
     for dep in results:
         if not dep:
             continue
-        lockfile_entry = get_locked_dep(dep, pipfile)
+        lockfile_entry = get_locked_dep(project, dep, pipfile)
         dep_name = dep["name"]
 
         # If the current dependency doesn't exist in the lockfile, add it

@@ -28,7 +28,11 @@ fake_package = {}
 
         c = p.pipenv('install -v')
         assert c.returncode == 0
-        assert 'markers' in p.lockfile['default']['fake-package'], p.lockfile["default"]
+        assert 'markers' in p.lockfile['default']['fake_package'], p.lockfile["default"]
+        assert p.lockfile['default']['fake_package']['markers'] == "os_name == 'splashwear'"
+        assert p.lockfile['default']['fake_package']['hashes'] == [
+            'sha256:1531e01a7f306f496721f425c8404f3cfd8d4933ee6daf4668fcc70059b133f3',
+            'sha256:cf83dc3f6c34050d3360fbdf655b2652c56532e3028b1c95202611ba1ebdd624']
 
         c = p.pipenv('run python -c "import fake_package;"')
         assert c.returncode == 1

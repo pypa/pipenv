@@ -11,6 +11,7 @@ import sys
 import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
+from urllib import parse
 from urllib.parse import unquote
 
 from pipenv.utils.constants import VCS_LIST
@@ -27,9 +28,12 @@ from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.configuration import Configuration
 from pipenv.patched.pip._internal.exceptions import ConfigurationError
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._vendor import pkg_resources
+from pipenv.utils import err
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
+    clean_pkg_version,
     determine_package_name,
     determine_path_specifier,
     determine_vcs_specifier,
@@ -39,7 +43,14 @@ from pipenv.utils.dependencies import (
     pep423_name,
     python_version,
 )
-from pipenv.utils.internet import get_url_name, is_pypi_url, is_valid_url, proper_case
+from pipenv.utils.internet import (
+    PackageIndexHTMLParser,
+    get_requests_session,
+    get_url_name,
+    is_pypi_url,
+    is_valid_url,
+    proper_case,
+)
 from pipenv.utils.locking import atomic_open_for_write
 from pipenv.utils.shell import (
     find_requirements,
@@ -53,6 +64,7 @@ from pipenv.utils.shell import (
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
 from pipenv.vendor import click, plette, tomlkit
+from pipenv.vendor.requirementslib.fileutils import open_file
 from pipenv.vendor.requirementslib.models.utils import (
     get_default_pyproject_backend,
     normalize_name,
@@ -143,6 +155,7 @@ class Project:
         self._environment = None
         self._build_system = {"requires": ["setuptools", "wheel"]}
         self.python_version = python_version
+        self.sessions = {}  # pip requests sessions
         self.s = Setting()
         # Load Pip configuration and get items
         self.configuration = Configuration(isolated=False, load_only=None)
@@ -222,6 +235,103 @@ class Project:
             return ["default", "develop"] + list(package_categories)
         else:
             return ["packages", "dev-packages"] + list(package_categories)
+
+    def get_requests_session_for_source(self, source):
+        if self.sessions.get(source["name"]):
+            session = self.sessions[source["name"]]
+        else:
+            session = get_requests_session(
+                self.s.PIPENV_MAX_RETRIES, source.get("verify_ssl", True)
+            )
+            self.sessions[source["name"]] = session
+        return session
+
+    @classmethod
+    def prepend_hash_types(cls, checksums, hash_type):
+        cleaned_checksums = set()
+        for checksum in checksums:
+            if not checksum:
+                continue
+            if not checksum.startswith(f"{hash_type}:"):
+                checksum = f"{hash_type}:{checksum}"
+            cleaned_checksums.add(checksum)
+        return sorted(cleaned_checksums)
+
+    def get_hash_from_link(self, hash_cache, link):
+        if link.hash and link.hash_name == FAVORITE_HASH:
+            return f"{link.hash_name}:{link.hash}"
+
+        return hash_cache.get_hash(link)
+
+    def get_hashes_from_pypi(self, ireq, source):
+        pkg_url = f"https://pypi.org/pypi/{ireq.name}/json"
+        session = self.get_requests_session_for_source(source)
+        try:
+            collected_hashes = set()
+            # Grab the hashes from the new warehouse API.
+            r = session.get(pkg_url, timeout=10)
+            api_releases = r.json()["releases"]
+            cleaned_releases = {}
+            for api_version, api_info in api_releases.items():
+                api_version = clean_pkg_version(api_version)
+                cleaned_releases[api_version] = api_info
+            version = ""
+            if ireq.specifier:
+                spec = next(iter(s for s in ireq.specifier), None)
+                if spec:
+                    version = spec.version
+            for release in cleaned_releases[version]:
+                collected_hashes.add(release["digests"][FAVORITE_HASH])
+            return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
+        except (ValueError, KeyError, ConnectionError):
+            if self.s.is_verbose():
+                err.print(
+                    f"[bold][red]Warning[/red][/bold]: Error generating hash for {ireq.name}."
+                )
+            return None
+
+    def get_hashes_from_remote_index_urls(self, ireq, source):
+        pkg_url = f"{source['url']}/{ireq.name}/"
+        session = self.get_requests_session_for_source(source)
+        try:
+            collected_hashes = set()
+            # Grab the hashes from the new warehouse API.
+            response = session.get(pkg_url, timeout=10)
+            # Create an instance of the parser
+            parser = PackageIndexHTMLParser()
+            # Feed the HTML to the parser
+            parser.feed(response.text)
+            # Extract hrefs
+            hrefs = parser.urls
+
+            version = ""
+            if ireq.specifier:
+                spec = next(iter(s for s in ireq.specifier), None)
+                if spec:
+                    version = spec.version
+            for package_url in hrefs:
+                if version in package_url:
+                    url_params = parse.urlparse(package_url).fragment
+                    params_dict = parse.parse_qs(url_params)
+                    if params_dict.get(FAVORITE_HASH):
+                        collected_hashes.add(params_dict[FAVORITE_HASH][0])
+            return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
+        except (ValueError, KeyError, ConnectionError):
+            if self.s.is_verbose():
+                click.echo(
+                    "{}: Error generating hash for {}".format(
+                        click.style("Warning", bold=True, fg="red"), ireq.name
+                    ),
+                    err=True,
+                )
+            return None
+
+    def get_file_hash(self, session, link):
+        h = hashlib.new(FAVORITE_HASH)
+        with open_file(link.url, session) as fp:
+            for chunk in iter(lambda: fp.read(8096), b""):
+                h.update(chunk)
+        return f"{h.name}:{h.hexdigest()}"
 
     @property
     def name(self) -> str:
@@ -989,7 +1099,7 @@ class Project:
                 del parsed[category][pkg_name]
         self.write_toml(parsed)
 
-    def generate_package_pipfile_entry(self, package, category=None):
+    def generate_package_pipfile_entry(self, package, pip_line, category=None):
         # Don't re-capitalize file URLs or VCSs.
         if not isinstance(package, InstallRequirement):
             package = expansive_install_req_from_line(package.strip())
@@ -1015,7 +1125,7 @@ class Project:
         elif vcs_specifier:
             for vcs in VCS_LIST:
                 if vcs in package.link.scheme:
-                    converted[vcs] = unquote(vcs_specifier)
+                    converted[vcs] = pip_line
                     break
         else:
             converted["version"] = specifier
@@ -1027,7 +1137,7 @@ class Project:
         else:
             return name, normalized_name, converted
 
-    def add_package_to_pipfile(self, package, dev=False, category=None):
+    def add_package_to_pipfile(self, package, pip_line, dev=False, category=None):
         newly_added = False
         category = category if category else "dev-packages" if dev else "packages"
 
@@ -1039,7 +1149,7 @@ class Project:
             p[category] = {}
 
         name, normalized_name, entry = self.generate_package_pipfile_entry(
-            package, category=category
+            package, pip_line, category=category
         )
         if name and name != normalized_name:
             self.remove_package_from_pipfile(name, category=category)

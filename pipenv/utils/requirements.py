@@ -1,12 +1,11 @@
 import os
-import re
+from urllib.parse import unquote
 
 from pipenv.patched.pip._internal.network.session import PipSession
 from pipenv.patched.pip._internal.req import parse_requirements
 from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_parsed_requirement,
 )
-from pipenv.patched.pip._internal.utils.misc import split_auth_from_netloc
 from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.indexes import parse_indexes
 from pipenv.utils.internet import get_host_and_port
@@ -35,31 +34,20 @@ def import_requirements(project, r=None, dev=False):
             indexes.append(extra_index)
         if trusted_host:
             trusted_hosts.append(get_host_and_port(trusted_host))
-    indexes = sorted(set(indexes))
-    trusted_hosts = sorted(set(trusted_hosts))
-    reqs = [
-        install_req_from_parsed_requirement(f)
-        for f in parse_requirements(r, session=PipSession())
-    ]
-    for package in reqs:
+    for f in parse_requirements(r, session=PipSession()):
+        package = install_req_from_parsed_requirement(f)
         if package.name not in BAD_PACKAGES:
             if package.link is not None:
                 if package.editable:
                     package_string = f"-e {package.link}"
                 else:
-                    netloc, (user, pw) = split_auth_from_netloc(package.link.netloc)
-                    safe = True
-                    if user and not re.match(r"\${[\W\w]+}", user):
-                        safe = False
-                    if pw and not re.match(r"\${[\W\w]+}", pw):
-                        safe = False
-                    if safe:
-                        package_string = str(package.link._url)
-                    else:
-                        package_string = str(package.link)
-                project.add_package_to_pipfile(package_string, dev=dev)
+                    package_string = unquote(str(package.original_link))
+
+                project.add_package_to_pipfile(package, package_string, dev=dev)
             else:
-                project.add_package_to_pipfile(str(package.req), dev=dev)
+                project.add_package_to_pipfile(package, str(package.req), dev=dev)
+    indexes = sorted(set(indexes))
+    trusted_hosts = sorted(set(trusted_hosts))
     for index in indexes:
         add_index_to_pipfile(project, index, trusted_hosts)
     project.recase_pipfile()
@@ -115,7 +103,8 @@ def requirement_from_lockfile(
                 else ""
             )
             include_vcs = "" if f"{vcs}+" in url else f"{vcs}+"
-            pip_line = f"{include_vcs}{url}@{ref}#egg={package_name}{extras}"
+            egg_fragment = "" if "#egg=" in url else f"#egg={package_name}"
+            pip_line = f"{include_vcs}{url}@{ref}{egg_fragment}{extras}"
             return pip_line
     # Handling file-sourced packages
     for k in ["file", "path"]:

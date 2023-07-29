@@ -30,14 +30,17 @@ from pipenv.vendor.requirementslib.fileutils import (
 )
 from pipenv.vendor.requirementslib.models.markers import PipenvMarkers
 from pipenv.vendor.requirementslib.models.setup_info import unpack_url
-from pipenv.vendor.requirementslib.models.utils import create_link, get_version
+from pipenv.vendor.requirementslib.models.utils import (
+    create_link,
+    expand_env_variables,
+    get_version,
+)
 from pipenv.vendor.requirementslib.utils import (
     add_ssh_scheme_to_git_uri,
     get_pip_command,
     prepare_pip_source_args,
     strip_ssh_from_git_uri,
 )
-from pipenv.vendor.unearth import PackageFinder
 
 from .constants import (
     RELEVANT_PROJECT_FILES,
@@ -168,12 +171,34 @@ def translate_markers(pipfile_entry):
     return new_pipfile
 
 
-def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
+def unearth_hashes_for_dep(project, dep):
+    hashes = []
+
+    index_url = "https://pypi.org/simple/"
+    source = "pypi"
+    for source in project.sources:
+        if source.get("name") == dep.get("index"):
+            index_url = source.get("url")
+            break
+
+    # 1 Try to get hashes directly form index
+    install_req, markers = install_req_from_pipfile(dep["name"], dep)
+    if "https://pypi.org/simple/" in index_url:
+        hashes = project.get_hashes_from_pypi(install_req, source)
+    elif index_url:
+        hashes = project.get_hashes_from_remote_index_urls(install_req, source)
+    if hashes:
+        return hashes
+
+    return []
+
+
+def clean_resolved_dep(project, dep, is_top_level=False):
     from pipenv.patched.pip._vendor.packaging.requirements import (
         Requirement as PipRequirement,
     )
 
-    name = pep423_name(dep["name"])
+    name = dep["name"]
     lockfile = {}
 
     version = dep.get("version", None)
@@ -208,6 +233,10 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
 
     if dep.get("hashes"):
         lockfile["hashes"] = dep["hashes"]
+    elif is_top_level:
+        potential_hashes = unearth_hashes_for_dep(project, dep)
+        if potential_hashes:
+            lockfile["hashes"] = potential_hashes
 
     if dep.get("index"):
         lockfile["index"] = dep["index"]
@@ -217,10 +246,10 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
 
     # In case we lock a uri or a file when the user supplied a path
     # remove the uri or file keys from the entry and keep the path
-    if pipfile_entry and isinstance(pipfile_entry, dict):
+    if dep and isinstance(dep, dict):
         for k in preferred_file_keys:
-            if k in pipfile_entry.keys():
-                lockfile[k] = pipfile_entry[k]
+            if k in dep.keys():
+                lockfile[k] = dep[k]
                 break
 
     if "markers" in dep and dep.get("markers", "").strip():
@@ -233,7 +262,7 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
                     pass
         else:
             try:
-                pipfile_entry = translate_markers(pipfile_entry)
+                pipfile_entry = translate_markers(dep)
                 if pipfile_entry.get("markers"):
                     lockfile["markers"] = pipfile_entry.get("markers")
             except TypeError:
@@ -380,7 +409,10 @@ def dependency_as_pip_install_line(
         if "extras" in dep:
             extras = f"[{','.join(dep['extras'])}]"
         include_vcs = "" if f"{vcs}+" in dep[vcs] else f"{vcs}+"
-        git_req = f"{include_vcs}{dep[vcs]}{ref}#egg={dep_name}{extras}"
+        if "#egg=" not in dep[vcs]:
+            git_req = f"{include_vcs}{dep[vcs]}{ref}#egg={dep_name}{extras}"
+        else:
+            git_req = f"{include_vcs}{dep[vcs]}{ref}"
         if "subdirectory" in dep:
             git_req += f"&subdirectory={dep['subdirectory']}"
         line.append(git_req)
@@ -559,35 +591,22 @@ def determine_package_name(package: InstallRequirement):
     if package.name:
         req_name = package.name
     elif package.link and package.link.scheme in REMOTE_SCHEMES:
-        try:
-            finder = PackageFinder(
-                index_urls=[
-                    package.index
-                    if hasattr(package, "index")
-                    else "https://pypi.org/simple"
-                ],
-                trusted_hosts=[],
+        with TemporaryDirectory() as td:
+            cmd = get_pip_command()
+            options, _ = cmd.parser.parse_args([])
+            session = cmd._build_session(options)
+            file = unpack_url(
+                link=package.link,
+                location=td,
+                download=Downloader(session, "off"),
+                verbosity=1,
             )
-            result = finder.find_best_match(package.link)
-            package_name = result.best.name
-            return package_name
-        except Exception:
-            with TemporaryDirectory() as td:
-                cmd = get_pip_command()
-                options, _ = cmd.parser.parse_args([])
-                session = cmd._build_session(options)
-                file = unpack_url(
-                    link=package.link,
-                    location=td,
-                    download=Downloader(session, "off"),
-                    verbosity=1,
-                )
-                if file.path.endswith(".whl") or file.path.endswith(".zip"):
-                    req_name = find_package_name_from_zipfile(file.path)
-                elif file.path.endswith(".tar.gz") or file.path.endswith(".tar.bz2"):
-                    req_name = find_package_name_from_tarball(file.path)
-                else:
-                    req_name = find_package_name_from_directory(file.path)
+            if file.path.endswith(".whl") or file.path.endswith(".zip"):
+                req_name = find_package_name_from_zipfile(file.path)
+            elif file.path.endswith(".tar.gz") or file.path.endswith(".tar.bz2"):
+                req_name = find_package_name_from_tarball(file.path)
+            else:
+                req_name = find_package_name_from_directory(file.path)
     elif package.link and package.link.scheme in [
         "bzr+file",
         "git+file",
@@ -742,6 +761,7 @@ def expansive_install_req_from_line(
     line_source: Optional[str] = None,
     user_supplied: bool = False,
     config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
+    expand_env: bool = False,
 ) -> InstallRequirement:
     """Creates an InstallRequirement from a name, which might be a
     requirement, directory containing 'setup.py', filename, or URL.
@@ -753,6 +773,9 @@ def expansive_install_req_from_line(
     if name.startswith("-e "):
         # Editable requirement
         name = name.split("-e ")[1]
+
+    if expand_env:
+        name = expand_env_variables(name)
 
     if os.path.isfile(name) or os.path.isdir(name):
         if not name.startswith("file:"):
@@ -806,7 +829,7 @@ def expansive_install_req_from_line(
     )
 
 
-def from_pipfile(name, pipfile):
+def install_req_from_pipfile(name, pipfile):
     _pipfile = {}
     if hasattr(pipfile, "keys"):
         _pipfile = dict(pipfile).copy()
@@ -842,9 +865,15 @@ def from_pipfile(name, pipfile):
         isolated=False,
         hash_options={"hashes": _pipfile.get("hashes", [])},
         constraint=False,
+        expand_env=True,
     )
-
     markers = PipenvMarkers.from_pipfile(name, _pipfile)
+    return install_req, markers
+
+
+def from_pipfile(name, pipfile):
+    install_req, markers = install_req_from_pipfile(name, pipfile)
+
     if markers:
         markers = str(markers)
         install_req.markers = Marker(markers)

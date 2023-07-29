@@ -213,7 +213,9 @@ def do_install(
                         del os.environ["PYTHONHOME"]
                 st.console.print(f"Resolving {pkg_line}...", markup=False)
                 try:
-                    pkg_requirement = expansive_install_req_from_line(pkg_line)
+                    pkg_requirement = expansive_install_req_from_line(
+                        pkg_line, expand_env=True
+                    )
                 except ValueError as e:
                     err.print("{}: {}".format(click.style("WARNING", fg="red"), e))
                     err.print(
@@ -264,13 +266,13 @@ def do_install(
                     if categories:
                         for category in categories:
                             added, cat, normalized_name = project.add_package_to_pipfile(
-                                pkg_requirement, dev, category
+                                pkg_requirement, pkg_line, dev, category
                             )
                             if added:
                                 new_packages.append((normalized_name, cat))
                     else:
                         added, cat, normalized_name = project.add_package_to_pipfile(
-                            pkg_requirement, dev
+                            pkg_requirement, pkg_line, dev
                         )
                         if added:
                             new_packages.append((normalized_name, cat))

@@ -1,5 +1,4 @@
 import contextlib
-import hashlib
 import json
 import os
 import subprocess
@@ -7,10 +6,8 @@ import sys
 import tempfile
 import warnings
 from functools import lru_cache
-from html.parser import HTMLParser
 from pathlib import Path
 from typing import Dict, List, Optional, Set
-from urllib import parse
 
 from pipenv import environments, resolver
 from pipenv.exceptions import ResolutionFailure
@@ -18,7 +15,6 @@ from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.exceptions import InstallationError
 from pipenv.patched.pip._internal.models.target_python import TargetPython
-from pipenv.patched.pip._internal.network.cache import SafeFileCache
 from pipenv.patched.pip._internal.operations.build.build_tracker import (
     get_build_tracker,
 )
@@ -27,12 +23,11 @@ from pipenv.patched.pip._internal.req.constructors import (
 )
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor import pkg_resources, rich
 from pipenv.project import Project
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir, open_file
+from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
 from pipenv.vendor.requirementslib.models.utils import normalize_name
 
 try:
@@ -44,7 +39,6 @@ except ImportError:
 
 from .dependencies import (
     HackedPythonVersion,
-    clean_pkg_version,
     convert_deps_to_pip,
     determine_package_name,
     expansive_install_req_from_line,
@@ -55,7 +49,7 @@ from .dependencies import (
     translate_markers,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
-from .internet import _get_requests_session, is_pypi_url
+from .internet import is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
 
@@ -101,41 +95,13 @@ class HashCacheMixin:
     avoid issues where the location on the server changes.
     """
 
-    def __init__(self, directory, session):
+    def __init__(self, project, session):
+        self.project = project
         self.session = session
-        if not os.path.isdir(directory):
-            os.makedirs(directory, exist_ok=True)
-        super().__init__(directory=directory)
 
     def get_hash(self, link):
-        # If there is no link hash (i.e., md5, sha256, etc.), we don't want
-        # to store it.
-        hash_value = self.get(link.url)
-        if not hash_value:
-            hash_value = self._get_file_hash(link).encode()
-            self.set(link.url, hash_value)
+        hash_value = self.project.get_file_hash(self.session, link).encode()
         return hash_value.decode("utf8")
-
-    def _get_file_hash(self, link):
-        h = hashlib.new(FAVORITE_HASH)
-        with open_file(link.url, self.session) as fp:
-            for chunk in iter(lambda: fp.read(8096), b""):
-                h.update(chunk)
-        return f"{h.name}:{h.hexdigest()}"
-
-
-class PackageIndexHTMLParser(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.urls = []
-
-    def handle_starttag(self, tag, attrs):
-        # If tag is an anchor
-        if tag == "a":
-            # find href attribute
-            for attr in attrs:
-                if attr[0] == "href":
-                    self.urls.append(attr[1])
 
 
 class Resolver:
@@ -151,6 +117,9 @@ class Resolver:
         clear=False,
         pre=False,
         category=None,
+        original_deps=None,
+        install_reqs=None,
+        pipfile_entries=None,
     ):
         self.initial_constraints = constraints
         self.req_dir = req_dir
@@ -167,6 +136,9 @@ class Resolver:
         self.skipped = skipped if skipped is not None else {}
         self.markers = {}
         self.requires_python_markers = {}
+        self.original_deps = original_deps if original_deps is not None else {}
+        self.install_reqs = install_reqs if install_reqs is not None else {}
+        self.pipfile_entries = pipfile_entries if pipfile_entries is not None else {}
         self._pip_args = None
         self._constraints = None
         self._parsed_constraints = None
@@ -178,7 +150,6 @@ class Resolver:
         self._pip_command = None
         self._retry_attempts = 0
         self._hash_cache = None
-        self._sessions = {}
 
     def __repr__(self):
         return (
@@ -194,12 +165,9 @@ class Resolver:
     @property
     def hash_cache(self):
         if not self._hash_cache:
-            self._hash_cache = type("HashCache", (HashCacheMixin, SafeFileCache), {})(
-                os.path.join(self.project.s.PIPENV_CACHE_DIR, "hashes"), self.session
-            )
+            self._hash_cache = HashCacheMixin(self.project, self.session)
         return self._hash_cache
 
-    #
     # def parse_line(
     #     self,
     #     line: str,
@@ -251,7 +219,7 @@ class Resolver:
     #     if req.markers:
     #         markers_lookup[req.normalized_name] = req.markers.replace('"', "'")
     #     return req, index_lookup, markers_lookup
-
+    #
     # def get_deps_from_req(
     #     self,
     #     package_name: str,
@@ -388,10 +356,9 @@ class Resolver:
         req: InstallRequirement,
     ) -> bool:
         if req.markers and not req.markers.evaluate():
-            click.echo(
-                "{} doesn't match your environment, "
-                "its dependencies will be skipped.".format(req.as_line()),
-                err=True,
+            err.print(
+                f"{req} doesn't match your environment, "
+                "its dependencies will be skipped.",
             )
             return True
         return False
@@ -415,18 +382,23 @@ class Resolver:
             index_lookup = {}
         if markers_lookup is None:
             markers_lookup = {}
+        original_deps = {}
+        install_reqs = {}
+        pipfile_entries = {}
         if sources is None:
             sources = project.sources
         packages = project.get_pipfile_section(category)
-        markers_lookup = {}
         for dep in deps:  # Build up the index and markers lookups
             if not dep:
                 continue
-            install_req = expansive_install_req_from_line(dep)
+            install_req = expansive_install_req_from_line(dep, expand_env=True)
             package_name = determine_package_name(install_req)
+            original_deps[package_name] = dep
+            install_reqs[package_name] = install_req
             index, extra_index, trust_host, remainder = parse_indexes(dep)
             if package_name in packages:
                 pipfile_entry = packages[package_name]
+                pipfile_entries[package_name] = pipfile_entry
                 if isinstance(pipfile_entry, dict):
                     if packages[package_name].get("index"):
                         index_lookup[package_name] = packages[package_name].get("index")
@@ -434,7 +406,8 @@ class Resolver:
                     index_lookup[package_name] = index
                 else:
                     index_lookup[package_name] = project.get_default_index()["name"]
-            markers_lookup[package_name] = install_req.markers
+            if install_req.markers:
+                markers_lookup[package_name] = install_req.markers
         resolver = Resolver(
             set(),
             req_dir,
@@ -445,9 +418,14 @@ class Resolver:
             clear=clear,
             pre=pre,
             category=category,
+            original_deps=original_deps,
+            install_reqs=install_reqs,
+            pipfile_entries=pipfile_entries,
         )
-        # if resolver.check_if_package_req_skipped(install_req):
-        #     resolver.skipped[package_name] = dep
+        for package_name, dep in original_deps.items():
+            install_req = install_reqs[package_name]
+            if resolver.check_if_package_req_skipped(install_req):
+                resolver.skipped[package_name] = dep
         resolver.initial_constraints = deps
         resolver.index_lookup = index_lookup
         resolver.finder.index_lookup = index_lookup
@@ -683,99 +661,12 @@ class Resolver:
             new_tree.add(result)
         self.resolved_tree = new_tree
 
-    @classmethod
-    def prepend_hash_types(cls, checksums, hash_type):
-        cleaned_checksums = set()
-        for checksum in checksums:
-            if not checksum:
-                continue
-            if not checksum.startswith(f"{hash_type}:"):
-                checksum = f"{hash_type}:{checksum}"
-            cleaned_checksums.add(checksum)
-        return sorted(cleaned_checksums)
-
-    def _get_requests_session_for_source(self, source):
-        if self._sessions.get(source["name"]):
-            session = self._sessions[source["name"]]
-        else:
-            session = _get_requests_session(
-                self.project.s.PIPENV_MAX_RETRIES, source.get("verify_ssl", True)
-            )
-            self._sessions[source["name"]] = session
-        return session
-
-    def _get_hashes_from_pypi(self, ireq, source):
-        pkg_url = f"https://pypi.org/pypi/{ireq.name}/json"
-        session = self._get_requests_session_for_source(source)
-        try:
-            collected_hashes = set()
-            # Grab the hashes from the new warehouse API.
-            r = session.get(pkg_url, timeout=10)
-            api_releases = r.json()["releases"]
-            cleaned_releases = {}
-            for api_version, api_info in api_releases.items():
-                api_version = clean_pkg_version(api_version)
-                cleaned_releases[api_version] = api_info
-            version = ""
-            if ireq.specifier:
-                spec = next(iter(s for s in ireq.specifier), None)
-                if spec:
-                    version = spec.version
-            for release in cleaned_releases[version]:
-                collected_hashes.add(release["digests"][FAVORITE_HASH])
-            return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
-        except (ValueError, KeyError, ConnectionError):
-            if self.project.s.is_verbose():
-                click.echo(
-                    "{}: Error generating hash for {}".format(
-                        click.style("Warning", bold=True, fg="red"), ireq.name
-                    ),
-                    err=True,
-                )
-            return None
-
-    def _get_hashes_from_remote_index_urls(self, ireq, source):
-        pkg_url = f"{source['url']}/{ireq.name}/"
-        session = self._get_requests_session_for_source(source)
-        try:
-            collected_hashes = set()
-            # Grab the hashes from the new warehouse API.
-            response = session.get(pkg_url, timeout=10)
-            # Create an instance of the parser
-            parser = PackageIndexHTMLParser()
-            # Feed the HTML to the parser
-            parser.feed(response.text)
-            # Extract hrefs
-            hrefs = parser.urls
-
-            version = ""
-            if ireq.specifier:
-                spec = next(iter(s for s in ireq.specifier), None)
-                if spec:
-                    version = spec.version
-            for package_url in hrefs:
-                if version in package_url:
-                    url_params = parse.urlparse(package_url).fragment
-                    params_dict = parse.parse_qs(url_params)
-                    if params_dict.get(FAVORITE_HASH):
-                        collected_hashes.add(params_dict[FAVORITE_HASH][0])
-            return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
-        except (ValueError, KeyError, ConnectionError):
-            if self.project.s.is_verbose():
-                click.echo(
-                    "{}: Error generating hash for {}".format(
-                        click.style("Warning", bold=True, fg="red"), ireq.name
-                    ),
-                    err=True,
-                )
-            return None
-
     def collect_hashes(self, ireq):
         link = ireq.link  # Handle VCS and file links first
         if link and (link.is_vcs or (link.is_file and link.is_existing_dir())):
             return set()
         if link and ireq.original_link:
-            return {self._get_hash_from_link(ireq.original_link)}
+            return {self.project.get_hash_from_link(self.hash_cache, ireq.original_link)}
 
         if not is_pinned_requirement(ireq):
             return set()
@@ -788,11 +679,11 @@ class Resolver:
         source = sources[0] if len(sources) else None
         if source:
             if is_pypi_url(source["url"]):
-                hashes = self._get_hashes_from_pypi(ireq, source)
+                hashes = self.project.get_hashes_from_pypi(ireq, source)
                 if hashes:
                     return hashes
             else:
-                hashes = self._get_hashes_from_remote_index_urls(ireq, source)
+                hashes = self.project.get_hashes_from_remote_index_urls(ireq, source)
                 if hashes:
                     return hashes
 
@@ -803,12 +694,12 @@ class Resolver:
         if applicable_candidates:
             return sorted(
                 {
-                    self._get_hash_from_link(candidate.link)
+                    self.project.get_hash_from_link(self.hash_cache, candidate.link)
                     for candidate in applicable_candidates
                 }
             )
         if link:
-            return {self._get_hash_from_link(link)}
+            return {self.project.get_hash_from_link(self.hash_cache, link)}
         return set()
 
     def resolve_hashes(self):
@@ -817,13 +708,7 @@ class Resolver:
                 self.hashes[ireq] = self.collect_hashes(ireq)
         return self.hashes
 
-    def _get_hash_from_link(self, link):
-        if link.hash and link.hash_name == FAVORITE_HASH:
-            return f"{link.hash_name}:{link.hash}"
-
-        return self.hash_cache.get_hash(link)
-
-    def _clean_skipped_result(self, req_name: str, ireq: InstallRequirement, value):
+    def clean_skipped_result(self, req_name: str, ireq: InstallRequirement, value):
         ref = None
         if ireq.link and ireq.link.is_vcs:
             ref = ireq.link.egg_fragment
@@ -852,7 +737,12 @@ class Resolver:
             if collected_hashes:
                 collected_hashes = sorted(collected_hashes)
             name, entry = format_requirement_for_lockfile(
-                ireq, self.markers_lookup, self.index_lookup, collected_hashes
+                ireq,
+                self.markers_lookup,
+                self.index_lookup,
+                self.original_deps,
+                self.pipfile_entries,
+                collected_hashes,
             )
             entry = translate_markers(entry)
             if name in results:
@@ -860,9 +750,9 @@ class Resolver:
             else:
                 results[name] = entry
         for req_name in list(self.skipped.keys()):
-            req = expansive_install_req_from_line(req_name + self.skipped[req_name])
-            name, entry = self._clean_skipped_result(
-                req_name, req, self.skipped[req_name]
+            install_req = self.install_reqs[req_name]
+            name, entry = self.clean_skipped_result(
+                req_name, install_req, self.pipfile_entries[req_name]
             )
             entry = translate_markers(entry)
             if name in results:
@@ -1098,7 +988,7 @@ def venv_resolve_deps(
                     click.echo(f"Error: {c.stderr.strip()}", err=True)
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
-    return prepare_lockfile(results, pipfile, lockfile[lockfile_section])
+    return prepare_lockfile(project, results, pipfile, lockfile[lockfile_section])
 
 
 def resolve_deps(
