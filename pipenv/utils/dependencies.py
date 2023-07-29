@@ -836,8 +836,6 @@ def install_req_from_pipfile(name, pipfile):
         req_str = f"-e {_pipfile['path']}{extras_str}"
     elif "file" in _pipfile:
         req_str = f"-e {_pipfile['file']}{extras_str}"
-    # elif "uri" in _pipfile:
-    #     req_str = f"{name}{extras_str} @ {_pipfile['uri']}"
     else:
         # We ensure version contains an operator. Default to equals (==)
         _pipfile["version"] = version = get_version(pipfile)

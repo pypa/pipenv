@@ -33,10 +33,10 @@ def format_requirement_for_lockfile(
         version = str(req.specifier)
     else:
         version = None
-    index = index_lookup.get(normalize_name(req.name))
+    name = normalize_name(req.name)
+    index = index_lookup.get(name)
     markers = req.markers
     req.index = index
-    name = normalize_name(req.name)
     pipfile_entry = pipfile_entries[name] if name in pipfile_entries else None
     entry = {}
     if req.link and req.link.is_vcs:

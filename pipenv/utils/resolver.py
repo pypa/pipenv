@@ -140,12 +140,9 @@ class Resolver:
         self.install_reqs = install_reqs if install_reqs is not None else {}
         self.pipfile_entries = pipfile_entries if pipfile_entries is not None else {}
         self._pip_args = None
-        self._constraints = None
-        self._parsed_constraints = None
         self._resolver = None
         self._finder = None
         self._session = None
-        self._constraint_file = None
         self._pip_options = None
         self._pip_command = None
         self._retry_attempts = 0
@@ -472,9 +469,7 @@ class Resolver:
 
     @property
     def constraint_file(self):
-        if self._constraint_file is None:
-            self._constraint_file = self.prepare_constraint_file()
-        return self._constraint_file
+        return self.prepare_constraint_file()
 
     @cached_property
     def default_constraint_file(self):
@@ -489,18 +484,16 @@ class Resolver:
 
     @property
     def pip_options(self):
-        if self._pip_options is None:
-            pip_options, _ = self.pip_command.parser.parse_args(self.pip_args)
-            pip_options.cache_dir = self.project.s.PIPENV_CACHE_DIR
-            pip_options.no_python_version_warning = True
-            pip_options.no_input = self.project.settings.get("disable_pip_input", True)
-            pip_options.progress_bar = "off"
-            pip_options.ignore_requires_python = True
-            pip_options.pre = self.pre or self.project.settings.get(
-                "allow_prereleases", False
-            )
-            self._pip_options = pip_options
-        return self._pip_options
+        pip_options, _ = self.pip_command.parser.parse_args(self.pip_args)
+        pip_options.cache_dir = self.project.s.PIPENV_CACHE_DIR
+        pip_options.no_python_version_warning = True
+        pip_options.no_input = self.project.settings.get("disable_pip_input", True)
+        pip_options.progress_bar = "off"
+        pip_options.ignore_requires_python = True
+        pip_options.pre = self.pre or self.project.settings.get(
+            "allow_prereleases", False
+        )
+        return pip_options
 
     @property
     def session(self):
@@ -521,29 +514,26 @@ class Resolver:
 
     @property
     def finder(self):
-        if self._finder is None:
-            self._finder = get_package_finder(
-                install_cmd=self.pip_command,
-                options=self.pip_options,
-                session=self.session,
-            )
+        finder = get_package_finder(
+            install_cmd=self.pip_command,
+            options=self.pip_options,
+            session=self.session,
+        )
         index_lookup = self.prepare_index_lookup()
-        self._finder._link_collector.index_lookup = index_lookup
-        self._finder._link_collector.search_scope.index_lookup = index_lookup
-        return self._finder
+        finder._link_collector.index_lookup = index_lookup
+        finder._link_collector.search_scope.index_lookup = index_lookup
+        return finder
 
     @property
     def parsed_constraints(self):
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
-        if self._parsed_constraints is None:
-            self._parsed_constraints = parse_requirements(
-                self.constraint_file,
-                finder=self.finder,
-                session=self.session,
-                options=pip_options,
-            )
-        return self._parsed_constraints
+        return parse_requirements(
+            self.constraint_file,
+            finder=self.finder,
+            session=self.session,
+            options=pip_options,
+        )
 
     @cached_property
     def parsed_default_constraints(self):
@@ -572,20 +562,19 @@ class Resolver:
 
     @property
     def constraints(self):
-        if self._constraints is None:
-            self._constraints = [
-                install_req_from_parsed_requirement(
-                    c,
-                    isolated=self.pip_options.build_isolation,
-                    use_pep517=self.pip_options.use_pep517,
-                    user_supplied=True,
-                )
-                for c in self.parsed_constraints
-            ]
-            # Only use default_constraints when installing dev-packages
-            if self.category != "packages":
-                self._constraints += self.default_constraints
-        return self._constraints
+        constraints_list = [
+            install_req_from_parsed_requirement(
+                c,
+                isolated=self.pip_options.build_isolation,
+                use_pep517=self.pip_options.use_pep517,
+                user_supplied=True,
+            )
+            for c in self.parsed_constraints
+        ]
+        # Only use default_constraints when installing dev-packages
+        if self.category != "packages":
+            constraints_list += self.default_constraints
+        return constraints_list
 
     @contextlib.contextmanager
     def get_resolver(self, clear=False):
@@ -620,7 +609,6 @@ class Resolver:
             yield resolver
 
     def resolve(self):
-        self.constraints  # For some reason it is important to evaluate constraints before resolver context
         with temp_environ(), self.get_resolver() as resolver:
             try:
                 results = resolver.resolve(self.constraints, check_supported_wheels=False)
@@ -729,9 +717,7 @@ class Resolver:
         reqs = [(ireq,) for ireq in self.resolved_tree]
         results = {}
         for (ireq,) in reqs:
-            if ireq.link and ireq.editable and not ireq.link.is_file:
-                continue
-            elif normalize_name(ireq.name) in self.skipped.keys():
+            if normalize_name(ireq.name) in self.skipped.keys():
                 continue
             collected_hashes = self.hashes.get(ireq, set())
             if collected_hashes:
