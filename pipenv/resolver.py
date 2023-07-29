@@ -456,13 +456,7 @@ class Entry:
         :return: A set of **InstallRequirement** instances representing constraints
         :rtype: Set
         """
-        constraints = {
-            c for c in self.resolver.parsed_constraints if c and c.name == self.entry.name
-        }
-        pipfile_constraint = self.get_pipfile_constraint()
-        if pipfile_constraint:
-            constraints.add(pipfile_constraint)
-        return constraints
+        return self.resolver.parsed_constraints
 
     def get_pipfile_constraint(self):
         """
