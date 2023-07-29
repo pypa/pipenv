@@ -183,6 +183,8 @@ def unearth_hashes_for_dep(project, dep):
 
     # 1 Try to get hashes directly form index
     install_req, markers = install_req_from_pipfile(dep["name"], dep)
+    if not install_req or not install_req.req:
+        return []
     if "https://pypi.org/simple/" in index_url:
         hashes = project.get_hashes_from_pypi(install_req, source)
     elif index_url:

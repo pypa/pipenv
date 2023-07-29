@@ -1117,29 +1117,39 @@ class Project:
             specifier = str(package.specifier)
 
         # Construct package requirement
-        converted = {}
+        entry = {}
         if extras:
-            converted["extras"] = list(extras)
+            entry["extras"] = list(extras)
         if path_specifier:
-            converted["file"] = unquote(path_specifier)
+            entry["file"] = unquote(path_specifier)
         elif vcs_specifier:
             for vcs in VCS_LIST:
                 if vcs in package.link.scheme:
-                    converted[vcs] = pip_line
+                    entry[vcs] = pip_line
                     break
         else:
-            converted["version"] = specifier
+            entry["version"] = specifier
         if hasattr(package, "index"):
-            converted["index"] = package.index
+            entry["index"] = package.index
 
-        if len(converted) == 1 and "version" in converted:
+        if len(entry) == 1 and "version" in entry:
             return name, normalized_name, specifier
         else:
-            return name, normalized_name, converted
+            return name, normalized_name, entry
 
     def add_package_to_pipfile(self, package, pip_line, dev=False, category=None):
-        newly_added = False
         category = category if category else "dev-packages" if dev else "packages"
+
+        name, normalized_name, entry = self.generate_package_pipfile_entry(
+            package, pip_line, category=category
+        )
+
+        return self.add_pipfile_entry_to_pipfile(
+            name, normalized_name, entry, category=category
+        )
+
+    def add_pipfile_entry_to_pipfile(self, name, normalized_name, entry, category=None):
+        newly_added = False
 
         # Read and append Pipfile.
         p = self.parsed_pipfile
@@ -1148,9 +1158,6 @@ class Project:
         if category not in p:
             p[category] = {}
 
-        name, normalized_name, entry = self.generate_package_pipfile_entry(
-            package, pip_line, category=category
-        )
         if name and name != normalized_name:
             self.remove_package_from_pipfile(name, category=category)
 

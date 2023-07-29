@@ -42,15 +42,6 @@ def do_update(
         site_packages=site_packages,
         clear=clear,
     )
-    if not outdated:
-        outdated = bool(dry_run)
-    if outdated:
-        do_outdated(
-            project,
-            clear=clear,
-            pre=pre,
-            pypi_mirror=pypi_mirror,
-        )
     packages = [p for p in packages if p]
     editable = [p for p in editable_packages if p]
     if not packages:
@@ -82,6 +73,16 @@ def do_update(
             index_url=index_url,
             dev=dev,
             lock_only=lock_only,
+        )
+
+    if not outdated:
+        outdated = bool(dry_run)
+    if outdated:
+        do_outdated(
+            project,
+            clear=clear,
+            pre=pre,
+            pypi_mirror=pypi_mirror,
         )
 
     do_sync(
@@ -135,6 +136,9 @@ def upgrade(
                 install_req.index = index_name
             name, normalized_name, pipfile_entry = project.generate_package_pipfile_entry(
                 install_req, package, category=pipfile_category
+            )
+            project.add_pipfile_entry_to_pipfile(
+                name, normalized_name, pipfile_entry, category=pipfile_category
             )
             requested_packages[pipfile_category][normalized_name] = pipfile_entry
             requested_install_reqs[pipfile_category][normalized_name] = install_req
