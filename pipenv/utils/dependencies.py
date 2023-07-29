@@ -128,16 +128,6 @@ def pep423_name(name):
 
 
 def translate_markers(pipfile_entry):
-    """Take a pipfile entry and normalize its markers
-
-    Provide a pipfile entry which may have 'markers' as a key or it may have
-    any valid key from `packaging.markers.marker_context.keys()` and standardize
-    the format into {'markers': 'key == "some_value"'}.
-
-    :param pipfile_entry: A dictionary of keys and values representing a pipfile entry
-    :type pipfile_entry: dict
-    :returns: A normalized dictionary with cleaned marker entries
-    """
     if not isinstance(pipfile_entry, Mapping):
         raise TypeError("Entry is not a pipfile formatted mapping.")
     from pipenv.patched.pip._vendor.packaging.markers import default_environment
@@ -147,6 +137,7 @@ def translate_markers(pipfile_entry):
     pipfile_markers = set(provided_keys) & set(allowed_marker_keys)
     new_pipfile = dict(pipfile_entry).copy()
     marker_set = set()
+    os_name_marker = None
     if "markers" in new_pipfile:
         marker_str = new_pipfile.pop("markers")
         if marker_str:
@@ -156,17 +147,18 @@ def translate_markers(pipfile_entry):
     for m in pipfile_markers:
         entry = f"{pipfile_entry[m]}"
         if m != "markers":
-            marker_set.add(str(Marker(f"{m} {entry}")))
+            if m == "os_name":
+                os_name_marker = str(Marker(f"{m} {entry}"))
+            else:
+                marker_set.add(str(Marker(f"{m} {entry}")))
             new_pipfile.pop(m)
     if marker_set:
-        new_pipfile["markers"] = str(
-            Marker(
-                " or ".join(
-                    f"{s}" if " and " in s else s
-                    for s in sorted(dict.fromkeys(marker_set))
-                )
-            )
-        ).replace('"', "'")
+        markers_str = " and ".join(
+            f"{s}" if " and " in s else s for s in sorted(dict.fromkeys(marker_set))
+        )
+        if os_name_marker:
+            markers_str = f"({markers_str}) and {os_name_marker}"
+        new_pipfile["markers"] = str(Marker(markers_str)).replace('"', "'")
     return new_pipfile
 
 

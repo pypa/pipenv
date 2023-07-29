@@ -132,12 +132,17 @@ def requirement_from_lockfile(
         if include_markers and "markers" in package_info and package_info["markers"]
         else ""
     )
+    os_markers = (
+        "; {}".format(package_info["os_markers"])
+        if include_markers and "os_markers" in package_info and package_info["os_markers"]
+        else ""
+    )
     extras = (
         "[{}]".format(",".join(package_info.get("extras", [])))
         if "extras" in package_info
         else ""
     )
-    pip_line = f"{package_name}{extras}=={version}{markers}{hashes}"
+    pip_line = f"{package_name}{extras}=={version}{os_markers}{markers}{hashes}"
     return pip_line
 
 
