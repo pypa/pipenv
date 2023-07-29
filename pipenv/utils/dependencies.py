@@ -615,7 +615,7 @@ def determine_package_name(package: InstallRequirement):
         elif package.link.file_path.endswith(".tar.gz"):
             req_name = find_package_name_from_tarball(package.link.file_path)
         else:
-            req_name = find_package_name_from_directory(package.link.url_without_fragment)
+            req_name = find_package_name_from_directory(package.link.file_path)
         os.path.relpath(package.link.file_path)  # Preserve the original file path
     if req_name:
         return req_name
@@ -831,13 +831,13 @@ def install_req_from_pipfile(name, pipfile):
 
     if vcs:
         _pipfile["vcs"] = vcs
-        req_str = f"{name}{extras_str} @ {_pipfile[vcs]}"
+        req_str = f"{_pipfile[vcs]}"
     elif "path" in _pipfile:
         req_str = f"-e {_pipfile['path']}{extras_str}"
     elif "file" in _pipfile:
         req_str = f"-e {_pipfile['file']}{extras_str}"
-    elif "uri" in _pipfile:
-        req_str = f"{name}{extras_str} @ {_pipfile['uri']}"
+    # elif "uri" in _pipfile:
+    #     req_str = f"{name}{extras_str} @ {_pipfile['uri']}"
     else:
         # We ensure version contains an operator. Default to equals (==)
         _pipfile["version"] = version = get_version(pipfile)

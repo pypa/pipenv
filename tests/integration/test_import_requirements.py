@@ -1,8 +1,7 @@
 import os
-from pathlib import Path
 import tempfile
+from unittest import mock
 
-import mock
 import pytest
 
 from pipenv.patched.pip._internal.operations.prepare import File
