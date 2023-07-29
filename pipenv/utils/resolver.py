@@ -354,7 +354,7 @@ class Resolver:
     ) -> bool:
         if req.markers and not req.markers.evaluate():
             err.print(
-                f"{req} doesn't match your environment, "
+                f"Could not find a matching version of {req}; {req.markers} for your environment, "
                 "its dependencies will be skipped.",
             )
             return True
