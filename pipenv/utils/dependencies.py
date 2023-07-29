@@ -8,8 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
-from urllib.parse import unquote, urlparse, urlsplit, urlunsplit
-from urllib.request import pathname2url
+from urllib.parse import urljoin, urlparse, urlsplit, urlunsplit
 
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.req.constructors import (
@@ -542,15 +541,6 @@ def find_package_name_from_zipfile(zip_filepath):
 
 
 def find_package_name_from_directory(directory):
-    # Parse the directory as a URL
-    parsed = urlparse(directory)
-
-    # If it's a file:// URL or a relative URL, convert it to a file path
-    directory = unquote(parsed.path)
-    if os.name == "nt":
-        directory = directory.lstrip("/")
-
-    # Existing code continues here...
     for filename in os.listdir(directory):
         filepath = os.path.join(directory, filename)
         if os.path.isfile(filepath):
@@ -781,13 +771,10 @@ def expansive_install_req_from_line(
 
     if os.path.isfile(name) or os.path.isdir(name):
         if not name.startswith("file:"):
-            url_path = pathname2url(name)
-            if os.name == "nt":
-                url_path = url_path.lstrip("/")
-            if not url_path.startswith("file:"):
-                name = f"file:{url_path}"
-            else:
-                name = url_path
+            # Make sure the path is absolute and properly formatted as a file: URL
+            absolute_path = os.path.abspath(name)
+            name = urljoin("file:", absolute_path)
+            name = "file:" + name
 
         return install_req_from_editable(name, line_source)
 

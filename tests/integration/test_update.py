@@ -1,5 +1,6 @@
 import pytest
 
+
 @pytest.mark.parametrize("cmd_option", ["", "--dev"])
 @pytest.mark.basic
 @pytest.mark.update
