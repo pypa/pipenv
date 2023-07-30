@@ -607,10 +607,13 @@ def determine_package_name(package: InstallRequirement):
         "svn+file",
     ]:
         repository_path = package.link.url
-        repository_path = repository_path.split("@")[
-            0
-        ]  # extract the actual directory path
-        repository_path = repository_path.split("#egg=")[0]
+        if os.name != "nt":
+            repository_path = repository_path.split("@")[
+                0
+            ]  # extract the actual directory path
+            repository_path = repository_path.split("#egg=")[0]
+        else:
+            repository_path = repository_path.split(":")[1]
         req_name = find_package_name_from_directory(repository_path)
     elif package.link and package.link.scheme == "file":
         if package.link.file_path.endswith(".whl") or package.link.file_path.endswith(
