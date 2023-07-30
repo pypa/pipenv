@@ -530,6 +530,8 @@ def find_package_name_from_zipfile(zip_filepath):
 
 
 def find_package_name_from_directory(directory):
+    parsed_url = urlparse(directory)
+    directory = parsed_url.path
     for filename in os.listdir(directory):
         filepath = os.path.join(directory, filename)
         if os.path.isfile(filepath):
@@ -595,6 +597,9 @@ def determine_package_name(package: InstallRequirement):
         "svn+file",
     ]:
         repository_path = package.link.url.split(":")[1]
+        repository_path = repository_path.split("@")[
+            0
+        ]  # extract the actual directory path
         req_name = find_package_name_from_directory(repository_path)
     elif package.link and package.link.scheme == "file":
         if package.link.file_path.endswith(".whl") or package.link.file_path.endswith(
