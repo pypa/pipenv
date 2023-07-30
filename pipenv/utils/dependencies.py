@@ -510,6 +510,8 @@ def parse_toml_file(content):
 
 
 def find_package_name_from_tarball(tarball_filepath):
+    if tarball_filepath.startswith("file://"):
+        tarball_filepath = tarball_filepath[7:]
     with tarfile.open(tarball_filepath, "r") as tar_ref:
         for filename in tar_ref.getnames():
             if filename.endswith(RELEVANT_PROJECT_FILES):
