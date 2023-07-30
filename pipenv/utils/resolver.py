@@ -139,12 +139,6 @@ class Resolver:
         self.original_deps = original_deps if original_deps is not None else {}
         self.install_reqs = install_reqs if install_reqs is not None else {}
         self.pipfile_entries = pipfile_entries if pipfile_entries is not None else {}
-        self._pip_args = None
-        self._resolver = None
-        self._finder = None
-        self._session = None
-        self._pip_options = None
-        self._pip_command = None
         self._retry_attempts = 0
         self._hash_cache = None
 
@@ -248,9 +242,7 @@ class Resolver:
 
     @property
     def pip_command(self):
-        if self._pip_command is None:
-            self._pip_command = self._get_pip_command()
-        return self._pip_command
+        return self._get_pip_command()
 
     def prepare_pip_args(self, use_pep517=None, build_isolation=True):
         pip_args = []
@@ -269,11 +261,9 @@ class Resolver:
     def pip_args(self):
         use_pep517 = environments.get_from_env("USE_PEP517", prefix="PIP")
         build_isolation = environments.get_from_env("BUILD_ISOLATION", prefix="PIP")
-        if self._pip_args is None:
-            self._pip_args = self.prepare_pip_args(
-                use_pep517=use_pep517, build_isolation=build_isolation
-            )
-        return self._pip_args
+        return self.prepare_pip_args(
+            use_pep517=use_pep517, build_isolation=build_isolation
+        )
 
     def prepare_constraint_file(self):
         constraint_filename = prepare_constraint_file(
@@ -314,9 +304,7 @@ class Resolver:
 
     @property
     def session(self):
-        if self._session is None:
-            self._session = self.pip_command._build_session(self.pip_options)
-        return self._session
+        return self.pip_command._build_session(self.pip_options)
 
     def prepare_index_lookup(self):
         index_mapping = {}
