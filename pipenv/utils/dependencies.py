@@ -539,9 +539,8 @@ def find_package_name_from_zipfile(zip_filepath):
 
 
 def find_package_name_from_directory(directory):
-    if os.name != "nt":
-        parsed_url = urlparse(directory)
-        directory = parsed_url.path
+    parsed_url = urlparse(directory)
+    directory = parsed_url.path if parsed_url.scheme else directory
     for filename in os.listdir(directory):
         filepath = os.path.join(directory, filename)
         if os.path.isfile(filepath):
