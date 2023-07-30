@@ -541,6 +541,8 @@ def find_package_name_from_zipfile(zip_filepath):
 def find_package_name_from_directory(directory):
     parsed_url = urlparse(directory)
     directory = parsed_url.path if parsed_url.scheme else directory
+    if "#egg=" in directory:  # parse includes the fragment in py3.7 and py3.8
+        directory = directory.split("#egg=")[0]
     for filename in os.listdir(directory):
         filepath = os.path.join(directory, filename)
         if os.path.isfile(filepath):
