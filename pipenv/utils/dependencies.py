@@ -469,19 +469,24 @@ def parse_pkginfo_file(content: str):
 
 
 def parse_setup_file(content):
-    from pipenv.utils.safe_ast import _find_setup_call, _find_single_string
-
     try:
-        body = ast.parse(content).body
-        setup_call, body = _find_setup_call(body)
-        _find_single_string(setup_call, body, "name")
-        module = ast.parse(content)
-        for node in module.body:
-            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
-                if getattr(node.value.func, "id", None) == "setup":
-                    for keyword in node.value.keywords:
-                        if keyword.arg == "name":
+        tree = ast.parse(content)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "setup":
+                for keyword in node.keywords:
+                    if keyword.arg == "name":
+                        if isinstance(keyword.value, ast.Str):
+                            # If the name is a string, return it
                             return keyword.value.s
+                        elif isinstance(keyword.value, ast.Subscript):
+                            # If the name is a lookup in a dictionary, only handle the case where it's a static lookup
+                            if (
+                                isinstance(keyword.value.value, ast.Name)
+                                and isinstance(keyword.value.slice, ast.Str)
+                                and keyword.value.value.id == "about"
+                            ):
+                                return keyword.value.slice.s
+
     except ValueError:
         pass  # We will not exec unsafe code to determine the name pre-resolver
 
@@ -600,10 +605,11 @@ def determine_package_name(package: InstallRequirement):
         "hg+file",
         "svn+file",
     ]:
-        repository_path = package.link.url.split(":")[1]
+        repository_path = package.link.url
         repository_path = repository_path.split("@")[
             0
         ]  # extract the actual directory path
+        repository_path = repository_path.split("#egg=")[0]
         req_name = find_package_name_from_directory(repository_path)
     elif package.link and package.link.scheme == "file":
         if package.link.file_path.endswith(".whl") or package.link.file_path.endswith(
