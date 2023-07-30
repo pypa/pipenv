@@ -510,7 +510,7 @@ def parse_toml_file(content):
 
 
 def find_package_name_from_tarball(tarball_filepath):
-    if tarball_filepath.startswith("file://"):
+    if tarball_filepath.startswith("file://") and os.name != "nt":
         tarball_filepath = tarball_filepath[7:]
     with tarfile.open(tarball_filepath, "r") as tar_ref:
         for filename in tar_ref.getnames():
@@ -522,7 +522,7 @@ def find_package_name_from_tarball(tarball_filepath):
 
 
 def find_package_name_from_zipfile(zip_filepath):
-    if zip_filepath.startswith("file://"):
+    if zip_filepath.startswith("file://") and os.name != "nt":
         zip_filepath = zip_filepath[7:]
     with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
         for filename in zip_ref.namelist():
@@ -534,8 +534,9 @@ def find_package_name_from_zipfile(zip_filepath):
 
 
 def find_package_name_from_directory(directory):
-    parsed_url = urlparse(directory)
-    directory = parsed_url.path
+    if os.name != "nt":
+        parsed_url = urlparse(directory)
+        directory = parsed_url.path
     for filename in os.listdir(directory):
         filepath = os.path.join(directory, filename)
         if os.path.isfile(filepath):
