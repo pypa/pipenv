@@ -61,7 +61,7 @@ def test_auth_with_pw_are_variables_passed_to_pipfile(mock_find_package_name_fro
         requirements_file.close()
         import_requirements(project, r=requirements_file.name)
         os.unlink(requirements_file.name)
-        assert p.pipfile["packages"]["myproject"] == {'git': 'git+https://${AUTH_USER}:${AUTH_PW}@github.com/user/myproject.git'}
+        assert p.pipfile["packages"]["myproject"] == {'git': 'git+https://${AUTH_USER}:${AUTH_PW}@github.com/user/myproject.git#egg=myproject'}
 
 @pytest.mark.cli
 @pytest.mark.deploy
@@ -78,4 +78,4 @@ def test_auth_with_only_username_variable_passed_to_pipfile(mock_find_package_na
         requirements_file.close()
         import_requirements(project, r=requirements_file.name)
         os.unlink(requirements_file.name)
-        assert p.pipfile["packages"]["myproject"] == {'git': 'git+https://${AUTH_USER}@github.com/user/myproject.git'}
+        assert p.pipfile["packages"]["myproject"] == {'git': 'git+https://${AUTH_USER}@github.com/user/myproject.git#egg=myproject'}

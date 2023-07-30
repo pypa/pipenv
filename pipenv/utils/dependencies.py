@@ -16,7 +16,6 @@ from pipenv.patched.pip._internal.req.constructors import (
     parse_req_from_line,
 )
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
 from pipenv.patched.pip._vendor import tomli
 from pipenv.patched.pip._vendor.distlib.util import COMPARE_OP
 from pipenv.patched.pip._vendor.packaging.markers import Marker
@@ -25,7 +24,6 @@ from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
 from pipenv.vendor.requirementslib.fileutils import (
     create_tracked_tempdir,
-    get_converted_relative_path,
 )
 from pipenv.vendor.requirementslib.models.markers import PipenvMarkers
 from pipenv.vendor.requirementslib.models.setup_info import unpack_url
@@ -38,7 +36,6 @@ from pipenv.vendor.requirementslib.utils import (
     add_ssh_scheme_to_git_uri,
     get_pip_command,
     prepare_pip_source_args,
-    strip_ssh_from_git_uri,
 )
 
 from .constants import (
@@ -678,52 +675,25 @@ def get_link_from_line(line):
     # Git allows `git@github.com...` lines that are not really URIs.
     # Add "ssh://" so we can parse correctly, and restore afterward.
     fixed_line = add_ssh_scheme_to_git_uri(line)  # type: str
-    added_ssh_scheme = fixed_line != line  # type: bool
 
     # We can assume a lot of things if this is a local filesystem path.
     if "://" not in fixed_line:
         p = Path(fixed_line).absolute()  # type: Path
-        path = p.as_posix()  # type: Optional[str]
+        p.as_posix()  # type: Optional[str]
         uri = p.as_uri()  # type: str
         link = create_link(uri)  # type: Link
         return link
 
     # This is an URI. We'll need to perform some elaborated parsing.
     parsed_url = urlsplit(fixed_line)  # type: SplitResult
-    original_url = parsed_url._replace()  # type: SplitResult
 
     # Split the VCS part out if needed.
     original_scheme = parsed_url.scheme  # type: str
-    vcs_type = None  # type: Optional[str]
     if "+" in original_scheme:
-        scheme = None  # type: Optional[str]
         vcs_type, _, scheme = original_scheme.partition("+")
         parsed_url = parsed_url._replace(scheme=scheme)  # type: ignore
     else:
         pass
-
-    if parsed_url.scheme == "file" and parsed_url.path:
-        # This is a "file://" URI. Use url_to_path and path_to_url to
-        # ensure the path is absolute. Also we need to build relpath.
-        path = Path(url_to_path(urlunsplit(parsed_url))).as_posix()
-        try:
-            get_converted_relative_path(path)
-        except ValueError:
-            pass
-        uri = path_to_url(path)
-    else:
-        # This is a remote URI. Simply use it.
-        path = None
-        # Cut the fragment, but otherwise this is fixed_line.
-        uri = urlunsplit(
-            parsed_url._replace(scheme=original_scheme, fragment="")  # type: ignore
-        )
-
-    if added_ssh_scheme:
-        original_uri = urlunsplit(
-            original_url._replace(scheme=original_scheme, fragment="")  # type: ignore
-        )
-        uri = strip_ssh_from_git_uri(original_uri)
 
     # Re-attach VCS prefix to build a Link.
     link = create_link(

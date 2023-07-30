@@ -38,7 +38,6 @@ def test_multiple_category_install_proceeds_in_order_specified(pipenv_instance_p
     """Ensure -e .[extras] installs.
     """
     with pipenv_instance_private_pypi() as p:
-        #os.mkdir(os.path.join(p.path, "testpipenv"))
         setup_py = os.path.join(p.path, "setup.py")
         with open(setup_py, "w") as fh:
             contents = """

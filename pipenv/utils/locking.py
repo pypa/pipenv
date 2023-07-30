@@ -11,14 +11,14 @@ from pipenv.vendor.requirementslib.models.utils import normalize_name
 from .dependencies import clean_resolved_dep, pep423_name, translate_markers
 
 
-def merge_markers(entry, markers, markers_key="markers"):
+def merge_markers(entry, markers):
     if isinstance(markers, str):
         markers = [markers]
     for marker in markers:
-        if markers_key not in entry:
-            entry[markers_key] = marker
-        if marker not in entry[markers_key]:
-            entry[markers_key] = f"({entry[markers_key]}) and ({marker})"
+        if "markers" not in entry:
+            entry["markers"] = marker
+        if marker not in entry["markers"]:
+            entry["markers"] = f"({entry['markers']}) and ({marker})"
 
 
 def format_requirement_for_lockfile(
@@ -62,12 +62,12 @@ def format_requirement_for_lockfile(
         entry.update({"index": index})
     if markers:
         entry.update({"markers": str(markers)})
-    elif name in markers_lookup:
+    if name in markers_lookup:
         merge_markers(entry, markers_lookup[name])
     if isinstance(pipfile_entry, dict) and "markers" in pipfile_entry:
         merge_markers(entry, pipfile_entry["markers"])
     if isinstance(pipfile_entry, dict) and "os_name" in pipfile_entry:
-        merge_markers(entry, pipfile_entry["os_name"], "os_name")
+        merge_markers(entry, f"os_name {pipfile_entry['os_name']}")
     entry = translate_markers(entry)
     if req.extras:
         entry["extras"] = sorted(req.extras)

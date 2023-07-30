@@ -1,15 +1,53 @@
 import os
-from urllib.parse import unquote
+import re
+import urllib.parse
+from typing import Tuple
 
 from pipenv.patched.pip._internal.network.session import PipSession
 from pipenv.patched.pip._internal.req import parse_requirements
 from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_parsed_requirement,
 )
+from pipenv.patched.pip._internal.utils.misc import _transform_url, split_auth_from_netloc
 from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.indexes import parse_indexes
 from pipenv.utils.internet import get_host_and_port
 from pipenv.utils.pip import get_trusted_hosts
+
+
+def redact_netloc(netloc: str) -> Tuple[str]:
+    """
+    Replace the sensitive data in a netloc with "****", if it exists, unless it's an environment variable.
+
+    For example:
+        - "user:pass@example.com" returns "user:****@example.com"
+        - "accesstoken@example.com" returns "****@example.com"
+        - "${ENV_VAR}:pass@example.com" returns "${ENV_VAR}:****@example.com" if ${ENV_VAR} is an environment variable
+    """
+    netloc, (user, password) = split_auth_from_netloc(netloc)
+    if user is None:
+        return (netloc,)
+    if password is None:
+        # Check if user is an environment variable
+        if not re.match(r"\$\{\w+\}", user):
+            # If not, redact the user
+            user = "****"
+        password = ""
+    else:
+        # Check if password is an environment variable
+        if not re.match(r"\$\{\w+\}", password):
+            # If not, redact the password
+            password = ":****"
+        else:
+            # If it is, leave it as is
+            password = ":" + password
+        user = urllib.parse.quote(user)
+    return (f"{user}{password}@{netloc}",)
+
+
+def redact_auth_from_url(url: str) -> str:
+    """Replace the password in a given url with ****."""
+    return _transform_url(url, redact_netloc)[0]
 
 
 def import_requirements(project, r=None, dev=False):
@@ -41,7 +79,9 @@ def import_requirements(project, r=None, dev=False):
                 if package.editable:
                     package_string = f"-e {package.link}"
                 else:
-                    package_string = unquote(str(package.original_link))
+                    package_string = urllib.parse.unquote(
+                        redact_auth_from_url(package.original_link.url)
+                    )
 
                 project.add_package_to_pipfile(package, package_string, dev=dev)
             else:
