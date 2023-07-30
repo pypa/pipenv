@@ -520,6 +520,8 @@ def find_package_name_from_tarball(tarball_filepath):
 
 
 def find_package_name_from_zipfile(zip_filepath):
+    if zip_filepath.startswith("file://"):
+        zip_filepath = zip_filepath[7:]
     with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
         for filename in zip_ref.namelist():
             if filename.endswith(RELEVANT_PROJECT_FILES):

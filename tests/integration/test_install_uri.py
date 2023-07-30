@@ -249,7 +249,7 @@ Jinja2 = {{ref = "2.11.0", git = "{jinja2_uri}"}}
 @pytest.mark.needs_internet
 def test_vcs_can_use_markers(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        path = p._pipfile.get_fixture_path("git/six/.git")
+        path = p._pipfile.get_fixture_path("git/six/")
         p._pipfile.install("six", {"git": f"{path.as_uri()}", "markers": "sys_platform == 'linux'"})
         assert "six" in p.pipfile["packages"]
         c = p.pipenv("install")
