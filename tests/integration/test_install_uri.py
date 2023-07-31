@@ -236,11 +236,8 @@ Jinja2 = {{ref = "2.11.0", git = "{jinja2_uri}"}}
         assert all(k in p.pipfile["packages"] for k in installed_packages)
         assert all(k.lower() in p.lockfile["default"] for k in installed_packages)
         assert all(k in p.lockfile["default"]["jinja2"] for k in ["ref", "git"]), str(p.lockfile["default"])
-        assert p.lockfile["default"]["jinja2"].get("ref") is not None
-        assert (
-            p.lockfile["default"]["jinja2"]["git"]
-            == f"git+{jinja2_uri}@2.11.0#egg=Jinja2"
-        )
+        assert p.lockfile["default"]["jinja2"].get("ref") == "2.11.0"
+        assert p.lockfile["default"]["jinja2"]["git"] == f"{jinja2_uri}"
 
 
 @pytest.mark.vcs
@@ -250,7 +247,7 @@ Jinja2 = {{ref = "2.11.0", git = "{jinja2_uri}"}}
 def test_vcs_can_use_markers(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         path = p._pipfile.get_fixture_path("git/six/")
-        p._pipfile.install("six", {"git": f"{path.as_uri()}", "markers": "sys_platform == 'linux'"})
+        p._pipfile.install("six", {"git": f"{path.as_uri()}", "ref": "1.11.0", "markers": "sys_platform == 'linux'"})
         assert "six" in p.pipfile["packages"]
         c = p.pipenv("install")
         assert c.returncode == 0

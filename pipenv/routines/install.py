@@ -9,7 +9,10 @@ from pipenv import environments, exceptions
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._vendor import rich
 from pipenv.routines.lock import do_lock
-from pipenv.utils.dependencies import expansive_install_req_from_line
+from pipenv.utils.dependencies import (
+    expansive_install_req_from_line,
+    get_lockfile_section_using_pipfile_category,
+)
 from pipenv.utils.indexes import get_source_list
 from pipenv.utils.internet import download_file, is_valid_url
 from pipenv.utils.pip import (
@@ -122,7 +125,6 @@ def do_install(
             fd.close()
         # Replace the url with the temporary requirements file
         requirementstxt = temp_reqs
-        remote = True
     if requirementstxt:
         error, traceback = None, None
         click.secho(
@@ -134,7 +136,7 @@ def do_install(
             import_requirements(project, r=project.path_to(requirementstxt), dev=dev)
         except (UnicodeDecodeError, PipError) as e:
             # Don't print the temp file path if remote since it will be deleted.
-            req_path = requirements_url if remote else project.path_to(requirementstxt)
+            req_path = project.path_to(requirementstxt)
             error = (
                 "Unexpected syntax in {}. Are you sure this is a "
                 "requirements.txt style file?".format(req_path)
@@ -147,10 +149,6 @@ def do_install(
             )
             traceback = e
         finally:
-            # If requirements file was provided by remote url delete the temporary file
-            if remote:
-                fd.close()  # Close for windows to allow file cleanup.
-                os.remove(temp_reqs)
             if error and traceback:
                 click.secho(error, fg="red")
                 click.secho(str(traceback), fg="yellow", err=True)
@@ -409,7 +407,6 @@ def do_install_dependencies(
         deps_list = list(
             lockfile.get_requirements(dev=dev, only=dev_only, categories=[category])
         )
-        failed_deps_queue = queue.Queue()
         editable_or_vcs_deps = [
             (dep, pip_line) for dep, pip_line in deps_list if (dep.link and dep.editable)
         ]
@@ -427,51 +424,19 @@ def do_install_dependencies(
             "sequential_deps": editable_or_vcs_deps,
             "extra_pip_args": extra_pip_args,
         }
-
+        lockfile_category = get_lockfile_section_using_pipfile_category(category)
+        lockfile_section = lockfile[lockfile_category]
         batch_install(
             project,
             normal_deps,
+            lockfile_section,
             procs,
-            failed_deps_queue,
             requirements_dir,
             **install_kwargs,
         )
 
         if not procs.empty():
-            _cleanup_procs(project, procs, failed_deps_queue)
-
-        # Iterate over the hopefully-poorly-packaged dependencies...
-        if not failed_deps_queue.empty():
-            click.secho("Installing initially failed dependencies...", bold=True)
-            retry_list = []
-            while not failed_deps_queue.empty():
-                failed_dep = failed_deps_queue.get()
-                retry_list.append(failed_dep)
-            install_kwargs.update({"retry": False})
-            batch_install(
-                project,
-                retry_list,
-                procs,
-                failed_deps_queue,
-                requirements_dir,
-                **install_kwargs,
-            )
-        if not procs.empty():
-            _cleanup_procs(project, procs, failed_deps_queue, retry=False)
-        if not failed_deps_queue.empty():
-            failed_list = []
-            while not failed_deps_queue.empty():
-                failed_dep = failed_deps_queue.get()
-                failed_list.append(failed_dep)
-            click.echo(
-                click.style(
-                    f"Failed to install some dependency or packages.  "
-                    f"The following have failed installation and attempted retry: {failed_list}",
-                    fg="red",
-                ),
-                err=True,
-            )
-            sys.exit(1)
+            _cleanup_procs(project, procs)
 
 
 def batch_install_iteration(
@@ -479,15 +444,12 @@ def batch_install_iteration(
     deps_to_install,
     sources,
     procs,
-    failed_deps_queue,
     requirements_dir,
     no_deps=True,
     ignore_hashes=False,
     allow_global=False,
-    retry=True,
     extra_pip_args=None,
 ):
-    is_artifact = False
     with temp_environ():
         if not allow_global:
             os.environ["PIP_USER"] = "0"
@@ -495,10 +457,6 @@ def batch_install_iteration(
                 del os.environ["PYTHONHOME"]
         if "GIT_CONFIG" in os.environ:
             del os.environ["GIT_CONFIG"]
-        use_pep517 = True
-        if not retry and not is_artifact:
-            use_pep517 = False
-
         cmds = pip_install_deps(
             project,
             deps=deps_to_install,
@@ -507,26 +465,25 @@ def batch_install_iteration(
             ignore_hashes=ignore_hashes,
             no_deps=no_deps,
             requirements_dir=requirements_dir,
-            use_pep517=use_pep517,
+            use_pep517=True,
             extra_pip_args=extra_pip_args,
         )
 
         for c in cmds:
             procs.put(c)
-            _cleanup_procs(project, procs, failed_deps_queue, retry=retry)
+            _cleanup_procs(project, procs)
 
 
 def batch_install(
     project,
     deps_list,
+    lockfile_section,
     procs,
-    failed_deps_queue,
     requirements_dir,
     no_deps=True,
     ignore_hashes=False,
     allow_global=False,
     pypi_mirror=None,
-    retry=True,
     sequential_deps=None,
     extra_pip_args=None,
 ):
@@ -553,22 +510,20 @@ def batch_install(
             deps_to_install,
             sources,
             procs,
-            failed_deps_queue,
             requirements_dir,
             no_deps=no_deps,
             ignore_hashes=ignore_hashes,
             allow_global=allow_global,
-            retry=retry,
             extra_pip_args=extra_pip_args,
         )
     else:
         # Sort the dependencies out by index -- include editable/vcs in the default group
         deps_by_index = defaultdict(list)
         for dependency, pip_line in deps_to_install:
-            if hasattr(dependency, "index"):
-                deps_by_index[dependency.index].append(pip_line)
-            else:
-                deps_by_index[project.sources_default["name"]].append(pip_line)
+            index = project.sources_default["name"]
+            if dependency.name and lockfile_section[dependency.name].get("index"):
+                index = lockfile_section[dependency.name]["index"]
+            deps_by_index[index].append(pip_line)
         # Treat each index as its own pip install phase
         for index_name, dependencies in deps_by_index.items():
             try:
@@ -578,12 +533,10 @@ def batch_install(
                     dependencies,
                     [install_source],
                     procs,
-                    failed_deps_queue,
                     requirements_dir,
                     no_deps=no_deps,
                     ignore_hashes=ignore_hashes,
                     allow_global=allow_global,
-                    retry=retry,
                     extra_pip_args=extra_pip_args,
                 )
             except StopIteration:
@@ -595,7 +548,7 @@ def batch_install(
                 sys.exit(1)
 
 
-def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
+def _cleanup_procs(project, procs):
     while not procs.empty():
         c = procs.get()
         try:
@@ -607,47 +560,14 @@ def _cleanup_procs(project, procs, failed_deps_queue, retry=True):
             click.secho(out.strip() or err.strip(), fg="yellow")
         # The Installation failed...
         if failed:
+            # The Installation failed...
+            # We echo both c.stdout and c.stderr because pip returns error details on out.
+            err = err.strip().splitlines() if err else []
+            out = out.strip().splitlines() if out else []
+            err_lines = [line for message in [out, err] for line in message]
             deps = getattr(c, "deps", {}).copy()
-            for dep in deps:
-                # If there is a mismatch in installed locations or the install fails
-                # due to wrongful disabling of pep517, we should allow for
-                # additional passes at installation
-                if "does not match installed location" in err:
-                    project.environment.expand_egg_links()
-                    click.echo(
-                        "{}".format(
-                            click.style(
-                                "Failed initial installation: Failed to overwrite existing "
-                                "package, likely due to path aliasing. Expanding and trying "
-                                "again!",
-                                fg="yellow",
-                            )
-                        )
-                    )
-                    if dep:
-                        dep.use_pep517 = True
-                elif "Disabling PEP 517 processing is invalid" in err:
-                    if dep:
-                        dep.use_pep517 = True
-                elif not retry:
-                    # The Installation failed...
-                    # We echo both c.stdout and c.stderr because pip returns error details on out.
-                    err = err.strip().splitlines() if err else []
-                    out = out.strip().splitlines() if out else []
-                    err_lines = [line for message in [out, err] for line in message]
-                    # Return the subprocess' return code.
-                    raise exceptions.InstallError(deps, extra=err_lines)
-                else:
-                    # Alert the user.
-                    click.echo(
-                        "{} {}! Will try again.".format(
-                            click.style("An error occurred while installing", fg="red"),
-                            click.style(dep if dep else "", fg="green"),
-                        ),
-                        err=True,
-                    )
-                # Save the Failed Dependency for later.
-                failed_deps_queue.put(dep)
+            # Return the subprocess' return code.
+            raise exceptions.InstallError(deps, extra=err_lines)
 
 
 def do_init(

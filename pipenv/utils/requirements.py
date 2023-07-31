@@ -144,7 +144,8 @@ def requirement_from_lockfile(
             )
             include_vcs = "" if f"{vcs}+" in url else f"{vcs}+"
             egg_fragment = "" if "#egg=" in url else f"#egg={package_name}"
-            pip_line = f"{include_vcs}{url}@{ref}{egg_fragment}{extras}"
+            ref_str = "" if f"@{ref}" in url else f"@{ref}"
+            pip_line = f"{include_vcs}{url}{ref_str}{egg_fragment}{extras}"
             return pip_line
     # Handling file-sourced packages
     for k in ["file", "path"]:
@@ -153,10 +154,7 @@ def requirement_from_lockfile(
             path = package_info[k]
             if is_editable_path(path):
                 line.append("-e")
-            extras = ""
-            if "extras" in package_info:
-                extras = f"[{','.join(package_info['extras'])}]"
-            line.append(f"{package_info[k]}{extras}")
+            line.append(f"{package_info[k]}")
             pip_line = " ".join(line)
             return pip_line
 

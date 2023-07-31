@@ -193,12 +193,15 @@ class Resolver:
         original_deps = {}
         install_reqs = {}
         pipfile_entries = {}
+        skipped = {}
         if sources is None:
             sources = project.sources
         packages = project.get_pipfile_section(category)
+        constraints = set()
         for dep in deps:  # Build up the index and markers lookups
             if not dep:
                 continue
+            is_constraint = True
             install_req = expansive_install_req_from_line(dep, expand_env=True)
             package_name = determine_package_name(install_req)
             original_deps[package_name] = dep
@@ -210,12 +213,17 @@ class Resolver:
                 if isinstance(pipfile_entry, dict):
                     if packages[package_name].get("index"):
                         index_lookup[package_name] = packages[package_name].get("index")
+                    if packages[package_name].get("skip_resolver"):
+                        is_constraint = False
+                        skipped[package_name] = dep
                 elif index:
                     index_lookup[package_name] = index
                 else:
                     index_lookup[package_name] = project.get_default_index()["name"]
             if install_req.markers:
                 markers_lookup[package_name] = install_req.markers
+            if is_constraint:
+                constraints.add(dep)
         resolver = Resolver(
             set(),
             req_dir,
@@ -223,6 +231,7 @@ class Resolver:
             sources,
             index_lookup=index_lookup,
             markers_lookup=markers_lookup,
+            skipped=skipped,
             clear=clear,
             pre=pre,
             category=category,
@@ -234,7 +243,7 @@ class Resolver:
             install_req = install_reqs[package_name]
             if resolver.check_if_package_req_skipped(install_req):
                 resolver.skipped[package_name] = dep
-        resolver.initial_constraints = deps
+        resolver.initial_constraints = constraints
         resolver.index_lookup = index_lookup
         resolver.finder.index_lookup = index_lookup
         resolver.markers_lookup = markers_lookup
@@ -355,7 +364,7 @@ class Resolver:
 
     @cached_property
     def default_constraints(self):
-        default_constraints = [
+        possible_default_constraints = [
             install_req_from_parsed_requirement(
                 c,
                 isolated=self.pip_options.build_isolation,
@@ -363,11 +372,14 @@ class Resolver:
             )
             for c in self.parsed_default_constraints
         ]
+        default_constraints = []
+        for c in possible_default_constraints:
+            default_constraints.append(c)
         return set(default_constraints)
 
     @property
-    def constraints(self):
-        constraints_list = [
+    def possible_constraints(self):
+        possible_constraints_list = [
             install_req_from_parsed_requirement(
                 c,
                 isolated=self.pip_options.build_isolation,
@@ -376,10 +388,18 @@ class Resolver:
             )
             for c in self.parsed_constraints
         ]
+        return possible_constraints_list
+
+    @property
+    def constraints(self):
+        possible_constraints_list = self.possible_constraints
+        constraints_list = set()
+        for c in possible_constraints_list:
+            constraints_list.add(c)
         # Only use default_constraints when installing dev-packages
         if self.category != "packages":
-            constraints_list += self.default_constraints
-        return constraints_list
+            constraints_list |= self.default_constraints
+        return set(constraints_list)
 
     @contextlib.contextmanager
     def get_resolver(self, clear=False):
@@ -501,12 +521,17 @@ class Resolver:
                 self.hashes[ireq] = self.collect_hashes(ireq)
         return self.hashes
 
-    def clean_skipped_result(self, req_name: str, ireq: InstallRequirement, value):
+    def clean_skipped_result(
+        self, req_name: str, ireq: InstallRequirement, pipfile_entry
+    ):
         ref = None
         if ireq.link and ireq.link.is_vcs:
             ref = ireq.link.egg_fragment
 
-        entry = value.copy()
+        if isinstance(pipfile_entry, dict):
+            entry = pipfile_entry.copy()
+        else:
+            entry = {}
         entry["name"] = req_name
         if entry.get("editable", False) and entry.get("version"):
             del entry["version"]
@@ -540,7 +565,7 @@ class Resolver:
                 results[name].update(entry)
             else:
                 results[name] = entry
-        for req_name in list(self.skipped.keys()):
+        for req_name in self.skipped:
             install_req = self.install_reqs[req_name]
             name, entry = self.clean_skipped_result(
                 req_name, install_req, self.pipfile_entries[req_name]
@@ -725,7 +750,7 @@ def venv_resolve_deps(
                     st.console.print(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
                     )
-                    raise
+                    raise  # maybe sys.exit(1) here?
             else:  # Default/Production behavior is to use project python's resolver
                 cmd = [
                     which("python", allow_global=allow_global),

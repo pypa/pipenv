@@ -59,12 +59,12 @@ setup(
         with open(os.path.join(p.path, 'Pipfile'), 'w') as fh:
             fh.write("""
 [packages]
-testpipenv = {path = ".", editable = true}
+testpipenv = {path = ".", editable = true, skip_resolver = true}
 
 [prereq]
 six = "*"
             """.strip())
-        c = p.pipenv("lock")
+        c = p.pipenv("lock -v")
         assert c.returncode == 0
         assert "testpipenv" in p.lockfile["default"]
         assert "testpipenv" not in p.lockfile["prereq"]

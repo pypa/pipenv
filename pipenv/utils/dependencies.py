@@ -126,8 +126,6 @@ def pep423_name(name):
 
 
 def translate_markers(pipfile_entry):
-    if not isinstance(pipfile_entry, Mapping):
-        raise TypeError("Entry is not a pipfile formatted mapping.")
     from pipenv.patched.pip._vendor.packaging.markers import default_environment
 
     allowed_marker_keys = ["markers"] + list(default_environment().keys())
@@ -145,9 +143,7 @@ def translate_markers(pipfile_entry):
     for m in pipfile_markers:
         entry = f"{pipfile_entry[m]}"
         if m != "markers":
-            if m == "os_name":
-                os_name_marker = str(Marker(f"{m} {entry}"))
-            else:
+            if m != "os_name":
                 marker_set.add(str(Marker(f"{m} {entry}")))
             new_pipfile.pop(m)
     if marker_set:
@@ -203,6 +199,17 @@ def clean_resolved_dep(project, dep, is_top_level=False):
             lockfile["ref"] = dep.get("rev")
             is_vcs_or_file = True
 
+    if "editable" in dep:
+        lockfile["editable"] = dep["editable"]
+
+    preferred_file_keys = ["path", "file"]
+    dependency_file_key = next(iter(k for k in preferred_file_keys if k in dep), None)
+    if dependency_file_key:
+        lockfile[dependency_file_key] = dep[dependency_file_key]
+        is_vcs_or_file = True
+        if "editable" in dep:
+            lockfile["editable"] = dep["editable"]
+
     if version and not is_vcs_or_file:
         if isinstance(version, PipRequirement):
             if version.specifier:
@@ -211,16 +218,6 @@ def clean_resolved_dep(project, dep, is_top_level=False):
                 lockfile["extras"] = sorted(version.extras)
         elif version:
             lockfile["version"] = version
-
-    if "editable" in dep:
-        lockfile["editable"] = dep["editable"]
-
-    preferred_file_keys = ["path", "file"]
-    dependency_file_key = next(iter(k for k in preferred_file_keys if k in dep), None)
-    if dependency_file_key:
-        lockfile[dependency_file_key] = dep[dependency_file_key]
-        if "editable" in dep:
-            lockfile["editable"] = dep["editable"]
 
     if dep.get("hashes"):
         lockfile["hashes"] = dep["hashes"]
@@ -557,6 +554,11 @@ def find_package_name_from_directory(directory):
     directory = parsed_url.path if parsed_url.scheme else directory
     if "#egg=" in directory:  # parse includes the fragment in py3.7 and py3.8
         directory = directory.split("#egg=")[0]
+    if os.name == "nt":
+        if directory.startswith("/") and (":\\" in directory or ":/" in directory):
+            directory = directory[1:]
+        elif directory.startswith("\\\\"):
+            directory = directory[1:]
     for filename in os.listdir(directory):
         filepath = os.path.join(directory, filename)
         if os.path.isfile(filepath):
@@ -623,14 +625,10 @@ def determine_package_name(package: InstallRequirement):
     ]:
         parsed_url = urlparse(package.link.url)
         repository_path = parsed_url.path
-        if os.name == "nt" and repository_path.startswith("/"):
-            # Remove the leading slash for Windows
-            repository_path = repository_path[1:]
-        if os.name != "nt":
-            repository_path = repository_path.split("@")[
-                0
-            ]  # extract the actual directory path
-            repository_path = repository_path.split("#egg=")[0]
+        repository_path = repository_path.rsplit("@", 1)[
+            0
+        ]  # extract the actual directory path
+        repository_path = repository_path.split("#egg=")[0]
         req_name = find_package_name_from_directory(repository_path)
     elif package.link and package.link.scheme == "file":
         if package.link.file_path.endswith(".whl") or package.link.file_path.endswith(
@@ -893,6 +891,8 @@ def get_constraints_from_deps(deps):
                 c = canonicalize_name(dep_name)
         else:
             if not any([k in dep_version for k in ["path", "file", "uri"]]):
+                if dep_version.get("skip_resolver") is True:
+                    continue
                 version = dep_version.get("version", None)
                 if version and not is_star(version):
                     if COMPARE_OP.match(version) is None:
@@ -932,7 +932,8 @@ def prepare_constraint_file(
         requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
         constraints_file.write(f"{requirementstxt_sources}\n")
 
-    constraints_file.write("\n".join([c for c in constraints]))
+    if constraints:
+        constraints_file.write("\n".join([c for c in constraints]))
     constraints_file.close()
     return constraints_file.name
 

@@ -2,7 +2,6 @@ import os
 import stat
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
-from typing import Mapping
 
 from pip._internal.req import InstallRequirement
 
@@ -17,7 +16,7 @@ def merge_markers(entry, markers):
     for marker in markers:
         if "markers" not in entry:
             entry["markers"] = marker
-        if marker not in entry["markers"]:
+        elif marker not in entry["markers"]:
             entry["markers"] = f"({entry['markers']}) and ({marker})"
 
 
@@ -89,14 +88,15 @@ def get_locked_dep(project, dep, pipfile_section):
     is_top_level = False
 
     # if the dependency has a name, find corresponding entry in pipfile
-    if isinstance(dep, Mapping) and dep.get("name"):
+    if isinstance(dep, dict) and dep.get("name"):
         dep_name = pep423_name(dep["name"])
         for pipfile_key, pipfile_entry in pipfile_section.items():
-            if pep423_name(pipfile_key) == dep_name:
+            if pep423_name(pipfile_key) == dep_name or pipfile_key == dep_name:
                 is_top_level = True
-                pipfile_entry.get("version", "") if isinstance(
-                    pipfile_entry, Mapping
-                ) else pipfile_entry
+                if isinstance(pipfile_entry, dict):
+                    if pipfile_entry.get("version"):
+                        pipfile_entry.pop("version")
+                    dep.update(pipfile_entry)
                 break
 
     # clean the dependency
