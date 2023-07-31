@@ -609,22 +609,25 @@ def determine_package_name(package: InstallRequirement):
     if package.name:
         req_name = package.name
     elif package.link and package.link.scheme in REMOTE_SCHEMES:
-        with TemporaryDirectory() as td:
-            cmd = get_pip_command()
-            options, _ = cmd.parser.parse_args([])
-            session = cmd._build_session(options)
-            file = unpack_url(
-                link=package.link,
-                location=td,
-                download=Downloader(session, "off"),
-                verbosity=1,
-            )
-            if file.path.endswith(".whl") or file.path.endswith(".zip"):
-                req_name = find_package_name_from_zipfile(file.path)
-            elif file.path.endswith(".tar.gz") or file.path.endswith(".tar.bz2"):
-                req_name = find_package_name_from_tarball(file.path)
-            else:
-                req_name = find_package_name_from_directory(file.path)
+        try:  # Windows python 3.7 will sometimes raise PermissionError cleaning up
+            with TemporaryDirectory() as td:
+                cmd = get_pip_command()
+                options, _ = cmd.parser.parse_args([])
+                session = cmd._build_session(options)
+                file = unpack_url(
+                    link=package.link,
+                    location=td,
+                    download=Downloader(session, "off"),
+                    verbosity=1,
+                )
+                if file.path.endswith(".whl") or file.path.endswith(".zip"):
+                    req_name = find_package_name_from_zipfile(file.path)
+                elif file.path.endswith(".tar.gz") or file.path.endswith(".tar.bz2"):
+                    req_name = find_package_name_from_tarball(file.path)
+                else:
+                    req_name = find_package_name_from_directory(file.path)
+        except PermissionError:
+            pass
     elif package.link and package.link.scheme in [
         "bzr+file",
         "git+file",
