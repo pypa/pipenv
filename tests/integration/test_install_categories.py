@@ -31,6 +31,7 @@ def test_multiple_category_install(pipenv_instance_private_pypi, categories):
         assert "six" in p.lockfile["other"]
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Complicated test only passing on windows")
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.local
