@@ -247,9 +247,6 @@ def do_install(
                     pipfile_sections = "[dev-packages]"
                 else:
                     pipfile_sections = "[packages]"
-                st.console.print(
-                    f"[bold]Adding [green]{pkg_requirement.name}[/green][/bold] to Pipfile's [yellow]\\{pipfile_sections}[/yellow] ..."
-                )
                 # Add the package to the Pipfile.
                 if index:
                     source = project.get_index_by_name(index)
@@ -268,12 +265,20 @@ def do_install(
                             )
                             if added:
                                 new_packages.append((normalized_name, cat))
+                                st.console.print(
+                                    f"[bold]Added [green]{normalized_name}[/green][/bold] to Pipfile's "
+                                    f"[yellow]\\{pipfile_sections}[/yellow] ..."
+                                )
                     else:
                         added, cat, normalized_name = project.add_package_to_pipfile(
                             pkg_requirement, pkg_line, dev
                         )
                         if added:
                             new_packages.append((normalized_name, cat))
+                            st.console.print(
+                                f"[bold]Added [green]{normalized_name}[/green][/bold] to Pipfile's "
+                                f"[yellow]\\{pipfile_sections}[/yellow] ..."
+                            )
                 except ValueError:
                     import traceback
 

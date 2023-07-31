@@ -178,7 +178,7 @@ def test_local_package(pipenv_instance_private_pypi, testsroot):
 
 @pytest.mark.files
 @pytest.mark.local
-def test_local_zip_file(pipenv_instance_private_pypi, testsroot):
+def test_local_tar_gz_file(pipenv_instance_private_pypi, testsroot):
     file_name = "requests-2.19.1.tar.gz"
 
     with pipenv_instance_private_pypi() as p:

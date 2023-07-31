@@ -647,7 +647,6 @@ def determine_package_name(package: InstallRequirement):
             req_name = find_package_name_from_tarball(package.link.file_path)
         else:
             req_name = find_package_name_from_directory(package.link.file_path)
-        os.path.relpath(package.link.file_path)  # Preserve the original file path
     if req_name:
         return req_name
     else:
