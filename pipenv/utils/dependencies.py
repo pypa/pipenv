@@ -1,6 +1,7 @@
 import ast
 import configparser
 import os
+import sys
 import tarfile
 import zipfile
 from contextlib import contextmanager
@@ -476,9 +477,22 @@ def parse_setup_file(content):
                 for keyword in node.keywords:
                     if keyword.arg == "name":
                         if isinstance(keyword.value, ast.Str):
-                            # If the name is a string, return it
                             return keyword.value.s
-                        elif isinstance(keyword.value, ast.Subscript):
+                        elif sys.version_info < (3, 9) and isinstance(
+                            keyword.value, ast.Subscript
+                        ):
+                            if (
+                                isinstance(keyword.value.value, ast.Name)
+                                and keyword.value.value.id == "about"
+                            ):
+                                if isinstance(
+                                    keyword.value.slice, ast.Index
+                                ) and isinstance(keyword.value.slice.value, ast.Str):
+                                    return keyword.value.slice.value.s
+                            return keyword.value.s
+                        elif sys.version_info >= (3, 9) and isinstance(
+                            keyword.value, ast.Subscript
+                        ):
                             # If the name is a lookup in a dictionary, only handle the case where it's a static lookup
                             if (
                                 isinstance(keyword.value.value, ast.Name)
