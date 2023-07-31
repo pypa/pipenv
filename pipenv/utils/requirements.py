@@ -124,7 +124,7 @@ BAD_PACKAGES = (
 def requirement_from_lockfile(
     package_name, package_info, include_hashes=True, include_markers=True
 ):
-    from pipenv.utils.dependencies import is_editable_path, is_star
+    from pipenv.utils.dependencies import has_name_with_extras, is_editable_path, is_star
 
     # Handle string requirements
     if isinstance(package_info, str):
@@ -145,7 +145,12 @@ def requirement_from_lockfile(
             include_vcs = "" if f"{vcs}+" in url else f"{vcs}+"
             egg_fragment = "" if "#egg=" in url else f"#egg={package_name}"
             ref_str = "" if f"@{ref}" in url else f"@{ref}"
-            pip_line = f"{include_vcs}{url}{ref_str}{egg_fragment}{extras}"
+            if is_editable_path(url):
+                pip_line = f"-e {include_vcs}{url}{ref_str}{egg_fragment}{extras}"
+            elif has_name_with_extras(url):
+                pip_line = f"{include_vcs}{url}{ref_str}"
+            else:
+                pip_line = f"{package_name}{extras} @ {include_vcs}{url}{ref_str}"
             return pip_line
     # Handling file-sourced packages
     for k in ["file", "path"]:

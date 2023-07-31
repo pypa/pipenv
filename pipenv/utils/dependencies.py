@@ -1,6 +1,7 @@
 import ast
 import configparser
 import os
+import re
 import sys
 import tarfile
 import zipfile
@@ -195,7 +196,15 @@ def clean_resolved_dep(project, dep, is_top_level=False):
     is_vcs_or_file = False
     for vcs_type in VCS_LIST:
         if vcs_type in dep:
-            lockfile[vcs_type] = dep[vcs_type]
+            if "[" in dep[vcs_type] and "]" in dep[vcs_type]:
+                extras_section = dep[vcs_type].split("[").pop().replace("]", "")
+                lockfile["extras"] = sorted(
+                    [extra.strip() for extra in extras_section.split(",")]
+                )
+            if has_name_with_extras(dep[vcs_type]):
+                lockfile[vcs_type] = dep[vcs_type].split(" @ ", 1)[1]
+            else:
+                lockfile[vcs_type] = dep[vcs_type]
             lockfile["ref"] = dep.get("rev")
             is_vcs_or_file = True
 
@@ -275,7 +284,8 @@ def as_pipfile(dep: InstallRequirement) -> Dict[str, Any]:
     if dep.link:
         # If it's a VCS link
         if dep.link.is_vcs:
-            pipfile_dict[name]["vcs"] = dep.link.url_without_fragment
+            vcs = dep.link.scheme.split("+")[0]
+            pipfile_dict[name][vcs] = dep.link.url_without_fragment
         # If it's a URL link
         elif dep.link.scheme.startswith("http"):
             pipfile_dict[name]["file"] = dep.link.url_without_fragment
@@ -397,10 +407,20 @@ def dependency_as_pip_install_line(
         if "extras" in dep:
             extras = f"[{','.join(dep['extras'])}]"
         include_vcs = "" if f"{vcs}+" in dep[vcs] else f"{vcs}+"
-        if "#egg=" not in dep[vcs]:
-            git_req = f"{include_vcs}{dep[vcs]}{ref}#egg={dep_name}{extras}"
+        vcs_url = dep[vcs]
+        # legacy format is the only format supported for editable installs https://github.com/pypa/pip/issues/9106
+        if is_editable_path(dep[vcs]):
+            if "#egg=" not in dep[vcs]:
+                git_req = f"-e {include_vcs}{dep[vcs]}{ref}#egg={dep_name}{extras}"
+            else:
+                git_req = f"-e {include_vcs}{dep[vcs]}{ref}"
         else:
-            git_req = f"{include_vcs}{dep[vcs]}{ref}"
+            if "#egg=" in vcs_url:
+                vcs_url = vcs_url.split("#egg=")[0]
+            if has_name_with_extras(vcs_url):
+                git_req = f"{include_vcs}{vcs_url}{ref}"
+            else:
+                git_req = f"{dep_name}{extras} @ {include_vcs}{vcs_url}{ref}"
         if "subdirectory" in dep:
             git_req += f"&subdirectory={dep['subdirectory']}"
         line.append(git_req)
@@ -504,9 +524,9 @@ def parse_setup_file(content):
     return None
 
 
-def parse_cfg_file(filepath):
+def parse_cfg_file(content):
     config = configparser.ConfigParser()
-    config.read(filepath)
+    config.read_string(content)
     try:
         return config["metadata"]["name"]
     except configparser.NoSectionError:
@@ -676,7 +696,8 @@ def find_package_name_from_filename(filename, file):
             return possible_name
 
     if filename.endswith("setup.cfg"):
-        possible_name = parse_cfg_file(file)
+        content = file.read().decode()
+        possible_name = parse_cfg_file(content)
         if possible_name:
             return possible_name
 
@@ -747,6 +768,12 @@ def get_link_from_line(line):
     return link
 
 
+def has_name_with_extras(requirement):
+    pattern = r"^([a-zA-Z0-9_-]+(\[[a-zA-Z0-9_-]+\])?) @ .*"
+    match = re.match(pattern, requirement)
+    return match is not None
+
+
 def expansive_install_req_from_line(
     name: str,
     comes_from: Optional[Union[str, InstallRequirement]] = None,
@@ -768,9 +795,13 @@ def expansive_install_req_from_line(
         for logging purposes in case of an error.
     """
     name = name.strip("'")
+    editable = False
     if name.startswith("-e "):
         # Editable requirement
+        editable = True
         name = name.split("-e ")[1]
+    if has_name_with_extras(name):
+        name = name.split(" @ ", 1)[1]
 
     if expand_env:
         name = expand_env_variables(name)
@@ -782,6 +813,8 @@ def expansive_install_req_from_line(
             name = urljoin("file:", absolute_path)
             name = "file:" + name
 
+        return install_req_from_editable(name, line_source)
+    elif editable:
         return install_req_from_editable(name, line_source)
 
     for vcs in VCS_LIST:

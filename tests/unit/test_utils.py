@@ -25,11 +25,11 @@ DEP_PIP_PAIRS = [
                 "editable": True,
             }
         },
-        "git+https://github.com/lidatong/dataclasses-json.git@v0.5.7#egg=dataclasses-json",
+        "-e git+https://github.com/lidatong/dataclasses-json.git@v0.5.7#egg=dataclasses-json",
     ),
     (
         {"dataclasses-json": {"git": "https://github.com/lidatong/dataclasses-json.git", "ref": "v0.5.7"}},
-        "git+https://github.com/lidatong/dataclasses-json.git@v0.5.7#egg=dataclasses-json",
+        "-e git+https://github.com/lidatong/dataclasses-json.git@v0.5.7#egg=dataclasses-json",
     ),
     (
         # Extras in url
@@ -50,7 +50,7 @@ DEP_PIP_PAIRS = [
                 "editable": False,
             }
         },
-        "git+https://github.com/requests/requests.git@main#egg=requests[security]",
+        "-e git+https://github.com/requests/requests.git@main#egg=requests[security]",
     ),
 ]
 

@@ -39,6 +39,7 @@ from pipenv.utils.dependencies import (
     determine_vcs_specifier,
     expansive_install_req_from_line,
     get_canonical_names,
+    has_name_with_extras,
     is_editable,
     pep423_name,
     python_version,
@@ -1125,7 +1126,18 @@ class Project:
         elif vcs_specifier:
             for vcs in VCS_LIST:
                 if vcs in package.link.scheme:
-                    entry[vcs] = pip_line
+                    if pip_line.startswith("-e"):
+                        entry["editable"] = True
+                        pip_line = pip_line.replace("-e ", "")
+                    if "[" in pip_line and "]" in pip_line:
+                        extras_section = pip_line.split("[")[1].split("]")[0]
+                        entry["extras"] = sorted(
+                            [extra.strip() for extra in extras_section.split(",")]
+                        )
+                    if has_name_with_extras(pip_line):
+                        entry[vcs] = pip_line.split(" @ ", 1)[1]
+                    else:
+                        entry[vcs] = pip_line
                     break
         else:
             entry["version"] = specifier

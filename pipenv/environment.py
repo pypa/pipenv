@@ -11,17 +11,17 @@ import sys
 import typing
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
 
 import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._internal.vcs.versioncontrol import VersionControl
 from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils import console
+from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.dependencies import as_pipfile
 from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
@@ -779,16 +779,19 @@ class Environment:
                 return requested_path and os.path.samefile(local_path, match.location)
             elif match.has_metadata("direct_url.json"):
                 direct_url_metadata = json.loads(match.get_metadata("direct_url.json"))
-                commit_id = direct_url_metadata.get("vcs_info", {}).get("commit_id", "")
+                requested_revision = direct_url_metadata.get("vcs_info", {}).get(
+                    "requested_revision", ""
+                )
                 vcs_type = direct_url_metadata.get("vcs_info", {}).get("vcs", "")
                 _, pipfile_part = as_pipfile(req).popitem()
-                vcs_backend = VersionControl.get_backend_for_scheme(req.link.scheme)
-                req_commit = (
-                    unquote(vcs_backend().get_revision(req.link)) if vcs_backend else None
-                )
+                vcs_ref = ""
+                for vcs in VCS_LIST:
+                    if pipfile_part.get(vcs):
+                        vcs_ref = pipfile_part[vcs].rsplit("@", 1)[-1]
+                        break
                 return (
                     vcs_type == req.link.scheme
-                    and commit_id == req_commit
+                    and vcs_ref == requested_revision
                     and direct_url_metadata["url"] == pipfile_part[req.link.scheme]
                 )
             elif req.link and req.link.is_vcs:
