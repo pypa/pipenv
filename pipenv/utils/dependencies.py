@@ -561,9 +561,13 @@ def find_package_name_from_directory(directory):
     if os.name == "nt":
         if directory.startswith("\\") and (":\\" in directory or ":/" in directory):
             directory = directory[1:]
-        elif directory.startswith("\\\\"):
+        if directory.startswith("\\\\"):
             directory = directory[1:]
-    for filename in os.listdir(directory):
+    directory_contents = sorted(
+        os.listdir(directory),
+        key=lambda x: (os.path.isdir(os.path.join(directory, x)), x),
+    )
+    for filename in directory_contents:
         filepath = os.path.join(directory, filename)
         if os.path.isfile(filepath):
             if filename.endswith(RELEVANT_PROJECT_FILES):
