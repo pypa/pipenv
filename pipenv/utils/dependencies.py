@@ -551,11 +551,15 @@ def find_package_name_from_zipfile(zip_filepath):
 
 def find_package_name_from_directory(directory):
     parsed_url = urlparse(directory)
-    directory = parsed_url.path if parsed_url.scheme else directory
+    directory = (
+        os.path.normpath(parsed_url.path)
+        if parsed_url.scheme
+        else os.path.normpath(directory)
+    )
     if "#egg=" in directory:  # parse includes the fragment in py3.7 and py3.8
         directory = directory.split("#egg=")[0]
     if os.name == "nt":
-        if directory.startswith("/") and (":\\" in directory or ":/" in directory):
+        if directory.startswith("\\") and (":\\" in directory or ":/" in directory):
             directory = directory[1:]
         elif directory.startswith("\\\\"):
             directory = directory[1:]
