@@ -218,6 +218,8 @@ Usage
       sync          Installs all packages specified in Pipfile.lock.
       uninstall     Uninstalls a provided package and removes it from Pipfile.
       update        Runs lock, then sync.
+      upgrade       Update the lock of the specified dependency / sub-dependency, 
+                    but does not actually install the packages.
       verify        Verify the hash in Pipfile.lock is up-to-date.
 
 
