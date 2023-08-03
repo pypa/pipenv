@@ -226,6 +226,7 @@ class RequirementPreparer:
         use_user_site: bool,
         lazy_wheel: bool,
         verbosity: int,
+        legacy_resolver: bool,
     ) -> None:
         super().__init__()
 
@@ -258,6 +259,9 @@ class RequirementPreparer:
 
         # How verbose should underlying tooling be?
         self.verbosity = verbosity
+
+        # Are we using the legacy resolver?
+        self.legacy_resolver = legacy_resolver
 
         # Memoized downloaded files, as mapping of url: path.
         self._downloaded: Dict[str, str] = {}
@@ -365,6 +369,11 @@ class RequirementPreparer:
         self,
         req: InstallRequirement,
     ) -> Optional[BaseDistribution]:
+        if self.legacy_resolver:
+            logger.debug(
+                "Metadata-only fetching is not used in the legacy resolver",
+            )
+            return None
         if self.require_hashes:
             logger.debug(
                 "Metadata-only fetching is not used as hash checking is required",
