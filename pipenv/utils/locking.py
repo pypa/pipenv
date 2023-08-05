@@ -3,17 +3,18 @@ import stat
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 
-from pip._internal.req import InstallRequirement
-
+from pipenv.patched.pip._internal.req import InstallRequirement
 from pipenv.vendor.requirementslib.models.utils import normalize_name
 
 from .dependencies import clean_resolved_dep, pep423_name, translate_markers
 
 
 def merge_markers(entry, markers):
-    if isinstance(markers, str):
+    if not isinstance(markers, list):
         markers = [markers]
     for marker in markers:
+        if not isinstance(marker, str):
+            marker = str(marker)
         if "markers" not in entry:
             entry["markers"] = marker
         elif marker not in entry["markers"]:
