@@ -377,7 +377,7 @@ class Pipfile(BaseModel):
 
         :param Text path: Path to the target file.
         :return: A project file with the model and location for interaction
-        :rtype: :class:`~requirementslib.models.project.ProjectFile`
+        :rtype: :class:`~project.ProjectFile`
         """
         pf = ProjectFile.read(path, PipfileLoader, invalid_ok=True)
         return pf
@@ -392,7 +392,7 @@ class Pipfile(BaseModel):
         :raises OSError: Thrown if the project root directory doesn't exist
         :raises FileNotFoundError: Thrown if the pipfile doesn't exist and ``create=False``
         :return: A project file instance for the supplied project
-        :rtype: :class:`~requirementslib.models.project.ProjectFile`
+        :rtype: :class:`~project.ProjectFile`
         """
         if not path:
             raise RuntimeError("Must pass a path to classmethod 'Pipfile.load'")
@@ -417,7 +417,7 @@ class Pipfile(BaseModel):
         :raises OSError: Thrown if the project root directory doesn't exist
         :raises FileNotFoundError: Thrown if the pipfile doesn't exist and ``create=False``
         :return: A pipfile instance pointing at the supplied project
-        :rtype:: class:`~requirementslib.models.pipfile.Pipfile`
+        :rtype:: class:`~pipfile.Pipfile`
         """
 
         projectfile = cls.load_projectfile(path, create=create)

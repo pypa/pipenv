@@ -677,7 +677,7 @@ def venv_resolve_deps(
     dependency resolution.  This function reads the output of that call and mutates
     the provided lockfile accordingly, returning nothing.
 
-    :param List[:class:`~requirementslib.Requirement`] deps: A list of dependencies to resolve.
+    :param List[:class:`~pip.InstallRequirement`] deps: A list of dependencies to resolve.
     :param Callable which: [description]
     :param project: The pipenv Project instance to use during resolution
     :param Optional[bool] pre: Whether to resolve pre-release candidates, defaults to False

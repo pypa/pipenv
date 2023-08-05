@@ -1,7 +1,6 @@
 """A collection for utilities for working with files and paths."""
 import atexit
 import os
-import posixpath
 import sys
 import warnings
 from contextlib import closing, contextmanager
@@ -239,52 +238,3 @@ def check_for_unc_path(path):
         return True
     else:
         return False
-
-
-def get_converted_relative_path(path, relative_to=None):
-    """Convert `path` to be relative.
-
-    Given a vague relative path, return the path relative to the given
-    location.
-
-    :param str path: The location of a target path
-    :param str relative_to: The starting path to build against, optional
-    :returns: A relative posix-style path with a leading `./`
-
-    This performs additional conversion to ensure the result is of POSIX form,
-    and starts with `./`, or is precisely `.`.
-
-    >>> os.chdir('/home/user/code/myrepo/myfolder')
-    >>> vistir.path.get_converted_relative_path('/home/user/code/file.zip')
-    './../../file.zip'
-    >>> vistir.path.get_converted_relative_path('/home/user/code/myrepo/myfolder/mysubfolder')
-    './mysubfolder'
-    >>> vistir.path.get_converted_relative_path('/home/user/code/myrepo/myfolder')
-    '.'
-    """
-    if not relative_to:
-        relative_to = os.getcwd()
-
-    start_path = Path(str(relative_to))
-    try:
-        start = start_path.resolve()
-    except OSError:
-        start = start_path.absolute()
-
-    # check if there is a drive letter or mount point
-    # if it is a mountpoint use the original absolute path
-    # instead of the unc path
-    if check_for_unc_path(start):
-        start = start_path.absolute()
-
-    path = start.joinpath(str(path)).relative_to(start)
-
-    # check and see if the path that was passed into the function is a UNC path
-    # and raise value error if it is not.
-    if check_for_unc_path(path):
-        raise ValueError("The path argument does not currently accept UNC paths")
-
-    relpath_s = posixpath.normpath(path.as_posix())
-    if not (relpath_s == "." or relpath_s.startswith("./")):
-        relpath_s = posixpath.join("../vendor/requirementslib", relpath_s)
-    return relpath_s

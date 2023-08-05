@@ -1,8 +1,5 @@
 """
 A small collection of useful functional tools for working with iterables.
-
-This module should be in requirementslib. Once we release a new version of requirementslib
-we can remove this file and use the one in requirementslib.
 """
 import errno
 import locale
