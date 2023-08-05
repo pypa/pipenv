@@ -10,7 +10,6 @@ from functools import reduce
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Set, Tuple, Union
 
 import pipenv.patched.pip._vendor.requests as requests
-from pipenv.patched.pip._vendor.distlib import wheel
 from pipenv.patched.pip._vendor.distlib.metadata import Metadata
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement
@@ -533,6 +532,8 @@ class ReleaseUrl(BaseModel):
 
     @classmethod
     def create(cls, release_dict: Dict, name: Optional[str] = None) -> "ReleaseUrl":
+        from pipenv.patched.pip._vendor.distlib import wheel
+
         valid_digest_keys = set("{0}_digest".format(k) for k in VALID_ALGORITHMS.keys())
         digest_keys = set(release_dict.keys()) & valid_digest_keys
         creation_kwargs = {k: v for k, v in release_dict.items() if k not in digest_keys}

@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Any, AnyStr, Callable, Dict, Generator, List, Optional, Tuple, Union, Iterable, Mapping
 from urllib.parse import parse_qs, urlparse, urlunparse
 
-from pipenv.patched.pip._vendor.distlib.wheel import Wheel
 from pipenv.vendor.pep517 import envbuild, wrappers
 
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
@@ -1036,6 +1035,8 @@ def get_extra_name_from_marker(marker):
 
 
 def get_metadata_from_wheel(wheel_path) -> Dict[Any, Any]:
+    from pipenv.patched.pip._vendor.distlib.wheel import Wheel
+
     if not isinstance(wheel_path, str):
         raise TypeError("Expected string instance, received {0!r}".format(wheel_path))
     try:
