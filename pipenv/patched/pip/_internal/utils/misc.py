@@ -1,6 +1,3 @@
-# The following comment should be removed at some point in the future.
-# mypy: strict-optional=False
-
 import contextlib
 import errno
 import getpass
@@ -344,17 +341,18 @@ def write_output(msg: Any, *args: Any) -> None:
 
 
 class StreamWrapper(StringIO):
-    orig_stream: TextIO = None
+    orig_stream: TextIO
 
     @classmethod
     def from_stream(cls, orig_stream: TextIO) -> "StreamWrapper":
-        cls.orig_stream = orig_stream
-        return cls()
+        ret = cls()
+        ret.orig_stream = orig_stream
+        return ret
 
     # compileall.compile_dir() needs stdout.encoding to print to stdout
-    # https://github.com/python/mypy/issues/4125
+    # type ignore is because TextIOBase.encoding is writeable
     @property
-    def encoding(self):  # type: ignore
+    def encoding(self) -> str:  # type: ignore
         return self.orig_stream.encoding
 
 
@@ -422,7 +420,7 @@ def build_url_from_netloc(netloc: str, scheme: str = "https") -> str:
     return f"{scheme}://{netloc}"
 
 
-def parse_netloc(netloc: str) -> Tuple[str, Optional[int]]:
+def parse_netloc(netloc: str) -> Tuple[Optional[str], Optional[int]]:
     """
     Return the host-port pair from a netloc.
     """
@@ -510,7 +508,9 @@ def _redact_netloc(netloc: str) -> Tuple[str]:
     return (redact_netloc(netloc),)
 
 
-def split_auth_netloc_from_url(url: str) -> Tuple[str, str, Tuple[str, str]]:
+def split_auth_netloc_from_url(
+    url: str,
+) -> Tuple[str, str, Tuple[Optional[str], Optional[str]]]:
     """
     Parse a url into separate netloc, auth, and url with no auth.
 
