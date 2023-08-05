@@ -23,7 +23,7 @@ required = [
     "certifi",
     "setuptools>=67.0.0",
     "virtualenv-clone>=0.2.5",
-    "virtualenv>=20.17.1",
+    "virtualenv>=20.24.2",
 ]
 extras = {
     "dev": [
