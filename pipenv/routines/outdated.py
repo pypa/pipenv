@@ -7,10 +7,10 @@ from pipenv.routines.lock import do_lock
 from pipenv.utils.dependencies import (
     as_pipfile,
     expansive_install_req_from_line,
+    get_version,
     pep423_name,
 )
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib.models.utils import get_version
 
 
 def do_outdated(project, pypi_mirror=None, pre=False, clear=False):

@@ -15,7 +15,7 @@ import invoke
 import requests
 from urllib3.util import parse_url as urllib3_parse
 
-from pipenv.vendor.requirementslib.fileutils import open_file
+from pipenv.utils.fileutils import open_file
 
 TASK_NAME = "update"
 

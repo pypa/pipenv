@@ -107,7 +107,7 @@ class Entry:
         from pipenv.utils.dependencies import (
             get_lockfile_section_using_pipfile_category,
         )
-        from pipenv.vendor.requirementslib.models.utils import tomlkit_value_to_python
+        from pipenv.utils.toml import tomlkit_value_to_python
 
         self.name = name
         if isinstance(entry_dict, dict):
@@ -181,7 +181,7 @@ class Entry:
     @classmethod
     def get_markers_from_dict(cls, entry_dict):
         from pipenv.patched.pip._vendor.packaging import markers as packaging_markers
-        from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
+        from pipenv.utils.markers import normalize_marker_str
 
         marker_keys = cls.parse_pyparsing_exprs(packaging_markers.VARIABLE)
         markers = set()
@@ -222,7 +222,7 @@ class Entry:
 
     @staticmethod
     def marker_to_str(marker):
-        from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
+        from pipenv.utils.markers import normalize_marker_str
 
         if not marker:
             return None

@@ -1,6 +1,5 @@
 """A collection for utilities for working with files and paths."""
 import atexit
-import io
 import os
 import posixpath
 import sys
@@ -9,41 +8,17 @@ from contextlib import closing, contextmanager
 from http.client import HTTPResponse as Urllib_HTTPResponse
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import IO, Any, ContextManager, Iterator, Optional, Text, TypeVar, Union
+from typing import IO, Any, ContextManager, Optional, TypeVar, Union
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 from urllib.parse import quote, urlparse
 
 from pipenv.patched.pip._vendor.requests import Session
-from pipenv.patched.pip._vendor.urllib3.response import HTTPResponse as Urllib3_HTTPResponse
+from pipenv.patched.pip._vendor.urllib3.response import (
+    HTTPResponse as Urllib3_HTTPResponse,
+)
 
 _T = TypeVar("_T")
-
-
-@contextmanager
-def cd(path):
-    # type: () -> Iterator[None]
-    """Context manager to temporarily change working directories.
-
-    :param str path: The directory to move into
-    >>> print(os.path.abspath(os.curdir))
-    '/home/user/code/myrepo'
-    >>> with cd("/home/user/code/otherdir/subdir"):
-    ...     print("Changed directory: %s" % os.path.abspath(os.curdir))
-    Changed directory: /home/user/code/otherdir/subdir
-    >>> print(os.path.abspath(os.curdir))
-    '/home/user/code/myrepo'
-    """
-    if not path:
-        return
-    prev_cwd = Path.cwd().as_posix()
-    if isinstance(path, Path):
-        path = path.as_posix()
-    os.chdir(str(path))
-    try:
-        yield
-    finally:
-        os.chdir(prev_cwd)
 
 
 def is_file_url(url: Any) -> bool:
@@ -54,7 +29,7 @@ def is_file_url(url: Any) -> bool:
         try:
             url = url.url
         except AttributeError:
-            raise ValueError("Cannot parse url from unknown type: {!r}".format(url))
+            raise ValueError(f"Cannot parse url from unknown type: {url!r}")
     return urllib_parse.urlparse(url.lower()).scheme == "file"
 
 
@@ -83,7 +58,7 @@ if os.name == "nt":
     # from click _winconsole.py
     from ctypes import create_unicode_buffer, windll
 
-    def get_long_path(short_path: Text) -> Text:
+    def get_long_path(short_path: str) -> str:
         BUFFER_SIZE = 500
         buffer = create_unicode_buffer(BUFFER_SIZE)
         get_long_path_name = windll.kernel32.GetLongPathNameW
@@ -135,7 +110,7 @@ def path_to_url(path):
         # XXX: actually part of a surrogate pair, but were just incidentally
         # XXX: passed in as a piece of a filename
         quoted_path = quote(path, errors="backslashreplace")
-        return "file:///{}:{}".format(drive, quoted_path)
+        return f"file:///{drive}:{quoted_path}"
     # XXX: This is also here to help deal with incidental dangling surrogates
     # XXX: on linux, by making sure they are preserved during encoding so that
     # XXX: we can urlencode the backslash correctly
@@ -160,7 +135,7 @@ def open_file(
         try:
             link = link.url_without_fragment
         except AttributeError:
-            raise ValueError("Cannot parse url from unknown type: {0!r}".format(link))
+            raise ValueError(f"Cannot parse url from unknown type: {link!r}")
 
     if not is_valid_url(link) and os.path.exists(link):
         link = path_to_url(link)
@@ -169,9 +144,9 @@ def open_file(
         # Local URL
         local_path = url_to_path(link)
         if os.path.isdir(local_path):
-            raise ValueError("Cannot open directory for read: {}".format(link))
+            raise ValueError(f"Cannot open directory for read: {link}")
         else:
-            with io.open(local_path, "rb") as local_file:
+            with open(local_path, "rb") as local_file:
                 yield local_file
     else:
         # Remote URL
@@ -311,5 +286,5 @@ def get_converted_relative_path(path, relative_to=None):
 
     relpath_s = posixpath.normpath(path.as_posix())
     if not (relpath_s == "." or relpath_s.startswith("./")):
-        relpath_s = posixpath.join(".", relpath_s)
+        relpath_s = posixpath.join("../vendor/requirementslib", relpath_s)
     return relpath_s

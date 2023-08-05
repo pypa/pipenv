@@ -12,11 +12,12 @@ from tempfile import TemporaryDirectory
 import subprocess
 
 import pytest
-import requests
-from pipenv.utils.processes import subprocess_run
+from pipenv.patched.pip._vendor import requests
 from pipenv.vendor import tomlkit
-from pipenv.vendor.requirementslib.utils import temp_environ
-from pipenv.vendor.requirementslib.models.setup_info import handle_remove_readonly
+
+from pipenv.utils.processes import subprocess_run
+from pipenv.utils.funktools import handle_remove_readonly
+from pipenv.utils.shell import temp_environ
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)

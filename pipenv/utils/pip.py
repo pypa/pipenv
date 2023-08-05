@@ -5,10 +5,10 @@ from typing import List, Optional
 
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.utils import err
+from pipenv.utils.fileutils import create_tracked_tempdir, normalize_path
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import cmd_list_to_shell, project_python
-from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir, normalize_path
 
 
 def pip_install_deps(

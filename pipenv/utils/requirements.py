@@ -50,6 +50,11 @@ def redact_auth_from_url(url: str) -> str:
     return _transform_url(url, redact_netloc)[0]
 
 
+def normalize_name(pkg) -> str:
+    """Given a package name, return its normalized, non-canonicalized form."""
+    return pkg.replace("_", "-").lower()
+
+
 def import_requirements(project, r=None, dev=False):
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.

@@ -26,9 +26,9 @@ from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor import pkg_resources, rich
 from pipenv.project import Project
+from pipenv.utils.fileutils import create_tracked_tempdir
+from pipenv.utils.requirements import normalize_name
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib.fileutils import create_tracked_tempdir
-from pipenv.vendor.requirementslib.models.utils import normalize_name
 
 try:
     # this is only in Python3.8 and later
@@ -445,7 +445,7 @@ class Resolver:
         return self.resolved_tree
 
     def resolve_constraints(self):
-        from pipenv.vendor.requirementslib.models.markers import marker_from_specifier
+        from .markers import marker_from_specifier
 
         new_tree = set()
         for result in self.resolved_tree:

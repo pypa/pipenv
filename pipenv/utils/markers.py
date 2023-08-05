@@ -3,24 +3,23 @@ import operator
 import re
 from collections.abc import Mapping, Set
 from functools import reduce
-from typing import Any, AnyStr, Iterator, List, Optional, Tuple, Type, Union
+from typing import Optional
 
 from pipenv.patched.pip._vendor.distlib import markers
 from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker
-from pipenv.patched.pip._vendor.packaging.specifiers import LegacySpecifier, Specifier, SpecifierSet
+from pipenv.patched.pip._vendor.packaging.specifiers import (
+    LegacySpecifier,
+    Specifier,
+    SpecifierSet,
+)
 from pipenv.vendor.pydantic import BaseModel
-
-from ..exceptions import RequirementError
 
 MAX_VERSIONS = {1: 7, 2: 7, 3: 11, 4: 0}
 DEPRECATED_VERSIONS = ["3.0", "3.1", "3.2", "3.3"]
 
 
-def is_instance(item, cls):
-    # type: (Any, Type) -> bool
-    if isinstance(item, cls) or item.__class__.__name__ == cls.__name__:
-        return True
-    return False
+class RequirementError(Exception):
+    pass
 
 
 class PipenvMarkers(BaseModel):
@@ -38,9 +37,7 @@ class PipenvMarkers(BaseModel):
 
     @property
     def line_part(self):
-        return " and ".join(
-            ["{0} {1}".format(k, v) for k, v in self.dict().items() if v is not None]
-        )
+        return " and ".join([f"{k} {v}" for k, v in self.dict().items() if v is not None])
 
     @property
     def pipfile_part(self):
@@ -67,7 +64,7 @@ class PipenvMarkers(BaseModel):
     def from_pipfile(cls, name, pipfile):
         attr_fields = [field_name for field_name in cls.__fields__]
         found_keys = [k for k in pipfile.keys() if k in attr_fields]
-        marker_strings = ["{0} {1}".format(k, pipfile[k]) for k in found_keys]
+        marker_strings = [f"{k} {pipfile[k]}" for k in found_keys]
         if pipfile.get("markers"):
             marker_strings.append(pipfile.get("markers"))
         markers = set()
@@ -80,6 +77,13 @@ class PipenvMarkers(BaseModel):
             pass
         else:
             return combined_marker
+
+
+def is_instance(item, cls):
+    # type: (Any, Type) -> bool
+    if isinstance(item, cls) or item.__class__.__name__ == cls.__name__:
+        return True
+    return False
 
 
 def _tuplize_version(version):
@@ -110,7 +114,7 @@ def _format_pyspec(specifier):
     # type: (Union[str, Specifier]) -> Specifier
     if isinstance(specifier, str):
         if not specifier.startswith(tuple(Specifier._operators.keys())):
-            specifier = "=={0}".format(specifier)
+            specifier = f"=={specifier}"
         specifier = Specifier(specifier)
     version = getattr(specifier, "version", specifier).rstrip()
     if version:
@@ -121,7 +125,7 @@ def _format_pyspec(specifier):
             if version.endswith(".*"):
                 version = version[:-2]
             version = version.rstrip("*")
-            specifier = Specifier("{0}{1}".format(specifier.operator, version))
+            specifier = Specifier(f"{specifier.operator}{version}")
     try:
         op = REPLACE_RANGES[specifier.operator]
     except KeyError:
@@ -137,7 +141,7 @@ def _format_pyspec(specifier):
             next_tuple = (next_tuple[0], curr_tuple[1])
         else:
             return specifier
-    specifier = Specifier("{0}{1}".format(op, _format_version(next_tuple)))
+    specifier = Specifier(f"{op}{_format_version(next_tuple)}")
     return specifier
 
 
@@ -214,9 +218,7 @@ def normalize_specifier_set(specs):
 # And rename it to something meaningful
 def get_sorted_version_string(version_set):
     # type: (Set[AnyStr]) -> AnyStr
-    version_list = sorted(
-        "{0}".format(_format_version(version)) for version in version_set
-    )
+    version_list = sorted(f"{_format_version(version)}" for version in version_set)
     version = ", ".join(version_list)
     return version
 
@@ -495,7 +497,7 @@ def _split_specifierset_str(specset_str, prefix="=="):
     if prefix == "!=" and any(v in values for v in DEPRECATED_VERSIONS):
         values += DEPRECATED_VERSIONS[:]
     for value in sorted(values):
-        specifiers.add(Specifier("{0}{1}".format(prefix, value)))
+        specifiers.add(Specifier(f"{prefix}{value}"))
     return specifiers
 
 
@@ -516,7 +518,7 @@ def _get_specifiers_from_markers(marker_item):
         elif op.value == "not in":
             specifiers.update(_split_specifierset_str(value.value, prefix="!="))
         else:
-            specifiers.add(Specifier("{0}{1}".format(op.value, value.value)))
+            specifiers.add(Specifier(f"{op.value}{value.value}"))
     elif isinstance(marker_item, list):
         parts = get_specset(marker_item)
         if parts:
@@ -611,12 +613,17 @@ def _contains_micro_version(version_string):
     return re.search(r"\d+\.\d+\.\d+", version_string) is not None
 
 
-def format_pyversion(parts):
-    op, val = parts
-    version_marker = (
-        "python_full_version" if _contains_micro_version(val) else "python_version"
-    )
-    return "{0} {1} '{2}'".format(version_marker, op, val)
+def merge_markers(m1, m2):
+    # type: (Marker, Marker) -> Optional[Marker]
+    if not all((m1, m2)):
+        return next(iter(v for v in (m1, m2) if v), None)
+    m1 = _ensure_marker(m1)
+    m2 = _ensure_marker(m2)
+    _markers = []  # type: List[Marker]
+    for marker in (m1, m2):
+        _markers.append(str(marker))
+    marker_str = " and ".join([normalize_marker_str(m) for m in _markers if m])
+    return _ensure_marker(normalize_marker_str(marker_str))
 
 
 def normalize_marker_str(marker) -> str:
@@ -632,9 +639,9 @@ def normalize_marker_str(marker) -> str:
         marker_str = " and ".join([format_pyversion(pv) for pv in parts])
     if marker:
         if marker_str:
-            marker_str = "{0!s} and {1!s}".format(marker_str, marker)
+            marker_str = f"{marker_str!s} and {marker!s}"
         else:
-            marker_str = "{0!s}".format(marker)
+            marker_str = f"{marker!s}"
     return marker_str.replace('"', "'")
 
 
@@ -642,9 +649,9 @@ def marker_from_specifier(spec) -> Marker:
     if not any(spec.startswith(k) for k in Specifier._operators.keys()):
         if spec.strip().lower() in ["any", "<any>", "*"]:
             return None
-        spec = "=={0}".format(spec)
+        spec = f"=={spec}"
     elif spec.startswith("==") and spec.count("=") > 3:
-        spec = "=={0}".format(spec.lstrip("="))
+        spec = "=={}".format(spec.lstrip("="))
     if not spec:
         return None
     marker_segments = []
@@ -654,14 +661,9 @@ def marker_from_specifier(spec) -> Marker:
     return Marker(marker_str)
 
 
-def merge_markers(m1, m2):
-    # type: (Marker, Marker) -> Optional[Marker]
-    if not all((m1, m2)):
-        return next(iter(v for v in (m1, m2) if v), None)
-    m1 = _ensure_marker(m1)
-    m2 = _ensure_marker(m2)
-    _markers = []  # type: List[Marker]
-    for marker in (m1, m2):
-        _markers.append(str(marker))
-    marker_str = " and ".join([normalize_marker_str(m) for m in _markers if m])
-    return _ensure_marker(normalize_marker_str(marker_str))
+def format_pyversion(parts):
+    op, val = parts
+    version_marker = (
+        "python_full_version" if _contains_micro_version(val) else "python_version"
+    )
+    return f"{version_marker} {op} '{val}'"

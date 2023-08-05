@@ -6,6 +6,7 @@ from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.routines.lock import do_lock
 from pipenv.utils.dependencies import (
+    expansive_install_req_from_line,
     get_canonical_names,
     get_lockfile_section_using_pipfile_category,
     get_pipfile_category_using_lockfile_section,
@@ -16,7 +17,6 @@ from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.utils.shell import cmd_list_to_shell, project_python
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib import Requirement
 
 
 def do_uninstall(
@@ -43,7 +43,7 @@ def do_uninstall(
     if not categories:
         categories = project.get_package_categories(for_lockfile=True)
     editable_pkgs = [
-        Requirement.from_line(f"-e {p}").name for p in editable_packages if p
+        expansive_install_req_from_line(f"-e {p}").name for p in editable_packages if p
     ]
     packages += editable_pkgs
     package_names = {p for p in packages if p}

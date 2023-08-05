@@ -44,6 +44,7 @@ from pipenv.utils.dependencies import (
     pep423_name,
     python_version,
 )
+from pipenv.utils.fileutils import open_file
 from pipenv.utils.internet import (
     PackageIndexHTMLParser,
     get_requests_session,
@@ -53,6 +54,8 @@ from pipenv.utils.internet import (
     proper_case,
 )
 from pipenv.utils.locking import atomic_open_for_write
+from pipenv.utils.project import get_default_pyproject_backend
+from pipenv.utils.requirements import normalize_name
 from pipenv.utils.shell import (
     find_requirements,
     find_windows_executable,
@@ -65,11 +68,6 @@ from pipenv.utils.shell import (
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
 from pipenv.vendor import click, plette, tomlkit
-from pipenv.vendor.requirementslib.fileutils import open_file
-from pipenv.vendor.requirementslib.models.utils import (
-    get_default_pyproject_backend,
-    normalize_name,
-)
 
 try:
     # this is only in Python3.8 and later
@@ -756,7 +754,7 @@ class Project:
 
     @property
     def _pipfile(self):
-        from .vendor.requirementslib.models.pipfile import Pipfile as ReqLibPipfile
+        from pipenv.utils.pipfile import Pipfile as ReqLibPipfile
 
         pf = ReqLibPipfile.load(self.pipfile_location)
         return pf
@@ -782,7 +780,7 @@ class Project:
         return packages
 
     def _get_vcs_packages(self, dev=False):
-        from pipenv.vendor.requirementslib.utils import is_vcs
+        from pipenv.utils.requirementslib import is_vcs
 
         section = "dev-packages" if dev else "packages"
         packages = {
@@ -867,9 +865,7 @@ class Project:
         return source
 
     def get_or_create_lockfile(self, categories, from_pipfile=False):
-        from pipenv.vendor.requirementslib.models.lockfile import (
-            Lockfile as Req_Lockfile,
-        )
+        from pipenv.utils.locking import Lockfile as Req_Lockfile
 
         if from_pipfile and self.pipfile_exists:
             lockfile_dict = {}

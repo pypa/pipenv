@@ -206,7 +206,7 @@ class TestUtils:
     )
     @pytest.mark.vcs
     def test_is_vcs(self, entry, expected):
-        from pipenv.vendor.requirementslib.utils import is_vcs
+        from pipenv.utils.requirementslib import is_vcs
         assert is_vcs(entry) is expected
 
     @pytest.mark.utils

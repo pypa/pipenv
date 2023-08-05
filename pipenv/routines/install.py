@@ -9,6 +9,7 @@ from pipenv import environments, exceptions
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._vendor import rich
 from pipenv.routines.lock import do_lock
+from pipenv.utils import fileutils
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
     get_lockfile_section_using_pipfile_category,
@@ -22,10 +23,9 @@ from pipenv.utils.pip import (
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import add_index_to_pipfile, import_requirements
+from pipenv.utils.shell import temp_environ
 from pipenv.utils.virtualenv import cleanup_virtualenv, do_create_virtualenv
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib import fileutils
-from pipenv.vendor.requirementslib.utils import temp_environ
 
 console = rich.console.Console()
 err = rich.console.Console(stderr=True)

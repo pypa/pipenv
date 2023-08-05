@@ -23,13 +23,12 @@ from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils import console
 from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.dependencies import as_pipfile
+from pipenv.utils.fileutils import normalize_path, temp_path
 from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
-from pipenv.utils.shell import make_posix
+from pipenv.utils.shell import make_posix, temp_environ
 from pipenv.vendor.pythonfinder.utils import is_in_path
-from pipenv.vendor.requirementslib.fileutils import normalize_path, temp_path
-from pipenv.vendor.requirementslib.utils import temp_environ
 
 try:
     # this is only in Python3.8 and later

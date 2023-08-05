@@ -11,9 +11,9 @@ from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 
+from pipenv.utils.fileutils import normalize_drive, normalize_path
 from pipenv.vendor import click
 from pipenv.vendor.pythonfinder.utils import ensure_path
-from pipenv.vendor.requirementslib.fileutils import normalize_drive, normalize_path
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
 from .processes import subprocess_run

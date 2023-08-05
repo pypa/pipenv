@@ -1,8 +1,8 @@
 import shutil
 
 from pipenv import environments
+from pipenv.utils.funktools import handle_remove_readonly
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib.models.setup_info import handle_remove_readonly
 
 
 def do_clear(project):

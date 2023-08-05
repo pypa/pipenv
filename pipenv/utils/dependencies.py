@@ -9,9 +9,10 @@ from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
+from typing import Any, AnyStr, Dict, List, Mapping, Optional, Sequence, Union
 from urllib.parse import urljoin, urlparse, urlsplit, urlunsplit
 
+from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_editable,
@@ -24,20 +25,14 @@ from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
-from pipenv.vendor.requirementslib.fileutils import (
+from pipenv.utils.fileutils import (
     create_tracked_tempdir,
 )
-from pipenv.vendor.requirementslib.models.markers import PipenvMarkers
-from pipenv.vendor.requirementslib.models.setup_info import unpack_url
-from pipenv.vendor.requirementslib.models.utils import (
-    create_link,
-    expand_env_variables,
-    get_version,
-)
-from pipenv.vendor.requirementslib.utils import (
+from pipenv.utils.requirementslib import (
     add_ssh_scheme_to_git_uri,
     get_pip_command,
     prepare_pip_source_args,
+    unpack_url,
 )
 
 from .constants import (
@@ -47,6 +42,24 @@ from .constants import (
     VCS_LIST,
     VCS_SCHEMES,
 )
+from .markers import PipenvMarkers
+
+
+def get_version(pipfile_entry):
+    if str(pipfile_entry) == "{}" or is_star(pipfile_entry):
+        return ""
+
+    if hasattr(pipfile_entry, "keys") and "version" in pipfile_entry:
+        if is_star(pipfile_entry.get("version")):
+            return ""
+        version = pipfile_entry.get("version")
+        if version is None:
+            version = ""
+        return version.strip().lstrip("(").rstrip(")")
+
+    if isinstance(pipfile_entry, str):
+        return pipfile_entry.strip().lstrip("(").rstrip(")")
+    return ""
 
 
 def python_version(path_to_python):
@@ -709,6 +722,15 @@ def find_package_name_from_filename(filename, file):
     return None
 
 
+def create_link(link):
+    # type: (AnyStr) -> Link
+
+    if not isinstance(link, str):
+        raise TypeError("must provide a string to instantiate a new link")
+
+    return Link(link)
+
+
 def get_link_from_line(line):
     """Parse link information from given requirement line. Return a
     6-tuple:
@@ -772,6 +794,22 @@ def has_name_with_extras(requirement):
     pattern = r"^([a-zA-Z0-9_-]+(\[[a-zA-Z0-9_-]+\])?) @ .*"
     match = re.match(pattern, requirement)
     return match is not None
+
+
+def expand_env_variables(line) -> AnyStr:
+    """Expand the env vars in a line following pip's standard.
+    https://pip.pypa.io/en/stable/reference/pip_install/#id10.
+
+    Matches environment variable-style values in '${MY_VARIABLE_1}' with
+    the variable name consisting of only uppercase letters, digits or
+    the '_'
+    """
+
+    def replace_with_env(match):
+        value = os.getenv(match.group(1))
+        return value if value else match.group()
+
+    return re.sub(r"\$\{([A-Z0-9_]+)\}", replace_with_env, line)
 
 
 def expansive_install_req_from_line(
