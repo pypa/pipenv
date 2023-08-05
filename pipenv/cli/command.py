@@ -21,21 +21,23 @@ from pipenv.cli.options import (
     upgrade_options,
     verbose_option,
 )
+from pipenv.utils import console, err
 from pipenv.utils.environment import load_dot_env
 from pipenv.utils.processes import subprocess_run
-from pipenv.vendor import click
 from pipenv.vendor.click import (
     Choice,
     argument,
-    echo,
     edit,
     group,
     option,
     pass_context,
-    secho,
-    style,
     version_option,
 )
+
+with console.capture() as capture:
+    console.print("[bold]pipenv[/bold]")
+
+prog_name = capture.get()
 
 subcommand_context = CONTEXT_SETTINGS.copy()
 subcommand_context.update({"ignore_unknown_options": True, "allow_extra_args": True})
@@ -61,7 +63,7 @@ subcommand_context_no_interspersion["allow_interspersed_args"] = False
     help="Output diagnostic information for use in GitHub issues.",
 )
 @general_options
-@version_option(prog_name=style("pipenv", bold=True), version=__version__)
+@version_option(prog_name=prog_name, version=__version__)
 @pass_state
 @pass_context
 def cli(
@@ -79,7 +81,6 @@ def cli(
     site_packages=None,
     **kwargs,
 ):
-    from pipenv.patched.pip._vendor import rich
     from pipenv.utils.shell import system_which
 
     load_dot_env(state.project, quiet=state.quiet)
@@ -90,10 +91,9 @@ def cli(
     from pipenv.utils.virtualenv import cleanup_virtualenv, do_where, warn_in_virtualenv
 
     if "PIPENV_COLORBLIND" in os.environ:
-        echo(
+        err.print(
             "PIPENV_COLORBLIND is deprecated, use NO_COLOR"
             " per https://no-color.org/ instead",
-            err=True,
         )
 
     if man:
@@ -102,25 +102,20 @@ def cli(
             os.execle(system_which("man"), "man", path, os.environ)
             return 0
         else:
-            secho(
-                "man does not appear to be available on your system.",
-                fg="yellow",
-                bold=True,
-                err=True,
+            err.print(
+                "man does not appear to be available on your system.", style="bold yellow"
             )
             return 1
     if envs:
-        echo("The following environment variables can be set, to do various things:\n")
+        console.print(
+            "The following environment variables can be set, to do various things:\n"
+        )
         for key in state.project.__dict__:
             if key.startswith("PIPENV"):
-                echo(f"  - {style(key, bold=True)}")
-        echo(
-            "\nYou can learn more at:\n   {}".format(
-                style(
-                    "https://pipenv.pypa.io/en/latest/advanced/#configuration-with-environment-variables",
-                    fg="green",
-                )
-            )
+                console.print(f"  - {key}", style="bold")
+        console.print(
+            "\nYou can learn more at:\n   "
+            "[green]https://pipenv.pypa.io/en/latest/advanced/#configuration-with-environment-variables[/green]",
         )
         return 0
     warn_in_virtualenv(state.project)
@@ -146,57 +141,39 @@ def cli(
         elif venv:
             # There is no virtualenv yet.
             if not state.project.virtualenv_exists:
-                echo(
-                    "{}({}){}".format(
-                        style(
-                            "No virtualenv has been created for this project", fg="red"
-                        ),
-                        style(state.project.project_directory, bold=True),
-                        style(" yet!", fg="red"),
-                    ),
-                    err=True,
+                err.print(
+                    "[red]No virtualenv has been created for this project[/red]"
+                    f"[bold]{state.project.project_directory}[/bold]"
+                    " [red]yet![/red]"
                 )
                 ctx.abort()
             else:
-                echo(state.project.virtualenv_location)
+                print(state.project.virtualenv_location)
                 return 0
         # --rm was passed...
         elif rm:
             # Abort if --system (or running in a virtualenv).
             if state.project.s.PIPENV_USE_SYSTEM or environments.is_in_virtualenv():
-                echo(
-                    style(
-                        "You are attempting to remove a virtualenv that "
-                        "Pipenv did not create. Aborting.",
-                        fg="red",
-                    )
+                console.print(
+                    "You are attempting to remove a virtualenv that "
+                    "Pipenv did not create. Aborting.",
+                    style="red",
                 )
                 ctx.abort()
             if state.project.virtualenv_exists:
                 loc = state.project.virtualenv_location
-                echo(
-                    style(
-                        "{} ({})...".format(
-                            style("Removing virtualenv", bold=True),
-                            style(loc, fg="green"),
-                        )
-                    )
+                console.print(
+                    f"[bold]Removing virtualenv[/bold] ([green]{loc}[green])..."
                 )
 
-                console = rich.console.Console()
-                # TODO: add state.project.s to spinner status
                 with console.status("Running..."):
                     # Remove the virtualenv.
                     cleanup_virtualenv(state.project, bare=True)
                 return 0
             else:
-                echo(
-                    style(
-                        "No virtualenv has been created for this project yet!",
-                        fg="red",
-                        bold=True,
-                    ),
-                    err=True,
+                err.print(
+                    "No virtualenv has been created for this project yet!",
+                    style="red bold",
                 )
                 ctx.abort()
     # --python was passed...
@@ -212,7 +189,7 @@ def cli(
     # Check this again before exiting for empty ``pipenv`` command.
     elif ctx.invoked_subcommand is None:
         # Display help to user, if no commands were passed.
-        echo(format_help(ctx.get_help()))
+        console.print(format_help(ctx.get_help()))
 
 
 @cli.command(
@@ -225,7 +202,8 @@ def cli(
 @install_options
 @pass_state
 def install(state, **kwargs):
-    """Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile."""
+    """Installs provided packages and adds them to Pipfile,
+    or (if no packages are given), installs all packages from Pipfile."""
     from pipenv.routines.install import do_install
 
     do_install(
@@ -403,13 +381,10 @@ def shell(
         # If PIPENV_ACTIVE is set, VIRTUAL_ENV should always be set too.
         venv_name = os.environ.get("VIRTUAL_ENV", "UNKNOWN_VIRTUAL_ENVIRONMENT")
         if not anyway:
-            echo(
-                "{} {} {}\nNew shell not activated to avoid nested environments.".format(
-                    style("Shell for"),
-                    style(venv_name, fg="green", bold=True),
-                    style("already activated.", bold=True),
-                ),
-                err=True,
+            err.print(
+                f"Shell for [green bold]{venv_name}[/green bold] "
+                "[bold]already activated[/bold].\n"
+                "New shell not activated to avoid nested environments."
             )
             sys.exit(1)
     # Load .env file.
@@ -639,13 +614,13 @@ def run_open(state, module, *args, **kwargs):
         ]
     )
     if c.returncode:
-        echo(style("Module not found!", fg="red"))
+        console.print("Module not found!", style="red")
         sys.exit(1)
     if "__init__.py" in c.stdout:
         p = os.path.dirname(c.stdout.strip().rstrip("cdo"))
     else:
         p = c.stdout.strip().rstrip("cdo")
-    echo(style(f"Opening {p!r} in your EDITOR.", bold=True))
+    console.print(f"Opening {p!r} in your EDITOR.", style="bold")
     inline_activate_virtual_environment(state.project)
     edit(filename=p)
     return 0
@@ -713,7 +688,7 @@ def clean(state, dry_run=False, bare=False, user=False):
 def scripts(state):
     """Lists scripts in current environment config."""
     if not state.project.pipfile_exists:
-        echo("No Pipfile present at project home.", err=True)
+        err.print("No Pipfile present at project home.")
         sys.exit(1)
     scripts = state.project.parsed_pipfile.get("scripts", {})
     first_column_width = max(len(word) for word in ["Command"] + list(scripts))
@@ -724,7 +699,7 @@ def scripts(state):
         "{0:<{width}}  {1}".format(name, script, width=first_column_width)
         for name, script in scripts.items()
     )
-    echo("\n".join(line for line in lines))
+    console.print("\n".join(line for line in lines))
 
 
 @cli.command(
@@ -735,17 +710,14 @@ def scripts(state):
 def verify(state):
     """Verify the hash in Pipfile.lock is up-to-date."""
     if not state.project.pipfile_exists:
-        echo("No Pipfile present at project home.", err=True)
+        err.print("No Pipfile present at project home.")
         sys.exit(1)
     if state.project.get_lockfile_hash() != state.project.calculate_pipfile_hash():
-        echo(
-            "Pipfile.lock is out-of-date. Run {} to update.".format(
-                style("$ pipenv lock", fg="yellow", bold=True)
-            ),
-            err=True,
+        err.print(
+            "Pipfile.lock is out-of-date. Run [yellow bold]$ pipenv lock[/yellow bold] to update."
         )
         sys.exit(1)
-    echo(style("Pipfile.lock is up-to-date.", fg="green"))
+    console.print("Pipfile.lock is up-to-date.", style="green")
     sys.exit(0)
 
 
@@ -787,17 +759,14 @@ if __name__ == "__main__":
 
 def do_py(project, ctx=None, system=False):
     if not project.virtualenv_exists:
-        click.echo(
-            "{}({}){}".format(
-                click.style("No virtualenv has been created for this project ", fg="red"),
-                click.style(project.project_directory, fg="yellow", bold=True),
-                click.style(" yet!", fg="red"),
-            ),
-            err=True,
+        err.print(
+            "[red]No virtualenv has been created for this project[/red] "
+            f"[yellow bold]{project.project_directory}[/yellow bold] "
+            "[red] yet![/red]"
         )
         ctx.abort()
 
     try:
-        click.echo(project._which("python", allow_global=system))
+        console.print(project._which("python", allow_global=system))
     except AttributeError:
-        click.echo(click.style("No project found!", fg="red"))
+        console.print("No project found!", style="red")
