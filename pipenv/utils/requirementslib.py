@@ -334,11 +334,7 @@ class PathAccessError(KeyError, IndexError, TypeError):
         return f"{cn}({self.exc!r}, {self.seg!r}, {self.path!r})"
 
     def __str__(self):
-        return "could not access {!r} from path {!r}, got error: {!r}".format(
-            self.seg,
-            self.path,
-            self.exc,
-        )
+        return f"could not access {self.seg} from path {self.path}, got error: {self.exc}"
 
 
 def get_path(root, path, default=_UNSET):

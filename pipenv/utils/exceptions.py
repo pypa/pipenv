@@ -22,7 +22,6 @@ class MissingParameter(Exception):
 
 class FileCorruptException(OSError):
     def __init__(self, path, *args, **kwargs):
-        path = path
         backup_path = kwargs.pop("backup_path", None)
         if not backup_path and args:
             args = reversed(args)
