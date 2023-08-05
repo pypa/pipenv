@@ -27,7 +27,7 @@ def _ensure_modules():
     # Ensure when pip gets invoked it uses our patched version
     spec = importlib.util.spec_from_file_location(
         "pip",
-        location=os.path.join(os.path.dirname(__file__), "patched", "pip"),
+        location=os.path.join(os.path.dirname(__file__), "patched", "pip", "__init__.py"),
     )
     pip = importlib.util.module_from_spec(spec)
     sys.modules["pip"] = pip
