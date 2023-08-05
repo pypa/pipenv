@@ -300,7 +300,8 @@ def _rmtree_func(path, ignore_errors=True, onerror=None):
 @pytest.fixture()
 def pipenv_instance_pypi(capfdbinary, monkeypatch):
     with temp_environ(), monkeypatch.context() as m:
-        m.setattr(shutil, "rmtree", _rmtree_func)
+        if sys.version_info <= (3, 8):
+            m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
         os.environ["PIPENV_NOSPIN"] = "1"
         os.environ["CI"] = "1"
@@ -316,7 +317,8 @@ def pipenv_instance_pypi(capfdbinary, monkeypatch):
 @pytest.fixture()
 def pipenv_instance_private_pypi(capfdbinary, monkeypatch):
     with temp_environ(), monkeypatch.context() as m:
-        m.setattr(shutil, "rmtree", _rmtree_func)
+        if sys.version_info <= (3, 8):
+            m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
         os.environ["PIPENV_NOSPIN"] = "1"
         os.environ["CI"] = "1"
