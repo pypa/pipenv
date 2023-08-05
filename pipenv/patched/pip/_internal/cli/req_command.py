@@ -287,6 +287,7 @@ class RequirementCommand(IndexGroupCommand):
         """
         temp_build_dir_path = temp_build_dir.path
         assert temp_build_dir_path is not None
+        legacy_resolver = False
 
         resolver_variant = cls.determine_resolver_variant(options)
         if resolver_variant == "2020-resolver":
@@ -300,6 +301,7 @@ class RequirementCommand(IndexGroupCommand):
                     "production."
                 )
         else:
+            legacy_resolver = True
             lazy_wheel = False
             if "fast-deps" in options.features_enabled:
                 logger.warning(
@@ -320,6 +322,7 @@ class RequirementCommand(IndexGroupCommand):
             use_user_site=use_user_site,
             lazy_wheel=lazy_wheel,
             verbosity=verbosity,
+            legacy_resolver=legacy_resolver,
         )
 
     @classmethod
