@@ -871,6 +871,8 @@ def install_req_from_pipfile(name, pipfile):
     if vcs:
         _pipfile["vcs"] = vcs
         req_str = f"{_pipfile[vcs]}"
+        if not req_str.startswith(f"{vcs}+"):
+            req_str = f"{vcs}+{req_str}"
     elif "path" in _pipfile:
         req_str = f"-e {_pipfile['path']}{extras_str}"
     elif "file" in _pipfile:
