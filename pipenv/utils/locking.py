@@ -102,7 +102,7 @@ def format_requirement_for_lockfile(
     return name, entry
 
 
-def get_locked_dep(project, dep, pipfile_section):
+def get_locked_dep(project, dep, pipfile_section, current_entry=None):
     # initialize default values
     is_top_level = False
 
@@ -119,7 +119,7 @@ def get_locked_dep(project, dep, pipfile_section):
                 break
 
     # clean the dependency
-    lockfile_entry = clean_resolved_dep(project, dep, is_top_level)
+    lockfile_entry = clean_resolved_dep(project, dep, is_top_level, current_entry)
 
     # get the lockfile version and compare with pipfile version
     lockfile_name, lockfile_dict = lockfile_entry.copy().popitem()
@@ -128,27 +128,30 @@ def get_locked_dep(project, dep, pipfile_section):
     return lockfile_entry
 
 
-def prepare_lockfile(project, results, pipfile, lockfile):
+def prepare_lockfile(project, results, pipfile, lockfile_section, old_lock_data=None):
     for dep in results:
         if not dep:
             continue
-        lockfile_entry = get_locked_dep(project, dep, pipfile)
         dep_name = dep["name"]
+        current_entry = None
+        if dep_name in old_lock_data:
+            current_entry = old_lock_data[dep_name]
+        lockfile_entry = get_locked_dep(project, dep, pipfile, current_entry)
 
         # If the current dependency doesn't exist in the lockfile, add it
-        if dep_name not in lockfile:
-            lockfile[dep_name] = lockfile_entry[dep_name]
+        if dep_name not in lockfile_section:
+            lockfile_section[dep_name] = lockfile_entry[dep_name]
         else:
             # If the dependency exists, update the details
-            current_entry = lockfile[dep_name]
+            current_entry = lockfile_section[dep_name]
             if not isinstance(current_entry, dict):
-                lockfile[dep_name] = lockfile_entry[dep_name]
+                lockfile_section[dep_name] = lockfile_entry[dep_name]
             else:
                 # If the current entry is a dict, merge the new details
-                lockfile[dep_name].update(lockfile_entry[dep_name])
-                lockfile[dep_name] = translate_markers(lockfile[dep_name])
+                lockfile_section[dep_name].update(lockfile_entry[dep_name])
+                lockfile_section[dep_name] = translate_markers(lockfile_section[dep_name])
 
-    return lockfile
+    return lockfile_section
 
 
 @contextmanager

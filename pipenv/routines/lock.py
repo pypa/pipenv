@@ -29,10 +29,10 @@ def do_lock(
             lockfile_categories.insert(0, "default")
     # Create the lockfile.
     lockfile = project.lockfile(categories=lockfile_categories)
-    for category in lockfile_categories:
-        for k, v in lockfile.get(category, {}).copy().items():
-            if not hasattr(v, "keys"):
-                del lockfile[category][k]
+    # for category in lockfile_categories:
+    #     for k, v in lockfile.get(category, {}).copy().items():
+    #         if not hasattr(v, "keys"):
+    #             del lockfile[category][k]
 
     # Resolve package to generate constraints before resolving other categories
     for category in lockfile_categories:
@@ -55,7 +55,7 @@ def do_lock(
 
         # Prune old lockfile category as new one will be created.
         try:
-            del lockfile[category]
+            old_lock_data = lockfile.pop(category)
         except KeyError:
             pass
 
@@ -73,6 +73,7 @@ def do_lock(
             pypi_mirror=pypi_mirror,
             pipfile=packages,
             lockfile=lockfile,
+            old_lock_data=old_lock_data,
         )
 
     # Overwrite any category packages with default packages.

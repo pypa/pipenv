@@ -194,7 +194,7 @@ def unearth_hashes_for_dep(project, dep):
     return []
 
 
-def clean_resolved_dep(project, dep, is_top_level=False):
+def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
     from pipenv.patched.pip._vendor.packaging.requirements import (
         Requirement as PipRequirement,
     )
@@ -202,9 +202,23 @@ def clean_resolved_dep(project, dep, is_top_level=False):
     name = dep["name"]
     lockfile = {}
 
+    # Evaluate Markers
+    if "markers" in dep:
+        markers = dep["markers"]
+        if markers:
+            markers = Marker(markers)
+            if not markers.evaluate() and current_entry:
+                return {name: current_entry}
+
     version = dep.get("version", None)
     if version and not version.startswith("=="):
         version = f"=={version}"
+    if version == "==*":
+        if current_entry:
+            version = current_entry.get("version")
+            dep["version"] = version
+        else:
+            version = None
 
     is_vcs_or_file = False
     for vcs_type in VCS_LIST:

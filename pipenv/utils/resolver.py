@@ -668,6 +668,7 @@ def venv_resolve_deps(
     pypi_mirror=None,
     pipfile=None,
     lockfile=None,
+    old_lock_data=None,
 ):
     """
     Resolve dependencies for a pipenv project, acts as a portal to the target environment.
@@ -804,7 +805,9 @@ def venv_resolve_deps(
                     click.echo(f"Error: {c.stderr.strip()}", err=True)
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
-    return prepare_lockfile(project, results, pipfile, lockfile[lockfile_section])
+    return prepare_lockfile(
+        project, results, pipfile, lockfile[lockfile_section], old_lock_data
+    )
 
 
 def resolve_deps(
