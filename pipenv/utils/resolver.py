@@ -706,6 +706,8 @@ def venv_resolve_deps(
         pipfile = getattr(project, category, {})
     if lockfile is None:
         lockfile = project.lockfile(categories=[category])
+    if old_lock_data is None:
+        old_lock_data = lockfile.get(lockfile_section, {})
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
     results = []
     with temp_environ():
