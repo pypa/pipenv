@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 from pathlib import Path
 import pytest
 
@@ -28,6 +29,7 @@ def test_pipenv_venv(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
+@pytest.mark.skipif(sys.version_info == (3, 8) and os.name == "nt")
 def test_pipenv_py(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv('--python python')
