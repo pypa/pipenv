@@ -1,7 +1,6 @@
 import os
 import shutil
 import sys
-from pathlib import Path
 
 from pipenv import environments, exceptions
 from pipenv.patched.pip._vendor import rich
@@ -43,10 +42,9 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         err=True,
     )
 
-    # Default to using sys.executable, if Python wasn't provided.
     using_string = "Using"
     if not python:
-        python = sys.executable
+        python = project.python()
         using_string = "Using default python from"
     click.echo(
         "{} {} {} {}".format(
@@ -115,7 +113,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
 
 def _create_virtualenv_cmd(project, python, site_packages=False):
     cmd = [
-        Path(sys.executable).absolute().as_posix(),
+        project.python(),
         "-m",
         "virtualenv",
     ]
