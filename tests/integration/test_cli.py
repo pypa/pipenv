@@ -29,7 +29,7 @@ def test_pipenv_venv(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-@pytest.mark.skipif(sys.version_info == (3, 8) and os.name == "nt")
+@pytest.mark.skipif(sys.version_info == (3, 8) and os.name == "nt", reason="Python 3.8 on Windows is not supported")
 def test_pipenv_py(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv('--python python')

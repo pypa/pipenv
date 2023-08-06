@@ -21,7 +21,7 @@ def test_uninstall_requests(pipenv_instance_pypi):
 
 
 @pytest.mark.uninstall
-@pytest.mark.skipif(sys.version_info >= (3, 12))  # Package does not work with Python 3.12
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
 def test_uninstall_django(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv("install Django")
@@ -45,7 +45,7 @@ def test_uninstall_django(pipenv_instance_private_pypi):
 
 @pytest.mark.install
 @pytest.mark.uninstall
-@pytest.mark.skipif(sys.version_info >= (3, 12))  # Package does not work with Python 3.12
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
 def test_mirror_uninstall(pipenv_instance_pypi):
     with temp_environ(), pipenv_instance_pypi() as p:
 

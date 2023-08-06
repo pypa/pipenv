@@ -108,7 +108,7 @@ def test_install_git_tag(pipenv_instance_private_pypi):
 @pytest.mark.index
 @pytest.mark.install
 @pytest.mark.needs_internet
-@pytest.mark.skipif(sys.version_info >= (3, 12))  # Package does not work with Python 3.12
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
 def test_install_named_index_alias(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
@@ -137,7 +137,7 @@ six = "*"
 @pytest.mark.index
 @pytest.mark.install
 @pytest.mark.needs_internet
-@pytest.mark.skipif(sys.version_info >= (3, 12))  # Package does not work with Python 3.12
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
 def test_install_specifying_index_url(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:

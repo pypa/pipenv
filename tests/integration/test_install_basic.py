@@ -162,7 +162,7 @@ dataclasses-json = "==0.5.7"
 @pytest.mark.install
 @pytest.mark.resolver
 @pytest.mark.backup_resolver
-@pytest.mark.skipif(sys.version_info >= (3, 12))  # Package does not work with Python 3.12
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
 def test_backup_resolver(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
