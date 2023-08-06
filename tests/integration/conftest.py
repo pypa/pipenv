@@ -318,7 +318,7 @@ def pipenv_instance_pypi(capfdbinary, monkeypatch):
 @pytest.fixture()
 def pipenv_instance_private_pypi(capfdbinary, monkeypatch):
     with temp_environ(), monkeypatch.context() as m:
-        if sys.version_info <= (3, 8):
+        if sys.version_info[:2] <= (3, 8):
             m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
         os.environ["PIPENV_NOSPIN"] = "1"
