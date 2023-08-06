@@ -728,7 +728,6 @@ def venv_resolve_deps(
                 deps, project.pipfile_sources(), include_index=True
             )
             constraints = set(deps)
-            st.console.print("Resolving dependencies...")
             # Useful for debugging and hitting breakpoints in the resolver
             if project.s.PIPENV_RESOLVER_PARENT_PYTHON:
                 try:

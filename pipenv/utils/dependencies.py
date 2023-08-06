@@ -203,12 +203,21 @@ def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
     lockfile = {}
 
     # Evaluate Markers
-    if "markers" in dep:
-        markers = dep["markers"]
-        if markers:
-            markers = Marker(markers)
-            if not markers.evaluate() and current_entry:
-                return {name: current_entry}
+    if "markers" in dep and dep.get("markers", "").strip():
+        if not is_top_level:
+            translated = translate_markers(dep).get("markers", "").strip()
+            if translated:
+                try:
+                    lockfile["markers"] = translated
+                except TypeError:
+                    pass
+        else:
+            try:
+                pipfile_entry = translate_markers(dep)
+                if pipfile_entry.get("markers"):
+                    lockfile["markers"] = pipfile_entry.get("markers")
+            except TypeError:
+                pass
 
     version = dep.get("version", None)
     if version and not version.startswith("=="):
@@ -276,21 +285,13 @@ def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
                 lockfile[k] = dep[k]
                 break
 
-    if "markers" in dep and dep.get("markers", "").strip():
-        if not is_top_level:
-            translated = translate_markers(dep).get("markers", "").strip()
-            if translated:
-                try:
-                    lockfile["markers"] = translated
-                except TypeError:
-                    pass
-        else:
-            try:
-                pipfile_entry = translate_markers(dep)
-                if pipfile_entry.get("markers"):
-                    lockfile["markers"] = pipfile_entry.get("markers")
-            except TypeError:
-                pass
+    if "markers" in dep:
+        markers = dep["markers"]
+        if markers:
+            markers = Marker(markers)
+            if not markers.evaluate() and current_entry:
+                current_entry.update(lockfile)
+                return {name: current_entry}
 
     return {name: lockfile}
 
