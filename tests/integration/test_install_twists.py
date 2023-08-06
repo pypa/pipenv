@@ -277,6 +277,7 @@ def test_outdated_should_compare_postreleases_without_failing(pipenv_instance_pr
         assert "out-of-date" in c.stdout
 
 
+@pytest.mark.skipif(sys.version_info >= (3, 12))  # Package does not work with Python 3.12
 def test_install_remote_wheel_file_with_extras(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv("install fastapi[dev]@https://files.pythonhosted.org/packages/4e/1a/04887c641b67e6649bde845b9a631f73a7abfbe3afda83957e09b95d88eb/fastapi-0.95.2-py3-none-any.whl")

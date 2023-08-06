@@ -1,4 +1,5 @@
 import pytest
+import sys
 
 from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
@@ -7,28 +8,20 @@ from pipenv.utils.shell import temp_environ
 
 @pytest.mark.uninstall
 @pytest.mark.install
-def test_uninstall_requests(pipenv_instance_private_pypi):
-    # Uninstalling requests can fail even when uninstall Django below
-    # succeeds, if requests was de-vendored.
-    # See https://github.com/pypa/pipenv/issues/3644 for problems
-    # caused by devendoring
-    with pipenv_instance_private_pypi() as p:
+def test_uninstall_requests(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
         c = p.pipenv("install requests")
         assert c.returncode == 0
         assert "requests" in p.pipfile["packages"]
 
-        c = p.pipenv("run python -m requests.help")
-        assert c.returncode == 0
-
         c = p.pipenv("uninstall requests")
         assert c.returncode == 0
-        assert "requests" not in p.pipfile["dev-packages"]
-
-        c = p.pipenv("run python -m requests.help")
-        assert c.returncode > 0
+        assert "requests" not in p.pipfile["packages"]
+        assert "requests" not in p.lockfile["default"]
 
 
 @pytest.mark.uninstall
+@pytest.mark.skipif(sys.version_info >= (3, 12))  # Package does not work with Python 3.12
 def test_uninstall_django(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv("install Django")
@@ -52,6 +45,7 @@ def test_uninstall_django(pipenv_instance_private_pypi):
 
 @pytest.mark.install
 @pytest.mark.uninstall
+@pytest.mark.skipif(sys.version_info >= (3, 12))  # Package does not work with Python 3.12
 def test_mirror_uninstall(pipenv_instance_pypi):
     with temp_environ(), pipenv_instance_pypi() as p:
 
