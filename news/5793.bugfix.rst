@@ -1,0 +1,2 @@
+Drop requirementslib for managing pip lines and InstallRequirements, bring remaining requirementslib functionality into pipenv.
+Fixes numerous reports about extras installs with vcs and file installs; format pip lines correctly to not generate deprecation warnings.
