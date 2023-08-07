@@ -927,9 +927,9 @@ def install_req_from_pipfile(name, pipfile):
         if not req_str.startswith(f"{vcs}+"):
             req_str = f"{vcs}+{req_str}"
     elif "path" in _pipfile:
-        req_str = f"-e {_pipfile['path']}{extras_str}"
+        req_str = f"{_pipfile['path']}{extras_str}"
     elif "file" in _pipfile:
-        req_str = f"-e {_pipfile['file']}{extras_str}"
+        req_str = f"{_pipfile['file']}{extras_str}"
     else:
         # We ensure version contains an operator. Default to equals (==)
         _pipfile["version"] = version = get_version(pipfile)
