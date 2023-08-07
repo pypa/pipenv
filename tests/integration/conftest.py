@@ -285,24 +285,26 @@ class _PipenvInstance:
         return os.sep.join([self.path, 'Pipfile.lock'])
 
 
-# Windows python3.8 fails without this patch.  Additional details: https://bugs.python.org/issue42796
-def _rmtree_func(path, ignore_errors=True, onerror=None):
-    shutil_rmtree = _rmtree
-    if onerror is None:
-        onerror = handle_remove_readonly
-    try:
-        shutil_rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
-    except (OSError, FileNotFoundError, PermissionError) as exc:
-        # Ignore removal failures where the file doesn't exist
-        if exc.errno != errno.ENOENT:
-            raise
+if sys.version_info[:2] <= (3, 8):
+    # Windows python3.8 fails without this patch.  Additional details: https://bugs.python.org/issue42796
+    def _rmtree_func(path, ignore_errors=True, onerror=None):
+        shutil_rmtree = _rmtree
+        if onerror is None:
+            onerror = handle_remove_readonly
+        try:
+            shutil_rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
+        except (OSError, FileNotFoundError, PermissionError) as exc:
+            # Ignore removal failures where the file doesn't exist
+            if exc.errno != errno.ENOENT:
+                raise
+else:
+    _rmtree_func = _rmtree
 
 
 @pytest.fixture()
 def pipenv_instance_pypi(capfdbinary, monkeypatch):
     with temp_environ(), monkeypatch.context() as m:
-        if sys.version_info <= (3, 8):
-            m.setattr(shutil, "rmtree", _rmtree_func)
+        m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
         os.environ["PIPENV_NOSPIN"] = "1"
         os.environ["CI"] = "1"
@@ -318,8 +320,7 @@ def pipenv_instance_pypi(capfdbinary, monkeypatch):
 @pytest.fixture()
 def pipenv_instance_private_pypi(capfdbinary, monkeypatch):
     with temp_environ(), monkeypatch.context() as m:
-        if sys.version_info[:2] <= (3, 8):
-            m.setattr(shutil, "rmtree", _rmtree_func)
+        m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
         os.environ["PIPENV_NOSPIN"] = "1"
         os.environ["CI"] = "1"
