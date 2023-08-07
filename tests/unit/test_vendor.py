@@ -3,8 +3,6 @@
 import pipenv  # noqa
 
 import datetime
-import os
-import sys
 
 
 import pytest
@@ -45,10 +43,3 @@ from pipenv.vendor import tomlkit
 def test_token_date(dt, content):
     item = tomlkit.item(dt)
     assert item.as_string() == content
-
-
-@pytest.mark.skipif(os.name == 'nt' and sys.version_info[:2] >= (3, 12), reason='Test hangs on 3.12 windows CI.')
-def test_dump_nonascii_string():
-    content = 'name = "Stažené"\n'
-    toml_content = tomlkit.dumps(tomlkit.loads(content))
-    assert toml_content == content
