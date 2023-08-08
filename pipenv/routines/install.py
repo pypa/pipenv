@@ -510,9 +510,10 @@ def batch_install(
         pypi_mirror=pypi_mirror,
     )
     if search_all_sources:
+        dependencies = [pip_line for _, pip_line in deps_to_install]
         batch_install_iteration(
             project,
-            deps_to_install,
+            dependencies,
             sources,
             procs,
             requirements_dir,

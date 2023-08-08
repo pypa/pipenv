@@ -39,7 +39,6 @@ from pipenv.utils.dependencies import (
     determine_vcs_specifier,
     expansive_install_req_from_line,
     get_canonical_names,
-    has_name_with_extras,
     is_editable,
     pep423_name,
     python_version,
@@ -1130,10 +1129,13 @@ class Project:
                         entry["extras"] = sorted(
                             [extra.strip() for extra in extras_section.split(",")]
                         )
-                    if has_name_with_extras(pip_line):
-                        entry[vcs] = pip_line.split(" @ ", 1)[1]
+                    if "@ " in pip_line:
+                        vcs_part = pip_line.split("@ ", 1)[1]
                     else:
-                        entry[vcs] = pip_line
+                        vcs_part = pip_line
+                    vcs_parts = vcs_part.rsplit("@", 1)
+                    entry["rev"] = vcs_parts[1].split("#", 1)[0].strip()
+                    entry[vcs] = vcs_parts[0].strip()
                     break
         else:
             entry["version"] = specifier

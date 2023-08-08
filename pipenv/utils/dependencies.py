@@ -238,7 +238,7 @@ def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
                     [extra.strip() for extra in extras_section.split(",")]
                 )
             if has_name_with_extras(dep[vcs_type]):
-                lockfile[vcs_type] = dep[vcs_type].split(" @ ", 1)[1]
+                lockfile[vcs_type] = dep[vcs_type].split("@ ", 1)[1]
             else:
                 lockfile[vcs_type] = dep[vcs_type]
             lockfile["ref"] = dep.get("rev")
@@ -367,7 +367,7 @@ def is_editable_path(path):
     for ext in not_editable:
         if path.endswith(ext):
             return False
-    return True
+    return False
 
 
 def dependency_as_pip_install_line(
@@ -437,20 +437,20 @@ def dependency_as_pip_install_line(
         include_vcs = "" if f"{vcs}+" in dep[vcs] else f"{vcs}+"
         vcs_url = dep[vcs]
         # legacy format is the only format supported for editable installs https://github.com/pypa/pip/issues/9106
-        if is_editable_path(dep[vcs]):
+        if is_editable_path(dep[vcs]) or "file://" in dep[vcs]:
             if "#egg=" not in dep[vcs]:
                 git_req = f"-e {include_vcs}{dep[vcs]}{ref}#egg={dep_name}{extras}"
             else:
                 git_req = f"-e {include_vcs}{dep[vcs]}{ref}"
+            if "subdirectory" in dep:
+                git_req += f"&subdirectory={dep['subdirectory']}"
         else:
             if "#egg=" in vcs_url:
                 vcs_url = vcs_url.split("#egg=")[0]
-            if has_name_with_extras(vcs_url):
-                git_req = f"{include_vcs}{vcs_url}{ref}"
-            else:
-                git_req = f"{dep_name}{extras} @ {include_vcs}{vcs_url}{ref}"
-        if "subdirectory" in dep:
-            git_req += f"&subdirectory={dep['subdirectory']}"
+            git_req = f"{dep_name}{extras}@ {include_vcs}{vcs_url}{ref}"
+            if "subdirectory" in dep:
+                git_req += f"#subdirectory={dep['subdirectory']}"
+
         line.append(git_req)
 
     if constraint and not is_constraint:
@@ -867,12 +867,13 @@ def expansive_install_req_from_line(
             name = "file:" + name
 
         return install_req_from_editable(name, line_source)
-    elif editable:
-        return install_req_from_editable(name, line_source)
 
+    vcs_part = name
+    if "@ " in name:  # Check for new style vcs lines
+        vcs_part = name.split("@ ", 1)[1]
     for vcs in VCS_LIST:
-        if name.startswith(f"{vcs}+"):
-            link = get_link_from_line(name)
+        if vcs_part.startswith(f"{vcs}+"):
+            link = get_link_from_line(vcs_part)
             return InstallRequirement(
                 None,
                 comes_from,
@@ -884,6 +885,8 @@ def expansive_install_req_from_line(
                 constraint=constraint,
                 user_supplied=user_supplied,
             )
+    if editable:
+        return install_req_from_editable(name, line_source)
     if urlparse(name).scheme in ("http", "https", "file"):
         parts = parse_req_from_line(name, line_source)
     else:
@@ -923,9 +926,13 @@ def install_req_from_pipfile(name, pipfile):
 
     if vcs:
         _pipfile["vcs"] = vcs
-        req_str = f"{_pipfile[vcs]}"
+        req_str = f"{_pipfile[vcs]}{_pipfile.get('rev', '')}{extras_str}"
         if not req_str.startswith(f"{vcs}+"):
             req_str = f"{vcs}+{req_str}"
+        if f"{vcs}+file://" in req_str:
+            req_str = f"-e {req_str}#egg={name}{extras_str}"
+        else:
+            req_str = f"{name}{extras_str}@ {req_str}"
     elif "path" in _pipfile:
         req_str = f"{_pipfile['path']}{extras_str}"
     elif "file" in _pipfile:

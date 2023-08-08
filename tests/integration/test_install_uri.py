@@ -18,12 +18,13 @@ def test_basic_vcs_install_with_env_var(pipenv_instance_pypi):
         # edge case where normal package starts with VCS name shouldn't be flagged as vcs
         os.environ["GIT_HOST"] = "github.com"
         cli_runner = CliRunner(mix_stderr=False)
-        c = cli_runner.invoke(cli, "install -v git+https://${GIT_HOST}/benjaminp/six.git@1.11.0#egg=six gitdb2")
+        c = cli_runner.invoke(cli, "install -v git+https://${GIT_HOST}/benjaminp/six.git@1.11.0 gitdb2")
         assert c.exit_code == 0
         assert all(package in p.pipfile["packages"] for package in ["six", "gitdb2"])
         assert "git" in p.pipfile["packages"]["six"]
         assert p.lockfile["default"]["six"] == {
-            "git": "git+https://${GIT_HOST}/benjaminp/six.git@1.11.0#egg=six",
+            "git": "git+https://${GIT_HOST}/benjaminp/six.git",
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'",
             "ref": "1.11.0",
         }
         assert "gitdb2" in p.lockfile["default"]
@@ -78,7 +79,7 @@ def test_file_urls_work(pipenv_instance_pypi):
 def test_vcs_install(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv(
-            "install git+https://github.com/lidatong/dataclasses-json.git@v0.5.7#egg=dataclasses-json"
+            "install git+https://github.com/lidatong/dataclasses-json.git@v0.5.7"
         )
         assert c.returncode == 0
         assert "dataclasses-json" in p.pipfile["packages"]
@@ -91,7 +92,7 @@ def test_vcs_install(pipenv_instance_pypi):
 def test_install_git_tag(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv(
-            "install git+https://github.com/benjaminp/six.git@1.11.0#egg=six"
+            "install git+https://github.com/benjaminp/six.git@1.11.0"
         )
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
@@ -99,7 +100,7 @@ def test_install_git_tag(pipenv_instance_private_pypi):
         assert "git" in p.lockfile["default"]["six"]
         assert (
             p.lockfile["default"]["six"]["git"]
-            == "git+https://github.com/benjaminp/six.git@1.11.0#egg=six"
+            == "git+https://github.com/benjaminp/six.git"
         )
         assert "ref" in p.lockfile["default"]["six"]
 
@@ -186,7 +187,7 @@ def test_install_local_vcs_not_in_lockfile(pipenv_instance_pypi):
 def test_get_vcs_refs(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv(
-            "install -e git+https://github.com/benjaminp/six.git@1.9.0#egg=six"
+            "install -e git+https://github.com/benjaminp/six.git@1.9.0"
         )
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
