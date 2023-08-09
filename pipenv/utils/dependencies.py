@@ -986,6 +986,8 @@ def get_constraints_from_deps(deps):
     constraints = set()
     for dep_name, dep_version in deps.items():
         c = None
+        # Constraints cannot contain extras
+        dep_name = dep_name.split("[", 1)[0]
         # Creating a constraint as a canonical name plus a version specifier
         if isinstance(dep_version, str):
             if dep_version and not is_star(dep_version):
