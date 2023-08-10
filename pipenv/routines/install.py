@@ -66,6 +66,7 @@ def do_install(
         skip_requirements=skip_requirements,
         pypi_mirror=pypi_mirror,
         site_packages=site_packages,
+        categories=categories,
     )
     # Don't attempt to install develop and default packages if Pipfile is missing
     if not project.pipfile_exists and not (package_args or dev):
@@ -131,7 +132,12 @@ def do_install(
             err=True,
         )
         try:
-            import_requirements(project, r=project.path_to(requirementstxt), dev=dev)
+            import_requirements(
+                project,
+                r=project.path_to(requirementstxt),
+                dev=dev,
+                categories=categories,
+            )
         except (UnicodeDecodeError, PipError) as e:
             # Don't print the temp file path if remote since it will be deleted.
             req_path = requirements_url if remote else project.path_to(requirementstxt)
