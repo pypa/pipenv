@@ -12,7 +12,7 @@ from pipenv.utils.internet import get_host_and_port
 from pipenv.utils.pip import get_trusted_hosts
 
 
-def import_requirements(project, r=None, dev=False):
+def import_requirements(project, r=None, dev=False, categories=None):
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
     # Since we're not making any network calls, it's initialized to nothing.
@@ -23,6 +23,8 @@ def import_requirements(project, r=None, dev=False):
         r = project.requirements_location
     with open(r) as f:
         contents = f.read()
+    if categories is None:
+        categories = []
     indexes = []
     trusted_hosts = []
     # Find and add extra indexes.
@@ -56,9 +58,22 @@ def import_requirements(project, r=None, dev=False):
                         package_string = str(package.link._url)
                     else:
                         package_string = str(package.link)
-                project.add_package_to_pipfile(package_string, dev=dev)
+                if categories:
+                    for category in categories:
+                        project.add_package_to_pipfile(
+                            package_string, dev=dev, category=category
+                        )
+                else:
+                    project.add_package_to_pipfile(package_string, dev=dev)
             else:
-                project.add_package_to_pipfile(str(package.req), dev=dev)
+                if categories:
+                    for category in categories:
+                        project.add_package_to_pipfile(
+                            str(package.req), dev=dev, category=category
+                        )
+                else:
+                    project.add_package_to_pipfile(str(package.req), dev=dev)
+
     for index in indexes:
         add_index_to_pipfile(project, index, trusted_hosts)
     project.recase_pipfile()
