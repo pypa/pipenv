@@ -693,6 +693,7 @@ def determine_package_name(package: InstallRequirement):
         req_name = str(package).split("#egg=")[1]
     elif "@ " in str(package):
         req_name = str(package).split("@ ")[0]
+        req_name = req_name.split("[")[0]
     elif package.link and package.link.scheme in REMOTE_SCHEMES:
         try:  # Windows python 3.7 will sometimes raise PermissionError cleaning up
             with TemporaryDirectory() as td:
