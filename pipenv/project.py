@@ -1103,7 +1103,6 @@ class Project:
         req_name = determine_package_name(package)
         path_specifier = determine_path_specifier(package)
         vcs_specifier = determine_vcs_specifier(package)
-
         name = self.get_package_name_in_pipfile(req_name, category=category)
         normalized_name = normalize_name(req_name)
 

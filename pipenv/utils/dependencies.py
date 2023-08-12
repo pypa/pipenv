@@ -609,7 +609,8 @@ def find_package_name_from_directory(directory):
         else os.path.normpath(directory)
     )
     if "#egg=" in directory:  # parse includes the fragment in py3.7 and py3.8
-        directory = directory.split("#egg=")[0]
+        expected_name = directory.split("#egg=")[1]
+        return expected_name
     if os.name == "nt":
         if directory.startswith("\\") and (":\\" in directory or ":/" in directory):
             directory = directory[1:]
@@ -688,6 +689,10 @@ def determine_package_name(package: InstallRequirement):
     req_name = None
     if package.name:
         req_name = package.name
+    elif "#egg=" in str(package):
+        req_name = str(package).split("#egg=")[1]
+    elif "@ " in str(package):
+        req_name = str(package).split("@ ")[0]
     elif package.link and package.link.scheme in REMOTE_SCHEMES:
         try:  # Windows python 3.7 will sometimes raise PermissionError cleaning up
             with TemporaryDirectory() as td:
