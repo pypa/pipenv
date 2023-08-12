@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import tarfile
+import tempfile
 import zipfile
 from contextlib import contextmanager
 from functools import lru_cache
@@ -19,12 +20,15 @@ from pipenv.patched.pip._internal.req.constructors import (
     parse_req_from_line,
 )
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.misc import hide_url
+from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
 from pipenv.patched.pip._vendor import tomli
 from pipenv.patched.pip._vendor.distlib.util import COMPARE_OP
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.utils import err
 from pipenv.utils.fileutils import (
     create_tracked_tempdir,
 )
@@ -241,7 +245,7 @@ def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
                 lockfile[vcs_type] = dep[vcs_type].split("@ ", 1)[1]
             else:
                 lockfile[vcs_type] = dep[vcs_type]
-            lockfile["ref"] = dep.get("rev")
+            lockfile["ref"] = dep.get("ref")
             is_vcs_or_file = True
 
     if "editable" in dep:
@@ -651,6 +655,34 @@ def determine_vcs_specifier(package: InstallRequirement):
         return vcs_specifier
 
 
+def get_vcs_backend(vcs_type):
+    backend = VcsSupport().get_backend(vcs_type)
+    return backend
+
+
+def generate_temp_dir_path():
+    # Create a temporary directory using mkdtemp
+    temp_dir = tempfile.mkdtemp()
+    # Remove the created directory
+    os.rmdir(temp_dir)
+    return temp_dir
+
+
+def determine_vcs_revision_hash(
+    package: InstallRequirement, vcs_type: str, revision: str
+):
+    try:  # Windows python 3.7 will sometimes raise PermissionError cleaning up
+        checkout_directory = generate_temp_dir_path()
+        repo_backend = get_vcs_backend(vcs_type)
+        repo_backend.obtain(checkout_directory, hide_url(package.link.url), verbosity=1)
+        return repo_backend.get_revision(checkout_directory)
+    except Exception as e:
+        err.print(
+            f"Error {e} obtaining {vcs_type} revision hash for {package}; falling back to {revision}."
+        )
+        return revision
+
+
 @lru_cache(maxsize=None)
 def determine_package_name(package: InstallRequirement):
     req_name = None
@@ -662,18 +694,20 @@ def determine_package_name(package: InstallRequirement):
                 cmd = get_pip_command()
                 options, _ = cmd.parser.parse_args([])
                 session = cmd._build_session(options)
-                file = unpack_url(
+                local_file = unpack_url(
                     link=package.link,
                     location=td,
                     download=Downloader(session, "off"),
                     verbosity=1,
                 )
-                if file.path.endswith(".whl") or file.path.endswith(".zip"):
-                    req_name = find_package_name_from_zipfile(file.path)
-                elif file.path.endswith(".tar.gz") or file.path.endswith(".tar.bz2"):
-                    req_name = find_package_name_from_tarball(file.path)
+                if local_file.path.endswith(".whl") or local_file.path.endswith(".zip"):
+                    req_name = find_package_name_from_zipfile(local_file.path)
+                elif local_file.path.endswith(".tar.gz") or local_file.path.endswith(
+                    ".tar.bz2"
+                ):
+                    req_name = find_package_name_from_tarball(local_file.path)
                 else:
-                    req_name = find_package_name_from_directory(file.path)
+                    req_name = find_package_name_from_directory(local_file.path)
         except PermissionError:
             pass
     elif package.link and package.link.scheme in [
@@ -926,7 +960,7 @@ def install_req_from_pipfile(name, pipfile):
 
     if vcs:
         _pipfile["vcs"] = vcs
-        req_str = f"{_pipfile[vcs]}{_pipfile.get('rev', '')}{extras_str}"
+        req_str = f"{_pipfile[vcs]}{_pipfile.get('ref', '')}{extras_str}"
         if not req_str.startswith(f"{vcs}+"):
             req_str = f"{vcs}+{req_str}"
         if f"{vcs}+file://" in req_str:

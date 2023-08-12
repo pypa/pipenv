@@ -11,6 +11,7 @@ from typing import Dict, Iterator, List, Optional
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.utils.dependencies import (
     clean_resolved_dep,
+    determine_vcs_revision_hash,
     expansive_install_req_from_line,
     pep423_name,
     translate_markers,
@@ -55,14 +56,11 @@ def format_requirement_for_lockfile(
     index = index_lookup.get(name)
     markers = req.markers
     req.index = index
-    pipfile_entry = pipfile_entries[name] if name in pipfile_entries else None
+    pipfile_entry = pipfile_entries[name] if name in pipfile_entries else {}
     entry = {}
     if req.link and req.link.is_vcs:
         vcs = req.link.scheme.split("+", 1)[0]
-        revision = req.link.show_url.split("@", 1)
-        if len(revision) > 1:
-            revision = revision[1]
-            entry["rev"] = revision
+        entry["ref"] = determine_vcs_revision_hash(req, vcs, pipfile_entry.get("ref"))
         if name in original_deps:
             entry[vcs] = original_deps[name]
         else:
@@ -115,6 +113,8 @@ def get_locked_dep(project, dep, pipfile_section, current_entry=None):
                 if isinstance(pipfile_entry, dict):
                     if pipfile_entry.get("version"):
                         pipfile_entry.pop("version")
+                    if pipfile_entry.get("ref"):
+                        pipfile_entry.pop("ref")
                     dep.update(pipfile_entry)
                 break
 

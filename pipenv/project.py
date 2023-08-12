@@ -1134,7 +1134,7 @@ class Project:
                     else:
                         vcs_part = pip_line
                     vcs_parts = vcs_part.rsplit("@", 1)
-                    entry["rev"] = vcs_parts[1].split("#", 1)[0].strip()
+                    entry["ref"] = vcs_parts[1].split("#", 1)[0].strip()
                     entry[vcs] = vcs_parts[0].strip()
                     break
         else:

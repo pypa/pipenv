@@ -25,7 +25,7 @@ def test_basic_vcs_install_with_env_var(pipenv_instance_pypi):
         assert p.lockfile["default"]["six"] == {
             "git": "git+https://${GIT_HOST}/benjaminp/six.git",
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'",
-            "ref": "1.11.0",
+            "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
         }
         assert "gitdb2" in p.lockfile["default"]
 
@@ -194,7 +194,7 @@ def test_get_vcs_refs(pipenv_instance_private_pypi):
         assert "six" in p.lockfile["default"]
         assert (
             p.lockfile["default"]["six"]["ref"]
-            == "1.9.0"
+            == "5efb522b0647f7467248273ec1b893d06b984a59"
         )
         pipfile = Path(p.pipfile_path)
         new_content = pipfile.read_text().replace("1.9.0", "1.11.0")
@@ -203,7 +203,7 @@ def test_get_vcs_refs(pipenv_instance_private_pypi):
         assert c.returncode == 0
         assert (
             p.lockfile["default"]["six"]["ref"]
-            == "1.11.0"
+            == "15e31431af97e5e64b80af0a3f598d382bcdd49a"
         )
         assert "six" in p.pipfile["packages"]
         assert "six" in p.lockfile["default"]
@@ -239,7 +239,7 @@ Jinja2 = {{ref = "2.11.0", git = "{jinja2_uri}"}}
         assert all(k in p.pipfile["packages"] for k in installed_packages)
         assert all(k.lower() in p.lockfile["default"] for k in installed_packages)
         assert all(k in p.lockfile["default"]["jinja2"] for k in ["ref", "git"]), str(p.lockfile["default"])
-        assert p.lockfile["default"]["jinja2"].get("ref") == "2.11.0"
+        assert p.lockfile["default"]["jinja2"].get("ref") == "bbdafe33ce9f47e3cbfb9415619e354349f11243"
         assert p.lockfile["default"]["jinja2"]["git"] == f"{jinja2_uri}"
 
 
