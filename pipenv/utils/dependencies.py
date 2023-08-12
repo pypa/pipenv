@@ -691,6 +691,7 @@ def determine_package_name(package: InstallRequirement):
         req_name = package.name
     elif "#egg=" in str(package):
         req_name = str(package).split("#egg=")[1]
+        req_name = req_name.split("[")[0]
     elif "@ " in str(package):
         req_name = str(package).split("@ ")[0]
         req_name = req_name.split("[")[0]
