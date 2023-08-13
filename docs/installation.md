@@ -161,6 +161,6 @@ that ensures all commands have access to your installed packages with `$ pipenv 
 - Pipenv automatically maps projects to their specific virtualenvs.
 - By default, the virtualenv is stored globally with the name of the project’s root directory plus the hash of the full path to the project's root (e.g., `my_project-a3de50`).
 - Should you change your project's path, you break such a default mapping and pipenv will no longer be able to find and to use the project's virtualenv.
-- If you must move or rename a directory managed by pipenv, run 'pipenv --rm' before renaming or moving your project directory. Then, after renaming or moving the directory run 'pipenv install' to recreate the virtualenv. 
+- If you must move or rename a directory managed by pipenv, run 'pipenv --rm' before renaming or moving your project directory. Then, after renaming or moving the directory run 'pipenv install' to recreate the virtualenv.
 - Customize this behavior with `PIPENV_CUSTOM_VENV_NAME` environment variable.
 - You might also prefer to set `PIPENV_VENV_IN_PROJECT=1` in your .env or .bashrc/.zshrc (or other shell configuration file) for creating the virtualenv inside your project's directory.
