@@ -767,6 +767,8 @@ def venv_resolve_deps(
                 if category:
                     cmd.append("--category")
                     cmd.append(category)
+                if project.s.is_verbose():
+                    cmd.append("--verbose")
                 target_file = tempfile.NamedTemporaryFile(
                     prefix="resolver", suffix=".json", delete=False
                 )

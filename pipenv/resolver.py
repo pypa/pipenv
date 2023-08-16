@@ -1,10 +1,7 @@
 import importlib.util
 import json
-import logging
 import os
 import sys
-
-os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 
 def _ensure_modules():
@@ -74,21 +71,9 @@ def which(*args, **kwargs):
 
 
 def handle_parsed_args(parsed):
-    if "PIPENV_VERBOSITY" in os.environ:
-        parsed.verbose = int(os.getenv("PIPENV_VERBOSITY"))
-    if parsed.debug:
-        parsed.verbose = max(parsed.verbose, 2)
-    if parsed.verbose > 1:
-        logging.getLogger("pip").setLevel(logging.DEBUG)
-    elif parsed.verbose > 0:
-        logging.getLogger("pip").setLevel(logging.INFO)
-        logger = logging.getLogger(
-            "pipenv.patched.pip._internal.resolution.resolvelib.reporter"
-        )
-        logger.addHandler(logging.StreamHandler())
-        logger.setLevel(logging.INFO)
-        os.environ["PIP_RESOLVER_DEBUG"] = ""
-    os.environ["PIPENV_VERBOSITY"] = str(parsed.verbose)
+    if parsed.verbose:
+        os.environ["PIPENV_VERBOSITY"] = "1"
+        os.environ["PIP_RESOLVER_DEBUG"] = "1"
     if parsed.constraints_file:
         with open(parsed.constraints_file) as constraints:
             file_constraints = constraints.read().strip().split("\n")
@@ -478,6 +463,7 @@ class Entry:
         """
         from pipenv.exceptions import DependencyConflict
         from pipenv.patched.pip._vendor.packaging.requirements import Requirement
+        from pipenv.utils import err
 
         constraints = self.get_constraints()
         pinned_version = self.updated_version
@@ -488,7 +474,7 @@ class Entry:
                 str(pinned_version), prereleases=True
             ):
                 if self.project.s.is_verbose():
-                    print(f"Tried constraint: {constraint!r}", file=sys.stderr)
+                    err.print(f"Tried constraint: {constraint!r}")
                 msg = (
                     "Cannot resolve conflicting version {}{} while {}{} is "
                     "locked.".format(
@@ -671,13 +657,6 @@ def main(argv=None):
     parser = get_parser()
     parsed, remaining = parser.parse_known_args(argv)
     _ensure_modules()
-    import warnings
-
-    from pipenv.vendor.click.utils import get_text_stream
-
-    warnings.simplefilter("ignore", category=ResourceWarning)
-    sys.stdout = get_text_stream("stdout")
-    sys.stderr = get_text_stream("stderr")
     os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
     os.environ["PYTHONIOENCODING"] = "utf-8"
     os.environ["PYTHONUNBUFFERED"] = "1"
