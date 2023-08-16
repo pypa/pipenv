@@ -112,6 +112,7 @@ def cli(
         )
         for key in state.project.__dict__:
             if key.startswith("PIPENV"):
+                console.print(f"  - {key}", style="bold")
         console.print(
             "\nYou can learn more at:\n   "
             "[green]https://pipenv.pypa.io/en/latest/advanced/#configuration-with-environment-variables[/green]",
