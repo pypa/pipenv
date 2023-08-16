@@ -77,9 +77,9 @@ file very easily.
 Let's take this ``Pipfile``::
 
     [[source]]
-    url = "https://pypi.python.org/simple"
-    verify_ssl = true
     name = "pypi"
+    url = "https://pypi.org/simple"
+    verify_ssl = true
 
     [packages]
     requests = {version="==2.18.4"}
@@ -99,7 +99,7 @@ Which generates a ``Pipfile.lock`` upon completion of running ``pipenv lock``` s
                     "sources": [
                             {
                                     "name": "pypi",
-                                    "url": "https://pypi.python.org/simple",
+                                    "url": "https://pypi.org/simple",
                                     "verify_ssl": true
                             }
                     ]
@@ -132,7 +132,7 @@ Which generates a ``Pipfile.lock`` upon completion of running ``pipenv lock``` s
 Given the ``Pipfile.lock`` exists, you may generate a set of requirements out of it with the default dependencies::
 
     $ pipenv requirements
-    -i https://pypi.python.org/simple
+    -i https://pypi.org/simple
     certifi==2022.9.24 ; python_version >= '3.6'
     chardet==3.0.4
     idna==2.6
@@ -143,7 +143,7 @@ As with other commands, passing ``--dev`` will include both the default and
 development dependencies::
 
     $ pipenv requirements --dev
-    -i https://pypi.python.org/simple
+    -i https://pypi.org/simple
     colorama==0.4.5 ; sys_platform == 'win32'
     py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
     pytest==3.2.3
@@ -159,7 +159,7 @@ development requirements you can do that too, using the ``--dev-only``
 flag::
 
     $ pipenv requirements --dev-only
-    -i https://pypi.python.org/simple
+    -i https://pypi.org/simple
     colorama==0.4.5 ; sys_platform == 'win32'
     py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
     pytest==3.2.3
@@ -174,14 +174,14 @@ used to write them to a file::
     $ pipenv requirements > requirements.txt
     $ pipenv requirements --dev-only > dev-requirements.txt
     $ cat requirements.txt
-    -i https://pypi.python.org/simple
+    -i https://pypi.org/simple
     certifi==2022.9.24 ; python_version >= '3.6'
     chardet==3.0.4
     idna==2.6
     requests==2.18.4
     urllib3==1.22
     $ cat dev-requirements.txt
-    -i https://pypi.python.org/simple
+    -i https://pypi.org/simple
     colorama==0.4.5 ; sys_platform == 'win32'
     py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
     pytest==3.2.3
@@ -304,7 +304,8 @@ This is a very fancy feature, and we're very proud of it::
 
     $ cat Pipfile
     [[source]]
-    url = "https://pypi.python.org/simple"
+    name = "pypi"
+    url = "https://pypi.org/simple"
     verify_ssl = true
 
     [dev-packages]
@@ -313,12 +314,12 @@ This is a very fancy feature, and we're very proud of it::
     requests = "*"
 
     [requires]
-    python_version = "3.6"
+    python_version = "3.11"
 
     $ pipenv install
-    Warning: Python 3.6 was not found on your system...
-    Would you like us to install latest CPython 3.6 with pyenv? [Y/n]: y
-    Installing CPython 3.6.2 with pyenv (this may take a few minutes)...
+    Warning: Python 3.11 was not found on your system...
+    Would you like us to install latest CPython 3.11 with pyenv? [Y/n]: y
+    Installing CPython 3.11.2 with pyenv (this may take a few minutes)...
     ...
     Making Python installation global...
     Creating a virtualenv for this project...
@@ -340,47 +341,10 @@ Pipenv automatically honors both the ``python_full_version`` and ``python_versio
 
 Pipenv is being used in projects like `Requests`_ for declaring development dependencies and running the test suite.
 
-We have currently tested deployments with both `Travis-CI`_ and `tox`_ with success.
-
-Travis CI
-/////////
-
-An example Travis CI setup can be found in `Requests`_. The project uses a Makefile to
-define common functions such as its ``init`` and ``tests`` commands. Here is
-a stripped down example ``.travis.yml``::
-
-    language: python
-    python:
-        - "2.6"
-        - "2.7"
-        - "3.3"
-        - "3.4"
-        - "3.5"
-        - "3.6"
-        - "3.7-dev"
-
-    # command to install dependencies
-    install: "make"
-
-    # command to run tests
-    script:
-        - make test
-
-and the corresponding Makefile::
-
-    init:
-        pip install pipenv
-        pipenv install --dev
-
-    test:
-        pipenv run pytest tests
-
-
 Tox Automation Project
 //////////////////////
 
-Alternatively, you can configure a ``tox.ini`` like the one below for both local
-and external testing::
+Here's an example ``tox.ini`` for both local and external testing::
 
     [tox]
     envlist = py37, py38, py39, py310, py311, pypy3, ruff
