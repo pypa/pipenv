@@ -478,9 +478,6 @@ class Resolver:
         link = ireq.link  # Handle VCS and file links first
         if link and (link.is_vcs or (link.is_file and link.is_existing_dir())):
             return set()
-        if link and ireq.original_link:
-            return {self.project.get_hash_from_link(self.hash_cache, ireq.original_link)}
-
         if not is_pinned_requirement(ireq):
             return set()
 

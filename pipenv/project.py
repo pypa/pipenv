@@ -27,6 +27,7 @@ from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_pat
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.configuration import Configuration
 from pipenv.patched.pip._internal.exceptions import ConfigurationError
+from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._vendor import pkg_resources
@@ -308,11 +309,16 @@ class Project:
                 if spec:
                     version = spec.version
             for package_url in hrefs:
-                if version in package_url:
+                if version in parse.unquote(package_url):
                     url_params = parse.urlparse(package_url).fragment
                     params_dict = parse.parse_qs(url_params)
                     if params_dict.get(FAVORITE_HASH):
                         collected_hashes.add(params_dict[FAVORITE_HASH][0])
+                    else:  # Fallback to downloading the file to obtain hash
+                        if source["url"] not in package_url:
+                            package_url = f"{source['url']}{package_url}"
+                        link = Link(package_url)
+                        collected_hashes.add(self.get_file_hash(session, link))
             return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
         except (ValueError, KeyError, ConnectionError):
             if self.s.is_verbose():
@@ -326,6 +332,7 @@ class Project:
 
     def get_file_hash(self, session, link):
         h = hashlib.new(FAVORITE_HASH)
+        err.print(f"Downloading file {link.filename} to obtain hash...")
         with open_file(link.url, session) as fp:
             for chunk in iter(lambda: fp.read(8096), b""):
                 h.update(chunk)

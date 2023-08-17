@@ -936,6 +936,9 @@ def expansive_install_req_from_line(
             name = name.split("--index")[0]
         if " -i " in name:
             name = name.split(" -i ")[0]
+        # handle local version identifiers (like the ones torch uses in their public index)
+        if "+" in name:
+            name = name.split("+")[0]
         parts = parse_req_from_line(name, line_source)
 
     return InstallRequirement(
