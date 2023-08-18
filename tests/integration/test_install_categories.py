@@ -18,7 +18,29 @@ def test_basic_category_install(pipenv_instance_private_pypi):
 
 @pytest.mark.categories
 @pytest.mark.install
-@pytest.mark.parametrize('categories', ["prereq other", "prereq, other"])
+@pytest.mark.requirements
+def test_basic_category_install_from_requirements(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi(pipfile=False) as p:
+        # Write a requirements file
+        with open("requirements.txt", "w") as f:
+            f.write(f"six==1.16.0")
+
+        c = p.pipenv("install --categories prereq")
+        assert c.returncode == 0
+        os.unlink("requirements.txt")
+        print(c.stdout)
+        print(c.stderr)
+        # assert stuff in pipfile
+        assert c.returncode == 0
+        assert "six" not in p.pipfile["packages"]
+        assert "six" not in p.lockfile["default"]
+        assert "six" in p.pipfile["prereq"]
+        assert "six" in p.lockfile["prereq"]
+
+
+@pytest.mark.categories
+@pytest.mark.install
+@pytest.mark.parametrize("categories", ["prereq other", "prereq, other"])
 def test_multiple_category_install(pipenv_instance_private_pypi, categories):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv('install six --categories="prereq other"')
@@ -31,7 +53,30 @@ def test_multiple_category_install(pipenv_instance_private_pypi, categories):
         assert "six" in p.lockfile["other"]
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Complicated test only passing on windows")
+@pytest.mark.categories
+@pytest.mark.install
+@pytest.mark.requirements
+def test_multiple_category_install_from_requirements(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi(pipfile=False) as p:
+        # Write a requirements file
+        with open("requirements.txt", "w") as f:
+            f.write("six==1.16.0")
+
+        c = p.pipenv('install --categories="prereq other"')
+        assert c.returncode == 0
+        os.unlink("requirements.txt")
+        print(c.stdout)
+        print(c.stderr)
+        # assert stuff in pipfile
+        assert c.returncode == 0
+        assert "six" not in p.pipfile["packages"]
+        assert "six" not in p.lockfile["default"]
+        assert "six" in p.pipfile["prereq"]
+        assert "six" in p.lockfile["prereq"]
+        assert "six" in p.pipfile["other"]
+        assert "six" in p.lockfile["other"]
+
+
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.local

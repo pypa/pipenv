@@ -55,7 +55,7 @@ def normalize_name(pkg) -> str:
     return pkg.replace("_", "-").lower()
 
 
-def import_requirements(project, r=None, dev=False):
+def import_requirements(project, r=None, dev=False, categories=None):
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
     # Since we're not making any network calls, it's initialized to nothing.
@@ -66,6 +66,8 @@ def import_requirements(project, r=None, dev=False):
         r = project.requirements_location
     with open(r) as f:
         contents = f.read()
+    if categories is None:
+        categories = []
     indexes = []
     trusted_hosts = []
     # Find and add extra indexes.
@@ -88,9 +90,21 @@ def import_requirements(project, r=None, dev=False):
                         redact_auth_from_url(package.original_link.url)
                     )
 
-                project.add_package_to_pipfile(package, package_string, dev=dev)
+                if categories:
+                    for category in categories:
+                        project.add_package_to_pipfile(
+                            package, package_string, dev=dev, category=category
+                        )
+                else:
+                    project.add_package_to_pipfile(package, package_string, dev=dev)
             else:
-                project.add_package_to_pipfile(package, str(package.req), dev=dev)
+                if categories:
+                    for category in categories:
+                        project.add_package_to_pipfile(
+                            package, str(package.req), dev=dev, category=category
+                        )
+                else:
+                    project.add_package_to_pipfile(package, str(package.req), dev=dev)
     indexes = sorted(set(indexes))
     trusted_hosts = sorted(set(trusted_hosts))
     for index in indexes:

@@ -22,6 +22,7 @@ def ensure_project(
     skip_requirements=False,
     pypi_mirror=None,
     clear=False,
+    categories=None,
 ):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
@@ -81,6 +82,7 @@ def ensure_project(
         validate=validate,
         skip_requirements=skip_requirements,
         system=system,
+        categories=categories,
     )
     os.environ["PIP_PYTHON_PATH"] = project.python(system=system)
 
