@@ -1,1 +1,0 @@
-The ``--skip-lock`` flag which was deprecated, has now been removed to unblock modernizing the pipenv resolver code.

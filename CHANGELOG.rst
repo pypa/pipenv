@@ -1,3 +1,36 @@
+2023.8.19 (2023-08-19)
+======================
+Pipenv 2023.8.19 (2023-08-19)
+=============================
+
+
+Features & Improvements
+-----------------------
+
+- The ``--categories`` option now works with requirements.txt file.  `#5722 <https://github.com/pypa/pipenv/issues/5722>`_
+
+Bug Fixes
+---------
+
+- Drop requirementslib for managing pip lines and InstallRequirements, bring remaining requirementslib functionality into pipenv.
+  Fixes numerous reports about extras installs with vcs and file installs; format pip lines correctly to not generate deprecation warnings.  `#5793 <https://github.com/pypa/pipenv/issues/5793>`_
+
+Vendored Libraries
+------------------
+
+- Update pip 23.2 -> 23.2.1  `#5822 <https://github.com/pypa/pipenv/issues/5822>`_
+
+Improved Documentation
+----------------------
+
+- Added documentation on how to move or rename a project directory  `#5129 <https://github.com/pypa/pipenv/issues/5129>`_
+
+Removals and Deprecations
+-------------------------
+
+- The ``--skip-lock`` flag which was deprecated, has now been removed to unblock modernizing the pipenv resolver code.  `#5805 <https://github.com/pypa/pipenv/issues/5805>`_
+
+
 2023.7.23 (2023-07-23)
 ======================
 

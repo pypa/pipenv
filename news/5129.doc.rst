@@ -1,1 +1,0 @@
-Added documentation on how to move or rename a project directory

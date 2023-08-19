@@ -1,1 +1,0 @@
-The ``--categories`` option now works with requirements.txt file.
