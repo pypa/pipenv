@@ -22,8 +22,7 @@ if sys.argv[-1] == "publish":
 required = [
     "certifi",
     "setuptools>=67.0.0",
-    "virtualenv-clone>=0.2.5",
-    "virtualenv>=20.17.1",
+    "virtualenv>=20.24.2",
 ]
 extras = {
     "dev": [
@@ -31,7 +30,7 @@ extras = {
         "beautifulsoup4",
         "sphinx",
         "flake8>=3.3.0,<4.0",
-        "black;python_version>='3.7'",
+        "black==23.3.0",
         "parver",
         "invoke",
     ],

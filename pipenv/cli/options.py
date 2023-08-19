@@ -2,6 +2,7 @@ import os
 import re
 
 from pipenv.project import Project
+from pipenv.utils import err
 from pipenv.utils.internet import is_valid_url
 from pipenv.vendor.click import (
     BadArgumentUsage,
@@ -483,6 +484,83 @@ def validate_pypi_mirror(ctx, param, value):
     return value
 
 
+# OLD REMOVED COMMANDS THAT WE STILL DISPLAY HELP TEXT FOR #
+def skip_lock_option(f):
+    def callback(ctx, param, value):
+        if value:
+            err.print(
+                "The flag --skip-lock has been functionally removed.  "
+                "Without running the lock resolver it is not possible to manage multiple package indexes.  "
+                "Additionally it bypassed the build consistency guarantees provided by maintaining a lock file.",
+                style="yellow bold",
+            )
+            raise ValueError("The flag --skip-lock flag has been removed.")
+        return value
+
+    return option(
+        "--skip-lock",
+        is_flag=True,
+        default=False,
+        expose_value=False,
+        envvar="PIPENV_SKIP_LOCK",
+        callback=callback,
+        type=click_types.BOOL,
+        show_envvar=True,
+        hidden=True,  # This hides the option from the help text.
+    )(f)
+
+
+def keep_outdated_option(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        state.installstate.keep_outdated = value
+        if value:
+            err.print(
+                "The flag --keep-outdated has been removed.  "
+                "The flag did not respect package resolver results and lead to inconsistent lock files.  "
+                "Consider using the `pipenv upgrade` command to selectively upgrade packages.",
+                style="yellow bold",
+            )
+            raise ValueError("The flag --keep-outdated flag has been removed.")
+        return value
+
+    return option(
+        "--keep-outdated",
+        is_flag=True,
+        default=False,
+        expose_value=False,
+        callback=callback,
+        type=click_types.BOOL,
+        show_envvar=True,
+        hidden=True,  # This hides the option from the help text.
+    )(f)
+
+
+def selective_upgrade_option(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        state.installstate.selective_upgrade = value
+        if value:
+            err.print(
+                "The flag --selective-upgrade has been removed.  "
+                "The flag was buggy and lead to inconsistent lock files.  "
+                "Consider using the `pipenv upgrade` command to selectively upgrade packages.",
+                style="yellow bold",
+            )
+            raise ValueError("The flag --selective-upgrade flag has been removed.")
+        return value
+
+    return option(
+        "--selective-upgrade",
+        is_flag=True,
+        default=False,
+        type=click_types.BOOL,
+        help="Update specified packages.",
+        callback=callback,
+        expose_value=False,
+    )(f)
+
+
 def common_options(f):
     f = pypi_mirror_option(f)
     f = verbose_option(f)
@@ -496,6 +574,7 @@ def install_base_options(f):
     f = common_options(f)
     f = pre_option(f)
     f = extra_pip_args(f)
+    f = keep_outdated_option(f)  # Removed, but still displayed in help text.
     return f
 
 
@@ -505,6 +584,7 @@ def uninstall_options(f):
     f = uninstall_dev_option(f)
     f = editable_option(f)
     f = package_arg(f)
+    f = skip_lock_option(f)  # Removed, but still displayed in help text.
     return f
 
 
@@ -530,6 +610,8 @@ def install_options(f):
     f = ignore_pipfile_option(f)
     f = editable_option(f)
     f = package_arg(f)
+    f = skip_lock_option(f)  # Removed, but still display help text.
+    f = selective_upgrade_option(f)  # Removed, but still display help text.
     return f
 
 

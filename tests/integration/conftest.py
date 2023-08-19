@@ -12,11 +12,12 @@ from tempfile import TemporaryDirectory
 import subprocess
 
 import pytest
-import requests
-from pipenv.utils.processes import subprocess_run
+from pipenv.patched.pip._vendor import requests
 from pipenv.vendor import tomlkit
-from pipenv.vendor.requirementslib.utils import temp_environ
-from pipenv.vendor.requirementslib.models.setup_info import handle_remove_readonly
+
+from pipenv.utils.processes import subprocess_run
+from pipenv.utils.funktools import handle_remove_readonly
+from pipenv.utils.shell import temp_environ
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
@@ -173,7 +174,7 @@ class _Pipfile:
 
     @classmethod
     def get_fixture_path(cls, path, fixtures="test_artifacts"):
-        return Path(__file__).absolute().parent.parent / fixtures / path
+        return Path(__file__).resolve().parent.parent / fixtures / path
 
 
 class _PipenvInstance:
@@ -284,17 +285,21 @@ class _PipenvInstance:
         return os.sep.join([self.path, 'Pipfile.lock'])
 
 
-# Windows python3.8 fails without this patch.  Additional details: https://bugs.python.org/issue42796
-def _rmtree_func(path, ignore_errors=True, onerror=None):
-    shutil_rmtree = _rmtree
-    if onerror is None:
-        onerror = handle_remove_readonly
-    try:
-        shutil_rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
-    except (OSError, FileNotFoundError, PermissionError) as exc:
-        # Ignore removal failures where the file doesn't exist
-        if exc.errno != errno.ENOENT:
-            raise
+if sys.version_info[:2] <= (3, 8):
+    # Windows python3.8 fails without this patch.  Additional details: https://bugs.python.org/issue42796
+    def _rmtree_func(path, ignore_errors=True, onerror=None):
+        shutil_rmtree = _rmtree
+        if onerror is None:
+            onerror = handle_remove_readonly
+        try:
+            shutil_rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
+        except (OSError, FileNotFoundError, PermissionError) as exc:
+            # Ignore removal failures where the file doesn't exist
+            if exc.errno != errno.ENOENT:
+                raise
+else:
+    _rmtree_func = _rmtree
+
 
 @pytest.fixture()
 def pipenv_instance_pypi(capfdbinary, monkeypatch):

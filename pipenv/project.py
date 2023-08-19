@@ -11,6 +11,10 @@ import sys
 import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
+from urllib import parse
+from urllib.parse import unquote
+
+from pipenv.utils.constants import VCS_LIST
 
 try:
     import tomllib as toml
@@ -23,16 +27,35 @@ from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_pat
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.configuration import Configuration
 from pipenv.patched.pip._internal.exceptions import ConfigurationError
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.patched.pip._vendor import pkg_resources
+from pipenv.utils import err
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
+    clean_pkg_version,
+    determine_package_name,
+    determine_path_specifier,
+    determine_vcs_specifier,
+    expansive_install_req_from_line,
     get_canonical_names,
     is_editable,
     pep423_name,
     python_version,
 )
-from pipenv.utils.internet import get_url_name, is_pypi_url, is_valid_url, proper_case
+from pipenv.utils.fileutils import open_file
+from pipenv.utils.internet import (
+    PackageIndexHTMLParser,
+    get_requests_session,
+    get_url_name,
+    is_pypi_url,
+    is_valid_url,
+    proper_case,
+)
 from pipenv.utils.locking import atomic_open_for_write
+from pipenv.utils.project import get_default_pyproject_backend
+from pipenv.utils.requirements import normalize_name
 from pipenv.utils.shell import (
     find_requirements,
     find_windows_executable,
@@ -45,7 +68,6 @@ from pipenv.utils.shell import (
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
 from pipenv.vendor import click, plette, tomlkit
-from pipenv.vendor.requirementslib.models.utils import get_default_pyproject_backend
 
 try:
     # this is only in Python3.8 and later
@@ -132,6 +154,7 @@ class Project:
         self._environment = None
         self._build_system = {"requires": ["setuptools", "wheel"]}
         self.python_version = python_version
+        self.sessions = {}  # pip requests sessions
         self.s = Setting()
         # Load Pip configuration and get items
         self.configuration = Configuration(isolated=False, load_only=None)
@@ -211,6 +234,109 @@ class Project:
             return ["default", "develop"] + list(package_categories)
         else:
             return ["packages", "dev-packages"] + list(package_categories)
+
+    def get_requests_session_for_source(self, source):
+        if self.sessions.get(source["name"]):
+            session = self.sessions[source["name"]]
+        else:
+            session = get_requests_session(
+                self.s.PIPENV_MAX_RETRIES, source.get("verify_ssl", True)
+            )
+            self.sessions[source["name"]] = session
+        return session
+
+    @classmethod
+    def prepend_hash_types(cls, checksums, hash_type):
+        cleaned_checksums = set()
+        for checksum in checksums:
+            if not checksum:
+                continue
+            if not checksum.startswith(f"{hash_type}:"):
+                checksum = f"{hash_type}:{checksum}"
+            cleaned_checksums.add(checksum)
+        return sorted(cleaned_checksums)
+
+    def get_hash_from_link(self, hash_cache, link):
+        if link.hash and link.hash_name == FAVORITE_HASH:
+            return f"{link.hash_name}:{link.hash}"
+
+        return hash_cache.get_hash(link)
+
+    def get_hashes_from_pypi(self, ireq, source):
+        pkg_url = f"https://pypi.org/pypi/{ireq.name}/json"
+        session = self.get_requests_session_for_source(source)
+        try:
+            collected_hashes = set()
+            # Grab the hashes from the new warehouse API.
+            r = session.get(pkg_url, timeout=10)
+            api_releases = r.json()["releases"]
+            cleaned_releases = {}
+            for api_version, api_info in api_releases.items():
+                api_version = clean_pkg_version(api_version)
+                cleaned_releases[api_version] = api_info
+            version = ""
+            if ireq.specifier:
+                spec = next(iter(s for s in ireq.specifier), None)
+                if spec:
+                    version = spec.version
+            for release in cleaned_releases[version]:
+                collected_hashes.add(release["digests"][FAVORITE_HASH])
+            return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
+        except (ValueError, KeyError, ConnectionError):
+            if self.s.is_verbose():
+                err.print(
+                    f"[bold][red]Warning[/red][/bold]: Error generating hash for {ireq.name}."
+                )
+            return None
+
+    def get_hashes_from_remote_index_urls(self, ireq, source):
+        pkg_url = f"{source['url']}/{ireq.name}/"
+        session = self.get_requests_session_for_source(source)
+        try:
+            collected_hashes = set()
+            # Grab the hashes from the new warehouse API.
+            response = session.get(pkg_url, timeout=10)
+            # Create an instance of the parser
+            parser = PackageIndexHTMLParser()
+            # Feed the HTML to the parser
+            parser.feed(response.text)
+            # Extract hrefs
+            hrefs = parser.urls
+
+            version = ""
+            if ireq.specifier:
+                spec = next(iter(s for s in ireq.specifier), None)
+                if spec:
+                    version = spec.version
+            for package_url in hrefs:
+                if version in parse.unquote(package_url):
+                    url_params = parse.urlparse(package_url).fragment
+                    params_dict = parse.parse_qs(url_params)
+                    if params_dict.get(FAVORITE_HASH):
+                        collected_hashes.add(params_dict[FAVORITE_HASH][0])
+                    else:  # Fallback to downloading the file to obtain hash
+                        if source["url"] not in package_url:
+                            package_url = f"{source['url']}{package_url}"
+                        link = Link(package_url)
+                        collected_hashes.add(self.get_file_hash(session, link))
+            return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
+        except (ValueError, KeyError, ConnectionError):
+            if self.s.is_verbose():
+                click.echo(
+                    "{}: Error generating hash for {}".format(
+                        click.style("Warning", bold=True, fg="red"), ireq.name
+                    ),
+                    err=True,
+                )
+            return None
+
+    def get_file_hash(self, session, link):
+        h = hashlib.new(FAVORITE_HASH)
+        err.print(f"Downloading file {link.filename} to obtain hash...")
+        with open_file(link.url, session) as fp:
+            for chunk in iter(lambda: fp.read(8096), b""):
+                h.update(chunk)
+        return f"{h.name}:{h.hexdigest()}"
 
     @property
     def name(self) -> str:
@@ -634,7 +760,7 @@ class Project:
 
     @property
     def _pipfile(self):
-        from .vendor.requirementslib.models.pipfile import Pipfile as ReqLibPipfile
+        from pipenv.utils.pipfile import Pipfile as ReqLibPipfile
 
         pf = ReqLibPipfile.load(self.pipfile_location)
         return pf
@@ -660,7 +786,7 @@ class Project:
         return packages
 
     def _get_vcs_packages(self, dev=False):
-        from pipenv.vendor.requirementslib.utils import is_vcs
+        from pipenv.utils.requirementslib import is_vcs
 
         section = "dev-packages" if dev else "packages"
         packages = {
@@ -745,9 +871,7 @@ class Project:
         return source
 
     def get_or_create_lockfile(self, categories, from_pipfile=False):
-        from pipenv.vendor.requirementslib.models.lockfile import (
-            Lockfile as Req_Lockfile,
-        )
+        from pipenv.utils.locking import Lockfile as Req_Lockfile
 
         if from_pipfile and self.pipfile_exists:
             lockfile_dict = {}
@@ -868,6 +992,14 @@ class Project:
                 source["url"] = os.environ["PIPENV_PYPI_MIRROR"]
         return sources
 
+    def get_default_index(self):
+        return self.pipfile_sources()[0]
+
+    def get_index_by_name(self, index_name):
+        for source in self.pipfile_sources():
+            if source.get("name") == index_name:
+                return source
+
     @property
     def sources(self):
         if self.lockfile_exists and hasattr(self.lockfile_content, "keys"):
@@ -937,7 +1069,9 @@ class Project:
 
     def get_package_name_in_pipfile(self, package_name, category):
         """Get the equivalent package name in pipfile"""
-        section = self.parsed_pipfile.get(category, {})
+        section = self.parsed_pipfile.get(category)
+        if section is None:
+            section = {}
         package_name = pep423_name(package_name)
         for name in section.keys():
             if pep423_name(name) == package_name:
@@ -968,31 +1102,90 @@ class Project:
                 del parsed[category][pkg_name]
         self.write_toml(parsed)
 
-    def add_package_to_pipfile(self, package, dev=False, category=None):
-        from .vendor.requirementslib import Requirement
+    def generate_package_pipfile_entry(self, package, pip_line, category=None):
+        # Don't re-capitalize file URLs or VCSs.
+        if not isinstance(package, InstallRequirement):
+            package = expansive_install_req_from_line(package.strip())
 
+        req_name = determine_package_name(package)
+        path_specifier = determine_path_specifier(package)
+        vcs_specifier = determine_vcs_specifier(package)
+        name = self.get_package_name_in_pipfile(req_name, category=category)
+        normalized_name = normalize_name(req_name)
+
+        extras = package.extras
+        specifier = "*"
+        if package.req and package.specifier:
+            specifier = str(package.specifier)
+
+        # Construct package requirement
+        entry = {}
+        if extras:
+            entry["extras"] = list(extras)
+        if path_specifier:
+            entry["file"] = unquote(path_specifier)
+        elif vcs_specifier:
+            for vcs in VCS_LIST:
+                if vcs in package.link.scheme:
+                    if pip_line.startswith("-e"):
+                        entry["editable"] = True
+                        pip_line = pip_line.replace("-e ", "")
+                    if "[" in pip_line and "]" in pip_line:
+                        extras_section = pip_line.split("[")[1].split("]")[0]
+                        entry["extras"] = sorted(
+                            [extra.strip() for extra in extras_section.split(",")]
+                        )
+                    if "@ " in pip_line:
+                        vcs_part = pip_line.split("@ ", 1)[1]
+                    else:
+                        vcs_part = pip_line
+                    vcs_parts = vcs_part.rsplit("@", 1)
+                    entry["ref"] = vcs_parts[1].split("#", 1)[0].strip()
+                    entry[vcs] = vcs_parts[0].strip()
+                    break
+        else:
+            entry["version"] = specifier
+        if hasattr(package, "index"):
+            entry["index"] = package.index
+
+        if len(entry) == 1 and "version" in entry:
+            return name, normalized_name, specifier
+        else:
+            return name, normalized_name, entry
+
+    def add_package_to_pipfile(self, package, pip_line, dev=False, category=None):
+        category = category if category else "dev-packages" if dev else "packages"
+
+        name, normalized_name, entry = self.generate_package_pipfile_entry(
+            package, pip_line, category=category
+        )
+
+        return self.add_pipfile_entry_to_pipfile(
+            name, normalized_name, entry, category=category
+        )
+
+    def add_pipfile_entry_to_pipfile(self, name, normalized_name, entry, category=None):
         newly_added = False
+
         # Read and append Pipfile.
         p = self.parsed_pipfile
-        # Don't re-capitalize file URLs or VCSs.
-        if not isinstance(package, Requirement):
-            package = Requirement.from_line(package.strip(), parse_setup_info=False)
-        req_name, converted = package.pipfile_entry
-        category = category if category else "dev-packages" if dev else "packages"
+
         # Set empty group if it doesn't exist yet.
         if category not in p:
             p[category] = {}
-        # Add the package to the group.
-        name = self.get_package_name_in_pipfile(req_name, category=category)
-        normalized_name = pep423_name(req_name)
+
         if name and name != normalized_name:
             self.remove_package_from_pipfile(name, category=category)
+
+        # Add the package to the group.
         if normalized_name not in p[category]:
             newly_added = True
-        p[category][normalized_name] = converted
+
+        p[category][normalized_name] = entry
+
         # Write Pipfile.
         self.write_toml(p)
-        return newly_added, category
+        return newly_added, category, normalized_name
 
     def src_name_from_url(self, index_url):
         name, _, tld_guess = urllib.parse.urlsplit(index_url).netloc.rpartition(".")

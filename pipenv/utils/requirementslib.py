@@ -1,77 +1,35 @@
-# This Module is taken in part from the click project and expanded
-# see https://github.com/pallets/click/blob/6cafd32/click/_winconsole.py
-# Copyright © 2014 by the Pallets team.
-
-# Some rights reserved.
-
-# Redistribution and use in source and binary forms of the software as well as
-# documentation, with or without modification, are permitted provided that the
-# following conditions are met:
-#     Redistributions of source code must retain the above copyright notice,
-#           this list of conditions and the following disclaimer.
-#     Redistributions in binary form must reproduce the above copyright notice,
-#           this list of conditions and the following disclaimer in the
-#           documentation and/or other materials provided with the distribution.
-#     Neither the name of the copyright holder nor the names of its contributors
-#           may be used to endorse or promote products derived from this
-#           software without specific prior written permission.
-
-# THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY THE COPYRIGHT HOLDERS AND
-# CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
-# NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
-# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE AND
-# DOCUMENTATION, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-import logging
 import os
-import sys
 from collections.abc import ItemsView, Mapping, Sequence, Set
-from contextlib import contextmanager
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple, TypeVar, Union
 from urllib.parse import urlparse, urlsplit, urlunparse
 
-import pipenv.vendor.tomlkit as tomlkit
 from pipenv.patched.pip._internal.commands.install import InstallCommand
+from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.target_python import TargetPython
+from pipenv.patched.pip._internal.network.download import Downloader
+from pipenv.patched.pip._internal.operations.prepare import (
+    File,
+    _check_download_dir,
+    get_file_url,
+    unpack_vcs_link,
+)
 from pipenv.patched.pip._internal.utils.filetypes import is_archive_file
+from pipenv.patched.pip._internal.utils.hashes import Hashes
 from pipenv.patched.pip._internal.utils.misc import is_installable_dir
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.pip._internal.utils.unpacking import unpack_file
 from pipenv.patched.pip._vendor.packaging import specifiers
+from pipenv.utils.fileutils import is_valid_url, normalize_path, url_to_path
+from pipenv.vendor import tomlkit
 
-from .environment import MYPY_RUNNING
-from .fileutils import is_valid_url, normalize_path, url_to_path
-
-if MYPY_RUNNING:
-    from typing import Dict, Iterator, List, Optional, Text, Tuple, TypeVar, Union
-
-    STRING_TYPE = Union[bytes, str, Text]
-    S = TypeVar("S", bytes, str, Text)
-    PipfileEntryType = Union[STRING_TYPE, bool, Tuple[STRING_TYPE], List[STRING_TYPE]]
-    PipfileType = Union[STRING_TYPE, Dict[STRING_TYPE, PipfileEntryType]]
+STRING_TYPE = Union[bytes, str, str]
+S = TypeVar("S", bytes, str, str)
+PipfileEntryType = Union[STRING_TYPE, bool, Tuple[STRING_TYPE], List[STRING_TYPE]]
+PipfileType = Union[STRING_TYPE, Dict[STRING_TYPE, PipfileEntryType]]
 
 
 VCS_LIST = ("git", "svn", "hg", "bzr")
-
-
-def setup_logger():
-    logger = logging.getLogger("requirementslib")
-    loglevel = logging.DEBUG
-    handler = logging.StreamHandler(stream=sys.stderr)
-    handler.setLevel(loglevel)
-    logger.addHandler(handler)
-    logger.setLevel(loglevel)
-    return logger
-
-
-log = setup_logger()
-
-
 SCHEME_LIST = ("http://", "https://", "ftp://", "ftps://", "file://")
 
 
@@ -111,10 +69,8 @@ def strip_ssh_from_git_uri(uri):
             # split the path on the first separating / so we can put the first segment
             # into the 'netloc' section with a : separator
             path_part, _, path = parsed.path.lstrip("/").partition("/")
-            path = "/{0}".format(path)
-            parsed = parsed._replace(
-                netloc="{0}:{1}".format(parsed.netloc, path_part), path=path
-            )
+            path = f"/{path}"
+            parsed = parsed._replace(netloc=f"{parsed.netloc}:{path_part}", path=path)
             uri = urlunparse(parsed).replace("git+ssh://", "git+", 1)
     return uri
 
@@ -129,7 +85,7 @@ def add_ssh_scheme_to_git_uri(uri):
             parsed = urlparse(uri)
             if ":" in parsed.netloc:
                 netloc, _, path_start = parsed.netloc.rpartition(":")
-                path = "/{0}{1}".format(path_start, parsed.path)
+                path = f"/{path_start}{parsed.path}"
                 uri = urlunparse(parsed._replace(netloc=netloc, path=path))
     return uri
 
@@ -170,10 +126,10 @@ def convert_entry_to_path(path):
     """Convert a pipfile entry to a string."""
 
     if not isinstance(path, Mapping):
-        raise TypeError("expecting a mapping, received {0!r}".format(path))
+        raise TypeError(f"expecting a mapping, received {path!r}")
 
     if not any(key in path for key in ["file", "path"]):
-        raise ValueError("missing path-like entry in supplied mapping {0!r}".format(path))
+        raise ValueError(f"missing path-like entry in supplied mapping {path!r}")
 
     if "file" in path:
         path = url_to_path(path["file"])
@@ -276,7 +232,7 @@ def prepare_pip_source_args(sources, pip_args=None):
         pip_args = []
     if sources:
         # Add the source to pip9.
-        pip_args.extend(["-i", sources[0]["url"]])  # type: ignore
+        pip_args.extend(["-i ", sources[0]["url"]])  # type: ignore
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
             pip_args.extend(
@@ -375,14 +331,10 @@ class PathAccessError(KeyError, IndexError, TypeError):
 
     def __repr__(self):
         cn = self.__class__.__name__
-        return "%s(%r, %r, %r)" % (cn, self.exc, self.seg, self.path)
+        return f"{cn}({self.exc!r}, {self.seg!r}, {self.path!r})"
 
     def __str__(self):
-        return "could not access %r from path %r, got error: %r" % (
-            self.seg,
-            self.path,
-            self.exc,
-        )
+        return f"could not access {self.seg} from path {self.path}, got error: {self.exc}"
 
 
 def get_path(root, path, default=_UNSET):
@@ -421,7 +373,7 @@ def get_path(root, path, default=_UNSET):
                 cur = cur[seg]
             except (KeyError, IndexError) as exc:
                 raise PathAccessError(exc, seg, path)
-            except TypeError as exc:
+            except TypeError:
                 # either string index in a list, or a parent that
                 # doesn't support indexing
                 try:
@@ -701,20 +653,90 @@ def get_pip_command() -> InstallCommand:
     # General options (find_links, index_url, extra_index_url, trusted_host,
     # and pre) are deferred to pip.
     pip_command = InstallCommand(
-        name="InstallCommand", summary="requirementslib pip Install command."
+        name="InstallCommand", summary="pipenv pip Install command."
     )
     return pip_command
 
 
-# Borrowed from Pew.
-# See https://github.com/berdario/pew/blob/master/pew/_utils.py#L82
-@contextmanager
-def temp_environ():
-    # type: () -> Iterator[None]
-    """Allow the ability to set os.environ temporarily."""
-    environ = dict(os.environ)
-    try:
-        yield
-    finally:
-        os.environ.clear()
-        os.environ.update(environ)
+def unpack_url(
+    link: Link,
+    location: str,
+    download: Downloader,
+    verbosity: int,
+    download_dir: Optional[str] = None,
+    hashes: Optional[Hashes] = None,
+) -> Optional[File]:
+    """Unpack link into location, downloading if required.
+
+    :param hashes: A Hashes object, one of whose embedded hashes must match,
+        or HashMismatch will be raised. If the Hashes is empty, no matches are
+        required, and unhashable types of requirements (like VCS ones, which
+        would ordinarily raise HashUnsupported) are allowed.
+    """
+    # non-editable vcs urls
+    if link.scheme in [
+        "git+http",
+        "git+https",
+        "git+ssh",
+        "git+git",
+        "hg+http",
+        "hg+https",
+        "hg+ssh",
+        "svn+http",
+        "svn+https",
+        "svn+svn",
+        "bzr+http",
+        "bzr+https",
+        "bzr+ssh",
+        "bzr+sftp",
+        "bzr+ftp",
+        "bzr+lp",
+    ]:
+        unpack_vcs_link(link, location, verbosity=verbosity)
+        return File(location, content_type=None)
+
+    assert not link.is_existing_dir()
+
+    # file urls
+    if link.is_file:
+        file = get_file_url(link, download_dir, hashes=hashes)
+
+    # http urls
+    else:
+        file = get_http_url(
+            link,
+            download,
+            download_dir,
+            hashes=hashes,
+        )
+
+    # unpack the archive to the build dir location. even when only downloading
+    # archives, they have to be unpacked to parse dependencies, except wheels
+    if not link.is_wheel:
+        unpack_file(file.path, location, file.content_type)
+
+    return file
+
+
+def get_http_url(
+    link: Link,
+    download: Downloader,
+    download_dir: Optional[str] = None,
+    hashes: Optional[Hashes] = None,
+) -> File:
+    temp_dir = TempDirectory(kind="unpack", globally_managed=False)
+    # If a download dir is specified, is the file already downloaded there?
+    already_downloaded_path = None
+    if download_dir:
+        already_downloaded_path = _check_download_dir(link, download_dir, hashes)
+
+    if already_downloaded_path:
+        from_path = already_downloaded_path
+        content_type = None
+    else:
+        # let's download to a tmp dir
+        from_path, content_type = download(link, temp_dir.path)
+        if hashes:
+            hashes.check_against_path(from_path)
+
+    return File(from_path, content_type)

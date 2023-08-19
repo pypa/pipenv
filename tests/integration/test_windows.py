@@ -48,7 +48,7 @@ def test_local_path_windows(pipenv_instance_pypi):
     except OSError:
         whl = whl.absolute()
     with pipenv_instance_pypi() as p:
-        c = p.pipenv(f'install "{whl}"')
+        c = p.pipenv(f'install "{whl}" -v')
         assert c.returncode == 0
 
 
@@ -64,7 +64,7 @@ def test_local_path_windows_forward_slash(pipenv_instance_pypi):
     except OSError:
         whl = whl.absolute()
     with pipenv_instance_pypi() as p:
-        c = p.pipenv(f'install "{whl.as_posix()}"')
+        c = p.pipenv(f'install "{whl.as_posix()}" -v')
         assert c.returncode == 0
 
 

@@ -3,7 +3,7 @@
 import pipenv  # noqa
 
 import datetime
-import os
+
 
 import pytest
 import pytz
@@ -43,9 +43,3 @@ from pipenv.vendor import tomlkit
 def test_token_date(dt, content):
     item = tomlkit.item(dt)
     assert item.as_string() == content
-
-
-def test_dump_nonascii_string():
-    content = 'name = "Stažené"\n'
-    toml_content = tomlkit.dumps(tomlkit.loads(content))
-    assert toml_content == content

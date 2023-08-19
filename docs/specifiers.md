@@ -103,30 +103,54 @@ All sub-dependencies will get added to the `Pipfile.lock` as well. Sub-dependenc
 
 ## VCS Dependencies
 
-VCS dependencies from git and other version control systems using URLs formatted according to the following rule:
+VCS dependencies from git and other version control systems using URLs formatted using preferred pip line formats:
 
-    <vcs_type>+<scheme>://<location>/<user_or_organization>/<repository>@<branch_or_tag>#egg=<package_name>
+    <vcs_type>+<scheme>://<location>/<user_or_organization>/<repository>@<branch_or_tag>
 
-The only optional section is the `@<branch_or_tag>` section.  When using git over SSH, you may use the shorthand vcs and scheme alias `git+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#egg=<package_name>`. Note that this is translated to `git+ssh://git@<location>` when parsed.
+Extras may be specified using the following format when issuing install command:
 
-Note that it is **strongly recommended** that you install any version-controlled dependencies in editable mode, using `pipenv install -e`, in order to ensure that dependency resolution can be performed with an up-to-date copy of the repository each time it is performed, and that it includes all known dependencies.
+    <package_name><possible_extras>@ <vcs_type>+<scheme>://<location>/<user_or_organization>/<repository>@<branch_or_tag>
+
+Note: that the #egg fragments should only be used for legacy pip lines which are still required in editable requirements.
+
+    $ pipenv install -e git+https://github.com/requests/requests.git@v2.31.0#egg=requests
+
 
 Below is an example usage which installs the git repository located at `https://github.com/requests/requests.git` from tag `v2.20.1` as package name `requests`:
 
     $ pipenv install -e git+https://github.com/requests/requests.git@v2.20.1#egg=requests
-    Creating a Pipfile for this project...
     Installing -e git+https://github.com/requests/requests.git@v2.20.1#egg=requests...
-    [...snipped...]
-    Adding -e git+https://github.com/requests/requests.git@v2.20.1#egg=requests to Pipfile's [packages]...
-    [...]
+    Resolving -e git+https://github.com/requests/requests.git@v2.20.1#egg=requests...
+    Added requests to Pipfile's [packages] ...
+    Installation Succeeded
+    Pipfile.lock not found, creating...
+    Locking [packages] dependencies...
+    Building requirements...
+    Resolving dependencies...
+    Success!
+    Locking [dev-packages] dependencies...
+    Updated Pipfile.lock (389441cc656bb774aaa28c7e53a35137aace7499ca01668765d528fa79f8acc8)!
+    Installing dependencies from Pipfile.lock (f8acc8)...
+    To activate this project's virtualenv, run pipenv shell.
+    Alternatively, run a command inside the virtualenv with pipenv run.
 
     $ cat Pipfile
     [packages]
-    requests = {git = "https://github.com/requests/requests.git", editable = true, ref = "v2.20.1"}
+    requests = {editable = true, ref = "v2.20.1", git = "git+https://github.com/requests/requests.git"}
+
+    $ cat Pipfile.lock
+    ...
+    "requests": {
+        "editable": true,
+        "git": "git+https://github.com/requests/requests.git",
+        "markers": "python_version >= '3.7'",
+        "ref": "6cfbe1aedd56f8c2f9ff8b968efe65b22669795b"
+    },
+    ...
 
 Valid values for `<vcs_type>` include `git`, `bzr`, `svn`, and `hg`.  Valid values for `<scheme>` include `http`, `https`, `ssh`, and `file`.  In specific cases you also have access to other schemes: `svn` may be combined with `svn` as a scheme, and `bzr` can be combined with `sftp` and `lp`.
 
-You can read more about pip's implementation of VCS support `here <https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`__. For more information about other options available when specifying VCS dependencies, please check the `Pipfile spec <https://github.com/pypa/pipfile>`_.
+You can read more about pip's implementation of VCS support `here <https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`__.
 
 
 ## Specifying Package Categories

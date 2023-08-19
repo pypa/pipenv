@@ -12,21 +12,23 @@ import typing
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
 from urllib.parse import urlparse
-from urllib.request import url2pathname
 
 import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor import pkg_resources
+from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils import console
+from pipenv.utils.constants import VCS_LIST
+from pipenv.utils.dependencies import as_pipfile
+from pipenv.utils.fileutils import normalize_path, temp_path
 from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
-from pipenv.utils.shell import make_posix
+from pipenv.utils.shell import make_posix, temp_environ
 from pipenv.vendor.pythonfinder.utils import is_in_path
-from pipenv.vendor.requirementslib.fileutils import normalize_path, temp_path
-from pipenv.vendor.requirementslib.utils import temp_environ
 
 try:
     # this is only in Python3.8 and later
@@ -200,11 +202,6 @@ class Environment:
         .. note:: The implementation of this is borrowed from a combination of pip and
            virtualenv and is likely to change at some point in the future.
 
-        >>> from pipenv.core import project
-        >>> from pipenv.environment import Environment
-        >>> env = Environment(prefix=project.virtualenv_location, is_venv=True, sources=project.sources)
-        >>> import pprint
-        >>> pprint.pprint(env.base_paths)
         {'PATH': '/home/hawk/.virtualenvs/pipenv-MfOPs1lW/bin::/bin:/usr/bin',
         'PYTHONPATH': '/home/hawk/.virtualenvs/pipenv-MfOPs1lW/lib/python3.7/site-packages',
         'data': '/home/hawk/.virtualenvs/pipenv-MfOPs1lW',
@@ -760,38 +757,46 @@ class Environment:
 
         return any(d for d in self.get_distributions() if d.project_name == pkgname)
 
-    def is_satisfied(self, req):
+    def is_satisfied(self, req: InstallRequirement):
         match = next(
             iter(
                 d
                 for d in self.get_distributions()
-                if canonicalize_name(d.project_name) == req.normalized_name
+                if req.name
+                and canonicalize_name(d.project_name) == canonicalize_name(req.name)
             ),
             None,
         )
         if match is not None:
-            if req.editable and req.line_instance.is_local and self.find_egg(match):
-                requested_path = req.line_instance.path
+            if req.editable and req.link and req.link.is_file:
+                requested_path = req.link.file_path
                 if os.path.exists(requested_path):
                     local_path = requested_path
                 else:
                     parsed_url = urlparse(requested_path)
-                    local_path = url2pathname(parsed_url.path)
+                    local_path = parsed_url.path
                 return requested_path and os.path.samefile(local_path, match.location)
             elif match.has_metadata("direct_url.json"):
                 direct_url_metadata = json.loads(match.get_metadata("direct_url.json"))
-                commit_id = direct_url_metadata.get("vcs_info", {}).get("commit_id", "")
-                vcs_type = direct_url_metadata.get("vcs_info", {}).get("vcs", "")
-                _, pipfile_part = req.as_pipfile().popitem()
-                return (
-                    vcs_type == req.vcs
-                    and commit_id == req.commit_hash
-                    and direct_url_metadata["url"] == pipfile_part[req.vcs]
+                requested_revision = direct_url_metadata.get("vcs_info", {}).get(
+                    "requested_revision", ""
                 )
-            elif req.is_vcs or req.is_file_or_url:
+                vcs_type = direct_url_metadata.get("vcs_info", {}).get("vcs", "")
+                _, pipfile_part = as_pipfile(req).popitem()
+                vcs_ref = ""
+                for vcs in VCS_LIST:
+                    if pipfile_part.get(vcs):
+                        vcs_ref = pipfile_part[vcs].rsplit("@", 1)[-1]
+                        break
+                return (
+                    vcs_type == req.link.scheme
+                    and vcs_ref == requested_revision
+                    and direct_url_metadata["url"] == pipfile_part[req.link.scheme]
+                )
+            elif req.link and req.link.is_vcs:
                 return False
-            elif req.line_instance.specifiers is not None:
-                return req.line_instance.specifiers.contains(
+            elif req.specifier is not None:
+                return SpecifierSet(str(req.specifier)).contains(
                     match.version, prereleases=True
                 )
             return True

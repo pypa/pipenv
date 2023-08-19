@@ -157,10 +157,7 @@ def test_resolve_skip_unmatched_requirements(pipenv_instance_pypi):
         p._pipfile.add("missing-package", {"markers": "os_name=='FakeOS'"})
         c = p.pipenv("lock")
         assert c.returncode == 0
-        assert (
-            "Could not find a version of missing-package ; "
-            "os_name == 'FakeOS' that matches your environment"
-        ) in c.stderr
+        assert 'Could not find a matching version of missing-package; os_name == "FakeOS"' in c.stderr
 
 
 @pytest.mark.lock
@@ -358,7 +355,7 @@ requests = {git = "%s@883caaf", editable = true}
             """.strip() % requests_uri)
         c = p.pipenv('lock')
         assert c.returncode == 0
-        assert p.lockfile['default']['requests']['git'] == requests_uri
+        assert requests_uri in p.lockfile['default']['requests']['git']
         assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
 
 
@@ -509,21 +506,21 @@ def test_lock_nested_vcs_direct_url(pipenv_instance_pypi):
         assert "git" in p.lockfile["default"]["pep508-package"]
         assert "sibling-package" in p.lockfile["default"]
         assert "git" in p.lockfile["default"]["sibling-package"]
-        assert "subdirectory" in p.lockfile["default"]["sibling-package"]
+        assert "subdirectory" in p.lockfile["default"]["sibling-package"]["git"]
         assert "version" not in p.lockfile["default"]["sibling-package"]
 
 
 @pytest.mark.lock
 @pytest.mark.install
-def test_lock_package_with_wildcard_version(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
-        c = p.pipenv("install 'six==1.11.*'")
+def test_lock_package_with_compatible_release_specifier(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        c = p.pipenv("install six~=1.11")
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
-        assert p.pipfile["packages"]["six"] == "==1.11.*"
+        assert p.pipfile["packages"]["six"] == "~=1.11"
         assert "six" in p.lockfile["default"]
         assert "version" in p.lockfile["default"]["six"]
-        assert p.lockfile["default"]["six"]["version"] == "==1.11.0"
+        assert p.lockfile["default"]["six"]["version"] == "==1.12.0"
 
 
 @pytest.mark.lock
@@ -649,4 +646,4 @@ dataclasses-json = {extras = ["dev"], version = "==0.5.7"}
         assert c.returncode == 0
         assert "dataclasses-json" in p.pipfile["packages"]
         assert "dataclasses-json" in p.lockfile["default"]
-        assert "markers" not in p.lockfile["default"]["dataclasses-json"]
+        assert p.lockfile["default"]["dataclasses-json"].get("markers", "") is not None

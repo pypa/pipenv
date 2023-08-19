@@ -1,10 +1,7 @@
 import importlib.util
 import json
-import logging
 import os
 import sys
-
-os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 
 def _ensure_modules():
@@ -74,21 +71,9 @@ def which(*args, **kwargs):
 
 
 def handle_parsed_args(parsed):
-    if "PIPENV_VERBOSITY" in os.environ:
-        parsed.verbose = int(os.getenv("PIPENV_VERBOSITY"))
-    if parsed.debug:
-        parsed.verbose = max(parsed.verbose, 2)
-    if parsed.verbose > 1:
-        logging.getLogger("pip").setLevel(logging.DEBUG)
-    elif parsed.verbose > 0:
-        logging.getLogger("pip").setLevel(logging.INFO)
-        logger = logging.getLogger(
-            "pipenv.patched.pip._internal.resolution.resolvelib.reporter"
-        )
-        logger.addHandler(logging.StreamHandler())
-        logger.setLevel(logging.INFO)
-        os.environ["PIP_RESOLVER_DEBUG"] = ""
-    os.environ["PIPENV_VERBOSITY"] = str(parsed.verbose)
+    if parsed.verbose:
+        os.environ["PIPENV_VERBOSITY"] = "1"
+        os.environ["PIP_RESOLVER_DEBUG"] = "1"
     if parsed.constraints_file:
         with open(parsed.constraints_file) as constraints:
             file_constraints = constraints.read().strip().split("\n")
@@ -107,7 +92,7 @@ class Entry:
         from pipenv.utils.dependencies import (
             get_lockfile_section_using_pipfile_category,
         )
-        from pipenv.vendor.requirementslib.models.utils import tomlkit_value_to_python
+        from pipenv.utils.toml import tomlkit_value_to_python
 
         self.name = name
         if isinstance(entry_dict, dict):
@@ -141,14 +126,19 @@ class Entry:
 
     @staticmethod
     def make_requirement(name=None, entry=None):
-        from pipenv.vendor.requirementslib.models.requirements import Requirement
+        from pipenv.utils.dependencies import from_pipfile
 
-        return Requirement.from_pipfile(name, entry)
+        return from_pipfile(name, entry)
 
     @classmethod
     def clean_initial_dict(cls, entry_dict):
-        if not entry_dict.get("version", "").startswith("=="):
-            entry_dict["version"] = cls.clean_specifier(entry_dict.get("version", ""))
+        from pipenv.patched.pip._vendor.packaging.requirements import Requirement
+
+        entry_dict.get("version", "")
+        version = entry_dict.get("version", "")
+        if isinstance(version, Requirement):
+            version = str(version.specifier)
+        entry_dict["version"] = cls.clean_specifier(version)
         if "name" in entry_dict:
             del entry_dict["name"]
         return entry_dict
@@ -176,7 +166,7 @@ class Entry:
     @classmethod
     def get_markers_from_dict(cls, entry_dict):
         from pipenv.patched.pip._vendor.packaging import markers as packaging_markers
-        from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
+        from pipenv.utils.markers import normalize_marker_str
 
         marker_keys = cls.parse_pyparsing_exprs(packaging_markers.VARIABLE)
         markers = set()
@@ -217,7 +207,7 @@ class Entry:
 
     @staticmethod
     def marker_to_str(marker):
-        from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
+        from pipenv.utils.markers import normalize_marker_str
 
         if not marker:
             return None
@@ -242,20 +232,19 @@ class Entry:
             entry_extras = list(self.entry.extras)
             if self.lockfile_entry.extras:
                 entry_extras.extend(list(self.lockfile_entry.extras))
-            self._entry.req.extras = entry_extras
-            self.entry_dict["extras"] = self.entry.extras
+            self.entry_dict["extras"] = entry_extras
         if self.original_markers and not self.markers:
             original_markers = self.marker_to_str(self.original_markers)
             self.markers = original_markers
             self.entry_dict["markers"] = self.marker_to_str(original_markers)
-        entry_hashes = set(self.entry.hashes)
-        locked_hashes = set(self.lockfile_entry.hashes)
-        if entry_hashes != locked_hashes and not self.is_updated:
-            self.entry_dict["hashes"] = sorted(entry_hashes | locked_hashes)
+        entry_hashes = set(self.entry_dict.get("hashes", []))
+        self.entry_dict["hashes"] = sorted(entry_hashes)
         self.entry_dict["name"] = self.name
         if "version" in self.entry_dict:
             self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
         _, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
+        if self.resolver.index_lookup.get(self.name):
+            self.entry_dict["index"] = self.resolver.index_lookup[self.name]
         return self.entry_dict
 
     @property
@@ -383,12 +372,12 @@ class Entry:
 
     @property
     def updated_version(self):
-        version = self.entry.specifiers
+        version = str(self.entry.specifier)
         return self.strip_version(version)
 
     @property
     def updated_specifier(self) -> str:
-        return self.entry.specifiers
+        return str(self.entry.specifier)
 
     @property
     def original_specifier(self) -> str:
@@ -452,15 +441,7 @@ class Entry:
         :return: A set of **InstallRequirement** instances representing constraints
         :rtype: Set
         """
-        constraints = {
-            c for c in self.resolver.parsed_constraints if c and c.name == self.entry.name
-        }
-        pipfile_constraint = self.get_pipfile_constraint()
-        if pipfile_constraint and not (
-            self.pipfile_entry.editable or pipfile_constraint.editable
-        ):
-            constraints.add(pipfile_constraint)
-        return constraints
+        return self.resolver.parsed_constraints
 
     def get_pipfile_constraint(self):
         """
@@ -470,7 +451,7 @@ class Entry:
         :return: An **InstallRequirement** instance representing a version constraint
         """
         if self.is_in_pipfile:
-            return self.pipfile_entry.ireq
+            return self.pipfile_entry
 
     def validate_constraints(self):
         """
@@ -481,22 +462,24 @@ class Entry:
         :raises: :exc:`pipenv.exceptions.DependencyConflict` if the constraints dont exist
         """
         from pipenv.exceptions import DependencyConflict
+        from pipenv.patched.pip._vendor.packaging.requirements import Requirement
+        from pipenv.utils import err
 
         constraints = self.get_constraints()
         pinned_version = self.updated_version
         for constraint in constraints:
-            if not constraint.req:
+            if not isinstance(constraint, Requirement):
                 continue
-            if pinned_version and not constraint.req.specifier.contains(
+            if pinned_version and not constraint.specifier.contains(
                 str(pinned_version), prereleases=True
             ):
                 if self.project.s.is_verbose():
-                    print(f"Tried constraint: {constraint!r}", file=sys.stderr)
+                    err.print(f"Tried constraint: {constraint!r}")
                 msg = (
                     "Cannot resolve conflicting version {}{} while {}{} is "
                     "locked.".format(
                         self.name,
-                        constraint.req.specifier,
+                        constraint.specifier,
                         self.name,
                         self.updated_specifier,
                     )
@@ -582,37 +565,6 @@ def clean_results(results, resolver, project, category):
     return new_results
 
 
-def parse_packages(packages, pre, clear, system, requirements_dir=None):
-    from pipenv.utils.indexes import parse_indexes
-    from pipenv.vendor.requirementslib.fileutils import cd, temp_path
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
-
-    parsed_packages = []
-    for package in packages:
-        *_, line = parse_indexes(package)
-        line = " ".join(line)
-        pf = {}
-        req = Requirement.from_line(line)
-        if not req.name:
-            with temp_path(), cd(req.req.setup_info.base_dir):
-                sys.path.insert(0, req.req.setup_info.base_dir)
-                req.req.setup_info.get_info()
-                req.update_name_from_path(req.req.setup_info.base_dir)
-        try:
-            name, entry = req.pipfile_entry
-        except Exception:
-            continue
-        else:
-            if name is not None and entry is not None:
-                pf[name] = entry
-                parsed_packages.append(pf)
-    print("RESULTS:")
-    if parsed_packages:
-        print(json.dumps(parsed_packages))
-    else:
-        print(json.dumps([]))
-
-
 def resolve_packages(
     pre,
     clear,
@@ -633,8 +585,12 @@ def resolve_packages(
         else None
     )
 
+    if not isinstance(packages, set):
+        packages = set(packages)
+    if not isinstance(constraints, set):
+        constraints = set(constraints) if constraints else set()
     if constraints:
-        packages += constraints
+        packages |= constraints
 
     def resolve(
         packages, pre, project, sources, clear, system, category, requirements_dir=None
@@ -692,31 +648,15 @@ def _main(
     parse_only=False,
     category=None,
 ):
-    if parse_only:
-        parse_packages(
-            packages,
-            pre=pre,
-            clear=clear,
-            system=system,
-            requirements_dir=requirements_dir,
-        )
-    else:
-        resolve_packages(
-            pre, clear, verbose, system, write, requirements_dir, packages, category
-        )
+    resolve_packages(
+        pre, clear, verbose, system, write, requirements_dir, packages, category
+    )
 
 
 def main(argv=None):
     parser = get_parser()
     parsed, remaining = parser.parse_known_args(argv)
     _ensure_modules()
-    import warnings
-
-    from pipenv.vendor.click.utils import get_text_stream
-
-    warnings.simplefilter("ignore", category=ResourceWarning)
-    sys.stdout = get_text_stream("stdout")
-    sys.stderr = get_text_stream("stderr")
     os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
     os.environ["PYTHONIOENCODING"] = "utf-8"
     os.environ["PYTHONUNBUFFERED"] = "1"

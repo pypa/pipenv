@@ -216,7 +216,7 @@ def install(state, **kwargs):
         requirementstxt=state.installstate.requirementstxt,
         pre=state.installstate.pre,
         deploy=state.installstate.deploy,
-        index_url=state.index,
+        index=state.index,
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
         site_packages=state.site_packages,
@@ -610,7 +610,7 @@ def run_open(state, module, *args, **kwargs):
         [
             state.project._which("python"),
             "-c",
-            "import {0}; print({0}.__file__)".format(module),
+            f"import {module}; print({module}.__file__)",
         ]
     )
     if c.returncode:
@@ -693,11 +693,10 @@ def scripts(state):
     scripts = state.project.parsed_pipfile.get("scripts", {})
     first_column_width = max(len(word) for word in ["Command"] + list(scripts))
     second_column_width = max(len(word) for word in ["Script"] + list(scripts.values()))
-    lines = ["{0:<{width}}  Script".format("Command", width=first_column_width)]
-    lines.append("{}  {}".format("-" * first_column_width, "-" * second_column_width))
+    lines = [f"{command:<{first_column_width}}  Script" for command in ["Command"]]
+    lines.append(f"{'-' * first_column_width}  {'-' * second_column_width}")
     lines.extend(
-        "{0:<{width}}  {1}".format(name, script, width=first_column_width)
-        for name, script in scripts.items()
+        f"{name:<{first_column_width}}  {script}" for name, script in scripts.items()
     )
     console.print("\n".join(line for line in lines))
 

@@ -1,19 +1,17 @@
 import sys
+from collections import defaultdict
 
 from pipenv.routines.install import do_sync
 from pipenv.routines.lock import do_lock
 from pipenv.routines.outdated import do_outdated
 from pipenv.utils.dependencies import (
-    convert_deps_to_pip,
+    expansive_install_req_from_line,
     get_pipfile_category_using_lockfile_section,
-    is_star,
-    pep423_name,
 )
 from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import add_index_to_pipfile
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.vendor import click
-from pipenv.vendor.requirementslib.models.requirements import Requirement
 
 
 def do_update(
@@ -44,15 +42,6 @@ def do_update(
         site_packages=site_packages,
         clear=clear,
     )
-    if not outdated:
-        outdated = bool(dry_run)
-    if outdated:
-        do_outdated(
-            project,
-            clear=clear,
-            pre=pre,
-            pypi_mirror=pypi_mirror,
-        )
     packages = [p for p in packages if p]
     editable = [p for p in editable_packages if p]
     if not packages:
@@ -84,6 +73,16 @@ def do_update(
             index_url=index_url,
             dev=dev,
             lock_only=lock_only,
+        )
+
+    if not outdated:
+        outdated = bool(dry_run)
+    if outdated:
+        do_outdated(
+            project,
+            clear=clear,
+            pre=pre,
+            pypi_mirror=pypi_mirror,
         )
 
     do_sync(
@@ -120,67 +119,59 @@ def upgrade(
     elif not categories:
         categories = ["default"]
 
-    package_args = [p for p in packages] + [f"-e {pkg}" for pkg in editable_packages]
-
     index_name = None
     if index_url:
         index_name = add_index_to_pipfile(project, index_url)
 
-    reqs = {}
-    requested_packages = {}
-    for package in package_args[:]:
-        # section = project.packages if not dev else project.dev_packages
-        section = {}
-        package = Requirement.from_line(package)
-        if index_name:
-            package.index = index_name
-        package_name, package_val = package.pipfile_entry
-        package_name = pep423_name(package_name)
-        requested_packages[package_name] = package
-        try:
-            if not is_star(section[package_name]) and is_star(package_val):
-                # Support for VCS dependencies.
-                package_val = convert_deps_to_pip(
-                    {package_name: section[package_name]}, project=project
-                )[0]
-        except KeyError:
-            pass
-        reqs[package_name] = package_val
+    package_args = [p for p in packages] + [f"-e {pkg}" for pkg in editable_packages]
 
-    if not reqs:
-        click.echo("Nothing to upgrade!")
-        sys.exit(0)
-
-    # Resolve package to generate constraints of new package data
-    upgrade_lock_data = venv_resolve_deps(
-        reqs,
-        which=project._which,
-        project=project,
-        lockfile={},
-        category="default",
-        pre=pre,
-        allow_global=system,
-        pypi_mirror=pypi_mirror,
-    )
-    if not upgrade_lock_data:
-        click.echo("Nothing to upgrade!")
-        sys.exit(0)
-
-    # Upgrade the relevant packages in the various categories specified
+    requested_install_reqs = defaultdict(dict)
+    requested_packages = defaultdict(dict)
     for category in categories:
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
+
+        for package in package_args[:]:
+            install_req = expansive_install_req_from_line(package, expand_env=True)
+            if index_name:
+                install_req.index = index_name
+            name, normalized_name, pipfile_entry = project.generate_package_pipfile_entry(
+                install_req, package, category=pipfile_category
+            )
+            project.add_pipfile_entry_to_pipfile(
+                name, normalized_name, pipfile_entry, category=pipfile_category
+            )
+            requested_packages[pipfile_category][normalized_name] = pipfile_entry
+            requested_install_reqs[pipfile_category][normalized_name] = install_req
+
         if project.pipfile_exists:
             packages = project.parsed_pipfile.get(pipfile_category, {})
         else:
             packages = project.get_pipfile_section(pipfile_category)
-        for package_name, requirement in requested_packages.items():
-            requested_package = reqs[package_name]
+
+        if not package_args:
+            click.echo("Nothing to upgrade!")
+            sys.exit(0)
+
+        # Resolve package to generate constraints of new package data
+        upgrade_lock_data = venv_resolve_deps(
+            requested_packages[pipfile_category],
+            which=project._which,
+            project=project,
+            lockfile={},
+            category="default",
+            pre=pre,
+            allow_global=system,
+            pypi_mirror=pypi_mirror,
+        )
+        if not upgrade_lock_data:
+            click.echo("Nothing to upgrade!")
+            sys.exit(0)
+
+        for package_name, pipfile_entry in requested_packages[pipfile_category].items():
             if package_name not in packages:
-                packages.append(package_name, requested_package)
+                packages.append(package_name, pipfile_entry)
             else:
-                packages[package_name] = requested_package
-            if lock_only is False:
-                project.add_package_to_pipfile(requirement, category=pipfile_category)
+                packages[package_name] = pipfile_entry
 
         full_lock_resolution = venv_resolve_deps(
             packages,

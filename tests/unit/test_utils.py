@@ -25,11 +25,11 @@ DEP_PIP_PAIRS = [
                 "editable": True,
             }
         },
-        "-e git+https://github.com/lidatong/dataclasses-json.git@v0.5.7#egg=dataclasses-json",
+        "dataclasses-json@ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7",
     ),
     (
         {"dataclasses-json": {"git": "https://github.com/lidatong/dataclasses-json.git", "ref": "v0.5.7"}},
-        "git+https://github.com/lidatong/dataclasses-json.git@v0.5.7#egg=dataclasses-json",
+        "dataclasses-json@ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7",
     ),
     (
         # Extras in url
@@ -39,7 +39,7 @@ DEP_PIP_PAIRS = [
                 "extras": ["pipenv"],
             }
         },
-        "https://github.com/oz123/dparse/archive/refs/heads/master.zip#egg=dparse[pipenv]"
+        "dparse[pipenv] @ https://github.com/oz123/dparse/archive/refs/heads/master.zip",
     ),
     (
         {
@@ -50,7 +50,7 @@ DEP_PIP_PAIRS = [
                 "editable": False,
             }
         },
-        "git+https://github.com/requests/requests.git@main#egg=requests[security]",
+        "requests[security]@ git+https://github.com/requests/requests.git@main",
     ),
 ]
 
@@ -64,8 +64,6 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
 @pytest.mark.needs_internet
 def test_convert_deps_to_pip(deps, expected):
-    if expected.startswith("Django"):
-        expected = expected.lower()
     assert dependencies.convert_deps_to_pip(deps) == [expected]
 
 
@@ -136,13 +134,12 @@ def test_convert_deps_to_pip_one_way():
 @pytest.mark.parametrize(
     "deps, expected",
     [
-        ({"uvicorn": {}}, ["uvicorn"]),
-        ({"FooProject": {"path": ".", "editable": "true"}}, []),
-        ({"FooProject": {"version": "==1.2"}}, ["fooproject==1.2"]),
-        ({"uvicorn": {"extras": ["standard"]}}, []),
-        ({"uvicorn": {"extras": []}}, ["uvicorn"]),
-        ({"extras": {}}, ["extras"]),
-        ({"uvicorn[standard]": {}}, [])
+        ({"uvicorn": {}}, {"uvicorn"}),
+        ({"FooProject": {"path": ".", "editable": "true"}}, set()),
+        ({"FooProject": {"version": "==1.2"}}, {"fooproject==1.2"}),
+        ({"uvicorn": {"extras": ["standard"]}}, {"uvicorn"}),
+        ({"uvicorn": {"extras": []}}, {"uvicorn"}),
+        ({"extras": {}}, {"extras"}),
     ],
 )
 def test_get_constraints_from_deps(deps, expected):
@@ -209,7 +206,7 @@ class TestUtils:
     )
     @pytest.mark.vcs
     def test_is_vcs(self, entry, expected):
-        from pipenv.vendor.requirementslib.utils import is_vcs
+        from pipenv.utils.requirementslib import is_vcs
         assert is_vcs(entry) is expected
 
     @pytest.mark.utils

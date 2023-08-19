@@ -3,8 +3,18 @@ import os
 import sys
 import warnings
 
+# This has to come before imports of pipenv
+PIPENV_ROOT = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+PIP_ROOT = os.sep.join([PIPENV_ROOT, "patched", "pip"])
+sys.path.insert(0, PIPENV_ROOT)
+sys.path.insert(0, PIP_ROOT)
+
+# Load patched pip instead of system pip
+os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+
 
 def _ensure_modules():
+    # Can be removed when we drop pydantic
     spec = importlib.util.spec_from_file_location(
         "typing_extensions",
         location=os.path.join(
@@ -14,6 +24,14 @@ def _ensure_modules():
     typing_extensions = importlib.util.module_from_spec(spec)
     sys.modules["typing_extensions"] = typing_extensions
     spec.loader.exec_module(typing_extensions)
+    # Ensure when pip gets invoked it uses our patched version
+    spec = importlib.util.spec_from_file_location(
+        "pip",
+        location=os.path.join(os.path.dirname(__file__), "patched", "pip", "__init__.py"),
+    )
+    pip = importlib.util.module_from_spec(spec)
+    sys.modules["pip"] = pip
+    spec.loader.exec_module(pip)
 
 
 _ensure_modules()
@@ -26,8 +44,6 @@ warnings.filterwarnings("ignore", category=DependencyWarning)
 warnings.filterwarnings("ignore", category=ResourceWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
-# Load patched pip instead of system pip
-os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
 
 if os.name == "nt":
     from pipenv.vendor import colorama

@@ -52,7 +52,7 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         c = p.pipenv(f"install {line}")
         assert c.returncode == 0
         assert "testpipenv" in p.pipfile["packages"]
-        assert p.pipfile["packages"]["testpipenv"]["path"] == "."
+        assert p.pipfile["packages"]["testpipenv"]["file"] == "."
         assert p.pipfile["packages"]["testpipenv"]["extras"] == ["dev"]
         assert "six" in p.lockfile["default"]
 
@@ -178,7 +178,7 @@ def test_local_package(pipenv_instance_private_pypi, testsroot):
 
 @pytest.mark.files
 @pytest.mark.local
-def test_local_zip_file(pipenv_instance_private_pypi, testsroot):
+def test_local_tar_gz_file(pipenv_instance_private_pypi, testsroot):
     file_name = "requests-2.19.1.tar.gz"
 
     with pipenv_instance_private_pypi() as p:
@@ -275,3 +275,14 @@ def test_outdated_should_compare_postreleases_without_failing(pipenv_instance_pr
         c = p.pipenv("update --outdated")
         assert c.returncode != 0
         assert "out-of-date" in c.stdout
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
+def test_install_remote_wheel_file_with_extras(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
+        c = p.pipenv("install fastapi[dev]@https://files.pythonhosted.org/packages/4e/1a/04887c641b67e6649bde845b9a631f73a7abfbe3afda83957e09b95d88eb/fastapi-0.95.2-py3-none-any.whl")
+        assert c.returncode == 0
+        assert "ruff" in p.lockfile["default"]
+        assert "pre-commit" in p.lockfile["default"]
+        assert "uvicorn" in p.lockfile["default"]
+

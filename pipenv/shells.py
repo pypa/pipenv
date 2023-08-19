@@ -8,8 +8,8 @@ import sys
 from pathlib import Path
 from shutil import get_terminal_size
 
+from pipenv.utils.shell import temp_environ
 from pipenv.vendor import shellingham
-from pipenv.vendor.requirementslib.utils import temp_environ
 
 ShellDetectionFailure = shellingham.ShellDetectionFailure
 

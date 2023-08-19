@@ -1,6 +1,9 @@
 import os
+from functools import lru_cache
 
 from pipenv import exceptions
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.pip._vendor.pkg_resources import Requirement, get_distribution
 from pipenv.utils.dependencies import python_version
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.shell import shorten_path
@@ -82,3 +85,21 @@ def ensure_project(
         categories=categories,
     )
     os.environ["PIP_PYTHON_PATH"] = project.python(system=system)
+
+
+@lru_cache()
+def get_setuptools_version():
+    # type: () -> Optional[STRING_TYPE]
+
+    setuptools_dist = get_distribution(Requirement("setuptools"))
+    return getattr(setuptools_dist, "version", None)
+
+
+def get_default_pyproject_backend():
+    # type: () -> STRING_TYPE
+    st_version = get_setuptools_version()
+    if st_version is not None:
+        parsed_st_version = parse_version(st_version)
+        if parsed_st_version >= parse_version("40.8.0"):
+            return "setuptools.build_meta:__legacy__"
+    return "setuptools.build_meta"

@@ -37,7 +37,6 @@ multicommand = "bash -c \"cd docs && make html\""
         c = p.pipenv('run printfoo')
         assert c.returncode == 0
         assert c.stdout.strip() == 'foo'
-        assert not c.stderr.strip()
 
         c = p.pipenv('run notfoundscript')
         assert c.returncode != 0

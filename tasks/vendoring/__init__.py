@@ -15,7 +15,7 @@ import invoke
 import requests
 from urllib3.util import parse_url as urllib3_parse
 
-from pipenv.vendor.requirementslib.fileutils import open_file
+from pipenv.utils.fileutils import open_file
 
 TASK_NAME = "update"
 
@@ -36,7 +36,6 @@ HARDCODED_LICENSE_URLS = {
     "pytoml": "https://github.com/avakar/pytoml/raw/master/LICENSE",
     "webencodings": "https://github.com/SimonSapin/python-webencodings/raw/"
     "master/LICENSE",
-    "requirementslib": "https://github.com/techalchemy/requirementslib/raw/master/LICENSE",
     "distlib": "https://github.com/vsajip/distlib/raw/master/LICENSE.txt",
     "pythonfinder": "https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt",
     "pipdeptree": "https://raw.githubusercontent.com/tox-dev/pipdeptree/main/LICENSE",

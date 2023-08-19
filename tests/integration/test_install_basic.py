@@ -162,6 +162,7 @@ dataclasses-json = "==0.5.7"
 @pytest.mark.install
 @pytest.mark.resolver
 @pytest.mark.backup_resolver
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
 def test_backup_resolver(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
@@ -298,10 +299,10 @@ def test_clean_on_empty_venv(pipenv_instance_pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_does_not_extrapolate_environ(pipenv_instance_pypi):
+def test_install_does_not_extrapolate_environ(pipenv_instance_private_pypi):
     """Ensure environment variables are not expanded in lock file.
     """
-    with temp_environ(), pipenv_instance_pypi() as p:
+    with temp_environ(), pipenv_instance_private_pypi() as p:
         os.environ["PYPI_URL"] = p.pypi
 
         with open(p.pipfile_path, "w") as f:
@@ -321,7 +322,7 @@ name = 'mockpi'
         assert p.lockfile["_meta"]["sources"][0]["url"] == "${PYPI_URL}/simple"
 
         # Ensure package install does not extrapolate.
-        c = p.pipenv("install six")
+        c = p.pipenv("install six -v")
         assert c.returncode == 0
         assert p.pipfile["source"][0]["url"] == "${PYPI_URL}/simple"
         assert p.lockfile["_meta"]["sources"][0]["url"] == "${PYPI_URL}/simple"
@@ -528,9 +529,9 @@ def test_install_does_not_exclude_packaging(pipenv_instance_pypi):
 @pytest.mark.needs_internet
 def test_install_will_supply_extra_pip_args(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv("""install dataclasses-json --extra-pip-args="--use-feature=truststore --proxy=test" """)
+        c = p.pipenv("""install -v dataclasses-json --extra-pip-args="--use-feature=truststore --proxy=test" """)
         assert c.returncode == 1
-        assert "truststore feature" in c.stderr
+        assert "truststore feature" in c.stdout
 
 
 @pytest.mark.basic

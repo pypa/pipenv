@@ -84,7 +84,6 @@ def test_multiple_category_install_proceeds_in_order_specified(pipenv_instance_p
     """Ensure -e .[extras] installs.
     """
     with pipenv_instance_private_pypi() as p:
-        #os.mkdir(os.path.join(p.path, "testpipenv"))
         setup_py = os.path.join(p.path, "setup.py")
         with open(setup_py, "w") as fh:
             contents = """
@@ -106,12 +105,12 @@ setup(
         with open(os.path.join(p.path, 'Pipfile'), 'w') as fh:
             fh.write("""
 [packages]
-testpipenv = {path = ".", editable = true}
+testpipenv = {path = ".", editable = true, skip_resolver = true}
 
 [prereq]
 six = "*"
             """.strip())
-        c = p.pipenv("lock")
+        c = p.pipenv("lock -v")
         assert c.returncode == 0
         assert "testpipenv" in p.lockfile["default"]
         assert "testpipenv" not in p.lockfile["prereq"]

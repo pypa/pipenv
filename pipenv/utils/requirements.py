@@ -1,15 +1,58 @@
 import os
 import re
+import urllib.parse
+from typing import Tuple
 
 from pipenv.patched.pip._internal.network.session import PipSession
 from pipenv.patched.pip._internal.req import parse_requirements
 from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_parsed_requirement,
 )
-from pipenv.patched.pip._internal.utils.misc import split_auth_from_netloc
+from pipenv.patched.pip._internal.utils.misc import _transform_url, split_auth_from_netloc
+from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.indexes import parse_indexes
 from pipenv.utils.internet import get_host_and_port
 from pipenv.utils.pip import get_trusted_hosts
+
+
+def redact_netloc(netloc: str) -> Tuple[str]:
+    """
+    Replace the sensitive data in a netloc with "****", if it exists, unless it's an environment variable.
+
+    For example:
+        - "user:pass@example.com" returns "user:****@example.com"
+        - "accesstoken@example.com" returns "****@example.com"
+        - "${ENV_VAR}:pass@example.com" returns "${ENV_VAR}:****@example.com" if ${ENV_VAR} is an environment variable
+    """
+    netloc, (user, password) = split_auth_from_netloc(netloc)
+    if user is None:
+        return (netloc,)
+    if password is None:
+        # Check if user is an environment variable
+        if not re.match(r"\$\{\w+\}", user):
+            # If not, redact the user
+            user = "****"
+        password = ""
+    else:
+        # Check if password is an environment variable
+        if not re.match(r"\$\{\w+\}", password):
+            # If not, redact the password
+            password = ":****"
+        else:
+            # If it is, leave it as is
+            password = ":" + password
+        user = urllib.parse.quote(user)
+    return (f"{user}{password}@{netloc}",)
+
+
+def redact_auth_from_url(url: str) -> str:
+    """Replace the password in a given url with ****."""
+    return _transform_url(url, redact_netloc)[0]
+
+
+def normalize_name(pkg) -> str:
+    """Given a package name, return its normalized, non-canonicalized form."""
+    return pkg.replace("_", "-").lower()
 
 
 def import_requirements(project, r=None, dev=False, categories=None):
@@ -36,44 +79,34 @@ def import_requirements(project, r=None, dev=False, categories=None):
             indexes.append(extra_index)
         if trusted_host:
             trusted_hosts.append(get_host_and_port(trusted_host))
-    indexes = sorted(set(indexes))
-    trusted_hosts = sorted(set(trusted_hosts))
-    reqs = [
-        install_req_from_parsed_requirement(f)
-        for f in parse_requirements(r, session=PipSession())
-    ]
-    for package in reqs:
+    for f in parse_requirements(r, session=PipSession()):
+        package = install_req_from_parsed_requirement(f)
         if package.name not in BAD_PACKAGES:
             if package.link is not None:
                 if package.editable:
                     package_string = f"-e {package.link}"
                 else:
-                    netloc, (user, pw) = split_auth_from_netloc(package.link.netloc)
-                    safe = True
-                    if user and not re.match(r"\${[\W\w]+}", user):
-                        safe = False
-                    if pw and not re.match(r"\${[\W\w]+}", pw):
-                        safe = False
-                    if safe:
-                        package_string = str(package.link._url)
-                    else:
-                        package_string = str(package.link)
+                    package_string = urllib.parse.unquote(
+                        redact_auth_from_url(package.original_link.url)
+                    )
+
                 if categories:
                     for category in categories:
                         project.add_package_to_pipfile(
-                            package_string, dev=dev, category=category
+                            package, package_string, dev=dev, category=category
                         )
                 else:
-                    project.add_package_to_pipfile(package_string, dev=dev)
+                    project.add_package_to_pipfile(package, package_string, dev=dev)
             else:
                 if categories:
                     for category in categories:
                         project.add_package_to_pipfile(
-                            str(package.req), dev=dev, category=category
+                            package, str(package.req), dev=dev, category=category
                         )
                 else:
-                    project.add_package_to_pipfile(str(package.req), dev=dev)
-
+                    project.add_package_to_pipfile(package, str(package.req), dev=dev)
+    indexes = sorted(set(indexes))
+    trusted_hosts = sorted(set(trusted_hosts))
     for index in indexes:
         add_index_to_pipfile(project, index, trusted_hosts)
     project.recase_pipfile()
@@ -105,3 +138,84 @@ BAD_PACKAGES = (
     "setuptools",
     "wheel",
 )
+
+
+def requirement_from_lockfile(
+    package_name, package_info, include_hashes=True, include_markers=True
+):
+    from pipenv.utils.dependencies import is_editable_path, is_star
+
+    # Handle string requirements
+    if isinstance(package_info, str):
+        if package_info and not is_star(package_info):
+            return f"{package_name}=={package_info}"
+        else:
+            return package_name
+    # Handling vcs repositories
+    for vcs in VCS_LIST:
+        if vcs in package_info:
+            url = package_info[vcs]
+            ref = package_info.get("ref", "")
+            extras = (
+                "[{}]".format(",".join(package_info.get("extras", [])))
+                if "extras" in package_info
+                else ""
+            )
+            include_vcs = "" if f"{vcs}+" in url else f"{vcs}+"
+            egg_fragment = "" if "#egg=" in url else f"#egg={package_name}"
+            ref_str = "" if f"@{ref}" in url else f"@{ref}"
+            if is_editable_path(url) or "file://" in url:
+                pip_line = f"-e {include_vcs}{url}{ref_str}{egg_fragment}{extras}"
+            else:
+                pip_line = f"{package_name}{extras}@ {include_vcs}{url}{ref_str}"
+            return pip_line
+    # Handling file-sourced packages
+    for k in ["file", "path"]:
+        line = []
+        if k in package_info:
+            path = package_info[k]
+            if is_editable_path(path):
+                line.append("-e")
+            line.append(f"{package_info[k]}")
+            pip_line = " ".join(line)
+            return pip_line
+
+    # Handling packages from standard pypi like indexes
+    version = package_info.get("version", "").replace("==", "")
+    hashes = (
+        f" --hash={' --hash='.join(package_info['hashes'])}"
+        if include_hashes and "hashes" in package_info
+        else ""
+    )
+    markers = (
+        "; {}".format(package_info["markers"])
+        if include_markers and "markers" in package_info and package_info["markers"]
+        else ""
+    )
+    os_markers = (
+        "; {}".format(package_info["os_markers"])
+        if include_markers and "os_markers" in package_info and package_info["os_markers"]
+        else ""
+    )
+    extras = (
+        "[{}]".format(",".join(package_info.get("extras", [])))
+        if "extras" in package_info
+        else ""
+    )
+    pip_line = f"{package_name}{extras}=={version}{os_markers}{markers}{hashes}"
+    return pip_line
+
+
+def requirements_from_lockfile(deps, include_hashes=True, include_markers=True):
+    pip_packages = []
+
+    for package_name, package_info in deps.items():
+        pip_package = requirement_from_lockfile(
+            package_name, package_info, include_hashes, include_markers
+        )
+
+        # Append to the list
+        pip_packages.append(pip_package)
+
+    # pip_packages contains the pip-installable lines
+    return pip_packages
