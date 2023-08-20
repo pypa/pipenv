@@ -326,7 +326,7 @@ class Resolver:
                 alt_index_lookup[req_name] = index_mapping[index]
         return alt_index_lookup
 
-    @property
+    @cached_property
     def finder(self):
         finder = get_package_finder(
             install_cmd=self.pip_command,
@@ -338,7 +338,7 @@ class Resolver:
         finder._link_collector.search_scope.index_lookup = index_lookup
         return finder
 
-    @property
+    @cached_property
     def parsed_constraints(self):
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
@@ -512,6 +512,7 @@ class Resolver:
             return {self.project.get_hash_from_link(self.hash_cache, link)}
         return set()
 
+    @cached_property
     def resolve_hashes(self):
         if self.results is not None:
             for ireq in self.results:
@@ -612,7 +613,7 @@ def actually_resolve_deps(
             category,
         )
         resolver.resolve()
-        hashes = resolver.resolve_hashes()
+        hashes = resolver.resolve_hashes
         resolver.resolve_constraints()
         results = resolver.clean_results()
     for warning in warning_list:
