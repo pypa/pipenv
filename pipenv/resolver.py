@@ -2,6 +2,7 @@ import importlib.util
 import json
 import os
 import sys
+from functools import cached_property
 
 
 def _ensure_modules():
@@ -84,8 +85,6 @@ def handle_parsed_args(parsed):
 
 class Entry:
     """A resolved entry from a resolver run"""
-
-    from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 
     def __init__(
         self, name, entry_dict, project, resolver, reverse_deps=None, category=None
