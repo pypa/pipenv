@@ -7,9 +7,8 @@ from tempfile import NamedTemporaryFile
 
 from pipenv import environments, exceptions
 from pipenv.patched.pip._internal.exceptions import PipError
-from pipenv.patched.pip._vendor import rich
 from pipenv.routines.lock import do_lock
-from pipenv.utils import fileutils
+from pipenv.utils import console, err, fileutils
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
     get_lockfile_section_using_pipfile_category,
@@ -25,10 +24,6 @@ from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import add_index_to_pipfile, import_requirements
 from pipenv.utils.shell import temp_environ
 from pipenv.utils.virtualenv import cleanup_virtualenv, do_create_virtualenv
-from pipenv.vendor import click
-
-console = rich.console.Console()
-err = rich.console.Console(stderr=True)
 
 
 def do_install(
@@ -100,10 +95,9 @@ def do_install(
         os.environ["PIPENV_USE_SYSTEM"] = "1"
     # Check if the file is remote or not
     if remote:
-        click.secho(
+        err.print(
             "Remote requirements file provided! Downloading...",
-            bold=True,
-            err=True,
+            style="bold",
         )
         fd = NamedTemporaryFile(
             prefix="pipenv-", suffix="-requirement.txt", dir=requirements_directory
@@ -116,10 +110,9 @@ def do_install(
         except OSError:
             fd.close()
             os.unlink(temp_reqs)
-            click.secho(
+            err.print(
                 f"Unable to find requirements file at {requirements_url}.",
-                fg="red",
-                err=True,
+                style="red",
             )
             sys.exit(1)
         finally:
@@ -128,10 +121,9 @@ def do_install(
         requirementstxt = temp_reqs
     if requirementstxt:
         error, traceback = None, None
-        click.secho(
+        err.print(
             "Requirements file provided! Importing into Pipfile...",
-            bold=True,
-            err=True,
+            style="bold",
         )
         try:
             import_requirements(
@@ -143,10 +135,7 @@ def do_install(
         except (UnicodeDecodeError, PipError) as e:
             # Don't print the temp file path if remote since it will be deleted.
             req_path = project.path_to(requirementstxt)
-            error = (
-                "Unexpected syntax in {}. Are you sure this is a "
-                "requirements.txt style file?".format(req_path)
-            )
+            error = f"Unexpected syntax in {req_path}. Are you sure this is a requirements.txt style file?"
             traceback = e
         except AssertionError as e:
             error = (
@@ -156,8 +145,8 @@ def do_install(
             traceback = e
         finally:
             if error and traceback:
-                click.secho(error, fg="red")
-                click.secho(str(traceback), fg="yellow", err=True)
+                console.print(error, sytle="red")
+                err.print(str(traceback), style="yellow")
                 sys.exit(1)
 
     # Allow more than one package to be provided.
@@ -202,10 +191,9 @@ def do_install(
             )
 
         for pkg_line in pkg_list:
-            click.secho(
+            console.print(
                 f"Installing {pkg_line}...",
-                fg="green",
-                bold=True,
+                style="bold green",
             )
             # pip install:
             with temp_environ(), console.status(
@@ -221,7 +209,7 @@ def do_install(
                         pkg_line, expand_env=True
                     )
                 except ValueError as e:
-                    err.print("{}: {}".format(click.style("WARNING", fg="red"), e))
+                    err.print(f"[red]WARNING[/red]: {e}")
                     err.print(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format(
                             "Installation Failed"
@@ -229,22 +217,6 @@ def do_install(
                     )
                     sys.exit(1)
                 st.update(f"Installing {pkg_requirement.name}...")
-                # Warn if --editable wasn't passed.
-                if (
-                    pkg_requirement.link
-                    and pkg_requirement.link.is_vcs
-                    and not pkg_requirement.editable
-                    and not project.s.PIPENV_RESOLVE_VCS
-                ):
-                    err.print(
-                        "{}: You installed a VCS dependency in non-editable mode. "
-                        "This will work fine, but sub-dependencies will not be resolved by {}."
-                        "\n  To enable this sub-dependency functionality, specify that this dependency is editable."
-                        "".format(
-                            click.style("Warning", fg="red", bold=True),
-                            click.style("$ pipenv lock", fg="yellow"),
-                        )
-                    )
                 if categories:
                     pipfile_sections = ""
                     for c in categories:
@@ -288,12 +260,7 @@ def do_install(
                 except ValueError:
                     import traceback
 
-                    err.print(
-                        "{} {}".format(
-                            click.style("Error:", fg="red", bold=True),
-                            traceback.format_exc(),
-                        )
-                    )
+                    err.print(f"[bold][red]Error:[/red][/bold] {traceback.format_exc()}")
                     err.print(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format(
                             "Failed adding package to Pipfile"
@@ -377,7 +344,7 @@ def do_sync(
         categories=categories,
     )
     if not bare:
-        click.echo(click.style("All dependencies are now up-to-date!", fg="green"))
+        console.print("[green]All dependencies are now up-to-date![/green]")
 
 
 def do_install_dependencies(
@@ -408,11 +375,10 @@ def do_install_dependencies(
     for category in categories:
         lockfile = project.get_or_create_lockfile(categories=categories)
         if not bare:
-            click.secho(
-                "Installing dependencies from Pipfile.lock ({})...".format(
-                    lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
-                ),
-                bold=True,
+            console.print(
+                f"Installing dependencies from Pipfile.lock "
+                f"({lockfile['_meta'].get('hash', {}).get('sha256')[-6:]})...",
+                style="bold",
             )
         dev = dev or dev_only
         deps_list = list(
@@ -552,10 +518,9 @@ def batch_install(
                     extra_pip_args=extra_pip_args,
                 )
             except StopIteration:
-                click.secho(
+                console.print(
                     f"Unable to find {index_name} in sources, please check dependencies: {dependencies}",
-                    fg="red",
-                    bold=True,
+                    style="bold red",
                 )
                 sys.exit(1)
 
@@ -569,7 +534,7 @@ def _cleanup_procs(project, procs):
             out, err = c.stdout, c.stderr
         failed = c.returncode != 0
         if project.s.is_verbose():
-            click.secho(out.strip() or err.strip(), fg="yellow")
+            console.print(out.strip() or err.strip(), style="yellow")
         # The Installation failed...
         if failed:
             # The Installation failed...
@@ -625,31 +590,26 @@ def do_init(
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
             if deploy:
-                click.secho(
-                    "Your Pipfile.lock (old_hash[-6:]) is out of date."
-                    " Expected: ({new_hash[-6:]}).",
-                    fg="red",
+                console.print(
+                    f"Your Pipfile.lock ({old_hash[-6:]}) is out of date.  Expected: ({new_hash[-6:]}).",
+                    style="red",
                 )
                 raise exceptions.DeployException
             if (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
-                click.secho(
-                    "Pipfile.lock ({}) out of date, but installation "
-                    "uses {} re-building lockfile must happen in "
-                    "isolation. Please rebuild lockfile in a virtualenv. "
-                    "Continuing anyway...".format(old_hash[-6:], "--system"),
-                    fg="yellow",
-                    err=True,
+                err.print(
+                    f"Pipfile.lock ({old_hash[-6:]}) out of date, but installation uses --system so"
+                    f"re-building lockfile must happen in isolation."
+                    f" Please rebuild lockfile in a virtualenv.  Continuing anyway...",
+                    style="yellow",
                 )
             else:
                 if old_hash:
                     msg = "Pipfile.lock ({0}) out of date, updating to ({1})..."
                 else:
                     msg = "Pipfile.lock is corrupt, replaced with ({1})..."
-                click.secho(
+                err.print(
                     msg.format(old_hash[-6:], new_hash[-6:]),
-                    fg="yellow",
-                    bold=True,
-                    err=True,
+                    style="bold yellow",
                 )
                 do_lock(
                     project,
@@ -671,10 +631,9 @@ def do_init(
                 "See also: --deploy flag.",
             )
         else:
-            click.secho(
+            err.print(
                 "Pipfile.lock not found, creating...",
-                bold=True,
-                err=True,
+                style="bold",
             )
             do_lock(
                 project,
@@ -697,11 +656,7 @@ def do_init(
 
     # Hint the user what to do to activate the virtualenv.
     if not allow_global and not deploy and "PIPENV_ACTIVE" not in os.environ:
-        click.echo(
-            "To activate this project's virtualenv, run {}.\n"
-            "Alternatively, run a command "
-            "inside the virtualenv with {}.".format(
-                click.style("pipenv shell", fg="yellow"),
-                click.style("pipenv run", fg="yellow"),
-            )
+        console.print(
+            "To activate this project's virtualenv, run [yellow]pipenv shell[/yellow].\n"
+            "Alternatively, run a command inside the virtualenv with [yellow]pipenv run[/yellow]."
         )
