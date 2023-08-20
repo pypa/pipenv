@@ -315,7 +315,7 @@ class Entry:
                 return "*"
             specifier = f"=={specifier}"
         elif specifier.startswith("==") and specifier.count("=") > 3:
-            specifier = "=={}".format(specifier.lstrip("="))
+            specifier = f"=={specifier.lstrip('=')}"
         return specifier
 
     @staticmethod
@@ -476,13 +476,8 @@ class Entry:
                 if self.project.s.is_verbose():
                     err.print(f"Tried constraint: {constraint!r}")
                 msg = (
-                    "Cannot resolve conflicting version {}{} while {}{} is "
-                    "locked.".format(
-                        self.name,
-                        constraint.specifier,
-                        self.name,
-                        self.updated_specifier,
-                    )
+                    f"Cannot resolve conflicting version {self.name}{constraint.specifier} "
+                    f"while {self.name}{self.updated_specifier} is locked."
                 )
                 raise DependencyConflict(msg)
         return True
@@ -495,14 +490,9 @@ class Entry:
                 from pipenv.exceptions import DependencyConflict
 
                 msg = (
-                    "Cannot resolve conflicting versions: (Root: {}) {}{} (Pipfile) "
-                    "Incompatible with {}{} (resolved)\n".format(
-                        self.name,
-                        parent.pipfile_name,
-                        parent.pipfile_entry.requirement.specifiers,
-                        parent.name,
-                        parent.updated_specifiers,
-                    )
+                    f"Cannot resolve conflicting versions: (Root: {self.name}) "
+                    f"{parent.pipfile_name}{parent.pipfile_entry.requirement.specifiers} (Pipfile) "
+                    f"Incompatible with {parent.name}{parent.updated_specifiers} (resolved)\n"
                 )
                 raise DependencyConflict(msg)
 

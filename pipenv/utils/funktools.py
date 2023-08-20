@@ -149,7 +149,7 @@ def _get_powershell_path():
     ]
     powershell_path = next(iter(_walk_for_powershell(pth) for pth in paths), None)
     if not powershell_path:
-        powershell_path = subprocess.run(["where", "powershell"])
+        powershell_path = subprocess.run(["where", "powershell"], check=False)
     if powershell_path.stdout:
         return powershell_path.stdout.strip()
 
@@ -165,7 +165,7 @@ def _get_sid_with_powershell():
         "-Command",
         "Invoke-Expression '[System.Security.Principal.WindowsIdentity]::GetCurrent().user | Write-Host'",
     ]
-    sid = subprocess.run(args, capture_output=True)
+    sid = subprocess.run(args, capture_output=True, check=False)
     return sid.stdout.strip()
 
 
@@ -289,6 +289,7 @@ def set_write_bit(fn: str) -> None:
                 # >>> sys.stdout.encoding
                 # "UTF8"
                 encoding=locale.getpreferredencoding(),
+                check=False,
             )
             if not c.err and c.returncode == 0:
                 return
