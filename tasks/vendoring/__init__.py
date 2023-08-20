@@ -120,7 +120,7 @@ def remove_all(paths):
     for path in paths:
         if path.is_dir():
             drop_dir(path)
-        else:
+        elif path.exists():
             print(f"Removing {path}")
             path.unlink()
 
