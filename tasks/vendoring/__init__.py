@@ -121,6 +121,7 @@ def remove_all(paths):
         if path.is_dir():
             drop_dir(path)
         else:
+            print(f"Removing {path}")
             path.unlink()
 
 
@@ -335,15 +336,16 @@ def post_install_cleanup(ctx, vendor_dir):
 
     remove_all(vendor_dir.glob("toml.py"))
 
-    remove_all(vendor_dir / "dotenv" / "cli.py")
-    remove_all(vendor_dir / "dotenv" / "__main__.py")
-
-    remove_all(vendor_dir / "plette" / "__main__.py")
-
-    remove_all(vendor_dir / "pipdeptree" / "__main__.py")
-
-    remove_all(vendor_dir / "pythonfinder" / "__main__.py")
-    remove_all(vendor_dir / "pythonfinder" / "cli.py")
+    remove_all(
+        (
+            vendor_dir / "dotenv" / "cli.py",
+            vendor_dir / "dotenv" / "__main__.py",
+            vendor_dir / "plette" / "__main__.py",
+            vendor_dir / "pipdeptree" / "__main__.py",
+            vendor_dir / "pythonfinder" / "__main__.py",
+            vendor_dir / "pythonfinder" / "cli.py",
+        )
+    )
 
 
 @invoke.task
