@@ -2,7 +2,11 @@ import importlib.util
 import json
 import os
 import sys
-from functools import cached_property
+
+try:
+    from functools import cached_property
+except ImportError:
+    cached_property = property
 
 
 def _ensure_modules():
