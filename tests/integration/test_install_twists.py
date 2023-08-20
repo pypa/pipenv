@@ -70,7 +70,7 @@ class TestDirectDependencies:
     def helper_dependency_links_install_make_setup(pipenv_instance, deplink):
         setup_py = os.path.join(pipenv_instance.path, "setup.py")
         with open(setup_py, "w") as fh:
-            contents = """
+            contents = f"""
 from setuptools import setup
 
 setup(
@@ -78,10 +78,10 @@ setup(
     version='0.1',
     packages=[],
     install_requires=[
-        '{0}'
+        '{deplink}'
     ],
 )
-            """.strip().format(deplink)
+            """.strip()
             fh.write(contents)
 
     @staticmethod
@@ -251,7 +251,7 @@ name = "testindex"
             source_path = p._pipfile.get_fixture_path(f"git/{pkg_name}/").as_posix()
             shutil.copytree(source_path, pkg_name)
 
-            pipfile_string += '"{0}" = {{path = "./{0}", editable = true}}\n'.format(pkg_name)
+            pipfile_string += f'"{pkg_name}" = {{path = "./{pkg_name}", editable = true}}\n'
 
         with open(p.pipfile_path, 'w') as f:
             f.write(pipfile_string.strip())
