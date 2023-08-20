@@ -1,0 +1,1 @@
+Fix the expected output of the ``version`` command.
