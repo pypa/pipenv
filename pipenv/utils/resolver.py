@@ -144,8 +144,8 @@ class Resolver:
 
     def __repr__(self):
         return (
-            "<Resolver (constraints={self.initial_constraints}, req_dir={self.req_dir}, "
-            "sources={self.sources})>".format(self=self)
+            f"<Resolver (constraints={self.initial_constraints}, req_dir={self.req_dir}, "
+            f"sources={self.sources})>"
         )
 
     @staticmethod

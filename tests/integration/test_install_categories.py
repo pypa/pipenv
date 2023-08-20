@@ -1,5 +1,4 @@
 import os
-import tempfile
 
 import pytest
 
@@ -23,7 +22,7 @@ def test_basic_category_install_from_requirements(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi(pipfile=False) as p:
         # Write a requirements file
         with open("requirements.txt", "w") as f:
-            f.write(f"six==1.16.0")
+            f.write("six==1.16.0")
 
         c = p.pipenv("install --categories prereq")
         assert c.returncode == 0

@@ -130,8 +130,7 @@ def tomlkit_dict_to_python(toml_dict):
         converted = toml_dict.copy()
     else:
         raise TypeError(
-            "Invalid type for conversion: expected Container, Dict, or Table, "
-            "got {!r}".format(toml_dict)
+            f"Invalid type for conversion: expected Container, Dict, or Table, got {toml_dict}"
         )
     if isinstance(converted, dict):
         return {k: tomlkit_value_to_python(v) for k, v in converted.items()}
