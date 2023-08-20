@@ -35,7 +35,7 @@ from pipenv.vendor.click import (
 )
 
 with console.capture() as capture:
-    console.print("[bold]pipenv[/bold]")
+    console.print("[bold]pipenv[/bold]", end="")
 
 prog_name = capture.get()
 
