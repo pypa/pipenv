@@ -335,6 +335,16 @@ def post_install_cleanup(ctx, vendor_dir):
 
     remove_all(vendor_dir.glob("toml.py"))
 
+    remove_all(vendor_dir / "dotenv" / "cli.py")
+    remove_all(vendor_dir / "dotenv" / "__main__.py")
+
+    remove_all(vendor_dir / "plette" / "__main__.py")
+
+    remove_all(vendor_dir / "pipdeptree" / "__main__.py")
+
+    remove_all(vendor_dir / "pythonfinder" / "__main__.py")
+    remove_all(vendor_dir / "pythonfinder" / "cli.py")
+
 
 @invoke.task
 def apply_patches(ctx, patched=False, pre=False):
