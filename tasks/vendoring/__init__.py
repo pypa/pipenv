@@ -341,7 +341,6 @@ def post_install_cleanup(ctx, vendor_dir):
             vendor_dir / "dotenv" / "cli.py",
             vendor_dir / "dotenv" / "__main__.py",
             vendor_dir / "plette" / "__main__.py",
-            vendor_dir / "pipdeptree" / "__main__.py",
             vendor_dir / "pythonfinder" / "__main__.py",
             vendor_dir / "pythonfinder" / "cli.py",
         )
