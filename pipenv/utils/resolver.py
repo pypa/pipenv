@@ -338,7 +338,7 @@ class Resolver:
         finder._link_collector.search_scope.index_lookup = index_lookup
         return finder
 
-    @cached_property
+    @property
     def parsed_constraints(self):
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
