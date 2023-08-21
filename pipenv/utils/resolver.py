@@ -326,7 +326,7 @@ class Resolver:
                 alt_index_lookup[req_name] = index_mapping[index]
         return alt_index_lookup
 
-    @property
+    @cached_property
     def finder(self):
         finder = get_package_finder(
             install_cmd=self.pip_command,
@@ -434,9 +434,10 @@ class Resolver:
             yield resolver
 
     def resolve(self):
+        constraints = self.constraints
         with temp_environ(), self.get_resolver() as resolver:
             try:
-                results = resolver.resolve(self.constraints, check_supported_wheels=False)
+                results = resolver.resolve(constraints, check_supported_wheels=False)
             except InstallationError as e:
                 raise ResolutionFailure(message=str(e))
             else:
