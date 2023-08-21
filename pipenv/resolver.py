@@ -233,7 +233,6 @@ class Entry:
 
     @cached_property
     def get_cleaned_dict(self):
-        self.validate_constraints()
         if self.entry.extras != self.lockfile_entry.extras:
             entry_extras = list(self.entry.extras)
             if self.lockfile_entry.extras:
@@ -539,6 +538,7 @@ def clean_results(results, resolver, project, category):
 
     if not project.lockfile_exists:
         return results
+    resolver.validate_constraints()
     lockfile = project.lockfile_content
     lockfile_section = get_lockfile_section_using_pipfile_category(category)
     reverse_deps = project.environment.reverse_dependencies()
