@@ -327,12 +327,17 @@ class Resolver:
         return alt_index_lookup
 
     @cached_property
-    def finder(self):
+    def package_finder(self):
         finder = get_package_finder(
             install_cmd=self.pip_command,
             options=self.pip_options,
             session=self.session,
         )
+        return finder
+
+    @property
+    def finder(self):
+        finder = self.package_finder
         index_lookup = self.prepare_index_lookup()
         finder._link_collector.index_lookup = index_lookup
         finder._link_collector.search_scope.index_lookup = index_lookup
