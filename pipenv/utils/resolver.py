@@ -326,7 +326,7 @@ class Resolver:
                 alt_index_lookup[req_name] = index_mapping[index]
         return alt_index_lookup
 
-    @cached_property
+    @property
     def finder(self):
         finder = get_package_finder(
             install_cmd=self.pip_command,
