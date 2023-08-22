@@ -1,3 +1,21 @@
+2023.8.21 (2023-08-21)
+======================
+Pipenv 2023.8.21 (2023-08-21)
+=============================
+
+
+Bug Fixes
+---------
+
+- Add back some relevant caching to increase performance after the major refactor released with ``2023.8.19``  `#5841 <https://github.com/pypa/pipenv/issues/5841>`_
+- Fix some edge cases around vcs dependencies without a ref, and older Pipfile/lockfile formats.  `#5843 <https://github.com/pypa/pipenv/issues/5843>`_
+
+Vendored Libraries
+------------------
+
+- Remove unused command line interface for vendored packages.  `#5840 <https://github.com/pypa/pipenv/issues/5840>`_
+
+
 2023.8.20 (2023-08-20)
 ======================
 Pipenv 2023.8.20 (2023-08-20)

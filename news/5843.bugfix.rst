@@ -1,1 +1,0 @@
-Fix some edge cases around vcs dependencies without a ref, and older Pipfile/lockfile formats.
