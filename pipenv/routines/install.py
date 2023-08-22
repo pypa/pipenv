@@ -530,8 +530,10 @@ def batch_install(
         deps_by_index = defaultdict(list)
         for dependency, pip_line in deps_to_install:
             index = project.sources_default["name"]
-            if dependency.name and lockfile_section[dependency.name].get("index"):
-                index = lockfile_section[dependency.name]["index"]
+            if dependency.name and dependency.name in lockfile_section:
+                entry = lockfile_section[dependency.name]
+                if isinstance(entry, dict) and "index" in entry:
+                    index = entry["index"]
             deps_by_index[index].append(pip_line)
         # Treat each index as its own pip install phase
         for index_name, dependencies in deps_by_index.items():
