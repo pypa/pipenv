@@ -160,9 +160,11 @@ def requirement_from_lockfile(
                 "ssh://" not in url and "@" in url
             ):
                 url_parts = url.rsplit("@", 1)
-                url = url_parts[0]
-                if not ref:
-                    ref = url_parts[1]
+                # Check if the second part matches the criteria to be a ref (vcs URLs would likely have a /)
+                if re.match(r"^[\w\.]+$", url_parts[1]):
+                    url = url_parts[0]
+                    if not ref:
+                        ref = url_parts[1]
 
             extras = (
                 "[{}]".format(",".join(package_info.get("extras", [])))
