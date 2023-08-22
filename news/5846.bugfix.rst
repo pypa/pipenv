@@ -1,0 +1,1 @@
+Fix regression with ``ssh://`` vcs URLs introduced in ``2023.8.21`` whereby ssh vcs URLs are expected to have at least one ``@`` symbol.
