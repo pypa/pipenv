@@ -85,6 +85,7 @@ class InstallState:
         self.editables = []
         self.extra_pip_args = []
         self.categories = []
+        self.skip_lock = False
 
 
 class LockOptions:
@@ -484,32 +485,32 @@ def validate_pypi_mirror(ctx, param, value):
     return value
 
 
-# OLD REMOVED COMMANDS THAT WE STILL DISPLAY HELP TEXT FOR #
 def skip_lock_option(f):
     def callback(ctx, param, value):
         if value:
             err.print(
-                "The flag --skip-lock has been functionally removed.  "
-                "Without running the lock resolver it is not possible to manage multiple package indexes.  "
-                "Additionally it bypassed the build consistency guarantees provided by maintaining a lock file.",
+                "The flag --skip-lock has been reintroduced (but is not recommended).  "
+                "Without the lock resolver it is difficult to manage multiple package indexes, and hash checking is not provided.  "
+                "However it can help manage installs with current deficiencies in locking across platforms.",
                 style="yellow bold",
             )
-            raise ValueError("The flag --skip-lock flag has been removed.")
+            state = ctx.ensure_object(State)
+            state.installstate.skip_lock = value
         return value
 
     return option(
         "--skip-lock",
         is_flag=True,
         default=False,
-        expose_value=False,
+        expose_value=True,
         envvar="PIPENV_SKIP_LOCK",
         callback=callback,
         type=click_types.BOOL,
         show_envvar=True,
-        hidden=True,  # This hides the option from the help text.
     )(f)
 
 
+# OLD REMOVED COMMANDS THAT WE STILL DISPLAY HELP TEXT FOR WHEN USED #
 def keep_outdated_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)

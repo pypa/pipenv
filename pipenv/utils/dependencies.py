@@ -185,7 +185,7 @@ def unearth_hashes_for_dep(project, dep):
             break
 
     # 1 Try to get hashes directly form index
-    install_req, markers = install_req_from_pipfile(dep["name"], dep)
+    install_req, markers, _ = install_req_from_pipfile(dep["name"], dep)
     if not install_req or not install_req.req:
         return []
     if "https://pypi.org/simple/" in index_url:
@@ -981,7 +981,7 @@ def install_req_from_pipfile(name, pipfile):
             vcs_url_parts = vcs_url.rsplit("@", 1)
             vcs_url = vcs_url_parts[0]
             fallback_ref = vcs_url_parts[1]
-        req_str = f"{vcs_url}{_pipfile.get('ref', fallback_ref)}{extras_str}"
+        req_str = f"{vcs_url}@{_pipfile.get('ref', fallback_ref)}{extras_str}"
         if not req_str.startswith(f"{vcs}+"):
             req_str = f"{vcs}+{req_str}"
         if f"{vcs}+file://" in req_str:
@@ -1011,12 +1011,11 @@ def install_req_from_pipfile(name, pipfile):
         expand_env=True,
     )
     markers = PipenvMarkers.from_pipfile(name, _pipfile)
-    return install_req, markers
+    return install_req, markers, req_str
 
 
 def from_pipfile(name, pipfile):
-    install_req, markers = install_req_from_pipfile(name, pipfile)
-
+    install_req, markers, req_str = install_req_from_pipfile(name, pipfile)
     if markers:
         markers = str(markers)
         install_req.markers = Marker(markers)

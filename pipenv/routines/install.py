@@ -12,6 +12,7 @@ from pipenv.utils import console, err, fileutils
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
     get_lockfile_section_using_pipfile_category,
+    install_req_from_pipfile,
 )
 from pipenv.utils.indexes import get_source_list
 from pipenv.utils.internet import download_file, is_valid_url
@@ -42,6 +43,7 @@ def do_install(
     site_packages=None,
     extra_pip_args=None,
     categories=None,
+    skip_lock=False,
 ):
     requirements_directory = fileutils.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
@@ -70,7 +72,7 @@ def do_install(
     if not project.pipfile_exists and not (package_args or dev):
         if not (ignore_pipfile or deploy):
             raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
-        elif ignore_pipfile and not project.lockfile_exists:
+        elif ((skip_lock and deploy) or ignore_pipfile) and not project.lockfile_exists:
             raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
     # Load the --pre settings from the Pipfile.
     if not pre:
@@ -171,6 +173,7 @@ def do_install(
             pypi_mirror=pypi_mirror,
             extra_pip_args=extra_pip_args,
             categories=categories,
+            skip_lock=skip_lock,
         )
 
     # This is for if the user passed in dependencies, then we want to make sure we
@@ -188,6 +191,7 @@ def do_install(
                 pypi_mirror=pypi_mirror,
                 extra_pip_args=extra_pip_args,
                 categories=categories,
+                skip_lock=skip_lock,
             )
 
         for pkg_line in pkg_list:
@@ -284,6 +288,7 @@ def do_install(
                 pypi_mirror=pypi_mirror,
                 extra_pip_args=extra_pip_args,
                 categories=categories,
+                skip_lock=skip_lock,
             )
         except Exception as e:
             # If we fail to install, remove the package from the Pipfile.
@@ -358,6 +363,7 @@ def do_install_dependencies(
     pypi_mirror=None,
     extra_pip_args=None,
     categories=None,
+    skip_lock=False,
 ):
     """
     Executes the installation functionality.
@@ -373,17 +379,39 @@ def do_install_dependencies(
             categories = ["packages"]
 
     for category in categories:
-        lockfile = project.get_or_create_lockfile(categories=categories)
-        if not bare:
-            console.print(
-                f"Installing dependencies from Pipfile.lock "
-                f"({lockfile['_meta'].get('hash', {}).get('sha256')[-6:]})...",
-                style="bold",
-            )
+        # Load the lockfile if it exists, or if dev_only is being used.
+        lockfile = None
+        pipfile = None
+        if skip_lock:
+            ignore_hashes = True
+            if not bare:
+                console.print("Installing dependencies from Pipfile...", style="bold")
+            pipfile = project.get_pipfile_section(category)
+        else:
+            lockfile = project.get_or_create_lockfile(categories=categories)
+            if not bare:
+                console.print(
+                    f"Installing dependencies from Pipfile.lock "
+                    f"({lockfile['_meta'].get('hash', {}).get('sha256')[-6:]})...",
+                    style="bold",
+                )
         dev = dev or dev_only
-        deps_list = list(
-            lockfile.get_requirements(dev=dev, only=dev_only, categories=[category])
-        )
+        if skip_lock:
+            deps_list = []
+            for req_name, pipfile_entry in pipfile.items():
+                install_req, markers, req_line = install_req_from_pipfile(
+                    req_name, pipfile_entry
+                )
+                deps_list.append(
+                    (
+                        install_req,
+                        req_line,
+                    )
+                )
+        else:
+            deps_list = list(
+                lockfile.get_requirements(dev=dev, only=dev_only, categories=[category])
+            )
         editable_or_vcs_deps = [
             (dep, pip_line) for dep, pip_line in deps_list if (dep.link and dep.editable)
         ]
@@ -394,15 +422,18 @@ def do_install_dependencies(
         ]
 
         install_kwargs = {
-            "no_deps": True,
+            "no_deps": not skip_lock,
             "ignore_hashes": ignore_hashes,
             "allow_global": allow_global,
             "pypi_mirror": pypi_mirror,
             "sequential_deps": editable_or_vcs_deps,
             "extra_pip_args": extra_pip_args,
         }
-        lockfile_category = get_lockfile_section_using_pipfile_category(category)
-        lockfile_section = lockfile[lockfile_category]
+        if skip_lock:
+            lockfile_section = pipfile
+        else:
+            lockfile_category = get_lockfile_section_using_pipfile_category(category)
+            lockfile_section = lockfile[lockfile_category]
         batch_install(
             project,
             normal_deps,
@@ -499,8 +530,10 @@ def batch_install(
         deps_by_index = defaultdict(list)
         for dependency, pip_line in deps_to_install:
             index = project.sources_default["name"]
-            if dependency.name and lockfile_section[dependency.name].get("index"):
-                index = lockfile_section[dependency.name]["index"]
+            if dependency.name and dependency.name in lockfile_section:
+                entry = lockfile_section[dependency.name]
+                if isinstance(entry, dict) and "index" in entry:
+                    index = entry["index"]
             deps_by_index[index].append(pip_line)
         # Treat each index as its own pip install phase
         for index_name, dependencies in deps_by_index.items():
@@ -560,6 +593,7 @@ def do_init(
     pypi_mirror=None,
     extra_pip_args=None,
     categories=None,
+    skip_lock=False,
 ):
     """Executes the init functionality."""
     python = None
@@ -585,7 +619,7 @@ def do_init(
             suffix="-requirements", prefix="pipenv-"
         )
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
-    if project.lockfile_exists and not ignore_pipfile:
+    if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
@@ -620,7 +654,7 @@ def do_init(
                     categories=categories,
                 )
     # Write out the lockfile if it doesn't exist.
-    if not project.lockfile_exists:
+    if not project.lockfile_exists and not skip_lock:
         # Unless we're in a virtualenv not managed by pipenv, abort if we're
         # using the system's python.
         if (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
@@ -652,6 +686,7 @@ def do_init(
         pypi_mirror=pypi_mirror,
         extra_pip_args=extra_pip_args,
         categories=categories,
+        skip_lock=skip_lock,
     )
 
     # Hint the user what to do to activate the virtualenv.
