@@ -71,7 +71,6 @@ class State:
         self.project = Project()
         self.installstate = InstallState()
         self.lockoptions = LockOptions()
-        self.skip_lock = False
 
 
 class InstallState:
@@ -86,6 +85,7 @@ class InstallState:
         self.editables = []
         self.extra_pip_args = []
         self.categories = []
+        self.skip_lock = False
 
 
 class LockOptions:
@@ -490,7 +490,7 @@ def skip_lock_option(f):
         if value:
             err.print(
                 "The flag --skip-lock has been reintroduced (but is not recommended).  "
-                "Without running the lock resolver it is not possible to manage multiple package indexes.  "
+                "Without the lock resolver it is difficult to manage multiple package indexes, and hash checking is not provided.  "
                 "However it can help manage installs with current deficiencies in locking across platforms.",
                 style="yellow bold",
             )
