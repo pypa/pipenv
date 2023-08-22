@@ -1096,7 +1096,7 @@ def prepare_constraint_file(
         constraints_file.write(f"{requirementstxt_sources}\n")
 
     if constraints:
-        constraints_file.write("\n".join(list(constraints)))
+        constraints_file.write("\n".join(constraints))
     constraints_file.close()
     return constraints_file.name
 

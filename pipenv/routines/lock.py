@@ -101,8 +101,6 @@ def do_lock(
 
 
 def overwrite_with_default(default, dev):
-    dev_keys = set(dev.keys())
-    prod_keys = set(default.keys())
-    for pkg in dev_keys & prod_keys:
+    for pkg in set(dev) & set(default):
         dev[pkg] = default[pkg]
     return dev
