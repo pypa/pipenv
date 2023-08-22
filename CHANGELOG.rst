@@ -1,3 +1,15 @@
+2023.8.22 (2023-08-22)
+======================
+Pipenv 2023.8.22 (2023-08-22)
+=============================
+
+
+Bug Fixes
+---------
+
+- Fix regression with ``ssh://`` vcs URLs introduced in ``2023.8.21`` whereby ssh vcs URLs are expected to have at least one ``@`` symbol.  `#5846 <https://github.com/pypa/pipenv/issues/5846>`_
+
+
 2023.8.21 (2023-08-21)
 ======================
 Pipenv 2023.8.21 (2023-08-21)
