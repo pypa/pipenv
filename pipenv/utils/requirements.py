@@ -156,6 +156,12 @@ def requirement_from_lockfile(
         if vcs in package_info:
             url = package_info[vcs]
             ref = package_info.get("ref", "")
+            if "@" in url:
+                url_parts = url.rsplit("@", 1)
+                url = url_parts[0]
+                if not ref:
+                    ref = url_parts[1]
+
             extras = (
                 "[{}]".format(",".join(package_info.get("extras", [])))
                 if "extras" in package_info
