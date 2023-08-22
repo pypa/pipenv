@@ -1090,12 +1090,12 @@ class Project:
 
     def remove_packages_from_pipfile(self, packages):
         parsed = self.parsed_pipfile
-        packages = set([pep423_name(pkg) for pkg in packages])
+        packages = {pep423_name(pkg) for pkg in packages}
         for category in self.get_package_categories():
             pipfile_section = parsed.get(category, {})
-            pipfile_packages = set(
-                [pep423_name(pkg_name) for pkg_name in pipfile_section.keys()]
-            )
+            pipfile_packages = {
+                pep423_name(pkg_name) for pkg_name in pipfile_section.keys()
+            }
             to_remove = packages & pipfile_packages
             for pkg in to_remove:
                 pkg_name = self.get_package_name_in_pipfile(pkg, category=category)

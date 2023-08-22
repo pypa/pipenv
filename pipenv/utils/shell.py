@@ -310,11 +310,11 @@ def is_python_command(line):
 @contextmanager
 def temp_path():
     """Allow the ability to set os.environ temporarily"""
-    path = [p for p in sys.path]
+    path = list(sys.path)
     try:
         yield
     finally:
-        sys.path = [p for p in path]
+        sys.path = list(path)
 
 
 def is_readonly_path(fn):

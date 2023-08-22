@@ -298,7 +298,7 @@ def set_write_bit(fn: str) -> None:
         for path in [fn, os.path.dirname(fn)]:
             try:
                 os.chflags(path, 0)
-            except AttributeError:
+            except AttributeError:  # noqa: PERF203
                 pass
         return None
     for root, dirs, files in os.walk(fn, topdown=False):

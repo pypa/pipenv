@@ -187,7 +187,7 @@ def test_local_tar_gz_file(pipenv_instance_private_pypi, testsroot):
         # This tests for a bug when installing a zipfile
         c = p.pipenv(f"install {requests_path}")
         assert c.returncode == 0
-        key = [k for k in p.pipfile["packages"].keys()][0]
+        key = list(p.pipfile["packages"].keys())[0]
         dep = p.pipfile["packages"][key]
 
         assert "file" in dep or "path" in dep

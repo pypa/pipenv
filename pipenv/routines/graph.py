@@ -96,9 +96,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
             except jsonlib.JSONDecodeError:
                 raise exceptions.JSONParseError(c.stdout, c.stderr)
             else:
-                for d in parsed:
-                    if d["package"]["key"] not in BAD_PACKAGES:
-                        data.append(d)
+                data += [d for d in parsed if d["package"]["key"] not in BAD_PACKAGES]
             click.echo(simplejson.dumps(data, indent=4))
             sys.exit(0)
         elif json_tree:

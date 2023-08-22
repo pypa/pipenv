@@ -425,7 +425,7 @@ def _inline_activate_virtualenv(project):
             raise exceptions.VirtualenvActivationException()
         with open(activate_this) as f:
             code = compile(f.read(), activate_this, "exec")
-            exec(code, dict(__file__=activate_this))
+            exec(code, {"__file__": activate_this})
     # Catch all errors, just in case.
     except Exception:
         click.echo(

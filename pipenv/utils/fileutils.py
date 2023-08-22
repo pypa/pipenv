@@ -201,11 +201,11 @@ def temp_path():
         '/home/user/.pyenv/versions/3.7.0/lib/python3.7/site-packages'
     ]
     """
-    path = [p for p in sys.path]
+    path = list(sys.path)
     try:
         yield
     finally:
-        sys.path = [p for p in path]
+        sys.path = list(path)
 
 
 TRACKED_TEMPORARY_DIRECTORIES = []

@@ -371,7 +371,7 @@ def get_path(root, path, default=_UNSET):
         for seg in path:
             try:
                 cur = cur[seg]
-            except (KeyError, IndexError) as exc:
+            except (KeyError, IndexError) as exc:  # noqa: PERF203
                 raise PathAccessError(exc, seg, path)
             except TypeError:
                 # either string index in a list, or a parent that

@@ -17,13 +17,8 @@ TOML_DICT_NAMES = [o.__class__.__name__ for o in TOML_DICT_OBJECTS]
 
 
 def cleanup_toml(tml):
-    toml = tml.split("\n")
-    new_toml = []
     # Remove all empty lines from TOML.
-    for line in toml:
-        if line.strip():
-            new_toml.append(line)
-    toml = "\n".join(new_toml)
+    toml = "\n".join(line for line in tml.split("\n") if line.strip())
     new_toml = []
     # Add newlines between TOML sections.
     for i, line in enumerate(toml.split("\n")):

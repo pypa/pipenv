@@ -301,12 +301,9 @@ class Pipfile(BaseModel):
 
     @property
     def extended_keys(self):
-        return [
-            k
-            for k in itertools.product(
-                ("packages", "dev-packages"), ("", "vcs", "editable")
-            )
-        ]
+        return list(
+            itertools.product(("packages", "dev-packages"), ("", "vcs", "editable"))
+        )
 
     def get_deps(self, dev=False, only=True):
         deps = {}  # type: Dict[Text, Dict[Text, Union[List[Text], Text]]]

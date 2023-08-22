@@ -140,6 +140,4 @@ class PackageIndexHTMLParser(HTMLParser):
         # If tag is an anchor
         if tag == "a":
             # find href attribute
-            for attr in attrs:
-                if attr[0] == "href":
-                    self.urls.append(attr[1])
+            self.urls += [attr[1] for attr in attrs if attr[0] == "href"]

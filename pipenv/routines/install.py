@@ -152,7 +152,7 @@ def do_install(
                 sys.exit(1)
 
     # Allow more than one package to be provided.
-    package_args = [p for p in packages] + [f"-e {pkg}" for pkg in editable_packages]
+    package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
     # Install all dependencies, if none was provided.
     # This basically ensures that we have a pipfile and lockfile, then it locks and
     # installs from the lockfile
@@ -550,7 +550,7 @@ def batch_install(
                     allow_global=allow_global,
                     extra_pip_args=extra_pip_args,
                 )
-            except StopIteration:
+            except StopIteration:  # noqa: PERF203
                 console.print(
                     f"Unable to find {index_name} in sources, please check dependencies: {dependencies}",
                     style="bold red",

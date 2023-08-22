@@ -377,10 +377,7 @@ class Resolver:
             )
             for c in self.parsed_default_constraints
         ]
-        default_constraints = []
-        for c in possible_default_constraints:
-            default_constraints.append(c)
-        return set(default_constraints)
+        return set(possible_default_constraints)
 
     @property
     def possible_constraints(self):

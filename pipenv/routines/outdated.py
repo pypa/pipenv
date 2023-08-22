@@ -42,7 +42,7 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         for package in lockfile.get(category, []):
             try:
                 updated_packages[package] = lockfile[category][package]["version"]
-            except KeyError:
+            except KeyError:  # noqa: PERF203
                 pass
     outdated = []
     skipped = []
