@@ -265,7 +265,7 @@ def rename_if_needed(ctx, vendor_dir, item):
 def _ensure_package_in_requirements(ctx, requirements_file, package):
     requirement = None
     log("using requirements file: %s" % requirements_file)
-    req_file_lines = [line for line in requirements_file.read_text().splitlines()]
+    req_file_lines = list(requirements_file.read_text().splitlines())
     if package:
         match = [r for r in req_file_lines if r.strip().lower().startswith(package)]
         matched_req = None
@@ -720,7 +720,7 @@ def unpin_and_copy_requirements(ctx, requirement_file, name="requirements.txt"):
         ctx.run(f"pipenv install -r {target.as_posix()}", env=env, hide=True)
         result = ctx.run("pipenv lock -r", env=env, hide=True).stdout.strip()
         ctx.run("pipenv --rm", env=env, hide=True)
-        result = list(sorted(line.strip() for line in result.splitlines()[1:]))
+        result = sorted(line.strip() for line in result.splitlines()[1:])
         new_requirements = requirement_file.parent.joinpath(name)
         requirement_file.rename(requirement_file.parent.joinpath(f"{name}.bak"))
         new_requirements.write_text("\n".join(result))

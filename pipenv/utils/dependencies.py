@@ -1054,7 +1054,7 @@ def get_constraints_from_deps(deps):
             else:
                 c = canonicalize_name(dep_name)
         else:
-            if not any([k in dep_version for k in ["path", "file", "uri"]]):
+            if not any(k in dep_version for k in ["path", "file", "uri"]):
                 if dep_version.get("skip_resolver") is True:
                     continue
                 version = dep_version.get("version", None)
@@ -1097,7 +1097,7 @@ def prepare_constraint_file(
         constraints_file.write(f"{requirementstxt_sources}\n")
 
     if constraints:
-        constraints_file.write("\n".join([c for c in constraints]))
+        constraints_file.write("\n".join(list(constraints)))
     constraints_file.close()
     return constraints_file.name
 

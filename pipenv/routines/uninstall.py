@@ -86,7 +86,7 @@ def do_uninstall(
 
     # Remove known "bad packages" from the list.
     bad_pkgs = get_canonical_names(BAD_PACKAGES)
-    ignored_packages = bad_pkgs & set(list(package_map.keys()))
+    ignored_packages = bad_pkgs & set(package_map.keys())
     for ignored_pkg in get_canonical_names(ignored_packages):
         if project.s.is_verbose():
             click.echo(f"Ignoring {ignored_pkg}.", err=True)

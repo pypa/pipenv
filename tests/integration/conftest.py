@@ -38,7 +38,7 @@ def check_internet():
     for url in ("http://httpbin.org/ip", "http://clients3.google.com/generate_204"):
         try:
             try_internet(url)
-        except KeyboardInterrupt:
+        except KeyboardInterrupt:  # noqa: PERF203
             warnings.warn(
                 f"Skipped connecting to internet: {url}", RuntimeWarning, stacklevel=1
             )

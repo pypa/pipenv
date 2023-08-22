@@ -259,7 +259,7 @@ class Lockfile(BaseModel):
 
     @property
     def extended_keys(self):
-        return [k for k in itertools.product(self.section_keys, ["", "vcs", "editable"])]
+        return list(itertools.product(self.section_keys, ["", "vcs", "editable"]))
 
     def get(self, k):
         return self.__getitem__(k)

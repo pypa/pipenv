@@ -139,8 +139,7 @@ def get_pip_args(
     for key in arg_map.keys():
         if key in locals() and locals().get(key):
             arg_set.extend(arg_map.get(key))
-    for extra_pip_arg in extra_pip_args:
-        arg_set.append(extra_pip_arg)
+    arg_set += extra_pip_args or []
     return list(dict.fromkeys(arg_set))
 
 

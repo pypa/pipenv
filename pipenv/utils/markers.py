@@ -62,7 +62,7 @@ class PipenvMarkers(BaseModel):
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
-        attr_fields = [field_name for field_name in cls.__fields__]
+        attr_fields = list(cls.__fields__)
         found_keys = [k for k in pipfile.keys() if k in attr_fields]
         marker_strings = [f"{k} {pipfile[k]}" for k in found_keys]
         if pipfile.get("markers"):
@@ -163,8 +163,7 @@ def _get_specs(specset):
         if op in ("in", "not in"):
             versions = version.split(",")
             op = "==" if op == "in" else "!="
-            for ver in versions:
-                result.append((op, _tuplize_version(ver.strip())))
+            result += [(op, _tuplize_version(ver.strip())) for ver in versions]
         else:
             result.append((spec.operator, _tuplize_version(spec.version)))
     return sorted(result, key=operator.itemgetter(1))
@@ -617,11 +616,7 @@ def merge_markers(m1, m2):
     # type: (Marker, Marker) -> Optional[Marker]
     if not all((m1, m2)):
         return next(iter(v for v in (m1, m2) if v), None)
-    m1 = _ensure_marker(m1)
-    m2 = _ensure_marker(m2)
-    _markers = []  # type: List[Marker]
-    for marker in (m1, m2):
-        _markers.append(str(marker))
+    _markers = [str(_ensure_marker(marker)) for marker in (m1, m2)]
     marker_str = " and ".join([normalize_marker_str(m) for m in _markers if m])
     return _ensure_marker(normalize_marker_str(marker_str))
 
@@ -654,9 +649,9 @@ def marker_from_specifier(spec) -> Marker:
         spec = "=={}".format(spec.lstrip("="))
     if not spec:
         return None
-    marker_segments = []
-    for marker_segment in cleanup_pyspecs(spec):
-        marker_segments.append(format_pyversion(marker_segment))
+    marker_segments = [
+        format_pyversion(marker_segment) for marker_segment in cleanup_pyspecs(spec)
+    ]
     marker_str = " and ".join(marker_segments).replace('"', "'")
     return Marker(marker_str)
 

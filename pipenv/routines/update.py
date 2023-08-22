@@ -123,7 +123,7 @@ def upgrade(
     if index_url:
         index_name = add_index_to_pipfile(project, index_url)
 
-    package_args = [p for p in packages] + [f"-e {pkg}" for pkg in editable_packages]
+    package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
 
     requested_install_reqs = defaultdict(dict)
     requested_packages = defaultdict(dict)
@@ -184,7 +184,7 @@ def upgrade(
             pypi_mirror=pypi_mirror,
         )
         # Mutate the existing lockfile with the upgrade data for the categories
-        for package_name, _ in upgrade_lock_data.items():
+        for package_name in upgrade_lock_data.keys():
             correct_package_lock = full_lock_resolution.get(package_name)
             if correct_package_lock:
                 lockfile[category][package_name] = correct_package_lock

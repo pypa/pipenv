@@ -628,7 +628,7 @@ six = "*"
         c = p.pipenv("lock --categories prereq")
         assert c.returncode == 0
         assert p.lockfile["prereq"]["six"]["index"] == "test"
-        assert p.lockfile["default"] == dict()
+        assert p.lockfile["default"] == {}
         c = p.pipenv("lock --categories packages")
         assert c.returncode == 0
         assert p.lockfile["prereq"]["six"]["index"] == "test"

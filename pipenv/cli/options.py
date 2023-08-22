@@ -171,8 +171,7 @@ def categories_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
-            for opt in re.split(r", *| ", value):
-                state.installstate.categories.append(opt)
+            state.installstate.categories += re.split(r", *| ", value)
         return value
 
     return option(
@@ -235,8 +234,7 @@ def extra_pip_args(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
-            for opt in value.split(" "):
-                state.installstate.extra_pip_args.append(opt)
+            state.installstate.extra_pip_args += value.split(" ")
         return value
 
     return option(

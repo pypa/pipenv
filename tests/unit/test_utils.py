@@ -125,7 +125,7 @@ def test_convert_deps_to_pip_one_way(deps, expected):
 
 @pytest.mark.utils
 def test_convert_deps_to_pip_one_way():
-    deps = {"uvicorn": dict()}
+    deps = {"uvicorn": {}}
     expected = "uvicorn"
     assert dependencies.convert_deps_to_pip(deps) == [expected.lower()]
 

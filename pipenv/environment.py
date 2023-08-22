@@ -346,16 +346,17 @@ class Environment:
             "value = u'{0}'.format(json.dumps(paths)); print(value)"
         )
         sysconfig_line = "sysconfig.get_path('{0}')"
+
         if python_lib:
-            for key in ("purelib", "platlib", "stdlib", "platstdlib"):
-                pylib_lines.append(
-                    f"u'{key}': u'{{0}}'.format({sysconfig_line.format(key)})"
-                )
+            pylib_lines += [
+                f"u'{key}': u'{{0}}'.format({sysconfig_line.format(key)})"
+                for key in ("purelib", "platlib", "stdlib", "platstdlib")
+            ]
         if python_inc:
-            for key in ("include", "platinclude"):
-                pyinc_lines.append(
-                    f"u'{key}': u'{{0}}'.format({sysconfig_line.format(key)})"
-                )
+            pyinc_lines += [
+                f"u'{key}': u'{{0}}'.format({sysconfig_line.format(key)})"
+                for key in ("include", "platinclude")
+            ]
         lines = pylib_lines + pyinc_lines
         if scripts:
             lines.append(
@@ -810,7 +811,7 @@ class Environment:
                 raise OSError(f"No such file: {activate_this!s}")
             with open(activate_this) as f:
                 code = compile(f.read(), activate_this, "exec")
-                exec(code, dict(__file__=activate_this))
+                exec(code, {"__file__": activate_this})
 
     @contextlib.contextmanager
     def activated(self):
