@@ -184,7 +184,7 @@ def upgrade(
             pypi_mirror=pypi_mirror,
         )
         # Mutate the existing lockfile with the upgrade data for the categories
-        for package_name in upgrade_lock_data.keys():
+        for package_name in upgrade_lock_data:
             correct_package_lock = full_lock_resolution.get(package_name)
             if correct_package_lock:
                 lockfile[category][package_name] = correct_package_lock
