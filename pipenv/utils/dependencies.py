@@ -977,7 +977,9 @@ def install_req_from_pipfile(name, pipfile):
     if vcs:
         vcs_url = _pipfile[vcs]
         fallback_ref = ""
-        if "@" in vcs_url:
+        if ("ssh://" in vcs_url and vcs_url.count("@") >= 2) or (
+            "ssh://" not in vcs_url and "@" in vcs_url
+        ):
             vcs_url_parts = vcs_url.rsplit("@", 1)
             vcs_url = vcs_url_parts[0]
             fallback_ref = vcs_url_parts[1]

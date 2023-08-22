@@ -156,7 +156,9 @@ def requirement_from_lockfile(
         if vcs in package_info:
             url = package_info[vcs]
             ref = package_info.get("ref", "")
-            if "@" in url:
+            if ("ssh://" in url and url.count("@") >= 2) or (
+                "ssh://" not in url and "@" in url
+            ):
                 url_parts = url.rsplit("@", 1)
                 url = url_parts[0]
                 if not ref:
