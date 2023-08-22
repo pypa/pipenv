@@ -981,8 +981,9 @@ def install_req_from_pipfile(name, pipfile):
             "ssh://" not in vcs_url and "@" in vcs_url
         ):
             vcs_url_parts = vcs_url.rsplit("@", 1)
-            vcs_url = vcs_url_parts[0]
-            fallback_ref = vcs_url_parts[1]
+            if re.match(r"^[\w\.]+$", vcs_url_parts[1]):
+                vcs_url = vcs_url_parts[0]
+                fallback_ref = vcs_url_parts[1]
         req_str = f"{vcs_url}@{_pipfile.get('ref', fallback_ref)}{extras_str}"
         if not req_str.startswith(f"{vcs}+"):
             req_str = f"{vcs}+{req_str}"
