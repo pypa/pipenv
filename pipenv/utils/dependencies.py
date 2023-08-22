@@ -959,18 +959,29 @@ def expansive_install_req_from_line(
 
 def install_req_from_pipfile(name, pipfile):
     _pipfile = {}
+    vcs = None
     if hasattr(pipfile, "keys"):
         _pipfile = dict(pipfile).copy()
+    else:
+        vcs = next(iter([vcs for vcs in VCS_LIST if pipfile.startswith(f"{vcs}+")]), None)
+        if vcs is not None:
+            _pipfile[vcs] = pipfile
 
     extras = _pipfile.get("extras", [])
     extras_str = ""
     if extras:
         extras_str = f"[{','.join(extras)}]"
-    vcs = next(iter([vcs for vcs in VCS_LIST if vcs in _pipfile]), None)
+    if not vcs:
+        vcs = next(iter([vcs for vcs in VCS_LIST if vcs in _pipfile]), None)
 
     if vcs:
-        _pipfile["vcs"] = vcs
-        req_str = f"{_pipfile[vcs]}{_pipfile.get('ref', '')}{extras_str}"
+        vcs_url = _pipfile[vcs]
+        fallback_ref = ""
+        if "@" in vcs_url:
+            vcs_url_parts = vcs_url.rsplit("@", 1)
+            vcs_url = vcs_url_parts[0]
+            fallback_ref = vcs_url_parts[1]
+        req_str = f"{vcs_url}{_pipfile.get('ref', fallback_ref)}{extras_str}"
         if not req_str.startswith(f"{vcs}+"):
             req_str = f"{vcs}+{req_str}"
         if f"{vcs}+file://" in req_str:
