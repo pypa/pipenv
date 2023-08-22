@@ -147,7 +147,7 @@ def do_install(
             traceback = e
         finally:
             if error and traceback:
-                console.print(error, sytle="red")
+                console.print(error, style="red")
                 err.print(str(traceback), style="yellow")
                 sys.exit(1)
 
