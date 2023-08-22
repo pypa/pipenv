@@ -222,6 +222,7 @@ def install(state, **kwargs):
         site_packages=state.site_packages,
         extra_pip_args=state.installstate.extra_pip_args,
         categories=state.installstate.categories,
+        skip_lock=state.installstate.skip_lock,
     )
 
 
