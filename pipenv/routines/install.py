@@ -11,7 +11,6 @@ from pipenv.routines.lock import do_lock
 from pipenv.utils import console, err, fileutils
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
-    from_pipfile,
     get_lockfile_section_using_pipfile_category,
     install_req_from_pipfile,
 )
@@ -400,10 +399,13 @@ def do_install_dependencies(
         if skip_lock:
             deps_list = []
             for req_name, pipfile_entry in pipfile.items():
+                install_req, markers, req_line = install_req_from_pipfile(
+                    req_name, pipfile_entry
+                )
                 deps_list.append(
                     (
-                        install_req_from_pipfile(req_name, pipfile_entry)[0],
-                        str(from_pipfile(req_name, pipfile_entry)),
+                        install_req,
+                        req_line,
                     )
                 )
         else:
