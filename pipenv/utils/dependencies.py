@@ -964,7 +964,8 @@ def install_req_from_pipfile(name, pipfile):
         _pipfile = dict(pipfile).copy()
     else:
         vcs = next(iter([vcs for vcs in VCS_LIST if pipfile.startswith(f"{vcs}+")]), None)
-        _pipfile[vcs] = pipfile
+        if vcs is not None:
+            _pipfile[vcs] = pipfile
 
     extras = _pipfile.get("extras", [])
     extras_str = ""
