@@ -11,6 +11,7 @@ from pipenv.routines.lock import do_lock
 from pipenv.utils import console, err, fileutils
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
+    from_pipfile,
     get_lockfile_section_using_pipfile_category,
     install_req_from_pipfile,
 )
@@ -383,6 +384,7 @@ def do_install_dependencies(
         lockfile = None
         pipfile = None
         if skip_lock:
+            ignore_hashes = True
             if not bare:
                 console.print("Installing dependencies from Pipfile...", style="bold")
             pipfile = project.get_pipfile_section(category)
@@ -398,7 +400,12 @@ def do_install_dependencies(
         if skip_lock:
             deps_list = []
             for req_name, pipfile_entry in pipfile.items():
-                deps_list.append(install_req_from_pipfile(req_name, pipfile_entry))
+                deps_list.append(
+                    (
+                        install_req_from_pipfile(req_name, pipfile_entry)[0],
+                        str(from_pipfile(req_name, pipfile_entry)),
+                    )
+                )
         else:
             deps_list = list(
                 lockfile.get_requirements(dev=dev, only=dev_only, categories=[category])
@@ -413,15 +420,18 @@ def do_install_dependencies(
         ]
 
         install_kwargs = {
-            "no_deps": True,
+            "no_deps": not skip_lock,
             "ignore_hashes": ignore_hashes,
             "allow_global": allow_global,
             "pypi_mirror": pypi_mirror,
             "sequential_deps": editable_or_vcs_deps,
             "extra_pip_args": extra_pip_args,
         }
-        lockfile_category = get_lockfile_section_using_pipfile_category(category)
-        lockfile_section = lockfile[lockfile_category]
+        if skip_lock:
+            lockfile_section = pipfile
+        else:
+            lockfile_category = get_lockfile_section_using_pipfile_category(category)
+            lockfile_section = lockfile[lockfile_category]
         batch_install(
             project,
             normal_deps,

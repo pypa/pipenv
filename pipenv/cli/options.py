@@ -494,6 +494,8 @@ def skip_lock_option(f):
                 "However it can help manage installs with current deficiencies in locking across platforms.",
                 style="yellow bold",
             )
+            state = ctx.ensure_object(State)
+            state.installstate.skip_lock = value
         return value
 
     return option(
