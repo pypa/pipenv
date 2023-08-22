@@ -3,6 +3,11 @@ import json
 import os
 import sys
 
+try:
+    from functools import cached_property
+except ImportError:
+    cached_property = property
+
 
 def _ensure_modules():
     spec = importlib.util.spec_from_file_location(
@@ -226,6 +231,7 @@ class Entry:
             return marker_str
         return None
 
+    @cached_property
     def get_cleaned_dict(self):
         self.validate_constraints()
         if self.entry.extras != self.lockfile_entry.extras:
@@ -550,7 +556,7 @@ def clean_results(results, resolver, project, category):
             reverse_deps=reverse_deps,
             category=category,
         )
-        entry_dict = translate_markers(entry.get_cleaned_dict())
+        entry_dict = translate_markers(entry.get_cleaned_dict)
         new_results.append(entry_dict)
     return new_results
 

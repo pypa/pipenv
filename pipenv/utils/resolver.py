@@ -326,19 +326,24 @@ class Resolver:
                 alt_index_lookup[req_name] = index_mapping[index]
         return alt_index_lookup
 
-    @property
-    def finder(self):
+    @cached_property
+    def package_finder(self):
         finder = get_package_finder(
             install_cmd=self.pip_command,
             options=self.pip_options,
             session=self.session,
         )
+        return finder
+
+    @property
+    def finder(self):
+        finder = self.package_finder
         index_lookup = self.prepare_index_lookup()
         finder._link_collector.index_lookup = index_lookup
         finder._link_collector.search_scope.index_lookup = index_lookup
         return finder
 
-    @property
+    @cached_property
     def parsed_constraints(self):
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
@@ -434,9 +439,10 @@ class Resolver:
             yield resolver
 
     def resolve(self):
+        constraints = self.constraints
         with temp_environ(), self.get_resolver() as resolver:
             try:
-                results = resolver.resolve(self.constraints, check_supported_wheels=False)
+                results = resolver.resolve(constraints, check_supported_wheels=False)
             except InstallationError as e:
                 raise ResolutionFailure(message=str(e))
             else:
@@ -512,6 +518,7 @@ class Resolver:
             return {self.project.get_hash_from_link(self.hash_cache, link)}
         return set()
 
+    @cached_property
     def resolve_hashes(self):
         if self.results is not None:
             for ireq in self.results:
@@ -612,7 +619,7 @@ def actually_resolve_deps(
             category,
         )
         resolver.resolve()
-        hashes = resolver.resolve_hashes()
+        hashes = resolver.resolve_hashes
         resolver.resolve_constraints()
         results = resolver.clean_results()
     for warning in warning_list:

@@ -1,0 +1,1 @@
+Add back some relevant caching to increase performance after the major refactor released with ``2023.8.19``
