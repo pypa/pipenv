@@ -1,1 +1,0 @@
-More gracefully handle @ symbols in vcs URLs to address recent regression with vcs URLs.

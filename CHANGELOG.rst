@@ -1,3 +1,15 @@
+2023.8.23 (2023-08-22)
+======================
+Pipenv 2023.8.23 (2023-08-22)
+=============================
+
+
+Bug Fixes
+---------
+
+- More gracefully handle @ symbols in vcs URLs to address recent regression with vcs URLs.  `#5849 <https://github.com/pypa/pipenv/issues/5849>`_
+
+
 2023.8.22 (2023-08-22)
 ======================
 Pipenv 2023.8.22 (2023-08-22)
