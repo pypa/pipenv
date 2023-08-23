@@ -2,7 +2,6 @@ import ast
 import configparser
 import os
 import re
-import sys
 import tarfile
 import tempfile
 import zipfile
@@ -395,12 +394,17 @@ def dependency_as_pip_install_line(
     if not vcs:
         for k in ["file", "path"]:
             if k in dep:
-                if is_editable_path(dep[k]):
+                if dep.get("editable"):
                     line.append("-e")
                 extras = ""
                 if "extras" in dep:
                     extras = f"[{','.join(dep['extras'])}]"
                 location = dep["file"] if "file" in dep else dep["path"]
+
+                # Handle Windows paths by replacing single backslashes with double backslashes
+                if "\\" in location and not location.startswith(("http:", "https:")):
+                    location = location.replace("\\", "\\\\")
+
                 if location.startswith(("http:", "https:")):
                     line.append(f"{dep_name}{extras} @ {location}")
                 else:
@@ -522,38 +526,19 @@ def parse_setup_file(content):
     try:
         tree = ast.parse(content)
         for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "setup":
-                for keyword in node.keywords:
-                    if keyword.arg == "name":
-                        if isinstance(keyword.value, ast.Str):
-                            return keyword.value.s
-                        elif sys.version_info < (3, 9) and isinstance(
-                            keyword.value, ast.Subscript
-                        ):
-                            if (
-                                isinstance(keyword.value.value, ast.Name)
-                                and keyword.value.value.id == "about"
-                            ):
-                                if isinstance(
-                                    keyword.value.slice, ast.Index
-                                ) and isinstance(keyword.value.slice.value, ast.Str):
-                                    return keyword.value.slice.value.s
-                            return keyword.value.s
-                        elif sys.version_info >= (3, 9) and isinstance(
-                            keyword.value, ast.Subscript
-                        ):
-                            # If the name is a lookup in a dictionary, only handle the case where it's a static lookup
-                            if (
-                                isinstance(keyword.value.value, ast.Name)
-                                and isinstance(keyword.value.slice, ast.Str)
-                                and keyword.value.value.id == "about"
-                            ):
-                                return keyword.value.slice.s
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                if (
+                    node.func.attr == "setup"
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "setuptools"
+                ):
+                    for keyword in node.keywords:
+                        if keyword.arg == "name":
+                            if isinstance(keyword.value, ast.Str):
+                                return keyword.value.s
 
     except ValueError:
         pass  # We will not exec unsafe code to determine the name pre-resolver
-
-    return None
 
 
 def parse_cfg_file(content):
@@ -1077,7 +1062,6 @@ def prepare_constraint_file(
 ):
     if not directory:
         directory = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
-
     constraints = set(constraints)
     constraints_file = NamedTemporaryFile(
         mode="w",

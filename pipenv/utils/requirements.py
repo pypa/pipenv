@@ -184,9 +184,13 @@ def requirement_from_lockfile(
         line = []
         if k in package_info:
             path = package_info[k]
-            if is_editable_path(path):
+            if package_info.get("editable"):
                 line.append("-e")
-            line.append(f"{package_info[k]}")
+
+            # Handle Windows paths by replacing single backslashes with double backslashes
+            if "\\" in path and not path.startswith(("http:", "https:")):
+                path = path.replace("\\", "\\\\")
+            line.append(path)
             pip_line = " ".join(line)
             return pip_line
 

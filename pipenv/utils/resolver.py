@@ -225,7 +225,7 @@ class Resolver:
             if is_constraint:
                 constraints.add(dep)
         resolver = Resolver(
-            set(),
+            constraints,
             req_dir,
             project,
             sources,
@@ -243,7 +243,6 @@ class Resolver:
             install_req = install_reqs[package_name]
             if resolver.check_if_package_req_skipped(install_req):
                 resolver.skipped[package_name] = dep
-        resolver.initial_constraints = constraints
         resolver.index_lookup = index_lookup
         resolver.finder.index_lookup = index_lookup
         resolver.markers_lookup = markers_lookup
