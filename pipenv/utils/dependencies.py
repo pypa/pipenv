@@ -394,7 +394,7 @@ def dependency_as_pip_install_line(
     if not vcs:
         for k in ["file", "path"]:
             if k in dep:
-                if dep.get("editable"):
+                if dep.get("editable") and is_editable_path(dep[k]):
                     line.append("-e")
                 extras = ""
                 if "extras" in dep:
