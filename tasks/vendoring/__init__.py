@@ -795,4 +795,7 @@ def vendor_artifact(ctx, package, version=None):
         dest_file = dest_dir / dest_path
         with open(dest_file.as_posix(), "wb") as target_handle:
             with open_file(link) as fp:
+                if fp is None:
+                    print(f"Error downloading {link}")
+                    continue
                 shutil.copyfileobj(fp, target_handle)

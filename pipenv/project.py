@@ -317,7 +317,9 @@ class Project:
                     else:  # Fallback to downloading the file to obtain hash
                         package_url = urljoin(source["url"], package_url)
                         link = Link(package_url)
-                        collected_hashes.add(self.get_file_hash(session, link))
+                        file_hash = self.get_file_hash(session, link)
+                        if file_hash:
+                            collected_hashes.add(file_hash)
             return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
         except (ValueError, KeyError, ConnectionError):
             if self.s.is_verbose():
@@ -333,6 +335,8 @@ class Project:
         h = hashlib.new(FAVORITE_HASH)
         err.print(f"Downloading file {link.filename} to obtain hash...")
         with open_file(link.url, session) as fp:
+            if fp is None:
+                return None
             for chunk in iter(lambda: fp.read(8096), b""):
                 h.update(chunk)
         return f"{h.name}:{h.hexdigest()}"
