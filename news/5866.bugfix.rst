@@ -1,1 +1,0 @@
-Fix regression of hash collection when downloading package from private indexes when the hash is not found in the index href url fragment.

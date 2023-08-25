@@ -1,8 +1,17 @@
-2023.8.23 (2023-08-22)
+2023.8.25 (2023-08-25)
 ======================
-Pipenv 2023.8.23 (2023-08-22)
+Pipenv 2023.8.25 (2023-08-25)
 =============================
 
+
+Bug Fixes
+---------
+
+- Fix regression of hash collection when downloading package from private indexes when the hash is not found in the index href url fragment.  `#5866 <https://github.com/pypa/pipenv/issues/5866>`_
+
+
+2023.8.23 (2023-08-22)
+======================
 
 Bug Fixes
 ---------
@@ -12,9 +21,6 @@ Bug Fixes
 
 2023.8.22 (2023-08-22)
 ======================
-Pipenv 2023.8.22 (2023-08-22)
-=============================
-
 
 Bug Fixes
 ---------
@@ -24,9 +30,6 @@ Bug Fixes
 
 2023.8.21 (2023-08-21)
 ======================
-Pipenv 2023.8.21 (2023-08-21)
-=============================
-
 
 Bug Fixes
 ---------
