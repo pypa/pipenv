@@ -12,7 +12,8 @@ from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 from urllib.parse import quote, urlparse
 
-from pipenv.patched.pip._vendor.requests import Session
+from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
+from pipenv.patched.pip._internal.network.download import PipSession
 from pipenv.utils import err
 
 
@@ -114,12 +115,12 @@ def path_to_url(path):
 
 
 @contextmanager
-def open_file(link, session: Optional[Session] = None, stream: bool = True):
+def open_file(link, session: Optional[PipSession] = None, stream: bool = False):
     """Open local or remote file for reading.
 
     :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with
         pip, or else a URL.
-    :param Optional[Session] session: A :class:`~requests.Session` instance
+    :param Optional[PipSession] session: A :class:`~PipSession` instance
     :param bool stream: Whether to stream the content if remote, default True
     :raises ValueError: If link points to a local directory.
     :return: a context manager to the opened file-like object
@@ -145,7 +146,7 @@ def open_file(link, session: Optional[Session] = None, stream: bool = True):
         # Remote URL
         headers = {"Accept-Encoding": "identity"}
         if not session:
-            session = Session()
+            session = PipSession(cache=USER_CACHE_DIR)
         resp = session.get(link, headers=headers, stream=stream)
         if resp.status_code != 200:
             err.print(f"HTTP error {resp.status_code} while getting {link}")

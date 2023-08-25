@@ -3,19 +3,17 @@ import re
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 
-from pipenv.patched.pip._vendor import requests
-from pipenv.patched.pip._vendor.requests.adapters import HTTPAdapter
+from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
+from pipenv.patched.pip._internal.network.download import PipSession
 from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
 
 
-def get_requests_session(max_retries=1, verify_ssl=True):
+def get_requests_session(max_retries=1, verify_ssl=True, cache_dir=USER_CACHE_DIR):
     """Load requests lazily."""
     pip_client_cert = os.environ.get("PIP_CLIENT_CERT")
-    requests_session = requests.Session()
+    requests_session = PipSession(cache=cache_dir, retries=max_retries)
     if pip_client_cert:
         requests_session.cert = pip_client_cert
-    adapter = HTTPAdapter(max_retries=max_retries)
-    requests_session.mount("https://", adapter)
     if verify_ssl is False:
         requests_session.verify = False
     return requests_session
