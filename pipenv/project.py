@@ -12,7 +12,7 @@ import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from urllib import parse
-from urllib.parse import unquote
+from urllib.parse import unquote, urljoin
 
 from pipenv.utils.constants import VCS_LIST
 
@@ -315,8 +315,7 @@ class Project:
                     if params_dict.get(FAVORITE_HASH):
                         collected_hashes.add(params_dict[FAVORITE_HASH][0])
                     else:  # Fallback to downloading the file to obtain hash
-                        if source["url"] not in package_url:
-                            package_url = f"{source['url']}{package_url}"
+                        package_url = urljoin(source["url"], package_url)
                         link = Link(package_url)
                         collected_hashes.add(self.get_file_hash(session, link))
             return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
