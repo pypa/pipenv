@@ -3,8 +3,7 @@ import atexit
 import os
 import sys
 import warnings
-from contextlib import closing, contextmanager
-from http.client import HTTPResponse as Urllib_HTTPResponse
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import IO, Any, ContextManager, Optional, TypeVar, Union
@@ -12,10 +11,8 @@ from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 from urllib.parse import quote, urlparse
 
+from pipenv.patched.pip._internal.vcs import RemoteNotFoundError
 from pipenv.patched.pip._vendor.requests import Session
-from pipenv.patched.pip._vendor.urllib3.response import (
-    HTTPResponse as Urllib3_HTTPResponse,
-)
 
 _T = TypeVar("_T")
 
@@ -120,7 +117,7 @@ def path_to_url(path):
 @contextmanager
 def open_file(
     link: Union[_T, str], session: Optional[Session] = None, stream: bool = True
-) -> ContextManager[Union[IO[bytes], Urllib3_HTTPResponse, Urllib_HTTPResponse]]:
+) -> ContextManager[IO[bytes]]:
     """Open local or remote file for reading.
 
     :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with
@@ -151,17 +148,12 @@ def open_file(
         # Remote URL
         headers = {"Accept-Encoding": "identity"}
         if not session:
-            try:
-                from pipenv.patched.pip._vendor.requests import Session  # noqa
-            except ImportError:
-                session = None
-            else:
-                session = Session()
-        if session is None:
-            with closing(urllib_request.urlopen(link)) as f:
-                yield f
-        else:
+            session = Session()
             with session.get(link, headers=headers, stream=stream) as resp:
+                if resp.status_code != 200:
+                    raise RemoteNotFoundError(
+                        f"HTTP error {resp.status_code} while getting {link}"
+                    )
                 try:
                     raw = getattr(resp, "raw", None)
                     result = raw if raw else resp
@@ -216,7 +208,7 @@ def create_tracked_tempdir(*args: Any, **kwargs: Any) -> str:
 
     This uses `TemporaryDirectory`, but does not remove the directory
     when the return value goes out of scope, instead registers a handler
-    to cleanup on program exit. The return value is the path to the
+    to clean up on program exit. The return value is the path to the
     created directory.
     """
     tempdir = TemporaryDirectory(*args, **kwargs)
