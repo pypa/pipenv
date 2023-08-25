@@ -117,7 +117,12 @@ def path_to_url(path):
 def open_file(link, session: Optional[Session] = None, stream: bool = True):
     """Open local or remote file for reading.
 
-    Other details...
+    :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with
+        pip, or else a URL.
+    :param Optional[Session] session: A :class:`~requests.Session` instance
+    :param bool stream: Whether to stream the content if remote, default True
+    :raises ValueError: If link points to a local directory.
+    :return: a context manager to the opened file-like object
     """
     if not isinstance(link, str):
         try:
