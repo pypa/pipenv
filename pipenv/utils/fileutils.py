@@ -13,6 +13,7 @@ from urllib.parse import quote, urlparse
 
 from pipenv.patched.pip._internal.vcs import RemoteNotFoundError
 from pipenv.patched.pip._vendor.requests import Session
+from pipenv.utils import err
 
 _T = TypeVar("_T")
 
@@ -131,7 +132,11 @@ def open_file(
         try:
             link = link.url_without_fragment
         except AttributeError:
-            raise ValueError(f"Cannot parse url from unknown type: {link!r}")
+            err.print(
+                f"Cannot parse url from unknown type: {link!r}; Skipping ...",
+                style="bold red",
+            )
+            return None
 
     if not is_valid_url(link) and os.path.exists(link):
         link = path_to_url(link)
