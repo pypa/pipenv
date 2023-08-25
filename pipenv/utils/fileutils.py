@@ -1,21 +1,19 @@
 """A collection for utilities for working with files and paths."""
 import atexit
+import io
 import os
 import sys
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import IO, Any, ContextManager, Optional, TypeVar, Union
+from typing import Any, Optional
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 from urllib.parse import quote, urlparse
 
-from pipenv.patched.pip._internal.vcs import RemoteNotFoundError
 from pipenv.patched.pip._vendor.requests import Session
 from pipenv.utils import err
-
-_T = TypeVar("_T")
 
 
 def is_file_url(url: Any) -> bool:
@@ -116,27 +114,16 @@ def path_to_url(path):
 
 
 @contextmanager
-def open_file(
-    link: Union[_T, str], session: Optional[Session] = None, stream: bool = True
-) -> ContextManager[IO[bytes]]:
+def open_file(link, session: Optional[Session] = None, stream: bool = True):
     """Open local or remote file for reading.
 
-    :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with
-        pip, or else a URL.
-    :param Optional[Session] session: A :class:`~requests.Session` instance
-    :param bool stream: Whether to stream the content if remote, default True
-    :raises ValueError: If link points to a local directory.
-    :return: a context manager to the opened file-like object
+    Other details...
     """
     if not isinstance(link, str):
         try:
             link = link.url_without_fragment
         except AttributeError:
-            err.print(
-                f"Cannot parse url from unknown type: {link!r}; Skipping ...",
-                style="bold red",
-            )
-            return None
+            raise ValueError(f"Cannot parse url from unknown type: {link!r}")
 
     if not is_valid_url(link) and os.path.exists(link):
         link = path_to_url(link)
@@ -154,21 +141,14 @@ def open_file(
         headers = {"Accept-Encoding": "identity"}
         if not session:
             session = Session()
-            with session.get(link, headers=headers, stream=stream) as resp:
-                if resp.status_code != 200:
-                    raise RemoteNotFoundError(
-                        f"HTTP error {resp.status_code} while getting {link}"
-                    )
-                try:
-                    raw = getattr(resp, "raw", None)
-                    result = raw if raw else resp
-                    yield result
-                finally:
-                    if raw:
-                        conn = raw._connection
-                        if conn is not None:
-                            conn.close()
-                    result.close()
+        resp = session.get(link, headers=headers, stream=stream)
+        if resp.status_code != 200:
+            err.print(f"HTTP error {resp.status_code} while getting {link}")
+            yield None
+        else:
+            # Creating a buffer-like object
+            buffer = io.BytesIO(resp.content)
+            yield buffer
 
 
 @contextmanager
