@@ -9,7 +9,7 @@ import subprocess
 import time
 import warnings
 from functools import partial
-from itertools import count, islice, tee
+from itertools import count, islice
 from typing import Any, Iterable
 
 DIRECTORY_CLEANUP_TIMEOUT = 1.0
@@ -62,18 +62,13 @@ def unnest(elem: Iterable) -> Any:
     """
 
     if isinstance(elem, Iterable) and not isinstance(elem, str):
-        elem, target = tee(elem, 2)
-    else:
-        target = elem
-    if not target or not _is_iterable(target):
-        yield target
-    else:
-        for el in target:
+        for el in elem:
             if isinstance(el, Iterable) and not isinstance(el, str):
-                el, el_copy = tee(el, 2)
-                yield from unnest(el_copy)
+                yield from unnest(el)
             else:
                 yield el
+    else:
+        yield elem
 
 
 def dedup(iterable: Iterable) -> Iterable:
