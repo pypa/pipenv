@@ -183,13 +183,16 @@ def requirement_from_lockfile(
                 if "extras" in package_info
                 else ""
             )
+            subdirectory = package_info.get("subdirectory", "")
             include_vcs = "" if f"{vcs}+" in url else f"{vcs}+"
             egg_fragment = "" if "#egg=" in url else f"#egg={package_name}"
             ref_str = "" if not ref or f"@{ref}" in url else f"@{ref}"
             if is_editable_path(url) or "file://" in url:
                 pip_line = f"-e {include_vcs}{url}{ref_str}{egg_fragment}{extras}"
+                pip_line += f"&subdirectory={subdirectory}" if subdirectory else ""
             else:
                 pip_line = f"{package_name}{extras}@ {include_vcs}{url}{ref_str}"
+                pip_line += f"#subdirectory={subdirectory}" if subdirectory else ""
             return pip_line
     # Handling file-sourced packages
     for k in ["file", "path"]:

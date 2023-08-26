@@ -246,6 +246,8 @@ def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
             else:
                 lockfile[vcs_type] = dep[vcs_type]
             lockfile["ref"] = dep.get("ref")
+            if "subdirectory" in dep:
+                lockfile["subdirectory"] = dep["subdirectory"]
             is_vcs_or_file = True
 
     if "editable" in dep:
@@ -965,6 +967,9 @@ def install_req_from_pipfile(name, pipfile):
 
     if vcs:
         vcs_url = _pipfile[vcs]
+        subdirectory = _pipfile.get("subdirectory", "")
+        if subdirectory:
+            subdirectory = f"#subdirectory={subdirectory}"
         fallback_ref = ""
         if ("ssh://" in vcs_url and vcs_url.count("@") >= 2) or (
             "ssh://" not in vcs_url and "@" in vcs_url
@@ -977,9 +982,11 @@ def install_req_from_pipfile(name, pipfile):
         if not req_str.startswith(f"{vcs}+"):
             req_str = f"{vcs}+{req_str}"
         if f"{vcs}+file://" in req_str:
-            req_str = f"-e {req_str}#egg={name}{extras_str}"
+            req_str = (
+                f"-e {req_str}#egg={name}{extras_str}{subdirectory.replace('#', '&')}"
+            )
         else:
-            req_str = f"{name}{extras_str}@ {req_str}"
+            req_str = f"{name}{extras_str}@ {req_str}{subdirectory}"
     elif "path" in _pipfile:
         req_str = str(Path(_pipfile["path"]).as_posix())
     elif "file" in _pipfile:
