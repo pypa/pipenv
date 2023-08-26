@@ -1146,6 +1146,10 @@ class Project:
                     vcs_parts = vcs_part.rsplit("@", 1)
                     entry["ref"] = vcs_parts[1].split("#", 1)[0].strip()
                     entry[vcs] = vcs_parts[0].strip()
+
+                    # Check and extract subdirectory fragment
+                    if package.link.subdirectory_fragment:
+                        entry["subdirectory"] = package.link.subdirectory_fragment
                     break
         else:
             entry["version"] = specifier

@@ -35,14 +35,6 @@ class PipenvMarkers(BaseModel):
     implementation_name: Optional[str] = None
     implementation_version: Optional[str] = None
 
-    @property
-    def line_part(self):
-        return " and ".join([f"{k} {v}" for k, v in self.dict().items() if v is not None])
-
-    @property
-    def pipfile_part(self):
-        return {"markers": self.as_line}
-
     @classmethod
     def make_marker(cls, marker_string):
         try:
@@ -54,19 +46,14 @@ class PipenvMarkers(BaseModel):
         return marker
 
     @classmethod
-    def from_line(cls, line):
-        if ";" in line:
-            line = line.rsplit(";", 1)[1].strip()
-        marker = cls.make_marker(line)
-        return marker
-
-    @classmethod
     def from_pipfile(cls, name, pipfile):
         attr_fields = list(cls.__fields__)
         found_keys = [k for k in pipfile.keys() if k in attr_fields]
         marker_strings = [f"{k} {pipfile[k]}" for k in found_keys]
         if pipfile.get("markers"):
             marker_strings.append(pipfile.get("markers"))
+        if pipfile.get("sys_platform"):
+            marker_strings.append(f"sys_platform '{pipfile['sys_platform']}'")
         markers = set()
         for marker in marker_strings:
             markers.add(marker)

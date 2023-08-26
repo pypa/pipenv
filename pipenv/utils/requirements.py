@@ -151,6 +151,18 @@ def requirement_from_lockfile(
             return f"{package_name}=={package_info}"
         else:
             return package_name
+
+    markers = (
+        "; {}".format(package_info["markers"])
+        if include_markers and "markers" in package_info and package_info["markers"]
+        else ""
+    )
+    os_markers = (
+        "; {}".format(package_info["os_markers"])
+        if include_markers and "os_markers" in package_info and package_info["os_markers"]
+        else ""
+    )
+
     # Handling vcs repositories
     for vcs in VCS_LIST:
         if vcs in package_info:
@@ -171,13 +183,16 @@ def requirement_from_lockfile(
                 if "extras" in package_info
                 else ""
             )
+            subdirectory = package_info.get("subdirectory", "")
             include_vcs = "" if f"{vcs}+" in url else f"{vcs}+"
             egg_fragment = "" if "#egg=" in url else f"#egg={package_name}"
             ref_str = "" if not ref or f"@{ref}" in url else f"@{ref}"
             if is_editable_path(url) or "file://" in url:
                 pip_line = f"-e {include_vcs}{url}{ref_str}{egg_fragment}{extras}"
+                pip_line += f"&subdirectory={subdirectory}" if subdirectory else ""
             else:
                 pip_line = f"{package_name}{extras}@ {include_vcs}{url}{ref_str}"
+                pip_line += f"#subdirectory={subdirectory}" if subdirectory else ""
             return pip_line
     # Handling file-sourced packages
     for k in ["file", "path"]:
@@ -187,6 +202,10 @@ def requirement_from_lockfile(
             if is_editable_path(path):
                 line.append("-e")
             line.append(f"{package_info[k]}")
+            if os_markers:
+                line.append(os_markers)
+            if markers:
+                line.append(markers)
             pip_line = " ".join(line)
             return pip_line
 
@@ -195,16 +214,6 @@ def requirement_from_lockfile(
     hashes = (
         f" --hash={' --hash='.join(package_info['hashes'])}"
         if include_hashes and "hashes" in package_info
-        else ""
-    )
-    markers = (
-        "; {}".format(package_info["markers"])
-        if include_markers and "markers" in package_info and package_info["markers"]
-        else ""
-    )
-    os_markers = (
-        "; {}".format(package_info["os_markers"])
-        if include_markers and "os_markers" in package_info and package_info["os_markers"]
         else ""
     )
     extras = (

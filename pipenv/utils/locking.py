@@ -65,6 +65,8 @@ def format_requirement_for_lockfile(
             entry[vcs] = original_deps[name]
         else:
             entry[vcs] = req.link.url
+        if pipfile_entry.get("subdirectory"):
+            entry["subdirectory"] = pipfile_entry["subdirectory"]
     if req.req:
         entry["version"] = str(req.specifier)
     elif version:
