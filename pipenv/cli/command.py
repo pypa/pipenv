@@ -189,7 +189,7 @@ def cli(
     # Check this again before exiting for empty ``pipenv`` command.
     elif ctx.invoked_subcommand is None:
         # Display help to user, if no commands were passed.
-        console.print(format_help(ctx.get_help()))
+        print(format_help(ctx.get_help()))
 
 
 @cli.command(
