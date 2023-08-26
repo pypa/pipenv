@@ -641,7 +641,10 @@ def determine_path_specifier(package: InstallRequirement):
         if package.link.scheme in ["http", "https"]:
             return package.link.url_without_fragment
         if package.link.scheme == "file":
-            return Path(package.link.file_path).relative_to(Path.cwd()).as_posix()
+            try:
+                return Path(package.link.file_path).relative_to(Path.cwd()).as_posix()
+            except ValueError:
+                return Path(package.link.file_path).as_posix()
 
 
 def determine_vcs_specifier(package: InstallRequirement):
@@ -894,7 +897,7 @@ def expansive_install_req_from_line(
     if expand_env:
         name = expand_env_variables(name)
 
-    if os.path.isfile(name) or os.path.isdir(name):
+    if editable or os.path.isdir(name):
         return install_req_from_editable(name, line_source)
 
     vcs_part = name
@@ -914,9 +917,7 @@ def expansive_install_req_from_line(
                 constraint=constraint,
                 user_supplied=user_supplied,
             )
-    if editable:
-        return install_req_from_editable(name, line_source)
-    if urlparse(name).scheme in ("http", "https", "file"):
+    if urlparse(name).scheme in ("http", "https", "file") or os.path.isfile(name):
         parts = parse_req_from_line(name, line_source)
     else:
         # It's a requirement
