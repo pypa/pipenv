@@ -40,7 +40,6 @@ def get_parser():
         action="store",
         default=None,
     )
-    parser.add_argument("--debug", action="store_true", default=False)
     parser.add_argument("--system", action="store_true", default=False)
     parser.add_argument("--parse-only", action="store_true", default=False)
     parser.add_argument(
