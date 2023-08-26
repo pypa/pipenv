@@ -333,7 +333,8 @@ class Project:
                 )
             return None
 
-    def get_file_hash(self, session, link):
+    @staticmethod
+    def get_file_hash(session, link):
         h = hashlib.new(FAVORITE_HASH)
         err.print(f"Downloading file {link.filename} to obtain hash...")
         with open_file(link.url, session) as fp:
@@ -1126,7 +1127,7 @@ class Project:
         if extras:
             entry["extras"] = list(extras)
         if path_specifier:
-            entry["file"] = unquote(path_specifier)
+            entry["file"] = unquote(str(path_specifier))
         elif vcs_specifier:
             for vcs in VCS_LIST:
                 if vcs in package.link.scheme:

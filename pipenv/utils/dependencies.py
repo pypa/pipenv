@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, AnyStr, Dict, List, Mapping, Optional, Sequence, Union
-from urllib.parse import urljoin, urlparse, urlsplit, urlunsplit
+from urllib.parse import urlparse, urlsplit, urlunsplit
 
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.network.download import Downloader
@@ -639,15 +639,9 @@ def find_package_name_from_directory(directory):
 def determine_path_specifier(package: InstallRequirement):
     if package.link:
         if package.link.scheme in ["http", "https"]:
-            path_specifier = package.link.url_without_fragment
-            return path_specifier
+            return package.link.url_without_fragment
         if package.link.scheme == "file":
-            try:
-                path_specifier = os.path.relpath(package.link.file_path)
-            except ValueError:
-                # If os.path.relpath() fails, use the absolute path instead
-                path_specifier = os.path.abspath(package.link.file_path)
-            return path_specifier
+            return Path(package.link.file_path).relative_to(Path.cwd()).as_posix()
 
 
 def determine_vcs_specifier(package: InstallRequirement):
@@ -901,12 +895,6 @@ def expansive_install_req_from_line(
         name = expand_env_variables(name)
 
     if os.path.isfile(name) or os.path.isdir(name):
-        if not name.startswith("file:"):
-            # Make sure the path is absolute and properly formatted as a file: URL
-            absolute_path = os.path.abspath(name)
-            name = urljoin("file:", absolute_path)
-            name = "file:" + name
-
         return install_req_from_editable(name, line_source)
 
     vcs_part = name
@@ -992,9 +980,9 @@ def install_req_from_pipfile(name, pipfile):
         else:
             req_str = f"{name}{extras_str}@ {req_str}"
     elif "path" in _pipfile:
-        req_str = f"{_pipfile['path']}{extras_str}"
+        req_str = str(Path(_pipfile["path"]).as_posix())
     elif "file" in _pipfile:
-        req_str = f"{_pipfile['file']}{extras_str}"
+        req_str = str(Path(_pipfile["file"]).as_posix())
     else:
         # We ensure version contains an operator. Default to equals (==)
         _pipfile["version"] = version = get_version(pipfile)
