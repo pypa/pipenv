@@ -1,1 +1,0 @@
-Additional property caching to avoid duplication of sources in the resolver.

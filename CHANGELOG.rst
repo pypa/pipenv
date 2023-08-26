@@ -1,3 +1,18 @@
+2023.8.26 (2023-08-26)
+======================
+Pipenv 2023.8.26 (2023-08-26)
+=============================
+
+
+Bug Fixes
+---------
+
+- Additional property caching to avoid duplication of sources in the resolver.  `#5863 <https://github.com/pypa/pipenv/issues/5863>`_
+- Fix recent regressions with local/editable file installs.  `#5870 <https://github.com/pypa/pipenv/issues/5870>`_
+- Fixes the vcs subdirectory fragments regression; fixes sys_platform markers regression.  `#5871 <https://github.com/pypa/pipenv/issues/5871>`_
+- Fix regression that caused printing non-printable ascii characters  when help was called.  `#5872 <https://github.com/pypa/pipenv/issues/5872>`_
+
+
 2023.8.25 (2023-08-25)
 ======================
 Pipenv 2023.8.25 (2023-08-25)
