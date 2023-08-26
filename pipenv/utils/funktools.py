@@ -71,8 +71,7 @@ def unnest(elem: Iterable) -> Any:
         for el in target:
             if isinstance(el, Iterable) and not isinstance(el, str):
                 el, el_copy = tee(el, 2)
-                for sub in unnest(el_copy):
-                    yield sub
+                yield from unnest(el_copy)
             else:
                 yield el
 
