@@ -13,10 +13,9 @@ from pipenv.utils.fileutils import normalize_path
 @pytest.mark.sources
 @pytest.mark.environ
 def test_pipfile_envvar_expansion(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
-        with temp_environ():
-            with open(p.pipfile_path, 'w') as f:
-                f.write("""
+    with pipenv_instance_pypi() as p, temp_environ():
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
 [[source]]
 url = 'https://${TEST_HOST}/simple'
 verify_ssl = false
@@ -25,11 +24,11 @@ name = "pypi"
 [packages]
 pytz = "*"
                 """.strip())
-            os.environ['TEST_HOST'] = 'localhost:5000'
-            project = Project()
-            assert project.sources[0]['url'] == 'https://localhost:5000/simple'
-            assert 'localhost:5000' not in str(Pipfile.load(open(p.pipfile_path)))
-            print(str(Pipfile.load(open(p.pipfile_path))))
+        os.environ['TEST_HOST'] = 'localhost:5000'
+        project = Project()
+        assert project.sources[0]['url'] == 'https://localhost:5000/simple'
+        assert 'localhost:5000' not in str(Pipfile.load(open(p.pipfile_path)))
+        print(str(Pipfile.load(open(p.pipfile_path))))
 
 
 @pytest.mark.project

@@ -199,16 +199,12 @@ def get_workon_home():
 def is_file(package):
     """Determine if a package name is for a File dependency."""
     if hasattr(package, "keys"):
-        return any(key for key in package.keys() if key in ["file", "path"])
+        return any(key for key in package if key in ["file", "path"])
 
     if os.path.exists(str(package)):
         return True
 
-    for start in SCHEME_LIST:
-        if str(package).startswith(start):
-            return True
-
-    return False
+    return any(str(package).startswith(start) for start in SCHEME_LIST)
 
 
 def is_virtual_environment(path):

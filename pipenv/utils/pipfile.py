@@ -1,3 +1,4 @@
+import contextlib
 import io
 import itertools
 import os
@@ -55,11 +56,10 @@ def find_pipfile(max_depth=3):
     for c, _, _ in walk_up(os.getcwd()):
         i += 1
 
-        if i < max_depth:
-            if "Pipfile":
-                p = os.path.join(c, "Pipfile")
-                if os.path.isfile(p):
-                    return p
+        if i < max_depth and "Pipfile":
+            p = os.path.join(c, "Pipfile")
+            if os.path.isfile(p):
+                return p
     raise RuntimeError("No Pipfile found!")
 
 
@@ -190,10 +190,8 @@ class PipfileLoader(pipfiles.Pipfile):
         for key, klass in pipfiles.PIPFILE_SECTIONS.items():
             if key not in data or key == "sources":
                 continue
-            try:
+            with contextlib.suppress(Exception):
                 klass.validate(data[key])
-            except Exception:
-                pass
 
     @classmethod
     def ensure_package_sections(cls, data):
@@ -207,9 +205,7 @@ class PipfileLoader(pipfiles.Pipfile):
             sections are present
         :rtype: :class:`~tomlkit.toml_document.TOMLDocument`
         """
-        package_keys = (
-            k for k in pipfiles.PIPFILE_SECTIONS.keys() if k.endswith("packages")
-        )
+        package_keys = (k for k in pipfiles.PIPFILE_SECTIONS if k.endswith("packages"))
         for key in package_keys:
             if key not in data:
                 data.update({key: tomlkit.table()})
@@ -401,9 +397,8 @@ class Pipfile(BaseModel):
         project_path = pipfile_path.parent
         if not project_path.exists():
             raise FileNotFoundError("%s is not a valid project path!" % path)
-        elif not pipfile_path.exists() or not pipfile_path.is_file():
-            if not create:
-                raise RequirementError("%s is not a valid Pipfile" % pipfile_path)
+        elif (not pipfile_path.exists() or not pipfile_path.is_file()) and not create:
+            raise RequirementError("%s is not a valid Pipfile" % pipfile_path)
         return cls.read_projectfile(pipfile_path.as_posix())
 
     @classmethod

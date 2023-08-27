@@ -548,7 +548,7 @@ class Resolver:
         reqs = [(ireq,) for ireq in self.resolved_tree]
         results = {}
         for (ireq,) in reqs:
-            if normalize_name(ireq.name) in self.skipped.keys():
+            if normalize_name(ireq.name) in self.skipped:
                 continue
             collected_hashes = self.hashes.get(ireq, set())
             if collected_hashes:

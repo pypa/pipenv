@@ -60,8 +60,8 @@ def test_mirror_uninstall(pipenv_instance_pypi):
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
         assert len(p.lockfile["_meta"]["sources"]) == 1
-        assert "https://pypi.org/simple" == p.pipfile["source"][0]["url"]
-        assert "https://pypi.org/simple" == p.lockfile["_meta"]["sources"][0]["url"]
+        assert p.pipfile["source"][0]["url"] == "https://pypi.org/simple"
+        assert p.lockfile["_meta"]["sources"][0]["url"] == "https://pypi.org/simple"
 
         c = p.pipenv("run python -m django --version")
         assert c.returncode == 0
@@ -74,8 +74,8 @@ def test_mirror_uninstall(pipenv_instance_pypi):
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
         assert len(p.lockfile["_meta"]["sources"]) == 1
-        assert "https://pypi.org/simple" == p.pipfile["source"][0]["url"]
-        assert "https://pypi.org/simple" == p.lockfile["_meta"]["sources"][0]["url"]
+        assert p.pipfile["source"][0]["url"] == "https://pypi.org/simple"
+        assert p.lockfile["_meta"]["sources"][0]["url"] == "https://pypi.org/simple"
 
         c = p.pipenv("run python -m django --version")
         assert c.returncode > 0

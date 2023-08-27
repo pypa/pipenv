@@ -220,19 +220,18 @@ allow_prereleases = true
 @flaky
 def test_complex_deps_lock_and_install_properly(pipenv_instance_pypi):
     # This uses the real PyPI because Maya has too many dependencies...
-    with pipenv_instance_pypi() as p:
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
+    with pipenv_instance_pypi() as p, open(p.pipfile_path, 'w') as f:
+        contents = """
 [packages]
 maya = "*"
             """.strip()
-            f.write(contents)
+        f.write(contents)
 
-            c = p.pipenv('lock --verbose')
-            assert c.returncode == 0
+        c = p.pipenv('lock --verbose')
+        assert c.returncode == 0
 
-            c = p.pipenv('install')
-            assert c.returncode == 0
+        c = p.pipenv('install')
+        assert c.returncode == 0
 
 
 @pytest.mark.lock
