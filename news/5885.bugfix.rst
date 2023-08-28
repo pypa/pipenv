@@ -1,1 +1,2 @@
 Do not treat named requirements as file installs just becacuse a match path exists; better handling of editable keyword for local file installs.
+Handle additional edge cases in the setup.py ast parser logic for trying to determine local install package name.

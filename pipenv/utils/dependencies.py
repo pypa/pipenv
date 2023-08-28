@@ -524,33 +524,42 @@ def parse_setup_file(content):
     try:
         tree = ast.parse(content)
         for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "setup":
-                for keyword in node.keywords:
-                    if keyword.arg == "name":
-                        if isinstance(keyword.value, ast.Str):
-                            return keyword.value.s
-                        elif sys.version_info < (3, 9) and isinstance(
-                            keyword.value, ast.Subscript
-                        ):
-                            if (
-                                isinstance(keyword.value.value, ast.Name)
-                                and keyword.value.value.id == "about"
+            if isinstance(node, ast.Call):
+                if (
+                    getattr(node.func, "id", "") == "setup"
+                    or isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "setup"
+                ):
+                    for keyword in node.keywords:
+                        if keyword.arg == "name":
+                            if isinstance(keyword.value, ast.Str):
+                                return keyword.value.s
+                            elif isinstance(keyword.value, ast.Constant) and isinstance(
+                                keyword.value.value, str
                             ):
-                                if isinstance(
-                                    keyword.value.slice, ast.Index
-                                ) and isinstance(keyword.value.slice.value, ast.Str):
-                                    return keyword.value.slice.value.s
-                            return keyword.value.s
-                        elif sys.version_info >= (3, 9) and isinstance(
-                            keyword.value, ast.Subscript
-                        ):
-                            # If the name is a lookup in a dictionary, only handle the case where it's a static lookup
-                            if (
-                                isinstance(keyword.value.value, ast.Name)
-                                and isinstance(keyword.value.slice, ast.Str)
-                                and keyword.value.value.id == "about"
+                                return keyword.value.value
+                            elif sys.version_info < (3, 9) and isinstance(
+                                keyword.value, ast.Subscript
                             ):
-                                return keyword.value.slice.s
+                                if (
+                                    isinstance(keyword.value.value, ast.Name)
+                                    and keyword.value.value.id == "about"
+                                ):
+                                    if isinstance(
+                                        keyword.value.slice, ast.Index
+                                    ) and isinstance(keyword.value.slice.value, ast.Str):
+                                        return keyword.value.slice.value.s
+                                return keyword.value.s
+                            elif sys.version_info >= (3, 9) and isinstance(
+                                keyword.value, ast.Subscript
+                            ):
+                                # If the name is a lookup in a dictionary, only handle the case where it's a static lookup
+                                if (
+                                    isinstance(keyword.value.value, ast.Name)
+                                    and isinstance(keyword.value.slice, ast.Str)
+                                    and keyword.value.value.id == "about"
+                                ):
+                                    return keyword.value.slice.s
 
     except ValueError:
         pass  # We will not exec unsafe code to determine the name pre-resolver
