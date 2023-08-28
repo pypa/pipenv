@@ -44,6 +44,8 @@ def do_update(
     )
     packages = [p for p in packages if p]
     editable = [p for p in editable_packages if p]
+    if not outdated:
+        outdated = bool(dry_run)
     if not packages:
         click.echo(
             "{} {} {} {}{}".format(
@@ -59,7 +61,7 @@ def do_update(
             clear=clear,
             pre=pre,
             pypi_mirror=pypi_mirror,
-            write=not quiet,
+            write=not outdated,
         )
     else:
         upgrade(
@@ -75,8 +77,6 @@ def do_update(
             lock_only=lock_only,
         )
 
-    if not outdated:
-        outdated = bool(dry_run)
     if outdated:
         do_outdated(
             project,
@@ -84,19 +84,19 @@ def do_update(
             pre=pre,
             pypi_mirror=pypi_mirror,
         )
-
-    do_sync(
-        project,
-        dev=dev,
-        categories=categories,
-        python=python,
-        bare=bare,
-        user=False,
-        clear=clear,
-        unused=False,
-        pypi_mirror=pypi_mirror,
-        extra_pip_args=extra_pip_args,
-    )
+    else:
+        do_sync(
+            project,
+            dev=dev,
+            categories=categories,
+            python=python,
+            bare=bare,
+            user=False,
+            clear=clear,
+            unused=False,
+            pypi_mirror=pypi_mirror,
+            extra_pip_args=extra_pip_args,
+        )
 
 
 def upgrade(
