@@ -888,19 +888,14 @@ def expansive_install_req_from_line(
         for logging purposes in case of an error.
     """
     name = name.strip("'")
-    editable = False
-    if name.startswith("-e "):
-        # Editable requirement
-        editable = True
+    if name.startswith("-e "):  # Editable requirements
         name = name.split("-e ")[1]
+        return install_req_from_editable(name, line_source)
     if has_name_with_extras(name):
         name = name.split(" @ ", 1)[1]
 
     if expand_env:
         name = expand_env_variables(name)
-
-    if editable or os.path.isdir(name):
-        return install_req_from_editable(name, line_source)
 
     vcs_part = name
     if "@ " in name:  # Check for new style vcs lines
@@ -919,7 +914,7 @@ def expansive_install_req_from_line(
                 constraint=constraint,
                 user_supplied=user_supplied,
             )
-    if urlparse(name).scheme in ("http", "https", "file") or os.path.isfile(name):
+    if urlparse(name).scheme in ("http", "https", "file"):
         parts = parse_req_from_line(name, line_source)
     else:
         # It's a requirement
