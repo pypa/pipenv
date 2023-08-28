@@ -1,5 +1,3 @@
-.. _commands:
-
 # Pipenv Commands
 
 The commands reference for pipenv (incomplete)
@@ -45,13 +43,13 @@ The user can provide these additional parameters:
 
 ## uninstall
 
-``$ pipenv uninstall`` supports all of the parameters in `pipenv install <#pipenv-install>`_,
-as well as two additional options, ``--all`` and ``--all-dev``.
+``$ pipenv uninstall`` supports all of the parameters in `pipenv install, as well as two additional options,
+``--all`` and ``--all-dev``.
 
-    - ``--all`` — This parameter will purge all files from the virtual environment,
+    - --all — This parameter will purge all files from the virtual environment,
       but leave the Pipfile untouched.
 
-    - ``--all-dev`` — This parameter will remove all of the development packages from
+    - --all-dev — This parameter will remove all of the development packages from
       the virtual environment, and remove them from the Pipfile.
 
 
