@@ -87,7 +87,7 @@ def ensure_project(
     os.environ["PIP_PYTHON_PATH"] = project.python(system=system)
 
 
-@lru_cache()
+@lru_cache
 def get_setuptools_version():
     # type: () -> Optional[STRING_TYPE]
 
