@@ -266,7 +266,7 @@ class Resolver:
         pip_args.extend(["--cache-dir", self.project.s.PIPENV_CACHE_DIR])
         return pip_args
 
-    @cached_property
+    @property
     def pip_args(self):
         use_pep517 = environments.get_from_env("USE_PEP517", prefix="PIP")
         build_isolation = environments.get_from_env("BUILD_ISOLATION", prefix="PIP")
