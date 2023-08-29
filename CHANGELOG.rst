@@ -1,3 +1,17 @@
+2023.8.28 (2023-08-28)
+======================
+Pipenv 2023.8.28 (2023-08-28)
+=============================
+
+
+Bug Fixes
+---------
+
+- Revert change that caused the credentials in source url issue.  `#5878 <https://github.com/pypa/pipenv/issues/5878>`_
+- Do not treat named requirements as file installs just becacuse a match path exists; better handling of editable keyword for local file installs.
+  Handle additional edge cases in the setup.py ast parser logic for trying to determine local install package name.  `#5885 <https://github.com/pypa/pipenv/issues/5885>`_
+
+
 2023.8.26 (2023-08-26)
 ======================
 Pipenv 2023.8.26 (2023-08-26)
