@@ -40,6 +40,7 @@ from pipenv.utils.requirementslib import (
 )
 
 from .constants import (
+    INSTALLABLE_EXTENSIONS,
     RELEVANT_PROJECT_FILES,
     REMOTE_SCHEMES,
     SCHEME_LIST,
@@ -363,16 +364,8 @@ def is_pinned_requirement(ireq):
 
 
 def is_editable_path(path):
-    not_editable = [".whl", ".zip", ".tar", ".tar.gz", ".tgz"]
-    if os.path.isfile(path):
-        return False
     if os.path.isdir(path):
         return True
-    if os.path.splitext(path)[1] in not_editable:
-        return False
-    for ext in not_editable:
-        if path.endswith(ext):
-            return False
     return False
 
 
@@ -524,33 +517,42 @@ def parse_setup_file(content):
     try:
         tree = ast.parse(content)
         for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "setup":
-                for keyword in node.keywords:
-                    if keyword.arg == "name":
-                        if isinstance(keyword.value, ast.Str):
-                            return keyword.value.s
-                        elif sys.version_info < (3, 9) and isinstance(
-                            keyword.value, ast.Subscript
-                        ):
-                            if (
-                                isinstance(keyword.value.value, ast.Name)
-                                and keyword.value.value.id == "about"
+            if isinstance(node, ast.Call):
+                if (
+                    getattr(node.func, "id", "") == "setup"
+                    or isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "setup"
+                ):
+                    for keyword in node.keywords:
+                        if keyword.arg == "name":
+                            if isinstance(keyword.value, ast.Str):
+                                return keyword.value.s
+                            elif isinstance(keyword.value, ast.Constant) and isinstance(
+                                keyword.value.value, str
                             ):
-                                if isinstance(
-                                    keyword.value.slice, ast.Index
-                                ) and isinstance(keyword.value.slice.value, ast.Str):
-                                    return keyword.value.slice.value.s
-                            return keyword.value.s
-                        elif sys.version_info >= (3, 9) and isinstance(
-                            keyword.value, ast.Subscript
-                        ):
-                            # If the name is a lookup in a dictionary, only handle the case where it's a static lookup
-                            if (
-                                isinstance(keyword.value.value, ast.Name)
-                                and isinstance(keyword.value.slice, ast.Str)
-                                and keyword.value.value.id == "about"
+                                return keyword.value.value
+                            elif sys.version_info < (3, 9) and isinstance(
+                                keyword.value, ast.Subscript
                             ):
-                                return keyword.value.slice.s
+                                if (
+                                    isinstance(keyword.value.value, ast.Name)
+                                    and keyword.value.value.id == "about"
+                                ):
+                                    if isinstance(
+                                        keyword.value.slice, ast.Index
+                                    ) and isinstance(keyword.value.slice.value, ast.Str):
+                                        return keyword.value.slice.value.s
+                                return keyword.value.s
+                            elif sys.version_info >= (3, 9) and isinstance(
+                                keyword.value, ast.Subscript
+                            ):
+                                # If the name is a lookup in a dictionary, only handle the case where it's a static lookup
+                                if (
+                                    isinstance(keyword.value.value, ast.Name)
+                                    and isinstance(keyword.value.slice, ast.Str)
+                                    and keyword.value.value.id == "about"
+                                ):
+                                    return keyword.value.slice.s
 
     except ValueError:
         pass  # We will not exec unsafe code to determine the name pre-resolver
@@ -734,7 +736,9 @@ def determine_package_name(package: InstallRequirement):
             ".zip"
         ):
             req_name = find_package_name_from_zipfile(package.link.file_path)
-        elif package.link.file_path.endswith(".tar.gz"):
+        elif package.link.file_path.endswith(
+            ".tar.gz"
+        ) or package.link.file_path.endswith(".tar.bz2"):
             req_name = find_package_name_from_tarball(package.link.file_path)
         else:
             req_name = find_package_name_from_directory(package.link.file_path)
@@ -888,19 +892,14 @@ def expansive_install_req_from_line(
         for logging purposes in case of an error.
     """
     name = name.strip("'")
-    editable = False
-    if name.startswith("-e "):
-        # Editable requirement
-        editable = True
+    if name.startswith("-e "):  # Editable requirements
         name = name.split("-e ")[1]
+        return install_req_from_editable(name, line_source)
     if has_name_with_extras(name):
         name = name.split(" @ ", 1)[1]
 
     if expand_env:
         name = expand_env_variables(name)
-
-    if editable or os.path.isdir(name):
-        return install_req_from_editable(name, line_source)
 
     vcs_part = name
     if "@ " in name:  # Check for new style vcs lines
@@ -919,7 +918,9 @@ def expansive_install_req_from_line(
                 constraint=constraint,
                 user_supplied=user_supplied,
             )
-    if urlparse(name).scheme in ("http", "https", "file") or os.path.isfile(name):
+    if urlparse(name).scheme in ("http", "https", "file") or any(
+        name.endswith(s) for s in INSTALLABLE_EXTENSIONS
+    ):
         parts = parse_req_from_line(name, line_source)
     else:
         # It's a requirement

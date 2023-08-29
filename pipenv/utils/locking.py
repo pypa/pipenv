@@ -91,12 +91,14 @@ def format_requirement_for_lockfile(
         entry["extras"] = sorted(req.extras)
     if isinstance(pipfile_entry, dict) and pipfile_entry.get("file"):
         entry["file"] = pipfile_entry["file"]
-        entry["editable"] = True
+        if pipfile_entry.get("editable"):
+            entry["editable"] = pipfile_entry.get("editable")
         entry.pop("version", None)
         entry.pop("index", None)
     elif isinstance(pipfile_entry, dict) and pipfile_entry.get("path"):
         entry["path"] = pipfile_entry["path"]
-        entry["editable"] = True
+        if pipfile_entry.get("editable"):
+            entry["editable"] = pipfile_entry.get("editable")
         entry.pop("version", None)
         entry.pop("index", None)
     return name, entry
