@@ -36,6 +36,8 @@ RELEVANT_PROJECT_FILES = (
     "pyproject.toml",
 )
 
+INSTALLABLE_EXTENSIONS = (".whl", ".zip", ".tar", ".tar.gz", ".tgz")
+
 
 def is_type_checking():
     try:

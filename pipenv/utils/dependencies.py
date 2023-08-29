@@ -40,6 +40,7 @@ from pipenv.utils.requirementslib import (
 )
 
 from .constants import (
+    INSTALLABLE_EXTENSIONS,
     RELEVANT_PROJECT_FILES,
     REMOTE_SCHEMES,
     SCHEME_LIST,
@@ -363,7 +364,7 @@ def is_pinned_requirement(ireq):
 
 
 def is_editable_path(path):
-    not_editable = [".whl", ".zip", ".tar", ".tar.gz", ".tgz"]
+    not_editable = INSTALLABLE_EXTENSIONS
     if os.path.isfile(path):
         return False
     if os.path.isdir(path):
@@ -743,7 +744,9 @@ def determine_package_name(package: InstallRequirement):
             ".zip"
         ):
             req_name = find_package_name_from_zipfile(package.link.file_path)
-        elif package.link.file_path.endswith(".tar.gz"):
+        elif package.link.file_path.endswith(
+            ".tar.gz"
+        ) or package.link.file_path.endswith(".tar.bz2"):
             req_name = find_package_name_from_tarball(package.link.file_path)
         else:
             req_name = find_package_name_from_directory(package.link.file_path)
@@ -923,7 +926,9 @@ def expansive_install_req_from_line(
                 constraint=constraint,
                 user_supplied=user_supplied,
             )
-    if urlparse(name).scheme in ("http", "https", "file"):
+    if urlparse(name).scheme in ("http", "https", "file") or any(
+        name.endswith(s) for s in INSTALLABLE_EXTENSIONS
+    ):
         parts = parse_req_from_line(name, line_source)
     else:
         # It's a requirement
