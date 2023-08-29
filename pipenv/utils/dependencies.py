@@ -364,16 +364,8 @@ def is_pinned_requirement(ireq):
 
 
 def is_editable_path(path):
-    not_editable = INSTALLABLE_EXTENSIONS
-    if os.path.isfile(path):
-        return False
     if os.path.isdir(path):
         return True
-    if os.path.splitext(path)[1] in not_editable:
-        return False
-    for ext in not_editable:
-        if path.endswith(ext):
-            return False
     return False
 
 
