@@ -450,9 +450,10 @@ class Resolver:
     def _fold_markers(self, dependency_tree, install_req):
         comes_from = dependency_tree[install_req.name]
         if comes_from == "Pipfile":
-            if isinstance(self.pipfile_entries[install_req.name], dict):
-                sys_platform = self.pipfile_entries[install_req.name].get("sys_platform")
-                markers = self.pipfile_entries[install_req.name].get("markers")
+            pipfile_entry = self.pipfile_entries.get(install_req.name)
+            if pipfile_entry and isinstance(pipfile_entry, dict):
+                sys_platform = pipfile_entry.get("sys_platform")
+                markers = pipfile_entry.get("markers")
                 if sys_platform:
                     sys_platform = f"sys_platform {sys_platform}"
                 if markers and sys_platform:
