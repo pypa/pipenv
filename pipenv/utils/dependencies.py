@@ -645,10 +645,11 @@ def determine_path_specifier(package: InstallRequirement):
         if package.link.scheme in ["http", "https"]:
             return package.link.url_without_fragment
         if package.link.scheme == "file":
+            abs_path = Path(package.link.file_path).resolve()
             try:
-                return Path(package.link.file_path).relative_to(Path.cwd()).as_posix()
+                return abs_path.relative_to(Path.cwd()).as_posix()
             except ValueError:
-                return Path(package.link.file_path).as_posix()
+                return abs_path.as_posix()
 
 
 def determine_vcs_specifier(package: InstallRequirement):
