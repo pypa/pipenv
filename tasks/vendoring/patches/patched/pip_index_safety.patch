@@ -1,5 +1,5 @@
 diff --git a/pipenv/patched/pip/_internal/index/collector.py b/pipenv/patched/pip/_internal/index/collector.py
-index 0120610c..ead5227e 100644
+index b3e293ea3..f27a88725 100644
 --- a/pipenv/patched/pip/_internal/index/collector.py
 +++ b/pipenv/patched/pip/_internal/index/collector.py
 @@ -412,9 +412,11 @@ class LinkCollector:
@@ -36,7 +36,7 @@ index 0120610c..ead5227e 100644
          return link_collector
 
 diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patched/pip/_internal/models/search_scope.py
-index fe61e8116..dab85fbb9 100644
+index fe61e8116..98a2cc97f 100644
 --- a/pipenv/patched/pip/_internal/models/search_scope.py
 +++ b/pipenv/patched/pip/_internal/models/search_scope.py
 @@ -3,7 +3,7 @@ import logging
@@ -57,7 +57,7 @@ index fe61e8116..dab85fbb9 100644
 
      @classmethod
      def create(
-@@ -28,6 +28,7 @@ class SearchScope:
+@@ -28,6 +28,8 @@ class SearchScope:
          find_links: List[str],
          index_urls: List[str],
          no_index: bool,
@@ -66,16 +66,16 @@ index fe61e8116..dab85fbb9 100644
      ) -> "SearchScope":
          """
          Create a SearchScope object after normalizing the `find_links`.
-@@ -62,6 +64,7 @@ class SearchScope:
+@@ -62,6 +64,8 @@ class SearchScope:
              find_links=built_find_links,
              index_urls=index_urls,
              no_index=no_index,
 +            index_lookup=index_lookup,
-+            index_restricted: bool = False,
++            index_restricted=index_restricted,
          )
 
      def __init__(
-@@ -69,10 +73,12 @@ class SearchScope:
+@@ -69,10 +73,14 @@ class SearchScope:
          find_links: List[str],
          index_urls: List[str],
          no_index: bool,
