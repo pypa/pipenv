@@ -447,9 +447,39 @@ class Resolver:
                 self.resolved_tree.update(self.results)
         return self.resolved_tree
 
+    def _fold_markers(self, dependency_tree, install_req):
+        comes_from = dependency_tree[install_req.name]
+        if comes_from == "Pipfile":
+            if isinstance(self.pipfile_entries[install_req.name], dict):
+                sys_platform = self.pipfile_entries[install_req.name].get("sys_platform")
+                markers = self.pipfile_entries[install_req.name].get("markers")
+                if sys_platform:
+                    sys_platform = f"sys_platform {sys_platform}"
+                if markers and sys_platform:
+                    return f"{sys_platform} and ({markers})"
+                elif markers:
+                    return markers
+                elif sys_platform:
+                    return sys_platform
+        else:
+            markers = self._fold_markers(dependency_tree, comes_from)
+            # if markers and str(markers) not in str(install_req.markers):
+            # combined_markers = merge_markers(markers, install_req.markers)
+            self.markers_lookup[install_req.name] = markers
+            return markers
+
     def resolve_constraints(self):
         from .markers import marker_from_specifier
 
+        # Build mapping of where package originates from
+        comes_from = {}
+        for result in self.resolved_tree:
+            if isinstance(result.comes_from, InstallRequirement):
+                comes_from[result.name] = result.comes_from
+            else:
+                comes_from[result.name] = "Pipfile"
+
+        # Build up the results tree with markers
         new_tree = set()
         for result in self.resolved_tree:
             if result.markers:
@@ -475,6 +505,11 @@ class Resolver:
                                 err=True,
                             )
             new_tree.add(result)
+
+        # Fold markers
+        for result in new_tree:
+            self._fold_markers(comes_from, result)
+
         self.resolved_tree = new_tree
 
     def collect_hashes(self, ireq):
