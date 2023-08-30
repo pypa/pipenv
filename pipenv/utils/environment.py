@@ -41,15 +41,14 @@ def load_dot_env(project, as_dict=False, quiet=False):
 
 def ensure_environment():
     # Skip this on Windows...
-    if os.name != "nt":
-        if "LANG" not in os.environ:
-            click.echo(
-                "{}: the environment variable {} is not set!"
-                "\nWe recommend setting this in {} (or equivalent) for "
-                "proper expected behavior.".format(
-                    click.style("Warning", fg="red", bold=True),
-                    click.style("LANG", bold=True),
-                    click.style("~/.profile", fg="green"),
-                ),
-                err=True,
-            )
+    if os.name != "nt" and "LANG" not in os.environ:
+        click.echo(
+            "{}: the environment variable {} is not set!"
+            "\nWe recommend setting this in {} (or equivalent) for "
+            "proper expected behavior.".format(
+                click.style("Warning", fg="red", bold=True),
+                click.style("LANG", bold=True),
+                click.style("~/.profile", fg="green"),
+            ),
+            err=True,
+        )

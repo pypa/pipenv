@@ -525,7 +525,7 @@ class Environment:
             if not loc.exists():
                 continue
             for pth in loc.iterdir():
-                if not pth.suffix == ".egg-link":
+                if pth.suffix != ".egg-link":
                     continue
                 contents = [
                     normalize_path(line.strip()) for line in pth.read_text().splitlines()
@@ -688,10 +688,10 @@ class Environment:
 
         tree = PackageDAG.from_pkgs(packages).sort()
         branch_keys = {r.key for r in flatten(tree.values())}
-        if pkg is not None:
-            nodes = [p for p in tree.keys() if p.key == pkg]
+        if pkg is None:
+            nodes = [p for p in tree if p.key not in branch_keys]
         else:
-            nodes = [p for p in tree.keys() if p.key not in branch_keys]
+            nodes = [p for p in tree if p.key == pkg]
         key_tree = {k.key: v for k, v in tree.items()}
 
         return [self._get_requirements_for_package(p, key_tree) for p in nodes]

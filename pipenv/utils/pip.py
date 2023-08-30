@@ -136,7 +136,7 @@ def get_pip_args(
         "src_dir": src_dir,
     }
     arg_set = ["--no-input"] if project.settings.get("disable_pip_input", True) else []
-    for key in arg_map.keys():
+    for key in arg_map:
         if key in locals() and locals().get(key):
             arg_set.extend(arg_map.get(key))
     arg_set += extra_pip_args or []

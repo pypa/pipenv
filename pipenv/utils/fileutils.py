@@ -212,12 +212,9 @@ def create_tracked_tempdir(*args: Any, **kwargs: Any) -> str:
 def check_for_unc_path(path):
     # type: (Path) -> bool
     """Checks to see if a pathlib `Path` object is a unc path or not."""
-    if (
+    return bool(
         os.name == "nt"
         and len(path.drive) > 2
         and not path.drive[0].isalpha()
         and path.drive[1] != ":"
-    ):
-        return True
-    else:
-        return False
+    )
