@@ -465,7 +465,8 @@ class Resolver:
             markers = self._fold_markers(dependency_tree, comes_from)
             # if markers and str(markers) not in str(install_req.markers):
             # combined_markers = merge_markers(markers, install_req.markers)
-            self.markers_lookup[install_req.name] = markers
+            if markers:
+                self.markers_lookup[install_req.name] = markers
             return markers
 
     def resolve_constraints(self):
