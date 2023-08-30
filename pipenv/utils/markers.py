@@ -54,6 +54,8 @@ class PipenvMarkers(BaseModel):
             marker_strings.append(pipfile.get("markers"))
         if pipfile.get("sys_platform"):
             marker_strings.append(f"sys_platform '{pipfile['sys_platform']}'")
+        if pipfile.get("platform_machine"):
+            marker_strings.append(f"platform_machine '{pipfile['platform_machine']}'")
         markers = set()
         for marker in marker_strings:
             markers.add(marker)

@@ -239,10 +239,10 @@ class Resolver:
             install_reqs=install_reqs,
             pipfile_entries=pipfile_entries,
         )
-        for package_name, dep in original_deps.items():
-            install_req = install_reqs[package_name]
-            if resolver.check_if_package_req_skipped(install_req):
-                resolver.skipped[package_name] = dep
+        # for package_name, dep in original_deps.items():
+        #     install_req = install_reqs[package_name]
+        #     if resolver.check_if_package_req_skipped(install_req):
+        #         resolver.skipped[package_name] = dep
         resolver.initial_constraints = constraints
         resolver.index_lookup = index_lookup
         resolver.finder.index_lookup = index_lookup
@@ -447,25 +447,33 @@ class Resolver:
                 self.resolved_tree.update(self.results)
         return self.resolved_tree
 
+    def _get_pipfile_markers(self, pipfile_entry):
+        sys_platform = pipfile_entry.get("sys_platform")
+        platform_machine = pipfile_entry.get("platform_machine")
+        markers = pipfile_entry.get("markers")
+
+        if sys_platform:
+            sys_platform = f"sys_platform {sys_platform}"
+        if platform_machine:
+            platform_machine = f"platform_machine {platform_machine}"
+
+        combined_markers = [
+            f"({marker})"
+            for marker in [sys_platform, markers, platform_machine]
+            if marker
+        ]
+
+        return " and ".join(combined_markers).strip()
+
     def _fold_markers(self, dependency_tree, install_req):
         comes_from = dependency_tree[install_req.name]
+
         if comes_from == "Pipfile":
             pipfile_entry = self.pipfile_entries.get(install_req.name)
             if pipfile_entry and isinstance(pipfile_entry, dict):
-                sys_platform = pipfile_entry.get("sys_platform")
-                markers = pipfile_entry.get("markers")
-                if sys_platform:
-                    sys_platform = f"sys_platform {sys_platform}"
-                if markers and sys_platform:
-                    return f"{sys_platform} and ({markers})"
-                elif markers:
-                    return markers
-                elif sys_platform:
-                    return sys_platform
+                return self._get_pipfile_markers(pipfile_entry)
         else:
             markers = self._fold_markers(dependency_tree, comes_from)
-            # if markers and str(markers) not in str(install_req.markers):
-            # combined_markers = merge_markers(markers, install_req.markers)
             if markers:
                 self.markers_lookup[install_req.name] = markers
             return markers
