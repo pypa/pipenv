@@ -239,10 +239,10 @@ class Resolver:
             install_reqs=install_reqs,
             pipfile_entries=pipfile_entries,
         )
-        # for package_name, dep in original_deps.items():
-        #     install_req = install_reqs[package_name]
-        #     if resolver.check_if_package_req_skipped(install_req):
-        #         resolver.skipped[package_name] = dep
+        for package_name, dep in original_deps.items():
+            install_req = install_reqs[package_name]
+            if resolver.check_if_package_req_skipped(install_req):
+                resolver.skipped[package_name] = dep
         resolver.initial_constraints = constraints
         resolver.index_lookup = index_lookup
         resolver.finder.index_lookup = index_lookup
