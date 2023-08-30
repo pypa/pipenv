@@ -646,10 +646,28 @@ def determine_path_specifier(package: InstallRequirement):
             return package.link.url_without_fragment
         if package.link.scheme == "file":
             abs_path = Path(package.link.file_path).resolve()
+            current_dir = Path.cwd()
+
             try:
-                return abs_path.relative_to(Path.cwd()).as_posix()
+                relative_path = abs_path.relative_to(current_dir)
+                return relative_path.as_posix()
             except ValueError:
-                return abs_path.as_posix()
+                # If the direct relative_to fails, manually compute the relative path
+                common_parts = 0
+                for part_a, part_b in zip(abs_path.parts, current_dir.parts):
+                    if part_a == part_b:
+                        common_parts += 1
+                    else:
+                        break
+
+                # Number of ".." needed are the extra parts in the current directory
+                # beyond the common parts
+                up_levels = [".."] * (len(current_dir.parts) - common_parts)
+                # The relative path is constructed by going up as needed and then
+                # appending the non-common parts of the absolute path
+                rel_parts = up_levels + list(abs_path.parts[common_parts:])
+                relative_path = Path(*rel_parts)
+                return relative_path.as_posix()
 
 
 def determine_vcs_specifier(package: InstallRequirement):
