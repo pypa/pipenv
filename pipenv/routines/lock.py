@@ -1,3 +1,5 @@
+import contextlib
+
 from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
 )
@@ -54,10 +56,8 @@ def do_lock(
             )
 
         # Prune old lockfile category as new one will be created.
-        try:
+        with contextlib.suppress(KeyError):
             old_lock_data = lockfile.pop(category)
-        except KeyError:
-            pass
 
         from pipenv.utils.resolver import venv_resolve_deps
 

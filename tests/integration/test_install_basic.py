@@ -31,8 +31,8 @@ def test_mirror_install(pipenv_instance_pypi):
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
         assert len(p.lockfile["_meta"]["sources"]) == 1
-        assert "https://pypi.org/simple" == p.pipfile["source"][0]["url"]
-        assert "https://pypi.org/simple" == p.lockfile["_meta"]["sources"][0]["url"]
+        assert p.pipfile["source"][0]["url"] == "https://pypi.org/simple"
+        assert p.lockfile["_meta"]["sources"][0]["url"] == "https://pypi.org/simple"
 
         assert "dataclasses-json" in p.pipfile["packages"]
         assert "dataclasses-json" in p.lockfile["default"]
@@ -345,21 +345,20 @@ def test_editable_no_args(pipenv_instance_pypi):
 def test_install_venv_project_directory(pipenv_instance_pypi):
     """Test the project functionality during virtualenv creation.
     """
-    with pipenv_instance_pypi() as p:
-        with temp_environ(), TemporaryDirectory(
-            prefix="pipenv-", suffix="temp_workon_home"
-        ) as workon_home:
-            os.environ["WORKON_HOME"] = workon_home
+    with pipenv_instance_pypi() as p, temp_environ(), TemporaryDirectory(
+        prefix="pipenv-", suffix="temp_workon_home"
+    ) as workon_home:
+        os.environ["WORKON_HOME"] = workon_home
 
-            c = p.pipenv("install six")
-            assert c.returncode == 0
+        c = p.pipenv("install six")
+        assert c.returncode == 0
 
-            venv_loc = None
-            for line in c.stderr.splitlines():
-                if line.startswith("Virtualenv location:"):
-                    venv_loc = Path(line.split(":", 1)[-1].strip())
-            assert venv_loc is not None
-            assert venv_loc.joinpath(".project").exists()
+        venv_loc = None
+        for line in c.stderr.splitlines():
+            if line.startswith("Virtualenv location:"):
+                venv_loc = Path(line.split(":", 1)[-1].strip())
+        assert venv_loc is not None
+        assert venv_loc.joinpath(".project").exists()
 
 
 @pytest.mark.cli

@@ -604,13 +604,12 @@ def do_init(
     if categories is None:
         categories = []
 
-    if not system and not project.s.PIPENV_USE_SYSTEM:
-        if not project.virtualenv_exists:
-            try:
-                do_create_virtualenv(project, python=python, pypi_mirror=pypi_mirror)
-            except KeyboardInterrupt:
-                cleanup_virtualenv(project, bare=False)
-                sys.exit(1)
+    if not system and not project.s.PIPENV_USE_SYSTEM and not project.virtualenv_exists:
+        try:
+            do_create_virtualenv(project, python=python, pypi_mirror=pypi_mirror)
+        except KeyboardInterrupt:
+            cleanup_virtualenv(project, bare=False)
+            sys.exit(1)
     # Ensure the Pipfile exists.
     if not deploy:
         ensure_pipfile(project, system=system)

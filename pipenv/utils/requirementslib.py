@@ -63,15 +63,14 @@ VCS_SCHEMES = [
 def strip_ssh_from_git_uri(uri):
     # type: (S) -> S
     """Return git+ssh:// formatted URI to git+git@ format."""
-    if isinstance(uri, str):
-        if "git+ssh://" in uri:
-            parsed = urlparse(uri)
-            # split the path on the first separating / so we can put the first segment
-            # into the 'netloc' section with a : separator
-            path_part, _, path = parsed.path.lstrip("/").partition("/")
-            path = f"/{path}"
-            parsed = parsed._replace(netloc=f"{parsed.netloc}:{path_part}", path=path)
-            uri = urlunparse(parsed).replace("git+ssh://", "git+", 1)
+    if isinstance(uri, str) and "git+ssh://" in uri:
+        parsed = urlparse(uri)
+        # split the path on the first separating / so we can put the first segment
+        # into the 'netloc' section with a : separator
+        path_part, _, path = parsed.path.lstrip("/").partition("/")
+        path = f"/{path}"
+        parsed = parsed._replace(netloc=f"{parsed.netloc}:{path_part}", path=path)
+        uri = urlunparse(parsed).replace("git+ssh://", "git+", 1)
     return uri
 
 
@@ -94,7 +93,7 @@ def is_vcs(pipfile_entry):
     # type: (PipfileType) -> bool
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if isinstance(pipfile_entry, Mapping):
-        return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
+        return any(key for key in pipfile_entry if key in VCS_LIST)
 
     elif isinstance(pipfile_entry, str):
         if not is_valid_url(pipfile_entry) and pipfile_entry.startswith("git+"):
@@ -136,9 +135,7 @@ def convert_entry_to_path(path):
 
     elif "path" in path:
         path = path["path"]
-    if not os.name == "nt":
-        return os.fsdecode(path)
-    return Path(os.fsdecode(path)).as_posix()
+    return Path(os.fsdecode(path)).as_posix() if os.name == "nt" else os.fsdecode(path)
 
 
 def is_installable_file(path):

@@ -2,7 +2,7 @@ import copy
 import itertools
 import os
 import stat
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from json import JSONDecodeError
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -61,10 +61,7 @@ def format_requirement_for_lockfile(
     if req.link and req.link.is_vcs:
         vcs = req.link.scheme.split("+", 1)[0]
         entry["ref"] = determine_vcs_revision_hash(req, vcs, pipfile_entry.get("ref"))
-        if name in original_deps:
-            entry[vcs] = original_deps[name]
-        else:
-            entry[vcs] = req.link.url
+        entry[vcs] = original_deps.get(name, req.link.url)
         if pipfile_entry.get("subdirectory"):
             entry["subdirectory"] = pipfile_entry["subdirectory"]
     if req.req:
@@ -218,18 +215,16 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None) -> 
         delete=False,
     )
     # set permissions to 0644
-    try:
+    with suppress(OSError):
         os.chmod(f.name, stat.S_IWUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
-    except OSError:
-        pass
+
     try:
         yield f
     except BaseException:
         f.close()
-        try:
+        with suppress(OSError):
             os.remove(f.name)
-        except OSError:
-            pass
+
         raise
     else:
         f.close()

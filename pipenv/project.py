@@ -21,6 +21,8 @@ try:
 except ImportError:
     from pipenv.vendor import tomli as toml
 
+import contextlib
+
 from pipenv.cmdparse import Script
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
@@ -208,10 +210,8 @@ class Project:
 
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
-            try:
+            with contextlib.suppress(TypeError, AttributeError):
                 os.chdir(self.project_directory)
-            except (TypeError, AttributeError):
-                pass
 
     def path_to(self, p: str) -> str:
         """Returns the absolute path to a given relative path."""
@@ -1079,7 +1079,7 @@ class Project:
         if section is None:
             section = {}
         package_name = pep423_name(package_name)
-        for name in section.keys():
+        for name in section:
             if pep423_name(name) == package_name:
                 return name
         return None
@@ -1218,10 +1218,9 @@ class Project:
         try:
             source = self.get_source(url=index)
         except SourceNotFound:
-            try:
+            with contextlib.suppress(SourceNotFound):
                 source = self.get_source(name=index)
-            except SourceNotFound:
-                pass
+
         if source is not None:
             return source["name"]
         source = {"url": index, "verify_ssl": verify_ssl}
@@ -1312,7 +1311,7 @@ class Project:
         """
         # Casing for section.
         changed_values = False
-        unknown_names = [k for k in section.keys() if k not in set(self.proper_names)]
+        unknown_names = [k for k in section if k not in set(self.proper_names)]
         # Replace each package with proper casing.
         for dep in unknown_names:
             try:
