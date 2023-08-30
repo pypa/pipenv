@@ -30,7 +30,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
     except RuntimeError:
         pass
     else:
-        if not os.name == "nt":  # bugfix #4388
+        if os.name != "nt":  # bugfix #4388
             python_path = Path(python_path).as_posix()
             pipdeptree_path = Path(pipdeptree_path).as_posix()
 

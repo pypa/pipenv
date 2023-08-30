@@ -18,6 +18,7 @@ from pipenv.vendor import tomlkit
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.funktools import handle_remove_readonly
 from pipenv.utils.shell import temp_environ
+import contextlib
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
@@ -61,7 +62,7 @@ def check_github_ssh():
         # registered with GitHub. Otherwise, the command will fail with
         # return_code=255 and say 'Permission denied (publickey).'
         c = subprocess_run('ssh -o StrictHostKeyChecking=no -o CheckHostIP=no -T git@github.com', timeout=30, shell=True)
-        res = True if c.returncode == 1 else False
+        res = c.returncode == 1
     except KeyboardInterrupt:
         warnings.warn(
             "KeyboardInterrupt while checking GitHub ssh access", RuntimeWarning, stacklevel=1
@@ -145,9 +146,8 @@ class _Pipfile:
 
     def remove(self, package, dev=False):
         section = "packages" if not dev else "dev-packages"
-        if not dev and package not in self.document[section]:
-            if package in self.document["dev-packages"]:
-                section = "dev-packages"
+        if not dev and package not in self.document[section] and package in self.document["dev-packages"]:
+            section = "dev-packages"
         del self.document[section][package]
         self.write()
 
@@ -164,7 +164,7 @@ class _Pipfile:
         if not self.document.get("source"):
             source_table = tomlkit.table()
             source_table["url"] = self.index
-            source_table["verify_ssl"] = True if self.index.startswith("https") else False
+            source_table["verify_ssl"] = bool(self.index.startswith("https"))
             source_table["name"] = "pipenv_test_index"
             self.document["source"].append(source_table)
         return tomlkit.dumps(self.document)
@@ -204,10 +204,9 @@ class _PipenvInstance:
         self.pipfile_path = p_path
 
         if pipfile:
-            try:
+            with contextlib.suppress(FileNotFoundError):
                 os.remove(p_path)
-            except FileNotFoundError:
-                pass
+
             with open(p_path, 'a'):
                 os.utime(p_path, None)
 
@@ -221,10 +220,9 @@ class _PipenvInstance:
     def __exit__(self, *args):
         warn_msg = 'Failed to remove resource: {!r}'
         if self.pipfile_path:
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(self.pipfile_path)
-            except OSError:
-                pass
+
         os.chdir(self.original_dir)
         if self._path:
             try:

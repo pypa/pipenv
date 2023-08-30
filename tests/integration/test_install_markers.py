@@ -157,10 +157,9 @@ def test_resolver_unique_markers(pipenv_instance_pypi):
 @pytest.mark.project
 @pytest.mark.needs_internet
 def test_environment_variable_value_does_not_change_hash(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
-        with temp_environ():
-            with open(p.pipfile_path, 'w') as f:
-                f.write("""
+    with pipenv_instance_private_pypi() as p, temp_environ():
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
 [[source]]
 url = 'https://${PYPI_USERNAME}:${PYPI_PASSWORD}@pypi.org/simple'
 verify_ssl = true
@@ -169,24 +168,24 @@ name = 'pypi'
 [packages]
 six = "*"
 """)
-            project = Project()
+        project = Project()
 
-            os.environ['PYPI_USERNAME'] = 'whatever'
-            os.environ['PYPI_PASSWORD'] = 'pass'
-            assert project.get_lockfile_hash() is None
+        os.environ['PYPI_USERNAME'] = 'whatever'
+        os.environ['PYPI_PASSWORD'] = 'pass'
+        assert project.get_lockfile_hash() is None
 
-            c = p.pipenv('install')
-            assert c.returncode == 0
-            lock_hash = project.get_lockfile_hash()
-            assert lock_hash is not None
-            assert lock_hash == project.calculate_pipfile_hash()
+        c = p.pipenv('install')
+        assert c.returncode == 0
+        lock_hash = project.get_lockfile_hash()
+        assert lock_hash is not None
+        assert lock_hash == project.calculate_pipfile_hash()
 
-            assert c.returncode == 0
-            assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
+        assert c.returncode == 0
+        assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
 
-            os.environ['PYPI_PASSWORD'] = 'pass2'
-            assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
+        os.environ['PYPI_PASSWORD'] = 'pass2'
+        assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
 
-            with open(p.pipfile_path, 'a') as f:
-                f.write('requests = "==2.14.0"\n')
-            assert project.get_lockfile_hash() != project.calculate_pipfile_hash()
+        with open(p.pipfile_path, 'a') as f:
+            f.write('requests = "==2.14.0"\n')
+        assert project.get_lockfile_hash() != project.calculate_pipfile_hash()

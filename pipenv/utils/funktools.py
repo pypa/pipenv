@@ -348,13 +348,12 @@ def handle_remove_readonly(func, path, exc):
         try:
             func(path)
         except (OSError, FileNotFoundError, PermissionError) as e:  # noqa:B014
-            if e.errno in PERM_ERRORS:
-                if e.errno != errno.ENOENT:  # File still exists
-                    warnings.warn(
-                        default_warning_message.format(path),
-                        ResourceWarning,
-                        stacklevel=2,
-                    )
+            if e.errno in PERM_ERRORS and e.errno != errno.ENOENT:  # File still exists
+                warnings.warn(
+                    default_warning_message.format(path),
+                    ResourceWarning,
+                    stacklevel=2,
+                )
             return
     else:
         raise exc_exception
