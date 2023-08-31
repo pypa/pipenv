@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import logging
 import os
 import sys
 
@@ -654,6 +655,9 @@ def main(argv=None):
     os.environ["PYTHONIOENCODING"] = "utf-8"
     os.environ["PYTHONUNBUFFERED"] = "1"
     parsed = handle_parsed_args(parsed)
+    if not parsed.verbose:
+        print(parsed.verbose)
+        logging.getLogger("pipenv").setLevel(logging.WARN)
     _main(
         parsed.pre,
         parsed.clear,
