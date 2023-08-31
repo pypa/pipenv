@@ -1,0 +1,1 @@
+Set log level in resolver to WARN when verbose is not passed.
