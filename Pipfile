@@ -19,7 +19,7 @@ typing-extensions = "==4.*"
 waitress = {version = "*", markers="sys_platform == 'win32'"}
 gunicorn = {version = "*", markers="sys_platform == 'linux'"}
 parse = "*"
-importlib-metadata = {version = "*", markers="python_version >= '3.8'"}
+importlib-metadata = {version = "*", markers="python_version < '3.8'"}
 colorama= {version = "*", markers="sys_platform == 'win32'"}
 myst-parser = {extras = ["linkify"], version = "*"}
 invoke = "==2.0.0"
