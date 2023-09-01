@@ -348,7 +348,7 @@ class Project:
 
             return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
 
-        except (ValueError, KeyError, ConnectionError):
+        except Exception:
             if self.s.is_verbose():
                 click.echo(
                     "{}: Error generating hash for {}".format(

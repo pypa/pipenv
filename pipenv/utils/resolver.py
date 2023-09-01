@@ -334,7 +334,7 @@ class Resolver:
         )
         return finder
 
-    def finder(self, ignore_compatibility=False):
+    def finder(self, ignore_compatibility=True):
         finder = self.package_finder
         index_lookup = self.prepare_index_lookup()
         finder._link_collector.index_lookup = index_lookup
