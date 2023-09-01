@@ -1,1 +1,0 @@
-Apply patch for install_search_all_sources = True functionality.
