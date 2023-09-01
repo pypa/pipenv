@@ -448,14 +448,11 @@ class Resolver:
         return self.resolved_tree
 
     def _get_pipfile_markers(self, pipfile_entry):
-        sys_platform = pipfile_entry.get("sys_platform")
-        platform_machine = pipfile_entry.get("platform_machine")
-        markers = pipfile_entry.get("markers")
-
-        if sys_platform:
+        if sys_platform := pipfile_entry.get("sys_platform"):
             sys_platform = f"sys_platform {sys_platform}"
-        if platform_machine:
+        if platform_machine := pipfile_entry.get("platform_machine"):
             platform_machine = f"platform_machine {platform_machine}"
+        markers = pipfile_entry.get("markers")
 
         combined_markers = [
             f"({marker})"
